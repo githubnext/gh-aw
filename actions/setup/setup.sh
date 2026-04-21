@@ -280,6 +280,7 @@ SAFE_OUTPUTS_FILES=(
   "safe_outputs_tools_loader.cjs"
   "safe_outputs_config.cjs"
   "safe_outputs_handlers.cjs"
+  "allowed_extensions_helpers.cjs"
   "safe_outputs_append.cjs"
   "mcp_server_core.cjs"
   "mcp_logger.cjs"
