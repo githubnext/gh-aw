@@ -61,6 +61,20 @@ func TestParseUploadAssetConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "upload-asset config preserves github actions expressions in allowed-exts",
+			input: map[string]any{
+				"upload-asset": map[string]any{
+					"allowed-exts": []any{"${{ inputs.allowed_exts }}", " PNG "},
+				},
+			},
+			expected: &UploadAssetsConfig{
+				BranchName:           "assets/${{ github.workflow }}",
+				MaxSizeKB:            10240,
+				AllowedExts:          []string{"${{ inputs.allowed_exts }}", ".png"},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{},
+			},
+		},
+		{
 			name:     "no upload-asset config",
 			input:    map[string]any{},
 			expected: nil,

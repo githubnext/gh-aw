@@ -18,6 +18,7 @@ const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
+const { parseAllowedExtensionsEnv } = require("./allowed_extensions_helpers.cjs");
 
 /**
  * Create handlers for safe output tools
@@ -27,28 +28,6 @@ const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
  * @returns {Object} An object containing all handler functions
  */
 function createHandlers(server, appendSafeOutput, config = {}) {
-  /**
-   * @param {string} value
-   * @returns {boolean}
-   */
-  const isGitHubExpression = value => {
-    const trimmed = value.trim();
-    return /^\$\{\{[\s\S]*\}\}$/.test(trimmed);
-  };
-
-  /**
-   * @param {string} extValue
-   * @returns {string}
-   */
-  const normalizeAllowedExtension = extValue => {
-    const trimmed = extValue.trim();
-    if (!trimmed) {
-      return "";
-    }
-    const normalized = trimmed.toLowerCase();
-    return normalized.startsWith(".") ? normalized : `.${normalized}`;
-  };
-
   /**
    * Default handler for safe output tools
    * @param {string} type - The tool type
@@ -149,12 +128,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Check file extension - read from environment variable if available
     const ext = path.extname(filePath).toLowerCase();
-    const rawAllowedExtValues = process.env.GH_AW_ASSETS_ALLOWED_EXTS ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(extValue => extValue.trim()) : null;
-    if (rawAllowedExtValues && rawAllowedExtValues.some(isGitHubExpression)) {
+    const parsedAllowedExts = parseAllowedExtensionsEnv(process.env.GH_AW_ASSETS_ALLOWED_EXTS);
+    if (parsedAllowedExts?.hasUnresolvedExpression) {
       throw new Error(`${ERR_CONFIG}: GH_AW_ASSETS_ALLOWED_EXTS contains unresolved GitHub Actions expression. Ensure expressions resolve before safe outputs validation.`);
     }
-    const allowedExts = rawAllowedExtValues
-      ? rawAllowedExtValues.map(normalizeAllowedExtension).filter(Boolean)
+    const allowedExts = parsedAllowedExts
+      ? parsedAllowedExts.normalizedValues
       : [
           // Default set as specified in problem statement
           ".png",
