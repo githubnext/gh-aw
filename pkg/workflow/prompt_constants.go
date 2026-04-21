@@ -22,6 +22,7 @@ const (
 	safeOutputsPromptFile                   = "safe_outputs_prompt.md"
 	safeOutputsCreatePRFile                 = "safe_outputs_create_pull_request.md"
 	safeOutputsPushToBranchFile             = "safe_outputs_push_to_pr_branch.md"
+	safeOutputsCommentMemoryFile            = "safe_outputs_comment_memory.md"
 	safeOutputsAutoCreateIssueFile          = "safe_outputs_auto_create_issue.md"
 	agenticWorkflowsGuideFile               = "agentic_workflows_guide.md"
 	githubMCPToolsPromptFile                = "github_mcp_tools_prompt.md"

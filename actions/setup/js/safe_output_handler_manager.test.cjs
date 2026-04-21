@@ -461,6 +461,32 @@ describe("Safe Output Handler Manager", () => {
       expect(result.outputsWithUnresolvedIds[0].result.number).toBe(100);
     });
 
+    it("tracks comment_memory outputs using managed body for temporary ID resolution", async () => {
+      const messages = [
+        {
+          type: "comment_memory",
+          body: "raw body without ids",
+          memory_id: "default",
+        },
+      ];
+
+      const mockCommentMemoryHandler = vi.fn().mockResolvedValue({
+        repo: "owner/repo",
+        number: 55,
+        commentId: 12345,
+        managedBody: '<gh-aw-comment-memory id="default">\nSee #aw_abc123 for details\n</gh-aw-comment-memory>',
+      });
+
+      const handlers = new Map([["comment_memory", mockCommentMemoryHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.outputsWithUnresolvedIds.length).toBe(1);
+      expect(result.outputsWithUnresolvedIds[0].type).toBe("comment_memory");
+      expect(result.outputsWithUnresolvedIds[0].result.commentId).toBe(12345);
+    });
+
     it("should track outputs needing synthetic updates when temporary ID is resolved", async () => {
       const messages = [
         {

@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+require("./shim.cjs");
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -201,8 +202,10 @@ async function main(config = {}) {
         return {
           success: true,
           url: data.html_url,
+          commentId: data.id,
           number: targetResult.number,
           repo: repoResolution.repo,
+          managedBody,
         };
       }
 
@@ -217,8 +220,10 @@ async function main(config = {}) {
       return {
         success: true,
         url: data.html_url,
+        commentId: data.id,
         number: targetResult.number,
         repo: repoResolution.repo,
+        managedBody,
       };
     } catch (error) {
       logWarning(`comment_memory: upsert failed: ${getErrorMessage(error)}`);

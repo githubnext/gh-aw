@@ -617,7 +617,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
       // Handle add_comment which returns an array of comments
       if (messageType === "add_comment" && Array.isArray(result)) {
-        const contentToCheck = getContentToCheck(messageType, message);
+        const contentToCheck = getContentToCheck(messageType, message, result);
         if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
           // Track each comment that was created with unresolved temp IDs
           for (const comment of result) {
@@ -639,7 +639,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         }
       } else if (result && result.number && result.repo) {
         // Handle create_issue, create_discussion
-        const contentToCheck = getContentToCheck(messageType, message);
+        const contentToCheck = getContentToCheck(messageType, message, result);
         if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
           core.info(`Output ${result.repo}#${result.number} was created with unresolved temporary IDs - tracking for update`);
           outputsWithUnresolvedIds.push({
@@ -756,7 +756,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           // For create_issue, create_discussion - check if body has unresolved IDs
           // This enables synthetic updates to resolve references after all items are created
           if (result && result.number && result.repo) {
-            const contentToCheck = getContentToCheck(deferred.type, deferred.message);
+            const contentToCheck = getContentToCheck(deferred.type, deferred.message, result);
             if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
               core.info(`Output ${result.repo}#${result.number} was created with unresolved temporary IDs - tracking for update`);
               outputsWithUnresolvedIds.push({
@@ -815,9 +815,10 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
  * Get the content field to check for unresolved temporary IDs based on message type
  * @param {string} messageType - Type of the message
  * @param {any} message - The message object
+ * @param {any} [result] - Handler result (used for transformed/managed bodies)
  * @returns {string|null} Content to check for temporary IDs
  */
-function getContentToCheck(messageType, message) {
+function getContentToCheck(messageType, message, result) {
   switch (messageType) {
     case "create_issue":
       return message.body || "";
@@ -825,6 +826,8 @@ function getContentToCheck(messageType, message) {
       return message.body || "";
     case "add_comment":
       return message.body || "";
+    case "comment_memory":
+      return result?.managedBody || message.body || "";
     default:
       return null;
   }
@@ -976,7 +979,7 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
     // since artifact IDs embedded in the body need to be replaced with their real URLs.
     const resolvedArtifacts = artifactUrlMap && artifactUrlMap.size > 0;
     if (temporaryIdMap.size > tracked.originalTempIdMapSize || resolvedArtifacts) {
-      const contentToCheck = getContentToCheck(tracked.type, tracked.message);
+      const contentToCheck = getContentToCheck(tracked.type, tracked.message, tracked.result);
 
       // Only process if we have content to check
       if (contentToCheck !== null && contentToCheck !== "") {
@@ -1011,6 +1014,14 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
                   updateCount++;
                 } else {
                   core.debug(`Skipping synthetic update for comment - comment ID not tracked`);
+                }
+                break;
+              case "comment_memory":
+                if (tracked.result.commentId) {
+                  await updateCommentBody(github, context, tracked.result.repo, tracked.result.commentId, updatedContent, false);
+                  updateCount++;
+                } else {
+                  core.debug(`Skipping synthetic update for comment_memory - comment ID not tracked`);
                 }
                 break;
               default:
