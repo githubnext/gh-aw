@@ -81,7 +81,7 @@ jobs:
         run: |
           # gh aw upgrade calls upgradeExtensionIfOutdated which:
           #   1. Detects current ($PREVIOUS) < latest ($LATEST)
-          #   2. Runs `gh extension upgrade github/gh-aw`
+          #   2. Runs `gh extension upgrade github/gh-aw --force`
           #   3. On Windows: binary is in use → rename+retry workaround is triggered
           #   4. Re-launches the freshly installed binary with --skip-extension-upgrade
           # --pre-releases ensures the upgrade check considers prereleases.

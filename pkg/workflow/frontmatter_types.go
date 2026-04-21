@@ -35,19 +35,20 @@ type RuntimesConfig struct {
 // These scopes can be declared in the workflow's top-level permissions block and are enforced
 // natively by GitHub Actions.
 type GitHubActionsPermissionsConfig struct {
-	Actions            string `json:"actions,omitempty"`
-	Checks             string `json:"checks,omitempty"`
-	Contents           string `json:"contents,omitempty"`
-	Deployments        string `json:"deployments,omitempty"`
-	IDToken            string `json:"id-token,omitempty"`
-	Issues             string `json:"issues,omitempty"`
-	Discussions        string `json:"discussions,omitempty"`
-	Packages           string `json:"packages,omitempty"`
-	Pages              string `json:"pages,omitempty"`
-	PullRequests       string `json:"pull-requests,omitempty"`
-	RepositoryProjects string `json:"repository-projects,omitempty"`
-	SecurityEvents     string `json:"security-events,omitempty"`
-	Statuses           string `json:"statuses,omitempty"`
+	Actions             string `json:"actions,omitempty"`
+	Checks              string `json:"checks,omitempty"`
+	Contents            string `json:"contents,omitempty"`
+	Deployments         string `json:"deployments,omitempty"`
+	IDToken             string `json:"id-token,omitempty"`
+	Issues              string `json:"issues,omitempty"`
+	Discussions         string `json:"discussions,omitempty"`
+	Packages            string `json:"packages,omitempty"`
+	Pages               string `json:"pages,omitempty"`
+	PullRequests        string `json:"pull-requests,omitempty"`
+	RepositoryProjects  string `json:"repository-projects,omitempty"`
+	SecurityEvents      string `json:"security-events,omitempty"`
+	Statuses            string `json:"statuses,omitempty"`
+	VulnerabilityAlerts string `json:"vulnerability-alerts,omitempty"`
 }
 
 // GitHubAppPermissionsConfig holds permission scopes that are exclusive to GitHub App
@@ -78,7 +79,6 @@ type GitHubAppPermissionsConfig struct {
 	Administration             string `json:"administration,omitempty"`
 	Environments               string `json:"environments,omitempty"`
 	GitSigning                 string `json:"git-signing,omitempty"`
-	VulnerabilityAlerts        string `json:"vulnerability-alerts,omitempty"`
 	Workflows                  string `json:"workflows,omitempty"`
 	RepositoryHooks            string `json:"repository-hooks,omitempty"`
 	SingleFile                 string `json:"single-file,omitempty"`

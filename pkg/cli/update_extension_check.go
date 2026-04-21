@@ -76,7 +76,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		if semver.Compare(currentSV, latestSV) >= 0 {
 			updateExtensionCheckLog.Print("Extension is already up to date")
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ gh-aw extension is up to date"))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension is up to date"))
 			}
 			return false, "", nil
 		}
@@ -102,7 +102,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 	// rename+retry path succeeds and the user is not shown a confusing failure.
 	var firstAttemptBuf bytes.Buffer
 	firstAttemptOut := firstAttemptWriter(os.Stderr, &firstAttemptBuf)
-	firstCmd := exec.Command("gh", "extension", "upgrade", "github/gh-aw")
+	firstCmd := exec.Command("gh", extensionUpgradeArgs()...)
 	firstCmd.Stdout = firstAttemptOut
 	firstCmd.Stderr = firstAttemptOut
 	firstErr := firstCmd.Run()
@@ -112,7 +112,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 			// Replay the buffered output that was not shown during the attempt.
 			_, _ = io.Copy(os.Stderr, &firstAttemptBuf)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ gh-aw extension upgraded to "+latestVersion))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+latestVersion))
 		return true, "", nil
 	}
 
@@ -146,7 +146,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		}
 	}
 
-	retryCmd := exec.Command("gh", "extension", "upgrade", "github/gh-aw")
+	retryCmd := exec.Command("gh", extensionUpgradeArgs()...)
 	retryCmd.Stdout = os.Stderr
 	retryCmd.Stderr = os.Stderr
 	if retryErr := retryCmd.Run(); retryErr != nil {
@@ -172,7 +172,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		cleanupExecutableBackup(backupPath)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ gh-aw extension upgraded to "+latestVersion))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+latestVersion))
 	return true, installPath, nil
 }
 
@@ -254,4 +254,13 @@ func isWindowsLockError(output string, err error) bool {
 		}
 	}
 	return false
+}
+
+// extensionUpgradeArgs returns the gh extension upgrade invocation used by
+// self-upgrade checks.
+//
+// --force is required so pinned installs (e.g. `gh extension install ... --pin`)
+// can be upgraded in-place.
+func extensionUpgradeArgs() []string {
+	return []string{"extension", "upgrade", "github/gh-aw", "--force"}
 }

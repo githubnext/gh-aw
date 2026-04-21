@@ -266,6 +266,9 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	if level, ok := permissions.Get(PermissionStatuses); ok {
 		fields["permission-statuses"] = string(level)
 	}
+	if level, ok := permissions.Get(PermissionVulnerabilityAlerts); ok {
+		fields["permission-vulnerability-alerts"] = string(level)
+	}
 	// "permission-discussions" is a declared input in actions/create-github-app-token v3+.
 	// Crucially, when ANY permission-* input is specified the action scopes the token to ONLY those
 	// permissions (returning undefined → inherit-all only when zero permission-* inputs are present).
@@ -287,9 +290,6 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	}
 	if level, ok := permissions.GetExplicit(PermissionGitSigning); ok {
 		fields["permission-git-signing"] = string(level)
-	}
-	if level, ok := permissions.GetExplicit(PermissionVulnerabilityAlerts); ok {
-		fields["permission-vulnerability-alerts"] = string(level)
 	}
 	if level, ok := permissions.GetExplicit(PermissionWorkflows); ok {
 		fields["permission-workflows"] = string(level)

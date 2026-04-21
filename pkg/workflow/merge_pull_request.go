@@ -19,12 +19,14 @@ func (c *Compiler) parseMergePullRequestConfig(outputMap map[string]any) *MergeP
 		return nil
 	}
 
+	mergePullRequestLog.Print("Parsing merge-pull-request config")
 	cfg := &MergePullRequestConfig{}
 	if configMap, ok := configData.(map[string]any); ok {
 		cfg.RequiredLabels = ParseStringArrayFromConfig(configMap, "required-labels", mergePullRequestLog)
 		cfg.AllowedLabels = ParseStringArrayFromConfig(configMap, "allowed-labels", mergePullRequestLog)
 		cfg.AllowedBranches = ParseStringArrayFromConfig(configMap, "allowed-branches", mergePullRequestLog)
 		c.parseBaseSafeOutputConfig(configMap, &cfg.BaseSafeOutputConfig, 1)
+		mergePullRequestLog.Printf("Parsed merge-pull-request config: requiredLabels=%v, allowedLabels=%v, allowedBranches=%v", cfg.RequiredLabels, cfg.AllowedLabels, cfg.AllowedBranches)
 		return cfg
 	}
 

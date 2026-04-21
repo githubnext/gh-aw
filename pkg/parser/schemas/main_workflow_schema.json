@@ -10384,7 +10384,7 @@
         "vulnerability-alerts": {
           "type": "string",
           "enum": ["read", "write", "none"],
-          "description": "Permission level for Dependabot vulnerability alerts (read/write/none). GitHub App-only permission: required to access Dependabot alerts via the GitHub MCP server. The GITHUB_TOKEN does not have this permission \u2014 a GitHub App must be configured."
+          "description": "Permission level for Dependabot vulnerability alerts (read/write/none). Allows workflows to access the Dependabot alerts API via GITHUB_TOKEN instead of requiring a PAT or GitHub App."
         },
         "all": {
           "type": "string",
@@ -10540,8 +10540,8 @@
         },
         "vulnerability-alerts": {
           "type": "string",
-          "enum": ["read", "none", "write"],
-          "description": "Permission level for Dependabot vulnerability alerts (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+          "enum": ["read", "none"],
+          "description": "Permission level for Dependabot vulnerability alerts (read/none; \"write\" is rejected by the compiler). Also available as a GITHUB_TOKEN scope. When used with a GitHub App, forwarded as permission-vulnerability-alerts input."
         },
         "workflows": {
           "type": "string",

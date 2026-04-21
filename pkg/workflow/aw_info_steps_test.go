@@ -29,8 +29,6 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
-network:
-  firewall: true
 ---
 
 # Test firewall enabled
@@ -49,8 +47,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
-network:
-  firewall: false
+sandbox:
+  agent: false
 strict: false
 ---
 

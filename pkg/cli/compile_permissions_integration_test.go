@@ -14,15 +14,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestCompileVulnerabilityAlertsPermissionFiltered compiles the canonical
+// TestCompileVulnerabilityAlertsPermissionIncluded compiles the canonical
 // test-vulnerability-alerts-permission.md workflow file and verifies that
-// the GitHub App-only `vulnerability-alerts` scope does NOT appear in any
-// job-level permissions block of the compiled lock file.
+// the `vulnerability-alerts` scope appears correctly in the compiled lock file.
 //
-// GitHub Actions rejects workflows that declare App-only permissions at the
-// job level (e.g. vulnerability-alerts, members, administration). These scopes
-// must only appear as `permission-*` inputs to actions/create-github-app-token.
-func TestCompileVulnerabilityAlertsPermissionFiltered(t *testing.T) {
+// Since vulnerability-alerts is now a native GITHUB_TOKEN permission scope, it
+// SHOULD appear in job-level permissions blocks. It is also forwarded as a
+// `permission-vulnerability-alerts` input to actions/create-github-app-token
+// when a GitHub App is configured.
+func TestCompileVulnerabilityAlertsPermissionIncluded(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
@@ -51,8 +51,8 @@ func TestCompileVulnerabilityAlertsPermissionFiltered(t *testing.T) {
 	assert.Contains(t, lockContentStr, "id: github-mcp-app-token",
 		"GitHub App token minting step should be generated")
 
-	// Critically: vulnerability-alerts must NOT appear inside any job-level permissions block.
-	// Parse the YAML and walk every job's permissions map to check.
+	// vulnerability-alerts is now a valid GITHUB_TOKEN scope and SHOULD appear in
+	// job-level permissions blocks.
 	var workflow map[string]any
 	require.NoError(t, goyaml.Unmarshal(lockContent, &workflow),
 		"Lock file should be valid YAML")
@@ -60,7 +60,8 @@ func TestCompileVulnerabilityAlertsPermissionFiltered(t *testing.T) {
 	jobs, ok := workflow["jobs"].(map[string]any)
 	require.True(t, ok, "Lock file should have a jobs section")
 
-	for jobName, jobConfig := range jobs {
+	foundVulnAlerts := false
+	for _, jobConfig := range jobs {
 		jobMap, ok := jobConfig.(map[string]any)
 		if !ok {
 			continue
@@ -71,22 +72,21 @@ func TestCompileVulnerabilityAlertsPermissionFiltered(t *testing.T) {
 		}
 		permsMap, ok := perms.(map[string]any)
 		if !ok {
-			// Shorthand permissions (read-all / write-all / none) — nothing to check
 			continue
 		}
-		assert.NotContains(t, permsMap, "vulnerability-alerts",
-			"Job %q must not have vulnerability-alerts in job-level permissions block "+
-				"(it is a GitHub App-only scope and not a valid GitHub Actions permission)", jobName)
+		if _, found := permsMap["vulnerability-alerts"]; found {
+			foundVulnAlerts = true
+		}
 	}
+	assert.True(t, foundVulnAlerts,
+		"vulnerability-alerts should appear in at least one job-level permissions block (it is a GITHUB_TOKEN scope)")
 
-	// Extra belt-and-suspenders: the string "vulnerability-alerts: read" must not appear
-	// anywhere other than inside the App token step inputs.
-	// We verify by counting occurrences: exactly one occurrence for the App token step.
+	// vulnerability-alerts: read should appear in both job-level permissions
+	// and in the App token step inputs (permission-vulnerability-alerts: read).
 	occurrences := strings.Count(lockContentStr, "vulnerability-alerts: read")
-	// The permission-vulnerability-alerts: read line contains "vulnerability-alerts: read"
-	// as a substring, so we count that and only that occurrence.
 	appTokenOccurrences := strings.Count(lockContentStr, "permission-vulnerability-alerts: read")
-	assert.Equal(t, appTokenOccurrences, occurrences,
-		"vulnerability-alerts: read should appear only inside the App token step inputs, not elsewhere in the lock file\nLock file:\n%s",
-		lockContentStr)
+	assert.GreaterOrEqual(t, occurrences, appTokenOccurrences,
+		"vulnerability-alerts: read should appear at least as often as permission-vulnerability-alerts: read")
+	assert.Greater(t, occurrences, 0,
+		"vulnerability-alerts: read should appear at least once in the lock file")
 }

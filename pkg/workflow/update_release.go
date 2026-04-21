@@ -14,6 +14,7 @@ type UpdateReleaseConfig struct {
 
 // parseUpdateReleaseConfig handles update-release configuration
 func (c *Compiler) parseUpdateReleaseConfig(outputMap map[string]any) *UpdateReleaseConfig {
+	updateReleaseLog.Print("Parsing update-release config")
 	return parseUpdateEntityConfigTyped(c, outputMap,
 		UpdateEntityRelease, "update-release", updateReleaseLog,
 		func(cfg *UpdateReleaseConfig) []UpdateEntityFieldSpec {
