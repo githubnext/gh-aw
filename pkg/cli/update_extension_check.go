@@ -102,7 +102,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 	// rename+retry path succeeds and the user is not shown a confusing failure.
 	var firstAttemptBuf bytes.Buffer
 	firstAttemptOut := firstAttemptWriter(os.Stderr, &firstAttemptBuf)
-	firstCmd := exec.Command("gh", "extension", "upgrade", "github/gh-aw")
+	firstCmd := exec.Command("gh", extensionUpgradeArgs()...)
 	firstCmd.Stdout = firstAttemptOut
 	firstCmd.Stderr = firstAttemptOut
 	firstErr := firstCmd.Run()
@@ -146,7 +146,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		}
 	}
 
-	retryCmd := exec.Command("gh", "extension", "upgrade", "github/gh-aw")
+	retryCmd := exec.Command("gh", extensionUpgradeArgs()...)
 	retryCmd.Stdout = os.Stderr
 	retryCmd.Stderr = os.Stderr
 	if retryErr := retryCmd.Run(); retryErr != nil {
@@ -254,4 +254,13 @@ func isWindowsLockError(output string, err error) bool {
 		}
 	}
 	return false
+}
+
+// extensionUpgradeArgs returns the gh extension upgrade invocation used by
+// self-upgrade checks.
+//
+// --force is required so pinned installs (e.g. `gh extension install ... --pin`)
+// can be upgraded in-place.
+func extensionUpgradeArgs() []string {
+	return []string{"extension", "upgrade", "github/gh-aw", "--force"}
 }

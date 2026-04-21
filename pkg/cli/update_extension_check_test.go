@@ -224,3 +224,8 @@ func TestIsWindowsLockError(t *testing.T) {
 		})
 	}
 }
+
+func TestExtensionUpgradeArgs(t *testing.T) {
+	args := extensionUpgradeArgs()
+	assert.Equal(t, []string{"extension", "upgrade", "github/gh-aw", "--force"}, args, "upgrade command must force upgrades for pinned extensions")
+}
