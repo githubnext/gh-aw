@@ -4,6 +4,7 @@ require("./shim.cjs");
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { SAFE_OUTPUT_E001 } = require("./error_codes.cjs");
 const { resolveTarget, isStagedMode } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
@@ -30,7 +31,7 @@ function sanitizeMemoryID(memoryID) {
 function buildManagedMemoryBody(rawBody, memoryID, options) {
   const { includeFooter, runUrl, workflowName, workflowSource, workflowSourceURL, historyUrl, triggeringIssueNumber, triggeringPRNumber } = options;
   if (!/^[a-zA-Z0-9_-]+$/.test(memoryID)) {
-    throw new Error("E001: memory_id must contain only alphanumeric characters, hyphens, and underscores");
+    throw new Error(`${SAFE_OUTPUT_E001}: memory_id must contain only alphanumeric characters, hyphens, and underscores`);
   }
   const openingTag = `<${COMMENT_MEMORY_TAG} id="${memoryID}">`;
   const closingTag = `</${COMMENT_MEMORY_TAG}>`;

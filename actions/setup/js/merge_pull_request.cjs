@@ -10,8 +10,9 @@ const { selectLatestRelevantChecks } = require("./check_runs_helpers.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { resolveNumberFromTemporaryId } = require("./temporary_id.cjs");
+const { SAFE_OUTPUT_E001, SAFE_OUTPUT_E099 } = require("./error_codes.cjs");
 const MERGEABILITY_PENDING_ERROR = "pull request mergeability is still being computed";
-const MERGEABILITY_PENDING_ERROR_CODED = `E099: ${MERGEABILITY_PENDING_ERROR}`;
+const MERGEABILITY_PENDING_ERROR_CODED = `${SAFE_OUTPUT_E099}: ${MERGEABILITY_PENDING_ERROR}`;
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -67,7 +68,7 @@ async function getPullRequestWithMergeability(githubClient, owner, repo, pullNum
         return fallback.data;
       }
     } catch (fallbackError) {
-      throw new Error(`E099: Failed to fetch pull request #${pullNumber} after retry and fallback attempts. Retry error: ${getErrorMessage(error)}. Fallback error: ${getErrorMessage(fallbackError)}`);
+      throw new Error(`${SAFE_OUTPUT_E099}: Failed to fetch pull request #${pullNumber} after retry and fallback attempts. Retry error: ${getErrorMessage(error)}. Fallback error: ${getErrorMessage(fallbackError)}`);
     }
     throw error;
   });
@@ -142,7 +143,7 @@ async function getReviewSummary(githubClient, owner, repo, pullNumber) {
 async function getBranchPolicy(githubClient, owner, repo, baseBranch) {
   const baseBranchValidation = sanitizeBranchName(baseBranch, "target base");
   if (!baseBranchValidation.valid || !baseBranchValidation.value) {
-    throw new Error(`E001: Invalid target base branch for policy evaluation: ${baseBranchValidation.error} (original: ${JSON.stringify(baseBranch)}, normalized: ${JSON.stringify(baseBranchValidation.normalized || "")})`);
+    throw new Error(`${SAFE_OUTPUT_E001}: Invalid target base branch for policy evaluation: ${baseBranchValidation.error} (original: ${JSON.stringify(baseBranch)}, normalized: ${JSON.stringify(baseBranchValidation.normalized || "")})`);
   }
   const sanitizedBaseBranch = baseBranchValidation.value;
 
