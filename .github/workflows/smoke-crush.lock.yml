@@ -169,12 +169,13 @@ jobs:
             .codex
             .crush
             .gemini
+            .opencode
           sparse-checkout-cone-mode: true
           fetch-depth: 1
       - name: Save agent config folders for base branch restoration
         env:
-          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github"
-          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md"
+          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode"
+          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md opencode.jsonc"
         # poutine:ignore untrusted_checkout_exec
         run: bash "${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh"
       - name: Check workflow lock file
@@ -865,8 +866,8 @@ jobs:
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
-          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github"
-          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md"
+          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode"
+          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md opencode.jsonc"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh"
       - name: Clean git credentials
         continue-on-error: true
@@ -876,7 +877,7 @@ jobs:
           umask 077
           mkdir -p "$GITHUB_WORKSPACE"
           CONFIG="$GITHUB_WORKSPACE/.crush.json"
-          BASE_CONFIG='{"agent":{"build":{"permissions":{"bash":"allow","edit":"allow","read":"allow","glob":"allow","grep":"allow","write":"allow","webfetch":"allow","websearch":"allow"}}}}'
+          BASE_CONFIG='{"agent":{"build":{"permission":{"bash":"allow","edit":"allow","read":"allow","glob":"allow","grep":"allow","write":"allow","webfetch":"allow","websearch":"allow","external_directory":"allow"}}}}'
           if [ -f "$CONFIG" ]; then
             MERGED=$(jq -n --argjson base "$BASE_CONFIG" --argjson existing "$(cat "$CONFIG")" '$existing * $base')
             echo "$MERGED" > "$CONFIG"
@@ -900,7 +901,7 @@ jobs:
           GITHUB_WORKSPACE: ${{ github.workspace }}
           NO_PROXY: localhost,127.0.0.1
           OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          OPENAI_BASE_URL: http://host.docker.internal:10004
+          OPENAI_BASE_URL: http://host.docker.internal:10005
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -1317,7 +1318,7 @@ jobs:
           umask 077
           mkdir -p "$GITHUB_WORKSPACE"
           CONFIG="$GITHUB_WORKSPACE/.crush.json"
-          BASE_CONFIG='{"agent":{"build":{"permissions":{"bash":"allow","edit":"allow","read":"allow","glob":"allow","grep":"allow","write":"allow","webfetch":"allow","websearch":"allow"}}}}'
+          BASE_CONFIG='{"agent":{"build":{"permission":{"bash":"allow","edit":"allow","read":"allow","glob":"allow","grep":"allow","write":"allow","webfetch":"allow","websearch":"allow","external_directory":"allow"}}}}'
           if [ -f "$CONFIG" ]; then
             MERGED=$(jq -n --argjson base "$BASE_CONFIG" --argjson existing "$(cat "$CONFIG")" '$existing * $base')
             echo "$MERGED" > "$CONFIG"
@@ -1340,7 +1341,7 @@ jobs:
           GITHUB_WORKSPACE: ${{ github.workspace }}
           NO_PROXY: localhost,127.0.0.1
           OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          OPENAI_BASE_URL: http://host.docker.internal:10004
+          OPENAI_BASE_URL: http://host.docker.internal:10005
       - name: Upload threat detection log
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
