@@ -2877,13 +2877,6 @@
         },
         {
           "allowed": ["defaults", "python", "node", "*.example.com"]
-        },
-        {
-          "allowed": ["api.openai.com", "*.github.com"],
-          "firewall": {
-            "version": "v1.0.0",
-            "log-level": "debug"
-          }
         }
       ],
       "oneOf": [
@@ -2913,65 +2906,6 @@
                 "description": "Domain name or ecosystem identifier to block. Supports wildcards like '*.example.com' (matches sub.example.com, deep.nested.example.com, and example.com itself) and ecosystem names like 'python', 'node'."
               },
               "$comment": "Blocked domains are subtracted from the allowed list. Useful for blocking specific domains or ecosystems within broader allowed categories."
-            },
-            "firewall": {
-              "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Supported for copilot, claude, codex, gemini, and crush engines.",
-              "deprecated": true,
-              "x-deprecation-message": "The firewall is now always enabled. Use 'sandbox.agent' to configure the sandbox type.",
-              "oneOf": [
-                {
-                  "type": "null",
-                  "description": "Enable AWF with default settings (equivalent to empty object)"
-                },
-                {
-                  "type": "boolean",
-                  "description": "Enable (true) or explicitly disable (false) AWF firewall"
-                },
-                {
-                  "type": "string",
-                  "enum": ["disable"],
-                  "description": "Disable AWF firewall (triggers warning if allowed != *, error in strict mode if allowed is not * or engine does not support firewall)"
-                },
-                {
-                  "type": "object",
-                  "description": "Custom AWF configuration with version and arguments",
-                  "properties": {
-                    "args": {
-                      "type": "array",
-                      "description": "Optional additional arguments to pass to AWF wrapper",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "version": {
-                      "type": ["string", "number"],
-                      "description": "AWF version to use (empty = latest release). Can be a string (e.g., 'v1.0.0', 'latest') or number (e.g., 20, 3.11). Numeric values are automatically converted to strings at runtime.",
-                      "examples": ["v1.0.0", "latest", 20, 3.11]
-                    },
-                    "log-level": {
-                      "type": "string",
-                      "description": "AWF log level (default: info). Valid values: debug, info, warn, error",
-                      "enum": ["debug", "info", "warn", "error"]
-                    },
-                    "ssl-bump": {
-                      "type": "boolean",
-                      "description": "Enable SSL Bump for HTTPS content inspection. When enabled, AWF can filter HTTPS traffic by URL patterns instead of just domain names. This feature is specific to AWF. Default: false",
-                      "default": false
-                    },
-                    "allow-urls": {
-                      "type": "array",
-                      "description": "URL patterns to allow for HTTPS traffic (requires ssl-bump: true). Supports wildcards for flexible path matching. Must include https:// scheme. This feature is specific to AWF.",
-                      "items": {
-                        "type": "string",
-                        "pattern": "^https://.*",
-                        "description": "HTTPS URL pattern with optional wildcards (e.g., 'https://github.com/githubnext/*')"
-                      },
-                      "examples": [["https://github.com/githubnext/*", "https://api.github.com/repos/*"]]
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              ]
             }
           },
           "additionalProperties": false
@@ -3022,6 +2956,10 @@
                       "type": "string",
                       "enum": ["awf"],
                       "description": "Legacy: Sandbox type to use (use 'id' instead)"
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "AWF version override used to install and run the matching firewall version."
                     },
                     "command": {
                       "type": "string",

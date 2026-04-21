@@ -118,6 +118,21 @@ func TestExtractFirewallConfig(t *testing.T) {
 	})
 }
 
+func TestExtractAgentSandboxConfigVersion(t *testing.T) {
+	compiler := &Compiler{}
+
+	t.Run("extracts sandbox.agent.version from object format", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id":      "awf",
+			"version": "v0.30.1",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.Equal(t, "v0.30.1", config.Version, "Should extract sandbox.agent.version")
+	})
+}
+
 // TestExtractMCPGatewayConfigPayloadFields tests extraction of payload-related fields
 // from MCP gateway frontmatter configuration
 func TestExtractMCPGatewayConfigPayloadFields(t *testing.T) {

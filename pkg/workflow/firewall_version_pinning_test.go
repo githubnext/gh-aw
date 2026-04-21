@@ -158,6 +158,49 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 		}
 	})
 
+	t.Run("uses sandbox.agent.version when firewall version is not specified", func(t *testing.T) {
+		engine := NewCopilotEngine()
+		sandboxAgentVersion := "v0.30.2"
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type:    SandboxTypeAWF,
+					Version: sandboxAgentVersion,
+				},
+			},
+		}
+
+		steps := engine.GetInstallationSteps(workflowData)
+
+		var foundAWFStep bool
+		var awfStepStr string
+		for _, step := range steps {
+			stepStr := strings.Join(step, "\n")
+			if strings.Contains(stepStr, "Install AWF binary") {
+				foundAWFStep = true
+				awfStepStr = stepStr
+				break
+			}
+		}
+
+		if !foundAWFStep {
+			t.Fatal("Expected to find AWF installation step when firewall is enabled")
+		}
+
+		if !strings.Contains(awfStepStr, sandboxAgentVersion) {
+			t.Errorf("AWF installation step should pass sandbox.agent.version %s to script", sandboxAgentVersion)
+		}
+	})
+
 	t.Run("does not include AWF installation when firewall disabled", func(t *testing.T) {
 		engine := NewCopilotEngine()
 		workflowData := &WorkflowData{

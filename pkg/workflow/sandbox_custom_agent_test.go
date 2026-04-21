@@ -127,7 +127,6 @@ strict: false
 network:
   allowed:
     - "example.com"
-  firewall: true
 sandbox:
   agent:
     id: awf
@@ -202,7 +201,6 @@ strict: false
 network:
   allowed:
     - "example.com"
-  firewall: true
 sandbox:
   agent:
     type: awf

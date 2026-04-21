@@ -23,7 +23,7 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 			return nil
 		}
 
-		// Handle object format: { allowed: [...], firewall: ... } or {}
+		// Handle object format: { allowed: [...], blocked: [...] } or {}
 		if networkObj, ok := network.(map[string]any); ok {
 			frontmatterExtractionSecurityLog.Printf("Network permissions object format with %d fields", len(networkObj))
 			permissions := &NetworkPermissions{
@@ -52,12 +52,6 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 					}
 					frontmatterExtractionSecurityLog.Printf("Extracted %d blocked domains", len(permissions.Blocked))
 				}
-			}
-
-			// Extract firewall configuration if present
-			if firewall, hasFirewall := networkObj["firewall"]; hasFirewall {
-				frontmatterExtractionSecurityLog.Print("Extracting firewall configuration")
-				permissions.Firewall = c.extractFirewallConfig(firewall)
 			}
 
 			// Empty object {} means no network access (empty allowed list)
@@ -269,6 +263,13 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 	if typeVal, hasType := agentObj["type"]; hasType {
 		if typeStr, ok := typeVal.(string); ok {
 			agentConfig.Type = SandboxType(typeStr)
+		}
+	}
+
+	// Extract version (AWF version override)
+	if versionVal, hasVersion := agentObj["version"]; hasVersion {
+		if versionStr, ok := versionVal.(string); ok {
+			agentConfig.Version = versionStr
 		}
 	}
 

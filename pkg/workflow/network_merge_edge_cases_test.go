@@ -46,7 +46,6 @@ network:
   allowed:
     - github.com
     - api.github.com
-  firewall: true
 imports:
   - shared.md
 ---

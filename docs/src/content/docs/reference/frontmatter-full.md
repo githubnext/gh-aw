@@ -1309,6 +1309,10 @@ sandbox:
     # (optional)
     type: "awf"
 
+    # AWF version override used to install and run the matching firewall version.
+    # (optional)
+    version: "example-value"
+
     # Container mounts to add when using AWF. Each mount is specified using Docker
     # mount syntax: 'source:destination:mode' where mode can be 'ro' (read-only) or
     # 'rw' (read-write). Example: '/host/path:/container/path:ro'
