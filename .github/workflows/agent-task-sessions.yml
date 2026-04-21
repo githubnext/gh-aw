@@ -14,9 +14,6 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Install gh agent-task extension
-        run: gh extension install github/agent-task || gh extension upgrade github/agent-task
-
       - name: Print active agentic task sessions
         run: |
           set -euo pipefail
