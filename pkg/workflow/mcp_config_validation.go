@@ -171,7 +171,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 		"proxy-args":      true,
 		"registry":        true,
 		"allowed":         true,
-		"mode":            true, // for github tool prompt/runtime mode
+		"mode":            true, // for github tool: prompt/runtime mode (cli/mcp) or legacy MCP transport (local/remote)
 		"github-token":    true, // for github tool
 		"read-only":       true, // for github tool
 		"toolsets":        true, // for github tool

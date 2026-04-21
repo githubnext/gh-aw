@@ -106,11 +106,13 @@ func isGitHubCLIModeEnabled(data *WorkflowData) bool {
 		if toolConfig, ok := githubTool.(map[string]any); ok {
 			if modeSetting, exists := toolConfig["mode"]; exists {
 				if stringValue, ok := modeSetting.(string); ok {
-					switch strings.ToLower(strings.TrimSpace(stringValue)) {
+					switch modeValue := strings.ToLower(strings.TrimSpace(stringValue)); modeValue {
 					case "cli":
 						return true
 					case "mcp":
 						return false
+					default:
+						githubConfigLog.Printf("Unrecognized tools.github.mode value: %s, falling back to legacy behavior", modeValue)
 					}
 				}
 			}

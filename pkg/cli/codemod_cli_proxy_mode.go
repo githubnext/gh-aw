@@ -120,6 +120,7 @@ func addGitHubModeCliToTools(lines []string) []string {
 	}
 
 	if strings.TrimSpace(lines[githubLine]) != "github:" {
+		cliProxyModeCodemodLog.Print("Skipping mode addition: github line has inline content")
 		return lines
 	}
 
