@@ -60,6 +60,15 @@ Add `comment-memory` as a first-class memory backend that persists structured me
 - Require issue/PR-compatible context
 - Reject unsupported contexts (for example discussion-only contexts)
 - Fail early when configuration or context requirements are not met
+- Ensure PR-review style workflows can consume persisted `comment-memory` context for gate decisions
+
+## PR Review Gate Requirements
+
+- Add `comment-memory` support to generic PR review workflows and review-oriented gates
+- Persist PR-level content memory that can be reused by:
+  - text and test detection gates
+  - ADR gates
+- Ensure Codex smoke checks can read/write the same PR-level content memory
 
 ## Safe Outputs Specification Update (W3C)
 
@@ -139,6 +148,8 @@ At workflow start:
 - Implementation code for `comment-memory`
 - Tests covering parsing, validation, context handling, and lifecycle behavior
 - Prompt/runtime integration so the agent can read/write comment-memory via markdown abstraction
+- Integration updates for PR review workflow gates (text/test detection and ADR gates) using PR-level content memory
+- Codex smoke coverage that validates comment-memory interoperability
 - Updated workflow schema/frontmatter support
 - Updated Safe Outputs specification content using `w3c-specification-writer` when new/changed normative requirements are introduced
 - Pull request with a clear summary, implementation notes, and test evidence
