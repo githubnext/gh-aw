@@ -678,7 +678,6 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[test] "
     fallback-as-issue: false
-  comment-memory: false
 ---
 
 # Test Output Pull Request Fallback False

@@ -31,6 +31,7 @@ network:
     - playwright
 tools:
   cache-memory: true
+  comment-memory: true
   github:
   playwright:
   edit:
@@ -42,7 +43,6 @@ runtimes:
     version: "1.25"
 safe-outputs:
     allowed-domains: [default-safe-outputs]
-    comment-memory: true
     add-comment:
       hide-older-comments: true
       max: 2

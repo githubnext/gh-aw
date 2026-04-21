@@ -2175,6 +2175,65 @@ tools:
   cache-memory: []
     # Array items: object
 
+  # Comment memory configuration for managed comment persistence
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for persisting memory in a managed issue/PR comment.
+  # Memory is materialized to files for agent editing and synchronized back after
+  # execution.
+  comment-memory:
+    # Maximum number of comment_memory updates to process (default: 1). Supports
+    # integer or GitHub Actions expression.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
+    max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
+
+    # Target for comment memory: 'triggering' (default), '*' (current issue/PR), or
+    # explicit issue/PR number
+    # (optional)
+    target: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository memory storage.
+    # (optional)
+    target-repo: "example-value"
+
+    # Additional repositories in format 'owner/repo' allowed for comment memory
+    # operations.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
+
+    # Default memory identifier when output items omit memory_id.
+    # (optional)
+    memory-id: "example-value"
+
+    # Controls whether AI-generated footer is added to the managed comment. Defaults
+    # to true.
+    # (optional)
+    footer: true
+
+    # GitHub token to use for comment-memory operations. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # If true, emit step summary messages instead of making GitHub API calls for this
+    # specific output type (preview mode)
+    # (optional)
+    staged: true
+
+  # Option 2: Enable (true) or disable (false) comment-memory.
+  comment-memory: true
+
+  # Option 3: Explicitly disable comment-memory
+  comment-memory: null
+
   # Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP
   # servers if supported by the engine. Default: 60 seconds (for both Claude and
   # Codex). Supports GitHub Actions expressions for reusable workflow_call

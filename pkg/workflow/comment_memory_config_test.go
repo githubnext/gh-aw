@@ -12,16 +12,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCommentMemoryDefaultEnablementAndOptOut(t *testing.T) {
+func TestCommentMemoryToolConfig(t *testing.T) {
 	tests := []struct {
 		name                     string
 		commentMemoryConfigYAML  string
 		expectedCommentMemorySet bool
 	}{
 		{
-			name:                     "defaults enabled when key absent",
+			name:                     "defaults disabled when key absent",
 			commentMemoryConfigYAML:  "",
-			expectedCommentMemorySet: true,
+			expectedCommentMemorySet: false,
 		},
 		{
 			name:                     "explicit false disables comment-memory",
@@ -43,13 +43,17 @@ func TestCommentMemoryDefaultEnablementAndOptOut(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := testutil.TempDir(t, "comment-memory-config-test")
+			toolsSection := ""
+			if tt.commentMemoryConfigYAML != "" {
+				toolsSection = "tools:\n" + tt.commentMemoryConfigYAML
+			}
 			workflow := `---
 on: issues
 engine: copilot
 permissions:
   contents: read
-safe-outputs:
-` + tt.commentMemoryConfigYAML + `  add-comment:
+` + toolsSection + `safe-outputs:
+  add-comment:
     max: 1
 ---
 

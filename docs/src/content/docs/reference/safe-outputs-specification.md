@@ -992,7 +992,7 @@ for (const op of issueOps) {
 
 **Phase 8: Comment Memory Round-Trip** (Optional, when `comment-memory` is configured)
 
-When `safe-outputs.comment-memory` is enabled, implementations MUST support this additional data-flow path:
+When `tools.comment-memory` is enabled, implementations MUST support this additional data-flow path:
 
 1. **GitHub comment → local files (pre-agent setup)**: A setup step reads the managed comment body from the target issue or pull request, extracts content between `<gh-aw-comment-memory id="...">` and `</gh-aw-comment-memory>`, and writes one file per memory entry under `/tmp/gh-aw/comment-memory/<memory_id>.md`.
 2. **Local files → agent**: The prompt MUST include instructions that memory files are edited directly in `/tmp/gh-aw/comment-memory/`.
