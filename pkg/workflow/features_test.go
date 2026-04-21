@@ -314,40 +314,40 @@ func TestGetFeatureValue(t *testing.T) {
 			name: "returns exact string value",
 			workflow: &WorkflowData{
 				Features: map[string]any{
-					"mcpg-version": "v0.2.27",
+					"mcpg-latest": "v0.2.27",
 				},
 			},
-			flag:        constants.MCPGVersionFeatureFlag,
+			flag:        constants.MCPGLatestFeatureFlag,
 			expectedVal: "v0.2.27",
 		},
 		{
 			name: "returns case-insensitive key match",
 			workflow: &WorkflowData{
 				Features: map[string]any{
-					"MCPG-Version": "v0.2.28",
+					"MCPG-LATEST": "v0.2.28",
 				},
 			},
-			flag:        constants.MCPGVersionFeatureFlag,
+			flag:        constants.MCPGLatestFeatureFlag,
 			expectedVal: "v0.2.28",
 		},
 		{
 			name: "trims whitespace from value",
 			workflow: &WorkflowData{
 				Features: map[string]any{
-					"mcpg-version": "  v0.2.29  ",
+					"mcpg-latest": "  v0.2.29  ",
 				},
 			},
-			flag:        constants.MCPGVersionFeatureFlag,
+			flag:        constants.MCPGLatestFeatureFlag,
 			expectedVal: "v0.2.29",
 		},
 		{
 			name: "returns empty for non-string value",
 			workflow: &WorkflowData{
 				Features: map[string]any{
-					"mcpg-version": true,
+					"mcpg-latest": true,
 				},
 			},
-			flag:        constants.MCPGVersionFeatureFlag,
+			flag:        constants.MCPGLatestFeatureFlag,
 			expectedVal: "",
 		},
 		{
@@ -357,13 +357,13 @@ func TestGetFeatureValue(t *testing.T) {
 					"other-feature": "v1",
 				},
 			},
-			flag:        constants.MCPGVersionFeatureFlag,
+			flag:        constants.MCPGLatestFeatureFlag,
 			expectedVal: "",
 		},
 		{
 			name:        "returns empty for nil workflow",
 			workflow:    nil,
-			flag:        constants.MCPGVersionFeatureFlag,
+			flag:        constants.MCPGLatestFeatureFlag,
 			expectedVal: "",
 		},
 	}

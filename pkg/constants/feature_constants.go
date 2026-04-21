@@ -60,33 +60,33 @@ const (
 	//	features:
 	//	  byok-copilot: true
 	ByokCopilotFeatureFlag FeatureFlag = "byok-copilot"
-	// LatestCopilotFeatureFlag forces Copilot CLI installation to use latest.
+	// CopilotLatestFeatureFlag forces Copilot CLI installation to use latest.
 	// When enabled, Copilot CLI installation ignores the pinned default version
 	// and installs latest for smoke-testing upcoming releases.
 	//
 	// Workflow frontmatter usage:
 	//
 	//	features:
-	//	  latest-copilot: true
-	LatestCopilotFeatureFlag FeatureFlag = "latest-copilot"
-	// MCPGVersionFeatureFlag overrides the default MCP gateway container version.
+	//	  copilot-latest: true
+	CopilotLatestFeatureFlag FeatureFlag = "copilot-latest"
+	// MCPGLatestFeatureFlag overrides the default MCP gateway container version.
 	// When set to a non-empty string, MCP gateway image references use this
 	// version instead of DefaultMCPGatewayVersion.
 	//
 	// Workflow frontmatter usage:
 	//
 	//	features:
-	//	  mcpg-version: "v0.2.27"
-	MCPGVersionFeatureFlag FeatureFlag = "mcpg-version"
-	// FirewallVersionFeatureFlag overrides the default firewall container version.
+	//	  mcpg-latest: "v0.2.27"
+	MCPGLatestFeatureFlag FeatureFlag = "mcpg-latest"
+	// FirewallLatestFeatureFlag overrides the default firewall container version.
 	// When set to a non-empty string, AWF installation and image references use
 	// this version instead of DefaultFirewallVersion.
 	//
 	// Workflow frontmatter usage:
 	//
 	//	features:
-	//	  firewall-version: "v0.25.27"
-	FirewallVersionFeatureFlag FeatureFlag = "firewall-version"
+	//	  firewall-latest: "v0.25.27"
+	FirewallLatestFeatureFlag FeatureFlag = "firewall-latest"
 	// IntegrityReactionsFeatureFlag enables reaction-based integrity promotion/demotion
 	// in the MCPG allow-only policy. When enabled, the compiler injects
 	// endorsement-reactions and disapproval-reactions fields into the allow-only policy.

@@ -69,9 +69,9 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		copilotVersion = workflowData.EngineConfig.Version
 	}
-	if isFeatureEnabled(constants.LatestCopilotFeatureFlag, workflowData) {
+	if isFeatureEnabled(constants.CopilotLatestFeatureFlag, workflowData) {
 		copilotVersion = "latest"
-		copilotInstallLog.Print("latest-copilot enabled: forcing Copilot CLI install version to latest")
+		copilotInstallLog.Print("copilot-latest enabled: forcing Copilot CLI install version to latest")
 	}
 	if isFeatureEnabled(constants.ByokCopilotFeatureFlag, workflowData) {
 		copilotVersion = "latest"

@@ -290,7 +290,7 @@ func TestCopilotInstallerLatestCopilotFeatureUsesLatestVersion(t *testing.T) {
 			Version: "1.0.0",
 		},
 		Features: map[string]any{
-			string(constants.LatestCopilotFeatureFlag): true,
+			string(constants.CopilotLatestFeatureFlag): true,
 		},
 	}
 
@@ -310,9 +310,9 @@ func TestCopilotInstallerLatestCopilotFeatureUsesLatestVersion(t *testing.T) {
 	}
 
 	if !strings.Contains(installStep, `install_copilot_cli.sh" latest`) {
-		t.Errorf("Expected latest-copilot to force latest Copilot CLI install, got:\n%s", installStep)
+		t.Errorf("Expected copilot-latest to force latest Copilot CLI install, got:\n%s", installStep)
 	}
 	if strings.Contains(installStep, `install_copilot_cli.sh" 1.0.0`) {
-		t.Errorf("Expected latest-copilot to ignore pinned version, got:\n%s", installStep)
+		t.Errorf("Expected copilot-latest to ignore pinned version, got:\n%s", installStep)
 	}
 }

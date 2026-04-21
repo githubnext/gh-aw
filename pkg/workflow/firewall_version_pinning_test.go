@@ -167,7 +167,7 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 				ID: "copilot",
 			},
 			Features: map[string]any{
-				string(constants.FirewallVersionFeatureFlag): featureVersion,
+				string(constants.FirewallLatestFeatureFlag): featureVersion,
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{

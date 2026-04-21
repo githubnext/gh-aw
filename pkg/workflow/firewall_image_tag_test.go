@@ -120,7 +120,7 @@ func TestClaudeEngineAWFImageTag(t *testing.T) {
 		}
 	})
 
-	t.Run("AWF command includes image-tag with firewall-version feature override", func(t *testing.T) {
+	t.Run("AWF command includes image-tag with firewall-latest feature override", func(t *testing.T) {
 		featureVersion := "v0.25.27"
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
@@ -128,7 +128,7 @@ func TestClaudeEngineAWFImageTag(t *testing.T) {
 				ID: "claude",
 			},
 			Features: map[string]any{
-				string(constants.FirewallVersionFeatureFlag): featureVersion,
+				string(constants.FirewallLatestFeatureFlag): featureVersion,
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{
