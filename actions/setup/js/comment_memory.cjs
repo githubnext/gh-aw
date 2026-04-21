@@ -16,6 +16,7 @@ const { COMMENT_MEMORY_TAG, COMMENT_MEMORY_MAX_SCAN_PAGES } = require("./comment
 // Require provenance marker to avoid accidentally updating user-authored comments
 // that happen to contain a matching comment-memory tag.
 const MANAGED_COMMENT_PROVENANCE_MARKER = "<!-- gh-aw-agentic-workflow:";
+const MANAGED_COMMENT_HEADER = "### Comment Memory";
 
 function sanitizeMemoryID(memoryID) {
   const normalized = String(memoryID || "default").trim();
@@ -34,7 +35,7 @@ function buildManagedMemoryBody(rawBody, memoryID, options) {
   const openingTag = `<${COMMENT_MEMORY_TAG} id="${memoryID}">`;
   const closingTag = `</${COMMENT_MEMORY_TAG}>`;
   core.info(`comment_memory: building managed body for memory_id='${memoryID}'`);
-  let body = `${openingTag}\n${sanitizeContent(rawBody)}\n${closingTag}`;
+  let body = `${MANAGED_COMMENT_HEADER}\n\n${openingTag}\n${sanitizeContent(rawBody)}\n${closingTag}`;
 
   const tracker = getTrackerID("markdown");
   if (tracker) {
