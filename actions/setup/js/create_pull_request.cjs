@@ -274,6 +274,48 @@ function generatePatchPreview(patchContent) {
 }
 
 /**
+ * Check whether the remote branch already exists and, if so, either fail loudly
+ * (when preserve-branch-name is enabled) or rename the local branch by appending
+ * a random hex suffix.
+ * @param {string} branchName - Current local branch name.
+ * @param {boolean} preserveBranchName - Whether preserve-branch-name is enabled.
+ * @returns {Promise<string>} The (possibly renamed) branch name to use going forward.
+ * @throws {Error} If the remote branch exists and preserve-branch-name is true.
+ */
+async function handleRemoteBranchCollision(branchName, preserveBranchName) {
+  let remoteBranchExists = false;
+  try {
+    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+    if (stdout.trim()) {
+      remoteBranchExists = true;
+    }
+  } catch (checkError) {
+    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+  }
+
+  if (!remoteBranchExists) {
+    return branchName;
+  }
+
+  if (preserveBranchName) {
+    throw new Error(
+      `Remote branch "${branchName}" already exists and preserve-branch-name is enabled. ` +
+        `Refusing to silently rename the branch. Either delete the remote branch, choose a different ` +
+        `branch name, or disable preserve-branch-name to allow a random suffix to be appended.`
+    );
+  }
+
+  core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+  const extraHex = crypto.randomBytes(4).toString("hex");
+  const oldBranch = branchName;
+  const renamedBranch = `${branchName}-${extraHex}`;
+  // Rename local branch
+  await exec.exec(`git branch -m ${oldBranch} ${renamedBranch}`);
+  core.info(`Renamed branch to ${renamedBranch}`);
+  return renamedBranch;
+}
+
+/**
  * Main handler factory for create_pull_request
  * Returns a message handler function that processes individual create_pull_request messages
  * @type {HandlerFactoryFunction}
@@ -971,33 +1013,7 @@ async function main(config = {}) {
 
       // Push the commits from the bundle to the remote branch
       try {
-        // Check if remote branch already exists (optional precheck)
-        let remoteBranchExists = false;
-        try {
-          const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-          if (stdout.trim()) {
-            remoteBranchExists = true;
-          }
-        } catch (checkError) {
-          core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-        }
-
-        if (remoteBranchExists) {
-          if (preserveBranchName) {
-            throw new Error(
-              `Remote branch "${branchName}" already exists and preserve-branch-name is enabled. ` +
-                `Refusing to silently rename the branch. Either delete the remote branch, choose a different ` +
-                `branch name, or disable preserve-branch-name to allow a random suffix to be appended.`
-            );
-          }
-          core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-          const extraHex = crypto.randomBytes(4).toString("hex");
-          const oldBranch = branchName;
-          branchName = `${branchName}-${extraHex}`;
-          // Rename local branch
-          await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-          core.info(`Renamed branch to ${branchName}`);
-        }
+        branchName = await handleRemoteBranchCollision(branchName, preserveBranchName);
 
         await pushSignedCommits({
           githubClient,
@@ -1206,33 +1222,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 
         // Push the applied commits to the branch (with fallback to issue creation on failure)
         try {
-          // Check if remote branch already exists (optional precheck)
-          let remoteBranchExists = false;
-          try {
-            const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-            if (stdout.trim()) {
-              remoteBranchExists = true;
-            }
-          } catch (checkError) {
-            core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-          }
-
-          if (remoteBranchExists) {
-            if (preserveBranchName) {
-              throw new Error(
-                `Remote branch "${branchName}" already exists and preserve-branch-name is enabled. ` +
-                  `Refusing to silently rename the branch. Either delete the remote branch, choose a different ` +
-                  `branch name, or disable preserve-branch-name to allow a random suffix to be appended.`
-              );
-            }
-            core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-            const extraHex = crypto.randomBytes(4).toString("hex");
-            const oldBranch = branchName;
-            branchName = `${branchName}-${extraHex}`;
-            // Rename local branch
-            await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-            core.info(`Renamed branch to ${branchName}`);
-          }
+          branchName = await handleRemoteBranchCollision(branchName, preserveBranchName);
 
           await pushSignedCommits({
             githubClient,
@@ -1376,33 +1366,7 @@ ${patchPreview}`;
             await exec.exec(`git commit --allow-empty -m "Initialize"`);
             core.info("Created empty commit");
 
-            // Check if remote branch already exists (optional precheck)
-            let remoteBranchExists = false;
-            try {
-              const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-              if (stdout.trim()) {
-                remoteBranchExists = true;
-              }
-            } catch (checkError) {
-              core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-            }
-
-            if (remoteBranchExists) {
-              if (preserveBranchName) {
-                throw new Error(
-                  `Remote branch "${branchName}" already exists and preserve-branch-name is enabled. ` +
-                    `Refusing to silently rename the branch. Either delete the remote branch, choose a different ` +
-                    `branch name, or disable preserve-branch-name to allow a random suffix to be appended.`
-                );
-              }
-              core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-              const extraHex = crypto.randomBytes(4).toString("hex");
-              const oldBranch = branchName;
-              branchName = `${branchName}-${extraHex}`;
-              // Rename local branch
-              await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-              core.info(`Renamed branch to ${branchName}`);
-            }
+            branchName = await handleRemoteBranchCollision(branchName, preserveBranchName);
 
             await pushSignedCommits({
               githubClient,
@@ -1429,6 +1393,7 @@ ${patchPreview}`;
             return {
               success: false,
               error,
+              error_type: "push_failed",
             };
           }
         } else {
