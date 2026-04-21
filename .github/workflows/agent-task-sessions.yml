@@ -1,0 +1,27 @@
+name: List Active Agentic Task Sessions
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  list-active-agent-task-sessions:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Print active agentic task sessions
+        run: |
+          set -euo pipefail
+          active_sessions="$(gh agent-task list --limit 100 --json id,name,state,repository,updatedAt,pullRequestNumber,pullRequestUrl --jq '.[] | select(.state == "open" or .state == "OPEN" or .state == "active" or .state == "ACTIVE" or .state == "in_progress" or .state == "queued")')"
+          if [ -z "$active_sessions" ]; then
+            echo "No active agentic task sessions found."
+            exit 0
+          fi
+
+          echo "Active agentic task sessions:"
+          echo "$active_sessions"
