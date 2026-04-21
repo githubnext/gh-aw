@@ -52,6 +52,16 @@ import (
 
 var mcpGatewayConfigLog = logger.New("workflow:mcp_gateway_config")
 
+func getMCPGatewayVersion(workflowData *WorkflowData, configuredVersion string) string {
+	if configuredVersion != "" {
+		return configuredVersion
+	}
+	if featureVersion := getFeatureValue(constants.MCPGVersionFeatureFlag, workflowData); featureVersion != "" {
+		return featureVersion
+	}
+	return string(constants.DefaultMCPGatewayVersion)
+}
+
 // ensureDefaultMCPGatewayConfig ensures MCP gateway has default configuration if not provided
 // The MCP gateway is mandatory and defaults to github/gh-aw-mcpg
 func ensureDefaultMCPGatewayConfig(workflowData *WorkflowData) {
@@ -69,7 +79,7 @@ func ensureDefaultMCPGatewayConfig(workflowData *WorkflowData) {
 		mcpGatewayConfigLog.Print("No MCP gateway configuration found, setting default configuration")
 		workflowData.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
 			Container: constants.DefaultMCPGatewayContainer,
-			Version:   string(constants.DefaultMCPGatewayVersion),
+			Version:   getMCPGatewayVersion(workflowData, ""),
 			Port:      int(DefaultMCPGatewayPort),
 		}
 	} else {
@@ -77,9 +87,9 @@ func ensureDefaultMCPGatewayConfig(workflowData *WorkflowData) {
 		if workflowData.SandboxConfig.MCP.Container == "" {
 			workflowData.SandboxConfig.MCP.Container = constants.DefaultMCPGatewayContainer
 		}
-		// Only replace empty version with default - preserve user-specified versions including "latest"
+		// Only replace empty version - preserve user-specified versions including "latest"
 		if workflowData.SandboxConfig.MCP.Version == "" {
-			workflowData.SandboxConfig.MCP.Version = string(constants.DefaultMCPGatewayVersion)
+			workflowData.SandboxConfig.MCP.Version = getMCPGatewayVersion(workflowData, "")
 		}
 		if workflowData.SandboxConfig.MCP.Port == 0 {
 			workflowData.SandboxConfig.MCP.Port = int(DefaultMCPGatewayPort)

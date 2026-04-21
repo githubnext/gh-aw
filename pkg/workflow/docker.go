@@ -125,12 +125,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 			mcpGateway := workflowData.SandboxConfig.MCP
 			if mcpGateway.Container != "" {
 				image := mcpGateway.Container
-				if mcpGateway.Version != "" {
-					image += ":" + mcpGateway.Version
-				} else {
-					// Use default version if not specified (consistent with mcp_servers.go)
-					image += ":" + string(constants.DefaultMCPGatewayVersion)
-				}
+				image += ":" + getMCPGatewayVersion(workflowData, mcpGateway.Version)
 				if !imageSet[image] {
 					images = append(images, image)
 					imageSet[image] = true

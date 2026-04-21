@@ -302,3 +302,78 @@ func TestMergedFeaturesTopLevelPrecedence(t *testing.T) {
 		t.Errorf("isFeatureEnabled(\"import-only\") = %v, want true (from import)", importOnlyResult)
 	}
 }
+
+func TestGetFeatureValue(t *testing.T) {
+	tests := []struct {
+		name        string
+		workflow    *WorkflowData
+		flag        constants.FeatureFlag
+		expectedVal string
+	}{
+		{
+			name: "returns exact string value",
+			workflow: &WorkflowData{
+				Features: map[string]any{
+					"mcpg-version": "v0.2.27",
+				},
+			},
+			flag:        constants.MCPGVersionFeatureFlag,
+			expectedVal: "v0.2.27",
+		},
+		{
+			name: "returns case-insensitive key match",
+			workflow: &WorkflowData{
+				Features: map[string]any{
+					"MCPG-Version": "v0.2.28",
+				},
+			},
+			flag:        constants.MCPGVersionFeatureFlag,
+			expectedVal: "v0.2.28",
+		},
+		{
+			name: "trims whitespace from value",
+			workflow: &WorkflowData{
+				Features: map[string]any{
+					"mcpg-version": "  v0.2.29  ",
+				},
+			},
+			flag:        constants.MCPGVersionFeatureFlag,
+			expectedVal: "v0.2.29",
+		},
+		{
+			name: "returns empty for non-string value",
+			workflow: &WorkflowData{
+				Features: map[string]any{
+					"mcpg-version": true,
+				},
+			},
+			flag:        constants.MCPGVersionFeatureFlag,
+			expectedVal: "",
+		},
+		{
+			name: "returns empty for missing value",
+			workflow: &WorkflowData{
+				Features: map[string]any{
+					"other-feature": "v1",
+				},
+			},
+			flag:        constants.MCPGVersionFeatureFlag,
+			expectedVal: "",
+		},
+		{
+			name:        "returns empty for nil workflow",
+			workflow:    nil,
+			flag:        constants.MCPGVersionFeatureFlag,
+			expectedVal: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getFeatureValue(tt.flag, tt.workflow)
+			if got != tt.expectedVal {
+				t.Errorf("getFeatureValue(%q) = %q, want %q", tt.flag, got, tt.expectedVal)
+			}
+		})
+	}
+}

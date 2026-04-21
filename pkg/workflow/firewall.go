@@ -65,14 +65,32 @@ func getFirewallConfig(workflowData *WorkflowData) *FirewallConfig {
 		return nil
 	}
 
+	featureVersion := getFeatureValue(constants.FirewallVersionFeatureFlag, workflowData)
+
 	// Check network.firewall configuration
 	if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil {
 		config := workflowData.NetworkPermissions.Firewall
+		if config.Version == "" && featureVersion != "" {
+			// Use a copy to avoid mutating parsed frontmatter structures.
+			configCopy := *config
+			configCopy.Version = featureVersion
+			if firewallLog.Enabled() {
+				firewallLog.Printf("Applied firewall-version feature override: version=%s", featureVersion)
+			}
+			return &configCopy
+		}
 		if firewallLog.Enabled() {
 			firewallLog.Printf("Retrieved firewall config: enabled=%v, version=%s, logLevel=%s",
 				config.Enabled, config.Version, config.LogLevel)
 		}
 		return config
+	}
+
+	if featureVersion != "" {
+		if firewallLog.Enabled() {
+			firewallLog.Printf("Using firewall-version feature override without explicit firewall config: version=%s", featureVersion)
+		}
+		return &FirewallConfig{Version: featureVersion}
 	}
 
 	return nil

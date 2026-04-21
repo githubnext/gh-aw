@@ -79,3 +79,33 @@ func TestCollectDockerImages_APIProxyForEnginesWithLLMGateway(t *testing.T) {
 		})
 	}
 }
+
+func TestCollectDockerImages_FirewallVersionFeatureOverride(t *testing.T) {
+	featureVersion := "v0.25.27"
+	featureTag := "0.25.27"
+	workflowData := &WorkflowData{
+		AI: "claude",
+		Features: map[string]any{
+			string(constants.FirewallVersionFeatureFlag): featureVersion,
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		},
+	}
+
+	images := collectDockerImages(nil, workflowData, ActionModeRelease)
+
+	expectedImages := []string{
+		constants.DefaultFirewallRegistry + "/squid:" + featureTag,
+		constants.DefaultFirewallRegistry + "/agent:" + featureTag,
+		constants.DefaultFirewallRegistry + "/api-proxy:" + featureTag,
+	}
+
+	for _, expectedImage := range expectedImages {
+		if !slices.Contains(images, expectedImage) {
+			t.Errorf("Expected image %q in collected images, got %v", expectedImage, images)
+		}
+	}
+}

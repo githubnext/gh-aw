@@ -86,3 +86,44 @@ func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bo
 	featuresLog.Printf("Feature not found: %s=false", flagLower)
 	return false
 }
+
+// getFeatureValue returns the string value for a feature flag from workflow frontmatter.
+// Returns an empty string when:
+//   - workflowData is nil
+//   - features are not configured
+//   - the feature is missing
+//   - the feature value is not a string
+//   - the feature value is an empty/whitespace string
+func getFeatureValue(flag constants.FeatureFlag, workflowData *WorkflowData) string {
+	if workflowData == nil || workflowData.Features == nil {
+		return ""
+	}
+
+	flagLower := strings.ToLower(strings.TrimSpace(string(flag)))
+
+	if value, exists := workflowData.Features[flagLower]; exists {
+		if strVal, ok := value.(string); ok {
+			trimmed := strings.TrimSpace(strVal)
+			if trimmed != "" {
+				featuresLog.Printf("Feature value found in frontmatter: %s=%s", flagLower, trimmed)
+			}
+			return trimmed
+		}
+		return ""
+	}
+
+	for key, value := range workflowData.Features {
+		if strings.ToLower(key) == flagLower {
+			if strVal, ok := value.(string); ok {
+				trimmed := strings.TrimSpace(strVal)
+				if trimmed != "" {
+					featuresLog.Printf("Feature value found in frontmatter (case-insensitive): %s=%s", flagLower, trimmed)
+				}
+				return trimmed
+			}
+			return ""
+		}
+	}
+
+	return ""
+}

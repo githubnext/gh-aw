@@ -119,6 +119,37 @@ func TestClaudeEngineAWFImageTag(t *testing.T) {
 			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
 		}
 	})
+
+	t.Run("AWF command includes image-tag with firewall-version feature override", func(t *testing.T) {
+		featureVersion := "v0.25.27"
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "claude",
+			},
+			Features: map[string]any{
+				string(constants.FirewallVersionFeatureFlag): featureVersion,
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewClaudeEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+		expectedImageTag := "--image-tag " + strings.TrimPrefix(featureVersion, "v")
+		if !strings.Contains(stepContent, expectedImageTag) {
+			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
+		}
+	})
 }
 
 // TestCodexEngineAWFImageTag tests that Codex engine includes --image-tag in AWF commands

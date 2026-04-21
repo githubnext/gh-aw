@@ -281,3 +281,38 @@ func TestCopilotInstallerByokFeatureUsesLatestVersion(t *testing.T) {
 		t.Errorf("Expected byok-copilot to ignore pinned version, got:\n%s", installStep)
 	}
 }
+
+func TestCopilotInstallerLatestCopilotFeatureUsesLatestVersion(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			Version: "1.0.0",
+		},
+		Features: map[string]any{
+			string(constants.LatestCopilotFeatureFlag): true,
+		},
+	}
+
+	steps := engine.GetInstallationSteps(workflowData)
+
+	var installStep string
+	for _, step := range steps {
+		stepContent := strings.Join(step, "\n")
+		if strings.Contains(stepContent, "install_copilot_cli.sh") {
+			installStep = stepContent
+			break
+		}
+	}
+
+	if installStep == "" {
+		t.Fatal("Could not find install step with install_copilot_cli.sh")
+	}
+
+	if !strings.Contains(installStep, `install_copilot_cli.sh" latest`) {
+		t.Errorf("Expected latest-copilot to force latest Copilot CLI install, got:\n%s", installStep)
+	}
+	if strings.Contains(installStep, `install_copilot_cli.sh" 1.0.0`) {
+		t.Errorf("Expected latest-copilot to ignore pinned version, got:\n%s", installStep)
+	}
+}

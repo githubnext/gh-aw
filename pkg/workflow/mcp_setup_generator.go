@@ -688,11 +688,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Build container command
 	containerImage := gatewayConfig.Container
-	if gatewayConfig.Version != "" {
-		containerImage += ":" + gatewayConfig.Version
-	} else {
-		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
-	}
+	containerImage += ":" + getMCPGatewayVersion(workflowData, gatewayConfig.Version)
 
 	var containerCmd strings.Builder
 	containerCmd.WriteString("docker run -i --rm --network host")

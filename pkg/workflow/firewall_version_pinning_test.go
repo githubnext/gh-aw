@@ -158,6 +158,46 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 		}
 	})
 
+	t.Run("uses feature override version when firewall config version is not specified", func(t *testing.T) {
+		engine := NewCopilotEngine()
+		featureVersion := "v0.25.27"
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			Features: map[string]any{
+				string(constants.FirewallVersionFeatureFlag): featureVersion,
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		steps := engine.GetInstallationSteps(workflowData)
+
+		var foundAWFStep bool
+		var awfStepStr string
+		for _, step := range steps {
+			stepStr := strings.Join(step, "\n")
+			if strings.Contains(stepStr, "Install AWF binary") {
+				foundAWFStep = true
+				awfStepStr = stepStr
+				break
+			}
+		}
+
+		if !foundAWFStep {
+			t.Fatal("Expected to find AWF installation step when firewall is enabled")
+		}
+
+		if !strings.Contains(awfStepStr, featureVersion) {
+			t.Errorf("AWF installation step should pass feature override version %s to script", featureVersion)
+		}
+	})
+
 	t.Run("does not include AWF installation when firewall disabled", func(t *testing.T) {
 		engine := NewCopilotEngine()
 		workflowData := &WorkflowData{

@@ -69,6 +69,45 @@ func TestEnsureDefaultMCPGatewayConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "fills in missing version field from mcpg-version feature override",
+			workflowData: &WorkflowData{
+				Features: map[string]any{
+					string(constants.MCPGVersionFeatureFlag): "v0.2.27",
+				},
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Container: "custom-container",
+						Port:      8080,
+					},
+				},
+			},
+			validate: func(t *testing.T, wd *WorkflowData) {
+				assert.Equal(t, "custom-container", wd.SandboxConfig.MCP.Container, "Container should be preserved")
+				assert.Equal(t, "v0.2.27", wd.SandboxConfig.MCP.Version, "Version should use feature override")
+				assert.Equal(t, 8080, wd.SandboxConfig.MCP.Port, "Port should be preserved")
+			},
+		},
+		{
+			name: "preserves explicit version over mcpg-version feature override",
+			workflowData: &WorkflowData{
+				Features: map[string]any{
+					string(constants.MCPGVersionFeatureFlag): "v0.2.27",
+				},
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Container: "custom-container",
+						Version:   "v0.3.0",
+						Port:      8080,
+					},
+				},
+			},
+			validate: func(t *testing.T, wd *WorkflowData) {
+				assert.Equal(t, "custom-container", wd.SandboxConfig.MCP.Container, "Container should be preserved")
+				assert.Equal(t, "v0.3.0", wd.SandboxConfig.MCP.Version, "Explicit version should be preserved")
+				assert.Equal(t, 8080, wd.SandboxConfig.MCP.Port, "Port should be preserved")
+			},
+		},
+		{
 			name: "fills in missing port field",
 			workflowData: &WorkflowData{
 				SandboxConfig: &SandboxConfig{

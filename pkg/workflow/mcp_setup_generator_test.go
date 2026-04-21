@@ -118,6 +118,7 @@ func TestMCPGatewayVersionFromFrontmatter(t *testing.T) {
 	tests := []struct {
 		name            string
 		sandboxConfig   *SandboxConfig
+		features        map[string]any
 		expectedVersion string
 		description     string
 	}{
@@ -180,6 +181,20 @@ func TestMCPGatewayVersionFromFrontmatter(t *testing.T) {
 			expectedVersion: "1.2.3",
 			description:     "should use custom version 1.2.3",
 		},
+		{
+			name: "mcpg-version feature override applies when sandbox.mcp.version is not set",
+			sandboxConfig: &SandboxConfig{
+				MCP: &MCPGatewayRuntimeConfig{
+					Container: constants.DefaultMCPGatewayContainer,
+					Port:      8080,
+				},
+			},
+			features: map[string]any{
+				string(constants.MCPGVersionFeatureFlag): "v0.2.27",
+			},
+			expectedVersion: "v0.2.27",
+			description:     "should use mcpg-version feature override when no explicit sandbox.mcp.version is set",
+		},
 	}
 
 	for _, tt := range tests {
@@ -187,6 +202,7 @@ func TestMCPGatewayVersionFromFrontmatter(t *testing.T) {
 			workflowData := &WorkflowData{
 				SandboxConfig: tt.sandboxConfig,
 				Tools:         map[string]any{"github": map[string]any{}},
+				Features:      tt.features,
 			}
 
 			// Ensure MCP gateway config is applied (includes normalization of "latest")
