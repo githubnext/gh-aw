@@ -101,7 +101,8 @@ function buildCommentMemoryMessagesFromFiles(existingMessages, config) {
     return [];
   }
 
-  const existingMemoryIds = new Set(existingMessages.filter(isCommentMemoryMessage).map(message => message.memory_id));
+  const defaultMemoryId = normalizeCommentMemoryId(config?.comment_memory?.memory_id);
+  const existingMemoryIds = new Set(existingMessages.filter(isCommentMemoryMessage).map(message => normalizeCommentMemoryId(message.memory_id, defaultMemoryId)));
 
   const fileEntries = listCommentMemoryFiles(COMMENT_MEMORY_DIR);
   if (fileEntries.length === 0) {
@@ -134,7 +135,15 @@ function buildCommentMemoryMessagesFromFiles(existingMessages, config) {
 }
 
 function isCommentMemoryMessage(message) {
-  return message?.type === "comment_memory" && typeof message.memory_id === "string";
+  return message?.type === "comment_memory";
+}
+
+function normalizeCommentMemoryId(memoryId, fallback = "default") {
+  if (typeof memoryId !== "string") {
+    return fallback;
+  }
+  const normalized = memoryId.trim();
+  return normalized.length > 0 ? normalized : fallback;
 }
 
 /**

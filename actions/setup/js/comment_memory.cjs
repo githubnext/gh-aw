@@ -13,6 +13,7 @@ const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { COMMENT_MEMORY_TAG, COMMENT_MEMORY_MAX_SCAN_PAGES } = require("./comment_memory_helpers.cjs");
+const MANAGED_COMMENT_PROVENANCE_MARKER = "<!-- gh-aw-agentic-workflow:";
 
 function sanitizeMemoryID(memoryID) {
   const normalized = String(memoryID || "default").trim();
@@ -68,7 +69,15 @@ async function findManagedComment(github, owner, repo, itemNumber, memoryID) {
       core.info(`comment_memory: no comments found on page ${page}`);
       return null;
     }
-    const match = data.find(comment => typeof comment.body === "string" && comment.body.includes(marker));
+    const match = data.find(comment => {
+      if (typeof comment.body !== "string") {
+        return false;
+      }
+      if (!comment.body.includes(marker)) {
+        return false;
+      }
+      return comment.body.includes(MANAGED_COMMENT_PROVENANCE_MARKER);
+    });
     if (match) {
       core.info(`comment_memory: found existing managed comment id=${match.id} on page ${page}`);
       return match;

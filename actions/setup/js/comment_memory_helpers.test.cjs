@@ -14,4 +14,11 @@ describe("comment_memory_helpers", () => {
     expect(warning).toHaveBeenCalled();
     expect(isSafeMemoryId("../bad")).toBe(false);
   });
+
+  it("allows memory IDs up to 128 characters", () => {
+    const maxLengthId = "a".repeat(128);
+    const tooLongId = "b".repeat(129);
+    expect(isSafeMemoryId(maxLengthId)).toBe(true);
+    expect(isSafeMemoryId(tooLongId)).toBe(false);
+  });
 });

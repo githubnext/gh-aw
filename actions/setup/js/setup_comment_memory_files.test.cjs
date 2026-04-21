@@ -66,4 +66,34 @@ describe("setup_comment_memory_files", () => {
     expect(prompt).toContain("/tmp/gh-aw/comment-memory");
     expect(prompt).toContain("/tmp/gh-aw/comment-memory/default.md");
   });
+
+  it("continues scanning past initial pages without entries", async () => {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify({ "comment-memory": { target: "triggering" } }));
+    const listComments = vi.fn().mockImplementation(({ page }) => {
+      if (page <= 5) {
+        return Promise.resolve({
+          data: Array.from({ length: 100 }, () => ({ body: "normal comment without memory marker" })),
+        });
+      }
+      if (page === 6) {
+        return Promise.resolve({ data: [{ body: '<gh-aw-comment-memory id="default">\nLate memory\n</gh-aw-comment-memory>' }] });
+      }
+      return Promise.resolve({ data: [] });
+    });
+    global.github = {
+      rest: {
+        issues: {
+          listComments,
+        },
+      },
+    };
+
+    const module = await import("./setup_comment_memory_files.cjs");
+    await module.main();
+
+    const memoryFile = path.join(COMMENT_MEMORY_DIR, "default.md");
+    expect(fs.existsSync(memoryFile)).toBe(true);
+    expect(fs.readFileSync(memoryFile, "utf8")).toBe("Late memory\n");
+    expect(listComments).toHaveBeenCalledTimes(6);
+  });
 });

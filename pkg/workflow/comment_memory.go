@@ -16,14 +16,34 @@ type CommentMemoryConfig struct {
 
 // parseCommentMemoryConfig handles comment-memory configuration.
 func (c *Compiler) parseCommentMemoryConfig(outputMap map[string]any) *CommentMemoryConfig {
-	// Support explicit configuration if present.
-	if _, exists := outputMap["comment-memory"]; !exists {
+	rawConfig, exists := outputMap["comment_memory"]
+	if !exists {
+		rawConfig, exists = outputMap["comment-memory"]
+	}
+	if !exists {
 		return nil
+	}
+
+	switch v := rawConfig.(type) {
+	case nil:
+		commentMemoryLog.Print("comment-memory explicitly disabled with null")
+		return nil
+	case bool:
+		if !v {
+			commentMemoryLog.Print("comment-memory explicitly disabled with false")
+			return nil
+		}
+		return &CommentMemoryConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Max: defaultIntStr(1),
+			},
+			MemoryID: "default",
+		}
 	}
 
 	commentMemoryLog.Print("Parsing comment-memory configuration")
 
-	configData, _ := outputMap["comment-memory"].(map[string]any)
+	configData, _ := rawConfig.(map[string]any)
 	if err := preprocessIntFieldAsString(configData, "max", commentMemoryLog); err != nil {
 		commentMemoryLog.Printf("Invalid max value: %v", err)
 		return nil
@@ -34,7 +54,8 @@ func (c *Compiler) parseCommentMemoryConfig(outputMap map[string]any) *CommentMe
 	}
 
 	var config CommentMemoryConfig
-	if err := unmarshalConfig(outputMap, "comment-memory", &config, commentMemoryLog); err != nil {
+	normalizedOutputMap := map[string]any{"comment-memory": rawConfig}
+	if err := unmarshalConfig(normalizedOutputMap, "comment-memory", &config, commentMemoryLog); err != nil {
 		commentMemoryLog.Printf("Failed to unmarshal config: %v", err)
 		config = CommentMemoryConfig{}
 	}

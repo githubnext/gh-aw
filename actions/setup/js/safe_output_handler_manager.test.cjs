@@ -1565,5 +1565,14 @@ describe("Safe Output Handler Manager", () => {
 
       expect(messages).toEqual([]);
     });
+
+    it("treats comment_memory messages without memory_id as default memory when checking precedence", () => {
+      fs.mkdirSync("/tmp/gh-aw/comment-memory", { recursive: true });
+      fs.writeFileSync("/tmp/gh-aw/comment-memory/default.md", "saved memory");
+
+      const messages = buildCommentMemoryMessagesFromFiles([{ type: "comment_memory", body: "from output" }], { comment_memory: { max: "1", memory_id: "default" } });
+
+      expect(messages).toEqual([]);
+    });
   });
 });
