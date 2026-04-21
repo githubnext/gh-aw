@@ -18,6 +18,9 @@ function normalizeAllowedExtension(extValue) {
   if (!trimmed) {
     return "";
   }
+  if (isGitHubExpression(trimmed)) {
+    return trimmed;
+  }
   const normalized = trimmed.toLowerCase();
   return normalized.startsWith(".") ? normalized : `.${normalized}`;
 }

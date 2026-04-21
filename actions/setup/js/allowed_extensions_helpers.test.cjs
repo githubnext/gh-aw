@@ -38,7 +38,7 @@ describe("allowed_extensions_helpers", () => {
     it("detects unresolved GitHub Actions expressions", () => {
       expect(parseAllowedExtensionsEnv(".txt,${{ inputs.allowed_exts }}")).toEqual({
         rawValues: [".txt", "${{ inputs.allowed_exts }}"],
-        normalizedValues: [".txt", ".${{ inputs.allowed_exts }}"],
+        normalizedValues: [".txt", "${{ inputs.allowed_exts }}"],
         hasUnresolvedExpression: true,
       });
     });
