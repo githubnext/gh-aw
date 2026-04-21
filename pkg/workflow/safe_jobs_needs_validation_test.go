@@ -299,6 +299,91 @@ func TestValidateSafeJobNeeds_NeedsNormalization(t *testing.T) {
 		"needs entries should be normalized to underscore form")
 }
 
+func TestValidateSafeOutputsNeeds(t *testing.T) {
+	tests := []struct {
+		name        string
+		data        *WorkflowData
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid custom job targets in needs and extra-needs",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"secrets_fetcher": map[string]any{
+						"runs-on": "ubuntu-latest",
+						"steps":   []any{map[string]any{"run": "echo ok"}},
+					},
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					Needs:      []string{"secrets_fetcher"},
+					ExtraNeeds: []string{"secrets_fetcher"},
+				},
+			},
+		},
+		{
+			name: "unknown job in extra-needs should fail",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"secrets_fetcher": map[string]any{},
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ExtraNeeds: []string{"missing_job"},
+				},
+			},
+			wantErr:     true,
+			errContains: `safe-outputs.extra-needs: unknown job "missing_job"`,
+		},
+		{
+			name: "built-in job in needs should fail",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"secrets_fetcher": map[string]any{},
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					Needs: []string{"agent"},
+				},
+			},
+			wantErr:     true,
+			errContains: `safe-outputs.needs: built-in job "agent" is not allowed`,
+		},
+		{
+			name: "self reference safe_outputs should fail",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"secrets_fetcher": map[string]any{},
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ExtraNeeds: []string{"safe_outputs"},
+				},
+			},
+			wantErr:     true,
+			errContains: `safe-outputs.extra-needs: built-in job "safe_outputs" is not allowed`,
+		},
+		{
+			name: "missing fields keeps behavior unchanged",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"secrets_fetcher": map[string]any{},
+				},
+				SafeOutputs: &SafeOutputsConfig{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSafeOutputsNeeds(tt.data)
+			if tt.wantErr {
+				require.Error(t, err, "expected validation error")
+				assert.Contains(t, err.Error(), tt.errContains, "error should include expected context")
+				return
+			}
+			require.NoError(t, err, "expected validation to pass")
+		})
+	}
+}
+
 // TestDetectSafeJobCycles tests cycle detection between custom safe-jobs.
 func TestDetectSafeJobCycles(t *testing.T) {
 	t.Run("no cycles – linear chain", func(t *testing.T) {

@@ -611,6 +611,12 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if result.RunsOn == "" && importedConfig.RunsOn != "" {
 		result.RunsOn = importedConfig.RunsOn
 	}
+	if len(importedConfig.Needs) > 0 {
+		result.Needs = mergeUnique(result.Needs, importedConfig.Needs...)
+	}
+	if len(importedConfig.ExtraNeeds) > 0 {
+		result.ExtraNeeds = mergeUnique(result.ExtraNeeds, importedConfig.ExtraNeeds...)
+	}
 
 	// Merge Messages configuration at field level (main workflow entries override imported entries)
 	if importedConfig.Messages != nil {
