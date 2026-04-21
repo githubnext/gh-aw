@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -20,53 +21,89 @@ func getNetworkFirewallCodemod() Codemod {
 		LogMsg:       "Applied network.firewall migration (firewall now always enabled via sandbox.agent: awf default)",
 		Log:          networkFirewallCodemodLog,
 		PostTransform: func(lines []string, frontmatter map[string]any, fieldValue any) []string {
-			// Note: We no longer set sandbox.agent: false since the firewall is mandatory
-			// The firewall is always enabled via the default sandbox.agent: awf
-
 			_, hasSandbox := frontmatter["sandbox"]
 
-			// Add sandbox.agent if not already present AND if firewall was explicitly true
-			// (no need to add sandbox.agent: awf if firewall was false, since awf is now the default)
-			if !hasSandbox && fieldValue == true {
-				// Only add sandbox.agent: awf if firewall was explicitly set to true
-				sandboxLines := []string{
-					"sandbox:",
-					"  agent: awf  # Firewall enabled (migrated from network.firewall)",
+			if !hasSandbox {
+				sandboxLines := sandboxAgentLinesFromFirewall(fieldValue)
+				if len(sandboxLines) > 0 {
+					lines = insertSandboxAfterNetworkBlock(lines, sandboxLines)
+					networkFirewallCodemodLog.Print("Converted deprecated network.firewall to sandbox.agent")
 				}
-
-				// Try to place it after network block
-				insertIndex := -1
-				inNet := false
-				for i, line := range lines {
-					trimmed := strings.TrimSpace(line)
-					if strings.HasPrefix(trimmed, "network:") {
-						inNet = true
-					} else if inNet && len(trimmed) > 0 {
-						// Check if this is a top-level key (no leading whitespace)
-						if isTopLevelKey(line) {
-							// Found next top-level key
-							insertIndex = i
-							break
-						}
-					}
-				}
-
-				if insertIndex >= 0 {
-					// Insert after network block
-					newLines := make([]string, 0, len(lines)+len(sandboxLines))
-					newLines = append(newLines, lines[:insertIndex]...)
-					newLines = append(newLines, sandboxLines...)
-					newLines = append(newLines, lines[insertIndex:]...)
-					lines = newLines
-				} else {
-					// Append at the end
-					lines = append(lines, sandboxLines...)
-				}
-
-				networkFirewallCodemodLog.Print("Added sandbox.agent: awf (firewall was explicitly enabled)")
 			}
 
 			return lines
 		},
 	})
+}
+
+func sandboxAgentLinesFromFirewall(fieldValue any) []string {
+	switch value := fieldValue.(type) {
+	case bool:
+		if value {
+			return []string{
+				"sandbox:",
+				"  agent: awf  # Migrated from deprecated network setting",
+			}
+		}
+		return []string{
+			"sandbox:",
+			"  agent: false  # Migrated from deprecated network setting",
+		}
+	case string:
+		if strings.EqualFold(strings.TrimSpace(value), "disable") {
+			return []string{
+				"sandbox:",
+				"  agent: false  # Migrated from deprecated network setting",
+			}
+		}
+	case map[string]any:
+		versionValue, hasVersion := value["version"]
+		if hasVersion {
+			version := strings.TrimSpace(fmt.Sprintf("%v", versionValue))
+			if version != "" {
+				return []string{
+					"sandbox:",
+					"  agent:",
+					"    id: awf  # Migrated from deprecated network setting",
+					fmt.Sprintf("    version: %q", version),
+				}
+			}
+		}
+		return []string{
+			"sandbox:",
+			"  agent: awf  # Migrated from deprecated network setting",
+		}
+	case nil:
+		return []string{
+			"sandbox:",
+			"  agent: awf  # Migrated from deprecated network setting",
+		}
+	}
+	return nil
+}
+
+func insertSandboxAfterNetworkBlock(lines []string, sandboxLines []string) []string {
+	insertIndex := -1
+	inNetworkBlock := false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "network:") {
+			inNetworkBlock = true
+			continue
+		}
+		if inNetworkBlock && len(trimmed) > 0 && isTopLevelKey(line) {
+			insertIndex = i
+			break
+		}
+	}
+
+	if insertIndex >= 0 {
+		newLines := make([]string, 0, len(lines)+len(sandboxLines))
+		newLines = append(newLines, lines[:insertIndex]...)
+		newLines = append(newLines, sandboxLines...)
+		newLines = append(newLines, lines[insertIndex:]...)
+		return newLines
+	}
+
+	return append(lines, sandboxLines...)
 }

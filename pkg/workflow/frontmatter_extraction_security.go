@@ -23,7 +23,7 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 			return nil
 		}
 
-		// Handle object format: { allowed: [...], firewall: ... } or {}
+		// Handle object format: { allowed: [...], blocked: [...] } or {}
 		if networkObj, ok := network.(map[string]any); ok {
 			frontmatterExtractionSecurityLog.Printf("Network permissions object format with %d fields", len(networkObj))
 			permissions := &NetworkPermissions{
@@ -52,12 +52,6 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 					}
 					frontmatterExtractionSecurityLog.Printf("Extracted %d blocked domains", len(permissions.Blocked))
 				}
-			}
-
-			// Extract firewall configuration if present
-			if firewall, hasFirewall := networkObj["firewall"]; hasFirewall {
-				frontmatterExtractionSecurityLog.Print("Extracting firewall configuration")
-				permissions.Firewall = c.extractFirewallConfig(firewall)
 			}
 
 			// Empty object {} means no network access (empty allowed list)

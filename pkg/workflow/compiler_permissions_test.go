@@ -219,7 +219,7 @@ This is a test workflow with empty network permissions (deny all).
 		}
 	})
 
-	t.Run("network with allowed domains and firewall enabled should use AWF", func(t *testing.T) {
+	t.Run("network with allowed domains should use AWF", func(t *testing.T) {
 		testContent := `---
 on: push
 strict: false
@@ -227,7 +227,6 @@ engine:
   id: claude
 network:
   allowed: ["example.com", "api.github.com"]
-  firewall: true
 ---
 
 # Test Workflow
@@ -254,7 +253,7 @@ This is a test workflow with explicit network permissions.
 
 		// Should contain AWF wrapper with --allow-domains
 		if !strings.Contains(string(lockContent), "sudo -E awf") {
-			t.Error("Should contain AWF wrapper with explicit network permissions and firewall: true")
+			t.Error("Should contain AWF wrapper with explicit network permissions")
 		}
 		if !strings.Contains(string(lockContent), "--allow-domains") {
 			t.Error("Should contain --allow-domains flag in AWF command")

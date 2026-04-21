@@ -80,7 +80,8 @@ permissions:
 	require.NoError(t, err)
 	assert.True(t, applied)
 	assert.NotContains(t, result, "firewall:", "Should remove firewall field")
-	assert.NotContains(t, result, "sandbox:", "Should not add sandbox for firewall: false")
+	assert.Contains(t, result, "sandbox:", "Should add sandbox block")
+	assert.Contains(t, result, "agent: false", "Should convert firewall false to sandbox.agent: false")
 }
 
 func TestNetworkFirewallCodemod_NoNetworkField(t *testing.T) {
@@ -312,4 +313,64 @@ permissions:
 	assert.NotContains(t, result, "firewall:")
 	assert.NotContains(t, result, "enabled:")
 	assert.NotContains(t, result, "strict:")
+	assert.Contains(t, result, "sandbox:", "Should add sandbox block")
+	assert.Contains(t, result, "agent: awf", "Should convert firewall object to sandbox.agent: awf")
+}
+
+func TestNetworkFirewallCodemod_NullFirewallAddsSandboxAgent(t *testing.T) {
+	codemod := getNetworkFirewallCodemod()
+
+	content := `---
+on: workflow_dispatch
+network:
+  firewall: null
+---
+
+# Test`
+
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"network": map[string]any{
+			"firewall": nil,
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.NotContains(t, result, "firewall:", "Should remove firewall field")
+	assert.Contains(t, result, "sandbox:", "Should add sandbox block")
+	assert.Contains(t, result, "agent: awf", "Should convert firewall null to sandbox.agent: awf")
+}
+
+func TestNetworkFirewallCodemod_PreservesFirewallVersionInSandboxAgent(t *testing.T) {
+	codemod := getNetworkFirewallCodemod()
+
+	content := `---
+on: workflow_dispatch
+network:
+  firewall:
+    version: v1.2.3
+---
+
+# Test`
+
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"network": map[string]any{
+			"firewall": map[string]any{
+				"version": "v1.2.3",
+			},
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.NotContains(t, result, "firewall:", "Should remove firewall field")
+	assert.Contains(t, result, "sandbox:", "Should add sandbox block")
+	assert.Contains(t, result, "id: awf", "Should create sandbox.agent object")
+	assert.Contains(t, result, `version: "v1.2.3"`, "Should preserve firewall.version as sandbox.agent.version")
 }
