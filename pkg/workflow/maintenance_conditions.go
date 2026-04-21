@@ -1,5 +1,9 @@
 package workflow
 
+import "github.com/github/gh-aw/pkg/logger"
+
+var maintenanceConditionsLog = logger.New("workflow:maintenance_conditions")
+
 // buildNotForkCondition creates a condition to check the repository is not a fork.
 func buildNotForkCondition() ConditionNode {
 	return &NotNode{
@@ -33,6 +37,7 @@ func buildNotDispatchOrCallOrEmptyOperation() ConditionNode {
 // schedule (or empty operation) AND when a specific operation is selected.
 // Condition: !fork && (not_dispatch_or_call || operation == ” || operation == op)
 func buildNotForkAndScheduledOrOperation(operation string) ConditionNode {
+	maintenanceConditionsLog.Printf("Building not-fork-and-scheduled-or-operation condition: %s", operation)
 	return BuildAnd(
 		buildNotForkCondition(),
 		BuildOr(
@@ -79,6 +84,7 @@ func buildDispatchOperationCondition(operation string) ConditionNode {
 // job that handles all dispatch/call operations except the ones with dedicated jobs.
 // Condition: (dispatch || call) && operation != ” && operation != each excluded && !fork.
 func buildRunOperationCondition(excludedOperations ...string) ConditionNode {
+	maintenanceConditionsLog.Printf("Building run operation condition, excluding %d operation(s): %v", len(excludedOperations), excludedOperations)
 	// Start with: event is workflow_dispatch or workflow_call AND operation is not empty
 	condition := BuildAnd(
 		BuildOr(
