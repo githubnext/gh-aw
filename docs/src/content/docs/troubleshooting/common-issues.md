@@ -176,9 +176,10 @@ Use this `.crush.json` structure. Port `10004` is the default local AWF API prox
   "model": "copilot-proxy/claude-sonnet-4-6",
   "mcp": {
     "safeoutputs": {
-      "type": "remote",
+      "type": "http",
       "url": "http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/safeoutputs",
       "headers": { "Authorization": "${MCP_GATEWAY_API_KEY}" },
+      "disabled": false,
       "timeout": 30000
     }
   },
