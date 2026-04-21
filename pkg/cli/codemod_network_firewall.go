@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -59,13 +59,12 @@ func sandboxAgentLinesFromFirewall(fieldValue any) []string {
 	case map[string]any:
 		versionValue, hasVersion := value["version"]
 		if hasVersion {
-			version := strings.TrimSpace(fmt.Sprintf("%v", versionValue))
-			if version != "" {
+			if version, ok := normalizeFirewallVersion(versionValue); ok {
 				return []string{
 					"sandbox:",
 					"  agent:",
 					"    id: awf  # Migrated from deprecated network setting",
-					fmt.Sprintf("    version: %q", version),
+					"    version: " + formatSandboxVersionYAML(version),
 				}
 			}
 		}
@@ -80,6 +79,46 @@ func sandboxAgentLinesFromFirewall(fieldValue any) []string {
 		}
 	}
 	return nil
+}
+
+func normalizeFirewallVersion(versionValue any) (string, bool) {
+	switch value := versionValue.(type) {
+	case string:
+		trimmed := strings.TrimSpace(value)
+		return trimmed, trimmed != ""
+	case int:
+		return strconv.Itoa(value), true
+	case int8:
+		return strconv.FormatInt(int64(value), 10), true
+	case int16:
+		return strconv.FormatInt(int64(value), 10), true
+	case int32:
+		return strconv.FormatInt(int64(value), 10), true
+	case int64:
+		return strconv.FormatInt(value, 10), true
+	case uint:
+		return strconv.FormatUint(uint64(value), 10), true
+	case uint8:
+		return strconv.FormatUint(uint64(value), 10), true
+	case uint16:
+		return strconv.FormatUint(uint64(value), 10), true
+	case uint32:
+		return strconv.FormatUint(uint64(value), 10), true
+	case uint64:
+		return strconv.FormatUint(value, 10), true
+	case float32:
+		return strconv.FormatFloat(float64(value), 'f', -1, 64), true
+	case float64:
+		return strconv.FormatFloat(value, 'f', -1, 64), true
+	default:
+		return "", false
+	}
+}
+
+func formatSandboxVersionYAML(version string) string {
+	// Always quote because sandbox.agent.version is a string field, and this prevents
+	// YAML from interpreting numeric-like versions as numbers.
+	return strconv.Quote(version)
 }
 
 func insertSandboxAfterNetworkBlock(lines []string, sandboxLines []string) []string {
