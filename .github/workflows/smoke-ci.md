@@ -1,6 +1,6 @@
 ---
 name: Smoke CI
-description: Smoke CI workflow that comments via safeoutputs CLI without invoking an LLM
+description: Smoke CI workflow that exercises pull request safe outputs through an agent session
 on:
   push:
     branches: [main]
@@ -12,18 +12,19 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine:
-  id: copilot
-  command: >-
-    bash -lc 'if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then safeoutputs
-    add_comment --body "✅ smoke-ci: safeoutputs CLI comment only run (${GITHUB_RUN_ID})";
-    else safeoutputs noop --message "smoke-ci: push event - no PR context, no action needed"; fi'
+engine: copilot
 tools:
-  mount-as-clis: true
+  github:
 safe-outputs:
   add-comment:
     hide-older-comments: true
     max: 1
+  add-labels:
+    max: 1
+    allowed: [ai-generated]
+  remove-labels:
+    max: 1
+    allowed: [ai-generated]
   threat-detection: false
 features:
   mcp-cli: true
@@ -31,6 +32,12 @@ timeout-minutes: 5
 strict: true
 ---
 
-Run exactly one CLI action: use the mounted `safeoutputs` CLI to add a short comment.
-If there is no PR context, use `safeoutputs noop` with a brief message.
-Do not call any LLM tools or perform any additional analysis.
+For pull_request events, call the safe output tools in this exact order:
+1. `add_comment` with a short smoke-ci message that includes the run URL.
+2. `add_labels` with exactly `["ai-generated"]`.
+3. `remove_labels` with exactly `["ai-generated"]`.
+
+For non-pull_request events, call `noop` with a short message indicating no PR context.
+
+Do not run any shell commands.
+Do not call any tools other than `add_comment`, `add_labels`, `remove_labels`, or `noop`.
