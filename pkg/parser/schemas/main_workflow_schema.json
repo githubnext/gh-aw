@@ -9499,6 +9499,7 @@
             },
             "driver": {
               "type": "string",
+              "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*\\.(?:js|cjs|mjs)$",
               "description": "Custom Node.js driver script filename for an agentic engine. This replaces the engine's built-in driver wrapper (when the engine supports one) and must end with .js, .cjs, or .mjs."
             },
             "env": {

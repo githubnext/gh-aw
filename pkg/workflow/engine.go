@@ -246,7 +246,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
-			// Extract optional 'driver' field (string - copilot engine only)
+			// Extract optional 'driver' field (string - validated separately)
 			if driver, hasDriver := engineObj["driver"]; hasDriver {
 				if driverStr, ok := driver.(string); ok {
 					config.DriverScript = driverStr

@@ -342,6 +342,38 @@ func TestValidateEngineDriverScript(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name: "invalid path traversal",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "../driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "safe basename",
+		},
+		{
+			name: "invalid path separator",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "nested/driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "safe basename",
+		},
+		{
+			name: "invalid shell metacharacter",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "driver;rm -rf /.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "safe basename",
+		},
+		{
+			name: "invalid leading whitespace",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: " driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "leading/trailing whitespace",
+		},
 	}
 
 	for _, tt := range tests {

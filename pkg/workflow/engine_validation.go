@@ -38,6 +38,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -46,6 +47,7 @@ import (
 )
 
 var engineValidationLog = newValidationLogger("engine")
+var validEngineDriverScriptBasename = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
 // validateEngineVersion warns (non-strict) or errors (strict) when the workflow
 // explicitly pins the engine CLI to "latest". Unpinned "latest" versions change
@@ -83,7 +85,20 @@ func (c *Compiler) validateEngineDriverScript(workflowData *WorkflowData) error 
 		return nil
 	}
 
-	ext := strings.ToLower(filepath.Ext(workflowData.EngineConfig.DriverScript))
+	driverScript := workflowData.EngineConfig.DriverScript
+	if strings.TrimSpace(driverScript) != driverScript {
+		return fmt.Errorf("engine.driver must be a safe basename without leading/trailing whitespace (found: %s).\n\nSee: %s", workflowData.EngineConfig.DriverScript, constants.DocsEnginesURL)
+	}
+
+	if filepath.IsAbs(driverScript) ||
+		strings.Contains(driverScript, "/") ||
+		strings.Contains(driverScript, `\`) ||
+		strings.Contains(driverScript, "..") ||
+		!validEngineDriverScriptBasename.MatchString(driverScript) {
+		return fmt.Errorf("engine.driver must be a safe basename (no path separators, '..', or shell metacharacters) ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", workflowData.EngineConfig.DriverScript, constants.DocsEnginesURL)
+	}
+
+	ext := strings.ToLower(filepath.Ext(driverScript))
 	switch ext {
 	case ".js", ".cjs", ".mjs":
 		return nil

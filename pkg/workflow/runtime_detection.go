@@ -39,9 +39,10 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		}
 	}
 
-	// When a custom driver script is configured, require Node.js runtime setup
-	// with the default version so workflows consistently execute the driver with Node 24.
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.DriverScript != "" {
+	// When a custom driver script is configured for an engine that currently supports
+	// driver wrappers, require Node.js runtime setup with the default version so workflows
+	// consistently execute the driver with Node 24.
+	if requiresNodeForEngineDriver(workflowData) {
 		nodeRuntime := findRuntimeByID("node")
 		if nodeRuntime != nil {
 			updateRequiredRuntime(nodeRuntime, string(constants.DefaultNodeVersion), requirements)
@@ -85,6 +86,24 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		runtimeSetupLog.Printf("Detected %d runtime requirements: %v", len(result), runtimeIDs)
 	}
 	return result
+}
+
+// requiresNodeForEngineDriver returns true when workflow runtime setup must ensure Node.js
+// for engine.driver execution based on current engine wrapper support.
+func requiresNodeForEngineDriver(workflowData *WorkflowData) bool {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.DriverScript == "" {
+		return false
+	}
+
+	engineID := workflowData.EngineConfig.ID
+	if engineID == "" {
+		engineID = workflowData.AI
+	}
+	if engineID == "" {
+		engineID = string(constants.DefaultEngine)
+	}
+
+	return strings.EqualFold(engineID, string(constants.CopilotEngine))
 }
 
 // detectFromCustomSteps scans custom steps YAML for runtime commands

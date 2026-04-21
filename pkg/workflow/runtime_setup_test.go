@@ -1067,3 +1067,21 @@ func TestDetectRuntimeRequirements_CustomDriverAddsNode24(t *testing.T) {
 
 	assert.Equal(t, string(constants.DefaultNodeVersion), nodeReq.Version, "Custom engine driver should require Node.js 24 runtime")
 }
+
+func TestDetectRuntimeRequirements_CustomDriverDoesNotAddNodeForNonDriverEngine(t *testing.T) {
+	data := &WorkflowData{
+		RunsOn: "runs-on: ubuntu-latest",
+		EngineConfig: &EngineConfig{
+			ID:           "claude",
+			DriverScript: "custom_driver.cjs",
+		},
+	}
+
+	requirements := DetectRuntimeRequirements(data)
+
+	for _, req := range requirements {
+		if req.Runtime != nil && req.Runtime.ID == "node" {
+			t.Fatalf("Expected no Node.js runtime requirement for non-driver engine, got version %q", req.Version)
+		}
+	}
+}
