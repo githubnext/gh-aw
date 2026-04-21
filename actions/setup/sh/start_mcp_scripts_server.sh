@@ -103,7 +103,6 @@ for i in {1..10}; do
     echo "MCP Scripts server is ready (attempt $i/10)"
     
     # Print the startup log for debugging
-    echo "::notice::MCP Scripts Server Startup Log"
     echo "::group::Server Log Contents"
     cat /tmp/gh-aw/mcp-scripts/logs/server.log
     echo "::endgroup::"
