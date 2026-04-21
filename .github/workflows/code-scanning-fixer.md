@@ -84,8 +84,10 @@ Use the GitHub MCP server to list all open code scanning alerts:
   - `owner`: "githubnext" (the repository owner)
   - `repo`: "gh-aw" (the repository name)
   - `state`: "open"
-  - `severity`: "critical,high" (required guard to keep MCP response size bounded)
-  - `head_limit`: 20 (only when the runtime/tool wrapper supports this parameter)
+  - `severity`: "critical,high" (required to prevent oversized MCP responses)
+- Medium/low/warning/note/error are intentionally excluded in this workflow so each run stays within MCP context limits
+- Do NOT send `head_limit` to the default GitHub MCP tool (`list_code_scanning_alerts` does not support it)
+- If using a custom wrapper that explicitly documents `head_limit`, you may use `head_limit: 20`
 - Sort the results by severity (prioritize: critical > high > medium > low > warning > note > error)
 - If no open alerts are found, log "No unfixed security alerts found. All alerts have been addressed!" and exit gracefully
 - If you encounter tool errors, report them clearly and exit gracefully rather than trying workarounds
@@ -190,7 +192,7 @@ After successfully creating the pull request:
 
 ## Security Guidelines
 
-- **High-Risk First**: This workflow targets critical/high alerts first to keep MCP responses bounded and actionable
+- **High-Risk Only**: This workflow only processes critical/high alerts to keep MCP responses bounded and actionable
 - **Minimal Changes**: Make only the changes necessary to fix the security issue
 - **No Breaking Changes**: Ensure the fix doesn't break existing functionality
 - **Best Practices**: Follow security best practices for the specific vulnerability type
