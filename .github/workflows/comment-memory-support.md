@@ -61,6 +61,15 @@ Add `comment-memory` as a first-class memory backend that persists structured me
 - Reject unsupported contexts (for example discussion-only contexts)
 - Fail early when configuration or context requirements are not met
 
+## Safe Outputs Specification Update (W3C)
+
+When updating the Safe Outputs specification for this feature, use the `w3c-specification-writer` agent.
+
+- Target document: `docs/src/content/docs/reference/safe-outputs-specification.md`
+- Apply RFC 2119 requirement language (MUST/SHALL/SHOULD/MAY)
+- Update version and change log entries when normative behavior changes
+- Keep implementation changes and specification changes aligned in the same PR
+
 ## Sanitization and Size Requirements
 
 - Apply standard body sanitization rules
@@ -131,4 +140,5 @@ At workflow start:
 - Tests covering parsing, validation, context handling, and lifecycle behavior
 - Prompt/runtime integration so the agent can read/write comment-memory via markdown abstraction
 - Updated workflow schema/frontmatter support
+- Updated Safe Outputs specification content using `w3c-specification-writer` when new/changed normative requirements are introduced
 - Pull request with a clear summary, implementation notes, and test evidence
