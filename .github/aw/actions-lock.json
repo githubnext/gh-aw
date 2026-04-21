@@ -83,6 +83,11 @@
       "version": "v5.2.0",
       "sha": "be666c2fcd27ec809703dec50e508c2fdc7f6654"
     },
+    "actions/setup-node@v6.3.0": {
+      "repo": "actions/setup-node",
+      "version": "v6.3.0",
+      "sha": "53b83947a5a98c8d113130e565377fae1a50d02f"
+    },
     "actions/setup-node@v6.4.0": {
       "repo": "actions/setup-node",
       "version": "v6.4.0",
