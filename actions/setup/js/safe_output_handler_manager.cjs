@@ -101,8 +101,8 @@ function buildCommentMemoryMessagesFromFiles(existingMessages, config) {
     return [];
   }
 
-  const defaultMemoryId = normalizeCommentMemoryId(config?.comment_memory?.memory_id, "default");
-  const existingMemoryIds = new Set(existingMessages.filter(isCommentMemoryMessage).map(message => normalizeCommentMemoryId(message.memory_id, defaultMemoryId)));
+  const fallbackMemoryId = normalizeCommentMemoryId(config?.comment_memory?.memory_id, "default");
+  const existingMemoryIds = new Set(existingMessages.filter(isCommentMemoryMessage).map(message => normalizeCommentMemoryId(message.memory_id, fallbackMemoryId)));
 
   const fileEntries = listCommentMemoryFiles(COMMENT_MEMORY_DIR);
   if (fileEntries.length === 0) {

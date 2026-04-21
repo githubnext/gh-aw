@@ -13,6 +13,8 @@ const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { COMMENT_MEMORY_TAG, COMMENT_MEMORY_MAX_SCAN_PAGES } = require("./comment_memory_helpers.cjs");
+// Require provenance marker to avoid accidentally updating user-authored comments
+// that happen to contain a matching comment-memory tag.
 const MANAGED_COMMENT_PROVENANCE_MARKER = "<!-- gh-aw-agentic-workflow:";
 
 function sanitizeMemoryID(memoryID) {
