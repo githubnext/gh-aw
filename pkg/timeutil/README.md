@@ -51,7 +51,7 @@ Formats a duration given in **nanoseconds** as a human-readable string. Returns 
 
 ```go
 timeutil.FormatDurationNs(0)              // "—"
-timeutil.FormatDurationNs(2_500_000_000)  // "2s"
+timeutil.FormatDurationNs(2_000_000_000)  // "2s"
 timeutil.FormatDurationNs(90_000_000_000) // "1m30s"
 ```
 

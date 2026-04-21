@@ -17,7 +17,7 @@ This package contains helpers for:
 
 #### `IsRateLimitError(errMsg string) bool`
 
-Returns `true` when `errMsg` indicates a GitHub API rate-limit error (HTTP 403 "API rate limit exceeded" or HTTP 429).
+Returns `true` when `errMsg` indicates a GitHub API rate-limit error. Matches any of: "api rate limit exceeded", "rate limit exceeded", or "secondary rate limit" (case-insensitive).
 
 ```go
 if gitutil.IsRateLimitError(err.Error()) {
@@ -44,6 +44,16 @@ Returns `true` if `s` consists entirely of hexadecimal characters (`0â€“9`, `aâ€
 ```go
 if gitutil.IsHexString(sha) {
     // Valid commit SHA
+}
+```
+
+#### `IsValidFullSHA(s string) bool`
+
+Returns `true` if `s` is a valid 40-character lowercase hexadecimal SHA (the standard Git commit SHA format). Use this for strict SHA validation when the full 40-character form is required.
+
+```go
+if gitutil.IsValidFullSHA(commitSHA) {
+    // Full 40-char commit SHA
 }
 ```
 
