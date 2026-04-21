@@ -283,6 +283,7 @@ export default defineConfig({
 						{ label: 'LabelOps', link: '/patterns/label-ops/' },
 						{ label: 'MultiRepoOps', link: '/patterns/multi-repo-ops/' },
 						{ label: 'Monitoring', link: '/patterns/monitoring/' },
+						{ label: 'Agentic Observability Kit', link: '/patterns/agentic-observability-kit/' },
 						{ label: 'Orchestration', link: '/patterns/orchestration/' },
 						{ label: 'ProjectOps', link: '/patterns/project-ops/' },
 						{ label: 'ResearchPlanAssignOps', link: '/patterns/research-plan-assign-ops/' },
