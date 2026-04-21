@@ -5,66 +5,13 @@ require("./shim.cjs");
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { COMMENT_MEMORY_DIR, extractCommentMemoryEntries } = require("./comment_memory_helpers.cjs");
 
-const COMMENT_MEMORY_TAG = "gh-aw-comment-memory";
-const COMMENT_MEMORY_DIR = "/tmp/gh-aw/comment-memory";
 const PROMPT_PATH = "/tmp/gh-aw/aw-prompts/prompt.txt";
 const PROMPT_START_MARKER = "<!-- gh-aw-comment-memory-prompt:start -->";
 const PROMPT_END_MARKER = "<!-- gh-aw-comment-memory-prompt:end -->";
 const MAX_SCAN_PAGES = 50;
 const MAX_SCAN_EMPTY_PAGES = 5;
-const MAX_MEMORY_ID_LENGTH = 64;
-
-function isSafeMemoryId(memoryId) {
-  if (typeof memoryId !== "string" || memoryId.length === 0 || memoryId.length > MAX_MEMORY_ID_LENGTH) {
-    return false;
-  }
-  if (memoryId.includes("..") || memoryId.includes("/") || memoryId.includes("\\")) {
-    return false;
-  }
-  return /^[A-Za-z0-9_-]+$/.test(memoryId);
-}
-
-function extractCommentMemoryEntries(commentBody) {
-  if (!commentBody || typeof commentBody !== "string") {
-    return [];
-  }
-
-  const entries = [];
-  const closeTag = `</${COMMENT_MEMORY_TAG}>`;
-  let cursor = 0;
-  while (cursor < commentBody.length) {
-    const openStart = commentBody.indexOf(`<${COMMENT_MEMORY_TAG} id="`, cursor);
-    if (openStart < 0) {
-      break;
-    }
-
-    const idStart = openStart + `<${COMMENT_MEMORY_TAG} id="`.length;
-    const idEnd = commentBody.indexOf('">', idStart);
-    if (idEnd < 0) {
-      break;
-    }
-
-    const memoryId = commentBody.slice(idStart, idEnd);
-    const contentStart = idEnd + 2;
-    const closeStart = commentBody.indexOf(closeTag, contentStart);
-    if (closeStart < 0) {
-      break;
-    }
-
-    if (isSafeMemoryId(memoryId)) {
-      entries.push({
-        memoryId,
-        content: (commentBody.slice(contentStart, closeStart) || "").trim(),
-      });
-    } else {
-      core.warning(`comment_memory setup: skipping unsafe memory_id '${memoryId}' found in managed comment`);
-    }
-
-    cursor = closeStart + closeTag.length;
-  }
-  return entries;
-}
 
 function loadSafeOutputsConfig() {
   const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json`;
@@ -142,7 +89,7 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
 
     let pageAddedEntries = 0;
     for (const comment of data) {
-      const entries = extractCommentMemoryEntries(comment.body);
+      const entries = extractCommentMemoryEntries(comment.body, warning => core.warning(`comment_memory setup: ${warning}`));
       for (const entry of entries) {
         const existing = memoryMap.get(entry.memoryId);
         if (existing !== entry.content) {
@@ -189,9 +136,8 @@ function injectCommentMemoryPrompt(filePaths) {
   const injectedBlock = `${PROMPT_START_MARKER}
 <comment-memory-files>
 Comment memory files are editable markdown files under \`${COMMENT_MEMORY_DIR}\`.
-Update existing files or create new \`<memory-id>.md\` files as needed, then persist updates by calling the \`comment_memory\` safe-output tool with:
-- \`memory_id\` = the filename without \`.md\`
-- \`body\` = the file contents only (no XML wrapper, no footer text)
+Update existing files or create new \`<memory-id>.md\` files as needed.
+These files are synced automatically after agent execution (no tool call required).
 Available files:
 ${fileList}
 </comment-memory-files>

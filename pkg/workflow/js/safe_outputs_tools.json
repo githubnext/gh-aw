@@ -295,38 +295,6 @@
     }
   },
   {
-    "name": "comment_memory",
-    "description": "Persist structured memory in a managed issue/pull request comment. Creates the memory comment if missing and updates it on subsequent runs using a stable memory_id marker.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "body": {
-          "type": "string",
-          "description": "Markdown body to persist in comment memory."
-        },
-        "memory_id": {
-          "type": "string",
-          "description": "Stable memory identifier (alphanumeric, hyphen, underscore). Defaults to 'default'."
-        },
-        "item_number": {
-          "type": [
-            "number",
-            "string"
-          ],
-          "description": "Optional issue or pull request number. Uses triggering context when omitted."
-        },
-        "repo": {
-          "type": "string",
-          "description": "Optional target repository in owner/repo format."
-        }
-      },
-      "required": [
-        "body"
-      ],
-      "additionalProperties": false
-    }
-  },
-  {
     "name": "create_pull_request",
     "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead.",
     "inputSchema": {

@@ -261,6 +261,9 @@ func TestBuildSafeOutputsSections_IncludesCommentMemoryPromptFile(t *testing.T) 
 	}
 
 	assert.True(t, found, "Expected comment-memory guidance file to be included when comment_memory is enabled")
+
+	actualToolNames := extractToolNamesFromSections(t, sections)
+	assert.NotContains(t, actualToolNames, "comment_memory", "comment_memory should not be exposed as an agent tool when file-based sync is enabled")
 }
 
 // the list of tool names in the order they appear, stripping any max-budget annotations

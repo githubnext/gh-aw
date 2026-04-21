@@ -1,7 +1,8 @@
 // @ts-check
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { loadConfig, loadHandlers, processMessages } from "./safe_output_handler_manager.cjs";
+import fs from "fs";
+import { loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles } from "./safe_output_handler_manager.cjs";
 
 describe("Safe Output Handler Manager", () => {
   beforeEach(() => {
@@ -22,6 +23,7 @@ describe("Safe Output Handler Manager", () => {
     delete process.env.GH_AW_TRACKER_LABEL;
     delete process.env.GH_AW_SAFE_OUTPUT_JOBS;
     delete process.env.GH_AW_SAFE_OUTPUT_SCRIPTS;
+    fs.rmSync("/tmp/gh-aw/comment-memory", { recursive: true, force: true });
   });
 
   describe("loadConfig", () => {
@@ -1536,6 +1538,32 @@ describe("Safe Output Handler Manager", () => {
       expect(result.results).toHaveLength(1);
       expect(result.results[0].success).toBe(false);
       expect(result.results[0].error).toContain("No handler loaded for type 'call_workflow'");
+    });
+  });
+
+  describe("buildCommentMemoryMessagesFromFiles", () => {
+    it("loads comment-memory messages from markdown files when configured", () => {
+      fs.mkdirSync("/tmp/gh-aw/comment-memory", { recursive: true });
+      fs.writeFileSync("/tmp/gh-aw/comment-memory/default.md", "saved memory");
+
+      const messages = buildCommentMemoryMessagesFromFiles([], { comment_memory: { max: "1" } });
+
+      expect(messages).toEqual([
+        {
+          type: "comment_memory",
+          memory_id: "default",
+          body: "saved memory",
+        },
+      ]);
+    });
+
+    it("skips file-based comment memory when a message already exists for the same memory_id", () => {
+      fs.mkdirSync("/tmp/gh-aw/comment-memory", { recursive: true });
+      fs.writeFileSync("/tmp/gh-aw/comment-memory/default.md", "saved memory");
+
+      const messages = buildCommentMemoryMessagesFromFiles([{ type: "comment_memory", memory_id: "default", body: "from output" }], { comment_memory: { max: "1" } });
+
+      expect(messages).toEqual([]);
     });
   });
 });

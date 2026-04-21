@@ -591,9 +591,6 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.AddComments != nil {
 		tools = append(tools, toolWithMaxBudget("add_comment", safeOutputs.AddComments.Max))
 	}
-	if safeOutputs.CommentMemory != nil {
-		tools = append(tools, toolWithMaxBudget("comment_memory", safeOutputs.CommentMemory.Max))
-	}
 	if safeOutputs.CreateIssues != nil {
 		tools = append(tools, toolWithMaxBudget("create_issue", safeOutputs.CreateIssues.Max))
 	}
