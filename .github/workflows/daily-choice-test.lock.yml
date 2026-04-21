@@ -196,7 +196,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_d4927b7bd8609fbf_EOF'
           <safe-output-tools>
-          Tools: comment_memory, missing_tool, missing_data, noop, test_environment
+          Tools: missing_tool, missing_data, noop, test_environment
           </safe-output-tools>
           GH_AW_PROMPT_d4927b7bd8609fbf_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
@@ -418,7 +418,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_d86c5b5254618d2c_EOF'
-          {"comment_memory":{"max":1,"memory_id":"default"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"test_environment":{"description":"A test job with choice input","inputs":{"environment":{"default":null,"description":"Target environment","options":["staging","production"],"required":true,"type":"choice"},"test_type":{"default":null,"description":"Type of test to run","options":["smoke","integration","e2e"],"required":true,"type":"choice"}},"output":"Environment test completed successfully"}}
+          {"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"test_environment":{"description":"A test job with choice input","inputs":{"environment":{"default":null,"description":"Target environment","options":["staging","production"],"required":true,"type":"choice"},"test_type":{"default":null,"description":"Type of test to run","options":["smoke","integration","e2e"],"required":true,"type":"choice"}},"output":"Environment test completed successfully"}}
           GH_AW_SAFE_OUTPUTS_CONFIG_d86c5b5254618d2c_EOF
       - name: Write Safe Outputs Tools
         env:
@@ -462,31 +462,6 @@ jobs:
             }
           GH_AW_VALIDATION_JSON: |
             {
-              "comment_memory": {
-                "defaultMax": 1,
-                "fields": {
-                  "body": {
-                    "required": true,
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 65000
-                  },
-                  "item_number": {
-                    "issueOrPRNumber": true
-                  },
-                  "memory_id": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 128,
-                    "pattern": "^[a-zA-Z0-9_-]+$",
-                    "patternError": "must contain only alphanumeric characters, hyphens, and underscores"
-                  },
-                  "repo": {
-                    "type": "string",
-                    "maxLength": 256
-                  }
-                }
-              },
               "missing_data": {
                 "defaultMax": 20,
                 "fields": {
@@ -1358,7 +1333,7 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
           GH_AW_SAFE_OUTPUT_JOBS: "{\"test_environment\":\"\"}"
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"comment_memory\":{\"max\":1,\"memory_id\":\"default\"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
