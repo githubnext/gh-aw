@@ -22,7 +22,7 @@
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
-const { matchesWorkflowId } = require("./generate_footer.cjs");
+const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
 
 const SUPERSEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflow.";
 const MAX_SUPERSEDE_REVIEW_PAGES = 10;
@@ -262,6 +262,11 @@ function createReviewBuffer() {
         footerContext.triggeringPRNumber,
         footerContext.triggeringDiscussionNumber
       );
+
+      const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
+      if (callerWorkflowId) {
+        body += "\n" + generateWorkflowCallIdMarker(callerWorkflowId);
+      }
     }
 
     // Build comments array for the API
@@ -350,11 +355,13 @@ function createReviewBuffer() {
         return;
       }
 
-      const workflowID = process.env.GH_AW_WORKFLOW_ID || "";
-      if (!workflowID) {
-        core.warning("supersede-older-reviews is enabled but GH_AW_WORKFLOW_ID is not set. Skipping stale review dismissal.");
+      const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
+      const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
+      if (!workflowId && !callerWorkflowId) {
+        core.warning("supersede-older-reviews is enabled but neither GH_AW_WORKFLOW_ID nor GH_AW_CALLER_WORKFLOW_ID is set. Skipping stale review dismissal.");
         return;
       }
+      const workflowCallMarker = callerWorkflowId ? generateWorkflowCallIdMarker(callerWorkflowId) : "";
 
       /** @type {Array<{id: number, state?: string, user?: {login?: string, type?: string}, body?: string}>} */
       const reviews = [];
@@ -386,7 +393,10 @@ function createReviewBuffer() {
         if (!review || review.id === currentReviewId) return false;
         if (review.state !== "CHANGES_REQUESTED") return false;
         if (review.user?.type !== "Bot") return false;
-        return matchesWorkflowId(review.body, workflowID);
+        if (workflowCallMarker) {
+          return review.body?.includes(workflowCallMarker) || false;
+        }
+        return matchesWorkflowId(review.body, workflowId);
       });
 
       for (const staleReview of staleReviews) {

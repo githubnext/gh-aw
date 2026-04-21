@@ -396,6 +396,46 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(callArgs.body).toContain("test-workflow");
     });
 
+    it("should append workflow-call-id marker to review body when available", async () => {
+      const previousCallerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID;
+      process.env.GH_AW_CALLER_WORKFLOW_ID = "owner/repo/CallerA";
+      try {
+        buffer.addComment({ path: "test.js", line: 1, body: "comment" });
+        buffer.setReviewMetadata("Review body", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+        buffer.setFooterContext({
+          workflowName: "test-workflow",
+          runUrl: "https://github.com/owner/repo/actions/runs/123",
+          workflowSource: "owner/repo/workflows/test.md@v1",
+          workflowSourceURL: "https://github.com/owner/repo/blob/main/test.md",
+        });
+
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: {
+            id: 405,
+            html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-405",
+          },
+        });
+
+        const result = await buffer.submitReview();
+        expect(result.success).toBe(true);
+
+        const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
+        expect(callArgs.body).toContain("<!-- gh-aw-workflow-call-id: owner/repo/CallerA -->");
+      } finally {
+        if (previousCallerWorkflowId === undefined) {
+          delete process.env.GH_AW_CALLER_WORKFLOW_ID;
+        } else {
+          process.env.GH_AW_CALLER_WORKFLOW_ID = previousCallerWorkflowId;
+        }
+      }
+    });
+
     it("should skip footer when setIncludeFooter('none') is called", async () => {
       buffer.addComment({ path: "test.js", line: 1, body: "comment" });
       buffer.setReviewMetadata("Review body", "COMMENT");
@@ -576,9 +616,11 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
     });
 
-    it("should dismiss older same-workflow REQUEST_CHANGES reviews when supersede mode is enabled", async () => {
+    it("should dismiss older same-workflow-call REQUEST_CHANGES reviews when supersede mode is enabled", async () => {
       const previousWorkflowId = process.env.GH_AW_WORKFLOW_ID;
+      const previousCallerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID;
       process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      process.env.GH_AW_CALLER_WORKFLOW_ID = "owner/repo/CallerA";
       try {
         buffer.setSupersedeOlderReviews(true);
         buffer.setReviewMetadata("Updated review", "COMMENT");
@@ -597,10 +639,11 @@ describe("pr_review_buffer (factory pattern)", () => {
         });
         mockGithub.rest.pulls.listReviews.mockResolvedValue({
           data: [
-            { id: 100, state: "CHANGES_REQUESTED", user: { login: "github-actions[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-id: test-workflow -->\nOld blocking review" },
-            { id: 101, state: "CHANGES_REQUESTED", user: { login: "human-user", type: "User" }, body: "<!-- gh-aw-workflow-id: test-workflow -->" },
-            { id: 102, state: "APPROVED", user: { login: "github-actions[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-id: test-workflow -->" },
-            { id: 103, state: "CHANGES_REQUESTED", user: { login: "github-actions[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-id: some-other-workflow -->" },
+            { id: 100, state: "CHANGES_REQUESTED", user: { login: "github-actions[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-call-id: owner/repo/CallerA -->\nOld blocking review" },
+            { id: 101, state: "CHANGES_REQUESTED", user: { login: "human-user", type: "User" }, body: "<!-- gh-aw-workflow-call-id: owner/repo/CallerA -->" },
+            { id: 102, state: "APPROVED", user: { login: "github-actions[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-call-id: owner/repo/CallerA -->" },
+            { id: 103, state: "CHANGES_REQUESTED", user: { login: "github-actions[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-call-id: owner/repo/CallerB -->" },
+            { id: 104, state: "CHANGES_REQUESTED", user: { login: "github-actions[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-id: test-workflow -->" },
           ],
         });
         mockGithub.rest.pulls.dismissReview.mockResolvedValue({ data: {} });
@@ -622,6 +665,11 @@ describe("pr_review_buffer (factory pattern)", () => {
           delete process.env.GH_AW_WORKFLOW_ID;
         } else {
           process.env.GH_AW_WORKFLOW_ID = previousWorkflowId;
+        }
+        if (previousCallerWorkflowId === undefined) {
+          delete process.env.GH_AW_CALLER_WORKFLOW_ID;
+        } else {
+          process.env.GH_AW_CALLER_WORKFLOW_ID = previousCallerWorkflowId;
         }
       }
     });
