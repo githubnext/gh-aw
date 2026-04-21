@@ -128,6 +128,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.AddComments = commentsConfig
 			}
 
+			// Handle comment-memory
+			commentMemoryConfig := c.parseCommentMemoryConfig(outputMap)
+			if commentMemoryConfig != nil {
+				config.CommentMemory = commentMemoryConfig
+			}
+
 			// Handle create-pull-request
 			pullRequestsConfig := c.parsePullRequestsConfig(outputMap)
 			if pullRequestsConfig != nil {
@@ -382,6 +388,17 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						TitlePrefix: "",
 						Labels:      nil,
 					}
+				}
+			}
+
+			// Enable comment-memory by default when safe-outputs is configured so workflows can
+			// persist structured memory in issue/PR comments without extra configuration.
+			if config.CommentMemory == nil {
+				config.CommentMemory = &CommentMemoryConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: defaultIntStr(1),
+					},
+					MemoryID: "default",
 				}
 			}
 

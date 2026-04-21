@@ -33,6 +33,7 @@ const nodePath = require("path");
 const HANDLER_MAP = {
   create_issue: "./create_issue.cjs",
   add_comment: "./add_comment.cjs",
+  comment_memory: "./comment_memory.cjs",
   create_discussion: "./create_discussion.cjs",
   close_issue: "./close_issue.cjs",
   close_discussion: "./close_discussion.cjs",

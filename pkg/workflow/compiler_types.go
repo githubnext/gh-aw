@@ -550,6 +550,7 @@ type SafeOutputsConfig struct {
 	ClosePullRequests               *ClosePullRequestsConfig               `yaml:"close-pull-request,omitempty"`
 	MarkPullRequestAsReadyForReview *MarkPullRequestAsReadyForReviewConfig `yaml:"mark-pull-request-as-ready-for-review,omitempty"`
 	AddComments                     *AddCommentsConfig                     `yaml:"add-comment,omitempty"`
+	CommentMemory                   *CommentMemoryConfig                   `yaml:"comment-memory,omitempty"` // Persist and update managed memory comments on issues/PRs
 	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-request,omitempty"`
 	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comment,omitempty"`
 	SubmitPullRequestReview         *SubmitPullRequestReviewConfig         `yaml:"submit-pull-request-review,omitempty"`           // Submit a PR review with status (APPROVE, REQUEST_CHANGES, COMMENT)
