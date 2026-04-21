@@ -1,11 +1,40 @@
 // @ts-check
 
 /**
+ * Minimal dependency contract injected from log_parser_shared.cjs.
+ * Keeping this explicit helps prevent silent drift between modules.
+ *
+ * @typedef {Object} LogParserFormatterDeps
+ * @property {(command: string) => string} formatBashCommand
+ * @property {(toolName: string) => string} formatMcpName
+ * @property {(name: string, input: Object) => string} formatToolDisplayName
+ * @property {(resultText: string, maxLineLength?: number) => string} formatResultPreview
+ * @property {(options: {summary: string, statusIcon?: string, sections?: Array<{label: string, content: string, language?: string}>, metadata?: string, maxContentLength?: number}) => string} formatToolCallAsDetails
+ * @property {(input: Record<string, any>) => string} formatMcpParameters
+ * @property {(str: string, maxLength: number) => string} truncateString
+ * @property {(text: string) => number} estimateTokens
+ * @property {(ms: number) => string} formatDuration
+ * @property {(text: string) => string} unfenceMarkdown
+ * @property {number} MAX_AGENT_TEXT_LENGTH
+ * @property {string} SIZE_LIMIT_WARNING
+ */
+
+/**
+ * Public formatter API returned by createLogParserFormatters().
+ *
+ * @typedef {Object} LogParserFormatters
+ * @property {(logEntries: Array<any>, options: {formatToolCallback: Function, formatInitCallback: Function, summaryTracker?: any}) => {markdown: string, commandSummary: Array<string>, sizeLimitReached: boolean}} generateConversationMarkdown
+ * @property {(toolUse: any, toolResult: any, options?: {includeDetailedParameters?: boolean}) => string} formatToolUse
+ * @property {(logEntries: Array<any>, options?: {model?: string, parserName?: string}) => string} generatePlainTextSummary
+ * @property {(logEntries: Array<any>, options?: {model?: string, parserName?: string}) => string} generateCopilotCliStyleSummary
+ */
+
+/**
  * Creates formatter functions for log parsing summaries and rendering.
  * Dependencies are injected to avoid module cycles with log_parser_shared.cjs.
  *
- * @param {Object} deps - Dependency injection container
- * @returns {Object} Formatter functions
+ * @param {LogParserFormatterDeps} deps - Dependency injection container
+ * @returns {LogParserFormatters} Formatter functions
  */
 function createLogParserFormatters(deps) {
   const {
@@ -396,13 +425,10 @@ function createLogParserFormatters(deps) {
     }
 
     if (resultPreview) {
-      if (!appendConversationLine(lines, resultPreview, state)) {
-        return;
-      }
-      state.conversationLineCount += resultPreview.split("\n").length - 1;
-      if (state.conversationLineCount >= state.maxConversationLines) {
-        state.conversationTruncated = true;
-        return;
+      for (const previewLine of resultPreview.split("\n")) {
+        if (!appendConversationLine(lines, previewLine, state)) {
+          return;
+        }
       }
     }
 
@@ -456,7 +482,7 @@ function createLogParserFormatters(deps) {
         const cacheReadTokens = usage.cache_read_input_tokens || 0;
         const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
 
-        lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
+        lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${inputTokens.toLocaleString()} in / ${outputTokens.toLocaleString()} out)`);
       }
     }
     if (lastEntry?.total_cost_usd) {
