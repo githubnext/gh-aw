@@ -135,6 +135,25 @@ func TestCodexEngineWithVersion(t *testing.T) {
 	if !foundVersionInstall {
 		t.Error("Expected versioned npm install command with @openai/codex@3.0.1")
 	}
+
+	// Test installation steps with feature-based version override
+	stepsWithFeatureVersion := engine.GetInstallationSteps(&WorkflowData{
+		Features: map[string]any{
+			string(constants.CodexVersionFeatureFlag): "latest",
+		},
+	})
+	foundFeatureVersionInstall := false
+	for _, step := range stepsWithFeatureVersion {
+		for _, line := range step {
+			if strings.Contains(line, "npm install") && strings.Contains(line, "@openai/codex@latest") {
+				foundFeatureVersionInstall = true
+				break
+			}
+		}
+	}
+	if !foundFeatureVersionInstall {
+		t.Error("Expected feature version override npm install command with @openai/codex@latest")
+	}
 }
 
 func TestCodexEngineExecutionIncludesGitHubAWPrompt(t *testing.T) {

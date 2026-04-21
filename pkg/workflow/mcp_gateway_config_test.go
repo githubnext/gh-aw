@@ -69,10 +69,10 @@ func TestEnsureDefaultMCPGatewayConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "fills in missing version field from mcpg-latest feature override",
+			name: "fills in missing version field from mcpg-version feature override",
 			workflowData: &WorkflowData{
 				Features: map[string]any{
-					string(constants.MCPGLatestFeatureFlag): "v0.2.27",
+					string(constants.MCPGVersionFeatureFlag): "v0.2.27",
 				},
 				SandboxConfig: &SandboxConfig{
 					MCP: &MCPGatewayRuntimeConfig{
@@ -88,10 +88,10 @@ func TestEnsureDefaultMCPGatewayConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "preserves explicit version over mcpg-latest feature override",
+			name: "preserves explicit version over mcpg-version feature override",
 			workflowData: &WorkflowData{
 				Features: map[string]any{
-					string(constants.MCPGLatestFeatureFlag): "v0.2.27",
+					string(constants.MCPGVersionFeatureFlag): "v0.2.27",
 				},
 				SandboxConfig: &SandboxConfig{
 					MCP: &MCPGatewayRuntimeConfig{

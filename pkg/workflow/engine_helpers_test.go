@@ -18,12 +18,14 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 	tests := []struct {
 		name           string
 		workflowData   *WorkflowData
+		featureFlag    constants.FeatureFlag
 		expectedSteps  int // Number of steps expected (Node.js setup + npm install)
 		expectedInStep string
 	}{
 		{
 			name:           "with default version",
 			workflowData:   &WorkflowData{},
+			featureFlag:    "",
 			expectedSteps:  2, // Node.js setup + npm install
 			expectedInStep: string(constants.DefaultCopilotVersion),
 		},
@@ -34,6 +36,7 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 					Version: "1.2.3",
 				},
 			},
+			featureFlag:    constants.CopilotVersionFeatureFlag,
 			expectedSteps:  2,
 			expectedInStep: "1.2.3",
 		},
@@ -44,8 +47,20 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 					Version: "",
 				},
 			},
+			featureFlag:    "",
 			expectedSteps:  2,
 			expectedInStep: string(constants.DefaultCopilotVersion),
+		},
+		{
+			name: "with version override from feature flag",
+			workflowData: &WorkflowData{
+				Features: map[string]any{
+					string(constants.CopilotVersionFeatureFlag): "latest",
+				},
+			},
+			featureFlag:    constants.CopilotVersionFeatureFlag,
+			expectedSteps:  2,
+			expectedInStep: "latest",
 		},
 	}
 
@@ -56,6 +71,7 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 				string(constants.DefaultCopilotVersion),
 				"Install GitHub Copilot CLI",
 				"copilot",
+				tt.featureFlag,
 				tt.workflowData,
 			)
 
@@ -121,6 +137,7 @@ func TestBuildStandardNpmEngineInstallSteps_AllEngines(t *testing.T) {
 				tt.defaultVersion,
 				tt.stepName,
 				tt.cacheKeyPrefix,
+				"",
 				workflowData,
 			)
 

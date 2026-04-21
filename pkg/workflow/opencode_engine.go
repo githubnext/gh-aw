@@ -96,6 +96,7 @@ func (e *OpenCodeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitH
 		string(constants.DefaultOpenCodeVersion),
 		"Install OpenCode CLI",
 		"opencode",
+		constants.OpenCodeVersionFeatureFlag,
 		workflowData,
 	)
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)

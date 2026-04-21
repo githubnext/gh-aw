@@ -60,33 +60,66 @@ const (
 	//	features:
 	//	  byok-copilot: true
 	ByokCopilotFeatureFlag FeatureFlag = "byok-copilot"
-	// CopilotLatestFeatureFlag forces Copilot CLI installation to use latest.
-	// When enabled, Copilot CLI installation ignores the pinned default version
-	// and installs latest for smoke-testing upcoming releases.
+	// CopilotVersionFeatureFlag overrides the default Copilot CLI version.
+	// When set to a non-empty string, Copilot CLI installation uses this
+	// version instead of DefaultCopilotVersion. Supports explicit versions
+	// (e.g. "1.0.21") and the "latest" tag.
 	//
 	// Workflow frontmatter usage:
 	//
 	//	features:
-	//	  copilot-latest: true
-	CopilotLatestFeatureFlag FeatureFlag = "copilot-latest"
-	// MCPGLatestFeatureFlag overrides the default MCP gateway container version.
+	//	  copilot-version: "latest"
+	CopilotVersionFeatureFlag FeatureFlag = "copilot-version"
+	// MCPGVersionFeatureFlag overrides the default MCP gateway container version.
 	// When set to a non-empty string, MCP gateway image references use this
 	// version instead of DefaultMCPGatewayVersion.
 	//
 	// Workflow frontmatter usage:
 	//
 	//	features:
-	//	  mcpg-latest: "v0.2.27"
-	MCPGLatestFeatureFlag FeatureFlag = "mcpg-latest"
-	// FirewallLatestFeatureFlag overrides the default firewall container version.
+	//	  mcpg-version: "v0.2.27"
+	MCPGVersionFeatureFlag FeatureFlag = "mcpg-version"
+	// FirewallVersionFeatureFlag overrides the default firewall container version.
 	// When set to a non-empty string, AWF installation and image references use
 	// this version instead of DefaultFirewallVersion.
 	//
 	// Workflow frontmatter usage:
 	//
 	//	features:
-	//	  firewall-latest: "v0.25.27"
-	FirewallLatestFeatureFlag FeatureFlag = "firewall-latest"
+	//	  firewall-version: "v0.25.27"
+	FirewallVersionFeatureFlag FeatureFlag = "firewall-version"
+	// CodexVersionFeatureFlag overrides the default Codex CLI version.
+	// Supports explicit versions (e.g. "0.121.0") and the "latest" tag.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  codex-version: "latest"
+	CodexVersionFeatureFlag FeatureFlag = "codex-version"
+	// ClaudeVersionFeatureFlag overrides the default Claude CLI version.
+	// Supports explicit versions (e.g. "2.1.47") and the "latest" tag.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  claude-version: "latest"
+	ClaudeVersionFeatureFlag FeatureFlag = "claude-version"
+	// OpenCodeVersionFeatureFlag overrides the default OpenCode CLI version.
+	// Supports explicit versions and the "latest" tag.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  opencode-version: "latest"
+	OpenCodeVersionFeatureFlag FeatureFlag = "opencode-version"
+	// GeminiVersionFeatureFlag overrides the default Gemini CLI version.
+	// Supports explicit versions and the "latest" tag.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  gemini-version: "latest"
+	GeminiVersionFeatureFlag FeatureFlag = "gemini-version"
 	// IntegrityReactionsFeatureFlag enables reaction-based integrity promotion/demotion
 	// in the MCPG allow-only policy. When enabled, the compiler injects
 	// endorsement-reactions and disapproval-reactions fields into the allow-only policy.

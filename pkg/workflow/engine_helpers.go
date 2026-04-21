@@ -37,6 +37,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -107,6 +108,7 @@ func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *Workflow
 		config.Version,
 		stepName,
 		config.CliName,
+		"",
 		workflowData,
 	)
 	steps = append(steps, npmSteps...)
@@ -131,15 +133,22 @@ func BuildStandardNpmEngineInstallSteps(
 	defaultVersion string,
 	stepName string,
 	cacheKeyPrefix string,
+	featureVersionFlag constants.FeatureFlag,
 	workflowData *WorkflowData,
 ) []GitHubActionStep {
 	engineHelpersLog.Printf("Building npm engine install steps: package=%s, version=%s", packageName, defaultVersion)
 
 	// Use version from engine config if provided, otherwise default to pinned version
 	version := defaultVersion
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+	engineVersionSet := workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != ""
+	if engineVersionSet {
 		version = workflowData.EngineConfig.Version
 		engineHelpersLog.Printf("Using engine config version: %s", version)
+	} else if featureVersionFlag != "" {
+		if featureVersion := getFeatureValue(featureVersionFlag, workflowData); featureVersion != "" {
+			version = featureVersion
+			engineHelpersLog.Printf("Using feature override version (%s): %s", featureVersionFlag, version)
+		}
 	}
 
 	// Add npm package installation steps (includes Node.js setup)

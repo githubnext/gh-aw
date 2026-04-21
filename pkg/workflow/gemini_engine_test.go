@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -109,6 +110,20 @@ func TestGeminiEngineInstallation(t *testing.T) {
 
 		steps := engine.GetInstallationSteps(workflowData)
 		assert.Empty(t, steps, "Should skip installation when custom command is specified")
+	})
+
+	t.Run("feature version override supports latest", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			Features: map[string]any{
+				string(constants.GeminiVersionFeatureFlag): "latest",
+			},
+		}
+
+		steps := engine.GetInstallationSteps(workflowData)
+		require.GreaterOrEqual(t, len(steps), 2, "Should have install step")
+		stepContent := strings.Join(steps[1], "\n")
+		assert.Contains(t, stepContent, "@google/gemini-cli@latest", "Should install latest Gemini CLI when gemini-version is latest")
 	})
 
 	t.Run("with firewall", func(t *testing.T) {

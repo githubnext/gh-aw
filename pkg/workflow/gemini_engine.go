@@ -91,6 +91,7 @@ func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		string(constants.DefaultGeminiVersion),
 		"Install Gemini CLI",
 		"gemini",
+		constants.GeminiVersionFeatureFlag,
 		workflowData,
 	)
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)

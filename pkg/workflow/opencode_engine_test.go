@@ -39,6 +39,18 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		assert.Contains(t, stepContent, "Setup Node.js", "Should include Node setup")
 	})
 
+	t.Run("feature version override supports latest", func(t *testing.T) {
+		steps := engine.GetInstallationSteps(&WorkflowData{
+			Name: "test-workflow",
+			Features: map[string]any{
+				string(constants.OpenCodeVersionFeatureFlag): "latest",
+			},
+		})
+		require.GreaterOrEqual(t, len(steps), 2, "Should generate install step")
+		stepContent := strings.Join(steps[1], "\n")
+		assert.Contains(t, stepContent, "opencode-ai@latest", "Should install latest OpenCode CLI when opencode-version is latest")
+	})
+
 	t.Run("execution uses opencode command and config", func(t *testing.T) {
 		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow"}, "/tmp/test.log")
 		require.Len(t, steps, 2, "Should generate config step and execution step")

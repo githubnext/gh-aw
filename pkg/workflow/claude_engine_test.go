@@ -62,6 +62,16 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected '%s' in install step, got: %s", expectedInstallCommand, installStep)
 	}
 
+	featureInstallSteps := engine.GetInstallationSteps(&WorkflowData{
+		Features: map[string]any{
+			string(constants.ClaudeVersionFeatureFlag): "latest",
+		},
+	})
+	featureInstallStep := strings.Join([]string(featureInstallSteps[1]), "\n")
+	if !strings.Contains(featureInstallStep, "npm install --ignore-scripts -g @anthropic-ai/claude-code@latest") {
+		t.Errorf("Expected claude-version feature override to use latest, got: %s", featureInstallStep)
+	}
+
 	// Test execution steps
 	workflowData := &WorkflowData{
 		Name: "test-workflow",

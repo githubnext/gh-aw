@@ -86,7 +86,7 @@ func TestCollectDockerImages_FirewallVersionFeatureOverride(t *testing.T) {
 	workflowData := &WorkflowData{
 		AI: "claude",
 		Features: map[string]any{
-			string(constants.FirewallLatestFeatureFlag): featureVersion,
+			string(constants.FirewallVersionFeatureFlag): featureVersion,
 		},
 		NetworkPermissions: &NetworkPermissions{
 			Firewall: &FirewallConfig{

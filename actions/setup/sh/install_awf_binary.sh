@@ -6,7 +6,7 @@
 # its SHA256 checksum before installation to protect against supply chain attacks.
 #
 # Arguments:
-#   VERSION - AWF version to install (e.g., v0.25.10)
+#   VERSION - AWF version to install (e.g., v0.25.10) or "latest"
 #
 # Install strategy:
 #   1. If Node.js >= 20 is available, download the lightweight awf-bundle.js (~357KB)
@@ -44,7 +44,11 @@ ARCH="$(uname -m)"
 echo "Installing awf with checksum verification (version: ${AWF_VERSION}, os: ${OS}, arch: ${ARCH})"
 
 # Download URLs
-BASE_URL="https://github.com/${AWF_REPO}/releases/download/${AWF_VERSION}"
+if [ "$AWF_VERSION" = "latest" ]; then
+  BASE_URL="https://github.com/${AWF_REPO}/releases/latest/download"
+else
+  BASE_URL="https://github.com/${AWF_REPO}/releases/download/${AWF_VERSION}"
+fi
 CHECKSUMS_URL="${BASE_URL}/checksums.txt"
 
 # Platform-portable SHA256 function

@@ -56,7 +56,7 @@ func getMCPGatewayVersion(workflowData *WorkflowData, configuredVersion string) 
 	if configuredVersion != "" {
 		return configuredVersion
 	}
-	if featureVersion := getFeatureValue(constants.MCPGLatestFeatureFlag, workflowData); featureVersion != "" {
+	if featureVersion := getFeatureValue(constants.MCPGVersionFeatureFlag, workflowData); featureVersion != "" {
 		return featureVersion
 	}
 	return string(constants.DefaultMCPGatewayVersion)

@@ -182,7 +182,7 @@ func TestMCPGatewayVersionFromFrontmatter(t *testing.T) {
 			description:     "should use custom version 1.2.3",
 		},
 		{
-			name: "mcpg-latest feature override applies when sandbox.mcp.version is not set",
+			name: "mcpg-version feature override applies when sandbox.mcp.version is not set",
 			sandboxConfig: &SandboxConfig{
 				MCP: &MCPGatewayRuntimeConfig{
 					Container: constants.DefaultMCPGatewayContainer,
@@ -190,10 +190,10 @@ func TestMCPGatewayVersionFromFrontmatter(t *testing.T) {
 				},
 			},
 			features: map[string]any{
-				string(constants.MCPGLatestFeatureFlag): "v0.2.27",
+				string(constants.MCPGVersionFeatureFlag): "v0.2.27",
 			},
 			expectedVersion: "v0.2.27",
-			description:     "should use mcpg-latest feature override when no explicit sandbox.mcp.version is set",
+			description:     "should use mcpg-version feature override when no explicit sandbox.mcp.version is set",
 		},
 	}
 

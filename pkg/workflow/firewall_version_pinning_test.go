@@ -167,7 +167,7 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 				ID: "copilot",
 			},
 			Features: map[string]any{
-				string(constants.FirewallLatestFeatureFlag): featureVersion,
+				string(constants.FirewallVersionFeatureFlag): featureVersion,
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{
@@ -195,6 +195,43 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 
 		if !strings.Contains(awfStepStr, featureVersion) {
 			t.Errorf("AWF installation step should pass feature override version %s to script", featureVersion)
+		}
+	})
+
+	t.Run("supports latest feature override version", func(t *testing.T) {
+		engine := NewCopilotEngine()
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			Features: map[string]any{
+				string(constants.FirewallVersionFeatureFlag): "latest",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		steps := engine.GetInstallationSteps(workflowData)
+
+		var awfStepStr string
+		for _, step := range steps {
+			stepStr := strings.Join(step, "\n")
+			if strings.Contains(stepStr, "Install AWF binary") {
+				awfStepStr = stepStr
+				break
+			}
+		}
+
+		if awfStepStr == "" {
+			t.Fatal("Expected to find AWF installation step when firewall is enabled")
+		}
+
+		if !strings.Contains(awfStepStr, `install_awf_binary.sh" latest`) {
+			t.Errorf("AWF installation step should pass latest to script when firewall-version=latest, got:\n%s", awfStepStr)
 		}
 	})
 

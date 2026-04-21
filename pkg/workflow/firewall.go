@@ -65,7 +65,7 @@ func getFirewallConfig(workflowData *WorkflowData) *FirewallConfig {
 		return nil
 	}
 
-	featureVersion := getFeatureValue(constants.FirewallLatestFeatureFlag, workflowData)
+	featureVersion := getFeatureValue(constants.FirewallVersionFeatureFlag, workflowData)
 
 	// Check network.firewall configuration
 	if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil {
@@ -75,7 +75,7 @@ func getFirewallConfig(workflowData *WorkflowData) *FirewallConfig {
 			configCopy := *config
 			configCopy.Version = featureVersion
 			if firewallLog.Enabled() {
-				firewallLog.Printf("Applied firewall-latest feature override: version=%s", featureVersion)
+				firewallLog.Printf("Applied firewall-version feature override: version=%s", featureVersion)
 			}
 			return &configCopy
 		}
@@ -88,7 +88,7 @@ func getFirewallConfig(workflowData *WorkflowData) *FirewallConfig {
 
 	if featureVersion != "" {
 		if firewallLog.Enabled() {
-			firewallLog.Printf("Using firewall-latest feature override without explicit firewall config: version=%s", featureVersion)
+			firewallLog.Printf("Using firewall-version feature override without explicit firewall config: version=%s", featureVersion)
 		}
 		return &FirewallConfig{Version: featureVersion}
 	}

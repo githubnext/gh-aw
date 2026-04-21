@@ -282,15 +282,12 @@ func TestCopilotInstallerByokFeatureUsesLatestVersion(t *testing.T) {
 	}
 }
 
-func TestCopilotInstallerLatestCopilotFeatureUsesLatestVersion(t *testing.T) {
+func TestCopilotInstallerCopilotVersionFeatureUsesLatestVersion(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		EngineConfig: &EngineConfig{
-			Version: "1.0.0",
-		},
 		Features: map[string]any{
-			string(constants.CopilotLatestFeatureFlag): true,
+			string(constants.CopilotVersionFeatureFlag): "latest",
 		},
 	}
 
@@ -310,9 +307,67 @@ func TestCopilotInstallerLatestCopilotFeatureUsesLatestVersion(t *testing.T) {
 	}
 
 	if !strings.Contains(installStep, `install_copilot_cli.sh" latest`) {
-		t.Errorf("Expected copilot-latest to force latest Copilot CLI install, got:\n%s", installStep)
+		t.Errorf("Expected copilot-version=latest to force latest Copilot CLI install, got:\n%s", installStep)
 	}
-	if strings.Contains(installStep, `install_copilot_cli.sh" 1.0.0`) {
-		t.Errorf("Expected copilot-latest to ignore pinned version, got:\n%s", installStep)
+}
+
+func TestCopilotInstallerEngineConfigVersionTakesPrecedenceOverFeatureVersion(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			Version: "1.0.0",
+		},
+		Features: map[string]any{
+			string(constants.CopilotVersionFeatureFlag): "latest",
+		},
+	}
+
+	steps := engine.GetInstallationSteps(workflowData)
+
+	var installStep string
+	for _, step := range steps {
+		stepContent := strings.Join(step, "\n")
+		if strings.Contains(stepContent, "install_copilot_cli.sh") {
+			installStep = stepContent
+			break
+		}
+	}
+
+	if installStep == "" {
+		t.Fatal("Could not find install step with install_copilot_cli.sh")
+	}
+
+	if !strings.Contains(installStep, `install_copilot_cli.sh" 1.0.0`) {
+		t.Errorf("Expected engine.version to take precedence over copilot-version feature flag, got:\n%s", installStep)
+	}
+}
+
+func TestCopilotInstallerCopilotVersionFeatureSupportsSpecificVersion(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Features: map[string]any{
+			string(constants.CopilotVersionFeatureFlag): "1.2.3",
+		},
+	}
+
+	steps := engine.GetInstallationSteps(workflowData)
+
+	var installStep string
+	for _, step := range steps {
+		stepContent := strings.Join(step, "\n")
+		if strings.Contains(stepContent, "install_copilot_cli.sh") {
+			installStep = stepContent
+			break
+		}
+	}
+
+	if installStep == "" {
+		t.Fatal("Could not find install step with install_copilot_cli.sh")
+	}
+
+	if !strings.Contains(installStep, `install_copilot_cli.sh" 1.2.3`) {
+		t.Errorf("Expected copilot-version to support specific version values, got:\n%s", installStep)
 	}
 }

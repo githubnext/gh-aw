@@ -78,6 +78,7 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		string(constants.DefaultClaudeCodeVersion),
 		"Install Claude Code CLI",
 		"claude",
+		constants.ClaudeVersionFeatureFlag,
 		workflowData,
 	)
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
