@@ -6,7 +6,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
-safe-outputs:
+tools:
   comment-memory:
     max: 1
     memory-id: test-memory
