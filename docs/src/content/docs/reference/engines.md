@@ -24,7 +24,7 @@ Copilot CLI is the default — `engine:` can be omitted when using Copilot. See 
 
 ## Which engine should I choose?
 
-Copilot is the default choice for most users because it supports the broadest gh-aw feature set, including custom agents and autopilot-style continuations. Choose Claude when you want stronger control over turn limits (`max-turns`) for long reasoning sessions, and choose Gemini or Codex when those models are already part of existing tooling or budget decisions. If you are unsure, start with Copilot and switch later by changing only `engine:` and the corresponding secret.
+Copilot is the default choice for most users because it supports the broadest gh-aw feature set, including custom agents and autopilot-style continuations. Choose Claude when you want stronger control over turn limits (`max-turns`) for long reasoning sessions. Choose Gemini or Codex when those models are already part of existing tooling or budget decisions. If you are unsure, start with Copilot and switch later by changing only `engine:` and the corresponding secret.
 
 ## Engine Feature Comparison
 
