@@ -149,16 +149,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Check file extension - read from environment variable if available
     const ext = path.extname(filePath).toLowerCase();
-    if (
-      process.env.GH_AW_ASSETS_ALLOWED_EXTS &&
-      process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",")
-        .map(extValue => extValue.trim())
-        .some(isGitHubExpression)
-    ) {
+    const rawAllowedExtValues = process.env.GH_AW_ASSETS_ALLOWED_EXTS ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(extValue => extValue.trim()) : null;
+    if (rawAllowedExtValues && rawAllowedExtValues.some(isGitHubExpression)) {
       throw new Error(`${ERR_CONFIG}: GH_AW_ASSETS_ALLOWED_EXTS contains unresolved GitHub Actions expression. Ensure expressions resolve before safe outputs validation.`);
     }
-    const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
-      ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(normalizeAllowedExtension).filter(Boolean)
+    const allowedExts = rawAllowedExtValues
+      ? rawAllowedExtValues.map(normalizeAllowedExtension).filter(Boolean)
       : [
           // Default set as specified in problem statement
           ".png",
