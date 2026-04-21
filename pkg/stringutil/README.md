@@ -107,11 +107,11 @@ stringutil.SanitizeErrorMessage("Error: MY_SECRET_TOKEN is invalid")
 
 ### `SanitizeIdentifierName(name string, extraAllowed func(rune) bool) string`
 
-Sanitizes a string for use as a programming-language identifier by replacing invalid characters with underscores and prefixing `_` when the identifier starts with a digit.
+Sanitizes a string for use as a programming-language identifier by replacing invalid characters with underscores and prefixing `_` when the identifier starts with a digit. `extraAllowed` can be used to permit additional runes beyond the normal identifier rules; if `extraAllowed` is `nil`, no extra characters are allowed.
 
 ### `SanitizeParameterName(name string) string`
 
-Sanitizes a parameter name for use as a GitHub Actions output or environment variable name. Replaces non-alphanumeric characters with underscores.
+Sanitizes a parameter name for use as a GitHub Actions output or environment variable name. Preserves letters, digits, `$`, and `_`, and replaces all other characters with underscores.
 
 ### `SanitizePythonVariableName(name string) string`
 
