@@ -42,6 +42,7 @@ runtimes:
     version: "1.25"
 safe-outputs:
     allowed-domains: [default-safe-outputs]
+    comment-memory: true
     add-comment:
       hide-older-comments: true
       max: 2
@@ -94,6 +95,7 @@ checkout:
 5. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-${{ github.run_id }}.txt` with content "Smoke test passed for Codex at $(date)" (create the directory if it doesn't exist)
 6. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 7. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project (both caches must be set to /tmp because the default cache locations are not writable). If the command fails, mark this test as ❌ and report the failure.
+8. **Comment Memory Testing**: Append an original 3-line haiku to the comment-memory markdown file(s) in `/tmp/gh-aw/comment-memory/*.md` without removing existing content.
 
 ## Output
 

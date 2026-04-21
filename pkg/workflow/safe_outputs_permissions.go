@@ -90,6 +90,10 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 		safeOutputsPermissionsLog.Print("Adding permissions for add-comment")
 		permissions.Merge(buildAddCommentPermissions(safeOutputs.AddComments))
 	}
+	if safeOutputs.CommentMemory != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CommentMemory.Staged) {
+		safeOutputsPermissionsLog.Print("Adding permissions for comment-memory")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
 	if safeOutputs.CloseIssues != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CloseIssues.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for close-issue")
 		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
@@ -297,6 +301,8 @@ func SafeOutputsConfigFromKeys(keys []string) *SafeOutputsConfig {
 			config.CloseDiscussions = &CloseDiscussionsConfig{}
 		case "add-comment":
 			config.AddComments = &AddCommentsConfig{}
+		case "comment-memory":
+			config.CommentMemory = &CommentMemoryConfig{}
 		case "close-issue":
 			config.CloseIssues = &CloseIssuesConfig{}
 		case "close-pull-request":

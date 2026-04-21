@@ -68,3 +68,29 @@ func TestUploadAssetsConfigCustomExtensions(t *testing.T) {
 		t.Errorf("Expected custom max size 1024, got %d", config.MaxSizeKB)
 	}
 }
+
+func TestUploadAssetsConfigNormalizesExtensions(t *testing.T) {
+	compiler := NewCompiler()
+
+	outputMap := map[string]any{
+		"upload-asset": map[string]any{
+			"allowed-exts": []any{"png", " SVG ", ".jpg", "png"},
+		},
+	}
+
+	config := compiler.parseUploadAssetConfig(outputMap)
+	if config == nil {
+		t.Fatal("Expected config to be created")
+	}
+
+	expectedExts := []string{".png", ".svg", ".jpg"}
+	if len(config.AllowedExts) != len(expectedExts) {
+		t.Fatalf("Expected %d normalized extensions, got %d", len(expectedExts), len(config.AllowedExts))
+	}
+
+	for i, ext := range expectedExts {
+		if config.AllowedExts[i] != ext {
+			t.Errorf("Expected extension %s at position %d, got %s", ext, i, config.AllowedExts[i])
+		}
+	}
+}

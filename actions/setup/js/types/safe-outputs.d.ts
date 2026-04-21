@@ -124,6 +124,21 @@ interface AddCommentItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for persisting memory in a managed issue/PR comment
+ */
+interface CommentMemoryItem extends BaseSafeOutputItem {
+  type: "comment_memory";
+  /** Markdown body content to persist */
+  body: string;
+  /** Optional memory identifier (defaults to "default") */
+  memory_id?: string;
+  /** Optional target issue/PR number */
+  item_number?: number | string;
+  /** Optional target repository */
+  repo?: string;
+}
+
+/**
  * JSONL item for creating a pull request
  */
 interface CreatePullRequestItem extends BaseSafeOutputItem {
@@ -417,6 +432,7 @@ type SafeOutputItem =
   | ClosePullRequestItem
   | MarkPullRequestAsReadyForReviewItem
   | AddCommentItem
+  | CommentMemoryItem
   | CreatePullRequestItem
   | CreatePullRequestReviewCommentItem
   | CreateCodeScanningAlertItem
@@ -459,6 +475,7 @@ export {
   ClosePullRequestItem,
   MarkPullRequestAsReadyForReviewItem,
   AddCommentItem,
+  CommentMemoryItem,
   CreatePullRequestItem,
   CreatePullRequestReviewCommentItem,
   CreateCodeScanningAlertItem,

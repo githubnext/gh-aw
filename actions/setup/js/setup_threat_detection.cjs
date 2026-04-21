@@ -75,6 +75,20 @@ async function main() {
   // Get file info for template replacement
   const promptFileInfo = promptPath + " (" + fs.statSync(promptPath).size + " bytes)";
   const agentOutputFileInfo = agentOutputPath + " (" + fs.statSync(agentOutputPath).size + " bytes)";
+  const commentMemoryDir = path.join(threatDetectionDir, "comment-memory");
+  let commentMemoryFileInfo = "No comment-memory files found";
+  if (fs.existsSync(commentMemoryDir)) {
+    const commentMemoryFiles = fs
+      .readdirSync(commentMemoryDir)
+      .filter(file => file.endsWith(".md"))
+      .map(file => {
+        const fullPath = path.join(commentMemoryDir, file);
+        return `${fullPath} (${fs.statSync(fullPath).size} bytes)`;
+      });
+    if (commentMemoryFiles.length > 0) {
+      commentMemoryFileInfo = commentMemoryFiles.join("\n");
+    }
+  }
 
   // Build patch/bundle file info for template replacement
   let patchFileInfo = "No patch or bundle file found";
@@ -94,6 +108,7 @@ async function main() {
     .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || "No description provided")
     .replace(/{WORKFLOW_PROMPT_FILE}/g, promptFileInfo)
     .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
+    .replace(/{COMMENT_MEMORY_FILES}/g, commentMemoryFileInfo)
     .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
 
   // Append custom prompt instructions if provided

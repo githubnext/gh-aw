@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.17.0  
+**Version**: 1.18.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-04-19  
+**Publication Date**: 2026-04-21  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -989,6 +989,19 @@ for (const op of issueOps) {
   await createIssue(sanitized);
 }
 ```
+
+**Phase 8: Comment Memory Round-Trip** (Optional, when `comment-memory` is configured)
+
+When `safe-outputs.comment-memory` is enabled, implementations MUST support this additional data-flow path:
+
+1. **GitHub comment → local files (pre-agent setup)**: A setup step reads the managed comment body from the target issue or pull request, extracts content between `<gh-aw-comment-memory id="...">` and `</gh-aw-comment-memory>`, and writes one file per memory entry under `/tmp/gh-aw/comment-memory/<memory_id>.md`.
+2. **Local files → agent**: The prompt MUST include instructions that memory files are edited directly in `/tmp/gh-aw/comment-memory/`.
+3. **Agent → artifact**: The unified agent artifact MUST include `/tmp/gh-aw/comment-memory/` when comment memory is enabled.
+4. **Artifact → threat detection**: Threat-detection prompt setup MUST include discovered comment-memory files in analysis context.
+5. **Artifact/files → safe output processor**: The processor MUST load edited `*.md` files, synthesize `comment_memory` operations, and execute them through the `comment_memory` handler.
+6. **Safe output processor → GitHub comment**: The handler MUST upsert the managed comment using the `gh-aw-comment-memory` marker and preserve only user content within the managed XML block.
+
+This round-trip path ensures memory edits remain file-based for the agent while keeping GitHub as the authoritative persistent store.
 
 ### 4.3 Configuration Propagation
 
@@ -2283,6 +2296,71 @@ safe-outputs:
 ### 7.3 Additional Safe Output Types
 
 This section provides complete definitions for all remaining safe output types. Each follows the same format as Section 7.1 with full schemas, operational semantics, and permission requirements.
+
+#### Type: comment_memory
+
+**Purpose**: Persist structured memory in a managed issue or pull request comment using file-based editing and automatic synchronization.
+
+**Default Max**: 1  
+**Cross-Repository Support**: Yes  
+**Mandatory**: No
+
+**Tool Exposure Model**:
+
+- `comment_memory` is a safe output processor type.
+- It MUST NOT be exposed as an agent-editable MCP tool when file-based comment-memory synchronization is active.
+- The agent edits `/tmp/gh-aw/comment-memory/*.md` files directly; the processor synthesizes `comment_memory` operations from those files.
+
+**Logical Operation Schema**:
+
+```json
+{
+  "type": "comment_memory",
+  "memory_id": "default",
+  "body": "Markdown content loaded from /tmp/gh-aw/comment-memory/default.md"
+}
+```
+
+**Operational Semantics**:
+
+1. **Managed Marker**: Persisted comments use `<gh-aw-comment-memory id="<memory_id>">...</gh-aw-comment-memory>` markers.
+2. **Setup Extraction**: Pre-agent setup extracts marker content from GitHub comments into `/tmp/gh-aw/comment-memory/<memory_id>.md`.
+3. **File-Based Editing**: Agent updates memory by editing files only; no direct `comment_memory` tool call is required.
+4. **Automatic Sync**: Processor reads `*.md` files and upserts corresponding managed comments after agent execution.
+5. **Temporary ID Rewrite**: If temporary IDs (workflow-run-scoped placeholders prefixed with `aw_`, such as `aw_abc123`) are resolved during processing, comment-memory content MUST be rewritten using the resolved IDs before final upsert.
+6. **Precedence Rule**: If both an explicit `comment_memory` operation and a file-backed entry exist for the same `memory_id`, the explicit operation takes precedence.
+
+**Configuration Parameters**:
+
+- `max`: Operation limit (default: 1)
+- `memory-id`: Default memory identifier when omitted in synthesized operations
+- `target`: Target issue/PR selector (`triggering`, `*`, or explicit number)
+- `target-repo`: Cross-repository target
+- `allowed-repos`: Cross-repo allowlist
+- `footer`: Footer override
+- `staged`: Staged mode override
+
+**Security Requirements**:
+
+- `memory_id` MUST be validated as `[A-Za-z0-9_-]+` with path traversal patterns rejected.
+- Managed comment scan MUST be bounded by a maximum page limit.
+- Body content MUST undergo sanitization and comment size/mention/link limit validation before upsert.
+- Cross-repository targets MUST be validated against `allowed-repos`.
+- Only content within managed marker tags is treated as editable memory; footer/provenance text MUST NOT be imported into editable files. For example, in `<gh-aw-comment-memory id="default">MEMORY</gh-aw-comment-memory>\n\n<!-- provenance footer -->`, only `MEMORY` is editable/imported.
+
+**Required Permissions**:
+
+*GitHub Actions Token*:
+
+- `contents: read` - Repository metadata and context
+- `issues: write` - Managed comment create/update operations on issues and pull requests
+
+*GitHub App*:
+
+- `issues: write` - Managed comment create/update operations
+- `metadata: read` - Repository metadata (automatically granted)
+
+---
 
 #### Type: update_issue
 
@@ -4792,6 +4870,12 @@ safe-outputs:
 ---
 
 ## Appendix F: Document History
+
+**Version 1.18.0** (2026-04-21):
+
+- **Added**: `comment_memory` safe output type definition in Section 7.3, including file-based synchronization model and required permissions
+- **Added**: Phase 8 "Comment Memory Round-Trip" in Section 4.2 defining end-to-end flow across GitHub comment, local files, agent, artifacts, threat detection, and comment upsert
+- **Updated**: Publication metadata to 1.18.0
 
 **Version 1.17.0** (2026-04-19):
 

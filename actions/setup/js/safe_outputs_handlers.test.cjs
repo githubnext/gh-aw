@@ -265,6 +265,42 @@ describe("safe_outputs_handlers", () => {
       expect(result.content[0].type).toBe("text");
     });
 
+    it("should normalize custom allowed extensions", () => {
+      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
+      process.env.GH_AW_ASSETS_ALLOWED_EXTS = "TXT, md";
+
+      const testFile = path.join(testWorkspaceDir, "test.txt");
+      fs.writeFileSync(testFile, "test content");
+
+      const args = { path: testFile };
+      const result = handlers.uploadAssetHandler(args);
+
+      expect(mockAppendSafeOutput).toHaveBeenCalled();
+      expect(result.content[0].type).toBe("text");
+    });
+
+    it("should reject unresolved GitHub expression in allowed extensions", () => {
+      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
+      process.env.GH_AW_ASSETS_ALLOWED_EXTS = "${{ inputs.allowed_exts }}";
+
+      const testFile = path.join(testWorkspaceDir, "test.txt");
+      fs.writeFileSync(testFile, "test content");
+
+      const args = { path: testFile };
+      expect(() => handlers.uploadAssetHandler(args)).toThrow("contains unresolved GitHub Actions expression");
+    });
+
+    it("should reject unresolved expression even when literal extension also matches", () => {
+      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
+      process.env.GH_AW_ASSETS_ALLOWED_EXTS = ".txt,${{ inputs.allowed_exts }}";
+
+      const testFile = path.join(testWorkspaceDir, "test.txt");
+      fs.writeFileSync(testFile, "test content");
+
+      const args = { path: testFile };
+      expect(() => handlers.uploadAssetHandler(args)).toThrow("contains unresolved GitHub Actions expression");
+    });
+
     it("should reject file exceeding size limit", () => {
       process.env.GH_AW_ASSETS_BRANCH = "test-branch";
       process.env.GH_AW_ASSETS_MAX_SIZE_KB = "1"; // 1 KB limit

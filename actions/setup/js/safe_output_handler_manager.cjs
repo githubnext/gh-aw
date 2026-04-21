@@ -23,7 +23,9 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile } = require("./safe_output_manifest.cjs");
 const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers, isStagedMode } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
+const { listCommentMemoryFiles, COMMENT_MEMORY_DIR } = require("./comment_memory_helpers.cjs");
 const nodePath = require("path");
+const fs = require("fs");
 
 /**
  * Handler map configuration
@@ -32,6 +34,7 @@ const nodePath = require("path");
 const HANDLER_MAP = {
   create_issue: "./create_issue.cjs",
   add_comment: "./add_comment.cjs",
+  comment_memory: "./comment_memory.cjs",
   create_discussion: "./create_discussion.cjs",
   close_issue: "./close_issue.cjs",
   close_discussion: "./close_discussion.cjs",
@@ -91,6 +94,57 @@ const STANDALONE_STEP_TYPES = new Set(["upload_asset", "noop"]);
  * If any of these fail, the remaining non-code-push messages are cancelled with a clear reason.
  */
 const CODE_PUSH_TYPES = new Set(["push_to_pull_request_branch", "create_pull_request"]);
+
+function buildCommentMemoryMessagesFromFiles(existingMessages, config) {
+  if (!config.comment_memory) {
+    return [];
+  }
+
+  const fallbackMemoryId = normalizeCommentMemoryId(config?.comment_memory?.memory_id, "default");
+  const existingMemoryIds = new Set(existingMessages.filter(isCommentMemoryMessage).map(message => normalizeCommentMemoryId(message.memory_id, fallbackMemoryId)));
+
+  const fileEntries = listCommentMemoryFiles(COMMENT_MEMORY_DIR);
+  if (fileEntries.length === 0) {
+    return [];
+  }
+
+  const messages = [];
+  for (const entry of fileEntries) {
+    if (existingMemoryIds.has(entry.memoryId)) {
+      continue;
+    }
+    let body = "";
+    try {
+      body = fs.readFileSync(entry.filePath, "utf8").replace(/\n+$/, "");
+    } catch (error) {
+      core.warning(`Failed to read comment-memory file '${entry.filePath}': ${getErrorMessage(error)}`);
+      continue;
+    }
+    messages.push({
+      type: "comment_memory",
+      memory_id: entry.memoryId,
+      body,
+    });
+  }
+
+  if (messages.length > 0) {
+    core.info(`Loaded ${messages.length} comment_memory message(s) from ${COMMENT_MEMORY_DIR}`);
+  }
+  return messages;
+}
+
+function isCommentMemoryMessage(message) {
+  // memory_id normalization/validation is handled separately in normalizeCommentMemoryId.
+  return message?.type === "comment_memory";
+}
+
+function normalizeCommentMemoryId(memoryId, fallback = "default") {
+  if (typeof memoryId !== "string") {
+    return fallback;
+  }
+  const normalized = memoryId.trim();
+  return normalized.length > 0 ? normalized : fallback;
+}
 
 /**
  * Load configuration for safe outputs
@@ -615,7 +669,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
       // Handle add_comment which returns an array of comments
       if (messageType === "add_comment" && Array.isArray(result)) {
-        const contentToCheck = getContentToCheck(messageType, message);
+        const contentToCheck = getContentToCheck(messageType, message, result);
         if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
           // Track each comment that was created with unresolved temp IDs
           for (const comment of result) {
@@ -637,7 +691,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         }
       } else if (result && result.number && result.repo) {
         // Handle create_issue, create_discussion
-        const contentToCheck = getContentToCheck(messageType, message);
+        const contentToCheck = getContentToCheck(messageType, message, result);
         if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
           core.info(`Output ${result.repo}#${result.number} was created with unresolved temporary IDs - tracking for update`);
           outputsWithUnresolvedIds.push({
@@ -754,7 +808,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           // For create_issue, create_discussion - check if body has unresolved IDs
           // This enables synthetic updates to resolve references after all items are created
           if (result && result.number && result.repo) {
-            const contentToCheck = getContentToCheck(deferred.type, deferred.message);
+            const contentToCheck = getContentToCheck(deferred.type, deferred.message, result);
             if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
               core.info(`Output ${result.repo}#${result.number} was created with unresolved temporary IDs - tracking for update`);
               outputsWithUnresolvedIds.push({
@@ -813,9 +867,12 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
  * Get the content field to check for unresolved temporary IDs based on message type
  * @param {string} messageType - Type of the message
  * @param {any} message - The message object
+ * @param {any} [result] - Handler result (used for transformed/managed bodies)
+ * For comment_memory, handlers return a managedBody that includes XML wrapper/footer;
+ * this differs from message.body and must be used for temporary ID detection.
  * @returns {string|null} Content to check for temporary IDs
  */
-function getContentToCheck(messageType, message) {
+function getContentToCheck(messageType, message, result) {
   switch (messageType) {
     case "create_issue":
       return message.body || "";
@@ -823,6 +880,8 @@ function getContentToCheck(messageType, message) {
       return message.body || "";
     case "add_comment":
       return message.body || "";
+    case "comment_memory":
+      return result?.managedBody || message.body || "";
     default:
       return null;
   }
@@ -974,7 +1033,7 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
     // since artifact IDs embedded in the body need to be replaced with their real URLs.
     const resolvedArtifacts = artifactUrlMap && artifactUrlMap.size > 0;
     if (temporaryIdMap.size > tracked.originalTempIdMapSize || resolvedArtifacts) {
-      const contentToCheck = getContentToCheck(tracked.type, tracked.message);
+      const contentToCheck = getContentToCheck(tracked.type, tracked.message, tracked.result);
 
       // Only process if we have content to check
       if (contentToCheck !== null && contentToCheck !== "") {
@@ -1009,6 +1068,14 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
                   updateCount++;
                 } else {
                   core.debug(`Skipping synthetic update for comment - comment ID not tracked`);
+                }
+                break;
+              case "comment_memory":
+                if (tracked.result.commentId) {
+                  await updateCommentBody(github, context, tracked.result.repo, tracked.result.commentId, updatedContent, false);
+                  updateCount++;
+                } else {
+                  core.debug(`Skipping synthetic update for comment_memory - comment ID not tracked`);
                 }
                 break;
               default:
@@ -1053,17 +1120,22 @@ async function main() {
 
     // Load agent output
     const agentOutput = loadAgentOutput();
+    const agentOutputItems = agentOutput.success ? agentOutput.items : [];
     if (!agentOutput.success) {
-      core.info("No agent output available - nothing to process");
-      // Ensure manifest file exists even when there is no agent output (skip in staged mode)
+      core.info("No agent output available from tool calls");
+    } else {
+      core.info(`Found ${agentOutput.items.length} message(s) in agent output`);
+    }
+
+    const fileBackedCommentMemoryMessages = buildCommentMemoryMessagesFromFiles(agentOutputItems, config);
+    const allMessages = [...agentOutputItems, ...fileBackedCommentMemoryMessages];
+    if (allMessages.length === 0) {
+      core.info("No safe-output messages available - nothing to process");
       if (!isStaged) ensureManifestExists();
-      // Set empty outputs for downstream steps
       core.setOutput("temporary_id_map", "{}");
       core.setOutput("processed_count", 0);
       return;
     }
-
-    core.info(`Found ${agentOutput.items.length} message(s) in agent output`);
 
     // Create the shared PR review buffer instance (no global state)
     const prReviewBuffer = createReviewBuffer();
@@ -1100,7 +1172,7 @@ async function main() {
     const logCreatedItem = isStaged ? null : createManifestLogger();
 
     // Process all messages in order of appearance
-    const processingResult = await processMessages(messageHandlers, agentOutput.items, logCreatedItem);
+    const processingResult = await processMessages(messageHandlers, allMessages, logCreatedItem);
 
     // Finalize buffered PR review — submit when comments or metadata exist
     if (prReviewBuffer.hasBufferedComments() || prReviewBuffer.hasReviewMetadata()) {
@@ -1142,7 +1214,7 @@ async function main() {
     }
 
     // Write step summaries for all processed safe-outputs
-    await writeSafeOutputSummaries(processingResult.results, agentOutput.items);
+    await writeSafeOutputSummaries(processingResult.results, allMessages);
 
     // Log summary
     const successCount = processingResult.results.filter(r => r.success).length;
@@ -1249,7 +1321,7 @@ async function main() {
     const createDiscussionErrors = processingResult.results
       .filter(r => r.type === "create_discussion" && !r.success && !r.deferred && !r.skipped && !r.cancelled)
       .map((r, index) => {
-        const message = agentOutput.items[r.messageIndex];
+        const message = allMessages[r.messageIndex];
         const title = message?.title || "Discussion";
         const repo = message?.repo || process.env.GITHUB_REPOSITORY || "unknown";
         const errorMsg = r.error || r.reason || "Unknown error";
@@ -1303,4 +1375,4 @@ async function main() {
   }
 }
 
-module.exports = { main, loadConfig, loadHandlers, processMessages };
+module.exports = { main, loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles };

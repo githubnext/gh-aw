@@ -785,6 +785,9 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.PushToPullRequestBranch != nil {
 		sections = append(sections, PromptSection{Content: safeOutputsPushToBranchFile, IsFile: true})
 	}
+	if safeOutputs.CommentMemory != nil {
+		sections = append(sections, PromptSection{Content: safeOutputsCommentMemoryFile, IsFile: true})
+	}
 	if safeOutputs.UploadAssets != nil {
 		sections = append(sections, PromptSection{
 			Content: "\nupload_asset: provide a file path; returns a URL; assets are published after the workflow completes (" + constants.SafeOutputsMCPServerID.String() + ").",

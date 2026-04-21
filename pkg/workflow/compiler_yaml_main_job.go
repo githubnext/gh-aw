@@ -323,6 +323,21 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
 	yaml.WriteString("          path: /tmp/gh-aw\n")
 
+	// Materialize comment-memory safe outputs as editable markdown files for the agent.
+	// This prepares /tmp/gh-aw/comment-memory/*.md and injects prompt guidance so the agent
+	// can edit memory content directly and persist it via comment_memory safe outputs.
+	if data.SafeOutputs != nil && data.SafeOutputs.CommentMemory != nil {
+		yaml.WriteString("      - name: Prepare comment memory files\n")
+		fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+		yaml.WriteString("        with:\n")
+		fmt.Fprintf(yaml, "          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.SafeOutputs.CommentMemory.GitHubToken))
+		yaml.WriteString("          script: |\n")
+		yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+		yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+		yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/setup_comment_memory_files.cjs');\n")
+		yaml.WriteString("            await main();\n")
+	}
+
 	// Restore agent config folders from the base branch snapshot in the activation artifact.
 	// The activation job saved these before the PR checkout ran, so this step overwrites any
 	// PR-branch-injected files (e.g. forked skill/instruction files) with trusted base content.
@@ -521,6 +536,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.SafeOutputsFilename)
 		// Processed agent output JSON produced by collect_ndjson_output.cjs
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.AgentOutputFilename)
+		if data.SafeOutputs.CommentMemory != nil {
+			artifactPaths = append(artifactPaths, "/tmp/gh-aw/comment-memory/")
+		}
 
 		// Write a minimal agent_output.json placeholder when the engine fails before
 		// producing any safe outputs, so downstream safe_outputs and conclusion jobs

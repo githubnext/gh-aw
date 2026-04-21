@@ -47,6 +47,34 @@ func TestParseUploadAssetConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "upload-asset config normalizes allowed-exts without dots",
+			input: map[string]any{
+				"upload-asset": map[string]any{
+					"allowed-exts": []any{"png", " SVG ", ".jpg", "png"},
+				},
+			},
+			expected: &UploadAssetsConfig{
+				BranchName:           "assets/${{ github.workflow }}",
+				MaxSizeKB:            10240,
+				AllowedExts:          []string{".png", ".svg", ".jpg"},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{},
+			},
+		},
+		{
+			name: "upload-asset config preserves github actions expressions in allowed-exts",
+			input: map[string]any{
+				"upload-asset": map[string]any{
+					"allowed-exts": []any{"${{ inputs.allowed_exts }}", " PNG "},
+				},
+			},
+			expected: &UploadAssetsConfig{
+				BranchName:           "assets/${{ github.workflow }}",
+				MaxSizeKB:            10240,
+				AllowedExts:          []string{"${{ inputs.allowed_exts }}", ".png"},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{},
+			},
+		},
+		{
 			name:     "no upload-asset config",
 			input:    map[string]any{},
 			expected: nil,
@@ -87,6 +115,14 @@ func TestParseUploadAssetConfig(t *testing.T) {
 
 			if len(result.AllowedExts) != len(tt.expected.AllowedExts) {
 				t.Errorf("AllowedExts length: expected %d, got %d", len(tt.expected.AllowedExts), len(result.AllowedExts))
+			}
+			for i := range tt.expected.AllowedExts {
+				if i >= len(result.AllowedExts) {
+					break
+				}
+				if result.AllowedExts[i] != tt.expected.AllowedExts[i] {
+					t.Errorf("AllowedExts[%d]: expected %s, got %s", i, tt.expected.AllowedExts[i], result.AllowedExts[i])
+				}
 			}
 		})
 	}
