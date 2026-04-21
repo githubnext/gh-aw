@@ -101,7 +101,7 @@ function buildCommentMemoryMessagesFromFiles(existingMessages, config) {
     return [];
   }
 
-  const existingMemoryIDs = new Set(existingMessages.filter(message => message?.type === "comment_memory" && typeof message.memory_id === "string").map(message => message.memory_id));
+  const existingMemoryIDs = new Set(existingMessages.filter(isCommentMemoryMessage).map(message => message.memory_id));
 
   const fileEntries = listCommentMemoryFiles(COMMENT_MEMORY_DIR);
   if (fileEntries.length === 0) {
@@ -115,7 +115,7 @@ function buildCommentMemoryMessagesFromFiles(existingMessages, config) {
     }
     let body = "";
     try {
-      body = fs.readFileSync(entry.filePath, "utf8").replace(/\n$/, "");
+      body = fs.readFileSync(entry.filePath, "utf8").replace(/\n+$/, "");
     } catch (error) {
       core.warning(`Failed to read comment-memory file '${entry.filePath}': ${getErrorMessage(error)}`);
       continue;
@@ -131,6 +131,10 @@ function buildCommentMemoryMessagesFromFiles(existingMessages, config) {
     core.info(`Loaded ${messages.length} comment_memory message(s) from ${COMMENT_MEMORY_DIR}`);
   }
   return messages;
+}
+
+function isCommentMemoryMessage(message) {
+  return message?.type === "comment_memory" && typeof message.memory_id === "string";
 }
 
 /**

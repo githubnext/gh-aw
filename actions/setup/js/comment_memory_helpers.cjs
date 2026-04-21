@@ -12,6 +12,9 @@ function isSafeMemoryId(memoryId) {
   if (typeof memoryId !== "string" || memoryId.length === 0 || memoryId.length > MAX_MEMORY_ID_LENGTH) {
     return false;
   }
+  if (memoryId.includes("..") || memoryId.includes("/") || memoryId.includes("\\")) {
+    return false;
+  }
   return /^[A-Za-z0-9_-]+$/.test(memoryId);
 }
 
