@@ -28,6 +28,28 @@ const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
  */
 function createHandlers(server, appendSafeOutput, config = {}) {
   /**
+   * @param {string} value
+   * @returns {boolean}
+   */
+  const isGitHubExpression = value => value.startsWith("${{") && value.endsWith("}}");
+
+  /**
+   * @param {string} extValue
+   * @returns {string}
+   */
+  const normalizeAllowedExtension = extValue => {
+    const trimmed = extValue.trim();
+    if (!trimmed) {
+      return "";
+    }
+    if (isGitHubExpression(trimmed)) {
+      return trimmed;
+    }
+    const normalized = trimmed.toLowerCase();
+    return normalized.startsWith(".") ? normalized : `.${normalized}`;
+  };
+
+  /**
    * Default handler for safe output tools
    * @param {string} type - The tool type
    * @returns {Function} Handler function
@@ -128,15 +150,16 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Check file extension - read from environment variable if available
     const ext = path.extname(filePath).toLowerCase();
     const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
-      ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
+      ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(normalizeAllowedExtension).filter(Boolean)
       : [
           // Default set as specified in problem statement
           ".png",
           ".jpg",
           ".jpeg",
         ];
+    const hasExpressionExt = allowedExts.some(isGitHubExpression);
 
-    if (!allowedExts.includes(ext)) {
+    if (!allowedExts.includes(ext) && !hasExpressionExt) {
       throw new Error(`${ERR_VALIDATION}: File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
     }
 
