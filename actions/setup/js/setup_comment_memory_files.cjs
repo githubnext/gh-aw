@@ -55,7 +55,7 @@ function extractCommentMemoryEntries(commentBody) {
     if (isSafeMemoryId(memoryId)) {
       entries.push({
         memoryId,
-        content: String(commentBody.slice(contentStart, closeStart) || "").trim(),
+        content: (commentBody.slice(contentStart, closeStart) || "").trim(),
       });
     } else {
       core.warning(`comment_memory setup: skipping unsafe memory_id '${memoryId}' found in managed comment`);
@@ -144,7 +144,8 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
     for (const comment of data) {
       const entries = extractCommentMemoryEntries(comment.body);
       for (const entry of entries) {
-        if (!memoryMap.has(entry.memoryId) || memoryMap.get(entry.memoryId) !== entry.content) {
+        const existing = memoryMap.get(entry.memoryId);
+        if (existing !== entry.content) {
           pageAddedEntries++;
         }
         memoryMap.set(entry.memoryId, entry.content);
@@ -169,10 +170,6 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
   fs.mkdirSync(COMMENT_MEMORY_DIR, { recursive: true });
   const writtenFiles = [];
   for (const [memoryId, content] of memoryMap.entries()) {
-    if (!isSafeMemoryId(memoryId)) {
-      core.warning(`comment_memory setup: skipping unsafe memory_id '${memoryId}' while writing files`);
-      continue;
-    }
     const filePath = path.join(COMMENT_MEMORY_DIR, `${memoryId}.md`);
     fs.writeFileSync(filePath, `${content}\n`);
     writtenFiles.push(filePath);
