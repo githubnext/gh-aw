@@ -200,9 +200,6 @@ jobs:
           cat << 'GH_AW_PROMPT_8dfa4824ae875fbc_EOF'
           <safe-output-tools>
           Tools: create_issue(max:7), create_discussion, missing_tool, missing_data, noop
-          GH_AW_PROMPT_8dfa4824ae875fbc_EOF
-          cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_comment_memory.md"
-          cat << 'GH_AW_PROMPT_8dfa4824ae875fbc_EOF'
           </safe-output-tools>
           GH_AW_PROMPT_8dfa4824ae875fbc_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
@@ -547,7 +544,7 @@ jobs:
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts"
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_d77b00d4cdddba10_EOF'
-          {"comment_memory":{"max":1,"memory_id":"default"},"create_discussion":{"category":"reports","close_older_discussions":true,"expires":168,"fallback_to_issue":true,"max":1},"create_issue":{"expires":48,"group":true,"labels":["automation","improvement","quick-win","cookie"],"max":7,"title_prefix":"[deep-report] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":1048576,"max_patch_size":10240}]},"report_incomplete":{},"upload_artifact":{"max-size-bytes":104857600,"max-uploads":1,"retention-days":30}}
+          {"create_discussion":{"category":"reports","close_older_discussions":true,"expires":168,"fallback_to_issue":true,"max":1},"create_issue":{"expires":48,"group":true,"labels":["automation","improvement","quick-win","cookie"],"max":7,"title_prefix":"[deep-report] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":1048576,"max_patch_size":10240}]},"report_incomplete":{},"upload_artifact":{"max-size-bytes":104857600,"max-uploads":1,"retention-days":30}}
           GH_AW_SAFE_OUTPUTS_CONFIG_d77b00d4cdddba10_EOF
       - name: Write Safe Outputs Tools
         env:
@@ -562,31 +559,6 @@ jobs:
             }
           GH_AW_VALIDATION_JSON: |
             {
-              "comment_memory": {
-                "defaultMax": 1,
-                "fields": {
-                  "body": {
-                    "required": true,
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 65000
-                  },
-                  "item_number": {
-                    "issueOrPRNumber": true
-                  },
-                  "memory_id": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 128,
-                    "pattern": "^[a-zA-Z0-9_-]+$",
-                    "patternError": "must contain only alphanumeric characters, hyphens, and underscores"
-                  },
-                  "repo": {
-                    "type": "string",
-                    "maxLength": 256
-                  }
-                }
-              },
               "create_discussion": {
                 "defaultMax": 1,
                 "fields": {
@@ -879,15 +851,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - name: Prepare comment memory files
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/setup_comment_memory_files.cjs');
-            await main();
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
@@ -1159,7 +1122,6 @@ jobs:
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
-            /tmp/gh-aw/comment-memory/
             /tmp/gh-aw/aw-*.patch
             /tmp/gh-aw/aw-*.bundle
             /tmp/gh-aw/sandbox/firewall/logs/
@@ -1673,7 +1635,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,*.pythonhosted.org,anaconda.org,anthropic.com,api.anthropic.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,bun.sh,cdn.jsdelivr.net,cdn.playwright.dev,codeload.github.com,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,esm.sh,files.pythonhosted.org,get.pnpm.io,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,googleapis.deno.dev,googlechromelabs.github.io,host.docker.internal,json-schema.org,json.schemastore.org,jsr.io,keyserver.ubuntu.com,lfs.github.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.anaconda.com,repo.continuum.io,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,skimdb.npmjs.com,statsig.anthropic.com,storage.googleapis.com,telemetry.vercel.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"comment_memory\":{\"max\":1,\"memory_id\":\"default\"},\"create_discussion\":{\"category\":\"reports\",\"close_older_discussions\":true,\"expires\":168,\"fallback_to_issue\":true,\"max\":1},\"create_issue\":{\"expires\":48,\"group\":true,\"labels\":[\"automation\",\"improvement\",\"quick-win\",\"cookie\"],\"max\":7,\"title_prefix\":\"[deep-report] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{},\"upload_artifact\":{\"max-size-bytes\":104857600,\"max-uploads\":1,\"retention-days\":30}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"reports\",\"close_older_discussions\":true,\"expires\":168,\"fallback_to_issue\":true,\"max\":1},\"create_issue\":{\"expires\":48,\"group\":true,\"labels\":[\"automation\",\"improvement\",\"quick-win\",\"cookie\"],\"max\":7,\"title_prefix\":\"[deep-report] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{},\"upload_artifact\":{\"max-size-bytes\":104857600,\"max-uploads\":1,\"retention-days\":30}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

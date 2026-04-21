@@ -197,9 +197,6 @@ jobs:
           cat << 'GH_AW_PROMPT_d4927b7bd8609fbf_EOF'
           <safe-output-tools>
           Tools: missing_tool, missing_data, noop, test_environment
-          GH_AW_PROMPT_d4927b7bd8609fbf_EOF
-          cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_comment_memory.md"
-          cat << 'GH_AW_PROMPT_d4927b7bd8609fbf_EOF'
           </safe-output-tools>
           GH_AW_PROMPT_d4927b7bd8609fbf_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
@@ -421,7 +418,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_d86c5b5254618d2c_EOF'
-          {"comment_memory":{"max":1,"memory_id":"default"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"test_environment":{"description":"A test job with choice input","inputs":{"environment":{"default":null,"description":"Target environment","options":["staging","production"],"required":true,"type":"choice"},"test_type":{"default":null,"description":"Type of test to run","options":["smoke","integration","e2e"],"required":true,"type":"choice"}},"output":"Environment test completed successfully"}}
+          {"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"test_environment":{"description":"A test job with choice input","inputs":{"environment":{"default":null,"description":"Target environment","options":["staging","production"],"required":true,"type":"choice"},"test_type":{"default":null,"description":"Type of test to run","options":["smoke","integration","e2e"],"required":true,"type":"choice"}},"output":"Environment test completed successfully"}}
           GH_AW_SAFE_OUTPUTS_CONFIG_d86c5b5254618d2c_EOF
       - name: Write Safe Outputs Tools
         env:
@@ -465,31 +462,6 @@ jobs:
             }
           GH_AW_VALIDATION_JSON: |
             {
-              "comment_memory": {
-                "defaultMax": 1,
-                "fields": {
-                  "body": {
-                    "required": true,
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 65000
-                  },
-                  "item_number": {
-                    "issueOrPRNumber": true
-                  },
-                  "memory_id": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 128,
-                    "pattern": "^[a-zA-Z0-9_-]+$",
-                    "patternError": "must contain only alphanumeric characters, hyphens, and underscores"
-                  },
-                  "repo": {
-                    "type": "string",
-                    "maxLength": 256
-                  }
-                }
-              },
               "missing_data": {
                 "defaultMax": 20,
                 "fields": {
@@ -708,15 +680,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - name: Prepare comment memory files
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/setup_comment_memory_files.cjs');
-            await main();
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
@@ -967,7 +930,6 @@ jobs:
             /tmp/gh-aw/otel.jsonl
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
-            /tmp/gh-aw/comment-memory/
             /tmp/gh-aw/aw-*.patch
             /tmp/gh-aw/aw-*.bundle
             /tmp/gh-aw/sandbox/firewall/logs/
@@ -1371,7 +1333,7 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
           GH_AW_SAFE_OUTPUT_JOBS: "{\"test_environment\":\"\"}"
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"comment_memory\":{\"max\":1,\"memory_id\":\"default\"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
