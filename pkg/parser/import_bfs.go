@@ -27,7 +27,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	log.Print("Processing imports from frontmatter with recursive BFS")
 
 	// Parse imports field - can be array of strings or objects with path and inputs,
-	// or an object with 'aw' (agentic workflow paths) and 'apm-packages' subfields.
+	// or an object with an 'aw' (agentic workflow paths) subfield.
 	var importSpecs []ImportSpec
 	switch v := importsField.(type) {
 	case []any:
@@ -41,9 +41,8 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			importSpecs = append(importSpecs, ImportSpec{Path: s})
 		}
 	case map[string]any:
-		// Object form: {aw: [...], apm-packages: [...]}
+		// Object form: {aw: [...]}
 		// Extract 'aw' subfield for agentic workflow imports.
-		// The 'apm-packages' subfield is handled separately by extractAPMDependenciesFromFrontmatter.
 		if awAny, hasAW := v["aw"]; hasAW {
 			switch awVal := awAny.(type) {
 			case []any:
@@ -61,7 +60,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			}
 		}
 	default:
-		return nil, errors.New("imports field must be an array or an object with 'aw'/'apm-packages' subfields")
+		return nil, errors.New("imports field must be an array or an object with an 'aw' subfield")
 	}
 
 	if len(importSpecs) == 0 {

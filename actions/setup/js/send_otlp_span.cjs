@@ -705,10 +705,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const statusCode = isAgentFailure ? 2 : 1;
   let statusMessage = isAgentFailure ? `agent ${agentConclusion}` : undefined;
 
-  // When the agent failed, read agent_output.json to surface structured error details.
-  // Lazy-read: skip I/O entirely when the job succeeded or was cancelled.
-  const agentOutput = isAgentFailure ? readJSONIfExists("/tmp/gh-aw/agent_output.json") || {} : {};
+  // Always read agent_output.json so output metrics are available on all outcomes.
+  const agentOutput = readJSONIfExists("/tmp/gh-aw/agent_output.json") || {};
   const outputErrors = Array.isArray(agentOutput.errors) ? agentOutput.errors : [];
+  const outputItems = Array.isArray(agentOutput.items) ? agentOutput.items : [];
   const errorMessages = outputErrors
     .map(e => (e && typeof e.message === "string" ? e.message : String(e)))
     .filter(Boolean)
@@ -753,6 +753,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (isAgentFailure && errorMessages.length > 0) {
     attributes.push(buildAttr("gh-aw.error.count", outputErrors.length));
     attributes.push(buildAttr("gh-aw.error.messages", errorMessages.join(" | ")));
+  }
+  attributes.push(buildAttr("gh-aw.output.item_count", outputItems.length));
+  const itemTypes = [...new Set(outputItems.map(i => (i && typeof i.type === "string" ? i.type : "")).filter(Boolean))].sort();
+  if (itemTypes.length > 0) {
+    attributes.push(buildAttr("gh-aw.output.item_types", itemTypes.join(",")));
   }
 
   // Enrich span with the most recent GitHub API rate-limit snapshot for post-run
