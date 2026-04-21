@@ -103,7 +103,7 @@ func (e *CrushEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		string(constants.DefaultCrushVersion),
 		"Install Crush CLI",
 		"crush",
-		"",
+		constants.NoFeatureFlag,
 		workflowData,
 	)
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)

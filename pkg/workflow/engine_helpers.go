@@ -108,7 +108,7 @@ func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *Workflow
 		config.Version,
 		stepName,
 		config.CliName,
-		"",
+		constants.NoFeatureFlag,
 		workflowData,
 	)
 	steps = append(steps, npmSteps...)

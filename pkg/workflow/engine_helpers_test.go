@@ -25,7 +25,7 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 		{
 			name:           "with default version",
 			workflowData:   &WorkflowData{},
-			featureFlag:    "",
+			featureFlag:    constants.NoFeatureFlag,
 			expectedSteps:  2, // Node.js setup + npm install
 			expectedInStep: string(constants.DefaultCopilotVersion),
 		},
@@ -47,7 +47,7 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 					Version: "",
 				},
 			},
-			featureFlag:    "",
+			featureFlag:    constants.NoFeatureFlag,
 			expectedSteps:  2,
 			expectedInStep: string(constants.DefaultCopilotVersion),
 		},
@@ -137,7 +137,7 @@ func TestBuildStandardNpmEngineInstallSteps_AllEngines(t *testing.T) {
 				tt.defaultVersion,
 				tt.stepName,
 				tt.cacheKeyPrefix,
-				"",
+				constants.NoFeatureFlag,
 				workflowData,
 			)
 

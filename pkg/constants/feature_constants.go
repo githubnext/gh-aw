@@ -12,6 +12,8 @@ type FeatureFlag string
 
 // Feature flag identifiers
 const (
+	// NoFeatureFlag indicates that no feature-flag-based override should be applied.
+	NoFeatureFlag FeatureFlag = ""
 	// MCPScriptsFeatureFlag is the name of the feature flag for mcp-scripts
 	MCPScriptsFeatureFlag FeatureFlag = "mcp-scripts"
 	// MCPGatewayFeatureFlag is the feature flag name for enabling MCP gateway
