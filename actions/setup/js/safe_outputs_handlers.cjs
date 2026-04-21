@@ -31,7 +31,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * @param {string} value
    * @returns {boolean}
    */
-  const isGitHubExpression = value => /^\$\{\{[\s\S]*\}\}$/.test(value.trim());
+  const isGitHubExpression = value => {
+    const trimmed = value.trim();
+    return trimmed.startsWith("${{") && trimmed.endsWith("}}");
+  };
 
   /**
    * @param {string} extValue
@@ -41,9 +44,6 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const trimmed = extValue.trim();
     if (!trimmed) {
       return "";
-    }
-    if (isGitHubExpression(trimmed)) {
-      return trimmed;
     }
     const normalized = trimmed.toLowerCase();
     return normalized.startsWith(".") ? normalized : `.${normalized}`;
@@ -149,6 +149,14 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Check file extension - read from environment variable if available
     const ext = path.extname(filePath).toLowerCase();
+    if (
+      process.env.GH_AW_ASSETS_ALLOWED_EXTS &&
+      process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",")
+        .map(extValue => extValue.trim())
+        .some(isGitHubExpression)
+    ) {
+      throw new Error(`${ERR_CONFIG}: GH_AW_ASSETS_ALLOWED_EXTS contains unresolved GitHub Actions expression. Ensure expressions resolve before safe outputs validation.`);
+    }
     const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
       ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(normalizeAllowedExtension).filter(Boolean)
       : [
@@ -157,9 +165,6 @@ function createHandlers(server, appendSafeOutput, config = {}) {
           ".jpg",
           ".jpeg",
         ];
-    if (allowedExts.some(isGitHubExpression)) {
-      throw new Error(`${ERR_CONFIG}: GH_AW_ASSETS_ALLOWED_EXTS contains unresolved GitHub Actions expression. Ensure expressions resolve before safe outputs validation.`);
-    }
     if (!allowedExts.includes(ext)) {
       throw new Error(`${ERR_VALIDATION}: File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
     }
