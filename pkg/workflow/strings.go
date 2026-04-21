@@ -16,7 +16,7 @@
 //   - SanitizeWorkflowIDForCacheKey: Sanitizes workflow ID for use in cache keys (removes hyphens)
 //   - sanitizeJobName: Sanitizes workflow name to a valid GitHub Actions job name
 //   - sanitizeRefForPath: Sanitizes a git ref for use in a file path
-//   - SanitizeIdentifier: Creates clean identifiers for user agents
+//   - SanitizeArtifactIdentifier: Creates clean identifiers for artifacts and user agents
 //
 // Example:
 //
@@ -411,7 +411,7 @@ func sanitizeRefForPath(ref string) string {
 	return sanitized
 }
 
-// SanitizeIdentifier sanitizes a workflow name to create a safe identifier
+// SanitizeArtifactIdentifier sanitizes a workflow name to create a safe identifier
 // suitable for use as a user agent string or similar context.
 //
 // This is a SANITIZE function (character validity pattern). Use this when creating
@@ -429,23 +429,23 @@ func sanitizeRefForPath(ref string) string {
 //
 // Example inputs and outputs:
 //
-//	SanitizeIdentifier("My Workflow")         // returns "my-workflow"
-//	SanitizeIdentifier("test_workflow")       // returns "test-workflow"
-//	SanitizeIdentifier("@@@")                 // returns "github-agentic-workflow" (default)
-//	SanitizeIdentifier("Weekly v2.0")         // returns "weekly-v2-0"
+//	SanitizeArtifactIdentifier("My Workflow")         // returns "my-workflow"
+//	SanitizeArtifactIdentifier("test_workflow")       // returns "test-workflow"
+//	SanitizeArtifactIdentifier("@@@")                 // returns "github-agentic-workflow" (default)
+//	SanitizeArtifactIdentifier("Weekly v2.0")         // returns "weekly-v2-0"
 //
 // This function uses the unified SanitizeName function with options configured
 // to trim leading/trailing hyphens and return a default value for empty results.
 // Hyphens are preserved by default in SanitizeName, not via PreserveSpecialChars.
 //
-// Note: Do not confuse with stringutil.sanitizeIdentifierName (private), which uses
+// Note: Do not confuse with stringutil.SanitizeIdentifierName, which uses
 // a different algorithm — it keeps [a-zA-Z0-9_] and replaces others with underscores,
 // making it suitable for programming language identifiers (e.g. JavaScript, Python).
-// SanitizeIdentifier instead produces hyphen-separated lowercase identifiers for
+// SanitizeArtifactIdentifier instead produces hyphen-separated lowercase identifiers for
 // workflow artifacts, job names, and user agent strings.
 //
 // See package documentation for guidance on when to use sanitize vs normalize patterns.
-func SanitizeIdentifier(name string) string {
+func SanitizeArtifactIdentifier(name string) string {
 	stringsLog.Printf("Sanitizing identifier: %s", name)
 	result := SanitizeName(name, &SanitizeOptions{
 		PreserveSpecialChars: []rune{},

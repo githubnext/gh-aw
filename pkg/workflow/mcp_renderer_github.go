@@ -122,7 +122,7 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 			userAgent = workflowData.EngineConfig.UserAgent
 		} else if workflowData.Name != "" {
 			// Fall back to sanitizing workflow name to identifier
-			userAgent = SanitizeIdentifier(workflowData.Name)
+			userAgent = SanitizeArtifactIdentifier(workflowData.Name)
 		}
 	}
 	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")

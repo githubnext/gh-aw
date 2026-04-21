@@ -105,6 +105,10 @@ stringutil.SanitizeErrorMessage("Error: MY_SECRET_TOKEN is invalid")
 // → "Error: [REDACTED] is invalid"
 ```
 
+### `SanitizeIdentifierName(name string, extraAllowed func(rune) bool) string`
+
+Sanitizes a string for use as a programming-language identifier by replacing invalid characters with underscores and prefixing `_` when the identifier starts with a digit.
+
 ### `SanitizeParameterName(name string) string`
 
 Sanitizes a parameter name for use as a GitHub Actions output or environment variable name. Replaces non-alphanumeric characters with underscores.
