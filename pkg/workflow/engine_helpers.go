@@ -159,9 +159,9 @@ func BuildStandardNpmEngineInstallSteps(
 // 2. feature flag version override (if provided)
 // 3. default pinned version
 //
-// Note: some engines may apply additional post-resolution overrides.
-// For example, Copilot's byok-copilot feature forces "latest" after this
-// resolver returns.
+// Note: Copilot currently applies an additional post-resolution override:
+// byok-copilot forces "latest" after this resolver returns. Other engines
+// should not add post-resolution overrides unless explicitly designed to.
 func resolveEngineInstallVersion(
 	defaultVersion string,
 	featureVersionFlag constants.FeatureFlag,

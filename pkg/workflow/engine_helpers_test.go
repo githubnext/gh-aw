@@ -21,6 +21,7 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 		featureFlag    constants.FeatureFlag
 		expectedSteps  int // Number of steps expected (Node.js setup + npm install)
 		expectedInStep string
+		unexpectedInStep string
 	}{
 		{
 			name:           "with default version",
@@ -75,6 +76,7 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 			featureFlag:    constants.CopilotVersionFeatureFlag,
 			expectedSteps:  2,
 			expectedInStep: "1.2.3",
+			unexpectedInStep: "latest",
 		},
 	}
 
@@ -106,6 +108,16 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 
 			if !found {
 				t.Errorf("Expected version %s not found in steps", tt.expectedInStep)
+			}
+
+			if tt.unexpectedInStep != "" {
+				for _, step := range steps {
+					for _, line := range step {
+						if strings.Contains(line, tt.unexpectedInStep) {
+							t.Errorf("Did not expect to find %q in steps when explicit version takes precedence", tt.unexpectedInStep)
+						}
+					}
+				}
 			}
 		})
 	}
