@@ -15,7 +15,10 @@ permissions:
 engine:
   id: copilot
   command: >-
-    bash -lc 'if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+    bash -lc 'mkdir -p /tmp/gh-aw/cache-memory /tmp/gh-aw/repo-memory/default;
+    printf "%s\n" "${GITHUB_RUN_ID}" >> /tmp/gh-aw/cache-memory/runs.txt;
+    printf "%s\n" "${GITHUB_RUN_ID}" >> /tmp/gh-aw/repo-memory/default/runs.txt;
+    if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
     safeoutputs add_comment --body "✅ smoke-ci: safeoutputs CLI comment + comment-memory run (${GITHUB_RUN_ID})";
     mkdir -p /tmp/gh-aw/comment-memory;
     HAIKU="CI lights the path\nGreen checks bloom at dawn\nQuiet bots still sing";
@@ -26,6 +29,10 @@ engine:
     push event - no PR context, no action needed"; fi'
 tools:
   mount-as-clis: true
+  cache-memory: true
+  repo-memory:
+    branch-name: memory/smoke-ci
+    file-glob: "runs.txt"
 safe-outputs:
   comment-memory: true
   add-comment:
@@ -38,6 +45,6 @@ timeout-minutes: 5
 strict: true
 ---
 
-Run exactly one `safeoutputs` CLI comment action and append a 3-line haiku to comment-memory markdown file(s).
+Run exactly one `safeoutputs` CLI comment action, append the run ID to cache-memory and repo-memory `runs.txt`, and append a 3-line haiku to comment-memory markdown file(s).
 If there is no PR context, use `safeoutputs noop` with a brief message.
 Do not call any LLM tools or perform any additional analysis.
