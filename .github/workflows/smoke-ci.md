@@ -15,12 +15,19 @@ permissions:
 engine:
   id: copilot
   command: >-
-    bash -lc 'if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then safeoutputs
-    add_comment --body "✅ smoke-ci: safeoutputs CLI comment only run (${GITHUB_RUN_ID})";
-    else safeoutputs noop --message "smoke-ci: push event - no PR context, no action needed"; fi'
+    bash -lc 'if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+    safeoutputs add_comment --body "✅ smoke-ci: safeoutputs CLI comment + comment-memory run (${GITHUB_RUN_ID})";
+    mkdir -p /tmp/gh-aw/comment-memory;
+    HAIKU="CI lights the path\nGreen checks bloom at dawn\nQuiet bots still sing";
+    if compgen -G "/tmp/gh-aw/comment-memory/*.md" > /dev/null; then
+    for memory_file in /tmp/gh-aw/comment-memory/*.md; do printf "\n%s\n" "$HAIKU" >>
+    "$memory_file"; done; else printf "%s\n" "$HAIKU" >
+    /tmp/gh-aw/comment-memory/default.md; fi; else safeoutputs noop --message "smoke-ci:
+    push event - no PR context, no action needed"; fi'
 tools:
   mount-as-clis: true
 safe-outputs:
+  comment-memory: true
   add-comment:
     hide-older-comments: true
     max: 1
@@ -31,6 +38,6 @@ timeout-minutes: 5
 strict: true
 ---
 
-Run exactly one CLI action: use the mounted `safeoutputs` CLI to add a short comment.
+Run exactly one `safeoutputs` CLI comment action and append a 3-line haiku to comment-memory markdown file(s).
 If there is no PR context, use `safeoutputs noop` with a brief message.
 Do not call any LLM tools or perform any additional analysis.
