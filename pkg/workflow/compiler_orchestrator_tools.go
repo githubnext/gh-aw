@@ -212,6 +212,11 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		return nil, err
 	}
 
+	// Validate universal consumer model requirements (OpenCode/Crush)
+	if err := c.validateUniversalLLMConsumerModel(result.Frontmatter, agenticEngine); err != nil {
+		return nil, err
+	}
+
 	// Validate web-search support for the current engine (warning only)
 	c.validateWebSearchSupport(tools, agenticEngine)
 

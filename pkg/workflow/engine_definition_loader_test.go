@@ -63,15 +63,25 @@ func TestBuiltinEngineMarkdownFiles(t *testing.T) {
 // produces a valid lock file with the correct engine ID.
 func TestBuiltinEngineStringFormInjection(t *testing.T) {
 	tests := []struct {
-		engineID   string
-		engineStep string // distinctive step name in the lock file
+		engineID      string
+		engineStep    string // distinctive step name in the lock file
+		expectError   bool
+		errorContains string
 	}{
-		{"copilot", `GH_AW_INFO_ENGINE_ID: "copilot"`},
-		{"codex", `GH_AW_INFO_ENGINE_ID: "codex"`},
-		{"claude", `GH_AW_INFO_ENGINE_ID: "claude"`},
-		{"gemini", `GH_AW_INFO_ENGINE_ID: "gemini"`},
-		{"opencode", `GH_AW_INFO_ENGINE_ID: "opencode"`},
-		{"crush", `GH_AW_INFO_ENGINE_ID: "crush"`},
+		{engineID: "copilot", engineStep: `GH_AW_INFO_ENGINE_ID: "copilot"`},
+		{engineID: "codex", engineStep: `GH_AW_INFO_ENGINE_ID: "codex"`},
+		{engineID: "claude", engineStep: `GH_AW_INFO_ENGINE_ID: "claude"`},
+		{engineID: "gemini", engineStep: `GH_AW_INFO_ENGINE_ID: "gemini"`},
+		{
+			engineID:      "opencode",
+			expectError:   true,
+			errorContains: "engine.model is required for engine 'opencode'",
+		},
+		{
+			engineID:      "crush",
+			expectError:   true,
+			errorContains: "engine.model is required for engine 'crush'",
+		},
 	}
 
 	for _, tt := range tests {
@@ -97,6 +107,11 @@ func TestBuiltinEngineStringFormInjection(t *testing.T) {
 
 			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(mainFile)
+			if tt.expectError {
+				require.Error(t, err, "compilation should fail for engine %s (string form)", tt.engineID)
+				assert.Contains(t, err.Error(), tt.errorContains)
+				return
+			}
 			require.NoError(t, err, "compilation should succeed for engine %s (string form)", tt.engineID)
 
 			lockFile := filepath.Join(workflowsDir, "test-engine-injection.lock.yml")

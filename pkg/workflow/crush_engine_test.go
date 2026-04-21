@@ -42,6 +42,34 @@ func TestCrushEngine(t *testing.T) {
 		assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN", "Should require COPILOT_GITHUB_TOKEN for Copilot routing")
 	})
 
+	t.Run("required secrets with anthropic model", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test",
+			EngineConfig: &EngineConfig{
+				Model: "anthropic/claude-sonnet-4-20250514",
+			},
+			ParsedTools: &ToolsConfig{},
+			Tools:       map[string]any{},
+		}
+		secrets := engine.GetRequiredSecretNames(workflowData)
+		assert.Contains(t, secrets, "ANTHROPIC_API_KEY", "Should require ANTHROPIC_API_KEY for anthropic/* models")
+		assert.NotContains(t, secrets, "COPILOT_GITHUB_TOKEN", "Should not require COPILOT_GITHUB_TOKEN for anthropic/* models")
+	})
+
+	t.Run("required secrets with openai model", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test",
+			EngineConfig: &EngineConfig{
+				Model: "openai/gpt-4.1",
+			},
+			ParsedTools: &ToolsConfig{},
+			Tools:       map[string]any{},
+		}
+		secrets := engine.GetRequiredSecretNames(workflowData)
+		assert.Contains(t, secrets, "CODEX_API_KEY", "Should require CODEX_API_KEY for openai/* models")
+		assert.Contains(t, secrets, "OPENAI_API_KEY", "Should require OPENAI_API_KEY for openai/* models")
+	})
+
 	t.Run("required secrets with copilot-requests feature", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:        "test",
@@ -362,7 +390,7 @@ func TestCrushEngineFirewallIntegration(t *testing.T) {
 		assert.Contains(t, stepContent, "awf", "Should use AWF when firewall is enabled")
 		assert.Contains(t, stepContent, "--allow-domains", "Should include allow-domains flag")
 		assert.Contains(t, stepContent, "--enable-api-proxy", "Should include --enable-api-proxy flag")
-		assert.Contains(t, stepContent, "OPENAI_BASE_URL: http://host.docker.internal:10005", "Should set OPENAI_BASE_URL to LLM gateway URL")
+		assert.Contains(t, stepContent, "GITHUB_COPILOT_BASE_URL: http://host.docker.internal:10002", "Should route copilot/* fallback through Copilot LLM gateway URL")
 	})
 
 	t.Run("firewall enabled adds mounted MCP CLI path setup", func(t *testing.T) {
