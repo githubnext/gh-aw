@@ -363,23 +363,23 @@ func TestGetActionPinsSorting(t *testing.T) {
 // TestGetActionPinByRepo tests the getActionPinByRepo function
 func TestGetActionPinByRepo(t *testing.T) {
 	tests := []struct {
-		repo            string
-		expectExists    bool
-		expectRepo      string
-		expectVer       string
-		expectVerPrefix string
+		repo                string
+		expectExists        bool
+		expectRepo          string
+		expectVersion       string
+		expectVersionPrefix string
 	}{
 		{
-			repo:         "actions/checkout",
-			expectExists: true,
-			expectRepo:   "actions/checkout",
-			expectVer:    "v6.0.2",
+			repo:          "actions/checkout",
+			expectExists:  true,
+			expectRepo:    "actions/checkout",
+			expectVersion: "v6.0.2",
 		},
 		{
-			repo:            "actions/setup-node",
-			expectExists:    true,
-			expectRepo:      "actions/setup-node",
-			expectVerPrefix: "v6.",
+			repo:                "actions/setup-node",
+			expectExists:        true,
+			expectRepo:          "actions/setup-node",
+			expectVersionPrefix: "v6.",
 		},
 		{
 			repo:         "unknown/action",
@@ -403,11 +403,11 @@ func TestGetActionPinByRepo(t *testing.T) {
 				if pin.Repo != tt.expectRepo {
 					t.Errorf("getActionPinByRepo(%s) repo = %s, want %s", tt.repo, pin.Repo, tt.expectRepo)
 				}
-				if tt.expectVer != "" && pin.Version != tt.expectVer {
-					t.Errorf("getActionPinByRepo(%s) version = %s, want %s", tt.repo, pin.Version, tt.expectVer)
+				if tt.expectVersion != "" && pin.Version != tt.expectVersion {
+					t.Errorf("getActionPinByRepo(%s) version = %s, want %s", tt.repo, pin.Version, tt.expectVersion)
 				}
-				if tt.expectVerPrefix != "" && !strings.HasPrefix(pin.Version, tt.expectVerPrefix) {
-					t.Errorf("getActionPinByRepo(%s) version = %s, want prefix %s", tt.repo, pin.Version, tt.expectVerPrefix)
+				if tt.expectVersionPrefix != "" && !strings.HasPrefix(pin.Version, tt.expectVersionPrefix) {
+					t.Errorf("getActionPinByRepo(%s) version = %s, want prefix %s", tt.repo, pin.Version, tt.expectVersionPrefix)
 				}
 				if !isValidSHA(pin.SHA) {
 					t.Errorf("getActionPinByRepo(%s) has invalid SHA: %s", tt.repo, pin.SHA)
