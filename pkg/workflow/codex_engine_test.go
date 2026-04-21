@@ -261,7 +261,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"",
 				"chmod 600 \"/tmp/gh-aw/mcp-config/config.toml\"",
 				"mkdir -p \"${CODEX_HOME}\"",
-				"cp \"/tmp/gh-aw/mcp-config/config.toml\" \"${CODEX_HOME}/config.toml\"",
+				"if [ \"/tmp/gh-aw/mcp-config/config.toml\" != \"${CODEX_HOME}/config.toml\" ]; then cp \"/tmp/gh-aw/mcp-config/config.toml\" \"${CODEX_HOME}/config.toml\"; fi",
 				"chmod 600 \"${CODEX_HOME}/config.toml\"",
 			},
 		},

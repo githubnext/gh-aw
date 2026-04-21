@@ -1009,4 +1009,3 @@ func TestSpec_DesignDecision_StderrDiagnostics(t *testing.T) {
 	names := ValidArtifactSetNames()
 	assert.NotEmpty(t, names, "ValidArtifactSetNames returns data via return value, not stdout")
 }
-

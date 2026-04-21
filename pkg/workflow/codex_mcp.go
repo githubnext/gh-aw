@@ -133,7 +133,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	}
 	yaml.WriteString("          chmod 600 \"/tmp/gh-aw/mcp-config/config.toml\"\n")
 	yaml.WriteString("          mkdir -p \"${CODEX_HOME}\"\n")
-	yaml.WriteString("          cp \"/tmp/gh-aw/mcp-config/config.toml\" \"${CODEX_HOME}/config.toml\"\n")
+	yaml.WriteString("          if [ \"/tmp/gh-aw/mcp-config/config.toml\" != \"${CODEX_HOME}/config.toml\" ]; then cp \"/tmp/gh-aw/mcp-config/config.toml\" \"${CODEX_HOME}/config.toml\"; fi\n")
 	yaml.WriteString("          chmod 600 \"${CODEX_HOME}/config.toml\"\n")
 
 	return nil
