@@ -13,7 +13,7 @@ func TestEngineRegistry(t *testing.T) {
 	// Test that built-in engines are registered - check for specific IDs rather than exact count
 	// to avoid brittleness when new engines are added
 	supportedEngines := registry.GetSupportedEngines()
-	expectedEngineIDs := []string{"claude", "codex", "copilot", "gemini"}
+	expectedEngineIDs := []string{"claude", "codex", "copilot", "gemini", "opencode", "crush"}
 	for _, engineID := range expectedEngineIDs {
 		found := slices.Contains(supportedEngines, engineID)
 		if !found {

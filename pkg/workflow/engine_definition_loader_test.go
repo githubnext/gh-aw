@@ -22,7 +22,7 @@ func TestBuiltinEngineMarkdownFiles(t *testing.T) {
 	catalog := NewEngineCatalog(NewEngineRegistry())
 	require.NotNil(t, catalog, "engine catalog should be created")
 
-	builtinEngineIDs := []string{"claude", "codex", "copilot", "gemini"}
+	builtinEngineIDs := []string{"claude", "codex", "copilot", "gemini", "opencode", "crush"}
 
 	for _, id := range builtinEngineIDs {
 		t.Run(id, func(t *testing.T) {
@@ -70,6 +70,8 @@ func TestBuiltinEngineStringFormInjection(t *testing.T) {
 		{"codex", `GH_AW_INFO_ENGINE_ID: "codex"`},
 		{"claude", `GH_AW_INFO_ENGINE_ID: "claude"`},
 		{"gemini", `GH_AW_INFO_ENGINE_ID: "gemini"`},
+		{"opencode", `GH_AW_INFO_ENGINE_ID: "opencode"`},
+		{"crush", `GH_AW_INFO_ENGINE_ID: "crush"`},
 	}
 
 	for _, tt := range tests {

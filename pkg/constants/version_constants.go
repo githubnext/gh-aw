@@ -50,6 +50,9 @@ const DefaultGeminiVersion Version = "0.37.2"
 // DefaultCrushVersion is the default version of the Crush CLI
 const DefaultCrushVersion Version = "0.59.0"
 
+// DefaultOpenCodeVersion is the default version of the OpenCode CLI
+const DefaultOpenCodeVersion Version = "1.2.14"
+
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v1.0.0"
 

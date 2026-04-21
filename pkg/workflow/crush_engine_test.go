@@ -25,7 +25,7 @@ func TestCrushEngine(t *testing.T) {
 		assert.False(t, engine.SupportsToolsAllowlist(), "Should not support tools allowlist")
 		assert.False(t, engine.SupportsMaxTurns(), "Should not support max turns")
 		assert.False(t, engine.SupportsWebSearch(), "Should not support built-in web search")
-		assert.Equal(t, constants.CrushLLMGatewayPort, engine.SupportsLLMGateway(), "Should support LLM gateway on port 10004")
+		assert.Equal(t, constants.CrushLLMGatewayPort, engine.SupportsLLMGateway(), "Should support LLM gateway on the Crush port")
 	})
 
 	t.Run("model env var name", func(t *testing.T) {
@@ -360,7 +360,7 @@ func TestCrushEngineFirewallIntegration(t *testing.T) {
 		assert.Contains(t, stepContent, "awf", "Should use AWF when firewall is enabled")
 		assert.Contains(t, stepContent, "--allow-domains", "Should include allow-domains flag")
 		assert.Contains(t, stepContent, "--enable-api-proxy", "Should include --enable-api-proxy flag")
-		assert.Contains(t, stepContent, "OPENAI_BASE_URL: http://host.docker.internal:10004", "Should set OPENAI_BASE_URL to LLM gateway URL")
+		assert.Contains(t, stepContent, "OPENAI_BASE_URL: http://host.docker.internal:10005", "Should set OPENAI_BASE_URL to LLM gateway URL")
 	})
 
 	t.Run("firewall enabled adds mounted MCP CLI path setup", func(t *testing.T) {

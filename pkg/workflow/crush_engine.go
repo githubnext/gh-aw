@@ -24,11 +24,11 @@ func NewCrushEngine() *CrushEngine {
 			id:                     "crush",
 			displayName:            "Crush",
 			description:            "Crush CLI with headless mode and multi-provider LLM support",
-			experimental:           true,                          // Start as experimental until smoke tests pass consistently
-			supportsToolsAllowlist: false,                         // Crush manages its own tool permissions via .crush.json
-			supportsMaxTurns:       false,                         // No --max-turns flag in crush run
-			supportsWebSearch:      false,                         // Has built-in websearch but not exposed via gh-aw neutral tools yet
-			llmGatewayPort:         constants.CrushLLMGatewayPort, // Port 10004
+			experimental:           true,  // Start as experimental until smoke tests pass consistently
+			supportsToolsAllowlist: false, // Crush manages its own tool permissions via .crush.json
+			supportsMaxTurns:       false, // No --max-turns flag in crush run
+			supportsWebSearch:      false, // Has built-in websearch but not exposed via gh-aw neutral tools yet
+			llmGatewayPort:         constants.CrushLLMGatewayPort,
 		},
 	}
 }

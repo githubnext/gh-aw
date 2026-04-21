@@ -15,7 +15,7 @@
 //
 // # Built-in Engines
 //
-// NewEngineCatalog registers the five built-in engines: claude, codex, copilot, gemini, crush.
+// NewEngineCatalog registers the built-in engines: claude, codex, copilot, gemini, opencode, crush.
 // Each EngineDefinition carries the engine's RuntimeID which maps to the corresponding
 // CodingAgentEngine registered in the EngineRegistry.
 //
@@ -181,7 +181,7 @@ type ResolvedEngineTarget struct {
 }
 
 // NewEngineCatalog creates an EngineCatalog that wraps the given EngineRegistry and
-// pre-registers the five built-in engine definitions (claude, codex, copilot, gemini, crush)
+// pre-registers the built-in engine definitions (claude, codex, copilot, gemini, opencode, crush)
 // loaded from the embedded Markdown files in data/engines/*.md.
 func NewEngineCatalog(registry *EngineRegistry) *EngineCatalog {
 	catalog := &EngineCatalog{
