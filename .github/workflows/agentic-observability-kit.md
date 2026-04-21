@@ -28,7 +28,7 @@ safe-outputs:
     max: 1
   upload-asset:
     max: 4
-    allowed-exts: [png, svg]
+    allowed-exts: [.png, .svg]
   noop:
     report-as-issue: false
 timeout-minutes: 30
