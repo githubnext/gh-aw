@@ -1081,7 +1081,7 @@ func TestDetectRuntimeRequirements_CustomDriverDoesNotAddNodeForNonCopilotEngine
 
 	for _, req := range requirements {
 		if req.Runtime != nil && req.Runtime.ID == "node" {
-			t.Fatalf("Expected no Node.js runtime requirement for non-driver engine, got version %q", req.Version)
+			t.Fatalf("Expected no Node.js runtime requirement for non-Copilot engine, got version %q", req.Version)
 		}
 	}
 }
