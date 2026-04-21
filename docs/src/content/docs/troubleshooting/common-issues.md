@@ -238,31 +238,15 @@ network:
 Error: Cannot find module 'playwright'
 ```
 
-**Cause:** The agent tried to `require('playwright')` but Playwright is provided through MCP tools, not as an npm package.
+**Cause:** Playwright is provided as MCP tools, not as an npm package.
 
-**Solution:** Use MCP Playwright tools:
+**Solution:** Use MCP tools instead of `require('playwright')`:
 
 ```javascript
-// ❌ INCORRECT - This won't work
-const playwright = require('playwright');
-const browser = await playwright.chromium.launch();
-
-// ✅ CORRECT - Use MCP Playwright tools
-// Example: Navigate and take screenshot
-await mcp__playwright__browser_navigate({
-  url: "https://example.com"
-});
-
+// ❌ Don't: const playwright = require('playwright')
+// ✅ Do: use MCP tools
+await mcp__playwright__browser_navigate({ url: "https://example.com" });
 await mcp__playwright__browser_snapshot();
-
-// Example: Execute custom Playwright code
-await mcp__playwright__browser_run_code({
-  code: `async (page) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    const title = await page.title();
-    return { title, url: page.url() };
-  }`
-});
 ```
 
 See [Playwright Tool documentation](/gh-aw/reference/tools/#playwright-tool-playwright) for all available tools.
@@ -395,31 +379,16 @@ See [Enterprise API Endpoint](/gh-aw/reference/engines/#enterprise-api-endpoint-
 
 ### Copilot GHES: Common Error Messages
 
-**`Error loading models: 400 Bad Request`**
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `Error loading models: 400 Bad Request` | Enterprise Copilot not licensed or GitHub Connect not enabled | Enable GitHub Connect and enterprise Copilot in site admin settings |
+| `403 "unauthorized: not licensed to use Copilot"` | No Copilot seat for PAT owner | Site admin enables Copilot; org admin assigns a seat to the token owner |
+| `403 "Resource not accessible by personal access token"` | Wrong token type or missing permissions | Use fine-grained PAT with **Copilot Requests: Read**, or classic PAT with `copilot` scope — see [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) |
+| `Could not resolve to a Repository` | `GH_HOST` not set in custom jobs | Recompile (`gh aw compile`), or set `GH_HOST=github.company.com` explicitly for local CLI commands |
+| Firewall blocking `api.<ghes-host>` | Domain not in allowed list | Add to `network.allowed` (see below) |
+| `gh aw add-wizard` creates PR on github.com | Not inside a GHES repo clone | Run from within GHES repo, or use `gh aw add` + `gh pr create` |
 
-Copilot is not licensed at the enterprise level or the API proxy is routing incorrectly. Verify enterprise Copilot settings and confirm GitHub Connect is enabled.
-
-**`403 "unauthorized: not licensed to use Copilot"`**
-
-No Copilot license or seat is assigned to the PAT owner. Contact the site admin to enable Copilot at the enterprise level, then have an org admin assign a seat to the token owner.
-
-**`403 "Resource not accessible by personal access token"`**
-
-Wrong token type or missing permissions. Use a fine-grained PAT with the **Copilot Requests: Read** account permission, or a classic PAT with the `copilot` scope. See [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) for setup instructions.
-
-**`Could not resolve to a Repository`**
-
-`GH_HOST` is not set when running `gh` commands. This typically occurs in custom frontmatter jobs from older compiled workflows. Recompile with `gh aw compile` — compiled workflows now automatically export `GH_HOST` in custom jobs.
-
-For local CLI commands (`gh aw audit`, `gh aw add-wizard`), ensure you are inside a GHES repository clone or set `GH_HOST` explicitly:
-
-```bash wrap
-GH_HOST=github.company.com gh aw audit <run-id>
-```
-
-**Firewall blocks outbound HTTPS to `api.<ghes-host>`**
-
-Add the GHES domain to your workflow's allowed list:
+For firewall issues, add the GHES domain to your workflow's allowed list:
 
 ```aw wrap
 engine:
@@ -431,10 +400,6 @@ network:
     - company.ghe.com
     - api.company.ghe.com
 ```
-
-**`gh aw add-wizard` or `gh aw init` creates a PR on github.com instead of GHES**
-
-Run these commands from inside a GHES repository clone — they auto-detect the GHES host from the git remote. If PR creation still fails, use `gh aw add` to generate the workflow file, then create the PR manually with `gh pr create`.
 
 ## Context Expression Issues
 
@@ -530,25 +495,11 @@ tools:
 
 ## Integrity Filtering Blocking Expected Content
 
-Integrity filtering controls which content the agent can see, based on author trust and merge status.
+For public repositories, `min-integrity: approved` is applied automatically, restricting agent visibility to content from owners, members, and collaborators. This is intentional for sensitive operations.
 
-### Symptoms
+**Symptoms**: Workflows can't see issues/PRs/comments from external contributors, triage workflows don't process community contributions.
 
-Workflows can't see issues/PRs/comments from external contributors, status reports miss activity, triage workflows don't process community contributions.
-
-### Cause
-
-For public repositories, `min-integrity: approved` is applied automatically, restricting visibility to owners, members, and collaborators.
-
-### Solution
-
-**Option 1: Keep the default level (Recommended)**
-
-For sensitive operations (code generation, repository updates, web access), use separate workflows, manual triggers, or approval stages.
-
-**Option 2: Lower the integrity level (For workflows processing all users)**
-
-Lower the level only if your workflow validates input, uses restrictive safe outputs, and doesn't access secrets:
+To allow all contributors (only safe when the workflow validates input and uses restrictive safe outputs):
 
 ```yaml wrap
 tools:
@@ -556,172 +507,56 @@ tools:
     min-integrity: none
 ```
 
-For community triage workflows that need contributor input but not anonymous users, `min-integrity: unapproved` is a useful middle ground.
-
-See [Integrity Filtering](/gh-aw/reference/integrity/) for details.
+Use `min-integrity: unapproved` as a middle ground for community triage workflows. See [Integrity Filtering](/gh-aw/reference/integrity/) for details.
 
 ## Workflow Failures and Debugging
 
-### Workflow Job Timed Out
+### Timeout Errors
 
-When a workflow job exceeds its time limit, GitHub Actions marks the run as `timed_out`. The default is 20 minutes. Increase it with:
+GitHub Actions marks the run as `timed_out` when the job exceeds `timeout-minutes` (default: 20 min). The table below maps each engine's error patterns to the right fix; after updating frontmatter, recompile with `gh aw compile`. See [Long Build Times](/gh-aw/reference/sandbox/#long-build-times) for caching strategies and self-hosted runner recommendations.
 
-```yaml wrap
----
-timeout-minutes: 60
----
-```
-
-Recompile with `gh aw compile` after updating. If timeouts persist, reduce the task scope or split into smaller workflows. See [Long Build Times](/gh-aw/reference/sandbox/#long-build-times) for a comprehensive guide including per-engine knobs, caching strategies, and self-hosted runner recommendations.
-
-### Engine Timeout Error Messages
-
-Each engine surfaces timeout errors differently. The table and examples below show common messages and their fixes.
-
-#### GitHub Actions: Job Timeout
-
-**Error in workflow run logs:**
-
-```text
-Error: The operation was canceled.
-Error: The runner has received a shutdown signal. This can happen when the runner service is stopped, or a new update is required.
-```
-
-or
-
-```text
-##[error]The job running on runner <name> has exceeded the maximum execution time of 20 minutes.
-```
-
-**Cause:** The agent job hit `timeout-minutes` (default: 20 min).
-
-**Fix:** Increase `timeout-minutes` in your workflow frontmatter and recompile:
+| Engine | Error Pattern | Fix Setting |
+|--------|--------------|-------------|
+| All | `The job has exceeded the maximum execution time of N minutes` | `timeout-minutes: N` in frontmatter |
+| Claude | `Bash tool timed out after 60 seconds` | `tools: timeout: N` (default: 60s) |
+| Claude | `Reached maximum number of turns (N). Stopping.` | `max-turns: N` |
+| Codex | `Tool call timed out after 120 seconds` | `tools: timeout: N` (default: 120s) |
+| Copilot | *(task incomplete, workflow succeeds)* | `max-continuations: N` |
+| Any | `Failed to register tools error="initialize: timeout"` | `tools: startup-timeout: N` |
 
 ```yaml wrap
----
-timeout-minutes: 60
----
-```
-
-#### Claude: Tool Call Timeout
-
-**Error in workflow logs:**
-
-```text
-Bash tool timed out after 60 seconds
-claude: error: Tool execution timed out
-```
-
-**Cause:** A single bash command — such as `cmake --build .` or a full test suite — exceeded the Claude tool timeout (default: 60 s).
-
-**Fix:** Increase `tools.timeout` in your workflow frontmatter:
-
-```yaml wrap
+timeout-minutes: 60      # job-level limit
 tools:
-  timeout: 600   # 10 minutes per tool call
-```
-
-#### Claude: Max Turns Reached
-
-**Error in workflow logs:**
-
-```text
-claude: Reached maximum number of turns (N). Stopping.
-```
-
-**Cause:** The agent hit the `max-turns` limit before completing the task.
-
-**Fix:** Increase `max-turns` or decompose the task into smaller workflows:
-
-```yaml wrap
-engine:
-  id: claude
-max-turns: 30
-```
-
-#### Codex: Tool Call Timeout
-
-**Error in workflow logs:**
-
-```text
-Tool call timed out after 120 seconds
-codex: bash command exceeded timeout
-```
-
-**Cause:** A tool call exceeded the Codex default timeout (120 s).
-
-**Fix:** Increase `tools.timeout`:
-
-```yaml wrap
-tools:
-  timeout: 600
-```
-
-#### MCP Server Startup Timeout
-
-**Error in workflow logs:**
-
-```text
-Failed to register tools error="initialize: timeout" name=<server-name>
-MCP server startup timed out after 120 seconds
-```
-
-**Cause:** An MCP server process took too long to initialize (default startup timeout: 120 s). This can happen on cold starts with heavy npm packages.
-
-**Fix:** Increase `tools.startup-timeout`:
-
-```yaml wrap
-tools:
-  startup-timeout: 300   # 5-minute MCP startup budget
-```
-
-#### Copilot: Autopilot Budget Exhausted
-
-Copilot does not expose a wall-clock timeout message, but autopilot mode stops when `max-continuations` runs are exhausted. The workflow completes without an error, but the task may be incomplete.
-
-**Fix:** Increase `max-continuations` or break the task into smaller issues:
-
-```yaml wrap
-max-continuations: 5
-timeout-minutes: 90
+  timeout: 600           # per-tool-call limit (seconds)
+  startup-timeout: 300   # MCP server startup limit (seconds)
+max-turns: 30            # Claude: max turns
+max-continuations: 5     # Copilot: autopilot continuations
 ```
 
 ### Why Did My Workflow Fail?
 
-Common causes: missing tokens, permission mismatches, network restrictions, disabled tools, or rate limits. Use `gh aw audit <run-id>` to investigate.
+Common causes: missing tokens, permission mismatches, network restrictions, disabled tools, or rate limits.
 
-For a comprehensive walkthrough of all debugging techniques, see the [Debugging Workflows](/gh-aw/troubleshooting/debugging/) guide.
+**Fastest path**: ask an agent with the run URL — it audits logs, identifies the root cause, and suggests fixes.
 
-### How Do I Debug a Failing Workflow?
-
-The fastest way to debug a failing workflow is to ask an agent. Load the `agentic-workflows` agent and give it the run URL — it will audit the logs, identify the root cause, and suggest targeted fixes.
-
-**Using Copilot Chat** (requires [agentic authoring setup](/gh-aw/guides/agentic-authoring/#configuring-your-repository)):
+Using Copilot Chat (requires [agentic authoring setup](/gh-aw/guides/agentic-authoring/#configuring-your-repository)):
 
 ```text wrap
 /agent agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
-**Using any coding agent** (self-contained, no setup required):
+Using any coding agent (no setup required):
 
 ```text wrap
 Debug this workflow run using https://raw.githubusercontent.com/github/gh-aw/main/debug.md
-
 The failed workflow run is at https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
-> [!TIP]
-> Replace `OWNER`, `REPO`, and `RUN_ID` with your own values. You can copy the run URL directly from the GitHub Actions run page. The agent will install `gh aw`, analyze logs, identify the root cause, and open a pull request with the fix.
-
-You can also investigate manually: check logs (`gh aw logs`), audit the run (`gh aw audit <run-id>`), inspect `.lock.yml`, or watch compilation (`gh aw compile --watch`).
-
-### Debugging Strategies
-
-Enable verbose mode (`--verbose`), set `ACTIONS_STEP_DEBUG = true`, check MCP config (`gh aw mcp inspect`), and review logs.
+For manual investigation: `gh aw audit <run-id>`, `gh aw logs`, inspect `.lock.yml`. See the [Debugging Workflows](/gh-aw/troubleshooting/debugging/) guide for a full walkthrough.
 
 ### Enable Debug Logging
 
-The `DEBUG` environment variable activates detailed internal logging for any `gh aw` command:
+Enable verbose mode (`--verbose`), set `ACTIONS_STEP_DEBUG = true`, or check MCP config (`gh aw mcp inspect`). The `DEBUG` environment variable activates detailed internal logging for any `gh aw` command:
 
 ```bash
 DEBUG=* gh aw compile                              # all logs
