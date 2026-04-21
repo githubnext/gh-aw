@@ -1241,12 +1241,17 @@ Verify that when all handlers are per-handler staged, no write permissions appea
 }
 
 func extractYAMLJobSection(yamlContent, jobName string) string {
+	const (
+		jobIndent        = "  "
+		jobContentIndent = "    "
+	)
+
 	lines := strings.Split(yamlContent, "\n")
 	var jobLines []string
 	inJob := false
-	jobPrefix := "  " + jobName + ":"
+	jobPrefix := jobIndent + jobName + ":"
 
-	for i, line := range lines {
+	for _, line := range lines {
 		if strings.HasPrefix(line, jobPrefix) {
 			inJob = true
 			jobLines = append(jobLines, line)
@@ -1254,10 +1259,10 @@ func extractYAMLJobSection(yamlContent, jobName string) string {
 		}
 
 		if inJob {
-			if strings.HasPrefix(line, "  ") && strings.HasSuffix(line, ":") && !strings.HasPrefix(line, "    ") {
+			if strings.HasPrefix(line, jobIndent) && strings.HasSuffix(line, ":") && !strings.HasPrefix(line, jobContentIndent) {
 				break
 			}
-			if strings.HasPrefix(line, "jobs:") && i > 0 {
+			if strings.HasPrefix(line, "jobs:") {
 				break
 			}
 			jobLines = append(jobLines, line)
