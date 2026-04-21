@@ -317,6 +317,19 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineDriverPatter
 	if err == nil {
 		t.Fatal("expected invalid engine.driver pattern to fail schema validation")
 	}
+
+	invalidFlagLikeFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id":     "claude",
+			"driver": "-driver.cjs",
+		},
+	}
+
+	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFlagLikeFrontmatter, "/tmp/gh-aw/engine-driver-invalid-flaglike-pattern-test.md")
+	if err == nil {
+		t.Fatal("expected flag-like engine.driver pattern to fail schema validation")
+	}
 }
 
 func TestMainWorkflowSchema_WorkflowDispatchNumberTypeDocumentation(t *testing.T) {

@@ -374,6 +374,14 @@ func TestValidateEngineDriverScript(t *testing.T) {
 			expectError: true,
 			errorSubstr: "leading/trailing whitespace",
 		},
+		{
+			name: "invalid leading hyphen",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "-driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "safe basename",
+		},
 	}
 
 	for _, tt := range tests {

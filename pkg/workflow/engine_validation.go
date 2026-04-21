@@ -47,7 +47,7 @@ import (
 )
 
 var engineValidationLog = newValidationLogger("engine")
-var validEngineDriverScriptBasename = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+var validEngineDriverScriptBasename = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*$`)
 
 // validateEngineVersion warns (non-strict) or errors (strict) when the workflow
 // explicitly pins the engine CLI to "latest". Unpinned "latest" versions change
