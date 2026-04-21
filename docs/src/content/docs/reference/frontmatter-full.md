@@ -1872,12 +1872,12 @@ tools:
     allowed: []
       # Array of strings
 
-    # GitHub access mode: 'cli' (use pre-authenticated gh CLI prompt guidance;
+    # GitHub access mode: 'gh-proxy' (use pre-authenticated gh CLI prompt guidance;
     # equivalent to legacy features.cli-proxy: true). Legacy MCP transport values
     # 'local' and 'remote' are accepted for backward compatibility and use GitHub MCP
     # server prompt guidance.
     # (optional)
-    mode: "local"
+    mode: "gh-proxy"
 
     # GitHub MCP transport type: 'local' (Docker-based, default) or 'remote' (hosted
     # at api.githubcopilot.com)

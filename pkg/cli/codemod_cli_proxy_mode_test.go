@@ -12,7 +12,7 @@ import (
 func TestCliProxyFeatureToGitHubModeCodemod(t *testing.T) {
 	codemod := getCliProxyFeatureToGitHubModeCodemod()
 
-	t.Run("migrates features.cli-proxy true and adds tools.github.mode cli", func(t *testing.T) {
+	t.Run("migrates features.cli-proxy true and adds tools.github.mode gh-proxy", func(t *testing.T) {
 		content := `---
 features:
   cli-proxy: true
@@ -32,7 +32,7 @@ features:
 		assert.NotContains(t, result, "cli-proxy:")
 		assert.Contains(t, result, "tools:")
 		assert.Contains(t, result, "github:")
-		assert.Contains(t, result, "mode: cli")
+		assert.Contains(t, result, "mode: gh-proxy")
 	})
 
 	t.Run("does not apply when cli-proxy is false", func(t *testing.T) {
@@ -82,7 +82,7 @@ tools:
 		assert.True(t, applied)
 		assert.NotContains(t, result, "cli-proxy:")
 		assert.Contains(t, result, "mode: local")
-		assert.NotContains(t, result, "mode: cli")
+		assert.NotContains(t, result, "mode: gh-proxy")
 	})
 
 	t.Run("adds github block under existing tools block", func(t *testing.T) {
@@ -112,6 +112,6 @@ tools:
 		assert.True(t, applied)
 		assert.Contains(t, result, "playwright:")
 		assert.Contains(t, result, "github:")
-		assert.Contains(t, result, "mode: cli")
+		assert.Contains(t, result, "mode: gh-proxy")
 	})
 }

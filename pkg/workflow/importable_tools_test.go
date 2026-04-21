@@ -1012,7 +1012,7 @@ func TestGitHubModeTopLevelOverridesImport(t *testing.T) {
 	sharedContent := `---
 tools:
   github:
-    mode: cli
+    mode: gh-proxy
 ---
 `
 	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
@@ -1053,7 +1053,7 @@ imports:
 
 	workflowData := string(lockFileContent)
 	if strings.Contains(workflowData, "cli_proxy_prompt.md") {
-		t.Error("Expected top-level mode:local to win over imported mode:cli (cli_proxy_prompt.md should not be present)")
+		t.Error("Expected top-level mode:local to win over imported mode:gh-proxy (cli_proxy_prompt.md should not be present)")
 	}
 	if !strings.Contains(workflowData, "github_mcp_tools_prompt.md") {
 		t.Error("Expected GitHub MCP prompt guidance when top-level mode is local")

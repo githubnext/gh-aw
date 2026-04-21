@@ -8,12 +8,12 @@ import (
 
 var cliProxyModeCodemodLog = logger.New("cli:codemod_cli_proxy_mode")
 
-// getCliProxyFeatureToGitHubModeCodemod migrates features.cli-proxy: true to tools.github.mode: cli.
+// getCliProxyFeatureToGitHubModeCodemod migrates features.cli-proxy: true to tools.github.mode: gh-proxy.
 func getCliProxyFeatureToGitHubModeCodemod() Codemod {
 	return Codemod{
 		ID:           "features-cli-proxy-to-tools-github-mode",
-		Name:         "Migrate 'features.cli-proxy: true' to 'tools.github.mode: cli'",
-		Description:  "Removes deprecated features.cli-proxy: true and sets tools.github.mode: cli (equivalent behavior).",
+		Name:         "Migrate 'features.cli-proxy: true' to 'tools.github.mode: gh-proxy'",
+		Description:  "Removes deprecated features.cli-proxy: true and sets tools.github.mode: gh-proxy (equivalent behavior).",
 		IntroducedIn: "1.0.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			if !hasLegacyCliProxyFeatureEnabled(frontmatter) {
@@ -27,12 +27,12 @@ func getCliProxyFeatureToGitHubModeCodemod() Codemod {
 					return lines, false
 				}
 				if !hasMode {
-					result = addGitHubModeCliToTools(result)
+					result = addGitHubModeGhProxyToTools(result)
 				}
 				return result, true
 			})
 			if applied {
-				cliProxyModeCodemodLog.Print("Migrated features.cli-proxy: true to tools.github.mode: cli")
+				cliProxyModeCodemodLog.Print("Migrated features.cli-proxy: true to tools.github.mode: gh-proxy")
 			}
 			return newContent, applied, err
 		},
@@ -77,7 +77,7 @@ func hasToolsGitHubMode(frontmatter map[string]any) bool {
 	return hasMode
 }
 
-func addGitHubModeCliToTools(lines []string) []string {
+func addGitHubModeGhProxyToTools(lines []string) []string {
 	toolsLine := -1
 	toolsIndent := ""
 
@@ -91,7 +91,7 @@ func addGitHubModeCliToTools(lines []string) []string {
 	}
 
 	if toolsLine == -1 {
-		return append(lines, "tools:", "  github:", "    mode: cli")
+		return append(lines, "tools:", "  github:", "    mode: gh-proxy")
 	}
 
 	githubLine := -1
@@ -114,7 +114,7 @@ func addGitHubModeCliToTools(lines []string) []string {
 		result := make([]string, 0, len(lines)+2)
 		result = append(result, lines[:toolsEnd]...)
 		result = append(result, toolsIndent+"  github:")
-		result = append(result, toolsIndent+"    mode: cli")
+		result = append(result, toolsIndent+"    mode: gh-proxy")
 		result = append(result, lines[toolsEnd:]...)
 		return result
 	}
@@ -141,7 +141,7 @@ func addGitHubModeCliToTools(lines []string) []string {
 
 	result := make([]string, 0, len(lines)+1)
 	result = append(result, lines[:insertAt]...)
-	result = append(result, fieldIndent+"mode: cli")
+	result = append(result, fieldIndent+"mode: gh-proxy")
 	result = append(result, lines[insertAt:]...)
 	return result
 }

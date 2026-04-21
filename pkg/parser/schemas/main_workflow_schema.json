@@ -3473,8 +3473,8 @@
                 },
                 "mode": {
                   "type": "string",
-                  "enum": ["cli", "local", "remote"],
-                  "description": "GitHub access mode: 'cli' (use pre-authenticated gh CLI prompt guidance; equivalent to legacy features.cli-proxy: true). Legacy MCP transport values 'local' and 'remote' are accepted for backward compatibility and use GitHub MCP server prompt guidance."
+                  "enum": ["gh-proxy", "local", "remote"],
+                  "description": "GitHub access mode: 'gh-proxy' (use pre-authenticated gh CLI prompt guidance; equivalent to legacy features.cli-proxy: true). Legacy MCP transport values 'local' and 'remote' are accepted for backward compatibility and use GitHub MCP server prompt guidance."
                 },
                 "type": {
                   "type": "string",

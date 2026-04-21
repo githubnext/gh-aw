@@ -1023,7 +1023,7 @@ func TestIsCliProxyNeeded_IntegrityReactionsImplicitEnable(t *testing.T) {
 			desc:     "explicit tools.github.mode=local should disable cli proxy even when legacy feature is set",
 		},
 		{
-			name: "tools.github.mode cli enables cli proxy without legacy feature",
+			name: "tools.github.mode gh-proxy enables cli proxy without legacy feature",
 			data: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{
@@ -1033,12 +1033,12 @@ func TestIsCliProxyNeeded_IntegrityReactionsImplicitEnable(t *testing.T) {
 				},
 				Tools: map[string]any{
 					"github": map[string]any{
-						"mode": "cli",
+						"mode": "gh-proxy",
 					},
 				},
 			},
 			expected: true,
-			desc:     "explicit tools.github.mode=cli should enable cli proxy without legacy feature",
+			desc:     "explicit tools.github.mode=gh-proxy should enable cli proxy without legacy feature",
 		},
 		{
 			name: "neither flag set",

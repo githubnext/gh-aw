@@ -408,7 +408,7 @@ func (c *Compiler) generateStopDIFCProxyStep(yaml *strings.Builder, data *Workfl
 // isCliProxyNeeded returns true if the CLI proxy should be started on the host.
 //
 // The CLI proxy is needed when:
-//  1. tools.github.mode is set to cli (or legacy cli-proxy behavior is enabled), and
+//  1. tools.github.mode is set to gh-proxy (or legacy cli-proxy behavior is enabled), and
 //  2. The AWF sandbox (firewall) is enabled, and
 //  3. The AWF version supports CLI proxy flags
 //

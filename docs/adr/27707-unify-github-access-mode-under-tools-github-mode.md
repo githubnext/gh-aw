@@ -14,7 +14,7 @@ The gh-aw workflow compiler historically controlled GitHub access behavior throu
 
 ### Decision
 
-We will consolidate GitHub agent-access semantics into `tools.github.mode` with three values: `cli` (pre-authenticated `gh` CLI guidance, replacing `features.cli-proxy: true`), `local` (Docker-based MCP server, previously the implicit default), and `remote` (hosted MCP server at api.githubcopilot.com). We will additionally introduce `tools.github.type` to carry the MCP transport type (`local|remote`) independently of the new CLI/MCP semantic distinction, allowing them to evolve separately. Legacy `features.cli-proxy: true` configurations remain functional through a backward-compatibility fallback; a codemod migrates them automatically to `tools.github.mode: cli`.
+We will consolidate GitHub agent-access semantics into `tools.github.mode` with three values: `gh-proxy` (pre-authenticated `gh` CLI guidance, replacing `features.cli-proxy: true`), `local` (Docker-based MCP server, previously the implicit default), and `remote` (hosted MCP server at api.githubcopilot.com). We will additionally introduce `tools.github.type` to carry the MCP transport type (`local|remote`) independently of the new CLI/MCP semantic distinction, allowing them to evolve separately. Legacy `features.cli-proxy: true` configurations remain functional through a backward-compatibility fallback; a codemod migrates them automatically to `tools.github.mode: gh-proxy`.
 
 ### Alternatives Considered
 
@@ -24,7 +24,7 @@ The boolean flag could have been extended with a third `remote-mcp` option or co
 
 #### Alternative 2: Overload `tools.github.mode` with both access mode and transport type in a flat value set
 
-`tools.github.mode` could have accepted all four combinations as individual string values (e.g., `cli`, `local-mcp`, `remote-mcp`). This was rejected because `local` and `remote` already had documented meanings as MCP transport values; renaming them would be a breaking change. Separating concerns into `mode` (access paradigm) and `type` (transport) is more expressive and forwards-compatible.
+`tools.github.mode` could have accepted all four combinations as individual string values (e.g., `gh-proxy`, `local-mcp`, `remote-mcp`). This was rejected because `local` and `remote` already had documented meanings as MCP transport values; renaming them would be a breaking change. Separating concerns into `mode` (access paradigm) and `type` (transport) is more expressive and forwards-compatible.
 
 ### Consequences
 
@@ -34,7 +34,7 @@ The boolean flag could have been extended with a third `remote-mcp` option or co
 - `tools.github.type` provides an independent dimension for future MCP transport evolution without re-breaking `mode` semantics.
 
 #### Negative
-- `tools.github.mode` now carries two overlapping semantic layers: the new `cli` value has a distinct meaning from the legacy `local`/`remote` values, which now describe only transport. This requires careful documentation and can confuse readers who encounter a `mode: local` value and expect it to mean "not CLI mode."
+- `tools.github.mode` now carries two overlapping semantic layers: the new `gh-proxy` value has a distinct meaning from the legacy `local`/`remote` values, which now describe only transport. This requires careful documentation and can confuse readers who encounter a `mode: local` value and expect it to mean "not CLI mode."
 - The backward-compatibility fallback means the compiler must maintain both code paths until all existing workflows have been migrated, increasing maintenance surface.
 
 #### Neutral
@@ -49,7 +49,7 @@ The boolean flag could have been extended with a third `remote-mcp` option or co
 
 ### GitHub Access Mode (`tools.github.mode`)
 
-1. Implementations **MUST** treat `tools.github.mode: cli` as equivalent to the legacy `features.cli-proxy: true` behavior: the agent **MUST** receive pre-authenticated `gh` CLI prompt guidance and **MUST NOT** register a GitHub MCP server for reads.
+1. Implementations **MUST** treat `tools.github.mode: gh-proxy` as equivalent to the legacy `features.cli-proxy: true` behavior: the agent **MUST** receive pre-authenticated `gh` CLI prompt guidance and **MUST NOT** register a GitHub MCP server for reads.
 2. Implementations **MUST** treat `tools.github.mode: local` and `tools.github.mode: remote` as MCP transport selectors; these values **MUST NOT** activate CLI-proxy prompt behavior.
 3. When `tools.github.mode` is absent, implementations **MUST** fall back to the value of `features.cli-proxy` for backward compatibility.
 4. Implementations **MUST NOT** silently ignore unrecognized `tools.github.mode` values; they **SHOULD** log a warning and fall back to legacy behavior.
@@ -62,7 +62,7 @@ The boolean flag could have been extended with a third `remote-mcp` option or co
 
 ### Migration (Codemod)
 
-1. The codemod **MUST** transform `features.cli-proxy: true` into `tools.github.mode: cli` in workflow frontmatter.
+1. The codemod **MUST** transform `features.cli-proxy: true` into `tools.github.mode: gh-proxy` in workflow frontmatter.
 2. The codemod **MUST NOT** alter any other frontmatter keys or values.
 3. The codemod **SHOULD** be idempotent: re-running it on an already-migrated file **MUST NOT** produce additional changes.
 

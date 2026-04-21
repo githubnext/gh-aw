@@ -13,7 +13,7 @@ tracker-id: copilot-token-optimizer
 engine: copilot
 tools:
   github:
-    mode: cli
+    mode: gh-proxy
     toolsets: [issues]
   bash:
     - "*"

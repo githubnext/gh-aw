@@ -233,7 +233,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 
 	// 10. GitHub tool-use guidance: directs the model to the correct mechanism for
 	// GitHub reads (and writes when safe-outputs is also enabled).
-	// When GitHub mode is cli, the agent uses the pre-authenticated gh CLI for reads
+	// When GitHub mode is gh-proxy, the agent uses the pre-authenticated gh CLI for reads
 	// instead of a GitHub MCP server (which is not registered). Otherwise, the GitHub
 	// MCP server is used for reads.
 	if isGitHubCLIModeEnabled(data) {
