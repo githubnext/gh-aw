@@ -4,6 +4,7 @@ require("./shim.cjs");
 
 const fs = require("fs");
 const path = require("path");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { parseAllowedRepos, validateTargetRepo } = require("./repo_helpers.cjs");
 const {
@@ -80,12 +81,12 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
   if (isCrossRepo) {
     const allowedRepos = parseAllowedRepos(commentMemoryConfig?.allowed_repos);
     if (allowedRepos.size === 0) {
-      throw new Error(`E004: Cross-repository comment-memory setup to '${targetRepo.slug}' is not permitted. No allowlist is configured. Define 'allowed_repos' to enable cross-repository access.`);
+      throw new Error(`${ERR_VALIDATION}: E004: Cross-repository comment-memory setup to '${targetRepo.slug}' is not permitted. No allowlist is configured. Define 'allowed_repos' to enable cross-repository access.`);
     }
 
     const repoValidation = validateTargetRepo(targetRepo.slug, contextRepoSlug, allowedRepos);
     if (!repoValidation.valid) {
-      throw new Error(`E004: ${repoValidation.error}`);
+      throw new Error(`${ERR_VALIDATION}: E004: ${repoValidation.error}`);
     }
     core.info(`comment_memory setup: cross-repo allowlist check passed for ${targetRepo.slug}`);
   }
