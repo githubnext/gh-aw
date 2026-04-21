@@ -19,11 +19,16 @@ rate-limit:
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
   cancel-in-progress: false
-engine: codex
+engine:
+  id: codex
+  env:
+    CODEX_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.CODEX_API_KEY }}
+    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.CODEX_API_KEY }}
 network:
   allowed:
     - defaults
     - github
+    - chatgpt.com
 tools:
   mount-as-clis: true
   cache-memory:
