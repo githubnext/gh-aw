@@ -155,16 +155,8 @@ func TestValidateNetworkAllowedDomains_EcosystemIdentifiers(t *testing.T) {
 	compiler := NewCompiler()
 
 	t.Run("known ecosystem identifiers pass validation", func(t *testing.T) {
-		validEcosystems := []string{
-			"defaults", "github", "python", "node", "go", "rust", "java", "ruby",
-			"dotnet", "php", "swift", "kotlin", "scala", "clojure", "dart",
-			"elixir", "haskell", "perl", "zig", "containers", "chrome",
-			"playwright", "terraform", "dev-tools", "linux-distros", "local",
-			"fonts", "github-actions", "node-cdns", "python-native", "deno",
-			"default-safe-outputs", "lean", "latex", "lua", "julia", "ocaml",
-			"bazel", "powershell", "r", "threat-detection",
-		}
-		for _, ecosystem := range validEcosystems {
+		// Use getValidEcosystemIdentifiers() to stay in sync with production code
+		for _, ecosystem := range getValidEcosystemIdentifiers() {
 			t.Run(ecosystem, func(t *testing.T) {
 				network := &NetworkPermissions{Allowed: []string{ecosystem}}
 				err := compiler.validateNetworkAllowedDomains(network)
