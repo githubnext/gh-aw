@@ -33,7 +33,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const isGitHubExpression = value => {
     const trimmed = value.trim();
-    return trimmed.startsWith("${{") && trimmed.endsWith("}}");
+    return /^\$\{\{[\s\S]*\}\}$/.test(trimmed);
   };
 
   /**
