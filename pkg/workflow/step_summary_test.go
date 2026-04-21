@@ -167,7 +167,6 @@ network:
   allowed:
     - defaults
     - node
-  firewall: true
 ---
 
 # Test Workflow Overview

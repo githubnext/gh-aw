@@ -29,7 +29,6 @@ permissions:
   contents: read
 engine: copilot
 network:
-  firewall: true
   allowed:
     - defaults
     - github
@@ -106,7 +105,6 @@ permissions:
   contents: read
 engine: copilot
 network:
-  firewall: true
   allowed:
     - defaults
     - github
@@ -177,7 +175,6 @@ permissions:
   contents: read
 engine: copilot
 network:
-  firewall: true
   allowed:
     - defaults
     - github
@@ -238,7 +235,6 @@ permissions:
   contents: read
 engine: claude
 network:
-  firewall: true
   allowed:
     - defaults
   blocked:
@@ -300,7 +296,6 @@ permissions:
   contents: read
 engine: codex
 network:
-  firewall: true
   allowed:
     - defaults
   blocked:
