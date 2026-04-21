@@ -261,7 +261,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"",
 				"chmod 600 \"/tmp/gh-aw/mcp-config/config.toml\"",
 				"mkdir -p \"${CODEX_HOME}\"",
-				"cp \"/tmp/gh-aw/mcp-config/config.toml\" \"${CODEX_HOME}/config.toml\"",
+				"if [ \"/tmp/gh-aw/mcp-config/config.toml\" != \"${CODEX_HOME}/config.toml\" ]; then cp \"/tmp/gh-aw/mcp-config/config.toml\" \"${CODEX_HOME}/config.toml\"; fi",
 				"chmod 600 \"${CODEX_HOME}/config.toml\"",
 			},
 		},
@@ -471,7 +471,7 @@ func TestCodexEngineRenderMCPConfigUserAgentFromConfig(t *testing.T) {
 	}
 }
 
-func TestSanitizeIdentifier(t *testing.T) {
+func TestSanitizeArtifactIdentifier(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
@@ -531,9 +531,9 @@ func TestSanitizeIdentifier(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := SanitizeIdentifier(tt.input)
+			result := SanitizeArtifactIdentifier(tt.input)
 			if result != tt.expected {
-				t.Errorf("SanitizeIdentifier(%q) = %q, expected %q", tt.input, result, tt.expected)
+				t.Errorf("SanitizeArtifactIdentifier(%q) = %q, expected %q", tt.input, result, tt.expected)
 			}
 		})
 	}

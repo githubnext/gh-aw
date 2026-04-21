@@ -129,12 +129,6 @@ func TestSpec_PublicAPI_ExtractVersion(t *testing.T) {
 	}
 }
 
-// TestSpec_PublicAPI_GetActionPins validates that GetActionPins returns a non-nil slice.
-func TestSpec_PublicAPI_GetActionPins(t *testing.T) {
-	pins := actionpins.GetActionPins()
-	assert.NotNil(t, pins, "GetActionPins should return non-nil slice of all loaded pins")
-}
-
 // TestSpec_PublicAPI_GetActionPinsByRepo validates GetActionPinsByRepo for known and unknown repos.
 func TestSpec_PublicAPI_GetActionPinsByRepo(t *testing.T) {
 	t.Run("returns no pins for unknown repository", func(t *testing.T) {
@@ -144,11 +138,7 @@ func TestSpec_PublicAPI_GetActionPinsByRepo(t *testing.T) {
 	})
 
 	t.Run("returns pins for a known repository when embedded data is loaded", func(t *testing.T) {
-		all := actionpins.GetActionPins()
-		if len(all) == 0 {
-			t.Skip("no embedded pin data available")
-		}
-		known := all[0].Repo
+		known := "actions/checkout"
 		pins := actionpins.GetActionPinsByRepo(known)
 		assert.NotEmpty(t, pins, "should return pins for a known repo from embedded data")
 	})
@@ -162,11 +152,7 @@ func TestSpec_PublicAPI_GetActionPinByRepo(t *testing.T) {
 	})
 
 	t.Run("returns a pin for a known repository", func(t *testing.T) {
-		all := actionpins.GetActionPins()
-		if len(all) == 0 {
-			t.Skip("no embedded pin data available")
-		}
-		known := all[0].Repo
+		known := "actions/checkout"
 		pin, ok := actionpins.GetActionPinByRepo(known)
 		assert.True(t, ok, "should return true for a known repo")
 		assert.Equal(t, known, pin.Repo, "returned pin should belong to the queried repo")
@@ -189,12 +175,7 @@ func TestSpec_PublicAPI_ResolveActionPin(t *testing.T) {
 // TestSpec_PublicAPI_ResolveLatestActionPin validates latest-version resolution behavior.
 func TestSpec_PublicAPI_ResolveLatestActionPin(t *testing.T) {
 	t.Run("returns latest pinned reference for known repository", func(t *testing.T) {
-		all := actionpins.GetActionPins()
-		if len(all) == 0 {
-			t.Skip("no embedded pin data available")
-		}
-
-		known := all[0].Repo
+		known := "actions/checkout"
 		latestPin, ok := actionpins.GetActionPinByRepo(known)
 		require.True(t, ok, "expected latest pin for known repository")
 
@@ -233,4 +214,71 @@ func TestSpec_DesignDecision_FormatConsistency(t *testing.T) {
 	assert.Contains(t, cacheKey, version, "cache key should contain version")
 	assert.Contains(t, reference, sha, "reference should contain sha")
 	assert.Contains(t, reference, version, "reference should contain version comment")
+}
+
+// TestSpec_Types_ActionPin validates the documented ActionPin type structure.
+// Spec: Repo, Version, SHA fields plus optional Inputs map.
+func TestSpec_Types_ActionPin(t *testing.T) {
+	pin := actionpins.ActionPin{
+		Repo:    "actions/checkout",
+		Version: "v5",
+		SHA:     "abcdef1234567890abcdef1234567890abcdef12",
+	}
+	assert.Equal(t, "actions/checkout", pin.Repo, "ActionPin.Repo field")
+	assert.Equal(t, "v5", pin.Version, "ActionPin.Version field")
+	assert.Equal(t, "abcdef1234567890abcdef1234567890abcdef12", pin.SHA, "ActionPin.SHA field")
+	assert.Nil(t, pin.Inputs, "ActionPin.Inputs should be nil when not set")
+}
+
+// TestSpec_Types_ActionYAMLInput validates the documented ActionYAMLInput type structure.
+// Spec: Description, Required, Default fields.
+func TestSpec_Types_ActionYAMLInput(t *testing.T) {
+	input := actionpins.ActionYAMLInput{
+		Description: "The branch to checkout",
+		Required:    true,
+		Default:     "main",
+	}
+	assert.Equal(t, "The branch to checkout", input.Description, "ActionYAMLInput.Description field")
+	assert.True(t, input.Required, "ActionYAMLInput.Required field")
+	assert.Equal(t, "main", input.Default, "ActionYAMLInput.Default field")
+}
+
+// TestSpec_Types_ActionPinsData validates the documented ActionPinsData container type.
+// Spec: ActionPinsData is a JSON container used to load embedded pin entries.
+func TestSpec_Types_ActionPinsData(t *testing.T) {
+	data := actionpins.ActionPinsData{
+		Entries: map[string]actionpins.ActionPin{
+			"actions/checkout@v5": {Repo: "actions/checkout", Version: "v5", SHA: "abc123"},
+		},
+	}
+	assert.Len(t, data.Entries, 1, "ActionPinsData.Entries should hold pin entries")
+	entry := data.Entries["actions/checkout@v5"]
+	assert.Equal(t, "actions/checkout", entry.Repo, "entry Repo should match")
+}
+
+// TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo validates that concurrent calls to GetActionPinsByRepo
+// are safe after initialization (sync.Once guarantee from the spec).
+func TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo(t *testing.T) {
+	const goroutines = 10
+	const repo = "actions/checkout"
+	results := make([][]actionpins.ActionPin, goroutines)
+	done := make(chan int, goroutines)
+
+	for i := range goroutines {
+		go func(idx int) {
+			results[idx] = actionpins.GetActionPinsByRepo(repo)
+			done <- idx
+		}(i)
+	}
+
+	for range goroutines {
+		<-done
+	}
+
+	for i := 1; i < goroutines; i++ {
+		assert.NotEmpty(t, results[i], "concurrent GetActionPinsByRepo should return pins for known repo")
+		assert.Len(t, results[i], len(results[0]),
+			"concurrent GetActionPinsByRepo should return same number of pins (goroutine %d vs 0)", i)
+	}
+	assert.NotEmpty(t, results[0], "concurrent GetActionPinsByRepo should return pins for known repo")
 }

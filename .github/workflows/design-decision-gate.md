@@ -15,7 +15,7 @@ permissions:
   issues: read
 engine:
   id: claude
-  max-turns: 5
+  max-turns: 15
 safe-outputs:
   add-comment:
     max: 2
@@ -112,7 +112,7 @@ You are the Design Decision Gate, an AI agent that enforces a culture of "decide
 - **Pull Request**: #${{ github.event.pull_request.number || github.event.inputs.pr_number }}
 - **Event**: ${{ github.event_name }}
 - **Actor**: ${{ github.actor }}
-- **Hard Turn Budget**: 5 turns maximum (stop early when done)
+- **Hard Turn Budget**: 10 turns maximum (stop early when done)
 
 ### Mandatory Efficiency Rules
 
@@ -336,6 +336,10 @@ All ADRs are stored in `docs/adr/` as Markdown files numbered by PR number (e.g.
 
 > 🔒 *This PR cannot merge until an ADR is linked in the PR body.*
 ```
+
+### Report Formatting
+
+- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
 
 ## Step 4b: If ADR Found — Verify Implementation Matches
 

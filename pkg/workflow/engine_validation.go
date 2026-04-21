@@ -37,6 +37,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -45,6 +47,7 @@ import (
 )
 
 var engineValidationLog = newValidationLogger("engine")
+var safeDriverScriptPattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*$`)
 
 // validateEngineVersion warns (non-strict) or errors (strict) when the workflow
 // explicitly pins the engine CLI to "latest". Unpinned "latest" versions change
@@ -73,6 +76,35 @@ func (c *Compiler) validateEngineVersion(workflowData *WorkflowData) error {
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 	c.IncrementWarningCount()
 	return nil
+}
+
+// validateEngineDriverScript validates optional engine.driver configuration.
+// engine.driver must point to a Node.js script.
+func (c *Compiler) validateEngineDriverScript(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.DriverScript == "" {
+		return nil
+	}
+
+	driverScript := workflowData.EngineConfig.DriverScript
+	if strings.TrimSpace(driverScript) != driverScript {
+		return fmt.Errorf("engine.driver must be a safe basename without leading/trailing whitespace (found: %s).\n\nSee: %s", workflowData.EngineConfig.DriverScript, constants.DocsEnginesURL)
+	}
+
+	if filepath.IsAbs(driverScript) ||
+		strings.Contains(driverScript, "/") ||
+		strings.Contains(driverScript, `\`) ||
+		strings.Contains(driverScript, "..") ||
+		!safeDriverScriptPattern.MatchString(driverScript) {
+		return fmt.Errorf("engine.driver must be a safe basename (no path separators, '..', or shell metacharacters) ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", workflowData.EngineConfig.DriverScript, constants.DocsEnginesURL)
+	}
+
+	ext := strings.ToLower(filepath.Ext(driverScript))
+	switch ext {
+	case ".js", ".cjs", ".mjs":
+		return nil
+	default:
+		return fmt.Errorf("engine.driver must be a Node.js script ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", workflowData.EngineConfig.DriverScript, constants.DocsEnginesURL)
+	}
 }
 
 // validateEngineInlineDefinition validates an inline engine definition parsed from

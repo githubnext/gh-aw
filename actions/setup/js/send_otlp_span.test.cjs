@@ -1590,10 +1590,17 @@ describe("sendJobConclusionSpan", () => {
     const startMs = 1_700_000_000_000;
     const endMs = 1_700_000_005_000;
     const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/agent_output.json") {
+        return JSON.stringify({ items: [{ type: "issue" }, { type: "pull_request" }] });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
 
     await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
+    readFileSpy.mockRestore();
     expect(mockFetch).toHaveBeenCalledTimes(2);
 
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -1609,6 +1616,8 @@ describe("sendJobConclusionSpan", () => {
     expect(agentSpan.parentSpanId).toBe(conclusionSpan.spanId);
     expect(agentSpan.parentSpanId).not.toBe("abcdef1234567890");
     expect(conclusionSpan.parentSpanId).toBe("abcdef1234567890");
+    expect(agentSpan.attributes).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 2 } });
+    expect(conclusionSpan.attributes).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 2 } });
   });
 
   it("does not emit a dedicated agent span when agent_output mtime is unavailable", async () => {
@@ -2230,17 +2239,30 @@ describe("sendJobConclusionSpan", () => {
       expect(span.status.message).toBe("agent failure");
     });
 
-    it("does not read agent_output.json when agent conclusion is success", async () => {
+    it("reads agent_output.json and adds output metrics when agent conclusion is success", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
       process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
       process.env.GH_AW_AGENT_CONCLUSION = "success";
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({
+            items: [{ type: "pull_request" }, { type: "issue" }, { type: "pull_request" }, {}],
+          });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
 
       await sendJobConclusionSpan("gh-aw.job.conclusion");
 
       const agentOutputCalls = readFileSpy.mock.calls.filter(([p]) => p === "/tmp/gh-aw/agent_output.json");
-      expect(agentOutputCalls).toHaveLength(0);
+      expect(agentOutputCalls).toHaveLength(1);
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = span.attributes;
+      expect(attrs).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 4 } });
+      expect(attrs).toContainEqual({ key: "gh-aw.output.item_types", value: { stringValue: "issue,pull_request" } });
     });
 
     it("does not add error attributes when agent_output.json is absent on failure", async () => {

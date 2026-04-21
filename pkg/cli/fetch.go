@@ -36,16 +36,6 @@ type FetchedWorkflow struct {
 	SourcePath string // The original source path (local path or remote path)
 }
 
-// FetchWorkflowFromSource fetches a workflow file directly from GitHub without cloning.
-// This is the preferred way to add remote workflows as it only fetches the specific
-// files needed rather than cloning the entire repository.
-//
-// For local workflows (local filesystem paths), it reads from the local filesystem.
-// For remote workflows, it uses the GitHub API to fetch the file content.
-func FetchWorkflowFromSource(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, error) {
-	return FetchWorkflowFromSourceWithContext(context.Background(), spec, verbose)
-}
-
 // FetchWorkflowFromSourceWithContext fetches a workflow file from local disk or GitHub.
 // The context is used to cancel remote ref resolution retries (for example, on Ctrl-C).
 func FetchWorkflowFromSourceWithContext(ctx context.Context, spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, error) {

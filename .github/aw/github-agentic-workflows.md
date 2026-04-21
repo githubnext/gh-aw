@@ -527,6 +527,26 @@ The YAML frontmatter supports these fields:
   - `web-fetch:` - Web content fetching tools
   - `web-search:` - Web search tools
   - `bash:` - Shell command tools
+    - **Bash allowlist decision rule:**
+      - **PR-triggered workflows** processing **untrusted input** (issue/PR body, comment text, user-provided filenames): use a **narrow allowlist** (for example: `[find, cat, grep, wc, jq]`). This limits blast radius if shell injection attempts are embedded in untrusted content.
+      - **`schedule` or `workflow_dispatch` workflows** with **no untrusted input** (only trusted API data or internal state): `["*"]` is acceptable.
+      - **Rule of thumb**: If the workflow reads issue/PR bodies, comment text, or other user-provided strings, use a narrow list. If it only reads trusted API responses or workflow artifacts, `["*"]` is acceptable.
+    - **Examples:**
+
+      ```yaml
+      # PR-triggered workflow reading untrusted user text
+      on:
+        pull_request:
+      tools:
+        bash: [find, cat, grep, wc, jq]
+
+      # Internal scheduled workflow reading only trusted/internal data
+      on:
+        schedule:
+          - cron: "0 * * * *"
+      tools:
+        bash: ["*"]
+      ```
   - `playwright:` - Browser automation tools
   - Custom tool names for MCP servers
   - `timeout:` - Per-operation timeout in seconds for all tool and MCP server calls (integer or GitHub Actions expression). Defaults vary by engine (Claude: 60 s, Codex: 120 s).
@@ -740,6 +760,20 @@ The YAML frontmatter supports these fields:
     ```
 
     Operation types: `append` (default), `prepend`, `replace`.
+  - `merge-pull-request:` - Merge pull requests under configured policy gates (experimental)
+
+    ```yaml
+    safe-outputs:
+      merge-pull-request:
+        required-labels: [approved]         # Optional: all listed labels must be present
+        allowed-labels: [ready-to-merge]    # Optional: at least one PR label must match
+        allowed-branches: ["feature/*"]     # Optional: glob patterns for source branch names
+        max: 1                              # Optional: max merges (default: 1)
+    ```
+
+    **⚠️ Experimental**: Compilation emits a warning when this feature is used. The merge is blocked unless all configured gates pass.
+
+    When using `safe-outputs.merge-pull-request`, the main job does **not** need `pull-requests: write` permission since merging is handled by a separate job with appropriate permissions.
   - `close-pull-request:` - Safe pull request closing with filtering
 
     ```yaml
@@ -1445,6 +1479,9 @@ The YAML frontmatter supports these fields:
   - `concurrency-group:` - Concurrency group for the safe-outputs job (string)
     - When set, the safe-outputs job uses this concurrency group with `cancel-in-progress: false`
     - Supports GitHub Actions expressions, e.g., `"safe-outputs-${{ github.repository }}"`
+  - `needs:` - Additional custom workflow jobs the safe-outputs job depends on (array)
+    - Example: `needs: [secrets_fetcher]`
+    - Use when the safe-outputs job requires outputs from a custom job defined in `jobs:`
   - `environment:` - Override the GitHub deployment environment for the safe-outputs job (string)
     - Defaults to the top-level `environment:` field when not specified
     - Use when the main job and safe-outputs job need different deployment environments for protection rules

@@ -108,6 +108,30 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 
 Common identifiers: `python` (PyPI/pip), `node` (npm/yarn/pnpm), `containers` (Docker Hub/GHCR), `go` (proxy.golang.org). See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete domain lists, or the [Supported Languages](/gh-aw/reference/supported-languages/) page for a language-first overview.
 
+### Ecosystem Identifier Validation
+
+Single-word entries in `network.allowed` that match the ecosystem identifier pattern (`[a-z][a-z0-9-]*`) are validated against the known ecosystem list at compile time. An unrecognised identifier produces a compilation error with the full list of valid options:
+
+```yaml wrap
+# ❌ Compilation error: 'rustxxxx' is not a valid ecosystem identifier
+network:
+  allowed:
+    - defaults
+    - rustxxxx
+
+# ✅ Use the correct identifier
+network:
+  allowed:
+    - defaults
+    - rust
+
+# ✅ Dotted domain names are validated as domains, not ecosystem identifiers
+network:
+  allowed:
+    - defaults
+    - crates.io
+```
+
 ## Strict Mode Validation
 
 When [strict mode](/gh-aw/reference/frontmatter/#strict-mode-strict) is enabled (default), network configuration is validated to ensure security best practices. Strict mode recommends using ecosystem identifiers instead of individual domains for better maintainability.

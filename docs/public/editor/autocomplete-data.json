@@ -37,59 +37,6 @@
           "type": "array",
           "desc": "Array of shared agentic workflow specifications to import.",
           "array": true
-        },
-        "apm-packages": {
-          "type": "array|object",
-          "desc": "APM package references to install.",
-          "children": {
-            "packages": {
-              "type": "array",
-              "desc": "List of APM package references to install.",
-              "array": true
-            },
-            "isolated": {
-              "type": "boolean",
-              "desc": "If true, agent restore step clears primitive dirs before unpacking.",
-              "enum": [true, false],
-              "leaf": true
-            },
-            "github-app": {
-              "type": "object",
-              "desc": "GitHub App credentials for minting installation access tokens used by APM to access cross-org private repositories.",
-              "children": {
-                "app-id": {
-                  "type": "string",
-                  "desc": "GitHub App ID (e.g., '${{ vars.APP_ID }}').",
-                  "leaf": true
-                },
-                "private-key": {
-                  "type": "string",
-                  "desc": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}').",
-                  "leaf": true
-                },
-                "owner": {
-                  "type": "string",
-                  "desc": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)",
-                  "leaf": true
-                },
-                "repositories": {
-                  "type": "array",
-                  "desc": "Optional list of repositories to grant access to (defaults to current repository if not specified)",
-                  "array": true
-                }
-              }
-            },
-            "env": {
-              "type": "object",
-              "desc": "Environment variables to set on the APM pack step."
-            },
-            "github-token": {
-              "type": "string",
-              "desc": "GitHub token expression to authenticate APM with private package repositories.",
-              "leaf": true
-            }
-          },
-          "array": true
         }
       },
       "array": true

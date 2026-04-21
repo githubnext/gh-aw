@@ -15,6 +15,7 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -71,9 +72,24 @@ func (c *Compiler) validateNetworkAllowedDomains(network *NetworkPermissions) er
 			continue
 		}
 
-		// Skip ecosystem identifiers - they don't need domain pattern validation
+		// Check if this looks like an ecosystem identifier (single lowercase word with optional hyphens)
 		if isEcosystemIdentifier(domain) {
-			networkFirewallValidationLog.Printf("Skipping ecosystem identifier: %s", domain)
+			// Validate it's a known ecosystem identifier using a direct map lookup to avoid allocations
+			if isKnownEcosystemIdentifier(domain) {
+				networkFirewallValidationLog.Printf("Skipping known ecosystem identifier: %s", domain)
+				continue
+			}
+			// Unknown ecosystem identifier - error
+			networkFirewallValidationLog.Printf("Validation error: unknown ecosystem identifier: %s", domain)
+			wrappedErr := fmt.Errorf("network.allowed[%d]: %w", i, NewValidationError(
+				"network.allowed",
+				domain,
+				fmt.Sprintf("'%s' is not a valid ecosystem identifier", domain),
+				"Use a valid ecosystem identifier or a domain name containing a dot (e.g., 'example.com').\n\nValid ecosystem identifiers: "+strings.Join(getValidEcosystemIdentifiers(), ", "),
+			))
+			if returnErr := collector.Add(wrappedErr); returnErr != nil {
+				return returnErr // Fail-fast mode
+			}
 			continue
 		}
 
@@ -103,6 +119,31 @@ func isEcosystemIdentifier(domain string) bool {
 	// like "defaults", "node", "python", "dev-tools", "default-safe-outputs".
 	// They don't contain dots, protocol prefixes, spaces, wildcards, or other special characters.
 	return isEcosystemIdentifierPattern.MatchString(domain)
+}
+
+// isKnownEcosystemIdentifier reports whether id is a recognised ecosystem identifier.
+// It checks the base ecosystemDomains map and the compoundEcosystems map directly,
+// avoiding the allocations that getEcosystemDomains incurs.
+func isKnownEcosystemIdentifier(id string) bool {
+	if _, ok := ecosystemDomains[id]; ok {
+		return true
+	}
+	_, ok := compoundEcosystems[id]
+	return ok
+}
+
+// getValidEcosystemIdentifiers returns a sorted list of all valid ecosystem identifiers,
+// including both the base identifiers from ecosystemDomains and compound identifiers.
+func getValidEcosystemIdentifiers() []string {
+	ids := make([]string, 0, len(ecosystemDomains)+len(compoundEcosystems))
+	for id := range ecosystemDomains {
+		ids = append(ids, id)
+	}
+	for id := range compoundEcosystems {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 // domainPattern validates domain patterns including wildcards

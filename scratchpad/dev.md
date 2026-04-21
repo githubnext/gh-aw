@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 6.6
-**Last Updated**: 2026-04-20
+**Version**: 6.7
+**Last Updated**: 2026-04-21
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2282,6 +2282,29 @@ GitHub API rate-limit data is logged to a JSONL file during workflow execution, 
 
 See `scratchpad/github-rate-limit-observability.md` for full details including debugging with `jq`.
 
+### Agent Output Metrics (OTLP Conclusion Spans)
+
+The conclusion span (`gh-aw.job.conclusion`) emitted by `send_otlp_span.cjs` includes agent output metrics read from `/tmp/gh-aw/agent_output.json`. As of PR #27495, this file is read unconditionally — metrics are available for all job outcomes (success, failure, cancellation, timeout).
+
+| Attribute | Description |
+|-----------|-------------|
+| `gh-aw.tokens.input` | Input tokens consumed |
+| `gh-aw.tokens.output` | Output tokens generated |
+| `gh-aw.tokens.cache_read` | Cache read tokens |
+| `gh-aw.tokens.cache_write` | Cache write tokens |
+| `gh-aw.effective_tokens` | Effective token count (model-adjusted) |
+| `gh-aw.model` | AI model identifier |
+| `gh-aw.engine.id` | Engine identifier |
+| `gh-aw.agent.conclusion` | Agent job conclusion outcome |
+| `gh-aw.error.count` | Number of errors in agent output |
+| `gh-aw.error.messages` | Error messages joined by ` \| ` |
+| `gh-aw.output.item_count` | Number of safe output items produced |
+| `gh-aw.output.item_types` | Comma-separated unique output item types |
+
+Base span attributes (always present): `gh-aw.workflow.name`, `gh-aw.run.id`, `gh-aw.run.attempt`, `gh-aw.run.actor`, `gh-aw.repository`, `gh-aw.staged`, `gh-aw.job.name`, `gh-aw.event_name`
+
+**Implementation**: `actions/setup/js/send_otlp_span.cjs` — `sendConclusionSpan()`
+
 ---
 
 ## Go Type Patterns
@@ -2857,6 +2880,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v6.7 (2026-04-21): Maintenance tone scan — 0 tone issues found. Added Agent Output Metrics section documenting OTLP conclusion span attributes emitted from `agent_output.json` (PR #27495: metrics now emitted on all outcomes including failures and timeouts; new attributes: `gh-aw.error.count`, `gh-aw.error.messages`, `gh-aw.output.item_count`, `gh-aw.output.item_types`). Coverage: 64 spec files (no new files).
 - v6.6 (2026-04-20): Maintenance tone scan — 0 tone issues found across all scratchpad files. Added end-to-end feature testing description to Testing Guidelines section linking to `end-to-end-feature-testing.md`. Coverage: 64 spec files (no new files).
 - v6.5 (2026-04-19): Maintenance tone scan — 0 tone issues found. Documented 2 breaking changes from pending changesets: (1) `app:` → `github-app:` rename (breaking: workflows using `app:` fail validation; migrate with `gh aw fix`); (2) `safe-inputs` → `mcp-scripts` rename (feature flag `SafeInputsFeatureFlag` → `MCPScriptsFeatureFlag`; migrate with `gh aw fix`). Updated Go Type Patterns table: `SafeInputsFeatureFlag` → `MCPScriptsFeatureFlag`. Coverage: 64 spec files (no new files).
 - v6.4 (2026-04-18): Maintenance tone scan — fixed 4 tone issues across 4 spec files: `github-mcp-access-control-specification.md` (1 fix: "Flexible Pattern Matching"→"Wildcard Pattern Matching"), `serena-tools-analysis.md` (1 fix: "Fast, flexible, familiar"→"Fast; broad pattern support; familiar syntax"), `github-actions-security-best-practices.md` (1 fix: "more robust than `ls`"→"avoids word splitting and globbing issues that affect `ls`"), `mdflow.md` (1 fix: "Less flexible context gathering"→"More limited context gathering options"). Coverage: 64 spec files (no new files).

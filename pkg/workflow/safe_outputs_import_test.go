@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.yaml.in/yaml/v3"
 )
 
 // TestSafeOutputsImport tests that safe-output types can be imported from shared workflows
@@ -2284,4 +2285,90 @@ Run a task.
 	// report-incomplete from third import
 	require.NotNil(t, workflowData.SafeOutputs.ReportIncomplete, "ReportIncomplete should be imported from report-incomplete.md")
 	assert.Equal(t, "[report-incomplete import] ", workflowData.SafeOutputs.ReportIncomplete.TitlePrefix)
+}
+
+func TestSafeOutputsNeedsMergedFromImports(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	importedWorkflow := `---
+safe-outputs:
+  needs: [imported_job, shared_job]
+---
+`
+	importedFile := filepath.Join(workflowsDir, "shared-needs.md")
+	err = os.WriteFile(importedFile, []byte(importedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write imported file")
+
+	mainWorkflow := `---
+on:
+  workflow_dispatch:
+imports:
+  - ./shared-needs.md
+safe-outputs:
+  needs: [main_job, imported_job]
+jobs:
+  main_job:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "main"
+  imported_job:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "imported"
+  shared_job:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "shared"
+---
+Run a task.
+`
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "ParseWorkflowFile should not error")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	assert.ElementsMatch(t, []string{"main_job", "imported_job", "shared_job"}, workflowData.SafeOutputs.Needs,
+		"safe-outputs.needs should merge main and imported dependencies with deduplication")
+
+	err = compiler.CompileWorkflow("main.md")
+	require.NoError(t, err, "CompileWorkflow should not error")
+
+	lockPath := filepath.Join(workflowsDir, "main.lock.yml")
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "compiled lock file should exist")
+
+	var compiled map[string]any
+	err = yaml.Unmarshal(lockContent, &compiled)
+	require.NoError(t, err, "compiled lock file should be valid YAML")
+
+	jobs, ok := compiled["jobs"].(map[string]any)
+	require.True(t, ok, "compiled workflow should include jobs")
+	safeOutputsJob, ok := jobs["safe_outputs"].(map[string]any)
+	require.True(t, ok, "compiled workflow should include safe_outputs job")
+	needsRaw, ok := safeOutputsJob["needs"].([]any)
+	require.True(t, ok, "safe_outputs job should include needs array")
+
+	needs := make([]string, 0, len(needsRaw))
+	for _, need := range needsRaw {
+		require.IsType(t, "", need, "safe_outputs needs entries should be strings")
+		needStr := need.(string)
+		needs = append(needs, needStr)
+	}
+
+	assert.Contains(t, needs, "main_job", "safe_outputs needs should include dependency from main workflow")
+	assert.Contains(t, needs, "imported_job", "safe_outputs needs should include deduped dependency from import")
+	assert.Contains(t, needs, "shared_job", "safe_outputs needs should include dependency from import")
 }

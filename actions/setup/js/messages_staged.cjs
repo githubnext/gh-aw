@@ -22,15 +22,9 @@ const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cj
  */
 function getStagedTitle(ctx) {
   const messages = getMessages();
-
-  // Create context with both camelCase and snake_case keys
   const templateContext = toSnakeCase(ctx);
-
-  // Default staged title template
-  const defaultTitle = "## 🔍 Preview: {operation}";
-
-  // Use custom title if configured
-  return messages?.stagedTitle ? renderTemplate(messages.stagedTitle, templateContext) : renderTemplate(defaultTitle, templateContext);
+  const configuredTemplate = typeof messages?.stagedTitle === "string" ? messages.stagedTitle : "";
+  return renderTemplate(configuredTemplate || "## 🔍 Preview: {operation}", templateContext);
 }
 
 /**
@@ -40,15 +34,9 @@ function getStagedTitle(ctx) {
  */
 function getStagedDescription(ctx) {
   const messages = getMessages();
-
-  // Create context with both camelCase and snake_case keys
   const templateContext = toSnakeCase(ctx);
-
-  // Default staged description template
-  const defaultDescription = "📋 The following operations would be performed if staged mode was disabled:";
-
-  // Use custom description if configured
-  return messages?.stagedDescription ? renderTemplate(messages.stagedDescription, templateContext) : renderTemplate(defaultDescription, templateContext);
+  const configuredTemplate = typeof messages?.stagedDescription === "string" ? messages.stagedDescription : "";
+  return renderTemplate(configuredTemplate || "📋 The following operations would be performed if staged mode was disabled:", templateContext);
 }
 
 module.exports = {

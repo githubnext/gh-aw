@@ -71,7 +71,7 @@
       ]
     },
     "imports": {
-      "description": "Workflow specifications to import. Supports array form (list of paths) or object form with 'aw' (agentic workflow paths) and 'apm-packages' (APM packages) subfields. Path resolution: (1) relative paths (e.g., 'shared/file.md') are resolved relative to the workflow's directory; (2) paths starting with '.github/' or '/' are resolved from the repository root (repo-root-relative); (3) paths matching 'owner/repo/path@ref' are fetched from GitHub at compile time (cross-repo).",
+      "description": "Workflow specifications to import. Supports array form (list of paths) or object form with 'aw' (agentic workflow paths) subfield. Path resolution: (1) relative paths (e.g., 'shared/file.md') are resolved relative to the workflow's directory; (2) paths starting with '.github/' or '/' are resolved from the repository root (repo-root-relative); (3) paths matching 'owner/repo/path@ref' are fetched from GitHub at compile time (cross-repo).",
       "oneOf": [
         {
           "type": "array",
@@ -201,7 +201,7 @@
         },
         {
           "type": "object",
-          "description": "Object form of imports with 'aw' subfield for shared agentic workflow paths and 'apm-packages' subfield for APM packages.",
+          "description": "Object form of imports with 'aw' subfield for shared agentic workflow paths.",
           "additionalProperties": false,
           "properties": {
             "aw": {
@@ -329,57 +329,6 @@
                   }
                 ]
               }
-            },
-            "apm-packages": {
-              "description": "APM package references to install. Supports array format (list of package slugs) or object format with packages and configuration fields. Replaces the top-level 'dependencies' field.",
-              "oneOf": [
-                {
-                  "type": "array",
-                  "description": "Simple array of APM package references.",
-                  "items": {
-                    "type": "string",
-                    "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
-                    "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
-                  }
-                },
-                {
-                  "type": "object",
-                  "description": "Object format with packages and optional configuration.",
-                  "properties": {
-                    "packages": {
-                      "type": "array",
-                      "description": "List of APM package references to install.",
-                      "items": {
-                        "type": "string",
-                        "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
-                        "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
-                      }
-                    },
-                    "isolated": {
-                      "type": "boolean",
-                      "description": "If true, agent restore step clears primitive dirs before unpacking."
-                    },
-                    "github-app": {
-                      "$ref": "#/$defs/github_app",
-                      "description": "GitHub App credentials for minting installation access tokens used by APM to access cross-org private repositories."
-                    },
-                    "env": {
-                      "type": "object",
-                      "description": "Environment variables to set on the APM pack step.",
-                      "additionalProperties": {
-                        "type": "string"
-                      }
-                    },
-                    "github-token": {
-                      "type": "string",
-                      "description": "GitHub token expression to authenticate APM with private package repositories.",
-                      "examples": ["${{ secrets.MY_TOKEN }}", "${{ secrets.GH_AW_GITHUB_TOKEN }}"]
-                    }
-                  },
-                  "required": ["packages"],
-                  "additionalProperties": false
-                }
-              ]
             }
           }
         }
@@ -398,17 +347,7 @@
           }
         ],
         {
-          "aw": ["shared/common-tools.md", "shared/mcp/tavily.md"],
-          "apm-packages": ["microsoft/apm-sample-package"]
-        },
-        {
-          "apm-packages": {
-            "packages": ["microsoft/apm-sample-package"],
-            "github-app": {
-              "client-id": "${{ vars.APP_ID }}",
-              "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
-            }
-          }
+          "aw": ["shared/common-tools.md", "shared/mcp/tavily.md"]
         }
       ]
     },
@@ -8542,6 +8481,18 @@
           "description": "Concurrency group for the safe-outputs job. When set, the safe-outputs job will use this concurrency group with cancel-in-progress: false. Supports GitHub Actions expressions.",
           "examples": ["my-workflow-safe-outputs", "safe-outputs-${{ github.repository }}"]
         },
+        "needs": {
+          "type": "array",
+          "description": "Explicit additional custom workflow jobs that the consolidated safe_outputs job should depend on.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$"
+          },
+          "additionalItems": false,
+          "uniqueItems": true,
+          "default": [],
+          "examples": [["secrets_fetcher"]]
+        },
         "environment": {
           "description": "Override the GitHub deployment environment for the safe-outputs job. When set, this environment is used instead of the top-level environment: field. When not set, the top-level environment: field is propagated automatically so that environment-scoped secrets are accessible in the safe-outputs job.",
           "oneOf": [
@@ -9565,6 +9516,11 @@
             "command": {
               "type": "string",
               "description": "Custom executable path for the AI engine CLI. When specified, the workflow will skip the standard installation steps and use this command instead. The command should be the full path to the executable or a command available in PATH."
+            },
+            "driver": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_][A-Za-z0-9._-]*\\.(?:js|cjs|mjs)$",
+              "description": "Custom Node.js driver script filename for an agentic engine. This replaces the engine's built-in driver wrapper (when the engine supports one) and must end with .js, .cjs, or .mjs."
             },
             "env": {
               "type": "object",

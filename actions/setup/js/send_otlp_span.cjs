@@ -5,6 +5,7 @@ const { randomBytes } = require("crypto");
 const fs = require("fs");
 const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * send_otlp_span.cjs
@@ -705,14 +706,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const statusCode = isAgentFailure ? 2 : 1;
   let statusMessage = isAgentFailure ? `agent ${agentConclusion}` : undefined;
 
-  // When the agent failed, read agent_output.json to surface structured error details.
-  // Lazy-read: skip I/O entirely when the job succeeded or was cancelled.
-  const agentOutput = isAgentFailure ? readJSONIfExists("/tmp/gh-aw/agent_output.json") || {} : {};
+  // Always read agent_output.json so output metrics are available on all outcomes.
+  const agentOutput = readJSONIfExists("/tmp/gh-aw/agent_output.json") || {};
   const outputErrors = Array.isArray(agentOutput.errors) ? agentOutput.errors : [];
-  const errorMessages = outputErrors
-    .map(e => (e && typeof e.message === "string" ? e.message : String(e)))
-    .filter(Boolean)
-    .slice(0, 5);
+  const outputItems = Array.isArray(agentOutput.items) ? agentOutput.items : [];
+  const errorMessages = outputErrors.map(getErrorMessage).filter(Boolean).slice(0, 5);
 
   if (isAgentFailure && errorMessages.length > 0) {
     statusMessage = `agent ${agentConclusion}: ${errorMessages[0]}`.slice(0, 256);
@@ -753,6 +751,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (isAgentFailure && errorMessages.length > 0) {
     attributes.push(buildAttr("gh-aw.error.count", outputErrors.length));
     attributes.push(buildAttr("gh-aw.error.messages", errorMessages.join(" | ")));
+  }
+  attributes.push(buildAttr("gh-aw.output.item_count", outputItems.length));
+  const rawItemTypes = outputItems.map(i => (i && typeof i.type === "string" ? i.type : "")).filter(Boolean);
+  const itemTypes = [...new Set(rawItemTypes)].sort();
+  if (itemTypes.length > 0) {
+    attributes.push(buildAttr("gh-aw.output.item_types", itemTypes.join(",")));
   }
 
   // Enrich span with the most recent GitHub API rate-limit snapshot for post-run
@@ -805,7 +809,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
     const errorTimeNano = toNanoString(eventTimeMs);
     return outputErrors
-      .map(e => (e && typeof e.message === "string" ? e.message : String(e)))
+      .map(getErrorMessage)
       .filter(Boolean)
       .map(msg => {
         // Extract colon-prefixed type when available ("push_to_pull_request_branch:...")

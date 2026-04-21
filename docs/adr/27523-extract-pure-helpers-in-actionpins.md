@@ -1,0 +1,73 @@
+# ADR-27523: Extract Pure Helper Functions in pkg/actionpins
+
+**Date**: 2026-04-21
+**Status**: Draft
+**Deciders**: pelikhan
+
+---
+
+## Part 1 — Narrative (Human-Friendly)
+
+### Context
+
+`pkg/actionpins` initializes cached state through `sync.Once` closures. Over time, the closures accumulated inline logic — grouping pins by repository, validating key/version consistency, and nil-initializing warning maps — that could not be exercised in isolation. Two separate `if ctx.Warnings == nil` guards existed in different branches of `ResolveActionPin`, creating a latent risk that a new branch would miss the guard. The package is part of an ongoing functional-programming (FP) enhancer cycle applied across the repository's packages.
+
+### Decision
+
+We will extract the three inline behaviours — `buildByRepoIndex`, `countPinKeyMismatches`, and `initWarnings` — from `sync.Once` closures and duplicated call sites into named, pure (or near-pure) package-level helper functions. The extracted helpers take their inputs as parameters and return their outputs; they carry no hidden state and produce no observable side effects beyond their return value and diagnostic logging. The `sync.Once` closure becomes a thin orchestration shell that calls these helpers. This approach makes each helper independently unit-testable and removes the duplicated nil-guard pattern.
+
+### Alternatives Considered
+
+#### Alternative 1: Keep Logic Inline
+
+The status quo. All logic remains embedded in the `sync.Once` closures and at each `ResolveActionPin` branch. No new functions are introduced. This was rejected because it preserves the untestability of the business logic and keeps the duplicate nil-guard risk; adding further validations would continue to grow the closure body.
+
+#### Alternative 2: Struct-Based Lazy Initializer
+
+Wrap the cached state and its initialisation in a dedicated struct type with a method that performs the `sync.Once` work. This provides stronger encapsulation and would group related state. It was not chosen because it represents a larger structural change that goes beyond the zero-behavior-change constraint of this refactor cycle, and the package is not large enough yet to justify the added indirection.
+
+### Consequences
+
+#### Positive
+- `buildByRepoIndex` and `countPinKeyMismatches` can now be unit-tested directly without triggering global cache side-effects.
+- The single `initWarnings` call site eliminates the duplicate nil-guard pattern, reducing the chance a future code path omits the guard.
+- The `sync.Once` closure body shrinks to high-level orchestration, improving readability.
+
+#### Negative
+- The package surface area grows with three additional exported-package-internal functions (visible within the package only), adding names that future contributors must learn.
+- The diagnostic logging inside `countPinKeyMismatches` is a side effect that makes the function impure; tests that call it will emit log output unless logging is redirected.
+
+#### Neutral
+- No behaviour change: all existing tests continue to pass without modification.
+- The change is scoped to `pkg/actionpins`; the ongoing FP enhancer cycle is expected to apply similar patterns to `pkg/agentdrain` and subsequent packages.
+
+---
+
+## Part 2 — Normative Specification (RFC 2119)
+
+> The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** in this section are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
+
+### Helper Function Design
+
+1. Extracted helper functions **MUST** accept all required data as explicit parameters and **MUST NOT** read or write package-level variables directly.
+2. Helper functions that compute a value **MUST** return that value rather than mutating a caller-provided variable.
+3. Helper functions **MUST NOT** be exported beyond the package unless they are needed by external callers.
+4. Helper functions that produce log output as a side effect **SHOULD** document that behaviour in a comment so callers can anticipate test output.
+
+### Nil-Guard Pattern
+
+1. Any code path in `ResolveActionPin` that may write to `ctx.Warnings` **MUST** call `initWarnings(ctx)` before performing the write.
+2. Duplicate inline `if ctx.Warnings == nil` blocks **MUST NOT** be reintroduced; all nil-guard logic **MUST** be delegated to `initWarnings`.
+
+### Testability
+
+1. Every extracted pure helper function **SHOULD** have at least one unit test exercising its primary behaviour.
+2. Tests for extracted helpers **MUST** use the internal test package (`package actionpins`) or be placed in `actionpins_internal_test.go` to access unexported symbols.
+
+### Conformance
+
+An implementation is considered conformant with this ADR if it satisfies all **MUST** and **MUST NOT** requirements above. Failure to meet any **MUST** or **MUST NOT** requirement constitutes non-conformance.
+
+---
+
+*This is a DRAFT ADR generated by the [Design Decision Gate](https://github.com/github/gh-aw/actions/runs/24726693548) workflow. The PR author must review, complete, and finalize this document before the PR can merge.*

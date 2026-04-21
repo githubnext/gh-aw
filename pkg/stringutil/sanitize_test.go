@@ -304,6 +304,41 @@ func BenchmarkSanitizeErrorMessage_ManySecrets(b *testing.B) {
 	}
 }
 
+func TestSanitizeIdentifierName(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		extraAllowed func(rune) bool
+		expected     string
+	}{
+		{
+			name:     "default behavior uses underscores",
+			input:    "my-workflow.name",
+			expected: "my_workflow_name",
+		},
+		{
+			name:     "prefix underscore when starting with number",
+			input:    "123name",
+			expected: "_123name",
+		},
+		{
+			name:         "allows extra characters when provided",
+			input:        "$param",
+			extraAllowed: func(r rune) bool { return r == '$' },
+			expected:     "$param",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SanitizeIdentifierName(tt.input, tt.extraAllowed)
+			if result != tt.expected {
+				t.Errorf("SanitizeIdentifierName(%q) = %q; want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestSanitizeParameterName(t *testing.T) {
 	tests := []struct {
 		name     string

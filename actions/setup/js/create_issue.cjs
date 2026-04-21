@@ -1,36 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-/**
- * Module-level storage retained for backward compatibility with the
- * `assign_copilot_to_created_issues` step. The create_issue handler now assigns
- * copilot inline immediately after issue creation (via assign_agent_helpers.cjs),
- * so this list is never populated during normal operation and the downstream step
- * is a no-op. It is exposed via getIssuesToAssignCopilot/resetIssuesToAssignCopilot
- * for unit tests.
- * @type {Array<string>}
- */
-let issuesToAssignCopilotGlobal = [];
-
-/**
- * Get the list of issues that need copilot assignment.
- * Returns a defensive copy so callers cannot accidentally mutate global state.
- * In practice this list is always empty because assignment is now done inline.
- * @returns {Array<string>} Copy of the "repo:number" strings array
- */
-function getIssuesToAssignCopilot() {
-  return [...issuesToAssignCopilotGlobal];
-}
-
-/**
- * Reset the list of issues that need copilot assignment.
- * Clears the internal array in-place. Previously returned snapshots (copies)
- * are not affected. Used for testing.
- */
-function resetIssuesToAssignCopilot() {
-  issuesToAssignCopilotGlobal.length = 0;
-}
-
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
@@ -322,15 +292,6 @@ async function main(config = {}) {
    * @returns {Promise<Object>} Result with success/error status and issue details
    */
   return async function handleCreateIssue(message, resolvedTemporaryIds) {
-    // Check if we've hit the max limit
-    if (processedCount >= maxCount) {
-      core.warning(`Skipping create_issue: max count of ${maxCount} reached`);
-      return {
-        success: false,
-        error: `Max count of ${maxCount} reached`,
-      };
-    }
-
     // Merge external resolved temp IDs with our local map
     if (resolvedTemporaryIds) {
       for (const [tempId, resolved] of Object.entries(resolvedTemporaryIds)) {
@@ -529,11 +490,22 @@ async function main(config = {}) {
     bodyLines.push("");
     const body = bodyLines.join("\n").trim();
 
+    // Reserve a max-count slot synchronously before any async pre-creation work.
+    // There is no await between check and increment, so concurrent invocations
+    // cannot interleave between these two operations.
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping create_issue: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
+    }
+    processedCount++;
+
     // Group-by-day check: if enabled, search for an existing open issue created today.
     // When found, post the new content as a comment on the existing issue instead of
     // creating a duplicate. This groups multiple same-day runs into a single issue.
-    // The max-count slot is NOT consumed when posting as a comment (processedCount is
-    // only incremented below, just before actual issue creation).
+    // The reserved max-count slot is released when posting as a comment.
     if (groupByDayEnabled && (closeOlderKey || workflowId)) {
       const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD (UTC)
       try {
@@ -554,6 +526,9 @@ async function main(config = {}) {
           core.info(`Group-by-day: found open issue #${todayIssue.number} created today (${today}) — posting new content as a comment`);
           const comment = await addIssueComment(githubClient, repoParts.owner, repoParts.repo, todayIssue.number, body);
           core.info(`Posted content as comment ${comment.html_url} on issue #${todayIssue.number}`);
+          // No issue was created (content was grouped into a comment), so free
+          // the reserved slot for subsequent create_issue calls.
+          processedCount--;
           return {
             success: true,
             grouped: true,
@@ -567,10 +542,6 @@ async function main(config = {}) {
         core.warning(`Group-by-day pre-check failed: ${getErrorMessage(error)} — proceeding with issue creation`);
       }
     }
-
-    // Increment processed count only when we are about to create an issue
-    // (group-by-day comment paths return above without consuming a slot)
-    processedCount++;
 
     core.info(`Creating issue in ${qualifiedItemRepo} with title: ${title}`);
     core.info(`Labels: ${labels.join(", ")}`);
@@ -815,4 +786,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main, createParentIssueTemplate, searchForExistingParent, getSubIssueCount, getIssuesToAssignCopilot, resetIssuesToAssignCopilot };
+module.exports = { main, createParentIssueTemplate, searchForExistingParent, getSubIssueCount };

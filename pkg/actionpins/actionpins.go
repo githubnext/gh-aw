@@ -92,11 +92,6 @@ var (
 	actionPinsOnce         sync.Once
 )
 
-// GetActionPins returns all loaded action pins sorted by version descending.
-func GetActionPins() []ActionPin {
-	return getActionPins()
-}
-
 func getActionPins() []ActionPin {
 	actionPinsOnce.Do(func() {
 		log.Print("Unmarshaling action pins from embedded JSON (first call, will be cached)")
@@ -107,23 +102,8 @@ func getActionPins() []ActionPin {
 			panic(fmt.Sprintf("failed to load action pins: %v", err))
 		}
 
-		mismatchCount := 0
-		for key, pin := range data.Entries {
-			if idx := strings.LastIndex(key, "@"); idx != -1 {
-				keyVersion := key[idx+1:]
-				if keyVersion != pin.Version {
-					mismatchCount++
-					shortSHA := pin.SHA
-					if len(pin.SHA) > 8 {
-						shortSHA = pin.SHA[:8]
-					}
-					log.Printf("WARNING: Key/version mismatch in action_pins.json: key=%s has version=%s but pin.Version=%s (sha=%s)",
-						key, keyVersion, pin.Version, shortSHA)
-				}
-			}
-		}
-		if mismatchCount > 0 {
-			log.Printf("Found %d key/version mismatches in action_pins.json", mismatchCount)
+		if n := countPinKeyMismatches(data.Entries); n > 0 {
+			log.Printf("Found %d key/version mismatches in action_pins.json", n)
 		}
 
 		pins := make([]ActionPin, 0, len(data.Entries))
@@ -141,23 +121,49 @@ func getActionPins() []ActionPin {
 		log.Printf("Successfully unmarshaled and sorted %d action pins from JSON", len(pins))
 		cachedActionPins = pins
 
-		byRepo := make(map[string][]ActionPin, len(pins))
-		for _, pin := range pins {
-			byRepo[pin.Repo] = append(byRepo[pin.Repo], pin)
-		}
-		for repo, repoPins := range byRepo {
-			sort.Slice(repoPins, func(i, j int) bool {
-				v1 := strings.TrimPrefix(repoPins[i].Version, "v")
-				v2 := strings.TrimPrefix(repoPins[j].Version, "v")
-				return semverutil.Compare(v1, v2) > 0
-			})
-			byRepo[repo] = repoPins
-		}
-		cachedActionPinsByRepo = byRepo
-		log.Printf("Built per-repo action pin index for %d repos", len(byRepo))
+		cachedActionPinsByRepo = buildByRepoIndex(pins)
+		log.Printf("Built per-repo action pin index for %d repos", len(cachedActionPinsByRepo))
 	})
 
 	return cachedActionPins
+}
+
+// countPinKeyMismatches returns the number of entries where the key version does not
+// match pin.Version, logging each mismatch for diagnostics.
+func countPinKeyMismatches(entries map[string]ActionPin) int {
+	count := 0
+	for key, pin := range entries {
+		if idx := strings.LastIndex(key, "@"); idx != -1 {
+			keyVersion := key[idx+1:]
+			if keyVersion != pin.Version {
+				count++
+				shortSHA := pin.SHA
+				if len(pin.SHA) > 8 {
+					shortSHA = pin.SHA[:8]
+				}
+				log.Printf("WARNING: Key/version mismatch in action_pins.json: key=%s has version=%s but pin.Version=%s (sha=%s)",
+					key, keyVersion, pin.Version, shortSHA)
+			}
+		}
+	}
+	return count
+}
+
+// buildByRepoIndex groups pins by repository and sorts each group by version descending.
+func buildByRepoIndex(pins []ActionPin) map[string][]ActionPin {
+	byRepo := make(map[string][]ActionPin, len(pins))
+	for _, pin := range pins {
+		byRepo[pin.Repo] = append(byRepo[pin.Repo], pin)
+	}
+	for repo, repoPins := range byRepo {
+		sort.Slice(repoPins, func(i, j int) bool {
+			v1 := strings.TrimPrefix(repoPins[i].Version, "v")
+			v2 := strings.TrimPrefix(repoPins[j].Version, "v")
+			return semverutil.Compare(v1, v2) > 0
+		})
+		byRepo[repo] = repoPins
+	}
+	return byRepo
 }
 
 // GetActionPinsByRepo returns the sorted (version-descending) list of action pins
@@ -232,6 +238,13 @@ func findCompatiblePin(pins []ActionPin, version string) (ActionPin, bool) {
 		}
 	}
 	return ActionPin{}, false
+}
+
+// initWarnings ensures ctx.Warnings is initialized, avoiding nil map writes.
+func initWarnings(ctx *PinContext) {
+	if ctx.Warnings == nil {
+		ctx.Warnings = make(map[string]bool)
+	}
 }
 
 func notifyResolutionFailure(ctx *PinContext, actionRepo, version string, errorType ResolutionErrorType) {
@@ -310,9 +323,7 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 			}
 
 			if !isAlreadySHA {
-				if ctx.Warnings == nil {
-					ctx.Warnings = make(map[string]bool)
-				}
+				initWarnings(ctx)
 				cacheKey := FormatCacheKey(actionRepo, version)
 				if !ctx.Warnings[cacheKey] {
 					warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
@@ -332,9 +343,7 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 		return FormatReference(actionRepo, version, version), nil
 	}
 
-	if ctx.Warnings == nil {
-		ctx.Warnings = make(map[string]bool)
-	}
+	initWarnings(ctx)
 	cacheKey := FormatCacheKey(actionRepo, version)
 	errorType := ResolutionErrorTypePinNotFound
 	if ctx.Resolver != nil {

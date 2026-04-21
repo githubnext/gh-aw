@@ -1779,3 +1779,30 @@ main,
         transition: none;
     }
 }
+
+@media (prefers-contrast: more) {
+  :focus-visible {
+    outline-width: 3px;
+  }
+
+  .site-title span,
+  .header-link {
+    text-decoration: underline;
+  }
+}
+
+@media (forced-colors: active) {
+  .site-title,
+  .header-link,
+  .gh-aw-video-container,
+  .gh-aw-video-caption {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .header-link:hover,
+  .site-title:hover {
+    forced-color-adjust: auto;
+  }
+}

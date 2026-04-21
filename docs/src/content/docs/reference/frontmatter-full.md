@@ -63,12 +63,11 @@ metadata:
   {}
 
 # Workflow specifications to import. Supports array form (list of paths) or object
-# form with 'aw' (agentic workflow paths) and 'apm-packages' (APM packages)
-# subfields. Path resolution: (1) relative paths (e.g., 'shared/file.md') are
-# resolved relative to the workflow's directory; (2) paths starting with
-# '.github/' or '/' are resolved from the repository root (repo-root-relative);
-# (3) paths matching 'owner/repo/path@ref' are fetched from GitHub at compile time
-# (cross-repo).
+# form with 'aw' (agentic workflow paths) subfield. Path resolution: (1) relative
+# paths (e.g., 'shared/file.md') are resolved relative to the workflow's
+# directory; (2) paths starting with '.github/' or '/' are resolved from the
+# repository root (repo-root-relative); (3) paths matching 'owner/repo/path@ref'
+# are fetched from GitHub at compile time (cross-repo).
 # (optional)
 # This field supports multiple formats (oneOf):
 
@@ -81,52 +80,12 @@ imports: []
   # Array items: undefined
 
 # Option 2: Object form of imports with 'aw' subfield for shared agentic workflow
-# paths and 'apm-packages' subfield for APM packages.
+# paths.
 imports:
   # Array of shared agentic workflow specifications to import. Format:
   # owner/repo/path@ref or relative paths.
   # (optional)
   aw: []
-
-  # APM package references to install. Supports array format (list of package slugs)
-  # or object format with packages and configuration fields. Replaces the top-level
-  # 'dependencies' field.
-  # (optional)
-  # This field supports multiple formats (oneOf):
-
-  # Option 1: Simple array of APM package references.
-  apm-packages: []
-    # Array items: APM package reference in the format 'org/repo' or
-    # 'org/repo/path/to/skill'
-
-  # Option 2: Object format with packages and optional configuration.
-  apm-packages:
-    # List of APM package references to install.
-    packages: []
-      # Array of APM package reference in the format 'org/repo' or
-      # 'org/repo/path/to/skill'
-
-    # If true, agent restore step clears primitive dirs before unpacking.
-    # (optional)
-    isolated: true
-
-    # GitHub App credentials for minting installation access tokens used by APM to
-    # access cross-org private repositories.
-    # (optional)
-    # This field supports multiple formats (anyOf):
-
-    # Option 1: undefined
-
-    # Option 2: undefined
-
-    # Environment variables to set on the APM pack step.
-    # (optional)
-    env:
-      {}
-
-    # GitHub token expression to authenticate APM with private package repositories.
-    # (optional)
-    github-token: "${{ secrets.GITHUB_TOKEN }}"
 
 # Optional list of additional workflow or action files that should be fetched
 # alongside this workflow when running 'gh aw add'. Entries are relative paths
@@ -1606,6 +1565,12 @@ engine:
   # should be the full path to the executable or a command available in PATH.
   # (optional)
   command: "example-value"
+
+  # Custom Node.js driver script filename for an agentic engine. This replaces the
+  # engine's built-in driver wrapper (when the engine supports one) and must end
+  # with .js, .cjs, or .mjs.
+  # (optional)
+  driver: "example-value"
 
   # Custom environment variables to pass to the AI engine, including secret
   # overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})
@@ -5588,6 +5553,12 @@ safe-outputs:
   # Actions expressions.
   # (optional)
   concurrency-group: "example-value"
+
+  # Explicit additional custom workflow jobs that the consolidated safe_outputs job
+  # should depend on.
+  # (optional)
+  needs: []
+    # Array of strings
 
   # Override the GitHub deployment environment for the safe-outputs job. When set,
   # this environment is used instead of the top-level environment: field. When not

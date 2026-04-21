@@ -66,6 +66,7 @@ const accessibilityLabel = title || caption || fallbackLabel
 const fallbackLinkLabel = accessibilityLabel
     ? `Download ${accessibilityLabel}`
     : 'Download this video'
+const loadingStrategy = autoStart ? 'eager' : 'lazy'
 ---
 
 <div class="gh-aw-video-wrapper" style={`max-width: ${maxWidth};`}>
@@ -79,6 +80,7 @@ const fallbackLinkLabel = accessibilityLabel
             muted={silenced}
             poster={posterPath}
             preload="metadata"
+            loading={loadingStrategy}
             title={title}
             aria-label={accessibilityLabel}
         >
