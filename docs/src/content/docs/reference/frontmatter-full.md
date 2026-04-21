@@ -64,11 +64,10 @@ metadata:
 
 # Workflow specifications to import. Supports array form (list of paths) or object
 # form with 'aw' (agentic workflow paths) subfield. Path resolution: (1) relative
-# paths (e.g., 'shared/file.md') are
-# resolved relative to the workflow's directory; (2) paths starting with
-# '.github/' or '/' are resolved from the repository root (repo-root-relative);
-# (3) paths matching 'owner/repo/path@ref' are fetched from GitHub at compile time
-# (cross-repo).
+# paths (e.g., 'shared/file.md') are resolved relative to the workflow's
+# directory; (2) paths starting with '.github/' or '/' are resolved from the
+# repository root (repo-root-relative); (3) paths matching 'owner/repo/path@ref'
+# are fetched from GitHub at compile time (cross-repo).
 # (optional)
 # This field supports multiple formats (oneOf):
 
@@ -1566,6 +1565,12 @@ engine:
   # should be the full path to the executable or a command available in PATH.
   # (optional)
   command: "example-value"
+
+  # Custom Node.js driver script filename for an agentic engine. This replaces the
+  # engine's built-in driver wrapper (when the engine supports one) and must end
+  # with .js, .cjs, or .mjs.
+  # (optional)
+  driver: "example-value"
 
   # Custom environment variables to pass to the AI engine, including secret
   # overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})
@@ -5548,6 +5553,12 @@ safe-outputs:
   # Actions expressions.
   # (optional)
   concurrency-group: "example-value"
+
+  # Explicit additional custom workflow jobs that the consolidated safe_outputs job
+  # should depend on.
+  # (optional)
+  needs: []
+    # Array of strings
 
   # Override the GitHub deployment environment for the safe-outputs job. When set,
   # this environment is used instead of the top-level environment: field. When not
