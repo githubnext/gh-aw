@@ -42,17 +42,7 @@ function createLogParserFormatters(deps) {
   function generateConversationMarkdown(logEntries, options) {
     const { formatToolCallback, formatInitCallback, summaryTracker } = options;
 
-    const toolUsePairs = new Map();
-
-    for (const entry of logEntries) {
-      if (entry.type === "user" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (content.type === "tool_result" && content.tool_use_id) {
-            toolUsePairs.set(content.tool_use_id, content);
-          }
-        }
-      }
-    }
+    const toolUsePairs = collectToolUsePairs(logEntries);
 
     let markdown = "";
     let sizeLimitReached = false;
