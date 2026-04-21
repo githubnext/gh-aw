@@ -356,12 +356,12 @@ function createReviewBuffer() {
       }
 
       const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-      const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
-      if (!workflowId && !callerWorkflowId) {
+      const workflowCallId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
+      if (!workflowId && !workflowCallId) {
         core.warning("supersede-older-reviews is enabled but neither GH_AW_WORKFLOW_ID nor GH_AW_CALLER_WORKFLOW_ID is set. Skipping stale review dismissal.");
         return;
       }
-      const workflowCallMarker = callerWorkflowId ? generateWorkflowCallIdMarker(callerWorkflowId) : "";
+      const workflowCallMarker = workflowCallId ? generateWorkflowCallIdMarker(workflowCallId) : "";
 
       /** @type {Array<{id: number, state?: string, user?: {login?: string, type?: string}, body?: string}>} */
       const reviews = [];

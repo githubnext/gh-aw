@@ -616,7 +616,7 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
     });
 
-    it("should dismiss older same-workflow-call REQUEST_CHANGES reviews when supersede mode is enabled", async () => {
+    it("should dismiss older reviews matching workflow-call-id when supersede mode is enabled", async () => {
       const previousWorkflowId = process.env.GH_AW_WORKFLOW_ID;
       const previousCallerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID;
       process.env.GH_AW_WORKFLOW_ID = "test-workflow";
