@@ -71,7 +71,7 @@
       ]
     },
     "imports": {
-      "description": "Workflow specifications to import. Supports array form (list of paths) or object form with 'aw' (agentic workflow paths) and 'apm-packages' (APM packages) subfields. Path resolution: (1) relative paths (e.g., 'shared/file.md') are resolved relative to the workflow's directory; (2) paths starting with '.github/' or '/' are resolved from the repository root (repo-root-relative); (3) paths matching 'owner/repo/path@ref' are fetched from GitHub at compile time (cross-repo).",
+      "description": "Workflow specifications to import. Supports array form (list of paths) or object form with 'aw' (agentic workflow paths) subfield. Path resolution: (1) relative paths (e.g., 'shared/file.md') are resolved relative to the workflow's directory; (2) paths starting with '.github/' or '/' are resolved from the repository root (repo-root-relative); (3) paths matching 'owner/repo/path@ref' are fetched from GitHub at compile time (cross-repo).",
       "oneOf": [
         {
           "type": "array",
@@ -201,7 +201,7 @@
         },
         {
           "type": "object",
-          "description": "Object form of imports with 'aw' subfield for shared agentic workflow paths and 'apm-packages' subfield for APM packages.",
+          "description": "Object form of imports with 'aw' subfield for shared agentic workflow paths.",
           "additionalProperties": false,
           "properties": {
             "aw": {
@@ -329,57 +329,6 @@
                   }
                 ]
               }
-            },
-            "apm-packages": {
-              "description": "APM package references to install. Supports array format (list of package slugs) or object format with packages and configuration fields. Replaces the top-level 'dependencies' field.",
-              "oneOf": [
-                {
-                  "type": "array",
-                  "description": "Simple array of APM package references.",
-                  "items": {
-                    "type": "string",
-                    "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
-                    "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
-                  }
-                },
-                {
-                  "type": "object",
-                  "description": "Object format with packages and optional configuration.",
-                  "properties": {
-                    "packages": {
-                      "type": "array",
-                      "description": "List of APM package references to install.",
-                      "items": {
-                        "type": "string",
-                        "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
-                        "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
-                      }
-                    },
-                    "isolated": {
-                      "type": "boolean",
-                      "description": "If true, agent restore step clears primitive dirs before unpacking."
-                    },
-                    "github-app": {
-                      "$ref": "#/$defs/github_app",
-                      "description": "GitHub App credentials for minting installation access tokens used by APM to access cross-org private repositories."
-                    },
-                    "env": {
-                      "type": "object",
-                      "description": "Environment variables to set on the APM pack step.",
-                      "additionalProperties": {
-                        "type": "string"
-                      }
-                    },
-                    "github-token": {
-                      "type": "string",
-                      "description": "GitHub token expression to authenticate APM with private package repositories.",
-                      "examples": ["${{ secrets.MY_TOKEN }}", "${{ secrets.GH_AW_GITHUB_TOKEN }}"]
-                    }
-                  },
-                  "required": ["packages"],
-                  "additionalProperties": false
-                }
-              ]
             }
           }
         }
@@ -398,17 +347,7 @@
           }
         ],
         {
-          "aw": ["shared/common-tools.md", "shared/mcp/tavily.md"],
-          "apm-packages": ["microsoft/apm-sample-package"]
-        },
-        {
-          "apm-packages": {
-            "packages": ["microsoft/apm-sample-package"],
-            "github-app": {
-              "client-id": "${{ vars.APP_ID }}",
-              "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
-            }
-          }
+          "aw": ["shared/common-tools.md", "shared/mcp/tavily.md"]
         }
       ]
     },
