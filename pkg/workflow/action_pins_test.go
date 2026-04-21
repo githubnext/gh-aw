@@ -363,11 +363,11 @@ func TestGetActionPinsSorting(t *testing.T) {
 // TestGetActionPinByRepo tests the getActionPinByRepo function
 func TestGetActionPinByRepo(t *testing.T) {
 	tests := []struct {
-		repo         string
-		expectExists bool
-		expectRepo   string
-		expectVer    string
-		expectVerPre string
+		repo            string
+		expectExists    bool
+		expectRepo      string
+		expectVer       string
+		expectVerPrefix string
 	}{
 		{
 			repo:         "actions/checkout",
@@ -376,10 +376,10 @@ func TestGetActionPinByRepo(t *testing.T) {
 			expectVer:    "v6.0.2",
 		},
 		{
-			repo:         "actions/setup-node",
-			expectExists: true,
-			expectRepo:   "actions/setup-node",
-			expectVerPre: "v6.",
+			repo:            "actions/setup-node",
+			expectExists:    true,
+			expectRepo:      "actions/setup-node",
+			expectVerPrefix: "v6.",
 		},
 		{
 			repo:         "unknown/action",
@@ -406,8 +406,8 @@ func TestGetActionPinByRepo(t *testing.T) {
 				if tt.expectVer != "" && pin.Version != tt.expectVer {
 					t.Errorf("getActionPinByRepo(%s) version = %s, want %s", tt.repo, pin.Version, tt.expectVer)
 				}
-				if tt.expectVerPre != "" && !strings.HasPrefix(pin.Version, tt.expectVerPre) {
-					t.Errorf("getActionPinByRepo(%s) version = %s, want prefix %s", tt.repo, pin.Version, tt.expectVerPre)
+				if tt.expectVerPrefix != "" && !strings.HasPrefix(pin.Version, tt.expectVerPrefix) {
+					t.Errorf("getActionPinByRepo(%s) version = %s, want prefix %s", tt.repo, pin.Version, tt.expectVerPrefix)
 				}
 				if !isValidSHA(pin.SHA) {
 					t.Errorf("getActionPinByRepo(%s) has invalid SHA: %s", tt.repo, pin.SHA)
