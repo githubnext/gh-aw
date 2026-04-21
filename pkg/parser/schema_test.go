@@ -436,6 +436,7 @@ func TestGetSafeOutputTypeKeys(t *testing.T) {
 		"jobs",
 		"runs-on",
 		"messages",
+		"needs",
 	}
 
 	for _, meta := range metaFields {
