@@ -5,6 +5,7 @@ const { randomBytes } = require("crypto");
 const fs = require("fs");
 const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * send_otlp_span.cjs
@@ -68,17 +69,6 @@ function buildAttr(key, value) {
     return { key, value: { intValue: value } };
   }
   return { key, value: { stringValue: String(value) } };
-}
-
-/**
- * Convert an error entry from agent_output.json to a plain string message.
- * Handles both structured error objects (with a `message` field) and raw values.
- *
- * @param {unknown} e
- * @returns {string}
- */
-function errorToString(e) {
-  return e && typeof e.message === "string" ? e.message : String(e);
 }
 
 // ---------------------------------------------------------------------------
@@ -720,7 +710,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const agentOutput = readJSONIfExists("/tmp/gh-aw/agent_output.json") || {};
   const outputErrors = Array.isArray(agentOutput.errors) ? agentOutput.errors : [];
   const outputItems = Array.isArray(agentOutput.items) ? agentOutput.items : [];
-  const errorMessages = outputErrors.map(errorToString).filter(Boolean).slice(0, 5);
+  const errorMessages = outputErrors.map(getErrorMessage).filter(Boolean).slice(0, 5);
 
   if (isAgentFailure && errorMessages.length > 0) {
     statusMessage = `agent ${agentConclusion}: ${errorMessages[0]}`.slice(0, 256);
@@ -819,7 +809,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
     const errorTimeNano = toNanoString(eventTimeMs);
     return outputErrors
-      .map(errorToString)
+      .map(getErrorMessage)
       .filter(Boolean)
       .map(msg => {
         // Extract colon-prefixed type when available ("push_to_pull_request_branch:...")
