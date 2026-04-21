@@ -2327,7 +2327,7 @@ This section provides complete definitions for all remaining safe output types. 
 2. **Setup Extraction**: Pre-agent setup extracts marker content from GitHub comments into `/tmp/gh-aw/comment-memory/<memory_id>.md`.
 3. **File-Based Editing**: Agent updates memory by editing files only; no direct `comment_memory` tool call is required.
 4. **Automatic Sync**: Processor reads `*.md` files and upserts corresponding managed comments after agent execution.
-5. **Temporary ID Rewrite**: If temporary IDs (workflow-scoped placeholders such as `aw_abc123`) are resolved during processing, comment-memory content MUST be rewritten using the resolved IDs before final upsert.
+5. **Temporary ID Rewrite**: If temporary IDs (workflow-run-scoped placeholders prefixed with `aw_`, such as `aw_abc123`) are resolved during processing, comment-memory content MUST be rewritten using the resolved IDs before final upsert.
 6. **Precedence Rule**: If both an explicit `comment_memory` operation and a file-backed entry exist for the same `memory_id`, the explicit operation takes precedence.
 
 **Configuration Parameters**:
@@ -2346,7 +2346,7 @@ This section provides complete definitions for all remaining safe output types. 
 - Managed comment scan MUST be bounded by a maximum page limit.
 - Body content MUST undergo sanitization and comment size/mention/link limit validation before upsert.
 - Cross-repository targets MUST be validated against `allowed-repos`.
-- Only content within managed marker tags is treated as editable memory; footer/provenance text MUST NOT be imported into editable files.
+- Only content within managed marker tags is treated as editable memory; footer/provenance text MUST NOT be imported into editable files. For example, in `<gh-aw-comment-memory id="default">MEMORY</gh-aw-comment-memory>\n\n<!-- provenance footer -->`, only `MEMORY` is editable/imported.
 
 **Required Permissions**:
 
