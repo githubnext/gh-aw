@@ -10,8 +10,9 @@ import (
 var codexMCPLog = logger.New("workflow:codex_mcp")
 
 const (
-	codexOpenAIProxyProviderID      = "openai-proxy"
-	codexOpenAIProxyProviderName    = "OpenAI AWF proxy"
+	codexOpenAIProxyProviderID   = "openai-proxy"
+	codexOpenAIProxyProviderName = "OpenAI AWF proxy"
+	// AWF's api-proxy sidecar is exposed inside the sandbox network at 172.30.0.30:10000 for OpenAI traffic.
 	codexOpenAIProxyProviderBaseURL = "http://172.30.0.30:10000"
 )
 

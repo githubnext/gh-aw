@@ -312,8 +312,8 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 
 func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 	engine := NewCodexEngine()
-	tools := map[string]any{"github": map[string]any{}}
-	mcpTools := []string{"github"}
+	tools := map[string]any{}
+	mcpTools := []string{}
 
 	t.Run("injects openai-proxy provider when firewall is enabled", func(t *testing.T) {
 		var yaml strings.Builder
