@@ -4,7 +4,6 @@ import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
 const { main: createDiscussionMain } = require("./create_discussion.cjs");
-const { resetIssuesToAssignCopilot } = require("./create_issue.cjs");
 
 describe("create_discussion fallback with close_older_discussions", () => {
   let mockGithub;
@@ -16,9 +15,6 @@ describe("create_discussion fallback with close_older_discussions", () => {
   beforeEach(() => {
     // Save original environment
     originalEnv = { ...process.env };
-
-    // Reset copilot assignment tracking
-    resetIssuesToAssignCopilot();
 
     // Mock GitHub API
     mockGithub = {
@@ -258,8 +254,6 @@ describe("create_discussion double-posting prevention", () => {
 
   beforeEach(() => {
     originalEnv = { ...process.env };
-
-    resetIssuesToAssignCopilot();
 
     // Base mock — each test overrides graphql as needed.
     mockGithub = {

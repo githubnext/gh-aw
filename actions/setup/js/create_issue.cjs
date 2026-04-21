@@ -1,24 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-/**
- * Get the list of issues that need copilot assignment.
- * Assignment now happens inline, so this queue is always empty.
- * Kept for backward-compatible tests and no-op downstream wiring.
- * @returns {Array<string>} Always empty array
- */
-function getIssuesToAssignCopilot() {
-  return [];
-}
-
-/**
- * Reset the list of issues that need copilot assignment.
- * No-op kept for backward-compatible tests.
- */
-function resetIssuesToAssignCopilot() {
-  // Intentionally empty: there is no mutable queue to reset.
-}
-
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
@@ -804,4 +786,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main, createParentIssueTemplate, searchForExistingParent, getSubIssueCount, getIssuesToAssignCopilot, resetIssuesToAssignCopilot };
+module.exports = { main, createParentIssueTemplate, searchForExistingParent, getSubIssueCount };
