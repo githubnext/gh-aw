@@ -362,56 +362,59 @@ function createReviewBuffer() {
         return;
       }
       const workflowCallMarker = workflowCallId ? generateWorkflowCallIdMarker(workflowCallId) : "";
-
-      /** @type {Array<{id: number, state?: string, user?: {login?: string, type?: string}, body?: string}>} */
-      const reviews = [];
-      let page = 1;
-      const perPage = 100;
-      while (page <= MAX_SUPERSEDE_REVIEW_PAGES) {
-        const { data } = await github.rest.pulls.listReviews({
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          pull_number: pullRequestNumber,
-          per_page: perPage,
-          page,
-        });
-
-        if (!Array.isArray(data) || data.length === 0) {
-          break;
-        }
-        reviews.push(...data);
-        if (data.length < perPage) {
-          break;
-        }
-        page++;
-      }
-      if (page > MAX_SUPERSEDE_REVIEW_PAGES) {
-        core.warning(`supersede-older-reviews reached pagination safety limit (${MAX_SUPERSEDE_REVIEW_PAGES} pages).`);
-      }
-
-      const staleReviews = reviews.filter(review => {
-        if (!review || review.id === currentReviewId) return false;
-        if (review.state !== "CHANGES_REQUESTED") return false;
-        if (review.user?.type !== "Bot") return false;
-        if (workflowCallMarker) {
-          return review.body?.includes(workflowCallMarker) || false;
-        }
-        return matchesWorkflowId(review.body, workflowId);
-      });
-
-      for (const staleReview of staleReviews) {
-        try {
-          await github.rest.pulls.dismissReview({
+      try {
+        /** @type {Array<{id: number, state?: string, user?: {login?: string, type?: string}, body?: string}>} */
+        const reviews = [];
+        let page = 1;
+        const perPage = 100;
+        while (page <= MAX_SUPERSEDE_REVIEW_PAGES) {
+          const { data } = await github.rest.pulls.listReviews({
             owner: repoParts.owner,
             repo: repoParts.repo,
             pull_number: pullRequestNumber,
-            review_id: staleReview.id,
-            message: SUPERSEDE_REVIEW_MESSAGE,
+            per_page: perPage,
+            page,
           });
-          core.info(`Dismissed superseded review #${staleReview.id}`);
-        } catch (dismissError) {
-          core.warning(`Failed to dismiss stale review #${staleReview.id}: ${getErrorMessage(dismissError)}`);
+
+          if (!Array.isArray(data) || data.length === 0) {
+            break;
+          }
+          reviews.push(...data);
+          if (data.length < perPage) {
+            break;
+          }
+          page++;
         }
+        if (page > MAX_SUPERSEDE_REVIEW_PAGES) {
+          core.warning(`supersede-older-reviews reached pagination safety limit (${MAX_SUPERSEDE_REVIEW_PAGES} pages).`);
+        }
+
+        const staleReviews = reviews.filter(review => {
+          if (!review || review.id === currentReviewId) return false;
+          if (review.state !== "CHANGES_REQUESTED") return false;
+          if (review.user?.type !== "Bot") return false;
+          if (workflowCallMarker) {
+            return review.body?.includes(workflowCallMarker) || false;
+          }
+          return matchesWorkflowId(review.body, workflowId);
+        });
+
+        for (const staleReview of staleReviews) {
+          try {
+            await github.rest.pulls.dismissReview({
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              pull_number: pullRequestNumber,
+              review_id: staleReview.id,
+              message: SUPERSEDE_REVIEW_MESSAGE,
+            });
+            core.info(`Dismissed superseded review #${staleReview.id}`);
+          } catch (dismissError) {
+            core.warning(`Failed to dismiss stale review #${staleReview.id}: ${getErrorMessage(dismissError)}`);
+          }
+        }
+      } catch (listOrSupersedeError) {
+        core.warning(`Failed to supersede older reviews: ${getErrorMessage(listOrSupersedeError)}`);
       }
     }
 

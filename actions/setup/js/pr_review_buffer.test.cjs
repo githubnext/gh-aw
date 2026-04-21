@@ -711,6 +711,41 @@ describe("pr_review_buffer (factory pattern)", () => {
       }
     });
 
+    it("should warn and continue when stale review listing fails", async () => {
+      const previousWorkflowId = process.env.GH_AW_WORKFLOW_ID;
+      process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      try {
+        buffer.setSupersedeOlderReviews(true);
+        buffer.setReviewMetadata("Updated review", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: {
+            id: 902,
+            html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-902",
+          },
+        });
+        mockGithub.rest.pulls.listReviews.mockRejectedValue(new Error("rate limited"));
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to supersede older reviews"));
+        expect(mockGithub.rest.pulls.dismissReview).not.toHaveBeenCalled();
+      } finally {
+        if (previousWorkflowId === undefined) {
+          delete process.env.GH_AW_WORKFLOW_ID;
+        } else {
+          process.env.GH_AW_WORKFLOW_ID = previousWorkflowId;
+        }
+      }
+    });
+
     it("should handle API errors gracefully", async () => {
       buffer.addComment({ path: "test.js", line: 1, body: "comment" });
       buffer.setReviewContext({

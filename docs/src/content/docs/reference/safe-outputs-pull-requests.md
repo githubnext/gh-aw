@@ -181,7 +181,7 @@ Submits a consolidated pull request review. Inline comments buffered by `create-
 safe-outputs:
   submit-pull-request-review:
     max: 1
-    allowed-events: [COMMENT]      # preferred default
+    allowed-events: [COMMENT, REQUEST_CHANGES]  # include REQUEST_CHANGES when superseding older blocking reviews
     supersede-older-reviews: true  # dismiss older same-workflow REQUEST_CHANGES reviews after replacement
     target: "triggering"           # or "*", or explicit PR number
     target-repo: "owner/repo"      # cross-repository
