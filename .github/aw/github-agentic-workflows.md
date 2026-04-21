@@ -527,6 +527,26 @@ The YAML frontmatter supports these fields:
   - `web-fetch:` - Web content fetching tools
   - `web-search:` - Web search tools
   - `bash:` - Shell command tools
+    - **Bash allowlist decision rule:**
+      - **PR-triggered workflows** processing **untrusted input** (issue/PR body, comment text, user-provided filenames): use a **narrow allowlist** (for example: `[find, cat, grep, wc, jq]`). This limits blast radius if shell injection attempts are embedded in untrusted content.
+      - **`schedule` or `workflow_dispatch` workflows** with **no untrusted input** (only trusted API data or internal state): `["*"]` is acceptable.
+      - **Rule of thumb**: If the workflow reads issue/PR bodies, comment text, or other user-provided strings, use a narrow list. If it only reads trusted API responses or workflow artifacts, `["*"]` is acceptable.
+    - **Examples:**
+
+      ```yaml
+      # PR-triggered workflow reading untrusted user text
+      on:
+        pull_request:
+      tools:
+        bash: [find, cat, grep, wc, jq]
+
+      # Internal scheduled workflow reading only trusted/internal data
+      on:
+        schedule:
+          - cron: "0 * * * *"
+      tools:
+        bash: ["*"]
+      ```
   - `playwright:` - Browser automation tools
   - Custom tool names for MCP servers
   - `timeout:` - Per-operation timeout in seconds for all tool and MCP server calls (integer or GitHub Actions expression). Defaults vary by engine (Claude: 60 s, Codex: 120 s).
