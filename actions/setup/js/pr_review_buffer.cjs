@@ -22,6 +22,9 @@
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { matchesWorkflowId } = require("./generate_footer.cjs");
+
+const SUPERSCEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflow.";
 
 /**
  * @typedef {Object} BufferedComment
@@ -71,6 +74,9 @@ function createReviewBuffer() {
 
   /** @type {boolean} Staged mode: when true, preview review without submitting (set via setStaged(), reset on buffer clear) */
   let stagedMode = false;
+
+  /** @type {boolean} When true, dismiss older same-workflow REQUEST_CHANGES reviews after posting a replacement review. */
+  let supersedeOlderReviews = false;
   /**
    * Add a validated comment to the buffer.
    * Rejects comments targeting a different repo/PR than the first comment.
@@ -169,6 +175,17 @@ function createReviewBuffer() {
     stagedMode = value;
     if (value) {
       core.info("PR review buffer staged mode enabled");
+    }
+  }
+
+  /**
+   * Enable/disable superseding older same-workflow REQUEST_CHANGES reviews.
+   * @param {boolean} value - Whether supersede behavior is enabled
+   */
+  function setSupersedeOlderReviews(value) {
+    supersedeOlderReviews = value === true;
+    if (supersedeOlderReviews) {
+      core.info("PR review supersede mode enabled");
     }
   }
 
@@ -322,8 +339,71 @@ function createReviewBuffer() {
       requestParams.body = body;
     }
 
+    /**
+     * Dismiss older REQUEST_CHANGES reviews from the same workflow after posting a replacement review.
+     * This is best-effort: failures are logged as warnings and do not fail the current review submission.
+     * @param {number} currentReviewID
+     */
+    async function maybeSupersedeOlderReviews(currentReviewID) {
+      if (!supersedeOlderReviews) {
+        return;
+      }
+
+      const workflowID = process.env.GH_AW_WORKFLOW_ID || "";
+      if (!workflowID) {
+        core.warning("supersede-older-reviews is enabled but GH_AW_WORKFLOW_ID is not set. Skipping stale review dismissal.");
+        return;
+      }
+
+      /** @type {any[]} */
+      const reviews = [];
+      let page = 1;
+      const perPage = 100;
+      while (true) {
+        const { data } = await github.rest.pulls.listReviews({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          pull_number: pullRequestNumber,
+          per_page: perPage,
+          page,
+        });
+
+        if (!Array.isArray(data) || data.length === 0) {
+          break;
+        }
+        reviews.push(...data);
+        if (data.length < perPage) {
+          break;
+        }
+        page++;
+      }
+
+      const staleReviews = reviews.filter(review => {
+        if (!review || review.id === currentReviewID) return false;
+        if (review.state !== "CHANGES_REQUESTED") return false;
+        if (review.user?.login !== "github-actions[bot]") return false;
+        return matchesWorkflowId(review.body, workflowID);
+      });
+
+      for (const staleReview of staleReviews) {
+        try {
+          await github.rest.pulls.dismissReview({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            pull_number: pullRequestNumber,
+            review_id: staleReview.id,
+            message: SUPERSCEDE_REVIEW_MESSAGE,
+          });
+          core.info(`Dismissed superseded review #${staleReview.id}`);
+        } catch (dismissError) {
+          core.warning(`Failed to dismiss stale review #${staleReview.id}: ${getErrorMessage(dismissError)}`);
+        }
+      }
+    }
+
     try {
       const { data: review } = await github.rest.pulls.createReview(requestParams);
+      await maybeSupersedeOlderReviews(review.id);
 
       core.info(`Created PR review #${review.id}: ${review.html_url}`);
 
@@ -348,6 +428,7 @@ function createReviewBuffer() {
         try {
           requestParams.event = "COMMENT";
           const { data: review } = await github.rest.pulls.createReview(requestParams);
+          await maybeSupersedeOlderReviews(review.id);
           core.info(`Created PR review #${review.id}: ${review.html_url}`);
           return {
             success: true,
@@ -375,6 +456,7 @@ function createReviewBuffer() {
           const bodyOnlyParams = { ...requestParams };
           delete bodyOnlyParams.comments;
           const { data: review } = await github.rest.pulls.createReview(bodyOnlyParams);
+          await maybeSupersedeOlderReviews(review.id);
           core.info(`Created PR review #${review.id} (body-only fallback): ${review.html_url}`);
           return {
             success: true,
@@ -423,6 +505,7 @@ function createReviewBuffer() {
     setFooterMode,
     setIncludeFooter: setFooterMode, // Backward compatibility alias
     setStaged,
+    setSupersedeOlderReviews,
     hasBufferedComments,
     hasReviewMetadata,
     getBufferedCount,

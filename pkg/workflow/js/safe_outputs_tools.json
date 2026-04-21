@@ -413,7 +413,7 @@
   },
   {
     "name": "submit_pull_request_review",
-    "description": "Submit a pull request review with a status decision. All create_pull_request_review_comment outputs are automatically collected and included as inline comments in this review. Use APPROVE to approve the PR, REQUEST_CHANGES to request changes, or COMMENT for general feedback without a decision. If you don't call this tool, review comments are still submitted as a COMMENT review.",
+    "description": "Submit a pull request review with a status decision. All create_pull_request_review_comment outputs are automatically collected and included as inline comments in this review. Preferred default: use COMMENT for informative, non-blocking bot feedback. Use REQUEST_CHANGES only when merge-blocking is intentionally required. If you don't call this tool, review comments are still submitted as a COMMENT review.",
     "inputSchema": {
       "type": "object",
       "properties": {

@@ -9,6 +9,7 @@ const { resolveTarget, isStagedMode, logStagedPreviewInfo } = require("./safe_ou
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "submit_pull_request_review";
@@ -30,6 +31,7 @@ async function main(config = {}) {
   const maxCount = config.max || 1;
   const targetConfig = config.target || "triggering";
   const buffer = config._prReviewBuffer;
+  const supersedeOlderReviews = parseBoolTemplatable(config.supersede_older_reviews, false);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
 
@@ -58,6 +60,12 @@ async function main(config = {}) {
   }
   if (isStagedMode(config)) {
     logStagedPreviewInfo("PR review will be previewed without being submitted");
+  }
+  if (supersedeOlderReviews) {
+    core.warning("submit_pull_request_review: supersede-older-reviews is best-effort. Prefer allowed-events: [COMMENT] by default and use REQUEST_CHANGES only when merge-blocking is required.");
+    if (typeof buffer.setSupersedeOlderReviews === "function") {
+      buffer.setSupersedeOlderReviews(true);
+    }
   }
 
   let processedCount = 0;

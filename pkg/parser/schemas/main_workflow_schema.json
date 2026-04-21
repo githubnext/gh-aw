@@ -6052,6 +6052,10 @@
                   "description": "Optional list of allowed review event types. If omitted, all event types (APPROVE, COMMENT, REQUEST_CHANGES) are allowed. Use this to restrict the agent to specific event types, e.g. [COMMENT, REQUEST_CHANGES] to prevent approvals.",
                   "minItems": 1
                 },
+                "supersede-older-reviews": {
+                  "type": "boolean",
+                  "description": "When true, after posting a replacement review this workflow dismisses older REQUEST_CHANGES reviews previously posted by the same workflow on the same pull request. This is best-effort and requires workflow markers in prior review bodies."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."

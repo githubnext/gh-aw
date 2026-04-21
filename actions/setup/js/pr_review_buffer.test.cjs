@@ -13,6 +13,8 @@ const mockGithub = {
   rest: {
     pulls: {
       createReview: vi.fn(),
+      listReviews: vi.fn(),
+      dismissReview: vi.fn(),
     },
   },
 };
@@ -572,6 +574,92 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain("Some other error");
       expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+    });
+
+    it("should dismiss older same-workflow REQUEST_CHANGES reviews when supersede mode is enabled", async () => {
+      const previousWorkflowId = process.env.GH_AW_WORKFLOW_ID;
+      process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      try {
+        buffer.setSupersedeOlderReviews(true);
+        buffer.setReviewMetadata("Updated review", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: {
+            id: 900,
+            html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-900",
+          },
+        });
+        mockGithub.rest.pulls.listReviews.mockResolvedValue({
+          data: [
+            { id: 100, state: "CHANGES_REQUESTED", user: { login: "github-actions[bot]" }, body: "<!-- gh-aw-workflow-id: test-workflow -->\nOld blocking review" },
+            { id: 101, state: "CHANGES_REQUESTED", user: { login: "some-other-bot" }, body: "<!-- gh-aw-workflow-id: test-workflow -->" },
+            { id: 102, state: "APPROVED", user: { login: "github-actions[bot]" }, body: "<!-- gh-aw-workflow-id: test-workflow -->" },
+          ],
+        });
+        mockGithub.rest.pulls.dismissReview.mockResolvedValue({ data: {} });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(mockGithub.rest.pulls.listReviews).toHaveBeenCalledTimes(1);
+        expect(mockGithub.rest.pulls.dismissReview).toHaveBeenCalledTimes(1);
+        expect(mockGithub.rest.pulls.dismissReview).toHaveBeenCalledWith({
+          owner: "owner",
+          repo: "repo",
+          pull_number: 42,
+          review_id: 100,
+          message: "Superseded by updated review from same workflow.",
+        });
+      } finally {
+        if (previousWorkflowId === undefined) {
+          delete process.env.GH_AW_WORKFLOW_ID;
+        } else {
+          process.env.GH_AW_WORKFLOW_ID = previousWorkflowId;
+        }
+      }
+    });
+
+    it("should warn and continue when stale review dismissal fails", async () => {
+      const previousWorkflowId = process.env.GH_AW_WORKFLOW_ID;
+      process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      try {
+        buffer.setSupersedeOlderReviews(true);
+        buffer.setReviewMetadata("Updated review", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: {
+            id: 901,
+            html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-901",
+          },
+        });
+        mockGithub.rest.pulls.listReviews.mockResolvedValue({
+          data: [{ id: 200, state: "CHANGES_REQUESTED", user: { login: "github-actions[bot]" }, body: "<!-- gh-aw-workflow-id: test-workflow -->" }],
+        });
+        mockGithub.rest.pulls.dismissReview.mockRejectedValue(new Error("permission denied"));
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to dismiss stale review #200"));
+      } finally {
+        if (previousWorkflowId === undefined) {
+          delete process.env.GH_AW_WORKFLOW_ID;
+        } else {
+          process.env.GH_AW_WORKFLOW_ID = previousWorkflowId;
+        }
+      }
     });
 
     it("should handle API errors gracefully", async () => {
