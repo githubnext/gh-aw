@@ -310,6 +310,56 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 	}
 }
 
+func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
+	engine := NewCodexEngine()
+	tools := map[string]any{"github": map[string]any{}}
+	mcpTools := []string{"github"}
+
+	t.Run("injects openai-proxy provider when firewall is enabled", func(t *testing.T) {
+		var yaml strings.Builder
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		}
+
+		if err := engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+		}
+
+		result := yaml.String()
+		expectedLines := []string{
+			"model_provider = \"openai-proxy\"",
+			"[model_providers.openai-proxy]",
+			"name = \"OpenAI AWF proxy\"",
+			"base_url = \"http://172.30.0.30:10000\"",
+			"env_key = \"OPENAI_API_KEY\"",
+			"supports_websockets = false",
+		}
+
+		for _, expected := range expectedLines {
+			if !strings.Contains(result, expected) {
+				t.Errorf("Expected MCP config to contain %q, got:\n%s", expected, result)
+			}
+		}
+	})
+
+	t.Run("does not inject openai-proxy provider when firewall is disabled", func(t *testing.T) {
+		var yaml strings.Builder
+		workflowData := &WorkflowData{Name: "test-workflow"}
+
+		if err := engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+		}
+
+		result := yaml.String()
+		if strings.Contains(result, "model_provider = \"openai-proxy\"") {
+			t.Errorf("Did not expect openai-proxy provider when firewall is disabled, got:\n%s", result)
+		}
+	})
+}
+
 func TestCodexEngineExecutionAddsMountedMCPCLIPathSetup(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{

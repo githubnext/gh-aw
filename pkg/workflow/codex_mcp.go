@@ -9,6 +9,12 @@ import (
 
 var codexMCPLog = logger.New("workflow:codex_mcp")
 
+const (
+	codexOpenAIProxyProviderID      = "openai-proxy"
+	codexOpenAIProxyProviderName    = "OpenAI AWF proxy"
+	codexOpenAIProxyProviderBaseURL = "http://172.30.0.30:10000"
+)
+
 // RenderMCPConfig generates MCP server configuration for Codex
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	if codexMCPLog.Enabled() {
@@ -118,6 +124,9 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	shellPolicyDelimiter := GenerateHeredocDelimiterFromSeed("CODEX_SHELL_POLICY", workflowData.FrontmatterHash)
 	yaml.WriteString("          cat > \"/tmp/gh-aw/mcp-config/config.toml\" << " + shellPolicyDelimiter + "\n")
 	e.renderShellEnvironmentPolicyToml(yaml, tools, mcpTools, "          ")
+	if isFirewallEnabled(workflowData) {
+		e.renderOpenAIProxyProviderToml(yaml, "          ")
+	}
 	yaml.WriteString("          " + shellPolicyDelimiter + "\n")
 	yaml.WriteString("          cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"\n")
 	if workflowData.EngineConfig != nil && strings.TrimSpace(workflowData.EngineConfig.Config) != "" {
@@ -137,6 +146,17 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          chmod 600 \"${CODEX_HOME}/config.toml\"\n")
 
 	return nil
+}
+
+func (e *CodexEngine) renderOpenAIProxyProviderToml(yaml *strings.Builder, indent string) {
+	yaml.WriteString(indent + "\n")
+	yaml.WriteString(indent + "model_provider = \"" + codexOpenAIProxyProviderID + "\"\n")
+	yaml.WriteString(indent + "\n")
+	yaml.WriteString(indent + "[model_providers." + codexOpenAIProxyProviderID + "]\n")
+	yaml.WriteString(indent + "name = \"" + codexOpenAIProxyProviderName + "\"\n")
+	yaml.WriteString(indent + "base_url = \"" + codexOpenAIProxyProviderBaseURL + "\"\n")
+	yaml.WriteString(indent + "env_key = \"OPENAI_API_KEY\"\n")
+	yaml.WriteString(indent + "supports_websockets = false\n")
 }
 
 // renderCodexMCPConfigWithContext generates custom MCP server configuration for a single tool in codex workflow config.toml
