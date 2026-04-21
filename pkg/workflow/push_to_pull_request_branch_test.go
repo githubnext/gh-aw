@@ -84,6 +84,7 @@ on:
 safe-outputs:
   push-to-pull-request-branch:
     target: "triggering"
+  comment-memory: false
 ---
 
 # Test Push to PR Branch
