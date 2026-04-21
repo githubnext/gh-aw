@@ -393,6 +393,10 @@ func TestGetActionPinByRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.repo, func(t *testing.T) {
+			if tt.expectVersion != "" && tt.expectVersionPrefix != "" {
+				t.Fatalf("invalid test case: expectVersion and expectVersionPrefix are mutually exclusive")
+			}
+
 			pin, exists := getActionPinByRepo(tt.repo)
 
 			if exists != tt.expectExists {
