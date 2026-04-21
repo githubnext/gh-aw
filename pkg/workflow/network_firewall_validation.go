@@ -15,6 +15,7 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -84,7 +85,7 @@ func (c *Compiler) validateNetworkAllowedDomains(network *NetworkPermissions) er
 				"network.allowed",
 				domain,
 				fmt.Sprintf("'%s' is not a valid ecosystem identifier", domain),
-				"Use a valid ecosystem identifier or a domain name containing a dot (e.g., 'example.com').\n\nValid ecosystem identifiers: defaults, github, python, node, go, rust, java, ruby, dotnet, php, swift, kotlin, scala, clojure, dart, elixir, haskell, perl, zig, containers, chrome, playwright, terraform, dev-tools, linux-distros, local, fonts, github-actions, node-cdns, python-native, deno, default-safe-outputs, lean, latex, lua, julia, ocaml, bazel, powershell, r, threat-detection",
+				"Use a valid ecosystem identifier or a domain name containing a dot (e.g., 'example.com').\n\nValid ecosystem identifiers: "+strings.Join(getValidEcosystemIdentifiers(), ", "),
 			))
 			if returnErr := collector.Add(wrappedErr); returnErr != nil {
 				return returnErr // Fail-fast mode
@@ -118,6 +119,20 @@ func isEcosystemIdentifier(domain string) bool {
 	// like "defaults", "node", "python", "dev-tools", "default-safe-outputs".
 	// They don't contain dots, protocol prefixes, spaces, wildcards, or other special characters.
 	return isEcosystemIdentifierPattern.MatchString(domain)
+}
+
+// getValidEcosystemIdentifiers returns a sorted list of all valid ecosystem identifiers,
+// including both the base identifiers from ecosystemDomains and compound identifiers.
+func getValidEcosystemIdentifiers() []string {
+	ids := make([]string, 0, len(ecosystemDomains)+len(compoundEcosystems))
+	for id := range ecosystemDomains {
+		ids = append(ids, id)
+	}
+	for id := range compoundEcosystems {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 // domainPattern validates domain patterns including wildcards
