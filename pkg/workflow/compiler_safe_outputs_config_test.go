@@ -774,6 +774,22 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			checkJSON:    true,
 			expectedKeys: []string{"merge_pull_request"},
 		},
+		{
+			name: "comment_memory config",
+			safeOutputs: &SafeOutputsConfig{
+				CommentMemory: &CommentMemoryConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+					MemoryID: "test-memory",
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"comment_memory"},
+		},
 	}
 
 	for _, tt := range tests {
