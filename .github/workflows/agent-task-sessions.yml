@@ -14,14 +14,6 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Show authentication token source
-        run: |
-          if [ -n "${{ secrets.COPILOT_GITHUB_TOKEN }}" ]; then
-            echo "Using COPILOT_GITHUB_TOKEN for gh authentication."
-          else
-            echo "::warning::COPILOT_GITHUB_TOKEN is not set; falling back to github.token."
-          fi
-
       - name: Install gh agent-task extension
         run: gh extension install github/agent-task || gh extension upgrade github/agent-task
 
