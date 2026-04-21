@@ -42,6 +42,8 @@ func TestAgenticObservabilityKitPortfolioReviewContract(t *testing.T) {
 		maxValue = int(v)
 	case float64:
 		maxValue = int(v)
+	default:
+		require.Failf(t, "Workflow must set upload-asset.max", "Unsupported type for upload-asset.max: %T", uploadAsset["max"])
 	}
 	require.Positive(t, maxValue, "Workflow must set upload-asset.max")
 	assert.GreaterOrEqual(t, maxValue, 4, "Workflow must allow at least 4 uploaded charts")
@@ -57,6 +59,9 @@ func TestAgenticObservabilityKitPortfolioReviewContract(t *testing.T) {
 		}
 		if ext == ".svg" {
 			hasSVG = true
+		}
+		if hasPNG && hasSVG {
+			break
 		}
 	}
 	assert.True(t, hasPNG, "Workflow should allow .png chart uploads")
