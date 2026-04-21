@@ -163,22 +163,20 @@ func resolveEngineInstallVersion(
 	featureVersionFlag constants.FeatureFlag,
 	workflowData *WorkflowData,
 ) string {
-	version := defaultVersion
 	hasExplicitEngineVersion := workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != ""
 	if hasExplicitEngineVersion {
-		version = workflowData.EngineConfig.Version
-		engineHelpersLog.Printf("Using engine config version: %s", version)
-		return version
+		engineHelpersLog.Printf("Using engine config version: %s", workflowData.EngineConfig.Version)
+		return workflowData.EngineConfig.Version
 	}
 
 	if featureVersionFlag != constants.NoFeatureFlag {
 		if featureVersion := getFeatureValue(featureVersionFlag, workflowData); featureVersion != "" {
-			version = featureVersion
-			engineHelpersLog.Printf("Using feature override version (%s): %s", featureVersionFlag, version)
+			engineHelpersLog.Printf("Using feature override version (%s): %s", featureVersionFlag, featureVersion)
+			return featureVersion
 		}
 	}
 
-	return version
+	return defaultVersion
 }
 
 // BuildNpmEngineInstallStepsWithAWF injects an AWF installation step between the Node.js

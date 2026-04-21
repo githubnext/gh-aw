@@ -80,12 +80,11 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 	}
 
 	// Use base installation steps (npm install only; secret validation is in the activation job)
-	codexVersion := string(constants.DefaultCodexVersion)
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		codexVersion = workflowData.EngineConfig.Version
-	} else if featureVersion := getFeatureValue(constants.CodexVersionFeatureFlag, workflowData); featureVersion != "" {
-		codexVersion = featureVersion
-	}
+	codexVersion := resolveEngineInstallVersion(
+		string(constants.DefaultCodexVersion),
+		constants.CodexVersionFeatureFlag,
+		workflowData,
+	)
 
 	steps := GetBaseInstallationSteps(EngineInstallConfig{
 		Secrets:         []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
