@@ -10536,8 +10536,8 @@
         },
         "vulnerability-alerts": {
           "type": "string",
-          "enum": ["read", "none", "write"],
-          "description": "Permission level for Dependabot vulnerability alerts (read/none/write). Also available as a GITHUB_TOKEN scope. When used with a GitHub App, forwarded as permission-vulnerability-alerts input."
+          "enum": ["read", "none"],
+          "description": "Permission level for Dependabot vulnerability alerts (read/none; \"write\" is rejected by the compiler). Also available as a GITHUB_TOKEN scope. When used with a GitHub App, forwarded as permission-vulnerability-alerts input."
         },
         "workflows": {
           "type": "string",

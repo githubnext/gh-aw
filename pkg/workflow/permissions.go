@@ -133,7 +133,9 @@ const (
 type PermissionScope string
 
 const (
-	// GitHub Actions permission scopes (supported by GITHUB_TOKEN)
+	// GitHub Actions permission scopes (supported by GITHUB_TOKEN), except
+	// organization-projects which is declared here for historical grouping but
+	// treated as GitHub App-only by GetAllGitHubAppOnlyScopes/IsGitHubAppOnlyScope.
 	PermissionActions             PermissionScope = "actions"
 	PermissionAttestations        PermissionScope = "attestations"
 	PermissionChecks              PermissionScope = "checks"

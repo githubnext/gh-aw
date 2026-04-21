@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestCompileVulnerabilityAlertsPermissionFiltered compiles the canonical
+// TestCompileVulnerabilityAlertsPermissionIncluded compiles the canonical
 // test-vulnerability-alerts-permission.md workflow file and verifies that
 // the `vulnerability-alerts` scope appears correctly in the compiled lock file.
 //
@@ -22,7 +22,7 @@ import (
 // SHOULD appear in job-level permissions blocks. It is also forwarded as a
 // `permission-vulnerability-alerts` input to actions/create-github-app-token
 // when a GitHub App is configured.
-func TestCompileVulnerabilityAlertsPermissionFiltered(t *testing.T) {
+func TestCompileVulnerabilityAlertsPermissionIncluded(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
