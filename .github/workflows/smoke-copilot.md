@@ -51,6 +51,7 @@ runtimes:
     version: "1.25"
 safe-outputs:
     allowed-domains: [default-safe-outputs]
+    comment-memory: true
     upload-artifact:
       max-uploads: 1
       retention-days: 1
