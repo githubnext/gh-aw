@@ -13,16 +13,18 @@ const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 
 function sanitizeMemoryID(memoryID) {
-  const normalized = String(memoryID || "default")
-    .trim()
-    .toLowerCase();
-  if (!/^[a-z0-9_-]+$/.test(normalized)) {
+  const normalized = String(memoryID || "default").trim();
+  if (!/^[a-zA-Z0-9_-]+$/.test(normalized)) {
     return null;
   }
   return normalized;
 }
 
-function buildManagedMemoryBody(rawBody, memoryID, includeFooter, runUrl, workflowName, workflowSource, workflowSourceURL, historyUrl) {
+function buildManagedMemoryBody(rawBody, memoryID, options) {
+  const { includeFooter, runUrl, workflowName, workflowSource, workflowSourceURL, historyUrl, triggeringIssueNumber, triggeringPRNumber } = options;
+  if (!/^[a-zA-Z0-9_-]+$/.test(memoryID)) {
+    throw new Error("memory_id must contain only alphanumeric characters, hyphens, and underscores");
+  }
   let body = `<comment-memory id="${memoryID}">\n${sanitizeContent(rawBody)}\n</comment-memory>`;
 
   const tracker = getTrackerID("markdown");
@@ -31,7 +33,7 @@ function buildManagedMemoryBody(rawBody, memoryID, includeFooter, runUrl, workfl
   }
 
   if (includeFooter) {
-    body += "\n\n" + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, context.payload.issue?.number, context.payload.pull_request?.number, undefined, historyUrl).trimEnd();
+    body += "\n\n" + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined, historyUrl).trimEnd();
   } else {
     body += "\n\n" + generateXMLMarker(workflowName, runUrl);
   }
@@ -66,7 +68,8 @@ async function findManagedComment(github, owner, repo, itemNumber, memoryID) {
 }
 
 async function main(config = {}) {
-  const maxCount = Number(config.max || 1);
+  const parsedMaxCount = parseInt(String(config.max ?? "1"), 10);
+  const maxCount = Number.isInteger(parsedMaxCount) && parsedMaxCount > 0 ? parsedMaxCount : 1;
   const defaultMemoryID = sanitizeMemoryID(config.memory_id || "default") || "default";
   const includeFooter = String(config.footer ?? "true") !== "false";
   const target = config.target || "triggering";
@@ -91,8 +94,8 @@ async function main(config = {}) {
       item: message,
       context,
       itemType: "comment memory",
+      // supportsPR=true means both issues and PRs in resolveTarget().
       supportsPR: true,
-      supportsIssue: false,
     });
     if (!targetResult.success) {
       return { success: false, error: targetResult.error };
@@ -112,6 +115,8 @@ async function main(config = {}) {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
+    const triggeringIssueNumber = context.payload.issue?.number;
+    const triggeringPRNumber = context.payload.pull_request?.number;
     const historyUrl =
       generateHistoryUrl({
         owner: repoResolution.repoParts.owner,
@@ -122,7 +127,16 @@ async function main(config = {}) {
         serverUrl: context.serverUrl,
       }) || undefined;
 
-    const managedBody = buildManagedMemoryBody(message.body || "", memoryID, includeFooter, runUrl, workflowName, workflowSource, workflowSourceURL, historyUrl);
+    const managedBody = buildManagedMemoryBody(message.body || "", memoryID, {
+      includeFooter,
+      runUrl,
+      workflowName,
+      workflowSource,
+      workflowSourceURL,
+      historyUrl,
+      triggeringIssueNumber,
+      triggeringPRNumber,
+    });
     try {
       enforceCommentLimits(managedBody);
     } catch (error) {

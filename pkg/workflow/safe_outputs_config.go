@@ -391,8 +391,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
-			// Enable comment-memory by default when safe-outputs is configured so workflows can
-			// persist structured memory in issue/PR comments without extra configuration.
+			// Enable comment-memory by default when safe-outputs is configured.
+			// Rationale: this is a non-destructive persistence primitive (single managed
+			// marker-scoped comment) that gives agents a stable memory channel in issue/PR
+			// contexts without requiring additional frontmatter boilerplate.
 			if config.CommentMemory == nil {
 				config.CommentMemory = &CommentMemoryConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
