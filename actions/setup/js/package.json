@@ -3,7 +3,7 @@
     "@actions/artifact": "^6.0.0",
     "@actions/core": "^3.0.0",
     "@actions/exec": "^3.0.0",
-    "@actions/github": "^9.0.0",
+    "@actions/github": "^9.1.0",
     "@actions/github-script": "github:actions/github-script#v9.0.0",
     "@actions/glob": "^0.6.1",
     "@actions/io": "^3.0.2",
