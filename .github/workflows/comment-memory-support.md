@@ -70,6 +70,12 @@ Add `comment-memory` as a first-class memory backend that persists structured me
   - ADR gates
 - Ensure Codex smoke checks can read/write the same PR-level content memory
 
+## Safe Output Handler Alignment Requirements
+
+- Reuse existing JavaScript handler patterns used by Safe Output MCP flows
+- Align `comment-memory` handling with main safe-output handler job behavior
+- Avoid duplicating divergent handler logic when safe-output MCP handlers already exist
+
 ## Safe Outputs Specification Update (W3C)
 
 When updating the Safe Outputs specification for this feature, use the `w3c-specification-writer` agent.

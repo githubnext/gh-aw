@@ -28,6 +28,8 @@ func TestCommentMemorySupportWorkflowDocumentsSpecRequirements(t *testing.T) {
 		"text and test detection gates",
 		"ADR gates",
 		"Codex smoke checks",
+		"Safe Output MCP flows",
+		"main safe-output handler job behavior",
 		"default GitHub token",
 		"custom GitHub token",
 		"GitHub App authentication",
