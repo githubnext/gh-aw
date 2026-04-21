@@ -75,7 +75,7 @@ Test ONE representative tool from each toolset with minimal parameters:
 3. **issues**: `list_issues` - List issues with perPage=1
 4. **pull_requests**: `list_pull_requests` - List PRs with perPage=1
 5. **actions**: `list_workflows` - List workflows with perPage=1
-6. **code_security**: `list_code_scanning_alerts` - List alerts with minimal params
+6. **code_security**: `list_code_scanning_alerts` - Use guarded params only: `state: open`, `severity: critical,high` (and `head_limit: 20` only if supported by the runtime wrapper)
 7. **discussions**: `list_discussions` (if available)
 8. **labels**: `get_label` - Get a single label
 9. **users**: `get_user` (if available)

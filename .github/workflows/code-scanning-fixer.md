@@ -60,7 +60,7 @@ You are a security-focused code analysis agent that automatically fixes code sca
 
 Your goal is to:
 1. **Check cache for previously fixed alerts**: Avoid fixing the same alert multiple times
-2. **List all open alerts**: Find all open code scanning alerts (prioritizing by severity: critical, high, medium, low, warning, note, error)
+2. **List open high-risk alerts**: Find open critical/high code scanning alerts (prioritizing critical over high)
 3. **Select an unfixed alert**: Pick the highest severity unfixed alert that hasn't been fixed recently
 4. **Analyze the vulnerability**: Understand the security issue and its context
 5. **Generate a fix**: Create code changes that address the security issue
@@ -84,7 +84,8 @@ Use the GitHub MCP server to list all open code scanning alerts:
   - `owner`: "githubnext" (the repository owner)
   - `repo`: "gh-aw" (the repository name)
   - `state`: "open"
-  - Do NOT filter by severity - get all alerts
+  - `severity`: "critical,high" (required guard to keep MCP response size bounded)
+  - `head_limit`: 20 (only when the runtime/tool wrapper supports this parameter)
 - Sort the results by severity (prioritize: critical > high > medium > low > warning > note > error)
 - If no open alerts are found, log "No unfixed security alerts found. All alerts have been addressed!" and exit gracefully
 - If you encounter tool errors, report them clearly and exit gracefully rather than trying workarounds
@@ -92,7 +93,7 @@ Use the GitHub MCP server to list all open code scanning alerts:
 
 ### 3. Select an Unfixed Alert
 
-From the list of all open alerts (sorted by severity):
+From the list of open high-risk alerts (sorted by severity):
 - Exclude any alert numbers that are in the cache (already fixed)
 - Select the first alert from the filtered list (highest severity unfixed alert)
 - If no unfixed alerts remain, exit gracefully with message: "No unfixed security alerts found. All alerts have been addressed!"
@@ -189,7 +190,7 @@ After successfully creating the pull request:
 
 ## Security Guidelines
 
-- **All Severity Levels**: Fix security alerts of all severities (prioritizing critical, high, medium, low, warning, note, error in that order)
+- **High-Risk First**: This workflow targets critical/high alerts first to keep MCP responses bounded and actionable
 - **Minimal Changes**: Make only the changes necessary to fix the security issue
 - **No Breaking Changes**: Ensure the fix doesn't break existing functionality
 - **Best Practices**: Follow security best practices for the specific vulnerability type
