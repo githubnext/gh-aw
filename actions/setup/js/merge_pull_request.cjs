@@ -11,6 +11,7 @@ const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { resolveNumberFromTemporaryId } = require("./temporary_id.cjs");
 const MERGEABILITY_PENDING_ERROR = "pull request mergeability is still being computed";
+const MERGEABILITY_PENDING_ERROR_CODED = `E099: ${MERGEABILITY_PENDING_ERROR}`;
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -41,7 +42,7 @@ async function getPullRequestWithMergeability(githubClient, owner, repo, pullNum
         pull_number: pullNumber,
       });
       if (data && data.mergeable === null) {
-        throw new Error(`E099: ${MERGEABILITY_PENDING_ERROR}`);
+        throw new Error(MERGEABILITY_PENDING_ERROR_CODED);
       }
       return data;
     },
@@ -50,7 +51,7 @@ async function getPullRequestWithMergeability(githubClient, owner, repo, pullNum
       initialDelayMs: 1000,
       shouldRetry: error => {
         const msg = getErrorMessage(error).toLowerCase();
-        return isTransientError(error) || msg === MERGEABILITY_PENDING_ERROR || msg === `e099: ${MERGEABILITY_PENDING_ERROR}`;
+        return isTransientError(error) || msg === MERGEABILITY_PENDING_ERROR_CODED.toLowerCase();
       },
     },
     `fetch pull request #${pullNumber}`
