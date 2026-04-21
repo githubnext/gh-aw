@@ -508,9 +508,9 @@ async function main(config = {}) {
     bodyLines.push("");
     const body = bodyLines.join("\n").trim();
 
-    // Atomically reserve a max-count slot before any async pre-creation work.
+    // Reserve a max-count slot synchronously before any async pre-creation work.
     // There is no await between check and increment, so concurrent invocations
-    // cannot pass the limit check simultaneously.
+    // cannot interleave between these two operations.
     if (processedCount >= maxCount) {
       core.warning(`Skipping create_issue: max count of ${maxCount} reached`);
       return {
@@ -544,6 +544,8 @@ async function main(config = {}) {
           core.info(`Group-by-day: found open issue #${todayIssue.number} created today (${today}) — posting new content as a comment`);
           const comment = await addIssueComment(githubClient, repoParts.owner, repoParts.repo, todayIssue.number, body);
           core.info(`Posted content as comment ${comment.html_url} on issue #${todayIssue.number}`);
+          // No issue was created (content was grouped into a comment), so free
+          // the reserved slot for subsequent create_issue calls.
           processedCount--;
           return {
             success: true,
