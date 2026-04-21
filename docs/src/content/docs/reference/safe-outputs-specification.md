@@ -2327,7 +2327,7 @@ This section provides complete definitions for all remaining safe output types. 
 2. **Setup Extraction**: Pre-agent setup extracts marker content from GitHub comments into `/tmp/gh-aw/comment-memory/<memory_id>.md`.
 3. **File-Based Editing**: Agent updates memory by editing files only; no direct `comment_memory` tool call is required.
 4. **Automatic Sync**: Processor reads `*.md` files and upserts corresponding managed comments after agent execution.
-5. **Temporary ID Rewrite**: If temporary IDs are resolved during processing, comment-memory content MUST be rewritten using the resolved IDs before final upsert.
+5. **Temporary ID Rewrite**: If temporary IDs (workflow-scoped placeholders in the form `aw_<id>`) are resolved during processing, comment-memory content MUST be rewritten using the resolved IDs before final upsert.
 6. **Precedence Rule**: If both an explicit `comment_memory` operation and a file-backed entry exist for the same `memory_id`, the explicit operation takes precedence.
 
 **Configuration Parameters**:
