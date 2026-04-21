@@ -58,14 +58,36 @@ steps:
         echo "✅ .hippo already linked to cache-memory/hippo-store"
       fi
 
-      # Initialise if the store has never been set up, using --no-learn to avoid
-      # a slow full-history git scan during setup.
+      # Initialise if the store has never been set up. Perform a one-time
+      # repository scan to seed the memory store with historical incidents.
+      # Set HIPPO_SCAN_DAYS to override the default 365-day scan window.
+      HIPPO_SCAN_DAYS="${HIPPO_SCAN_DAYS:-365}"
       if [ ! -f ".hippo/config.json" ]; then
-        hippo init --no-learn
-        echo "✅ Hippo memory store initialised"
+        hippo init --scan --days "$HIPPO_SCAN_DAYS"
+        echo "✅ Hippo memory store initialised (scan days: $HIPPO_SCAN_DAYS)"
       else
         echo "✅ Hippo store restored from cache"
         hippo list 2>/dev/null | head -5 || true
+      fi
+
+      # One-time bootstrap for repositories with an empty or freshly initialised
+      # store. This seeds memory with key project docs and recurring incidents.
+      if [ ! -f ".hippo/.gh-aw-bootstrap-v1" ]; then
+        if [ -f "AGENTS.md" ]; then
+          hippo import --markdown AGENTS.md
+        fi
+
+        INCIDENTS=(
+          'Recurring incident: Codex auth failures can break agent jobs; verify auth/mode/token setup before reruns.'
+          'Recurring incident: stale workflow .lock.yml files cause churn and CI friction; run make recompile after markdown workflow edits.'
+          'Recurring incident: node: command not found on GPU/self-hosted paths when node runtime/tooling is missing; validate runtimes and PATH early.'
+        )
+        for incident in "${INCIDENTS[@]}"; do
+          hippo remember "$incident" --tag incident
+        done
+
+        touch ".hippo/.gh-aw-bootstrap-v1"
+        echo "✅ Hippo store bootstrap complete (.gh-aw-bootstrap-v1)"
       fi
 ---
 

@@ -237,7 +237,7 @@ gh aw fix my-workflow --write          # Fix specific workflow
 gh aw fix --list-codemods              # List available codemods
 ```
 
-**Options:** `--write`, `--list-codemods`
+**Options:** `--dir/-d`, `--list-codemods`, `--write`
 
 Available codemods include:
 
@@ -263,7 +263,7 @@ gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --purge                      # Remove orphaned .lock.yml files
 ```
 
-**Options:** `--validate`, `--strict`, `--fix`, `--zizmor`, `--dependabot`, `--json`, `--no-emit`, `--watch`, `--purge`, `--stats`, `--approve`
+**Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve`, `--dependabot`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--fix`, `--force`, `--force-refresh-action-pins`, `--json/-j`, `--logical-repo`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--runner-guard`, `--schedule-seed`, `--stats`, `--strict`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--zizmor`
 
 **`--approve` flag:** When compiling a workflow that already has a lock file, the compiler enforces *safe update mode* — any newly added secrets or custom actions not present in the previous manifest require explicit approval. Pass `--approve` to accept these changes and regenerate the manifest baseline. On first compile (no existing lock file), enforcement is skipped automatically and `--approve` is not needed.
 
@@ -292,7 +292,7 @@ gh aw validate --dir custom/workflows       # Validate from custom directory
 gh aw validate --engine copilot             # Override AI engine
 ```
 
-**Options:** `--engine/-e`, `--dir/-d`, `--strict`, `--json/-j`, `--fail-fast`, `--stats`, `--no-check-update`
+**Options:** `--allow-action-refs`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--json/-j`, `--no-check-update`, `--stats`, `--strict`, `--validate-images`
 
 All linters (`zizmor`, `actionlint`, `poutine`), `--validate`, and `--no-emit` are always-on defaults and cannot be disabled. Accepts the same workflow ID format as `compile`.
 
@@ -320,7 +320,7 @@ Execute workflows immediately in GitHub Actions. Displays workflow URL for track
 ```bash wrap
 gh aw run workflow                          # Run workflow
 gh aw run workflow1 workflow2               # Run multiple workflows
-gh aw run workflow --repeat 3               # Repeat 3 times
+gh aw run workflow --repeat 3               # Run 4 times total (1 initial + 3 repeats)
 gh aw run workflow --push                   # Auto-commit, push, and dispatch workflow
 gh aw run workflow --push --ref main        # Push to specific branch
 gh aw run workflow --json                   # Output triggered workflow results as JSON
@@ -400,7 +400,7 @@ gh aw logs --train                    # Train on last 10 runs
 gh aw logs my-workflow --train -c 50  # Train on up to 50 runs of a specific workflow
 ```
 
-**Options:** `-c`, `--count`, `--last`, `-e`, `--engine`, `--start-date`, `--end-date`, `--ref`, `--parse`, `--json`, `--train`, `--repo`, `--firewall`, `--no-firewall`, `--safe-output`, `--filtered-integrity`, `--after-run-id`, `--before-run-id`, `--no-staged`, `--tool-graph`, `--timeout`
+**Options:** `--after-run-id`, `--artifacts`, `--before-run-id`, `--count/-c`, `--end-date`, `--engine/-e`, `--filtered-integrity`, `--firewall`, `--format`, `--json/-j`, `--last`, `--no-firewall`, `--no-staged`, `--output/-o`, `--parse`, `--ref`, `--repo/-r`, `--safe-output`, `--start-date`, `--summary-file`, `--timeout`, `--tool-graph`, `--train`
 
 #### `audit`
 
@@ -539,7 +539,7 @@ gh aw remove test-                       # Remove all workflows starting with 't
 gh aw remove my-workflow --keep-orphans  # Remove but keep orphaned include files
 ```
 
-**Options:** `--keep-orphans`
+**Options:** `--dir/-d`, `--keep-orphans`
 
 #### `update`
 

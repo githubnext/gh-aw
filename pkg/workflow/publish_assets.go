@@ -3,6 +3,7 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -11,6 +12,27 @@ import (
 )
 
 var publishAssetsLog = logger.New("workflow:publish_assets")
+var githubExpressionPattern = regexp.MustCompile(`(?s)^\$\{\{.*\}\}$`)
+
+func isGitHubExpression(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	return githubExpressionPattern.MatchString(trimmed)
+}
+
+func normalizeAllowedExtension(extension string) string {
+	trimmed := strings.TrimSpace(extension)
+	if trimmed == "" {
+		return ""
+	}
+	if isGitHubExpression(trimmed) {
+		return trimmed
+	}
+	normalized := strings.ToLower(trimmed)
+	if !strings.HasPrefix(normalized, ".") {
+		normalized = "." + normalized
+	}
+	return normalized
+}
 
 // UploadAssetsConfig holds configuration for publishing assets to an orphaned git branch
 type UploadAssetsConfig struct {
@@ -59,9 +81,18 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 			if allowedExts, exists := configMap["allowed-exts"]; exists {
 				if allowedExtsArray, ok := allowedExts.([]any); ok {
 					var extStrings []string
+					seen := make(map[string]struct{})
 					for _, ext := range allowedExtsArray {
 						if extStr, ok := ext.(string); ok {
-							extStrings = append(extStrings, extStr)
+							normalized := normalizeAllowedExtension(extStr)
+							if normalized == "" {
+								continue
+							}
+							if _, exists := seen[normalized]; exists {
+								continue
+							}
+							seen[normalized] = struct{}{}
+							extStrings = append(extStrings, normalized)
 						}
 					}
 					if len(extStrings) > 0 {
