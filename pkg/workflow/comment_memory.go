@@ -14,16 +14,16 @@ type CommentMemoryConfig struct {
 	Footer               *string  `yaml:"footer,omitempty"`        // Footer visibility control ("true"/"false" templatable string); nil defaults to visible footer
 }
 
-// parseCommentMemoryConfig handles comment-memory configuration.
-func (c *Compiler) parseCommentMemoryConfig(outputMap map[string]any) *CommentMemoryConfig {
-	rawConfig, exists := outputMap["comment-memory"]
-	if !exists {
-		rawConfig, exists = outputMap["comment_memory"]
-	}
-	if !exists {
+// extractCommentMemoryConfig extracts comment-memory configuration from tools section.
+func (c *Compiler) extractCommentMemoryConfig(toolsConfig *ToolsConfig) *CommentMemoryConfig {
+	if toolsConfig == nil || toolsConfig.CommentMemory == nil {
 		return nil
 	}
+	return c.parseCommentMemoryConfigValue(toolsConfig.CommentMemory.Raw)
+}
 
+// parseCommentMemoryConfigValue handles comment-memory configuration values.
+func (c *Compiler) parseCommentMemoryConfigValue(rawConfig any) *CommentMemoryConfig {
 	switch v := rawConfig.(type) {
 	case nil:
 		commentMemoryLog.Print("comment-memory explicitly disabled with null")

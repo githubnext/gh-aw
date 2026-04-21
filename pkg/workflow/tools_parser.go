@@ -134,6 +134,9 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["cache-memory"]; exists {
 		tools.CacheMemory = parseCacheMemoryTool(val)
 	}
+	if val, exists := toolsMap["comment-memory"]; exists {
+		tools.CommentMemory = parseCommentMemoryTool(val)
+	}
 	if val, exists := toolsMap["repo-memory"]; exists {
 		tools.RepoMemory = parseRepoMemoryTool(val)
 	}
@@ -162,6 +165,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"playwright":        true,
 		"agentic-workflows": true,
 		"cache-memory":      true,
+		"comment-memory":    true,
 		"repo-memory":       true,
 		"safety-prompt":     true,
 		"timeout":           true,
@@ -493,6 +497,12 @@ func parseAgenticWorkflowsTool(val any) *AgenticWorkflowsToolConfig {
 func parseCacheMemoryTool(val any) *CacheMemoryToolConfig {
 	// cache-memory can be boolean, object, or array - store raw value
 	return &CacheMemoryToolConfig{Raw: val}
+}
+
+// parseCommentMemoryTool converts raw comment-memory tool configuration
+func parseCommentMemoryTool(val any) *CommentMemoryToolConfig {
+	// comment-memory can be boolean, object, or null - store raw value
+	return &CommentMemoryToolConfig{Raw: val}
 }
 
 // parseRepoMemoryTool converts raw repo-memory tool configuration

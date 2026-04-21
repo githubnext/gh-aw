@@ -3989,6 +3989,75 @@
             ]
           ]
         },
+        "comment-memory": {
+          "description": "Comment memory configuration for managed comment persistence",
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for persisting memory in a managed issue/PR comment. Memory is materialized to files for agent editing and synchronized back after execution.",
+              "properties": {
+                "max": {
+                  "description": "Maximum number of comment_memory updates to process (default: 1). Supports integer or GitHub Actions expression.",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for comment memory: 'triggering' (default), '*' (current issue/PR), or explicit issue/PR number"
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository memory storage."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "description": "Additional repositories in format 'owner/repo' allowed for comment memory operations.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "memory-id": {
+                  "type": "string",
+                  "description": "Default memory identifier when output items omit memory_id.",
+                  "pattern": "^[a-zA-Z0-9_-]+$",
+                  "maxLength": 128
+                },
+                "footer": {
+                  "type": "boolean",
+                  "description": "Controls whether AI-generated footer is added to the managed comment. Defaults to true."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for comment-memory operations. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "boolean",
+              "description": "Enable (true) or disable (false) comment-memory."
+            },
+            {
+              "type": "null",
+              "description": "Explicitly disable comment-memory"
+            }
+          ]
+        },
         "timeout": {
           "description": "Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP servers if supported by the engine. Default: 60 seconds (for both Claude and Codex). Supports GitHub Actions expressions for reusable workflow_call workflows.",
           "oneOf": [
@@ -5599,75 +5668,6 @@
             }
           ],
           "description": "Enable AI agents to add comments to GitHub issues, pull requests, or discussions. Supports templating, cross-repository commenting, and automatic mentions."
-        },
-        "comment-memory": {
-          "oneOf": [
-            {
-              "type": "object",
-              "description": "Configuration for persisting memory in a managed issue/PR comment. Memory is materialized to files for agent editing and synchronized back after execution.",
-              "properties": {
-                "max": {
-                  "description": "Maximum number of comment_memory updates to process (default: 1). Supports integer or GitHub Actions expression.",
-                  "oneOf": [
-                    {
-                      "type": "integer",
-                      "minimum": 1,
-                      "maximum": 100
-                    },
-                    {
-                      "type": "string",
-                      "pattern": "^\\$\\{\\{.*\\}\\}$",
-                      "description": "GitHub Actions expression that resolves to an integer at runtime"
-                    }
-                  ]
-                },
-                "target": {
-                  "type": "string",
-                  "description": "Target for comment memory: 'triggering' (default), '*' (current issue/PR), or explicit issue/PR number"
-                },
-                "target-repo": {
-                  "type": "string",
-                  "description": "Target repository in format 'owner/repo' for cross-repository memory storage."
-                },
-                "allowed-repos": {
-                  "type": "array",
-                  "description": "Additional repositories in format 'owner/repo' allowed for comment memory operations.",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "memory-id": {
-                  "type": "string",
-                  "description": "Default memory identifier when output items omit memory_id.",
-                  "pattern": "^[a-zA-Z0-9_-]+$",
-                  "maxLength": 128
-                },
-                "footer": {
-                  "type": "boolean",
-                  "description": "Controls whether AI-generated footer is added to the managed comment. Defaults to true."
-                },
-                "github-token": {
-                  "$ref": "#/$defs/github_token",
-                  "description": "GitHub token to use for comment-memory operations. Overrides global github-token if specified."
-                },
-                "staged": {
-                  "type": "boolean",
-                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
-                  "examples": [true, false]
-                }
-              },
-              "additionalProperties": false
-            },
-            {
-              "type": "boolean",
-              "description": "Enable (true) or disable (false) comment-memory. false explicitly opts out of the default behavior."
-            },
-            {
-              "type": "null",
-              "description": "Explicitly disable comment-memory"
-            }
-          ],
-          "description": "Enable managed comment memory persistence using marker-scoped comments and editable local markdown files."
         },
         "create-pull-request": {
           "oneOf": [

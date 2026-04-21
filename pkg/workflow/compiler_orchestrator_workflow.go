@@ -276,6 +276,16 @@ func (c *Compiler) extractAdditionalConfigurations(
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
 
+	// Extract comment-memory from tools and attach to safe-outputs configuration.
+	// comment-memory now belongs under tools: next to cache-memory and repo-memory.
+	commentMemoryConfig := c.extractCommentMemoryConfig(toolsConfig)
+	if commentMemoryConfig != nil {
+		if workflowData.SafeOutputs == nil {
+			workflowData.SafeOutputs = &SafeOutputsConfig{}
+		}
+		workflowData.SafeOutputs.CommentMemory = commentMemoryConfig
+	}
+
 	// Extract mcp-scripts configuration
 	workflowData.MCPScripts = c.extractMCPScriptsConfig(frontmatter)
 

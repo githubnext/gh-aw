@@ -22,6 +22,10 @@ Set `engine:` in your workflow frontmatter and configure the corresponding secre
 
 Copilot CLI is the default — `engine:` can be omitted when using Copilot. See the linked authentication docs for secret setup instructions.
 
+## Which engine should I choose?
+
+Copilot is the default choice for most users because it supports the broadest gh-aw feature set, including custom agents and autopilot-style continuations. Choose Claude when you want stronger control over turn limits (`max-turns`) for long reasoning sessions. Choose Gemini or Codex when those models are already part of existing tooling or budget decisions. If you are unsure, start with Copilot and switch later by changing only `engine:` and the corresponding secret.
+
 ## Engine Feature Comparison
 
 Not all features are available across all engines. The table below summarizes per-engine support for commonly used workflow options:
