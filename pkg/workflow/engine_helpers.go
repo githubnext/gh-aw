@@ -138,18 +138,7 @@ func BuildStandardNpmEngineInstallSteps(
 ) []GitHubActionStep {
 	engineHelpersLog.Printf("Building npm engine install steps: package=%s, version=%s", packageName, defaultVersion)
 
-	// Use version from engine config if provided, otherwise default to pinned version
-	version := defaultVersion
-	engineVersionSet := workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != ""
-	if engineVersionSet {
-		version = workflowData.EngineConfig.Version
-		engineHelpersLog.Printf("Using engine config version: %s", version)
-	} else if featureVersionFlag != "" {
-		if featureVersion := getFeatureValue(featureVersionFlag, workflowData); featureVersion != "" {
-			version = featureVersion
-			engineHelpersLog.Printf("Using feature override version (%s): %s", featureVersionFlag, version)
-		}
-	}
+	version := resolveEngineInstallVersion(defaultVersion, featureVersionFlag, workflowData)
 
 	// Add npm package installation steps (includes Node.js setup)
 	// Always pass false for runInstallScripts: engine CLI installs must never run
@@ -163,6 +152,33 @@ func BuildStandardNpmEngineInstallSteps(
 		true,  // Include Node.js setup
 		false, // Always disable scripts for engine CLI installs
 	)
+}
+
+// resolveEngineInstallVersion resolves engine CLI install version with this precedence:
+// 1. explicit engine.version in frontmatter
+// 2. feature flag version override (if provided)
+// 3. default pinned version
+func resolveEngineInstallVersion(
+	defaultVersion string,
+	featureVersionFlag constants.FeatureFlag,
+	workflowData *WorkflowData,
+) string {
+	version := defaultVersion
+	hasExplicitEngineVersion := workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != ""
+	if hasExplicitEngineVersion {
+		version = workflowData.EngineConfig.Version
+		engineHelpersLog.Printf("Using engine config version: %s", version)
+		return version
+	}
+
+	if featureVersionFlag != constants.NoFeatureFlag {
+		if featureVersion := getFeatureValue(featureVersionFlag, workflowData); featureVersion != "" {
+			version = featureVersion
+			engineHelpersLog.Printf("Using feature override version (%s): %s", featureVersionFlag, version)
+		}
+	}
+
+	return version
 }
 
 // BuildNpmEngineInstallStepsWithAWF injects an AWF installation step between the Node.js
