@@ -105,6 +105,8 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
 
     if (pageAddedEntries === 0) {
       emptyPageCount++;
+      // Stop early only after at least one managed entry was found; this avoids
+      // missing entries that appear only in later pages on large threads.
       if (memoryMap.size > 0 && emptyPageCount >= COMMENT_MEMORY_MAX_SCAN_EMPTY_PAGES) {
         core.info(`comment_memory setup: stopping scan after ${emptyPageCount} pages without new memory entries`);
         break;

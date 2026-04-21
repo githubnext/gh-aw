@@ -135,6 +135,7 @@ function buildCommentMemoryMessagesFromFiles(existingMessages, config) {
 }
 
 function isCommentMemoryMessage(message) {
+  // memory_id normalization/validation is handled separately in normalizeCommentMemoryId.
   return message?.type === "comment_memory";
 }
 
