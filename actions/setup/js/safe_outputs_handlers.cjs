@@ -157,10 +157,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
           ".jpg",
           ".jpeg",
         ];
+    if (allowedExts.some(isGitHubExpression)) {
+      throw new Error(`${ERR_CONFIG}: GH_AW_ASSETS_ALLOWED_EXTS contains unresolved GitHub Actions expression. Ensure expressions resolve before safe outputs validation.`);
+    }
     if (!allowedExts.includes(ext)) {
-      if (allowedExts.some(isGitHubExpression)) {
-        throw new Error(`${ERR_CONFIG}: GH_AW_ASSETS_ALLOWED_EXTS contains unresolved GitHub Actions expression. Ensure expressions resolve before safe outputs validation.`);
-      }
       throw new Error(`${ERR_VALIDATION}: File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
     }
 
