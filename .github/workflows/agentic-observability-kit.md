@@ -26,6 +26,9 @@ safe-outputs:
     labels: [agentics, warning, observability]
     close-older-issues: true
     max: 1
+  upload-asset:
+    max: 4
+    allowed-exts: [png, svg]
   noop:
     report-as-issue: false
 timeout-minutes: 30
