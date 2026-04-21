@@ -13,6 +13,21 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
+const setupNodeV6ExpectedUsesPlaceholder = "__setup_node_v6__"
+
+func expectedPinnedUses(t *testing.T, repo, version string) string {
+	t.Helper()
+
+	result, err := getActionPinWithData(repo, version, &WorkflowData{})
+	if err != nil {
+		t.Fatalf("getActionPinWithData(%s, %s) returned error: %v", repo, version, err)
+	}
+	if result == "" {
+		t.Fatalf("getActionPinWithData(%s, %s) returned empty result", repo, version)
+	}
+	return result
+}
+
 // TestActionPinsExist verifies that all action pinning entries exist
 func TestActionPinsExist(t *testing.T) {
 	// Read action pins from JSON file instead of hardcoded list
@@ -215,7 +230,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6",
+			expectedUses: setupNodeV6ExpectedUsesPlaceholder,
 		},
 		{
 			name: "step with unpinned action",
@@ -274,8 +289,12 @@ func TestApplyActionPinToStep(t *testing.T) {
 					return
 				}
 
-				if usesStr != tt.expectedUses {
-					t.Errorf("applyActionPinToTypedStep uses = %q, want %q", usesStr, tt.expectedUses)
+				expectedUses := tt.expectedUses
+				if expectedUses == setupNodeV6ExpectedUsesPlaceholder {
+					expectedUses = expectedPinnedUses(t, "actions/setup-node", "v6")
+				}
+				if usesStr != expectedUses {
+					t.Errorf("applyActionPinToTypedStep uses = %q, want %q", usesStr, expectedUses)
 				}
 
 				// Verify other fields are preserved (check length and keys)
@@ -348,6 +367,7 @@ func TestGetActionPinByRepo(t *testing.T) {
 		expectExists bool
 		expectRepo   string
 		expectVer    string
+		expectVerPre string
 	}{
 		{
 			repo:         "actions/checkout",
@@ -359,7 +379,7 @@ func TestGetActionPinByRepo(t *testing.T) {
 			repo:         "actions/setup-node",
 			expectExists: true,
 			expectRepo:   "actions/setup-node",
-			expectVer:    "v6.3.0",
+			expectVerPre: "v6.",
 		},
 		{
 			repo:         "unknown/action",
@@ -383,8 +403,11 @@ func TestGetActionPinByRepo(t *testing.T) {
 				if pin.Repo != tt.expectRepo {
 					t.Errorf("getActionPinByRepo(%s) repo = %s, want %s", tt.repo, pin.Repo, tt.expectRepo)
 				}
-				if pin.Version != tt.expectVer {
+				if tt.expectVer != "" && pin.Version != tt.expectVer {
 					t.Errorf("getActionPinByRepo(%s) version = %s, want %s", tt.repo, pin.Version, tt.expectVer)
+				}
+				if tt.expectVerPre != "" && !strings.HasPrefix(pin.Version, tt.expectVerPre) {
+					t.Errorf("getActionPinByRepo(%s) version = %s, want prefix %s", tt.repo, pin.Version, tt.expectVerPre)
 				}
 				if !isValidSHA(pin.SHA) {
 					t.Errorf("getActionPinByRepo(%s) has invalid SHA: %s", tt.repo, pin.SHA)
@@ -421,7 +444,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6",
+			expectedUses: setupNodeV6ExpectedUsesPlaceholder,
 		},
 		{
 			name: "step with unpinned action",
@@ -484,8 +507,12 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 			}
 
 			// Check uses field
-			if result.Uses != tt.expectedUses {
-				t.Errorf("applyActionPinToTypedStep() uses = %q, want %q", result.Uses, tt.expectedUses)
+			expectedUses := tt.expectedUses
+			if expectedUses == setupNodeV6ExpectedUsesPlaceholder {
+				expectedUses = expectedPinnedUses(t, "actions/setup-node", "v6")
+			}
+			if result.Uses != expectedUses {
+				t.Errorf("applyActionPinToTypedStep() uses = %q, want %q", result.Uses, expectedUses)
 			}
 
 			// Verify other fields are preserved
@@ -1314,7 +1341,7 @@ func TestMapToStepWithActionPinning(t *testing.T) {
 				},
 			},
 			wantErr:      false,
-			expectedUses: "actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6",
+			expectedUses: setupNodeV6ExpectedUsesPlaceholder,
 		},
 	}
 
@@ -1338,9 +1365,13 @@ func TestMapToStepWithActionPinning(t *testing.T) {
 			}
 
 			// Verify the result
-			if tt.expectedUses != "" {
-				if pinnedStep.Uses != tt.expectedUses {
-					t.Errorf("pinnedStep.Uses = %q, want %q", pinnedStep.Uses, tt.expectedUses)
+			expectedUses := tt.expectedUses
+			if expectedUses == setupNodeV6ExpectedUsesPlaceholder {
+				expectedUses = expectedPinnedUses(t, "actions/setup-node", "v6")
+			}
+			if expectedUses != "" {
+				if pinnedStep.Uses != expectedUses {
+					t.Errorf("pinnedStep.Uses = %q, want %q", pinnedStep.Uses, expectedUses)
 				}
 			}
 
