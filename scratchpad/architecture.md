@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-> Last updated: 2026-04-20 · Source: [Issue #27296](https://github.com/github/gh-aw/issues) · [Run §24658621102](https://github.com/github/gh-aw/actions/runs/24658621102)
+> Last updated: 2026-04-21 · [Run §24714109908](https://github.com/github/gh-aw/actions/runs/24714109908)
 
 ## Overview
 
@@ -9,40 +9,34 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                       ENTRY POINTS                                               │
-│                                                                                                  │
 │  ┌──────────────────────────┐                         ┌─────────────────────────────┐            │
 │  │       cmd/gh-aw          │                         │       cmd/gh-aw-wasm        │            │
 │  │    (main CLI binary)     │                         │      (WebAssembly target)   │            │
-│  └───┬────────┬─────────────┘                         └──────────┬─────────┬────────┘            │
-│      │        │                                                   │         │                    │
+│  └───┬──────────────────────┘                         └──────────┬──────────────────┘            │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│      ▼        ▼                    CORE PACKAGES                 ▼         ▼                     │
-│                                                                                                  │
-│  ┌──────────────────┐   ┌───────────────────────┐   ┌────────────────────────────┐               │
-│  │    pkg/cli       │──▶│    pkg/workflow        │──▶│      pkg/parser            │              │
-│  │  CLI commands &  │   │  workflow compilation  │   │  markdown/YAML frontmatter │              │
-│  │  dispatch layer  │   │  & Actions generation  │   │  parsing & validation      │              │
-│  └──────┬───────────┘   └──────┬─────────────────┘   └────────────────────────────┘              │
-│         │                      │                                                                 │
+│      ▼                         CORE PACKAGES                     ▼                               │
+│  ┌──────────────────┐   ┌───────────────────────┐   ┌──────────────────────────────┐             │
+│  │    pkg/cli       │──▶│    pkg/workflow        │──▶│         pkg/parser           │             │
+│  │  CLI commands &  │   │  workflow compilation  │   │  markdown/YAML frontmatter   │             │
+│  │  dispatch layer  │   │  & Actions generation  │   │  parsing & validation        │             │
+│  └──────┬───────────┘   └──────┬─────────────────┘   └──────────────────────────────┘             │
 │         └─────────────┐  ┌─────┘                                                                 │
 │                       ▼  ▼                                                                       │
-│             ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐                     │
-│             │   pkg/console    │  │  pkg/agentdrain  │  │  pkg/actionpins  │                     │
-│             │  terminal UI &   │  │  log streaming & │  │  action pin      │                     │
-│             │  spinner/render  │  │  drain mgmt      │  │  resolution      │                     │
-│             └──────────────────┘  └──────────────────┘  └──────────────────┘                     │
-│                          also shared: pkg/stats · pkg/types · pkg/constants                      │
+│  ┌─────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐  ┌─────────────────┐   │
+│  │  pkg/console    │  │   pkg/agentdrain     │  │   pkg/actionpins    │  │  pkg/constants  │   │
+│  │ terminal UI &   │  │ Drain log anomaly    │  │ action pin          │  │ constants &     │   │
+│  │ formatted output│  │ detection            │  │ resolution          │  │ type aliases    │   │
+│  └─────────────────┘  └──────────────────────┘  └──────────────────────┘  └─────────────────┘   │
+│                      also shared: pkg/stats · pkg/types · pkg/semverutil                         │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                  UTILITY PACKAGES                                                │
-│                                                                                                  │
 │  ┌────────┐ ┌────────┐ ┌─────┐ ┌──────────┐ ┌─────────┐ ┌──────────┐ ┌──────────┐            │
 │  │ logger │ │ styles │ │ tty │ │ fileutil │ │ gitutil │ │ repoutil │ │ sliceutil│            │
 │  └────────┘ └────────┘ └─────┘ └──────────┘ └─────────┘ └──────────┘ └──────────┘            │
-│                                                                                                  │
 │  ┌──────────┐ ┌─────────┐ ┌───────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐              │
-│  │ typeutil │ │ envutil │ │ semverutil│ │stringutil│ │ timeutil │ │ testutil │              │
+│  │ typeutil │ │ envutil │ │ semverutil│ │stringutil│ │ timeutil │ │ testutil*│              │
 │  └──────────┘ └─────────┘ └───────────┘ └──────────┘ └──────────┘ └──────────┘              │
-│                                                                                                  │
+│  (* test-only: pkg/testutil)                                                                     │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -55,14 +49,15 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 | pkg/cli | Core | CLI command implementations and dispatch layer |
 | pkg/workflow | Core | Workflow compilation and GitHub Actions YAML generation |
 | pkg/parser | Core | Markdown/YAML frontmatter parsing and validation |
-| pkg/console | Core | Terminal UI rendering, spinners, and formatted output |
-| pkg/agentdrain | Core | Agent log streaming and drain management |
+| pkg/console | Core | Terminal UI rendering and formatted output |
+| pkg/agentdrain | Core | Drain log-based anomaly detection for agentic pipeline runs |
 | pkg/actionpins | Core | GitHub Actions pin resolution |
-| pkg/stats | Shared | Numerical statistics utilities for metric collection |
-| pkg/types | Shared | Shared type definitions used across packages |
 | pkg/constants | Shared | Shared constants and semantic type aliases |
+| pkg/types | Shared | Shared type definitions used across packages |
+| pkg/stats | Shared | Numerical statistics utilities for metric collection |
+| pkg/semverutil | Utility | Semantic versioning primitives |
 | pkg/logger | Utility | Namespace-based debug logging with zero overhead |
-| pkg/styles | Utility | Terminal style definitions (no-op for Wasm) |
+| pkg/styles | Utility | Terminal style and color definitions |
 | pkg/tty | Utility | TTY terminal detection utilities |
 | pkg/fileutil | Utility | File path and file operation utilities |
 | pkg/gitutil | Utility | Git operation utilities |
@@ -70,7 +65,6 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 | pkg/sliceutil | Utility | Generic slice utilities |
 | pkg/typeutil | Utility | General-purpose type conversion utilities |
 | pkg/envutil | Utility | Environment variable reading and validation |
-| pkg/semverutil | Utility | Shared semantic versioning primitives |
 | pkg/stringutil | Utility | String manipulation utilities |
 | pkg/timeutil | Utility | Time-related utilities |
-| pkg/testutil | Utility | Test helper utilities |
+| pkg/testutil | Utility | Test helper utilities (test-only) |

@@ -15,7 +15,7 @@ permissions:
   issues: read
 engine:
   id: claude
-  max-turns: 10
+  max-turns: 15
 safe-outputs:
   add-comment:
     max: 2

@@ -61,7 +61,7 @@ log.Printf("Task completed")  // Shows +2.5s (or +500ms, +100µs, etc.)
 
 ## DEBUG Environment Variable
 
-Control which loggers are enabled using the `DEBUG` environment variable with patterns:
+Control which loggers are enabled using the `DEBUG` environment variable with patterns. When `ACTIONS_RUNNER_DEBUG=true` is set (as it is in GitHub Actions debug runs) and `DEBUG` is not explicitly set, all loggers are enabled automatically — equivalent to `DEBUG=*`.
 
 ### Examples
 

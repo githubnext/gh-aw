@@ -177,6 +177,10 @@ A mechanism for mounting any public GitHub Action as a once-callable MCP tool wi
 
 Lightweight inline JavaScript handlers defined under `safe-outputs.scripts:` that execute inside the consolidated safe-outputs job handler loop. Unlike [Custom Safe Outputs](#custom-safe-outputs) (`safe-outputs.jobs`), which create a separate GitHub Actions job per tool call, scripts run in-process with no job scheduling overhead. Scripts do not have direct access to repository secrets, making them suitable for lightweight processing and logging. Each script declares `description`, `inputs`, and a `script` body; the compiler wraps the body and registers the handler as an MCP tool available to the agent. See [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/#inline-script-handlers-safe-outputsscripts).
 
+### Safe Outputs Dependencies (`safe-outputs.needs:`)
+
+A `safe-outputs` option that extends the consolidated `safe_outputs` job dependencies with custom workflow jobs. `safe-outputs.needs` is merged with built-in dependencies (`agent`, `activation`, optional `detection`, optional `unlock`) and deduplicated. Useful for injecting credential-fetching or secret-provisioning jobs that the safe-outputs job depends on. Values must reference custom jobs from the top-level `jobs:` section; built-in job names are rejected at compile time with an actionable error. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#safe-outputs-dependencies-needs).
+
 ### Unassign from User
 
 A safe output capability for removing user assignments from issues or pull requests. Supports an `allowed` list to restrict which users can be unassigned, and a `blocked` list using glob patterns to prevent unassignment of specific users regardless of the allow list. Configured via `unassign-from-user:` in `safe-outputs`.
@@ -184,6 +188,10 @@ A safe output capability for removing user assignments from issues or pull reque
 ### Temporary ID
 
 A workflow-scoped identifier (format: `aw_` followed by 3–8 alphanumeric characters, e.g. `aw_abc1`) that lets an AI agent reference a resource before it is created. Safe output tools that support temporary IDs — including `create_issue`, `create_discussion`, and `add_comment` — accept a `temporary_id` field. References like `#aw_abc1` in subsequent operations are automatically resolved to actual resource numbers during execution. Useful for creating interlinked resources in a single workflow run. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
+
+### Merge Pull Request (`merge-pull-request:`)
+
+An experimental safe output capability for merging pull requests after policy-driven gate checks pass. Validates status checks, required approvals, resolved review threads, label and branch constraints, and GitHub mergeability before applying the merge. Supports `merge`, `squash`, and `rebase` methods and cross-repository targets. Compiling a workflow with `merge-pull-request` emits an experimental feature warning. See [Safe Outputs Specification](/gh-aw/reference/safe-outputs-specification/#type-merge_pull_request).
 
 ### Close Pull Request (`close-pull-request:`)
 
@@ -253,7 +261,7 @@ Named shorthand references to predefined domain sets used in `network.allowed` a
 
 ### Engine
 
-The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports five engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, and **Crush** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
+The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports six engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, **Crush** (experimental), and **OpenCode** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Enterprise API Endpoint (`api-target`)
 
