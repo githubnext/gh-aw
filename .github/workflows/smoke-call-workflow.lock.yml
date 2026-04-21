@@ -185,6 +185,8 @@ jobs:
       - name: Compute current body text
         id: sanitized
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        env:
+          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,127.0.0.1,172.30.0.1,::1,api.openai.com,api.snapcraft.io,app.renovatebot.com,appveyor.com,archive.ubuntu.com,azure.archive.ubuntu.com,badgen.net,circleci.com,codacy.com,codeclimate.com,codecov.io,codeload.github.com,coveralls.io,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deepsource.io,docs.github.com,drone.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,host.docker.internal,img.shields.io,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,localhost,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,readthedocs.io,readthedocs.org,renovatebot.com,s.symcb.com,s.symcd.com,security.ubuntu.com,semaphoreci.com,shields.io,snyk.io,sonarcloud.io,sonarqube.com,travis-ci.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -217,9 +219,6 @@ jobs:
           cat << 'GH_AW_PROMPT_ba8b7273540311e1_EOF'
           <safe-output-tools>
           Tools: call_workflow, missing_tool, missing_data, noop
-          GH_AW_PROMPT_ba8b7273540311e1_EOF
-          cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_comment_memory.md"
-          cat << 'GH_AW_PROMPT_ba8b7273540311e1_EOF'
           </safe-output-tools>
           GH_AW_PROMPT_ba8b7273540311e1_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
@@ -440,7 +439,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_d815eb6c6786190a_EOF'
-          {"call_workflow":{"max":1,"workflow_files":{"smoke-workflow-call":"./.github/workflows/smoke-workflow-call.lock.yml"},"workflows":["smoke-workflow-call"]},"comment_memory":{"max":1,"memory_id":"default"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
+          {"call_workflow":{"max":1,"workflow_files":{"smoke-workflow-call":"./.github/workflows/smoke-workflow-call.lock.yml"},"workflows":["smoke-workflow-call"]},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
           GH_AW_SAFE_OUTPUTS_CONFIG_d815eb6c6786190a_EOF
       - name: Write Safe Outputs Tools
         env:
@@ -473,31 +472,6 @@ jobs:
             }
           GH_AW_VALIDATION_JSON: |
             {
-              "comment_memory": {
-                "defaultMax": 1,
-                "fields": {
-                  "body": {
-                    "required": true,
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 65000
-                  },
-                  "item_number": {
-                    "issueOrPRNumber": true
-                  },
-                  "memory_id": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 128,
-                    "pattern": "^[a-zA-Z0-9_-]+$",
-                    "patternError": "must contain only alphanumeric characters, hyphens, and underscores"
-                  },
-                  "repo": {
-                    "type": "string",
-                    "maxLength": 256
-                  }
-                }
-              },
               "missing_data": {
                 "defaultMax": 20,
                 "fields": {
@@ -760,15 +734,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - name: Prepare comment memory files
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/setup_comment_memory_files.cjs');
-            await main();
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
@@ -947,7 +912,6 @@ jobs:
             /tmp/gh-aw/otel.jsonl
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
-            /tmp/gh-aw/comment-memory/
             /tmp/gh-aw/aw-*.patch
             /tmp/gh-aw/aw-*.bundle
             /tmp/gh-aw/sandbox/firewall/logs/
@@ -980,9 +944,7 @@ jobs:
       always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true' ||
       needs.activation.outputs.stale_lock_file_failed == 'true')
     runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      issues: write
+    permissions: {}
     concurrency:
       group: "gh-aw-conclusion-smoke-call-workflow"
       cancel-in-progress: false
@@ -1315,9 +1277,7 @@ jobs:
       - detection
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      issues: write
+    permissions: {}
     timeout-minutes: 15
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/smoke-call-workflow"
@@ -1385,7 +1345,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,127.0.0.1,172.30.0.1,::1,api.openai.com,api.snapcraft.io,app.renovatebot.com,appveyor.com,archive.ubuntu.com,azure.archive.ubuntu.com,badgen.net,circleci.com,codacy.com,codeclimate.com,codecov.io,codeload.github.com,coveralls.io,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deepsource.io,docs.github.com,drone.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,host.docker.internal,img.shields.io,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,localhost,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,readthedocs.io,readthedocs.org,renovatebot.com,s.symcb.com,s.symcd.com,security.ubuntu.com,semaphoreci.com,shields.io,snyk.io,sonarcloud.io,sonarqube.com,travis-ci.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"call_workflow\":{\"max\":1,\"workflow_files\":{\"smoke-workflow-call\":\"./.github/workflows/smoke-workflow-call.lock.yml\"},\"workflows\":[\"smoke-workflow-call\"]},\"comment_memory\":{\"max\":1,\"memory_id\":\"default\"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"call_workflow\":{\"max\":1,\"workflow_files\":{\"smoke-workflow-call\":\"./.github/workflows/smoke-workflow-call.lock.yml\"},\"workflows\":[\"smoke-workflow-call\"]},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

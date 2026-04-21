@@ -198,6 +198,8 @@ jobs:
       - name: Compute current body text
         id: sanitized
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        env:
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org,telemetry.enterprise.githubcopilot.com"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -250,7 +252,6 @@ jobs:
           GH_AW_PROMPT_b408d9dacab7d48a_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_create_pull_request.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_push_to_pr_branch.md"
-          cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_comment_memory.md"
           cat << 'GH_AW_PROMPT_b408d9dacab7d48a_EOF'
           </safe-output-tools>
           GH_AW_PROMPT_b408d9dacab7d48a_EOF
@@ -512,7 +513,7 @@ jobs:
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts"
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_0ea35372bf399405_EOF'
-          {"add_comment":{"max":3,"target":"*"},"add_labels":{"allowed":["poetry","creative","automation","ai-generated","epic","haiku","sonnet","limerick"],"max":5},"close_pull_request":{"max":2,"required_labels":["poetry","automation"],"required_title_prefix":"[🎨 POETRY]","target":"*"},"comment_memory":{"max":1,"memory_id":"default"},"create_agent_session":{"base":"main","max":1},"create_discussion":{"category":"audits","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"labels":["poetry","automation","ai-generated"],"max":2,"title_prefix":"[📜 POETRY] "},"create_issue":{"expires":48,"group":true,"labels":["poetry","automation","ai-generated"],"max":2,"title_prefix":"[🎭 POEM-BOT] "},"create_pull_request":{"draft":false,"expires":48,"labels":["poetry","automation","creative-writing"],"max":1,"max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","AGENTS.md","CLAUDE.md","GEMINI.md"],"protected_path_prefixes":[".github/",".agents/"],"reviewers":["copilot"],"title_prefix":"[🎨 POETRY] "},"create_pull_request_review_comment":{"max":2,"side":"RIGHT"},"create_report_incomplete_issue":{},"link_sub_issue":{"max":3,"parent_required_labels":["poetry","epic"],"parent_title_prefix":"[🎭 POEM-BOT]","sub_required_labels":["poetry"],"sub_title_prefix":"[🎭 POEM-BOT]"},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_to_pull_request_branch":{"if_no_changes":"warn","max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","AGENTS.md","CLAUDE.md","GEMINI.md"],"protected_path_prefixes":[".github/",".agents/"]},"report_incomplete":{},"update_issue":{"allow_body":true,"allow_status":true,"allow_title":true,"max":2,"target":"*"},"upload_artifact":{"max-size-bytes":104857600,"max-uploads":1,"retention-days":30}}
+          {"add_comment":{"max":3,"target":"*"},"add_labels":{"allowed":["poetry","creative","automation","ai-generated","epic","haiku","sonnet","limerick"],"max":5},"close_pull_request":{"max":2,"required_labels":["poetry","automation"],"required_title_prefix":"[🎨 POETRY]","target":"*"},"create_agent_session":{"base":"main","max":1},"create_discussion":{"category":"audits","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"labels":["poetry","automation","ai-generated"],"max":2,"title_prefix":"[📜 POETRY] "},"create_issue":{"expires":48,"group":true,"labels":["poetry","automation","ai-generated"],"max":2,"title_prefix":"[🎭 POEM-BOT] "},"create_pull_request":{"draft":false,"expires":48,"labels":["poetry","automation","creative-writing"],"max":1,"max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","AGENTS.md","CLAUDE.md","GEMINI.md"],"protected_path_prefixes":[".github/",".agents/"],"reviewers":["copilot"],"title_prefix":"[🎨 POETRY] "},"create_pull_request_review_comment":{"max":2,"side":"RIGHT"},"create_report_incomplete_issue":{},"link_sub_issue":{"max":3,"parent_required_labels":["poetry","epic"],"parent_title_prefix":"[🎭 POEM-BOT]","sub_required_labels":["poetry"],"sub_title_prefix":"[🎭 POEM-BOT]"},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_to_pull_request_branch":{"if_no_changes":"warn","max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","AGENTS.md","CLAUDE.md","GEMINI.md"],"protected_path_prefixes":[".github/",".agents/"]},"report_incomplete":{},"update_issue":{"allow_body":true,"allow_status":true,"allow_title":true,"max":2,"target":"*"},"upload_artifact":{"max-size-bytes":104857600,"max-uploads":1,"retention-days":30}}
           GH_AW_SAFE_OUTPUTS_CONFIG_0ea35372bf399405_EOF
       - name: Write Safe Outputs Tools
         env:
@@ -587,31 +588,6 @@ jobs:
                   },
                   "pull_request_number": {
                     "optionalPositiveInteger": true
-                  },
-                  "repo": {
-                    "type": "string",
-                    "maxLength": 256
-                  }
-                }
-              },
-              "comment_memory": {
-                "defaultMax": 1,
-                "fields": {
-                  "body": {
-                    "required": true,
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 65000
-                  },
-                  "item_number": {
-                    "issueOrPRNumber": true
-                  },
-                  "memory_id": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 128,
-                    "pattern": "^[a-zA-Z0-9_-]+$",
-                    "patternError": "must contain only alphanumeric characters, hyphens, and underscores"
                   },
                   "repo": {
                     "type": "string",
@@ -1077,15 +1053,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - name: Prepare comment memory files
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/setup_comment_memory_files.cjs');
-            await main();
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
@@ -1319,7 +1286,6 @@ jobs:
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
-            /tmp/gh-aw/comment-memory/
             /tmp/gh-aw/aw-*.patch
             /tmp/gh-aw/aw-*.bundle
             /tmp/gh-aw/sandbox/firewall/logs/
@@ -1799,7 +1765,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org,telemetry.enterprise.githubcopilot.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"close_pull_request\":{\"max\":2,\"required_labels\":[\"poetry\",\"automation\"],\"required_title_prefix\":\"[🎨 POETRY]\",\"target\":\"*\"},\"comment_memory\":{\"max\":1,\"memory_id\":\"default\"},\"create_agent_session\":{\"base\":\"main\",\"max\":1},\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"labels\":[\"poetry\",\"automation\",\"ai-generated\"],\"max\":2,\"title_prefix\":\"[📜 POETRY] \"},\"create_issue\":{\"expires\":48,\"group\":true,\"labels\":[\"poetry\",\"automation\",\"ai-generated\"],\"max\":2,\"title_prefix\":\"[🎭 POEM-BOT] \"},\"create_pull_request\":{\"draft\":false,\"expires\":48,\"labels\":[\"poetry\",\"automation\",\"creative-writing\"],\"max\":1,\"max_patch_size\":1024,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"AGENTS.md\",\"CLAUDE.md\",\"GEMINI.md\"],\"protected_path_prefixes\":[\".github/\",\".agents/\"],\"reviewers\":[\"copilot\"],\"title_prefix\":\"[🎨 POETRY] \"},\"create_pull_request_review_comment\":{\"max\":2,\"side\":\"RIGHT\"},\"create_report_incomplete_issue\":{},\"link_sub_issue\":{\"max\":3,\"parent_required_labels\":[\"poetry\",\"epic\"],\"parent_title_prefix\":\"[🎭 POEM-BOT]\",\"sub_required_labels\":[\"poetry\"],\"sub_title_prefix\":\"[🎭 POEM-BOT]\"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"push_to_pull_request_branch\":{\"if_no_changes\":\"warn\",\"max_patch_size\":1024,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"AGENTS.md\",\"CLAUDE.md\",\"GEMINI.md\"],\"protected_path_prefixes\":[\".github/\",\".agents/\"]},\"report_incomplete\":{},\"update_issue\":{\"allow_body\":true,\"allow_status\":true,\"allow_title\":true,\"max\":2,\"target\":\"*\"},\"upload_artifact\":{\"max-size-bytes\":104857600,\"max-uploads\":1,\"retention-days\":30}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"close_pull_request\":{\"max\":2,\"required_labels\":[\"poetry\",\"automation\"],\"required_title_prefix\":\"[🎨 POETRY]\",\"target\":\"*\"},\"create_agent_session\":{\"base\":\"main\",\"max\":1},\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"labels\":[\"poetry\",\"automation\",\"ai-generated\"],\"max\":2,\"title_prefix\":\"[📜 POETRY] \"},\"create_issue\":{\"expires\":48,\"group\":true,\"labels\":[\"poetry\",\"automation\",\"ai-generated\"],\"max\":2,\"title_prefix\":\"[🎭 POEM-BOT] \"},\"create_pull_request\":{\"draft\":false,\"expires\":48,\"labels\":[\"poetry\",\"automation\",\"creative-writing\"],\"max\":1,\"max_patch_size\":1024,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"AGENTS.md\",\"CLAUDE.md\",\"GEMINI.md\"],\"protected_path_prefixes\":[\".github/\",\".agents/\"],\"reviewers\":[\"copilot\"],\"title_prefix\":\"[🎨 POETRY] \"},\"create_pull_request_review_comment\":{\"max\":2,\"side\":\"RIGHT\"},\"create_report_incomplete_issue\":{},\"link_sub_issue\":{\"max\":3,\"parent_required_labels\":[\"poetry\",\"epic\"],\"parent_title_prefix\":\"[🎭 POEM-BOT]\",\"sub_required_labels\":[\"poetry\"],\"sub_title_prefix\":\"[🎭 POEM-BOT]\"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"push_to_pull_request_branch\":{\"if_no_changes\":\"warn\",\"max_patch_size\":1024,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"AGENTS.md\",\"CLAUDE.md\",\"GEMINI.md\"],\"protected_path_prefixes\":[\".github/\",\".agents/\"]},\"report_incomplete\":{},\"update_issue\":{\"allow_body\":true,\"allow_status\":true,\"allow_title\":true,\"max\":2,\"target\":\"*\"},\"upload_artifact\":{\"max-size-bytes\":104857600,\"max-uploads\":1,\"retention-days\":30}}"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
           GH_AW_AGENT_SESSION_TOKEN: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:

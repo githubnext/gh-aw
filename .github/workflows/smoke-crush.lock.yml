@@ -193,6 +193,8 @@ jobs:
       - name: Compute current body text
         id: sanitized
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        env:
+          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,api.anthropic.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,charm.land,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,docs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -238,9 +240,6 @@ jobs:
           cat << 'GH_AW_PROMPT_b4fa4429d3aa72ae_EOF'
           <safe-output-tools>
           Tools: add_comment(max:2), create_issue, add_labels, missing_tool, missing_data, noop
-          GH_AW_PROMPT_b4fa4429d3aa72ae_EOF
-          cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_comment_memory.md"
-          cat << 'GH_AW_PROMPT_b4fa4429d3aa72ae_EOF'
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -458,7 +457,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_54d6fc53111917b1_EOF'
-          {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-crush"]},"comment_memory":{"max":1,"memory_id":"default"},"create_issue":{"close_older_issues":true,"expires":2,"labels":["automation","testing"],"max":1},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
+          {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-crush"]},"create_issue":{"close_older_issues":true,"expires":2,"labels":["automation","testing"],"max":1},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
           GH_AW_SAFE_OUTPUTS_CONFIG_54d6fc53111917b1_EOF
       - name: Write Safe Outputs Tools
         env:
@@ -508,31 +507,6 @@ jobs:
                     "itemType": "string",
                     "itemSanitize": true,
                     "itemMaxLength": 128
-                  },
-                  "repo": {
-                    "type": "string",
-                    "maxLength": 256
-                  }
-                }
-              },
-              "comment_memory": {
-                "defaultMax": 1,
-                "fields": {
-                  "body": {
-                    "required": true,
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 65000
-                  },
-                  "item_number": {
-                    "issueOrPRNumber": true
-                  },
-                  "memory_id": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 128,
-                    "pattern": "^[a-zA-Z0-9_-]+$",
-                    "patternError": "must contain only alphanumeric characters, hyphens, and underscores"
                   },
                   "repo": {
                     "type": "string",
@@ -891,15 +865,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - name: Prepare comment memory files
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/setup_comment_memory_files.cjs');
-            await main();
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
@@ -1067,7 +1032,6 @@ jobs:
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
-            /tmp/gh-aw/comment-memory/
             /tmp/gh-aw/aw-*.patch
             /tmp/gh-aw/aw-*.bundle
             /tmp/gh-aw/sandbox/firewall/logs/
@@ -1519,7 +1483,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,api.anthropic.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,charm.land,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,docs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-crush\"]},\"comment_memory\":{\"max\":1,\"memory_id\":\"default\"},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"labels\":[\"automation\",\"testing\"],\"max\":1},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-crush\"]},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"labels\":[\"automation\",\"testing\"],\"max\":1},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
