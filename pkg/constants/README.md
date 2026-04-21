@@ -415,7 +415,8 @@ constants.ClaudeLLMGatewayPort      // 10000
 constants.CodexLLMGatewayPort       // 10001
 constants.CopilotLLMGatewayPort     // 10002
 constants.GeminiLLMGatewayPort      // 10003
-constants.CrushLLMGatewayPort       // 10004
+constants.OpenCodeLLMGatewayPort    // 10004
+constants.CrushLLMGatewayPort       // 10005
 ```
 
 ## Tool Lists
