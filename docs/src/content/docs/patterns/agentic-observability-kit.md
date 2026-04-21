@@ -106,7 +106,7 @@ tools:
     github-token: ${{ secrets.GH_AW_READ_ORG_TOKEN }}
     toolsets: [repos]
   bash:
-    - "gh aw logs*"
+    - "gh aw logs *"
 safe-outputs:
   create-discussion:
     max: 1
@@ -138,7 +138,7 @@ tools:
     github-token: ${{ secrets.GH_AW_ENTERPRISE_READ_TOKEN }}
     toolsets: [repos, orgs]
   bash:
-    - "gh aw logs*"
+    - "gh aw logs *"
 safe-outputs:
   create-discussion:
     max: 1
