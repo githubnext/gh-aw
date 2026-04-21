@@ -71,9 +71,24 @@ func (c *Compiler) validateNetworkAllowedDomains(network *NetworkPermissions) er
 			continue
 		}
 
-		// Skip ecosystem identifiers - they don't need domain pattern validation
+		// Check if this looks like an ecosystem identifier (single lowercase word with optional hyphens)
 		if isEcosystemIdentifier(domain) {
-			networkFirewallValidationLog.Printf("Skipping ecosystem identifier: %s", domain)
+			// Validate it's a known ecosystem identifier
+			if len(getEcosystemDomains(domain)) > 0 {
+				networkFirewallValidationLog.Printf("Skipping known ecosystem identifier: %s", domain)
+				continue
+			}
+			// Unknown ecosystem identifier - error
+			networkFirewallValidationLog.Printf("Validation error: unknown ecosystem identifier: %s", domain)
+			wrappedErr := fmt.Errorf("network.allowed[%d]: %w", i, NewValidationError(
+				"network.allowed",
+				domain,
+				fmt.Sprintf("'%s' is not a valid ecosystem identifier", domain),
+				"Use a valid ecosystem identifier or a domain name containing a dot (e.g., 'example.com').\n\nValid ecosystem identifiers: defaults, github, python, node, go, rust, java, ruby, dotnet, php, swift, kotlin, scala, clojure, dart, elixir, haskell, perl, zig, containers, chrome, playwright, terraform, dev-tools, linux-distros, local, fonts, github-actions, node-cdns, python-native, deno, default-safe-outputs, lean, latex, lua, julia, ocaml, bazel, powershell, r, threat-detection",
+			))
+			if returnErr := collector.Add(wrappedErr); returnErr != nil {
+				return returnErr // Fail-fast mode
+			}
 			continue
 		}
 
