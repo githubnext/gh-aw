@@ -564,20 +564,6 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
-			// Handle extra-needs configuration
-			if extraNeedsValue, exists := outputMap["extra-needs"]; exists {
-				if extraNeedsArray, ok := extraNeedsValue.([]any); ok {
-					for _, need := range extraNeedsArray {
-						if needStr, ok := need.(string); ok && needStr != "" {
-							config.ExtraNeeds = append(config.ExtraNeeds, needStr)
-						}
-					}
-					if len(config.ExtraNeeds) > 0 {
-						safeOutputsConfigLog.Printf("Configured %d extra safe-outputs needs dependency(ies)", len(config.ExtraNeeds))
-					}
-				}
-			}
-
 			// Handle environment configuration (override for safe-outputs job; falls back to top-level environment)
 			config.Environment = c.extractTopLevelYAMLSection(outputMap, "environment")
 			if config.Environment != "" {

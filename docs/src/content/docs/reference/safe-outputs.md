@@ -1235,9 +1235,9 @@ safe-outputs:
 
 Accepts a plain string or an object with `name` and optional `url`, consistent with the top-level `environment:` syntax.
 
-### Safe Outputs Dependencies (`needs:`, `extra-needs:`)
+### Safe Outputs Dependencies (`needs:`)
 
-Extend the consolidated `safe_outputs` job dependencies with custom workflow jobs (for example, credential fetchers). Both fields are merged with built-in dependencies (`agent`, `activation`, optional `detection`, optional `unlock`) and deduplicated.
+Extend the consolidated `safe_outputs` job dependencies with custom workflow jobs (for example, credential fetchers). `safe-outputs.needs` is merged with built-in dependencies (`agent`, `activation`, optional `detection`, optional `unlock`) and deduplicated.
 
 ```yaml wrap
 jobs:
@@ -1254,7 +1254,6 @@ jobs:
 
 safe-outputs:
   needs: [secrets_fetcher]
-  extra-needs: [secrets_fetcher]
   github-app:
     app-id: ${{ needs.secrets_fetcher.outputs.app_id }}
     private-key: ${{ needs.secrets_fetcher.outputs.app_private_key }}

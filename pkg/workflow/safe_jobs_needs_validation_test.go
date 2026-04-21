@@ -307,7 +307,7 @@ func TestValidateSafeOutputsNeeds(t *testing.T) {
 		errContains string
 	}{
 		{
-			name: "valid custom job targets in needs and extra-needs",
+			name: "valid custom job targets in needs",
 			data: &WorkflowData{
 				Jobs: map[string]any{
 					"secrets_fetcher": map[string]any{
@@ -316,23 +316,22 @@ func TestValidateSafeOutputsNeeds(t *testing.T) {
 					},
 				},
 				SafeOutputs: &SafeOutputsConfig{
-					Needs:      []string{"secrets_fetcher"},
-					ExtraNeeds: []string{"secrets_fetcher"},
+					Needs: []string{"secrets_fetcher"},
 				},
 			},
 		},
 		{
-			name: "unknown job in extra-needs should fail",
+			name: "unknown job in needs should fail",
 			data: &WorkflowData{
 				Jobs: map[string]any{
 					"secrets_fetcher": map[string]any{},
 				},
 				SafeOutputs: &SafeOutputsConfig{
-					ExtraNeeds: []string{"missing_job"},
+					Needs: []string{"missing_job"},
 				},
 			},
 			wantErr:     true,
-			errContains: `safe-outputs.extra-needs: unknown job "missing_job"`,
+			errContains: `safe-outputs.needs: unknown job "missing_job"`,
 		},
 		{
 			name: "built-in job in needs should fail",
@@ -354,11 +353,11 @@ func TestValidateSafeOutputsNeeds(t *testing.T) {
 					"secrets_fetcher": map[string]any{},
 				},
 				SafeOutputs: &SafeOutputsConfig{
-					ExtraNeeds: []string{"safe_outputs"},
+					Needs: []string{"safe_outputs"},
 				},
 			},
 			wantErr:     true,
-			errContains: `safe-outputs.extra-needs: built-in job "safe_outputs" is not allowed`,
+			errContains: `safe-outputs.needs: built-in job "safe_outputs" is not allowed`,
 		},
 		{
 			name: "missing fields keeps behavior unchanged",

@@ -493,14 +493,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			seenNeeds[need] = true
 			consolidatedSafeOutputsJobLog.Printf("Added explicit safe-outputs needs dependency to safe_outputs job: %s", need)
 		}
-		for _, need := range data.SafeOutputs.ExtraNeeds {
-			if seenNeeds[need] {
-				continue
-			}
-			needs = append(needs, need)
-			seenNeeds[need] = true
-			consolidatedSafeOutputsJobLog.Printf("Added extra safe-outputs needs dependency to safe_outputs job: %s", need)
-		}
 	}
 
 	// Extract workflow ID from markdown path for GH_AW_WORKFLOW_ID

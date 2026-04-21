@@ -17,9 +17,6 @@ func validateSafeOutputsNeeds(data *WorkflowData) error {
 	if err := validateSafeOutputsNeedsField(data, "needs", data.SafeOutputs.Needs); err != nil {
 		return err
 	}
-	if err := validateSafeOutputsNeedsField(data, "extra-needs", data.SafeOutputs.ExtraNeeds); err != nil {
-		return err
-	}
 
 	return nil
 }

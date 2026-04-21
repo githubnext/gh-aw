@@ -231,8 +231,7 @@ func TestBuildConsolidatedSafeOutputsJobNeedsIncludesConfiguredDependencies(t *t
 				TitlePrefix: "[Test] ",
 			},
 			ThreatDetection: &ThreatDetectionConfig{},
-			Needs:           []string{"secrets_fetcher"},
-			ExtraNeeds:      []string{"secrets_fetcher", "vault_bootstrap"},
+			Needs:           []string{"secrets_fetcher", "vault_bootstrap"},
 		},
 	}
 
@@ -266,7 +265,6 @@ permissions:
   contents: read
 safe-outputs:
   needs: [secrets_fetcher]
-  extra-needs: [secrets_fetcher]
   github-app:
     app-id: ${{ needs.secrets_fetcher.outputs.app_id }}
     private-key: ${{ needs.secrets_fetcher.outputs.app_private_key }}
