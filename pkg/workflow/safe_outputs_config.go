@@ -394,6 +394,8 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			// Enable comment-memory by default only when the key is absent.
 			// Explicit `comment_memory: false` or `comment_memory: null` opt out.
 			if config.CommentMemory == nil {
+				// Hyphenated key is canonical (schema-defined); underscore key is a
+				// legacy/internal alias still recognized by parsing paths.
 				_, existsUnderscore := outputMap["comment_memory"]
 				_, existsHyphen := outputMap["comment-memory"]
 				if !existsUnderscore && !existsHyphen {

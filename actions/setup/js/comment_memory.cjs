@@ -70,13 +70,14 @@ async function findManagedComment(github, owner, repo, itemNumber, memoryID) {
       return null;
     }
     const match = data.find(comment => {
-      if (typeof comment.body !== "string") {
+      const body = comment.body;
+      if (typeof body !== "string") {
         return false;
       }
-      if (!comment.body.includes(marker)) {
+      if (!body.includes(marker)) {
         return false;
       }
-      return comment.body.includes(MANAGED_COMMENT_PROVENANCE_MARKER);
+      return body.includes(MANAGED_COMMENT_PROVENANCE_MARKER);
     });
     if (match) {
       core.info(`comment_memory: found existing managed comment id=${match.id} on page ${page}`);

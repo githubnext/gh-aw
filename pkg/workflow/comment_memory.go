@@ -16,9 +16,9 @@ type CommentMemoryConfig struct {
 
 // parseCommentMemoryConfig handles comment-memory configuration.
 func (c *Compiler) parseCommentMemoryConfig(outputMap map[string]any) *CommentMemoryConfig {
-	rawConfig, exists := outputMap["comment_memory"]
+	rawConfig, exists := outputMap["comment-memory"]
 	if !exists {
-		rawConfig, exists = outputMap["comment-memory"]
+		rawConfig, exists = outputMap["comment_memory"]
 	}
 	if !exists {
 		return nil
