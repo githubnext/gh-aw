@@ -75,14 +75,16 @@ func getFirewallConfig(workflowData *WorkflowData) *FirewallConfig {
 	if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil {
 		config := workflowData.NetworkPermissions.Firewall
 		if agentVersion != "" {
+			if config.Version == agentVersion {
+				return config
+			}
+
 			overrideConfig := *config
 			overrideConfig.Version = agentVersion
-			if config.Version != agentVersion {
-				if config.Version == "" {
-					firewallLog.Printf("Using sandbox.agent.version %s for firewall version", agentVersion)
-				} else {
-					firewallLog.Printf("Overriding firewall version %s with sandbox.agent.version %s", config.Version, agentVersion)
-				}
+			if config.Version == "" {
+				firewallLog.Printf("Using sandbox.agent.version %s for firewall version", agentVersion)
+			} else {
+				firewallLog.Printf("Overriding firewall version %s with sandbox.agent.version %s", config.Version, agentVersion)
 			}
 			return &overrideConfig
 		}
