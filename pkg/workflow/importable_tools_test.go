@@ -1029,7 +1029,7 @@ permissions:
   issues: read
 tools:
   github:
-    mode: mcp
+    mode: local
 imports:
   - shared.md
 ---
@@ -1053,9 +1053,9 @@ imports:
 
 	workflowData := string(lockFileContent)
 	if strings.Contains(workflowData, "cli_proxy_prompt.md") {
-		t.Error("Expected top-level mode:mcp to win over imported mode:cli (cli_proxy_prompt.md should not be present)")
+		t.Error("Expected top-level mode:local to win over imported mode:cli (cli_proxy_prompt.md should not be present)")
 	}
 	if !strings.Contains(workflowData, "github_mcp_tools_prompt.md") {
-		t.Error("Expected GitHub MCP prompt guidance when top-level mode is mcp")
+		t.Error("Expected GitHub MCP prompt guidance when top-level mode is local")
 	}
 }

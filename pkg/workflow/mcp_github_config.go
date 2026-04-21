@@ -91,9 +91,10 @@ func hasGitHubApp(githubTool any) bool {
 }
 
 // isGitHubCLIModeEnabled returns true when GitHub prompt/runtime mode is explicitly set
-// to `tools.github.mode: cli`. If mode is explicitly set to `mcp`, it takes precedence
-// over the legacy features.cli-proxy flag. When mode is not explicitly set, this falls
-// back to legacy feature-flag behavior for backward compatibility.
+// to `tools.github.mode: cli`. If mode is explicitly set to `local` or `remote`, it
+// takes precedence over the legacy features.cli-proxy flag (treated as MCP mode).
+// When mode is not explicitly set, this returns the legacy `features.cli-proxy` flag
+// value for backward compatibility.
 func isGitHubCLIModeEnabled(data *WorkflowData) bool {
 	if data == nil {
 		return false
@@ -109,7 +110,7 @@ func isGitHubCLIModeEnabled(data *WorkflowData) bool {
 					switch modeValue := strings.ToLower(strings.TrimSpace(stringValue)); modeValue {
 					case "cli":
 						return true
-					case "mcp":
+					case "local", "remote":
 						return false
 					default:
 						githubConfigLog.Printf("Unrecognized tools.github.mode value: %s, falling back to legacy behavior", modeValue)

@@ -1004,7 +1004,7 @@ func TestIsCliProxyNeeded_IntegrityReactionsImplicitEnable(t *testing.T) {
 			desc:     "both flags together should enable the CLI proxy",
 		},
 		{
-			name: "tools.github.mode mcp overrides legacy cli-proxy feature",
+			name: "tools.github.mode local overrides legacy cli-proxy feature",
 			data: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{
@@ -1014,13 +1014,13 @@ func TestIsCliProxyNeeded_IntegrityReactionsImplicitEnable(t *testing.T) {
 				},
 				Tools: map[string]any{
 					"github": map[string]any{
-						"mode": "mcp",
+						"mode": "local",
 					},
 				},
 				Features: map[string]any{"cli-proxy": true},
 			},
 			expected: false,
-			desc:     "explicit tools.github.mode=mcp should disable cli proxy even when legacy feature is set",
+			desc:     "explicit tools.github.mode=local should disable cli proxy even when legacy feature is set",
 		},
 		{
 			name: "tools.github.mode cli enables cli proxy without legacy feature",

@@ -61,7 +61,7 @@ features:
   cli-proxy: true
 tools:
   github:
-    mode: mcp
+    mode: local
 ---
 
 # Test
@@ -72,7 +72,7 @@ tools:
 			},
 			"tools": map[string]any{
 				"github": map[string]any{
-					"mode": "mcp",
+					"mode": "local",
 				},
 			},
 		}
@@ -81,7 +81,7 @@ tools:
 		require.NoError(t, err)
 		assert.True(t, applied)
 		assert.NotContains(t, result, "cli-proxy:")
-		assert.Contains(t, result, "mode: mcp")
+		assert.Contains(t, result, "mode: local")
 		assert.NotContains(t, result, "mode: cli")
 	})
 
