@@ -46,6 +46,8 @@ func convertStringToPermissionScope(key string) PermissionScope {
 		return PermissionStatuses
 	case "copilot-requests":
 		return PermissionCopilotRequests
+	case "vulnerability-alerts":
+		return PermissionVulnerabilityAlerts
 	// GitHub App-only permission scopes (not supported by GITHUB_TOKEN, require a GitHub App)
 	// organization-projects is included here because it is a GitHub App-only scope
 	// (it is excluded from GetAllPermissionScopes() and skipped in YAML rendering).
@@ -63,8 +65,6 @@ func convertStringToPermissionScope(key string) PermissionScope {
 		return PermissionGitSigning
 	case "team-discussions":
 		return PermissionTeamDiscussions
-	case "vulnerability-alerts":
-		return PermissionVulnerabilityAlerts
 	case "workflows":
 		return PermissionWorkflows
 	case "repository-hooks":
@@ -133,24 +133,31 @@ const (
 type PermissionScope string
 
 const (
-	// GitHub Actions permission scopes (supported by GITHUB_TOKEN)
-	PermissionActions          PermissionScope = "actions"
-	PermissionAttestations     PermissionScope = "attestations"
-	PermissionChecks           PermissionScope = "checks"
-	PermissionContents         PermissionScope = "contents"
-	PermissionDeployments      PermissionScope = "deployments"
-	PermissionDiscussions      PermissionScope = "discussions"
-	PermissionIdToken          PermissionScope = "id-token"
-	PermissionIssues           PermissionScope = "issues"
-	PermissionMetadata         PermissionScope = "metadata"
-	PermissionModels           PermissionScope = "models"
-	PermissionPackages         PermissionScope = "packages"
-	PermissionPages            PermissionScope = "pages"
-	PermissionPullRequests     PermissionScope = "pull-requests"
-	PermissionRepositoryProj   PermissionScope = "repository-projects"
+	// GitHub Actions permission scopes (supported by GITHUB_TOKEN), except
+	// organization-projects which is declared here for historical grouping but
+	// treated as GitHub App-only by GetAllGitHubAppOnlyScopes/IsGitHubAppOnlyScope.
+	PermissionActions             PermissionScope = "actions"
+	PermissionAttestations        PermissionScope = "attestations"
+	PermissionChecks              PermissionScope = "checks"
+	PermissionContents            PermissionScope = "contents"
+	PermissionDeployments         PermissionScope = "deployments"
+	PermissionDiscussions         PermissionScope = "discussions"
+	PermissionIdToken             PermissionScope = "id-token"
+	PermissionIssues              PermissionScope = "issues"
+	PermissionMetadata            PermissionScope = "metadata"
+	PermissionModels              PermissionScope = "models"
+	PermissionPackages            PermissionScope = "packages"
+	PermissionPages               PermissionScope = "pages"
+	PermissionPullRequests        PermissionScope = "pull-requests"
+	PermissionRepositoryProj      PermissionScope = "repository-projects"
+	PermissionSecurityEvents      PermissionScope = "security-events"
+	PermissionStatuses            PermissionScope = "statuses"
+	PermissionVulnerabilityAlerts PermissionScope = "vulnerability-alerts"
+
+	// PermissionOrganizationProj is declared here for constant grouping but is treated as
+	// GitHub App-only at runtime (excluded from GetAllPermissionScopes(), included in
+	// GetAllGitHubAppOnlyScopes() and IsGitHubAppOnlyScope).
 	PermissionOrganizationProj PermissionScope = "organization-projects"
-	PermissionSecurityEvents   PermissionScope = "security-events"
-	PermissionStatuses         PermissionScope = "statuses"
 	// PermissionCopilotRequests is a GitHub Actions permission scope used with the copilot-requests feature.
 	// It enables use of the GitHub Actions token as the Copilot authentication token.
 	PermissionCopilotRequests PermissionScope = "copilot-requests"
@@ -164,7 +171,6 @@ const (
 	PermissionAdministration             PermissionScope = "administration"
 	PermissionEnvironments               PermissionScope = "environments"
 	PermissionGitSigning                 PermissionScope = "git-signing"
-	PermissionVulnerabilityAlerts        PermissionScope = "vulnerability-alerts"
 	PermissionWorkflows                  PermissionScope = "workflows"
 	PermissionRepositoryHooks            PermissionScope = "repository-hooks"
 	PermissionSingleFile                 PermissionScope = "single-file"
@@ -218,6 +224,7 @@ func GetAllPermissionScopes() []PermissionScope {
 		PermissionRepositoryProj,
 		PermissionSecurityEvents,
 		PermissionStatuses,
+		PermissionVulnerabilityAlerts,
 	}
 }
 
@@ -230,7 +237,6 @@ func GetAllGitHubAppOnlyScopes() []PermissionScope {
 		PermissionAdministration,
 		PermissionEnvironments,
 		PermissionGitSigning,
-		PermissionVulnerabilityAlerts,
 		PermissionWorkflows,
 		PermissionRepositoryHooks,
 		PermissionSingleFile,

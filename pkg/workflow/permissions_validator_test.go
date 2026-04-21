@@ -89,11 +89,12 @@ func TestCollectRequiredPermissions(t *testing.T) {
 			},
 		},
 		{
-			name:     "Dependabot toolset requires only security-events (vulnerability-alerts is GitHub App-only)",
+			name:     "Dependabot toolset requires security-events and vulnerability-alerts",
 			toolsets: []string{"dependabot"},
 			readOnly: false,
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionSecurityEvents: PermissionRead,
+				PermissionSecurityEvents:      PermissionRead,
+				PermissionVulnerabilityAlerts: PermissionRead,
 			},
 		},
 		{

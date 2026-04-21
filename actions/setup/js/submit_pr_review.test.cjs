@@ -94,6 +94,21 @@ describe("submit_pr_review (Handler Factory Architecture)", () => {
     expect(result.error).toContain("No PR review buffer available");
   });
 
+  it("should enable supersede mode on review buffer when configured", async () => {
+    const { main } = require("./submit_pr_review.cjs");
+    const localBuffer = createReviewBuffer();
+    const supersedeSpy = vi.spyOn(localBuffer, "setSupersedeOlderReviews");
+
+    await main({
+      max: 1,
+      _prReviewBuffer: localBuffer,
+      supersede_older_reviews: true,
+    });
+
+    expect(supersedeSpy).toHaveBeenCalledWith(true);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("supersede-older-reviews is best-effort"));
+  });
+
   it("should set review metadata for APPROVE event", async () => {
     const message = {
       type: "submit_pull_request_review",

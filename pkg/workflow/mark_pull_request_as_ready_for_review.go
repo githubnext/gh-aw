@@ -15,6 +15,7 @@ type MarkPullRequestAsReadyForReviewConfig struct {
 
 // parseMarkPullRequestAsReadyForReviewConfig handles mark-pull-request-as-ready-for-review configuration
 func (c *Compiler) parseMarkPullRequestAsReadyForReviewConfig(outputMap map[string]any) *MarkPullRequestAsReadyForReviewConfig {
+	markPullRequestAsReadyForReviewLog.Print("Parsing mark-pull-request-as-ready-for-review config")
 	config := parseConfigScaffold(outputMap, "mark-pull-request-as-ready-for-review", markPullRequestAsReadyForReviewLog,
 		func(err error) *MarkPullRequestAsReadyForReviewConfig {
 			return nil
@@ -41,5 +42,6 @@ func (c *Compiler) parseMarkPullRequestAsReadyForReviewConfig(outputMap map[stri
 	filterConfig := ParseFilterConfig(configMap)
 	config.SafeOutputFilterConfig = filterConfig
 
+	markPullRequestAsReadyForReviewLog.Printf("Parsed mark-pull-request-as-ready-for-review config: target=%s", config.Target)
 	return config
 }

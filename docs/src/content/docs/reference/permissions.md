@@ -44,7 +44,7 @@ See [GitHub's permissions reference](https://docs.github.com/en/actions/using-jo
 
 Certain permission scopes require [additional authentication](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools). These include:
 
-**Repository-level:** `administration`, `environments`, `git-signing`, `vulnerability-alerts`, `workflows`, `repository-hooks`, `single-file`, `codespaces`, `repository-custom-properties`
+**Repository-level:** `administration`, `environments`, `git-signing`, `workflows`, `repository-hooks`, `single-file`, `codespaces`, `repository-custom-properties`
 
 **Organization-level:** `organization-projects`, `members`, `organization-administration`, `team-discussions`, `organization-hooks`, `organization-members`, `organization-packages`, `organization-self-hosted-runners`, `organization-custom-org-roles`, `organization-custom-properties`, `organization-custom-repository-roles`, `organization-announcement-banners`, `organization-events`, `organization-plan`, `organization-user-blocking`, `organization-personal-access-token-requests`, `organization-personal-access-tokens`, `organization-copilot`, `organization-codespaces`
 

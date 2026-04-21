@@ -247,7 +247,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// In dev/script mode, automatically add contents: read if the actions folder checkout is needed
 	// In release mode, use the permissions as specified by the user (no automatic augmentation)
 	//
-	// GitHub App-only permissions (e.g., vulnerability-alerts) must be filtered out before
+	// GitHub App-only permissions (e.g., members, administration) must be filtered out before
 	// rendering to the job-level permissions block. These scopes are not valid GitHub Actions
 	// workflow permissions and cause a parse error when queued. They are handled separately
 	// when minting GitHub App installation access tokens (as permission-* inputs).

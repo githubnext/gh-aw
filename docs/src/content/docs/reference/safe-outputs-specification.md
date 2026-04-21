@@ -1565,6 +1565,8 @@ submit-pull-request-review:
   target: "triggering" | "*" | <PR number>   # Required when not in pull_request trigger
   target-repo: owner/repo        # Cross-repository target
   allowed-repos: [...]           # Additional allowed repositories
+  allowed-events: [COMMENT]      # Preferred default for non-blocking bot reviews
+  supersede-older-reviews: true  # Best-effort dismissal of older same-workflow REQUEST_CHANGES reviews (including legacy blockers)
   footer: "always" | "none" | "if-body"     # Footer on review body
 ```
 

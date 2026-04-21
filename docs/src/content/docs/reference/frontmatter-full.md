@@ -3775,6 +3775,13 @@ safe-outputs:
     allowed-events: []
       # Array of strings
 
+    # When true, after posting a replacement review this workflow dismisses older
+    # REQUEST_CHANGES reviews previously posted by the same workflow on the same pull
+    # request. This is best-effort and requires workflow markers in prior review
+    # bodies.
+    # (optional)
+    supersede-older-reviews: true
+
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
     # (optional)

@@ -11,6 +11,7 @@ This page is the primary reference for pull-request-focused safe outputs:
 - [`update-pull-request`](#pull-request-updates-update-pull-request)
 - [`close-pull-request`](#close-pull-request-close-pull-request)
 - [`create-pull-request-review-comment`](#pr-review-comments-create-pull-request-review-comment)
+- [`submit-pull-request-review`](#submit-pr-review-submit-pull-request-review)
 - [`reply-to-pull-request-review-comment`](#reply-to-pr-review-comment-reply-to-pull-request-review-comment)
 - [`resolve-pull-request-review-thread`](#resolve-pr-review-thread-resolve-pull-request-review-thread)
 - [`push-to-pull-request-branch`](#push-to-pr-branch-push-to-pull-request-branch)
@@ -171,6 +172,26 @@ safe-outputs:
 ```
 
 When `target: "*"` is configured, the agent must supply `pull_request_number` in each `create_pull_request_review_comment` tool call to identify which PR to comment on — omitting it will cause the comment to fail. For cross-repository scenarios, the agent can also supply `repo` (in `owner/repo` format) to route the comment to a PR in a different repository; the value must match `target-repo` or appear in `allowed-repos`.
+
+## Submit PR Review (`submit-pull-request-review:`)
+
+Submits a consolidated pull request review. Inline comments buffered by `create-pull-request-review-comment` are included automatically.
+
+```yaml wrap
+safe-outputs:
+  submit-pull-request-review:
+    max: 1
+    allowed-events: [COMMENT, REQUEST_CHANGES]  # include REQUEST_CHANGES when superseding older blocking reviews
+    supersede-older-reviews: true  # dismiss older same-workflow REQUEST_CHANGES reviews after replacement
+    target: "triggering"           # or "*", or explicit PR number
+    target-repo: "owner/repo"      # cross-repository
+    allowed-repos: ["org/repo1"]   # additional allowed repositories
+    footer: "always"               # "always", "none", or "if-body"
+```
+
+Use `allowed-events` to control review decisions (`APPROVE`, `COMMENT`, `REQUEST_CHANGES`). Prefer `allowed-events: [COMMENT]` by default so bot reviews remain informative and non-blocking.
+
+When you intentionally allow `REQUEST_CHANGES`, set `supersede-older-reviews: true` to dismiss older blocking reviews from the same workflow after posting a replacement review. This behavior is best-effort.
 
 ## Reply to PR Review Comment (`reply-to-pull-request-review-comment:`)
 
