@@ -22,8 +22,7 @@ concurrency:
 engine:
   id: codex
   env:
-    CODEX_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.CODEX_API_KEY }}
-    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.CODEX_API_KEY }}
+    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 network:
   allowed:
     - defaults
