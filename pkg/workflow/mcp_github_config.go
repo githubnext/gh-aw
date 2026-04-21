@@ -90,26 +90,6 @@ func hasGitHubApp(githubTool any) bool {
 	return false
 }
 
-// getGitHubPromptMode extracts the prompt/runtime mode from GitHub tool configuration.
-// Supported values:
-//   - mcp (default): use GitHub MCP prompt guidance
-//   - cli: use pre-authenticated gh CLI prompt guidance (cli-proxy behavior)
-func getGitHubPromptMode(githubTool any) string {
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if modeSetting, exists := toolConfig["mode"]; exists {
-			if stringValue, ok := modeSetting.(string); ok {
-				switch strings.ToLower(strings.TrimSpace(stringValue)) {
-				case "mcp":
-					return "mcp"
-				case "cli":
-					return "cli"
-				}
-			}
-		}
-	}
-	return "mcp"
-}
-
 // isGitHubCLIModeEnabled returns true when GitHub prompt/runtime mode is explicitly set
 // to `tools.github.mode: cli`. If mode is explicitly set to `mcp`, it takes precedence
 // over the legacy features.cli-proxy flag. When mode is not explicitly set, this falls

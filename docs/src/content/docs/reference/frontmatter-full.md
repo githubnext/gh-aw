@@ -1872,10 +1872,17 @@ tools:
     allowed: []
       # Array of strings
 
-    # MCP server mode: 'local' (Docker-based, default) or 'remote' (hosted at
-    # api.githubcopilot.com)
+    # GitHub access mode: 'mcp' (default, use GitHub MCP server prompt guidance) or
+    # 'cli' (use pre-authenticated gh CLI prompt guidance; equivalent to legacy
+    # features.cli-proxy: true). Legacy MCP transport values 'local' and 'remote' are
+    # still accepted for backward compatibility.
     # (optional)
-    mode: "local"
+    mode: "mcp"
+
+    # GitHub MCP transport type: 'local' (Docker-based, default) or 'remote' (hosted
+    # at api.githubcopilot.com)
+    # (optional)
+    type: "local"
 
     # Optional version specification for the GitHub MCP server (used with 'local'
     # type). Can be a string (e.g., 'v1.0.0', 'latest') or number (e.g., 20, 3.11).
