@@ -257,7 +257,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_6041a8d56c2efb55_EOF'
           <safe-output-tools>
-          Tools: add_comment(max:2), create_issue, create_discussion, create_pull_request_review_comment(max:5), submit_pull_request_review, reply_to_pull_request_review_comment(max:5), add_labels, remove_labels, set_issue_type, dispatch_workflow, missing_tool, missing_data, noop, send_slack_message
+          Tools: add_comment(max:2), comment_memory, create_issue, create_discussion, create_pull_request_review_comment(max:5), submit_pull_request_review, reply_to_pull_request_review_comment(max:5), add_labels, remove_labels, set_issue_type, dispatch_workflow, missing_tool, missing_data, noop, send_slack_message
           </safe-output-tools>
           GH_AW_PROMPT_6041a8d56c2efb55_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
@@ -604,7 +604,7 @@ jobs:
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts"
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_841ec38613af95c7_EOF'
-          {"add_comment":{"allowed_repos":["github/gh-aw"],"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-copilot"],"allowed_repos":["github/gh-aw"]},"create_discussion":{"category":"announcements","close_older_discussions":true,"close_older_key":"smoke-copilot","expires":2,"fallback_to_issue":true,"labels":["ai-generated"],"max":1},"create_issue":{"close_older_issues":true,"close_older_key":"smoke-copilot","expires":2,"group":true,"labels":["automation","testing"],"max":1},"create_pull_request_review_comment":{"max":5,"side":"RIGHT"},"create_report_incomplete_issue":{},"dispatch_workflow":{"max":1,"workflow_files":{"haiku-printer":".yml"},"workflows":["haiku-printer"]},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke"]},"reply_to_pull_request_review_comment":{"max":5},"report_incomplete":{},"send-slack-message":{"description":"Send a message to Slack (stub for testing)","inputs":{"message":{"description":"The message to send","required":false,"type":"string"}},"output":"Slack message stub executed!"},"set_issue_type":{},"submit_pull_request_review":{"max":1},"upload_artifact":{"max-size-bytes":104857600,"max-uploads":1,"retention-days":1,"skip-archive":true}}
+          {"add_comment":{"allowed_repos":["github/gh-aw"],"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-copilot"],"allowed_repos":["github/gh-aw"]},"comment_memory":{"max":1,"memory_id":"default"},"create_discussion":{"category":"announcements","close_older_discussions":true,"close_older_key":"smoke-copilot","expires":2,"fallback_to_issue":true,"labels":["ai-generated"],"max":1},"create_issue":{"close_older_issues":true,"close_older_key":"smoke-copilot","expires":2,"group":true,"labels":["automation","testing"],"max":1},"create_pull_request_review_comment":{"max":5,"side":"RIGHT"},"create_report_incomplete_issue":{},"dispatch_workflow":{"max":1,"workflow_files":{"haiku-printer":".yml"},"workflows":["haiku-printer"]},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke"]},"reply_to_pull_request_review_comment":{"max":5},"report_incomplete":{},"send-slack-message":{"description":"Send a message to Slack (stub for testing)","inputs":{"message":{"description":"The message to send","required":false,"type":"string"}},"output":"Slack message stub executed!"},"set_issue_type":{},"submit_pull_request_review":{"max":1},"upload_artifact":{"max-size-bytes":104857600,"max-uploads":1,"retention-days":1,"skip-archive":true}}
           GH_AW_SAFE_OUTPUTS_CONFIG_841ec38613af95c7_EOF
       - name: Write Safe Outputs Tools
         env:
@@ -702,6 +702,31 @@ jobs:
                     "itemType": "string",
                     "itemSanitize": true,
                     "itemMaxLength": 128
+                  },
+                  "repo": {
+                    "type": "string",
+                    "maxLength": 256
+                  }
+                }
+              },
+              "comment_memory": {
+                "defaultMax": 1,
+                "fields": {
+                  "body": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 65000
+                  },
+                  "item_number": {
+                    "issueOrPRNumber": true
+                  },
+                  "memory_id": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128,
+                    "pattern": "^[a-zA-Z0-9_-]+$",
+                    "patternError": "must contain only alphanumeric characters, hyphens, and underscores"
                   },
                   "repo": {
                     "type": "string",
@@ -2369,7 +2394,7 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
           GH_AW_SAFE_OUTPUT_JOBS: "{\"send_slack_message\":\"\"}"
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"allowed_repos\":[\"github/gh-aw\"],\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-copilot\"],\"allowed_repos\":[\"github/gh-aw\"]},\"create_discussion\":{\"category\":\"announcements\",\"close_older_discussions\":true,\"close_older_key\":\"smoke-copilot\",\"expires\":2,\"fallback_to_issue\":true,\"labels\":[\"ai-generated\"],\"max\":1},\"create_issue\":{\"close_older_issues\":true,\"close_older_key\":\"smoke-copilot\",\"expires\":2,\"group\":true,\"labels\":[\"automation\",\"testing\"],\"max\":1},\"create_pull_request_review_comment\":{\"max\":5,\"side\":\"RIGHT\"},\"create_report_incomplete_issue\":{},\"dispatch_workflow\":{\"max\":1,\"workflow_files\":{\"haiku-printer\":\".yml\"},\"workflows\":[\"haiku-printer\"]},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"remove_labels\":{\"allowed\":[\"smoke\"]},\"reply_to_pull_request_review_comment\":{\"max\":5},\"report_incomplete\":{},\"set_issue_type\":{},\"submit_pull_request_review\":{\"max\":1},\"upload_artifact\":{\"max-size-bytes\":104857600,\"max-uploads\":1,\"retention-days\":1,\"skip-archive\":true}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"allowed_repos\":[\"github/gh-aw\"],\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-copilot\"],\"allowed_repos\":[\"github/gh-aw\"]},\"comment_memory\":{\"max\":1,\"memory_id\":\"default\"},\"create_discussion\":{\"category\":\"announcements\",\"close_older_discussions\":true,\"close_older_key\":\"smoke-copilot\",\"expires\":2,\"fallback_to_issue\":true,\"labels\":[\"ai-generated\"],\"max\":1},\"create_issue\":{\"close_older_issues\":true,\"close_older_key\":\"smoke-copilot\",\"expires\":2,\"group\":true,\"labels\":[\"automation\",\"testing\"],\"max\":1},\"create_pull_request_review_comment\":{\"max\":5,\"side\":\"RIGHT\"},\"create_report_incomplete_issue\":{},\"dispatch_workflow\":{\"max\":1,\"workflow_files\":{\"haiku-printer\":\".yml\"},\"workflows\":[\"haiku-printer\"]},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"remove_labels\":{\"allowed\":[\"smoke\"]},\"reply_to_pull_request_review_comment\":{\"max\":5},\"report_incomplete\":{},\"set_issue_type\":{},\"submit_pull_request_review\":{\"max\":1},\"upload_artifact\":{\"max-size-bytes\":104857600,\"max-uploads\":1,\"retention-days\":1,\"skip-archive\":true}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
