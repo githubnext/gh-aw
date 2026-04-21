@@ -12,9 +12,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
-const { COMMENT_MEMORY_TAG } = require("./comment_memory_helpers.cjs");
-
-const COMMENT_MEMORY_MAX_SCAN_PAGES = 50;
+const { COMMENT_MEMORY_TAG, COMMENT_MEMORY_MAX_SCAN_PAGES } = require("./comment_memory_helpers.cjs");
 
 function sanitizeMemoryID(memoryID) {
   const normalized = String(memoryID || "default").trim();

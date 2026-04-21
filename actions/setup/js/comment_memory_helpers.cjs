@@ -7,6 +7,10 @@ const COMMENT_MEMORY_TAG = "gh-aw-comment-memory";
 const COMMENT_MEMORY_DIR = "/tmp/gh-aw/comment-memory";
 const COMMENT_MEMORY_EXTENSION = ".md";
 const MAX_MEMORY_ID_LENGTH = 64;
+const COMMENT_MEMORY_MAX_SCAN_PAGES = 50;
+const COMMENT_MEMORY_MAX_SCAN_EMPTY_PAGES = 5;
+const COMMENT_MEMORY_PROMPT_START_MARKER = "<!-- gh-aw-comment-memory-prompt:start -->";
+const COMMENT_MEMORY_PROMPT_END_MARKER = "<!-- gh-aw-comment-memory-prompt:end -->";
 
 function isSafeMemoryId(memoryId) {
   if (typeof memoryId !== "string" || memoryId.length === 0 || memoryId.length > MAX_MEMORY_ID_LENGTH) {
@@ -80,11 +84,23 @@ function listCommentMemoryFiles(memoryDir = COMMENT_MEMORY_DIR) {
     .filter(entry => isSafeMemoryId(entry.memoryId));
 }
 
+function resolveCommentMemoryConfig(config) {
+  if (!config || typeof config !== "object") {
+    return null;
+  }
+  return config["comment-memory"] || config.comment_memory || null;
+}
+
 module.exports = {
   COMMENT_MEMORY_TAG,
   COMMENT_MEMORY_DIR,
   COMMENT_MEMORY_EXTENSION,
+  COMMENT_MEMORY_MAX_SCAN_PAGES,
+  COMMENT_MEMORY_MAX_SCAN_EMPTY_PAGES,
+  COMMENT_MEMORY_PROMPT_START_MARKER,
+  COMMENT_MEMORY_PROMPT_END_MARKER,
   isSafeMemoryId,
   extractCommentMemoryEntries,
   listCommentMemoryFiles,
+  resolveCommentMemoryConfig,
 };

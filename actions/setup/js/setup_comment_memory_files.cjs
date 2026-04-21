@@ -5,13 +5,17 @@ require("./shim.cjs");
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { COMMENT_MEMORY_DIR, extractCommentMemoryEntries } = require("./comment_memory_helpers.cjs");
+const {
+  COMMENT_MEMORY_DIR,
+  COMMENT_MEMORY_MAX_SCAN_PAGES,
+  COMMENT_MEMORY_MAX_SCAN_EMPTY_PAGES,
+  COMMENT_MEMORY_PROMPT_START_MARKER,
+  COMMENT_MEMORY_PROMPT_END_MARKER,
+  extractCommentMemoryEntries,
+  resolveCommentMemoryConfig,
+} = require("./comment_memory_helpers.cjs");
 
 const PROMPT_PATH = "/tmp/gh-aw/aw-prompts/prompt.txt";
-const PROMPT_START_MARKER = "<!-- gh-aw-comment-memory-prompt:start -->";
-const PROMPT_END_MARKER = "<!-- gh-aw-comment-memory-prompt:end -->";
-const MAX_SCAN_PAGES = 50;
-const MAX_SCAN_EMPTY_PAGES = 5;
 
 function loadSafeOutputsConfig() {
   const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json`;
@@ -27,7 +31,7 @@ function loadSafeOutputsConfig() {
 }
 
 function getCommentMemoryConfig(config) {
-  return config["comment-memory"] || config.comment_memory || null;
+  return resolveCommentMemoryConfig(config);
 }
 
 function resolveTargetNumber(commentMemoryConfig) {
@@ -74,7 +78,7 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
   const memoryMap = new Map();
   let emptyPageCount = 0;
 
-  for (let page = 1; page <= MAX_SCAN_PAGES; page++) {
+  for (let page = 1; page <= COMMENT_MEMORY_MAX_SCAN_PAGES; page++) {
     const { data } = await githubClient.rest.issues.listComments({
       owner: targetRepo.owner,
       repo: targetRepo.repo,
@@ -101,7 +105,7 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
 
     if (pageAddedEntries === 0) {
       emptyPageCount++;
-      if (emptyPageCount >= MAX_SCAN_EMPTY_PAGES) {
+      if (emptyPageCount >= COMMENT_MEMORY_MAX_SCAN_EMPTY_PAGES) {
         core.info(`comment_memory setup: stopping scan after ${emptyPageCount} pages without new memory entries`);
         break;
       }
@@ -133,7 +137,7 @@ function injectCommentMemoryPrompt(filePaths) {
   }
 
   const fileList = filePaths.length > 0 ? filePaths.map(file => `- ${file}`).join("\n") : "- (none yet; create new *.md files here when needed)";
-  const injectedBlock = `${PROMPT_START_MARKER}
+  const injectedBlock = `${COMMENT_MEMORY_PROMPT_START_MARKER}
 <comment-memory-files>
 Comment memory files are editable markdown files under \`${COMMENT_MEMORY_DIR}\`.
 Update existing files or create new \`<memory-id>.md\` files as needed.
@@ -141,13 +145,13 @@ These files are synced automatically after agent execution (no tool call require
 Available files:
 ${fileList}
 </comment-memory-files>
-${PROMPT_END_MARKER}`;
+${COMMENT_MEMORY_PROMPT_END_MARKER}`;
 
   let promptContent = fs.readFileSync(PROMPT_PATH, "utf8");
-  const start = promptContent.indexOf(PROMPT_START_MARKER);
-  const end = promptContent.indexOf(PROMPT_END_MARKER);
+  const start = promptContent.indexOf(COMMENT_MEMORY_PROMPT_START_MARKER);
+  const end = promptContent.indexOf(COMMENT_MEMORY_PROMPT_END_MARKER);
   if (start >= 0 && end > start) {
-    const suffixStart = end + PROMPT_END_MARKER.length;
+    const suffixStart = end + COMMENT_MEMORY_PROMPT_END_MARKER.length;
     promptContent = `${promptContent.slice(0, start).trimEnd()}\n\n${injectedBlock}\n${promptContent.slice(suffixStart).trimStart()}`;
   } else {
     promptContent = `${promptContent.trimEnd()}\n\n${injectedBlock}\n`;
