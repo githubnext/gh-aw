@@ -414,6 +414,75 @@ func TestHasContentContext(t *testing.T) {
 	}
 }
 
+func TestComputeTextStepIncludesAllowedDomainsEnv(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "compute-text-allowed-domains-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	workflowContent := `---
+on:
+  issues:
+    types: [opened]
+  bots: ["dependabot[bot]"]
+engine: copilot
+strict: false
+network:
+  allowed:
+    - cnn.com
+safe-outputs:
+  create-issue:
+  allowed-domains:
+    - bbc.com
+---
+
+# Test Workflow
+
+Use the incoming text: "${{ steps.sanitized.outputs.text }}"
+`
+
+	workflowPath := filepath.Join(tempDir, "compute-text-allowed-domains.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	lockStr := string(lockContent)
+	sanitizedIdx := strings.Index(lockStr, "id: sanitized")
+	if sanitizedIdx == -1 {
+		t.Fatal("Expected compiled workflow to contain sanitized step")
+	}
+
+	afterSanitized := lockStr[sanitizedIdx:]
+	sanitizedBlock, _, found := strings.Cut(afterSanitized, "\n        with:\n")
+	if !found {
+		t.Fatal("Expected sanitized step to contain a with section")
+	}
+	if !strings.Contains(sanitizedBlock, "GH_AW_ALLOWED_BOTS: \"dependabot[bot]\"") {
+		t.Errorf("Expected sanitized step env to contain GH_AW_ALLOWED_BOTS, got:\n%s", sanitizedBlock)
+	}
+	if !strings.Contains(sanitizedBlock, "GH_AW_ALLOWED_DOMAINS:") {
+		t.Errorf("Expected sanitized step env to contain GH_AW_ALLOWED_DOMAINS, got:\n%s", sanitizedBlock)
+	}
+	if !strings.Contains(sanitizedBlock, "cnn.com") {
+		t.Errorf("Expected sanitized step GH_AW_ALLOWED_DOMAINS to include network.allowed domain cnn.com, got:\n%s", sanitizedBlock)
+	}
+	if !strings.Contains(sanitizedBlock, "bbc.com") {
+		t.Errorf("Expected sanitized step GH_AW_ALLOWED_DOMAINS to include safe-outputs.allowed-domains domain bbc.com, got:\n%s", sanitizedBlock)
+	}
+}
+
 func TestComputeTextContextBasedInsertion(t *testing.T) {
 	// Create a temporary directory for the test
 	tempDir, err := os.MkdirTemp("", "compute-text-context-test")
