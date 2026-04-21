@@ -279,7 +279,7 @@ describe("safe_outputs_handlers", () => {
       expect(result.content[0].type).toBe("text");
     });
 
-    it("should allow upload when allowed extensions include GitHub expression", () => {
+    it("should reject unresolved GitHub expression in allowed extensions", () => {
       process.env.GH_AW_ASSETS_BRANCH = "test-branch";
       process.env.GH_AW_ASSETS_ALLOWED_EXTS = "${{ inputs.allowed_exts }}";
 
@@ -287,10 +287,7 @@ describe("safe_outputs_handlers", () => {
       fs.writeFileSync(testFile, "test content");
 
       const args = { path: testFile };
-      const result = handlers.uploadAssetHandler(args);
-
-      expect(mockAppendSafeOutput).toHaveBeenCalled();
-      expect(result.content[0].type).toBe("text");
+      expect(() => handlers.uploadAssetHandler(args)).toThrow("contains unresolved GitHub Actions expression");
     });
 
     it("should reject file exceeding size limit", () => {

@@ -31,7 +31,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * @param {string} value
    * @returns {boolean}
    */
-  const isGitHubExpression = value => value.startsWith("${{") && value.endsWith("}}");
+  const isGitHubExpression = value => /^\$\{\{[\s\S]*\}\}$/.test(value.trim());
 
   /**
    * @param {string} extValue
@@ -157,9 +157,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
           ".jpg",
           ".jpeg",
         ];
-    const hasExpressionExt = allowedExts.some(isGitHubExpression);
-
-    if (!allowedExts.includes(ext) && !hasExpressionExt) {
+    if (!allowedExts.includes(ext)) {
+      if (allowedExts.some(isGitHubExpression)) {
+        throw new Error(`${ERR_CONFIG}: GH_AW_ASSETS_ALLOWED_EXTS contains unresolved GitHub Actions expression. Ensure expressions resolve before safe outputs validation.`);
+      }
       throw new Error(`${ERR_VALIDATION}: File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
     }
 
