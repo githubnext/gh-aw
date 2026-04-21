@@ -1004,6 +1004,43 @@ func TestIsCliProxyNeeded_IntegrityReactionsImplicitEnable(t *testing.T) {
 			desc:     "both flags together should enable the CLI proxy",
 		},
 		{
+			name: "tools.github.mode mcp overrides legacy cli-proxy feature",
+			data: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: awfVersion,
+					},
+				},
+				Tools: map[string]any{
+					"github": map[string]any{
+						"mode": "mcp",
+					},
+				},
+				Features: map[string]any{"cli-proxy": true},
+			},
+			expected: false,
+			desc:     "explicit tools.github.mode=mcp should disable cli proxy even when legacy feature is set",
+		},
+		{
+			name: "tools.github.mode cli enables cli proxy without legacy feature",
+			data: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: awfVersion,
+					},
+				},
+				Tools: map[string]any{
+					"github": map[string]any{
+						"mode": "cli",
+					},
+				},
+			},
+			expected: true,
+			desc:     "explicit tools.github.mode=cli should enable cli proxy without legacy feature",
+		},
+		{
 			name: "neither flag set",
 			data: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{

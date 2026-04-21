@@ -221,6 +221,9 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		if mode, ok := configMap["mode"].(string); ok {
 			config.Mode = mode
 		}
+		if mcpType, ok := configMap["type"].(string); ok {
+			config.Type = mcpType
+		}
 
 		if version, ok := configMap["version"].(string); ok {
 			config.Version = version
