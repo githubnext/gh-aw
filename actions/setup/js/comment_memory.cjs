@@ -30,7 +30,7 @@ function sanitizeMemoryID(memoryID) {
 function buildManagedMemoryBody(rawBody, memoryID, options) {
   const { includeFooter, runUrl, workflowName, workflowSource, workflowSourceURL, historyUrl, triggeringIssueNumber, triggeringPRNumber } = options;
   if (!/^[a-zA-Z0-9_-]+$/.test(memoryID)) {
-    throw new Error("memory_id must contain only alphanumeric characters, hyphens, and underscores");
+    throw new Error("E001: memory_id must contain only alphanumeric characters, hyphens, and underscores");
   }
   const openingTag = `<${COMMENT_MEMORY_TAG} id="${memoryID}">`;
   const closingTag = `</${COMMENT_MEMORY_TAG}>`;

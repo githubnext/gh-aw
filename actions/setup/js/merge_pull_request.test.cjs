@@ -96,7 +96,7 @@ describe("merge_pull_request branch validation", () => {
       },
     };
 
-    await expect(__testables.getBranchPolicy(githubClient, "github", "gh-aw", "main;rm -rf /")).rejects.toThrow("Invalid target base branch for policy evaluation");
+    await expect(__testables.getBranchPolicy(githubClient, "github", "gh-aw", "main;rm -rf /")).rejects.toThrow("E001: Invalid target base branch for policy evaluation");
     expect(githubClient.rest.repos.getBranch).not.toHaveBeenCalled();
   });
 
