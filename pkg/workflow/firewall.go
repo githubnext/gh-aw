@@ -65,14 +65,34 @@ func getFirewallConfig(workflowData *WorkflowData) *FirewallConfig {
 		return nil
 	}
 
+	agentConfig := getAgentConfig(workflowData)
+	agentVersion := ""
+	if agentConfig != nil {
+		agentVersion = agentConfig.Version
+	}
+
 	// Check network.firewall configuration
 	if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil {
 		config := workflowData.NetworkPermissions.Firewall
+		if agentVersion != "" && config.Version != agentVersion {
+			overrideConfig := *config
+			overrideConfig.Version = agentVersion
+			firewallLog.Printf("Overriding firewall version %s with sandbox.agent.version %s", config.Version, agentVersion)
+			return &overrideConfig
+		}
 		if firewallLog.Enabled() {
 			firewallLog.Printf("Retrieved firewall config: enabled=%v, version=%s, logLevel=%s",
 				config.Enabled, config.Version, config.LogLevel)
 		}
 		return config
+	}
+
+	if agentVersion != "" {
+		firewallLog.Printf("Using sandbox.agent.version override: %s", agentVersion)
+		return &FirewallConfig{
+			Enabled: true,
+			Version: agentVersion,
+		}
 	}
 
 	return nil

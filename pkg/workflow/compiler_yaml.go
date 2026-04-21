@@ -722,12 +722,12 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	firewallVersion := ""
 	if data.NetworkPermissions != nil {
 		allowedDomains = data.NetworkPermissions.Allowed
-		if data.NetworkPermissions.Firewall != nil {
-			firewallEnabled = data.NetworkPermissions.Firewall.Enabled
-			firewallVersion = data.NetworkPermissions.Firewall.Version
-			if firewallEnabled && firewallVersion == "" {
-				firewallVersion = string(constants.DefaultFirewallVersion)
-			}
+	}
+	if firewallConfig := getFirewallConfig(data); firewallConfig != nil {
+		firewallEnabled = firewallConfig.Enabled
+		firewallVersion = firewallConfig.Version
+		if firewallEnabled && firewallVersion == "" {
+			firewallVersion = string(constants.DefaultFirewallVersion)
 		}
 	}
 

@@ -164,6 +164,7 @@ func TestAwfVersionInAwInfo(t *testing.T) {
 		name               string
 		firewallEnabled    bool
 		firewallVersion    string
+		agentVersion       string
 		expectedAwfVersion string
 		description        string
 	}{
@@ -185,8 +186,17 @@ func TestAwfVersionInAwInfo(t *testing.T) {
 			name:               "Firewall disabled",
 			firewallEnabled:    false,
 			firewallVersion:    "",
+			agentVersion:       "",
 			expectedAwfVersion: "",
 			description:        "Should have empty awf_version when firewall is disabled",
+		},
+		{
+			name:               "sandbox.agent.version overrides firewall version",
+			firewallEnabled:    true,
+			firewallVersion:    "",
+			agentVersion:       "v0.30.1",
+			expectedAwfVersion: "v0.30.1",
+			description:        "Should prefer sandbox.agent.version override",
 		},
 	}
 
@@ -208,6 +218,14 @@ func TestAwfVersionInAwInfo(t *testing.T) {
 					Firewall: &FirewallConfig{
 						Enabled: true,
 						Version: tt.firewallVersion,
+					},
+				}
+			}
+			if tt.agentVersion != "" {
+				workflowData.SandboxConfig = &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type:    SandboxTypeAWF,
+						Version: tt.agentVersion,
 					},
 				}
 			}

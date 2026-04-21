@@ -272,6 +272,13 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract version (AWF version override)
+	if versionVal, hasVersion := agentObj["version"]; hasVersion {
+		if versionStr, ok := versionVal.(string); ok {
+			agentConfig.Version = versionStr
+		}
+	}
+
 	// Extract config for SRT
 	if configVal, hasConfig := agentObj["config"]; hasConfig {
 		agentConfig.Config = c.extractSRTConfig(configVal)

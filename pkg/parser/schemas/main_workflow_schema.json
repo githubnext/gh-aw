@@ -3023,6 +3023,10 @@
                       "enum": ["awf"],
                       "description": "Legacy: Sandbox type to use (use 'id' instead)"
                     },
+                    "version": {
+                      "type": "string",
+                      "description": "AWF version override used to install and run the matching firewall version."
+                    },
                     "command": {
                       "type": "string",
                       "x-internal": true,
