@@ -300,6 +300,24 @@ describe("create_issue", () => {
       expect(result3.success).toBe(false);
       expect(result3.error).toContain("Max count of 2 reached");
     });
+
+    it("should respect max count limit under concurrent calls with group-by-day pre-check", async () => {
+      const handler = await main({
+        max: 1,
+        group_by_day: true,
+        close_older_key: "concurrency-key",
+      });
+
+      const [result1, result2] = await Promise.all([handler({ title: "Issue 1" }), handler({ title: "Issue 2" })]);
+      const results = [result1, result2];
+      const successes = results.filter(result => result.success);
+      const failures = results.filter(result => !result.success);
+
+      expect(successes).toHaveLength(1);
+      expect(failures).toHaveLength(1);
+      expect(failures[0].error).toContain("Max count of 1 reached");
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("title prefix", () => {
