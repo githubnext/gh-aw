@@ -757,6 +757,23 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			checkJSON:    true,
 			expectedKeys: []string{"report_incomplete"},
 		},
+		{
+			name: "merge_pull_request config",
+			safeOutputs: &SafeOutputsConfig{
+				MergePullRequest: &MergePullRequestConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+					RequiredLabels:  []string{"automerge"},
+					AllowedBranches: []string{"feature/*", "fix/*"},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"merge_pull_request"},
+		},
 	}
 
 	for _, tt := range tests {

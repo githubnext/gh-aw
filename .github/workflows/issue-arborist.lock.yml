@@ -798,6 +798,19 @@ jobs:
             }
           }
           GH_AW_MCP_CONFIG_ae10dba5409c9fdc_EOF
+          
+          # Sync converter output to writable CODEX_HOME for Codex
+          mkdir -p /tmp/gh-aw/mcp-config
+          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_8df1e17e12a5553f_EOF
+          [shell_environment_policy]
+          inherit = "core"
+          include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
+          GH_AW_CODEX_SHELL_POLICY_8df1e17e12a5553f_EOF
+          cat "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" >> "/tmp/gh-aw/mcp-config/config.toml"
+          chmod 600 "/tmp/gh-aw/mcp-config/config.toml"
+          mkdir -p "${CODEX_HOME}"
+          cp "/tmp/gh-aw/mcp-config/config.toml" "${CODEX_HOME}/config.toml"
+          chmod 600 "${CODEX_HOME}/config.toml"
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

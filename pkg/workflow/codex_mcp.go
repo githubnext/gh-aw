@@ -37,7 +37,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 
 	// Add shell environment policy to control which environment variables are passed through
 	// This is a security feature to prevent accidental exposure of secrets
-	e.renderShellEnvironmentPolicy(yaml, tools, mcpTools, workflowData)
+	e.renderShellEnvironmentPolicy(yaml, tools, mcpTools)
 
 	// Expand neutral tools (like playwright: null) to include the copilot agent tools
 	expandedTools := e.expandNeutralToolsToCodexToolsFromMap(tools)
@@ -99,11 +99,44 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          # Generate JSON config for MCP gateway\n")
 
 	// Gateway uses JSON format without Copilot-specific fields and multi-line args
-	return renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
+	if err := renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
 		"${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json", false, false,
 		func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderCodexJSONMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
-		}, nil)
+		}, nil); err != nil {
+		return err
+	}
+
+	// start_mcp_gateway.cjs converts the gateway output and writes Codex config to
+	// ${RUNNER_TEMP}/gh-aw/mcp-config/config.toml. Codex reads config from
+	// $CODEX_HOME/config.toml, so copy the converted config into writable CODEX_HOME
+	// and prepend shell policy (converter output does not include this section).
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Sync converter output to writable CODEX_HOME for Codex\n")
+	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
+
+	shellPolicyDelimiter := GenerateHeredocDelimiterFromSeed("CODEX_SHELL_POLICY", workflowData.FrontmatterHash)
+	yaml.WriteString("          cat > \"/tmp/gh-aw/mcp-config/config.toml\" << " + shellPolicyDelimiter + "\n")
+	e.renderShellEnvironmentPolicyToml(yaml, tools, mcpTools, "          ")
+	yaml.WriteString("          " + shellPolicyDelimiter + "\n")
+	yaml.WriteString("          cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"\n")
+	if workflowData.EngineConfig != nil && strings.TrimSpace(workflowData.EngineConfig.Config) != "" {
+		customConfigDelimiter := GenerateHeredocDelimiterFromSeed("CODEX_CUSTOM_CONFIG", workflowData.FrontmatterHash)
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Append engine-level custom Codex config\n")
+		yaml.WriteString("          cat >> \"/tmp/gh-aw/mcp-config/config.toml\" << " + customConfigDelimiter + "\n")
+		yaml.WriteString(workflowData.EngineConfig.Config)
+		if !strings.HasSuffix(workflowData.EngineConfig.Config, "\n") {
+			yaml.WriteString("\n")
+		}
+		yaml.WriteString("          " + customConfigDelimiter + "\n")
+	}
+	yaml.WriteString("          chmod 600 \"/tmp/gh-aw/mcp-config/config.toml\"\n")
+	yaml.WriteString("          mkdir -p \"${CODEX_HOME}\"\n")
+	yaml.WriteString("          cp \"/tmp/gh-aw/mcp-config/config.toml\" \"${CODEX_HOME}/config.toml\"\n")
+	yaml.WriteString("          chmod 600 \"${CODEX_HOME}/config.toml\"\n")
+
+	return nil
 }
 
 // renderCodexMCPConfigWithContext generates custom MCP server configuration for a single tool in codex workflow config.toml

@@ -463,9 +463,7 @@ func (e *CodexEngine) expandNeutralToolsToCodexToolsFromMap(tools map[string]any
 	return result.ToMap()
 }
 
-// renderShellEnvironmentPolicy generates the [shell_environment_policy] section for config.toml
-// This controls which environment variables are passed through to MCP servers for security
-func (e *CodexEngine) renderShellEnvironmentPolicy(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+func (e *CodexEngine) getShellEnvironmentPolicyVars(tools map[string]any, mcpTools []string) []string {
 	// Collect all environment variables needed by MCP servers
 	envVars := make(map[string]bool)
 
@@ -509,18 +507,40 @@ func (e *CodexEngine) renderShellEnvironmentPolicy(yaml *strings.Builder, tools 
 		}
 	}
 
-	// Sort environment variable names for consistent output
 	var sortedEnvVars []string
 	for envVar := range envVars {
 		sortedEnvVars = append(sortedEnvVars, envVar)
 	}
 	sort.Strings(sortedEnvVars)
 
+	return sortedEnvVars
+}
+
+// renderShellEnvironmentPolicy generates the [shell_environment_policy] section for config.toml
+// This controls which environment variables are passed through to MCP servers for security
+func (e *CodexEngine) renderShellEnvironmentPolicy(yaml *strings.Builder, tools map[string]any, mcpTools []string) {
+	sortedEnvVars := e.getShellEnvironmentPolicyVars(tools, mcpTools)
+
 	// Render [shell_environment_policy] section
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [shell_environment_policy]\n")
 	yaml.WriteString("          inherit = \"core\"\n")
 	yaml.WriteString("          include_only = [")
+	for i, envVar := range sortedEnvVars {
+		if i > 0 {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("\"" + envVar + "\"")
+	}
+	yaml.WriteString("]\n")
+}
+
+func (e *CodexEngine) renderShellEnvironmentPolicyToml(yaml *strings.Builder, tools map[string]any, mcpTools []string, indent string) {
+	sortedEnvVars := e.getShellEnvironmentPolicyVars(tools, mcpTools)
+
+	yaml.WriteString(indent + "[shell_environment_policy]\n")
+	yaml.WriteString(indent + "inherit = \"core\"\n")
+	yaml.WriteString(indent + "include_only = [")
 	for i, envVar := range sortedEnvVars {
 		if i > 0 {
 			yaml.WriteString(", ")

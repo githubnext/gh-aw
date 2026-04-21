@@ -332,7 +332,9 @@ func TestCrushEngineExecution(t *testing.T) {
 
 		assert.Contains(t, configContent, "Write Crush Config", "First step should be Write Crush Config")
 		assert.Contains(t, configContent, ".crush.json", "Config step should reference .crush.json")
-		assert.Contains(t, configContent, "permissions", "Config step should set permissions")
+		assert.Contains(t, configContent, `"permission"`, "Config step should use 'permission' (singular, not 'permissions')")
+		assert.Contains(t, configContent, `"external_directory":"allow"`, "Config step should allow external_directory for non-interactive CI")
+		assert.NotContains(t, configContent, `"permissions"`, "Config step must NOT use 'permissions' (plural) — silently ignored by OpenCode)")
 		assert.Contains(t, execContent, "Execute Crush CLI", "Second step should be Execute Crush CLI")
 	})
 }
