@@ -451,6 +451,9 @@ After posting the comment, submit a pull request review based on the verdict:
 
 ## Guidelines
 
+### Report Formatting
+- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+
 ### Analysis Scope
 - **Focus only on new and changed tests** — do not analyze unchanged test files
 - **Support Go (`*_test.go`) and JavaScript (`*.test.cjs`, `*.test.js`)** as primary targets; note other languages but don't score them

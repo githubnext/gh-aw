@@ -1235,6 +1235,38 @@ safe-outputs:
 
 Accepts a plain string or an object with `name` and optional `url`, consistent with the top-level `environment:` syntax.
 
+### Safe Outputs Dependencies (`needs:`)
+
+Extend the consolidated `safe_outputs` job dependencies with custom workflow jobs (for example, credential fetchers). `safe-outputs.needs` is merged with built-in dependencies (`agent`, `activation`, optional `detection`, optional `unlock`) and deduplicated.
+
+```yaml wrap
+jobs:
+  secrets_fetcher:
+    runs-on: ubuntu-latest
+    outputs:
+      app_id: ${{ steps.fetch.outputs.app_id }}
+      app_private_key: ${{ steps.fetch.outputs.app_private_key }}
+    steps:
+      - id: fetch
+        run: |
+          echo "app_id=123" >> "$GITHUB_OUTPUT"
+          echo "app_private_key=***" >> "$GITHUB_OUTPUT"
+
+safe-outputs:
+  needs: [secrets_fetcher]
+  github-app:
+    app-id: ${{ needs.secrets_fetcher.outputs.app_id }}
+    private-key: ${{ needs.secrets_fetcher.outputs.app_private_key }}
+```
+
+Use the single `safe-outputs.needs` field for all explicit custom dependencies.
+
+Validation rules:
+
+- Values must reference workflow custom jobs from top-level `jobs:`
+- Built-in jobs are rejected (`agent`, `activation`, `pre_activation`/`pre-activation`, `conclusion`, `safe_outputs`, `detection`, `unlock`, `push_repo_memory`, `update_cache_memory`)
+- Unknown jobs fail compilation with an actionable error
+
 ### Text Sanitization (`allowed-domains:`, `allowed-github-references:`)
 
 The text output by AI agents is automatically sanitized to prevent injection of malicious content and ensure safe rendering on GitHub. The auto-sanitization applied is: XML escaped, HTTPS only, domain allowlist (GitHub by default), 0.5MB/65k line limits, control char stripping.

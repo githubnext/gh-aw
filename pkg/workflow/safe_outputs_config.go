@@ -550,6 +550,20 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle needs configuration
+			if needsValue, exists := outputMap["needs"]; exists {
+				if needsArray, ok := needsValue.([]any); ok {
+					for _, need := range needsArray {
+						if needStr, ok := need.(string); ok && needStr != "" {
+							config.Needs = append(config.Needs, needStr)
+						}
+					}
+					if len(config.Needs) > 0 {
+						safeOutputsConfigLog.Printf("Configured %d explicit safe-outputs needs dependency(ies)", len(config.Needs))
+					}
+				}
+			}
+
 			// Handle environment configuration (override for safe-outputs job; falls back to top-level environment)
 			config.Environment = c.extractTopLevelYAMLSection(outputMap, "environment")
 			if config.Environment != "" {

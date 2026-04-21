@@ -8473,6 +8473,18 @@
           "description": "Concurrency group for the safe-outputs job. When set, the safe-outputs job will use this concurrency group with cancel-in-progress: false. Supports GitHub Actions expressions.",
           "examples": ["my-workflow-safe-outputs", "safe-outputs-${{ github.repository }}"]
         },
+        "needs": {
+          "type": "array",
+          "description": "Explicit additional custom workflow jobs that the consolidated safe_outputs job should depend on.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$"
+          },
+          "additionalItems": false,
+          "uniqueItems": true,
+          "default": [],
+          "examples": [["secrets_fetcher"]]
+        },
         "environment": {
           "description": "Override the GitHub deployment environment for the safe-outputs job. When set, this environment is used instead of the top-level environment: field. When not set, the top-level environment: field is propagated automatically so that environment-scoped secrets are accessible in the safe-outputs job.",
           "oneOf": [

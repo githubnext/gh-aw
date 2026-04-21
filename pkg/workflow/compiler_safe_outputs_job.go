@@ -480,6 +480,20 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		needs = append(needs, "unlock")
 		consolidatedSafeOutputsJobLog.Print("Added unlock job dependency to safe_outputs job")
 	}
+	seenNeeds := make(map[string]bool, len(needs))
+	for _, need := range needs {
+		seenNeeds[need] = true
+	}
+	if data.SafeOutputs != nil {
+		for _, need := range data.SafeOutputs.Needs {
+			if seenNeeds[need] {
+				continue
+			}
+			needs = append(needs, need)
+			seenNeeds[need] = true
+			consolidatedSafeOutputsJobLog.Printf("Added explicit safe-outputs needs dependency to safe_outputs job: %s", need)
+		}
+	}
 
 	// Extract workflow ID from markdown path for GH_AW_WORKFLOW_ID
 	workflowID := GetWorkflowIDFromPath(markdownPath)

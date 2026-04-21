@@ -151,6 +151,63 @@ func TestValidateNetworkFirewallConfig_AllowURLsRequiresSSLBump(t *testing.T) {
 	})
 }
 
+func TestValidateNetworkAllowedDomains_EcosystemIdentifiers(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("known ecosystem identifiers pass validation", func(t *testing.T) {
+		// Use getValidEcosystemIdentifiers() to stay in sync with production code
+		for _, ecosystem := range getValidEcosystemIdentifiers() {
+			t.Run(ecosystem, func(t *testing.T) {
+				network := &NetworkPermissions{Allowed: []string{ecosystem}}
+				err := compiler.validateNetworkAllowedDomains(network)
+				assert.NoError(t, err, "Known ecosystem identifier '%s' should pass validation", ecosystem)
+			})
+		}
+	})
+
+	t.Run("unknown single-word identifiers fail validation", func(t *testing.T) {
+		invalidEcosystems := []string{
+			"rustxxxx",
+			"defaults2",
+			"githubx",
+			"nodexyz",
+			"unknown",
+			"fakeecosystem",
+			"notarealecosystem",
+			"invalidname123",
+		}
+		for _, ecosystem := range invalidEcosystems {
+			t.Run(ecosystem, func(t *testing.T) {
+				network := &NetworkPermissions{Allowed: []string{ecosystem}}
+				err := compiler.validateNetworkAllowedDomains(network)
+				require.Error(t, err, "Unknown ecosystem identifier '%s' should fail validation", ecosystem)
+				assert.Contains(t, err.Error(), "not a valid ecosystem identifier", "Error should indicate invalid ecosystem identifier")
+			})
+		}
+	})
+
+	t.Run("domain names with dots still pass validation", func(t *testing.T) {
+		validDomains := []string{"github.com", "api.example.com", "*.example.org"}
+		for _, domain := range validDomains {
+			t.Run(domain, func(t *testing.T) {
+				network := &NetworkPermissions{Allowed: []string{domain}}
+				err := compiler.validateNetworkAllowedDomains(network)
+				assert.NoError(t, err, "Valid domain '%s' should pass validation", domain)
+			})
+		}
+	})
+
+	t.Run("mixed valid and invalid entries collects all errors", func(t *testing.T) {
+		network := &NetworkPermissions{
+			Allowed: []string{"defaults", "rustxxxx", "github.com", "fakeecosystem"},
+		}
+		err := compiler.validateNetworkAllowedDomains(network)
+		require.Error(t, err, "Should fail when invalid ecosystem identifiers are present")
+		assert.Contains(t, err.Error(), "rustxxxx", "Error should mention the invalid identifier")
+		assert.Contains(t, err.Error(), "fakeecosystem", "Error should mention the other invalid identifier")
+	})
+}
+
 func TestValidateNetworkFirewallConfig_Integration(t *testing.T) {
 	t.Run("compiler rejects workflow with allow-urls but no ssl-bump", func(t *testing.T) {
 		compiler := NewCompiler()

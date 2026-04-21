@@ -40,7 +40,7 @@ Each entry in `network.allowed` must be one of:
 | **Exact domain** | `api.example.com`, `registry.npmjs.org` | Must be a fully-qualified domain name (FQDN) |
 | **Wildcard subdomain** | `*.example.com` | Matches `sub.example.com`, `deep.nested.example.com`, and `example.com` itself |
 
-> ⚠️ **Bare shorthands like `npm`, `pypi`, or `localhost` are NOT valid** unless they are listed in the ecosystem identifiers table below. Use ecosystem identifiers (`node`, `python`) or explicit FQDNs (`registry.npmjs.org`, `pypi.org`) instead.
+> ⚠️ **Bare shorthands like `npm`, `pypi`, or `localhost` are NOT valid** unless they are listed in the ecosystem identifiers table below. Using an unrecognised single-word entry causes a **compile-time error**. Use ecosystem identifiers (`node`, `python`) or explicit FQDNs (`registry.npmjs.org`, `pypi.org`) instead.
 
 ## Ecosystem Identifiers
 
@@ -87,7 +87,7 @@ These keywords expand to curated lists of domains maintained by gh-aw:
 
 ## Invalid Shorthands
 
-These values look like they might work but are **not valid** ecosystem identifiers and will be passed through as literal domain names (and will almost certainly not match any real host):
+These values look like ecosystem identifiers but are **not recognised** — using them in `network.allowed` causes a **compile-time error**:
 
 | Invalid value | What you probably meant | Correct value |
 |---|---|---|
