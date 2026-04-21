@@ -186,6 +186,7 @@ sandbox:
     args:
       - "--ssl-bump"
       - "--allow-urls"
+      # AWF expects allow-urls patterns as a single comma-separated argument.
       - "https://github.com/githubnext/*,https://api.github.com/repos/*"
       - "--log-level"
       - "debug"
