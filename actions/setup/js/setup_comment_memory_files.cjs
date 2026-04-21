@@ -77,7 +77,9 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
   }
 
   const contextRepoSlug = `${context.repo.owner}/${context.repo.repo}`;
-  const isCrossRepo = targetRepo.slug !== contextRepoSlug;
+  const normalizedTargetRepoSlug = targetRepo.slug.toLowerCase();
+  const normalizedContextRepoSlug = contextRepoSlug.toLowerCase();
+  const isCrossRepo = normalizedTargetRepoSlug !== normalizedContextRepoSlug;
   if (isCrossRepo) {
     const allowedRepos = parseAllowedRepos(commentMemoryConfig?.allowed_repos);
     if (allowedRepos.size === 0) {

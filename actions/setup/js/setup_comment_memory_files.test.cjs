@@ -180,4 +180,38 @@ describe("setup_comment_memory_files", () => {
     expect(fs.existsSync(memoryFile)).toBe(true);
     expect(fs.readFileSync(memoryFile, "utf8")).toBe("Cross repo memory\n");
   });
+
+  it("treats target-repo as same repo when slug differs only by case", async () => {
+    fs.writeFileSync(
+      CONFIG_PATH,
+      JSON.stringify({
+        "comment-memory": {
+          target: "triggering",
+          "target-repo": "Octo/Repo",
+        },
+      })
+    );
+    const listComments = vi.fn().mockResolvedValue({
+      data: [{ body: '<gh-aw-comment-memory id="default">\nSame repo memory\n</gh-aw-comment-memory>' }],
+    });
+    global.github = {
+      rest: {
+        issues: {
+          listComments,
+        },
+      },
+    };
+
+    const module = await import("./setup_comment_memory_files.cjs");
+    await module.main();
+
+    expect(listComments).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "Octo",
+        repo: "Repo",
+        issue_number: 42,
+      })
+    );
+    expect(global.core.warning).not.toHaveBeenCalledWith(expect.stringContaining("E004"));
+  });
 });
