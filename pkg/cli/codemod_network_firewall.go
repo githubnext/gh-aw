@@ -29,8 +29,13 @@ func getNetworkFirewallCodemod() Codemod {
 					lines = insertSandboxAfterNetworkBlock(lines, sandboxLines)
 					networkFirewallCodemodLog.Print("Converted deprecated network.firewall to sandbox.agent")
 				}
+				return lines
 			}
 
+			lines, merged := mergeFirewallIntoExistingSandbox(lines, fieldValue)
+			if merged {
+				networkFirewallCodemodLog.Print("Merged deprecated network.firewall into existing sandbox.agent")
+			}
 			return lines
 		},
 	})
@@ -107,7 +112,7 @@ func normalizeFirewallVersion(versionValue any) (string, bool) {
 	case uint64:
 		return strconv.FormatUint(value, 10), true
 	case float32:
-		return strconv.FormatFloat(float64(value), 'f', -1, 64), true
+		return strconv.FormatFloat(float64(value), 'f', -1, 32), true
 	case float64:
 		return strconv.FormatFloat(value, 'f', -1, 64), true
 	default:
@@ -145,4 +150,113 @@ func insertSandboxAfterNetworkBlock(lines []string, sandboxLines []string) []str
 	}
 
 	return append(lines, sandboxLines...)
+}
+
+func mergeFirewallIntoExistingSandbox(lines []string, fieldValue any) ([]string, bool) {
+	agentLines := sandboxAgentLinesForExistingSandbox(fieldValue)
+	if len(agentLines) == 0 {
+		return lines, false
+	}
+
+	sandboxIdx := -1
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "sandbox:") {
+			sandboxIdx = i
+			break
+		}
+	}
+	if sandboxIdx == -1 {
+		return lines, false
+	}
+
+	sandboxIndent := getIndentation(lines[sandboxIdx])
+	agentIndent := sandboxIndent + "  "
+	sandboxEnd := len(lines)
+	for i := sandboxIdx + 1; i < len(lines); i++ {
+		if isTopLevelKey(lines[i]) {
+			sandboxEnd = i
+			break
+		}
+	}
+
+	agentStart := -1
+	for i := sandboxIdx + 1; i < sandboxEnd; i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(trimmed, "agent:") && getIndentation(lines[i]) == agentIndent {
+			agentStart = i
+			break
+		}
+	}
+
+	indentedAgentLines := indentLines(agentLines, agentIndent)
+	if agentStart == -1 {
+		newLines := make([]string, 0, len(lines)+len(indentedAgentLines))
+		newLines = append(newLines, lines[:sandboxIdx+1]...)
+		newLines = append(newLines, indentedAgentLines...)
+		newLines = append(newLines, lines[sandboxIdx+1:]...)
+		return newLines, true
+	}
+
+	agentEnd := agentStart + 1
+	agentFieldIndent := getIndentation(lines[agentStart])
+	for agentEnd < sandboxEnd {
+		trimmed := strings.TrimSpace(lines[agentEnd])
+		if trimmed == "" {
+			agentEnd++
+			continue
+		}
+		if strings.HasPrefix(trimmed, "#") {
+			if len(getIndentation(lines[agentEnd])) > len(agentFieldIndent) {
+				agentEnd++
+				continue
+			}
+			break
+		}
+		if len(getIndentation(lines[agentEnd])) > len(agentFieldIndent) {
+			agentEnd++
+			continue
+		}
+		break
+	}
+
+	newLines := make([]string, 0, len(lines)-((agentEnd-agentStart)-len(indentedAgentLines)))
+	newLines = append(newLines, lines[:agentStart]...)
+	newLines = append(newLines, indentedAgentLines...)
+	newLines = append(newLines, lines[agentEnd:]...)
+	return newLines, true
+}
+
+func sandboxAgentLinesForExistingSandbox(fieldValue any) []string {
+	switch value := fieldValue.(type) {
+	case bool:
+		if !value {
+			return []string{"agent: false  # Migrated from deprecated network setting"}
+		}
+	case string:
+		if strings.EqualFold(strings.TrimSpace(value), "disable") {
+			return []string{"agent: false  # Migrated from deprecated network setting"}
+		}
+	case map[string]any:
+		versionValue, hasVersion := value["version"]
+		if hasVersion {
+			if version, ok := normalizeFirewallVersion(versionValue); ok {
+				return []string{
+					"agent:",
+					"  id: awf  # Migrated from deprecated network setting",
+					"  version: " + formatSandboxVersionYAML(version),
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func indentLines(lines []string, indent string) []string {
+	indented := make([]string, 0, len(lines))
+	for _, line := range lines {
+		indented = append(indented, indent+line)
+	}
+	return indented
 }

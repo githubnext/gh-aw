@@ -71,7 +71,7 @@ func getFirewallConfig(workflowData *WorkflowData) *FirewallConfig {
 		agentVersion = agentConfig.Version
 	}
 
-	// Check network.firewall configuration
+	// Check resolved firewall configuration from network permissions
 	if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil {
 		config := workflowData.NetworkPermissions.Firewall
 		if agentVersion != "" {
