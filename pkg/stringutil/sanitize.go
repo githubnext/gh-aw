@@ -80,12 +80,16 @@ func SanitizeErrorMessage(message string) string {
 	return sanitized
 }
 
-// SanitizeIdentifierName converts a name to a valid programming-language identifier
+// SanitizeIdentifierName sanitizes a name for use as a programming-language identifier
 // by replacing disallowed characters with underscores.
 //
 // Use this function for code identifiers (for example JavaScript and Python variable
 // names). It preserves [a-zA-Z0-9_] plus optional extraAllowed runes and prepends
-// an underscore if the result would start with a digit.
+// an underscore if the result would otherwise start with a digit.
+//
+// This function enforces only character-level sanitization. In particular, it returns
+// the empty string unchanged for empty input and does not check language-specific
+// constraints such as reserved keywords.
 //
 // For workflow artifact and user-agent identifiers, use workflow.SanitizeArtifactIdentifier
 // instead, which produces hyphen-separated lowercase output.
