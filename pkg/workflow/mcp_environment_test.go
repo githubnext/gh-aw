@@ -189,8 +189,8 @@ func TestCollectMCPEnvironmentVariables_CodexEngineIncludesCODEXHOME(t *testing.
 
 	envVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, false)
 
-	assert.Equal(t, "/tmp/gh-aw/mcp-config", envVars["CODEX_HOME"],
-		"CODEX_HOME should be set to /tmp/gh-aw/mcp-config for Codex engine")
+	assert.Equal(t, "/tmp/gh-aw/codex-home", envVars["CODEX_HOME"],
+		"CODEX_HOME should be set to /tmp/gh-aw/codex-home for Codex engine")
 }
 
 // TestCollectMCPEnvironmentVariables_NonCodexEngineExcludesCODEXHOME verifies that

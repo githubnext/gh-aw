@@ -183,7 +183,7 @@ func TestCodexEngineExecutionUsesWritableCodexHome(t *testing.T) {
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
-	if !strings.Contains(stepContent, "CODEX_HOME: /tmp/gh-aw/mcp-config") {
+	if !strings.Contains(stepContent, "CODEX_HOME: /tmp/gh-aw/codex-home") {
 		t.Errorf("Expected CODEX_HOME to use writable /tmp path, got:\n%s", stepContent)
 	}
 }
