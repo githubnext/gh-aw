@@ -1242,6 +1242,8 @@ Verify that when all handlers are per-handler staged, no write permissions appea
 
 func extractYAMLJobSection(yamlContent, jobName string) string {
 	const (
+		// GitHub Actions lock files in tests are emitted with 2-space job indentation
+		// under `jobs:` and 4-space indentation for job contents.
 		jobIndent        = "  "
 		jobContentIndent = "    "
 	)
@@ -1259,7 +1261,7 @@ func extractYAMLJobSection(yamlContent, jobName string) string {
 		}
 
 		if inJob {
-			if strings.HasPrefix(line, jobIndent) && strings.HasSuffix(line, ":") && !strings.HasPrefix(line, jobContentIndent) {
+			if isTopLevelJobStart(line, jobIndent, jobContentIndent) {
 				break
 			}
 			if strings.HasPrefix(line, "jobs:") {
@@ -1270,6 +1272,12 @@ func extractYAMLJobSection(yamlContent, jobName string) string {
 	}
 
 	return strings.Join(jobLines, "\n")
+}
+
+func isTopLevelJobStart(line, jobIndent, jobContentIndent string) bool {
+	return strings.HasPrefix(line, jobIndent) &&
+		strings.HasSuffix(line, ":") &&
+		!strings.HasPrefix(line, jobContentIndent)
 }
 
 func TestCompileFromSubdirectoryCreatesActionsLockAtRoot(t *testing.T) {
