@@ -1729,6 +1729,31 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 		}
 	})
 
+	t.Run("Execution step uses configured custom driver instead of built-in", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID:           "copilot",
+				DriverScript: "custom_copilot_driver.cjs",
+			},
+			Tools: make(map[string]any),
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one step")
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if !strings.Contains(stepContent, "custom_copilot_driver.cjs") {
+			t.Errorf("Expected custom driver in execution step, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "actions/copilot_driver.cjs") {
+			t.Errorf("Expected built-in driver to be replaced, got:\n%s", stepContent)
+		}
+	})
+
 	t.Run("CopilotEngine implements DriverProvider interface", func(t *testing.T) {
 		var _ DriverProvider = engine
 	})

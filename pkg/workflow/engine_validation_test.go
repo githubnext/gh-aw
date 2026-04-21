@@ -5,6 +5,9 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestValidateSingleEngineSpecification tests the validateSingleEngineSpecification function
@@ -285,6 +288,116 @@ func TestValidateEngineVersion(t *testing.T) {
 					t.Errorf("Expected no error but got: %v", err)
 				}
 			}
+		})
+	}
+}
+
+func TestValidateEngineDriverScript(t *testing.T) {
+	tests := []struct {
+		name        string
+		workflow    *WorkflowData
+		expectError bool
+		errorSubstr string
+	}{
+		{
+			name: "no engine config",
+			workflow: &WorkflowData{
+				EngineConfig: nil,
+			},
+			expectError: false,
+		},
+		{
+			name: "no driver configured",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid cjs driver on copilot",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "custom_driver.cjs"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid mjs driver on copilot",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "custom_driver.mjs"},
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid extension",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "driver.sh"},
+			},
+			expectError: true,
+			errorSubstr: "must be a Node.js script",
+		},
+		{
+			name: "driver configured for any engine",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "claude", DriverScript: "driver.cjs"},
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid path traversal",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "../driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "safe basename",
+		},
+		{
+			name: "invalid path separator",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "nested/driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "safe basename",
+		},
+		{
+			name: "invalid shell metacharacter",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "driver;rm -rf /.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "safe basename",
+		},
+		{
+			name: "invalid leading whitespace",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: " driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "leading/trailing whitespace",
+		},
+		{
+			name: "invalid leading hyphen",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "-driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "safe basename",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			err := compiler.validateEngineDriverScript(tt.workflow)
+
+			if tt.expectError {
+				require.Error(t, err, "Expected validation error")
+				if tt.errorSubstr != "" {
+					assert.Contains(t, err.Error(), tt.errorSubstr, "Expected error substring mismatch")
+				}
+				return
+			}
+
+			assert.NoError(t, err, "Expected driver validation to pass")
 		})
 	}
 }
