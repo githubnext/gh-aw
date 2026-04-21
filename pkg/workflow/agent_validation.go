@@ -164,7 +164,7 @@ func (c *Compiler) validateUniversalLLMConsumerModel(frontmatter map[string]any,
 
 	_, engineConfig := c.ExtractEngineConfig(frontmatter)
 	if engineConfig == nil || strings.TrimSpace(engineConfig.Model) == "" {
-		return fmt.Errorf("engine.model is required for engine '%s' and must use provider/model format (e.g. copilot/gpt-5, anthropic/claude-sonnet-4, openai/gpt-4.1)", engine.GetID())
+		return fmt.Errorf("engine.model is required for engine '%s' and must use provider/model format (for example: copilot/gpt-5, anthropic/claude-sonnet-4, openai/gpt-4.1)", engine.GetID())
 	}
 
 	if _, err := resolveUniversalLLMBackendFromModel(engineConfig.Model); err != nil {
