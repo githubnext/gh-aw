@@ -66,7 +66,7 @@ Add `comment-memory` as a first-class memory backend that persists structured me
 When updating the Safe Outputs specification for this feature, use the `w3c-specification-writer` agent.
 
 - Target document: `docs/src/content/docs/reference/safe-outputs-specification.md`
-- Apply RFC 2119 requirement language (MUST/SHALL/SHOULD/MAY)
+- Apply RFC 2119 requirement language (MUST, SHALL, SHOULD, MAY)
 - Update version and change log entries when normative behavior changes
 - Keep implementation changes and specification changes aligned in the same PR
 
