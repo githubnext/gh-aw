@@ -1068,7 +1068,7 @@ func TestDetectRuntimeRequirements_CustomDriverAddsNode24(t *testing.T) {
 	assert.Equal(t, string(constants.DefaultNodeVersion), nodeReq.Version, "Custom engine driver should require Node.js 24 runtime")
 }
 
-func TestDetectRuntimeRequirements_CustomDriverDoesNotAddNodeForNonDriverEngine(t *testing.T) {
+func TestDetectRuntimeRequirements_CustomDriverDoesNotAddNodeForNonCopilotEngine(t *testing.T) {
 	data := &WorkflowData{
 		RunsOn: "runs-on: ubuntu-latest",
 		EngineConfig: &EngineConfig{

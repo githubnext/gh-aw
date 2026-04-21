@@ -103,6 +103,9 @@ func requiresNodeForEngineDriver(workflowData *WorkflowData) bool {
 		engineID = string(constants.DefaultEngine)
 	}
 
+	// Today only Copilot consumes engine.driver in execution command generation.
+	// Keep runtime setup scoped to Copilot until additional engines implement
+	// driver wrapper execution paths.
 	return strings.EqualFold(engineID, string(constants.CopilotEngine))
 }
 

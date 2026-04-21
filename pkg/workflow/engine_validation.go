@@ -47,7 +47,7 @@ import (
 )
 
 var engineValidationLog = newValidationLogger("engine")
-var validEngineDriverScriptBasename = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*$`)
+var validEngineDriverScriptNamePattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*$`)
 
 // validateEngineVersion warns (non-strict) or errors (strict) when the workflow
 // explicitly pins the engine CLI to "latest". Unpinned "latest" versions change
@@ -94,7 +94,7 @@ func (c *Compiler) validateEngineDriverScript(workflowData *WorkflowData) error 
 		strings.Contains(driverScript, "/") ||
 		strings.Contains(driverScript, `\`) ||
 		strings.Contains(driverScript, "..") ||
-		!validEngineDriverScriptBasename.MatchString(driverScript) {
+		!validEngineDriverScriptNamePattern.MatchString(driverScript) {
 		return fmt.Errorf("engine.driver must be a safe basename (no path separators, '..', or shell metacharacters) ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", workflowData.EngineConfig.DriverScript, constants.DocsEnginesURL)
 	}
 
