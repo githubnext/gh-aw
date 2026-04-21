@@ -96,4 +96,88 @@ describe("setup_comment_memory_files", () => {
     expect(fs.readFileSync(memoryFile, "utf8")).toBe("Late memory\n");
     expect(listComments).toHaveBeenCalledTimes(6);
   });
+
+  it("rejects cross-repo comment-memory setup when no allowlist is configured", async () => {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify({ "comment-memory": { target: "triggering", "target-repo": "other-org/other-repo" } }));
+    const listComments = vi.fn().mockResolvedValue({ data: [] });
+    global.github = {
+      rest: {
+        issues: {
+          listComments,
+        },
+      },
+    };
+
+    const module = await import("./setup_comment_memory_files.cjs");
+    await module.main();
+
+    expect(listComments).not.toHaveBeenCalled();
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("E004"));
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("No allowlist is configured"));
+  });
+
+  it("rejects cross-repo comment-memory setup when target repo is not in allowlist", async () => {
+    fs.writeFileSync(
+      CONFIG_PATH,
+      JSON.stringify({
+        "comment-memory": {
+          target: "triggering",
+          "target-repo": "other-org/other-repo",
+          allowed_repos: ["other-org/different-repo"],
+        },
+      })
+    );
+    const listComments = vi.fn().mockResolvedValue({ data: [] });
+    global.github = {
+      rest: {
+        issues: {
+          listComments,
+        },
+      },
+    };
+
+    const module = await import("./setup_comment_memory_files.cjs");
+    await module.main();
+
+    expect(listComments).not.toHaveBeenCalled();
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("E004"));
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("not in the allowed-repos list"));
+  });
+
+  it("allows cross-repo comment-memory setup when target repo is in allowlist", async () => {
+    fs.writeFileSync(
+      CONFIG_PATH,
+      JSON.stringify({
+        "comment-memory": {
+          target: "triggering",
+          "target-repo": "other-org/other-repo",
+          allowed_repos: ["other-org/other-repo"],
+        },
+      })
+    );
+    const listComments = vi.fn().mockResolvedValue({
+      data: [{ body: '<gh-aw-comment-memory id="default">\nCross repo memory\n</gh-aw-comment-memory>' }],
+    });
+    global.github = {
+      rest: {
+        issues: {
+          listComments,
+        },
+      },
+    };
+
+    const module = await import("./setup_comment_memory_files.cjs");
+    await module.main();
+
+    expect(listComments).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "other-org",
+        repo: "other-repo",
+        issue_number: 42,
+      })
+    );
+    const memoryFile = path.join(COMMENT_MEMORY_DIR, "default.md");
+    expect(fs.existsSync(memoryFile)).toBe(true);
+    expect(fs.readFileSync(memoryFile, "utf8")).toBe("Cross repo memory\n");
+  });
 });
