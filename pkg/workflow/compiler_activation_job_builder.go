@@ -241,14 +241,16 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 		} else {
 			domainsStr = c.computeAllowedDomainsForSanitization(data)
 		}
-		if len(data.Bots) > 0 || domainsStr != "" {
-			ctx.steps = append(ctx.steps, "        env:\n")
-		}
+		var envLines []string
 		if len(data.Bots) > 0 {
-			ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_ALLOWED_BOTS", strings.Join(data.Bots, ",")))
+			envLines = append(envLines, formatYAMLEnv("          ", "GH_AW_ALLOWED_BOTS", strings.Join(data.Bots, ",")))
 		}
 		if domainsStr != "" {
-			ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_ALLOWED_DOMAINS", domainsStr))
+			envLines = append(envLines, formatYAMLEnv("          ", "GH_AW_ALLOWED_DOMAINS", domainsStr))
+		}
+		if len(envLines) > 0 {
+			ctx.steps = append(ctx.steps, "        env:\n")
+			ctx.steps = append(ctx.steps, envLines...)
 		}
 		ctx.steps = append(ctx.steps, "        with:\n")
 		ctx.steps = append(ctx.steps, "          script: |\n")
