@@ -12,7 +12,7 @@ jobs:
   list-active-agent-task-sessions:
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Show authentication token source
         run: |
