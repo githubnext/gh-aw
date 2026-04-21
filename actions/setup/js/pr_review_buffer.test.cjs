@@ -597,9 +597,10 @@ describe("pr_review_buffer (factory pattern)", () => {
         });
         mockGithub.rest.pulls.listReviews.mockResolvedValue({
           data: [
-            { id: 100, state: "CHANGES_REQUESTED", user: { login: "github-actions[bot]" }, body: "<!-- gh-aw-workflow-id: test-workflow -->\nOld blocking review" },
-            { id: 101, state: "CHANGES_REQUESTED", user: { login: "some-other-bot" }, body: "<!-- gh-aw-workflow-id: test-workflow -->" },
-            { id: 102, state: "APPROVED", user: { login: "github-actions[bot]" }, body: "<!-- gh-aw-workflow-id: test-workflow -->" },
+            { id: 100, state: "CHANGES_REQUESTED", user: { login: "github-actions[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-id: test-workflow -->\nOld blocking review" },
+            { id: 101, state: "CHANGES_REQUESTED", user: { login: "human-user", type: "User" }, body: "<!-- gh-aw-workflow-id: test-workflow -->" },
+            { id: 102, state: "APPROVED", user: { login: "github-actions[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-id: test-workflow -->" },
+            { id: 103, state: "CHANGES_REQUESTED", user: { login: "github-actions[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-id: some-other-workflow -->" },
           ],
         });
         mockGithub.rest.pulls.dismissReview.mockResolvedValue({ data: {} });
@@ -645,7 +646,7 @@ describe("pr_review_buffer (factory pattern)", () => {
           },
         });
         mockGithub.rest.pulls.listReviews.mockResolvedValue({
-          data: [{ id: 200, state: "CHANGES_REQUESTED", user: { login: "github-actions[bot]" }, body: "<!-- gh-aw-workflow-id: test-workflow -->" }],
+          data: [{ id: 200, state: "CHANGES_REQUESTED", user: { login: "github-actions[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-id: test-workflow -->" }],
         });
         mockGithub.rest.pulls.dismissReview.mockRejectedValue(new Error("permission denied"));
 

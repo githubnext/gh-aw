@@ -24,7 +24,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { matchesWorkflowId } = require("./generate_footer.cjs");
 
-const SUPERSCEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflow.";
+const SUPERSEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflow.";
+const MAX_SUPERSEDE_REVIEW_PAGES = 10;
 
 /**
  * @typedef {Object} BufferedComment
@@ -342,9 +343,9 @@ function createReviewBuffer() {
     /**
      * Dismiss older REQUEST_CHANGES reviews from the same workflow after posting a replacement review.
      * This is best-effort: failures are logged as warnings and do not fail the current review submission.
-     * @param {number} currentReviewID
+     * @param {number} currentReviewId
      */
-    async function maybeSupersedeOlderReviews(currentReviewID) {
+    async function maybeSupersedeOlderReviews(currentReviewId) {
       if (!supersedeOlderReviews) {
         return;
       }
@@ -355,11 +356,11 @@ function createReviewBuffer() {
         return;
       }
 
-      /** @type {any[]} */
+      /** @type {Array<{id: number, state?: string, user?: {login?: string, type?: string}, body?: string}>} */
       const reviews = [];
       let page = 1;
       const perPage = 100;
-      while (true) {
+      while (page <= MAX_SUPERSEDE_REVIEW_PAGES) {
         const { data } = await github.rest.pulls.listReviews({
           owner: repoParts.owner,
           repo: repoParts.repo,
@@ -377,11 +378,14 @@ function createReviewBuffer() {
         }
         page++;
       }
+      if (page > MAX_SUPERSEDE_REVIEW_PAGES) {
+        core.warning(`supersede-older-reviews reached pagination safety limit (${MAX_SUPERSEDE_REVIEW_PAGES} pages).`);
+      }
 
       const staleReviews = reviews.filter(review => {
-        if (!review || review.id === currentReviewID) return false;
+        if (!review || review.id === currentReviewId) return false;
         if (review.state !== "CHANGES_REQUESTED") return false;
-        if (review.user?.login !== "github-actions[bot]") return false;
+        if (review.user?.type !== "Bot") return false;
         return matchesWorkflowId(review.body, workflowID);
       });
 
@@ -392,7 +396,7 @@ function createReviewBuffer() {
             repo: repoParts.repo,
             pull_number: pullRequestNumber,
             review_id: staleReview.id,
-            message: SUPERSCEDE_REVIEW_MESSAGE,
+            message: SUPERSEDE_REVIEW_MESSAGE,
           });
           core.info(`Dismissed superseded review #${staleReview.id}`);
         } catch (dismissError) {
