@@ -235,9 +235,22 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 		ctx.steps = append(ctx.steps, "      - name: Compute current body text\n")
 		ctx.steps = append(ctx.steps, "        id: sanitized\n")
 		ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
+		var domainsStr string
+		if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
+			domainsStr = c.computeExpandedAllowedDomainsForSanitization(data)
+		} else {
+			domainsStr = c.computeAllowedDomainsForSanitization(data)
+		}
+		var envLines []string
 		if len(data.Bots) > 0 {
+			envLines = append(envLines, formatYAMLEnv("          ", "GH_AW_ALLOWED_BOTS", strings.Join(data.Bots, ",")))
+		}
+		if domainsStr != "" {
+			envLines = append(envLines, formatYAMLEnv("          ", "GH_AW_ALLOWED_DOMAINS", domainsStr))
+		}
+		if len(envLines) > 0 {
 			ctx.steps = append(ctx.steps, "        env:\n")
-			ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_ALLOWED_BOTS", strings.Join(data.Bots, ",")))
+			ctx.steps = append(ctx.steps, envLines...)
 		}
 		ctx.steps = append(ctx.steps, "        with:\n")
 		ctx.steps = append(ctx.steps, "          script: |\n")

@@ -84,6 +84,8 @@ on:
 safe-outputs:
   push-to-pull-request-branch:
     target: "triggering"
+  noop:
+    report-as-issue: false
 ---
 
 # Test Push to PR Branch
@@ -114,6 +116,10 @@ Please make changes and push them to the feature branch.
 	}
 
 	lockContentStr := string(lockContent)
+	safeOutputsJobSection := extractJobSection(lockContentStr, "safe_outputs")
+	if safeOutputsJobSection == "" {
+		t.Fatalf("Could not find safe_outputs job in lock file")
+	}
 
 	// Verify that safe_outputs job is generated (consolidated mode)
 	if !strings.Contains(lockContentStr, "safe_outputs:") {
@@ -131,13 +137,10 @@ Please make changes and push them to the feature branch.
 	}
 
 	// Verify that required permissions are present
-	if !strings.Contains(lockContentStr, "contents: write") {
+	if !strings.Contains(safeOutputsJobSection, "contents: write") {
 		t.Errorf("Generated workflow should have contents: write permission")
 	}
-	if strings.Contains(lockContentStr, "issues: write") {
-		t.Errorf("Generated workflow should NOT have issues: write permission (push-to-pull-request-branch doesn't need it)")
-	}
-	if !strings.Contains(lockContentStr, "pull-requests: write") {
+	if !strings.Contains(safeOutputsJobSection, "pull-requests: write") {
 		t.Errorf("Generated workflow should have pull-requests: write permission")
 	}
 

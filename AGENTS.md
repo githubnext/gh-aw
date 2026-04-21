@@ -166,6 +166,8 @@ network:
 - **Never use `mode: remote`** — it does not work with the GitHub Actions token (`GITHUB_TOKEN`) and requires a special PAT or GitHub App token
 - Never rely on direct `api.github.com` access in Copilot workflows
 - **Never use direct GitHub CLI API reads in agent prompts** (for example: `gh api`, `gh repo view`, `gh pr list`) — use MCP `github` tools instead
+- **Guard `list_code_scanning_alerts` calls in workflow prompts**: always include `state: open` and `severity: critical,high` to avoid oversized MCP responses
+- **`head_limit` compatibility**: do **not** send `head_limit` to the default GitHub MCP tool; use `head_limit: 20` only with custom wrappers after verifying support in wrapper docs or wrapper-specific tests
 
 See [GitHub MCP Server Documentation](skills/github-mcp-server/SKILL.md) for complete configuration details.
 

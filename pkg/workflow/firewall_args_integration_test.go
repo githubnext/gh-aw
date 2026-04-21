@@ -28,8 +28,9 @@ on: workflow_dispatch
 permissions:
   contents: read
 engine: copilot
-network:
-  firewall:
+strict: false
+sandbox:
+  agent:
     args: ["--custom-flag", "custom-value", "--another-arg"]
 ---
 
@@ -109,7 +110,8 @@ permissions:
   contents: read
 engine: copilot
 network:
-  firewall: true
+  allowed:
+    - defaults
 ---
 
 # Test Workflow
@@ -179,12 +181,16 @@ network:
   allowed:
     - "github.com"
     - "api.github.com"
-  firewall:
-    ssl-bump: true
-    allow-urls:
-      - "https://github.com/githubnext/*"
-      - "https://api.github.com/repos/*"
-    log-level: debug
+sandbox:
+  agent:
+    args:
+      - "--ssl-bump"
+      - "--allow-urls"
+      # Keep this as a single comma-separated argument to match getSSLBumpArgs()
+      # in awf_helpers.go, which emits --allow-urls with joined patterns.
+      - "https://github.com/githubnext/*,https://api.github.com/repos/*"
+      - "--log-level"
+      - "debug"
 ---
 
 # Test SSL Bump Workflow
@@ -262,7 +268,8 @@ permissions:
   contents: read
 engine: copilot
 network:
-  firewall: true
+  allowed:
+    - defaults
 tools:
   github:
 ---
@@ -312,8 +319,8 @@ on: workflow_dispatch
 permissions:
   contents: read
 engine: copilot
-network:
-  firewall:
+sandbox:
+  agent:
     version: v0.25.0
 ---
 

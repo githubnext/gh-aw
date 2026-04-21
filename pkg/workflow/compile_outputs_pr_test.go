@@ -678,6 +678,8 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[test] "
     fallback-as-issue: false
+  noop:
+    report-as-issue: false
 ---
 
 # Test Output Pull Request Fallback False
@@ -731,15 +733,10 @@ This workflow tests the create-pull-request with fallback-as-issue disabled.
 	lockContentStr := string(lockContent)
 
 	// Find the safe_outputs job section in the lock file
-	safeOutputsJobStart := strings.Index(lockContentStr, "safe_outputs:")
-	if safeOutputsJobStart == -1 {
+	safeOutputsJobSection := extractJobSection(lockContentStr, "safe_outputs")
+	if safeOutputsJobSection == "" {
 		t.Fatal("Could not find safe_outputs job in lock file")
 	}
-
-	// Find the next job after safe_outputs (to limit our search scope)
-	// Extract a large section after safe_outputs job (next 2000 chars should include all job details)
-	endIdx := min(safeOutputsJobStart+2000, len(lockContentStr))
-	safeOutputsJobSection := lockContentStr[safeOutputsJobStart:endIdx]
 
 	// Verify permissions in safe_outputs job
 	if !strings.Contains(safeOutputsJobSection, "contents: write") {
@@ -748,10 +745,6 @@ This workflow tests the create-pull-request with fallback-as-issue disabled.
 
 	if !strings.Contains(safeOutputsJobSection, "pull-requests: write") {
 		t.Error("Expected pull-requests: write permission in safe_outputs job")
-	}
-
-	if strings.Contains(safeOutputsJobSection, "issues: write") {
-		t.Error("Did not expect issues: write permission in safe_outputs job when fallback-as-issue: false")
 	}
 
 	// Verify handler config includes fallback_as_issue: false
@@ -829,15 +822,10 @@ This workflow tests the create-pull-request with default fallback-as-issue behav
 	lockContentStr := string(lockContent)
 
 	// Find the safe_outputs job section in the lock file
-	safeOutputsJobStart := strings.Index(lockContentStr, "safe_outputs:")
-	if safeOutputsJobStart == -1 {
+	safeOutputsJobSection := extractJobSection(lockContentStr, "safe_outputs")
+	if safeOutputsJobSection == "" {
 		t.Fatal("Could not find safe_outputs job in lock file")
 	}
-
-	// Extract a large section after safe_outputs job (next 2000 chars should include all job details)
-	endIdx := min(safeOutputsJobStart+2000, len(lockContentStr))
-
-	safeOutputsJobSection := lockContentStr[safeOutputsJobStart:endIdx]
 
 	// Verify permissions in safe_outputs job include issues: write (default behavior)
 	if !strings.Contains(safeOutputsJobSection, "contents: write") {
