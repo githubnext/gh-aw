@@ -883,6 +883,8 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 	if lastSetupIdx >= 0 {
 		// Setup step may be emitted as multiple []string entries (one line per entry).
 		// Insert after the full setup step by finding the next step boundary.
+		// A step boundary is identified by the YAML list-item prefix ("- ") after
+		// indentation trimming, which marks the beginning of the next step block.
 		// If no boundary is found (e.g. setup is the final step), append pre-steps at the end.
 		for i := lastSetupIdx + 1; i < len(steps); i++ {
 			trimmed := strings.TrimLeft(steps[i], " ")

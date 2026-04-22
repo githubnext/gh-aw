@@ -906,6 +906,16 @@ jobs:
 	if err := yaml.Unmarshal(content, &lockFileYAML); err != nil {
 		t.Fatalf("Expected generated lock file to be valid YAML: %v", err)
 	}
+	jobsNode, ok := lockFileYAML["jobs"].(map[string]any)
+	if !ok {
+		t.Fatalf("Expected generated lock file to contain jobs map, got: %T", lockFileYAML["jobs"])
+	}
+	if _, ok := jobsNode["pre_activation"]; !ok {
+		t.Fatalf("Expected pre_activation job in parsed lock file YAML")
+	}
+	if _, ok := jobsNode["activation"]; !ok {
+		t.Fatalf("Expected activation job in parsed lock file YAML")
+	}
 
 	preActivationSection := extractJobSection(yamlStr, "pre_activation")
 	if preActivationSection == "" {
