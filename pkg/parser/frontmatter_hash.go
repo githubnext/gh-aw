@@ -192,7 +192,7 @@ func computeFrontmatterHashFromContent(content string, parsedFrontmatter map[str
 	}
 
 	// Compute hash using text-based approach with custom file reader
-	return computeFrontmatterHashTextBasedWithReader(frontmatterText, fullBody, baseDir, cache, relevantExpressions, fileReader)
+	return computeFrontmatterHashTextBasedWithReader(frontmatterText, fullBody, baseDir, filePath, cache, relevantExpressions, fileReader)
 }
 
 // extractRelevantTemplateExpressions extracts template expressions from markdown
@@ -421,7 +421,7 @@ func processImportsTextBased(frontmatterText, baseDir string, visited map[string
 // computeFrontmatterHashTextBasedWithReader computes the hash using text-based approach with custom file reader.
 // When markdown is non-empty, it is included as the full body text in the canonical data (used for
 // inlined-imports mode where the entire body is compiled into the lock file).
-func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDir string, cache *ImportCache, expressions []string, fileReader FileReader) (string, error) {
+func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDir, filePath string, cache *ImportCache, expressions []string, fileReader FileReader) (string, error) {
 	frontmatterHashLog.Print("Computing frontmatter hash using text-based approach")
 
 	// Process imports using text-based parsing with custom file reader
@@ -462,6 +462,10 @@ func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDi
 		canonical["template-expressions"] = expressions
 	}
 
+	// Include relevant container digest pins in the canonical hash input.
+	// This ensures lock metadata changes when resolved container pins change.
+	addContainerPinsToCanonical(canonical, frontmatterText, filePath, fileReader)
+
 	// Serialize to canonical JSON
 	canonicalJSON := marshalSorted(canonical)
 
@@ -473,4 +477,134 @@ func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDi
 
 	frontmatterHashLog.Printf("Computed hash: %s", hashHex)
 	return hashHex, nil
+}
+
+// addContainerPinsToCanonical augments canonical hash data with digest pins relevant
+// to container images declared in frontmatter tools.
+func addContainerPinsToCanonical(canonical map[string]any, frontmatterText, workflowPath string, fileReader FileReader) {
+	frontmatter, err := ExtractFrontmatterFromContent("---\n" + frontmatterText + "\n---\n")
+	if err != nil {
+		return
+	}
+
+	images := extractContainerImagesFromFrontmatter(frontmatter.Frontmatter)
+	if len(images) == 0 {
+		return
+	}
+
+	lockData, ok := findActionsLockContent(workflowPath, fileReader)
+	if !ok {
+		return
+	}
+
+	type containerPin struct {
+		Digest      string `json:"digest"`
+		PinnedImage string `json:"pinned_image"`
+	}
+	var lock struct {
+		Containers map[string]containerPin `json:"containers"`
+	}
+	if err := json.Unmarshal(lockData, &lock); err != nil || len(lock.Containers) == 0 {
+		return
+	}
+
+	pins := make(map[string]any)
+	for _, image := range images {
+		if pin, ok := lock.Containers[image]; ok {
+			pins[image] = map[string]any{
+				"digest":       pin.Digest,
+				"pinned_image": pin.PinnedImage,
+			}
+		}
+	}
+
+	if len(pins) > 0 {
+		canonical["container-pins"] = pins
+	}
+}
+
+// findActionsLockContent searches upward from workflowPath for .github/aw/actions-lock.json.
+func findActionsLockContent(workflowPath string, fileReader FileReader) ([]byte, bool) {
+	dir := filepath.Dir(workflowPath)
+	for {
+		candidate := filepath.Join(dir, ".github", "aw", "actions-lock.json")
+		if content, err := fileReader(candidate); err == nil {
+			return content, true
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return nil, false
+}
+
+// extractContainerImagesFromFrontmatter returns sorted, deduplicated container images
+// from tool definitions in frontmatter.
+func extractContainerImagesFromFrontmatter(frontmatter map[string]any) []string {
+	if frontmatter == nil {
+		return nil
+	}
+
+	tools, ok := frontmatter["tools"].(map[string]any)
+	if !ok || len(tools) == 0 {
+		return nil
+	}
+
+	set := make(map[string]bool)
+	for _, toolDef := range tools {
+		toolMap, ok := toolDef.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		if container, ok := toolMap["container"].(string); ok && container != "" {
+			set[container] = true
+			continue
+		}
+
+		command, _ := toolMap["command"].(string)
+		if command != "docker" {
+			continue
+		}
+		image := extractDockerImageFromArgs(toolMap["args"])
+		if image != "" {
+			set[image] = true
+		}
+	}
+
+	if len(set) == 0 {
+		return nil
+	}
+
+	images := make([]string, 0, len(set))
+	for image := range set {
+		images = append(images, image)
+	}
+	sort.Strings(images)
+	return images
+}
+
+func extractDockerImageFromArgs(args any) string {
+	var last string
+	switch v := args.(type) {
+	case []any:
+		if len(v) == 0 {
+			return ""
+		}
+		last, _ = v[len(v)-1].(string)
+	case []string:
+		if len(v) == 0 {
+			return ""
+		}
+		last = v[len(v)-1]
+	default:
+		return ""
+	}
+	if last == "" || strings.HasPrefix(last, "-") {
+		return ""
+	}
+	return last
 }

@@ -254,3 +254,109 @@ tools:
 	assert.Len(t, hash, 64, "Hash should be 64 characters")
 	assert.Regexp(t, "^[a-f0-9]{64}$", hash, "Hash should be lowercase hex")
 }
+
+func TestComputeFrontmatterHash_IncludesRelevantContainerPins(t *testing.T) {
+	workflowPath := "/repo/.github/workflows/workflow.md"
+	workflowContent := `---
+engine: copilot
+tools:
+  mcp-server:
+    container: ghcr.io/github/github-mcp-server:v0.32.0
+---
+
+# Body
+`
+
+	lockV1 := `{
+  "entries": {},
+  "containers": {
+    "ghcr.io/github/github-mcp-server:v0.32.0": {
+      "image": "ghcr.io/github/github-mcp-server:v0.32.0",
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "pinned_image": "ghcr.io/github/github-mcp-server:v0.32.0@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  }
+}`
+	lockV2 := `{
+  "entries": {},
+  "containers": {
+    "ghcr.io/github/github-mcp-server:v0.32.0": {
+      "image": "ghcr.io/github/github-mcp-server:v0.32.0",
+      "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "pinned_image": "ghcr.io/github/github-mcp-server:v0.32.0@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  }
+}`
+
+	readWithLock := func(lockContent string) FileReader {
+		return func(filePath string) ([]byte, error) {
+			switch filePath {
+			case workflowPath:
+				return []byte(workflowContent), nil
+			case "/repo/.github/aw/actions-lock.json":
+				return []byte(lockContent), nil
+			default:
+				return nil, os.ErrNotExist
+			}
+		}
+	}
+
+	hashV1, err := ComputeFrontmatterHashFromFileWithReader(workflowPath, nil, readWithLock(lockV1))
+	require.NoError(t, err, "Should compute hash with first lock data")
+	hashV2, err := ComputeFrontmatterHashFromFileWithReader(workflowPath, nil, readWithLock(lockV2))
+	require.NoError(t, err, "Should compute hash with second lock data")
+	assert.NotEqual(t, hashV1, hashV2, "Hash should change when relevant container pin changes")
+}
+
+func TestComputeFrontmatterHash_IgnoresUnrelatedContainerPins(t *testing.T) {
+	workflowPath := "/repo/.github/workflows/workflow.md"
+	workflowContent := `---
+engine: copilot
+tools:
+  mcp-server:
+    container: ghcr.io/github/github-mcp-server:v0.32.0
+---
+
+# Body
+`
+
+	lockA := `{
+  "entries": {},
+  "containers": {
+    "ghcr.io/github/other-image:v1": {
+      "image": "ghcr.io/github/other-image:v1",
+      "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "pinned_image": "ghcr.io/github/other-image:v1@sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    }
+  }
+}`
+	lockB := `{
+  "entries": {},
+  "containers": {
+    "ghcr.io/github/other-image:v1": {
+      "image": "ghcr.io/github/other-image:v1",
+      "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "pinned_image": "ghcr.io/github/other-image:v1@sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    }
+  }
+}`
+
+	readWithLock := func(lockContent string) FileReader {
+		return func(filePath string) ([]byte, error) {
+			switch filePath {
+			case workflowPath:
+				return []byte(workflowContent), nil
+			case "/repo/.github/aw/actions-lock.json":
+				return []byte(lockContent), nil
+			default:
+				return nil, os.ErrNotExist
+			}
+		}
+	}
+
+	hashA, err := ComputeFrontmatterHashFromFileWithReader(workflowPath, nil, readWithLock(lockA))
+	require.NoError(t, err, "Should compute hash with unrelated lock data A")
+	hashB, err := ComputeFrontmatterHashFromFileWithReader(workflowPath, nil, readWithLock(lockB))
+	require.NoError(t, err, "Should compute hash with unrelated lock data B")
+	assert.Equal(t, hashA, hashB, "Hash should stay the same when only unrelated container pins change")
+}
