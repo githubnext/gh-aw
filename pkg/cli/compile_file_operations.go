@@ -78,6 +78,15 @@ func getRepositoryRelativePath(absPath string) (string, error) {
 	return relPath, nil
 }
 
+// getAbsoluteWorkflowDir converts a relative workflow dir to absolute path
+func getAbsoluteWorkflowDir(workflowDir string, gitRoot string) string {
+	absWorkflowDir := workflowDir
+	if !filepath.IsAbs(absWorkflowDir) {
+		absWorkflowDir = filepath.Join(gitRoot, workflowDir)
+	}
+	return absWorkflowDir
+}
+
 // compileSingleFile compiles a single markdown workflow file and updates compilation statistics
 // If checkExists is true, the function will check if the file exists before compiling
 // Returns true if compilation was attempted (file exists or checkExists is false), false otherwise
@@ -268,62 +277,5 @@ func handleFileDeleted(mdFile string, verbose bool) {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed corresponding lock file: "+lockFile))
 			}
 		}
-	}
-}
-
-// trackWorkflowFailure adds a workflow failure to the compilation statistics
-func trackWorkflowFailure(stats *CompilationStats, workflowPath string, errorCount int, errorMessages []string) {
-	// Add to FailedWorkflows for backward compatibility
-	stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(workflowPath))
-
-	// Add detailed failure information
-	stats.FailureDetails = append(stats.FailureDetails, WorkflowFailure{
-		Path:          workflowPath,
-		ErrorCount:    errorCount,
-		ErrorMessages: errorMessages,
-	})
-}
-
-// printCompilationSummary prints a summary of the compilation results
-func printCompilationSummary(stats *CompilationStats) {
-	if stats.Total == 0 {
-		return
-	}
-
-	summary := fmt.Sprintf("Compiled %d workflow(s): %d error(s), %d warning(s)",
-		stats.Total, stats.Errors, stats.Warnings)
-
-	// Use different formatting based on whether there were errors
-	if stats.Errors > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(summary))
-
-		// Show agent-friendly list of failed workflow IDs first
-		if len(stats.FailureDetails) > 0 {
-			fmt.Fprintln(os.Stderr)
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Failed workflows:"))
-			for _, failure := range stats.FailureDetails {
-				fmt.Fprintf(os.Stderr, "  ✗ %s\n", filepath.Base(failure.Path))
-			}
-			fmt.Fprintln(os.Stderr)
-
-			// Display the actual error messages for each failed workflow
-			for _, failure := range stats.FailureDetails {
-				for _, errMsg := range failure.ErrorMessages {
-					fmt.Fprintln(os.Stderr, errMsg)
-				}
-			}
-		} else if len(stats.FailedWorkflows) > 0 {
-			// Fallback for backward compatibility if FailureDetails is not populated
-			fmt.Fprintln(os.Stderr)
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Failed workflows:"))
-			for _, workflow := range stats.FailedWorkflows {
-				fmt.Fprintf(os.Stderr, "  ✗ %s\n", workflow)
-			}
-			fmt.Fprintln(os.Stderr)
-		}
-	} else if stats.Warnings > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(summary))
-	} else {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(summary))
 	}
 }

@@ -35,22 +35,6 @@ type CompileConfig struct {
 	PriorManifestFile      string   // Path to a JSON file containing pre-cached manifests (map[lockFile]*GHAWManifest) collected at MCP server startup; takes precedence over git HEAD / filesystem reads for safe update enforcement
 }
 
-// WorkflowFailure represents a failed workflow with its error count
-type WorkflowFailure struct {
-	Path          string   // File path of the workflow
-	ErrorCount    int      // Number of errors in this workflow
-	ErrorMessages []string // Actual error messages to display to the user
-}
-
-// CompilationStats tracks the results of workflow compilation
-type CompilationStats struct {
-	Total           int
-	Errors          int
-	Warnings        int
-	FailedWorkflows []string          // Names of workflows that failed compilation (deprecated, use FailedWorkflowDetails)
-	FailureDetails  []WorkflowFailure // Detailed information about failed workflows
-}
-
 // CompileValidationError represents a single validation error or warning
 type CompileValidationError struct {
 	Type    string `json:"type"`

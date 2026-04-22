@@ -17,9 +17,6 @@
 //   - generateDependabotManifestsWrapper() - Generate Dependabot manifests
 //   - generateMaintenanceWorkflowWrapper() - Generate maintenance workflow
 //
-// Statistics:
-//   - collectWorkflowStatisticsWrapper() - Collect workflow statistics
-//
 // These functions abstract post-processing operations, allowing the main compile
 // orchestrator to focus on coordination while these handle generation and validation.
 
@@ -28,11 +25,9 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -89,89 +84,4 @@ func generateMaintenanceWorkflowWrapper(
 	}
 
 	return nil
-}
-
-// collectWorkflowStatisticsWrapper collects and returns workflow statistics
-func collectWorkflowStatisticsWrapper(markdownFiles []string) []*WorkflowStats {
-	compilePostProcessingLog.Printf("Collecting workflow statistics for %d files", len(markdownFiles))
-
-	var statsList []*WorkflowStats
-	for _, file := range markdownFiles {
-		resolvedFile, err := resolveWorkflowFile(file, false)
-		if err != nil {
-			continue // Skip files that couldn't be resolved
-		}
-		lockFile := stringutil.MarkdownToLockFile(resolvedFile)
-		if workflowStats, err := collectWorkflowStats(lockFile); err == nil {
-			statsList = append(statsList, workflowStats)
-		}
-	}
-
-	compilePostProcessingLog.Printf("Collected statistics for %d workflows", len(statsList))
-	return statsList
-}
-
-// updateGitAttributes ensures .gitattributes marks .lock.yml files as generated
-func updateGitAttributes(successCount int, actionCache *workflow.ActionCache, verbose bool) error {
-	compilePostProcessingLog.Printf("Updating .gitattributes (compiled=%d, actionCache=%v)", successCount, actionCache != nil)
-
-	hasActionCacheEntries := actionCache != nil && len(actionCache.Entries) > 0
-
-	// Only update if we successfully compiled workflows or have action cache entries
-	if successCount > 0 || hasActionCacheEntries {
-		compilePostProcessingLog.Printf("Updating .gitattributes (compiled=%d, actionCache=%v)", successCount, hasActionCacheEntries)
-		updated, err := ensureGitAttributes()
-		if err != nil {
-			compilePostProcessingLog.Printf("Failed to update .gitattributes: %v", err)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
-			}
-			return err
-		}
-		if updated {
-			compilePostProcessingLog.Printf("Successfully updated .gitattributes")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
-			}
-		} else {
-			compilePostProcessingLog.Print(".gitattributes already up to date")
-		}
-	} else {
-		compilePostProcessingLog.Print("Skipping .gitattributes update (no compiled workflows and no action cache entries)")
-	}
-
-	return nil
-}
-
-// saveActionCache saves the action cache after all compilations
-func saveActionCache(actionCache *workflow.ActionCache, verbose bool) error {
-	if actionCache == nil {
-		return nil
-	}
-
-	compilePostProcessingLog.Print("Saving action cache")
-
-	if err := actionCache.Save(); err != nil {
-		compilePostProcessingLog.Printf("Failed to save action cache: %v", err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save action cache: %v", err)))
-		}
-		return err
-	}
-
-	compilePostProcessingLog.Print("Action cache saved successfully")
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Action cache saved to "+actionCache.GetCachePath()))
-	}
-
-	return nil
-}
-
-// getAbsoluteWorkflowDir converts a relative workflow dir to absolute path
-func getAbsoluteWorkflowDir(workflowDir string, gitRoot string) string {
-	absWorkflowDir := workflowDir
-	if !filepath.IsAbs(absWorkflowDir) {
-		absWorkflowDir = filepath.Join(gitRoot, workflowDir)
-	}
-	return absWorkflowDir
 }

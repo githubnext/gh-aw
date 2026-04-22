@@ -135,7 +135,7 @@ func compileSpecificFiles(
 
 	// Run batch actionlint on all collected lock files
 	if config.Actionlint && !config.NoEmit && len(lockFilesForActionlint) > 0 {
-		if err := runBatchActionlint(lockFilesForActionlint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := RunActionlintOnFiles(lockFilesForActionlint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -144,7 +144,7 @@ func compileSpecificFiles(
 
 	// Run batch zizmor on all collected lock files
 	if config.Zizmor && !config.NoEmit && len(lockFilesForZizmor) > 0 {
-		if err := runBatchZizmor(lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := RunZizmorOnFiles(lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -155,7 +155,7 @@ func compileSpecificFiles(
 	// Get the directory from the first lock file (all should be in same directory)
 	if config.Poutine && !config.NoEmit && len(lockFilesForDirTools) > 0 {
 		workflowDir := filepath.Dir(lockFilesForDirTools[0])
-		if err := runBatchPoutine(workflowDir, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := runBatchDirectoryTool("poutine", workflowDir, config.Verbose && !config.JSONOutput, config.Strict, RunPoutineOnDirectory); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -166,7 +166,7 @@ func compileSpecificFiles(
 	// Get the directory from the first lock file (all should be in same directory)
 	if config.RunnerGuard && !config.NoEmit && len(lockFilesForDirTools) > 0 {
 		workflowDir := filepath.Dir(lockFilesForDirTools[0])
-		if err := runBatchRunnerGuard(workflowDir, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := runBatchDirectoryTool("runner-guard", workflowDir, config.Verbose && !config.JSONOutput, config.Strict, RunRunnerGuardOnDirectory); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -312,7 +312,7 @@ func compileAllFilesInDirectory(
 
 	// Run batch actionlint
 	if config.Actionlint && !config.NoEmit && len(lockFilesForActionlint) > 0 {
-		if err := runBatchActionlint(lockFilesForActionlint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := RunActionlintOnFiles(lockFilesForActionlint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -321,7 +321,7 @@ func compileAllFilesInDirectory(
 
 	// Run batch zizmor
 	if config.Zizmor && !config.NoEmit && len(lockFilesForZizmor) > 0 {
-		if err := runBatchZizmor(lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := RunZizmorOnFiles(lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -330,7 +330,7 @@ func compileAllFilesInDirectory(
 
 	// Run batch poutine once on the workflow directory
 	if config.Poutine && !config.NoEmit && len(lockFilesForDirTools) > 0 {
-		if err := runBatchPoutine(workflowsDir, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := runBatchDirectoryTool("poutine", workflowsDir, config.Verbose && !config.JSONOutput, config.Strict, RunPoutineOnDirectory); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -339,7 +339,7 @@ func compileAllFilesInDirectory(
 
 	// Run batch runner-guard once on the workflow directory
 	if config.RunnerGuard && !config.NoEmit && len(lockFilesForDirTools) > 0 {
-		if err := runBatchRunnerGuard(workflowsDir, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := runBatchDirectoryTool("runner-guard", workflowsDir, config.Verbose && !config.JSONOutput, config.Strict, RunRunnerGuardOnDirectory); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}

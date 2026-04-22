@@ -14,7 +14,7 @@
 // # Key Functions
 //
 // Batch Linting:
-//   - runBatchActionlint() - Run actionlint on multiple lock files
+//   - RunActionlintOnFiles() - Run actionlint on multiple lock files
 //
 // File Cleanup:
 //   - purgeOrphanedLockFiles() - Remove orphaned .lock.yml files
@@ -40,19 +40,13 @@ var compileBatchOperationsLog = logger.New("cli:compile_batch_operations")
 // RunActionlintOnFiles runs actionlint on multiple lock files in a single batch.
 // This is more efficient than running actionlint once per file.
 func RunActionlintOnFiles(lockFiles []string, verbose bool, strict bool) error {
-	if len(lockFiles) == 0 {
-		return nil
-	}
-	return runActionlintOnFiles(lockFiles, verbose, strict)
+	return runBatchLockFileTool("actionlint", lockFiles, verbose, strict, runActionlintOnFiles)
 }
 
 // RunZizmorOnFiles runs zizmor on multiple lock files in a single batch.
 // This is more efficient than running zizmor once per file.
 func RunZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
-	if len(lockFiles) == 0 {
-		return nil
-	}
-	return runZizmorOnFiles(lockFiles, verbose, strict)
+	return runBatchLockFileTool("zizmor", lockFiles, verbose, strict, runZizmorOnFiles)
 }
 
 // RunPoutineOnDirectory runs poutine security scanner once on a directory.
@@ -89,44 +83,17 @@ func runBatchLockFileTool(toolName string, lockFiles []string, verbose bool, str
 	return nil
 }
 
-// runBatchActionlint runs actionlint on all lock files in batch
-func runBatchActionlint(lockFiles []string, verbose bool, strict bool) error {
-	return runBatchLockFileTool("actionlint", lockFiles, verbose, strict, RunActionlintOnFiles)
-}
+// runBatchDirectoryTool runs a directory-based batch tool with uniform error handling
+func runBatchDirectoryTool(toolName string, workflowDir string, verbose bool, strict bool, runner func(string, bool, bool) error) error {
+	compileBatchOperationsLog.Printf("Running batch %s on directory: %s", toolName, workflowDir)
 
-// runBatchZizmor runs zizmor security scanner on all lock files in batch
-func runBatchZizmor(lockFiles []string, verbose bool, strict bool) error {
-	return runBatchLockFileTool("zizmor", lockFiles, verbose, strict, RunZizmorOnFiles)
-}
-
-// runBatchPoutine runs poutine security scanner once for the entire directory
-func runBatchPoutine(workflowDir string, verbose bool, strict bool) error {
-	compileBatchOperationsLog.Printf("Running batch poutine on directory: %s", workflowDir)
-
-	if err := RunPoutineOnDirectory(workflowDir, verbose, strict); err != nil {
+	if err := runner(workflowDir, verbose, strict); err != nil {
 		if strict {
-			return fmt.Errorf("poutine security scan failed: %w", err)
+			return fmt.Errorf("%s failed: %w", toolName, err)
 		}
-		// In non-strict mode, poutine errors are warnings
+		// In non-strict mode, errors are warnings
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("poutine warnings: %v", err)))
-		}
-	}
-
-	return nil
-}
-
-// runBatchRunnerGuard runs runner-guard taint analysis scanner once for the entire directory
-func runBatchRunnerGuard(workflowDir string, verbose bool, strict bool) error {
-	compileBatchOperationsLog.Printf("Running batch runner-guard on directory: %s", workflowDir)
-
-	if err := RunRunnerGuardOnDirectory(workflowDir, verbose, strict); err != nil {
-		if strict {
-			return fmt.Errorf("runner-guard taint analysis failed: %w", err)
-		}
-		// In non-strict mode, runner-guard errors are warnings
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("runner-guard warnings: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s warnings: %v", toolName, err)))
 		}
 	}
 
