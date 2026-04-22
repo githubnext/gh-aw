@@ -492,6 +492,8 @@ async function sendJobSetupSpan(options = {}) {
   const repository = process.env.GITHUB_REPOSITORY || "";
   const eventName = process.env.GITHUB_EVENT_NAME || "";
   const ref = process.env.GITHUB_REF || "";
+  const refName = process.env.GITHUB_REF_NAME || "";
+  const headRef = process.env.GITHUB_HEAD_REF || "";
   const sha = process.env.GITHUB_SHA || "";
 
   const attributes = [
@@ -521,6 +523,12 @@ async function sendJobSetupSpan(options = {}) {
   }
   if (ref) {
     resourceAttributes.push(buildAttr("github.ref", ref));
+  }
+  if (refName) {
+    resourceAttributes.push(buildAttr("github.ref_name", refName));
+  }
+  if (headRef) {
+    resourceAttributes.push(buildAttr("github.head_ref", headRef));
   }
   if (sha) {
     resourceAttributes.push(buildAttr("github.sha", sha));
@@ -694,6 +702,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const repository = process.env.GITHUB_REPOSITORY || "";
   const eventName = process.env.GITHUB_EVENT_NAME || "";
   const ref = process.env.GITHUB_REF || "";
+  const refName = process.env.GITHUB_REF_NAME || "";
+  const headRef = process.env.GITHUB_HEAD_REF || "";
   const sha = process.env.GITHUB_SHA || "";
 
   // Agent conclusion is passed to downstream jobs via GH_AW_AGENT_CONCLUSION.
@@ -799,6 +809,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
   if (ref) {
     resourceAttributes.push(buildAttr("github.ref", ref));
+  }
+  if (refName) {
+    resourceAttributes.push(buildAttr("github.ref_name", refName));
+  }
+  if (headRef) {
+    resourceAttributes.push(buildAttr("github.head_ref", headRef));
   }
   if (sha) {
     resourceAttributes.push(buildAttr("github.sha", sha));

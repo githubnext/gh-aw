@@ -485,13 +485,13 @@ func TestSpec_PublicAPI_Miner_ClusterCount_SPEC_MISMATCH(t *testing.T) {
 	miner, err := agentdrain.NewMiner(cfg)
 	require.NoError(t, err)
 
-	assert.Equal(t, 0, len(miner.Clusters()), "cluster count should be zero before training")
+	assert.Empty(t, miner.Clusters(), "cluster count should be zero before training")
 
 	evt := agentdrain.AgentEvent{Stage: "plan", Fields: map[string]string{"step": "init"}}
 	_, err = miner.TrainEvent(evt)
 	require.NoError(t, err)
 
-	assert.Equal(t, 1, len(miner.Clusters()), "cluster count should be 1 after training one unique event")
+	assert.Len(t, miner.Clusters(), 1, "cluster count should be 1 after training one unique event")
 }
 
 // TestSpec_Types_Snapshot validates the documented Snapshot/SnapshotCluster type structures.

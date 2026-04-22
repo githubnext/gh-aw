@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
+
+var runtimeDeduplicationLog = logger.New("workflow:runtime_deduplication")
 
 // DeduplicateRuntimeSetupStepsFromCustomSteps removes runtime setup action steps from custom steps
 // to avoid duplication when runtime steps are added before custom steps.
@@ -19,7 +22,7 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 		return customSteps, runtimeRequirements, nil
 	}
 
-	log.Printf("Deduplicating runtime setup steps from custom steps (%d runtimes)", len(runtimeRequirements))
+	runtimeDeduplicationLog.Printf("Deduplicating runtime setup steps from custom steps (%d runtimes)", len(runtimeRequirements))
 
 	// Extract version comments from uses lines before unmarshaling
 	// This is necessary because YAML treats "# comment" as a comment, not part of the value
@@ -60,7 +63,7 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 	for i := range runtimeRequirements {
 		if runtimeRequirements[i].Runtime.ActionRepo != "" {
 			actionRepoToReq[runtimeRequirements[i].Runtime.ActionRepo] = &runtimeRequirements[i]
-			log.Printf("  Will check steps using action: %s", runtimeRequirements[i].Runtime.ActionRepo)
+			runtimeDeduplicationLog.Printf("  Will check steps using action: %s", runtimeRequirements[i].Runtime.ActionRepo)
 		}
 	}
 
@@ -145,7 +148,7 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 							// User has truly customized the setup action - preserve it
 							shouldPreserve = true
 							filteredRuntimeIDs[req.Runtime.ID] = true
-							log.Printf("  Preserving user-customized runtime setup step: %s", usesStr)
+							runtimeDeduplicationLog.Printf("  Preserving user-customized runtime setup step: %s", usesStr)
 							preservedCount++
 							break
 						}
@@ -166,14 +169,14 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 							}
 							// Carry over any other fields
 							req.ExtraFields[key] = value
-							log.Printf("  Capturing extra field from setup step: %s = %v", key, value)
+							runtimeDeduplicationLog.Printf("  Capturing extra field from setup step: %s = %v", key, value)
 						}
 					}
 				}
 
 				// No real customization - remove this duplicate but keep extra fields
 				shouldRemove = true
-				log.Printf("  Removing duplicate runtime setup step: %s", usesStr)
+				runtimeDeduplicationLog.Printf("  Removing duplicate runtime setup step: %s", usesStr)
 				removedCount++
 				break
 			}
@@ -185,11 +188,11 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 	}
 
 	if removedCount == 0 && preservedCount == 0 {
-		log.Print("  No duplicate runtime setup steps found")
+		runtimeDeduplicationLog.Print("  No duplicate runtime setup steps found")
 		return customSteps, runtimeRequirements, nil
 	}
 
-	log.Printf("  Removed %d duplicate runtime setup steps, preserved %d user-customized steps", removedCount, preservedCount)
+	runtimeDeduplicationLog.Printf("  Removed %d duplicate runtime setup steps, preserved %d user-customized steps", removedCount, preservedCount)
 
 	// Filter runtime requirements to exclude those with user-customized setup actions
 	var filteredRequirements []RuntimeRequirement
@@ -197,7 +200,7 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 		if !filteredRuntimeIDs[req.Runtime.ID] {
 			filteredRequirements = append(filteredRequirements, req)
 		} else {
-			log.Printf("  Excluding runtime %s from generated setup steps (user has custom setup)", req.Runtime.ID)
+			runtimeDeduplicationLog.Printf("  Excluding runtime %s from generated setup steps (user has custom setup)", req.Runtime.ID)
 		}
 	}
 
