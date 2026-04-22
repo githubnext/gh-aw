@@ -18,6 +18,17 @@ const { COMMENT_MEMORY_TAG, COMMENT_MEMORY_MAX_SCAN_PAGES } = require("./comment
 // that happen to contain a matching comment-memory tag.
 const MANAGED_COMMENT_PROVENANCE_MARKER = "<!-- gh-aw-agentic-workflow:";
 const MANAGED_COMMENT_HEADER = "### Comment Memory";
+const MANAGED_COMMENT_DISCLOSURE_NOTE = [
+  "> [!NOTE]",
+  "> This comment is managed by comment memory.",
+  ">",
+  "> <details>",
+  "> <summary>What this comment does</summary>",
+  ">",
+  "> It stores persistent context for this thread in the `<gh-aw-comment-memory>` block above.",
+  "> Edit only the text in that block; workflow metadata and the footer are regenerated automatically.",
+  "> </details>",
+].join("\n");
 
 function sanitizeMemoryID(memoryID) {
   const normalized = String(memoryID || "default").trim();
@@ -45,6 +56,7 @@ function buildManagedMemoryBody(rawBody, memoryID, options) {
 
   if (includeFooter) {
     core.info(`comment_memory: footer enabled for memory_id='${memoryID}'`);
+    body += "\n\n" + MANAGED_COMMENT_DISCLOSURE_NOTE;
     body += "\n\n" + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined, historyUrl).trimEnd();
   } else {
     core.info(`comment_memory: footer disabled for memory_id='${memoryID}', adding XML marker only`);
