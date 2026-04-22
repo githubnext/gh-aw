@@ -883,13 +883,16 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 	if lastSetupIdx >= 0 {
 		// Setup step may be emitted as multiple []string entries (one line per entry).
 		// Insert after the full setup step by finding the next step boundary.
-		// If no boundary is found, append pre-steps at the end.
+		// If no boundary is found (e.g. setup is the final step), append pre-steps at the end.
 		for i := lastSetupIdx + 1; i < len(steps); i++ {
 			trimmed := strings.TrimLeft(steps[i], " ")
 			if strings.HasPrefix(trimmed, "- ") {
 				insertIdx = i
 				break
 			}
+		}
+		if insertIdx == len(steps) {
+			compilerJobsLog.Print("No step boundary found after setup step; appending pre-steps at end")
 		}
 	} else if firstCheckoutIdx >= 0 {
 		insertIdx = firstCheckoutIdx

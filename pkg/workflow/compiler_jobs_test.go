@@ -11,6 +11,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/goccy/go-yaml"
 )
 
 // ========================================
@@ -901,6 +902,10 @@ jobs:
 	}
 
 	yamlStr := string(content)
+	var lockFileYAML map[string]any
+	if err := yaml.Unmarshal(content, &lockFileYAML); err != nil {
+		t.Fatalf("Expected generated lock file to be valid YAML: %v", err)
+	}
 
 	preActivationSection := extractJobSection(yamlStr, "pre_activation")
 	if preActivationSection == "" {
