@@ -663,6 +663,14 @@ func extractOnNeeds(frontmatter map[string]any) ([]string, error) {
 		return nil, nil
 	}
 
+	return parseOnNeedsValues(onMap)
+}
+
+func parseOnNeedsValues(onMap map[string]any) ([]string, error) {
+	if onMap == nil {
+		return nil, nil
+	}
+
 	needsValue, exists := onMap["needs"]
 	if !exists || needsValue == nil {
 		return nil, nil

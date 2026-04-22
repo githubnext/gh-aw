@@ -74,35 +74,7 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 }
 
 func parseOnNeedsConfig(on map[string]any) ([]string, error) {
-	if on == nil {
-		return nil, nil
-	}
-
-	needsValue, exists := on["needs"]
-	if !exists || needsValue == nil {
-		return nil, nil
-	}
-
-	needsList, ok := needsValue.([]any)
-	if !ok {
-		return nil, fmt.Errorf("on.needs must be an array, got %T", needsValue)
-	}
-
-	result := make([]string, 0, len(needsList))
-	seen := make(map[string]bool, len(needsList))
-	for i, need := range needsList {
-		needStr, ok := need.(string)
-		if !ok {
-			return nil, fmt.Errorf("on.needs[%d] must be a string, got %T", i, need)
-		}
-		if seen[needStr] {
-			continue
-		}
-		seen[needStr] = true
-		result = append(result, needStr)
-	}
-
-	return result, nil
+	return parseOnNeedsValues(on)
 }
 
 // parseRuntimesConfig converts a map[string]any to RuntimesConfig
