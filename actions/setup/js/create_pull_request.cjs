@@ -31,7 +31,8 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
-const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+const { generatePatchPreview } = require("./patch_preview.cjs");
+const { parseAllowedBaseBranches, isBaseBranchAllowed } = require("./pr_validation_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -88,50 +89,6 @@ function isLabelTransientError(error) {
 const LABEL_MAX_RETRIES = 3;
 /** @type {number} Initial delay in ms before the first label retry (3 seconds) */
 const LABEL_INITIAL_DELAY_MS = 3000;
-
-/**
- * Parse allowed base branch patterns from config value (array or comma-separated string)
- * @param {string[]|string|undefined} allowedBaseBranchesValue
- * @returns {Set<string>}
- */
-function parseAllowedBaseBranches(allowedBaseBranchesValue) {
-  const set = new Set();
-  if (Array.isArray(allowedBaseBranchesValue)) {
-    allowedBaseBranchesValue
-      .map(branch => String(branch).trim())
-      .filter(Boolean)
-      .forEach(branch => set.add(branch));
-  } else if (typeof allowedBaseBranchesValue === "string") {
-    allowedBaseBranchesValue
-      .split(",")
-      .map(branch => branch.trim())
-      .filter(Boolean)
-      .forEach(branch => set.add(branch));
-  }
-  return set;
-}
-
-/**
- * Check if a base branch matches an allowed pattern.
- * Supports exact matches and "*" glob patterns (e.g. "release/*").
- * @param {string} baseBranch
- * @param {Set<string>} allowedBaseBranches
- * @returns {boolean}
- */
-function isBaseBranchAllowed(baseBranch, allowedBaseBranches) {
-  if (allowedBaseBranches.has(baseBranch)) {
-    return true;
-  }
-  for (const pattern of allowedBaseBranches) {
-    if (pattern === "*") {
-      return true;
-    }
-    if (pattern.includes("*") && globPatternToRegex(pattern, { pathMode: true, caseSensitive: true }).test(baseBranch)) {
-      return true;
-    }
-  }
-  return false;
-}
 
 /**
  * Merges the required fallback label with any workflow-configured labels,
@@ -241,36 +198,6 @@ function enforcePullRequestLimits(patchContent) {
   if (fileCount > MAX_FILES) {
     throw new Error(`E003: Cannot create pull request with more than ${MAX_FILES} files (received ${fileCount})`);
   }
-}
-
-/**
- * Generate a patch preview with max 500 lines and 2000 chars for issue body
- * @param {string} patchContent - The full patch content
- * @returns {string} Formatted patch preview
- */
-function generatePatchPreview(patchContent) {
-  if (!patchContent || !patchContent.trim()) {
-    return "";
-  }
-
-  const lines = patchContent.split("\n");
-  const maxLines = 500;
-  const maxChars = 2000;
-
-  // Apply line limit first
-  let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
-  const lineTruncated = lines.length > maxLines;
-
-  // Apply character limit
-  const charTruncated = preview.length > maxChars;
-  if (charTruncated) {
-    preview = preview.slice(0, maxChars);
-  }
-
-  const truncated = lineTruncated || charTruncated;
-  const summary = truncated ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
-
-  return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
 }
 
 /**
