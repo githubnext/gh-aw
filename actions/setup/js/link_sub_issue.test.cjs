@@ -84,6 +84,7 @@ const mockCore = {
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Sub-issue #50 is already a sub-issue of #99 ("Parent Issue"). Skipping.'));
       expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
       expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("parent {"), expect.any(Object));
+      expect(mockGithub.graphql).not.toHaveBeenCalledWith(expect.stringContaining("addSubIssue"), expect.any(Object));
     });
     it("should proceed with linking when sub-issue has no parent", async () => {
       const message = { type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 };
