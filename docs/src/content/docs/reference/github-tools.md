@@ -132,7 +132,7 @@ This is required when your workflow requires any of the following:
 - Read access to GitHub org or user information
 - Read access to other private repos
 - Read access to projects
-- GitHub tools [Remote Mode](#github-tools-remote-mode)
+- GitHub tools [Remote Mode](#github-tools-access-modes)
 
 ### Using a Personal Access Token (PAT)
 

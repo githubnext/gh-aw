@@ -118,7 +118,7 @@ The primary token for authenticating GitHub API operations through the [GitHub M
 | Property | Value |
 |---|---|
 | **Source** | User-created PAT stored as repository secret |
-| **Required** | Depends on mode — required for [remote mode](/gh-aw/reference/github-tools/#github-tools-remote-mode) and [lockdown mode](/gh-aw/reference/lockdown-mode/) |
+| **Required** | Depends on mode — required for [remote mode](/gh-aw/reference/github-tools/#github-tools-access-modes) and [lockdown mode](/gh-aw/reference/lockdown-mode/) |
 | **Permissions** | Depends on [toolsets](/gh-aw/reference/github-tools/#github-toolsets) used (e.g., repo scope for repos toolset, project scope for projects) |
 | **Fallback** | `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN` |
 | **Used by** | GitHub MCP server (local and remote modes), guard policy enforcement |
