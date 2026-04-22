@@ -71,6 +71,10 @@ A built-in tool that provides vector similarity search over documentation files.
 
 Capabilities that an AI agent can use during workflow execution. Tools are configured in the frontmatter and include GitHub operations ([`github:`](/gh-aw/reference/github-tools/)), file editing (`edit:`), web access (`web-fetch:`, `web-search:`), shell commands (`bash:`), browser automation ([`playwright:`](/gh-aw/reference/playwright/)), and custom MCP servers.
 
+### GitHub Access Mode (`tools.github.mode`)
+
+A `tools.github` field that controls how the agent accesses GitHub APIs. Three values are supported: `gh-proxy` (recommended — provides pre-authenticated `gh` CLI prompt guidance without mounting a GitHub MCP server, replacing the deprecated `features.cli-proxy: true`), `local` (Docker-based GitHub MCP server, the legacy default), and `remote` (hosted GitHub MCP server at `api.githubcopilot.com`). Use `gh-proxy` for better performance; use `local` or `remote` when MCP-based GitHub toolsets are required. See [GitHub Tools Reference](/gh-aw/reference/github-tools/).
+
 ## Security and Outputs
 
 ### MCP Scripts
@@ -216,6 +220,10 @@ A field on `create-pull-request` and `push-to-pull-request-branch` safe outputs 
 ### Allowed Events (`allowed-events:`)
 
 A field on `submit-pull-request-review:` safe outputs that restricts which PR review event types the agent may submit. Accepts an array of `APPROVE`, `COMMENT`, and `REQUEST_CHANGES`. When set, the safe-outputs handler rejects any review event not in the list, providing infrastructure-level enforcement regardless of what the agent attempts to output. If omitted, all three event types are allowed. Preferred default for bot reviews: `allowed-events: [COMMENT]`. Example: `allowed-events: [COMMENT, REQUEST_CHANGES]` prevents the agent from approving PRs. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#submit-pr-review-submit-pull-request-review).
+
+### Supersede Older Reviews (`supersede-older-reviews:`)
+
+A field on `submit-pull-request-review:` safe outputs that dismisses older `REQUEST_CHANGES` reviews from the same workflow after posting a replacement review. When `supersede-older-reviews: true` is set, the safe-output handler fetches recent reviews, identifies prior `REQUEST_CHANGES` reviews submitted by the same workflow call, and dismisses them before the new review takes effect. This is best-effort behavior — dismissal failures do not block the new review. Useful when a workflow is configured with `allowed-events: [REQUEST_CHANGES]` and repeated runs would otherwise accumulate blocking reviews. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#submit-pr-review-submit-pull-request-review).
 
 ### Allowed Files
 
@@ -493,7 +501,7 @@ A compilation target allowing the gh-aw compiler to run in browser environments 
 
 ### AWF (Agent Workflow Firewall)
 
-The default coding agent sandbox that isolates AI agent execution in a container with network egress control through domain-based access lists. AWF makes the host filesystem and environment variables available inside the container while restricting outbound network access to configured domains. Enabled with `sandbox.agent: awf` (the default when `sandbox` is not specified). See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+The default coding agent sandbox that isolates AI agent execution in a container with network egress control through domain-based access lists. AWF makes the host filesystem and environment variables available inside the container while restricting outbound network access to configured domains. Enabled with `sandbox.agent: awf` (the default when `sandbox` is not specified). Use `sandbox.agent.version` to pin a specific AWF release for reproducible builds. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
 ### Bridge Pattern
 
@@ -502,6 +510,10 @@ A cross-repository event forwarding architecture for [SideRepoOps](#siderepoops)
 ### Cache Memory
 
 Persistent storage for workflows preserving data between runs. Configured via `cache-memory:` in tools section with 7-day retention in GitHub Actions cache. See [Cache Memory](/gh-aw/reference/cache-memory/).
+
+### Comment Memory (`tools.comment-memory`)
+
+Persistent agent memory backed by a managed GitHub issue or PR comment. Before each agent run, content from `<gh-aw-comment-memory>` blocks in the target comment is extracted into markdown files under `/tmp/gh-aw/comment-memory/`. Agents edit these files using standard file tools; the safe-output handler automatically upserts the managed comment after the run. Unlike [Cache Memory](#cache-memory) (7-day GitHub Actions cache retention) and [Repo Memory](#repo-memory) (permanent git branch storage), comment memory uses the triggering issue or PR as its backing store — no separate infrastructure required. Configured via `tools.comment-memory:` in frontmatter.
 
 ### Command Triggers
 
