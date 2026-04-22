@@ -94,15 +94,31 @@ The `repos` field was renamed to `allowed-repos` to better reflect its purpose. 
 
 By default, the GitHub Tools can read from the current repository and all public repositories (if permitted by the network firewall). To read from other private repositories, you must configure additional authentication. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for details and examples.
 
-## GitHub Tools Remote Mode
+## GitHub Tools Access Modes
 
-By default the GitHub Tools run in "local mode", where the GitHub MCP Server runs within the GitHub Actions VM hosting your agentic workflow. You can switch to "remote mode", which uses a hosted MCP server managed by GitHub. Remote mode requires [additional authentication](#additional-authentication-for-github-tools) and enables additional filtering and capabilities.
+The `tools.github.mode` field controls how the agent accesses GitHub. Three values are supported:
+
+| Mode | Transport | Notes |
+|------|-----------|-------|
+| `local` (default) | Docker-based GitHub MCP Server inside the Actions VM | No extra authentication required |
+| `remote` | Hosted GitHub MCP Server managed by GitHub | Requires [additional authentication](#additional-authentication-for-github-tools) |
+| `gh-proxy` | Pre-authenticated `gh` CLI directly (no MCP server) | Preferred for performance; required for [integrity reactions](/gh-aw/reference/integrity/) |
+
+**`remote` mode** — uses a hosted MCP server managed by GitHub. Requires a GitHub token with appropriate permissions:
 
 ```yaml wrap
 tools:
   github:
-    mode: remote  # Default: "local" (Docker)
+    mode: remote
     github-token: ${{ secrets.CUSTOM_PAT }}  # Required for remote mode
+```
+
+**`gh-proxy` mode** — uses the pre-authenticated `gh` CLI directly instead of an MCP server. This offers lower latency because there is no MCP server startup overhead, and it is required for workflows that use [integrity reactions](/gh-aw/reference/integrity/). The legacy `features: {cli-proxy: true}` feature flag is equivalent and is still accepted for backward compatibility.
+
+```yaml wrap
+tools:
+  github:
+    mode: gh-proxy
 ```
 
 ## Additional Authentication for GitHub Tools
