@@ -20,7 +20,22 @@ safe-outputs:
     title-prefix: "[ai] "
 ```
 
-When `footer: false` is set, visible attribution text is omitted from item bodies but hidden XML markers (workflow-id, tracker-id) remain for searchability. Applies to all output types: create-issue, create-pull-request, create-discussion, update-issue, update-pull-request, update-discussion, and update-release.
+When `footer: false` is set, visible attribution text is omitted from item bodies but hidden XML markers remain for searchability:
+- `<!-- gh-aw-workflow-id: WORKFLOW_NAME -->` — for search and tracking
+- `<!-- gh-aw-tracker-id: unique-id -->` — for issue/discussion tracking
+
+Applies to all output types: create-issue, create-pull-request, create-discussion, update-issue, update-pull-request, update-discussion, and update-release.
+
+### Searching for Workflow-Created Items
+
+Use the `gh-aw-workflow-id` marker (the workflow filename without `.md`) to find items in GitHub search:
+
+```
+repo:owner/repo is:issue is:open "gh-aw-workflow-id: daily-team-status" in:body
+repo:owner/repo "gh-aw-workflow-id: bot-responder" in:comments
+```
+
+Combine with `is:open`, `created:>2024-01-01`, or `org:your-org` filters. See [GitHub advanced search](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests).
 
 ## Per-Handler Footer Control
 
@@ -52,76 +67,9 @@ safe-outputs:
 
 The `footer` field accepts `"always"` (default), `"none"`, or `"if-body"` (footer only when the review has body text). Booleans are accepted: `true` → `"always"`, `false` → `"none"`. Use `"if-body"` for clean approval reviews — approvals without body text appear without a footer, while reviews with comments include it.
 
-## What's Preserved When Footer is Hidden
-
-Even with `footer: false`, hidden HTML markers remain:
-- `<!-- gh-aw-workflow-id: WORKFLOW_NAME -->` — for search and tracking
-- `<!-- gh-aw-tracker-id: unique-id -->` — for issue/discussion tracking (when applicable)
-
-These markers enable searching for workflow-created items even when footers are hidden.
-
-### Searching for Workflow-Created Items
-
-You can use the workflow-id marker to find all items created by a specific workflow on GitHub.com. The marker is always included in the body of issues, pull requests, discussions, and comments, regardless of the `footer` setting.
-
-**Search Examples:**
-
-Find all open issues created by the `daily-team-status` workflow:
-```
-repo:owner/repo is:issue is:open "gh-aw-workflow-id: daily-team-status" in:body
-```
-
-Find all pull requests created by the `security-audit` workflow:
-```
-repo:owner/repo is:pr "gh-aw-workflow-id: security-audit" in:body
-```
-
-Find all items (issues, PRs, discussions) from any workflow in your organization:
-```
-org:your-org "gh-aw-workflow-id:" in:body
-```
-
-Find comments from a specific workflow:
-```
-repo:owner/repo "gh-aw-workflow-id: bot-responder" in:comments
-```
-
-> [!TIP]
-> The workflow name in the marker is the filename without `.md`. Combine with filters like `is:open` or `created:>2024-01-01`, and use `in:body` or `in:comments` as appropriate. See [GitHub advanced search](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests).
-
-## Use Cases
-
-**Clean content for public repositories:**
-```yaml wrap
-safe-outputs:
-  footer: false
-  create-issue:
-    title-prefix: "[report] "
-    labels: [automated]
-```
-
-**Custom branding - footers on PRs only:**
-```yaml wrap
-safe-outputs:
-  footer: false                      # hide for issues
-  create-issue:
-    title-prefix: "[issue] "
-  create-pull-request:
-    footer: true                     # show for PRs
-    title-prefix: "[pr] "
-```
-
-**Minimal documentation updates:**
-```yaml wrap
-safe-outputs:
-  update-release:
-    footer: false                    # clean release notes
-    max: 1
-```
-
 ## Backward Compatibility
 
-The default value for `footer` is `true`, maintaining backward compatibility with existing workflows. To hide footers, you must explicitly set `footer: false`.
+The default value for `footer` is `true`. To hide footers, explicitly set `footer: false`.
 
 ## Customizing Footer Messages
 
