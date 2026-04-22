@@ -703,9 +703,15 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Mark the span as an error when the agent job failed, timed out, or was cancelled.
   const isAgentFailure = agentConclusion === "failure" || agentConclusion === "timed_out";
   const isAgentCancelled = agentConclusion === "cancelled";
+  const isAgentNonOK = isAgentFailure || isAgentCancelled;
   // STATUS_CODE_ERROR = 2, STATUS_CODE_OK = 1
-  const statusCode = isAgentFailure || isAgentCancelled ? 2 : 1;
-  let statusMessage = isAgentFailure ? `agent ${agentConclusion}` : isAgentCancelled ? "agent cancelled" : undefined;
+  const statusCode = isAgentNonOK ? 2 : 1;
+  let statusMessage;
+  if (isAgentFailure) {
+    statusMessage = `agent ${agentConclusion}`;
+  } else if (isAgentCancelled) {
+    statusMessage = "agent cancelled";
+  }
 
   // Always read agent_output.json so output metrics are available on all outcomes.
   const agentOutput = readJSONIfExists("/tmp/gh-aw/agent_output.json") || {};
