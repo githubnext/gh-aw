@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Clean Action Post Script
 # Mirror of actions/setup/post.js for script mode (run: bash steps).
 # Sends an OTLP conclusion span then removes the /tmp/gh-aw/ directory.

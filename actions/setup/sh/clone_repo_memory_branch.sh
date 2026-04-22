@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Clone repo-memory branch script
 # Clones a repo-memory branch or creates an orphan branch if it doesn't exist
 #

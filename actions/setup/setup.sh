@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Setup Action
 # Copies activation job files to the agent environment
 #

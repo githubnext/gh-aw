@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 set -e
 
 # Script to generate web-optimized poster images from videos in docs/public/videos

@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Test script to validate the build-release.sh script
 set -e
 

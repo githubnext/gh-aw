@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 set -e
 
 # validate_multi_secret.sh - Validate that at least one secret from a list is configured

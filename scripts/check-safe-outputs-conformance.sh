@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
 # Specification: docs/src/content/docs/reference/safe-outputs-specification.md

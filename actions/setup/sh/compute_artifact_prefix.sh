@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 #
 # compute_artifact_prefix.sh - Compute a stable artifact name prefix for workflow_call runs
 #

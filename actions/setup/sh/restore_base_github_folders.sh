@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 #
 # restore_base_github_folders.sh - Restore agent config folders/files from the base
 #                                   branch snapshot after PR checkout

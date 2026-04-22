@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Convert MCP Gateway Configuration to Gemini Format
 # This script converts the gateway's standard HTTP-based MCP configuration
 # to the JSON format expected by Gemini CLI (.gemini/settings.json)

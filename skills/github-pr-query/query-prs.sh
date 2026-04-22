@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Query GitHub pull requests with jq filtering support
 #
 # Usage: ./query-prs.sh [OPTIONS]

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 #
 # save_base_github_folders.sh - Snapshot agent config folders/files from the workspace
 #

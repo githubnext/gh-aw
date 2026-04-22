@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Stop MCP Gateway
 # This script stops the MCP gateway process using the /close endpoint for graceful shutdown,
 # falling back to kill signals if the endpoint is unavailable or fails.

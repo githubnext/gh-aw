@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # check-file-sizes.sh - Monitor Go file sizes and function counts
 #
 # This script identifies Go files that exceed recommended thresholds:

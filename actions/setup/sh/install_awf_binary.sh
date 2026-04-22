@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Install AWF (Agentic Workflow Firewall) with SHA256 checksum verification
 # Usage: install_awf_binary.sh VERSION
 #

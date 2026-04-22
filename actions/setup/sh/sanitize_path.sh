@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Sanitize PATH by removing empty elements, leading/trailing colons
 # Usage: source sanitize_path.sh <raw_path>
 #   or:  . sanitize_path.sh <raw_path>

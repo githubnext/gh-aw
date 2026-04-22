@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Install GitHub Copilot CLI with SHA256 checksum verification
 # Usage: install_copilot_cli.sh [VERSION]
 #

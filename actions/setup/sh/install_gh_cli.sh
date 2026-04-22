@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Install GitHub CLI (gh) if not already present
 #
 # This script installs the GitHub CLI using the official apt repository on

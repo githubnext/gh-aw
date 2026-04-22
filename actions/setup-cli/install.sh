@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 
 # Script to download and install gh-aw binary for the current OS and architecture
 # Supports: Linux, macOS (Darwin), FreeBSD, Windows (Git Bash/MSYS/Cygwin)

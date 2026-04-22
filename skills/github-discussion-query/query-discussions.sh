@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Query GitHub discussions with jq filtering support
 #
 # Usage: ./query-discussions.sh [OPTIONS]
