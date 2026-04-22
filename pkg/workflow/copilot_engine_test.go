@@ -1803,15 +1803,41 @@ func TestCopilotEngineExecutionWithFirewallStagesNodeBinaryInRunnerTemp(t *testi
 		t.Fatal("Expected at least one step")
 	}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
-	if !strings.Contains(stepContent, "GH_AW_NODE_BIN=\"$(command -v node 2>/dev/null || true)\"") {
+	stepContent := strings.Join(steps[0], "\n")
+	captureNode := "GH_AW_NODE_BIN=\"$(command -v node 2>/dev/null || true)\""
+	guardNode := "if [ -n \"$GH_AW_NODE_BIN\" ] && [ -x \"$GH_AW_NODE_BIN\" ]; then"
+	mkdirNode := "mkdir -p \"${RUNNER_TEMP}/gh-aw/node-bin\""
+	copyNode := "cp \"$GH_AW_NODE_BIN\" \"${RUNNER_TEMP}/gh-aw/node-bin/node\""
+	chmodNode := "chmod +x \"${RUNNER_TEMP}/gh-aw/node-bin/node\""
+	assignStagedNode := "GH_AW_NODE_BIN=\"${RUNNER_TEMP}/gh-aw/node-bin/node\""
+
+	if !strings.Contains(stepContent, captureNode) {
 		t.Errorf("Expected node path capture in step content, got:\n%s", stepContent)
 	}
-	if !strings.Contains(stepContent, "cp \"$GH_AW_NODE_BIN\" \"${RUNNER_TEMP}/gh-aw/node-bin/node\"") {
+	if !strings.Contains(stepContent, guardNode) {
+		t.Errorf("Expected executable node guard condition, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, mkdirNode) {
+		t.Errorf("Expected staged node directory creation, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, copyNode) {
 		t.Errorf("Expected node binary staging into runner temp, got:\n%s", stepContent)
 	}
-	if !strings.Contains(stepContent, "GH_AW_NODE_BIN=\"${RUNNER_TEMP}/gh-aw/node-bin/node\"") {
+	if !strings.Contains(stepContent, chmodNode) {
+		t.Errorf("Expected staged node chmod command, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, assignStagedNode) {
 		t.Errorf("Expected staged node binary path assignment, got:\n%s", stepContent)
+	}
+
+	captureIdx := strings.Index(stepContent, captureNode)
+	guardIdx := strings.Index(stepContent, guardNode)
+	mkdirIdx := strings.Index(stepContent, mkdirNode)
+	copyIdx := strings.Index(stepContent, copyNode)
+	chmodIdx := strings.Index(stepContent, chmodNode)
+	assignIdx := strings.Index(stepContent, assignStagedNode)
+	if captureIdx >= guardIdx || guardIdx >= mkdirIdx || mkdirIdx >= copyIdx || copyIdx >= chmodIdx || chmodIdx >= assignIdx {
+		t.Errorf("Expected node staging commands in order capture->guard->mkdir->copy->chmod->assign, got:\n%s", stepContent)
 	}
 }
 
