@@ -516,9 +516,8 @@ func addContainerPinsToCanonical(canonical map[string]any, frontmatterText, work
 	pins := make(map[string]any)
 	for _, image := range images {
 		if pin, ok := lock.Containers[image]; ok {
-			pins[image] = map[string]any{
-				"digest":       pin.Digest,
-				"pinned_image": pin.PinnedImage,
+			if pinnedRef := normalizePinnedContainerReference(image, pin); pinnedRef != "" {
+				pins[image] = pinnedRef
 			}
 		}
 	}
@@ -526,6 +525,21 @@ func addContainerPinsToCanonical(canonical map[string]any, frontmatterText, work
 	if len(pins) > 0 {
 		canonical["container-pins"] = pins
 	}
+}
+
+// normalizePinnedContainerReference returns a normalized container pin reference
+// in the canonical image@sha256:<digest> syntax when available.
+func normalizePinnedContainerReference(image string, pin struct {
+	Digest      string `json:"digest"`
+	PinnedImage string `json:"pinned_image"`
+}) string {
+	if strings.Contains(pin.PinnedImage, "@sha256:") {
+		return pin.PinnedImage
+	}
+	if strings.HasPrefix(pin.Digest, "sha256:") {
+		return image + "@" + pin.Digest
+	}
+	return ""
 }
 
 // findActionsLockContent searches upward from workflowPath for .github/aw/actions-lock.json.

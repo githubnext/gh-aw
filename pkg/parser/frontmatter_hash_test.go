@@ -360,3 +360,55 @@ tools:
 	require.NoError(t, err, "Should compute hash with unrelated lock data B")
 	assert.Equal(t, hashA, hashB, "Hash should stay the same when only unrelated container pins change")
 }
+
+func TestComputeFrontmatterHash_NormalizesContainerPinSyntax(t *testing.T) {
+	workflowPath := "/repo/.github/workflows/workflow.md"
+	workflowContent := `---
+engine: copilot
+tools:
+  mcp-server:
+    container: ghcr.io/github/github-mcp-server:v0.32.0
+---
+
+# Body
+`
+
+	lockDigestOnly := `{
+  "entries": {},
+  "containers": {
+    "ghcr.io/github/github-mcp-server:v0.32.0": {
+      "image": "ghcr.io/github/github-mcp-server:v0.32.0",
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  }
+}`
+	lockPinnedSyntax := `{
+  "entries": {},
+  "containers": {
+    "ghcr.io/github/github-mcp-server:v0.32.0": {
+      "image": "ghcr.io/github/github-mcp-server:v0.32.0",
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "pinned_image": "ghcr.io/github/github-mcp-server:v0.32.0@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  }
+}`
+
+	readWithLock := func(lockContent string) FileReader {
+		return func(filePath string) ([]byte, error) {
+			switch filePath {
+			case workflowPath:
+				return []byte(workflowContent), nil
+			case "/repo/.github/aw/actions-lock.json":
+				return []byte(lockContent), nil
+			default:
+				return nil, os.ErrNotExist
+			}
+		}
+	}
+
+	hashDigestOnly, err := ComputeFrontmatterHashFromFileWithReader(workflowPath, nil, readWithLock(lockDigestOnly))
+	require.NoError(t, err, "Should compute hash when only digest is present")
+	hashPinnedSyntax, err := ComputeFrontmatterHashFromFileWithReader(workflowPath, nil, readWithLock(lockPinnedSyntax))
+	require.NoError(t, err, "Should compute hash when pinned_image syntax is present")
+	assert.Equal(t, hashDigestOnly, hashPinnedSyntax, "Hash should normalize to image@sha256 syntax")
+}
