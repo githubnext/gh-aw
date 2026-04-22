@@ -638,6 +638,20 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.details).toContain("push_to_pull_request_branch");
     });
 
+    it("should return error when repo checkout is not found for explicit repo", async () => {
+      const result = await handlers.pushToPullRequestBranchHandler({
+        branch: "main",
+        repo: "test-owner/test-repo",
+      });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("Repository checkout not found for test-owner/test-repo");
+      expect(responseData.error).toContain("actions/checkout");
+      expect(responseData.error).toContain("'path' input");
+    });
+
     it("should detect branch from the checked out target repo when repo is provided", async () => {
       const targetRepoDir = path.join(testWorkspaceDir, "target-repo");
       fs.mkdirSync(targetRepoDir, { recursive: true });

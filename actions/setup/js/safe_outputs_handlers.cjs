@@ -492,10 +492,24 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (entry.repo && entry.repo.trim()) {
       const repoSlug = repoResult.repo;
       const checkoutResult = findRepoCheckout(repoSlug);
-      if (checkoutResult.success) {
-        repoCwd = checkoutResult.path;
-        entry.repo_cwd = repoCwd;
+      if (!checkoutResult.success) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error:
+                  `Repository checkout not found for ${repoSlug}. Ensure the repository is checked out in this workflow using actions/checkout. ` +
+                  "If checking out multiple repositories, use the 'path' input so the checkout can be located.",
+              }),
+            },
+          ],
+          isError: true,
+        };
       }
+      repoCwd = checkoutResult.path;
+      entry.repo_cwd = repoCwd;
     }
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
@@ -521,6 +535,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const pushTransportOptions = { mode: "incremental" };
     if (repoCwd) {
       pushTransportOptions.cwd = repoCwd;
+      pushTransportOptions.repoSlug = repoResult.repo;
     }
     // Pass per-handler token so cross-repo PATs are used for git fetch when configured.
     // Falls back to GITHUB_TOKEN if not set.
