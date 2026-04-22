@@ -484,6 +484,7 @@ func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDi
 func addContainerPinsToCanonical(canonical map[string]any, frontmatterText, workflowPath string, fileReader FileReader) {
 	frontmatter, err := ExtractFrontmatterFromContent("---\n" + frontmatterText + "\n---\n")
 	if err != nil {
+		frontmatterHashLog.Printf("Skipping container pins in hash for %s: failed to parse frontmatter for container pin extraction: %v", workflowPath, err)
 		return
 	}
 
@@ -504,7 +505,11 @@ func addContainerPinsToCanonical(canonical map[string]any, frontmatterText, work
 	var lock struct {
 		Containers map[string]containerPin `json:"containers"`
 	}
-	if err := json.Unmarshal(lockData, &lock); err != nil || len(lock.Containers) == 0 {
+	if err := json.Unmarshal(lockData, &lock); err != nil {
+		frontmatterHashLog.Printf("Skipping container pins in hash for %s: failed to parse actions-lock.json: %v", workflowPath, err)
+		return
+	}
+	if len(lock.Containers) == 0 {
 		return
 	}
 
@@ -565,11 +570,14 @@ func extractContainerImagesFromFrontmatter(frontmatter map[string]any) []string 
 			continue
 		}
 
-		command, _ := toolMap["command"].(string)
-		if command != "docker" {
+		command, ok := toolMap["command"].(string)
+		// Only extract container images from docker commands. Tool definitions
+		// using other commands are not expected to expose container images in
+		// args, so skip them.
+		if !ok || command != "docker" {
 			continue
 		}
-		image := extractDockerImageFromArgs(toolMap["args"])
+		image := extractImageFromDockerRunArgs(toolMap["args"])
 		if image != "" {
 			set[image] = true
 		}
@@ -587,7 +595,15 @@ func extractContainerImagesFromFrontmatter(frontmatter map[string]any) []string 
 	return images
 }
 
-func extractDockerImageFromArgs(args any) string {
+// extractImageFromDockerRunArgs returns the last argument from docker run args,
+// assuming it is the image reference for `docker run ... <image>`.
+// Returns empty string if args is empty, cannot be converted to []any/[]string,
+// the last value is not a string, or the last argument starts with "-" (likely
+// a flag rather than an image name).
+// This heuristic is intentionally narrow for frontmatter tool definitions where
+// args are expected to end at the image reference and not include a container
+// command after the image.
+func extractImageFromDockerRunArgs(args any) string {
 	var last string
 	switch v := args.(type) {
 	case []any:
