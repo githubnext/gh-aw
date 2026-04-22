@@ -73,6 +73,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #18781 _(direct issue)_
 
+### @ahmadabdalla
+
+- #27473 _(direct issue)_
+
 ### @ajfeldman6
 
 - #23924 _(direct issue)_
@@ -121,6 +125,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @bbonafed
 
+- #27472 _(direct issue)_
 - #26719 _(direct issue)_
 - #26045 _(direct issue)_
 - #26043 _(direct issue)_
@@ -212,6 +217,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @corygehr
 
+- #27638 _(direct issue)_
 - #26539 _(direct issue)_
 - #26270 _(direct issue)_
 - #26268 _(direct issue)_
@@ -227,6 +233,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @dagecko
 
 - #24743 _(direct issue)_
+
+### @Daidanny008
+
+- #27402 _(direct issue)_
 
 ### @Dan-Co
 
@@ -468,6 +478,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #16314 _(direct issue)_
 - #16150 _(direct issue)_
 
+### @JasonYeMSFT
+
+- #27424 _(direct issue)_
+
 ### @jeffhandley
 
 - #26799 _(direct issue)_
@@ -511,6 +525,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @jsoref
 
 - #27230 _(direct issue)_
+
+### @jtracey93
+
+- #26176 _(direct issue)_
 
 ### @kbreit-insight
 
@@ -583,6 +601,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @microsasa
 
+- #27715 _(direct issue)_
 - #21098 _(direct issue)_
 - #20851 _(direct issue)_
 - #20833 _(direct issue)_
@@ -664,6 +683,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @PureWeen
 
+- #27655 _(direct issue)_
 - #23567 _(direct issue)_
 
 ### @qwert666
@@ -837,6 +857,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #16117 _(direct issue)_
 - #16107 _(direct issue)_
 
+### @tinytelly
+
+- #27282 _(direct issue)_
+
 ### @tomasmed
 
 - #20157 _(direct issue)_
@@ -858,6 +882,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @UncleBats
 
 - #20359 _(direct issue)_
+
+### @verkyyi
+
+- #27407 _(direct issue)_
 
 ### @veverkap
 
@@ -912,6 +940,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #24573 _(direct issue)_
 - #23914 _(direct issue)_
 
+### @zkoppert
+
+- #27741 _(direct issue)_
+
 </details>
 
 ### ⚠️ Attribution Candidates Need Review
@@ -934,6 +966,7 @@ should be credited:
 - **@strawgate** for bug(safe-inputs): script: return value is silently dropped ([#18534](https://github.com/github/gh-aw/issues/18534)) — closed 2026-03-01, NOT_PLANNED
 - **@jeremiah-snee-openx** for Enhance Daily Documentation Updater ([#18204](https://github.com/github/gh-aw/issues/18204)) — closed 2026-02-25, NOT_PLANNED
 - **@Ray961123** for Question: Why do some GitHub Actions steps intermittently have no logs ([#26175](https://github.com/github/gh-aw/issues/26175)) — closed 2026-04-19, NOT_PLANNED
+- **@viktoriyabogdanova** for [aw-failures] Workflow timing out at 40min — MCP get_file_contents 37–71s per call ([#27556](https://github.com/github/gh-aw/issues/27556)) — closed 2026-04-22, NOT_PLANNED
 
 ## Share Feedback
 
