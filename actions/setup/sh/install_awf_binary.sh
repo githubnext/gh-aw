@@ -32,6 +32,7 @@ AWF_REPO="github/gh-aw-firewall"
 AWF_INSTALL_DIR="/usr/local/bin"
 AWF_INSTALL_NAME="awf"
 AWF_LIB_DIR="/usr/local/lib/awf"
+AWF_REAL_PATH="${AWF_LIB_DIR}/awf-real"
 
 if [ -z "$AWF_VERSION" ]; then
   echo "ERROR: AWF version is required"
@@ -108,6 +109,71 @@ has_node_20() {
   return 1
 }
 
+install_awf_wrapper() {
+  sudo tee "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" > /dev/null <<'WRAPPER'
+#!/usr/bin/env bash
+set -euo pipefail
+
+AWF_REAL="/usr/local/lib/awf/awf-real"
+RETRY_PATTERN="dependency failed to start: container awf-api-proxy is unhealthy"
+MAX_RETRIES="${AWF_API_PROXY_START_RETRIES:-1}"
+RETRY_DELAY_SECONDS="${AWF_API_PROXY_RETRY_DELAY_SECONDS:-5}"
+
+# Validate optional retry settings to avoid arithmetic/sleep errors.
+case "$MAX_RETRIES" in
+  ''|*[!0-9]*) MAX_RETRIES=1 ;;
+esac
+case "$RETRY_DELAY_SECONDS" in
+  ''|*[!0-9]*) RETRY_DELAY_SECONDS=5 ;;
+esac
+
+if [ ! -x "$AWF_REAL" ]; then
+  echo "ERROR: AWF runtime not found at $AWF_REAL" >&2
+  exit 127
+fi
+
+run_awf() {
+  local output_file
+  output_file=$(mktemp)
+  local status
+
+  set +e
+  "$AWF_REAL" "$@" 2>&1 | tee "$output_file"
+  status=${PIPESTATUS[0]}
+  set -e
+
+  AWF_RETRYABLE_FAILURE=0
+  if [ "$status" -ne 0 ] && grep -Fq "$RETRY_PATTERN" "$output_file"; then
+    AWF_RETRYABLE_FAILURE=1
+  fi
+  rm -f "$output_file"
+
+  return "$status"
+}
+
+attempt=0
+while true; do
+  set +e
+  run_awf "$@"
+  status=$?
+  set -e
+
+  if [ "$status" -eq 0 ]; then
+    exit 0
+  fi
+
+  if [ "${AWF_RETRYABLE_FAILURE:-0}" -ne 1 ] || [ "$attempt" -ge "$MAX_RETRIES" ]; then
+    exit "$status"
+  fi
+
+  attempt=$((attempt + 1))
+  echo "[awf-wrapper] awf-api-proxy was unhealthy; retrying startup (${attempt}/${MAX_RETRIES}) after ${RETRY_DELAY_SECONDS}s..." >&2
+  sleep "$RETRY_DELAY_SECONDS"
+done
+WRAPPER
+  sudo chmod +x "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
+}
+
 install_bundle() {
   local bundle_name="awf-bundle.js"
   local bundle_url="${BASE_URL}/${bundle_name}"
@@ -135,15 +201,13 @@ install_bundle() {
   sudo mkdir -p "${AWF_LIB_DIR}"
   sudo cp "${TEMP_DIR}/${bundle_name}" "${AWF_LIB_DIR}/${bundle_name}"
 
-  # Create wrapper script using the absolute path to node.
-  # Using an unquoted heredoc (<<WRAPPER) so that ${node_bin} is expanded
-  # at wrapper-creation time, while \$@ is left as the literal $@ for
-  # runtime argument forwarding.
-  sudo tee "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" > /dev/null <<WRAPPER
+  # Create an executable runtime entrypoint for the bundle using the absolute
+  # node path so it works when invoked via sudo.
+  sudo tee "${AWF_REAL_PATH}" > /dev/null <<WRAPPER
 #!/bin/bash
 exec ${node_bin} /usr/local/lib/awf/awf-bundle.js "\$@"
 WRAPPER
-  sudo chmod +x "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
+  sudo chmod +x "${AWF_REAL_PATH}"
 
   echo "✓ Installed awf bundle to ${AWF_LIB_DIR}/${bundle_name}"
 }
@@ -164,9 +228,10 @@ install_linux_binary() {
   # Verify checksum
   verify_checksum "${TEMP_DIR}/${awf_binary}" "${awf_binary}"
 
-  # Make binary executable and install
+  # Make binary executable and install as the real AWF runtime entrypoint.
   chmod +x "${TEMP_DIR}/${awf_binary}"
-  sudo mv "${TEMP_DIR}/${awf_binary}" "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
+  sudo mkdir -p "${AWF_LIB_DIR}"
+  sudo mv "${TEMP_DIR}/${awf_binary}" "${AWF_REAL_PATH}"
 }
 
 install_darwin_binary() {
@@ -189,9 +254,10 @@ install_darwin_binary() {
   # Verify checksum
   verify_checksum "${TEMP_DIR}/${awf_binary}" "${awf_binary}"
 
-  # Make binary executable and install
+  # Make binary executable and install as the real AWF runtime entrypoint.
   chmod +x "${TEMP_DIR}/${awf_binary}"
-  sudo mv "${TEMP_DIR}/${awf_binary}" "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
+  sudo mkdir -p "${AWF_LIB_DIR}"
+  sudo mv "${TEMP_DIR}/${awf_binary}" "${AWF_REAL_PATH}"
 }
 
 install_platform_binary() {
@@ -219,6 +285,8 @@ else
   echo "Node.js >= 20 not available, falling back to platform binary..."
   install_platform_binary
 fi
+
+install_awf_wrapper
 
 # Verify installation by running --version with sudo.
 # Use sudo to match how awf is invoked in subsequent steps (sudo -E awf ...).
