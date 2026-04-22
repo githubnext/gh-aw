@@ -3,8 +3,11 @@
 package workflow
 
 import (
+	"path"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 func TestHasNetworkRestrictions(t *testing.T) {
@@ -271,12 +274,14 @@ func TestCheckFirewallDisable(t *testing.T) {
 func TestGenerateFirewallLogParsingStepFixesFirewallPermissions(t *testing.T) {
 	step := generateFirewallLogParsingStep("test-workflow")
 	stepContent := strings.Join(step, "\n")
+	expectedLogsDir := constants.AWFProxyLogsDir
+	expectedFirewallDir := path.Dir(expectedLogsDir)
 
-	if !strings.Contains(stepContent, "AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs") {
+	if !strings.Contains(stepContent, "AWF_LOGS_DIR: "+expectedLogsDir) {
 		t.Error("Expected firewall log parsing step to keep AWF_LOGS_DIR set to logs directory")
 	}
 
-	if !strings.Contains(stepContent, "sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall 2>/dev/null || true") {
+	if !strings.Contains(stepContent, "sudo chmod -R a+r "+expectedFirewallDir+" 2>/dev/null || true") {
 		t.Error("Expected firewall log parsing step to chmod the parent firewall directory for logs and audit upload")
 	}
 }

@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -118,8 +120,8 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 // generateFirewallLogParsingStep creates a GitHub Actions step to parse firewall logs and create step summary.
 func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 	// Firewall logs are at a known location in the sandbox folder structure
-	firewallLogsDir := "/tmp/gh-aw/sandbox/firewall/logs"
-	firewallDir := "/tmp/gh-aw/sandbox/firewall"
+	firewallLogsDir := constants.AWFProxyLogsDir
+	firewallDir := path.Dir(firewallLogsDir)
 
 	stepLines := []string{
 		"      - name: Print firewall logs",
