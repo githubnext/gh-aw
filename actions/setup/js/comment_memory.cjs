@@ -25,7 +25,7 @@ const MANAGED_COMMENT_DISCLOSURE_NOTE = [
   "> <details>",
   "> <summary>What this comment does</summary>",
   ">",
-  "> It stores persistent context for this thread in the `<gh-aw-comment-memory>` block above.",
+  "> It stores persistent context for this thread in the `<gh-aw-comment-memory>` block at the top of this comment.",
   "> Edit only the text in that block; workflow metadata and the footer are regenerated automatically.",
   "> </details>",
 ].join("\n");
