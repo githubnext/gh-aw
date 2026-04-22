@@ -2,12 +2,14 @@
 /// <reference types="@actions/github-script" />
 require("./shim.cjs");
 
+const path = require("path");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { SAFE_OUTPUT_E001 } = require("./error_codes.cjs");
 const { resolveTarget, isStagedMode } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
@@ -18,17 +20,7 @@ const { COMMENT_MEMORY_TAG, COMMENT_MEMORY_MAX_SCAN_PAGES } = require("./comment
 // that happen to contain a matching comment-memory tag.
 const MANAGED_COMMENT_PROVENANCE_MARKER = "<!-- gh-aw-agentic-workflow:";
 const MANAGED_COMMENT_HEADER = "### Comment Memory";
-const MANAGED_COMMENT_DISCLOSURE_NOTE = [
-  "> [!NOTE]",
-  "> This comment is managed by comment memory.",
-  ">",
-  "> <details>",
-  "> <summary>What this comment does</summary>",
-  ">",
-  "> It stores persistent context for this thread in the `<gh-aw-comment-memory>` block at the top of this comment.",
-  "> Edit only the text in that block; workflow metadata and the footer are regenerated automatically.",
-  "> </details>",
-].join("\n");
+const MANAGED_COMMENT_DISCLOSURE_NOTE = renderTemplateFromFile(path.join(__dirname, "../md/comment_memory_disclosure_note.md"), {});
 
 function sanitizeMemoryID(memoryID) {
   const normalized = String(memoryID || "default").trim();
