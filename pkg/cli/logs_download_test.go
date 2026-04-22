@@ -130,7 +130,7 @@ func TestIsNonZipArtifactError(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "error extracting zip archive is not necessarily non-zip",
+			name:     "generic extraction error without zip signature",
 			output:   "error downloading some-artifact: error extracting zip archive: unexpected EOF",
 			expected: false,
 		},

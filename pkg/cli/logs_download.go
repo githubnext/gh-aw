@@ -812,7 +812,7 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Some artifacts could not be extracted (not a valid zip archive) and were skipped: "+msg))
 				skippedNonZipArtifacts = true
 			} else if isCaseCollisionArtifactError(output) {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Some artifacts could not be fully extracted due to case-colliding file paths; retrying artifacts individually and continuing"))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Some artifacts could not be fully extracted due to case-colliding file paths. Retrying artifacts individually and continuing."))
 				skippedCaseCollisionArtifacts = true
 			} else {
 				return fmt.Errorf("failed to download artifacts for run %d: %w (output: %s)", runID, err, string(output))
