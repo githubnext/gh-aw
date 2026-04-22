@@ -873,6 +873,13 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 	for i, step := range steps {
 		if firstCheckoutIdx == -1 && strings.Contains(step, "uses: actions/checkout@") {
 			firstCheckoutIdx = i
+			for j := i; j >= 0; j-- {
+				trimmed := strings.TrimLeft(steps[j], " ")
+				if strings.HasPrefix(trimmed, "- ") {
+					firstCheckoutIdx = j
+					break
+				}
+			}
 		}
 		if exactSetupStepIDPattern.MatchString(step) {
 			lastSetupIdx = i

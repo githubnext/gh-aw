@@ -952,6 +952,92 @@ jobs:
 	}
 }
 
+func TestInsertPreStepsAfterSetupBeforeCheckout(t *testing.T) {
+	tests := []struct {
+		name     string
+		steps    []string
+		preSteps []string
+		want     []string
+	}{
+		{
+			name: "insert at next step boundary after setup id",
+			steps: []string{
+				"      - name: Setup Scripts",
+				"        uses: actions/github-script@v7",
+				"        with:",
+				"          job-name: ${{ github.job }}",
+				"        id: setup",
+				"      - name: Checkout repository",
+				"        uses: actions/checkout@v6",
+			},
+			preSteps: []string{
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+			},
+			want: []string{
+				"      - name: Setup Scripts",
+				"        uses: actions/github-script@v7",
+				"        with:",
+				"          job-name: ${{ github.job }}",
+				"        id: setup",
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+				"      - name: Checkout repository",
+				"        uses: actions/checkout@v6",
+			},
+		},
+		{
+			name: "append when setup is final step and no boundary exists",
+			steps: []string{
+				"      - name: Setup Scripts",
+				"        uses: actions/github-script@v7",
+				"        id: setup",
+			},
+			preSteps: []string{
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+			},
+			want: []string{
+				"      - name: Setup Scripts",
+				"        uses: actions/github-script@v7",
+				"        id: setup",
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+			},
+		},
+		{
+			name: "insert before checkout when setup step is not present",
+			steps: []string{
+				"      - name: Checkout repository",
+				"        uses: actions/checkout@v6",
+				"      - name: Main work",
+				"        run: echo \"work\"",
+			},
+			preSteps: []string{
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+			},
+			want: []string{
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+				"      - name: Checkout repository",
+				"        uses: actions/checkout@v6",
+				"      - name: Main work",
+				"        run: echo \"work\"",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := insertPreStepsAfterSetupBeforeCheckout(tt.steps, tt.preSteps)
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("insertPreStepsAfterSetupBeforeCheckout() mismatch\nwant:\n%q\ngot:\n%q", tt.want, got)
+			}
+		})
+	}
+}
+
 func TestCustomJobPreStepsSchemaValidation(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "custom-job-pre-steps-schema")
 
