@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -297,6 +298,36 @@ func TestAuditToolErrorEnvelopeSetsIsErrorTrueHelperProcess(t *testing.T) {
 
 	_, _ = fmt.Fprintln(os.Stderr, "✗ failed to fetch run metadata")
 	os.Exit(1)
+}
+
+func TestAuditTool_AcceptsDeprecatedMaxTokensParameter(t *testing.T) {
+	const expectedStdout = `{"overview":{"run_id":"1234567890"}}`
+
+	var capturedArgs []string
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		capturedArgs = append([]string(nil), args...)
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", expectedStdout)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditTool should succeed")
+
+	session := connectInMemory(t, server)
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "audit",
+		Arguments: map[string]any{
+			"run_id_or_url": "1234567890",
+			"max_tokens":    5000,
+		},
+	})
+	require.NoError(t, err, "audit tool should accept deprecated max_tokens parameter")
+	require.NotNil(t, result, "result should not be nil")
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	require.True(t, ok, "expected text content in audit response")
+	assert.JSONEq(t, expectedStdout, textContent.Text, "audit tool should return subprocess stdout")
+	assert.NotContains(t, strings.Join(capturedArgs, " "), "max_tokens", "audit command args should ignore max_tokens")
 }
 
 func TestAuditDiffToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {

@@ -250,6 +250,7 @@ func registerAuditTool(server *mcp.Server, execCmd execCmdFunc, actor string, va
 	type auditArgs struct {
 		RunIDOrURL string   `json:"run_id_or_url" jsonschema:"GitHub Actions workflow run ID or URL. Accepts: numeric run ID (e.g., 1234567890), run URL (https://github.com/owner/repo/actions/runs/1234567890), job URL (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210), or job URL with step (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1)"`
 		Artifacts  []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
+		MaxTokens  int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
 	}
 
 	// Generate schema for audit tool

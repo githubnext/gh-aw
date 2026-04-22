@@ -47,8 +47,8 @@ When problems are detected, create detailed GitHub issues with reproduction step
 **MANDATORY**: Follow these rules on every tool call to keep token consumption under control.
 
 - **`logs` calls**: Always pass `count: 3` and `max_tokens: 3000`. Never call `logs` without these limits.
-- **`audit` calls**: Always pass `max_tokens: 5000`. Prefer auditing 1–2 representative runs rather than every run found.
-- **`compile` calls**: Always pass `max_tokens: 5000`. Use targeted compilation of 3 representative workflows instead of bulk compilation when the goal is validation.
+- **`audit` calls**: Prefer auditing 1–2 representative runs rather than every run found.
+- **`compile` calls**: Use targeted compilation of 3 representative workflows instead of bulk compilation when the goal is validation.
 - **Parallel batching**: Combine independent tool calls into a single turn whenever possible (e.g. run 2–3 targeted compiles in parallel rather than sequentially).
 - **Skip redundant variants**: If a test variant (e.g. a second date-range filter) would produce essentially the same signal as one already run, skip it and document the skip reason.
 
@@ -338,8 +338,8 @@ Test compilation with a targeted sample of representative workflows instead of b
 
 ```
 Select 3 representative workflows from Phase 1.2 (one simple, one complex, one with imports).
-Use the agentic-workflows "compile" tool for each individually (max_tokens: 5000 per call).
-After the targeted tests, run one bulk compile (no workflow-name specified) with max_tokens: 5000
+Use the agentic-workflows "compile" tool for each individually.
+After the targeted tests, run one bulk compile (no workflow-name specified)
 to verify overall compilation health.
 ```
 

@@ -83,6 +83,7 @@ func registerCompileTool(server *mcp.Server, execCmd execCmdFunc, manifestCacheF
 		Actionlint  bool     `json:"actionlint,omitempty" jsonschema:"Run actionlint linter on generated .lock.yml files"`
 		RunnerGuard bool     `json:"runner-guard,omitempty" jsonschema:"Run runner-guard taint analysis scanner on generated .lock.yml files"`
 		Fix         bool     `json:"fix,omitempty" jsonschema:"Apply automatic codemod fixes to workflows before compiling"`
+		MaxTokens   int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
 	}
 
 	// Generate schema with elicitation defaults
