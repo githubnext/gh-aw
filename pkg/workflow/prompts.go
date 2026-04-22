@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var promptsLog = logger.New("workflow:prompts")
 
 // prompts.go consolidates all prompt-related functions for agentic workflows.
 // This file contains functions that generate workflow steps to append various
@@ -21,11 +25,11 @@ import (
 // hasPlaywrightTool checks if the playwright tool is enabled in the tools configuration
 func hasPlaywrightTool(parsedTools *Tools) bool {
 	if parsedTools == nil {
-		log.Print("Checking for Playwright tool: no parsed tools provided")
+		promptsLog.Print("Checking for Playwright tool: no parsed tools provided")
 		return false
 	}
 	hasPlaywright := parsedTools.Playwright != nil
-	log.Printf("Playwright tool enabled: %v", hasPlaywright)
+	promptsLog.Printf("Playwright tool enabled: %v", hasPlaywright)
 	return hasPlaywright
 }
 
@@ -36,11 +40,11 @@ func hasPlaywrightTool(parsedTools *Tools) bool {
 // hasAgenticWorkflowsTool checks if the agentic workflows tool is enabled in the tools configuration
 func hasAgenticWorkflowsTool(parsedTools *Tools) bool {
 	if parsedTools == nil {
-		log.Print("Checking for agentic-workflows tool: no parsed tools provided")
+		promptsLog.Print("Checking for agentic-workflows tool: no parsed tools provided")
 		return false
 	}
 	hasAgenticWorkflows := parsedTools.AgenticWorkflows != nil
-	log.Printf("Agentic-workflows tool enabled: %v", hasAgenticWorkflows)
+	promptsLog.Printf("Agentic-workflows tool enabled: %v", hasAgenticWorkflows)
 	return hasAgenticWorkflows
 }
 
@@ -50,16 +54,16 @@ func hasAgenticWorkflowsTool(parsedTools *Tools) bool {
 
 // hasCommentRelatedTriggers checks if the workflow has any comment-related event triggers
 func (c *Compiler) hasCommentRelatedTriggers(data *WorkflowData) bool {
-	log.Printf("Checking for comment-related triggers: command_count=%d, on=%s", len(data.Command), data.On)
+	promptsLog.Printf("Checking for comment-related triggers: command_count=%d, on=%s", len(data.Command), data.On)
 
 	// Check for command trigger (which expands to comment events)
 	if len(data.Command) > 0 {
-		log.Print("Found command trigger, enabling comment-related features")
+		promptsLog.Print("Found command trigger, enabling comment-related features")
 		return true
 	}
 
 	if data.On == "" {
-		log.Print("No 'on' trigger defined")
+		promptsLog.Print("No 'on' trigger defined")
 		return false
 	}
 
@@ -67,11 +71,11 @@ func (c *Compiler) hasCommentRelatedTriggers(data *WorkflowData) bool {
 	commentEvents := []string{"issue_comment", "pull_request_review_comment", "pull_request_review"}
 	for _, event := range commentEvents {
 		if strings.Contains(data.On, event) {
-			log.Printf("Found comment-related event trigger: %s", event)
+			promptsLog.Printf("Found comment-related event trigger: %s", event)
 			return true
 		}
 	}
 
-	log.Print("No comment-related triggers found")
+	promptsLog.Print("No comment-related triggers found")
 	return false
 }

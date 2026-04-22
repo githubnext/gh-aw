@@ -1,5 +1,9 @@
 package workflow
 
+import "github.com/github/gh-aw/pkg/logger"
+
+var safeOutputsBuilderLog = logger.New("workflow:safe_outputs_builder")
+
 // handlerConfigBuilder provides a fluent API for building handler configurations
 type handlerConfigBuilder struct {
 	config map[string]any
@@ -89,6 +93,7 @@ type handlerBuilder func(*SafeOutputsConfig) map[string]any
 // Returns nil if neither is set (default to true in JavaScript).
 func getEffectiveFooterForTemplatable(localFooter *string, globalFooter *bool) *string {
 	if localFooter != nil {
+		safeOutputsBuilderLog.Printf("Footer: using local override %q", *localFooter)
 		return localFooter
 	}
 	if globalFooter != nil {
@@ -98,8 +103,10 @@ func getEffectiveFooterForTemplatable(localFooter *string, globalFooter *bool) *
 		} else {
 			s = "false"
 		}
+		safeOutputsBuilderLog.Printf("Footer: derived %q from global bool", s)
 		return &s
 	}
+	safeOutputsBuilderLog.Print("Footer: not configured, deferring to JS default")
 	return nil
 }
 
@@ -108,6 +115,7 @@ func getEffectiveFooterForTemplatable(localFooter *string, globalFooter *bool) *
 // Returns nil if neither is set (default to "always" in JavaScript).
 func getEffectiveFooterString(localFooter *string, globalFooter *bool) *string {
 	if localFooter != nil {
+		safeOutputsBuilderLog.Printf("FooterString: using local override %q", *localFooter)
 		return localFooter
 	}
 	if globalFooter != nil {
@@ -117,7 +125,9 @@ func getEffectiveFooterString(localFooter *string, globalFooter *bool) *string {
 		} else {
 			s = "none"
 		}
+		safeOutputsBuilderLog.Printf("FooterString: derived %q from global bool", s)
 		return &s
 	}
+	safeOutputsBuilderLog.Print("FooterString: not configured, deferring to JS default")
 	return nil
 }
