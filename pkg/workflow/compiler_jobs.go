@@ -885,7 +885,8 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 		// Insert after the full setup step by finding the next step boundary.
 		// A step boundary is identified by the YAML list-item prefix ("- ") after
 		// indentation trimming, which marks the beginning of the next step block.
-		// If no boundary is found (e.g. setup is the final step), append pre-steps at the end.
+		// If no boundary is found (e.g. setup is the final step), insertIdx stays len(steps)
+		// and pre-steps are appended by the slice insertion logic below.
 		for i := lastSetupIdx + 1; i < len(steps); i++ {
 			trimmed := strings.TrimLeft(steps[i], " ")
 			if strings.HasPrefix(trimmed, "- ") {
