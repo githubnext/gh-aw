@@ -336,7 +336,7 @@ describe("action_conclusion_otlp run()", () => {
     delete process.env.GH_AW_AGENT_CONCLUSION;
   });
 
-  it("records cancelled conclusion as STATUS_CODE_OK when GH_AW_AGENT_CONCLUSION is 'cancelled'", async () => {
+  it("records cancelled conclusion as STATUS_CODE_ERROR when GH_AW_AGENT_CONCLUSION is 'cancelled'", async () => {
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
     process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
     let capturedBody;
@@ -349,7 +349,8 @@ describe("action_conclusion_otlp run()", () => {
 
     const payload = JSON.parse(capturedBody);
     const span = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0];
-    expect(span?.status?.code).toBe(1); // STATUS_CODE_OK (cancelled is not an error)
+    expect(span?.status?.code).toBe(2); // STATUS_CODE_ERROR
+    expect(span?.status?.message).toBe("agent cancelled");
     const conclusionAttr = span?.attributes?.find(a => a.key === "gh-aw.agent.conclusion");
     expect(conclusionAttr?.value?.stringValue).toBe("cancelled");
     fetchSpy.mockRestore();

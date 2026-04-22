@@ -700,11 +700,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Values: "success", "failure", "timed_out", "cancelled", "skipped".
   const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "";
 
-  // Mark the span as an error when the agent job failed or timed out.
+  // Mark the span as an error when the agent job failed, timed out, or was cancelled.
   const isAgentFailure = agentConclusion === "failure" || agentConclusion === "timed_out";
+  const isAgentCancelled = agentConclusion === "cancelled";
   // STATUS_CODE_ERROR = 2, STATUS_CODE_OK = 1
-  const statusCode = isAgentFailure ? 2 : 1;
-  let statusMessage = isAgentFailure ? `agent ${agentConclusion}` : undefined;
+  const statusCode = isAgentFailure || isAgentCancelled ? 2 : 1;
+  let statusMessage = isAgentFailure ? `agent ${agentConclusion}` : isAgentCancelled ? "agent cancelled" : undefined;
 
   // Always read agent_output.json so output metrics are available on all outcomes.
   const agentOutput = readJSONIfExists("/tmp/gh-aw/agent_output.json") || {};
@@ -748,7 +749,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (agentConclusion) {
     attributes.push(buildAttr("gh-aw.agent.conclusion", agentConclusion));
   }
-  if (isAgentFailure && errorMessages.length > 0) {
+  if (errorMessages.length > 0) {
     attributes.push(buildAttr("gh-aw.error.count", outputErrors.length));
     attributes.push(buildAttr("gh-aw.error.messages", errorMessages.join(" | ")));
   }
@@ -804,7 +805,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // making individual errors queryable and classifiable in backends like
   // Grafana Tempo, Honeycomb, and Datadog.
   const buildSpanEvents = eventTimeMs => {
-    if (!isAgentFailure) {
+    if (outputErrors.length === 0) {
       return [];
     }
     const errorTimeNano = toNanoString(eventTimeMs);

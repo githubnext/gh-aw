@@ -2123,6 +2123,34 @@ describe("sendJobConclusionSpan", () => {
       expect(errorMessages.value.stringValue).toBe("Rate limit exceeded | Tool call failed");
     });
 
+    it("adds gh-aw.error attributes when agent_output.json has errors on success", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "success";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: "partial failure one" }, { message: "partial failure two" }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = span.attributes;
+      expect(span.status.code).toBe(1);
+      expect(attrs).toContainEqual({ key: "gh-aw.error.count", value: { intValue: 2 } });
+      expect(attrs).toContainEqual({ key: "gh-aw.error.messages", value: { stringValue: "partial failure one | partial failure two" } });
+      expect(span.events).toHaveLength(2);
+      expect(span.events[0].name).toBe("exception");
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentError" } });
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "partial failure one" } });
+    });
+
     it("enriches statusMessage with the first error message on failure", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
@@ -2163,6 +2191,21 @@ describe("sendJobConclusionSpan", () => {
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       expect(span.status.message).toBe("agent timed_out: Execution exceeded 30 minute limit");
+    });
+
+    it("marks cancelled conclusion spans as errors", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.status.code).toBe(2);
+      expect(span.status.message).toBe("agent cancelled");
     });
 
     it("caps error messages at 5 entries", async () => {
