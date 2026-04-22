@@ -115,10 +115,10 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 			// Preserve any fix-guidance block that may be emitted after the header line
 			// (for example "Example:\nengine: copilot"), while keeping source context
 			// lines separate for Rust-style rendering below.
-			if _, rest, found := strings.Cut(errorStr, frontmatterParseErrPrefix); found {
-				messageSection := strings.TrimSpace(rest)
-				if loc := sourceContextPattern.FindStringIndex(rest); loc != nil {
-					messageSection = strings.TrimSpace(rest[:loc[0]])
+			if _, parsedErrorBody, found := strings.Cut(errorStr, frontmatterParseErrPrefix); found {
+				messageSection := strings.TrimSpace(parsedErrorBody)
+				if loc := sourceContextPattern.FindStringIndex(parsedErrorBody); loc != nil {
+					messageSection = strings.TrimSpace(parsedErrorBody[:loc[0]])
 				}
 
 				headerLine, trailingGuidance, _ := strings.Cut(messageSection, "\n")
