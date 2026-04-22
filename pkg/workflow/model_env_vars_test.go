@@ -225,22 +225,13 @@ func TestCopilotFallbackModelMapsToNativeEnvVar(t *testing.T) {
 			name:           "Agent job maps GH_AW_MODEL_AGENT_COPILOT to COPILOT_MODEL",
 			safeOutputs:    &SafeOutputsConfig{},
 			expectedOrgVar: constants.EnvVarModelAgentCopilot,
-			expectedTail:   "''",
-		},
-		{
-			name:        "Agent job with byok-copilot uses non-empty COPILOT_MODEL fallback",
-			safeOutputs: &SafeOutputsConfig{},
-			features: map[string]any{
-				string(constants.ByokCopilotFeatureFlag): true,
-			},
-			expectedOrgVar: constants.EnvVarModelAgentCopilot,
 			expectedTail:   "'" + constants.CopilotBYOKDefaultModel + "'",
 		},
 		{
 			name:           "Detection job maps GH_AW_MODEL_DETECTION_COPILOT to COPILOT_MODEL",
 			safeOutputs:    nil,
 			expectedOrgVar: constants.EnvVarModelDetectionCopilot,
-			expectedTail:   "''",
+			expectedTail:   "'" + constants.CopilotBYOKDefaultModel + "'",
 		},
 	}
 

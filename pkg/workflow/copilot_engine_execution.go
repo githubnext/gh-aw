@@ -402,17 +402,12 @@ touch %s
 	// When model is explicitly configured, use its value directly.
 	// When model is not configured, map the GitHub org variable to COPILOT_MODEL so users can set
 	// a default via GitHub Actions variables without requiring per-workflow frontmatter changes.
-	// In byok-copilot mode, use a non-empty fallback because BYOK providers require an explicit model.
+	// Copilot uses BYOK defaults by default and requires a non-empty fallback model.
 	if modelConfigured {
 		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.EngineConfig.Model)
 		env[constants.CopilotCLIModelEnvVar] = workflowData.EngineConfig.Model
 	} else {
-		if isFeatureEnabled(constants.ByokCopilotFeatureFlag, workflowData) {
-			env[constants.CopilotCLIModelEnvVar] = fmt.Sprintf("${{ vars.%s || '%s' }}", modelEnvVar, constants.CopilotBYOKDefaultModel)
-		} else {
-			// No model configured - map org variable to native COPILOT_MODEL env var
-			env[constants.CopilotCLIModelEnvVar] = fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVar)
-		}
+		env[constants.CopilotCLIModelEnvVar] = fmt.Sprintf("${{ vars.%s || '%s' }}", modelEnvVar, constants.CopilotBYOKDefaultModel)
 	}
 
 	// Add custom environment variables from engine config
@@ -431,12 +426,10 @@ touch %s
 	// so user-supplied env does not override this value.
 	env[constants.CopilotCLIIntegrationIDEnvVar] = constants.CopilotCLIIntegrationIDValue
 
-	// Inject the dummy COPILOT_API_KEY AFTER all env merges so that legacy/manual
+	// Inject the dummy COPILOT_API_KEY AFTER all env merges so legacy/manual
 	// wiring in engine.env or agent.env cannot accidentally overwrite the sentinel
 	// value that triggers AWF's runtime BYOK detection path.
-	if isFeatureEnabled(constants.ByokCopilotFeatureFlag, workflowData) {
-		env["COPILOT_API_KEY"] = constants.CopilotBYOKDummyAPIKey
-	}
+	env["COPILOT_API_KEY"] = constants.CopilotBYOKDummyAPIKey
 
 	// Add HTTP MCP header secrets to env for passthrough
 	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.Tools)

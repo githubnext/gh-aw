@@ -109,7 +109,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 }
 
 func TestCopilotInstallerCustomVersion(t *testing.T) {
-	// Test that custom version from engine config is used
+	// Test that pinned version from engine config is ignored in favor of latest
 	engine := NewCopilotEngine()
 
 	customVersion := "1.0.0"
@@ -136,10 +136,12 @@ func TestCopilotInstallerCustomVersion(t *testing.T) {
 		t.Fatal("Could not find install step with install_copilot_cli.sh")
 	}
 
-	// Should contain the custom version
-	expectedVersionLine := "bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + customVersion
-	if !strings.Contains(installStep, expectedVersionLine) {
-		t.Errorf("Expected custom version %s in install step, got:\n%s", customVersion, installStep)
+	// Should contain latest (default BYOK behavior)
+	if !strings.Contains(installStep, `install_copilot_cli.sh" latest`) {
+		t.Errorf("Expected latest Copilot version in install step, got:\n%s", installStep)
+	}
+	if strings.Contains(installStep, `install_copilot_cli.sh" `+customVersion) {
+		t.Errorf("Expected pinned version to be ignored, got:\n%s", installStep)
 	}
 
 	// Must pin GH_HOST: github.com to prevent workflow-level GHES overrides from
@@ -204,7 +206,7 @@ func TestGenerateCopilotInstallerSteps_ExpressionVersion(t *testing.T) {
 }
 
 func TestCopilotInstallerExpressionVersion_ViaEngineConfig(t *testing.T) {
-	// Test that expression version from engine config uses env var injection
+	// Test that expression version from engine config is ignored in favor of latest
 	engine := NewCopilotEngine()
 
 	expressionVersion := "${{ inputs.engine-version }}"
@@ -231,23 +233,18 @@ func TestCopilotInstallerExpressionVersion_ViaEngineConfig(t *testing.T) {
 		t.Fatal("Could not find install step with install_copilot_cli.sh")
 	}
 
-	// Should use env var for injection safety
-	if !strings.Contains(installStep, "ENGINE_VERSION: ${{ inputs.engine-version }}") {
-		t.Errorf("Expected ENGINE_VERSION env var in install step, got:\n%s", installStep)
+	// Should not use expression wiring
+	if strings.Contains(installStep, "ENGINE_VERSION: ${{ inputs.engine-version }}") {
+		t.Errorf("Expected expression version to be ignored, got:\n%s", installStep)
 	}
 
-	// Should reference env var in run command
-	if !strings.Contains(installStep, `"${ENGINE_VERSION}"`) {
-		t.Errorf(`Expected "$ENGINE_VERSION" in run command, got:\n%s`, installStep)
-	}
-
-	// Should NOT embed expression directly in shell command
-	if strings.Contains(installStep, "install_copilot_cli.sh "+expressionVersion) {
-		t.Errorf("Expression should NOT be embedded directly in shell command, got:\n%s", installStep)
+	// Should install latest
+	if !strings.Contains(installStep, `install_copilot_cli.sh" latest`) {
+		t.Errorf("Expected latest Copilot version in install step, got:\n%s", installStep)
 	}
 }
 
-func TestCopilotInstallerByokFeatureUsesLatestVersion(t *testing.T) {
+func TestCopilotInstallerByokFeatureStillUsesLatestVersion(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -275,9 +272,9 @@ func TestCopilotInstallerByokFeatureUsesLatestVersion(t *testing.T) {
 	}
 
 	if !strings.Contains(installStep, `install_copilot_cli.sh" latest`) {
-		t.Errorf("Expected byok-copilot to force latest Copilot CLI install, got:\n%s", installStep)
+		t.Errorf("Expected latest Copilot CLI install, got:\n%s", installStep)
 	}
 	if strings.Contains(installStep, `install_copilot_cli.sh" 1.0.0`) {
-		t.Errorf("Expected byok-copilot to ignore pinned version, got:\n%s", installStep)
+		t.Errorf("Expected pinned version to be ignored, got:\n%s", installStep)
 	}
 }

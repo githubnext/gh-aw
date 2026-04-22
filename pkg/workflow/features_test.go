@@ -160,26 +160,22 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 			description: "When frontmatter is empty, should check env",
 		},
 		{
-			name:     "byok-copilot implicitly enables cli-proxy for copilot engine",
-			envValue: "",
-			frontmatter: map[string]any{
-				"byok-copilot": true,
-			},
+			name:        "copilot engine enables cli-proxy by default",
+			envValue:    "",
+			frontmatter: map[string]any{},
 			engineID:    string(constants.CopilotEngine),
 			flag:        constants.CliProxyFeatureFlag,
 			expected:    true,
-			description: "byok-copilot should imply cli-proxy for engine=copilot",
+			description: "copilot should enable cli-proxy by default",
 		},
 		{
-			name:     "byok-copilot does not imply cli-proxy for non-copilot engine",
-			envValue: "",
-			frontmatter: map[string]any{
-				"byok-copilot": true,
-			},
+			name:        "non-copilot engine does not enable cli-proxy by default",
+			envValue:    "",
+			frontmatter: map[string]any{},
 			engineID:    string(constants.ClaudeEngine),
 			flag:        constants.CliProxyFeatureFlag,
 			expected:    false,
-			description: "byok-copilot implication should only apply to engine=copilot",
+			description: "default cli-proxy enablement should only apply to engine=copilot",
 		},
 	}
 

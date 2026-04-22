@@ -1662,15 +1662,12 @@ func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
 	})
 }
 
-func TestCopilotEngineByokFeatureSetsDummyAPIKey(t *testing.T) {
+func TestCopilotEngineSetsDummyAPIKeyByDefault(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
 			ID: "copilot",
-		},
-		Features: map[string]any{
-			string(constants.ByokCopilotFeatureFlag): true,
 		},
 	}
 
@@ -1682,7 +1679,7 @@ func TestCopilotEngineByokFeatureSetsDummyAPIKey(t *testing.T) {
 	stepContent := strings.Join([]string(steps[0]), "\n")
 	expected := "COPILOT_API_KEY: " + constants.CopilotBYOKDummyAPIKey
 	if !strings.Contains(stepContent, expected) {
-		t.Errorf("Expected byok-copilot to inject dummy COPILOT_API_KEY, got:\n%s", stepContent)
+		t.Errorf("Expected copilot to inject dummy COPILOT_API_KEY by default, got:\n%s", stepContent)
 	}
 }
 

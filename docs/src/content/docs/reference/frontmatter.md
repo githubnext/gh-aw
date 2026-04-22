@@ -438,32 +438,26 @@ Debug workflow using script mode for custom actions.
 
 **Note:** The `action-mode` can also be overridden via the CLI flag `--action-mode` or the environment variable `GH_AW_ACTION_MODE`. The precedence is: CLI flag > feature flag > environment variable > auto-detection.
 
-#### Copilot BYOK Mode (`features.byok-copilot`)
+#### Copilot BYOK Mode (Default for `engine: copilot`)
 
-Enables Copilot offline Bring Your Own Key (BYOK) mode with a single flag, bundling four required behaviors:
+Copilot offline Bring Your Own Key (BYOK) behavior is now the default for `engine: copilot`, bundling four behaviors:
 
 1. Injecting a dummy `COPILOT_API_KEY` to trigger the AWF BYOK runtime path.
 2. Implicitly enabling `cli-proxy`.
 3. Forcing the Copilot CLI to install at `latest` (ignoring any pinned `engine.version`).
 4. Setting `COPILOT_MODEL` to `${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}` — Copilot BYOK providers require a non-empty model, so the compiler provides `claude-sonnet-4.6` as the fallback when `GH_AW_MODEL_AGENT_COPILOT` is not set.
 
-```yaml wrap
-engine: copilot
-features:
-  byok-copilot: true
-```
-
-Without this flag, BYOK mode requires manual composition of all four behaviors. With `byok-copilot: true`, the compiler handles the wiring automatically.
+No feature flag is required.
 
 To use a different model, set the `GH_AW_MODEL_AGENT_COPILOT` repository variable. The compiled workflow uses `${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}` for `COPILOT_MODEL`.
 
 > [!IMPORTANT]
-> `byok-copilot` is a gh-aw convenience extension point, not an enforcement boundary. gh-aw does not enforce Copilot BYOK usage.
+> `features.byok-copilot` is deprecated and no longer needed. Existing workflows may still include it, but it has no effect.
 >
 > For Copilot BYOK setup and policy details, see [Using your LLM provider API keys with Copilot](https://docs.github.com/en/copilot/how-tos/administer-copilot/manage-for-enterprise/use-your-own-api-keys).
  
 > [!NOTE]
-> `byok-copilot` applies only to `engine: copilot` workflows. The implicit `cli-proxy` enablement does not apply to other engines.
+> Copilot BYOK defaults apply only to `engine: copilot` workflows. Other engines are unchanged.
 
 #### AWF Failure Diagnostics (`features.awf-diagnostic-logs`)
 

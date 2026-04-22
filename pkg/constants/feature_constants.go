@@ -49,10 +49,12 @@ const (
 	//	features:
 	//	  awf-diagnostic-logs: true
 	AwfDiagnosticLogsFeatureFlag FeatureFlag = "awf-diagnostic-logs"
-	// ByokCopilotFeatureFlag enables Copilot CLI offline BYOK mode.
-	// When enabled with engine: copilot, the compiler:
+	// ByokCopilotFeatureFlag is a deprecated legacy feature flag for Copilot BYOK mode.
+	// Deprecated: Copilot now enables BYOK behavior by default, so this flag has no effect.
+	//
+	// The compiler always:
 	//   - injects a dummy COPILOT_API_KEY into the agent env to trigger AWF BYOK runtime behavior
-	//   - implicitly enables the cli-proxy feature
+	//   - enables cli-proxy behavior for copilot workflows (unless tools.github.mode overrides)
 	//   - installs the latest Copilot CLI version (un-pinned)
 	//
 	// Workflow frontmatter usage:

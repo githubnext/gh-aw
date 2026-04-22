@@ -146,7 +146,7 @@ constants.CopilotRequestsFeatureFlag        // "copilot-requests"
 constants.DIFCProxyFeatureFlag              // "difc-proxy" (deprecated — use tools.github.integrity-proxy)
 constants.CliProxyFeatureFlag               // "cli-proxy"
 constants.AwfDiagnosticLogsFeatureFlag      // "awf-diagnostic-logs"
-constants.ByokCopilotFeatureFlag            // "byok-copilot"
+constants.ByokCopilotFeatureFlag            // "byok-copilot" (deprecated - Copilot BYOK is now default)
 constants.IntegrityReactionsFeatureFlag     // "integrity-reactions"
 constants.MCPCLIFeatureFlag                 // "mcp-cli"
 ```

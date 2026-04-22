@@ -56,6 +56,7 @@ func GetAllCodemods() []Codemod {
 		getWorkflowRunBranchesCodemod(),               // Add default branches to bare on.workflow_run trigger
 		getDependabotPermissionsCodemod(),             // Add vulnerability-alerts: read when dependabot toolset is used
 		getGitHubReposToAllowedReposCodemod(),         // Rename deprecated tools.github.repos to tools.github.allowed-repos
+		getByokCopilotFeatureRemovalCodemod(),         // Remove deprecated features.byok-copilot (Copilot BYOK is default)
 		getCliProxyFeatureToGitHubModeCodemod(),       // Migrate features.cli-proxy: true to tools.github.mode: gh-proxy
 		getDIFCProxyToIntegrityProxyCodemod(),         // Migrate deprecated features.difc-proxy to tools.github.integrity-proxy
 	}
