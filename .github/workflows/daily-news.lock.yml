@@ -890,7 +890,14 @@ jobs:
         run: |
           set -o pipefail
           touch /tmp/gh-aw/agent-step-summary.md
-          GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
+          GH_AW_NODE_BIN="$(command -v node 2>/dev/null || true)"
+          if [ -n "$GH_AW_NODE_BIN" ] && [ -x "$GH_AW_NODE_BIN" ]; then
+            mkdir -p "${RUNNER_TEMP}/gh-aw/node-bin"
+            if cp "$GH_AW_NODE_BIN" "${RUNNER_TEMP}/gh-aw/node-bin/node"; then
+              chmod +x "${RUNNER_TEMP}/gh-aw/node-bin/node"
+              GH_AW_NODE_BIN="${RUNNER_TEMP}/gh-aw/node-bin/node"
+            fi
+          fi
           export GH_AW_NODE_BIN
           (umask 177 && touch /tmp/gh-aw/agent-stdio.log)
           # shellcheck disable=SC1003
@@ -1396,7 +1403,14 @@ jobs:
         run: |
           set -o pipefail
           touch /tmp/gh-aw/agent-step-summary.md
-          GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
+          GH_AW_NODE_BIN="$(command -v node 2>/dev/null || true)"
+          if [ -n "$GH_AW_NODE_BIN" ] && [ -x "$GH_AW_NODE_BIN" ]; then
+            mkdir -p "${RUNNER_TEMP}/gh-aw/node-bin"
+            if cp "$GH_AW_NODE_BIN" "${RUNNER_TEMP}/gh-aw/node-bin/node"; then
+              chmod +x "${RUNNER_TEMP}/gh-aw/node-bin/node"
+              GH_AW_NODE_BIN="${RUNNER_TEMP}/gh-aw/node-bin/node"
+            fi
+          fi
           export GH_AW_NODE_BIN
           (umask 177 && touch /tmp/gh-aw/threat-detection/detection.log)
           # shellcheck disable=SC1003

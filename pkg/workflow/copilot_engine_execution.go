@@ -249,7 +249,14 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			engineCommand = fmt.Sprintf("%s && %s", mcpCLIPath, copilotCommand)
 		}
 		pathSetup := "touch " + AgentStepSummaryPath + "\n" +
-			"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
+			"GH_AW_NODE_BIN=\"$(command -v node 2>/dev/null || true)\"\n" +
+			"if [ -n \"$GH_AW_NODE_BIN\" ] && [ -x \"$GH_AW_NODE_BIN\" ]; then\n" +
+			"  mkdir -p \"${RUNNER_TEMP}/gh-aw/node-bin\"\n" +
+			"  if cp \"$GH_AW_NODE_BIN\" \"${RUNNER_TEMP}/gh-aw/node-bin/node\"; then\n" +
+			"    chmod +x \"${RUNNER_TEMP}/gh-aw/node-bin/node\"\n" +
+			"    GH_AW_NODE_BIN=\"${RUNNER_TEMP}/gh-aw/node-bin/node\"\n" +
+			"  fi\n" +
+			"fi\n" +
 			"export GH_AW_NODE_BIN"
 		if customCommandScriptSetup != "" {
 			pathSetup = customCommandScriptSetup + "\n" + pathSetup

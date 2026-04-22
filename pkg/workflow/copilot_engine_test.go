@@ -1787,6 +1787,34 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 	})
 }
 
+func TestCopilotEngineExecutionWithFirewallStagesNodeBinaryInRunnerTemp(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		EngineConfig: &EngineConfig{ID: "copilot"},
+		Tools:        make(map[string]any),
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+	if len(steps) == 0 {
+		t.Fatal("Expected at least one step")
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, "GH_AW_NODE_BIN=\"$(command -v node 2>/dev/null || true)\"") {
+		t.Errorf("Expected node path capture in step content, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "cp \"$GH_AW_NODE_BIN\" \"${RUNNER_TEMP}/gh-aw/node-bin/node\"") {
+		t.Errorf("Expected node binary staging into runner temp, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "GH_AW_NODE_BIN=\"${RUNNER_TEMP}/gh-aw/node-bin/node\"") {
+		t.Errorf("Expected staged node binary path assignment, got:\n%s", stepContent)
+	}
+}
+
 func TestCopilotEngineNoAskUser(t *testing.T) {
 	engine := NewCopilotEngine()
 
