@@ -250,12 +250,6 @@ function getFooterAgentFailureIssueMessage(ctx) {
     footer = renderTemplate(defaultFooter, templateContext);
   }
 
-  // Prepend detection caution alert if detection job found a potential issue
-  const detectionCaution = getDetectionCautionAlert(ctx.workflowName, ctx.runUrl);
-  if (detectionCaution) {
-    footer = detectionCaution + "\n\n" + footer;
-  }
-
   return footer;
 }
 
@@ -295,12 +289,6 @@ function getFooterAgentFailureCommentMessage(ctx) {
       defaultFooter += " · [◷]({history_url})";
     }
     footer = renderTemplate(defaultFooter, templateContext);
-  }
-
-  // Prepend detection caution alert if detection job found a potential issue
-  const detectionCaution = getDetectionCautionAlert(ctx.workflowName, ctx.runUrl);
-  if (detectionCaution) {
-    footer = detectionCaution + "\n\n" + footer;
   }
 
   return footer;

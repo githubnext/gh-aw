@@ -3,7 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
-const { getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
+const { getDetectionCautionAlert, getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
 const { renderTemplate, renderTemplateFromFile } = require("./messages_core.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
@@ -1374,8 +1374,12 @@ async function main() {
         };
         const footer = getFooterAgentFailureCommentMessage(ctx);
 
+        // Prepend detection caution alert (when present) so it appears first in the comment body
+        const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+        const fullCommentBodyRaw = detectionCaution ? `${detectionCaution}\n\n${commentBody}\n\n${footer}` : `${commentBody}\n\n${footer}`;
+
         // Combine comment body with footer
-        const fullCommentBody = sanitizeContent(commentBody + "\n\n" + footer, { maxLength: 65000 });
+        const fullCommentBody = sanitizeContent(fullCommentBodyRaw, { maxLength: 65000 });
 
         await github.rest.issues.createComment({
           owner,
@@ -1539,8 +1543,11 @@ async function main() {
           suffix: `\n\n${generateXMLMarker(workflowName, runUrl)}`,
         });
 
+        // Prepend detection caution alert (when present) so it appears first in the issue body
+        const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+
         // Combine issue body with footer
-        const bodyLines = [issueBodyContent, "", footerWithExpires];
+        const bodyLines = detectionCaution ? [detectionCaution, "", issueBodyContent, "", footerWithExpires] : [issueBodyContent, "", footerWithExpires];
         const issueBody = bodyLines.join("\n");
 
         const newIssue = await github.rest.issues.create({
