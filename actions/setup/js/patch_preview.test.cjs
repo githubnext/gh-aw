@@ -20,7 +20,7 @@ describe("patch_preview", () => {
   });
 
   it("truncates by line count", () => {
-    const patch = Array.from({ length: 600 }, (_, i) => `line ${i + 1}`).join("\n");
+    const patch = Array.from({ length: 600 }, () => "x").join("\n");
     const preview = generatePatchPreview(patch);
 
     expect(preview).toContain("<summary>Show patch preview (500 of 600 lines)</summary>");
@@ -33,5 +33,13 @@ describe("patch_preview", () => {
 
     expect(preview).toContain("<summary>Show patch preview (1 of 1 lines)</summary>");
     expect(preview).toContain("... (truncated)");
+  });
+
+  it("reports shown line count accurately when truncated by characters", () => {
+    const patch = Array.from({ length: 800 }, (_, i) => `line-${i}`).join("\n");
+    const preview = generatePatchPreview(patch);
+
+    expect(preview).toMatch(/<summary>Show patch preview \(\d+ of 800 lines\)<\/summary>/);
+    expect(preview).not.toContain("<summary>Show patch preview (800 of 800 lines)</summary>");
   });
 });

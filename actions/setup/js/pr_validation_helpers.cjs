@@ -39,7 +39,13 @@ function isBaseBranchAllowed(baseBranch, allowedBaseBranches) {
     if (pattern === "*") {
       return true;
     }
-    if (pattern.includes("*") && globPatternToRegex(pattern, { pathMode: true, caseSensitive: true }).test(baseBranch)) {
+    // Exact-match patterns were already handled above by Set lookup.
+    // Skip regex compilation unless the pattern is a glob.
+    if (!pattern.includes("*")) {
+      continue;
+    }
+    const regex = globPatternToRegex(pattern, { pathMode: true, caseSensitive: true });
+    if (regex.test(baseBranch)) {
       return true;
     }
   }

@@ -25,7 +25,8 @@ function generatePatchPreview(patchContent) {
   }
 
   const truncated = lineTruncated || charTruncated;
-  const summary = truncated ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
+  const shownLines = preview.length > 0 ? preview.split("\n").length : 0;
+  const summary = truncated ? `Show patch preview (${shownLines} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
 
   return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
 }
