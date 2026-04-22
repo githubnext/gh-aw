@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -8,12 +10,21 @@ import (
 
 var workflowRunBranchesCodemodLog = logger.New("cli:codemod_workflow_run_branches")
 
+var resolveCurrentRepoDefaultBranchFn = func() (string, error) {
+	repoSlug := getRepositorySlugFromRemote()
+	if repoSlug == "" {
+		return "", errors.New("could not determine repository slug from git remote")
+	}
+
+	return getRepoDefaultBranch(context.Background(), repoSlug)
+}
+
 // getWorkflowRunBranchesCodemod adds default branch restrictions for bare workflow_run triggers.
 func getWorkflowRunBranchesCodemod() Codemod {
 	return Codemod{
 		ID:           "workflow-run-branches-default",
 		Name:         "Add workflow_run branch restrictions",
-		Description:  "Adds default branches [main, master] to on.workflow_run when branches are missing",
+		Description:  "Adds default branch restriction to on.workflow_run when branches are missing (falls back to [main, master])",
 		IntroducedIn: "1.0.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			onAny, hasOn := frontmatter["on"]
@@ -40,16 +51,26 @@ func getWorkflowRunBranchesCodemod() Codemod {
 				return content, false, nil
 			}
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, addDefaultWorkflowRunBranches)
+			branches := []string{"main", "master"}
+			defaultBranch, err := resolveCurrentRepoDefaultBranchFn()
+			if err != nil {
+				workflowRunBranchesCodemodLog.Printf("Could not resolve repository default branch via GitHub API, falling back to [main, master]: %v", err)
+			} else if strings.TrimSpace(defaultBranch) != "" {
+				branches = []string{strings.TrimSpace(defaultBranch)}
+			}
+
+			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				return addDefaultWorkflowRunBranches(lines, branches)
+			})
 			if applied {
-				workflowRunBranchesCodemodLog.Print("Added default branch restrictions to on.workflow_run")
+				workflowRunBranchesCodemodLog.Printf("Added branch restrictions to on.workflow_run: %v", branches)
 			}
 			return newContent, applied, err
 		},
 	}
 }
 
-func addDefaultWorkflowRunBranches(lines []string) ([]string, bool) {
+func addDefaultWorkflowRunBranches(lines []string, branches []string) ([]string, bool) {
 	onIdx := -1
 	onIndent := ""
 	onEnd := len(lines)
@@ -114,10 +135,17 @@ func addDefaultWorkflowRunBranches(lines []string) ([]string, bool) {
 	}
 
 	branchIndent := workflowRunIndent + "  "
-	entries := []string{
-		branchIndent + "branches:",
-		branchIndent + "  - main",
-		branchIndent + "  - master",
+	entries := make([]string, 0, len(branches)+1)
+	entries = append(entries, branchIndent+"branches:")
+	for _, branch := range branches {
+		trimmed := strings.TrimSpace(branch)
+		if trimmed == "" {
+			continue
+		}
+		entries = append(entries, branchIndent+"  - "+trimmed)
+	}
+	if len(entries) == 1 {
+		return lines, false
 	}
 
 	result := make([]string, 0, len(lines)+len(entries))
