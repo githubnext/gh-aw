@@ -859,6 +859,84 @@ jobs:
 	)
 }
 
+func TestBuiltinJobPreStepsAreInsertedAfterCompleteSetupStep(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "builtin-job-pre-steps-setup-boundary")
+
+	frontmatter := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+jobs:
+  pre_activation:
+    pre-steps:
+      - name: Pre-activation uses pre-step
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+  activation:
+    pre-steps:
+      - name: Activation run pre-step
+        run: echo "activation prep"
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	preActivationSection := extractJobSection(yamlStr, "pre_activation")
+	if preActivationSection == "" {
+		t.Fatal("Expected pre_activation section in lock file")
+	}
+	preActivationSetupBodyEndIdx := indexInNonCommentLinesInSection(preActivationSection, "job-name: ${{ github.job }}")
+	preActivationPreStepIdx := indexInNonCommentLinesInSection(preActivationSection, "- name: Pre-activation uses pre-step")
+	preActivationMembershipCheckIdx := indexInNonCommentLinesInSection(preActivationSection, "- name: Check team membership for workflow")
+	if preActivationSetupBodyEndIdx == -1 || preActivationPreStepIdx == -1 || preActivationMembershipCheckIdx == -1 {
+		t.Fatalf("Expected setup body, pre-step, and membership check in pre_activation section:\n%s", preActivationSection)
+	}
+	if preActivationPreStepIdx <= preActivationSetupBodyEndIdx {
+		t.Fatalf("Expected pre_activation pre-step to be inserted after setup step body in section:\n%s", preActivationSection)
+	}
+	if preActivationPreStepIdx >= preActivationMembershipCheckIdx {
+		t.Fatalf("Expected pre_activation pre-step before the first regular step in section:\n%s", preActivationSection)
+	}
+
+	activationSection := extractJobSection(yamlStr, "activation")
+	if activationSection == "" {
+		t.Fatal("Expected activation section in lock file")
+	}
+	activationSetupBodyEndIdx := indexInNonCommentLinesInSection(activationSection, "job-name: ${{ github.job }}")
+	activationPreStepIdx := indexInNonCommentLinesInSection(activationSection, "- name: Activation run pre-step")
+	activationCheckoutIdx := indexInNonCommentLinesInSection(activationSection, "- name: Checkout .github and .agents folders")
+	if activationSetupBodyEndIdx == -1 || activationPreStepIdx == -1 || activationCheckoutIdx == -1 {
+		t.Fatalf("Expected setup body, pre-step, and repository checkout in activation section:\n%s", activationSection)
+	}
+	if activationPreStepIdx <= activationSetupBodyEndIdx {
+		t.Fatalf("Expected activation pre-step to be inserted after setup step body in section:\n%s", activationSection)
+	}
+	if activationPreStepIdx >= activationCheckoutIdx {
+		t.Fatalf("Expected activation pre-step before checkout in section:\n%s", activationSection)
+	}
+}
+
 func TestCustomJobPreStepsSchemaValidation(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "custom-job-pre-steps-schema")
 
