@@ -1140,6 +1140,8 @@ jobs:
           flag: --actionlint
         - name: poutine
           flag: --poutine
+        - name: runner-guard
+          flag: --runner-guard
     concurrency:
       group: ci-${{ github.ref }}-security-scan-${{ matrix.tool.name }}
       cancel-in-progress: true
