@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Test script for report-test-failures.sh
 
 set -euo pipefail

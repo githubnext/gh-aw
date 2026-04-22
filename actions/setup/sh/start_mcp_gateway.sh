@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Start MCP Gateway
 # This script starts the MCP gateway process that proxies MCP servers through a unified HTTP endpoint
 # Following the MCP Gateway Specification: https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/mcp-gateway.md

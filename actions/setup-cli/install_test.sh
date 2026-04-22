@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Test script for install.sh in setup-cli action
 set -e
 

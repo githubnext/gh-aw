@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Local test script for setup.sh
 # This script tests the setup action locally to ensure it works correctly
 

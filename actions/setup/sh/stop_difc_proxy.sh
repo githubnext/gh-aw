@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Stop DIFC proxy for pre-agent gh CLI steps
 # This script stops the awmg proxy container and removes the proxy CA certificate
 # from the system trust store (if it was installed).

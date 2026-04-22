@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # setup_cache_memory_git.sh
 # Pre-agent git setup for integrity-aware cache-memory.
 #

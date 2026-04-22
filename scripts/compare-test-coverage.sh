@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Compare all tests vs executed tests to find any missing test coverage
 # This ensures all tests are being run in CI unless explicitly skipped
 

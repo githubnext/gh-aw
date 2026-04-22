@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Apply Astro to GFM conversion to all docs files
 # Usage: ./scripts/apply-astro-conversion.sh
 

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Copy the entire Copilot session-state directory to the agent logs folder
 # for artifact collection. This ensures all session files (events.jsonl,
 # session.db, plan.md, checkpoints, etc.) are in /tmp/gh-aw/ where secret

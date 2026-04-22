@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Start MCP Scripts HTTP Server
 # This script starts the mcp-scripts MCP server and waits for it to become ready
 

@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # delete-old-copilot-branches.sh - Find and delete old copilot/* branches
 #
 # This script identifies copilot/* branches that:
