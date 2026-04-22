@@ -883,6 +883,7 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 	if lastSetupIdx >= 0 {
 		// Setup step may be emitted as multiple []string entries (one line per entry).
 		// Insert after the full setup step by finding the next step boundary.
+		// If no boundary is found, append pre-steps at the end.
 		for i := lastSetupIdx + 1; i < len(steps); i++ {
 			trimmed := strings.TrimLeft(steps[i], " ")
 			if strings.HasPrefix(trimmed, "- ") {

@@ -906,13 +906,13 @@ jobs:
 	if preActivationSection == "" {
 		t.Fatal("Expected pre_activation section in lock file")
 	}
-	preActivationJobNameLineIdx := indexInNonCommentLinesInSection(preActivationSection, "job-name: ${{ github.job }}")
+	preActivationJobNameIdx := indexInNonCommentLinesInSection(preActivationSection, "job-name: ${{ github.job }}")
 	preActivationPreStepIdx := indexInNonCommentLinesInSection(preActivationSection, "- name: Pre-activation uses pre-step")
 	preActivationMembershipCheckIdx := indexInNonCommentLinesInSection(preActivationSection, "- name: Check team membership for workflow")
-	if preActivationJobNameLineIdx == -1 || preActivationPreStepIdx == -1 || preActivationMembershipCheckIdx == -1 {
+	if preActivationJobNameIdx == -1 || preActivationPreStepIdx == -1 || preActivationMembershipCheckIdx == -1 {
 		t.Fatalf("Expected setup body, pre-step, and membership check in pre_activation section:\n%s", preActivationSection)
 	}
-	if preActivationPreStepIdx <= preActivationJobNameLineIdx {
+	if preActivationPreStepIdx <= preActivationJobNameIdx {
 		t.Fatalf("Expected pre_activation pre-step to be inserted after setup step body in section:\n%s", preActivationSection)
 	}
 	if preActivationPreStepIdx >= preActivationMembershipCheckIdx {
@@ -923,13 +923,13 @@ jobs:
 	if activationSection == "" {
 		t.Fatal("Expected activation section in lock file")
 	}
-	activationJobNameLineIdx := indexInNonCommentLinesInSection(activationSection, "job-name: ${{ github.job }}")
+	activationJobNameIdx := indexInNonCommentLinesInSection(activationSection, "job-name: ${{ github.job }}")
 	activationPreStepIdx := indexInNonCommentLinesInSection(activationSection, "- name: Activation run pre-step")
 	activationCheckoutIdx := indexInNonCommentLinesInSection(activationSection, "- name: Checkout .github and .agents folders")
-	if activationJobNameLineIdx == -1 || activationPreStepIdx == -1 || activationCheckoutIdx == -1 {
+	if activationJobNameIdx == -1 || activationPreStepIdx == -1 || activationCheckoutIdx == -1 {
 		t.Fatalf("Expected setup body, pre-step, and repository checkout in activation section:\n%s", activationSection)
 	}
-	if activationPreStepIdx <= activationJobNameLineIdx {
+	if activationPreStepIdx <= activationJobNameIdx {
 		t.Fatalf("Expected activation pre-step to be inserted after setup step body in section:\n%s", activationSection)
 	}
 	if activationPreStepIdx >= activationCheckoutIdx {
