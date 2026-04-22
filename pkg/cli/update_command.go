@@ -166,7 +166,9 @@ func recompileWorkflowsForContainerPins(workflowsDir, engineOverride string, ver
 		return err
 	}
 	for _, workflowFile := range workflowFiles {
-		if err := compileWorkflowWithRefresh(workflowFile, verbose, false, engineOverride, false); err != nil {
+		quiet := false
+		refreshStopTime := false
+		if err := compileWorkflowWithRefresh(workflowFile, verbose, quiet, engineOverride, refreshStopTime); err != nil {
 			return fmt.Errorf("failed to recompile %s after updating container pins: %w", filepath.Base(workflowFile), err)
 		}
 	}
@@ -185,7 +187,7 @@ func workflowFilesForExistingLocks(workflowsDir string) ([]string, error) {
 		return nil, fmt.Errorf("failed to read workflows directory %s: %w", workflowsDir, err)
 	}
 
-	lockFiles := make(map[string]struct{}, len(entries))
+	lockFiles := make(map[string]struct{})
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".lock.yml") {
 			continue
