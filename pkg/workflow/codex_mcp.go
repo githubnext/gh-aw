@@ -2,8 +2,11 @@ package workflow
 
 import (
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -12,8 +15,6 @@ var codexMCPLog = logger.New("workflow:codex_mcp")
 const (
 	codexOpenAIProxyProviderID   = "openai-proxy"
 	codexOpenAIProxyProviderName = "OpenAI AWF proxy"
-	// AWF's api-proxy sidecar is exposed inside the sandbox network at 172.30.0.30:10000 for OpenAI traffic.
-	codexOpenAIProxyProviderBaseURL = "http://172.30.0.30:10000"
 )
 
 // RenderMCPConfig generates MCP server configuration for Codex
@@ -129,7 +130,11 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		e.renderOpenAIProxyProviderToml(yaml, "          ")
 	}
 	yaml.WriteString("          " + shellPolicyDelimiter + "\n")
-	yaml.WriteString("          cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"\n")
+	if isFirewallEnabled(workflowData) {
+		e.renderAppendConvertedConfigWithoutOpenAIProxy(yaml)
+	} else {
+		yaml.WriteString("          cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"\n")
+	}
 	if workflowData.EngineConfig != nil && strings.TrimSpace(workflowData.EngineConfig.Config) != "" {
 		customConfigDelimiter := GenerateHeredocDelimiterFromSeed("CODEX_CUSTOM_CONFIG", workflowData.FrontmatterHash)
 		yaml.WriteString("          \n")
@@ -150,14 +155,28 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 }
 
 func (e *CodexEngine) renderOpenAIProxyProviderToml(yaml *strings.Builder, indent string) {
-	yaml.WriteString(indent + "\n")
+	yaml.WriteString("\n")
 	yaml.WriteString(indent + "model_provider = \"" + codexOpenAIProxyProviderID + "\"\n")
-	yaml.WriteString(indent + "\n")
+	yaml.WriteString("\n")
 	yaml.WriteString(indent + "[model_providers." + codexOpenAIProxyProviderID + "]\n")
 	yaml.WriteString(indent + "name = \"" + codexOpenAIProxyProviderName + "\"\n")
-	yaml.WriteString(indent + "base_url = \"" + codexOpenAIProxyProviderBaseURL + "\"\n")
+	yaml.WriteString(indent + "base_url = \"" + e.getOpenAIProxyProviderBaseURL() + "\"\n")
 	yaml.WriteString(indent + "env_key = \"OPENAI_API_KEY\"\n")
 	yaml.WriteString(indent + "supports_websockets = false\n")
+}
+
+func (e *CodexEngine) getOpenAIProxyProviderBaseURL() string {
+	return "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.ClaudeLLMGatewayPort))
+}
+
+func (e *CodexEngine) renderAppendConvertedConfigWithoutOpenAIProxy(yaml *strings.Builder) {
+	yaml.WriteString("          awk '\n")
+	yaml.WriteString("            BEGIN { skip_openai_proxy = 0 }\n")
+	yaml.WriteString("            /^[[:space:]]*model_provider[[:space:]]*=/ { next }\n")
+	yaml.WriteString("            /^\\[model_providers\\.openai-proxy\\][[:space:]]*$/ { skip_openai_proxy = 1; next }\n")
+	yaml.WriteString("            /^\\[/ { skip_openai_proxy = 0 }\n")
+	yaml.WriteString("            !skip_openai_proxy { print }\n")
+	yaml.WriteString("          ' \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"\n")
 }
 
 // renderCodexMCPConfigWithContext generates custom MCP server configuration for a single tool in codex workflow config.toml

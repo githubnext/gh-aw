@@ -74,6 +74,9 @@ const ExpressionBreakThreshold LineLength = 100
 // for MCP servers, gateway services, and validation ranges.
 
 const (
+	// AWFAPIProxyContainerIP is the fixed api-proxy sidecar address inside the AWF sandbox network.
+	AWFAPIProxyContainerIP = "172.30.0.30"
+
 	// DefaultMCPGatewayPort is the default port for the MCP gateway HTTP service
 	DefaultMCPGatewayPort = 8080
 

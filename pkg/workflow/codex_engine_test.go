@@ -312,10 +312,10 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 
 func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 	engine := NewCodexEngine()
-	tools := map[string]any{}
-	mcpTools := []string{}
 
 	t.Run("injects openai-proxy provider when firewall is enabled", func(t *testing.T) {
+		tools := map[string]any{}
+		mcpTools := []string{}
 		var yaml strings.Builder
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
@@ -333,7 +333,7 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 			"model_provider = \"openai-proxy\"",
 			"[model_providers.openai-proxy]",
 			"name = \"OpenAI AWF proxy\"",
-			"base_url = \"http://172.30.0.30:10000\"",
+			fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.ClaudeLLMGatewayPort),
 			"env_key = \"OPENAI_API_KEY\"",
 			"supports_websockets = false",
 		}
@@ -343,9 +343,14 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 				t.Errorf("Expected MCP config to contain %q, got:\n%s", expected, result)
 			}
 		}
+		if !strings.Contains(result, "awk '") {
+			t.Errorf("Expected firewall-enabled config append to use awk filtering, got:\n%s", result)
+		}
 	})
 
 	t.Run("does not inject openai-proxy provider when firewall is disabled", func(t *testing.T) {
+		tools := map[string]any{}
+		mcpTools := []string{}
 		var yaml strings.Builder
 		workflowData := &WorkflowData{Name: "test-workflow"}
 
@@ -356,6 +361,9 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 		result := yaml.String()
 		if strings.Contains(result, "model_provider = \"openai-proxy\"") {
 			t.Errorf("Did not expect openai-proxy provider when firewall is disabled, got:\n%s", result)
+		}
+		if strings.Contains(result, "awk '") {
+			t.Errorf("Did not expect awk filtering when firewall is disabled, got:\n%s", result)
 		}
 	})
 }
