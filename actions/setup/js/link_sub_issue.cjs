@@ -242,6 +242,14 @@ async function main(config = {}) {
       const existingParent = parentCheckResult?.repository?.issue?.parent;
       if (existingParent) {
         core.warning(`Sub-issue #${subIssueNumber} is already a sub-issue of #${existingParent.number} ("${existingParent.title}"). Skipping.`);
+        if (existingParent.number === parentIssueNumber) {
+          return {
+            parent_issue_number: parentIssueNumber,
+            sub_issue_number: subIssueNumber,
+            success: true,
+            skipped: true,
+          };
+        }
         return {
           parent_issue_number: parentIssueNumber,
           sub_issue_number: subIssueNumber,
