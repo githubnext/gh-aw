@@ -248,7 +248,7 @@ func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, no
 	// pinned @sha256: references in the generated lock files.
 	if !noFix && !noActions {
 		upgradeLog.Print("Updating container image digest pins")
-		if err := UpdateContainerPins(ctx, workflowDir, verbose); err != nil {
+		if _, err := UpdateContainerPins(ctx, workflowDir, verbose); err != nil {
 			upgradeLog.Printf("Failed to update container pins: %v", err)
 			// Non-critical — Docker may not be available in all environments.
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))

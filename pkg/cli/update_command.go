@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -133,9 +136,14 @@ func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor,
 
 	// Resolve and store SHA-256 digest pins for container images referenced in lock files.
 	updateLog.Print("Updating container image digest pins")
-	if err := UpdateContainerPins(ctx, workflowsDir, verbose); err != nil {
+	pinsUpdated, err := UpdateContainerPins(ctx, workflowsDir, verbose)
+	if err != nil {
 		// Non-fatal: Docker may not be available in all environments.
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
+	} else if pinsUpdated && !noCompile {
+		if err := recompileWorkflowsForContainerPins(workflowsDir, engineOverride, verbose); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to apply container pins to lock files: %v", err)))
+		}
 	}
 
 	// Update action references in user-provided steps within workflow .md files.
@@ -148,4 +156,50 @@ func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor,
 
 	updateLog.Printf("Update process complete: had_error=%v", firstErr != nil)
 	return firstErr
+}
+
+func recompileWorkflowsForContainerPins(workflowsDir, engineOverride string, verbose bool) error {
+	workflowFiles, err := workflowFilesForExistingLocks(workflowsDir)
+	if err != nil {
+		return err
+	}
+	for _, workflowFile := range workflowFiles {
+		if err := compileWorkflowWithRefresh(workflowFile, verbose, false, engineOverride, false); err != nil {
+			return fmt.Errorf("failed to recompile %s after updating container pins: %w", filepath.Base(workflowFile), err)
+		}
+	}
+	return nil
+}
+
+func workflowFilesForExistingLocks(workflowsDir string) ([]string, error) {
+	if workflowsDir == "" {
+		workflowsDir = getWorkflowsDir()
+	}
+
+	entries, err := os.ReadDir(workflowsDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read workflows directory %s: %w", workflowsDir, err)
+	}
+
+	lockFiles := make(map[string]bool, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".lock.yml") {
+			continue
+		}
+		base := strings.TrimSuffix(entry.Name(), ".lock.yml")
+		lockFiles[base] = true
+	}
+
+	workflowFiles := make([]string, 0, len(lockFiles))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		base := strings.TrimSuffix(entry.Name(), ".md")
+		if lockFiles[base] {
+			workflowFiles = append(workflowFiles, filepath.Join(workflowsDir, entry.Name()))
+		}
+	}
+	sort.Strings(workflowFiles)
+	return workflowFiles, nil
 }
