@@ -1026,6 +1026,25 @@ func TestInsertPreStepsAfterSetupBeforeCheckout(t *testing.T) {
 				"        run: echo \"work\"",
 			},
 		},
+		{
+			name: "insert before checkout shorthand step without name",
+			steps: []string{
+				"      - uses: actions/checkout@v6",
+				"      - name: Main work",
+				"        run: echo \"work\"",
+			},
+			preSteps: []string{
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+			},
+			want: []string{
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+				"      - uses: actions/checkout@v6",
+				"      - name: Main work",
+				"        run: echo \"work\"",
+			},
+		},
 	}
 
 	for _, tt := range tests {
