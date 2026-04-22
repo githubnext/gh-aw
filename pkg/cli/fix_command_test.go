@@ -913,3 +913,48 @@ permissions:
 		t.Error("Expected file to not be modified when sandbox is not present")
 	}
 }
+
+func TestFixCommand_ScaffoldsSerenaSharedWorkflow(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowFile := filepath.Join(workflowDir, "test-workflow.md")
+	if err := os.MkdirAll(workflowDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflow directory: %v", err)
+	}
+
+	content := `---
+engine: copilot
+tools:
+  serena: ["typescript"]
+---
+
+# Test Workflow
+`
+	if err := os.WriteFile(workflowFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create workflow file: %v", err)
+	}
+
+	serenaCodemod := getCodemodByID("serena-tools-to-shared-import")
+	if serenaCodemod == nil {
+		t.Fatal("serena-tools-to-shared-import codemod not found")
+	}
+
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*serenaCodemod}, true, false)
+	if err != nil {
+		t.Fatalf("Failed to process workflow file: %v", err)
+	}
+	if !fixed {
+		t.Fatal("Expected workflow file to be modified")
+	}
+
+	scaffoldedPath := filepath.Join(workflowDir, "shared", "mcp", "serena.md")
+	scaffoldedContent, err := os.ReadFile(scaffoldedPath)
+	if err != nil {
+		t.Fatalf("Expected scaffolded Serena workflow to exist: %v", err)
+	}
+
+	scaffolded := string(scaffoldedContent)
+	if !strings.Contains(scaffolded, "github/gh-aw/.github/workflows/shared/mcp/serena.md@main") {
+		t.Errorf("Expected scaffolded Serena workflow to import upstream shared workflow, got:\n%s", scaffolded)
+	}
+}
