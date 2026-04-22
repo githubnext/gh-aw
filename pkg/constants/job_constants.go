@@ -69,6 +69,9 @@ const ConclusionJobName JobName = "conclusion"
 const UnlockJobName JobName = "unlock"
 
 // KnownBuiltInJobNames contains all known built-in workflow job names (including aliases).
+// It is used for O(1) membership checks when validating or filtering user-defined job
+// names to avoid collisions with framework-generated jobs. For example, workflow code
+// can check this map before treating a frontmatter jobs.<name> entry as a custom job.
 var KnownBuiltInJobNames = map[string]struct{}{
 	string(AgentJobName):               {},
 	string(ActivationJobName):          {},

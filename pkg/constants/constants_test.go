@@ -270,8 +270,6 @@ func TestConstantValues(t *testing.T) {
 }
 
 func TestKnownBuiltInJobNamesContainsAllKnownJobs(t *testing.T) {
-	t.Helper()
-
 	knownJobs := []string{
 		string(AgentJobName),
 		string(ActivationJobName),
