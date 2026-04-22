@@ -832,16 +832,17 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 		if skippedCaseCollisionArtifacts {
 			retryNames := downloadableNames
 			if len(retryNames) == 0 {
-				// Best effort fallback when initial artifact listing was unavailable.
+				// Initial artifact listing was unavailable, so fetch names now for targeted retry.
 				artifactNamesRetry, retryListErr := listRunArtifactNames(ctx, runID, owner, repo, hostname, verbose)
-				if retryListErr == nil {
-					for _, name := range artifactNamesRetry {
-						if isDockerBuildArtifact(name) {
-							continue
-						}
-						if artifactMatchesFilter(name, artifactFilter) {
-							retryNames = append(retryNames, name)
-						}
+				if retryListErr != nil {
+					return fmt.Errorf("bulk artifact download hit case-colliding entries and could not list artifacts for individual retry: %w", retryListErr)
+				}
+				for _, name := range artifactNamesRetry {
+					if isDockerBuildArtifact(name) {
+						continue
+					}
+					if artifactMatchesFilter(name, artifactFilter) {
+						retryNames = append(retryNames, name)
 					}
 				}
 			}
