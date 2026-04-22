@@ -18,7 +18,7 @@ safe-outputs:
     title-prefix: "[token-consumption] "
     labels: [automation, observability, telemetry]
     close-older-issues: true
-    expires: 2d
+    expires: 1d
     max: 1
 timeout-minutes: 30
 imports:
@@ -64,6 +64,10 @@ Call `search_events` using:
 
 If `dataset: spans` returns no usable records, retry with `dataset: transactions`.
 
+Treat "no usable records" as either:
+- zero events returned after pagination, or
+- events returned but none contain any recognized token fields.
+
 ### Step 3: Extract Workflow + Token Fields
 
 For each event/span, derive:
@@ -77,7 +81,14 @@ For each event/span, derive:
 - **Run ID** using:
   - `github.run_id`
   - `gh_aw.run_id`
-- **Token counts** by summing any present numeric fields:
+- **Token counts** with precedence to avoid double counting:
+  - Prefer explicit totals first: `ai.total_tokens` → `gen_ai.usage.total_tokens` → `usage.total_tokens` → `total_tokens`.
+  - For input tokens: `ai.input_tokens` → `gen_ai.usage.input_tokens` → `usage.input_tokens` → `prompt_tokens`.
+  - For output tokens: `ai.output_tokens` → `gen_ai.usage.output_tokens` → `usage.output_tokens` → `completion_tokens`.
+  - If only total is present and input/output are missing, keep input/output at `0` and use total.
+  - If input and output are present but total is missing, set total = input + output.
+  - Do not sum overlapping aliases for the same token type.
+- Recognized token fields:
   - `ai.input_tokens`, `ai.output_tokens`, `ai.total_tokens`
   - `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.usage.total_tokens`
   - `usage.input_tokens`, `usage.output_tokens`, `usage.total_tokens`
