@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Homepage code block overflow', () => {
+  const SUBPIXEL_TOLERANCE = 1;
   const mobileWidths = [360, 393, 428];
 
   for (const width of mobileWidths) {
@@ -9,14 +10,14 @@ test.describe('Homepage code block overflow', () => {
       await page.goto('/gh-aw/');
       await page.waitForLoadState('networkidle');
 
-      const metrics = await page.evaluate(() => {
+      const metrics = await page.evaluate((tolerance) => {
         const frame = document.querySelector<HTMLElement>('.expressive-code .frame');
         if (!frame) {
           return null;
         }
 
         const frameStyle = getComputedStyle(frame);
-        const hasHorizontalOverflow = frame.scrollWidth > frame.clientWidth + 1;
+        const hasHorizontalOverflow = frame.scrollWidth > frame.clientWidth + tolerance;
 
         if (hasHorizontalOverflow) {
           frame.scrollLeft = frame.scrollWidth;
@@ -30,13 +31,13 @@ test.describe('Homepage code block overflow', () => {
           frameClientWidth: frame.clientWidth,
           frameScrolled: frame.scrollLeft > 0,
         };
-      });
+      }, SUBPIXEL_TOLERANCE);
 
       expect(metrics).not.toBeNull();
-      expect(metrics!.bodyScrollWidth).toBeLessThanOrEqual(metrics!.bodyClientWidth + 1);
+      expect(metrics!.bodyScrollWidth).toBeLessThanOrEqual(metrics!.bodyClientWidth + SUBPIXEL_TOLERANCE);
       expect(['auto', 'scroll']).toContain(metrics!.frameOverflowX);
 
-      if (metrics!.frameScrollWidth > metrics!.frameClientWidth + 1) {
+      if (metrics!.frameScrollWidth > metrics!.frameClientWidth + SUBPIXEL_TOLERANCE) {
         expect(metrics!.frameScrolled).toBeTruthy();
       }
     });
