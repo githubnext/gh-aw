@@ -1598,6 +1598,22 @@ main,
 
 /* Mobile-specific: Enable text wrapping for code snippets */
 @media (max-width: 768px) {
+  /* Keep Expressive Code examples scrollable within the code frame on mobile */
+  .sl-markdown-content .expressive-code,
+  .sl-markdown-content .expressive-code .frame,
+  .sl-markdown-content .expressive-code pre {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .sl-markdown-content .expressive-code .frame {
+    overflow-x: auto;
+  }
+
+  .sl-markdown-content .expressive-code pre {
+    width: 100%;
+  }
+
   .sl-markdown-content pre code {
     white-space: pre-wrap;
     word-break: break-word;
