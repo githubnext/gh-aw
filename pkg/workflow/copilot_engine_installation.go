@@ -72,6 +72,8 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		}
 		// Normalize engine config version to effective installed version so
 		// downstream checks that consult EngineConfig.Version stay consistent.
+		// This applies even when the original version was empty (unset), so all
+		// downstream consumers observe the effective installed value ("latest").
 		// This mutates workflowData by design because subsequent generation steps
 		// in the same compile flow should observe the effective installed version.
 		workflowData.EngineConfig.Version = copilotVersion
