@@ -124,14 +124,7 @@ func (e *UniversalLLMConsumerEngine) GetUniversalRequiredSecretNames(workflowDat
 		secrets = append(secrets, collectCommonMCPSecrets(workflowData)...)
 	}
 
-	var parsedTools *ToolsConfig
-	tools := map[string]any{}
-	if workflowData != nil {
-		parsedTools = workflowData.ParsedTools
-		if workflowData.Tools != nil {
-			tools = workflowData.Tools
-		}
-	}
+	parsedTools, tools := extractToolsConfig(workflowData)
 
 	if hasGitHubTool(parsedTools) {
 		secrets = append(secrets, "GITHUB_MCP_SERVER_TOKEN")
@@ -143,6 +136,16 @@ func (e *UniversalLLMConsumerEngine) GetUniversalRequiredSecretNames(workflowDat
 	}
 
 	return secrets
+}
+
+func extractToolsConfig(workflowData *WorkflowData) (*ToolsConfig, map[string]any) {
+	if workflowData == nil {
+		return nil, map[string]any{}
+	}
+	if workflowData.Tools == nil {
+		return workflowData.ParsedTools, map[string]any{}
+	}
+	return workflowData.ParsedTools, workflowData.Tools
 }
 
 func (e *UniversalLLMConsumerEngine) GetUniversalSecretValidationStep(workflowData *WorkflowData, engineName, docsURL string) GitHubActionStep {

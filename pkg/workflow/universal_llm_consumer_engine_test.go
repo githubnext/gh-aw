@@ -13,6 +13,6 @@ func TestUniversalLLMConsumerEngine_GetUniversalRequiredSecretNames_NilWorkflowD
 
 	assert.NotPanics(t, func() {
 		secrets := engine.GetUniversalRequiredSecretNames(nil)
-		assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN", "Nil workflow data should safely fall back to copilot backend profile")
+		assert.ElementsMatch(t, []string{"COPILOT_GITHUB_TOKEN"}, secrets, "Nil workflow data should safely fall back to only the copilot backend secret profile")
 	}, "GetUniversalRequiredSecretNames should handle nil workflowData safely")
 }
