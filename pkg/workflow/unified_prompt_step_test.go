@@ -410,6 +410,30 @@ func TestCollectPromptSections_CliProxy(t *testing.T) {
 		}
 	})
 
+	t.Run("tools.github.mode gh-proxy uses cli_proxy_prompt without legacy feature flag", func(t *testing.T) {
+		compiler := &Compiler{}
+
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"mode": "gh-proxy"},
+			},
+			ParsedTools: NewTools(map[string]any{"github": map[string]any{"mode": "gh-proxy"}}),
+			SafeOutputs: nil,
+		}
+
+		sections := compiler.collectPromptSections(data)
+		require.NotEmpty(t, sections, "Should collect sections")
+
+		var cliProxySection *PromptSection
+		for i := range sections {
+			if sections[i].IsFile && sections[i].Content == cliProxyPromptFile {
+				cliProxySection = &sections[i]
+				break
+			}
+		}
+		require.NotNil(t, cliProxySection, "Should include cli_proxy_prompt.md when tools.github.mode is gh-proxy")
+	})
+
 	t.Run("cli-proxy enabled with safe-outputs uses cli_proxy_with_safeoutputs_prompt", func(t *testing.T) {
 		compiler := &Compiler{}
 

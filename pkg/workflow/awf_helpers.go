@@ -285,10 +285,10 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfArgs = append(awfArgs, "--enable-api-proxy")
 	awfHelpersLog.Print("Added --enable-api-proxy for LLM API proxying")
 
-	// Enable CLI proxy sidecar when the cli-proxy feature flag is set.
+	// Enable CLI proxy sidecar when GitHub mode is gh-proxy.
 	// Start the difc-proxy on the host and tell AWF where to connect
-	// (firewall v0.26.0+).
-	if isFeatureEnabled(constants.CliProxyFeatureFlag, config.WorkflowData) {
+	// (firewall v0.25.17+).
+	if isGitHubCLIModeEnabled(config.WorkflowData) {
 		if awfSupportsCliProxy(firewallConfig) {
 			awfArgs = append(awfArgs, "--difc-proxy-host", "host.docker.internal:18443")
 			awfArgs = append(awfArgs, "--difc-proxy-ca-cert", "/tmp/gh-aw/difc-proxy-tls/ca.crt")
@@ -491,9 +491,9 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 		}
 	}
 
-	// GH_TOKEN when cli-proxy is enabled: the token is passed in the AWF step env for the
+	// GH_TOKEN when GitHub mode is gh-proxy: the token is passed in the AWF step env for the
 	// host difc-proxy but must be excluded from the agent container.
-	if isFeatureEnabled(constants.CliProxyFeatureFlag, workflowData) {
+	if isGitHubCLIModeEnabled(workflowData) {
 		addUnique("GH_TOKEN")
 	}
 
@@ -501,8 +501,8 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 	return names
 }
 
-// addCliProxyGHTokenToEnv adds GH_TOKEN to the AWF step environment when the
-// cli-proxy feature is enabled. The token is NOT used by AWF or its cli-proxy
+// addCliProxyGHTokenToEnv adds GH_TOKEN to the AWF step environment when GitHub
+// mode is gh-proxy. The token is NOT used by AWF or its cli-proxy
 // sidecar directly — the host difc-proxy (started by start_cli_proxy.sh) already
 // has it. However, --env-all passes all step env vars into the agent container,
 // so we explicitly set GH_TOKEN here to ensure --exclude-env GH_TOKEN can
@@ -515,7 +515,7 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 // template that is resolved at runtime by the GitHub Actions runner.
 func addCliProxyGHTokenToEnv(env map[string]string, workflowData *WorkflowData) {
 	firewallConfig := getFirewallConfig(workflowData)
-	if isFeatureEnabled(constants.CliProxyFeatureFlag, workflowData) &&
+	if isGitHubCLIModeEnabled(workflowData) &&
 		isFirewallEnabled(workflowData) &&
 		awfSupportsCliProxy(firewallConfig) &&
 		awfSupportsExcludeEnv(firewallConfig) {

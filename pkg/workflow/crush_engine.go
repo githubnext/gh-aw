@@ -3,7 +3,6 @@ package workflow
 import (
 	"fmt"
 	"maps"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -12,23 +11,26 @@ import (
 var crushLog = logger.New("workflow:crush_engine")
 
 // CrushEngine represents the Crush CLI agentic engine.
-// Crush is a provider-agnostic, open-source AI coding agent that supports
-// 75+ models via BYOK (Bring Your Own Key).
+// Crush is a provider-agnostic, open-source AI coding agent with broader BYOK
+// (Bring Your Own Key) support, but gh-aw currently supports a subset of
+// providers for engine.model validation: copilot, anthropic, openai, and codex.
 type CrushEngine struct {
-	BaseEngine
+	UniversalLLMConsumerEngine
 }
 
 func NewCrushEngine() *CrushEngine {
 	return &CrushEngine{
-		BaseEngine: BaseEngine{
-			id:                     "crush",
-			displayName:            "Crush",
-			description:            "Crush CLI with headless mode and multi-provider LLM support",
-			experimental:           true,  // Start as experimental until smoke tests pass consistently
-			supportsToolsAllowlist: false, // Crush manages its own tool permissions via .crush.json
-			supportsMaxTurns:       false, // No --max-turns flag in crush run
-			supportsWebSearch:      false, // Has built-in websearch but not exposed via gh-aw neutral tools yet
-			llmGatewayPort:         constants.CrushLLMGatewayPort,
+		UniversalLLMConsumerEngine: UniversalLLMConsumerEngine{
+			BaseEngine: BaseEngine{
+				id:                     "crush",
+				displayName:            "Crush",
+				description:            "Crush CLI with headless mode and multi-provider LLM support",
+				experimental:           true,  // Start as experimental until smoke tests pass consistently
+				supportsToolsAllowlist: false, // Crush manages its own tool permissions via .crush.json
+				supportsMaxTurns:       false, // No --max-turns flag in crush run
+				supportsWebSearch:      false, // Has built-in websearch but not exposed via gh-aw neutral tools yet
+				llmGatewayPort:         constants.CrushLLMGatewayPort,
+			},
 		},
 	}
 }
@@ -50,42 +52,7 @@ func (e *CrushEngine) GetModelEnvVarName() string {
 // Additional provider API keys can be added via engine.env overrides.
 func (e *CrushEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	crushLog.Print("Collecting required secrets for Crush engine")
-	var secrets []string
-
-	// Default: Copilot routing via COPILOT_GITHUB_TOKEN.
-	// When copilot-requests feature is enabled, no secret is needed (uses github.token).
-	if !isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData) {
-		secrets = append(secrets, "COPILOT_GITHUB_TOKEN")
-	}
-
-	// Allow additional provider API keys from engine.env overrides
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		for key := range workflowData.EngineConfig.Env {
-			if strings.HasSuffix(key, "_API_KEY") || strings.HasSuffix(key, "_KEY") {
-				secrets = append(secrets, key)
-			}
-		}
-	}
-
-	// Add common MCP secrets (MCP_GATEWAY_API_KEY if MCP servers present, mcp-scripts secrets)
-	secrets = append(secrets, collectCommonMCPSecrets(workflowData)...)
-
-	// Add GitHub token for GitHub MCP server if present
-	if hasGitHubTool(workflowData.ParsedTools) {
-		crushLog.Print("Adding GITHUB_MCP_SERVER_TOKEN secret")
-		secrets = append(secrets, "GITHUB_MCP_SERVER_TOKEN")
-	}
-
-	// Add HTTP MCP header secret names
-	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.Tools)
-	for varName := range headerSecrets {
-		secrets = append(secrets, varName)
-	}
-	if len(headerSecrets) > 0 {
-		crushLog.Printf("Added %d HTTP MCP header secrets", len(headerSecrets))
-	}
-
-	return secrets
+	return e.GetUniversalRequiredSecretNames(workflowData)
 }
 
 // GetInstallationSteps returns the GitHub Actions steps needed to install Crush CLI
@@ -111,13 +78,8 @@ func (e *CrushEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 // GetSecretValidationStep returns the secret validation step for the Crush engine.
 // Returns an empty step if copilot-requests feature is enabled (uses GitHub Actions token).
 func (e *CrushEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData) {
-		crushLog.Print("Skipping secret validation step: copilot-requests feature enabled, using GitHub Actions token")
-		return GitHubActionStep{}
-	}
-	return BuildDefaultSecretValidationStep(
+	return e.GetUniversalSecretValidationStep(
 		workflowData,
-		[]string{"COPILOT_GITHUB_TOKEN"},
 		"Crush CLI",
 		"https://github.github.com/gh-aw/reference/engines/#crush",
 	)
@@ -209,35 +171,16 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		command = fmt.Sprintf("set -o pipefail\n%s 2>&1 | tee -a %s", crushCommand, logFile)
 	}
 
-	// Environment variables — default to Copilot routing (OpenAI-compatible API).
-	// OPENAI_API_KEY is set from COPILOT_GITHUB_TOKEN (or github.token with copilot-requests).
-	// #nosec G101 -- These are NOT hardcoded credentials. They are GitHub Actions expression templates
-	// that the runtime replaces with actual values.
-	var openaiAPIKey string
-	useCopilotRequests := isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData)
-	if useCopilotRequests {
-		openaiAPIKey = "${{ github.token }}"
-		crushLog.Print("Using GitHub Actions token as OPENAI_API_KEY (copilot-requests feature enabled)")
-	} else {
-		openaiAPIKey = "${{ secrets.COPILOT_GITHUB_TOKEN }}"
-	}
-
 	env := map[string]string{
-		"OPENAI_API_KEY":   openaiAPIKey,
 		"GH_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
 		"NO_PROXY":         "localhost,127.0.0.1",
 	}
+	e.ApplyUniversalProviderEnv(env, workflowData, firewallEnabled)
 
 	// MCP config path
 	if HasMCPServers(workflowData) {
 		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/.crush.json"
-	}
-
-	// LLM gateway base URL override (default Copilot routing via OpenAI-compatible endpoint)
-	if firewallEnabled {
-		env["OPENAI_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d",
-			constants.CrushLLMGatewayPort)
 	}
 
 	// Safe outputs env

@@ -291,6 +291,7 @@ type GitHubReposScope any // string or []any (YAML-parsed arrays are []any)
 type GitHubToolConfig struct {
 	Allowed     GitHubAllowedTools `yaml:"allowed,omitempty"`
 	Mode        string             `yaml:"mode,omitempty"`
+	Type        string             `yaml:"type,omitempty"`
 	Version     string             `yaml:"version,omitempty"`
 	Args        []string           `yaml:"args,omitempty"`
 	ReadOnly    bool               `yaml:"read-only,omitempty"`

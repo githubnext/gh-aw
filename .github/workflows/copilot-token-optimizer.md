@@ -13,6 +13,7 @@ tracker-id: copilot-token-optimizer
 engine: copilot
 tools:
   github:
+    mode: gh-proxy
     toolsets: [issues]
   bash:
     - "*"
@@ -34,7 +35,6 @@ imports:
   - shared/reporting.md
 features:
   mcp-cli: true
-  cli-proxy: true
 steps:
   - name: Download recent Copilot workflow logs
     env:
@@ -114,6 +114,7 @@ steps:
         echo "ℹ️ No previous optimization history found."
       fi
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Copilot Token Usage Optimizer

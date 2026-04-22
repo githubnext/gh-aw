@@ -14,6 +14,7 @@ engine: copilot
 tools:
   mount-as-clis: true
   github:
+    mode: gh-proxy
     toolsets: [issues, pull_requests]
   edit:
 safe-outputs:
@@ -28,7 +29,6 @@ imports:
   - shared/reporting.md
 features:
   mcp-cli: true
-  cli-proxy: true
   copilot-requests: true
 ---
 

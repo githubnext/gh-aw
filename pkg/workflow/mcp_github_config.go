@@ -90,13 +90,69 @@ func hasGitHubApp(githubTool any) bool {
 	return false
 }
 
-// getGitHubType extracts the mode from GitHub tool configuration (local or remote)
+// isGitHubCLIModeEnabled returns true when GitHub prompt/runtime mode is explicitly set
+// to `tools.github.mode: gh-proxy`. If mode is explicitly set to `local` or `remote`, it
+// takes precedence over the legacy features.cli-proxy flag (treated as MCP mode).
+// When mode is not explicitly set, this returns the legacy `features.cli-proxy` flag
+// value for backward compatibility.
+func isGitHubCLIModeEnabled(data *WorkflowData) bool {
+	if data == nil {
+		return false
+	}
+	githubTool, hasGitHub := data.Tools["github"]
+	if hasGitHub && githubTool == false {
+		return false
+	}
+	if hasGitHub {
+		if toolConfig, ok := githubTool.(map[string]any); ok {
+			if modeSetting, exists := toolConfig["mode"]; exists {
+				if stringValue, ok := modeSetting.(string); ok {
+					switch modeValue := strings.ToLower(strings.TrimSpace(stringValue)); modeValue {
+					case "gh-proxy", "cli":
+						return true
+					case "local", "remote":
+						return false
+					default:
+						githubConfigLog.Printf("Unrecognized tools.github.mode value: %s, falling back to legacy behavior", modeValue)
+					}
+				}
+			}
+		}
+	}
+	return isFeatureEnabled(constants.CliProxyFeatureFlag, data)
+}
+
+// normalizeGitHubType normalizes and validates GitHub MCP transport values.
+// Supported values are `local` and `remote`.
+func normalizeGitHubType(value string) (string, bool) {
+	normalizedValue := strings.ToLower(strings.TrimSpace(value))
+	switch normalizedValue {
+	case "local", "remote":
+		return normalizedValue, true
+	default:
+		return "", false
+	}
+}
+
+// getGitHubType extracts the MCP transport type from GitHub tool configuration
+// (local or remote). Supports both `type` (preferred) and legacy `mode` values.
 func getGitHubType(githubTool any) string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if typeSetting, exists := toolConfig["type"]; exists {
+			if stringValue, ok := typeSetting.(string); ok {
+				if normalizedValue, valid := normalizeGitHubType(stringValue); valid {
+					githubConfigLog.Printf("GitHub MCP type set explicitly: %s", normalizedValue)
+					return normalizedValue
+				}
+				githubConfigLog.Printf("Unrecognized tools.github.type value: %q, falling back to default", stringValue)
+			}
+		}
 		if modeSetting, exists := toolConfig["mode"]; exists {
 			if stringValue, ok := modeSetting.(string); ok {
-				githubConfigLog.Printf("GitHub MCP mode set explicitly: %s", stringValue)
-				return stringValue
+				if normalizedValue, valid := normalizeGitHubType(stringValue); valid {
+					githubConfigLog.Printf("GitHub MCP type read from legacy mode field: %s", normalizedValue)
+					return normalizedValue
+				}
 			}
 		}
 	}

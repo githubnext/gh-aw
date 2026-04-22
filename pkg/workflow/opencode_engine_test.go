@@ -55,6 +55,9 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 	t.Run("firewall sets OpenCode gateway base URL", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Model: "copilot/gpt-5",
+			},
 			NetworkPermissions: &NetworkPermissions{
 				Allowed: []string{"defaults"},
 				Firewall: &FirewallConfig{
@@ -66,6 +69,32 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 		require.Len(t, steps, 2, "Should generate config step and execution step")
 		execContent := strings.Join(steps[1], "\n")
-		assert.Contains(t, execContent, "OPENAI_BASE_URL: http://host.docker.internal:10004", "Should route through OpenCode LLM gateway port")
+		assert.Contains(t, execContent, "GITHUB_COPILOT_BASE_URL: http://host.docker.internal:10002", "Should route through Copilot LLM gateway port for copilot/* models")
+	})
+}
+
+func TestOpenCodeEngineProviderProfiles(t *testing.T) {
+	engine := NewOpenCodeEngine()
+
+	t.Run("anthropic model uses anthropic secret", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			EngineConfig: &EngineConfig{Model: "anthropic/claude-sonnet-4"},
+			ParsedTools:  &ToolsConfig{},
+			Tools:        map[string]any{},
+		}
+		secrets := engine.GetRequiredSecretNames(workflowData)
+		assert.Contains(t, secrets, "ANTHROPIC_API_KEY", "Should require ANTHROPIC_API_KEY for anthropic/* models")
+		assert.NotContains(t, secrets, "COPILOT_GITHUB_TOKEN", "Should not require COPILOT_GITHUB_TOKEN for anthropic/* models")
+	})
+
+	t.Run("openai model uses codex/openai secrets", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			EngineConfig: &EngineConfig{Model: "openai/gpt-4.1"},
+			ParsedTools:  &ToolsConfig{},
+			Tools:        map[string]any{},
+		}
+		secrets := engine.GetRequiredSecretNames(workflowData)
+		assert.Contains(t, secrets, "CODEX_API_KEY", "Should require CODEX_API_KEY for openai/* models")
+		assert.Contains(t, secrets, "OPENAI_API_KEY", "Should require OPENAI_API_KEY for openai/* models")
 	})
 }

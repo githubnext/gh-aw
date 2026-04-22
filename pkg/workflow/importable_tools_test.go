@@ -1002,3 +1002,60 @@ This workflow explicitly opts out of GitHub MCP tools.
 		}
 	}
 }
+
+// TestGitHubModeTopLevelOverridesImport verifies that tools.github.mode in the main
+// workflow overrides imported tools.github.mode values.
+func TestGitHubModeTopLevelOverridesImport(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	sharedPath := filepath.Join(tempDir, "shared.md")
+	sharedContent := `---
+tools:
+  github:
+    mode: gh-proxy
+---
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	workflowPath := filepath.Join(tempDir, "main.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+strict: false
+permissions:
+  contents: read
+  issues: read
+tools:
+  github:
+    mode: local
+imports:
+  - shared.md
+---
+
+# Main
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+	if strings.Contains(workflowData, "cli_proxy_prompt.md") {
+		t.Error("Expected top-level mode:local to win over imported mode:gh-proxy (cli_proxy_prompt.md should not be present)")
+	}
+	if !strings.Contains(workflowData, "github_mcp_tools_prompt.md") {
+		t.Error("Expected GitHub MCP prompt guidance when top-level mode is local")
+	}
+}

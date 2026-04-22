@@ -48,6 +48,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/goccy/go-yaml"
@@ -149,6 +150,25 @@ func (c *Compiler) validateMaxContinuationsSupport(frontmatter map[string]any, e
 	if !engine.SupportsMaxContinuations() {
 		agentValidationLog.Printf("Engine %s does not support max-continuations feature", engine.GetID())
 		return fmt.Errorf("max-continuations not supported: engine '%s' does not support the max-continuations feature", engine.GetID())
+	}
+
+	return nil
+}
+
+// validateUniversalLLMConsumerModel validates that universal consumer engines
+// (OpenCode/Crush) declare a provider-qualified engine.model.
+func (c *Compiler) validateUniversalLLMConsumerModel(frontmatter map[string]any, engine CodingAgentEngine) error {
+	if engine.GetID() != "opencode" && engine.GetID() != "crush" {
+		return nil
+	}
+
+	_, engineConfig := c.ExtractEngineConfig(frontmatter)
+	if engineConfig == nil || strings.TrimSpace(engineConfig.Model) == "" {
+		return fmt.Errorf("engine.model is required for engine '%s' and must use provider/model format (for example: copilot/gpt-5, anthropic/claude-sonnet-4, openai/gpt-4.1)", engine.GetID())
+	}
+
+	if _, err := resolveUniversalLLMBackendFromModel(engineConfig.Model); err != nil {
+		return fmt.Errorf("invalid engine.model for engine '%s': %w", engine.GetID(), err)
 	}
 
 	return nil

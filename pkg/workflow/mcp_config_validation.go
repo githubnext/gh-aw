@@ -156,29 +156,30 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 
 	// List of all known tool config fields (not just MCP)
 	knownToolFields := map[string]bool{
-		"type":           true,
-		"url":            true,
-		"command":        true,
-		"container":      true,
-		"env":            true,
-		"headers":        true,
-		"auth":           true, // upstream OIDC authentication (HTTP servers only)
-		"version":        true,
-		"args":           true,
-		"entrypoint":     true,
-		"entrypointArgs": true,
-		"mounts":         true,
-		"proxy-args":     true,
-		"registry":       true,
-		"allowed":        true,
-		"mode":           true, // for github tool
-		"github-token":   true, // for github tool
-		"read-only":      true, // for github tool
-		"toolsets":       true, // for github tool
-		"id":             true, // for cache-memory (array notation)
-		"key":            true, // for cache-memory
-		"description":    true, // for cache-memory
-		"retention-days": true, // for cache-memory
+		"type":            true,
+		"url":             true,
+		"command":         true,
+		"container":       true,
+		"env":             true,
+		"headers":         true,
+		"auth":            true, // upstream OIDC authentication (HTTP servers only)
+		"version":         true,
+		"args":            true,
+		"entrypoint":      true,
+		"entrypointArgs":  true,
+		"mounts":          true,
+		"proxy-args":      true,
+		"registry":        true,
+		"allowed":         true,
+		"mode":            true, // for github tool: prompt/runtime mode (cli) or legacy MCP transport (local/remote)
+		"github-token":    true, // for github tool
+		"read-only":       true, // for github tool
+		"toolsets":        true, // for github tool
+		"integrity-proxy": true, // for github tool
+		"id":              true, // for cache-memory (array notation)
+		"key":             true, // for cache-memory
+		"description":     true, // for cache-memory
+		"retention-days":  true, // for cache-memory
 	}
 
 	// Check new format: direct fields in tool config
