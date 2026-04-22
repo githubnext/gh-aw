@@ -185,13 +185,13 @@ func workflowFilesForExistingLocks(workflowsDir string) ([]string, error) {
 		return nil, fmt.Errorf("failed to read workflows directory %s: %w", workflowsDir, err)
 	}
 
-	lockFiles := make(map[string]bool, len(entries))
+	lockFiles := make(map[string]struct{}, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".lock.yml") {
 			continue
 		}
 		base := strings.TrimSuffix(entry.Name(), ".lock.yml")
-		lockFiles[base] = true
+		lockFiles[base] = struct{}{}
 	}
 
 	workflowFiles := make([]string, 0, len(lockFiles))
@@ -200,7 +200,7 @@ func workflowFilesForExistingLocks(workflowsDir string) ([]string, error) {
 			continue
 		}
 		base := strings.TrimSuffix(entry.Name(), ".md")
-		if lockFiles[base] {
+		if _, ok := lockFiles[base]; ok {
 			workflowFiles = append(workflowFiles, filepath.Join(workflowsDir, entry.Name()))
 		}
 	}
