@@ -384,7 +384,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "create-project requires organization-projects write",
+			name: "create-project requires organization-projects write and issues read",
 			safeOutputs: &SafeOutputsConfig{
 				CreateProjects: &CreateProjectsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
@@ -393,6 +393,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			expected: map[PermissionScope]PermissionLevel{
 				PermissionContents:         PermissionRead,
 				PermissionOrganizationProj: PermissionWrite,
+				PermissionIssues:           PermissionRead,
 			},
 		},
 		{
