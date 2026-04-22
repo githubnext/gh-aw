@@ -92,7 +92,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 		envValue    string
 		frontmatter map[string]any
 		engineID    string
-		ai          string
+		workflowAI  string
 		flag        constants.FeatureFlag
 		expected    bool
 		description string
@@ -192,7 +192,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 			envValue:    "",
 			frontmatter: map[string]any{},
 			engineID:    "",
-			ai:          string(constants.CopilotEngine),
+			workflowAI:  string(constants.CopilotEngine),
 			flag:        constants.CliProxyFeatureFlag,
 			expected:    true,
 			description: "copilot default should apply when workflowData.AI is set and engine config is nil",
@@ -210,7 +210,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 			if tt.frontmatter != nil {
 				workflowData = &WorkflowData{
 					Features: tt.frontmatter,
-					AI:       tt.ai,
+					AI:       tt.workflowAI,
 				}
 				if tt.engineID != "" {
 					workflowData.EngineConfig = &EngineConfig{
