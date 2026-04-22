@@ -109,7 +109,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 }
 
 func TestCopilotInstallerCustomVersion(t *testing.T) {
-	// Test that pinned version from engine config is ignored in favor of latest
+	// Test that pinned version from engine config is ignored in favor of default pinned version
 	engine := NewCopilotEngine()
 
 	customVersion := "1.0.0"
@@ -125,8 +125,8 @@ func TestCopilotInstallerCustomVersion(t *testing.T) {
 
 	steps := engine.GetInstallationSteps(workflowData)
 
-	if workflowData.EngineConfig.Version != "latest" {
-		t.Fatalf("Expected engine config version to be normalized to latest, got: %q", workflowData.EngineConfig.Version)
+	if workflowData.EngineConfig.Version != string(constants.DefaultCopilotVersion) {
+		t.Fatalf("Expected engine config version to be normalized to default Copilot version %q, got: %q", constants.DefaultCopilotVersion, workflowData.EngineConfig.Version)
 	}
 
 	// Find the install step
@@ -143,9 +143,9 @@ func TestCopilotInstallerCustomVersion(t *testing.T) {
 		t.Fatal("Could not find install step with install_copilot_cli.sh")
 	}
 
-	// Should contain latest (default BYOK behavior)
-	if !strings.Contains(installStep, `install_copilot_cli.sh" latest`) {
-		t.Errorf("Expected latest Copilot version in install step, got:\n%s", installStep)
+	// Should contain default pinned version
+	if !strings.Contains(installStep, `install_copilot_cli.sh" `+string(constants.DefaultCopilotVersion)) {
+		t.Errorf("Expected default Copilot version in install step, got:\n%s", installStep)
 	}
 	if strings.Contains(installStep, `install_copilot_cli.sh" `+customVersion) {
 		t.Errorf("Expected pinned version to be ignored, got:\n%s", installStep)
@@ -213,7 +213,7 @@ func TestGenerateCopilotInstallerSteps_ExpressionVersion(t *testing.T) {
 }
 
 func TestCopilotInstallerExpressionVersion_ViaEngineConfig(t *testing.T) {
-	// Test that expression version from engine config is ignored in favor of latest
+	// Test that expression version from engine config is ignored in favor of default pinned version
 	engine := NewCopilotEngine()
 
 	expressionVersion := "${{ inputs.engine-version }}"
@@ -226,8 +226,8 @@ func TestCopilotInstallerExpressionVersion_ViaEngineConfig(t *testing.T) {
 
 	steps := engine.GetInstallationSteps(workflowData)
 
-	if workflowData.EngineConfig.Version != "latest" {
-		t.Fatalf("Expected engine config version to be normalized to latest, got: %q", workflowData.EngineConfig.Version)
+	if workflowData.EngineConfig.Version != string(constants.DefaultCopilotVersion) {
+		t.Fatalf("Expected engine config version to be normalized to default Copilot version %q, got: %q", constants.DefaultCopilotVersion, workflowData.EngineConfig.Version)
 	}
 
 	// Find the install step
@@ -249,13 +249,13 @@ func TestCopilotInstallerExpressionVersion_ViaEngineConfig(t *testing.T) {
 		t.Errorf("Expected expression version to be ignored, got:\n%s", installStep)
 	}
 
-	// Should install latest
-	if !strings.Contains(installStep, `install_copilot_cli.sh" latest`) {
-		t.Errorf("Expected latest Copilot version in install step, got:\n%s", installStep)
+	// Should install default pinned version
+	if !strings.Contains(installStep, `install_copilot_cli.sh" `+string(constants.DefaultCopilotVersion)) {
+		t.Errorf("Expected default Copilot version in install step, got:\n%s", installStep)
 	}
 }
 
-func TestCopilotInstallerByokFeatureStillUsesLatestVersion(t *testing.T) {
+func TestCopilotInstallerByokFeatureStillUsesDefaultPinnedVersion(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -282,8 +282,8 @@ func TestCopilotInstallerByokFeatureStillUsesLatestVersion(t *testing.T) {
 		t.Fatal("Could not find install step with install_copilot_cli.sh")
 	}
 
-	if !strings.Contains(installStep, `install_copilot_cli.sh" latest`) {
-		t.Errorf("Expected latest Copilot CLI install, got:\n%s", installStep)
+	if !strings.Contains(installStep, `install_copilot_cli.sh" `+string(constants.DefaultCopilotVersion)) {
+		t.Errorf("Expected default pinned Copilot CLI install, got:\n%s", installStep)
 	}
 	if strings.Contains(installStep, `install_copilot_cli.sh" 1.0.0`) {
 		t.Errorf("Expected pinned version to be ignored, got:\n%s", installStep)
