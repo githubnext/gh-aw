@@ -79,16 +79,16 @@ func findFrontmatterFieldValuePosition(frontmatterLines []string, frontmatterSta
 				return docLine, 1
 			}
 
-			valueColumn := colonIndex + 2 // 1-based column right after ':'
-			for valueColumn <= len(line) && line[valueColumn-1] == ' ' {
-				valueColumn++
+			valueStart := colonIndex + 1 // 0-based index right after ':'
+			for valueStart < len(line) && line[valueStart] == ' ' {
+				valueStart++
 			}
-			if valueColumn > len(line) {
+			if valueStart >= len(line) {
 				// No value present - point at the key/value separator.
-				valueColumn = colonIndex + 1
+				return docLine, colonIndex + 1
 			}
 
-			return docLine, valueColumn
+			return docLine, valueStart + 1 // convert to 1-based column
 		}
 	}
 	return 0, 0
@@ -121,7 +121,12 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 					messageSection = strings.TrimSpace(parsedErrorBody[:loc[0]])
 				}
 
-				headerLine, trailingGuidance, _ := strings.Cut(messageSection, "\n")
+				headerLine := messageSection
+				trailingGuidance := ""
+				if firstLine, remainder, foundNewline := strings.Cut(messageSection, "\n"); foundNewline {
+					headerLine = firstLine
+					trailingGuidance = remainder
+				}
 				if headerMatches := lineColPattern.FindStringSubmatch(headerLine); len(headerMatches) >= 4 {
 					message = headerMatches[3]
 				} else {
