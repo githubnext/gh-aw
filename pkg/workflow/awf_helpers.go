@@ -272,8 +272,9 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Skipping --allow-host-ports: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAllowHostPortsMinVersion)
 	}
 
-	// Pin AWF Docker image version to match the installed binary version
-	awfImageTag := getAWFImageTag(firewallConfig)
+	// Pin AWF Docker image version to match the installed binary version and include
+	// digest metadata when available so AWF uses immutable image references.
+	awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
 	awfArgs = append(awfArgs, "--image-tag", awfImageTag)
 	awfHelpersLog.Printf("Pinned AWF image tag to %s", awfImageTag)
 
@@ -392,6 +393,59 @@ func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 
 	awfHelpersLog.Print("Using standard AWF command")
 	return string(constants.AWFDefaultCommand)
+}
+
+// buildAWFImageTagWithDigests returns an image tag value for AWF's --image-tag flag.
+// When known firewall container digests are available, it appends AWF's digest
+// metadata format:
+//
+//	<tag>,squid=sha256:...,agent=sha256:...,api-proxy=sha256:...,cli-proxy=sha256:...
+//
+// This keeps AWF sidecar configuration aligned with digest-pinned pre-download images.
+func buildAWFImageTagWithDigests(imageTag string, workflowData *WorkflowData) string {
+	if imageTag == "" {
+		return imageTag
+	}
+
+	type digestSpec struct {
+		name  string
+		image string
+	}
+	specs := []digestSpec{
+		{name: "squid", image: constants.DefaultFirewallRegistry + "/squid:" + imageTag},
+		{name: "agent", image: constants.DefaultFirewallRegistry + "/agent:" + imageTag},
+		{name: "agent-act", image: constants.DefaultFirewallRegistry + "/agent-act:" + imageTag},
+		{name: "api-proxy", image: constants.DefaultFirewallRegistry + "/api-proxy:" + imageTag},
+		{name: "cli-proxy", image: constants.DefaultFirewallRegistry + "/cli-proxy:" + imageTag},
+	}
+
+	parts := []string{imageTag}
+	for _, spec := range specs {
+		digest := resolveContainerDigest(spec.image, workflowData)
+		if digest == "" {
+			continue
+		}
+		parts = append(parts, spec.name+"="+digest)
+	}
+
+	if len(parts) == 1 {
+		return imageTag
+	}
+	return strings.Join(parts, ",")
+}
+
+// resolveContainerDigest resolves a container image digest from cache first, then
+// falls back to embedded container pins.
+func resolveContainerDigest(image string, workflowData *WorkflowData) string {
+	if workflowData != nil && workflowData.ActionCache != nil {
+		if pin, ok := workflowData.ActionCache.GetContainerPin(image); ok && pin.Digest != "" {
+			return pin.Digest
+		}
+	}
+	if embeddedPin, ok := getEmbeddedContainerPin(image); ok && embeddedPin.Digest != "" {
+		return embeddedPin.Digest
+	}
+	return ""
 }
 
 // WrapCommandInShell wraps an engine command in a shell invocation for AWF execution.
