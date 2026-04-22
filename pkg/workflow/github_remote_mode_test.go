@@ -361,6 +361,18 @@ func TestGitHubRemoteModeHelperFunctions(t *testing.T) {
 		}
 	})
 
+	t.Run("getGitHubType normalizes explicit local type", func(t *testing.T) {
+		githubTool := map[string]any{
+			"type":    " LoCaL ",
+			"allowed": []string{"list_issues"},
+		}
+
+		githubType := getGitHubType(githubTool)
+		if githubType != "local" {
+			t.Errorf("Expected normalized type 'local', got '%s'", githubType)
+		}
+	})
+
 	t.Run("getGitHubType falls back to local for invalid type and mode", func(t *testing.T) {
 		githubTool := map[string]any{
 			"type":    "invalid",

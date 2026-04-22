@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGitHubModeGHProxyWorkflowFile(t *testing.T) {
+func TestGitHubProxyModeIntegration(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "github-mode-gh-proxy-workflow-file-test")
 	workflowFile := "../cli/workflows/test-copilot-gh-proxy.md"
 
@@ -22,7 +22,8 @@ func TestGitHubModeGHProxyWorkflowFile(t *testing.T) {
 
 	baseName := filepath.Base(workflowFile)
 	mdDst := filepath.Join(tmpDir, baseName)
-	require.NoError(t, os.WriteFile(mdDst, src, 0o600))
+	require.NoError(t, os.WriteFile(mdDst, src, 0o600),
+		"Failed to write workflow file to temporary directory")
 
 	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(mdDst)
