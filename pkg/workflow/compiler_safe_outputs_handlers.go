@@ -429,6 +429,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("labels", c.Labels).
 			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
 			AddIfTrue("ignore_missing_branch_failure", c.IgnoreMissingBranchFailure).
+			AddBoolPtr("check_branch_protection", c.CheckBranchProtection).
 			AddIfNotEmpty("commit_title_suffix", c.CommitTitleSuffix).
 			AddDefault("max_patch_size", maxPatchSize).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).

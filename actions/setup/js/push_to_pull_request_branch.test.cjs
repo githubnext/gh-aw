@@ -617,6 +617,20 @@ index 0000000..abc1234
       // Should not attempt any git operations
       expect(mockExec.exec).not.toHaveBeenCalled();
     });
+
+    it("should skip branch protection API check when check_branch_protection is false", async () => {
+      mockGithub.rest.repos.getBranchProtection.mockRejectedValue(Object.assign(new Error("Internal Server Error"), { status: 500 }));
+      const patchPath = createPatchFile();
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const module = await loadModule();
+      const handler = await module.main({ check_branch_protection: false });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.repos.getBranchProtection).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Branch protection pre-flight check disabled"));
+    });
   });
 
   // ──────────────────────────────────────────────────────

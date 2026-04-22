@@ -192,6 +192,51 @@ safe-outputs:
 	}
 }
 
+func TestPushToPullRequestBranchCheckBranchProtectionDisabled(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    check-branch-protection: false
+---
+
+# Test Push to PR Branch Branch-Protection Check Disabled
+`
+
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-check-protection-disabled.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	pushConfig := extractPushToPullRequestBranchHandlerConfig(t, lockContent)
+	checkBranchProtection, exists := pushConfig["check_branch_protection"]
+	if !exists {
+		t.Fatalf("Expected check_branch_protection in handler config when check-branch-protection is explicitly set")
+	}
+	checkBranchProtectionBool, isBool := checkBranchProtection.(bool)
+	if !isBool {
+		t.Fatalf("Expected check_branch_protection to be a bool, got %#v", checkBranchProtection)
+	}
+	if checkBranchProtectionBool {
+		t.Fatalf("Expected check_branch_protection=false, got true")
+	}
+}
+
 func TestPushToPullRequestBranchFallbackAsPullRequestDisabled(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 

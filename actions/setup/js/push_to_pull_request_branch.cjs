@@ -56,6 +56,7 @@ async function main(config = {}) {
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const ifNoChanges = config.if_no_changes || "warn";
   const ignoreMissingBranchFailure = config.ignore_missing_branch_failure === true;
+  const checkBranchProtection = config.check_branch_protection !== false;
   const fallbackAsPullRequest = config.fallback_as_pull_request !== false;
   const commitTitleSuffix = config.commit_title_suffix || "";
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
@@ -92,6 +93,7 @@ async function main(config = {}) {
   }
   core.info(`If no changes: ${ifNoChanges}`);
   core.info(`Ignore missing branch failure: ${ignoreMissingBranchFailure}`);
+  core.info(`Check branch protection: ${checkBranchProtection}`);
   core.info(`Fallback as pull request: ${fallbackAsPullRequest}`);
   if (commitTitleSuffix) {
     core.info(`Commit title suffix: ${commitTitleSuffix}`);
@@ -373,39 +375,43 @@ async function main(config = {}) {
         return { success: false, error: msg };
       }
 
-      // Check whether the branch has protection rules
-      let isBranchProtected = false;
-      try {
-        await githubClient.rest.repos.getBranchProtection({
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          branch: branchName,
-        });
-        // Successful response means branch protection rules exist
-        isBranchProtected = true;
-      } catch (protectionError) {
-        const protectionStatus = protectionError && typeof protectionError === "object" && "status" in protectionError ? protectionError.status : undefined;
-        if (protectionStatus === 404) {
-          // 404 means no protection rules – safe to proceed
-          core.info(`Branch "${branchName}" has no protection rules`);
-        } else if (protectionStatus === 403) {
-          // 403 means the token lacks permission to read branch protection rules.
-          // The GitHub platform will still enforce branch protection at push time,
-          // so warn and allow the push to proceed.
-          core.warning(`Could not check branch protection rules for "${branchName}" (insufficient permissions): ${getErrorMessage(protectionError)}`);
-        } else {
-          // Unexpected errors (5xx, network failures, etc.) – fail closed to
-          // avoid bypassing branch protection due to transient API issues.
-          const msg = `Cannot verify branch protection rules for "${branchName}": ${getErrorMessage(protectionError)}. Push blocked to prevent accidental writes to protected branches.`;
+      if (checkBranchProtection) {
+        // Check whether the branch has protection rules
+        let isBranchProtected = false;
+        try {
+          await githubClient.rest.repos.getBranchProtection({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            branch: branchName,
+          });
+          // Successful response means branch protection rules exist
+          isBranchProtected = true;
+        } catch (protectionError) {
+          const protectionStatus = protectionError && typeof protectionError === "object" && "status" in protectionError ? protectionError.status : undefined;
+          if (protectionStatus === 404) {
+            // 404 means no protection rules – safe to proceed
+            core.info(`Branch "${branchName}" has no protection rules`);
+          } else if (protectionStatus === 403) {
+            // 403 means the token lacks permission to read branch protection rules.
+            // The GitHub platform will still enforce branch protection at push time,
+            // so warn and allow the push to proceed.
+            core.warning(`Could not check branch protection rules for "${branchName}" (insufficient permissions): ${getErrorMessage(protectionError)}`);
+          } else {
+            // Unexpected errors (5xx, network failures, etc.) – fail closed to
+            // avoid bypassing branch protection due to transient API issues.
+            const msg = `Cannot verify branch protection rules for "${branchName}": ${getErrorMessage(protectionError)}. Push blocked to prevent accidental writes to protected branches.`;
+            core.error(msg);
+            return { success: false, error: msg };
+          }
+        }
+
+        if (isBranchProtected) {
+          const msg = `Cannot push to branch "${branchName}": this branch has protection rules. Agents must not push directly to protected branches.`;
           core.error(msg);
           return { success: false, error: msg };
         }
-      }
-
-      if (isBranchProtected) {
-        const msg = `Cannot push to branch "${branchName}": this branch has protection rules. Agents must not push directly to protected branches.`;
-        core.error(msg);
-        return { success: false, error: msg };
+      } else {
+        core.info(`Branch protection pre-flight check disabled for "${branchName}" by config (check-branch-protection: false)`);
       }
     }
 

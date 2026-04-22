@@ -7106,6 +7106,11 @@
                   "description": "When true, treat deleted/missing pull request branch errors as a skipped push instead of a hard failure. Useful when the PR branch may be deleted before safe outputs run.",
                   "default": false
                 },
+                "check-branch-protection": {
+                  "type": "boolean",
+                  "description": "When true (default), perform a pre-flight branch protection API check before pushing. Set to false to skip the API check (for example, when the token does not have administration:read); GitHub still enforces protection at push time.",
+                  "default": true
+                },
                 "commit-title-suffix": {
                   "type": "string",
                   "description": "Optional suffix to append to generated commit titles (e.g., ' [skip ci]' to prevent triggering CI on the commit)"
