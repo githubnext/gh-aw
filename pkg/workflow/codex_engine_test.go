@@ -368,6 +368,15 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 	})
 }
 
+func TestCodexEngineOpenAIProxyProviderBaseURL(t *testing.T) {
+	engine := NewCodexEngine()
+	expected := fmt.Sprintf("http://%s:%d", constants.AWFAPIProxyContainerIP, constants.ClaudeLLMGatewayPort)
+
+	if actual := engine.getOpenAIProxyProviderBaseURL(); actual != expected {
+		t.Errorf("Expected OpenAI proxy provider base URL %q, got %q", expected, actual)
+	}
+}
+
 func TestCodexEngineExecutionAddsMountedMCPCLIPathSetup(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{
