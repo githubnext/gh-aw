@@ -6,6 +6,7 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
 describe("handle_agent_failure", () => {
+  let main;
   let buildCodePushFailureContext;
   let buildPushRepoMemoryFailureContext;
   let getActionFailureIssueExpiresHours;
@@ -25,7 +26,7 @@ describe("handle_agent_failure", () => {
 
     // Reset module registry so each test gets a fresh require
     vi.resetModules();
-    ({ buildCodePushFailureContext, buildPushRepoMemoryFailureContext, getActionFailureIssueExpiresHours } = require("./handle_agent_failure.cjs"));
+    ({ main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, getActionFailureIssueExpiresHours } = require("./handle_agent_failure.cjs"));
   });
 
   afterEach(() => {
@@ -51,6 +52,128 @@ describe("handle_agent_failure", () => {
       expect(getActionFailureIssueExpiresHours()).toBe(168);
       process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = "invalid";
       expect(getActionFailureIssueExpiresHours()).toBe(168);
+    });
+  });
+
+  describe("detection caution placement in main()", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+    /** @type {string} */
+    let promptsDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-handle-agent-failure-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+
+      // Minimal templates used by main()
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_comment.md"), "COMMENT TEMPLATE CONTENT");
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), "ISSUE TEMPLATE CONTENT");
+
+      process.env.RUNNER_TEMP = tmpDir;
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123456";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      process.env.GH_AW_DETECTION_REASON = "threat_detected";
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      delete process.env.GH_AW_WORKFLOW_NAME;
+      delete process.env.GH_AW_WORKFLOW_ID;
+      delete process.env.GH_AW_RUN_URL;
+      delete process.env.GH_AW_AGENT_CONCLUSION;
+      delete process.env.GH_AW_DETECTION_CONCLUSION;
+      delete process.env.GH_AW_DETECTION_REASON;
+
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("prepends caution callout to existing-issue comment body and includes it only once", async () => {
+      /** @type {string} */
+      let capturedCommentBody = "";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return {
+                data: {
+                  total_count: 1,
+                  items: [{ number: 42, html_url: "https://github.com/owner/repo/issues/42" }],
+                },
+              };
+            }),
+          },
+          issues: {
+            createComment: vi.fn(async ({ body }) => {
+              capturedCommentBody = body;
+              return { data: { id: 1001 } };
+            }),
+          },
+          pulls: {
+            get: vi.fn(),
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(capturedCommentBody).toBeTruthy();
+      expect(capturedCommentBody.startsWith("> [!CAUTION]")).toBe(true);
+      expect(capturedCommentBody.indexOf("> [!CAUTION]")).toBeLessThan(capturedCommentBody.indexOf("COMMENT TEMPLATE CONTENT"));
+      expect((capturedCommentBody.match(/> \[!CAUTION\]/g) || []).length).toBe(1);
+      expect(capturedCommentBody).toContain("> Generated from [Test Workflow]");
+    });
+
+    it("prepends caution callout to new issue body and includes it only once", async () => {
+      /** @type {string} */
+      let capturedIssueBody = "";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return { data: { total_count: 0, items: [] } };
+            }),
+          },
+          issues: {
+            create: vi.fn(async ({ body }) => {
+              capturedIssueBody = body;
+              return {
+                data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
+              };
+            }),
+          },
+          pulls: {
+            get: vi.fn(),
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(capturedIssueBody).toBeTruthy();
+      expect(capturedIssueBody.startsWith("> [!CAUTION]")).toBe(true);
+      expect(capturedIssueBody.indexOf("> [!CAUTION]")).toBeLessThan(capturedIssueBody.indexOf("ISSUE TEMPLATE CONTENT"));
+      expect((capturedIssueBody.match(/> \[!CAUTION\]/g) || []).length).toBe(1);
+      expect(capturedIssueBody).toContain("> Generated from [Test Workflow]");
     });
   });
 
