@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 import { createHandlers } from "./safe_outputs_handlers.cjs";
 
 // Mock the global objects that GitHub Actions provides
@@ -635,6 +636,36 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.details).toContain("git add");
       expect(responseData.details).toContain("git commit");
       expect(responseData.details).toContain("push_to_pull_request_branch");
+    });
+
+    it("should detect branch from the checked out target repo when repo is provided", async () => {
+      const targetRepoDir = path.join(testWorkspaceDir, "target-repo");
+      fs.mkdirSync(targetRepoDir, { recursive: true });
+
+      execSync("git init -b main", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@example.com'", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test User'", { cwd: targetRepoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(targetRepoDir, "README.md"), "base\n");
+      execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'base commit'", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git checkout -b feature/test-change", { cwd: targetRepoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(targetRepoDir, "README.md"), "feature\n");
+      execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'feature commit'", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git remote add origin https://github.com/test-owner/test-repo.git", { cwd: targetRepoDir, stdio: "pipe" });
+
+      process.env.GITHUB_BASE_REF = "main";
+      try {
+        const result = await handlers.pushToPullRequestBranchHandler({
+          branch: "main",
+          repo: "test-owner/test-repo",
+        });
+
+        expect(result.isError).toBe(true);
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("detecting actual working branch: feature/test-change"));
+      } finally {
+        delete process.env.GITHUB_BASE_REF;
+      }
     });
   });
 
