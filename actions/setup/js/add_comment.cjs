@@ -35,6 +35,12 @@ const HANDLER_TYPE = "add_comment";
  * Supports:
  * - workflow_dispatch with event_name/event_payload inputs (via resolveInvocationContext)
  * - workflow_call/workflow_dispatch with aw_context input fallback
+ *
+ * Precedence:
+ * 1) Start with the raw GitHub Actions context
+ * 2) Apply resolveInvocationContext normalization/overrides
+ * 3) Apply aw_context fallback only for relayed pull_request_review_comment metadata
+ *    (this intentionally overrides event name/payload identifiers when present)
  * @param {any} rawContext
  * @returns {{ eventName: string, payload: any }}
  */
@@ -55,7 +61,8 @@ function resolveEffectiveEventContext(rawContext) {
   }
 
   // For workflow_call (and workflow_dispatch relay cases), aw_context can carry
-  // the original event type/item/comment identifiers.
+  // the original event type/item/comment identifiers. This runs after
+  // resolveInvocationContext on purpose so aw_context can act as the final fallback.
   const awContextRaw = rawContext?.payload?.inputs?.aw_context;
   if (typeof awContextRaw === "string" && awContextRaw.trim() !== "") {
     try {
