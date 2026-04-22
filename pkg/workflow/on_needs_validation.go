@@ -22,6 +22,10 @@ func (c *Compiler) validateOnNeeds(data *WorkflowData) error {
 		return err
 	}
 
+	if err := c.validateOnNeedsDependencyChains(data); err != nil {
+		return err
+	}
+
 	if err := c.validateOnGitHubAppNeedsExpressions(data); err != nil {
 		return err
 	}
@@ -87,7 +91,7 @@ func (c *Compiler) validateOnGitHubAppNeedsExpressions(data *WorkflowData) error
 	}
 
 	fields := map[string]string{
-		"app-id":      data.ActivationGitHubApp.AppID,
+		"client-id":   data.ActivationGitHubApp.AppID,
 		"private-key": data.ActivationGitHubApp.PrivateKey,
 	}
 
@@ -114,6 +118,101 @@ func (c *Compiler) validateOnGitHubAppNeedsExpressions(data *WorkflowData) error
 		}
 	}
 
+	return nil
+}
+
+func (c *Compiler) validateOnNeedsDependencyChains(data *WorkflowData) error {
+	if data == nil || len(data.OnNeeds) == 0 {
+		return nil
+	}
+
+	onNeedsSet := make(map[string]bool, len(data.OnNeeds))
+	for _, job := range data.OnNeeds {
+		onNeedsSet[job] = true
+	}
+
+	promptReferencedSet := make(map[string]bool)
+	for _, job := range c.getCustomJobsReferencedInPromptWithNoActivationDep(data) {
+		promptReferencedSet[job] = true
+	}
+
+	visited := make(map[string]bool, len(data.Jobs))
+	visiting := make(map[string]bool, len(data.Jobs))
+	for _, root := range data.OnNeeds {
+		if err := validateOnNeedsDependencyChain(root, root, data.Jobs, onNeedsSet, promptReferencedSet, visiting, visited); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateOnNeedsDependencyChain(
+	root string,
+	current string,
+	allJobs map[string]any,
+	onNeedsSet map[string]bool,
+	promptReferencedSet map[string]bool,
+	visiting map[string]bool,
+	visited map[string]bool,
+) error {
+	if visited[current] {
+		return nil
+	}
+	if visiting[current] {
+		return fmt.Errorf("on.needs: cycle detected while validating dependency chain for %q", root)
+	}
+
+	jobConfigAny, exists := allJobs[current]
+	if !exists {
+		return nil
+	}
+
+	jobConfig, ok := jobConfigAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	visiting[current] = true
+	defer delete(visiting, current)
+
+	for _, dep := range parseNeedsField(jobConfig["needs"]) {
+		if isReservedOnNeedsTarget(dep) {
+			return fmt.Errorf(
+				"on.needs: job %q depends on built-in job %q. Dependencies for on.needs jobs must be custom jobs that run before activation",
+				current,
+				dep,
+			)
+		}
+
+		depAny, depExists := allJobs[dep]
+		if !depExists {
+			continue
+		}
+
+		depConfig, ok := depAny.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		_, depHasExplicitNeeds := depConfig["needs"]
+		if !depHasExplicitNeeds && !onNeedsSet[dep] && !promptReferencedSet[dep] {
+			return fmt.Errorf(
+				"on.needs: job %q depends on %q, but %q has no explicit needs and is not in on.needs. It may get an implicit needs: activation and create a cycle. Add %q to on.needs or give %q explicit needs that run before activation",
+				current,
+				dep,
+				dep,
+				dep,
+				dep,
+			)
+		}
+
+		if err := validateOnNeedsDependencyChain(root, dep, allJobs, onNeedsSet, promptReferencedSet, visiting, visited); err != nil {
+			return err
+		}
+	}
+
+	visited[current] = true
 	return nil
 }
 
