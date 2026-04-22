@@ -4,11 +4,12 @@ description: Smoke CI workflow that exercises pull request safe outputs through 
 on:
   push:
     branches: [main]
+    paths:
+      - '.github/workflows/smoke-ci.md'
+      - '.github/workflows/smoke-ci.lock.yml'
   schedule: daily
   pull_request:
     types: [opened, synchronize, reopened]
-  reaction: "eyes"
-  status-comment: true
 permissions:
   contents: read
   issues: read
@@ -54,9 +55,9 @@ strict: true
 ---
 
 For all events, call the tools in this exact order:
-1. Use `cache-memory` to inspect `/tmp/gh-aw/cache-memory/smoke-ci-haiku/`, count how many haiku records already exist, then save that count as `existing_haiku_count`.
+1. Use `cache-memory` to inspect the 10 most recent entries in `/tmp/gh-aw/cache-memory/smoke-ci-haiku/`, count how many existing haiku records are in that sample, then save that count as `existing_haiku_count`.
 2. Create a new haiku for this run and use `cache-memory` to save it as a JSON record in `/tmp/gh-aw/cache-memory/smoke-ci-haiku/` with a filesystem-safe timestamp filename in `YYYY-MM-DD-HH-MM-SS-sss` format (no `:`).
-3. Use `repo-memory` to write a short markdown run note.
+3. Use `repo-memory` to overwrite `latest-run.md` with a short markdown run note (max 3 lines).
 4. Use `create_issue` with temporary ID `aw_smokeci` and include in the body: the run URL, the generated haiku text, and `existing_haiku_count`.
 5. Use `update_issue` targeting `aw_smokeci` with `operation: "append"` to add a second line confirming the update succeeded.
 
