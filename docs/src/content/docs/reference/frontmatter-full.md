@@ -4722,7 +4722,7 @@ safe-outputs:
 
     # When true (default), perform a pre-flight branch protection API check before
     # pushing. Set to false to skip the API check (for example, when the token does
-    # not have administration:read); GitHub still enforces protection at push time.
+    # not have administration: read); GitHub still enforces protection at push time.
     # (optional)
     check-branch-protection: true
 
