@@ -1009,3 +1009,59 @@ func TestSpec_DesignDecision_StderrDiagnostics(t *testing.T) {
 	names := ValidArtifactSetNames()
 	assert.NotEmpty(t, names, "ValidArtifactSetNames returns data via return value, not stdout")
 }
+
+// TestSpec_PublicAPI_GetAllCodemods validates that GetAllCodemods returns at least one codemod
+// with required fields populated.
+// Spec: "Returns all available codemods"
+func TestSpec_PublicAPI_GetAllCodemods(t *testing.T) {
+	codemods := GetAllCodemods()
+	require.NotEmpty(t, codemods, "GetAllCodemods should return at least one codemod")
+	for _, c := range codemods {
+		assert.NotEmpty(t, c.ID, "each Codemod should have a non-empty ID")
+		assert.NotEmpty(t, c.Name, "each Codemod should have a non-empty Name")
+		assert.NotEmpty(t, c.Description, "each Codemod should have a non-empty Description")
+		assert.NotNil(t, c.Apply, "each Codemod should have a non-nil Apply function")
+	}
+}
+
+// TestSpec_PublicAPI_ResolveArtifactFilter validates that ResolveArtifactFilter expands
+// artifact set aliases to concrete artifact names.
+// Spec: "Expands artifact set aliases to concrete artifact names"
+func TestSpec_PublicAPI_ResolveArtifactFilter(t *testing.T) {
+	t.Run("all returns nil meaning no filter applied", func(t *testing.T) {
+		result := ResolveArtifactFilter([]string{"all"})
+		assert.Nil(t, result, "\"all\" should return nil (no filter — download all artifacts)")
+	})
+
+	t.Run("empty list returns nil meaning no filter applied", func(t *testing.T) {
+		result := ResolveArtifactFilter([]string{})
+		assert.Nil(t, result, "empty input should return nil (no filter — download all artifacts)")
+	})
+
+	t.Run("non-all named set expands to concrete artifact list", func(t *testing.T) {
+		sets := ValidArtifactSetNames()
+		for _, s := range sets {
+			if s == "all" {
+				continue
+			}
+			result := ResolveArtifactFilter([]string{s})
+			assert.NotNil(t, result, "artifact set %q should expand to a concrete list", s)
+			assert.NotEmpty(t, result, "artifact set %q should expand to at least one artifact name", s)
+			break
+		}
+	})
+}
+
+// TestSpec_PublicAPI_GroupRunsByWorkflow validates that a flat slice of runs is grouped by workflow name.
+// Spec: "Groups a flat slice of runs by workflow name"
+func TestSpec_PublicAPI_GroupRunsByWorkflow(t *testing.T) {
+	runs := []WorkflowRun{
+		{WorkflowName: "workflow-a"},
+		{WorkflowName: "workflow-b"},
+		{WorkflowName: "workflow-a"},
+	}
+	grouped := GroupRunsByWorkflow(runs)
+	assert.Len(t, grouped, 2, "should produce two groups for two distinct workflow names")
+	assert.Len(t, grouped["workflow-a"], 2, "workflow-a group should contain two runs")
+	assert.Len(t, grouped["workflow-b"], 1, "workflow-b group should contain one run")
+}

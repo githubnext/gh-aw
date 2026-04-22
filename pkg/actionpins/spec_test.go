@@ -256,6 +256,30 @@ func TestSpec_Types_ActionPinsData(t *testing.T) {
 	assert.Equal(t, "actions/checkout", entry.Repo, "entry Repo should match")
 }
 
+// TestSpec_PublicAPI_ResolveActionPin_EmbeddedMatch validates embedded-only pin resolution returns
+// a formatted reference for a known repository. Spec: "Embedded-only lookup from bundled pin data"
+func TestSpec_PublicAPI_ResolveActionPin_EmbeddedMatch(t *testing.T) {
+	known := "actions/checkout"
+	latestPin, ok := actionpins.GetActionPinByRepo(known)
+	require.True(t, ok, "prerequisite: known repo must be in embedded data")
+
+	ctx := &actionpins.PinContext{StrictMode: false, Warnings: make(map[string]bool)}
+	result, err := actionpins.ResolveActionPin(known, latestPin.Version, ctx)
+	require.NoError(t, err, "embedded-only ResolveActionPin should not error for known pin")
+	assert.NotEmpty(t, result, "should return non-empty pinned reference for known embedded pin")
+	assert.Contains(t, result, latestPin.SHA, "resolved reference should contain the pin SHA")
+}
+
+// TestSpec_PublicAPI_GetActionPins_SPEC_MISMATCH documents a spec-implementation gap.
+// SPEC_MISMATCH: The README specifies GetActionPins() []ActionPin ("Returns all loaded pins")
+// but this function is not implemented. Only GetActionPinsByRepo(repo string) is available.
+// Proxy validation: verify embedded data is non-empty via the available API.
+func TestSpec_PublicAPI_GetActionPins_SPEC_MISMATCH(t *testing.T) {
+	// SPEC_MISMATCH: GetActionPins() documented in README does not exist in the implementation.
+	pins := actionpins.GetActionPinsByRepo("actions/checkout")
+	assert.NotEmpty(t, pins, "embedded pin data should be non-empty (proxy for missing GetActionPins)")
+}
+
 // TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo validates that concurrent calls to GetActionPinsByRepo
 // are safe after initialization (sync.Once guarantee from the spec).
 func TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo(t *testing.T) {

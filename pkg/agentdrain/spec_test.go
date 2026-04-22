@@ -444,6 +444,56 @@ func TestSpec_Types_AnomalyReport(t *testing.T) {
 	assert.LessOrEqual(t, report.AnomalyScore, 1.0, "AnomalyReport.AnomalyScore should be in documented range [0, 1]")
 }
 
+// TestSpec_PublicAPI_Coordinator_TrainEvent validates Coordinator.TrainEvent routes known-good
+// events to the correct stage miner and returns a MatchResult.
+// Spec: "Training phase — call for known-good events" on Coordinator
+func TestSpec_PublicAPI_Coordinator_TrainEvent(t *testing.T) {
+	cfg := agentdrain.DefaultConfig()
+	stages := []string{"plan", "tool_call", "finish"}
+	coord, err := agentdrain.NewCoordinator(cfg, stages)
+	require.NoError(t, err)
+
+	evt := agentdrain.AgentEvent{
+		Stage:  "plan",
+		Fields: map[string]string{"action": "start", "step": "1"},
+	}
+	result, err := coord.TrainEvent(evt)
+	require.NoError(t, err, "Coordinator.TrainEvent should not error for valid event in registered stage")
+	assert.NotNil(t, result, "Coordinator.TrainEvent should return a non-nil MatchResult")
+	assert.Equal(t, "plan", result.Stage, "MatchResult.Stage should match the trained event stage")
+}
+
+// TestSpec_PublicAPI_Coordinator_LoadDefaultWeights validates that LoadDefaultWeights
+// does not error on a freshly constructed coordinator.
+// Spec: "Call coord.LoadDefaultWeights() to initialize the coordinator with pre-trained cluster weights"
+func TestSpec_PublicAPI_Coordinator_LoadDefaultWeights(t *testing.T) {
+	cfg := agentdrain.DefaultConfig()
+	stages := []string{"plan", "tool_call", "finish"}
+	coord, err := agentdrain.NewCoordinator(cfg, stages)
+	require.NoError(t, err)
+
+	err = coord.LoadDefaultWeights()
+	require.NoError(t, err, "LoadDefaultWeights should not error (no-op when empty, loads otherwise)")
+}
+
+// TestSpec_PublicAPI_Miner_ClusterCount_SPEC_MISMATCH documents a spec-implementation gap.
+// SPEC_MISMATCH: The README shows miner.ClusterCount() as a method, but Miner only implements
+// Clusters() []Cluster. Use len(miner.Clusters()) as the equivalent.
+func TestSpec_PublicAPI_Miner_ClusterCount_SPEC_MISMATCH(t *testing.T) {
+	// SPEC_MISMATCH: ClusterCount() documented in README does not exist; use len(Clusters()).
+	cfg := agentdrain.DefaultConfig()
+	miner, err := agentdrain.NewMiner(cfg)
+	require.NoError(t, err)
+
+	assert.Equal(t, 0, len(miner.Clusters()), "cluster count should be zero before training")
+
+	evt := agentdrain.AgentEvent{Stage: "plan", Fields: map[string]string{"step": "init"}}
+	_, err = miner.TrainEvent(evt)
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, len(miner.Clusters()), "cluster count should be 1 after training one unique event")
+}
+
 // TestSpec_Types_Snapshot validates the documented Snapshot/SnapshotCluster type structures.
 // Spec: Snapshot{Config, Clusters []SnapshotCluster, NextID}, SnapshotCluster{ID, Template, Size, Stage}.
 func TestSpec_Types_Snapshot(t *testing.T) {
