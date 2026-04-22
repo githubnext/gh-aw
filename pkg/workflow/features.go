@@ -94,7 +94,8 @@ func isFeatureInEnvironment(flagLower string) bool {
 
 // isCopilotWorkflow reports whether workflow data targets the copilot engine.
 // EngineConfig.ID is the primary source when available. workflowData.AI is used
-// as a fallback for call sites that populate AI but leave EngineConfig nil.
+// as a fallback for call sites that parse or merge frontmatter early and
+// populate AI before EngineConfig is hydrated.
 func isCopilotWorkflow(workflowData *WorkflowData) bool {
 	if workflowData == nil {
 		return false

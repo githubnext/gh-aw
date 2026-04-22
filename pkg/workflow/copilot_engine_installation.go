@@ -76,6 +76,8 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		// downstream consumers observe the effective installed value ("latest").
 		// This mutates workflowData by design because subsequent generation steps
 		// in the same compile flow should observe the effective installed version.
+		// Callers that reuse the same WorkflowData instance should expect this
+		// field to be rewritten after installation-step generation.
 		workflowData.EngineConfig.Version = copilotVersion
 	}
 
