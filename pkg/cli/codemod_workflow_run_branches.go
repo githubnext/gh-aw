@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -16,7 +17,10 @@ var resolveCurrentRepoDefaultBranchFn = func() (string, error) {
 		return "", errors.New("could not determine repository slug from git remote")
 	}
 
-	return getRepoDefaultBranch(context.Background(), repoSlug)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	return getRepoDefaultBranch(ctx, repoSlug)
 }
 
 // getWorkflowRunBranchesCodemod adds default branch restrictions for bare workflow_run triggers.
@@ -58,6 +62,7 @@ func getWorkflowRunBranchesCodemod() Codemod {
 			} else if strings.TrimSpace(defaultBranch) != "" {
 				branches = []string{strings.TrimSpace(defaultBranch)}
 			}
+			branches = normalizeWorkflowRunBranches(branches)
 
 			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
 				return addDefaultWorkflowRunBranches(lines, branches)
@@ -135,17 +140,11 @@ func addDefaultWorkflowRunBranches(lines []string, branches []string) ([]string,
 	}
 
 	branchIndent := workflowRunIndent + "  "
-	entries := make([]string, 0, len(branches)+1)
+	normalizedBranches := normalizeWorkflowRunBranches(branches)
+	entries := make([]string, 0, len(normalizedBranches)+1)
 	entries = append(entries, branchIndent+"branches:")
-	for _, branch := range branches {
-		trimmed := strings.TrimSpace(branch)
-		if trimmed == "" {
-			continue
-		}
-		entries = append(entries, branchIndent+"  - "+trimmed)
-	}
-	if len(entries) == 1 {
-		return lines, false
+	for _, branch := range normalizedBranches {
+		entries = append(entries, branchIndent+"  - "+branch)
 	}
 
 	result := make([]string, 0, len(lines)+len(entries))
@@ -153,4 +152,26 @@ func addDefaultWorkflowRunBranches(lines []string, branches []string) ([]string,
 	result = append(result, entries...)
 	result = append(result, lines[workflowRunEnd:]...)
 	return result, true
+}
+
+func normalizeWorkflowRunBranches(branches []string) []string {
+	normalized := make([]string, 0, len(branches))
+	seen := make(map[string]struct{})
+	for _, branch := range branches {
+		trimmed := strings.TrimSpace(branch)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		normalized = append(normalized, trimmed)
+	}
+
+	if len(normalized) == 0 {
+		return []string{"main", "master"}
+	}
+
+	return normalized
 }

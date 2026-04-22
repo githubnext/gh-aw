@@ -105,4 +105,9 @@ on:
 		assert.False(t, applied, "Codemod should not apply when branches already exist")
 		assert.Equal(t, content, result, "Content should remain unchanged")
 	})
+
+	t.Run("normalizeWorkflowRunBranches falls back when all values are empty", func(t *testing.T) {
+		branches := normalizeWorkflowRunBranches([]string{"", "   "})
+		assert.Equal(t, []string{"main", "master"}, branches, "Normalization should fall back to defaults for empty branch values")
+	})
 }
