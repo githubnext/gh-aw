@@ -92,6 +92,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 		envValue    string
 		frontmatter map[string]any
 		engineID    string
+		ai          string
 		flag        constants.FeatureFlag
 		expected    bool
 		description string
@@ -177,6 +178,25 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 			expected:    false,
 			description: "default cli-proxy enablement should only apply to engine=copilot",
 		},
+		{
+			name:        "explicit frontmatter false disables cli-proxy for copilot",
+			envValue:    "",
+			frontmatter: map[string]any{"cli-proxy": false},
+			engineID:    string(constants.CopilotEngine),
+			flag:        constants.CliProxyFeatureFlag,
+			expected:    false,
+			description: "explicit frontmatter value should override copilot default",
+		},
+		{
+			name:        "copilot ai fallback enables cli-proxy default when engine config is nil",
+			envValue:    "",
+			frontmatter: map[string]any{},
+			engineID:    "",
+			ai:          string(constants.CopilotEngine),
+			flag:        constants.CliProxyFeatureFlag,
+			expected:    true,
+			description: "copilot default should apply when workflowData.AI is set and engine config is nil",
+		},
 	}
 
 	for _, tt := range tests {
@@ -190,9 +210,12 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 			if tt.frontmatter != nil {
 				workflowData = &WorkflowData{
 					Features: tt.frontmatter,
-					EngineConfig: &EngineConfig{
+					AI:       tt.ai,
+				}
+				if tt.engineID != "" {
+					workflowData.EngineConfig = &EngineConfig{
 						ID: tt.engineID,
-					},
+					}
 				}
 			}
 

@@ -66,8 +66,13 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 
 	// Copilot uses BYOK defaults by default, which always install latest.
 	copilotVersion := "latest"
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		copilotInstallLog.Printf("Ignoring pinned engine.version (%s): Copilot now installs latest by default", workflowData.EngineConfig.Version)
+	if workflowData.EngineConfig != nil {
+		if workflowData.EngineConfig.Version != "" {
+			copilotInstallLog.Printf("Ignoring pinned engine.version (%s): Copilot now installs latest by default", workflowData.EngineConfig.Version)
+		}
+		// Normalize engine config version to effective installed version so
+		// downstream checks that consult EngineConfig.Version stay consistent.
+		workflowData.EngineConfig.Version = copilotVersion
 	}
 
 	// Use the installer script for global installation

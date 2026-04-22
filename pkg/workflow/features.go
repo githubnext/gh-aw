@@ -19,51 +19,64 @@ func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bo
 	flagLower := strings.ToLower(strings.TrimSpace(string(flag)))
 	featuresLog.Printf("Checking if feature is enabled: %s", flagLower)
 
-	// cli-proxy is enabled by default for copilot engine workflows.
-	// This is the default BYOK behavior and routes gh CLI access through
-	// the authenticated DIFC proxy.
-	if flag == constants.CliProxyFeatureFlag &&
-		workflowData != nil &&
-		workflowData.EngineConfig != nil &&
-		strings.EqualFold(workflowData.EngineConfig.ID, string(constants.CopilotEngine)) {
-		featuresLog.Print("cli-proxy enabled by default for copilot engine")
-		return true
-	}
-
-	// First, check if the feature is explicitly set in frontmatter
-	if workflowData != nil && workflowData.Features != nil {
-		if value, exists := workflowData.Features[flagLower]; exists {
-			// Convert value to boolean if it is one
-			if enabled, ok := value.(bool); ok {
-				featuresLog.Printf("Feature found in frontmatter: %s=%v", flagLower, enabled)
-				return enabled
-			}
-			// If the value is not a boolean, treat non-empty strings as true
-			if strVal, ok := value.(string); ok {
-				enabled := strVal != ""
-				featuresLog.Printf("Feature found in frontmatter (string): %s=%v", flagLower, enabled)
-				return enabled
-			}
-		}
-		// Also check case-insensitive match
-		for key, value := range workflowData.Features {
-			if strings.ToLower(key) == flagLower {
-				// Convert value to boolean if it is one
-				if enabled, ok := value.(bool); ok {
-					featuresLog.Printf("Feature found in frontmatter (case-insensitive): %s=%v", flagLower, enabled)
-					return enabled
-				}
-				// If the value is not a boolean, treat non-empty strings as true
-				if strVal, ok := value.(string); ok {
-					enabled := strVal != ""
-					featuresLog.Printf("Feature found in frontmatter (case-insensitive, string): %s=%v", flagLower, enabled)
-					return enabled
-				}
-			}
-		}
+	// First, check if the feature is explicitly set in frontmatter.
+	// Frontmatter values always take precedence.
+	if enabled, found := getFeatureValueFromFrontmatter(flagLower, workflowData); found {
+		return enabled
 	}
 
 	// Fall back to checking the environment variable
+	if isFeatureInEnvironment(flagLower) {
+		featuresLog.Printf("Feature found in GH_AW_FEATURES: %s=true", flagLower)
+		return true
+	}
+
+	// cli-proxy defaults to enabled for copilot workflows unless explicitly set
+	// in frontmatter (handled above) or tools.github.mode overrides it.
+	if flag == constants.CliProxyFeatureFlag && isCopilotWorkflow(workflowData) {
+		featuresLog.Print("cli-proxy enabled by default for copilot workflow")
+		return true
+	}
+
+	featuresLog.Printf("Feature not found: %s=false", flagLower)
+	return false
+}
+
+func getFeatureValueFromFrontmatter(flagLower string, workflowData *WorkflowData) (bool, bool) {
+	if workflowData == nil || workflowData.Features == nil {
+		return false, false
+	}
+
+	if value, exists := workflowData.Features[flagLower]; exists {
+		if enabled, found := parseFeatureValue(value); found {
+			featuresLog.Printf("Feature found in frontmatter: %s=%v", flagLower, enabled)
+			return enabled, true
+		}
+	}
+
+	for key, value := range workflowData.Features {
+		if strings.ToLower(key) == flagLower {
+			if enabled, found := parseFeatureValue(value); found {
+				featuresLog.Printf("Feature found in frontmatter (case-insensitive): %s=%v", flagLower, enabled)
+				return enabled, true
+			}
+		}
+	}
+
+	return false, false
+}
+
+func parseFeatureValue(value any) (bool, bool) {
+	if enabled, ok := value.(bool); ok {
+		return enabled, true
+	}
+	if strVal, ok := value.(string); ok {
+		return strVal != "", true
+	}
+	return false, false
+}
+
+func isFeatureInEnvironment(flagLower string) bool {
 	features := os.Getenv("GH_AW_FEATURES")
 	if features == "" {
 		featuresLog.Printf("Feature not found, GH_AW_FEATURES empty: %s=false", flagLower)
@@ -71,17 +84,20 @@ func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bo
 	}
 
 	featuresLog.Printf("Checking GH_AW_FEATURES environment variable: %s", features)
-
-	// Split by comma and check each feature
-	featureList := strings.SplitSeq(features, ",")
-
-	for feature := range featureList {
+	for feature := range strings.SplitSeq(features, ",") {
 		if strings.ToLower(strings.TrimSpace(feature)) == flagLower {
-			featuresLog.Printf("Feature found in GH_AW_FEATURES: %s=true", flagLower)
 			return true
 		}
 	}
-
-	featuresLog.Printf("Feature not found: %s=false", flagLower)
 	return false
+}
+
+func isCopilotWorkflow(workflowData *WorkflowData) bool {
+	if workflowData == nil {
+		return false
+	}
+	if workflowData.EngineConfig != nil && strings.EqualFold(workflowData.EngineConfig.ID, string(constants.CopilotEngine)) {
+		return true
+	}
+	return strings.EqualFold(workflowData.AI, string(constants.CopilotEngine))
 }

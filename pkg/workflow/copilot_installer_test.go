@@ -122,6 +122,10 @@ func TestCopilotInstallerCustomVersion(t *testing.T) {
 
 	steps := engine.GetInstallationSteps(workflowData)
 
+	if workflowData.EngineConfig == nil || workflowData.EngineConfig.Version != "latest" {
+		t.Fatalf("Expected engine config version to be normalized to latest, got: %+v", workflowData.EngineConfig)
+	}
+
 	// Find the install step
 	var installStep string
 	for _, step := range steps {
@@ -218,6 +222,10 @@ func TestCopilotInstallerExpressionVersion_ViaEngineConfig(t *testing.T) {
 	}
 
 	steps := engine.GetInstallationSteps(workflowData)
+
+	if workflowData.EngineConfig == nil || workflowData.EngineConfig.Version != "latest" {
+		t.Fatalf("Expected engine config version to be normalized to latest, got: %+v", workflowData.EngineConfig)
+	}
 
 	// Find the install step
 	var installStep string
