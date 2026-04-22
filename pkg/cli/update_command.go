@@ -158,6 +158,8 @@ func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor,
 	return firstErr
 }
 
+// recompileWorkflowsForContainerPins recompiles workflows with existing lock files
+// so newly resolved container digest pins are applied in the same update run.
 func recompileWorkflowsForContainerPins(workflowsDir, engineOverride string, verbose bool) error {
 	workflowFiles, err := workflowFilesForExistingLocks(workflowsDir)
 	if err != nil {
@@ -171,6 +173,8 @@ func recompileWorkflowsForContainerPins(workflowsDir, engineOverride string, ver
 	return nil
 }
 
+// workflowFilesForExistingLocks returns sorted workflow markdown file paths that
+// have a matching .lock.yml file in the same workflow directory.
 func workflowFilesForExistingLocks(workflowsDir string) ([]string, error) {
 	if workflowsDir == "" {
 		workflowsDir = getWorkflowsDir()
