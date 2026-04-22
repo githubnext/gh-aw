@@ -119,6 +119,9 @@ func TestCopilotInstallerCustomVersion(t *testing.T) {
 			Version: customVersion,
 		},
 	}
+	if workflowData.EngineConfig == nil || workflowData.EngineConfig.Version != customVersion {
+		t.Fatalf("Expected initial engine config version %q, got: %+v", customVersion, workflowData.EngineConfig)
+	}
 
 	steps := engine.GetInstallationSteps(workflowData)
 
