@@ -251,9 +251,16 @@ func TestLogsCommandHelpText(t *testing.T) {
 		"Downloaded artifacts include:",
 		"Examples:",
 		"gh aw logs",
+		"--safe-output noop",
+		"--safe-output report-incomplete",
 	}
 
 	for _, section := range expectedSections {
 		assert.Contains(t, cmd.Long, section, "Long description should contain: %s", section)
 	}
+
+	safeOutputFlag := cmd.Flags().Lookup("safe-output")
+	require.NotNil(t, safeOutputFlag, "safe-output flag should exist")
+	assert.Contains(t, safeOutputFlag.Usage, "noop", "safe-output flag help should mention noop")
+	assert.Contains(t, safeOutputFlag.Usage, "report-incomplete", "safe-output flag help should mention report-incomplete")
 }

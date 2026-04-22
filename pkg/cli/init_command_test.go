@@ -117,6 +117,10 @@ func TestInitCommandHelp(t *testing.T) {
 	if !strings.Contains(helpText, "non-interactive repository setup") {
 		t.Error("Expected help text to mention non-interactive setup")
 	}
+
+	if strings.Contains(helpText, "Usage:") {
+		t.Error("Expected init long help text to not embed a Usage section")
+	}
 }
 
 func TestInitCommandInteractiveModeDetection(t *testing.T) {
