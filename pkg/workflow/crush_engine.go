@@ -11,8 +11,9 @@ import (
 var crushLog = logger.New("workflow:crush_engine")
 
 // CrushEngine represents the Crush CLI agentic engine.
-// Crush is a provider-agnostic, open-source AI coding agent that supports
-// 75+ models via BYOK (Bring Your Own Key).
+// Crush is a provider-agnostic, open-source AI coding agent with broader BYOK
+// (Bring Your Own Key) support, but gh-aw currently supports a subset of
+// providers for engine.model validation: copilot, anthropic, openai, and codex.
 type CrushEngine struct {
 	UniversalLLMConsumerEngine
 }

@@ -120,13 +120,24 @@ func (e *UniversalLLMConsumerEngine) GetUniversalRequiredSecretNames(workflowDat
 		}
 	}
 
-	secrets = append(secrets, collectCommonMCPSecrets(workflowData)...)
+	if workflowData != nil {
+		secrets = append(secrets, collectCommonMCPSecrets(workflowData)...)
+	}
 
-	if hasGitHubTool(workflowData.ParsedTools) {
+	var parsedTools *ToolsConfig
+	tools := map[string]any{}
+	if workflowData != nil {
+		parsedTools = workflowData.ParsedTools
+		if workflowData.Tools != nil {
+			tools = workflowData.Tools
+		}
+	}
+
+	if hasGitHubTool(parsedTools) {
 		secrets = append(secrets, "GITHUB_MCP_SERVER_TOKEN")
 	}
 
-	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.Tools)
+	headerSecrets := collectHTTPMCPHeaderSecrets(tools)
 	for varName := range headerSecrets {
 		secrets = append(secrets, varName)
 	}
