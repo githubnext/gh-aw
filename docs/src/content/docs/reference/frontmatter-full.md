@@ -1873,9 +1873,9 @@ tools:
       # Array of strings
 
     # GitHub access mode. Prefer 'gh-proxy' for better performance (uses
-    # pre-authenticated gh CLI prompt guidance; equivalent to legacy
-    # features.cli-proxy: true). Legacy MCP transport values 'local' and 'remote' are
-    # accepted for backward compatibility and use GitHub MCP server prompt guidance.
+    # pre-authenticated gh CLI prompt guidance). Legacy MCP transport values 'local'
+    # and 'remote' are accepted for backward compatibility and use GitHub MCP server
+    # prompt guidance.
     # (optional)
     mode: "gh-proxy"
 

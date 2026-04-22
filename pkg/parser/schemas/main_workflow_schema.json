@@ -3474,7 +3474,7 @@
                 "mode": {
                   "type": "string",
                   "enum": ["gh-proxy", "local", "remote"],
-                  "description": "GitHub access mode. Prefer 'gh-proxy' for better performance (uses pre-authenticated gh CLI prompt guidance; equivalent to legacy features.cli-proxy: true). Legacy MCP transport values 'local' and 'remote' are accepted for backward compatibility and use GitHub MCP server prompt guidance."
+                  "description": "GitHub access mode. Prefer 'gh-proxy' for better performance (uses pre-authenticated gh CLI prompt guidance). Legacy MCP transport values 'local' and 'remote' are accepted for backward compatibility and use GitHub MCP server prompt guidance."
                 },
                 "type": {
                   "type": "string",
