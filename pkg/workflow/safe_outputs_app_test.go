@@ -161,3 +161,44 @@ Test workflow with discussions permission.
 	assert.Contains(t, stepsStr, "permission-contents: read", "GitHub App token should include contents read permission")
 	assert.Contains(t, stepsStr, "permission-issues: write", "GitHub App token should include issues write permission (create-discussion falls back to issue)")
 }
+
+// TestSafeOutputsAppTokenUpdateProjectIssuesReadPermission tests that issues read permission
+// is included in the GitHub App token minting step when update-project is configured.
+func TestSafeOutputsAppTokenUpdateProjectIssuesReadPermission(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	markdown := `---
+on: issues
+safe-outputs:
+  update-project:
+    project: "https://github.com/orgs/my-org/projects/1"
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+
+# Test Workflow
+
+Test workflow with update-project permissions.
+`
+
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.md")
+	err := os.WriteFile(testFile, []byte(markdown), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err, "Failed to parse markdown content")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.UpdateProjects, "UpdateProjects should not be nil")
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "main", testFile)
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	assert.Contains(t, stepsStr, "permission-organization-projects: write", "GitHub App token should include organization projects write permission")
+	assert.Contains(t, stepsStr, "permission-issues: read", "GitHub App token should include issues read permission for issue-backed project items")
+	assert.Contains(t, stepsStr, "permission-contents: read", "GitHub App token should include contents read permission")
+}

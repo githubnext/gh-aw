@@ -476,6 +476,8 @@ Optionally include `item_url` (GitHub issue URL) to add the issue as the first p
 
 Manages GitHub Projects boards. Requires a write-capable PAT or GitHub App token ([project token authentication](/gh-aw/patterns/project-ops/#project-token-authentication)); default `GITHUB_TOKEN` lacks Projects v2 access. Update-only by default; set `create_if_missing: true` to create boards (requires appropriate token permissions).
 
+When using `github-app`, issue-backed project item resolution also requires `issues: read` on the minted token (in addition to `organization-projects: write`).
+
 ```yaml wrap
 safe-outputs:
   update-project:
