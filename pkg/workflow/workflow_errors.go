@@ -250,15 +250,8 @@ func (c *ErrorCollector) FormattedError(category string) error {
 		return c.errors[0]
 	}
 
-	// Build formatted error with count header
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "Found %d %s errors:", len(c.errors), category)
-	for _, err := range c.errors {
-		sb.WriteString("\n  • ")
-		sb.WriteString(err.Error())
-	}
-
-	return fmt.Errorf("%s", sb.String())
+	header := fmt.Sprintf("Found %d %s errors:", len(c.errors), category)
+	return fmt.Errorf("%s\n%w", header, errors.Join(c.errors...))
 }
 
 var sharedWorkflowLog = logger.New("workflow:shared_workflow_error")
