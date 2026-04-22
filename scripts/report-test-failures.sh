@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Report test failures from JSON test result files
 # Parses the JSON output from 'go test -json' format and prints failure details
 

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Configure gh CLI for GitHub Enterprise
 #
 # This script configures the gh CLI to work with GitHub Enterprise environments

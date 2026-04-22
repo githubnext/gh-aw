@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Test script for download_docker_images.sh
 # Tests concurrent download functionality
 

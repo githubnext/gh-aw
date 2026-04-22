@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Start Safe Outputs MCP HTTP Server
 # This script starts the safe-outputs MCP server and waits for it to become ready
 

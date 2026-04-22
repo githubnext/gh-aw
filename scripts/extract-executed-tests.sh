@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Extract executed test names from JSON test result files
 # Parses the JSON output from 'go test -json' format
 

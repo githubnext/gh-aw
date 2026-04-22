@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 set -eo pipefail
 
 # parse_guard_list.sh - Parse comma/newline-separated guard policy lists into JSON arrays

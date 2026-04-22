@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Start DIFC proxy on the host for AWF CLI proxy sidecar
 # This script starts the awmg proxy container so AWF's cli-proxy container
 # can connect to it via host.docker.internal:18443 for gh CLI access.

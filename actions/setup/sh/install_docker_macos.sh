@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Install Docker on macOS GitHub Actions runners via colima
 # Usage: install_docker_macos.sh
 #

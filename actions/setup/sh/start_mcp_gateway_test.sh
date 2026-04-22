@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Test script for start_mcp_gateway.sh
 set -e
 

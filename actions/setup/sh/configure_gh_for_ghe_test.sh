@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Test script for configure_gh_for_ghe.sh
 
 set -e

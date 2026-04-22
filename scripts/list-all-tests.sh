@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # List all Go test function names that are actually runnable
 # This script uses 'go test -list' to discover tests, which respects build tags
 

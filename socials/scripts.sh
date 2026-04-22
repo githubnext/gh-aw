@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 set -euo pipefail
 
 # Social Media Campaign Automation Script

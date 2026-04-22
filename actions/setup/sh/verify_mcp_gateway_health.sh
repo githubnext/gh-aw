@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Verify MCP Gateway Health
 # This script verifies that the MCP gateway is running and healthy
 

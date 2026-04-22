@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Test script for clean_git_credentials.sh
 # Run: bash clean_git_credentials_test.sh
 

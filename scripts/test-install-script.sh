@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Test script to validate the install-gh-aw.sh script detection logic
 set -e
 

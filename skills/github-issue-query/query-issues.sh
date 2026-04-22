@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Query GitHub issues with jq filtering support
 #
 # Usage: ./query-issues.sh [OPTIONS]

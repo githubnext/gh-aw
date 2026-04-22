@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Test script for check_mcp_servers.sh
 set -e
 

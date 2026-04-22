@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Start DIFC proxy for pre-agent gh CLI steps
 # This script starts the awmg proxy container that routes gh CLI calls
 # through DIFC integrity filtering before the agent runs.

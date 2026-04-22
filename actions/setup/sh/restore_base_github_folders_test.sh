@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Tests for restore_base_github_folders.sh
 # Run: bash restore_base_github_folders_test.sh
 

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Download Docker images with retry logic and controlled parallelism
 # Usage: download_docker_images.sh IMAGE1 [IMAGE2 ...]
 #

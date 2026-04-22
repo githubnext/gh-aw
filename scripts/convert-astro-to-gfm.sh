@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Convert Astro adornments to GitHub Flavored Markdown alerts
 # Usage: ./scripts/convert-astro-to-gfm.sh <file>
 

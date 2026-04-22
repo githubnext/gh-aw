@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Test script for validate_gatewayed_server.sh
 set -e
 

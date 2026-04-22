@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 set -e
 
 # validate_gatewayed_server.sh - Validate that an MCP server is correctly gatewayed

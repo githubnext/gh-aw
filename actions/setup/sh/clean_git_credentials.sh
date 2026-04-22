@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 #
 # clean_git_credentials.sh - Remove git credentials from all git checkouts
 #

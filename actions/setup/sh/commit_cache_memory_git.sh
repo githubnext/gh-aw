@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # commit_cache_memory_git.sh
 # Post-agent git commit for integrity-aware cache-memory.
 #

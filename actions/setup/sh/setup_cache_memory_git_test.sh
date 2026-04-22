@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Tests for setup_cache_memory_git.sh — pre-agent sanitization block
 # Run: bash setup_cache_memory_git_test.sh
 
