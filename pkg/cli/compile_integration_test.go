@@ -865,6 +865,56 @@ Verify staged safe-outputs with create-issue.
 	}
 }
 
+func TestCompileSafeOutputsCreatePullRequestAllowedBaseBranches(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Allowed Base Branches
+on:
+  workflow_dispatch:
+permissions: read-all
+engine: copilot
+safe-outputs:
+  create-pull-request:
+    allowed-base-branches:
+      - main
+      - release/*
+---
+
+Verify allowed base branches in create-pull-request safe output.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "allowed-base-branches.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "allowed-base-branches.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Fatalf("Expected handler config env var in lock file, got:\n%s", lockContentStr)
+	}
+
+	if !strings.Contains(lockContentStr, "allowed_base_branches") {
+		t.Fatalf("Expected allowed_base_branches in handler config, got:\n%s", lockContentStr)
+	}
+
+	if !strings.Contains(lockContentStr, "release/*") {
+		t.Fatalf("Expected release/* pattern in lock file handler config, got:\n%s", lockContentStr)
+	}
+}
+
 // TestCompileStagedSafeOutputsAddComment verifies that a workflow with staged: true
 // and an add-comment handler compiles and emits GH_AW_SAFE_OUTPUTS_STAGED.
 // Prior to the schema fix, staged was not listed in the add-comment handler schema.

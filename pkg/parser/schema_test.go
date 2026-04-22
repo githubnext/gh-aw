@@ -437,6 +437,83 @@ func TestMainWorkflowSchema_WorkflowDispatchNumberTypeDocumentation(t *testing.T
 	}
 }
 
+func TestMainWorkflowSchema_CreatePullRequestAllowedBaseBranches(t *testing.T) {
+	t.Parallel()
+
+	schemaPath := "schemas/main_workflow_schema.json"
+	schemaContent, err := os.ReadFile(schemaPath)
+	if err != nil {
+		t.Fatalf("failed to read schema: %v", err)
+	}
+
+	var schema map[string]any
+	if err := json.Unmarshal(schemaContent, &schema); err != nil {
+		t.Fatalf("failed to parse schema json: %v", err)
+	}
+
+	properties, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("schema properties section not found")
+	}
+
+	safeOutputs, ok := properties["safe-outputs"].(map[string]any)
+	if !ok {
+		t.Fatal("'safe-outputs' field not found in schema")
+	}
+
+	safeOutputsProperties, ok := safeOutputs["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("'safe-outputs.properties' not found in schema")
+	}
+
+	createPullRequest, ok := safeOutputsProperties["create-pull-request"].(map[string]any)
+	if !ok {
+		t.Fatal("'safe-outputs.create-pull-request' not found in schema")
+	}
+
+	createPullRequestOneOf, ok := createPullRequest["oneOf"].([]any)
+	if !ok {
+		t.Fatal("'safe-outputs.create-pull-request.oneOf' not found in schema")
+	}
+
+	var createPullRequestProperties map[string]any
+	for _, candidate := range createPullRequestOneOf {
+		candidateMap, ok := candidate.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		properties, ok := candidateMap["properties"].(map[string]any)
+		if !ok {
+			continue
+		}
+
+		createPullRequestProperties = properties
+		break
+	}
+	if createPullRequestProperties == nil {
+		t.Fatal("'safe-outputs.create-pull-request' object schema with properties not found")
+	}
+
+	allowedBaseBranches, ok := createPullRequestProperties["allowed-base-branches"].(map[string]any)
+	if !ok {
+		t.Fatal("'allowed-base-branches' not found under safe-outputs.create-pull-request")
+	}
+
+	if gotType, _ := allowedBaseBranches["type"].(string); gotType != "array" {
+		t.Fatalf("'allowed-base-branches' should be type array, got: %v", allowedBaseBranches["type"])
+	}
+
+	items, ok := allowedBaseBranches["items"].(map[string]any)
+	if !ok {
+		t.Fatal("'allowed-base-branches.items' not found in schema")
+	}
+
+	if gotItemType, _ := items["type"].(string); gotItemType != "string" {
+		t.Fatalf("'allowed-base-branches.items' should be type string, got: %v", items["type"])
+	}
+}
+
 func TestGetSafeOutputTypeKeys(t *testing.T) {
 	keys, err := GetSafeOutputTypeKeys()
 	if err != nil {
