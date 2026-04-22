@@ -25,9 +25,70 @@ const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { isPayloadUserBot } = require("./resolve_mentions.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
+const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
+
+/**
+ * Resolve effective event name/payload for native and forwarded contexts.
+ * Supports:
+ * - workflow_dispatch with event_name/event_payload inputs (via resolveInvocationContext)
+ * - workflow_call/workflow_dispatch with aw_context input fallback
+ * @param {any} rawContext
+ * @returns {{ eventName: string, payload: any }}
+ */
+function resolveEffectiveEventContext(rawContext) {
+  let eventName = rawContext?.eventName || "";
+  let payload = rawContext?.payload || {};
+
+  try {
+    const invocation = resolveInvocationContext(rawContext);
+    if (invocation?.eventName) {
+      eventName = invocation.eventName;
+    }
+    if (invocation?.eventPayload && typeof invocation.eventPayload === "object") {
+      payload = invocation.eventPayload;
+    }
+  } catch {
+    // Best-effort only; fall back to the raw context.
+  }
+
+  // For workflow_call (and workflow_dispatch relay cases), aw_context can carry
+  // the original event type/item/comment identifiers.
+  const awContextRaw = rawContext?.payload?.inputs?.aw_context;
+  if (typeof awContextRaw === "string" && awContextRaw.trim() !== "") {
+    try {
+      const awContext = JSON.parse(awContextRaw);
+      const awEventType = typeof awContext?.event_type === "string" ? awContext.event_type : "";
+      const awItemNumber = Number(awContext?.item_number);
+      const awCommentId = Number(awContext?.comment_id);
+
+      if (awEventType === "pull_request_review_comment" && Number.isInteger(awItemNumber) && awItemNumber > 0) {
+        eventName = awEventType;
+        payload = {
+          ...payload,
+          pull_request: {
+            ...(payload?.pull_request || {}),
+            number: awItemNumber,
+          },
+          ...(Number.isInteger(awCommentId) && awCommentId > 0
+            ? {
+                comment: {
+                  ...(payload?.comment || {}),
+                  id: awCommentId,
+                },
+              }
+            : {}),
+        };
+      }
+    } catch {
+      // Ignore malformed aw_context and continue with existing context.
+    }
+  }
+
+  return { eventName, payload };
+}
 
 async function minimizeComment(github, nodeId, reason = "outdated") {
   const query = /* GraphQL */ `
@@ -325,6 +386,13 @@ async function main(config = {}) {
    * @returns {Promise<Object>} Result
    */
   return async function handleAddComment(message, resolvedTemporaryIds) {
+    const effectiveEventContext = resolveEffectiveEventContext(context);
+    const effectiveContext = {
+      ...context,
+      eventName: effectiveEventContext.eventName,
+      payload: effectiveEventContext.payload,
+    };
+
     // Check max limit
     if (processedCount >= maxCount) {
       core.warning(`Skipping add_comment: max count of ${maxCount} reached`);
@@ -390,12 +458,12 @@ async function main(config = {}) {
       core.info(`Using explicitly provided item_number: #${itemNumber}`);
     } else {
       // Check if this is a discussion context
-      const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+      const isDiscussionContext = effectiveContext.eventName === "discussion" || effectiveContext.eventName === "discussion_comment";
 
       if (isDiscussionContext) {
         // For discussions, always use the discussion context
         isDiscussion = true;
-        itemNumber = context.payload?.discussion?.number;
+        itemNumber = effectiveContext.payload?.discussion?.number;
 
         if (!itemNumber) {
           core.warning("Discussion context detected but no discussion number found");
@@ -411,7 +479,7 @@ async function main(config = {}) {
         const targetResult = resolveTarget({
           targetConfig: commentTarget,
           item: message,
-          context: context,
+          context: effectiveContext,
           itemType: "add_comment",
           supportsPR: true, // add_comment supports both issues and PRs
           supportsIssue: false,
@@ -617,8 +685,8 @@ async function main(config = {}) {
         }
         comment = await commentOnDiscussion(githubClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, replyToId);
       } else {
-        const shouldReplyToTriggeringPRReviewComment = context.eventName === "pull_request_review_comment" && explicitItemNumber === undefined;
-        const triggeringReviewCommentId = Number(context.payload?.comment?.id);
+        const shouldReplyToTriggeringPRReviewComment = effectiveContext.eventName === "pull_request_review_comment" && explicitItemNumber === undefined;
+        const triggeringReviewCommentId = Number(effectiveContext.payload?.comment?.id);
 
         if (shouldReplyToTriggeringPRReviewComment && Number.isInteger(triggeringReviewCommentId) && triggeringReviewCommentId > 0) {
           core.info(`Replying inline to triggering PR review comment ID: ${triggeringReviewCommentId}`);
