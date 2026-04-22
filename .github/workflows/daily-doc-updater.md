@@ -29,6 +29,7 @@ safe-outputs:
     reviewers: [copilot]
     draft: false
     auto-merge: true
+    protected-files: fallback-to-issue
 
 tools:
   mount-as-clis: true
