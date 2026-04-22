@@ -4,6 +4,8 @@ package workflow
 
 import (
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -370,7 +372,7 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 
 func TestCodexEngineOpenAIProxyProviderBaseURL(t *testing.T) {
 	engine := NewCodexEngine()
-	expected := fmt.Sprintf("http://%s:%d", constants.AWFAPIProxyContainerIP, constants.ClaudeLLMGatewayPort)
+	expected := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.ClaudeLLMGatewayPort))
 
 	if actual := engine.getOpenAIProxyProviderBaseURL(); actual != expected {
 		t.Errorf("Expected OpenAI proxy provider base URL %q, got %q", expected, actual)
