@@ -983,6 +983,11 @@ on:
     # (optional)
     statuses: "read"
 
+  # Explicit additional custom workflow jobs that pre_activation and activation
+  # should depend on.
+  # (optional)
+  needs: ["secrets_fetcher"]
+
   # When set to false, disables the frontmatter hash check step in the activation
   # job. Default is true (check is enabled). Useful when the workflow source files
   # are managed outside the default GitHub repo context (e.g. cross-repo org

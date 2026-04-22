@@ -167,6 +167,7 @@ type FrontmatterConfig struct {
 
 	// Event and trigger configuration
 	On          map[string]any `json:"on,omitempty"`          // Complex trigger config with many variants (too dynamic to type)
+	OnNeeds     []string       `json:"-"`                     // New typed field extracted from on.needs (not in JSON to avoid conflict)
 	Permissions map[string]any `json:"permissions,omitempty"` // Deprecated: use PermissionsTyped (can be string or map)
 	Concurrency map[string]any `json:"concurrency,omitempty"`
 	If          string         `json:"if,omitempty"`

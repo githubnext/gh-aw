@@ -40,6 +40,7 @@ The `on:` section uses standard GitHub Actions syntax to define workflow trigger
 - `skip-if-no-match:` - Skip execution when a search query has no matches (supports `scope: none`; use top-level `on.github-token` / `on.github-app` for custom auth)
 - `steps:` - Inject custom deterministic steps into the pre-activation job (saves one workflow job vs. multi-job pattern)
 - `permissions:` - Grant additional GitHub token scopes to the pre-activation job (for use with `on.steps:` API calls)
+- `needs:` - Add custom job dependencies that both `pre_activation` and `activation` must wait for
 - `github-token:` - Custom token for activation job reactions, status comments, and skip-if search queries
 - `github-app:` - GitHub App for minting a short-lived token used by the activation job and all skip-if search steps
 

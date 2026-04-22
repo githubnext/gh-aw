@@ -12,6 +12,8 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/goccy/go-yaml"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // ========================================
@@ -2751,6 +2753,37 @@ func TestBuildCustomJobsSkipsPreActivationJob(t *testing.T) {
 	if _, exists := compiler.jobManager.GetJob("normal_job"); !exists {
 		t.Error("Expected normal_job to be added")
 	}
+}
+
+// TestBuildCustomJobsDoesNotAutoAddActivationWhenListedInOnNeeds verifies that
+// custom jobs listed in on.needs run before activation and therefore do not get
+// an implicit needs: activation dependency.
+func TestBuildCustomJobsDoesNotAutoAddActivationWhenListedInOnNeeds(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	activationJob := &Job{Name: string(constants.ActivationJobName)}
+	require.NoError(t, compiler.jobManager.AddJob(activationJob), "activation job should be added")
+
+	data := &WorkflowData{
+		Name:    "Test Workflow",
+		AI:      "copilot",
+		OnNeeds: []string{"secrets_fetcher"},
+		Jobs: map[string]any{
+			"secrets_fetcher": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"steps": []any{
+					map[string]any{"run": "echo 'fetch'"},
+				},
+			},
+		},
+	}
+
+	require.NoError(t, compiler.buildCustomJobs(data, true), "custom jobs should build")
+
+	job, exists := compiler.jobManager.GetJob("secrets_fetcher")
+	require.True(t, exists, "secrets_fetcher should be added")
+	assert.NotContains(t, job.Needs, string(constants.ActivationJobName), "on.needs job should not auto-depend on activation")
 }
 
 // TestBuildCustomJobsWithStrategy tests custom jobs with matrix strategy configuration

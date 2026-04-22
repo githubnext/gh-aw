@@ -384,6 +384,11 @@ func (c *Compiler) addActivationCommandAndLabelOutputs(ctx *activationJobBuildCo
 func (c *Compiler) configureActivationNeedsAndCondition(ctx *activationJobBuildContext) {
 	data := ctx.data
 	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
+	for _, jobName := range data.OnNeeds {
+		if !slices.Contains(customJobsBeforeActivation, jobName) {
+			customJobsBeforeActivation = append(customJobsBeforeActivation, jobName)
+		}
+	}
 	promptReferencedJobs := c.getCustomJobsReferencedInPromptWithNoActivationDep(data)
 	for _, jobName := range promptReferencedJobs {
 		if !slices.Contains(customJobsBeforeActivation, jobName) {

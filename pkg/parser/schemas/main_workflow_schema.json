@@ -1903,6 +1903,18 @@
                 }
               ]
             },
+            "needs": {
+              "type": "array",
+              "description": "Explicit additional custom workflow jobs that pre_activation and activation should depend on.",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$"
+              },
+              "additionalItems": false,
+              "uniqueItems": true,
+              "default": [],
+              "examples": [["secrets_fetcher"]]
+            },
             "steps": {
               "type": "array",
               "description": "Steps to inject into the pre-activation job. These steps run after all built-in checks (membership, stop-time, skip-if, etc.) and their results are exposed as pre-activation outputs. Use 'id' on steps to reference their results via needs.pre_activation.outputs.<id>_result.",

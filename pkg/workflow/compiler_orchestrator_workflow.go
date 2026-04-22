@@ -454,5 +454,12 @@ func (c *Compiler) processOnSectionAndFilters(
 	// Extract on.permissions for pre-activation job permissions
 	workflowData.OnPermissions = extractOnPermissions(frontmatter)
 
+	// Extract on.needs for pre-activation/activation job dependencies
+	onNeeds, err := extractOnNeeds(frontmatter)
+	if err != nil {
+		return err
+	}
+	workflowData.OnNeeds = onNeeds
+
 	return nil
 }

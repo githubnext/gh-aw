@@ -608,6 +608,33 @@ if: needs.pre_activation.outputs.has_bug_label == 'true'
 
 Explicit outputs defined in `jobs.pre-activation.outputs` take precedence over auto-wired `<id>_result` outputs on key collision.
 
+### Pre-Activation and Activation Dependencies (`on.needs:`)
+
+Add custom jobs that both `pre_activation` and `activation` should depend on. Use this when `on.github-app` credentials come from a job output (for example, a secret-manager fetch job).
+
+```yaml wrap
+on:
+  workflow_dispatch:
+  needs: [secrets_fetcher]
+  github-app:
+    client-id: ${{ needs.secrets_fetcher.outputs.app_id }}
+    private-key: ${{ needs.secrets_fetcher.outputs.private_key }}
+
+jobs:
+  secrets_fetcher:
+    runs-on: ubuntu-latest
+    outputs:
+      app_id: ${{ steps.fetch.outputs.app_id }}
+      private_key: ${{ steps.fetch.outputs.private_key }}
+    steps:
+      - id: fetch
+        run: |
+          echo "app_id=123" >> "$GITHUB_OUTPUT"
+          echo "private_key=***" >> "$GITHUB_OUTPUT"
+```
+
+`on.needs` values must reference custom jobs from top-level `jobs:`. Built-in jobs are rejected.
+
 ### Pre-Activation Permissions (`on.permissions:`)
 
 Grant additional GitHub token permission scopes to the pre-activation job. Use when `on.steps:` make GitHub API calls that require permissions beyond the defaults.

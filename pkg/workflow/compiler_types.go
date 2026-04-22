@@ -438,6 +438,7 @@ type WorkflowData struct {
 	SkipBots                    []string                        // users to skip workflow for (e.g., [user1, user2])
 	OnSteps                     []map[string]any                // steps to inject into the pre-activation job from on.steps
 	OnPermissions               *Permissions                    // additional permissions for the pre-activation job from on.permissions
+	OnNeeds                     []string                        // custom workflow jobs that pre_activation/activation should depend on from on.needs
 	ManualApproval              string                          // environment name for manual approval from on: section
 	Command                     []string                        // for /command trigger support - multiple command names
 	CommandEvents               []string                        // events where command should be active (nil = all events)

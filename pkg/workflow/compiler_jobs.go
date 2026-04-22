@@ -267,10 +267,11 @@ func (c *Compiler) buildPreActivationAndActivationJobs(data *WorkflowData, front
 	hasCommandTrigger := len(data.Command) > 0
 	hasRateLimit := data.RateLimit != nil
 	hasOnSteps := len(data.OnSteps) > 0
-	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasSkipIfNoMatch=%v, hasSkipRoles=%v, hasSkipBots=%v, hasCommand=%v, hasRateLimit=%v, hasOnSteps=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, hasSkipIfNoMatch, hasSkipRoles, hasSkipBots, hasCommandTrigger, hasRateLimit, hasOnSteps)
+	hasOnNeeds := len(data.OnNeeds) > 0
+	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasSkipIfNoMatch=%v, hasSkipRoles=%v, hasSkipBots=%v, hasCommand=%v, hasRateLimit=%v, hasOnSteps=%v, hasOnNeeds=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, hasSkipIfNoMatch, hasSkipRoles, hasSkipBots, hasCommandTrigger, hasRateLimit, hasOnSteps, hasOnNeeds)
 
 	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, skip-if-no-match check, skip-roles check, skip-bots check, rate limit check, command position check, and on.steps injection)
-	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasSkipRoles || hasSkipBots || hasCommandTrigger || hasRateLimit || hasOnSteps {
+	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasSkipRoles || hasSkipBots || hasCommandTrigger || hasRateLimit || hasOnSteps || hasOnNeeds {
 		compilerJobsLog.Print("Building pre-activation job")
 		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
 		if err != nil {
@@ -490,6 +491,10 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 	for _, j := range promptReferencedJobsSlice {
 		promptReferencedJobs[j] = true
 	}
+	onNeedsJobs := make(map[string]bool, len(data.OnNeeds))
+	for _, j := range data.OnNeeds {
+		onNeedsJobs[j] = true
+	}
 
 	for jobName, jobConfig := range data.Jobs {
 		// Skip jobs.pre-activation (or pre_activation) as it's handled specially in buildPreActivationJob
@@ -531,11 +536,14 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			// Exception: jobs whose outputs are referenced in the markdown body run before activation
 			// (so the activation job can include their outputs in the prompt).
 			isReferencedInMarkdown := promptReferencedJobs[jobName]
-			if !hasExplicitNeeds && activationJobCreated && !isReferencedInMarkdown {
+			isOnNeedsDependency := onNeedsJobs[jobName]
+			if !hasExplicitNeeds && activationJobCreated && !isReferencedInMarkdown && !isOnNeedsDependency {
 				job.Needs = append(job.Needs, string(constants.ActivationJobName))
 				compilerJobsLog.Printf("Added automatic dependency: custom job '%s' now depends on '%s'", jobName, string(constants.ActivationJobName))
 			} else if !hasExplicitNeeds && isReferencedInMarkdown {
 				compilerJobsLog.Printf("Custom job '%s' referenced in markdown body runs before activation (no auto-added dependency)", jobName)
+			} else if !hasExplicitNeeds && isOnNeedsDependency {
+				compilerJobsLog.Printf("Custom job '%s' listed in on.needs runs before activation (no auto-added dependency)", jobName)
 			}
 
 			// Extract other job properties
