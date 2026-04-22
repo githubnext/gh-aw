@@ -54,10 +54,11 @@ strict: true
 ---
 
 For all events, call the tools in this exact order:
-1. Use `cache-memory` to write a short JSON record for this run.
-2. Use `repo-memory` to write a short markdown run note.
-3. Use `create_issue` with temporary ID `aw_smokeci` and include the run URL in the body.
-4. Use `update_issue` targeting `aw_smokeci` with `operation: "append"` to add a second line confirming the update succeeded.
+1. Use `cache-memory` to inspect `/tmp/gh-aw/cache-memory/smoke-ci-haiku/`, count how many haiku records already exist, then save that count as `existing_haiku_count`.
+2. Create a new haiku for this run and use `cache-memory` to save it as a JSON record in `/tmp/gh-aw/cache-memory/smoke-ci-haiku/` with a filesystem-safe timestamp filename in `YYYY-MM-DD-HH-MM-SS-sss` format (no `:`).
+3. Use `repo-memory` to write a short markdown run note.
+4. Use `create_issue` with temporary ID `aw_smokeci` and include in the body: the run URL, the generated haiku text, and `existing_haiku_count`.
+5. Use `update_issue` targeting `aw_smokeci` with `operation: "append"` to add a second line confirming the update succeeded.
 
 For pull_request events, then call these safe output tools in this exact order:
 1. `add_comment` with a short smoke-ci message that includes the run URL.

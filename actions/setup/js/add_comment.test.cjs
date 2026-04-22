@@ -42,6 +42,14 @@ describe("add_comment", () => {
           }),
           listComments: async () => ({ data: [] }),
         },
+        pulls: {
+          createReplyForReviewComment: async () => ({
+            data: {
+              id: 99999,
+              html_url: "https://github.com/owner/repo/pull/8535#discussion_r99999",
+            },
+          }),
+        },
       },
       graphql: async () => ({
         repository: {
@@ -354,6 +362,215 @@ describe("add_comment", () => {
       const skipInfo = infoCalls.find(msg => msg.includes("triggering"));
       expect(skipInfo).toBeTruthy();
       expect(warningCalls.filter(msg => msg.includes("triggering")).length).toBe(0);
+    });
+
+    it("should reply inline to triggering PR review comment when item_number is not provided", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      mockContext.eventName = "pull_request_review_comment";
+      mockContext.payload = {
+        pull_request: {
+          number: 8535,
+        },
+        comment: {
+          id: 777,
+        },
+      };
+
+      let capturedReplyParams = null;
+      let issueCommentCalled = false;
+      mockGithub.rest.pulls.createReplyForReviewComment = async params => {
+        capturedReplyParams = params;
+        return {
+          data: {
+            id: 56789,
+            html_url: "https://github.com/owner/repo/pull/8535#discussion_r56789",
+          },
+        };
+      };
+      mockGithub.rest.issues.createComment = async () => {
+        issueCommentCalled = true;
+        return {
+          data: {
+            id: 12345,
+            html_url: "https://github.com/owner/repo/issues/8535#issuecomment-12345",
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "Inline reply for review thread",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.itemNumber).toBe(8535);
+      expect(result.isDiscussion).toBe(false);
+      expect(issueCommentCalled).toBe(false);
+      expect(capturedReplyParams).toEqual(
+        expect.objectContaining({
+          owner: "owner",
+          repo: "repo",
+          pull_number: 8535,
+          comment_id: 777,
+        })
+      );
+    });
+
+    it("should keep top-level comment behavior for pull_request_review_comment when item_number is explicitly provided", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      mockContext.eventName = "pull_request_review_comment";
+      mockContext.payload = {
+        pull_request: {
+          number: 8535,
+        },
+        comment: {
+          id: 777,
+        },
+      };
+
+      let capturedIssueNumber = null;
+      let reviewReplyCalled = false;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedIssueNumber = params.issue_number;
+        return {
+          data: {
+            id: 12345,
+            html_url: "https://github.com/owner/repo/issues/970#issuecomment-12345",
+          },
+        };
+      };
+      mockGithub.rest.pulls.createReplyForReviewComment = async () => {
+        reviewReplyCalled = true;
+        return {
+          data: {
+            id: 56789,
+            html_url: "https://github.com/owner/repo/pull/8535#discussion_r56789",
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+
+      const message = {
+        type: "add_comment",
+        item_number: 970,
+        body: "Top-level comment on explicit item number",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedIssueNumber).toBe(970);
+      expect(reviewReplyCalled).toBe(false);
+    });
+
+    it("should reply inline when pull_request_review_comment context is forwarded via workflow_dispatch inputs", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.payload = {
+        inputs: {
+          event_name: "pull_request_review_comment",
+          event_payload: JSON.stringify({
+            pull_request: { number: 8535 },
+            comment: { id: 777 },
+          }),
+        },
+      };
+
+      let capturedReplyParams = null;
+      let issueCommentCalled = false;
+      mockGithub.rest.pulls.createReplyForReviewComment = async params => {
+        capturedReplyParams = params;
+        return {
+          data: {
+            id: 56789,
+            html_url: "https://github.com/owner/repo/pull/8535#discussion_r56789",
+          },
+        };
+      };
+      mockGithub.rest.issues.createComment = async () => {
+        issueCommentCalled = true;
+        return {
+          data: {
+            id: 12345,
+            html_url: "https://github.com/owner/repo/issues/8535#issuecomment-12345",
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+
+      const result = await handler({ type: "add_comment", body: "Inline reply from workflow_dispatch relay" }, {});
+
+      expect(result.success).toBe(true);
+      expect(issueCommentCalled).toBe(false);
+      expect(capturedReplyParams).toEqual(
+        expect.objectContaining({
+          owner: "owner",
+          repo: "repo",
+          pull_number: 8535,
+          comment_id: 777,
+        })
+      );
+    });
+
+    it("should reply inline when pull_request_review_comment context is forwarded via workflow_call aw_context", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      mockContext.eventName = "workflow_call";
+      mockContext.payload = {
+        inputs: {
+          aw_context: JSON.stringify({
+            event_type: "pull_request_review_comment",
+            item_number: "8535",
+            comment_id: "777",
+          }),
+        },
+      };
+
+      let capturedReplyParams = null;
+      let issueCommentCalled = false;
+      mockGithub.rest.pulls.createReplyForReviewComment = async params => {
+        capturedReplyParams = params;
+        return {
+          data: {
+            id: 56789,
+            html_url: "https://github.com/owner/repo/pull/8535#discussion_r56789",
+          },
+        };
+      };
+      mockGithub.rest.issues.createComment = async () => {
+        issueCommentCalled = true;
+        return {
+          data: {
+            id: 12345,
+            html_url: "https://github.com/owner/repo/issues/8535#issuecomment-12345",
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+
+      const result = await handler({ type: "add_comment", body: "Inline reply from workflow_call relay" }, {});
+
+      expect(result.success).toBe(true);
+      expect(result.itemNumber).toBe(8535);
+      expect(issueCommentCalled).toBe(false);
+      expect(capturedReplyParams).toEqual(
+        expect.objectContaining({
+          owner: "owner",
+          repo: "repo",
+          pull_number: 8535,
+          comment_id: 777,
+        })
+      );
     });
   });
 

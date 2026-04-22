@@ -17,9 +17,6 @@ func NewInitCommand() *cobra.Command {
 		Short: "Initialize the repository for agentic workflows",
 		Long: `Initialize the repository for agentic workflows by configuring .gitattributes and creating the dispatcher agent file.
 
-Usage:
-  gh aw init
-
 This command performs non-interactive repository setup and does not prompt for
 engine selection or secret configuration.
 

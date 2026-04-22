@@ -149,13 +149,23 @@ function normalizeContainerPins(content) {
   return content.replace(/@sha256:[0-9a-f]{64}/g, "");
 }
 
+// ── Normalize AWF --image-tag digest suffixes ─────────────────────────
+// Strips ",name=sha256:<64 hex chars>" fragments appended to --image-tag values
+// so output compares equal when runtime image digests are present in one path but not another.
+// Mirrors normalizeOutput() in pkg/workflow/wasm_golden_test.go.
+function normalizeAWFImageTagDigests(content) {
+  return content.replace(/,[a-z-]+=sha256:[0-9a-f]{64}/g, "");
+}
+
 // ── Normalize output ──────────────────────────────────────────────────
 // Applies all normalizations needed for stable golden comparison.
 // Combines heredoc delimiter and container pin normalizations so that
 // new normalization steps only need to be added in one place.
 // Mirrors normalizeOutput() in pkg/workflow/wasm_golden_test.go.
 function normalize(content) {
-  return normalizeContainerPins(normalizeHeredocDelimiters(content));
+  return normalizeAWFImageTagDigests(
+    normalizeContainerPins(normalizeHeredocDelimiters(content))
+  );
 }
 
 // ── Load golden file ─────────────────────────────────────────────────

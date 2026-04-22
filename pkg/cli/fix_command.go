@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -319,6 +320,10 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 			return false, nil, fmt.Errorf("failed to write file: %w", err)
 		}
 
+		if err := scaffoldSerenaSharedWorkflowIfNeeded(filePath, appliedCodemods, currentContent, verbose); err != nil {
+			return false, nil, fmt.Errorf("failed to scaffold shared Serena workflow: %w", err)
+		}
+
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage("✓ "+fileName))
 		for _, codemodName := range appliedCodemods {
 			fmt.Fprintf(os.Stderr, "    • %s\n", codemodName)
@@ -331,4 +336,55 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 	}
 
 	return true, appliedCodemods, nil
+}
+
+const scaffoldedSerenaSharedWorkflow = `---
+imports:
+  - uses: github/gh-aw/.github/workflows/shared/mcp/serena.md@main
+---
+`
+
+func scaffoldSerenaSharedWorkflowIfNeeded(filePath string, appliedCodemods []string, content string, verbose bool) error {
+	if !wasCodemodApplied(appliedCodemods, "Migrate tools.serena to shared Serena import") {
+		return nil
+	}
+	if !strings.Contains(content, "shared/mcp/serena.md") {
+		return nil
+	}
+
+	workflowRoot := resolveWorkflowRoot(filePath)
+	serenaPath := filepath.Join(workflowRoot, "shared", "mcp", "serena.md")
+	if _, err := os.Stat(serenaPath); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(serenaPath), 0755); err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(serenaPath, []byte(scaffoldedSerenaSharedWorkflow), 0600); err != nil {
+		return err
+	}
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Scaffolded "+serenaPath))
+	}
+
+	return nil
+}
+
+func wasCodemodApplied(appliedCodemods []string, codemodName string) bool {
+	return slices.Contains(appliedCodemods, codemodName)
+}
+
+func resolveWorkflowRoot(filePath string) string {
+	clean := filepath.Clean(filePath)
+	needle := filepath.Join(".github", "workflows")
+	needleWithSep := needle + string(filepath.Separator)
+	if idx := strings.Index(clean, needleWithSep); idx >= 0 {
+		return clean[:idx+len(needle)]
+	}
+	return filepath.Dir(clean)
 }
