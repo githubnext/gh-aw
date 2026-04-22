@@ -86,6 +86,58 @@ func TestFindFrontmatterFieldLine(t *testing.T) {
 	}
 }
 
+func TestFindFrontmatterFieldValuePosition(t *testing.T) {
+	tests := []struct {
+		name             string
+		frontmatterLines []string
+		frontmatterStart int
+		fieldName        string
+		expectedLine     int
+		expectedColumn   int
+	}{
+		{
+			name:             "engine value with space after colon",
+			frontmatterLines: []string{"on: push", "engine: claaude"},
+			frontmatterStart: 2,
+			fieldName:        "engine",
+			expectedLine:     3,
+			expectedColumn:   9,
+		},
+		{
+			name:             "engine value without space after colon",
+			frontmatterLines: []string{"engine:claaude"},
+			frontmatterStart: 2,
+			fieldName:        "engine",
+			expectedLine:     2,
+			expectedColumn:   8,
+		},
+		{
+			name:             "engine key without value points at colon",
+			frontmatterLines: []string{"engine:"},
+			frontmatterStart: 2,
+			fieldName:        "engine",
+			expectedLine:     2,
+			expectedColumn:   7,
+		},
+		{
+			name:             "missing field returns zeros",
+			frontmatterLines: []string{"on: push"},
+			frontmatterStart: 2,
+			fieldName:        "engine",
+			expectedLine:     0,
+			expectedColumn:   0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			line, col := findFrontmatterFieldValuePosition(tt.frontmatterLines, tt.frontmatterStart, tt.fieldName)
+			assert.Equal(t, tt.expectedLine, line, "line should match expected value")
+			assert.Equal(t, tt.expectedColumn, col, "column should match expected value")
+		})
+	}
+}
+
 // TestReadSourceContextLines verifies that reading source context lines around a
 // target line produces the expected context window for Rust-style error rendering.
 func TestReadSourceContextLines(t *testing.T) {

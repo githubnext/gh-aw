@@ -68,6 +68,29 @@ on: {{{
 	require.Error(t, err)
 }
 
+func TestParseWorkflowString_InvalidEngineHasLocationContext(t *testing.T) {
+	markdown := `---
+on: push
+engine: claaude
+---
+
+# Broken
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	_, err := compiler.ParseWorkflowString(markdown, "workflow.md")
+	require.Error(t, err)
+
+	errStr := err.Error()
+	assert.Contains(t, errStr, "workflow.md:3:9:", "invalid engine should include file:line:column location")
+	assert.Contains(t, errStr, "invalid engine:", "invalid engine should be preserved in message")
+	assert.Contains(t, errStr, "engine: claaude", "error should include source snippet context")
+}
+
 func TestParseWorkflowString_SharedWorkflowDetection(t *testing.T) {
 	// Shared workflows have no 'on' trigger field
 	markdown := `---

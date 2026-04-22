@@ -242,24 +242,28 @@ func TestTranslateYAMLMessage(t *testing.T) {
 		input    string
 		contains string
 		excludes string
+		example  string
 	}{
 		{
 			name:     "unexpected key name",
 			input:    "unexpected key name",
 			contains: "missing ':' after key",
 			excludes: "unexpected key name",
+			example:  "Example:\nengine: copilot",
 		},
 		{
 			name:     "non-map value is specified",
 			input:    "non-map value is specified",
 			contains: "expected a YAML mapping",
 			excludes: "non-map value is specified",
+			example:  "Example:\nengine: copilot",
 		},
 		{
 			name:     "found character that cannot start any token",
 			input:    "found character that cannot start any token",
 			contains: "invalid character",
 			excludes: "found character that cannot start any token",
+			example:  "Example:\npermissions:\n  contents: read",
 		},
 		{
 			name:     "unrecognized message is unchanged",
@@ -284,6 +288,10 @@ func TestTranslateYAMLMessage(t *testing.T) {
 				assert.NotContains(t, result, tt.excludes,
 					"TranslateYAMLMessage should not contain %q\nResult: %s", tt.excludes, result)
 			}
+			if tt.example != "" {
+				assert.Contains(t, result, tt.example,
+					"TranslateYAMLMessage should contain fix example %q\nResult: %s", tt.example, result)
+			}
 		})
 	}
 }
@@ -292,16 +300,18 @@ func TestTranslateYAMLMessage(t *testing.T) {
 // to the underlying goccy/go-yaml error messages.
 func TestFormatYAMLErrorTranslation(t *testing.T) {
 	tests := []struct {
-		name          string
-		yamlContent   string
-		shouldContain string
-		shouldExclude string
+		name               string
+		yamlContent        string
+		shouldContain      string
+		shouldContainExtra string
+		shouldExclude      string
 	}{
 		{
-			name:          "missing colon translated",
-			yamlContent:   "engine claude\nmodel: gpt-4",
-			shouldContain: "missing ':' after key",
-			shouldExclude: "unexpected key name",
+			name:               "missing colon translated",
+			yamlContent:        "engine claude\nmodel: gpt-4",
+			shouldContain:      "missing ':' after key",
+			shouldContainExtra: "Example:\nengine: copilot",
+			shouldExclude:      "unexpected key name",
 		},
 		{
 			name:          "extra colon translated",
@@ -328,6 +338,10 @@ func TestFormatYAMLErrorTranslation(t *testing.T) {
 			formatted := FormatYAMLError(err, 1, tt.yamlContent)
 			assert.Contains(t, formatted, tt.shouldContain,
 				"FormatYAMLError should contain %q\nResult: %s", tt.shouldContain, formatted)
+			if tt.shouldContainExtra != "" {
+				assert.Contains(t, formatted, tt.shouldContainExtra,
+					"FormatYAMLError should contain %q\nResult: %s", tt.shouldContainExtra, formatted)
+			}
 			if tt.shouldExclude != "" {
 				assert.NotContains(t, formatted, tt.shouldExclude,
 					"FormatYAMLError should not contain %q\nResult: %s", tt.shouldExclude, formatted)

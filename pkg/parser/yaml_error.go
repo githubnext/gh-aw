@@ -28,42 +28,52 @@ var (
 var yamlErrorTranslations = []struct {
 	pattern     string
 	replacement string
+	example     string
 }{
 	{
-		"unexpected key name",
-		"missing ':' after key — YAML mapping entries require 'key: value' format",
+		pattern:     "unexpected key name",
+		replacement: "missing ':' after key — YAML mapping entries require 'key: value' format",
+		example:     "\n\nExample:\nengine: copilot",
 	},
 	{
-		"mapping value is not allowed in this context",
-		"unexpected ':' — check indentation or if this key belongs in a mapping block",
+		pattern:     "mapping value is not allowed in this context",
+		replacement: "unexpected ':' — check indentation or if this key belongs in a mapping block",
+		example:     "\n\nExample:\npermissions:\n  contents: read",
 	},
 	{
-		"mapping values are not allowed",
-		"unexpected ':' — check indentation or if this key belongs in a mapping block",
+		pattern:     "mapping values are not allowed",
+		replacement: "unexpected ':' — check indentation or if this key belongs in a mapping block",
+		example:     "\n\nExample:\npermissions:\n  contents: read",
 	},
 	{
-		"string was used where mapping is expected",
-		"expected a YAML mapping (key: value pairs) but got a plain string",
+		pattern:     "string was used where mapping is expected",
+		replacement: "expected a YAML mapping (key: value pairs) but got a plain string",
+		example:     "\n\nExample:\nengine: copilot",
 	},
 	{
-		"non-map value is specified",
-		"expected a YAML mapping (key: value pairs) — did you forget a colon after the key?",
+		pattern:     "non-map value is specified",
+		replacement: "expected a YAML mapping (key: value pairs) — did you forget a colon after the key?",
+		example:     "\n\nExample:\nengine: copilot",
 	},
 	{
-		"tab character cannot use as a map key directly",
-		"tab character in key — YAML requires spaces for indentation, not tabs",
+		pattern:     "tab character cannot use as a map key directly",
+		replacement: "tab character in key — YAML requires spaces for indentation, not tabs",
+		example:     "\n\nExample:\npermissions:\n  contents: read",
 	},
 	{
-		"found character that cannot start any token",
-		"invalid character — check indentation uses spaces, not tabs",
+		pattern:     "found character that cannot start any token",
+		replacement: "invalid character — check indentation uses spaces, not tabs",
+		example:     "\n\nExample:\npermissions:\n  contents: read",
 	},
 	{
-		"could not find expected ':'",
-		"missing ':' in key-value pair",
+		pattern:     "could not find expected ':'",
+		replacement: "missing ':' in key-value pair",
+		example:     "\n\nExample:\nengine: copilot",
 	},
 	{
-		"did not find expected key",
-		"incorrect indentation or missing key in mapping",
+		pattern:     "did not find expected key",
+		replacement: "incorrect indentation or missing key in mapping",
+		example:     "\n\nExample:\npermissions:\n  contents: read",
 	},
 }
 
@@ -80,7 +90,7 @@ func TranslateYAMLMessage(message string) string {
 		if idx := strings.Index(lower, t.pattern); idx >= 0 {
 			yamlErrorLog.Printf("Translating YAML message pattern %q", t.pattern)
 			// Slice using idx from the lowercase string. Safe because all patterns are ASCII.
-			return message[:idx] + t.replacement + message[idx+len(t.pattern):]
+			return message[:idx] + t.replacement + t.example + message[idx+len(t.pattern):]
 		}
 	}
 	return message

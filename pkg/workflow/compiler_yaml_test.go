@@ -402,7 +402,7 @@ engine: copilot
 
 Test content.`,
 			expectedLineCol: "[3:1]", // Line 3 in file (permissions without colon)
-			expectedInError: []string{"missing ':' after key", "permissions"},
+			expectedInError: []string{"missing ':' after key", "permissions", "Example:\nengine: copilot"},
 			expectPointer:   true,
 			description:     "missing colon shows formatted output",
 		},
@@ -480,6 +480,7 @@ func TestEngineValidationErrorHasFileLocation(t *testing.T) {
 		name              string
 		content           string
 		expectedErrorLine int
+		expectedErrorCol  int
 		description       string
 	}{
 		{
@@ -493,6 +494,7 @@ engine: openai_gpt
 
 Content.`,
 			expectedErrorLine: 3, // "engine: openai_gpt" is on line 3 in the file
+			expectedErrorCol:  9, // value starts after "engine: "
 			description:       "invalid engine on line 3 should produce error at line 3",
 		},
 		{
@@ -509,6 +511,7 @@ strict: false
 
 Content.`,
 			expectedErrorLine: 5, // "engine: badengine_xyz" is on line 5 in the file
+			expectedErrorCol:  9, // value starts after "engine: "
 			description:       "invalid engine after permissions block should produce error at correct line",
 		},
 	}
@@ -530,7 +533,7 @@ Content.`,
 			errorStr := err.Error()
 
 			// Verify error contains filename:line:col: format pointing to the engine field
-			expectedPattern := fmt.Sprintf(".md:%d:1:", tt.expectedErrorLine)
+			expectedPattern := fmt.Sprintf(".md:%d:%d:", tt.expectedErrorLine, tt.expectedErrorCol)
 			if !strings.Contains(errorStr, expectedPattern) {
 				t.Errorf("%s: error should contain '%s' pointing to the engine: field, got: %s",
 					tt.description, expectedPattern, errorStr)

@@ -117,7 +117,15 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	// Setup engine and process imports
 	engineSetup, err := c.setupEngineAndImports(parseResult.frontmatterResult, parseResult.cleanPath, parseResult.content, parseResult.markdownDir)
 	if err != nil {
-		return nil, err
+		if isFormattedCompilerError(err) {
+			return nil, err
+		}
+		engineLine, engineCol := findFrontmatterFieldValuePosition(result.FrontmatterLines, result.FrontmatterStart, "engine")
+		if engineLine > 0 {
+			contextLines := readSourceContextLines(parseResult.content, engineLine)
+			return nil, formatCompilerErrorWithContext(cleanPath, engineLine, engineCol, "error", err.Error(), err, contextLines)
+		}
+		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
 	}
 
 	// Process tools and markdown

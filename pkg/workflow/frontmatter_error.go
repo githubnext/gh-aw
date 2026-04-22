@@ -59,15 +59,39 @@ func readSourceContextLines(content []byte, targetLine int) []string {
 // Only top-level (non-indented) keys are matched.  Nested values that happen
 // to contain the field name are ignored.
 func findFrontmatterFieldLine(frontmatterLines []string, frontmatterStart int, fieldName string) int {
+	line, _ := findFrontmatterFieldValuePosition(frontmatterLines, frontmatterStart, fieldName)
+	return line
+}
+
+// findFrontmatterFieldValuePosition searches frontmatterLines for a top-level
+// key that matches fieldName and returns the 1-based document line and column of
+// the field value. For "engine: claaude", this points to the "c" in "claaude".
+// Returns (0, 0) if the field is not found.
+func findFrontmatterFieldValuePosition(frontmatterLines []string, frontmatterStart int, fieldName string) (int, int) {
 	prefix := fieldName + ":"
 	for i, line := range frontmatterLines {
 		// Match only non-indented lines so nested YAML values are not confused
 		// with top-level keys (e.g. "  engine: ..." inside a mapping is ignored).
 		if strings.HasPrefix(line, prefix) {
-			return frontmatterStart + i
+			docLine := frontmatterStart + i
+			colonIndex := strings.Index(line, ":")
+			if colonIndex < 0 {
+				return docLine, 1
+			}
+
+			valueColumn := colonIndex + 2 // 1-based column right after ':'
+			for valueColumn <= len(line) && line[valueColumn-1] == ' ' {
+				valueColumn++
+			}
+			if valueColumn > len(line) {
+				// No value present - point at the key/value separator.
+				valueColumn = colonIndex + 1
+			}
+
+			return docLine, valueColumn
 		}
 	}
-	return 0
+	return 0, 0
 }
 
 // createFrontmatterError creates a detailed error for frontmatter parsing issues
@@ -87,13 +111,31 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 			line := matches[1]
 			col := matches[2]
 			message := matches[3]
-			// Extract just the first line of the message (before newline)
-			if idx := strings.Index(message, "\n"); idx != -1 {
-				message = message[:idx]
+
+			// Preserve any fix-guidance block that may be emitted after the header line
+			// (for example "Example:\nengine: copilot"), while keeping source context
+			// lines separate for Rust-style rendering below.
+			if _, rest, found := strings.Cut(errorStr, frontmatterParseErrPrefix); found {
+				messageSection := strings.TrimSpace(rest)
+				if loc := sourceContextPattern.FindStringIndex(rest); loc != nil {
+					messageSection = strings.TrimSpace(rest[:loc[0]])
+				}
+
+				headerLine, trailingGuidance, _ := strings.Cut(messageSection, "\n")
+				if headerMatches := lineColPattern.FindStringSubmatch(headerLine); len(headerMatches) >= 4 {
+					message = headerMatches[3]
+				} else {
+					message = strings.TrimSpace(headerLine)
+				}
+
+				// Translate raw YAML parser messages to user-friendly plain English.
+				// Uses the shared translation table from pkg/parser to keep both code paths in sync.
+				message = parser.TranslateYAMLMessage(message)
+
+				if guidance := strings.TrimSpace(trailingGuidance); guidance != "" {
+					message = message + "\n" + guidance
+				}
 			}
-			// Translate raw YAML parser messages to user-friendly plain English.
-			// Uses the shared translation table from pkg/parser to keep both code paths in sync.
-			message = parser.TranslateYAMLMessage(message)
 
 			// Format as: filename:line:column: error: message
 			// This is compatible with VSCode's problem matcher
