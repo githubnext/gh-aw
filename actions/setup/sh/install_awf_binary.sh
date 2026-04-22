@@ -134,8 +134,7 @@ fi
 
 run_awf() {
   local output_file
-  output_file=$(mktemp)
-  chmod 600 "$output_file"
+  output_file=$(umask 077 && mktemp)
   local status
 
   set +e
