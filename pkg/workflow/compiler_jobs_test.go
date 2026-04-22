@@ -816,7 +816,7 @@ func TestBuildMainJobSkipsBuiltInJobCustomizationsFromNeeds(t *testing.T) {
 	}
 }
 
-func TestIsBuiltInJobName(t *testing.T) {
+func TestIsBuiltinJobName(t *testing.T) {
 	tests := []struct {
 		name     string
 		jobName  string
@@ -839,9 +839,9 @@ func TestIsBuiltInJobName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual := isBuiltInJobName(tt.jobName)
+			actual := isBuiltinJobName(tt.jobName)
 			if actual != tt.expected {
-				t.Fatalf("isBuiltInJobName(%q) = %t, want %t", tt.jobName, actual, tt.expected)
+				t.Fatalf("isBuiltinJobName(%q) = %t, want %t", tt.jobName, actual, tt.expected)
 			}
 		})
 	}

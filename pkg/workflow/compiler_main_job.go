@@ -13,7 +13,7 @@ import (
 
 var compilerMainJobLog = logger.New("workflow:compiler_main_job")
 
-func isBuiltInJobName(jobName string) bool {
+func isBuiltinJobName(jobName string) bool {
 	switch jobName {
 	case string(constants.PreActivationJobName), "pre-activation",
 		string(constants.ActivationJobName),
@@ -106,7 +106,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	if data.Jobs != nil {
 		for _, jobName := range slices.Sorted(maps.Keys(data.Jobs)) {
 			// Skip built-in jobs as they are handled separately and should not become custom dependencies.
-			if isBuiltInJobName(jobName) {
+			if isBuiltinJobName(jobName) {
 				continue
 			}
 
@@ -135,7 +135,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	referencedJobs := c.getReferencedCustomJobs(contentBuilder.String(), data.Jobs)
 	for _, jobName := range referencedJobs {
 		// Skip built-in jobs as they are handled separately and should not become custom dependencies.
-		if isBuiltInJobName(jobName) {
+		if isBuiltinJobName(jobName) {
 			continue
 		}
 
