@@ -135,6 +135,7 @@ fi
 run_awf() {
   local output_file
   output_file=$(mktemp)
+  chmod 600 "$output_file"
   local status
 
   set +e
@@ -143,7 +144,7 @@ run_awf() {
   set -e
 
   AWF_RETRYABLE_FAILURE=0
-  if [ "$status" -ne 0 ] && grep -Fq "$RETRY_PATTERN" "$output_file"; then
+  if [ "$status" -ne 0 ] && grep -Fqm1 "$RETRY_PATTERN" "$output_file"; then
     AWF_RETRYABLE_FAILURE=1
   fi
   rm -f "$output_file"
@@ -159,6 +160,9 @@ while true; do
   set -e
 
   if [ "$status" -eq 0 ]; then
+    if [ "$attempt" -gt 0 ]; then
+      echo "[awf-wrapper] Retry succeeded on attempt ${attempt}" >&2
+    fi
     exit 0
   fi
 
