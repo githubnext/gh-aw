@@ -213,6 +213,12 @@ func applyContainerPins(images []string, workflowData *WorkflowData) ([]string, 
 				continue
 			}
 		}
+		if embeddedPin, ok := getEmbeddedContainerPin(img); ok && embeddedPin.PinnedImage != "" {
+			result[i] = embeddedPin.PinnedImage
+			pins[i] = GHAWManifestContainer(embeddedPin)
+			dockerLog.Printf("Pinned container image from embedded pins: %s -> %s", img, embeddedPin.PinnedImage)
+			continue
+		}
 		result[i] = img
 		pins[i] = GHAWManifestContainer{Image: img}
 	}

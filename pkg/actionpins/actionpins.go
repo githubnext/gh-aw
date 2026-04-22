@@ -39,9 +39,17 @@ type ActionPin struct {
 	Inputs  map[string]*ActionYAMLInput `json:"inputs,omitempty"`
 }
 
+// ContainerPin represents a pinned container image reference.
+type ContainerPin struct {
+	Image       string `json:"image"`
+	Digest      string `json:"digest"`
+	PinnedImage string `json:"pinned_image"`
+}
+
 // ActionPinsData represents the structure of the embedded JSON file.
 type ActionPinsData struct {
-	Entries map[string]ActionPin `json:"entries"`
+	Entries    map[string]ActionPin    `json:"entries"`
+	Containers map[string]ContainerPin `json:"containers,omitempty"`
 }
 
 // SHAResolver resolves a GitHub Action's commit SHA for a given version tag.
@@ -89,6 +97,7 @@ type PinContext struct {
 var (
 	cachedActionPins       []ActionPin
 	cachedActionPinsByRepo map[string][]ActionPin
+	cachedContainerPins    map[string]ContainerPin
 	actionPinsOnce         sync.Once
 )
 
@@ -123,6 +132,13 @@ func getActionPins() []ActionPin {
 
 		cachedActionPinsByRepo = buildByRepoIndex(pins)
 		log.Printf("Built per-repo action pin index for %d repos", len(cachedActionPinsByRepo))
+
+		if data.Containers == nil {
+			cachedContainerPins = make(map[string]ContainerPin)
+		} else {
+			cachedContainerPins = data.Containers
+		}
+		log.Printf("Loaded %d container pins from JSON", len(cachedContainerPins))
 	})
 
 	return cachedActionPins
@@ -180,6 +196,13 @@ func GetActionPinByRepo(repo string) (ActionPin, bool) {
 		return ActionPin{}, false
 	}
 	return pins[0], true
+}
+
+// GetContainerPin returns a pinned container image by its original image reference.
+func GetContainerPin(image string) (ContainerPin, bool) {
+	getActionPins()
+	pin, ok := cachedContainerPins[image]
+	return pin, ok
 }
 
 // getLatestActionPinReference returns the pinned reference for the latest version of the repo.

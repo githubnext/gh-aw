@@ -77,6 +77,11 @@ func getActionPinByRepo(repo string) (ActionPin, bool) {
 	return actionpins.GetActionPinByRepo(repo)
 }
 
+// getEmbeddedContainerPin returns the pinned container image for a given image reference.
+func getEmbeddedContainerPin(image string) (actionpins.ContainerPin, bool) {
+	return actionpins.GetContainerPin(image)
+}
+
 // getActionPinWithData returns the pinned action reference for a given action@version,
 // delegating to pkg/actionpins with a PinContext built from WorkflowData.
 func getActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
