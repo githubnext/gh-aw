@@ -59,12 +59,29 @@ func (m MCPServerID) String() string {
 const AgentJobName JobName = "agent"
 const ActivationJobName JobName = "activation"
 const PreActivationJobName JobName = "pre_activation"
+const PreActivationHyphenJobName JobName = "pre-activation"
 const DetectionJobName JobName = "detection"
 const SafeOutputsJobName JobName = "safe_outputs"
+const SafeOutputsHyphenJobName JobName = "safe-outputs"
 const UploadAssetsJobName JobName = "upload_assets"
 const UploadCodeScanningJobName JobName = "upload_code_scanning_sarif"
 const ConclusionJobName JobName = "conclusion"
 const UnlockJobName JobName = "unlock"
+
+// KnownBuiltInJobNames contains all known built-in workflow job names (including aliases).
+var KnownBuiltInJobNames = map[string]struct{}{
+	string(AgentJobName):               {},
+	string(ActivationJobName):          {},
+	string(PreActivationJobName):       {},
+	string(PreActivationHyphenJobName): {},
+	string(DetectionJobName):           {},
+	string(SafeOutputsJobName):         {},
+	string(SafeOutputsHyphenJobName):   {},
+	string(UploadAssetsJobName):        {},
+	string(UploadCodeScanningJobName):  {},
+	string(ConclusionJobName):          {},
+	string(UnlockJobName):              {},
+}
 
 // Artifact name constants
 const SafeOutputArtifactName = "safe-output"

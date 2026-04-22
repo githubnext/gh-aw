@@ -14,16 +14,8 @@ import (
 var compilerMainJobLog = logger.New("workflow:compiler_main_job")
 
 func isBuiltinJobName(jobName string) bool {
-	switch jobName {
-	case string(constants.PreActivationJobName), "pre-activation",
-		string(constants.ActivationJobName),
-		string(constants.AgentJobName),
-		string(constants.SafeOutputsJobName), "safe-outputs",
-		string(constants.ConclusionJobName):
-		return true
-	default:
-		return false
-	}
+	_, isBuiltIn := constants.KnownBuiltInJobNames[jobName]
+	return isBuiltIn
 }
 
 // buildMainJob creates the main agent job that runs the AI agent with the configured engine and tools.
