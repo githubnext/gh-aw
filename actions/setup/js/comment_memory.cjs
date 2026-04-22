@@ -118,7 +118,7 @@ async function main(config = {}) {
   core.info(`comment_memory: initialized with max=${maxCount}, defaultMemoryID='${defaultMemoryID}', target='${target}', footer=${includeFooter}, staged=${staged}`);
 
   let processedCount = 0;
-  let managedCommentDisclosureNote = null;
+  let cachedDisclosureNote = null;
 
   return async message => {
     if (!message || message.type !== "comment_memory") {
@@ -175,8 +175,8 @@ async function main(config = {}) {
         serverUrl: context.serverUrl,
       }) || undefined;
 
-    if (managedCommentDisclosureNote === null) {
-      managedCommentDisclosureNote = renderTemplateFromFile(MANAGED_COMMENT_DISCLOSURE_NOTE_PATH, {
+    if (cachedDisclosureNote === null) {
+      cachedDisclosureNote = renderTemplateFromFile(MANAGED_COMMENT_DISCLOSURE_NOTE_PATH, {
         comment_memory_tag: COMMENT_MEMORY_TAG,
       });
     }
@@ -190,7 +190,7 @@ async function main(config = {}) {
       historyUrl,
       triggeringIssueNumber,
       triggeringPRNumber,
-      disclosureNote: managedCommentDisclosureNote,
+      disclosureNote: cachedDisclosureNote,
     });
     try {
       enforceCommentLimits(managedBody);
