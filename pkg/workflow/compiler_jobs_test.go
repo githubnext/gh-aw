@@ -859,7 +859,7 @@ jobs:
 	)
 }
 
-func TestBuiltinJobPreStepsAreInsertedAfterCompleteSetupStep(t *testing.T) {
+func TestPreStepsInsertAfterSetupBoundary(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "builtin-job-pre-steps-setup-boundary")
 
 	frontmatter := `---
