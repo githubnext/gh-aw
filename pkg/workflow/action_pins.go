@@ -82,6 +82,20 @@ func getEmbeddedContainerPin(image string) (actionpins.ContainerPin, bool) {
 	return actionpins.GetContainerPin(image)
 }
 
+// lookupContainerPin returns the ContainerPin for the given image, checking cache first
+// then falling back to embedded pins. Returns false if the image is not pinned.
+func lookupContainerPin(image string, cache *ActionCache) (ContainerPin, bool) {
+	if cache != nil {
+		if pin, ok := cache.GetContainerPin(image); ok {
+			return pin, true
+		}
+	}
+	if pin, ok := getEmbeddedContainerPin(image); ok {
+		return ContainerPin(pin), true
+	}
+	return ContainerPin{}, false
+}
+
 // getActionPinWithData returns the pinned action reference for a given action@version,
 // delegating to pkg/actionpins with a PinContext built from WorkflowData.
 func getActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {

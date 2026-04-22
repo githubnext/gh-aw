@@ -437,13 +437,12 @@ func buildAWFImageTagWithDigests(imageTag string, workflowData *WorkflowData) st
 // resolveContainerDigest resolves a container image digest from cache first, then
 // falls back to embedded container pins.
 func resolveContainerDigest(image string, workflowData *WorkflowData) string {
-	if workflowData != nil && workflowData.ActionCache != nil {
-		if pin, ok := workflowData.ActionCache.GetContainerPin(image); ok && pin.Digest != "" {
-			return pin.Digest
-		}
+	var cache *ActionCache
+	if workflowData != nil {
+		cache = workflowData.ActionCache
 	}
-	if embeddedPin, ok := getEmbeddedContainerPin(image); ok && embeddedPin.Digest != "" {
-		return embeddedPin.Digest
+	if pin, ok := lookupContainerPin(image, cache); ok && pin.Digest != "" {
+		return pin.Digest
 	}
 	return ""
 }
