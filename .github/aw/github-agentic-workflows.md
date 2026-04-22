@@ -211,6 +211,7 @@ The YAML frontmatter supports these fields:
 - **`name:`** - Workflow name (string)
 - **`pre-steps:`** - Custom workflow steps to run at the very beginning of the agent job, before checkout (object). Use for token minting or setup that must happen before the repository is checked out. Step outputs are available via `${{ steps.<id>.outputs.<name> }}` and can be referenced in `checkout.github-token` to avoid masked-value cross-job boundary issues. Same security restrictions apply as for `steps:`.
 - **`steps:`** - Custom workflow steps before AI execution (object). **Security Notice**: Custom steps run OUTSIDE the firewall sandbox with standard GitHub Actions security but NO network egress controls. Use only for deterministic data preparation, not agentic compute. **Secrets restriction**: Using `${{ secrets.* }}` expressions (other than `secrets.GITHUB_TOKEN`) in custom steps is an error in strict mode and a warning otherwise — move secret-dependent operations to a separate job outside the agent job.
+- **`pre-agent-steps:`** - Custom workflow steps to run immediately before AI execution, after all initialization and setup steps (runtimes, MCP servers, tools) have been configured (object or array). Use when preparation requires the full environment to be ready. Same security restrictions apply as for `steps:`.
 - **`post-steps:`** - Custom workflow steps after AI execution (object). **Security Notice**: Post-execution steps run OUTSIDE the firewall sandbox. Use only for deterministic cleanup, artifact uploads, or notifications—not agentic compute or untrusted AI execution. Same secrets restriction applies as for `steps:`.
 - **`environment:`** - Environment that the job references for protection rules (string or object)
 - **`container:`** - Container to run job steps in (string or object)
@@ -292,8 +293,40 @@ The YAML frontmatter supports these fields:
   - The frontmatter hash covers the entire markdown body when enabled, so any content change invalidates the hash
   - **Required for repository rulesets**: Workflows used as required status checks in repository rulesets run without access to repository files at runtime. Set `inlined-imports: true` to bundle all imported content at compile time to avoid "Runtime import file not found" errors
   - **Constraint**: Cannot be combined with agent file imports (`.github/agents/` files). Remove any custom agent file imports before enabling
+- **`import-schema:`** - Define typed input parameters for this shared workflow (object). Use when other workflows import this one via the `uses:`/`with:` syntax (see [Imports Field](#imports-field)).
+  - Parameters are accessible inside the shared workflow via `${{ github.aw.import-inputs.<name> }}` expressions
+  - Object inputs (type: `object`) allow one-level deep sub-fields: `${{ github.aw.import-inputs.<name>.<subkey> }}`
+  - Fields per parameter:
+    - `type:` - Input type: `string`, `number`, `boolean`, `choice`, or `array`
+    - `description:` - Human-readable parameter description
+    - `required:` - Whether the input is required when imported (default: `false`)
+    - `default:` - Default value when not provided
+    - `options:` - Allowed values for `choice` type inputs
+  - Example:
+
+    ```yaml
+    import-schema:
+      environment:
+        type: choice
+        description: "Target environment"
+        options: [dev, staging, prod]
+        required: true
+      max-issues:
+        type: number
+        default: 5
+    ```
+
 - **`mcp-servers:`** - MCP (Model Context Protocol) server definitions (object)
   - Defines custom MCP servers for additional tools beyond built-in ones
+
+- **`private:`** - Mark this workflow as private, preventing it from being shared via `gh aw add` (boolean, default: `false`)
+  - Example: `private: true`
+
+- **`redirect:`** - Workflow relocation path for updates (string). When present, `gh aw update` follows this location and rewrites the `source:` field. Format: `owner/repo/path@ref` or full GitHub URL.
+  - Example: `redirect: "org/agentics/workflows/my-workflow-v2.md@main"`
+
+- **`resources:`** - Additional workflow or action files fetched alongside this workflow when running `gh aw add` (array). Entries are relative paths from the same directory to `.md` or `.yml`/`.yaml` files.
+  - Example: `resources: [shared/tool-setup.md, shared/mcp/tavily.md]`
 
 - **`tracker-id:`** - Optional identifier to tag all created assets (string)
   - Must be at least 8 characters and contain only alphanumeric characters, hyphens, and underscores
@@ -2183,6 +2216,19 @@ imports:
   - shared/mcp/tavily.md
 ---
 ```
+
+**Object form with inputs** — Use `path:`/`uses:` + `with:`/`inputs:` to pass values to shared workflows that define an `import-schema:`:
+
+```yaml
+imports:
+  - path: shared/tool-setup.md
+    with:
+      environment: staging
+      max-issues: 3
+  - uses: shared/security-notice.md  # 'uses' is an alias for 'path'
+```
+
+Inside the imported workflow, access values via `${{ github.aw.import-inputs.<name> }}`.
 
 ### Import File Structure
 
