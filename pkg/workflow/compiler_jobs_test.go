@@ -1045,6 +1045,30 @@ func TestInsertPreStepsAfterSetupBeforeCheckout(t *testing.T) {
 				"        run: echo \"work\"",
 			},
 		},
+		{
+			name: "return input steps unchanged when pre-steps are empty",
+			steps: []string{
+				"      - name: Main work",
+				"        run: echo \"work\"",
+			},
+			preSteps: []string{},
+			want: []string{
+				"      - name: Main work",
+				"        run: echo \"work\"",
+			},
+		},
+		{
+			name:  "insert pre-steps when steps are empty",
+			steps: []string{},
+			preSteps: []string{
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+			},
+			want: []string{
+				"      - name: Pre setup",
+				"        run: echo \"pre\"",
+			},
+		},
 	}
 
 	for _, tt := range tests {
