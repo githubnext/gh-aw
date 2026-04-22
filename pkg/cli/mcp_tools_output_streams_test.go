@@ -5,6 +5,7 @@ package cli
 import (
 	"context"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 
@@ -56,7 +57,7 @@ func TestCompileTool_AcceptsDeprecatedMaxTokensParameter(t *testing.T) {
 
 	var capturedArgs []string
 	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
-		capturedArgs = append([]string(nil), args...)
+		capturedArgs = slices.Clone(args)
 		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", expectedStdout)
 	}
 
