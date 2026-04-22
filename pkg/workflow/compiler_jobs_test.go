@@ -742,6 +742,106 @@ func TestBuildMainJobWithActivation(t *testing.T) {
 	}
 }
 
+func TestBuildMainJobSkipsBuiltInJobCustomizationsFromNeeds(t *testing.T) {
+	tests := []struct {
+		name        string
+		jobName     string
+		forbidden   string
+		verifyCount bool
+	}{
+		{
+			name:        "activation pre-steps does not duplicate activation needs",
+			jobName:     string(constants.ActivationJobName),
+			forbidden:   string(constants.ActivationJobName),
+			verifyCount: true,
+		},
+		{
+			name:      "agent pre-steps does not create self-cycle",
+			jobName:   string(constants.AgentJobName),
+			forbidden: string(constants.AgentJobName),
+		},
+		{
+			name:      "safe_outputs pre-steps does not create cycle with agent",
+			jobName:   string(constants.SafeOutputsJobName),
+			forbidden: string(constants.SafeOutputsJobName),
+		},
+		{
+			name:      "conclusion pre-steps does not create cycle with agent",
+			jobName:   string(constants.ConclusionJobName),
+			forbidden: string(constants.ConclusionJobName),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.stepOrderTracker = NewStepOrderTracker()
+
+			workflowData := &WorkflowData{
+				Name:        "Test Workflow",
+				AI:          "copilot",
+				RunsOn:      "runs-on: ubuntu-latest",
+				Permissions: "permissions:\n  contents: read",
+				Jobs: map[string]any{
+					tt.jobName: map[string]any{
+						"pre-steps": []any{
+							map[string]any{
+								"name": "Pre-step",
+								"run":  "echo test",
+							},
+						},
+					},
+				},
+			}
+
+			job, err := compiler.buildMainJob(workflowData, true)
+			if err != nil {
+				t.Fatalf("buildMainJob() returned error: %v", err)
+			}
+
+			if tt.verifyCount {
+				count := 0
+				for _, need := range job.Needs {
+					if need == tt.forbidden {
+						count++
+					}
+				}
+				if count != 1 {
+					t.Fatalf("Expected exactly one %q dependency, got %d (needs: %v)", tt.forbidden, count, job.Needs)
+				}
+			} else if slices.Contains(job.Needs, tt.forbidden) {
+				t.Fatalf("Did not expect %q in agent needs, got: %v", tt.forbidden, job.Needs)
+			}
+		})
+	}
+}
+
+func TestIsBuiltInJobName(t *testing.T) {
+	tests := []struct {
+		name     string
+		jobName  string
+		expected bool
+	}{
+		{name: "pre_activation canonical", jobName: string(constants.PreActivationJobName), expected: true},
+		{name: "pre-activation alias", jobName: "pre-activation", expected: true},
+		{name: "activation", jobName: string(constants.ActivationJobName), expected: true},
+		{name: "agent", jobName: string(constants.AgentJobName), expected: true},
+		{name: "safe_outputs canonical", jobName: string(constants.SafeOutputsJobName), expected: true},
+		{name: "safe-outputs alias", jobName: "safe-outputs", expected: true},
+		{name: "conclusion", jobName: string(constants.ConclusionJobName), expected: true},
+		{name: "custom job", jobName: "custom_job", expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := isBuiltInJobName(tt.jobName)
+			if actual != tt.expected {
+				t.Fatalf("isBuiltInJobName(%q) = %t, want %t", tt.jobName, actual, tt.expected)
+			}
+		})
+	}
+}
+
 // TestBuildCustomJobsWithActivation tests building custom jobs with activation dependency
 func TestBuildCustomJobsWithActivation(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "custom-jobs-test")
