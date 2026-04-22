@@ -15,7 +15,6 @@ permissions:
   pull-requests: read
   security-events: read
 
-  vulnerability-alerts: read
 network:
   allowed:
     - defaults
@@ -46,7 +45,6 @@ imports:
 features:
   mcp-cli: true
 ---
-
 # Dependabot Dependency Checker
 
 ## Objective
