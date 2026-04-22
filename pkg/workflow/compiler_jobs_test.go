@@ -829,6 +829,11 @@ func TestIsBuiltInJobName(t *testing.T) {
 		{name: "safe_outputs canonical", jobName: string(constants.SafeOutputsJobName), expected: true},
 		{name: "safe-outputs alias", jobName: "safe-outputs", expected: true},
 		{name: "conclusion", jobName: string(constants.ConclusionJobName), expected: true},
+		{name: "empty string", jobName: "", expected: false},
+		{name: "different casing activation", jobName: "ACTIVATION", expected: false},
+		{name: "different casing agent", jobName: "Agent", expected: false},
+		{name: "partial pre-activation match", jobName: "pre-activation-custom", expected: false},
+		{name: "partial agent match", jobName: "agent-step", expected: false},
 		{name: "custom job", jobName: "custom_job", expected: false},
 	}
 
