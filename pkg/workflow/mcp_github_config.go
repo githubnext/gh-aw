@@ -122,21 +122,36 @@ func isGitHubCLIModeEnabled(data *WorkflowData) bool {
 	return isFeatureEnabled(constants.CliProxyFeatureFlag, data)
 }
 
+// normalizeGitHubType normalizes and validates GitHub MCP transport values.
+// Supported values are `local` and `remote`.
+func normalizeGitHubType(value string) (string, bool) {
+	normalizedValue := strings.ToLower(strings.TrimSpace(value))
+	switch normalizedValue {
+	case "local", "remote":
+		return normalizedValue, true
+	default:
+		return "", false
+	}
+}
+
 // getGitHubType extracts the MCP transport type from GitHub tool configuration
 // (local or remote). Supports both `type` (preferred) and legacy `mode` values.
 func getGitHubType(githubTool any) string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if typeSetting, exists := toolConfig["type"]; exists {
 			if stringValue, ok := typeSetting.(string); ok {
-				githubConfigLog.Printf("GitHub MCP type set explicitly: %s", stringValue)
-				return stringValue
+				if normalizedValue, valid := normalizeGitHubType(stringValue); valid {
+					githubConfigLog.Printf("GitHub MCP type set explicitly: %s", normalizedValue)
+					return normalizedValue
+				}
+				githubConfigLog.Printf("Unrecognized tools.github.type value: %q, falling back to default", stringValue)
 			}
 		}
 		if modeSetting, exists := toolConfig["mode"]; exists {
 			if stringValue, ok := modeSetting.(string); ok {
-				if stringValue == "local" || stringValue == "remote" {
-					githubConfigLog.Printf("GitHub MCP type read from legacy mode field: %s", stringValue)
-					return stringValue
+				if normalizedValue, valid := normalizeGitHubType(stringValue); valid {
+					githubConfigLog.Printf("GitHub MCP type read from legacy mode field: %s", normalizedValue)
+					return normalizedValue
 				}
 			}
 		}

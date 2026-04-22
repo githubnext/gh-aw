@@ -349,6 +349,31 @@ func TestGitHubRemoteModeHelperFunctions(t *testing.T) {
 		}
 	})
 
+	t.Run("getGitHubType normalizes explicit type", func(t *testing.T) {
+		githubTool := map[string]any{
+			"type":    " Remote ",
+			"allowed": []string{"list_issues"},
+		}
+
+		githubType := getGitHubType(githubTool)
+		if githubType != "remote" {
+			t.Errorf("Expected normalized type 'remote', got '%s'", githubType)
+		}
+	})
+
+	t.Run("getGitHubType falls back to local for invalid type and mode", func(t *testing.T) {
+		githubTool := map[string]any{
+			"type":    "invalid",
+			"mode":    "unknown",
+			"allowed": []string{"list_issues"},
+		}
+
+		githubType := getGitHubType(githubTool)
+		if githubType != "local" {
+			t.Errorf("Expected fallback type 'local', got '%s'", githubType)
+		}
+	})
+
 	t.Run("getGitHubToken extracts custom token correctly", func(t *testing.T) {
 		githubTool := map[string]any{
 			"github-token": "${{ secrets.CUSTOM_PAT }}",

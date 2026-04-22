@@ -287,7 +287,7 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 
 	// Enable CLI proxy sidecar when GitHub mode is gh-proxy.
 	// Start the difc-proxy on the host and tell AWF where to connect
-	// (firewall v0.26.0+).
+	// (firewall v0.25.17+).
 	if isGitHubCLIModeEnabled(config.WorkflowData) {
 		if awfSupportsCliProxy(firewallConfig) {
 			awfArgs = append(awfArgs, "--difc-proxy-host", "host.docker.internal:18443")
