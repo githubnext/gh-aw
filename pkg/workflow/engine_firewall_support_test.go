@@ -267,3 +267,16 @@ func TestCheckFirewallDisable(t *testing.T) {
 		}
 	})
 }
+
+func TestGenerateFirewallLogParsingStepFixesFirewallPermissions(t *testing.T) {
+	step := generateFirewallLogParsingStep("test-workflow")
+	stepContent := strings.Join(step, "\n")
+
+	if !strings.Contains(stepContent, "AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs") {
+		t.Error("Expected firewall log parsing step to keep AWF_LOGS_DIR set to logs directory")
+	}
+
+	if !strings.Contains(stepContent, "sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall 2>/dev/null || true") {
+		t.Error("Expected firewall log parsing step to chmod the parent firewall directory for logs and audit upload")
+	}
+}

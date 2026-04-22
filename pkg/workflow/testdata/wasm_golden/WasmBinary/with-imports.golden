@@ -482,9 +482,9 @@ jobs:
         env:
           AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
         run: |
-          # Fix permissions on firewall logs so they can be uploaded as artifacts
+          # Fix permissions on firewall logs/audit dirs so they can be uploaded as artifacts
           # AWF runs with sudo, creating files owned by root
-          sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
+          sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall 2>/dev/null || true
           # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)
           if command -v awf &> /dev/null; then
             awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
