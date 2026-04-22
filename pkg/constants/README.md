@@ -22,7 +22,7 @@ The package uses typed aliases to prevent mixing unrelated string or integer val
 
 | Type | Description | Example constant |
 |------|-------------|-----------------|
-| `EngineName` | AI engine identifier | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `GeminiEngine` |
+| `EngineName` | AI engine identifier | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `GeminiEngine`, `OpenCodeEngine`, `CrushEngine` |
 | `FeatureFlag` | Feature flag identifier | `MCPGatewayFeatureFlag`, `MCPScriptsFeatureFlag` |
 | `JobName` | GitHub Actions job name | `AgentJobName`, `ActivationJobName` |
 | `StepID` | GitHub Actions step identifier | `CheckMembershipStepID`, `CheckRateLimitStepID` |
@@ -43,15 +43,16 @@ All semantic types implement `String() string` and `IsValid() bool` methods.
 import "github.com/github/gh-aw/pkg/constants"
 
 // Engine names
-constants.CopilotEngine  // "copilot"
-constants.ClaudeEngine   // "claude"
-constants.CodexEngine    // "codex"
-constants.GeminiEngine   // "gemini"
-constants.CrushEngine    // "crush"
-constants.DefaultEngine  // "copilot"
+constants.CopilotEngine   // "copilot"
+constants.ClaudeEngine    // "claude"
+constants.CodexEngine     // "codex"
+constants.GeminiEngine    // "gemini"
+constants.OpenCodeEngine  // "opencode"
+constants.CrushEngine     // "crush"
+constants.DefaultEngine   // "copilot"
 
 // All supported engine names
-constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "crush"}
+constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "opencode", "crush"}
 
 // Get engine metadata
 opt := constants.GetEngineOption("copilot")
@@ -94,11 +95,13 @@ constants.EnvVarModelAgentClaude     // "GH_AW_MODEL_AGENT_CLAUDE"
 constants.EnvVarModelAgentCodex      // "GH_AW_MODEL_AGENT_CODEX"
 constants.EnvVarModelAgentCustom     // "GH_AW_MODEL_AGENT_CUSTOM"
 constants.EnvVarModelAgentGemini     // "GH_AW_MODEL_AGENT_GEMINI"
+constants.EnvVarModelAgentOpenCode   // "GH_AW_MODEL_AGENT_OPENCODE"
 constants.EnvVarModelAgentCrush      // "GH_AW_MODEL_AGENT_CRUSH"
 constants.EnvVarModelDetectionCopilot// "GH_AW_MODEL_DETECTION_COPILOT"
 constants.EnvVarModelDetectionClaude // "GH_AW_MODEL_DETECTION_CLAUDE"
 constants.EnvVarModelDetectionCodex  // "GH_AW_MODEL_DETECTION_CODEX"
 constants.EnvVarModelDetectionGemini // "GH_AW_MODEL_DETECTION_GEMINI"
+constants.EnvVarModelDetectionOpenCode // "GH_AW_MODEL_DETECTION_OPENCODE"
 constants.EnvVarModelDetectionCrush  // "GH_AW_MODEL_DETECTION_CRUSH"
 
 // Native CLI model env vars (passed directly to the engine CLI)
@@ -107,6 +110,7 @@ constants.CopilotCLIIntegrationIDEnvVar // "GITHUB_COPILOT_INTEGRATION_ID"
 constants.ClaudeCLIModelEnvVar          // "ANTHROPIC_MODEL"
 constants.GeminiCLIModelEnvVar          // "GEMINI_MODEL"
 constants.CrushCLIModelEnvVar           // "CRUSH_MODEL"
+constants.OpenCodeCLIModelEnvVar        // "OPENCODE_MODEL"
 
 // gh-aw runtime env vars
 constants.EnvVarPrompt          // "GH_AW_PROMPT"
