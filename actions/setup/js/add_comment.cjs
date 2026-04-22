@@ -617,14 +617,32 @@ async function main(config = {}) {
         }
         comment = await commentOnDiscussion(githubClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, replyToId);
       } else {
-        // Use REST API for issues/PRs
-        const { data } = await githubClient.rest.issues.createComment({
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          issue_number: itemNumber,
-          body: processedBody,
-        });
-        comment = data;
+        const shouldReplyToTriggeringPRReviewComment = context.eventName === "pull_request_review_comment" && explicitItemNumber === undefined;
+        const triggeringReviewCommentId = Number(context.payload?.comment?.id);
+
+        if (shouldReplyToTriggeringPRReviewComment && Number.isInteger(triggeringReviewCommentId) && triggeringReviewCommentId > 0) {
+          core.info(`Replying inline to triggering PR review comment ID: ${triggeringReviewCommentId}`);
+          const { data } = await githubClient.rest.pulls.createReplyForReviewComment({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            pull_number: itemNumber,
+            comment_id: triggeringReviewCommentId,
+            body: processedBody,
+          });
+          comment = data;
+        } else {
+          if (shouldReplyToTriggeringPRReviewComment) {
+            core.warning("Triggering PR review comment ID is missing or invalid; falling back to top-level PR comment");
+          }
+          // Use REST API for issues/PRs
+          const { data } = await githubClient.rest.issues.createComment({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            issue_number: itemNumber,
+            body: processedBody,
+          });
+          comment = data;
+        }
       }
 
       core.info(`Created comment: ${comment.html_url}`);
