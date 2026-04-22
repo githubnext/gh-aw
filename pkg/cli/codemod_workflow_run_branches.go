@@ -65,7 +65,7 @@ func getWorkflowRunBranchesCodemod() Codemod {
 			branches = normalizeWorkflowRunBranches(branches)
 
 			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				return addDefaultWorkflowRunBranches(lines, branches)
+				return addWorkflowRunBranches(lines, branches)
 			})
 			if applied {
 				workflowRunBranchesCodemodLog.Printf("Added branch restrictions to on.workflow_run: %v", branches)
@@ -75,7 +75,7 @@ func getWorkflowRunBranchesCodemod() Codemod {
 	}
 }
 
-func addDefaultWorkflowRunBranches(lines []string, branches []string) ([]string, bool) {
+func addWorkflowRunBranches(lines []string, branches []string) ([]string, bool) {
 	onIdx := -1
 	onIndent := ""
 	onEnd := len(lines)
@@ -140,10 +140,9 @@ func addDefaultWorkflowRunBranches(lines []string, branches []string) ([]string,
 	}
 
 	branchIndent := workflowRunIndent + "  "
-	normalizedBranches := normalizeWorkflowRunBranches(branches)
-	entries := make([]string, 0, len(normalizedBranches)+1)
+	entries := make([]string, 0, len(branches)+1)
 	entries = append(entries, branchIndent+"branches:")
-	for _, branch := range normalizedBranches {
+	for _, branch := range branches {
 		entries = append(entries, branchIndent+"  - "+branch)
 	}
 
