@@ -918,6 +918,8 @@ describe("sendJobSetupSpan", () => {
     "GITHUB_REPOSITORY",
     "GITHUB_EVENT_NAME",
     "GITHUB_REF",
+    "GITHUB_REF_NAME",
+    "GITHUB_HEAD_REF",
     "GITHUB_SHA",
     "GH_AW_INFO_VERSION",
     "GH_AW_INFO_STAGED",
@@ -1211,6 +1213,22 @@ describe("sendJobSetupSpan", () => {
     expect(resourceAttrs).toContainEqual({ key: "github.ref", value: { stringValue: "refs/heads/main" } });
   });
 
+  it("includes github.ref_name and github.head_ref as resource attributes when set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_REF_NAME = "main";
+    process.env.GITHUB_HEAD_REF = "feature-branch";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.ref_name", value: { stringValue: "main" } });
+    expect(resourceAttrs).toContainEqual({ key: "github.head_ref", value: { stringValue: "feature-branch" } });
+  });
+
   it("omits github.ref resource attribute when GITHUB_REF is not set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -1223,6 +1241,21 @@ describe("sendJobSetupSpan", () => {
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     const resourceKeys = resourceAttrs.map(a => a.key);
     expect(resourceKeys).not.toContain("github.ref");
+  });
+
+  it("omits github.ref_name and github.head_ref resource attributes when not set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    const resourceKeys = resourceAttrs.map(a => a.key);
+    expect(resourceKeys).not.toContain("github.ref_name");
+    expect(resourceKeys).not.toContain("github.head_ref");
   });
 
   it("includes github.sha as resource attribute when GITHUB_SHA is set", async () => {
@@ -1518,6 +1551,8 @@ describe("sendJobConclusionSpan", () => {
     "GITHUB_REPOSITORY",
     "GITHUB_EVENT_NAME",
     "GITHUB_REF",
+    "GITHUB_REF_NAME",
+    "GITHUB_HEAD_REF",
     "GITHUB_SHA",
     "INPUT_JOB_NAME",
     "GH_AW_AGENT_CONCLUSION",
@@ -1973,6 +2008,22 @@ describe("sendJobConclusionSpan", () => {
     expect(resourceAttrs).toContainEqual({ key: "github.ref", value: { stringValue: "refs/heads/main" } });
   });
 
+  it("includes github.ref_name and github.head_ref as resource attributes when set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_REF_NAME = "123/merge";
+    process.env.GITHUB_HEAD_REF = "feature-branch";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.ref_name", value: { stringValue: "123/merge" } });
+    expect(resourceAttrs).toContainEqual({ key: "github.head_ref", value: { stringValue: "feature-branch" } });
+  });
+
   it("omits github.ref resource attribute when GITHUB_REF is not set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -1985,6 +2036,21 @@ describe("sendJobConclusionSpan", () => {
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     const resourceKeys = resourceAttrs.map(a => a.key);
     expect(resourceKeys).not.toContain("github.ref");
+  });
+
+  it("omits github.ref_name and github.head_ref resource attributes when not set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    const resourceKeys = resourceAttrs.map(a => a.key);
+    expect(resourceKeys).not.toContain("github.ref_name");
+    expect(resourceKeys).not.toContain("github.head_ref");
   });
 
   it("includes github.sha as resource attribute when GITHUB_SHA is set", async () => {
