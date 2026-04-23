@@ -634,7 +634,7 @@ function coerceToolArgValue(key, rawValue, schemaProperty, existingValue, allowN
       }
     }
 
-    if (/^-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(trimmedValue)) {
+    if (/^-?(?:(?:\d+\.\d*|\.\d+)(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)$/.test(trimmedValue)) {
       const parsedFloat = Number.parseFloat(trimmedValue);
       if (!Number.isNaN(parsedFloat) && Number.isFinite(parsedFloat)) {
         return parsedFloat;
