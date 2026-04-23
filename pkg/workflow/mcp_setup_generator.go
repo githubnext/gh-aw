@@ -385,7 +385,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	sort.Strings(mcpScriptToolNames)
 	for _, toolName := range mcpScriptToolNames {
 		toolConfig := workflowData.MCPScripts.Tools[toolName]
-		if err := appendMCPScriptToolFileYAML(yaml, workflowData, toolName, toolConfig); err != nil {
+		if err := appendMCPScriptToolFile(yaml, workflowData, toolName, toolConfig); err != nil {
 			return err
 		}
 	}
@@ -434,7 +434,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	return nil
 }
 
-func appendMCPScriptToolFileYAML(yaml *strings.Builder, workflowData *WorkflowData, toolName string, toolConfig *MCPScriptToolConfig) error {
+func appendMCPScriptToolFile(yaml *strings.Builder, workflowData *WorkflowData, toolName string, toolConfig *MCPScriptToolConfig) error {
 	if toolConfig.Script != "" {
 		toolScript := GenerateMCPScriptJavaScriptToolScript(toolConfig)
 		jsDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_JS_"+strings.ToUpper(toolName), workflowData.FrontmatterHash)
