@@ -90,9 +90,9 @@ jobs:
               )
             | .dictionaries = (
                 if $dict == "" then
-                  []
+                  ["en", "en-US"]
                 else
-                  ["workflow-dictionary"]
+                  ["en", "en-US", "workflow-dictionary"]
                 end
               )' \
             docs/.cspell.docs.json > "$RUNTIME_CONFIG_PATH"
@@ -186,6 +186,38 @@ jobs:
           echo "findings_count=$FINDINGS_COUNT" >> "$GITHUB_OUTPUT"
           echo "files_checked=$FILES_CHECKED" >> "$GITHUB_OUTPUT"
           echo "dictionary_path=$DICTIONARY_PATH_REL" >> "$GITHUB_OUTPUT"
+
+      - name: Render spellcheck report to step summary
+        if: success()
+        shell: bash
+        run: |
+          ARTIFACT_DIR="/tmp/gh-aw/spellcheck"
+          FINDINGS_COUNT=$(jq -r '.findings' "$ARTIFACT_DIR/summary.json")
+          FILES_CHECKED=$(jq -r '.files_checked' "$ARTIFACT_DIR/summary.json")
+          DICT_PATH=$(jq -r '.dictionary.path // "none"' "$ARTIFACT_DIR/summary.json")
+          LOCALE=$(jq -r '.locale' "$ARTIFACT_DIR/summary.json")
+
+          {
+            echo "## Spellcheck Report"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Locale | \`$LOCALE\` |"
+            echo "| Files checked | $FILES_CHECKED |"
+            echo "| Findings | $FINDINGS_COUNT |"
+            echo "| Dictionary | $DICT_PATH |"
+            echo ""
+            if [ "$FINDINGS_COUNT" -gt 0 ]; then
+              echo "### Findings"
+              echo ""
+              echo "| File | Line | Column | Word | Suggestions |"
+              echo "|------|------|--------|------|-------------|"
+              jq -r '. | "\(.file | ltrimstr(env.GITHUB_WORKSPACE) | ltrimstr("/")) | \(.line // "-") | \(.column // "-") | `\(.word)` | \(.suggestions | join(", ")) |"' \
+                "$ARTIFACT_DIR/findings.ndjson"
+            else
+              echo "_No spelling findings._"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload spellcheck artifact
         if: success()
