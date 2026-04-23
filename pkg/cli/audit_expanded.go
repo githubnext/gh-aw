@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -113,6 +114,10 @@ func findAwInfoPath(logsPath string) string {
 
 // extractEngineConfig parses aw_info.json and returns an AuditEngineConfig
 func extractEngineConfig(logsPath string) *AuditEngineConfig {
+	return extractEngineConfigWithInferredEngine(logsPath, "")
+}
+
+func extractEngineConfigWithInferredEngine(logsPath, inferredEngineID string) *AuditEngineConfig {
 	if logsPath == "" {
 		return nil
 	}
@@ -120,7 +125,7 @@ func extractEngineConfig(logsPath string) *AuditEngineConfig {
 	awInfoPath := findAwInfoPath(logsPath)
 	if awInfoPath == "" {
 		auditExpandedLog.Printf("aw_info.json not found in %s", logsPath)
-		if _, inferredEngineID := inferFallbackLogMetrics(logsPath); inferredEngineID != "" {
+		if inferredEngineID != "" {
 			registry := workflow.GetGlobalEngineRegistry()
 			if engine, err := registry.GetEngine(inferredEngineID); err == nil {
 				auditExpandedLog.Printf("Inferred engine config without aw_info.json: engine=%s", inferredEngineID)
@@ -170,12 +175,38 @@ func inferFallbackLogMetrics(logsPath string) (LogMetrics, string) {
 		}
 	}
 
-	agentLogPath := filepath.Join(logsPath, "agent-stdio.log")
+	agentLogPath := findAgentStdioLogPath(logsPath)
+	if agentLogPath == "" {
+		return LogMetrics{}, ""
+	}
 	content, err := os.ReadFile(agentLogPath)
 	if err != nil {
 		return LogMetrics{}, ""
 	}
 	return inferBestEngineMetricsFromContent(string(content))
+}
+
+func findAgentStdioLogPath(logsPath string) string {
+	root := filepath.Join(logsPath, "agent-stdio.log")
+	if _, err := os.Stat(root); err == nil {
+		return root
+	}
+
+	var found string
+	walkErr := filepath.Walk(logsPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() {
+			return nil
+		}
+		if info.Name() == "agent-stdio.log" {
+			found = path
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	if walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
+		auditExpandedLog.Printf("Failed while searching for agent-stdio.log in %s: %v", logsPath, walkErr)
+	}
+	return found
 }
 
 func hasUsefulFallbackMetrics(metrics LogMetrics) bool {

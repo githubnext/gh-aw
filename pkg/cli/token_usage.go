@@ -313,7 +313,7 @@ func findAgentUsageFile(runDir string) string {
 	return found
 }
 
-func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
+func parseAgentUsageFile(filePath string, customWeights *types.TokenWeights) (*TokenUsageSummary, error) {
 	cleanPath := filepath.Clean(filePath)
 	data, err := os.ReadFile(cleanPath)
 	if err != nil {
@@ -339,7 +339,12 @@ func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 		summary.CacheEfficiency = float64(summary.TotalCacheReadTokens) / float64(totalInputPlusCacheRead)
 	}
 
-	if summary.TotalInputTokens > 0 || summary.TotalOutputTokens > 0 || summary.TotalCacheReadTokens > 0 || summary.TotalCacheWriteTokens > 0 || summary.TotalEffectiveTokens > 0 {
+	hasTokenData := summary.TotalInputTokens > 0 ||
+		summary.TotalOutputTokens > 0 ||
+		summary.TotalCacheReadTokens > 0 ||
+		summary.TotalCacheWriteTokens > 0 ||
+		summary.TotalEffectiveTokens > 0
+	if hasTokenData {
 		summary.TotalRequests = 1
 		summary.ByModel["unknown"] = &ModelTokenUsage{
 			Provider:         entry.Provider,
@@ -358,9 +363,10 @@ func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 		EffectiveTokens: entry.InputTokens + entry.CacheReadTokens,
 	}
 
-	// If the file does not include effective_tokens, compute it from defaults.
+	// If the file does not include effective_tokens, compute it using resolved
+	// token weights (custom aw_info weights when available, otherwise defaults).
 	if summary.TotalEffectiveTokens == 0 {
-		populateEffectiveTokensWithCustomWeights(summary, nil)
+		populateEffectiveTokensWithCustomWeights(summary, customWeights)
 	}
 
 	tokenUsageLog.Printf("Parsed agent usage file: input=%d, output=%d, cache_read=%d, cache_write=%d, effective=%d",
@@ -399,7 +405,8 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 		}
 	}
 
-	return parseAgentUsageFile(agentUsagePath)
+	customWeights := extractCustomTokenWeightsFromDir(runDir)
+	return parseAgentUsageFile(agentUsagePath, customWeights)
 }
 
 // extractCustomTokenWeightsFromDir reads aw_info.json from a run directory and returns
