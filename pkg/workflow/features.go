@@ -31,13 +31,6 @@ func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bo
 		return true
 	}
 
-	// cli-proxy defaults to enabled for copilot workflows unless explicitly set
-	// in frontmatter (handled above) or tools.github.mode overrides it.
-	if flag == constants.CliProxyFeatureFlag && isCopilotWorkflow(workflowData) {
-		featuresLog.Print("cli-proxy enabled by default for copilot workflow")
-		return true
-	}
-
 	featuresLog.Printf("Feature not found: %s=false", flagLower)
 	return false
 }
@@ -90,18 +83,4 @@ func isFeatureInEnvironment(flagLower string) bool {
 		}
 	}
 	return false
-}
-
-// isCopilotWorkflow reports whether workflow data targets the copilot engine.
-// EngineConfig.ID is the primary source when available. workflowData.AI is used
-// as a fallback for call sites that parse or merge frontmatter early and
-// populate AI before EngineConfig is hydrated.
-func isCopilotWorkflow(workflowData *WorkflowData) bool {
-	if workflowData == nil {
-		return false
-	}
-	if workflowData.EngineConfig != nil && strings.EqualFold(workflowData.EngineConfig.ID, string(constants.CopilotEngine)) {
-		return true
-	}
-	return strings.EqualFold(workflowData.AI, string(constants.CopilotEngine))
 }

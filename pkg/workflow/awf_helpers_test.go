@@ -926,7 +926,7 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include deprecated --cli-proxy-policy")
 	})
 
-	t.Run("includes cli-proxy flags for copilot by default", func(t *testing.T) {
+	t.Run("does not include cli-proxy flags for copilot by default", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
@@ -945,8 +945,8 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		assert.Contains(t, argsStr, "--difc-proxy-host", "Should include --difc-proxy-host for copilot by default")
-		assert.Contains(t, argsStr, "--difc-proxy-ca-cert", "Should include --difc-proxy-ca-cert for copilot by default")
+		assert.NotContains(t, argsStr, "--difc-proxy-host", "Should not include --difc-proxy-host for copilot by default")
+		assert.NotContains(t, argsStr, "--difc-proxy-ca-cert", "Should not include --difc-proxy-ca-cert for copilot by default")
 	})
 
 	t.Run("does not include deprecated flags even with guard policy configured", func(t *testing.T) {
