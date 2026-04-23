@@ -22,11 +22,10 @@ safe-outputs:
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 timeout-minutes: 30
 imports:
-  - uses: shared/daily-audit-base.md
+  - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[daily performance] "
   - shared/github-queries-mcp-script.md
-  - shared/trending-charts-simple.md
 
 features:
   mcp-cli: true

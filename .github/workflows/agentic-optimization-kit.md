@@ -32,7 +32,7 @@ safe-outputs:
     report-as-issue: false
 timeout-minutes: 35
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[agentic-optimization-kit] "
       expires: 7d
@@ -43,8 +43,6 @@ imports:
       max-patch-size: 51200
   - copilot-setup-steps.yml
   - uses: shared/mcp/gh-aw.md
-  - shared/trending-charts-simple.md
-  - shared/reporting.md
 features:
   mcp-cli: true
   copilot-requests: true
