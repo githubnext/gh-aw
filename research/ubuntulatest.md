@@ -1,9 +1,9 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-04-16
-**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260406.80/images/ubuntu/Ubuntu2404-Readme.md)
+**Last Updated**: 2026-04-23
+**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260413.86/images/ubuntu/Ubuntu2404-Readme.md)
 **Ubuntu Version**: 24.04.4 LTS
-**Image Version**: 20260406.80.1
+**Image Version**: 20260413.86.1
 **Kernel Version**: 6.17.0-1010-azure
 
 ## Overview
@@ -14,7 +14,7 @@ The runner image is maintained by GitHub in the [actions/runner-images](https://
 
 ## Recent Changes
 
-> **Docker Server and Client will be updated to version 29.1.*, Docker Compose will be updated to version 2.40.3** (announced for February 2026, pending deployment on image 20260406.80.1)
+> **Docker Server and Client will be updated to version 29.1.*, Docker Compose will be updated to version 2.40.3** (announced for February 2026)
 
 ## Included Software Summary
 
@@ -33,7 +33,7 @@ The Ubuntu 24.04 runner includes:
 - **Distribution**: Ubuntu 24.04.4 LTS (Noble Numbat)
 - **Kernel**: Linux 6.17.0-1010-azure
 - **Architecture**: x86_64
-- **Systemd Version**: 255.4-1ubuntu8.14
+- **Systemd Version**: 255.4-1ubuntu8.15
 
 ## Language Runtimes
 
@@ -48,7 +48,7 @@ The Ubuntu 24.04 runner includes:
 
 ### Python
 - **Installed Version**: 3.12.3 (system default)
-- **Cached Versions**: 3.10.20, 3.11.15, 3.12.13, 3.13.12, 3.14.3
+- **Cached Versions**: 3.10.20, 3.11.15, 3.12.13, 3.13.13, 3.14.4
 - **PyPy Versions**: 3.9.19, 3.10.16, 3.11.15
 - **Package Managers**:
   - pip: 24.0
@@ -63,7 +63,7 @@ The Ubuntu 24.04 runner includes:
 - **Additional Tools**: Bundler (included with RubyGems)
 
 ### Go
-- **Cached Versions**: 1.22.12, 1.23.12, 1.24.13, 1.25.8
+- **Cached Versions**: 1.22.12, 1.23.12, 1.24.13, 1.25.9
 - **Installation**: Managed via setup-go action or manual installation
 
 ### Java
@@ -89,7 +89,7 @@ Multiple Java versions are pre-installed:
 ### Other Languages
 - **Kotlin**: 2.3.20-release-208
 - **Swift**: 6.3
-- **Julia**: 1.12.5
+- **Julia**: 1.12.6
 - **Perl**: 5.38.2
 - **Bash**: 5.2.21(1)-release
 
@@ -114,7 +114,7 @@ Multiple Java versions are pre-installed:
 
 ### Kubernetes Tools
 - **kubectl**: 1.35.3
-- **helm**: 3.20.1
+- **helm**: 3.20.2
 - **minikube**: 1.38.1
 - **kind**: 0.31.0
 - **kustomize**: 5.8.1
@@ -127,7 +127,7 @@ Multiple Java versions are pre-installed:
 - **Autoconf**: 2.71-3
 - **Automake**: 1.16.5
 - **gcc/g++**: 13.2.0 (default), with 12.4.0 and 14.2.0 also available
-- **Bazel**: 9.0.1
+- **Bazel**: 9.0.2
 - **Bazelisk**: 1.28.1
 
 ## Project Management & Build Systems
@@ -182,16 +182,16 @@ Multiple Java versions are pre-installed:
 - **Installed**: Pre-configured and ready to use
 
 ### Cloud Provider CLIs
-- **AWS CLI**: 2.34.25
-  - AWS SAM CLI: 1.157.1
+- **AWS CLI**: 2.34.30
+  - AWS SAM CLI: 1.158.0
   - AWS CLI Session Manager Plugin: 1.2.804.0
-- **Azure CLI**: 2.84.0
+- **Azure CLI**: 2.85.0
   - Azure DevOps Extension: 1.0.2
-- **Google Cloud CLI**: 563.0.0
+- **Google Cloud CLI**: 564.0.0
 
 ### Infrastructure as Code
 - **Terraform**: Not pre-installed
-- **Pulumi**: 3.229.0
+- **Pulumi**: 3.230.0
 - **Ansible**: 2.20.4
 - **Packer**: 1.15.1
 - **Bicep**: 0.42.1
@@ -203,16 +203,16 @@ Multiple Java versions are pre-installed:
 ## Browsers and Testing Tools
 
 ### Browsers
-- **Google Chrome**: 146.0.7680.177
-- **Chromium**: 146.0.7680.0
-- **Microsoft Edge**: 146.0.3856.97
-- **Mozilla Firefox**: 149.0
+- **Google Chrome**: 147.0.7727.55
+- **Chromium**: 147.0.7727.0
+- **Microsoft Edge**: 147.0.3912.60
+- **Mozilla Firefox**: 149.0.2
 
 ### Browser Drivers
-- **ChromeDriver**: 146.0.7680.165
-- **Microsoft Edge WebDriver**: 146.0.3856.97
+- **ChromeDriver**: 147.0.7727.56
+- **Microsoft Edge WebDriver**: 147.0.3912.60
 - **Geckodriver**: 0.36.0
-- **Selenium Server**: 4.41.0
+- **Selenium Server**: 4.43.0
 
 ### Environment Variables
 | Variable | Value |
@@ -258,8 +258,8 @@ Multiple Java versions are pre-installed:
 ## System Utilities
 
 ### Package Managers
-- **Homebrew**: 5.1.4 (installed at /home/linuxbrew, not in PATH by default)
-- **Vcpkg**: Installed from commit 14de8214a1
+- **Homebrew**: 5.1.6 (installed at /home/linuxbrew, not in PATH by default)
+- **Vcpkg**: Installed from commit b80e006657
 - **Miniconda**: 26.1.1
 
 ### Version Control
@@ -782,7 +782,7 @@ RUN pip install \
 ## References
 
 - **Runner Image Repository**: https://github.com/actions/runner-images
-- **Ubuntu 24.04 Documentation**: https://github.com/actions/runner-images/blob/releases/ubuntu24/20260406/images/ubuntu/Ubuntu2404-Readme.md
+- **Ubuntu 24.04 Documentation**: https://github.com/actions/runner-images/blob/ubuntu24/20260413.86/images/ubuntu/Ubuntu2404-Readme.md
 - **Ubuntu Server Documentation**: https://ubuntu.com/server/docs
 - **Docker Documentation**: https://docs.docker.com/
 - **GitHub Actions Documentation**: https://docs.github.com/en/actions

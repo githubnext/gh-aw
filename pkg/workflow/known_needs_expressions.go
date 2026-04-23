@@ -123,6 +123,7 @@ func generateKnownNeedsExpressions(data *WorkflowData, preActivationJobCreated b
 // GitHub Actions contexts (github.*, env.*, etc.) and system job outputs (pre_activation) are
 // always kept.
 func filterExpressionsForActivation(mappings []*ExpressionMapping, customJobs map[string]any, beforeActivationJobs []string) []*ExpressionMapping {
+	knownNeedsLog.Printf("Filtering %d expression mappings for activation (customJobs=%d, beforeActivationJobs=%d)", len(mappings), len(customJobs), len(beforeActivationJobs))
 	if customJobs == nil || len(mappings) == 0 {
 		return mappings
 	}
@@ -153,6 +154,7 @@ func filterExpressionsForActivation(mappings []*ExpressionMapping, customJobs ma
 		}
 		filtered = append(filtered, m)
 	}
+	knownNeedsLog.Printf("Filtered expressions: %d remaining from %d total", len(filtered), len(mappings))
 	return filtered
 }
 
