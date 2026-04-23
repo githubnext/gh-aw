@@ -369,7 +369,9 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       cwd,
       env: { ...process.env, ...(gitAuthEnv || {}) },
     });
-    return shas[shas.length - 1];
+    const fallbackSha = shas[shas.length - 1];
+    core.info(`pushSignedCommits: git push fallback completed, using pushed SHA ${fallbackSha}`);
+    return fallbackSha;
   }
 }
 

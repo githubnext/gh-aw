@@ -748,6 +748,7 @@ async function main(config = {}) {
         });
         if (pushedSha) {
           pushedCommitSha = pushedSha;
+          core.info(`pushSignedCommits returned pushed SHA: ${pushedSha}`);
         }
         core.info(`Changes committed and pushed to branch: ${branchName}`);
       } catch (pushError) {
