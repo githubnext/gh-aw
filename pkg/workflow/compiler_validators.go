@@ -160,8 +160,8 @@ Ensure proper audience validation and trust policies are configured.`
 // declarations, network configuration, labels, concurrency expressions, sandbox
 // security constraints, GitHub tool-to-toolset alignment, the agentic-workflows
 // permission requirement, and dispatch/call-workflow configurations.
-// cachedPermissions is the *Permissions value returned by validatePermissions.
-func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdownPath string, cachedPermissions *Permissions) error {
+// workflowPermissions is the *Permissions value returned by validatePermissions.
+func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdownPath string, workflowPermissions *Permissions) error {
 	// Validate agent file exists if specified in engine config
 	log.Printf("Validating agent file if specified")
 	if err := c.validateAgentFile(workflowData, markdownPath); err != nil {
@@ -378,7 +378,7 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	log.Printf("Validating permissions for agentic-workflows tool")
 	if _, hasAgenticWorkflows := workflowData.Tools["agentic-workflows"]; hasAgenticWorkflows {
 		// Check if actions: read permission exists
-		actionsLevel, hasActions := cachedPermissions.Get(PermissionActions)
+		actionsLevel, hasActions := workflowPermissions.Get(PermissionActions)
 		if !hasActions || actionsLevel == PermissionNone {
 			// Missing actions: read permission
 			message := "ERROR: Missing required permission for agentic-workflows tool:\n"

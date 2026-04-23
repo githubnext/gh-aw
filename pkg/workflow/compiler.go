@@ -91,12 +91,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return err
 	}
 
-	cachedPermissions, err := c.validatePermissions(workflowData, markdownPath)
+	workflowPermissions, err := c.validatePermissions(workflowData, markdownPath)
 	if err != nil {
 		return err
 	}
 
-	return c.validateToolConfiguration(workflowData, markdownPath, cachedPermissions)
+	return c.validateToolConfiguration(workflowData, markdownPath, workflowPermissions)
 }
 
 // shouldDowngradeDefaultToolsetPermissionError returns true when strict-mode

@@ -246,9 +246,9 @@ func TestValidateToolConfiguration(t *testing.T) {
 			markdownPath := filepath.Join(tmpDir, "test.md")
 
 			compiler := NewCompiler()
-			cachedPermissions := NewPermissionsParser(tt.permissions).ToPermissions()
+			parsedPermissions := NewPermissionsParser(tt.permissions).ToPermissions()
 
-			err := compiler.validateToolConfiguration(tt.workflowData, markdownPath, cachedPermissions)
+			err := compiler.validateToolConfiguration(tt.workflowData, markdownPath, parsedPermissions)
 			if tt.shouldError {
 				require.Error(t, err, "Expected validateToolConfiguration to return an error")
 				if tt.errorContains != "" {
