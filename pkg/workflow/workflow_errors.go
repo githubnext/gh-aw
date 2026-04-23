@@ -63,7 +63,9 @@ func (e *WorkflowValidationError) Error() string {
 
 // NewValidationError creates a new validation error with context
 func NewValidationError(field, value, reason, suggestion string) *WorkflowValidationError {
-	errorHelpersLog.Printf("Creating validation error: field=%s, reason=%s", field, reason)
+	if errorHelpersLog.Enabled() {
+		errorHelpersLog.Printf("Creating validation error: field=%s, reason=%s", field, reason)
+	}
 	return &WorkflowValidationError{
 		Field:      field,
 		Value:      value,
@@ -168,7 +170,9 @@ func (e *ConfigurationError) Error() string {
 
 // NewConfigurationError creates a new configuration error with context
 func NewConfigurationError(configKey, value, reason, suggestion string) *ConfigurationError {
-	errorHelpersLog.Printf("Creating configuration error: configKey=%s, reason=%s", configKey, reason)
+	if errorHelpersLog.Enabled() {
+		errorHelpersLog.Printf("Creating configuration error: configKey=%s, reason=%s", configKey, reason)
+	}
 	return &ConfigurationError{
 		ConfigKey:  configKey,
 		Value:      value,
