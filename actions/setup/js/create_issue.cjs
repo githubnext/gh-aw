@@ -780,15 +780,12 @@ async function main(config = {}) {
       }
       if (nonFatalEnabled) {
         core.warning(`✗ Failed to create issue "${title}" in ${qualifiedItemRepo}: ${errorMessage}`);
-        return {
-          success: false,
-          nonFatal: true,
-          error: errorMessage,
-        };
+      } else {
+        core.error(`✗ Failed to create issue "${title}" in ${qualifiedItemRepo}: ${errorMessage}`);
       }
-      core.error(`✗ Failed to create issue "${title}" in ${qualifiedItemRepo}: ${errorMessage}`);
       return {
         success: false,
+        ...(nonFatalEnabled && { nonFatal: true }),
         error: errorMessage,
       };
     }

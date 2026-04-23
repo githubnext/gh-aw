@@ -1112,6 +1112,18 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
 }
 
 /**
+ * Returns true when a processing result is a critical (fatal) failure that should
+ * block the overall safe_outputs job. Non-fatal, deferred, skipped, and cancelled
+ * results are excluded.
+ *
+ * @param {any} r - A result object from processMessages
+ * @returns {boolean}
+ */
+function isCriticalFailure(r) {
+  return !r.success && !r.deferred && !r.skipped && !r.cancelled && !r.nonFatal;
+}
+
+/**
  * Main entry point for the handler manager
  * This is called by the consolidated safe output step
  *
@@ -1229,7 +1241,7 @@ async function main() {
 
     // Log summary
     const successCount = processingResult.results.filter(r => r.success).length;
-    const failureCount = processingResult.results.filter(r => !r.success && !r.deferred && !r.skipped && !r.cancelled && !r.nonFatal).length;
+    const failureCount = processingResult.results.filter(isCriticalFailure).length;
     const nonFatalCount = processingResult.results.filter(r => r.nonFatal).length;
     const cancelledCount = processingResult.results.filter(r => r.cancelled).length;
     const deferredCount = processingResult.results.filter(r => r.deferred).length;
@@ -1279,7 +1291,7 @@ async function main() {
     if (failureCount > 0) {
       core.warning(`${failureCount} message(s) failed to process`);
       const failedItems = processingResult.results
-        .filter(r => !r.success && !r.deferred && !r.skipped && !r.cancelled && !r.nonFatal)
+        .filter(isCriticalFailure)
         .map(r => `  - ${r.type}: ${r.error || "Unknown error"}`)
         .join("\n");
       core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);
