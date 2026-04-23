@@ -217,6 +217,7 @@ async function main(config = {}) {
     throw new Error(`${ERR_VALIDATION}: close-older-key "${rawCloseOlderKey}" is invalid: it must contain at least one alphanumeric character after normalization`);
   }
   const includeFooter = parseBoolTemplatable(config.footer, true);
+  const nonFatalEnabled = config.non_fatal === true;
 
   // Create an authenticated GitHub client. Uses config["github-token"] when set
   // (for cross-repository operations), otherwise falls back to the step-level github.
@@ -775,6 +776,14 @@ async function main(config = {}) {
         return {
           success: false,
           error: "Issues disabled for repository",
+        };
+      }
+      if (nonFatalEnabled) {
+        core.warning(`✗ Failed to create issue "${title}" in ${qualifiedItemRepo}: ${errorMessage}`);
+        return {
+          success: false,
+          nonFatal: true,
+          error: errorMessage,
         };
       }
       core.error(`✗ Failed to create issue "${title}" in ${qualifiedItemRepo}: ${errorMessage}`);

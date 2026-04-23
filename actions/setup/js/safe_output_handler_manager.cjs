@@ -585,17 +585,28 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Check if the handler explicitly returned a failure
       if (result && result.success === false && !result.deferred) {
         const errorMsg = result.error || "Handler returned success: false";
-        core.error(`✗ Message ${i + 1} (${messageType}) failed: ${errorMsg}`);
-        results.push({
-          type: messageType,
-          messageIndex: i,
-          success: false,
-          error: errorMsg,
-        });
-        // Track code-push failures for fail-fast behaviour
-        if (CODE_PUSH_TYPES.has(messageType)) {
-          codePushFailures.push({ type: messageType, error: errorMsg });
-          core.warning(`⚠️ Code push operation '${messageType}' failed — remaining safe outputs will be cancelled`);
+        if (result.nonFatal) {
+          core.warning(`⚠ Message ${i + 1} (${messageType}) failed (non-fatal): ${errorMsg}`);
+          results.push({
+            type: messageType,
+            messageIndex: i,
+            success: false,
+            nonFatal: true,
+            error: errorMsg,
+          });
+        } else {
+          core.error(`✗ Message ${i + 1} (${messageType}) failed: ${errorMsg}`);
+          results.push({
+            type: messageType,
+            messageIndex: i,
+            success: false,
+            error: errorMsg,
+          });
+          // Track code-push failures for fail-fast behaviour
+          if (CODE_PUSH_TYPES.has(messageType)) {
+            codePushFailures.push({ type: messageType, error: errorMsg });
+            core.warning(`⚠️ Code push operation '${messageType}' failed — remaining safe outputs will be cancelled`);
+          }
         }
         continue;
       }
@@ -1218,7 +1229,8 @@ async function main() {
 
     // Log summary
     const successCount = processingResult.results.filter(r => r.success).length;
-    const failureCount = processingResult.results.filter(r => !r.success && !r.deferred && !r.skipped && !r.cancelled).length;
+    const failureCount = processingResult.results.filter(r => !r.success && !r.deferred && !r.skipped && !r.cancelled && !r.nonFatal).length;
+    const nonFatalCount = processingResult.results.filter(r => r.nonFatal).length;
     const cancelledCount = processingResult.results.filter(r => r.cancelled).length;
     const deferredCount = processingResult.results.filter(r => r.deferred).length;
     const skippedStandaloneResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
@@ -1230,6 +1242,11 @@ async function main() {
     core.info(`Total messages: ${processingResult.results.length}`);
     core.info(`Successful: ${successCount}`);
     core.info(`Failed: ${failureCount}`);
+    if (nonFatalCount > 0) {
+      core.warning(`Non-fatal failures: ${nonFatalCount}`);
+      const nonFatalTypes = [...new Set(processingResult.results.filter(r => r.nonFatal).map(r => r.type))];
+      core.info(`  Types: ${nonFatalTypes.join(", ")}`);
+    }
     if (cancelledCount > 0) {
       core.info(`Cancelled (code push failed): ${cancelledCount}`);
     }
@@ -1262,7 +1279,7 @@ async function main() {
     if (failureCount > 0) {
       core.warning(`${failureCount} message(s) failed to process`);
       const failedItems = processingResult.results
-        .filter(r => !r.success && !r.deferred && !r.skipped && !r.cancelled)
+        .filter(r => !r.success && !r.deferred && !r.skipped && !r.cancelled && !r.nonFatal)
         .map(r => `  - ${r.type}: ${r.error || "Unknown error"}`)
         .join("\n");
       core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);

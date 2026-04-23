@@ -28,6 +28,7 @@ safe-outputs:
     labels: [agentics, warning, observability]
     close-older-issues: true
     max: 1
+    non-fatal: true
   noop:
     report-as-issue: false
 timeout-minutes: 35
@@ -279,7 +280,9 @@ Compute `workflow_overlap_score(a,b)` = `0.30 * same_task_domain + 0.25 * same_s
 
 ## Phase 4 — Generate 5 Charts
 
-Write and run `/tmp/gh-aw/python/agentic_optimization_plots.py` using the DataFrames from Phases 1 and 3. Generate exactly 5 charts at 300 DPI (publication quality for inline GitHub rendering), 12×7 inches (optimal for widescreen reading), seaborn whitegrid style. Save to `/tmp/gh-aw/python/charts/`, then upload each with `upload_asset` and record the returned URLs.
+Write and run `/tmp/gh-aw/python/agentic_optimization_plots.py` using the DataFrames from Phases 1 and 3. Generate exactly 5 charts at 300 DPI (publication quality for inline GitHub rendering), 12×7 inches (optimal for widescreen reading), seaborn whitegrid style. Save to `/tmp/gh-aw/python/charts/`, then upload each with `upload_asset`.
+
+**Critical**: After each `upload_asset` call, immediately read and record the `url` field from the tool's response — copy it verbatim. Never reconstruct the URL from the file path or SHA. Use these recorded URLs (and only these) when embedding images in the discussion body.
 
 1. **Token Usage by Workflow** — horizontal bar, top 15 workflows by `total_tokens` from Phase 1 baseline. Color bars by `is_dominant` / `is_expensive_per_run` / `is_noisy` flags. Save to `chart_token_bar.png`.
 

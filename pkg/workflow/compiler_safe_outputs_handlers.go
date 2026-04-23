@@ -25,6 +25,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
+			AddIfTrue("non_fatal", c.NonFatal).
 			Build()
 	},
 	"add_comment": func(cfg *SafeOutputsConfig) map[string]any {

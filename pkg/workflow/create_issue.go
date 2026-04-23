@@ -23,6 +23,7 @@ type CreateIssuesConfig struct {
 	Expires              int      `yaml:"expires,omitempty"`            // Hours until the issue expires and should be automatically closed
 	Group                *string  `yaml:"group,omitempty"`              // If true, group issues as sub-issues under a parent issue (workflow ID is used as group identifier)
 	Footer               *string  `yaml:"footer,omitempty"`             // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
+	NonFatal             bool     `yaml:"non-fatal,omitempty"`          // If true, issue creation failures are logged as warnings instead of causing the safe_outputs job to fail.
 }
 
 // parseIssuesConfig handles create-issue configuration

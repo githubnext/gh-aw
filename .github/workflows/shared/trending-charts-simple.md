@@ -94,14 +94,32 @@ Call the `upload_asset` tool for each chart image:
 { "type": "upload_asset", "path": "/tmp/gh-aw/python/charts/trend.png" }
 ```
 
-The tool returns a direct URL to the uploaded image.
+The tool returns a JSON response with a `url` field:
+
+```json
+{
+  "type": "upload_asset",
+  "url": "https://github.com/owner/repo/blob/assets/branch/abc123...def.png?raw=true",
+  "sha": "abc123...def",
+  "size": 123456
+}
+```
+
+> ⚠️ **Always copy the `url` field verbatim from the response.** Never construct the URL manually from the file path or the `sha` field — a single wrong character produces a broken image link.
+
+Store each returned URL in a variable immediately after upload, before generating the report body:
+
+```python
+# After upload, record the exact URL returned by the tool
+CHART_1_URL = "<url field from upload_asset response>"
+```
 
 ### Step 3: Embed in Markdown
 
-Use the returned asset URL to render the chart inline:
+Use the recorded URL to render the chart inline:
 
 ```markdown
-![Trend Chart](ASSET_URL_FROM_UPLOAD)
+![Trend Chart](CHART_1_URL)
 ```
 
 > **Note**: Up to 5 chart images can be uploaded per run.

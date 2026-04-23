@@ -4634,6 +4634,11 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "non-fatal": {
+                  "type": "boolean",
+                  "description": "If true, issue creation failures (e.g. due to API rate limits) are logged as warnings instead of causing the safe_outputs job to fail. Use when escalation issues are optional and should not block the overall run.",
+                  "default": false
                 }
               },
               "additionalProperties": false,
