@@ -899,6 +899,12 @@ on:
 
   # Option 2: undefined
 
+  # Explicit additional custom workflow jobs that pre_activation and activation
+  # should depend on.
+  # (optional)
+  needs: []
+    # Array of strings
+
   # Steps to inject into the pre-activation job. These steps run after all built-in
   # checks (membership, stop-time, skip-if, etc.) and their results are exposed as
   # pre-activation outputs. Use 'id' on steps to reference their results via
@@ -982,11 +988,6 @@ on:
 
     # (optional)
     statuses: "read"
-
-  # Explicit additional custom workflow jobs that pre_activation and activation
-  # should depend on.
-  # (optional)
-  needs: ["secrets_fetcher"]
 
   # When set to false, disables the frontmatter hash check step in the activation
   # job. Default is true (check is enabled). Useful when the workflow source files
@@ -1469,8 +1470,8 @@ pre-steps:
 pre-steps: []
   # Array items: undefined
 
-# Custom workflow steps to run before MCP gateway startup in the agent job,
-# so prerequisite MCP installation/configuration can happen first.
+# Custom workflow steps to run immediately before AI execution, after all
+# initialization and setup steps in the agent job.
 # (optional)
 # This field supports multiple formats (oneOf):
 
@@ -3487,6 +3488,13 @@ safe-outputs:
     # pull request creation or push failures.
     assignees: []
       # Array items: string
+
+    # Optional labels to apply to fallback issues created when pull request creation
+    # cannot proceed. When omitted, fallback issues reuse pull request labels. A
+    # managed label is always added for triage.
+    # (optional)
+    fallback-labels: []
+      # Array of strings
 
     # Whether to create pull request as draft (defaults to true). Accepts a boolean or
     # a GitHub Actions expression.

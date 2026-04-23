@@ -202,7 +202,7 @@ title: Oops
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := fastParseTitle(tt.content)
+			got, err := fastParseTitle([]byte(tt.content))
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("fastParseTitle(%q) expected error, got nil", tt.content)

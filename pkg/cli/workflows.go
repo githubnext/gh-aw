@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +20,13 @@ import (
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
+)
+
+// Package-level byte-slice sentinels used by fastParseTitle to avoid per-call allocations.
+var (
+	frontmatterDelim = []byte("---")
+	h1Prefix         = []byte("# ")
+	newline          = []byte{'\n'}
 )
 
 var workflowsLog = logger.New("cli:workflows")
@@ -332,25 +340,29 @@ func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 // (matching the behaviour of ExtractFrontmatterFromContent). Returns the H1
 // title text, or ("", nil) when no H1 header is present. Returns an error if
 // frontmatter is opened but never closed.
-func fastParseTitle(content string) (string, error) {
+//
+// content is accepted as []byte so that callers which already hold a []byte
+// (e.g. from os.ReadFile) can avoid the extra heap allocation that a
+// string conversion would require.
+func fastParseTitle(content []byte) (string, error) {
 	firstLine := true
 	inFrontmatter := false
-	for line := range strings.SplitSeq(content, "\n") {
-		trimmed := strings.TrimSpace(line)
+	for line := range bytes.SplitSeq(content, newline) {
+		trimmed := bytes.TrimSpace(line)
 		if firstLine {
 			firstLine = false
-			if trimmed == "---" {
+			if bytes.Equal(trimmed, frontmatterDelim) {
 				inFrontmatter = true
 				continue
 			}
 		} else if inFrontmatter {
-			if trimmed == "---" {
+			if bytes.Equal(trimmed, frontmatterDelim) {
 				inFrontmatter = false
 			}
 			continue
 		}
-		if strings.HasPrefix(trimmed, "# ") {
-			return strings.TrimSpace(trimmed[2:]), nil
+		if bytes.HasPrefix(trimmed, h1Prefix) {
+			return string(bytes.TrimSpace(trimmed[2:])), nil
 		}
 	}
 
@@ -369,7 +381,7 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 		return "", err
 	}
 
-	title, err := fastParseTitle(string(content))
+	title, err := fastParseTitle(content)
 	if err != nil {
 		return "", err
 	}
