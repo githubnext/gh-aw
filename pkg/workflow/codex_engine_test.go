@@ -337,7 +337,7 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 			"name = \"OpenAI AWF proxy\"",
 			fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.ClaudeLLMGatewayPort),
 			"env_key = \"OPENAI_API_KEY\"",
-			"supports_websockets = false",
+			"support_websockets = false",
 		}
 
 		for _, expected := range expectedLines {

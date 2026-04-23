@@ -716,7 +716,7 @@ jobs:
           name = "OpenAI AWF proxy"
           base_url = "http://172.30.0.30:10000"
           env_key = "OPENAI_API_KEY"
-          supports_websockets = false
+          support_websockets = false
           GH_AW_CODEX_SHELL_POLICY_2d745eed178272e7_EOF
           awk '
             BEGIN { skip_openai_proxy = 0 }

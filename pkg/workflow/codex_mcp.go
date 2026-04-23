@@ -162,7 +162,7 @@ func (e *CodexEngine) renderOpenAIProxyProviderToml(yaml *strings.Builder, inden
 	yaml.WriteString(indent + "name = \"" + codexOpenAIProxyProviderName + "\"\n")
 	yaml.WriteString(indent + "base_url = \"" + e.getOpenAIProxyProviderBaseURL() + "\"\n")
 	yaml.WriteString(indent + "env_key = \"OPENAI_API_KEY\"\n")
-	yaml.WriteString(indent + "supports_websockets = false\n")
+	yaml.WriteString(indent + "support_websockets = false\n")
 }
 
 func (e *CodexEngine) getOpenAIProxyProviderBaseURL() string {
