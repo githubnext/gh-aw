@@ -24,7 +24,7 @@
       "dir": "../benchmark-results"
     },
     "verdict": {
-      "perModelFloor": 0.6000000000000001,
+      "perModelFloor": 0.6,
       "targetWeightedAverage": 0.8
     }
   },
