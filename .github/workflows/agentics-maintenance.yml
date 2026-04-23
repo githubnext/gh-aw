@@ -389,26 +389,26 @@ jobs:
             const fs = require('node:fs');
             const reportPath = './.cache/gh-aw/activity-report-logs/report.md';
             if (!fs.existsSync(reportPath)) {
-              core.warning(`Activity report markdown not found at ${reportPath}; skipping issue creation.`);
+              core.warning('Activity report markdown not found at ' + reportPath + '; skipping issue creation.');
               return;
             }
             let reportBody = '';
             try {
               reportBody = fs.readFileSync(reportPath, 'utf8').trim();
             } catch (error) {
-              core.warning(`Failed to read activity report markdown at ${reportPath}: ${error.message}`);
+              core.warning('Failed to read activity report markdown at ' + reportPath + ': ' + error.message);
               return;
             }
             if (!reportBody) {
-              core.warning(`Activity report markdown is empty at ${reportPath}; skipping issue creation.`);
+              core.warning('Activity report markdown is empty at ' + reportPath + '; skipping issue creation.');
               return;
             }
-            const repoSlug = `${context.repo.owner}/${context.repo.repo}`;
+            const repoSlug = context.repo.owner + '/' + context.repo.repo;
             const body = [
               '### Agentic workflow activity report',
               '',
-              `Repository: ${repoSlug}`,
-              `Generated at: ${new Date().toISOString()}`,
+              'Repository: ' + repoSlug,
+              'Generated at: ' + new Date().toISOString(),
               '',
               reportBody,
             ].join('\n');
@@ -419,7 +419,7 @@ jobs:
               body,
               labels: ['agentic-workflows'],
             });
-            core.info(`Created issue #${createdIssue.data.number}: ${createdIssue.data.html_url}`);
+            core.info('Created issue #' + createdIssue.data.number + ': ' + createdIssue.data.html_url);
 
   close_agentic_workflows_issues:
     if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'close_agentic_workflows_issues' && (!(github.event.repository.fork)) }}
