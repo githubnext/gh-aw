@@ -1745,6 +1745,56 @@ describe("sanitize_content.cjs", () => {
       });
     });
 
+    describe("Unicode Tag Characters removal (U+E0020–U+E007F, Plane 14)", () => {
+      it("should strip a single Tag Characters codepoint (U+E0041 = TAG LATIN CAPITAL LETTER A)", () => {
+        // \uDB40\uDC41 is the surrogate pair for U+E0041
+        const input = "Hello\uDB40\uDC41World";
+        expect(sanitizeContent(input)).toBe("HelloWorld");
+      });
+
+      it("should strip LANGUAGE TAG (U+E0001) at the boundary of the Tag block", () => {
+        // \uDB40\uDC01 is the surrogate pair for U+E0001
+        const input = "test\uDB40\uDC01";
+        expect(sanitizeContent(input)).toBe("test");
+      });
+
+      it("should strip CANCEL TAG (U+E007F) at the upper boundary of the Tag block", () => {
+        // \uDB40\uDC7F is the surrogate pair for U+E007F
+        const input = "\uDB40\uDC7Ftest";
+        expect(sanitizeContent(input)).toBe("test");
+      });
+
+      it("should strip a full ASCII string encoded in Tag Characters — invisible payload attack", () => {
+        // Encode "SECRET" using Tag Characters: each ASCII char C -> U+E0000+C
+        // S=0x53, E=0x45, C=0x43, R=0x52, E=0x45, T=0x54
+        const tagS = "\uDB40\uDC53";
+        const tagE = "\uDB40\uDC45";
+        const tagC = "\uDB40\uDC43";
+        const tagR = "\uDB40\uDC52";
+        const tagT = "\uDB40\uDC54";
+        const encoded = tagS + tagE + tagC + tagR + tagE + tagT;
+        expect(sanitizeContent(encoded)).toBe("");
+      });
+
+      it("should strip Tag Characters mixed with normal ASCII text", () => {
+        // Tag-encoded 'A' (U+E0041) interspersed with normal letters
+        const input = "a\uDB40\uDC41b\uDB40\uDC42c";
+        expect(sanitizeContent(input)).toBe("abc");
+      });
+
+      it("should strip multiple adjacent Tag Characters", () => {
+        // TAG LATIN CAPITAL LETTER A through D (U+E0041–U+E0044)
+        const input = "\uDB40\uDC41\uDB40\uDC42\uDB40\uDC43\uDB40\uDC44";
+        expect(sanitizeContent(input)).toBe("");
+      });
+
+      it("should neutralize @mention bypass using Tag Characters between @ and username", () => {
+        // Inserting a Tag Character between @ and username to bypass mention detection
+        const input = "@\uDB40\uDC41admin please review";
+        expect(sanitizeContent(input)).toBe("`@admin` please review");
+      });
+    });
+
     describe("@mention bypass prevention via invisible characters", () => {
       it("should neutralize @mention with U+200F (RTL mark) inserted between @ and username", () => {
         const input = "@\u200Fadmin please review";
