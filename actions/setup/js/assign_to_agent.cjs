@@ -239,9 +239,10 @@ async function main(config = {}) {
     let effectivePullRequestRepoId = pullRequestRepoId;
     let effectivePullRequestRepoSlug = basePullRequestRepoSlug;
     let hasValidatedPerItemPullRequestRepoOverride = false;
-    const rawPullRequestRepoOverride = typeof message.pull_request_repo === "string" ? message.pull_request_repo.trim() : "";
-    if (rawPullRequestRepoOverride) {
-      const itemPullRequestRepo = rawPullRequestRepoOverride;
+    const hasPullRequestRepoOverrideField = message.pull_request_repo != null;
+    const trimmedPullRequestRepoOverride = typeof message.pull_request_repo === "string" ? message.pull_request_repo.trim() : "";
+    if (trimmedPullRequestRepoOverride) {
+      const itemPullRequestRepo = trimmedPullRequestRepoOverride;
       const pullRequestRepoParts = itemPullRequestRepo.split("/");
       if (pullRequestRepoParts.length === 2) {
         const defaultPullRequestRepo = pullRequestRepoConfig || defaultTargetRepo;
@@ -272,9 +273,9 @@ async function main(config = {}) {
       } else {
         core.warning(`Invalid pull_request_repo format: ${itemPullRequestRepo}. Expected owner/repo. Using global pull-request-repo if configured.`);
       }
-    } else if (typeof message.pull_request_repo === "string" && message.pull_request_repo.trim() === "") {
+    } else if (hasPullRequestRepoOverrideField && typeof message.pull_request_repo === "string") {
       core.warning("Invalid pull_request_repo value. Expected owner/repo. Using global pull-request-repo if configured.");
-    } else if (message.pull_request_repo != null && message.pull_request_repo !== "") {
+    } else if (hasPullRequestRepoOverrideField) {
       core.warning("Invalid pull_request_repo value. Expected a non-empty owner/repo string. Using global pull-request-repo if configured.");
     }
 
