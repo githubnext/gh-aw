@@ -582,7 +582,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 				}
 			}
 		} else {
-			threatLog.Printf("Failed to generate MCP setup for Codex detection: %v", err)
+			threatLog.Printf("Failed to generate MCP setup for Codex detection; OpenAI proxy configuration may be incomplete: %v", err)
 		}
 	}
 

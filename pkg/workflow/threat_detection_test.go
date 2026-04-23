@@ -730,6 +730,24 @@ func TestBuildDetectionEngineExecutionStepCodexIncludesMCPSetup(t *testing.T) {
 	}
 }
 
+func TestBuildDetectionJobStepsCodexAvoidsDuplicateContainerPullStep(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionJobSteps(data)
+	stepsString := strings.Join(steps, "")
+
+	if count := strings.Count(stepsString, "name: Download container images"); count != 1 {
+		t.Errorf("Expected exactly one 'Download container images' step for Codex detection, got %d.\n%s", count, stepsString)
+	}
+}
+
 func TestBuildUploadDetectionLogStep(t *testing.T) {
 	compiler := NewCompiler()
 
