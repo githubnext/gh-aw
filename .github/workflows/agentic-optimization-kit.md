@@ -423,7 +423,7 @@ Create one escalation issue **only** when at least one of these conditions holds
 3. Two or more runs have `new_mcp_failure` or `blocked_requests_increase` in `comparison.classification.reason_codes`.
 4. Two or more runs for the same workflow have a medium or high severity (not low) `resource_heavy_for_domain` or `poor_agentic_control` assessment — medium and high are used because low-severity assessments are informational and do not require owner action.
 
-Issue must: name affected workflows in priority order, explain evidence with run counts and reason codes, include `suggested_route` per episode, link up to 3 representative runs, and state the recommended first action. Keep it concise — the full analysis lives in the discussion.
+Issue must: name affected workflows in priority order, explain evidence with run counts and reason codes, include `suggested_route` per episode, link up to 3 representative runs, and state the recommended first action. Keep it concise — the full analysis lives in the discussion. Express all failure rates as properly formatted percentages with decimal precision: divide failures by total runs and multiply by 100, then format the result to one decimal place (e.g., 7 failures out of 8 runs = 87.5%, not 875%). Verify every percentage value is in the range [0%, 100%] before writing it.
 
 If no threshold is crossed, do not create an issue. Use `noop` only if no run data could be obtained at all.
 
@@ -434,3 +434,4 @@ If no threshold is crossed, do not create an issue. Use `noop` only if no run da
 - Do not modify prior audit snapshots; only update `rolling-summary.json` and `optimization-log.json`.
 - Report structure: **charts first**, then compact summaries, then `<details>` for long text.
 - Always emit all 5 prompts even when evidence for a category is thin — use the best available candidate and note uncertainty.
+- Format all percentages with one decimal place (e.g., 87.5%, not 875%). Verify every percentage is in the range [0%, 100%].
