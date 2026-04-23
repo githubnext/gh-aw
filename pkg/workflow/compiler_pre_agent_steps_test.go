@@ -124,3 +124,71 @@ Main workflow.
 		t.Errorf("Main pre-agent-step (%d) should appear before AI execution step (%d)", mainIdx, aiStepIdx)
 	}
 }
+
+func TestImportedPreAgentStepRunsAfterPRBaseRestore(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "pre-agent-steps-pr-restore-test")
+
+	sharedDir := filepath.Join(tmpDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	sharedContent := `---
+pre-agent-steps:
+  - name: Restore APM packages
+    run: echo "restore apm"
+---
+
+Shared APM-style steps.
+`
+	sharedFile := filepath.Join(sharedDir, "apm.md")
+	if err := os.WriteFile(sharedFile, []byte(sharedContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	mainContent := `---
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+imports:
+  - ./shared/apm.md
+engine: claude
+strict: false
+---
+
+Main workflow.
+`
+	mainFile := filepath.Join(tmpDir, "main.md")
+	if err := os.WriteFile(mainFile, []byte(mainContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(mainFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow with imported pre-agent-steps in PR context: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "main.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+	lockContent := string(content)
+
+	restoreBaseIdx := indexInNonCommentLines(lockContent, "- name: Restore agent config folders from base branch")
+	restoreAPMIdx := indexInNonCommentLines(lockContent, "- name: Restore APM packages")
+	aiStepIdx := indexInNonCommentLines(lockContent, "- name: Execute Claude Code CLI")
+	if restoreBaseIdx == -1 || restoreAPMIdx == -1 || aiStepIdx == -1 {
+		t.Fatal("Could not find expected PR restore, pre-agent, and AI steps in generated workflow")
+	}
+	if restoreBaseIdx >= restoreAPMIdx {
+		t.Errorf("PR base restore step (%d) should appear before imported pre-agent step (%d)", restoreBaseIdx, restoreAPMIdx)
+	}
+	if restoreAPMIdx >= aiStepIdx {
+		t.Errorf("Imported pre-agent step (%d) should appear before AI execution step (%d)", restoreAPMIdx, aiStepIdx)
+	}
+}
