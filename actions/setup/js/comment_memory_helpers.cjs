@@ -14,7 +14,10 @@ const COMMENT_MEMORY_PROMPT_END_MARKER = "<!-- gh-aw-comment-memory-prompt:end -
 const COMMENT_MEMORY_CODE_FENCE = "``````";
 
 function stripCommentMemoryCodeFence(content) {
-  const trimmed = String(content || "").trim();
+  const trimmed = typeof content === "string" ? content.trim() : "";
+  if (trimmed.length === 0) {
+    return "";
+  }
   if (!trimmed.startsWith(COMMENT_MEMORY_CODE_FENCE)) {
     return trimmed;
   }
@@ -25,6 +28,9 @@ function stripCommentMemoryCodeFence(content) {
   }
 
   const closingFenceStart = trimmed.lastIndexOf(`\n${COMMENT_MEMORY_CODE_FENCE}`);
+  if (closingFenceStart < 0) {
+    return trimmed;
+  }
   if (closingFenceStart <= firstNewline) {
     return trimmed;
   }
