@@ -107,4 +107,19 @@ describe("update_pull_request_branches", () => {
     expect(moduleUnderTest.isActiveSessionState("in_progress")).toBe(true);
     expect(moduleUnderTest.isActiveSessionState("closed")).toBe(false);
   });
+
+  it("filters candidate pull requests to only those without active sessions", async () => {
+    mockExec.getExecOutput.mockResolvedValue({
+      stdout: JSON.stringify([
+        { pullRequestNumber: 2, state: "OPEN" },
+        { pullRequestNumber: 9, state: "queued" },
+      ]),
+      stderr: "",
+      exitCode: 0,
+    });
+
+    const result = await moduleUnderTest.filterPullRequestsWithoutActiveSessions([1, 2, 3]);
+
+    expect(result).toEqual([1, 3]);
+  });
 });

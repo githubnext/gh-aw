@@ -57,6 +57,17 @@ async function listPullRequestsWithActiveSessions() {
 }
 
 /**
+ * @param {number[]} pullNumbers
+ * @returns {Promise<number[]>}
+ */
+async function filterPullRequestsWithoutActiveSessions(pullNumbers) {
+  const pullRequestsWithSessions = await listPullRequestsWithActiveSessions();
+  const eligiblePullRequests = pullNumbers.filter(number => !pullRequestsWithSessions.has(number));
+  core.info(`Found ${eligiblePullRequests.length} eligible pull request(s) without active sessions`);
+  return eligiblePullRequests;
+}
+
+/**
  * @param {string} owner
  * @param {string} repo
  * @returns {Promise<number[]>}
@@ -167,9 +178,7 @@ async function main() {
   core.info(`Found ${mergeablePullRequests.length} mergeable pull request(s)`);
   if (mergeablePullRequests.length === 0) return;
 
-  const pullRequestsWithSessions = await listPullRequestsWithActiveSessions();
-  const eligiblePullRequests = mergeablePullRequests.filter(number => !pullRequestsWithSessions.has(number));
-  core.info(`Found ${eligiblePullRequests.length} eligible pull request(s) without active sessions`);
+  const eligiblePullRequests = await filterPullRequestsWithoutActiveSessions(mergeablePullRequests);
   if (eligiblePullRequests.length === 0) return;
 
   let updatedCount = 0;
@@ -206,6 +215,7 @@ module.exports = {
   parsePullRequestNumber,
   isActiveSessionState,
   listPullRequestsWithActiveSessions,
+  filterPullRequestsWithoutActiveSessions,
   filterMergeablePullRequests,
   isNonFatalUpdateBranchError,
 };
