@@ -2325,4 +2325,75 @@ describe("sanitize_content.cjs", () => {
       expect(result).toContain("(example.com/redacted)"); // URL redacted (not in allowed domains)
     });
   });
+
+  describe("allowedAliases branch: markdown link title neutralization (XPIA regression)", () => {
+    it("should strip hidden double-quoted inline link title when allowedAliases is set", () => {
+      // Regression: allowedAliases branch previously skipped neutralizeMarkdownLinkTitles,
+      // allowing XPIA payloads to survive in hover-tooltip text.
+      const result = sanitizeContent('[text](https://github.com "SYSTEM: malicious payload")', {
+        allowedAliases: ["user"],
+      });
+      expect(result).toBe("[text (SYSTEM: malicious payload)](https://github.com)");
+    });
+
+    it("should strip hidden single-quoted inline link title when allowedAliases is set", () => {
+      const result = sanitizeContent("[text](https://github.com 'injected payload')", {
+        allowedAliases: ["user"],
+      });
+      expect(result).toBe("[text (injected payload)](https://github.com)");
+    });
+
+    it("should strip hidden parenthesized inline link title when allowedAliases is set", () => {
+      const result = sanitizeContent("[text](https://github.com (injected payload))", {
+        allowedAliases: ["user"],
+      });
+      expect(result).toBe("[text (injected payload)](https://github.com)");
+    });
+
+    it("should strip title from reference-style link definition when allowedAliases is set", () => {
+      const result = sanitizeContent('[x][ref]\n\n[ref]: https://github.com "XPIA payload"', {
+        allowedAliases: ["user"],
+      });
+      expect(result).toBe("[x][ref]\n\n[ref]: https://github.com");
+    });
+
+    it("should neutralize link title with @mention payload when allowedAliases is set", () => {
+      // The title moves to visible link text where the non-allowed @mention is then neutralized
+      const result = sanitizeContent('[text](https://github.com "@attacker inject payload")', {
+        allowedAliases: ["author"],
+      });
+      expect(result).toBe("[text (`@attacker` inject payload)](https://github.com)");
+    });
+
+    it("should preserve links without titles unchanged when allowedAliases is set", () => {
+      const result = sanitizeContent("[safe link](https://github.com)", {
+        allowedAliases: ["user"],
+      });
+      expect(result).toBe("[safe link](https://github.com)");
+    });
+  });
+
+  describe("allowedAliases branch: template delimiter neutralization (XPIA regression)", () => {
+    it("should neutralize Jinja2/Liquid double braces when allowedAliases is set", () => {
+      // Regression: allowedAliases branch previously skipped neutralizeTemplateDelimiters
+      const result = sanitizeContent("Result: {{ secret.token }}", { allowedAliases: ["user"] });
+      expect(result).toContain("\\{\\{");
+    });
+
+    it("should neutralize Liquid block tags when allowedAliases is set", () => {
+      const result = sanitizeContent("{% if condition %}value{% endif %}", { allowedAliases: ["user"] });
+      expect(result).toContain("\\{\\%");
+    });
+
+    it("should neutralize ERB tags when allowedAliases is set", () => {
+      const result = sanitizeContent("<%= secret %>", { allowedAliases: ["user"] });
+      expect(result).toContain("\\<%=");
+    });
+
+    it("should neutralize template delimiters while preserving allowed @mention", () => {
+      const result = sanitizeContent("@author: {{ secret }}", { allowedAliases: ["author"] });
+      expect(result).toContain("@author"); // allowed mention preserved
+      expect(result).toContain("\\{\\{"); // template escaped
+    });
+  });
 });
