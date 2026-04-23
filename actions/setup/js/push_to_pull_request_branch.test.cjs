@@ -637,6 +637,34 @@ index 0000000..abc1234
       expect(result.commit_url).toContain("test-owner/test-repo/commit/");
     });
 
+    it("should use remote branch HEAD SHA for activation comment commit link", async () => {
+      const patchPath = createPatchFile();
+      const updateActivationCommentModule = require("./update_activation_comment.cjs");
+      const updateCommitSpy = vi.spyOn(updateActivationCommentModule, "updateActivationCommentWithCommit").mockResolvedValue(undefined);
+      const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue(undefined);
+
+      try {
+        mockExec.getExecOutput
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "preflight-sha\trefs/heads/feature-branch\n", stderr: "" }) // preflight ls-remote
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "local-head-before\n", stderr: "" }) // rev-parse HEAD before patch
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "1\n", stderr: "" }) // rev-list --count
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "remote-head-after\trefs/heads/feature-branch\n", stderr: "" }); // post-push ls-remote
+
+        const module = await loadModule();
+        const handler = await module.main({});
+        const result = await handler({ patch_path: patchPath }, {});
+
+        expect(result.success).toBe(true);
+        expect(result.commit_sha).toBe("remote-head-after");
+        expect(result.commit_url).toContain("/commit/remote-head-after");
+        expect(updateCommitSpy).toHaveBeenCalledWith(mockGithub, mockContext, mockCore, "remote-head-after", "https://github.com/test-owner/test-repo/commit/remote-head-after", { targetIssueNumber: 123 });
+      } finally {
+        pushSignedSpy.mockRestore();
+        updateCommitSpy.mockRestore();
+      }
+    });
+
     it("should detect deleted branch before fetch", async () => {
       const patchPath = createPatchFile();
 

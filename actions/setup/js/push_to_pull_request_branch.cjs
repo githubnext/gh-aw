@@ -856,12 +856,33 @@ async function main(config = {}) {
       }
     }
 
-    // Get commit SHA and push URL
-    const commitShaRes = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
-    if (commitShaRes.exitCode !== 0) {
-      return { success: false, error: "Failed to get commit SHA" };
+    // Resolve the actual remote branch HEAD SHA after push.
+    // This differs from local HEAD when pushSignedCommits replays commits via GraphQL.
+    let remoteCommitSha = "";
+    try {
+      const remoteHeadResult = await exec.getExecOutput("git", ["ls-remote", "--exit-code", "--heads", "origin", branchName], {
+        env: { ...process.env, ...gitAuthEnv },
+        ignoreReturnCode: true,
+      });
+      if (remoteHeadResult.exitCode === 0) {
+        remoteCommitSha = (remoteHeadResult.stdout || "").trim().split(/\s+/)[0] || "";
+      } else {
+        core.warning(`Failed to resolve remote HEAD SHA for ${branchName}: ${remoteHeadResult.stderr || `git ls-remote exited with code ${remoteHeadResult.exitCode}`}`);
+      }
+    } catch (resolveRemoteShaError) {
+      core.warning(`Failed to resolve remote HEAD SHA for ${branchName}: ${getErrorMessage(resolveRemoteShaError)}`);
     }
-    const commitSha = commitShaRes.stdout.trim();
+
+    // Fallback to local HEAD for outputs/summary if remote lookup fails.
+    // Activation comment commit link is only updated when remote SHA is available.
+    let commitSha = remoteCommitSha;
+    if (!commitSha) {
+      const commitShaRes = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
+      if (commitShaRes.exitCode !== 0) {
+        return { success: false, error: "Failed to get commit SHA" };
+      }
+      commitSha = commitShaRes.stdout.trim();
+    }
 
     // Get repository base URL and construct URLs
     // For cross-repo scenarios, use repoParts (the target repo) not context.repo (the workflow repo)
@@ -875,8 +896,11 @@ async function main(config = {}) {
     //
     // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
     // in the same repo as the activation, so the global client has the correct context for updating the comment.
-    if (hasChanges) {
-      await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, { targetIssueNumber: pullNumber });
+    if (hasChanges && remoteCommitSha) {
+      const remoteCommitUrl = `${repoUrl}/commit/${remoteCommitSha}`;
+      await updateActivationCommentWithCommit(github, context, core, remoteCommitSha, remoteCommitUrl, { targetIssueNumber: pullNumber });
+    } else if (hasChanges) {
+      core.warning("Skipping activation comment commit link update because remote branch HEAD SHA could not be resolved");
     }
 
     // Write summary to GitHub Actions summary
