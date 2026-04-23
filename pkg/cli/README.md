@@ -116,6 +116,19 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `CreateWorkflowMarkdownFile` | `func(string, bool, bool, string) error` | Creates a new workflow markdown file |
 | `IsRunnable` | `func(string) (bool, error)` | Checks whether a workflow file is runnable |
 | `RunWorkflowInteractively` | `func(ctx, ...) error` | Interactive workflow selection and dispatch |
+| `RunSpecificWorkflowInteractively` | `func(ctx, string, ...) error` | Interactive dispatch for a named workflow |
+| `RunAddInteractive` | `func(ctx, []string, ...) error` | Interactive wizard for adding workflows |
+| `RunWorkflowTrials` | `func(ctx, []string, TrialOptions) error` | Runs trial workflow executions |
+| `RunUpdateWorkflows` | `func(ctx, []string, ...) error` | Updates workflows from upstream sources |
+| `RunChecks` | `func(ChecksConfig) error` | Fetches and renders CI check results for a PR |
+| `RunProjectNew` | `func(ctx, ProjectConfig) error` | Creates a new GitHub Project V2 board |
+| `RunListDomains` | `func(bool) error` | Lists all domains used across workflows |
+| `RunWorkflowDomains` | `func(string, bool) error` | Lists domains for a specific workflow |
+| `RunHashFrontmatter` | `func(string) error` | Prints the frontmatter hash for a workflow file |
+| `RunActionlintOnFiles` | `func([]string, bool, bool) error` | Runs actionlint linter on compiled lock files |
+| `RunZizmorOnFiles` | `func([]string, bool, bool) error` | Runs zizmor linter on compiled lock files |
+| `RunPoutineOnDirectory` | `func(string, bool, bool) error` | Runs poutine supply-chain scanner on workflow directory |
+| `RunRunnerGuardOnDirectory` | `func(string, bool, bool) error` | Runs runner-guard scanner on workflow directory |
 | `AddMCPTool` | `func(string, string, ...) error` | Adds an MCP server to a workflow file |
 | `InspectWorkflowMCP` | `func(string, ...) error` | Inspects MCP server configurations |
 | `ListWorkflowMCP` | `func(string, bool) error` | Lists MCP server info for a workflow |
