@@ -555,6 +555,7 @@ async function main(config = {}) {
     // token on multi-commit branches where workflow files may have been modified).
     let newCommitCount = 0;
     let remoteHeadBeforePatch = "";
+    let pushedCommitSha = "";
     if (hasChanges) {
       // Capture HEAD before applying changes to compute new-commit count later
       try {
@@ -736,7 +737,7 @@ async function main(config = {}) {
 
       // Push the applied commits to the branch using signed GraphQL commits (outside patch try/catch so push failures are not misattributed)
       try {
-        await pushSignedCommits({
+        const pushedSha = await pushSignedCommits({
           githubClient,
           owner: repoParts.owner,
           repo: repoParts.repo,
@@ -745,6 +746,9 @@ async function main(config = {}) {
           cwd: process.cwd(),
           gitAuthEnv,
         });
+        if (typeof pushedSha === "string" && pushedSha.length > 0) {
+          pushedCommitSha = pushedSha;
+        }
         core.info(`Changes committed and pushed to branch: ${branchName}`);
       } catch (pushError) {
         const pushErrorMessage = getErrorMessage(pushError);
@@ -856,49 +860,9 @@ async function main(config = {}) {
       }
     }
 
-    // Resolve the actual remote branch HEAD SHA after push.
-    // This differs from local HEAD when pushSignedCommits replays commits via GraphQL.
-    let remoteCommitSha = "";
-    try {
-      const remoteHeadResult = await exec.getExecOutput("git", ["ls-remote", "--exit-code", "--heads", "origin", branchName], {
-        env: { ...process.env, ...gitAuthEnv },
-        ignoreReturnCode: true,
-      });
-      if (remoteHeadResult.exitCode === 0) {
-        const remoteHeadLine = (remoteHeadResult.stdout || "").trim().split("\n")[0] || "";
-        const remoteHeadParts = remoteHeadLine.split(/\s+/).filter(Boolean);
-        const remoteSha = remoteHeadParts[0] || "";
-        const remoteRef = remoteHeadParts[1] || "";
-        const expectedRef = `refs/heads/${branchName}`;
-        if (remoteSha && remoteRef === expectedRef) {
-          remoteCommitSha = remoteSha;
-        } else {
-          core.warning(
-            "Failed to parse remote HEAD SHA for " +
-              branchName +
-              ": unexpected ls-remote output '" +
-              remoteHeadLine +
-              "'. Expected format: '<sha> " +
-              expectedRef +
-              "'. The activation comment commit link will be skipped. Commit push may still have succeeded."
-          );
-        }
-      } else {
-        core.warning(
-          `Failed to resolve remote HEAD SHA for ${branchName}: ${remoteHeadResult.stderr || `git ls-remote exited with code ${remoteHeadResult.exitCode}`}. ` +
-            "Activation comment commit link will be skipped. Check branch existence, authentication, and network connectivity. Commit push may still have succeeded."
-        );
-      }
-    } catch (resolveRemoteShaError) {
-      core.warning(
-        `Failed to resolve remote HEAD SHA for ${branchName}: ${getErrorMessage(resolveRemoteShaError)}. ` +
-          "The activation comment commit link will be skipped due to an unexpected ls-remote execution error. Commit push may still have succeeded."
-      );
-    }
-
-    // Fallback to local HEAD for outputs/summary if remote lookup fails.
-    // Activation comment commit link is only updated when remote SHA is available.
-    let commitSha = remoteCommitSha;
+    // The signed-push helper returns the commit SHA that landed on the branch.
+    // Fall back to local HEAD only if the helper did not return one.
+    let commitSha = pushedCommitSha;
     if (!commitSha) {
       const commitShaRes = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
       if (commitShaRes.exitCode !== 0) {
@@ -919,11 +883,8 @@ async function main(config = {}) {
     //
     // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
     // in the same repo as the activation, so the global client has the correct context for updating the comment.
-    if (hasChanges && remoteCommitSha) {
-      const remoteCommitUrl = `${repoUrl}/commit/${remoteCommitSha}`;
-      await updateActivationCommentWithCommit(github, context, core, remoteCommitSha, remoteCommitUrl, { targetIssueNumber: pullNumber });
-    } else if (hasChanges) {
-      core.warning("Skipping activation comment commit link update because remote branch HEAD SHA could not be resolved. Commit push may still have succeeded.");
+    if (hasChanges) {
+      await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, { targetIssueNumber: pullNumber });
     }
 
     // Write summary to GitHub Actions summary

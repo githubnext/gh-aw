@@ -637,20 +637,18 @@ index 0000000..abc1234
       expect(result.commit_url).toContain("test-owner/test-repo/commit/");
     });
 
-    it("should use remote branch HEAD SHA for activation comment commit link", async () => {
+    it("should use pushed commit SHA returned by pushSignedCommits for activation comment commit link", async () => {
       const patchPath = createPatchFile();
       const updateActivationCommentModule = require("./update_activation_comment.cjs");
       const updateCommitSpy = vi.spyOn(updateActivationCommentModule, "updateActivationCommentWithCommit").mockResolvedValue(undefined);
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
-      // Mock signed-commit replay to keep this test focused on post-push SHA resolution.
-      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue(undefined);
+      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("remote-head-after");
 
       try {
         mockExec.getExecOutput
           .mockResolvedValueOnce({ exitCode: 0, stdout: "preflight-sha\trefs/heads/feature-branch\n", stderr: "" }) // preflight ls-remote
           .mockResolvedValueOnce({ exitCode: 0, stdout: "local-head-before\n", stderr: "" }) // rev-parse HEAD before patch
-          .mockResolvedValueOnce({ exitCode: 0, stdout: "1\n", stderr: "" }) // rev-list --count
-          .mockResolvedValueOnce({ exitCode: 0, stdout: "remote-head-after\trefs/heads/feature-branch\n", stderr: "" }); // post-push ls-remote
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "1\n", stderr: "" }); // rev-list --count
 
         const module = await loadModule();
         const handler = await module.main({});
