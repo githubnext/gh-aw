@@ -12,6 +12,7 @@ const COMMENT_MEMORY_MAX_SCAN_EMPTY_PAGES = 5;
 const COMMENT_MEMORY_PROMPT_START_MARKER = "<!-- gh-aw-comment-memory-prompt:start -->";
 const COMMENT_MEMORY_PROMPT_END_MARKER = "<!-- gh-aw-comment-memory-prompt:end -->";
 const COMMENT_MEMORY_CODE_FENCE = "``````";
+const ESCAPED_COMMENT_MEMORY_CODE_FENCE = COMMENT_MEMORY_CODE_FENCE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 function stripCommentMemoryCodeFence(content) {
   const trimmed = typeof content === "string" ? content.trim() : "";
@@ -21,8 +22,7 @@ function stripCommentMemoryCodeFence(content) {
   if (!trimmed.startsWith(COMMENT_MEMORY_CODE_FENCE)) {
     return trimmed;
   }
-  const escapedFence = COMMENT_MEMORY_CODE_FENCE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = trimmed.match(new RegExp(`^${escapedFence}[^\\n]*\\n([\\s\\S]*)\\n${escapedFence}$`));
+  const match = trimmed.match(new RegExp(`^${ESCAPED_COMMENT_MEMORY_CODE_FENCE}[^\\n]*\\n([\\s\\S]*)\\n${ESCAPED_COMMENT_MEMORY_CODE_FENCE}$`));
   if (!match) {
     return trimmed;
   }

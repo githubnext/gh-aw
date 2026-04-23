@@ -45,13 +45,7 @@ function buildManagedMemoryBody(rawBody, memoryID, options) {
   const openingTag = `<${COMMENT_MEMORY_TAG} id="${memoryID}">`;
   const closingTag = `</${COMMENT_MEMORY_TAG}>`;
   core.info(`comment_memory: building managed body for memory_id='${memoryID}'`);
-  let body = `${MANAGED_COMMENT_HEADER}
-
-${openingTag}
-${COMMENT_MEMORY_CODE_FENCE}
-${sanitizeContent(rawBody)}
-${COMMENT_MEMORY_CODE_FENCE}
-${closingTag}`;
+  let body = `${MANAGED_COMMENT_HEADER}\n\n${openingTag}\n${COMMENT_MEMORY_CODE_FENCE}\n${sanitizeContent(rawBody)}\n${COMMENT_MEMORY_CODE_FENCE}\n${closingTag}`;
 
   const tracker = getTrackerID("markdown");
   if (tracker) {
