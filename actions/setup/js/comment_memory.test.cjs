@@ -45,6 +45,7 @@ describe("comment_memory", () => {
     });
     expect(body).toContain("### Comment Memory");
     expect(body).toContain('<gh-aw-comment-memory id="default">');
+    expect(body).toContain("``````");
     expect(body).toContain("Hello world");
     expect(body).toContain("</gh-aw-comment-memory>");
   });
@@ -63,6 +64,7 @@ describe("comment_memory", () => {
     });
     expect(body).toContain("### Comment Memory");
     expect(body).toContain('<gh-aw-comment-memory id="session">');
+    expect(body).toContain("``````");
     expect(body).toContain("Persist me");
     expect(body).toContain("> [!NOTE]");
     expect(body).toContain("> <summary>What this comment does</summary>");

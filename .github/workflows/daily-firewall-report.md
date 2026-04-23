@@ -31,10 +31,9 @@ tools:
     - "*"
   edit:
 imports:
-  - uses: shared/daily-audit-base.md
+  - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[daily-firewall-report] "
-  - shared/trending-charts-simple.md
 
 features:
   mcp-cli: true

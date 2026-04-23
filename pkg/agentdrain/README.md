@@ -139,6 +139,9 @@ coord, err := agentdrain.NewCoordinator(cfg, stages)
 // Load default trained weights
 err = coord.LoadDefaultWeights()
 
+// Training phase — route events from known-good runs to stage miners
+result, err := coord.TrainEvent(evt)
+
 // Analyze an event
 result, report, err := coord.AnalyzeEvent(evt)
 

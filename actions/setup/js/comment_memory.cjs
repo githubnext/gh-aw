@@ -14,7 +14,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
-const { COMMENT_MEMORY_TAG, COMMENT_MEMORY_MAX_SCAN_PAGES } = require("./comment_memory_helpers.cjs");
+const { COMMENT_MEMORY_TAG, COMMENT_MEMORY_MAX_SCAN_PAGES, COMMENT_MEMORY_CODE_FENCE } = require("./comment_memory_helpers.cjs");
 // Require provenance marker to avoid accidentally updating user-authored comments
 // that happen to contain a matching comment-memory tag.
 const MANAGED_COMMENT_PROVENANCE_MARKER = "<!-- gh-aw-agentic-workflow:";
@@ -45,7 +45,7 @@ function buildManagedMemoryBody(rawBody, memoryID, options) {
   const openingTag = `<${COMMENT_MEMORY_TAG} id="${memoryID}">`;
   const closingTag = `</${COMMENT_MEMORY_TAG}>`;
   core.info(`comment_memory: building managed body for memory_id='${memoryID}'`);
-  let body = `${MANAGED_COMMENT_HEADER}\n\n${openingTag}\n${sanitizeContent(rawBody)}\n${closingTag}`;
+  let body = `${MANAGED_COMMENT_HEADER}\n\n${openingTag}\n${COMMENT_MEMORY_CODE_FENCE}\n${sanitizeContent(rawBody)}\n${COMMENT_MEMORY_CODE_FENCE}\n${closingTag}`;
 
   const tracker = getTrackerID("markdown");
   if (tracker) {

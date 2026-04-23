@@ -343,6 +343,10 @@ A frontmatter field that enables distributed tracing for workflow runs via OpenT
 
 Steps injected at a specific lifecycle position within a custom or built-in job's step sequence: after the compiler-generated setup step and before the first checkout or regular `steps`. Defined under `jobs.<job-id>.pre-steps` in workflow frontmatter. For built-in jobs (`activation`, `pre_activation`), pre-steps are inserted after the `setup` step and before the first `actions/checkout` step. When both a main workflow and an imported workflow define `pre-steps` for the same job, imported pre-steps run first. This is distinct from the top-level `pre-steps` field, which injects steps into the agent job only. See [Custom Jobs](/gh-aw/reference/frontmatter/#custom-jobs-jobs).
 
+### Pre-Activation Dependencies (`on.needs:`)
+
+A frontmatter field that declares custom jobs that both the `pre_activation` and `activation` built-in jobs depend on. Use this when credentials or secrets must be fetched by a custom job before activation runs — for example, when `on.github-app` tokens come from a secrets-manager job. Values must reference custom jobs defined in the top-level `jobs:` section; built-in job names are rejected at compile time. See [Triggers Reference](/gh-aw/reference/triggers/).
+
 ### Stop After
 
 A workflow configuration field (`stop-after:`) that automatically prevents new runs after a specified time limit. Accepts absolute dates (`YYYY-MM-DD`, ISO 8601) or relative time deltas (`+48h`, `+7d`). Minimum granularity is hours. Useful for trial periods, experimental features, and cost-controlled schedules. Recompile with `gh aw compile --refresh-stop-time` to reset the deadline. See [Ephemerals](/gh-aw/guides/ephemerals/).

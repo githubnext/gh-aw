@@ -10,6 +10,7 @@ const { pushSignedCommits } = require("./push_signed_commits.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { replaceTemporaryIdReferences, replaceTemporaryIdReferencesInPatch, getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
@@ -131,6 +132,19 @@ function isBaseBranchAllowed(baseBranch, allowedBaseBranches) {
     }
   }
   return false;
+}
+
+/**
+ * Parse config values that may be arrays or comma-separated strings.
+ * @param {string[]|string|undefined} value
+ * @returns {string[]}
+ */
+function parseStringListConfig(value) {
+  if (!value) {
+    return [];
+  }
+  const raw = Array.isArray(value) ? value : String(value).split(",");
+  return raw.map(item => String(item).trim()).filter(Boolean);
 }
 
 /**
@@ -323,10 +337,11 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName) {
 async function main(config = {}) {
   // Extract configuration
   const titlePrefix = config.title_prefix || "";
-  const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
-  const configReviewers = config.reviewers ? (Array.isArray(config.reviewers) ? config.reviewers : config.reviewers.split(",")).map(r => String(r).trim()).filter(r => r) : [];
-  const configTeamReviewers = config.team_reviewers ? (Array.isArray(config.team_reviewers) ? config.team_reviewers : config.team_reviewers.split(",")).map(r => String(r).trim()).filter(r => r) : [];
-  const rawAssignees = config.assignees ? (Array.isArray(config.assignees) ? config.assignees : config.assignees.split(",")).map(a => String(a).trim()).filter(a => a) : [];
+  const envLabels = parseStringListConfig(config.labels);
+  const configFallbackLabels = parseStringListConfig(config.fallback_labels);
+  const configReviewers = parseStringListConfig(config.reviewers);
+  const configTeamReviewers = parseStringListConfig(config.team_reviewers);
+  const rawAssignees = parseStringListConfig(config.assignees);
   const hasCopilotInAssignees = rawAssignees.some(a => a.toLowerCase() === "copilot");
   const configAssignees = sanitizeFallbackAssignees(rawAssignees);
   const draftDefault = parseBoolTemplatable(config.draft, true);
@@ -444,6 +459,9 @@ async function main(config = {}) {
   }
   if (envLabels.length > 0) {
     core.info(`Default labels: ${envLabels.join(", ")}`);
+  }
+  if (configFallbackLabels.length > 0) {
+    core.info(`Configured fallback issue labels: ${configFallbackLabels.join(", ")}`);
   }
   if (configReviewers.length > 0) {
     core.info(`Configured reviewers: ${configReviewers.join(", ")}`);
@@ -834,6 +852,9 @@ async function main(config = {}) {
     // Remove duplicate title from description if it starts with a header matching the title
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
 
+    // Sanitize body content to neutralize @mentions, URLs, and other security risks
+    processedBody = sanitizeContent(processedBody);
+
     // Auto-add "Fixes #N" closing keyword if triggered from an issue and not already present.
     // This ensures the triggering issue is auto-closed when the PR is merged.
     // Agents are instructed to include this but don't reliably do so.
@@ -955,6 +976,9 @@ async function main(config = {}) {
       .filter(label => !!label)
       .map(label => String(label).trim())
       .filter(label => label);
+    // Use explicitly configured fallback labels when present; otherwise preserve
+    // existing behavior by reusing pull request labels for fallback issues.
+    const effectiveFallbackLabels = configFallbackLabels.length > 0 ? configFallbackLabels : labels;
 
     // Configuration enforces draft as a policy, not a fallback (consistent with autoMerge/allowEmpty)
     const draft = draftDefault;
@@ -1076,7 +1100,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 \`\`\``;
 
         try {
-          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
           await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
@@ -1310,7 +1334,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 ${patchPreview}`;
 
             try {
-              const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+              const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
               core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
               await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
@@ -1465,7 +1489,7 @@ ${patchPreview}`;
       }
 
       try {
-        const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+        const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
         core.info(`Created protected-file-protection review issue #${issue.number}: ${issue.html_url}`);
         await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
@@ -1665,7 +1689,7 @@ ${patchPreview}`;
         });
 
         try {
-          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
           await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
@@ -1731,7 +1755,7 @@ gh pr create --title "${title}" --base ${baseBranch} --head ${branchName} --repo
 ${patchPreview}`;
 
       try {
-        const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+        const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
         core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
         await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);

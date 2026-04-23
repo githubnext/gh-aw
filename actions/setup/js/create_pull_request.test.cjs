@@ -1776,6 +1776,15 @@ describe("create_pull_request - copilot assignee on fallback issues", () => {
     expect(global.github.graphql).toHaveBeenCalledTimes(3);
   });
 
+  it("should use configured fallback_labels for fallback issues instead of PR labels", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, fallback_labels: ["failure", "automated"] });
+    await handler({ title: "Test PR", body: "Test body", labels: ["pr-label"] }, {});
+
+    const issueCall = global.github.rest.issues.create.mock.calls[0][0];
+    expect(issueCall.labels).toEqual(["agentic-workflows", "failure", "automated"]);
+  });
+
   it("should warn but not fail when copilot agent is not available for fallback issue", async () => {
     process.env.GH_AW_ASSIGN_COPILOT = "true";
 

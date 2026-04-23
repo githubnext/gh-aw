@@ -111,6 +111,29 @@ func TestExtractEngineConfigWithDetails(t *testing.T) {
 	assert.Equal(t, "org/repo", result.Repository, "Repository should match")
 }
 
+func TestExtractEngineConfigInferredWithoutAwInfo(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-infer-*")
+	logContent := `{"type":"result","subtype":"success","num_turns":3,"usage":{"input_tokens":100,"output_tokens":200}}`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent-stdio.log"), []byte(logContent), 0o644))
+
+	_, inferredEngineID := inferFallbackLogMetrics(tmpDir)
+	result := extractEngineConfigWithInferredEngine(tmpDir, inferredEngineID)
+	require.NotNil(t, result, "Engine config should be inferred when aw_info.json is missing but agent log is available")
+	assert.NotEmpty(t, result.EngineID, "Inferred engine ID should not be empty")
+}
+
+func TestInferFallbackLogMetricsFindsNestedAgentStdioLog(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-infer-nested-*")
+	nestedDir := filepath.Join(tmpDir, "agent", "logs")
+	require.NoError(t, os.MkdirAll(nestedDir, 0o755))
+	logContent := `{"type":"result","subtype":"success","num_turns":4,"usage":{"input_tokens":120,"output_tokens":80}}`
+	require.NoError(t, os.WriteFile(filepath.Join(nestedDir, "agent-stdio.log"), []byte(logContent), 0o644))
+
+	metrics, inferredEngineID := inferFallbackLogMetrics(tmpDir)
+	assert.Positive(t, metrics.Turns, "Fallback metrics should be extracted from nested agent-stdio.log")
+	assert.NotEmpty(t, inferredEngineID, "Engine ID should be inferred from nested agent-stdio.log")
+}
+
 func TestExtractPromptAnalysis(t *testing.T) {
 	tests := []struct {
 		name            string

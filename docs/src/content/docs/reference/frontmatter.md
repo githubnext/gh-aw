@@ -688,7 +688,7 @@ Custom steps run outside the firewall sandbox. These steps execute with standard
 
 ## Pre-Agent Steps (`pre-agent-steps:`)
 
-Add custom steps immediately before the agent execution step, after all initialization/setup logic in the agent job.
+Add custom steps before MCP gateway startup in the agent job so prerequisite MCP installation/configuration can happen first.
 
 ```yaml wrap
 pre-agent-steps:

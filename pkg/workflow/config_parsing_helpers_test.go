@@ -311,9 +311,10 @@ func TestParsePullRequestsConfigWithHelpers(t *testing.T) {
 	compiler := &Compiler{}
 	outputMap := map[string]any{
 		"create-pull-request": map[string]any{
-			"title-prefix": "[auto] ",
-			"labels":       []any{"automated", "needs-review"},
-			"target-repo":  "org/project",
+			"title-prefix":    "[auto] ",
+			"labels":          []any{"automated", "needs-review"},
+			"fallback-labels": []any{"failure", "automated"},
+			"target-repo":     "org/project",
 		},
 	}
 
@@ -328,6 +329,10 @@ func TestParsePullRequestsConfigWithHelpers(t *testing.T) {
 
 	if len(result.Labels) != 2 {
 		t.Errorf("expected 2 labels, got %d", len(result.Labels))
+	}
+
+	if len(result.FallbackLabels) != 2 {
+		t.Errorf("expected 2 fallback labels, got %d", len(result.FallbackLabels))
 	}
 
 	if result.TargetRepoSlug != "org/project" {

@@ -445,6 +445,7 @@ function parseToolArgs(args, schemaProperties = {}) {
   /** @type {Record<string, unknown>} */
   const result = {};
   let jsonOutput = false;
+  const hasSchemaProperties = Object.keys(schemaProperties).length > 0;
   const { normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys } = buildNormalizedSchemaKeyMap(schemaProperties);
 
   for (let i = 0; i < args.length; i++) {
@@ -458,13 +459,13 @@ function parseToolArgs(args, schemaProperties = {}) {
           jsonOutput = true;
         } else {
           const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
-          result[canonicalKey] = coerceToolArgValue(canonicalKey, raw.slice(eqIdx + 1), schemaProperties[canonicalKey], result[canonicalKey]);
+          result[canonicalKey] = coerceToolArgValue(canonicalKey, raw.slice(eqIdx + 1), schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
         }
       } else if (raw === "json") {
         jsonOutput = true;
       } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
         const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
-        result[canonicalKey] = coerceToolArgValue(canonicalKey, args[i + 1], schemaProperties[canonicalKey], result[canonicalKey]);
+        result[canonicalKey] = coerceToolArgValue(canonicalKey, args[i + 1], schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
         i++;
       } else {
         const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
@@ -549,9 +550,10 @@ function resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap,
  * @param {string} rawValue - Raw CLI value
  * @param {{type?: string|string[]}|undefined} schemaProperty - JSON schema property
  * @param {unknown} existingValue - Existing value (for repeated flags)
+ * @param {boolean} [allowNumericFallback=false] - Allow numeric parsing when schema is unavailable
  * @returns {unknown}
  */
-function coerceToolArgValue(key, rawValue, schemaProperty, existingValue) {
+function coerceToolArgValue(key, rawValue, schemaProperty, existingValue, allowNumericFallback = false) {
   /** @type {string[]} */
   const types = [];
   if (schemaProperty && typeof schemaProperty === "object" && "type" in schemaProperty && schemaProperty.type != null) {
@@ -617,6 +619,26 @@ function coerceToolArgValue(key, rawValue, schemaProperty, existingValue) {
     }
     if (normalized === "false" || normalized === "0") {
       return false;
+    }
+  }
+
+  // When schema metadata is unavailable (e.g. empty tools cache), apply
+  // conservative numeric coercion fallback for CLI ergonomics.
+  if (allowNumericFallback && types.length === 0) {
+    const trimmedValue = rawValue.trim();
+
+    if (/^-?\d+$/.test(trimmedValue)) {
+      const parsedInt = Number.parseInt(trimmedValue, 10);
+      if (!Number.isNaN(parsedInt) && Number.isSafeInteger(parsedInt)) {
+        return parsedInt;
+      }
+    }
+
+    if (/^-?(?:(?:\d+\.\d*|\.\d+)(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)$/.test(trimmedValue)) {
+      const parsedFloat = Number.parseFloat(trimmedValue);
+      if (!Number.isNaN(parsedFloat) && Number.isFinite(parsedFloat)) {
+        return parsedFloat;
+      }
     }
   }
 
@@ -711,6 +733,118 @@ function showToolHelp(serverName, toolName, tools) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Extract JSON-RPC messages from a response body that may be:
+ * - A JSON object
+ * - A JSON string
+ * - Server-Sent Events (SSE) payload containing multiple `data:` lines
+ *
+ * @param {unknown} responseBody
+ * @returns {unknown[]}
+ */
+function extractJSONRPCMessages(responseBody) {
+  if (responseBody == null) {
+    return [];
+  }
+
+  if (Array.isArray(responseBody)) {
+    return responseBody;
+  }
+
+  if (typeof responseBody === "object") {
+    return [responseBody];
+  }
+
+  if (typeof responseBody !== "string") {
+    return [];
+  }
+
+  const trimmed = responseBody.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  try {
+    return [JSON.parse(trimmed)];
+  } catch {
+    // Fall through to SSE parsing.
+  }
+
+  /** @type {unknown[]} */
+  const messages = [];
+  for (const line of trimmed.split(/\r?\n/)) {
+    if (!line.startsWith("data:")) {
+      continue;
+    }
+    const payload = line.slice(5).trim();
+    if (!payload || payload === "[DONE]") {
+      continue;
+    }
+    try {
+      messages.push(JSON.parse(payload));
+    } catch {
+      // Ignore non-JSON SSE data lines.
+    }
+  }
+
+  return messages;
+}
+
+/**
+ * Render MCP progress notifications to stderr.
+ *
+ * @param {unknown[]} messages - Parsed JSON-RPC message stream
+ */
+function renderProgressMessages(messages) {
+  for (const message of messages) {
+    if (!message || typeof message !== "object" || !("method" in message) || message.method !== "notifications/progress") {
+      continue;
+    }
+
+    const params = "params" in message && message.params && typeof message.params === "object" ? message.params : null;
+    if (!params) {
+      continue;
+    }
+
+    const progressText = "message" in params && params.message ? String(params.message) : "";
+    const progress = "progress" in params && typeof params.progress === "number" ? params.progress : null;
+    const total = "total" in params && typeof params.total === "number" ? params.total : null;
+
+    if (progressText) {
+      process.stderr.write(progressText + "\n");
+      continue;
+    }
+
+    if (progress != null && total != null) {
+      process.stderr.write(`Progress: ${progress}/${total}\n`);
+      continue;
+    }
+
+    if (progress != null) {
+      process.stderr.write(`Progress: ${progress}\n`);
+      continue;
+    }
+
+    process.stderr.write(`Progress: ${JSON.stringify(params)}\n`);
+  }
+}
+
+/**
+ * @param {unknown} message
+ * @returns {boolean}
+ */
+function isErrorMessage(message) {
+  return !!(message && typeof message === "object" && "error" in message);
+}
+
+/**
+ * @param {unknown} message
+ * @returns {boolean}
+ */
+function isResultMessage(message) {
+  return !!(message && typeof message === "object" && "result" in message);
+}
+
+/**
  * Format and display the MCP tool call response.
  *
  * @param {unknown} responseBody - Parsed JSON-RPC response body
@@ -718,7 +852,10 @@ function showToolHelp(serverName, toolName, tools) {
  */
 function formatResponse(responseBody, serverName) {
   const core = global.core;
-  const resp = responseBody;
+  const messages = extractJSONRPCMessages(responseBody);
+  renderProgressMessages(messages);
+
+  const resp = messages.find(isErrorMessage) || messages.find(isResultMessage) || responseBody;
 
   // Check for JSON-RPC error
   if (resp && typeof resp === "object" && "error" in resp && resp.error && typeof resp.error === "object") {
@@ -883,6 +1020,8 @@ if (require.main === module) {
 module.exports = {
   parseToolArgs,
   coerceToolArgValue,
+  extractJSONRPCMessages,
+  renderProgressMessages,
   formatResponse,
   main,
 };

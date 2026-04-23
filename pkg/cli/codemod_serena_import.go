@@ -13,32 +13,17 @@ import (
 var serenaImportCodemodLog = logger.New("cli:codemod_serena_import")
 
 // getSerenaToSharedImportCodemod creates a codemod that migrates removed tools.serena
-// configuration to an equivalent imports entry using shared/mcp/serena.md.
+// or engine.tools.serena configuration to an equivalent imports entry using
+// shared/mcp/serena.md, and may normalize a pinned source ref to @main.
 func getSerenaToSharedImportCodemod() Codemod {
 	return Codemod{
 		ID:           "serena-tools-to-shared-import",
-		Name:         "Migrate tools.serena to shared Serena import",
-		Description:  "Removes 'tools.serena' and adds an equivalent 'imports' entry using shared/mcp/serena.md with languages.",
+		Name:         "Migrate tools.serena or engine.tools.serena to shared Serena import",
+		Description:  "Removes 'tools.serena' or 'engine.tools.serena', adds an equivalent 'imports' entry using shared/mcp/serena.md with languages, and may rewrite a pinned 'source:' ref to '@main'.",
 		IntroducedIn: "1.0.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			toolsAny, hasTools := frontmatter["tools"]
-			if !hasTools {
-				return content, false, nil
-			}
-
-			toolsMap, ok := toolsAny.(map[string]any)
-			if !ok {
-				return content, false, nil
-			}
-
-			serenaAny, hasSerena := toolsMap["serena"]
-			if !hasSerena {
-				return content, false, nil
-			}
-
-			languages, ok := extractSerenaLanguages(serenaAny)
+			languages, ok := findSerenaLanguagesForMigration(frontmatter)
 			if !ok || len(languages) == 0 {
-				serenaImportCodemodLog.Print("Found tools.serena but languages configuration is invalid or empty - skipping migration; verify tools.serena languages are set")
 				return content, false, nil
 			}
 
@@ -50,7 +35,8 @@ func getSerenaToSharedImportCodemod() Codemod {
 					return lines, false
 				}
 
-				result = removeTopLevelBlockIfEmpty(result, "tools")
+				result = removeBlockIfEmpty(result, "tools")
+				result = removeBlockIfEmpty(result, "engine")
 
 				if alreadyImported {
 					return result, true
@@ -59,6 +45,7 @@ func getSerenaToSharedImportCodemod() Codemod {
 				return addSerenaImport(result, languages), true
 			})
 			if applied {
+				newContent = maybeUpdatePinnedSourceRef(newContent, frontmatter)
 				if alreadyImported {
 					serenaImportCodemodLog.Print("Removed tools.serena (shared/mcp/serena.md import already present)")
 				} else {
@@ -68,6 +55,52 @@ func getSerenaToSharedImportCodemod() Codemod {
 			return newContent, applied, err
 		},
 	}
+}
+
+func findSerenaLanguagesForMigration(frontmatter map[string]any) ([]string, bool) {
+	toolsAny, hasTools := frontmatter["tools"]
+	if hasTools {
+		if toolsMap, ok := toolsAny.(map[string]any); ok {
+			if serenaAny, hasSerena := toolsMap["serena"]; hasSerena {
+				languages, ok := extractSerenaLanguages(serenaAny)
+				if ok && len(languages) > 0 {
+					return languages, true
+				}
+			}
+		}
+	}
+
+	engineAny, hasEngine := frontmatter["engine"]
+	if !hasEngine {
+		return nil, false
+	}
+
+	engineMap, ok := engineAny.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+
+	engineToolsAny, hasEngineTools := engineMap["tools"]
+	if !hasEngineTools {
+		return nil, false
+	}
+
+	engineToolsMap, ok := engineToolsAny.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+
+	serenaAny, hasSerena := engineToolsMap["serena"]
+	if !hasSerena {
+		return nil, false
+	}
+
+	languages, ok := extractSerenaLanguages(serenaAny)
+	if !ok || len(languages) == 0 {
+		return nil, false
+	}
+
+	return languages, true
 }
 
 func extractSerenaLanguages(serenaAny any) ([]string, bool) {
@@ -204,7 +237,13 @@ func addSerenaImport(lines []string, languages []string) []string {
 	insertAt := 0
 	for i, line := range lines {
 		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "engine:") {
-			insertAt = i + 1
+			insertAt = len(lines)
+			for j := i + 1; j < len(lines); j++ {
+				if isTopLevelKey(lines[j]) {
+					insertAt = j
+					break
+				}
+			}
 			break
 		}
 	}
@@ -228,42 +267,88 @@ func formatStringArrayInline(values []string) string {
 	return "[" + strings.Join(quoted, ", ") + "]"
 }
 
-func removeTopLevelBlockIfEmpty(lines []string, blockName string) []string {
-	blockIdx := -1
-	blockEnd := len(lines)
-	for i, line := range lines {
-		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), blockName+":") {
-			blockIdx = i
-			for j := i + 1; j < len(lines); j++ {
-				if isTopLevelKey(lines[j]) {
-					blockEnd = j
-					break
-				}
-			}
-			break
-		}
-	}
-
-	if blockIdx == -1 {
-		return lines
-	}
-
-	hasMeaningfulNestedContent := false
-	for _, line := range lines[blockIdx+1 : blockEnd] {
+func removeBlockIfEmpty(lines []string, blockName string) []string {
+	result := make([]string, 0, len(lines))
+	for i := 0; i < len(lines); {
+		line := lines[i]
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		if !strings.HasPrefix(trimmed, blockName+":") {
+			result = append(result, line)
+			i++
 			continue
 		}
-		hasMeaningfulNestedContent = true
-		break
+
+		valuePart := strings.TrimSpace(strings.TrimPrefix(trimmed, blockName+":"))
+		if valuePart != "" && !strings.HasPrefix(valuePart, "#") {
+			result = append(result, line)
+			i++
+			continue
+		}
+
+		hasMeaningfulNestedContent, blockEnd := hasNestedContent(lines, i+1, getIndentation(line))
+
+		if hasMeaningfulNestedContent {
+			result = append(result, line)
+			i++
+			continue
+		}
+
+		i = blockEnd
 	}
 
-	if hasMeaningfulNestedContent {
-		return lines
-	}
-
-	result := make([]string, 0, len(lines)-(blockEnd-blockIdx))
-	result = append(result, lines[:blockIdx]...)
-	result = append(result, lines[blockEnd:]...)
 	return result
+}
+
+func hasNestedContent(lines []string, startIndex int, blockIndent string) (bool, int) {
+	for i := startIndex; i < len(lines); i++ {
+		nestedLine := lines[i]
+		nestedTrimmed := strings.TrimSpace(nestedLine)
+		if nestedTrimmed == "" {
+			continue
+		}
+
+		nestedIndent := getIndentation(nestedLine)
+		if strings.HasPrefix(nestedTrimmed, "#") {
+			if len(nestedIndent) <= len(blockIndent) {
+				return false, i
+			}
+			continue
+		}
+
+		if len(nestedIndent) <= len(blockIndent) && strings.Contains(nestedLine, ":") {
+			return false, i
+		}
+
+		return true, i
+	}
+
+	return false, len(lines)
+}
+
+func maybeUpdatePinnedSourceRef(content string, frontmatter map[string]any) string {
+	sourceAny, hasSource := frontmatter["source"]
+	if !hasSource {
+		return content
+	}
+
+	source, ok := sourceAny.(string)
+	if !ok || strings.TrimSpace(source) == "" {
+		return content
+	}
+
+	sourceSpec, err := parseSourceSpec(source)
+	if err != nil {
+		return content
+	}
+
+	if sourceSpec.Repo != "github/gh-aw" || !IsCommitSHA(sourceSpec.Ref) {
+		return content
+	}
+
+	updatedSource := sourceSpec.Repo + "/" + sourceSpec.Path + "@main"
+	updatedContent, err := UpdateFieldInFrontmatter(content, "source", updatedSource)
+	if err != nil {
+		return content
+	}
+	return updatedContent
 }

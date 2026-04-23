@@ -1635,6 +1635,60 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 	}
 }
 
+func TestCreatePullRequestFallbackLabels(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("1"),
+				},
+				FallbackLabels: []string{"failure", "automated"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "Steps should be generated")
+	validated := false
+
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) != 2 {
+				continue
+			}
+
+			jsonStr := strings.TrimSpace(parts[1])
+			jsonStr = strings.Trim(jsonStr, "\"")
+			jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+			var config map[string]map[string]any
+			err := json.Unmarshal([]byte(jsonStr), &config)
+			require.NoError(t, err, "Config JSON should be valid")
+
+			prConfig, ok := config["create_pull_request"]
+			require.True(t, ok, "create_pull_request config should exist")
+
+			fallbackLabelsRaw, ok := prConfig["fallback_labels"]
+			require.True(t, ok, "fallback_labels should be in config")
+
+			fallbackLabels, ok := fallbackLabelsRaw.([]any)
+			require.True(t, ok, "fallback_labels should be an array")
+			require.Len(t, fallbackLabels, 2, "fallback_labels should have expected length")
+			assert.Equal(t, "failure", fallbackLabels[0], "first fallback label should match")
+			assert.Equal(t, "automated", fallbackLabels[1], "second fallback label should match")
+			validated = true
+			break
+		}
+	}
+
+	require.True(t, validated, "fallback_labels validation should run when handler config env var is present")
+}
+
 // TestHandlerConfigAssignToUser tests assign_to_user configuration
 func TestHandlerConfigAssignToUser(t *testing.T) {
 	compiler := NewCompiler()

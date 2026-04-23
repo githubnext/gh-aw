@@ -26,9 +26,10 @@ timeout-minutes: 45
 
 imports:
   - shared/github-guard-policy.md
+  - uses: shared/daily-audit-charts.md
+    with:
+      title-prefix: "[stale-repo-identifier] "
   - shared/jqschema.md
-  - shared/trending-charts-simple.md
-  - shared/reporting.md
 
 network:
   allowed:

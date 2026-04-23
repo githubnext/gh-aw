@@ -21,13 +21,11 @@ safe-outputs:
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 timeout-minutes: 45
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[api-consumption] "
       expires: 3d
-  - shared/trending-charts-simple.md
   - shared/jqschema.md
-  - shared/reporting.md
 
 features:
   mcp-cli: true

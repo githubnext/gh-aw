@@ -378,6 +378,31 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent('[text](https://github.com "@exploituser inject payload")');
       expect(result).toBe("[text (`@exploituser` inject payload)](https://github.com)");
     });
+
+    it("should neutralize markdown link titles when allowedAliases is specified (XPIA regression)", () => {
+      // Regression: neutralizeMarkdownLinkTitles must run in the allowedAliases branch too.
+      // Previously the title was passed through unchanged when allowedAliases were provided.
+      // The title is moved into the visible link text (no longer steganographic), not stripped.
+      const result = sanitizeContent('[Result](https://github.com "XPIA: inject")', { allowedAliases: ["author"] });
+      expect(result).toBe("[Result (XPIA: inject)](https://github.com)");
+    });
+
+    it("should strip reference-style link titles when allowedAliases is specified", () => {
+      const result = sanitizeContent('[x][ref]\n\n[ref]: https://github.com "hidden payload"', {
+        allowedAliases: ["author"],
+      });
+      expect(result).not.toContain("hidden payload");
+      expect(result).toBe("[x][ref]\n\n[ref]: https://github.com");
+    });
+
+    it("should neutralize link title @mentions via allowedAliases path without exposing the title steganographically", () => {
+      // The title @mention must be moved into visible link text and then selectively filtered.
+      // The allowed alias should remain un-neutralized after being moved to visible text.
+      const result = sanitizeContent('[text](https://github.com "@author inject")', {
+        allowedAliases: ["author"],
+      });
+      expect(result).toBe("[text (@author inject)](https://github.com)");
+    });
   });
 
   describe("XML/HTML tag conversion", () => {
@@ -1743,6 +1768,99 @@ describe("sanitize_content.cjs", () => {
         const expected = "HelloWorld";
         expect(sanitizeContent(input)).toBe(expected);
       });
+
+      it("should remove invisible mathematical operator FUNCTION APPLICATION (U+2061)", () => {
+        const input = "Hello\u2061World";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove invisible mathematical operator INVISIBLE TIMES (U+2062)", () => {
+        const input = "Hello\u2062World";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove invisible mathematical operator INVISIBLE SEPARATOR (U+2063)", () => {
+        const input = "Hello\u2063World";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove invisible mathematical operator INVISIBLE PLUS (U+2064)", () => {
+        const input = "Hello\u2064World";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it.each([
+        ["\u2061", "U+2061 FUNCTION APPLICATION"],
+        ["\u2062", "U+2062 INVISIBLE TIMES"],
+        ["\u2063", "U+2063 INVISIBLE SEPARATOR"],
+        ["\u2064", "U+2064 INVISIBLE PLUS"],
+      ])("should strip %s (%s) used to fragment a secret-like marker", operator => {
+        // Simulate a secret fragmented with an invisible operator to bypass static detection
+        const marker = "SECRET";
+        const fragmented = marker.split("").join(operator);
+        const result = sanitizeContent(fragmented);
+        expect(result).toBe(marker);
+      });
+
+      it("should remove multiple invisible mathematical operators", () => {
+        const input = "A\u2061B\u2062C\u2063D\u2064E";
+        const expected = "ABCDE";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+    });
+
+    describe("Unicode Tag Characters removal (U+E0000–U+E007F, Plane 14)", () => {
+      it("should strip a single Tag Characters codepoint (U+E0041 = TAG LATIN CAPITAL LETTER A)", () => {
+        // \uDB40\uDC41 is the surrogate pair for U+E0041
+        const input = "Hello\uDB40\uDC41World";
+        expect(sanitizeContent(input)).toBe("HelloWorld");
+      });
+
+      it("should strip LANGUAGE TAG (U+E0001) at the boundary of the Tag block", () => {
+        // \uDB40\uDC01 is the surrogate pair for U+E0001
+        const input = "test\uDB40\uDC01";
+        expect(sanitizeContent(input)).toBe("test");
+      });
+
+      it("should strip CANCEL TAG (U+E007F) at the upper boundary of the Tag block", () => {
+        // \uDB40\uDC7F is the surrogate pair for U+E007F
+        const input = "\uDB40\uDC7Ftest";
+        expect(sanitizeContent(input)).toBe("test");
+      });
+
+      it("should strip a full ASCII string encoded in Tag Characters — invisible payload attack", () => {
+        // Encode "SECRET" using Tag Characters: each ASCII char C -> U+E0000+C
+        // S=0x53, E=0x45, C=0x43, R=0x52, E=0x45, T=0x54
+        const tagS = "\uDB40\uDC53";
+        const tagE = "\uDB40\uDC45";
+        const tagC = "\uDB40\uDC43";
+        const tagR = "\uDB40\uDC52";
+        const tagT = "\uDB40\uDC54";
+        const encoded = tagS + tagE + tagC + tagR + tagE + tagT;
+        expect(sanitizeContent(encoded)).toBe("");
+      });
+
+      it("should strip Tag Characters mixed with normal ASCII text", () => {
+        // Tag-encoded 'A' (U+E0041) interspersed with normal letters
+        const input = "a\uDB40\uDC41b\uDB40\uDC42c";
+        expect(sanitizeContent(input)).toBe("abc");
+      });
+
+      it("should strip multiple adjacent Tag Characters", () => {
+        // TAG LATIN CAPITAL LETTER A through D (U+E0041–U+E0044)
+        const input = "\uDB40\uDC41\uDB40\uDC42\uDB40\uDC43\uDB40\uDC44";
+        expect(sanitizeContent(input)).toBe("");
+      });
+
+      it("should neutralize @mention bypass using Tag Characters between @ and username", () => {
+        // Inserting a Tag Character between @ and username to bypass mention detection
+        const input = "@\uDB40\uDC41admin please review";
+        expect(sanitizeContent(input)).toBe("`@admin` please review");
+      });
     });
 
     describe("@mention bypass prevention via invisible characters", () => {
@@ -2323,6 +2441,77 @@ describe("sanitize_content.cjs", () => {
       expect(result).toContain("`@user`"); // mention escaped
       expect(result).toContain("\\{\\{"); // template escaped
       expect(result).toContain("(example.com/redacted)"); // URL redacted (not in allowed domains)
+    });
+  });
+
+  describe("allowedAliases branch: markdown link title neutralization (XPIA regression)", () => {
+    it("should strip hidden double-quoted inline link title when allowedAliases is set", () => {
+      // Regression: allowedAliases branch previously skipped neutralizeMarkdownLinkTitles,
+      // allowing XPIA payloads to survive in hover-tooltip text.
+      const result = sanitizeContent('[text](https://github.com "SYSTEM: malicious payload")', {
+        allowedAliases: ["user"],
+      });
+      expect(result).toBe("[text (SYSTEM: malicious payload)](https://github.com)");
+    });
+
+    it("should strip hidden single-quoted inline link title when allowedAliases is set", () => {
+      const result = sanitizeContent("[text](https://github.com 'injected payload')", {
+        allowedAliases: ["user"],
+      });
+      expect(result).toBe("[text (injected payload)](https://github.com)");
+    });
+
+    it("should strip hidden parenthesized inline link title when allowedAliases is set", () => {
+      const result = sanitizeContent("[text](https://github.com (injected payload))", {
+        allowedAliases: ["user"],
+      });
+      expect(result).toBe("[text (injected payload)](https://github.com)");
+    });
+
+    it("should strip title from reference-style link definition when allowedAliases is set", () => {
+      const result = sanitizeContent('[x][ref]\n\n[ref]: https://github.com "XPIA payload"', {
+        allowedAliases: ["user"],
+      });
+      expect(result).toBe("[x][ref]\n\n[ref]: https://github.com");
+    });
+
+    it("should neutralize link title with @mention payload when allowedAliases is set", () => {
+      // The title moves to visible link text where the non-allowed @mention is then neutralized
+      const result = sanitizeContent('[text](https://github.com "@attacker inject payload")', {
+        allowedAliases: ["author"],
+      });
+      expect(result).toBe("[text (`@attacker` inject payload)](https://github.com)");
+    });
+
+    it("should preserve links without titles unchanged when allowedAliases is set", () => {
+      const result = sanitizeContent("[safe link](https://github.com)", {
+        allowedAliases: ["user"],
+      });
+      expect(result).toBe("[safe link](https://github.com)");
+    });
+  });
+
+  describe("allowedAliases branch: template delimiter neutralization (XPIA regression)", () => {
+    it("should neutralize Jinja2/Liquid double braces when allowedAliases is set", () => {
+      // Regression: allowedAliases branch previously skipped neutralizeTemplateDelimiters
+      const result = sanitizeContent("Result: {{ secret.token }}", { allowedAliases: ["user"] });
+      expect(result).toContain("\\{\\{");
+    });
+
+    it("should neutralize Liquid block tags when allowedAliases is set", () => {
+      const result = sanitizeContent("{% if condition %}value{% endif %}", { allowedAliases: ["user"] });
+      expect(result).toContain("\\{\\%");
+    });
+
+    it("should neutralize ERB tags when allowedAliases is set", () => {
+      const result = sanitizeContent("<%= secret %>", { allowedAliases: ["user"] });
+      expect(result).toContain("\\<%=");
+    });
+
+    it("should neutralize template delimiters while preserving allowed @mention", () => {
+      const result = sanitizeContent("@author: {{ secret }}", { allowedAliases: ["author"] });
+      expect(result).toContain("@author"); // allowed mention preserved
+      expect(result).toContain("\\{\\{"); // template escaped
     });
   });
 });

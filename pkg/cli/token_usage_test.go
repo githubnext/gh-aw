@@ -291,6 +291,39 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		assert.Equal(t, 1, summary.TotalRequests, "should have 1 request")
 		assert.Equal(t, 100, summary.TotalInputTokens, "should have correct input tokens")
 	})
+
+	t.Run("falls back to agent_usage.json when token-usage.jsonl is missing", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-agent-usage")
+		agentUsageFile := filepath.Join(tmpDir, "agent_usage.json")
+		content := `{"input_tokens":5944,"output_tokens":8698,"cache_read_tokens":1170605,"cache_write_tokens":86049,"effective_tokens":243846}`
+		require.NoError(t, os.WriteFile(agentUsageFile, []byte(content), 0o644))
+
+		summary, err := analyzeTokenUsage(tmpDir, false)
+		require.NoError(t, err, "should parse agent_usage.json without error")
+		require.NotNil(t, summary, "should return summary from agent_usage.json")
+		assert.Equal(t, 5944, summary.TotalInputTokens, "input tokens should match agent usage")
+		assert.Equal(t, 8698, summary.TotalOutputTokens, "output tokens should match agent usage")
+		assert.Equal(t, 243846, summary.TotalEffectiveTokens, "effective tokens should match agent usage")
+		assert.Equal(t, 1, summary.TotalRequests, "agent usage fallback should synthesize one request")
+	})
+
+	t.Run("applies custom weights from aw_info when agent_usage effective_tokens is missing", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-agent-usage-custom-weights")
+		awInfoFile := filepath.Join(tmpDir, "aw_info.json")
+		awInfoContent := `{"token_weights":{"multipliers":{"unknown":2}}}`
+		require.NoError(t, os.WriteFile(awInfoFile, []byte(awInfoContent), 0o644))
+
+		agentUsageFile := filepath.Join(tmpDir, "agent_usage.json")
+		agentUsageContent := `{"input_tokens":10,"output_tokens":5,"cache_read_tokens":0,"cache_write_tokens":0}`
+		require.NoError(t, os.WriteFile(agentUsageFile, []byte(agentUsageContent), 0o644))
+
+		summary, err := analyzeTokenUsage(tmpDir, false)
+		require.NoError(t, err, "should parse agent_usage.json with custom weights")
+		require.NotNil(t, summary, "should return summary from agent_usage.json")
+		assert.Equal(t, 60, summary.TotalEffectiveTokens, "custom multiplier should be applied to computed effective tokens")
+		require.Contains(t, summary.ByModel, "unknown", "unknown model bucket should be present")
+		assert.Equal(t, 60, summary.ByModel["unknown"].EffectiveTokens, "per-model effective tokens should use custom weights")
+	})
 }
 
 func TestCacheEfficiency(t *testing.T) {

@@ -213,6 +213,21 @@ jobs:
 `,
 			expectError: false,
 		},
+		{
+			name: "vulnerability-alerts permission in job permissions passes",
+			yamlContent: `
+name: Test
+on: push
+jobs:
+  test:
+    permissions:
+      vulnerability-alerts: read
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
+`,
+			expectError: false,
+		},
 		// Note: We can't easily test invalid YAML here because the schema validation
 		// happens after YAML parsing, and most errors would be caught by the parser first.
 		// The enhancement is verified through the unit tests above.
