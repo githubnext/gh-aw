@@ -18,7 +18,7 @@ describe("run_activity_report", () => {
       core: global.core,
       github: global.github,
       context: global.context,
-      };
+    };
 
     mockCore = {
       info: vi.fn(),
