@@ -111,6 +111,16 @@ func TestExtractEngineConfigWithDetails(t *testing.T) {
 	assert.Equal(t, "org/repo", result.Repository, "Repository should match")
 }
 
+func TestExtractEngineConfigInferredWithoutAwInfo(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-infer-*")
+	logContent := `{"type":"result","subtype":"success","num_turns":3,"usage":{"input_tokens":100,"output_tokens":200}}`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent-stdio.log"), []byte(logContent), 0o644))
+
+	result := extractEngineConfig(tmpDir)
+	require.NotNil(t, result, "Engine config should be inferred when aw_info.json is missing but agent log is available")
+	assert.NotEmpty(t, result.EngineID, "Inferred engine ID should not be empty")
+}
+
 func TestExtractPromptAnalysis(t *testing.T) {
 	tests := []struct {
 		name            string

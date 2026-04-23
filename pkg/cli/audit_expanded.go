@@ -11,6 +11,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var auditExpandedLog = logger.New("cli:audit_expanded")
@@ -119,6 +120,16 @@ func extractEngineConfig(logsPath string) *AuditEngineConfig {
 	awInfoPath := findAwInfoPath(logsPath)
 	if awInfoPath == "" {
 		auditExpandedLog.Printf("aw_info.json not found in %s", logsPath)
+		if _, inferredEngineID := inferFallbackLogMetrics(logsPath); inferredEngineID != "" {
+			registry := workflow.GetGlobalEngineRegistry()
+			if engine, err := registry.GetEngine(inferredEngineID); err == nil {
+				auditExpandedLog.Printf("Inferred engine config without aw_info.json: engine=%s", inferredEngineID)
+				return &AuditEngineConfig{
+					EngineID:   inferredEngineID,
+					EngineName: engine.GetDisplayName(),
+				}
+			}
+		}
 		return nil
 	}
 	awInfo, err := parseAwInfo(awInfoPath, false)
@@ -146,6 +157,57 @@ func extractEngineConfig(logsPath string) *AuditEngineConfig {
 	auditExpandedLog.Printf("Extracted engine config: engine=%s, model=%s, mcp_servers=%d",
 		config.EngineID, config.Model, len(config.MCPServers))
 	return config
+}
+
+func inferFallbackLogMetrics(logsPath string) (LogMetrics, string) {
+	if logsPath == "" {
+		return LogMetrics{}, ""
+	}
+
+	if eventsJSONLPath := findEventsJSONLFile(logsPath); eventsJSONLPath != "" {
+		if metrics, err := parseEventsJSONLFile(eventsJSONLPath, false); err == nil && hasUsefulFallbackMetrics(metrics) {
+			return metrics, "copilot"
+		}
+	}
+
+	agentLogPath := filepath.Join(logsPath, "agent-stdio.log")
+	content, err := os.ReadFile(agentLogPath)
+	if err != nil {
+		return LogMetrics{}, ""
+	}
+	return inferBestEngineMetricsFromContent(string(content))
+}
+
+func hasUsefulFallbackMetrics(metrics LogMetrics) bool {
+	return metrics.TokenUsage > 0 || metrics.Turns > 0 || metrics.EstimatedCost > 0 || len(metrics.ToolCalls) > 0
+}
+
+func inferBestEngineMetricsFromContent(logContent string) (LogMetrics, string) {
+	registry := workflow.GetGlobalEngineRegistry()
+	engineIDs := []string{"copilot", "claude", "codex", "gemini", "opencode", "crush"}
+
+	var bestMetrics LogMetrics
+	var bestEngineID string
+	bestScore := -1
+
+	for _, engineID := range engineIDs {
+		engine, err := registry.GetEngine(engineID)
+		if err != nil {
+			continue
+		}
+		metrics := engine.ParseLogMetrics(logContent, false)
+		score := metrics.TokenUsage + (metrics.Turns * 100000) + (len(metrics.ToolCalls) * 1000)
+		if score > bestScore {
+			bestScore = score
+			bestMetrics = metrics
+			bestEngineID = engineID
+		}
+	}
+
+	if !hasUsefulFallbackMetrics(bestMetrics) {
+		return LogMetrics{}, ""
+	}
+	return bestMetrics, bestEngineID
 }
 
 // extractPromptAnalysis reads prompt.txt and returns analysis metrics
