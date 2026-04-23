@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"0a102fc3672473b293dd2d3a42eedb3b0690ab801ab90e9672310dd1638fea47","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"80dc34d50f8318548183d2b9b38ed667c9095fa51055c7b8324eeab2f36fb6f0","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/setup-python","sha":"a309ff8b426b58ec0e2a45f0f869d46889d02405","version":"v6.2.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"astral-sh/setup-uv","sha":"eac588ad8def6316056a12d4907a9d4d84ff7a3b","version":"eac588ad8def6316056a12d4907a9d4d84ff7a3b"},{"repo":"docker/build-push-action","sha":"bcafcacb16a39f128d818304e6c9c0c18556b85f","version":"v7.1.0"},{"repo":"docker/setup-buildx-action","sha":"4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd","version":"v4"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.28","digest":"sha256:a8834e285807654bf680154faa710d43fe4365a0868142f5c20e48c85e137a7a","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.28@sha256:a8834e285807654bf680154faa710d43fe4365a0868142f5c20e48c85e137a7a"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.28","digest":"sha256:93290f2393752252911bd7c39a047f776c0b53063575e7bde4e304962a9a61cb","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.28@sha256:93290f2393752252911bd7c39a047f776c0b53063575e7bde4e304962a9a61cb"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.28","digest":"sha256:844c18280f82cd1b06345eb2f4e91966b34185bfc51c9f237c3e022e848fb474","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.28@sha256:844c18280f82cd1b06345eb2f4e91966b34185bfc51c9f237c3e022e848fb474"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.2.30","digest":"sha256:e950e6d39f003862d33bfb8d4eb93e242d919cf6ca874b90728e5e0ea7434c6f","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.2.30@sha256:e950e6d39f003862d33bfb8d4eb93e242d919cf6ca874b90728e5e0ea7434c6f"},{"image":"ghcr.io/github/github-mcp-server:v1.0.0","digest":"sha256:d2550953f8050bc5a1c8f80d1678766f66f60bbfbcd953fdeaf661fe4269bd95","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.0@sha256:d2550953f8050bc5a1c8f80d1678766f66f60bbfbcd953fdeaf661fe4269bd95"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -182,9 +182,9 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_6912aa7363ea802b_EOF'
+          cat << 'GH_AW_PROMPT_cc024ebb68066962_EOF'
           <system>
-          GH_AW_PROMPT_6912aa7363ea802b_EOF
+          GH_AW_PROMPT_cc024ebb68066962_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
@@ -192,15 +192,15 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_6912aa7363ea802b_EOF'
+          cat << 'GH_AW_PROMPT_cc024ebb68066962_EOF'
           <safe-output-tools>
           Tools: create_issue, create_discussion, upload_asset(max:5), missing_tool, missing_data, noop
           
           upload_asset: provide a file path; returns a URL; assets are published after the workflow completes (safeoutputs).
           </safe-output-tools>
-          GH_AW_PROMPT_6912aa7363ea802b_EOF
+          GH_AW_PROMPT_cc024ebb68066962_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_6912aa7363ea802b_EOF'
+          cat << 'GH_AW_PROMPT_cc024ebb68066962_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -229,15 +229,15 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_6912aa7363ea802b_EOF
+          GH_AW_PROMPT_cc024ebb68066962_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_6912aa7363ea802b_EOF'
+          cat << 'GH_AW_PROMPT_cc024ebb68066962_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/mcp/gh-aw.md}}
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/agentic-optimization-kit.md}}
-          GH_AW_PROMPT_6912aa7363ea802b_EOF
+          GH_AW_PROMPT_cc024ebb68066962_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
@@ -474,7 +474,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download Copilot workflow logs
-        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/token-audit\n\necho \"📥 Downloading Copilot workflow logs (last 7 days, up to 500 runs)...\"\n\nLOGS_EXIT=0\ngh aw logs \\\n  --engine copilot \\\n  --start-date -7d \\\n  --json \\\n  -c 500 \\\n  > /tmp/gh-aw/token-audit/all-runs.json || LOGS_EXIT=$?\n\nif [ -s /tmp/gh-aw/token-audit/all-runs.json ]; then\n  TOTAL=$(jq '.runs | length' /tmp/gh-aw/token-audit/all-runs.json)\n  echo \"✅ Downloaded $TOTAL Copilot workflow runs\"\n  if [ \"$LOGS_EXIT\" -ne 0 ]; then\n    echo \"⚠️ gh aw logs exited with code $LOGS_EXIT (partial results — likely API rate limit)\"\n  fi\nelse\n  echo \"❌ No log data downloaded (exit code $LOGS_EXIT)\"\n  echo '{\"runs\":[],\"summary\":{}}' > /tmp/gh-aw/token-audit/all-runs.json\nfi\n"
+        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/token-audit\n\n# Compute the canonical query window once so the agent uses precise dates\nPERIOD_END=$(date -u +%Y-%m-%d)\nPERIOD_START=$(date -u -d \"7 days ago\" +%Y-%m-%d)\nprintf 'PERIOD_START=%s\\nPERIOD_END=%s\\n' \"$PERIOD_START\" \"$PERIOD_END\" \\\n  > /tmp/gh-aw/token-audit/period.env\necho \"📅 Period: $PERIOD_START to $PERIOD_END\"\n\necho \"📥 Downloading Copilot workflow logs (last 7 days, up to 500 runs)...\"\n\nLOGS_EXIT=0\ngh aw logs \\\n  --engine copilot \\\n  --start-date -7d \\\n  --json \\\n  -c 500 \\\n  > /tmp/gh-aw/token-audit/all-runs.json || LOGS_EXIT=$?\n\nif [ -s /tmp/gh-aw/token-audit/all-runs.json ]; then\n  TOTAL=$(jq '.runs | length' /tmp/gh-aw/token-audit/all-runs.json)\n  echo \"✅ Downloaded $TOTAL Copilot workflow runs\"\n  if [ \"$LOGS_EXIT\" -ne 0 ]; then\n    echo \"⚠️ gh aw logs exited with code $LOGS_EXIT (partial results — likely API rate limit)\"\n  fi\nelse\n  echo \"❌ No log data downloaded (exit code $LOGS_EXIT)\"\n  echo '{\"runs\":[],\"summary\":{}}' > /tmp/gh-aw/token-audit/all-runs.json\nfi\n"
       - name: Pre-aggregate top workflows by token usage
         run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/token-audit\n\njq '{\n  generated_at: (now | todateiso8601),\n  window_days: 7,\n  top_workflows: (\n    [.runs[]\n      | select(.status == \"completed\")\n      | {\n          workflow_name: .workflow_name,\n          tokens: (.token_usage // 0),\n          effective_tokens: (.effective_tokens // 0),\n          cost: (.estimated_cost // 0),\n          turns: (.turns // 0),\n          action_minutes: (.action_minutes // 0),\n          error_count: (.error_count // 0),\n          warning_count: (.warning_count // 0)\n        }\n    ]\n    | sort_by(.workflow_name)\n    | group_by(.workflow_name)\n    | map({\n        workflow_name: .[0].workflow_name,\n        run_count: length,\n        total_tokens: (map(.tokens) | add // 0),\n        avg_tokens: ((map(.tokens) | add // 0) / length),\n        total_effective_tokens: (map(.effective_tokens) | add // 0),\n        total_cost: (map(.cost) | add // 0),\n        avg_cost: ((map(.cost) | add // 0) / length),\n        total_turns: (map(.turns) | add // 0),\n        avg_turns: ((map(.turns) | add // 0) / length),\n        total_action_minutes: (map(.action_minutes) | add // 0),\n        total_errors: (map(.error_count) | add // 0),\n        total_warnings: (map(.warning_count) | add // 0)\n      })\n    | sort_by(.total_tokens)\n    | reverse\n    | .[:10]\n  )\n}' /tmp/gh-aw/token-audit/all-runs.json > /tmp/gh-aw/token-audit/top-workflows.json\n\necho \"✅ Pre-aggregated top workflows\"\njq '.top_workflows[] | \"\\(.workflow_name): \\(.total_tokens) tokens\"' -r /tmp/gh-aw/token-audit/top-workflows.json\n"
       - name: Load optimization history from repo-memory
@@ -557,9 +557,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << GH_AW_SAFE_OUTPUTS_CONFIG_b890f297bb6a0791_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << GH_AW_SAFE_OUTPUTS_CONFIG_a283601eabca4005_EOF
           {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":168,"fallback_to_issue":true,"max":1,"title_prefix":"[agentic-optimization-kit] "},"create_issue":{"close_older_issues":true,"labels":["agentics","warning","observability"],"max":1,"title_prefix":"[agentic-optimization escalation] "},"create_report_incomplete_issue":{},"mentions":{"enabled":false},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"false"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":51200}]},"report_incomplete":{},"upload_asset":{"allowed-exts":[".png",".jpg",".jpeg",".svg"],"branch":"assets/${GITHUB_WORKFLOW}","max":5,"max-size":10240}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_b890f297bb6a0791_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_a283601eabca4005_EOF
       - name: Write Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -801,7 +801,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_9e5bb9b77259f73e_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_1e1b29fbff12b778_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -861,7 +861,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_9e5bb9b77259f73e_EOF
+          GH_AW_MCP_CONFIG_1e1b29fbff12b778_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

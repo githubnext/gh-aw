@@ -56,6 +56,13 @@ steps:
       set -euo pipefail
       mkdir -p /tmp/gh-aw/token-audit
 
+      # Compute the canonical query window once so the agent uses precise dates
+      PERIOD_END=$(date -u +%Y-%m-%d)
+      PERIOD_START=$(date -u -d "7 days ago" +%Y-%m-%d)
+      printf 'PERIOD_START=%s\nPERIOD_END=%s\n' "$PERIOD_START" "$PERIOD_END" \
+        > /tmp/gh-aw/token-audit/period.env
+      echo "📅 Period: $PERIOD_START to $PERIOD_END"
+
       echo "📥 Downloading Copilot workflow logs (last 7 days, up to 500 runs)..."
 
       LOGS_EXIT=0
@@ -165,6 +172,7 @@ Source-of-truth precedence: Episodes override workflow-level aggregates. Optimiz
 
 - `/tmp/gh-aw/token-audit/all-runs.json` — full 7-day run data (`gh aw logs --json`)
 - `/tmp/gh-aw/token-audit/top-workflows.json` — pre-aggregated top 10 workflows by total tokens
+- `/tmp/gh-aw/token-audit/period.env` — canonical `PERIOD_START` and `PERIOD_END` dates for this run (use `cat` to read; format: `PERIOD_START=YYYY-MM-DD`)
 - `/tmp/gh-aw/repo-memory/default/YYYY-MM-DD.json` — prior daily audit snapshots (if any)
 - `/tmp/gh-aw/repo-memory/default/rolling-summary.json` — 90-day trend history (if any)
 - `/tmp/gh-aw/repo-memory/default/optimization-log.json` — prior optimization targets and cooldown log
@@ -300,7 +308,7 @@ Create one discussion with the following structure. **Charts appear before all t
 ```
 ### 📊 Executive Summary
 
-- **Period**: last 7 days (YYYY-MM-DD to YYYY-MM-DD)
+- **Period**: PERIOD_START to PERIOD_END (7-day window) — read the exact start and end dates from `/tmp/gh-aw/token-audit/period.env` via `cat`; do not infer these dates from run timestamps
 - **Total runs**: N | **Total tokens**: N,NNN,NNN | **Total cost**: $X.XX | **Action minutes**: X.Xm
 - **Active workflows**: N | **Episodes analyzed**: N | **High-confidence episodes**: N
 - **Heavy-hitters** (>30% token share): workflow list
