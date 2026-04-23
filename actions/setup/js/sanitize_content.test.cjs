@@ -1743,6 +1743,44 @@ describe("sanitize_content.cjs", () => {
         const expected = "HelloWorld";
         expect(sanitizeContent(input)).toBe(expected);
       });
+
+      it("should remove invisible mathematical operator FUNCTION APPLICATION (U+2061)", () => {
+        const input = "Hello\u2061World";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove invisible mathematical operator INVISIBLE TIMES (U+2062)", () => {
+        const input = "Hello\u2062World";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove invisible mathematical operator INVISIBLE SEPARATOR (U+2063)", () => {
+        const input = "Hello\u2063World";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove invisible mathematical operator INVISIBLE PLUS (U+2064)", () => {
+        const input = "Hello\u2064World";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should strip U+2061-U+2064 used to fragment a secret-like marker", () => {
+        // Simulate a secret fragmented with invisible operators to bypass static detection
+        const marker = "SECRET";
+        const fragmented = marker.split("").join("\u2061");
+        const result = sanitizeContent(fragmented);
+        expect(result).toBe(marker);
+      });
+
+      it("should remove multiple invisible mathematical operators", () => {
+        const input = "A\u2061B\u2062C\u2063D\u2064E";
+        const expected = "ABCDE";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
     });
 
     describe("@mention bypass prevention via invisible characters", () => {
