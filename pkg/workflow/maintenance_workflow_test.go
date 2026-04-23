@@ -403,6 +403,9 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "GH_AW_ACTIVITY_REPORT_OUTPUT_DIR: ./.cache/gh-aw/activity-report-logs") {
 		t.Errorf("Job activity_report should set GH_AW_ACTIVITY_REPORT_OUTPUT_DIR in:\n%s", yaml)
 	}
+	if !strings.Contains(yaml, "Generate agentic workflow activity report\n        timeout-minutes: 20") {
+		t.Errorf("Job activity_report report generation step should set timeout-minutes: 20 in:\n%s", yaml)
+	}
 
 	// close_agentic_workflows_issues job should be triggered when operation == 'close_agentic_workflows_issues'
 	closeAgenticWorkflowIssuesIdx := strings.Index(yaml, "\n  close_agentic_workflows_issues:")

@@ -4,11 +4,14 @@
 const { getErrorMessage, isRateLimitError } = require("./error_helpers.cjs");
 const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { spawn } = require("node:child_process");
 
 const ISSUE_TITLE = "[aw] agentic status report";
 const REPORT_COUNT = 1000;
 const HEADING_DEMOTION_LEVELS = 2;
 const DEFAULT_REPORT_OUTPUT_DIR = "./.cache/gh-aw/activity-report-logs";
+const LOG_DOWNLOAD_TIMEOUT_MS = 20 * 60 * 1000;
+const POST_DOWNLOAD_SETTLE_DELAY_MS = 10 * 1000;
 
 /** @typedef {{ key: string, heading: string, startDate: string, optionalOnRateLimit: boolean }} ActivityRange */
 
@@ -36,12 +39,16 @@ function hasRateLimitText(text) {
  * @param {string} outputDir
  * @returns {Promise<{ heading: string, body: string }>}
  */
-async function runRangeReport(bin, prefixArgs, repoSlug, range, outputDir) {
+async function runRangeReport(bin, prefixArgs, repoSlug, range, outputDir, options = {}) {
+  const commandRunner = options.commandRunner || runCommandWithTimeout;
+  const sleepFn = options.sleepFn || sleep;
+  const timeoutMs = options.timeoutMs || LOG_DOWNLOAD_TIMEOUT_MS;
+  const settleDelayMs = options.settleDelayMs || POST_DOWNLOAD_SETTLE_DELAY_MS;
   const args = [...prefixArgs, "logs", "--repo", repoSlug, "--start-date", range.startDate, "--count", String(REPORT_COUNT), "--output", outputDir, "--format", "markdown"];
   core.info(`Running: ${bin} ${args.join(" ")}`);
 
   try {
-    const result = await exec.getExecOutput(bin, args, { ignoreReturnCode: true });
+    const result = await commandRunner(bin, args, timeoutMs);
     const output = `${result.stdout || ""}\n${result.stderr || ""}`.trim();
     const rateLimited = hasRateLimitText(output);
 
@@ -94,7 +101,99 @@ async function runRangeReport(bin, prefixArgs, repoSlug, range, outputDir) {
       heading: range.heading,
       body: `_Report command failed: ${sanitizeContent(errorMessage)}_`,
     };
+  } finally {
+    core.info(`Waiting ${Math.floor(settleDelayMs / 1000)}s for log copy operations to settle`);
+    await sleepFn(settleDelayMs);
   }
+}
+
+/**
+ * Execute command with timeout and process lifecycle controls.
+ *
+ * @param {string} command
+ * @param {string[]} args
+ * @param {number} timeoutMs
+ * @returns {Promise<{ exitCode: number, stdout: string, stderr: string }>}
+ */
+function runCommandWithTimeout(command, args, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: false,
+      env: process.env,
+    });
+
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    let settled = false;
+    const childPid = child.pid;
+    core.info(`Started log download process with PID ${String(childPid || "unknown")}`);
+
+    const killTimer = setTimeout(() => {
+      timedOut = true;
+
+      if (!childPid) {
+        core.warning(`Log download exceeded ${Math.floor(timeoutMs / 1000)}s timeout and has no PID to kill`);
+        return;
+      }
+
+      core.warning(`Log download exceeded ${Math.floor(timeoutMs / 1000)}s timeout; sending SIGTERM to gh aw PID ${childPid}`);
+      try {
+        process.kill(childPid, "SIGTERM");
+      } catch (error) {
+        core.warning(`Could not SIGTERM PID ${childPid}: ${getErrorMessage(error)}`);
+      }
+
+      setTimeout(() => {
+        if (settled) {
+          return;
+        }
+
+        core.warning(`gh aw PID ${childPid} still running; sending SIGKILL`);
+        try {
+          process.kill(childPid, "SIGKILL");
+        } catch (error) {
+          core.warning(`Could not SIGKILL PID ${childPid}: ${getErrorMessage(error)}`);
+        }
+      }, 5000);
+    }, timeoutMs);
+
+    child.stdout.on("data", chunk => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", chunk => {
+      stderr += chunk.toString();
+    });
+    child.on("error", error => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(killTimer);
+      reject(error);
+    });
+    child.on("close", code => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(killTimer);
+      resolve({
+        exitCode: typeof code === "number" ? code : 1,
+        stdout,
+        stderr: timedOut ? `${stderr}\nProcess timed out after ${Math.floor(timeoutMs / 1000)}s and was terminated.`.trim() : stderr,
+      });
+    });
+  });
+}
+
+/**
+ * @param {number} ms
+ * @returns {Promise<void>}
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
@@ -116,7 +215,7 @@ function normalizeReportMarkdown(markdown) {
  * Generate an agentic workflow activity report issue.
  * @returns {Promise<void>}
  */
-async function main() {
+async function main(options = {}) {
   const cmdPrefixStr = process.env.GH_AW_CMD_PREFIX || "gh aw";
   const reportOutputDir = process.env.GH_AW_ACTIVITY_REPORT_OUTPUT_DIR || DEFAULT_REPORT_OUTPUT_DIR;
   const [bin, ...prefixArgs] = cmdPrefixStr.split(" ").filter(Boolean);
@@ -127,7 +226,14 @@ async function main() {
 
   const sections = [];
   for (const range of REPORT_RANGES) {
-    sections.push(await runRangeReport(bin, prefixArgs, repoSlug, range, reportOutputDir));
+    sections.push(
+      await runRangeReport(bin, prefixArgs, repoSlug, range, reportOutputDir, {
+        commandRunner: options.commandRunner,
+        sleepFn: options.sleepFn,
+        timeoutMs: options.timeoutMs,
+        settleDelayMs: options.settleDelayMs,
+      })
+    );
   }
 
   const headerLines = ["### Agentic workflow activity report", "", `Repository: \`${repoSlug}\``, `Generated at: ${new Date().toISOString()}`, ""];
@@ -145,4 +251,4 @@ async function main() {
   core.info(`Created issue #${createdIssue.data.number}: ${createdIssue.data.html_url}`);
 }
 
-module.exports = { main, hasRateLimitText, runRangeReport, normalizeReportMarkdown };
+module.exports = { main, hasRateLimitText, runRangeReport, normalizeReportMarkdown, runCommandWithTimeout, sleep };

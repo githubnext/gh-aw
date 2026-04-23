@@ -470,6 +470,7 @@ jobs:
             ${{ runner.os }}-activity-report-logs-
 `)
 	yaml.WriteString(`      - name: Generate agentic workflow activity report in target repository
+        timeout-minutes: 20
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           GH_TOKEN: ` + token + `

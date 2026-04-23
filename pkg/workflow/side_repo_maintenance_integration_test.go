@@ -100,6 +100,8 @@ This workflow operates on a separate repository.
 		"generated workflow should save activity_report logs using the cache primary key")
 	assert.Contains(t, contentStr, "GH_AW_ACTIVITY_REPORT_OUTPUT_DIR: ./.cache/gh-aw/activity-report-logs",
 		"generated workflow should set GH_AW_ACTIVITY_REPORT_OUTPUT_DIR for activity_report logs")
+	assert.Contains(t, contentStr, "Generate agentic workflow activity report in target repository\n        timeout-minutes: 20",
+		"generated workflow should set a 20-minute timeout for the activity_report generation step")
 	assert.Contains(t, contentStr, "actions: read\n      contents: read\n      issues: write",
 		"activity_report job should include contents: read with explicit permissions")
 	assert.Contains(t, contentStr, "timeout-minutes: 120",

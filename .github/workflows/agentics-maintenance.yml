@@ -360,6 +360,7 @@ jobs:
             ${{ runner.os }}-activity-report-logs-${{ github.repository }}-
             ${{ runner.os }}-activity-report-logs-
       - name: Generate agentic workflow activity report
+        timeout-minutes: 20
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
