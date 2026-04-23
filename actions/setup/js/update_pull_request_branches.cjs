@@ -135,7 +135,13 @@ async function listAgentSessionsPage(copilotApiURL, pageNumber, pageSize) {
  */
 async function readResponsePreview(response, maxChars) {
   if (!response.body) return "";
-  const reader = response.body.getReader();
+  let reader;
+  try {
+    reader = response.body.getReader();
+  } catch (error) {
+    core.debug(`Failed to open error response preview stream (non-critical): ${getErrorMessage(error)}`);
+    return "";
+  }
   const decoder = new TextDecoder();
   let result = "";
 
@@ -146,7 +152,7 @@ async function readResponsePreview(response, maxChars) {
       result += decoder.decode(value, { stream: true });
     }
   } catch (error) {
-    core.debug(`Failed to read Copilot sessions error preview: ${getErrorMessage(error)}`);
+    core.debug(`Failed to read error response preview for debugging (non-critical): ${getErrorMessage(error)}`);
     return "";
   } finally {
     reader.releaseLock();
