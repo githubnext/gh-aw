@@ -892,6 +892,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      issues: read
     concurrency:
       group: "gh-aw-conclusion-test-project-url-default"
       cancel-in-progress: false
@@ -1197,6 +1198,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      issues: read
     timeout-minutes: 15
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/test-project-url-default"
