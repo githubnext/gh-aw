@@ -829,6 +829,22 @@ function renderProgressMessages(messages) {
 }
 
 /**
+ * @param {unknown} message
+ * @returns {boolean}
+ */
+function isErrorMessage(message) {
+  return !!(message && typeof message === "object" && "error" in message);
+}
+
+/**
+ * @param {unknown} message
+ * @returns {boolean}
+ */
+function isResultMessage(message) {
+  return !!(message && typeof message === "object" && "result" in message);
+}
+
+/**
  * Format and display the MCP tool call response.
  *
  * @param {unknown} responseBody - Parsed JSON-RPC response body
@@ -839,7 +855,7 @@ function formatResponse(responseBody, serverName) {
   const messages = extractJSONRPCMessages(responseBody);
   renderProgressMessages(messages);
 
-  const resp = messages.find(message => message && typeof message === "object" && "error" in message) || messages.find(message => message && typeof message === "object" && "result" in message) || responseBody;
+  const resp = messages.find(isErrorMessage) || messages.find(isResultMessage) || responseBody;
 
   // Check for JSON-RPC error
   if (resp && typeof resp === "object" && "error" in resp && resp.error && typeof resp.error === "object") {
