@@ -109,7 +109,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: ${{ needs.activation.outputs.artifact_prefix }}skill-optimizer-results
+          name: skill-optimizer-results
           path: /tmp/gh-aw/skill-optimizer-results
           if-no-files-found: error
           retention-days: 7
@@ -125,7 +125,7 @@ steps:
   - name: Download skill-optimizer artifact
     uses: actions/download-artifact@v8.0.1
     with:
-      name: ${{ needs.activation.outputs.artifact_prefix }}skill-optimizer-results
+      name: skill-optimizer-results
       path: /tmp/gh-aw/skill-optimizer-results
 
 tools:
