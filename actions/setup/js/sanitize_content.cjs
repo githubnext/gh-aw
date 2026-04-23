@@ -18,6 +18,7 @@ const {
   neutralizeCommands,
   neutralizeGitHubReferences,
   removeXmlComments,
+  neutralizeMarkdownLinkTitles,
   convertXmlTags,
   applyToNonCodeRegions,
   neutralizeBotTriggers,
@@ -93,6 +94,10 @@ function sanitizeContent(content, maxLengthOrOptions) {
   // <!-- `@user` payload --> and applyFnOutsideInlineCode would split at the backtick boundary,
   // preventing the full <!--...--> pattern from being matched.
   sanitized = applyToNonCodeRegions(sanitized, removeXmlComments);
+
+  // Remove markdown link titles — a steganographic injection channel analogous to HTML comments.
+  // Must run before mention neutralization for the same ordering reason as removeXmlComments.
+  sanitized = applyToNonCodeRegions(sanitized, neutralizeMarkdownLinkTitles);
 
   // Neutralize @mentions with selective filtering (custom logic for allowed aliases)
   sanitized = neutralizeMentions(sanitized, allowedAliasesLowercase);

@@ -378,6 +378,31 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent('[text](https://github.com "@exploituser inject payload")');
       expect(result).toBe("[text (`@exploituser` inject payload)](https://github.com)");
     });
+
+    it("should neutralize markdown link titles when allowedAliases is specified (XPIA regression)", () => {
+      // Regression: neutralizeMarkdownLinkTitles must run in the allowedAliases branch too.
+      // Previously the title was passed through unchanged when allowedAliases were provided.
+      // The title is moved into the visible link text (no longer steganographic), not stripped.
+      const result = sanitizeContent('[Result](https://github.com "XPIA: inject")', { allowedAliases: ["author"] });
+      expect(result).toBe("[Result (XPIA: inject)](https://github.com)");
+    });
+
+    it("should strip reference-style link titles when allowedAliases is specified", () => {
+      const result = sanitizeContent('[x][ref]\n\n[ref]: https://github.com "hidden payload"', {
+        allowedAliases: ["author"],
+      });
+      expect(result).not.toContain("hidden payload");
+      expect(result).toBe("[x][ref]\n\n[ref]: https://github.com");
+    });
+
+    it("should neutralize link title @mentions via allowedAliases path without exposing the title steganographically", () => {
+      // The title @mention must be moved into visible link text and then selectively filtered.
+      // The allowed alias should remain un-neutralized after being moved to visible text.
+      const result = sanitizeContent('[text](https://github.com "@author inject")', {
+        allowedAliases: ["author"],
+      });
+      expect(result).toBe("[text (@author inject)](https://github.com)");
+    });
   });
 
   describe("XML/HTML tag conversion", () => {
