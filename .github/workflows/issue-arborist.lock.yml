@@ -1213,8 +1213,6 @@ jobs:
         run: |
           rm -rf /tmp/gh-aw/sandbox/firewall/logs
           rm -rf /tmp/gh-aw/sandbox/firewall/audit
-      - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.28@sha256:a8834e285807654bf680154faa710d43fe4365a0868142f5c20e48c85e137a7a ghcr.io/github/gh-aw-firewall/api-proxy:0.25.28@sha256:93290f2393752252911bd7c39a047f776c0b53063575e7bde4e304962a9a61cb ghcr.io/github/gh-aw-firewall/squid:0.25.28@sha256:844c18280f82cd1b06345eb2f4e91966b34185bfc51c9f237c3e022e848fb474
       - name: Check if detection needed
         id: detection_guard
         if: always()
@@ -1276,6 +1274,81 @@ jobs:
         run: npm install --ignore-scripts -g @openai/codex@0.121.0
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.28
+      - name: Download container images
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.28@sha256:a8834e285807654bf680154faa710d43fe4365a0868142f5c20e48c85e137a7a ghcr.io/github/gh-aw-firewall/api-proxy:0.25.28@sha256:93290f2393752252911bd7c39a047f776c0b53063575e7bde4e304962a9a61cb ghcr.io/github/gh-aw-firewall/squid:0.25.28@sha256:844c18280f82cd1b06345eb2f4e91966b34185bfc51c9f237c3e022e848fb474 ghcr.io/github/gh-aw-mcpg:v0.2.30@sha256:e950e6d39f003862d33bfb8d4eb93e242d919cf6ca874b90728e5e0ea7434c6f
+      - name: Start MCP Gateway
+        id: start-mcp-gateway
+        env:
+          CODEX_HOME: /tmp/gh-aw/mcp-config
+        run: |
+          set -eo pipefail
+          mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-config"
+          
+          # Export gateway environment variables for MCP config and gateway script
+          export MCP_GATEWAY_PORT="8080"
+          export MCP_GATEWAY_DOMAIN="host.docker.internal"
+          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          echo "::add-mask::${MCP_GATEWAY_API_KEY}"
+          export MCP_GATEWAY_API_KEY
+          export MCP_GATEWAY_PAYLOAD_DIR="/tmp/gh-aw/mcp-payloads"
+          mkdir -p "${MCP_GATEWAY_PAYLOAD_DIR}"
+          export MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD="524288"
+          export DEBUG="*"
+          
+          export GH_AW_ENGINE="codex"
+          MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
+          MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
+          DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e CODEX_HOME -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.30'
+          
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_c6efc0349e218c3a_EOF
+          [history]
+          persistence = "none"
+          
+          [shell_environment_policy]
+          inherit = "core"
+          include_only = ["CODEX_API_KEY", "HOME", "OPENAI_API_KEY", "PATH"]
+          GH_AW_MCP_CONFIG_c6efc0349e218c3a_EOF
+          
+          # Generate JSON config for MCP gateway
+          GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
+          cat << GH_AW_MCP_CONFIG_7f8a6b4901179a87_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          {
+            "mcpServers": {
+            },
+            "gateway": {
+              "port": $MCP_GATEWAY_PORT,
+              "domain": "${MCP_GATEWAY_DOMAIN}",
+              "apiKey": "${MCP_GATEWAY_API_KEY}",
+              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
+            }
+          }
+          GH_AW_MCP_CONFIG_7f8a6b4901179a87_EOF
+          
+          # Sync converter output to writable CODEX_HOME for Codex
+          mkdir -p /tmp/gh-aw/mcp-config
+          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_e8e9a5f6905265d6_EOF
+          model_provider = "openai-proxy"
+          [model_providers.openai-proxy]
+          name = "OpenAI AWF proxy"
+          base_url = "http://172.30.0.30:10000"
+          env_key = "OPENAI_API_KEY"
+          supports_websockets = false
+          [shell_environment_policy]
+          inherit = "core"
+          include_only = ["CODEX_API_KEY", "HOME", "OPENAI_API_KEY", "PATH"]
+          GH_AW_CODEX_SHELL_POLICY_e8e9a5f6905265d6_EOF
+          awk '
+            BEGIN { skip_openai_proxy = 0 }
+            /^[[:space:]]*model_provider[[:space:]]*=/ { next }
+            /^\[model_providers\.openai-proxy\][[:space:]]*$/ { skip_openai_proxy = 1; next }
+            /^\[/ { skip_openai_proxy = 0 }
+            !skip_openai_proxy { print }
+          ' "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" >> "/tmp/gh-aw/mcp-config/config.toml"
+          chmod 600 "/tmp/gh-aw/mcp-config/config.toml"
+          mkdir -p "${CODEX_HOME}"
+          if [ "/tmp/gh-aw/mcp-config/config.toml" != "${CODEX_HOME}/config.toml" ]; then cp "/tmp/gh-aw/mcp-config/config.toml" "${CODEX_HOME}/config.toml"; fi
+          chmod 600 "${CODEX_HOME}/config.toml"
       - name: Execute Codex CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         id: detection_agentic_execution
