@@ -126,4 +126,17 @@ describe("update_pull_request_branches", () => {
 
     expect(result).toEqual([1, 3]);
   });
+
+  it("ignores draft pull requests when filtering mergeable pull requests", async () => {
+    mockGithub.rest.pulls.get.mockImplementation(async ({ pull_number }) => {
+      if (pull_number === 1) return { data: { state: "open", mergeable: true, draft: true } };
+      if (pull_number === 2) return { data: { state: "open", mergeable: true, draft: false } };
+      return { data: { state: "open", mergeable: false, draft: false } };
+    });
+
+    const result = await moduleUnderTest.filterMergeablePullRequests("owner", "repo", [1, 2, 3]);
+
+    expect(result).toEqual([2]);
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping PR #1"));
+  });
 });
