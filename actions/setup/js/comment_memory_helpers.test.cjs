@@ -3,6 +3,11 @@ import { extractCommentMemoryEntries, isSafeMemoryId } from "./comment_memory_he
 
 describe("comment_memory_helpers", () => {
   it("extracts managed memory entries", () => {
+    const entries = extractCommentMemoryEntries('<gh-aw-comment-memory id="default">\n``````\nhello\n``````\n</gh-aw-comment-memory>');
+    expect(entries).toEqual([{ memoryId: "default", content: "hello" }]);
+  });
+
+  it("supports legacy memory entries without code fence markers", () => {
     const entries = extractCommentMemoryEntries('<gh-aw-comment-memory id="default">\nhello\n</gh-aw-comment-memory>');
     expect(entries).toEqual([{ memoryId: "default", content: "hello" }]);
   });

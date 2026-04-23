@@ -11,6 +11,31 @@ const COMMENT_MEMORY_MAX_SCAN_PAGES = 50;
 const COMMENT_MEMORY_MAX_SCAN_EMPTY_PAGES = 5;
 const COMMENT_MEMORY_PROMPT_START_MARKER = "<!-- gh-aw-comment-memory-prompt:start -->";
 const COMMENT_MEMORY_PROMPT_END_MARKER = "<!-- gh-aw-comment-memory-prompt:end -->";
+const COMMENT_MEMORY_CODE_FENCE = "``````";
+
+function stripCommentMemoryCodeFence(content) {
+  const trimmed = String(content || "").trim();
+  if (!trimmed.startsWith(COMMENT_MEMORY_CODE_FENCE)) {
+    return trimmed;
+  }
+
+  const firstNewline = trimmed.indexOf("\n", COMMENT_MEMORY_CODE_FENCE.length);
+  if (firstNewline < 0) {
+    return trimmed;
+  }
+
+  const closingFenceStart = trimmed.lastIndexOf(`\n${COMMENT_MEMORY_CODE_FENCE}`);
+  if (closingFenceStart <= firstNewline) {
+    return trimmed;
+  }
+
+  const trailing = trimmed.slice(closingFenceStart + COMMENT_MEMORY_CODE_FENCE.length + 1).trim();
+  if (trailing.length > 0) {
+    return trimmed;
+  }
+
+  return trimmed.slice(firstNewline + 1, closingFenceStart).trim();
+}
 
 function isSafeMemoryId(memoryId) {
   if (typeof memoryId !== "string" || memoryId.length === 0 || memoryId.length > MAX_MEMORY_ID_LENGTH) {
@@ -57,7 +82,7 @@ function extractCommentMemoryEntries(commentBody, warn = () => {}) {
     if (isSafeMemoryId(memoryId)) {
       entries.push({
         memoryId,
-        content: (commentBody.slice(contentStart, closeStart) || "").trim(),
+        content: stripCommentMemoryCodeFence(commentBody.slice(contentStart, closeStart)),
       });
     } else {
       warn(`skipping unsafe memory_id '${memoryId}'`);
@@ -99,7 +124,9 @@ module.exports = {
   COMMENT_MEMORY_MAX_SCAN_EMPTY_PAGES,
   COMMENT_MEMORY_PROMPT_START_MARKER,
   COMMENT_MEMORY_PROMPT_END_MARKER,
+  COMMENT_MEMORY_CODE_FENCE,
   isSafeMemoryId,
+  stripCommentMemoryCodeFence,
   extractCommentMemoryEntries,
   listCommentMemoryFiles,
   resolveCommentMemoryConfig,
