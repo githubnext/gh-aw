@@ -5,14 +5,12 @@
 // This file validates feature flag values to ensure they meet requirements
 // before being used in workflow compilation. It ensures that:
 //   - action-tag uses a full 40-character SHA or a version tag when specified
-//   - disable-xpia-prompt is not combined with bash tool access (supply-chain attack vector)
 //   - Other feature-specific constraints are met
 //
 // # Validation Functions
 //
 //   - validateFeatures() - Validates all feature flags in WorkflowData
 //   - validateActionTag() - Validates action-tag is a full SHA or version tag
-//   - validateDisableXPIAWithBash() - Rejects disable-xpia-prompt combined with bash tools
 //   - isValidFullSHA() - Checks if a string is a valid 40-character SHA
 //   - semverutil.IsActionVersionTag() - Checks if a string is a valid version tag (in pkg/semverutil)
 //
@@ -28,7 +26,6 @@ package workflow
 import (
 	"fmt"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/semverutil"
 )
@@ -54,45 +51,8 @@ func validateFeatures(data *WorkflowData) error {
 		featuresValidationLog.Print("Action-tag validation passed")
 	}
 
-	// Validate that disable-xpia-prompt is not combined with bash tool access
-	if isFeatureEnabled(constants.DisableXPIAPromptFeatureFlag, data) {
-		featuresValidationLog.Print("Validating disable-xpia-prompt combination")
-		if err := validateDisableXPIAWithBash(data); err != nil {
-			featuresValidationLog.Printf("disable-xpia-prompt combination validation failed: %v", err)
-			return err
-		}
-		featuresValidationLog.Print("disable-xpia-prompt combination validation passed")
-	}
-
 	featuresValidationLog.Print("Features validation completed successfully")
 	return nil
-}
-
-// validateDisableXPIAWithBash rejects the dangerous combination of disable-xpia-prompt: true
-// and bash tool access. When XPIA protection is disabled, the agent has no framing to
-// distinguish adversarial instructions from legitimate ones. Combined with bash tool access,
-// a prompt-injection payload can trivially escalate to arbitrary shell command execution,
-// such as npm install of a malicious package with lifecycle scripts.
-func validateDisableXPIAWithBash(data *WorkflowData) error {
-	if data == nil || data.ParsedTools == nil {
-		return nil
-	}
-
-	if data.ParsedTools.Bash == nil {
-		return nil
-	}
-
-	return NewValidationError(
-		"features.disable-xpia-prompt",
-		"true",
-		"disable-xpia-prompt cannot be combined with bash tool access. "+
-			"Disabling XPIA protection removes the primary defense against prompt-injection attacks. "+
-			"When combined with bash tool access, a prompt-injection payload can escalate to "+
-			"arbitrary shell command execution (e.g. npm install of an attacker-controlled package).",
-		"Either re-enable XPIA protection by removing the disable-xpia-prompt feature flag, "+
-			"or remove the bash tool from the workflow's tool configuration.\n"+
-			"If shell access is required, keep XPIA protection enabled (omit disable-xpia-prompt or set it to false).",
-	)
 }
 
 // validateActionTag validates that action-tag is a full 40-character SHA or a version tag when specified

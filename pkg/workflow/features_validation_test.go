@@ -227,19 +227,7 @@ func TestValidateFeatures(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "disable-xpia-prompt with no bash tool - allowed",
-			data: &WorkflowData{
-				Features: map[string]any{
-					"disable-xpia-prompt": true,
-				},
-				ParsedTools: NewTools(map[string]any{
-					"github": map[string]any{},
-				}),
-			},
-			expectError: false,
-		},
-		{
-			name: "disable-xpia-prompt with bash tool - rejected",
+			name: "disable-xpia-prompt with bash tool - allowed in non-strict mode",
 			data: &WorkflowData{
 				Features: map[string]any{
 					"disable-xpia-prompt": true,
@@ -247,42 +235,6 @@ func TestValidateFeatures(t *testing.T) {
 				ParsedTools: NewTools(map[string]any{
 					"bash": true,
 				}),
-			},
-			expectError: true,
-			errorMsg:    "disable-xpia-prompt cannot be combined with bash tool access",
-		},
-		{
-			name: "disable-xpia-prompt false with bash tool - allowed",
-			data: &WorkflowData{
-				Features: map[string]any{
-					"disable-xpia-prompt": false,
-				},
-				ParsedTools: NewTools(map[string]any{
-					"bash": true,
-				}),
-			},
-			expectError: false,
-		},
-		{
-			name: "disable-xpia-prompt with bash commands list - rejected",
-			data: &WorkflowData{
-				Features: map[string]any{
-					"disable-xpia-prompt": true,
-				},
-				ParsedTools: NewTools(map[string]any{
-					"bash": []any{"npm", "node"},
-				}),
-			},
-			expectError: true,
-			errorMsg:    "disable-xpia-prompt cannot be combined with bash tool access",
-		},
-		{
-			name: "disable-xpia-prompt with nil ParsedTools - allowed",
-			data: &WorkflowData{
-				Features: map[string]any{
-					"disable-xpia-prompt": true,
-				},
-				ParsedTools: nil,
 			},
 			expectError: false,
 		},
@@ -300,79 +252,6 @@ func TestValidateFeatures(t *testing.T) {
 			} else {
 				if err != nil {
 					t.Errorf("validateFeatures() unexpected error: %v", err)
-				}
-			}
-		})
-	}
-}
-
-func TestValidateDisableXPIAWithBash(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        *WorkflowData
-		expectError bool
-		errorMsg    string
-	}{
-		{
-			name:        "nil data - allowed",
-			data:        nil,
-			expectError: false,
-		},
-		{
-			name:        "nil ParsedTools - allowed",
-			data:        &WorkflowData{ParsedTools: nil},
-			expectError: false,
-		},
-		{
-			name: "no bash tool - allowed",
-			data: &WorkflowData{
-				ParsedTools: NewTools(map[string]any{}),
-			},
-			expectError: false,
-		},
-		{
-			name: "bash: true - rejected",
-			data: &WorkflowData{
-				ParsedTools: NewTools(map[string]any{
-					"bash": true,
-				}),
-			},
-			expectError: true,
-			errorMsg:    "disable-xpia-prompt cannot be combined with bash tool access",
-		},
-		{
-			name: "bash with allowed commands - rejected",
-			data: &WorkflowData{
-				ParsedTools: NewTools(map[string]any{
-					"bash": []any{"npm", "node"},
-				}),
-			},
-			expectError: true,
-			errorMsg:    "disable-xpia-prompt cannot be combined with bash tool access",
-		},
-		{
-			name: "only github tool - allowed",
-			data: &WorkflowData{
-				ParsedTools: NewTools(map[string]any{
-					"github": map[string]any{},
-				}),
-			},
-			expectError: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateDisableXPIAWithBash(tt.data)
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("validateDisableXPIAWithBash() expected error, got nil")
-				} else if tt.errorMsg != "" && !strings.Contains(err.Error(), tt.errorMsg) {
-					t.Errorf("validateDisableXPIAWithBash() error = %q, want error containing %q", err.Error(), tt.errorMsg)
-				}
-			} else {
-				if err != nil {
-					t.Errorf("validateDisableXPIAWithBash() unexpected error: %v", err)
 				}
 			}
 		})
