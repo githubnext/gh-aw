@@ -13,9 +13,24 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine: copilot
+engine:
+  id: copilot
+  command: >-
+    bash -lc 'mkdir -p /tmp/gh-aw/cache-memory /tmp/gh-aw/repo-memory/default;
+    printf "%s\n" "${GITHUB_RUN_ID}" >> /tmp/gh-aw/cache-memory/runs.txt;
+    printf "%s\n" "${GITHUB_RUN_ID}" >> /tmp/gh-aw/repo-memory/default/runs.txt;
+    if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+    safeoutputs add_comment --body "✅ smoke-ci: safeoutputs CLI comment + comment-memory run (${GITHUB_RUN_ID})";
+    mkdir -p /tmp/gh-aw/comment-memory;
+    HAIKU="CI lights the path\nGreen checks bloom at dawn\nQuiet bots still sing";
+    if compgen -G "/tmp/gh-aw/comment-memory/*.md" > /dev/null; then
+    for memory_file in /tmp/gh-aw/comment-memory/*.md; do printf "\n%s\n" "$HAIKU" >>
+    "$memory_file"; done; else printf "%s\n" "$HAIKU" >
+    /tmp/gh-aw/comment-memory/default.md; fi; else safeoutputs noop --message "smoke-ci:
+    push event - no PR context, no action needed"; fi'
 tools:
   cache-memory: true
+  comment-memory: true
   repo-memory:
     branch-name: memory/smoke-ci
     description: "Smoke CI persisted repo-memory entries"

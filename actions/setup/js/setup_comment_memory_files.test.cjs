@@ -35,7 +35,7 @@ describe("setup_comment_memory_files", () => {
 
   it("extracts memory entries from managed comment body", async () => {
     const module = await import("./setup_comment_memory_files.cjs");
-    const entries = module.extractCommentMemoryEntries('<gh-aw-comment-memory id="default">\nhello\n</gh-aw-comment-memory>');
+    const entries = module.extractCommentMemoryEntries('<gh-aw-comment-memory id="default">\n``````\nhello\n``````\n</gh-aw-comment-memory>');
     expect(entries).toEqual([{ memoryId: "default", content: "hello" }]);
   });
 
@@ -47,7 +47,7 @@ describe("setup_comment_memory_files", () => {
           listComments: vi.fn().mockResolvedValue({
             data: [
               {
-                body: '<gh-aw-comment-memory id="default">\nSaved memory\n</gh-aw-comment-memory>\nfooter',
+                body: '<gh-aw-comment-memory id="default">\n``````\nSaved memory\n``````\n</gh-aw-comment-memory>\nfooter',
               },
             ],
           }),
@@ -76,7 +76,7 @@ describe("setup_comment_memory_files", () => {
         });
       }
       if (page === 6) {
-        return Promise.resolve({ data: [{ body: '<gh-aw-comment-memory id="default">\nLate memory\n</gh-aw-comment-memory>' }] });
+        return Promise.resolve({ data: [{ body: '<gh-aw-comment-memory id="default">\n``````\nLate memory\n``````\n</gh-aw-comment-memory>' }] });
       }
       return Promise.resolve({ data: [] });
     });
@@ -156,7 +156,7 @@ describe("setup_comment_memory_files", () => {
       })
     );
     const listComments = vi.fn().mockResolvedValue({
-      data: [{ body: '<gh-aw-comment-memory id="default">\nCross repo memory\n</gh-aw-comment-memory>' }],
+      data: [{ body: '<gh-aw-comment-memory id="default">\n``````\nCross repo memory\n``````\n</gh-aw-comment-memory>' }],
     });
     global.github = {
       rest: {
@@ -192,7 +192,7 @@ describe("setup_comment_memory_files", () => {
       })
     );
     const listComments = vi.fn().mockResolvedValue({
-      data: [{ body: '<gh-aw-comment-memory id="default">\nSame repo memory\n</gh-aw-comment-memory>' }],
+      data: [{ body: '<gh-aw-comment-memory id="default">\n``````\nSame repo memory\n``````\n</gh-aw-comment-memory>' }],
     });
     global.github = {
       rest: {
