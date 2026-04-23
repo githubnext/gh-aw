@@ -38,7 +38,7 @@ global.github = mockGithub;
 describe("assign_to_agent", () => {
   let assignToAgentScript;
   let tempFilePath;
-  let errorRecoveryModulePath;
+  let sleepSpy;
   const mockSleep = vi.fn().mockResolvedValue();
 
   // Simulates the safe-output handler manager: builds handler config from env vars,
@@ -125,14 +125,8 @@ describe("assign_to_agent", () => {
     // Clear module cache to ensure we get the latest version of assign_agent_helpers
     const helpersPath = require.resolve("./assign_agent_helpers.cjs");
     delete require.cache[helpersPath];
-    errorRecoveryModulePath = require.resolve("./error_recovery.cjs");
-    delete require.cache[errorRecoveryModulePath];
-    require.cache[errorRecoveryModulePath] = {
-      id: errorRecoveryModulePath,
-      filename: errorRecoveryModulePath,
-      loaded: true,
-      exports: { sleep: mockSleep },
-    };
+    const errorRecovery = require("./error_recovery.cjs");
+    sleepSpy = vi.spyOn(errorRecovery, "sleep").mockImplementation(mockSleep);
 
     const scriptPath = path.join(process.cwd(), "assign_to_agent.cjs");
     assignToAgentScript = fs.readFileSync(scriptPath, "utf8");
@@ -142,9 +136,7 @@ describe("assign_to_agent", () => {
     if (tempFilePath && fs.existsSync(tempFilePath)) {
       fs.unlinkSync(tempFilePath);
     }
-    if (errorRecoveryModulePath) {
-      delete require.cache[errorRecoveryModulePath];
-    }
+    sleepSpy?.mockRestore();
   });
 
   it("should handle empty agent output", async () => {
