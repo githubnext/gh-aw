@@ -5774,6 +5774,13 @@
                   ],
                   "description": "Optional assignee(s) for a fallback issue created when pull request creation cannot proceed, including protected-files fallback-to-issue and pull request creation or push failures. Accepts either a single string or an array of usernames."
                 },
+                "fallback-labels": {
+                  "type": "array",
+                  "description": "Optional labels to apply to fallback issues created when pull request creation cannot proceed. When omitted, fallback issues reuse pull request labels. A managed label is always added for triage.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
                 "draft": {
                   "allOf": [
                     {

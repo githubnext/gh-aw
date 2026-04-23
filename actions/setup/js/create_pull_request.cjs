@@ -324,6 +324,7 @@ async function main(config = {}) {
   // Extract configuration
   const titlePrefix = config.title_prefix || "";
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
+  const configFallbackLabels = config.fallback_labels ? (Array.isArray(config.fallback_labels) ? config.fallback_labels : config.fallback_labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const configReviewers = config.reviewers ? (Array.isArray(config.reviewers) ? config.reviewers : config.reviewers.split(",")).map(r => String(r).trim()).filter(r => r) : [];
   const configTeamReviewers = config.team_reviewers ? (Array.isArray(config.team_reviewers) ? config.team_reviewers : config.team_reviewers.split(",")).map(r => String(r).trim()).filter(r => r) : [];
   const rawAssignees = config.assignees ? (Array.isArray(config.assignees) ? config.assignees : config.assignees.split(",")).map(a => String(a).trim()).filter(a => a) : [];
@@ -444,6 +445,9 @@ async function main(config = {}) {
   }
   if (envLabels.length > 0) {
     core.info(`Default labels: ${envLabels.join(", ")}`);
+  }
+  if (configFallbackLabels.length > 0) {
+    core.info(`Configured fallback issue labels: ${configFallbackLabels.join(", ")}`);
   }
   if (configReviewers.length > 0) {
     core.info(`Configured reviewers: ${configReviewers.join(", ")}`);
@@ -955,6 +959,7 @@ async function main(config = {}) {
       .filter(label => !!label)
       .map(label => String(label).trim())
       .filter(label => label);
+    const fallbackIssueBaseLabels = configFallbackLabels.length > 0 ? configFallbackLabels : labels;
 
     // Configuration enforces draft as a policy, not a fallback (consistent with autoMerge/allowEmpty)
     const draft = draftDefault;
@@ -1076,7 +1081,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 \`\`\``;
 
         try {
-          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(fallbackIssueBaseLabels), configAssignees);
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
           await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
@@ -1310,7 +1315,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 ${patchPreview}`;
 
             try {
-              const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+              const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(fallbackIssueBaseLabels), configAssignees);
 
               core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
               await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
@@ -1465,7 +1470,7 @@ ${patchPreview}`;
       }
 
       try {
-        const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+        const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(fallbackIssueBaseLabels), configAssignees);
 
         core.info(`Created protected-file-protection review issue #${issue.number}: ${issue.html_url}`);
         await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
@@ -1665,7 +1670,7 @@ ${patchPreview}`;
         });
 
         try {
-          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(fallbackIssueBaseLabels), configAssignees);
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
           await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
@@ -1731,7 +1736,7 @@ gh pr create --title "${title}" --base ${baseBranch} --head ${branchName} --repo
 ${patchPreview}`;
 
       try {
-        const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+        const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(fallbackIssueBaseLabels), configAssignees);
 
         core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
         await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
