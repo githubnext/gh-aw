@@ -458,6 +458,98 @@ describe("assign_to_agent", () => {
     expect(lastGraphQLCall[1].targetRepoId).toBe("other-platform-repo-id");
   });
 
+  it("should process multiple assignments for the same temporary issue ID across different pull_request_repo targets", async () => {
+    process.env.GH_AW_AGENT_MAX_COUNT = "5";
+    process.env.GH_AW_TEMPORARY_ID_MAP = JSON.stringify({
+      aw_multi_repo: { repo: "test-owner/test-repo", number: 6587 },
+    });
+    process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS = "test-owner/ios-repo,test-owner/android-repo";
+
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: "aw_multi_repo",
+          agent: "copilot",
+          pull_request_repo: "test-owner/ios-repo",
+        },
+        {
+          type: "assign_to_agent",
+          issue_number: "aw_multi_repo",
+          agent: "copilot",
+          pull_request_repo: "test-owner/android-repo",
+        },
+      ],
+      errors: [],
+    });
+
+    mockGithub.graphql
+      // Item 1: get per-item PR repository ID
+      .mockResolvedValueOnce({
+        repository: {
+          id: "ios-repo-id",
+        },
+      })
+      // Item 1: find agent
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "agent-id" }],
+          },
+        },
+      })
+      // Item 1: issue details (not assigned yet)
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "issue-id",
+            assignees: {
+              nodes: [],
+            },
+          },
+        },
+      })
+      // Item 1: assignment mutation
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      })
+      // Item 2: get per-item PR repository ID
+      .mockResolvedValueOnce({
+        repository: {
+          id: "android-repo-id",
+        },
+      })
+      // Item 2: issue details (already assigned after item 1)
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "issue-id",
+            assignees: {
+              nodes: [{ id: "agent-id", login: "copilot-swe-agent" }],
+            },
+          },
+        },
+      })
+      // Item 2: assignment mutation should still run
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
+
+    expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("copilot is already assigned to issue #6587"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned copilot coding agent to issue #6587"));
+
+    const assignmentCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("replaceActorsForAssignable"));
+    expect(assignmentCalls).toHaveLength(2);
+    expect(assignmentCalls[0][1].targetRepoId).toBe("ios-repo-id");
+    expect(assignmentCalls[1][1].targetRepoId).toBe("android-repo-id");
+  }, 20000);
+
   it("should still skip when agent is already assigned with global pull-request-repo but no per-item override", async () => {
     process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/global-pr-repo";
     setAgentOutput({

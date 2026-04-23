@@ -128,6 +128,7 @@ async function main(config = {}) {
   // Closure-level state
   let processedCount = 0;
   const agentCache = {};
+  const seenAssignmentTargets = new Set();
 
   // Reset module-level results for this handler invocation
   _allResults = [];
@@ -291,6 +292,9 @@ async function main(config = {}) {
     const type = targetResult.contextType;
     const issueNumber = type === "issue" ? number : null;
     const pullNumber = type === "pull request" ? number : null;
+    const assignmentTargetKey = `${effectiveOwner}/${effectiveRepo}:${type}:${number}`;
+    const seenThisTargetBefore = seenAssignmentTargets.has(assignmentTargetKey);
+    seenAssignmentTargets.add(assignmentTargetKey);
 
     if (isNaN(number) || number <= 0) {
       const error = `Invalid ${type} number: ${number}`;
@@ -352,11 +356,12 @@ async function main(config = {}) {
       core.info(`${type} ID: ${assignableId}`);
 
       const hasPerItemPullRequestRepoOverride = !!message.pull_request_repo;
+      const hasExplicitReassignmentIntent = hasPerItemPullRequestRepoOverride || seenThisTargetBefore;
 
       // Skip if agent is already assigned and no explicit per-item pull_request_repo is specified.
       // When a different pull_request_repo is provided on the message, allow re-assignment
       // so Copilot can be triggered for a different target repository on the same issue.
-      if (currentAssignees.some(a => a.id === agentId) && !hasPerItemPullRequestRepoOverride) {
+      if (currentAssignees.some(a => a.id === agentId) && !hasExplicitReassignmentIntent) {
         core.info(`${agentName} is already assigned to ${type} #${number}`);
         _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: true });
         return { success: true };
