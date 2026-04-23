@@ -83,6 +83,7 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `DownloadFileFromGitHubForHost` | `func(owner, repo, path, ref, host string) ([]byte, error)` | Downloads a file from a specific GitHub host |
 | `ResolveRefToSHAForHost` | `func(owner, repo, ref, host string) (string, error)` | Resolves a branch/tag ref to a commit SHA |
 | `ListWorkflowFiles` | `func(owner, repo, ref, workflowPath string) ([]string, error)` | Lists workflow files in a remote repository |
+| `IsWorkflowSpec` | `func(path string) bool` | Returns whether a path is a workflow specification markdown file |
 
 #### MCP Configuration
 
