@@ -125,10 +125,10 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 
 	shellPolicyDelimiter := GenerateHeredocDelimiterFromSeed("CODEX_SHELL_POLICY", workflowData.FrontmatterHash)
 	yaml.WriteString("          cat > \"/tmp/gh-aw/mcp-config/config.toml\" << " + shellPolicyDelimiter + "\n")
-	e.renderShellEnvironmentPolicyToml(yaml, tools, mcpTools, "          ")
 	if isFirewallEnabled(workflowData) {
 		e.renderOpenAIProxyProviderToml(yaml, "          ")
 	}
+	e.renderShellEnvironmentPolicyToml(yaml, tools, mcpTools, "          ")
 	yaml.WriteString("          " + shellPolicyDelimiter + "\n")
 	if isFirewallEnabled(workflowData) {
 		e.renderAppendConvertedConfigWithoutOpenAIProxy(yaml)

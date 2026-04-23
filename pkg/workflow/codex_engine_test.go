@@ -348,6 +348,33 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 		if !strings.Contains(result, "awk '") {
 			t.Errorf("Expected firewall-enabled config append to use awk filtering, got:\n%s", result)
 		}
+
+		normalizedResult := normalizeHeredocDelimiters(result)
+		syncStart := strings.Index(normalizedResult, "cat > \"/tmp/gh-aw/mcp-config/config.toml\" << GH_AW_CODEX_SHELL_POLICY_NORM_EOF")
+		if syncStart == -1 {
+			t.Fatalf("Expected config sync heredoc start in generated config, got:\n%s", normalizedResult)
+		}
+
+		syncBodyStart := strings.Index(normalizedResult[syncStart:], "\n")
+		if syncBodyStart == -1 {
+			t.Fatalf("Expected newline after config sync heredoc start, got:\n%s", normalizedResult[syncStart:])
+		}
+		syncBodyOffset := syncStart + syncBodyStart + 1
+
+		syncEnd := strings.Index(normalizedResult[syncBodyOffset:], "\n          GH_AW_CODEX_SHELL_POLICY_NORM_EOF")
+		if syncEnd == -1 {
+			t.Fatalf("Expected config sync heredoc end in generated config, got:\n%s", normalizedResult)
+		}
+
+		syncBlock := normalizedResult[syncBodyOffset : syncBodyOffset+syncEnd]
+		modelProviderIndex := strings.Index(syncBlock, "model_provider = \"openai-proxy\"")
+		shellPolicyIndex := strings.Index(syncBlock, "[shell_environment_policy]")
+		if modelProviderIndex == -1 || shellPolicyIndex == -1 {
+			t.Fatalf("Expected model_provider and shell_environment_policy in sync block, got:\n%s", syncBlock)
+		}
+		if modelProviderIndex > shellPolicyIndex {
+			t.Errorf("Expected model_provider to be emitted before [shell_environment_policy] in sync block, got:\n%s", syncBlock)
+		}
 	})
 
 	t.Run("does not inject openai-proxy provider when firewall is disabled", func(t *testing.T) {
