@@ -588,7 +588,7 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("pushToPullRequestBranchHandler", () => {
-    function createSideRepoWithIncrementalCommit() {
+    function createSideRepoWithTrackedAndLocalCommits() {
       const targetRepoDir = path.join(testWorkspaceDir, "target-repo");
       fs.mkdirSync(targetRepoDir, { recursive: true });
 
@@ -681,7 +681,7 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should detect branch from the checked out target repo when repo is provided", async () => {
-      const { targetRepoDir } = createSideRepoWithIncrementalCommit();
+      const { targetRepoDir } = createSideRepoWithTrackedAndLocalCommits();
 
       process.env.GITHUB_BASE_REF = "main";
       try {
@@ -704,7 +704,7 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should include repo slug in incremental patch filename for side-repo checkout", async () => {
-      const { targetRepoDir } = createSideRepoWithIncrementalCommit();
+      const { targetRepoDir } = createSideRepoWithTrackedAndLocalCommits();
 
       process.env.GITHUB_BASE_REF = "main";
       try {
@@ -716,7 +716,7 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeFalsy();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
-        expect(responseData.patch.path).toEqual(expect.stringMatching(/aw-test-owner-test-repo-feature-test-change\.patch$/));
+        expect(path.basename(responseData.patch.path)).toBe("aw-test-owner-test-repo-feature-test-change.patch");
 
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(
           expect.objectContaining({
