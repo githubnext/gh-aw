@@ -171,12 +171,16 @@ Create a GitHub issue with your recommendation.
 actual file and function. Explain what question a DevOps engineer cannot answer today
 because of this gap.>
 
-### Why This Matters (DevOps Perspective)
+<details>
+<summary><b>Why This Matters (DevOps Perspective)</b></summary>
 
 <Explain the operational impact. What alert or dashboard would be unblocked? What
 debugging scenario becomes easier? How does this reduce MTTR?>
 
-### Current Behavior
+</details>
+
+<details>
+<summary><b>Current Behavior</b></summary>
 
 <Show the relevant existing code (file:line) that demonstrates the gap.>
 
@@ -185,7 +189,10 @@ debugging scenario becomes easier? How does this reduce MTTR?>
 // <paste the relevant snippet>
 ```
 
-### Proposed Change
+</details>
+
+<details>
+<summary><b>Proposed Change</b></summary>
 
 <Describe the change precisely. Show what the improved code would look like.>
 
@@ -194,13 +201,18 @@ debugging scenario becomes easier? How does this reduce MTTR?>
 // <paste the proposed code change>
 ```
 
-### Expected Outcome
+</details>
+
+<details>
+<summary><b>Expected Outcome</b></summary>
 
 After this change:
 
 - In Grafana / Honeycomb / Datadog: <what new filtering or grouping becomes possible>
 - In the JSONL mirror: <what additional data appears>
 - For on-call engineers: <how debugging improves>
+
+</details>
 
 <details>
 <summary><b>Implementation Steps</b></summary>
@@ -214,19 +226,25 @@ After this change:
 
 </details>
 
-### Evidence from Live Sentry Data
+<details>
+<summary><b>Evidence from Live Sentry Data</b></summary>
 
 <Paste the key fields from the sampled span payload that support this recommendation. Include
 the `trace_id`, the span `name`, and the attributes (or their absence) that confirm the gap.
 If you found a Sentry issue related to this problem, include the issue URL.>
 
-### Related Files
+</details>
+
+<details>
+<summary><b>Related Files</b></summary>
 
 - `actions/setup/js/send_otlp_span.cjs`
 - `actions/setup/js/action_setup_otlp.cjs`
 - `actions/setup/js/action_conclusion_otlp.cjs`
 - `actions/setup/js/generate_observability_summary.cjs`
 - (any other file affected by the change)
+
+</details>
 
 ---
 
