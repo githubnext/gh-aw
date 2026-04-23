@@ -15,7 +15,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
  * Module-level state — populated by main(), read by the exported getters below.
  * Using module-level variables (rather than closure-only state) allows the handler
  * manager to read final output values after all messages have been processed.
- * @type {Array<{issue_number: number|null, pull_number: number|null, agent: string, owner: string|null, repo: string|null, success: boolean, skipped?: boolean, error?: string}>}
+ * @type {Array<{issue_number: number|null, pull_number: number|null, agent: string, owner: string|null, repo: string|null, pull_request_repo?: string|null, success: boolean, skipped?: boolean, error?: string}>}
  */
 let _allResults = [];
 
@@ -128,6 +128,7 @@ async function main(config = {}) {
   // Closure-level state
   let processedCount = 0;
   const agentCache = {};
+  const processedAssignmentTargets = new Set();
 
   // Reset module-level results for this handler invocation
   _allResults = [];
@@ -232,10 +233,16 @@ async function main(config = {}) {
     const hasExplicitTarget = itemForTarget.issue_number != null || itemForTarget.pull_number != null;
     const effectiveTarget = hasExplicitTarget ? "*" : targetConfig;
 
+    const basePullRequestRepoSlug = pullRequestOwner && pullRequestRepo ? `${pullRequestOwner}/${pullRequestRepo}` : `${effectiveOwner}/${effectiveRepo}`;
+
     // Handle per-item pull_request_repo override
     let effectivePullRequestRepoId = pullRequestRepoId;
-    if (message.pull_request_repo) {
-      const itemPullRequestRepo = String(message.pull_request_repo).trim();
+    let effectivePullRequestRepoSlug = basePullRequestRepoSlug;
+    let hasValidatedPerItemPullRequestRepoOverride = false;
+    const hasPullRequestRepoOverrideField = message.pull_request_repo != null;
+    const trimmedPullRequestRepoOverride = typeof message.pull_request_repo === "string" ? message.pull_request_repo.trim() : "";
+    if (trimmedPullRequestRepoOverride) {
+      const itemPullRequestRepo = trimmedPullRequestRepoOverride;
       const pullRequestRepoParts = itemPullRequestRepo.split("/");
       if (pullRequestRepoParts.length === 2) {
         const defaultPullRequestRepo = pullRequestRepoConfig || defaultTargetRepo;
@@ -254,6 +261,8 @@ async function main(config = {}) {
           `;
           const itemPullRequestRepoResponse = await githubClient.graphql(itemPullRequestRepoQuery, { owner: pullRequestRepoParts[0], name: pullRequestRepoParts[1] });
           effectivePullRequestRepoId = itemPullRequestRepoResponse.repository.id;
+          effectivePullRequestRepoSlug = itemPullRequestRepo;
+          hasValidatedPerItemPullRequestRepoOverride = true;
           core.info(`Using per-item pull request repository: ${itemPullRequestRepo} (ID: ${effectivePullRequestRepoId})`);
         } catch (error) {
           const errorMsg = `Failed to fetch pull request repository ID for ${itemPullRequestRepo}: ${getErrorMessage(error)}`;
@@ -264,6 +273,10 @@ async function main(config = {}) {
       } else {
         core.warning(`Invalid pull_request_repo format: ${itemPullRequestRepo}. Expected owner/repo. Using global pull-request-repo if configured.`);
       }
+    } else if (hasPullRequestRepoOverrideField && typeof message.pull_request_repo === "string") {
+      core.warning("Invalid pull_request_repo value. Expected owner/repo. Using global pull-request-repo if configured.");
+    } else if (hasPullRequestRepoOverrideField) {
+      core.warning("Invalid pull_request_repo value. Expected a non-empty owner/repo string. Using global pull-request-repo if configured.");
     }
 
     // Resolve the target issue or pull request number from context
@@ -351,14 +364,19 @@ async function main(config = {}) {
 
       core.info(`${type} ID: ${assignableId}`);
 
-      const hasPerItemPullRequestRepoOverride = !!message.pull_request_repo;
+      const assignmentContextKey = `${effectiveOwner}/${effectiveRepo}:${type}:${number}:${effectivePullRequestRepoSlug}`;
+      const seenThisContextBefore = processedAssignmentTargets.has(assignmentContextKey);
+      // Track assignment context (target + per-item pull_request_repo) to prevent duplicate
+      // re-assignment calls while still allowing one global issue to fan out to multiple repos.
+      processedAssignmentTargets.add(assignmentContextKey);
+      const shouldAllowReassignment = hasValidatedPerItemPullRequestRepoOverride && !seenThisContextBefore;
 
       // Skip if agent is already assigned and no explicit per-item pull_request_repo is specified.
       // When a different pull_request_repo is provided on the message, allow re-assignment
       // so Copilot can be triggered for a different target repository on the same issue.
-      if (currentAssignees.some(a => a.id === agentId) && !hasPerItemPullRequestRepoOverride) {
+      if (currentAssignees.some(a => a.id === agentId) && !shouldAllowReassignment) {
         core.info(`${agentName} is already assigned to ${type} #${number}`);
-        _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: true });
+        _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true });
         return { success: true };
       }
 
@@ -372,7 +390,7 @@ async function main(config = {}) {
       if (!success) throw new Error(`Failed to assign ${agentName} via GraphQL`);
 
       core.info(`Successfully assigned ${agentName} coding agent to ${type} #${number}`);
-      _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: true });
+      _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true });
       return { success: true };
     } catch (error) {
       let errorMessage = getErrorMessage(error);
@@ -382,7 +400,7 @@ async function main(config = {}) {
       if (ignoreIfError && isAuthError) {
         core.warning(`Agent assignment failed for ${agentName} on ${type} #${number} due to authentication/permission error. Skipping due to ignore-if-error=true.`);
         core.info(`Error details: ${errorMessage}`);
-        _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: true, skipped: true });
+        _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true, skipped: true });
         return { success: true, skipped: true };
       }
 
@@ -410,7 +428,7 @@ async function main(config = {}) {
         core.warning(`Failed to post failure comment on ${type} #${number}: ${getErrorMessage(commentError)}`);
       }
 
-      _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error: errorMessage });
+      _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: false, error: errorMessage });
       return { success: false, error: errorMessage };
     }
   };
@@ -475,7 +493,7 @@ async function writeAssignToAgentSummary() {
     summaryContent += successResults
       .map(r => {
         const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
-        return `- ${itemType} → Agent: ${r.agent}`;
+        return `- ${itemType} → Agent: ${r.agent}${r.pull_request_repo ? ` (PR target: ${r.pull_request_repo})` : ""}`;
       })
       .join("\n");
     summaryContent += "\n\n";
@@ -486,7 +504,7 @@ async function writeAssignToAgentSummary() {
     summaryContent += skippedResults
       .map(r => {
         const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
-        return `- ${itemType} → Agent: ${r.agent} (assignment failed due to error)`;
+        return `- ${itemType} → Agent: ${r.agent}${r.pull_request_repo ? ` (PR target: ${r.pull_request_repo})` : ""} (assignment failed due to error)`;
       })
       .join("\n");
     summaryContent += "\n\n";
@@ -497,7 +515,7 @@ async function writeAssignToAgentSummary() {
     summaryContent += failedResults
       .map(r => {
         const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
-        return `- ${itemType} → Agent: ${r.agent}: ${r.error}`;
+        return `- ${itemType} → Agent: ${r.agent}${r.pull_request_repo ? ` (PR target: ${r.pull_request_repo})` : ""}: ${r.error}`;
       })
       .join("\n");
 

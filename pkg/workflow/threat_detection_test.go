@@ -1087,7 +1087,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 			shouldContainModel: true,
 			// Detection uses env var fallback (same pattern as main agent), allowing
 			// the Copilot CLI to pick its native default (currently claude-sonnet-4.6)
-			expectedModel: "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '' }}",
+			expectedModel: "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '" + constants.CopilotBYOKDefaultModel + "' }}",
 		},
 		{
 			name: "copilot engine with custom model uses specified model",
@@ -1133,7 +1133,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				},
 			},
 			shouldContainModel: true,
-			expectedModel:      "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '' }}",
+			expectedModel:      "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '" + constants.CopilotBYOKDefaultModel + "' }}",
 		},
 		{
 			name: "claude engine does not add model parameter",
