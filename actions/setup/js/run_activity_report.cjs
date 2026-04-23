@@ -128,7 +128,7 @@ function runCommandWithTimeout(command, args, timeoutMs) {
     let timedOut = false;
     let settled = false;
     const childPid = child.pid;
-    core.info(`Started log download process with PID ${String(childPid || "unknown")}`);
+    core.info(`Started log download process with PID ${childPid || "unknown"}`);
 
     const killTimer = setTimeout(() => {
       timedOut = true;
@@ -182,7 +182,7 @@ function runCommandWithTimeout(command, args, timeoutMs) {
       resolve({
         exitCode: typeof code === "number" ? code : 1,
         stdout,
-        stderr: timedOut ? `${stderr}\nProcess timed out after ${Math.floor(timeoutMs / 1000)}s and was terminated.`.trim() : stderr,
+        stderr: timedOut ? `${stderr.trim()}\nProcess timed out after ${Math.floor(timeoutMs / 1000)}s and was terminated.`.trim() : stderr.trim(),
       });
     });
   });
