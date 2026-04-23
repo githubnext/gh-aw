@@ -90,7 +90,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// This ensures workflow_files is available in the config.json
 	populateCallWorkflowFiles(workflowData, c.markdownPath)
 
-	safeOutputConfig, err := prepareSafeOutputsConfig(workflowData)
+	safeOutputConfig, err := generateSafeOutputsConfigIfEnabled(workflowData)
 	if err != nil {
 		return fmt.Errorf("safe outputs setup preparation failed: %w", err)
 	}
@@ -119,12 +119,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	hasAgenticWorkflows := slices.Contains(mcpTools, "agentic-workflows")
-	hasGhAwImport := hasGhAwImportFile(workflowData)
+	hasGhAwImport := hasGhAwSharedImport(workflowData)
 	generateAgenticWorkflowsInstallStep(yaml, hasAgenticWorkflows, hasGhAwImport)
 
 	generateSafeOutputsSetup(c, yaml, safeOutputConfig, workflowData)
 	if err := generateMCPScriptsSetup(yaml, workflowData); err != nil {
-		return fmt.Errorf("mcp-scripts setup failed: %w", err)
+		return fmt.Errorf("failed to generate mcp-scripts setup YAML: %w", err)
 	}
 	return generateMCPGatewaySetup(yaml, tools, mcpTools, engine, workflowData, hasAgenticWorkflows)
 }
@@ -158,7 +158,7 @@ func collectMCPTools(workflowData *WorkflowData) []string {
 	return mcpTools
 }
 
-func prepareSafeOutputsConfig(workflowData *WorkflowData) (string, error) {
+func generateSafeOutputsConfigIfEnabled(workflowData *WorkflowData) (string, error) {
 	if !HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		return "", nil
 	}
@@ -169,7 +169,7 @@ func prepareSafeOutputsConfig(workflowData *WorkflowData) (string, error) {
 	return safeOutputConfig, nil
 }
 
-func hasGhAwImportFile(workflowData *WorkflowData) bool {
+func hasGhAwSharedImport(workflowData *WorkflowData) bool {
 	for _, importPath := range workflowData.ImportedFiles {
 		if strings.Contains(importPath, "shared/mcp/gh-aw.md") {
 			return true
