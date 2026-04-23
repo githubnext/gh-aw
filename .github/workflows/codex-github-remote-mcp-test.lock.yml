@@ -440,9 +440,6 @@ jobs:
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p /tmp/gh-aw/mcp-config
           cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_6ef9da006a49787c_EOF
-          [shell_environment_policy]
-          inherit = "core"
-          include_only = ["CODEX_API_KEY", "GITHUB_PERSONAL_ACCESS_TOKEN", "HOME", "OPENAI_API_KEY", "PATH"]
 
           model_provider = "openai-proxy"
 
@@ -451,6 +448,9 @@ jobs:
           base_url = "http://172.30.0.30:10000"
           env_key = "OPENAI_API_KEY"
           supports_websockets = false
+          [shell_environment_policy]
+          inherit = "core"
+          include_only = ["CODEX_API_KEY", "GITHUB_PERSONAL_ACCESS_TOKEN", "HOME", "OPENAI_API_KEY", "PATH"]
           GH_AW_CODEX_SHELL_POLICY_6ef9da006a49787c_EOF
           awk '
             BEGIN { skip_openai_proxy = 0 }
