@@ -521,7 +521,7 @@ jobs:
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_4ffa0724ee1d0f87_EOF'
           {"create_pull_request":{"expires":72,"labels":["rendering","javascript","automated-fix"],"max":1,"max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","DESIGN.md","CLAUDE.md","AGENTS.md"],"protected_path_prefixes":[".github/",".agents/",".githooks/",".husky/",".claude/"],"reviewers":["copilot"],"title_prefix":"[rendering-scripts] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
           GH_AW_SAFE_OUTPUTS_CONFIG_4ffa0724ee1d0f87_EOF
-      - name: Write Safe Outputs Tools
+      - name: Write Safe Outputs Tool Files
         env:
           GH_AW_TOOLS_META_JSON: |
             {
@@ -655,7 +655,7 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_safe_outputs_tools.cjs');
             await main();
-      - name: Generate Safe Outputs MCP Server Config
+      - name: Generate Safe Outputs Server Config
         id: safe-outputs-config
         run: |
           # Generate a secure random API key (360 bits of entropy, 40+ chars)
@@ -673,7 +673,7 @@ jobs:
           
           echo "Safe Outputs MCP server will run on port ${PORT}"
           
-      - name: Start Safe Outputs MCP HTTP Server
+      - name: Start Safe Outputs HTTP Server
         id: safe-outputs-start
         env:
           DEBUG: '*'

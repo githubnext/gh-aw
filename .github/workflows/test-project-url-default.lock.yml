@@ -394,7 +394,7 @@ jobs:
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_a49ffef1750a0786_EOF'
           {"create_project_status_update":{"max":1,"project":"https://github.com/orgs/\u003cORG\u003e/projects/\u003cNUMBER\u003e"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"update_project":{"max":5,"project":"https://github.com/orgs/\u003cORG\u003e/projects/\u003cNUMBER\u003e"}}
           GH_AW_SAFE_OUTPUTS_CONFIG_a49ffef1750a0786_EOF
-      - name: Write Safe Outputs Tools
+      - name: Write Safe Outputs Tool Files
         env:
           GH_AW_TOOLS_META_JSON: |
             {
@@ -570,7 +570,7 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_safe_outputs_tools.cjs');
             await main();
-      - name: Generate Safe Outputs MCP Server Config
+      - name: Generate Safe Outputs Server Config
         id: safe-outputs-config
         run: |
           # Generate a secure random API key (360 bits of entropy, 40+ chars)
@@ -588,7 +588,7 @@ jobs:
           
           echo "Safe Outputs MCP server will run on port ${PORT}"
           
-      - name: Start Safe Outputs MCP HTTP Server
+      - name: Start Safe Outputs HTTP Server
         id: safe-outputs-start
         env:
           DEBUG: '*'

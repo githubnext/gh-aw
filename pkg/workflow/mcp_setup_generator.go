@@ -289,7 +289,7 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 		validationConfigJSON = "{}"
 	}
 
-	yaml.WriteString("      - name: Write Safe Outputs Tools\n")
+	yaml.WriteString("      - name: Write Safe Outputs Tool Files\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_TOOLS_META_JSON: |\n")
 	for line := range strings.SplitSeq(toolsMetaJSON, "\n") {
@@ -304,7 +304,7 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString(generateGitHubScriptWithRequire("generate_safe_outputs_tools.cjs"))
 
-	yaml.WriteString("      - name: Generate Safe Outputs MCP Server Config\n")
+	yaml.WriteString("      - name: Generate Safe Outputs Server Config\n")
 	yaml.WriteString("        id: safe-outputs-config\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          # Generate a secure random API key (360 bits of entropy, 40+ chars)\n")
@@ -323,7 +323,7 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	yaml.WriteString("          echo \"Safe Outputs MCP server will run on port ${PORT}\"\n")
 	yaml.WriteString("          \n")
 
-	yaml.WriteString("      - name: Start Safe Outputs MCP HTTP Server\n")
+	yaml.WriteString("      - name: Start Safe Outputs HTTP Server\n")
 	yaml.WriteString("        id: safe-outputs-start\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          DEBUG: '*'\n")

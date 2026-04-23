@@ -614,7 +614,7 @@ jobs:
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_cdc457bae31c2e57_EOF'
           {"add_comment":{"allowed_repos":["github/gh-aw"],"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-copilot-arm"],"allowed_repos":["github/gh-aw"]},"create_discussion":{"category":"announcements","close_older_discussions":true,"expires":2,"fallback_to_issue":true,"labels":["ai-generated"],"max":1},"create_issue":{"close_older_issues":true,"close_older_key":"smoke-copilot-arm","expires":2,"group":true,"labels":["automation","testing"],"max":1},"create_pull_request_review_comment":{"max":5,"side":"RIGHT"},"create_report_incomplete_issue":{},"dispatch_workflow":{"max":1,"workflow_files":{"haiku-printer":".yml"},"workflows":["haiku-printer"]},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke"]},"report_incomplete":{},"send-slack-message":{"description":"Send a message to Slack (stub for testing)","inputs":{"message":{"description":"The message to send","required":false,"type":"string"}},"output":"Slack message stub executed!"},"submit_pull_request_review":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_cdc457bae31c2e57_EOF
-      - name: Write Safe Outputs Tools
+      - name: Write Safe Outputs Tool Files
         env:
           GH_AW_TOOLS_META_JSON: |
             {
@@ -930,7 +930,7 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_safe_outputs_tools.cjs');
             await main();
-      - name: Generate Safe Outputs MCP Server Config
+      - name: Generate Safe Outputs Server Config
         id: safe-outputs-config
         run: |
           # Generate a secure random API key (360 bits of entropy, 40+ chars)
@@ -948,7 +948,7 @@ jobs:
           
           echo "Safe Outputs MCP server will run on port ${PORT}"
           
-      - name: Start Safe Outputs MCP HTTP Server
+      - name: Start Safe Outputs HTTP Server
         id: safe-outputs-start
         env:
           DEBUG: '*'

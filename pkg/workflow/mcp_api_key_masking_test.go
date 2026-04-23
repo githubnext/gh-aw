@@ -30,7 +30,7 @@ func TestSafeOutputsAPIKeyImmediateMasking(t *testing.T) {
 	output := yaml.String()
 
 	// Find the Safe Outputs config generation section
-	configStart := strings.Index(output, "Generate Safe Outputs MCP Server Config")
+	configStart := strings.Index(output, "Generate Safe Outputs Server Config")
 	require.Greater(t, configStart, -1, "Should find Safe Outputs config generation step")
 
 	// Extract just the run script for this step

@@ -611,7 +611,7 @@ Test that multiple secrets are passed to gateway container.
 		"DD_APP_KEY should be passed to container")
 }
 
-// TestSafeOutputsHTTPServerPassesOutputEnvVar verifies that the "Start Safe Outputs MCP HTTP Server"
+// TestSafeOutputsHTTPServerPassesOutputEnvVar verifies that the "Start Safe Outputs HTTP Server"
 // step explicitly sets GH_AW_SAFE_OUTPUTS so the background Node.js process writes outputs.jsonl
 // to the exact same path that downstream ingestion steps read from.
 //
@@ -648,8 +648,8 @@ Test that GH_AW_SAFE_OUTPUTS is passed to the HTTP server startup step.
 	require.NoError(t, err, "Failed to read output file")
 	yamlStr := string(content)
 
-	// Verify the "Start Safe Outputs MCP HTTP Server" step exists
-	assert.Contains(t, yamlStr, "Start Safe Outputs MCP HTTP Server",
+	// Verify the "Start Safe Outputs HTTP Server" step exists
+	assert.Contains(t, yamlStr, "Start Safe Outputs HTTP Server",
 		"Should have safe outputs server startup step")
 
 	// The critical fix: GH_AW_SAFE_OUTPUTS must be in the startup step's env block
