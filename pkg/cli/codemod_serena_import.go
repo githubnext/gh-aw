@@ -237,13 +237,12 @@ func addSerenaImport(lines []string, languages []string) []string {
 	insertAt := 0
 	for i, line := range lines {
 		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "engine:") {
-			insertAt = i + 1
+			insertAt = len(lines)
 			for j := i + 1; j < len(lines); j++ {
 				if isTopLevelKey(lines[j]) {
 					insertAt = j
 					break
 				}
-				insertAt = j + 1
 			}
 			break
 		}
@@ -286,30 +285,7 @@ func removeBlockIfEmpty(lines []string, blockName string) []string {
 			continue
 		}
 
-		blockIndent := getIndentation(line)
-		blockEnd := i + 1
-		hasMeaningfulNestedContent := false
-		for ; blockEnd < len(lines); blockEnd++ {
-			nestedLine := lines[blockEnd]
-			nestedTrimmed := strings.TrimSpace(nestedLine)
-			if nestedTrimmed == "" {
-				continue
-			}
-
-			nestedIndent := getIndentation(nestedLine)
-			if strings.HasPrefix(nestedTrimmed, "#") {
-				if len(nestedIndent) <= len(blockIndent) {
-					break
-				}
-				continue
-			}
-
-			if len(nestedIndent) <= len(blockIndent) && strings.Contains(nestedLine, ":") {
-				break
-			}
-
-			hasMeaningfulNestedContent = true
-		}
+		hasMeaningfulNestedContent, blockEnd := hasNestedContent(lines, i+1, getIndentation(line))
 
 		if hasMeaningfulNestedContent {
 			result = append(result, line)
@@ -321,6 +297,32 @@ func removeBlockIfEmpty(lines []string, blockName string) []string {
 	}
 
 	return result
+}
+
+func hasNestedContent(lines []string, startIndex int, blockIndent string) (bool, int) {
+	for i := startIndex; i < len(lines); i++ {
+		nestedLine := lines[i]
+		nestedTrimmed := strings.TrimSpace(nestedLine)
+		if nestedTrimmed == "" {
+			continue
+		}
+
+		nestedIndent := getIndentation(nestedLine)
+		if strings.HasPrefix(nestedTrimmed, "#") {
+			if len(nestedIndent) <= len(blockIndent) {
+				return false, i
+			}
+			continue
+		}
+
+		if len(nestedIndent) <= len(blockIndent) && strings.Contains(nestedLine, ":") {
+			return false, i
+		}
+
+		return true, i
+	}
+
+	return false, len(lines)
 }
 
 func maybeUpdatePinnedSourceRef(content string, frontmatter map[string]any) string {
