@@ -690,15 +690,14 @@ describe("safe_outputs_handlers", () => {
           repo: "test-owner/test-repo",
         });
 
+        expect(result.isError).toBeFalsy();
         expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("detecting actual working branch: feature/test-change"));
-        if (!result.isError) {
-          expect(mockAppendSafeOutput).toHaveBeenCalledWith(
-            expect.objectContaining({
-              type: "push_to_pull_request_branch",
-              branch: "feature/test-change",
-            })
-          );
-        }
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "push_to_pull_request_branch",
+            branch: "feature/test-change",
+          })
+        );
       } finally {
         delete process.env.GITHUB_BASE_REF;
       }
@@ -714,7 +713,7 @@ describe("safe_outputs_handlers", () => {
           repo: "test-owner/test-repo",
         });
 
-        expect(result.isError).toBeUndefined();
+        expect(result.isError).toBeFalsy();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
         expect(responseData.patch.path).toContain("/tmp/gh-aw/aw-test-owner-test-repo-feature-test-change.patch");
