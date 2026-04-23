@@ -1745,7 +1745,7 @@ describe("sanitize_content.cjs", () => {
       });
     });
 
-    describe("Unicode Tag Characters removal (U+E0020–U+E007F, Plane 14)", () => {
+    describe("Unicode Tag Characters removal (U+E0000–U+E007F, Plane 14)", () => {
       it("should strip a single Tag Characters codepoint (U+E0041 = TAG LATIN CAPITAL LETTER A)", () => {
         // \uDB40\uDC41 is the surrogate pair for U+E0041
         const input = "Hello\uDB40\uDC41World";
