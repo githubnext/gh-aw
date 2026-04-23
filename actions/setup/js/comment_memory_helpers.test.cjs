@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { extractCommentMemoryEntries, isSafeMemoryId } from "./comment_memory_helpers.cjs";
+import { extractCommentMemoryEntries, isSafeMemoryId, stripCommentMemoryCodeFence } from "./comment_memory_helpers.cjs";
 
 describe("comment_memory_helpers", () => {
   it("extracts managed memory entries", () => {
@@ -10,6 +10,26 @@ describe("comment_memory_helpers", () => {
   it("supports legacy memory entries without code fence markers", () => {
     const entries = extractCommentMemoryEntries('<gh-aw-comment-memory id="default">\nhello\n</gh-aw-comment-memory>');
     expect(entries).toEqual([{ memoryId: "default", content: "hello" }]);
+  });
+
+  it("keeps fenced text unchanged when trailing content exists after closing fence", () => {
+    const content = "``````\nhello\n``````\ntrailing";
+    expect(stripCommentMemoryCodeFence(content)).toBe(content);
+  });
+
+  it("keeps fenced text unchanged when closing fence is missing", () => {
+    const content = "``````\nhello";
+    expect(stripCommentMemoryCodeFence(content)).toBe(content);
+  });
+
+  it("keeps malformed fenced text unchanged", () => {
+    const content = "``````hello\n``````";
+    expect(stripCommentMemoryCodeFence(content)).toBe(content);
+  });
+
+  it("strips valid fenced text with extra newlines before content", () => {
+    const content = "``````\n\nhello\n``````";
+    expect(stripCommentMemoryCodeFence(content)).toBe("hello");
   });
 
   it("rejects unsafe memory IDs", () => {

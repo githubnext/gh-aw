@@ -29,7 +29,8 @@ function stripCommentMemoryCodeFence(content) {
     return trimmed;
   }
 
-  const trailing = trimmed.slice(closingFenceStart + COMMENT_MEMORY_CODE_FENCE.length + 1).trim();
+  const closingFenceEnd = closingFenceStart + 1 + COMMENT_MEMORY_CODE_FENCE.length;
+  const trailing = trimmed.slice(closingFenceEnd).trim();
   if (trailing.length > 0) {
     return trimmed;
   }
