@@ -158,7 +158,7 @@ jobs:
             await main();
 
   run_operation:
-    if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'activity_report' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'validate' && (!(github.event.repository.fork)) }}
+    if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'activity_report' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'update_pull_request_branches' && inputs.operation != 'validate' && (!(github.event.repository.fork)) }}
     runs-on: ubuntu-slim
     permissions:
       actions: write
@@ -213,6 +213,46 @@ jobs:
       - name: Record outputs
         id: record
         run: echo "operation=${{ inputs.operation }}" >> "$GITHUB_OUTPUT"
+
+  update_pull_request_branches:
+    if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'update_pull_request_branches' && (!(github.event.repository.fork)) }}
+    runs-on: ubuntu-slim
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+      - name: Update pull request branches
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/update_pull_request_branches.cjs');
+            await main();
 
   apply_safe_outputs:
     if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'safe_outputs' && (!(github.event.repository.fork)) }}

@@ -124,7 +124,9 @@ async function listAgentSessionsPage(copilotApiURL, pageNumber, pageSize) {
     throw new Error(`Failed to list agent sessions: HTTP ${response.status}`);
   }
 
-  const body = /** @type {any} */ await response.json();
+  const rawBody = await response.json();
+  /** @type {any} */
+  const body = rawBody;
   return Array.isArray(body?.sessions) ? body.sessions : [];
 }
 

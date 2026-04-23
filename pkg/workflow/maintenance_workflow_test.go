@@ -282,9 +282,10 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	yaml := string(content)
 
 	operationSkipCondition := `github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == ''`
-	operationRunCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'activity_report' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'validate'`
+	operationRunCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'activity_report' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'update_pull_request_branches' && inputs.operation != 'validate'`
 	applySafeOutputsCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'safe_outputs'`
 	createLabelsCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'create_labels'`
+	updatePullRequestBranchesCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'update_pull_request_branches'`
 	activityReportCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'activity_report'`
 	closeAgenticWorkflowIssuesCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'close_agentic_workflows_issues'`
 	cleanCacheMemoriesCondition := `github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == '' || inputs.operation == 'clean_cache_memories'`
@@ -353,6 +354,20 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		createLabelsSection := yaml[createLabelsIdx : createLabelsIdx+runOpSectionSearchRange]
 		if !strings.Contains(createLabelsSection, createLabelsCondition) {
 			t.Errorf("Job create_labels should have the activation condition %q in:\n%s", createLabelsCondition, createLabelsSection)
+		}
+	}
+
+	// update_pull_request_branches job should be triggered when operation == 'update_pull_request_branches'
+	updatePullRequestBranchesIdx := strings.Index(yaml, "\n  update_pull_request_branches:")
+	if updatePullRequestBranchesIdx == -1 {
+		t.Errorf("Job update_pull_request_branches not found in generated workflow")
+	} else {
+		updatePullRequestBranchesSection := yaml[updatePullRequestBranchesIdx : updatePullRequestBranchesIdx+runOpSectionSearchRange]
+		if !strings.Contains(updatePullRequestBranchesSection, updatePullRequestBranchesCondition) {
+			t.Errorf("Job update_pull_request_branches should have the activation condition %q in:\n%s", updatePullRequestBranchesCondition, updatePullRequestBranchesSection)
+		}
+		if !strings.Contains(updatePullRequestBranchesSection, "pull-requests: write") {
+			t.Errorf("Job update_pull_request_branches should include pull-requests: write permission in:\n%s", updatePullRequestBranchesSection)
 		}
 	}
 

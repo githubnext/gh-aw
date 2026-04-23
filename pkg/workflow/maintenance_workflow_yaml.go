@@ -197,8 +197,8 @@ jobs:
 `)
 
 	// Add unified run_operation job for all dispatch operations except those with dedicated jobs
-	// (safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, validate)
-	runOperationCondition := buildRunOperationCondition("safe_outputs", "create_labels", "activity_report", "close_agentic_workflows_issues", "clean_cache_memories", "validate")
+	// (safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, update_pull_request_branches, validate)
+	runOperationCondition := buildRunOperationCondition("safe_outputs", "create_labels", "activity_report", "close_agentic_workflows_issues", "clean_cache_memories", "update_pull_request_branches", "validate")
 	yaml.WriteString(`
   run_operation:
     if: ${{ ` + RenderCondition(runOperationCondition) + ` }}
@@ -250,6 +250,54 @@ jobs:
       - name: Record outputs
         id: record
         run: echo "operation=${{ inputs.operation }}" >> "$GITHUB_OUTPUT"
+`)
+
+	// Add update_pull_request_branches job for workflow_dispatch with operation == 'update_pull_request_branches'
+	yaml.WriteString(`
+  update_pull_request_branches:
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("update_pull_request_branches")) + ` }}
+    runs-on: ` + runsOnValue + `
+    permissions:
+      pull-requests: write
+    steps:
+`)
+
+	// Add checkout step only in dev/script mode (for local action paths)
+	if actionMode == ActionModeDev || actionMode == ActionModeScript {
+		yaml.WriteString("      - name: Checkout actions folder\n")
+		yaml.WriteString("        uses: " + getActionPin("actions/checkout") + "\n")
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          sparse-checkout: |\n")
+		yaml.WriteString("            actions\n")
+		yaml.WriteString("          persist-credentials: false\n\n")
+	}
+
+	yaml.WriteString(`      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+      - name: Update pull request branches
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/update_pull_request_branches.cjs');
+            await main();
 `)
 
 	// Add apply_safe_outputs job for workflow_dispatch with operation == 'safe_outputs'
