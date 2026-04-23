@@ -435,6 +435,8 @@ Issue must: name affected workflows in priority order, explain evidence with run
 
 If no threshold is crossed, do not create an issue. Use `noop` only if no run data could be obtained at all.
 
+**Delivery note**: Calling `create_issue` or `create_discussion` via the safeoutputs MCP only *queues* the item for delivery — the actual GitHub API call happens in the downstream `safe_outputs` job after the agent session ends. In your completion summary, do not say the issue or discussion was "created" or "published". Instead say it was "submitted for delivery via safe-outputs". If the `safe_outputs` job fails (e.g. due to a GitHub API rate limit), the item will not appear in the repository despite the MCP returning success.
+
 ## Guardrails
 
 - Use pre-downloaded data for baseline; use MCP `logs` tool for the 30-day episode analysis.
@@ -443,3 +445,4 @@ If no threshold is crossed, do not create an issue. Use `noop` only if no run da
 - Report structure: **charts first**, then compact summaries, then `<details>` for long text.
 - Always emit all 5 prompts even when evidence for a category is thin — use the best available candidate and note uncertainty.
 - Format all percentages with one decimal place (e.g., 87.5%, not 875%). Verify every percentage is in the range [0%, 100%].
+- Safe-output delivery is asynchronous. In your completion summary, use "submitted for delivery via safe-outputs" instead of "created" or "published" for any issue or discussion.
