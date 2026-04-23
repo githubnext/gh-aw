@@ -104,7 +104,7 @@ async function listAgentSessionsPage(copilotApiURL, pageNumber, pageSize) {
   sessionsURL.searchParams.set("page_size", String(pageSize));
   sessionsURL.searchParams.set("page_number", String(pageNumber));
   sessionsURL.searchParams.set("sort", "last_updated_at,desc");
-  core.debug(`Requesting Copilot sessions page ${pageNumber}: ${sessionsURL.toString()}`);
+  core.debug(`Requesting Copilot sessions page ${pageNumber}: ${sessionsURL.origin}${sessionsURL.pathname} (page_size=${pageSize})`);
 
   const response = await fetch(sessionsURL.toString(), {
     method: "GET",
@@ -116,8 +116,7 @@ async function listAgentSessionsPage(copilotApiURL, pageNumber, pageSize) {
   });
 
   if (!response.ok) {
-    const responseBody = await response.text();
-    const truncatedBody = responseBody.slice(0, 500);
+    const truncatedBody = await readResponsePreview(response, 500);
     core.error(`Failed to list agent sessions page ${pageNumber}: HTTP ${response.status} ${response.statusText}`);
     if (truncatedBody) {
       core.error(`Copilot sessions error response (truncated): ${truncatedBody}`);
@@ -127,6 +126,36 @@ async function listAgentSessionsPage(copilotApiURL, pageNumber, pageSize) {
 
   const body = /** @type {any} */ await response.json();
   return Array.isArray(body?.sessions) ? body.sessions : [];
+}
+
+/**
+ * @param {Response} response
+ * @param {number} maxChars
+ * @returns {Promise<string>}
+ */
+async function readResponsePreview(response, maxChars) {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let result = "";
+
+  try {
+    while (result.length < maxChars) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      result += decoder.decode(value, { stream: true });
+      if (result.length >= maxChars) {
+        result = result.slice(0, maxChars);
+        break;
+      }
+    }
+  } catch {
+    return "";
+  } finally {
+    reader.releaseLock();
+  }
+
+  return result;
 }
 
 /**
