@@ -158,8 +158,14 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Always add verbose flag for enhanced debugging output
 	claudeArgs = append(claudeArgs, "--verbose")
 
-	// Add permission mode for non-interactive execution (bypass permissions)
-	claudeArgs = append(claudeArgs, "--permission-mode", "bypassPermissions")
+	// Add permission mode for non-interactive execution.
+	// Use "acceptEdits" instead of "bypassPermissions" so that Claude Code honours
+	// the --allowed-tools flag.  In "bypassPermissions" mode the allowlist is silently
+	// ignored, meaning every tool exposed by the MCP gateway is reachable regardless of
+	// the workflow's declared tool configuration.  "acceptEdits" auto-approves file-edit
+	// operations (needed for headless CI execution) while still enforcing MCP tool
+	// restrictions, making --allowed-tools the effective security boundary.
+	claudeArgs = append(claudeArgs, "--permission-mode", "acceptEdits")
 
 	// Add output format for structured output
 	// Use "stream-json" to output JSONL format (newline-delimited JSON objects)

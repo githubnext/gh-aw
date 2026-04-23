@@ -105,8 +105,8 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected --print flag in step: %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "--permission-mode bypassPermissions") {
-		t.Errorf("Expected --permission-mode bypassPermissions in CLI args: %s", stepContent)
+	if !strings.Contains(stepContent, "--permission-mode acceptEdits") {
+		t.Errorf("Expected --permission-mode acceptEdits in CLI args: %s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "--output-format stream-json") {
