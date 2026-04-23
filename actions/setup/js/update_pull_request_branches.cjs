@@ -38,15 +38,22 @@ function isActiveSessionState(value) {
 async function listPullRequestsWithActiveSessions() {
   core.info("Listing agent sessions to identify PRs with active sessions");
   const copilotApiURL = await getCopilotAPIURL();
+  core.info(`Resolved Copilot API endpoint for sessions: ${copilotApiURL}`);
+  core.info(`Fetching up to ${SESSION_LIST_LIMIT} sessions (page_size=${SESSION_PAGE_SIZE})`);
 
   /** @type {Array<{resource_id?: number | string, state?: string, resource_type?: string}>} */
   const sessions = [];
   for (let pageNumber = 1; sessions.length < SESSION_LIST_LIMIT; pageNumber++) {
     const pageSessions = await listAgentSessionsPage(copilotApiURL, pageNumber, SESSION_PAGE_SIZE);
+    core.info(`Fetched ${pageSessions.length} session(s) from page ${pageNumber}`);
     if (pageSessions.length === 0) break;
     sessions.push(...pageSessions);
     if (pageSessions.length < SESSION_PAGE_SIZE) break;
   }
+  if (sessions.length >= SESSION_LIST_LIMIT) {
+    core.warning(`Session list reached limit (${SESSION_LIST_LIMIT}); newer sessions may have been truncated`);
+  }
+  core.info(`Fetched ${sessions.length} total session record(s) for filtering`);
 
   const prNumbers = new Set();
   for (const session of sessions) {
@@ -64,6 +71,7 @@ async function listPullRequestsWithActiveSessions() {
  * @returns {Promise<string>}
  */
 async function getCopilotAPIURL() {
+  core.info("Resolving Copilot API endpoint from GraphQL viewer.copilotEndpoints.api");
   const response = await github.graphql(`
     query CopilotEndpointsForSessionListing {
       viewer {
@@ -77,7 +85,9 @@ async function getCopilotAPIURL() {
   if (typeof apiURL !== "string" || !apiURL.trim()) {
     throw new Error("Unable to resolve Copilot API URL for session listing");
   }
-  return apiURL.replace(/\/+$/, "");
+  const normalizedAPIURL = apiURL.replace(/\/+$/, "");
+  core.info(`Copilot API endpoint resolved: ${normalizedAPIURL}`);
+  return normalizedAPIURL;
 }
 
 /**
@@ -94,6 +104,7 @@ async function listAgentSessionsPage(copilotApiURL, pageNumber, pageSize) {
   sessionsURL.searchParams.set("page_size", String(pageSize));
   sessionsURL.searchParams.set("page_number", String(pageNumber));
   sessionsURL.searchParams.set("sort", "last_updated_at,desc");
+  core.debug(`Requesting Copilot sessions page ${pageNumber}: ${sessionsURL.toString()}`);
 
   const response = await fetch(sessionsURL.toString(), {
     method: "GET",
@@ -105,6 +116,12 @@ async function listAgentSessionsPage(copilotApiURL, pageNumber, pageSize) {
   });
 
   if (!response.ok) {
+    const responseBody = await response.text();
+    const truncatedBody = responseBody.slice(0, 500);
+    core.error(`Failed to list agent sessions page ${pageNumber}: HTTP ${response.status} ${response.statusText}`);
+    if (truncatedBody) {
+      core.error(`Copilot sessions error response (truncated): ${truncatedBody}`);
+    }
     throw new Error(`Failed to list agent sessions: HTTP ${response.status}`);
   }
 
