@@ -30,6 +30,7 @@ network:
     - "github.github.com"
 safe-outputs:
   update-release:
+  threat-detection: false
 imports:
   - shared/community-attribution.md
 jobs:
