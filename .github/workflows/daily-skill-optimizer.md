@@ -34,6 +34,14 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Validate SKILL.md exists
+        shell: bash
+        run: |
+          if [ ! -f SKILL.md ]; then
+            echo "::error file=SKILL.md::SKILL.md is required by skill-optimizer. See .skill-optimizer/skill-optimizer.json for setup instructions."
+            exit 1
+          fi
+
       - name: Run skill-optimizer
         id: run_skill_optimizer
         shell: bash

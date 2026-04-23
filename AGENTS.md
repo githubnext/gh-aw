@@ -28,6 +28,14 @@ GitHub Agentic Workflows is a Go-based GitHub CLI extension for writing agentic 
 
 Each skill provides focused guidance on specific topics. Reference them only as needed rather than loading everything upfront.
 
+## Skill Optimizer Configuration
+
+The daily skill-optimizer workflow uses the committed config at:
+
+- `.skill-optimizer/skill-optimizer.json`
+
+When tuning optimizer behavior (models, maxTasks, maxIterations, pass-rate target), update this file directly in a PR so changes are reviewable.
+
 ## Critical Requirements
 
 ### ⚠️ MANDATORY: Always Create a Pull Request ⚠️
