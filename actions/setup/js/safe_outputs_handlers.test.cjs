@@ -691,6 +691,7 @@ describe("safe_outputs_handlers", () => {
         });
 
         expect(result.isError).toBeFalsy();
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining(`Selected checkout folder for test-owner/test-repo: ${targetRepoDir}`));
         expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("detecting actual working branch: feature/test-change"));
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(
           expect.objectContaining({

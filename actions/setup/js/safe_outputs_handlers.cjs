@@ -510,6 +510,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       }
       repoCwd = checkoutResult.path;
       entry.repo_cwd = repoCwd;
+      server.debug(`Selected checkout folder for ${repoSlug}: ${repoCwd}`);
     }
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
