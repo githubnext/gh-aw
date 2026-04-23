@@ -8,7 +8,6 @@ permissions:
   pull-requests: read
   discussions: read
 engine: copilot
-runs-on: aw-gpu-runner-T4
 strict: true
 tracker-id: daily-issues-report
 tools:
@@ -17,9 +16,6 @@ tools:
     min-integrity: approved
     toolsets: [default, discussions]
 timeout-minutes: 30
-runtimes:
-  node:
-    version: "24"
 imports:
   - shared/github-guard-policy.md
   - uses: shared/daily-audit-base.md
