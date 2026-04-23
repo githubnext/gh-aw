@@ -8,6 +8,7 @@ const { fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
 const ACTIVE_SESSION_STATES = new Set(["open", "active", "in_progress", "queued"]);
 const LIST_PULL_REQUESTS_PER_PAGE = 100;
 const SESSION_LIST_LIMIT = 1000;
+const SESSION_PAGE_SIZE = 100;
 const UPDATE_DELAY_MS = 1000;
 
 /**
@@ -36,24 +37,79 @@ function isActiveSessionState(value) {
  */
 async function listPullRequestsWithActiveSessions() {
   core.info("Listing agent sessions to identify PRs with active sessions");
-  const { stdout } = await exec.getExecOutput("gh", ["agent-task", "list", "--limit", String(SESSION_LIST_LIMIT), "--json", "pullRequestNumber,state"], {
-    silent: true,
-  });
+  const copilotApiURL = await getCopilotAPIURL();
 
-  if (!stdout.trim()) return new Set();
+  /** @type {Array<{resource_id?: number | string, state?: string, resource_type?: string}>} */
+  const sessions = [];
+  for (let pageNumber = 1; sessions.length < SESSION_LIST_LIMIT; pageNumber++) {
+    const pageSessions = await listAgentSessionsPage(copilotApiURL, pageNumber, SESSION_PAGE_SIZE);
+    if (pageSessions.length === 0) break;
+    sessions.push(...pageSessions);
+    if (pageSessions.length < SESSION_PAGE_SIZE) break;
+  }
 
-  /** @type {Array<{pullRequestNumber?: number | string, state?: string}>} */
-  const sessions = JSON.parse(stdout);
   const prNumbers = new Set();
-
   for (const session of sessions) {
+    if (session?.resource_type !== "pull") continue;
     if (!isActiveSessionState(session?.state)) continue;
-    const prNumber = parsePullRequestNumber(session?.pullRequestNumber);
+    const prNumber = parsePullRequestNumber(session?.resource_id);
     if (prNumber !== null) prNumbers.add(prNumber);
   }
 
   core.info(`Found ${prNumbers.size} pull request(s) with active agent sessions`);
   return prNumbers;
+}
+
+/**
+ * @returns {Promise<string>}
+ */
+async function getCopilotAPIURL() {
+  const response = await github.graphql(`
+    query CopilotEndpointsForSessionListing {
+      viewer {
+        copilotEndpoints {
+          api
+        }
+      }
+    }
+  `);
+  const apiURL = response?.viewer?.copilotEndpoints?.api;
+  if (typeof apiURL !== "string" || !apiURL.trim()) {
+    throw new Error("Unable to resolve Copilot API URL for session listing");
+  }
+  return apiURL.replace(/\/+$/, "");
+}
+
+/**
+ * @param {string} copilotApiURL
+ * @param {number} pageNumber
+ * @param {number} pageSize
+ * @returns {Promise<Array<{resource_id?: number | string, state?: string, resource_type?: string}>>}
+ */
+async function listAgentSessionsPage(copilotApiURL, pageNumber, pageSize) {
+  const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+  if (!token) throw new Error("Missing GH_TOKEN/GITHUB_TOKEN for Copilot session listing");
+
+  const sessionsURL = new URL(`${copilotApiURL}/agents/sessions`);
+  sessionsURL.searchParams.set("page_size", String(pageSize));
+  sessionsURL.searchParams.set("page_number", String(pageNumber));
+  sessionsURL.searchParams.set("sort", "last_updated_at,desc");
+
+  const response = await fetch(sessionsURL.toString(), {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+      "User-Agent": "gh-aw-update-pull-request-branches",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to list agent sessions: HTTP ${response.status}`);
+  }
+
+  const body = /** @type {any} */ await response.json();
+  return Array.isArray(body?.sessions) ? body.sessions : [];
 }
 
 /**

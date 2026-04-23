@@ -13,9 +13,9 @@ describe("update_pull_request_branches", () => {
   /** @type {any} */
   let mockGithub;
   /** @type {any} */
-  let mockExec;
-  /** @type {any} */
   let mockContext;
+  /** @type {any} */
+  let fetchMock;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -29,6 +29,7 @@ describe("update_pull_request_branches", () => {
     };
     mockGithub = {
       paginate: vi.fn(),
+      graphql: vi.fn(),
       rest: {
         pulls: {
           list: vi.fn(),
@@ -36,9 +37,6 @@ describe("update_pull_request_branches", () => {
           updateBranch: vi.fn(),
         },
       },
-    };
-    mockExec = {
-      getExecOutput: vi.fn(),
     };
     mockContext = {
       repo: {
@@ -49,8 +47,10 @@ describe("update_pull_request_branches", () => {
 
     global.core = mockCore;
     global.github = mockGithub;
-    global.exec = mockExec;
     global.context = mockContext;
+    fetchMock = vi.fn();
+    global.fetch = fetchMock;
+    process.env.GH_TOKEN = "test-token";
   });
 
   it("updates only mergeable pull requests without active sessions", async () => {
@@ -60,13 +60,15 @@ describe("update_pull_request_branches", () => {
       if (pull_number === 2) return { data: { state: "open", mergeable: false, draft: false } };
       return { data: { state: "open", mergeable: true, draft: false } };
     });
-    mockExec.getExecOutput.mockResolvedValue({
-      stdout: JSON.stringify([
-        { pullRequestNumber: 3, state: "open" },
-        { pullRequestNumber: 10, state: "closed" },
-      ]),
-      stderr: "",
-      exitCode: 0,
+    mockGithub.graphql.mockResolvedValue({ viewer: { copilotEndpoints: { api: "https://api.copilot.test" } } });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        sessions: [
+          { resource_id: 3, state: "open", resource_type: "pull" },
+          { resource_id: 10, state: "closed", resource_type: "pull" },
+        ],
+      }),
     });
     mockGithub.rest.pulls.updateBranch.mockResolvedValue({ data: {} });
 
@@ -83,10 +85,10 @@ describe("update_pull_request_branches", () => {
   it("continues on non-fatal updateBranch failures", async () => {
     mockGithub.paginate.mockResolvedValue([{ number: 7 }]);
     mockGithub.rest.pulls.get.mockResolvedValue({ data: { state: "open", mergeable: true, draft: false } });
-    mockExec.getExecOutput.mockResolvedValue({
-      stdout: JSON.stringify([]),
-      stderr: "",
-      exitCode: 0,
+    mockGithub.graphql.mockResolvedValue({ viewer: { copilotEndpoints: { api: "https://api.copilot.test" } } });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ sessions: [] }),
     });
     const err = new Error("Update branch failed");
     // @ts-ignore
@@ -109,13 +111,15 @@ describe("update_pull_request_branches", () => {
   });
 
   it("filters candidate pull requests to only those without active sessions", async () => {
-    mockExec.getExecOutput.mockResolvedValue({
-      stdout: JSON.stringify([
-        { pullRequestNumber: 2, state: "OPEN" },
-        { pullRequestNumber: 9, state: "queued" },
-      ]),
-      stderr: "",
-      exitCode: 0,
+    mockGithub.graphql.mockResolvedValue({ viewer: { copilotEndpoints: { api: "https://api.copilot.test" } } });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        sessions: [
+          { resource_id: 2, state: "OPEN", resource_type: "pull" },
+          { resource_id: 9, state: "queued", resource_type: "pull" },
+        ],
+      }),
     });
 
     const result = await moduleUnderTest.filterPullRequestsWithoutActiveSessions([1, 2, 3]);
