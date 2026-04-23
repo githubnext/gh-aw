@@ -1617,3 +1617,166 @@ func TestBuildPullAWFContainersStepPropagatesFeatures(t *testing.T) {
 		}
 	})
 }
+
+// TestBuildDetectionResultCheckStep verifies that the result check step is correctly generated.
+// It should check for THREAT_DETECTION_RESULT in detection.log and output retry_needed accordingly.
+func TestBuildDetectionResultCheckStep(t *testing.T) {
+	compiler := NewCompiler()
+	steps := compiler.buildDetectionResultCheckStep()
+
+	if len(steps) == 0 {
+		t.Fatal("Expected non-empty result check steps")
+	}
+
+	joined := strings.Join(steps, "")
+
+	// Must have a recognisable step ID
+	if !strings.Contains(joined, "id: detection_result_check") {
+		t.Error("Expected step to have id 'detection_result_check'")
+	}
+
+	// Must grep for the result prefix in the detection log
+	if !strings.Contains(joined, "THREAT_DETECTION_RESULT:") {
+		t.Error("Expected step to grep for THREAT_DETECTION_RESULT:")
+	}
+
+	// Must output retry_needed=true when result is absent
+	if !strings.Contains(joined, "retry_needed=true") {
+		t.Error("Expected step to output retry_needed=true")
+	}
+
+	// Must output retry_needed=false when result is present
+	if !strings.Contains(joined, "retry_needed=false") {
+		t.Error("Expected step to output retry_needed=false")
+	}
+
+	// Must use the detectionStepCondition so it only runs when detection is needed
+	if !strings.Contains(joined, detectionStepCondition) {
+		t.Errorf("Expected step to use detectionStepCondition %q", detectionStepCondition)
+	}
+}
+
+// TestBuildRetryDetectionEngineExecutionStep verifies that the retry engine execution step
+// is generated correctly: unique step name, retry-specific step IDs, and retry condition.
+func TestBuildRetryDetectionEngineExecutionStep(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "claude",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	retrySteps := compiler.buildRetryDetectionEngineExecutionStep(data)
+	if len(retrySteps) == 0 {
+		t.Fatal("Expected non-empty retry steps")
+	}
+
+	joined := strings.Join(retrySteps, "")
+
+	// Must use the retry condition
+	if !strings.Contains(joined, retryDetectionStepCondition) {
+		t.Errorf("Expected retry step to use retryDetectionStepCondition %q, got:\n%s", retryDetectionStepCondition, joined)
+	}
+
+	// Must use a _retry step ID to avoid conflicts with the first attempt
+	if !strings.Contains(joined, "detection_agentic_execution_retry") {
+		t.Error("Expected retry step to use 'detection_agentic_execution_retry' step ID")
+	}
+
+	// Must NOT contain the plain detection_agentic_execution ID (only the retry variant)
+	// Strip the retry suffix references first so we only check for standalone occurrences.
+	withoutRetryID := strings.ReplaceAll(joined, "detection_agentic_execution_retry", "")
+	if strings.Contains(withoutRetryID, "id: detection_agentic_execution") {
+		t.Error("Retry step must not reuse 'detection_agentic_execution' step ID — it must use the _retry variant")
+	}
+
+	// Step name must include "(retry)" to differentiate it from the first-attempt step
+	if !strings.Contains(joined, "(retry)") {
+		t.Error("Expected retry step name to include '(retry)' suffix")
+	}
+}
+
+// TestBuildRetryDetectionEngineExecutionStepDisabled verifies that when the engine is
+// explicitly disabled (engine: false), no retry steps are generated.
+func TestBuildRetryDetectionEngineExecutionStepDisabled(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "claude",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineDisabled: true,
+			},
+		},
+	}
+
+	retrySteps := compiler.buildRetryDetectionEngineExecutionStep(data)
+	if len(retrySteps) != 0 {
+		t.Errorf("Expected empty retry steps when engine is disabled, got %d steps", len(retrySteps))
+	}
+}
+
+// TestDetectionJobStepsIncludeRetry verifies that buildDetectionJobSteps includes all three
+// retry-related steps in the correct order: check step after first execution, retry execution
+// after check, both before the upload and conclusion steps.
+func TestDetectionJobStepsIncludeRetry(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "claude",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionJobSteps(data)
+	joined := strings.Join(steps, "")
+
+	// The result check step must be present
+	if !strings.Contains(joined, "id: detection_result_check") {
+		t.Error("Expected 'detection_result_check' step in detection job steps")
+	}
+
+	// The retry step must be present
+	if !strings.Contains(joined, "detection_agentic_execution_retry") {
+		t.Error("Expected retry execution step in detection job steps")
+	}
+
+	// Verify ordering: first execution → result check → retry execution → upload → conclude
+	firstExecIdx := strings.Index(joined, "id: detection_agentic_execution\n")
+	resultCheckIdx := strings.Index(joined, "id: detection_result_check")
+	retryExecIdx := strings.Index(joined, "detection_agentic_execution_retry")
+	uploadIdx := strings.Index(joined, "Upload threat detection log")
+	concludeIdx := strings.Index(joined, "id: detection_conclusion")
+
+	if firstExecIdx < 0 {
+		t.Fatal("Could not find first detection_agentic_execution step")
+	}
+	if resultCheckIdx < 0 {
+		t.Fatal("Could not find detection_result_check step")
+	}
+	if retryExecIdx < 0 {
+		t.Fatal("Could not find retry execution step")
+	}
+	if uploadIdx < 0 {
+		t.Fatal("Could not find upload step")
+	}
+	if concludeIdx < 0 {
+		t.Fatal("Could not find detection_conclusion step")
+	}
+
+	if firstExecIdx > resultCheckIdx {
+		t.Error("First execution step should appear before result check step")
+	}
+	if resultCheckIdx > retryExecIdx {
+		t.Error("Result check step should appear before retry execution step")
+	}
+	if retryExecIdx > uploadIdx {
+		t.Error("Retry execution step should appear before upload step")
+	}
+	if uploadIdx > concludeIdx {
+		t.Error("Upload step should appear before conclusion step")
+	}
+}

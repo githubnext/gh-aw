@@ -1352,6 +1352,52 @@ jobs:
           GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
           XDG_CONFIG_HOME: /home/runner
+      - name: Check if detection result found
+        id: detection_result_check
+        if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        run: |
+          if grep -q "THREAT_DETECTION_RESULT:" /tmp/gh-aw/threat-detection/detection.log 2>/dev/null; then
+            echo "retry_needed=false" >> "$GITHUB_OUTPUT"
+            echo "✓ THREAT_DETECTION_RESULT found in detection log — no retry needed"
+          else
+            echo "retry_needed=true" >> "$GITHUB_OUTPUT"
+            echo "⚠️ THREAT_DETECTION_RESULT not found in detection log — scheduling retry"
+          fi
+      - name: Execute GitHub Copilot CLI (retry)
+        if: always() && steps.detection_guard.outputs.run_detection == 'true' && steps.detection_result_check.outputs.retry_needed == 'true'
+        id: detection_agentic_execution_retry
+        # Copilot CLI tool arguments (sorted):
+        timeout-minutes: 20
+        run: |
+          set -o pipefail
+          touch /tmp/gh-aw/agent-step-summary.md
+          GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
+          export GH_AW_NODE_BIN
+          (umask 177 && touch /tmp/gh-aw/threat-detection/detection.log)
+          # shellcheck disable=SC1003
+          sudo -E awf --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" --env-all --exclude-env COPILOT_GITHUB_TOKEN --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,telemetry.enterprise.githubcopilot.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --allow-host-ports 80,443,8080 --image-tag 0.25.28,squid=sha256:844c18280f82cd1b06345eb2f4e91966b34185bfc51c9f237c3e022e848fb474,agent=sha256:a8834e285807654bf680154faa710d43fe4365a0868142f5c20e48c85e137a7a,api-proxy=sha256:93290f2393752252911bd7c39a047f776c0b53063575e7bde4e304962a9a61cb,cli-proxy=sha256:fdf310e4678ce58d248c466b89399e9680a3003038fd19322c388559016aaac7 --skip-pull --enable-api-proxy \
+            -- /bin/bash -c 'GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || echo node)"; fi; "$GH_AW_NODE_EXEC" ${RUNNER_TEMP}/gh-aw/actions/copilot_driver.cjs /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --no-ask-user --allow-all-tools --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt' 2>&1 | tee -a /tmp/gh-aw/threat-detection/detection.log
+        env:
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_API_KEY: dummy-byok-key-for-offline-mode
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || 'claude-sonnet-4.6' }}
+          GH_AW_PHASE: detection
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_VERSION: dev
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_AW: true
+          GITHUB_COPILOT_INTEGRATION_ID: agentic-workflows
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_STEP_SUMMARY: /tmp/gh-aw/agent-step-summary.md
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          XDG_CONFIG_HOME: /home/runner
       - name: Upload threat detection log
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

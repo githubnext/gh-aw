@@ -183,6 +183,11 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 // Detection steps only run when the detection guard determines there's output to analyze.
 const detectionStepCondition = "always() && steps.detection_guard.outputs.run_detection == 'true'"
 
+// retryDetectionStepCondition is the if condition for the retry engine execution step.
+// It extends detectionStepCondition by additionally requiring that the result check
+// determined no THREAT_DETECTION_RESULT was produced by the first execution attempt.
+const retryDetectionStepCondition = "always() && steps.detection_guard.outputs.run_detection == 'true' && steps.detection_result_check.outputs.retry_needed == 'true'"
+
 // buildDetectionJobSteps builds the threat detection steps to be run in the separate detection job.
 // These steps run after the agent job completes and analyze agent output for threats using the
 // same agentic engine with sandbox.agent and fully blocked network.
@@ -229,8 +234,17 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 	// Step 6: Setup threat detection (github-script)
 	steps = append(steps, c.buildThreatDetectionAnalysisStep(data)...)
 
-	// Step 7: Engine execution (AWF, no network)
+	// Step 7: Engine execution (AWF, no network) — first attempt
 	steps = append(steps, c.buildDetectionEngineExecutionStep(data)...)
+
+	// Step 7b: Check whether the first execution produced a THREAT_DETECTION_RESULT.
+	// This step always runs (using always()) when detection is needed so that the
+	// retry step below can use its output as a condition.
+	steps = append(steps, c.buildDetectionResultCheckStep()...)
+
+	// Step 7c: Retry engine execution if the first attempt did not produce a result.
+	// Uses the same detection data and prompt but runs only when retry_needed=true.
+	steps = append(steps, c.buildRetryDetectionEngineExecutionStep(data)...)
 
 	// Step 8: Custom post-steps if configured (run after engine execution)
 	if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
@@ -458,21 +472,11 @@ await main();`
 	return script
 }
 
-// buildDetectionEngineExecutionStep creates the engine execution step for inline threat detection.
-// It uses the same agentic engine already installed in the agent job, but runs it through
-// sandbox.agent (AWF) with no allowed domains (network fully blocked) and no MCP configured.
-func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []string {
-	// Check if threat detection has engine explicitly disabled
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		if data.SafeOutputs.ThreatDetection.EngineDisabled {
-			// Engine explicitly disabled with engine: false
-			return []string{
-				"      # AI engine disabled for threat detection (engine: false)\n",
-			}
-		}
-	}
-
-	// Determine which engine to use - threat detection engine if specified, otherwise main engine
+// prepareDetectionEngineAndData resolves the engine and builds the minimal WorkflowData
+// for threat detection. Returns the engine instance and data, or an error if the engine
+// cannot be found. Used by both the first-attempt and retry engine execution step builders.
+func (c *Compiler) prepareDetectionEngineAndData(data *WorkflowData) (CodingAgentEngine, *WorkflowData, error) {
+	// Determine which engine to use — threat detection engine if specified, otherwise main engine
 	engineSetting := data.AI
 	engineConfig := data.EngineConfig
 
@@ -494,7 +498,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	// Get the engine instance
 	engine, err := c.getAgenticEngine(engineSetting)
 	if err != nil {
-		return []string{"      # Engine not found, skipping execution\n"}
+		return nil, nil, err
 	}
 
 	// Build a detection engine config inheriting ID, Model, Version, Env, Config, Args, APITarget.
@@ -517,9 +521,6 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	}
 
 	// Apply the engine's default detection model when no model was explicitly configured.
-	// GetDefaultDetectionModel() returns a cost-effective model optimised for detection
-	// (e.g. "gpt-5.1-codex-mini" for Copilot). Other engines return "" (no default).
-	// This was accidentally removed in commit a93e36ea4 while fixing engine.agent propagation.
 	if detectionEngineConfig.Model == "" {
 		if defaultModel := engine.GetDefaultDetectionModel(); defaultModel != "" {
 			detectionEngineConfig.Model = defaultModel
@@ -527,20 +528,11 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	}
 
 	// Inherit APITarget from the main engine config for GHE/custom endpoints if not already set.
-	// This ensures the threat detection AWF invocation receives the same --copilot-api-target
-	// and GHE-specific domains in --allow-domains as the main agent AWF invocation.
 	if detectionEngineConfig.APITarget == "" && data.EngineConfig != nil && data.EngineConfig.APITarget != "" {
 		detectionEngineConfig.APITarget = data.EngineConfig.APITarget
 	}
 
 	// Create minimal WorkflowData for threat detection.
-	// SandboxConfig with AWF enabled ensures the engine runs inside the firewall.
-	// NetworkPermissions.Allowed is empty so no user-specified domains are added on top of
-	// the engine's minimal detection domain list (see GetThreatDetectionAllowedDomains).
-	// No MCP servers are configured for detection.
-	// bash: ["*"] allows all shell commands — AWF's network firewall is the primary
-	// constraint, so restricting individual bash commands inside the sandbox adds friction
-	// without meaningful security benefit.
 	threatDetectionData := &WorkflowData{
 		Tools: map[string]any{
 			"bash": []any{"*"},
@@ -558,6 +550,28 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 				Type: SandboxTypeAWF,
 			},
 		},
+	}
+
+	return engine, threatDetectionData, nil
+}
+
+// buildDetectionEngineExecutionStep creates the engine execution step for inline threat detection.
+// It uses the same agentic engine already installed in the agent job, but runs it through
+// sandbox.agent (AWF) with no allowed domains (network fully blocked) and no MCP configured.
+func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []string {
+	// Check if threat detection has engine explicitly disabled
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		if data.SafeOutputs.ThreatDetection.EngineDisabled {
+			// Engine explicitly disabled with engine: false
+			return []string{
+				"      # AI engine disabled for threat detection (engine: false)\n",
+			}
+		}
+	}
+
+	engine, threatDetectionData, err := c.prepareDetectionEngineAndData(data)
+	if err != nil {
+		return []string{"      # Engine not found, skipping execution\n"}
 	}
 
 	var steps []string
@@ -597,6 +611,68 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 			// Inject the if condition after the first line (- name:)
 			if i == 0 {
 				steps = append(steps, fmt.Sprintf("        if: %s\n", detectionStepCondition))
+			}
+		}
+	}
+
+	return steps
+}
+
+// buildDetectionResultCheckStep creates a step that checks whether the first engine execution
+// produced a THREAT_DETECTION_RESULT line in the detection log. It outputs retry_needed=true
+// when the result line is absent so that the retry engine execution step can be conditioned on it.
+func (c *Compiler) buildDetectionResultCheckStep() []string {
+	return []string{
+		"      - name: Check if detection result found\n",
+		"        id: detection_result_check\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+		"        run: |\n",
+		"          if grep -q \"THREAT_DETECTION_RESULT:\" /tmp/gh-aw/threat-detection/detection.log 2>/dev/null; then\n",
+		"            echo \"retry_needed=false\" >> \"$GITHUB_OUTPUT\"\n",
+		"            echo \"✓ THREAT_DETECTION_RESULT found in detection log — no retry needed\"\n",
+		"          else\n",
+		"            echo \"retry_needed=true\" >> \"$GITHUB_OUTPUT\"\n",
+		"            echo \"⚠️ THREAT_DETECTION_RESULT not found in detection log — scheduling retry\"\n",
+		"          fi\n",
+	}
+}
+
+// buildRetryDetectionEngineExecutionStep creates a retry execution step for threat detection.
+// It runs only when the result check determined that the first execution did not produce a
+// THREAT_DETECTION_RESULT. The installation steps are skipped (engine is already installed);
+// only the execution steps are re-emitted with retry-specific step IDs, names, and condition.
+func (c *Compiler) buildRetryDetectionEngineExecutionStep(data *WorkflowData) []string {
+	// If the engine is explicitly disabled there is nothing to retry
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		if data.SafeOutputs.ThreatDetection.EngineDisabled {
+			return nil
+		}
+	}
+
+	engine, threatDetectionData, err := c.prepareDetectionEngineAndData(data)
+	if err != nil {
+		return nil
+	}
+
+	logFile := "/tmp/gh-aw/threat-detection/detection.log"
+	executionSteps := engine.GetExecutionSteps(threatDetectionData, logFile)
+
+	var steps []string
+	for _, step := range executionSteps {
+		for i, line := range step {
+			modified := line
+			if i == 0 && strings.Contains(line, "- name:") {
+				// Append "(retry)" to the step name so the duplicate step validator
+				// does not flag this as a conflict with the first-attempt step.
+				// Lines from GetExecutionSteps do not end with \n; \n is appended below.
+				modified = line + " (retry)"
+			}
+			// Use _retry suffix on step IDs to avoid conflicts with the first attempt
+			modified = strings.Replace(modified, "id: agentic_execution", "id: detection_agentic_execution_retry", 1)
+			steps = append(steps, modified+"\n")
+			// Inject the retry condition after the first line (- name:)
+			if i == 0 {
+				steps = append(steps, fmt.Sprintf("        if: %s\n", retryDetectionStepCondition))
 			}
 		}
 	}
