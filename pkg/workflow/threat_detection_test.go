@@ -723,10 +723,10 @@ func TestBuildDetectionEngineExecutionStepCodexIncludesMCPSetup(t *testing.T) {
 
 	stepsString := strings.Join(steps, "")
 	if !strings.Contains(stepsString, "Start MCP Gateway") {
-		t.Error("Expected Codex detection steps to include MCP setup")
+		t.Errorf("Expected Codex detection steps to include MCP setup, got:\n%s", stepsString)
 	}
 	if !strings.Contains(stepsString, "model_provider = \"openai-proxy\"") {
-		t.Error("Expected Codex detection MCP config to include openai-proxy model provider")
+		t.Errorf("Expected Codex detection MCP config to include openai-proxy model provider, got:\n%s", stepsString)
 	}
 }
 

@@ -582,7 +582,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 				}
 			}
 		} else {
-			threatLog.Printf("Skipping Codex detection MCP setup due to generation error: %v", err)
+			threatLog.Printf("Failed to generate MCP setup for Codex detection: %v", err)
 		}
 	}
 
