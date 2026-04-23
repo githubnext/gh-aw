@@ -472,13 +472,13 @@ download-github-actions-schema:
 # This must be run after download-github-actions-schema to preserve local additions.
 .PHONY: patch-github-actions-schema
 patch-github-actions-schema:
-	@echo "Patching GitHub Actions schema with copilot-requests permission..."
+	@echo "Patching GitHub Actions schema with custom permissions..."
 	@tmpfile=$$(mktemp) && \
-		jq '.definitions["permissions-event"].properties["copilot-requests"] = {"type": "string", "enum": ["write", "none"]}' \
+		jq '.definitions["permissions-event"].properties += {"copilot-requests": {"type": "string", "enum": ["write", "none"]}, "vulnerability-alerts": {"type": "string", "enum": ["read", "none"]}}' \
 			pkg/workflow/schemas/github-workflow.json > "$$tmpfile" && \
 		mv "$$tmpfile" pkg/workflow/schemas/github-workflow.json
 	@cd actions/setup/js && npm run format:schema >/dev/null 2>&1
-	@echo "✓ Patched GitHub Actions schema with copilot-requests permission"
+	@echo "✓ Patched GitHub Actions schema with custom permissions"
 
 # Run linter (full repository scan)
 .PHONY: golint
