@@ -10,6 +10,7 @@ const { pushSignedCommits } = require("./push_signed_commits.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { replaceTemporaryIdReferences, replaceTemporaryIdReferencesInPatch, getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
@@ -833,6 +834,9 @@ async function main(config = {}) {
 
     // Remove duplicate title from description if it starts with a header matching the title
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+
+    // Sanitize body content to neutralize @mentions, URLs, and other security risks
+    processedBody = sanitizeContent(processedBody);
 
     // Auto-add "Fixes #N" closing keyword if triggered from an issue and not already present.
     // This ensures the triggering issue is auto-closed when the PR is merged.

@@ -19,6 +19,7 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { createExpirationLine, generateFooterWithExpiration, addExpirationToFooter } = require("./ephemerals.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -481,6 +482,9 @@ async function main(config = {}) {
     let title = item.title ? item.title.trim() : "";
     let processedBody = replaceTemporaryIdReferences(item.body || "", temporaryIdMap, qualifiedItemRepo);
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+
+    // Sanitize body content to neutralize @mentions, URLs, and other security risks
+    processedBody = sanitizeContent(processedBody);
 
     if (!title) {
       title = item.body || "Discussion";
