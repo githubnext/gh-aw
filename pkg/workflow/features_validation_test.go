@@ -226,6 +226,18 @@ func TestValidateFeatures(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name: "disable-xpia-prompt with bash tool - allowed in non-strict mode",
+			data: &WorkflowData{
+				Features: map[string]any{
+					"disable-xpia-prompt": true,
+				},
+				ParsedTools: NewTools(map[string]any{
+					"bash": true,
+				}),
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {

@@ -281,6 +281,10 @@
         "copilot-requests": {
           "type": "string",
           "enum": ["write", "none"]
+        },
+        "vulnerability-alerts": {
+          "type": "string",
+          "enum": ["read", "none"]
         }
       }
     },

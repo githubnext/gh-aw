@@ -1,6 +1,6 @@
 # Quick Start: Hierarchical Agents
 
-This guide helps you quickly understand and use the new meta-orchestrator agents.
+This guide explains the new meta-orchestrator agents and their operational usage.
 
 ## What Are Meta-Orchestrators?
 

@@ -302,6 +302,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// to avoid double-filtering: the gateway uses the same guard policy for the agent phase.
 	c.generateStopDIFCProxyStep(yaml, data)
 
+	// Add pre-agent-steps (if any) before MCP setup so they can install/configure MCP dependencies
+	// that the gateway may reference when it starts.
+	c.generatePreAgentSteps(yaml, data)
+
 	// Add MCP setup
 	if err := c.generateMCPSetup(yaml, data.Tools, engine, data); err != nil {
 		return fmt.Errorf("failed to generate MCP setup: %w", err)
@@ -383,9 +387,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// the compiler starts a difc-proxy container on the host that AWF's cli-proxy sidecar
 	// connects to via host.docker.internal:18443.
 	c.generateStartCliProxyStep(yaml, data)
-
-	// Add pre-agent-steps (if any) immediately before AI execution.
-	c.generatePreAgentSteps(yaml, data)
 
 	// Add AI execution step using the agentic engine
 	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())

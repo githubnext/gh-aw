@@ -115,25 +115,34 @@ The following Go packages under `pkg/` each require a README.md specification:
 
 ### Initialize or Load
 
-1. Check if cache exists:
+1. Check if cache exists and initialize rotation state:
    ```bash
-   if [ -d /tmp/gh-aw/cache-memory/spec-extractor ]; then
-     echo "Cache found, loading state"
-     cat /tmp/gh-aw/cache-memory/spec-extractor/rotation.json 2>/dev/null || echo "{}"
+   mkdir -p /tmp/gh-aw/cache-memory/spec-extractor/extractions
+   if [ -f /tmp/gh-aw/cache-memory/spec-extractor/rotation.json ]; then
+     echo "Cache found, loading rotation state"
+     cat /tmp/gh-aw/cache-memory/spec-extractor/rotation.json
    else
-     echo "Initializing new cache"
-     mkdir -p /tmp/gh-aw/cache-memory/spec-extractor/extractions
+     echo "Initializing default rotation state"
+     cat > /tmp/gh-aw/cache-memory/spec-extractor/rotation.json <<EOF
+{
+  "last_index": 0,
+  "last_packages": [],
+  "last_run": "",
+  "total_packages": 20
+}
+EOF
    fi
    ```
 
-2. Load `rotation.json` to determine which packages to process next:
+2. Load `rotation.json` to determine which packages to process next.
+   Example state **after processing** `envutil,fileutil,gitutil,logger`:
    ```json
-   {
-     "last_index": 4,
-     "last_packages": ["envutil", "fileutil"],
-     "last_run": "2026-04-12",
-     "total_packages": 20
-   }
+    {
+      "last_index": 4,
+      "last_packages": ["envutil", "fileutil", "gitutil", "logger"],
+      "last_run": "2026-04-12",
+      "total_packages": 20
+    }
    ```
 
 3. Load `package-hashes.json` to detect changes:
@@ -146,23 +155,27 @@ The following Go packages under `pkg/` each require a README.md specification:
 
 ## Phase 1: Select Packages (Round Robin)
 
-Select **3-4 packages** for this run using round-robin with change detection:
+Select **exactly 4 packages** for this run using deterministic round-robin:
 
-1. **Get current git hashes** for all packages:
-   ```bash
-   for dir in $(find pkg/* -maxdepth 0 -type d | sort); do
-     pkg=$(basename "$dir")
-     hash=$(git log -1 --format=%H -- "$dir" 2>/dev/null || echo "none")
-     echo "$pkg: $hash"
-   done
-   ```
+1. **Use the fixed package order** listed in the table above (20 total packages).
 
-2. **Priority selection**:
-   - **Priority 1**: Packages with source changes since last extraction
-   - **Priority 2**: Packages without a README.md
-   - **Priority 3**: Next packages in round-robin rotation
+2. **Read** `last_index` from `rotation.json` (default `0`).
+   - `last_index` means the **next package index to process**, not the previously processed index.
 
-3. **Update rotation state** in `rotation.json`
+3. **Select the next 4 packages** using modular arithmetic:
+   - Package 1 index: `last_index`
+   - Package 2 index: `(last_index + 1) % 20`
+   - Package 3 index: `(last_index + 2) % 20`
+   - Package 4 index: `(last_index + 3) % 20`
+
+4. **Update rotation state** after processing:
+   - `last_index = (last_index + 4) % 20`
+   - `last_packages = [pkg1, pkg2, pkg3, pkg4]`
+
+5. **Worked examples**:
+   - If `last_index = 0`, process indices `0,1,2,3`, then set `last_index = 4`
+   - If `last_index = 16`, process indices `16,17,18,19`, then set `last_index = 0`
+   - If `last_index = 18`, process indices `18,19,0,1`, then set `last_index = 2`
 
 ## Phase 2: Extract Package Specification
 
@@ -316,7 +329,7 @@ EOF
 
 If any README.md files were created or updated, create a PR:
 
-**PR Title**: `Update package specifications for <pkg1>, <pkg2>, <pkg3>`
+**PR Title**: `Update package specifications for <pkg1>, <pkg2>, <pkg3>, <pkg4>`
 
 **PR Body**:
 ```markdown
@@ -356,13 +369,13 @@ This PR updates README.md specifications for the following packages:
 1. **W3C specification style**: Write clear, precise, normative documentation
 2. **Source-verified only**: Every statement must be verifiable from source code
 3. **Preserve existing content**: Never overwrite manually-written README.md sections
-4. **Round-robin fairness**: Process packages in rotation order, prioritizing changes
+4. **Round-robin fairness**: Process packages in deterministic rotation order
 5. **Cache efficiency**: Use cache-memory to avoid re-analyzing unchanged packages
 6. **Filesystem-safe filenames**: Use `YYYY-MM-DD-HH-MM-SS` format for timestamps in cache files
 
 ## Success Criteria
 
-- ✅ 3-4 packages analyzed per run (from all packages under `pkg/`)
+- ✅ Exactly 4 packages analyzed per run (from all packages under `pkg/`)
 - ✅ README.md created or updated for each analyzed package
 - ✅ All documented APIs verified against source code
 - ✅ Cache memory updated with extraction state

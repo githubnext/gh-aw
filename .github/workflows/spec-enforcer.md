@@ -123,6 +123,39 @@ You MUST NOT:
    }
    ```
 
+3. If `rotation.json` is missing or empty, recover round-robin state from the most recently merged PR with the `pkg-specifications` label:
+   - Use the GitHub MCP server (not direct `gh api` calls) to find the latest merged PR in this repository with a query equivalent to:
+     - `repo:${{ github.repository }} is:pr is:merged label:pkg-specifications sort:merged-desc`
+   - Parse this line from the PR body:
+     - `- **Next packages in rotation**: <list>`
+   - Use this matching pattern:
+     - `^- \*\*Next packages in rotation\*\*:\s*([A-Za-z0-9_.]+(?:-[A-Za-z0-9_.]+)*(?:\s*,\s*[A-Za-z0-9_.]+(?:-[A-Za-z0-9_.]+)*)*)\s*$`
+     - This is the final regex pattern (it already escapes literal `**` as `\*\*`)
+   - If you implement this in a string-literal context, escape backslashes as required by that language
+     - YAML/Markdown plain text: `\s`
+     - JSON string: `\\s`
+     - JavaScript/TypeScript string literal: `\\s`
+   - Expected list format: `pkg1, pkg2, pkg3` (comma-separated package directory names; the regex enforces package-name character constraints)
+     - Valid examples: `actionpins, cli`, `123-pkg, console`
+     - Invalid examples: `pkg1,,pkg2`, `pkg1, pkg two`, `pkg-, nextpkg`
+     - The regex requires at least one valid package token between commas, so consecutive commas are rejected
+   - Split the captured value by comma, trim each entry, and (defensively) discard empty entries
+   - Reconstruct `rotation.json` as:
+     - `last_packages`: recovered package list
+     - `last_index`: build a map of `eligible_package -> eligible_list_index`, then scan recovered packages left-to-right and keep the index for the last package in the recovered list that exists in the eligible map; if no recovered package matches, use `-1`
+       - Example: eligible=`[a,b,c,d]`, recovered=`[c,x,b]` → `last_index=1` (package `b`)
+     - `last_run`: merge date of the source PR (UTC date)
+     - `total_eligible`: current count of eligible packages with `README.md`
+   - If no such PR (or no parsable line) exists, initialize fallback state:
+     ```json
+     {
+       "last_index": -1,
+       "last_packages": [],
+       "last_run": "unknown",
+       "total_eligible": 0
+     }
+     ```
+
 ## Phase 1: Select Packages (Round Robin)
 
 Select **2-3 packages** that have README.md specifications:

@@ -145,6 +145,33 @@ describe("mcp_cli_bridge.cjs", () => {
     });
   });
 
+  it("falls back to numeric coercion when schema properties are unavailable", () => {
+    const { args } = parseToolArgs(["--count", "3", "--max_tokens", "3000"], {});
+
+    expect(args).toEqual({
+      count: 3,
+      max_tokens: 3000,
+    });
+  });
+
+  it("coerces scientific notation when schema properties are unavailable", () => {
+    const { args } = parseToolArgs(["--max_tokens", "1e3", "--threshold", "-2E-4"], {});
+
+    expect(args).toEqual({
+      max_tokens: 1000,
+      threshold: -0.0002,
+    });
+  });
+
+  it("preserves non-numeric values when schema properties are unavailable", () => {
+    const { args } = parseToolArgs(["--start_date", "-1d", "--workflow_name", "daily-issues-report"], {});
+
+    expect(args).toEqual({
+      start_date: "-1d",
+      workflow_name: "daily-issues-report",
+    });
+  });
+
   it("treats MCP result envelopes with isError=true as errors", () => {
     formatResponse(
       {

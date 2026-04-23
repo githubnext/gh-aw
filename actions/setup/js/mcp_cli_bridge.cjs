@@ -445,6 +445,7 @@ function parseToolArgs(args, schemaProperties = {}) {
   /** @type {Record<string, unknown>} */
   const result = {};
   let jsonOutput = false;
+  const hasSchemaProperties = Object.keys(schemaProperties).length > 0;
   const { normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys } = buildNormalizedSchemaKeyMap(schemaProperties);
 
   for (let i = 0; i < args.length; i++) {
@@ -458,13 +459,13 @@ function parseToolArgs(args, schemaProperties = {}) {
           jsonOutput = true;
         } else {
           const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
-          result[canonicalKey] = coerceToolArgValue(canonicalKey, raw.slice(eqIdx + 1), schemaProperties[canonicalKey], result[canonicalKey]);
+          result[canonicalKey] = coerceToolArgValue(canonicalKey, raw.slice(eqIdx + 1), schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
         }
       } else if (raw === "json") {
         jsonOutput = true;
       } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
         const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
-        result[canonicalKey] = coerceToolArgValue(canonicalKey, args[i + 1], schemaProperties[canonicalKey], result[canonicalKey]);
+        result[canonicalKey] = coerceToolArgValue(canonicalKey, args[i + 1], schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
         i++;
       } else {
         const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
@@ -549,9 +550,10 @@ function resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap,
  * @param {string} rawValue - Raw CLI value
  * @param {{type?: string|string[]}|undefined} schemaProperty - JSON schema property
  * @param {unknown} existingValue - Existing value (for repeated flags)
+ * @param {boolean} [allowNumericFallback=false] - Allow numeric parsing when schema is unavailable
  * @returns {unknown}
  */
-function coerceToolArgValue(key, rawValue, schemaProperty, existingValue) {
+function coerceToolArgValue(key, rawValue, schemaProperty, existingValue, allowNumericFallback = false) {
   /** @type {string[]} */
   const types = [];
   if (schemaProperty && typeof schemaProperty === "object" && "type" in schemaProperty && schemaProperty.type != null) {
@@ -617,6 +619,26 @@ function coerceToolArgValue(key, rawValue, schemaProperty, existingValue) {
     }
     if (normalized === "false" || normalized === "0") {
       return false;
+    }
+  }
+
+  // When schema metadata is unavailable (e.g. empty tools cache), apply
+  // conservative numeric coercion fallback for CLI ergonomics.
+  if (allowNumericFallback && types.length === 0) {
+    const trimmedValue = rawValue.trim();
+
+    if (/^-?\d+$/.test(trimmedValue)) {
+      const parsedInt = Number.parseInt(trimmedValue, 10);
+      if (!Number.isNaN(parsedInt) && Number.isSafeInteger(parsedInt)) {
+        return parsedInt;
+      }
+    }
+
+    if (/^-?(?:(?:\d+\.\d*|\.\d+)(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)$/.test(trimmedValue)) {
+      const parsedFloat = Number.parseFloat(trimmedValue);
+      if (!Number.isNaN(parsedFloat) && Number.isFinite(parsedFloat)) {
+        return parsedFloat;
+      }
     }
   }
 

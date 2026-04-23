@@ -30,8 +30,11 @@ type TokenUsageEntry struct {
 	OutputTokens     int    `json:"output_tokens"`
 	CacheReadTokens  int    `json:"cache_read_tokens"`
 	CacheWriteTokens int    `json:"cache_write_tokens"`
-	DurationMs       int    `json:"duration_ms"`
-	ResponseBytes    int    `json:"response_bytes"`
+	// EffectiveTokens is populated by agent_usage.json fallback data. token-usage.jsonl
+	// entries usually omit this field and rely on computed effective token totals.
+	EffectiveTokens int `json:"effective_tokens"`
+	DurationMs      int `json:"duration_ms"`
+	ResponseBytes   int `json:"response_bytes"`
 }
 
 // AmbientContextMetrics captures token footprint for the first LLM invocation.
@@ -84,6 +87,7 @@ type ModelTokenUsageRow struct {
 
 // tokenUsageJSONLPath is the relative path within the firewall logs directory
 const tokenUsageJSONLPath = "api-proxy-logs/token-usage.jsonl"
+const agentUsageJSONPath = "agent_usage.json"
 
 // parseTokenUsageFile parses a token-usage.jsonl file and returns the aggregated summary.
 // Custom weights, when non-nil, override the built-in model multipliers and token class
@@ -283,6 +287,93 @@ func findTokenUsageFile(runDir string) string {
 	return ""
 }
 
+// findAgentUsageFile searches for agent_usage.json in the run directory.
+func findAgentUsageFile(runDir string) string {
+	primary := filepath.Join(runDir, agentUsageJSONPath)
+	if _, err := os.Stat(primary); err == nil {
+		tokenUsageLog.Printf("Found agent usage file at primary path: %s", primary)
+		return primary
+	}
+
+	var found string
+	_ = filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() {
+			return nil
+		}
+		if info.Name() == agentUsageJSONPath {
+			found = path
+			return filepath.SkipAll
+		}
+		return nil
+	})
+
+	if found != "" {
+		tokenUsageLog.Printf("Found agent usage file via walk: %s", found)
+	}
+	return found
+}
+
+func parseAgentUsageFile(filePath string, customWeights *types.TokenWeights) (*TokenUsageSummary, error) {
+	cleanPath := filepath.Clean(filePath)
+	data, err := os.ReadFile(cleanPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read agent usage file: %w", err)
+	}
+
+	var entry TokenUsageEntry
+	if err := json.Unmarshal(data, &entry); err != nil {
+		return nil, fmt.Errorf("failed to parse agent usage file: %w", err)
+	}
+
+	summary := &TokenUsageSummary{
+		TotalInputTokens:      entry.InputTokens,
+		TotalOutputTokens:     entry.OutputTokens,
+		TotalCacheReadTokens:  entry.CacheReadTokens,
+		TotalCacheWriteTokens: entry.CacheWriteTokens,
+		TotalEffectiveTokens:  entry.EffectiveTokens,
+		ByModel:               make(map[string]*ModelTokenUsage),
+	}
+
+	totalInputPlusCacheRead := summary.TotalInputTokens + summary.TotalCacheReadTokens
+	if totalInputPlusCacheRead > 0 {
+		summary.CacheEfficiency = float64(summary.TotalCacheReadTokens) / float64(totalInputPlusCacheRead)
+	}
+
+	hasTokenData := summary.TotalInputTokens > 0 ||
+		summary.TotalOutputTokens > 0 ||
+		summary.TotalCacheReadTokens > 0 ||
+		summary.TotalCacheWriteTokens > 0 ||
+		summary.TotalEffectiveTokens > 0
+	if hasTokenData {
+		summary.TotalRequests = 1
+		summary.ByModel["unknown"] = &ModelTokenUsage{
+			Provider:         entry.Provider,
+			InputTokens:      entry.InputTokens,
+			OutputTokens:     entry.OutputTokens,
+			CacheReadTokens:  entry.CacheReadTokens,
+			CacheWriteTokens: entry.CacheWriteTokens,
+			EffectiveTokens:  entry.EffectiveTokens,
+			Requests:         1,
+		}
+	}
+
+	summary.AmbientContext = &AmbientContextMetrics{
+		InputTokens:     entry.InputTokens,
+		CachedTokens:    entry.CacheReadTokens,
+		EffectiveTokens: entry.InputTokens + entry.CacheReadTokens,
+	}
+
+	// If the file does not include effective_tokens, compute it using resolved
+	// token weights (custom aw_info weights when available, otherwise defaults).
+	if summary.TotalEffectiveTokens == 0 {
+		populateEffectiveTokensWithCustomWeights(summary, customWeights)
+	}
+
+	tokenUsageLog.Printf("Parsed agent usage file: input=%d, output=%d, cache_read=%d, cache_write=%d, effective=%d",
+		summary.TotalInputTokens, summary.TotalOutputTokens, summary.TotalCacheReadTokens, summary.TotalCacheWriteTokens, summary.TotalEffectiveTokens)
+	return summary, nil
+}
+
 // analyzeTokenUsage finds and parses the token-usage.jsonl file from a run directory.
 // It automatically reads custom token weights from aw_info.json when present and
 // applies them to the effective token computation.
@@ -290,21 +381,32 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 	tokenUsageLog.Printf("Analyzing token usage in: %s", runDir)
 
 	filePath := findTokenUsageFile(runDir)
-	if filePath == "" {
-		return nil, nil
+	if filePath != "" {
+		if verbose {
+			fileInfo, _ := os.Stat(filePath)
+			if fileInfo != nil {
+				fmt.Fprintf(os.Stderr, "  Found token usage file: %s (%d bytes)\n", filepath.Base(filePath), fileInfo.Size())
+			}
+		}
+
+		// Try to load custom token weights from aw_info.json for this run
+		customWeights := extractCustomTokenWeightsFromDir(runDir)
+		return parseTokenUsageFile(filePath, customWeights)
 	}
 
+	agentUsagePath := findAgentUsageFile(runDir)
+	if agentUsagePath == "" {
+		return nil, nil
+	}
 	if verbose {
-		fileInfo, _ := os.Stat(filePath)
+		fileInfo, _ := os.Stat(agentUsagePath)
 		if fileInfo != nil {
-			fmt.Fprintf(os.Stderr, "  Found token usage file: %s (%d bytes)\n", filepath.Base(filePath), fileInfo.Size())
+			fmt.Fprintf(os.Stderr, "  Found agent usage file: %s (%d bytes)\n", filepath.Base(agentUsagePath), fileInfo.Size())
 		}
 	}
 
-	// Try to load custom token weights from aw_info.json for this run
 	customWeights := extractCustomTokenWeightsFromDir(runDir)
-
-	return parseTokenUsageFile(filePath, customWeights)
+	return parseAgentUsageFile(agentUsagePath, customWeights)
 }
 
 // extractCustomTokenWeightsFromDir reads aw_info.json from a run directory and returns

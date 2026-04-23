@@ -20,15 +20,13 @@ network:
     - python
 
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[prompt-clustering] "
       expires: 1d
   - shared/jqschema.md
-  - shared/reporting.md
   - shared/copilot-pr-data-fetch.md
   - shared/python-nlp.md
-  - shared/trending-charts-simple.md
 
 cache:
   - key: prompt-clustering-cache-${{ github.run_id }}

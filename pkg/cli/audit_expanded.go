@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var auditExpandedLog = logger.New("cli:audit_expanded")
@@ -112,6 +114,10 @@ func findAwInfoPath(logsPath string) string {
 
 // extractEngineConfig parses aw_info.json and returns an AuditEngineConfig
 func extractEngineConfig(logsPath string) *AuditEngineConfig {
+	return extractEngineConfigWithInferredEngine(logsPath, "")
+}
+
+func extractEngineConfigWithInferredEngine(logsPath, inferredEngineID string) *AuditEngineConfig {
 	if logsPath == "" {
 		return nil
 	}
@@ -119,6 +125,16 @@ func extractEngineConfig(logsPath string) *AuditEngineConfig {
 	awInfoPath := findAwInfoPath(logsPath)
 	if awInfoPath == "" {
 		auditExpandedLog.Printf("aw_info.json not found in %s", logsPath)
+		if inferredEngineID != "" {
+			registry := workflow.GetGlobalEngineRegistry()
+			if engine, err := registry.GetEngine(inferredEngineID); err == nil {
+				auditExpandedLog.Printf("Inferred engine config without aw_info.json: engine=%s", inferredEngineID)
+				return &AuditEngineConfig{
+					EngineID:   inferredEngineID,
+					EngineName: engine.GetDisplayName(),
+				}
+			}
+		}
 		return nil
 	}
 	awInfo, err := parseAwInfo(awInfoPath, false)
@@ -146,6 +162,89 @@ func extractEngineConfig(logsPath string) *AuditEngineConfig {
 	auditExpandedLog.Printf("Extracted engine config: engine=%s, model=%s, mcp_servers=%d",
 		config.EngineID, config.Model, len(config.MCPServers))
 	return config
+}
+
+func inferFallbackLogMetrics(logsPath string) (LogMetrics, string) {
+	if logsPath == "" {
+		return LogMetrics{}, ""
+	}
+
+	if eventsJSONLPath := findEventsJSONLFile(logsPath); eventsJSONLPath != "" {
+		if metrics, err := parseEventsJSONLFile(eventsJSONLPath, false); err == nil && hasUsefulFallbackMetrics(metrics) {
+			return metrics, "copilot"
+		}
+	}
+
+	agentLogPath := findAgentStdioLogPath(logsPath)
+	if agentLogPath == "" {
+		return LogMetrics{}, ""
+	}
+	content, err := os.ReadFile(agentLogPath)
+	if err != nil {
+		return LogMetrics{}, ""
+	}
+	return inferBestEngineMetricsFromContent(string(content))
+}
+
+func findAgentStdioLogPath(logsPath string) string {
+	root := filepath.Join(logsPath, "agent-stdio.log")
+	if _, err := os.Stat(root); err == nil {
+		return root
+	}
+
+	var found string
+	walkErr := filepath.Walk(logsPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() {
+			return nil
+		}
+		if info.Name() == "agent-stdio.log" {
+			found = path
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	if walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
+		auditExpandedLog.Printf("Failed while searching for agent-stdio.log in %s: %v", logsPath, walkErr)
+	}
+	return found
+}
+
+func hasUsefulFallbackMetrics(metrics LogMetrics) bool {
+	return metrics.TokenUsage > 0 || metrics.Turns > 0 || metrics.EstimatedCost > 0 || len(metrics.ToolCalls) > 0
+}
+
+func inferBestEngineMetricsFromContent(logContent string) (LogMetrics, string) {
+	registry := workflow.GetGlobalEngineRegistry()
+	engineIDs := registry.GetSupportedEngines()
+	const (
+		// Prioritize selecting parsers that recover turn count first (primary signal for audit quality),
+		// then token usage, then tool call shape.
+		fallbackTurnsWeight     = 100000
+		fallbackToolCallsWeight = 1000
+	)
+
+	var bestMetrics LogMetrics
+	var bestEngineID string
+	bestScore := -1
+
+	for _, engineID := range engineIDs {
+		engine, err := registry.GetEngine(engineID)
+		if err != nil {
+			continue
+		}
+		metrics := engine.ParseLogMetrics(logContent, false)
+		score := metrics.TokenUsage + (metrics.Turns * fallbackTurnsWeight) + (len(metrics.ToolCalls) * fallbackToolCallsWeight)
+		if score > bestScore {
+			bestScore = score
+			bestMetrics = metrics
+			bestEngineID = engineID
+		}
+	}
+
+	if !hasUsefulFallbackMetrics(bestMetrics) {
+		return LogMetrics{}, ""
+	}
+	return bestMetrics, bestEngineID
 }
 
 // extractPromptAnalysis reads prompt.txt and returns analysis metrics

@@ -1469,8 +1469,8 @@ pre-steps:
 pre-steps: []
   # Array items: undefined
 
-# Custom workflow steps to run immediately before AI execution, after all
-# initialization and setup steps in the agent job.
+# Custom workflow steps to run before MCP gateway startup in the agent job,
+# so prerequisite MCP installation/configuration can happen first.
 # (optional)
 # This field supports multiple formats (oneOf):
 

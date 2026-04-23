@@ -33,12 +33,10 @@ safe-outputs:
     report-as-issue: false
 timeout-minutes: 30
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[observability] "
       expires: 7d
-  - shared/trending-charts-simple.md
-  - shared/reporting.md
 features:
   mcp-cli: true
 ---

@@ -896,6 +896,35 @@ func TestBuildAuditDataMinimal(t *testing.T) {
 	_ = auditData.Jobs
 }
 
+func TestBuildAuditDataFallbackMetricsWithoutAwInfo(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "audit-fallback-*")
+	logContent := `{"type":"result","subtype":"success","num_turns":7,"usage":{"input_tokens":100,"output_tokens":200}}`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent-stdio.log"), []byte(logContent), 0o644))
+
+	processedRun := ProcessedRun{
+		Run: WorkflowRun{
+			DatabaseID:   42,
+			WorkflowName: "Fallback Metrics Workflow",
+			Status:       "completed",
+			Conclusion:   "success",
+			LogsPath:     tmpDir,
+			TokenUsage:   0,
+			Turns:        0,
+		},
+		TokenUsage: &TokenUsageSummary{
+			TotalInputTokens:      5944,
+			TotalOutputTokens:     8698,
+			TotalEffectiveTokens:  243846,
+			TotalCacheReadTokens:  1170605,
+			TotalCacheWriteTokens: 86049,
+		},
+	}
+
+	auditData := buildAuditData(processedRun, workflow.LogMetrics{}, nil)
+	assert.Equal(t, 14642, auditData.Metrics.TokenUsage, "token usage should fall back to input+output from agent usage summary")
+	assert.Equal(t, 7, auditData.Metrics.Turns, "turns should fall back to inferred value from agent log")
+}
+
 func TestRenderJSONComplete(t *testing.T) {
 	auditData := AuditData{
 		Overview: OverviewData{

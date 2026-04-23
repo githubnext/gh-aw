@@ -385,6 +385,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
 			AddStringSlice("labels", c.Labels).
+			AddStringSlice("fallback_labels", c.FallbackLabels).
 			AddStringSlice("reviewers", c.Reviewers).
 			AddStringSlice("team_reviewers", c.TeamReviewers).
 			AddStringSlice("assignees", c.Assignees).

@@ -662,3 +662,113 @@ func TestValidateStrictCacheMemoryScope(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateStrictDisableXPIA tests the validateStrictDisableXPIA function
+func TestValidateStrictDisableXPIA(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "no features field - allowed",
+			frontmatter: map[string]any{"on": "push"},
+			expectError: false,
+		},
+		{
+			name: "features without disable-xpia-prompt - allowed",
+			frontmatter: map[string]any{
+				"on": "push",
+				"features": map[string]any{
+					"action-tag": "v0",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "disable-xpia-prompt: false - allowed",
+			frontmatter: map[string]any{
+				"on": "push",
+				"features": map[string]any{
+					"disable-xpia-prompt": false,
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "disable-xpia-prompt: true - rejected",
+			frontmatter: map[string]any{
+				"on": "push",
+				"features": map[string]any{
+					"disable-xpia-prompt": true,
+				},
+			},
+			expectError: true,
+			errorMsg:    "strict mode: 'disable-xpia-prompt: true' is not allowed",
+		},
+		{
+			name: "disable-xpia-prompt: true with bash tool - rejected (bash state irrelevant)",
+			frontmatter: map[string]any{
+				"on": "push",
+				"features": map[string]any{
+					"disable-xpia-prompt": true,
+				},
+				"tools": map[string]any{
+					"bash": true,
+				},
+			},
+			expectError: true,
+			errorMsg:    "strict mode: 'disable-xpia-prompt: true' is not allowed",
+		},
+		{
+			name: "disable-xpia-prompt: true without bash tool - still rejected",
+			frontmatter: map[string]any{
+				"on": "push",
+				"features": map[string]any{
+					"disable-xpia-prompt": true,
+				},
+			},
+			expectError: true,
+			errorMsg:    "strict mode: 'disable-xpia-prompt: true' is not allowed",
+		},
+		{
+			name: "disable-xpia-prompt as non-empty string - rejected",
+			frontmatter: map[string]any{
+				"on": "push",
+				"features": map[string]any{
+					"disable-xpia-prompt": "yes",
+				},
+			},
+			expectError: true,
+			errorMsg:    "strict mode: 'disable-xpia-prompt: true' is not allowed",
+		},
+		{
+			name: "disable-xpia-prompt as empty string - allowed",
+			frontmatter: map[string]any{
+				"on": "push",
+				"features": map[string]any{
+					"disable-xpia-prompt": "",
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			err := compiler.validateStrictDisableXPIA(tt.frontmatter)
+
+			if tt.expectError && err == nil {
+				t.Error("Expected validation to fail but it succeeded")
+			} else if !tt.expectError && err != nil {
+				t.Errorf("Expected validation to succeed but it failed: %v", err)
+			} else if tt.expectError && err != nil && tt.errorMsg != "" {
+				if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error containing '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+			}
+		})
+	}
+}
