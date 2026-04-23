@@ -706,6 +706,30 @@ func TestBuildDetectionEngineExecutionStepWithThreatDetectionEngine(t *testing.T
 	}
 }
 
+func TestBuildDetectionEngineExecutionStepCodexIncludesMCPSetup(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	if len(steps) == 0 {
+		t.Fatal("Expected non-empty detection engine steps")
+	}
+
+	stepsString := strings.Join(steps, "")
+	if !strings.Contains(stepsString, "Start MCP Gateway") {
+		t.Error("Expected Codex detection steps to include MCP setup")
+	}
+	if !strings.Contains(stepsString, "model_provider = \"openai-proxy\"") {
+		t.Error("Expected Codex detection MCP config to include openai-proxy model provider")
+	}
+}
+
 func TestBuildUploadDetectionLogStep(t *testing.T) {
 	compiler := NewCompiler()
 

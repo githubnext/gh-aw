@@ -205,7 +205,12 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 
 	// Step 1: Pull AWF container images - the detection engine runs inside AWF (firewall),
 	// so pre-pulling the containers speeds up execution and avoids on-demand pulls.
-	steps = append(steps, c.buildPullAWFContainersStep(data)...)
+	//
+	// For Codex detection, MCP setup generation already emits this step, so skip here
+	// to avoid duplicate step IDs/names in the detection job.
+	if c.getThreatDetectionEngineID(data) != "codex" {
+		steps = append(steps, c.buildPullAWFContainersStep(data)...)
+	}
 
 	// Step 2: Detection guard - determines whether detection should run
 	steps = append(steps, c.buildDetectionGuardStep()...)
@@ -566,6 +571,19 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		}
 	}
 
+	// Codex detection runs with no MCP tools, but still needs MCP gateway/config bootstrap
+	// so config.toml includes the OpenAI proxy provider used by AWF API proxy mode.
+	if engine.GetID() == "codex" {
+		var mcpSetup strings.Builder
+		if err := c.generateMCPSetup(&mcpSetup, threatDetectionData.Tools, engine, threatDetectionData); err == nil {
+			for line := range strings.SplitSeq(mcpSetup.String(), "\n") {
+				if line != "" {
+					steps = append(steps, line+"\n")
+				}
+			}
+		}
+	}
+
 	logFile := "/tmp/gh-aw/threat-detection/detection.log"
 	executionSteps := engine.GetExecutionSteps(threatDetectionData, logFile)
 	for _, step := range executionSteps {
@@ -582,6 +600,24 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	}
 
 	return steps
+}
+
+// getThreatDetectionEngineID returns the effective engine ID for the detection job.
+// It mirrors threat-detection engine resolution: threat-detection.engine overrides main engine.
+func (c *Compiler) getThreatDetectionEngineID(data *WorkflowData) string {
+	engineID := data.AI
+	if engineID == "" && data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		engineID = data.EngineConfig.ID
+	}
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
+		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
+		data.SafeOutputs.ThreatDetection.EngineConfig.ID != "" {
+		engineID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
+	}
+	if engineID == "" {
+		engineID = "claude"
+	}
+	return engineID
 }
 
 // buildWorkflowContextEnvVars creates environment variables for workflow context

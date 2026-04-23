@@ -150,8 +150,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	dockerImages := collectDockerImages(tools, workflowData, c.actionMode)
 	generateDownloadDockerImagesStep(yaml, dockerImages)
 
-	// If no MCP tools, no configuration needed
-	if len(mcpTools) == 0 {
+	// If no MCP tools, skip setup unless the engine still needs MCP gateway/config bootstrap.
+	// Codex with AWF firewall enabled requires MCP config generation to set its OpenAI proxy
+	// provider, even when no MCP tools are configured (e.g. threat-detection jobs).
+	needsSetupWithoutMCPTools := len(mcpTools) == 0 && engine.GetID() == "codex" && isFirewallEnabled(workflowData)
+	if len(mcpTools) == 0 && !needsSetupWithoutMCPTools {
 		mcpSetupGeneratorLog.Print("No MCP tools configured, skipping MCP setup")
 		return nil
 	}
