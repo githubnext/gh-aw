@@ -865,17 +865,34 @@ async function main(config = {}) {
         ignoreReturnCode: true,
       });
       if (remoteHeadResult.exitCode === 0) {
-        remoteCommitSha = (remoteHeadResult.stdout || "").trim().split(/\s+/)[0] || "";
+        const remoteHeadLine = (remoteHeadResult.stdout || "").trim().split("\n")[0] || "";
+        const remoteHeadParts = remoteHeadLine.split(/\s+/).filter(Boolean);
+        const remoteSha = remoteHeadParts[0] || "";
+        const remoteRef = remoteHeadParts[1] || "";
+        const expectedRef = `refs/heads/${branchName}`;
+        if (remoteSha && remoteRef === expectedRef) {
+          remoteCommitSha = remoteSha;
+        } else {
+          core.warning(
+            "Failed to parse remote HEAD SHA for " +
+              branchName +
+              ": unexpected ls-remote output '" +
+              remoteHeadLine +
+              "'. Expected format: '<sha> " +
+              expectedRef +
+              "'. The activation comment commit link will be skipped. Commit push may still have succeeded."
+          );
+        }
       } else {
         core.warning(
           `Failed to resolve remote HEAD SHA for ${branchName}: ${remoteHeadResult.stderr || `git ls-remote exited with code ${remoteHeadResult.exitCode}`}. ` +
-            "Commit push may still have succeeded, but the activation comment commit link will be skipped. Check branch existence, authentication, and network connectivity."
+            "Activation comment commit link will be skipped. Check branch existence, authentication, and network connectivity. Commit push may still have succeeded."
         );
       }
     } catch (resolveRemoteShaError) {
       core.warning(
         `Failed to resolve remote HEAD SHA for ${branchName}: ${getErrorMessage(resolveRemoteShaError)}. ` +
-          "Commit push may still have succeeded, but the activation comment commit link will be skipped. Check branch existence, authentication, and network connectivity."
+          "The activation comment commit link will be skipped due to an unexpected ls-remote execution error. Commit push may still have succeeded."
       );
     }
 
