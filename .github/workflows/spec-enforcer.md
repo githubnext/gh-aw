@@ -123,6 +123,21 @@ You MUST NOT:
    }
    ```
 
+3. If `rotation.json` is missing or empty, recover round-robin state from the most recently merged PR with the `pkg-specifications` label:
+   - Find the latest merged PR in this repository with label `pkg-specifications`
+   - Parse this line from the PR body:
+     - `- **Next packages in rotation**: <list>`
+   - Reconstruct rotation state from the parsed list so selection continues from that point instead of restarting at the beginning
+   - If no such PR (or no parsable line) exists, initialize fallback state:
+     ```json
+     {
+       "last_index": -1,
+       "last_packages": [],
+       "last_run": "unknown",
+       "total_eligible": 0
+     }
+     ```
+
 ## Phase 1: Select Packages (Round Robin)
 
 Select **2-3 packages** that have README.md specifications:
