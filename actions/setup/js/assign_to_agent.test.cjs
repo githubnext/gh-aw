@@ -38,6 +38,8 @@ global.github = mockGithub;
 describe("assign_to_agent", () => {
   let assignToAgentScript;
   let tempFilePath;
+  let errorRecoveryModulePath;
+  const mockSleep = vi.fn().mockResolvedValue();
 
   // Simulates the safe-output handler manager: builds handler config from env vars,
   // calls main() as a factory, then processes items from GH_AW_AGENT_OUTPUT.
@@ -92,6 +94,7 @@ describe("assign_to_agent", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSleep.mockClear();
 
     // Reset mockGithub.graphql to ensure no lingering mock implementations
     mockGithub.graphql = vi.fn();
@@ -122,6 +125,14 @@ describe("assign_to_agent", () => {
     // Clear module cache to ensure we get the latest version of assign_agent_helpers
     const helpersPath = require.resolve("./assign_agent_helpers.cjs");
     delete require.cache[helpersPath];
+    errorRecoveryModulePath = require.resolve("./error_recovery.cjs");
+    delete require.cache[errorRecoveryModulePath];
+    require.cache[errorRecoveryModulePath] = {
+      id: errorRecoveryModulePath,
+      filename: errorRecoveryModulePath,
+      loaded: true,
+      exports: { sleep: mockSleep },
+    };
 
     const scriptPath = path.join(process.cwd(), "assign_to_agent.cjs");
     assignToAgentScript = fs.readFileSync(scriptPath, "utf8");
@@ -130,6 +141,9 @@ describe("assign_to_agent", () => {
   afterEach(() => {
     if (tempFilePath && fs.existsSync(tempFilePath)) {
       fs.unlinkSync(tempFilePath);
+    }
+    if (errorRecoveryModulePath) {
+      delete require.cache[errorRecoveryModulePath];
     }
   });
 
@@ -548,7 +562,13 @@ describe("assign_to_agent", () => {
     expect(assignmentCalls).toHaveLength(2);
     expect(assignmentCalls[0][1].targetRepoId).toBe("ios-repo-id");
     expect(assignmentCalls[1][1].targetRepoId).toBe("android-repo-id");
-  }, 20000);
+    expect(mockSleep).toHaveBeenCalledTimes(1);
+    expect(mockSleep).toHaveBeenCalledWith(10000);
+
+    const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summaryCall).toContain("PR target: test-owner/ios-repo");
+    expect(summaryCall).toContain("PR target: test-owner/android-repo");
+  });
 
   it("should avoid duplicate re-assignment for the same issue and same pull_request_repo in one run", async () => {
     process.env.GH_AW_AGENT_MAX_COUNT = "5";
@@ -630,7 +650,50 @@ describe("assign_to_agent", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("copilot is already assigned to issue #6587"));
     const assignmentCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("replaceActorsForAssignable"));
     expect(assignmentCalls).toHaveLength(1);
-  }, 20000);
+    expect(mockSleep).toHaveBeenCalledTimes(1);
+    expect(mockSleep).toHaveBeenCalledWith(10000);
+  });
+
+  it("should not treat whitespace pull_request_repo as a reassignment override", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+          pull_request_repo: "   ",
+        },
+      ],
+      errors: [],
+    });
+
+    mockGithub.graphql
+      // Find agent
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "agent-id" }],
+          },
+        },
+      })
+      // Get issue details - already assigned
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "issue-id",
+            assignees: {
+              nodes: [{ id: "agent-id", login: "copilot-swe-agent" }],
+            },
+          },
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("copilot is already assigned to issue #42"));
+    const assignmentCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("replaceActorsForAssignable"));
+    expect(assignmentCalls).toHaveLength(0);
+  });
 
   it("should still skip when agent is already assigned with global pull-request-repo but no per-item override", async () => {
     process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/global-pr-repo";
@@ -1530,7 +1593,9 @@ describe("assign_to_agent", () => {
     // Verify delay message was logged twice (2 delays between 3 items)
     const delayMessages = mockCore.info.mock.calls.filter(call => call[0].includes("Waiting 10 seconds before processing next agent assignment"));
     expect(delayMessages).toHaveLength(2);
-  }, 30000); // Increase timeout to 30 seconds to account for 2x10s delays
+    expect(mockSleep).toHaveBeenCalledTimes(2);
+    expect(mockSleep).toHaveBeenCalledWith(10000);
+  });
 
   describe("Cross-repository allowlist validation", () => {
     it("should reject target repository not in allowlist", async () => {
