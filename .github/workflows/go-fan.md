@@ -23,7 +23,7 @@ network:
     - go
 
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[go-fan] "
       expires: 1d

@@ -19,7 +19,7 @@ tools:
 timeout-minutes: 5
 strict: true
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[auth-test] "
       expires: 1d
