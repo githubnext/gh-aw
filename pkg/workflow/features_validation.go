@@ -71,8 +71,8 @@ func validateFeatures(data *WorkflowData) error {
 // validateDisableXPIAWithBash rejects the dangerous combination of disable-xpia-prompt: true
 // and bash tool access. When XPIA protection is disabled, the agent has no framing to
 // distinguish adversarial instructions from legitimate ones. Combined with bash tool access,
-// a prompt-injection payload can trivially escalate to arbitrary shell command execution
-// (e.g. npm install of a malicious package with lifecycle scripts).
+// a prompt-injection payload can trivially escalate to arbitrary shell command execution,
+// such as npm install of a malicious package with lifecycle scripts.
 func validateDisableXPIAWithBash(data *WorkflowData) error {
 	if data == nil || data.ParsedTools == nil {
 		return nil
