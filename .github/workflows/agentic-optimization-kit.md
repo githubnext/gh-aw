@@ -99,6 +99,7 @@ steps:
                 warning_count: (.warning_count // 0)
               }
           ]
+          | sort_by(.workflow_name)
           | group_by(.workflow_name)
           | map({
               workflow_name: .[0].workflow_name,
@@ -300,7 +301,7 @@ Create one discussion with the following structure. **Charts appear before all t
 ### 📊 Executive Summary
 
 - **Period**: last 7 days (YYYY-MM-DD to YYYY-MM-DD)
-- **Total runs**: N | **Total tokens**: N,NNN,NNN | **Total cost**: $X.XX | **Actions minutes**: X.Xm
+- **Total runs**: N | **Total tokens**: N,NNN,NNN | **Total cost**: $X.XX | **Action minutes**: X.Xm
 - **Active workflows**: N | **Episodes analyzed**: N | **High-confidence episodes**: N
 - **Heavy-hitters** (>30% token share): workflow list
 - **Optimization target this week**: [workflow name] — estimated savings: N tokens/run
