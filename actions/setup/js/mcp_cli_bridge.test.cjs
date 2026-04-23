@@ -154,6 +154,15 @@ describe("mcp_cli_bridge.cjs", () => {
     });
   });
 
+  it("coerces scientific notation when schema properties are unavailable", () => {
+    const { args } = parseToolArgs(["--max_tokens", "1e3", "--threshold", "-2E-4"], {});
+
+    expect(args).toEqual({
+      max_tokens: 1000,
+      threshold: -0.0002,
+    });
+  });
+
   it("preserves non-numeric values when schema properties are unavailable", () => {
     const { args } = parseToolArgs(["--start_date", "-1d", "--workflow_name", "daily-issues-report"], {});
 

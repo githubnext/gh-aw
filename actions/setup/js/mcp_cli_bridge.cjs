@@ -625,15 +625,17 @@ function coerceToolArgValue(key, rawValue, schemaProperty, existingValue, allowN
   // When schema metadata is unavailable (e.g. empty tools cache), apply
   // conservative numeric coercion fallback for CLI ergonomics.
   if (allowNumericFallback && types.length === 0) {
-    if (/^-?\d+$/.test(rawValue)) {
-      const parsedInt = Number.parseInt(rawValue, 10);
-      if (Number.isSafeInteger(parsedInt)) {
+    const trimmedValue = rawValue.trim();
+
+    if (/^-?\d+$/.test(trimmedValue)) {
+      const parsedInt = Number.parseInt(trimmedValue, 10);
+      if (!Number.isNaN(parsedInt) && Number.isSafeInteger(parsedInt)) {
         return parsedInt;
       }
     }
 
-    if (/^-?(?:\d+\.\d+|\d+\.|\.\d+)(?:[eE][+-]?\d+)?$/.test(rawValue)) {
-      const parsedFloat = Number.parseFloat(rawValue);
+    if (/^-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(trimmedValue)) {
+      const parsedFloat = Number.parseFloat(trimmedValue);
       if (!Number.isNaN(parsedFloat) && Number.isFinite(parsedFloat)) {
         return parsedFloat;
       }
