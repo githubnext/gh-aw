@@ -13,12 +13,13 @@ import (
 var serenaImportCodemodLog = logger.New("cli:codemod_serena_import")
 
 // getSerenaToSharedImportCodemod creates a codemod that migrates removed tools.serena
-// configuration to an equivalent imports entry using shared/mcp/serena.md.
+// or engine.tools.serena configuration to an equivalent imports entry using
+// shared/mcp/serena.md, and may normalize a pinned source ref to @main.
 func getSerenaToSharedImportCodemod() Codemod {
 	return Codemod{
 		ID:           "serena-tools-to-shared-import",
-		Name:         "Migrate tools.serena to shared Serena import",
-		Description:  "Removes 'tools.serena' and adds an equivalent 'imports' entry using shared/mcp/serena.md with languages.",
+		Name:         "Migrate tools.serena or engine.tools.serena to shared Serena import",
+		Description:  "Removes 'tools.serena' or 'engine.tools.serena', adds an equivalent 'imports' entry using shared/mcp/serena.md with languages, and may rewrite a pinned 'source:' ref to '@main'.",
 		IntroducedIn: "1.0.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			languages, ok := findSerenaLanguagesForMigration(frontmatter)
@@ -65,7 +66,6 @@ func findSerenaLanguagesForMigration(frontmatter map[string]any) ([]string, bool
 				if ok && len(languages) > 0 {
 					return languages, true
 				}
-				return nil, false
 			}
 		}
 	}

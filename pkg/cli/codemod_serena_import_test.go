@@ -220,4 +220,38 @@ tools:
 		assert.Contains(t, result, "source: github/gh-aw/.github/workflows/duplicate-code-detector.md@main", "Codemod should update pinned gh-aw source to main")
 		assert.Contains(t, result, "- uses: shared/mcp/serena.md", "Codemod should still add shared Serena import")
 	})
+
+	t.Run("falls back to engine.tools.serena when top-level tools.serena is invalid", func(t *testing.T) {
+		content := `---
+engine:
+  tools:
+    serena:
+      languages: ["typescript"]
+  id: copilot
+tools:
+  serena: {}
+---
+
+# Test Workflow
+`
+		frontmatter := map[string]any{
+			"engine": map[string]any{
+				"tools": map[string]any{
+					"serena": map[string]any{
+						"languages": []any{"typescript"},
+					},
+				},
+				"id": "copilot",
+			},
+			"tools": map[string]any{
+				"serena": map[string]any{},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "Codemod should not return an error")
+		assert.True(t, applied, "Codemod should fall back to engine.tools.serena when top-level tools.serena is invalid")
+		assert.Contains(t, result, "- uses: shared/mcp/serena.md", "Codemod should add shared Serena import")
+		assert.Contains(t, result, "languages: [\"typescript\"]", "Codemod should use languages from engine.tools.serena")
+	})
 }
