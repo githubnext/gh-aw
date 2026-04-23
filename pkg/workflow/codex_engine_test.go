@@ -162,7 +162,7 @@ func TestCodexEngineExecutionIncludesGitHubAWPrompt(t *testing.T) {
 		if strings.Contains(stepContent, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
 			foundPromptEnv = true
 		}
-		if strings.Contains(stepContent, "GH_AW_MCP_CONFIG: ${{ runner.temp }}/gh-aw/mcp-config/config.toml") {
+		if strings.Contains(stepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml") {
 			foundMCPConfigEnv = true
 		}
 	}
