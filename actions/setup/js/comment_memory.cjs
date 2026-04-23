@@ -19,7 +19,14 @@ const { COMMENT_MEMORY_TAG, COMMENT_MEMORY_MAX_SCAN_PAGES } = require("./comment
 // that happen to contain a matching comment-memory tag.
 const MANAGED_COMMENT_PROVENANCE_MARKER = "<!-- gh-aw-agentic-workflow:";
 const MANAGED_COMMENT_HEADER = "### Comment Memory";
-const MANAGED_COMMENT_DISCLOSURE_NOTE_PATH = `${process.env.GH_AW_PROMPTS_DIR || `${process.env.RUNNER_TEMP}/gh-aw/prompts`}/comment_memory_disclosure_note.md`;
+
+function renderManagedCommentDisclosureNote() {
+  const promptsDir = process.env.GH_AW_PROMPTS_DIR || `${process.env.RUNNER_TEMP}/gh-aw/prompts`;
+  const templatePath = `${promptsDir}/comment_memory_disclosure_note.md`;
+  return renderTemplateFromFile(templatePath, {
+    comment_memory_tag: COMMENT_MEMORY_TAG,
+  });
+}
 
 function sanitizeMemoryID(memoryID) {
   const normalized = String(memoryID || "default").trim();
@@ -31,7 +38,7 @@ function sanitizeMemoryID(memoryID) {
 }
 
 function buildManagedMemoryBody(rawBody, memoryID, options) {
-  const { includeFooter, runUrl, workflowName, workflowSource, workflowSourceURL, historyUrl, triggeringIssueNumber, triggeringPRNumber, disclosureNote } = options;
+  const { includeFooter, runUrl, workflowName, workflowSource, workflowSourceURL, historyUrl, triggeringIssueNumber, triggeringPRNumber } = options;
   if (!/^[a-zA-Z0-9_-]+$/.test(memoryID)) {
     throw new Error(`${SAFE_OUTPUT_E001}: memory_id must contain only alphanumeric characters, hyphens, and underscores`);
   }
@@ -47,11 +54,7 @@ function buildManagedMemoryBody(rawBody, memoryID, options) {
 
   if (includeFooter) {
     core.info(`comment_memory: footer enabled for memory_id='${memoryID}'`);
-    const resolvedDisclosureNote =
-      disclosureNote ??
-      renderTemplateFromFile(MANAGED_COMMENT_DISCLOSURE_NOTE_PATH, {
-        comment_memory_tag: COMMENT_MEMORY_TAG,
-      });
+    const resolvedDisclosureNote = renderManagedCommentDisclosureNote();
     body += "\n\n" + resolvedDisclosureNote;
     body += "\n\n" + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined, historyUrl).trimEnd();
   } else {
@@ -117,7 +120,6 @@ async function main(config = {}) {
   core.info(`comment_memory: initialized with max=${maxCount}, defaultMemoryID='${defaultMemoryID}', target='${target}', footer=${includeFooter}, staged=${staged}`);
 
   let processedCount = 0;
-  let cachedDisclosureNote = null;
 
   return async message => {
     if (!message || message.type !== "comment_memory") {
@@ -174,12 +176,6 @@ async function main(config = {}) {
         serverUrl: context.serverUrl,
       }) || undefined;
 
-    if (cachedDisclosureNote === null) {
-      cachedDisclosureNote = renderTemplateFromFile(MANAGED_COMMENT_DISCLOSURE_NOTE_PATH, {
-        comment_memory_tag: COMMENT_MEMORY_TAG,
-      });
-    }
-
     const managedBody = buildManagedMemoryBody(message.body || "", memoryID, {
       includeFooter,
       runUrl,
@@ -189,7 +185,6 @@ async function main(config = {}) {
       historyUrl,
       triggeringIssueNumber,
       triggeringPRNumber,
-      disclosureNote: cachedDisclosureNote,
     });
     try {
       enforceCommentLimits(managedBody);
