@@ -394,20 +394,17 @@ jobs:
             ${{ runner.os }}-activity-report-logs-${{ github.repository }}-
             ${{ runner.os }}-activity-report-logs-
 `)
-	yaml.WriteString(`      - name: Generate agentic workflow activity report
+	yaml.WriteString(`      - name: Download activity report logs
         timeout-minutes: 20
-        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
-          GH_AW_ACTIVITY_REPORT_OUTPUT_DIR: ./.cache/gh-aw/activity-report-logs
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/run_activity_report.cjs');
-            await main();
+        run: |
+          ${GH_AW_CMD_PREFIX} logs \
+            --repo "${{ github.repository }}" \
+            --start-date -1w \
+            --count 100 \
+            --output ./.cache/gh-aw/activity-report-logs
 
       - name: Save activity report logs cache
         if: ${{ always() }}

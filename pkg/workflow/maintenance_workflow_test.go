@@ -400,14 +400,20 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		t.Errorf("Job activity_report cache key should include run_id for latest-cache resolution in:\n%s", yaml)
 	}
 
-	if !strings.Contains(yaml, "GH_AW_ACTIVITY_REPORT_OUTPUT_DIR: ./.cache/gh-aw/activity-report-logs") {
-		t.Errorf("Job activity_report should set GH_AW_ACTIVITY_REPORT_OUTPUT_DIR in:\n%s", yaml)
-	}
-	if !strings.Contains(yaml, "Generate agentic workflow activity report") {
-		t.Errorf("Job activity_report should include report generation step in:\n%s", yaml)
+	if !strings.Contains(yaml, "Download activity report logs") {
+		t.Errorf("Job activity_report should include direct logs download step in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "timeout-minutes: 20") {
-		t.Errorf("Job activity_report report generation step should set timeout-minutes: 20 in:\n%s", yaml)
+		t.Errorf("Job activity_report logs download step should set timeout-minutes: 20 in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs") {
+		t.Errorf("Job activity_report should run gh aw logs directly in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "--start-date -1w") {
+		t.Errorf("Job activity_report gh aw logs command should include --start-date -1w in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "--count 100") {
+		t.Errorf("Job activity_report gh aw logs command should include --count 100 in:\n%s", yaml)
 	}
 
 	// close_agentic_workflows_issues job should be triggered when operation == 'close_agentic_workflows_issues'

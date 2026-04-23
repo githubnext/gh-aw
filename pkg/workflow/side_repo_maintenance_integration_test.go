@@ -98,12 +98,16 @@ This workflow operates on a separate repository.
 		"generated workflow should save activity_report logs cache even if report generation fails")
 	assert.Contains(t, contentStr, "steps.activity_report_logs_cache.outputs.cache-primary-key",
 		"generated workflow should save activity_report logs using the cache primary key")
-	assert.Contains(t, contentStr, "GH_AW_ACTIVITY_REPORT_OUTPUT_DIR: ./.cache/gh-aw/activity-report-logs",
-		"generated workflow should set GH_AW_ACTIVITY_REPORT_OUTPUT_DIR for activity_report logs")
-	assert.Contains(t, contentStr, "Generate agentic workflow activity report in target repository",
-		"generated workflow should include the activity_report generation step")
+	assert.Contains(t, contentStr, "Download activity report logs in target repository",
+		"generated workflow should include direct logs download step for activity_report")
 	assert.Contains(t, contentStr, "timeout-minutes: 20",
-		"generated workflow should set a 20-minute timeout for the activity_report generation step")
+		"generated workflow should set a 20-minute timeout for the activity_report logs download step")
+	assert.Contains(t, contentStr, "${GH_AW_CMD_PREFIX} logs",
+		"generated workflow should run gh aw logs directly")
+	assert.Contains(t, contentStr, "--start-date -1w",
+		"generated workflow should download 7 days of logs for activity_report")
+	assert.Contains(t, contentStr, "--count 100",
+		"generated workflow should limit activity_report log downloads to at most 100 runs")
 	assert.Contains(t, contentStr, "actions: read\n      contents: read\n      issues: write",
 		"activity_report job should include contents: read with explicit permissions")
 	assert.Contains(t, contentStr, "timeout-minutes: 120",

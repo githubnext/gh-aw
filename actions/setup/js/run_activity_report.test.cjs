@@ -7,8 +7,7 @@ describe("run_activity_report", () => {
   let mockCore;
   let mockGithub;
   let mockContext;
-  let mockCommandRunner;
-  let mockSleepFn;
+  let mockExec;
 
   beforeEach(() => {
     originalEnv = { ...process.env };
@@ -18,6 +17,7 @@ describe("run_activity_report", () => {
       core: global.core,
       github: global.github,
       context: global.context,
+      exec: global.exec,
     };
 
     mockCore = {
@@ -39,12 +39,14 @@ describe("run_activity_report", () => {
         repo: "testrepo",
       },
     };
-    mockCommandRunner = vi.fn();
-    mockSleepFn = vi.fn().mockResolvedValue();
+    mockExec = {
+      getExecOutput: vi.fn(),
+    };
 
     global.core = mockCore;
     global.github = mockGithub;
     global.context = mockContext;
+    global.exec = mockExec;
   });
 
   afterEach(() => {
@@ -52,29 +54,29 @@ describe("run_activity_report", () => {
     global.core = originalGlobals.core;
     global.github = originalGlobals.github;
     global.context = originalGlobals.context;
+    global.exec = originalGlobals.exec;
     vi.clearAllMocks();
   });
 
   it("creates an activity report issue with 24h and 7d time ranges", async () => {
-    mockCommandRunner.mockResolvedValueOnce({ stdout: "## 24h report\nok", stderr: "", exitCode: 0 }).mockResolvedValueOnce({ stdout: "## 7d report\nok", stderr: "", exitCode: 0 });
+    mockExec.getExecOutput.mockResolvedValueOnce({ stdout: "## 24h report\nok", stderr: "", exitCode: 0 }).mockResolvedValueOnce({ stdout: "## 7d report\nok", stderr: "", exitCode: 0 });
 
     const { main } = await import("./run_activity_report.cjs");
-    await main({ commandRunner: mockCommandRunner, sleepFn: mockSleepFn, settleDelayMs: 1 });
+    await main();
 
-    expect(mockCommandRunner).toHaveBeenCalledTimes(2);
-    expect(mockCommandRunner).toHaveBeenNthCalledWith(
+    expect(mockExec.getExecOutput).toHaveBeenCalledTimes(2);
+    expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(
       1,
       "gh",
       expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1d", "--count", "1000", "--output", "./.cache/gh-aw/activity-report-logs", "--format", "markdown"]),
-      1200000
+      expect.objectContaining({ ignoreReturnCode: true })
     );
-    expect(mockCommandRunner).toHaveBeenNthCalledWith(
+    expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(
       2,
       "gh",
       expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1w", "--count", "1000", "--output", "./.cache/gh-aw/activity-report-logs", "--format", "markdown"]),
-      1200000
+      expect.objectContaining({ ignoreReturnCode: true })
     );
-    expect(mockSleepFn).toHaveBeenCalledTimes(2);
     expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
       expect.objectContaining({
         owner: "testowner",
