@@ -29,11 +29,10 @@ safe-outputs:
 timeout-minutes: 45
 strict: true
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[repo-audit] "
       expires: 1d
-  - shared/reporting.md
 features:
   mcp-cli: true
 ---

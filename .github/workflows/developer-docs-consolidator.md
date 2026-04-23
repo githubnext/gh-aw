@@ -49,10 +49,9 @@ tools:
 timeout-minutes: 30
 
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[developer-docs] "
-  - shared/reporting.md
   - shared/mcp/serena-go.md
 features:
   mcp-cli: true

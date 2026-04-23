@@ -48,7 +48,7 @@ steps:
       fi
 timeout-minutes: 25
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[copilot-token-audit] "
   - uses: shared/repo-memory-standard.md
@@ -58,7 +58,6 @@ imports:
       max-patch-size: 51200
   - copilot-setup-steps.yml
   - uses: shared/mcp/gh-aw.md
-  - shared/reporting.md
   - shared/python-dataviz.md
 features:
   mcp-cli: true

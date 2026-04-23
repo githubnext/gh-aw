@@ -35,7 +35,7 @@ tools:
     - "date *"
 
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[copilot-session-insights] "
       expires: 1d
@@ -47,7 +47,6 @@ imports:
   - shared/copilot-session-data-fetch.md
   - shared/session-analysis-charts.md
   - shared/session-analysis-strategies.md
-  - shared/reporting.md
 
 timeout-minutes: 20
 

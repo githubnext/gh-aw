@@ -22,11 +22,10 @@ network:
     - go
 
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[sergo] "
       expires: 1d
-  - shared/reporting.md
   - shared/mcp/serena-go.md
 
 tools:
