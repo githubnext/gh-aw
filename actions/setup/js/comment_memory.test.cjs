@@ -1,13 +1,14 @@
 // @ts-check
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import path from "path";
+import { fileURLToPath } from "url";
 
 describe("comment_memory", () => {
   let originalPromptsDir;
 
   beforeAll(() => {
     originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
-    process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), "../md");
+    process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
   });
 
   afterAll(() => {
