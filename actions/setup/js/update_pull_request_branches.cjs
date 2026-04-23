@@ -144,18 +144,15 @@ async function readResponsePreview(response, maxChars) {
       const { done, value } = await reader.read();
       if (done || !value) break;
       result += decoder.decode(value, { stream: true });
-      if (result.length >= maxChars) {
-        result = result.slice(0, maxChars);
-        break;
-      }
     }
-  } catch {
+  } catch (error) {
+    core.debug(`Failed to read Copilot sessions error preview: ${getErrorMessage(error)}`);
     return "";
   } finally {
     reader.releaseLock();
   }
 
-  return result;
+  return result.slice(0, maxChars);
 }
 
 /**
