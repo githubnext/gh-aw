@@ -125,7 +125,7 @@ Main workflow.
 	}
 }
 
-func TestImportedPreAgentStepRunsAfterPRBaseRestore(t *testing.T) {
+func TestImportedPreAgentStepsRunAfterPRBaseRestore(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "pre-agent-steps-pr-restore-test")
 
 	sharedDir := filepath.Join(tmpDir, "shared")
