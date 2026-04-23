@@ -280,6 +280,28 @@ func TestSpec_PublicAPI_GetActionPins_SPEC_MISMATCH(t *testing.T) {
 	assert.NotEmpty(t, pins, "embedded pin data should be non-empty (proxy for missing GetActionPins)")
 }
 
+// TestSpec_PublicAPI_GetContainerPin validates the documented GetContainerPin function.
+// Spec: "Returns a pinned container image by its original image reference"
+func TestSpec_PublicAPI_GetContainerPin(t *testing.T) {
+	t.Run("returns false for unknown container image", func(t *testing.T) {
+		_, ok := actionpins.GetContainerPin("does-not-exist/unknown-image:latest")
+		assert.False(t, ok, "should return false for unknown container image")
+	})
+}
+
+// TestSpec_Types_ContainerPin validates the documented ContainerPin type structure.
+// Spec: Image, Digest, PinnedImage fields.
+func TestSpec_Types_ContainerPin(t *testing.T) {
+	pin := actionpins.ContainerPin{
+		Image:       "ghcr.io/some/image:v1",
+		Digest:      "sha256:abc123",
+		PinnedImage: "ghcr.io/some/image@sha256:abc123",
+	}
+	assert.Equal(t, "ghcr.io/some/image:v1", pin.Image, "ContainerPin.Image field")
+	assert.Equal(t, "sha256:abc123", pin.Digest, "ContainerPin.Digest field")
+	assert.Equal(t, "ghcr.io/some/image@sha256:abc123", pin.PinnedImage, "ContainerPin.PinnedImage field")
+}
+
 // TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo validates that concurrent calls to GetActionPinsByRepo
 // are safe after initialization (sync.Once guarantee from the spec).
 func TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo(t *testing.T) {
