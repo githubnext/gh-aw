@@ -438,12 +438,16 @@ The YAML frontmatter supports these fields:
   - Each job can have: `name`, `runs-on`, `steps`, `needs`, `if`, `env`, `permissions`, `timeout-minutes`, etc.
   - For most agentic workflows, jobs are auto-generated; only specify this for advanced multi-job workflows
   - **Security Notice**: Custom jobs run OUTSIDE the firewall sandbox. Execute with standard GitHub Actions security but NO network egress controls. Use only for deterministic preprocessing, data fetching, or static analysis—not agentic compute or untrusted AI execution.
+  - **`pre-steps:`** - Steps injected after compiler-generated setup and before any `steps:` in a custom or built-in job (array). For built-in jobs (`activation`, `pre_activation`), injected after the `id: setup` step and before the first checkout. Imported `pre-steps` run before main workflow `pre-steps`.
   - Example:
 
     ```yaml
     jobs:
       custom-job:
         runs-on: ubuntu-latest
+        pre-steps:
+          - name: Pre-flight setup
+            run: echo "runs before checkout"
         steps:
           - name: Custom step
             run: echo "Custom job"
@@ -694,6 +698,7 @@ The YAML frontmatter supports these fields:
         title-prefix: "[ai] "           # Optional: prefix for PR titles
         labels: [automation, ai-agent]  # Optional: labels to attach to PRs
         reviewers: [user1, copilot]     # Optional: reviewers (use 'copilot' for bot)
+        team-reviewers: [platform-team] # Optional: team slugs to assign as reviewers
         draft: true                     # Optional: create as draft PR (defaults to true)
         if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
         allow-empty: false              # Optional: create PR with empty branch, no changes required (default: false)
@@ -864,12 +869,13 @@ The YAML frontmatter supports these fields:
     safe-outputs:
       add-reviewer:
         reviewers: [user1, copilot]     # Optional: restrict to specific reviewers
+        team-reviewers: [platform-team] # Optional: allowed team slugs
         max: 3                          # Optional: max reviewers (default: 3)
         target: "*"                     # Optional: "triggering" (default), "*", or number
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
 
-    Use `reviewers: copilot` to assign Copilot PR reviewer bot. Requires PAT as `COPILOT_GITHUB_TOKEN`.
+    At least one of `reviewers` or `team-reviewers` must be present in agent output. Use `reviewers: copilot` to assign Copilot PR reviewer bot. Requires PAT as `COPILOT_GITHUB_TOKEN`.
   - `assign-milestone:` - Assign issues to milestones
 
     ```yaml
@@ -2247,7 +2253,7 @@ The following frontmatter fields in imported files are merged into the importing
 - `checkout:` - Checkout configurations appended (main workflow's checkouts take precedence)
 - `github-app:` - Top-level GitHub App credentials (first-wins across imports)
 - `on.github-app:` - Activation GitHub App credentials (first-wins across imports)
-- `steps:`, `pre-steps:`, `post-steps:` - Steps appended in import order
+- `steps:`, `pre-steps:`, `pre-agent-steps:`, `post-steps:` - Steps appended in import order
 - `runtimes:`, `network:`, `permissions:`, `services:`, `cache:`, `features:`, `mcp-servers:`
 
 Example import file:
