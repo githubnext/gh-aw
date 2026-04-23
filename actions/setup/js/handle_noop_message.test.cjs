@@ -27,7 +27,7 @@ describe("handle_noop_message", () => {
         return `This issue tracks all no-op runs from agentic workflows in this repository. Each workflow run that completes with a no-op message (indicating no action was needed) posts a comment here.
 
 <details>
-<summary>📘 What is a No-Op?</summary>
+<summary>What is a No-Op?</summary>
 
 A no-op (no operation) occurs when an agentic workflow runs successfully but determines that no action is required. For example:
 - A security scanner that finds no issues
@@ -39,7 +39,7 @@ These are successful outcomes, not failures, and help provide transparency into 
 </details>
 
 <details>
-<summary>🎯 How This Helps</summary>
+<summary>How This Helps</summary>
 
 This issue helps you:
 - Track workflows that ran but determined no action was needed
@@ -49,19 +49,26 @@ This issue helps you:
 </details>
 
 <details>
-<summary>📚 Resources</summary>
+<summary>Resources</summary>
 
-- [GitHub Agentic Workflows Documentation](https://github.com/github/gh-aw)
+- [Safe outputs reference](https://github.github.com/gh-aw/reference/safe-outputs/)
+- [Frontmatter reference](https://github.github.com/gh-aw/reference/frontmatter/)
+- [Workflow patterns and examples](https://github.github.com/gh-aw/patterns/)
 
 </details>
 
-> [!TIP]
-> To stop a workflow from posting here, set \`report-as-issue: false\` in its frontmatter:
-> \`\`\`yaml
-> safe-outputs:
->   noop:
->     report-as-issue: false
-> \`\`\`
+<details>
+<summary>⚙️ Configure no-op issue reporting</summary>
+
+To stop a workflow from posting here, set \`report-as-issue: false\` in its frontmatter:
+
+\`\`\`yaml
+safe-outputs:
+  noop:
+    report-as-issue: false
+\`\`\`
+
+</details>
 
 ---
 

@@ -25,17 +25,24 @@ This issue helps you:
 <details>
 <summary>Resources</summary>
 
-- [GitHub Agentic Workflows Documentation](https://github.com/github/gh-aw)
+- [Safe outputs reference](https://github.github.com/gh-aw/reference/safe-outputs/)
+- [Frontmatter reference](https://github.github.com/gh-aw/reference/frontmatter/)
+- [Workflow patterns and examples](https://github.github.com/gh-aw/patterns/)
 
 </details>
 
-> [!TIP]
-> To stop a workflow from posting here, set `report-as-issue: false` in its frontmatter:
-> ```yaml
-> safe-outputs:
->   noop:
->     report-as-issue: false
-> ```
+<details>
+<summary>⚙️ Configure no-op issue reporting</summary>
+
+To stop a workflow from posting here, set `report-as-issue: false` in its frontmatter:
+
+```yaml
+safe-outputs:
+  noop:
+    report-as-issue: false
+```
+
+</details>
 
 ---
 

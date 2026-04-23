@@ -1002,14 +1002,14 @@ describe("handle_agent_failure", () => {
     });
 
     it("returns template content when MCP policy error and template exists", () => {
-      const templateContent = "\n**🔒 MCP Servers Blocked by Policy**: Test message.\n";
+      const templateContent = "\n**MCP Servers Blocked by Policy**: Test message.\n";
       fs.writeFileSync(path.join(promptsDir, "mcp_policy_error.md"), templateContent);
       const result = buildMCPPolicyErrorContext(true);
       expect(result).toContain("MCP Servers Blocked by Policy");
     });
 
     it("includes link to official documentation when template exists", () => {
-      const templateContent = "**🔒 MCP Servers Blocked by Policy**: See [docs](https://docs.github.com/en/copilot/how-tos/administer-copilot/manage-mcp-usage/configure-mcp-server-access).\n";
+      const templateContent = "**MCP Servers Blocked by Policy**: See [docs](https://docs.github.com/en/copilot/how-tos/administer-copilot/manage-mcp-usage/configure-mcp-server-access).\n";
       fs.writeFileSync(path.join(promptsDir, "mcp_policy_error.md"), templateContent);
       const result = buildMCPPolicyErrorContext(true);
       expect(result).toContain("docs.github.com/en/copilot/how-tos/administer-copilot/manage-mcp-usage/configure-mcp-server-access");
@@ -1059,7 +1059,7 @@ describe("handle_agent_failure", () => {
     });
 
     it("returns template content when model-not-supported error and template exists", () => {
-      const templateContent = "\n**🚫 Model Not Supported**: Test message.\n";
+      const templateContent = "\n**Model Not Supported**: Test message.\n";
       fs.writeFileSync(path.join(promptsDir, "model_not_supported_error.md"), templateContent);
       const result = buildModelNotSupportedErrorContext(true);
       expect(result).toContain("Model Not Supported");

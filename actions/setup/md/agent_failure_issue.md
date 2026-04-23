@@ -10,6 +10,11 @@
 
 **Assign this issue to Copilot** using the `agentic-workflows` sub-agent to automatically debug and fix the workflow failure.
 
+### Documentation
+
+- [Troubleshooting guide](https://github.github.com/gh-aw/troubleshooting/debugging/)
+- [Safe outputs reference](https://github.github.com/gh-aw/reference/safe-outputs/)
+
 <details>
 <summary>Debug with any coding agent</summary>
 
@@ -34,14 +39,14 @@ Debug this workflow failure using your favorite Agent CLI and the `agentic-workf
 
 </details>
 
-> [!TIP]
-> <details>
-> <summary>Stop reporting this workflow as a failure</summary>
->
-> To stop a workflow from creating failure issues, set `report-failure-as-issue: false` in its frontmatter:
-> ```yaml
-> safe-outputs:
->   report-failure-as-issue: false
-> ```
->
-> </details>
+<details>
+<summary>⚙️ Optional: stop reporting this workflow as a failure</summary>
+
+To stop a workflow from creating failure issues, set `report-failure-as-issue: false` in its frontmatter:
+
+```yaml
+safe-outputs:
+  report-failure-as-issue: false
+```
+
+</details>

@@ -25,18 +25,25 @@ This issue helps you:
 <details>
 <summary>Resources</summary>
 
-- [GitHub Agentic Workflows Documentation](https://github.com/github/gh-aw)
+- [Threat detection reference](https://github.github.com/gh-aw/reference/threat-detection/)
+- [Safe outputs reference](https://github.github.com/gh-aw/reference/safe-outputs/)
+- [Frontmatter reference](https://github.github.com/gh-aw/reference/frontmatter/)
 
 </details>
 
-> [!TIP]
-> To configure threat detection behavior, update the frontmatter:
-> ```yaml
-> safe-outputs:
->   threat-detection:
->     continue-on-error: true   # Warnings only (default)
->     # continue-on-error: false  # Strict mode — block safe outputs
-> ```
+<details>
+<summary>⚙️ Configure threat detection behavior</summary>
+
+To configure threat detection behavior, update the frontmatter:
+
+```yaml
+safe-outputs:
+  threat-detection:
+    continue-on-error: true   # Warnings only (default)
+    # continue-on-error: false  # Strict mode — block safe outputs
+```
+
+</details>
 
 ---
 

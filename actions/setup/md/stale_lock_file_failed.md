@@ -1,4 +1,4 @@
-**🔒 Lock File Out of Sync**: The workflow could not start because its compiled lock file no longer matches the source markdown.
+**Lock File Out of Sync**: The workflow could not start because its compiled lock file no longer matches the source markdown.
 
 This means the workflow's `.md` file was edited but `gh aw compile` was not run afterwards to regenerate the corresponding `.lock.yml` file. The agent is prevented from running against a stale configuration to avoid unexpected behaviour.
 
@@ -57,8 +57,12 @@ gh aw compile
 <details>
 <summary>How to disable this check</summary>
 
-> [!CAUTION]
-> Disabling this check means the agent can run against an out-of-date compiled workflow. Only disable it if you have an alternative mechanism to keep lock files in sync.
+<details>
+<summary>⚠️ Understand the risk before disabling this check</summary>
+
+Disabling this check means the agent can run against an out-of-date compiled workflow. Only disable it if you have an alternative mechanism to keep lock files in sync.
+
+</details>
 
 Set `stale-check: false` in the `on:` section of your workflow frontmatter:
 
@@ -72,3 +76,8 @@ on:
 After editing, recompile the workflow: `gh aw compile`
 
 </details>
+
+### Documentation
+
+- [Compilation process reference](https://github.github.com/gh-aw/reference/compilation-process/)
+- [Frontmatter hash specification](https://github.github.com/gh-aw/reference/frontmatter-hash-specification/)
