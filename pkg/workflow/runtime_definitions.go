@@ -187,6 +187,7 @@ func init() {
 // that files placed at the repo root or in "docs/" are equally protected.
 var securityConfigFiles = []string{
 	"CODEOWNERS", // Governs required reviewers; valid at repo root, .github/, or docs/
+	"DESIGN.md",  // Captures design-system source of truth consumed by coding agents
 }
 
 // getAllManifestFiles returns the deduplicated union of all manifest file names
@@ -212,8 +213,9 @@ func getAllManifestFiles(extra ...string) []string {
 // additionally protected by filename (see securityConfigFiles) so that root-
 // and docs/-level placements are covered too.
 // ".agents/" covers generic agent instruction and configuration files.
+// ".githooks/" and ".husky/" cover repository-tracked git hook scripts.
 func getProtectedPathPrefixes(extra ...string) []string {
-	return mergeUnique([]string{".github/", ".agents/"}, extra...)
+	return mergeUnique([]string{".github/", ".agents/", ".githooks/", ".husky/"}, extra...)
 }
 
 // excludeFromSlice returns a new slice containing the items from base

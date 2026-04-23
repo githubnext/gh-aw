@@ -2255,7 +2255,7 @@ func TestProtectedFilesExclude(t *testing.T) {
 			name:               "exclude AGENTS.md from create-pull-request",
 			excludeFiles:       []string{"AGENTS.md"},
 			wantExcludedFromPF: []string{"AGENTS.md"},
-			wantPresentInPF:    []string{"package.json", "go.mod", "CODEOWNERS"},
+			wantPresentInPF:    []string{"package.json", "go.mod", "CODEOWNERS", "DESIGN.md"},
 		},
 		{
 			name:               "exclude multiple files",
@@ -2388,4 +2388,17 @@ func TestProtectedFilesExcludePushToPRBranch(t *testing.T) {
 	}
 	assert.NotContains(t, pfStrings, "AGENTS.md", "AGENTS.md should be excluded from protected_files")
 	assert.Contains(t, pfStrings, "package.json", "package.json should still be in protected_files")
+
+	ppRaw, ok := pushConfig["protected_path_prefixes"]
+	require.True(t, ok, "should have protected_path_prefixes field")
+	ppAny, ok := ppRaw.([]any)
+	require.True(t, ok, "protected_path_prefixes should be a slice")
+	ppStrings := make([]string, 0, len(ppAny))
+	for _, v := range ppAny {
+		if s, ok := v.(string); ok {
+			ppStrings = append(ppStrings, s)
+		}
+	}
+	assert.Contains(t, ppStrings, ".githooks/", ".githooks/ should be in protected_path_prefixes by default")
+	assert.Contains(t, ppStrings, ".husky/", ".husky/ should be in protected_path_prefixes by default")
 }

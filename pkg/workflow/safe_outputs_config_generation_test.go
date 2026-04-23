@@ -549,9 +549,12 @@ func TestGenerateSafeOutputsConfigCreatePullRequestIncludesEngineManifests(t *te
 	protectedFiles := parseStringSliceAny(prConfig["protected_files"], nil)
 	assert.Contains(t, protectedFiles, "CLAUDE.md", "CLAUDE.md should be protected for Claude engine workflows")
 	assert.Contains(t, protectedFiles, "AGENTS.md", "AGENTS.md should be protected for Claude engine workflows")
+	assert.Contains(t, protectedFiles, "DESIGN.md", "DESIGN.md should be protected by default")
 
 	protectedPathPrefixes := parseStringSliceAny(prConfig["protected_path_prefixes"], nil)
 	assert.Contains(t, protectedPathPrefixes, ".claude/", ".claude/ should be protected for Claude engine workflows")
+	assert.Contains(t, protectedPathPrefixes, ".githooks/", ".githooks/ should be protected by default")
+	assert.Contains(t, protectedPathPrefixes, ".husky/", ".husky/ should be protected by default")
 }
 
 func TestGenerateSafeOutputsConfigCreatePullRequestAppliesProtectedFilesExclude(t *testing.T) {
