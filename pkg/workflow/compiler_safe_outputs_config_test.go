@@ -1653,6 +1653,7 @@ func TestCreatePullRequestFallbackLabels(t *testing.T) {
 	var steps []string
 	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
 	require.NotEmpty(t, steps, "Steps should be generated")
+	validated := false
 
 	for _, step := range steps {
 		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
@@ -1680,8 +1681,12 @@ func TestCreatePullRequestFallbackLabels(t *testing.T) {
 			require.Len(t, fallbackLabels, 2, "fallback_labels should have expected length")
 			assert.Equal(t, "failure", fallbackLabels[0], "first fallback label should match")
 			assert.Equal(t, "automated", fallbackLabels[1], "second fallback label should match")
+			validated = true
+			break
 		}
 	}
+
+	require.True(t, validated, "fallback_labels validation should run when handler config env var is present")
 }
 
 // TestHandlerConfigAssignToUser tests assign_to_user configuration
