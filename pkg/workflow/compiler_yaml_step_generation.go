@@ -13,6 +13,10 @@ var compilerYamlStepGenerationLog = logger.New("workflow:compiler_yaml_step_gene
 // when running in dev mode and not using the action-tag feature. This is used to
 // checkout the local actions before running the setup action.
 //
+// The step uses a bash retry loop (3 attempts, exponential backoff: 5 s then 15 s)
+// instead of actions/checkout so that transient GitHub HTTP 500 / DNS errors during
+// infrastructure outages no longer cause an unrecoverable conclusion-job failure.
+//
 // Returns a slice of strings that can be appended to a steps array, where each
 // string represents a line of YAML for the checkout step. Returns nil if:
 // - Not in dev or script mode
@@ -35,42 +39,79 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 	// that were added after the latest tag.
 	ref := versionToGitRef(c.version)
 
-	// Script mode: checkout .github folder from github/gh-aw to /tmp/gh-aw/actions-source/
+	// Script mode: sparse-checkout of actions/ to /tmp/gh-aw/actions-source with retry.
+	// Uses a bash loop (3 attempts, 5 s → 15 s backoff) to survive transient GitHub outages.
 	if c.actionMode.IsScript() {
-		lines := []string{
-			"      - name: Checkout actions folder\n",
-			fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")),
-			"        with:\n",
-			"          repository: github/gh-aw\n",
+		fetchRef := ref
+		if fetchRef == "" {
+			fetchRef = "HEAD"
 		}
-		if ref != "" {
-			lines = append(lines, fmt.Sprintf("          ref: %s\n", ref))
-		}
-		lines = append(lines,
-			"          sparse-checkout: |\n",
-			"            actions\n",
-			"          path: /tmp/gh-aw/actions-source\n",
-			"          fetch-depth: 1\n",
-			"          persist-credentials: false\n",
-		)
-		return lines
+		var step strings.Builder
+		step.WriteString("      - name: Checkout actions folder\n")
+		step.WriteString("        run: |\n")
+		step.WriteString("          set -euo pipefail\n")
+		step.WriteString("          max_attempts=3\n")
+		step.WriteString("          delay=5\n")
+		step.WriteString("          for attempt in $(seq 1 $max_attempts); do\n")
+		step.WriteString("            echo \"Attempt $attempt of $max_attempts: Checking out github/gh-aw...\"\n")
+		step.WriteString("            rm -rf /tmp/gh-aw/actions-source\n")
+		step.WriteString("            mkdir -p /tmp/gh-aw/actions-source\n")
+		step.WriteString("            if git -C /tmp/gh-aw/actions-source init --quiet \\\n")
+		step.WriteString("               && git -C /tmp/gh-aw/actions-source sparse-checkout init \\\n")
+		step.WriteString("               && git -C /tmp/gh-aw/actions-source sparse-checkout set actions \\\n")
+		step.WriteString("               && git -C /tmp/gh-aw/actions-source remote add origin \"https://x-access-token:${GITHUB_TOKEN}@github.com/github/gh-aw.git\" \\\n")
+		fmt.Fprintf(&step, "               && git -C /tmp/gh-aw/actions-source fetch --depth=1 --quiet origin %s \\\n", fetchRef)
+		step.WriteString("               && git -C /tmp/gh-aw/actions-source checkout --quiet FETCH_HEAD; then\n")
+		step.WriteString("              echo \"Checkout succeeded\"\n")
+		step.WriteString("              break\n")
+		step.WriteString("            fi\n")
+		step.WriteString("            if [ \"$attempt\" -lt \"$max_attempts\" ]; then\n")
+		step.WriteString("              echo \"Checkout failed. Retrying in ${delay}s...\"\n")
+		step.WriteString("              sleep \"$delay\"\n")
+		step.WriteString("              delay=$((delay * 3))\n")
+		step.WriteString("            else\n")
+		step.WriteString("              echo \"Checkout failed after $max_attempts attempts\"\n")
+		step.WriteString("              exit 1\n")
+		step.WriteString("            fi\n")
+		step.WriteString("          done\n")
+		step.WriteString("        env:\n")
+		step.WriteString("          GITHUB_TOKEN: ${{ github.token }}\n")
+		return []string{step.String()}
 	}
 
-	// Dev mode: checkout actions folder from github/gh-aw so that cross-repo
-	// callers (e.g. event-driven relays) can find the actions/ directory.
-	// Without repository: the runner defaults to the caller's repo, which has
-	// no actions/ directory, causing Setup Scripts to fail immediately.
+	// Dev mode: sparse-checkout of actions/ to GITHUB_WORKSPACE with retry.
+	// Uses a bash loop (3 attempts, 5 s → 15 s backoff) to survive transient GitHub outages.
 	if c.actionMode.IsDev() {
-		lines := []string{
-			"      - name: Checkout actions folder\n",
-			fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")),
-			"        with:\n",
-			"          repository: github/gh-aw\n",
-			"          sparse-checkout: |\n",
-			"            actions\n",
-			"          persist-credentials: false\n",
-		}
-		return lines
+		var step strings.Builder
+		step.WriteString("      - name: Checkout actions folder\n")
+		step.WriteString("        run: |\n")
+		step.WriteString("          set -euo pipefail\n")
+		step.WriteString("          max_attempts=3\n")
+		step.WriteString("          delay=5\n")
+		step.WriteString("          for attempt in $(seq 1 $max_attempts); do\n")
+		step.WriteString("            echo \"Attempt $attempt of $max_attempts: Checking out github/gh-aw...\"\n")
+		step.WriteString("            git remote remove origin 2>/dev/null || true\n")
+		step.WriteString("            if git init --quiet \\\n")
+		step.WriteString("               && git sparse-checkout init \\\n")
+		step.WriteString("               && git sparse-checkout set actions \\\n")
+		step.WriteString("               && git remote add origin \"https://x-access-token:${GITHUB_TOKEN}@github.com/github/gh-aw.git\" \\\n")
+		step.WriteString("               && git fetch --depth=1 --quiet origin HEAD \\\n")
+		step.WriteString("               && git checkout --quiet FETCH_HEAD; then\n")
+		step.WriteString("              echo \"Checkout succeeded\"\n")
+		step.WriteString("              break\n")
+		step.WriteString("            fi\n")
+		step.WriteString("            if [ \"$attempt\" -lt \"$max_attempts\" ]; then\n")
+		step.WriteString("              echo \"Checkout failed. Retrying in ${delay}s...\"\n")
+		step.WriteString("              sleep \"$delay\"\n")
+		step.WriteString("              delay=$((delay * 3))\n")
+		step.WriteString("            else\n")
+		step.WriteString("              echo \"Checkout failed after $max_attempts attempts\"\n")
+		step.WriteString("              exit 1\n")
+		step.WriteString("            fi\n")
+		step.WriteString("          done\n")
+		step.WriteString("        env:\n")
+		step.WriteString("          GITHUB_TOKEN: ${{ github.token }}\n")
+		return []string{step.String()}
 	}
 
 	// Release mode or other modes: no checkout needed

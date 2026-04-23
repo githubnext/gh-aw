@@ -81,12 +81,33 @@ jobs:
       title: ${{ steps.sanitized.outputs.title }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          sparse-checkout: |
-            actions
-          persist-credentials: false
+        run: |
+          set -euo pipefail
+          max_attempts=3
+          delay=5
+          for attempt in $(seq 1 $max_attempts); do
+            echo "Attempt $attempt of $max_attempts: Checking out github/gh-aw..."
+            git remote remove origin 2>/dev/null || true
+            if git init --quiet \
+               && git sparse-checkout init \
+               && git sparse-checkout set actions \
+               && git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/github/gh-aw.git" \
+               && git fetch --depth=1 --quiet origin HEAD \
+               && git checkout --quiet FETCH_HEAD; then
+              echo "Checkout succeeded"
+              break
+            fi
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              echo "Checkout failed. Retrying in ${delay}s..."
+              sleep "$delay"
+              delay=$((delay * 3))
+            else
+              echo "Checkout failed after $max_attempts attempts"
+              exit 1
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Setup Scripts
         id: setup
         uses: ./actions/setup
@@ -341,12 +362,33 @@ jobs:
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          sparse-checkout: |
-            actions
-          persist-credentials: false
+        run: |
+          set -euo pipefail
+          max_attempts=3
+          delay=5
+          for attempt in $(seq 1 $max_attempts); do
+            echo "Attempt $attempt of $max_attempts: Checking out github/gh-aw..."
+            git remote remove origin 2>/dev/null || true
+            if git init --quiet \
+               && git sparse-checkout init \
+               && git sparse-checkout set actions \
+               && git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/github/gh-aw.git" \
+               && git fetch --depth=1 --quiet origin HEAD \
+               && git checkout --quiet FETCH_HEAD; then
+              echo "Checkout succeeded"
+              break
+            fi
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              echo "Checkout failed. Retrying in ${delay}s..."
+              sleep "$delay"
+              delay=$((delay * 3))
+            else
+              echo "Checkout failed after $max_attempts attempts"
+              exit 1
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Setup Scripts
         id: setup
         uses: ./actions/setup
@@ -657,12 +699,33 @@ jobs:
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          sparse-checkout: |
-            actions
-          persist-credentials: false
+        run: |
+          set -euo pipefail
+          max_attempts=3
+          delay=5
+          for attempt in $(seq 1 $max_attempts); do
+            echo "Attempt $attempt of $max_attempts: Checking out github/gh-aw..."
+            git remote remove origin 2>/dev/null || true
+            if git init --quiet \
+               && git sparse-checkout init \
+               && git sparse-checkout set actions \
+               && git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/github/gh-aw.git" \
+               && git fetch --depth=1 --quiet origin HEAD \
+               && git checkout --quiet FETCH_HEAD; then
+              echo "Checkout succeeded"
+              break
+            fi
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              echo "Checkout failed. Retrying in ${delay}s..."
+              sleep "$delay"
+              delay=$((delay * 3))
+            else
+              echo "Checkout failed after $max_attempts attempts"
+              exit 1
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Setup Scripts
         id: setup
         uses: ./actions/setup

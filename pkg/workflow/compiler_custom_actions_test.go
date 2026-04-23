@@ -226,19 +226,19 @@ Test workflow with script mode.
 	lockStr := string(lockContent)
 
 	// Verify script mode behavior:
-	// 1. Checkout should use repository: github/gh-aw
-	if !strings.Contains(lockStr, "repository: github/gh-aw") {
-		t.Error("Expected 'repository: github/gh-aw' in checkout step for script mode")
+	// 1. Checkout should use the github/gh-aw remote URL
+	if !strings.Contains(lockStr, "github/gh-aw.git") {
+		t.Error("Expected 'github/gh-aw.git' in checkout run step for script mode")
 	}
 
 	// 2. Checkout should target path: /tmp/gh-aw/actions-source
-	if !strings.Contains(lockStr, "path: /tmp/gh-aw/actions-source") {
-		t.Error("Expected 'path: /tmp/gh-aw/actions-source' in checkout step for script mode")
+	if !strings.Contains(lockStr, "/tmp/gh-aw/actions-source") {
+		t.Error("Expected '/tmp/gh-aw/actions-source' in checkout run step for script mode")
 	}
 
-	// 3. Checkout should use shallow clone (fetch-depth: 1)
-	if !strings.Contains(lockStr, "fetch-depth: 1") {
-		t.Error("Expected 'fetch-depth: 1' in checkout step for script mode (shallow checkout)")
+	// 3. Checkout should use shallow clone (--depth=1)
+	if !strings.Contains(lockStr, "--depth=1") {
+		t.Error("Expected '--depth=1' in checkout run step for script mode (shallow clone)")
 	}
 
 	// 4. Setup step should run bash script instead of using "uses:"
@@ -257,9 +257,9 @@ Test workflow with script mode.
 		t.Error("Expected script mode to NOT use 'uses: ./actions/setup' but instead run bash script directly")
 	}
 
-	// 7. Checkout should include ref: for the version
-	if !strings.Contains(lockStr, "ref: 1.0.0") {
-		t.Error("Expected 'ref: 1.0.0' in checkout step for script mode when version is set")
+	// 7. Checkout should include the version ref in the git fetch command
+	if !strings.Contains(lockStr, "origin 1.0.0") {
+		t.Error("Expected 'origin 1.0.0' in git fetch command for script mode when version is set")
 	}
 
 	// 8. Setup step should include INPUT_JOB_NAME for OTLP span job name attribute
@@ -343,7 +343,7 @@ func TestVersionToGitRef(t *testing.T) {
 }
 
 // TestCheckoutActionsFolderDevModeHasRepository verifies that the Checkout actions folder
-// step in dev mode includes repository: github/gh-aw so that cross-repo callers (e.g.
+// step in dev mode references github/gh-aw so that cross-repo callers (e.g.
 // event-driven relays) can find the actions/ directory instead of defaulting to the
 // caller's repo which has no actions/ directory.
 func TestCheckoutActionsFolderDevModeHasRepository(t *testing.T) {
@@ -353,8 +353,8 @@ func TestCheckoutActionsFolderDevModeHasRepository(t *testing.T) {
 	lines := compiler.generateCheckoutActionsFolder(nil)
 	combined := strings.Join(lines, "")
 
-	if !strings.Contains(combined, "repository: github/gh-aw") {
-		t.Error("Dev mode Checkout actions folder should include 'repository: github/gh-aw' (fix for #20658)")
+	if !strings.Contains(combined, "github/gh-aw.git") {
+		t.Error("Dev mode Checkout actions folder should include 'github/gh-aw.git' remote URL (fix for #20658)")
 	}
 }
 
