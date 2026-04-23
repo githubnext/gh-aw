@@ -302,7 +302,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// to avoid double-filtering: the gateway uses the same guard policy for the agent phase.
 	c.generateStopDIFCProxyStep(yaml, data)
 
-	// Add pre-agent-steps (if any) before MCP setup so they can install/configure MCPs
+	// Add pre-agent-steps (if any) before MCP setup so they can install/configure MCP dependencies
 	// that the gateway may reference when it starts.
 	c.generatePreAgentSteps(yaml, data)
 
