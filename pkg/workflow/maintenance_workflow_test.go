@@ -384,8 +384,17 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 			t.Errorf("Job activity_report should set timeout-minutes: 120 in:\n%s", activityReportSection)
 		}
 	}
-	if !strings.Contains(yaml, "Cache activity report logs") {
-		t.Errorf("Job activity_report should include a cache step in:\n%s", yaml)
+	if !strings.Contains(yaml, "Restore activity report logs cache") {
+		t.Errorf("Job activity_report should include a cache restore step in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "Save activity report logs cache") {
+		t.Errorf("Job activity_report should include a cache save step in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "if: ${{ always() }}") {
+		t.Errorf("Job activity_report should save cache even when earlier steps fail in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "steps.activity_report_logs_cache.outputs.cache-primary-key") {
+		t.Errorf("Job activity_report cache save step should use cache primary key output in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "${{ github.run_id }}") {
 		t.Errorf("Job activity_report cache key should include run_id for latest-cache resolution in:\n%s", yaml)

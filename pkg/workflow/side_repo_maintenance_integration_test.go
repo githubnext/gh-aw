@@ -90,8 +90,14 @@ This workflow operates on a separate repository.
 	// Must have activity_report job.
 	assert.Contains(t, contentStr, "activity_report:",
 		"generated workflow should include activity_report job")
-	assert.Contains(t, contentStr, "Cache activity report logs",
-		"generated workflow should include cache step for activity_report logs")
+	assert.Contains(t, contentStr, "Restore activity report logs cache",
+		"generated workflow should include cache restore step for activity_report logs")
+	assert.Contains(t, contentStr, "Save activity report logs cache",
+		"generated workflow should include cache save step for activity_report logs")
+	assert.Contains(t, contentStr, "if: ${{ always() }}",
+		"generated workflow should save activity_report logs cache even if report generation fails")
+	assert.Contains(t, contentStr, "steps.activity_report_logs_cache.outputs.cache-primary-key",
+		"generated workflow should save activity_report logs using the cache primary key")
 	assert.Contains(t, contentStr, "GH_AW_ACTIVITY_REPORT_OUTPUT_DIR: ./.cache/gh-aw/activity-report-logs",
 		"generated workflow should set GH_AW_ACTIVITY_REPORT_OUTPUT_DIR for activity_report logs")
 	assert.Contains(t, contentStr, "actions: read\n      contents: read\n      issues: write",

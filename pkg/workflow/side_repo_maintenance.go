@@ -459,8 +459,9 @@ jobs:
 `)
 
 	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
-	yaml.WriteString(`      - name: Cache activity report logs
-        uses: ` + getActionPin("actions/cache") + `
+	yaml.WriteString(`      - name: Restore activity report logs cache
+        id: activity_report_logs_cache
+        uses: ` + getActionPin("actions/cache/restore") + `
         with:
           path: ./.cache/gh-aw/activity-report-logs
           key: ${{ runner.os }}-activity-report-logs-` + repoSlug + `-${{ github.ref_name }}-${{ github.run_id }}
@@ -482,6 +483,13 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/run_activity_report.cjs');
             await main();
+
+      - name: Save activity report logs cache
+        if: ${{ always() }}
+        uses: ` + getActionPin("actions/cache/save") + `
+        with:
+          path: ./.cache/gh-aw/activity-report-logs
+          key: ${{ steps.activity_report_logs_cache.outputs.cache-primary-key }}
 `)
 
 	// Add validate_workflows job for workflow_dispatch/workflow_call with operation == 'validate'
