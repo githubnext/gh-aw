@@ -1117,11 +1117,11 @@ func TestSpec_PublicAPI_ValidateWorkflowIntent(t *testing.T) {
 // Spec: "Sets a field in frontmatter YAML"
 func TestSpec_PublicAPI_UpdateFieldInFrontmatter(t *testing.T) {
 	tests := []struct {
-		name       string
-		content    string
-		fieldName  string
-		fieldValue string
-		wantErr    bool
+		name          string
+		content       string
+		fieldName     string
+		fieldValue    string
+		wantErr       bool
 		checkContains string
 	}{
 		{
