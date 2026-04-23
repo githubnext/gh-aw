@@ -1,10 +1,23 @@
 // @ts-check
-import { describe, it, expect } from "vitest";
-import fs from "fs";
-import os from "os";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import path from "path";
 
 describe("comment_memory", () => {
+  let originalPromptsDir;
+
+  beforeAll(() => {
+    originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+    process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), "../md");
+  });
+
+  afterAll(() => {
+    if (originalPromptsDir === undefined) {
+      delete process.env.GH_AW_PROMPTS_DIR;
+      return;
+    }
+    process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+  });
+
   it("sanitizes valid memory IDs", async () => {
     const module = await import("./comment_memory.cjs");
     expect(module.sanitizeMemoryID("Session_1")).toBe("Session_1");
@@ -96,26 +109,5 @@ describe("comment_memory", () => {
 
     const found = await module.findManagedComment(github, "octo", "repo", 123, "default");
     expect(found?.id).toBe(2);
-  });
-
-  it("resolves disclosure note from runtime prompts directory when configured", async () => {
-    const module = await import("./comment_memory.cjs");
-    const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "comment-memory-prompts-"));
-    const templatePath = path.join(tmpDir, "comment_memory_disclosure_note.md");
-    fs.writeFileSync(templatePath, "test template");
-
-    try {
-      process.env.GH_AW_PROMPTS_DIR = tmpDir;
-      const resolved = module.resolveManagedCommentDisclosureNotePath();
-      expect(resolved).toBe(templatePath);
-    } finally {
-      if (originalPromptsDir === undefined) {
-        delete process.env.GH_AW_PROMPTS_DIR;
-      } else {
-        process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
-      }
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    }
   });
 });

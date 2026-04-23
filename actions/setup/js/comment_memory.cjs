@@ -2,8 +2,6 @@
 /// <reference types="@actions/github-script" />
 require("./shim.cjs");
 
-const fs = require("fs");
-const path = require("path");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { SAFE_OUTPUT_E001 } = require("./error_codes.cjs");
@@ -21,20 +19,7 @@ const { COMMENT_MEMORY_TAG, COMMENT_MEMORY_MAX_SCAN_PAGES } = require("./comment
 // that happen to contain a matching comment-memory tag.
 const MANAGED_COMMENT_PROVENANCE_MARKER = "<!-- gh-aw-agentic-workflow:";
 const MANAGED_COMMENT_HEADER = "### Comment Memory";
-const MANAGED_COMMENT_DISCLOSURE_NOTE_FILENAME = "comment_memory_disclosure_note.md";
-
-function resolveManagedCommentDisclosureNotePath() {
-  const promptDirFromEnv = process.env.GH_AW_PROMPTS_DIR || (process.env.RUNNER_TEMP ? `${process.env.RUNNER_TEMP}/gh-aw/prompts` : "");
-  const candidates = [promptDirFromEnv ? path.join(promptDirFromEnv, MANAGED_COMMENT_DISCLOSURE_NOTE_FILENAME) : "", path.join(__dirname, "../md", MANAGED_COMMENT_DISCLOSURE_NOTE_FILENAME)].filter(Boolean);
-
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  return candidates[0];
-}
+const MANAGED_COMMENT_DISCLOSURE_NOTE_PATH = `${process.env.GH_AW_PROMPTS_DIR || `${process.env.RUNNER_TEMP}/gh-aw/prompts`}/comment_memory_disclosure_note.md`;
 
 function sanitizeMemoryID(memoryID) {
   const normalized = String(memoryID || "default").trim();
@@ -62,10 +47,9 @@ function buildManagedMemoryBody(rawBody, memoryID, options) {
 
   if (includeFooter) {
     core.info(`comment_memory: footer enabled for memory_id='${memoryID}'`);
-    const disclosureNotePath = resolveManagedCommentDisclosureNotePath();
     const resolvedDisclosureNote =
       disclosureNote ??
-      renderTemplateFromFile(disclosureNotePath, {
+      renderTemplateFromFile(MANAGED_COMMENT_DISCLOSURE_NOTE_PATH, {
         comment_memory_tag: COMMENT_MEMORY_TAG,
       });
     body += "\n\n" + resolvedDisclosureNote;
@@ -191,8 +175,7 @@ async function main(config = {}) {
       }) || undefined;
 
     if (cachedDisclosureNote === null) {
-      const disclosureNotePath = resolveManagedCommentDisclosureNotePath();
-      cachedDisclosureNote = renderTemplateFromFile(disclosureNotePath, {
+      cachedDisclosureNote = renderTemplateFromFile(MANAGED_COMMENT_DISCLOSURE_NOTE_PATH, {
         comment_memory_tag: COMMENT_MEMORY_TAG,
       });
     }
@@ -265,4 +248,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main, sanitizeMemoryID, findManagedComment, buildManagedMemoryBody, resolveManagedCommentDisclosureNotePath };
+module.exports = { main, sanitizeMemoryID, findManagedComment, buildManagedMemoryBody };
