@@ -92,7 +92,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	safeOutputConfig, err := prepareSafeOutputsConfig(workflowData)
 	if err != nil {
-		return err
+		return fmt.Errorf("safe outputs setup preparation failed: %w", err)
 	}
 
 	// Sort tools to ensure stable code generation
@@ -124,7 +124,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	generateSafeOutputsSetup(c, yaml, safeOutputConfig, workflowData)
 	if err := generateMCPScriptsSetup(yaml, workflowData); err != nil {
-		return err
+		return fmt.Errorf("mcp-scripts setup failed: %w", err)
 	}
 	return generateMCPGatewaySetup(yaml, tools, mcpTools, engine, workflowData, hasAgenticWorkflows)
 }
@@ -385,7 +385,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	sort.Strings(mcpScriptToolNames)
 	for _, toolName := range mcpScriptToolNames {
 		toolConfig := workflowData.MCPScripts.Tools[toolName]
-		if err := writeMCPScriptToolFile(yaml, workflowData, toolName, toolConfig); err != nil {
+		if err := appendMCPScriptToolFileYAML(yaml, workflowData, toolName, toolConfig); err != nil {
 			return err
 		}
 	}
@@ -434,7 +434,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	return nil
 }
 
-func writeMCPScriptToolFile(yaml *strings.Builder, workflowData *WorkflowData, toolName string, toolConfig *MCPScriptToolConfig) error {
+func appendMCPScriptToolFileYAML(yaml *strings.Builder, workflowData *WorkflowData, toolName string, toolConfig *MCPScriptToolConfig) error {
 	if toolConfig.Script != "" {
 		toolScript := GenerateMCPScriptJavaScriptToolScript(toolConfig)
 		jsDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_JS_"+strings.ToUpper(toolName), workflowData.FrontmatterHash)
