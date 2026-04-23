@@ -134,7 +134,8 @@ EOF
    fi
    ```
 
-2. Load `rotation.json` to determine which packages to process next:
+2. Load `rotation.json` to determine which packages to process next.
+   Example state **after processing** `envutil,fileutil,gitutil,logger`:
    ```json
     {
       "last_index": 4,
@@ -159,6 +160,7 @@ Select **exactly 4 packages** for this run using deterministic round-robin:
 1. **Use the fixed package order** listed in the table above (20 total packages).
 
 2. **Read** `last_index` from `rotation.json` (default `0`).
+   - `last_index` means the **next package index to process**, not the previously processed index.
 
 3. **Select the next 4 packages** using modular arithmetic:
    - Package 1 index: `last_index`
