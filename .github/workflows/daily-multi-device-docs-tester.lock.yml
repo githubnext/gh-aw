@@ -110,8 +110,8 @@ jobs:
             if git init --quiet \
                && git sparse-checkout init \
                && git sparse-checkout set actions \
-               && git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/github/gh-aw.git" \
-               && git fetch --depth=1 --quiet origin HEAD \
+               && git remote add origin https://github.com/github/gh-aw.git \
+               && git -c "http.extraheader=Authorization: Bearer ${GITHUB_TOKEN}" fetch --depth=1 --quiet origin HEAD \
                && git checkout --quiet FETCH_HEAD; then
               echo "Checkout succeeded"
               break
@@ -380,8 +380,8 @@ jobs:
             if git init --quiet \
                && git sparse-checkout init \
                && git sparse-checkout set actions \
-               && git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/github/gh-aw.git" \
-               && git fetch --depth=1 --quiet origin HEAD \
+               && git remote add origin https://github.com/github/gh-aw.git \
+               && git -c "http.extraheader=Authorization: Bearer ${GITHUB_TOKEN}" fetch --depth=1 --quiet origin HEAD \
                && git checkout --quiet FETCH_HEAD; then
               echo "Checkout succeeded"
               break
@@ -1121,8 +1121,8 @@ jobs:
             if git init --quiet \
                && git sparse-checkout init \
                && git sparse-checkout set actions \
-               && git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/github/gh-aw.git" \
-               && git fetch --depth=1 --quiet origin HEAD \
+               && git remote add origin https://github.com/github/gh-aw.git \
+               && git -c "http.extraheader=Authorization: Bearer ${GITHUB_TOKEN}" fetch --depth=1 --quiet origin HEAD \
                && git checkout --quiet FETCH_HEAD; then
               echo "Checkout succeeded"
               break
@@ -1277,8 +1277,8 @@ jobs:
             if git init --quiet \
                && git sparse-checkout init \
                && git sparse-checkout set actions \
-               && git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/github/gh-aw.git" \
-               && git fetch --depth=1 --quiet origin HEAD \
+               && git remote add origin https://github.com/github/gh-aw.git \
+               && git -c "http.extraheader=Authorization: Bearer ${GITHUB_TOKEN}" fetch --depth=1 --quiet origin HEAD \
                && git checkout --quiet FETCH_HEAD; then
               echo "Checkout succeeded"
               break
@@ -1498,8 +1498,8 @@ jobs:
             if git init --quiet \
                && git sparse-checkout init \
                && git sparse-checkout set actions \
-               && git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/github/gh-aw.git" \
-               && git fetch --depth=1 --quiet origin HEAD \
+               && git remote add origin https://github.com/github/gh-aw.git \
+               && git -c "http.extraheader=Authorization: Bearer ${GITHUB_TOKEN}" fetch --depth=1 --quiet origin HEAD \
                && git checkout --quiet FETCH_HEAD; then
               echo "Checkout succeeded"
               break
