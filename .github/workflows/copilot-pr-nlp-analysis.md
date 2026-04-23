@@ -24,7 +24,7 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[nlp-analysis] "
       expires: 1d
@@ -35,7 +35,6 @@ imports:
   - shared/copilot-pr-analysis-base.md
   - shared/python-dataviz.md
   - shared/python-nlp.md
-  - shared/reporting.md
 
 steps:
   - name: Fetch PR comments for detailed analysis

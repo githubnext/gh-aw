@@ -145,7 +145,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// - MCP tool prefixes: mcp__github__issue_read
 	// - Path-specific tools: Read(/tmp/gh-aw/cache-memory/*)
 	// The --tools flag only supports basic tool names (e.g., "Bash,Edit,Read") without patterns.
-	allowedTools := e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig)
+	allowedTools := e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig, workflowData.MCPScripts)
 	if allowedTools != "" {
 		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)
 	}
@@ -158,8 +158,24 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Always add verbose flag for enhanced debugging output
 	claudeArgs = append(claudeArgs, "--verbose")
 
-	// Add permission mode for non-interactive execution (bypass permissions)
-	claudeArgs = append(claudeArgs, "--permission-mode", "bypassPermissions")
+	// Add permission mode for non-interactive execution.
+	//
+	// We use "acceptEdits" by default so that Claude Code honours --allowed-tools as
+	// the effective MCP tool boundary.  In "bypassPermissions" mode the allowlist is
+	// silently ignored — every tool exposed by the MCP gateway is reachable regardless
+	// of the workflow's declared tool configuration.
+	//
+	// Exception: when the workflow grants unrestricted bash access (bash: "*"), the
+	// agent can reach any tool via the shell regardless, so --allowed-tools provides
+	// no meaningful security boundary.  In that case we switch back to
+	// "bypassPermissions" which auto-approves all permission requests and produces a
+	// smoother headless execution experience.
+	permissionMode := "acceptEdits"
+	if hasBashWildcardInTools(workflowData.Tools) {
+		claudeLog.Print("Unrestricted bash detected: using bypassPermissions mode")
+		permissionMode = "bypassPermissions"
+	}
+	claudeArgs = append(claudeArgs, "--permission-mode", permissionMode)
 
 	// Add output format for structured output
 	// Use "stream-json" to output JSONL format (newline-delimited JSON objects)
@@ -398,7 +414,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add allowed tools comment before the run section
-	allowedToolsComment := e.generateAllowedToolsComment(e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig), "        ")
+	allowedToolsComment := e.generateAllowedToolsComment(e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig, workflowData.MCPScripts), "        ")
 	if allowedToolsComment != "" {
 		// Split the comment into lines and add each line
 		commentLines := strings.Split(strings.TrimSuffix(allowedToolsComment, "\n"), "\n")

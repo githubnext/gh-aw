@@ -21,7 +21,7 @@ sandbox:
 timeout-minutes: 20
 strict: false
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[mcp-inspector] "
       expires: 1d
@@ -40,7 +40,6 @@ imports:
   - shared/mcp/server-memory.md
   - shared/mcp/slack.md
   - shared/mcp/tavily.md
-  - shared/reporting.md
   - shared/mcp/serena-go.md
 tools:
   mount-as-clis: true

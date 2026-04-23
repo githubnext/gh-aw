@@ -30,12 +30,11 @@ network:
     - node
 
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[docs-noob-tester] "
       expires: 1d
   - shared/docs-server-lifecycle.md
-  - shared/reporting.md
   - shared/keep-it-short.md
 features:
   mcp-cli: true

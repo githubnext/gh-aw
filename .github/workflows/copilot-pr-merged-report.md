@@ -27,13 +27,12 @@ network:
     - api.github.com
 
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[copilot-pr-merged-report] "
       expires: 1d
   - shared/gh.md
   - shared/copilot-pr-analysis-base.md
-  - shared/reporting.md
 
 timeout-minutes: 10
 features:

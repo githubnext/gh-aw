@@ -11,11 +11,10 @@ permissions:
   pull-requests: read
 engine: copilot
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[repository-quality] "
       expires: 1d
-  - shared/reporting.md
   - shared/mcp/serena-go.md
 tools:
   mount-as-clis: true

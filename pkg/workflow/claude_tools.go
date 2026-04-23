@@ -12,6 +12,35 @@ import (
 
 var claudeToolsLog = logger.New("workflow:claude_tools")
 
+// hasBashWildcardInTools returns true when the neutral tools map grants unrestricted
+// bash access — either because bash is not a list (e.g. bash: true) or because the
+// list contains a "*" or ":*" wildcard entry.
+//
+// When bash is unrestricted the agent can already reach any tool via the shell, so
+// --permission-mode bypassPermissions is safe and produces a smoother headless
+// experience than acceptEdits (which can stall on some non-file-edit permission
+// requests that do not match the acceptEdits auto-approval pattern).
+func hasBashWildcardInTools(tools map[string]any) bool {
+	if tools == nil {
+		return false
+	}
+	bashVal, hasBash := tools["bash"]
+	if !hasBash {
+		return false
+	}
+	// bash: true (non-list value) means unrestricted bash
+	bashCommands, ok := bashVal.([]any)
+	if !ok {
+		return true
+	}
+	for _, cmd := range bashCommands {
+		if cmdStr, ok := cmd.(string); ok && (cmdStr == "*" || cmdStr == ":*") {
+			return true
+		}
+	}
+	return false
+}
+
 // expandNeutralToolsToClaudeTools converts neutral tool names to Claude-specific tool configurations
 func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map[string]any {
 	claudeToolsLog.Printf("Starting neutral tools expansion: input_tools=%d", len(tools))
@@ -128,7 +157,12 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 // 2. converts neutral tools to Claude-specific tools format
 // 3. adds default Claude tools and git commands based on safe outputs configuration
 // 4. generates the allowed tools string for Claude
-func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, safeOutputs *SafeOutputsConfig, cacheMemoryConfig *CacheMemoryConfig) string {
+//
+// System MCP servers (safeoutputs, mcpscripts, agenticworkflows) are not present in the
+// user-visible tools map but must be explicitly added to --allowed-tools when
+// --permission-mode acceptEdits is in use, because acceptEdits actually enforces the
+// allowlist (unlike bypassPermissions which silently ignores it).
+func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, safeOutputs *SafeOutputsConfig, cacheMemoryConfig *CacheMemoryConfig, mcpScripts *MCPScriptsConfig) string {
 	claudeToolsLog.Print("Computing allowed Claude tools string")
 
 	// Initialize tools map if nil
@@ -296,6 +330,13 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 				continue
 			}
 
+			// agentic-workflows is a known system MCP server whose tool value is a bool (enabled flag),
+			// not a map. Handle it before the generic map check so it does not fall through silently.
+			if toolName == "agentic-workflows" {
+				allowedTools = append(allowedTools, "mcp__"+string(constants.AgenticWorkflowsMCPServerID))
+				continue
+			}
+
 			// Check if this is an MCP tool (has MCP-compatible type) or standard MCP tool (github)
 			if mcpConfig, ok := toolValue.(map[string]any); ok {
 				// Check if it's explicitly marked as MCP type
@@ -365,14 +406,24 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 								}
 							}
 						}
+					} else {
+						// No explicit allowed list: default to granting access to all tools from this
+						// MCP server. The user explicitly added the server in their workflow, so they
+						// intend to use its tools. Server-side restrictions still apply.
+						allowedTools = append(allowedTools, "mcp__"+toolName)
 					}
 				}
 			}
 		}
 	}
 
-	// Handle SafeOutputs requirement for file write access
+	// Handle SafeOutputs: grant access to all safe-outputs MCP tools and Write permission.
+	// The safeoutputs MCP server is started whenever safe-outputs is configured; with
+	// --permission-mode acceptEdits its tools must be explicitly listed in --allowed-tools
+	// (unlike bypassPermissions which silently ignores the allowlist).
 	if safeOutputs != nil {
+		allowedTools = append(allowedTools, "mcp__"+string(constants.SafeOutputsMCPServerID))
+
 		// Check if a general "Write" permission is already granted
 		hasGeneralWrite := slices.Contains(allowedTools, "Write")
 
@@ -384,6 +435,13 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 			// to be working with Claude. See https://github.com/github/gh-aw/issues/244#issuecomment-3240319103
 			//allowedTools = append(allowedTools, "Write(${{ env.GH_AW_SAFE_OUTPUTS }})")
 		}
+	}
+
+	// Handle MCPScripts: grant access to all mcpscripts MCP tools.
+	// The mcpscripts server is started when mcp-scripts tools are configured; with
+	// --permission-mode acceptEdits its tools must be explicitly listed in --allowed-tools.
+	if HasMCPScripts(mcpScripts) {
+		allowedTools = append(allowedTools, "mcp__"+string(constants.MCPScriptsMCPServerID))
 	}
 
 	// Sort the allowed tools alphabetically for consistent output

@@ -105,8 +105,8 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected --print flag in step: %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "--permission-mode bypassPermissions") {
-		t.Errorf("Expected --permission-mode bypassPermissions in CLI args: %s", stepContent)
+	if !strings.Contains(stepContent, "--permission-mode acceptEdits") {
+		t.Errorf("Expected --permission-mode acceptEdits in CLI args: %s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "--output-format stream-json") {
@@ -195,6 +195,74 @@ func TestClaudeEngineAllowsMountedMCPCLICommandsInRestrictedBash(t *testing.T) {
 	assert.Contains(t, stepContent, "Bash(mymcp:*)", "Expected mounted custom MCP CLI allowlist command")
 	assert.Contains(t, stepContent, "Bash(playwright:*)", "Expected mounted playwright CLI allowlist command")
 	assert.Contains(t, stepContent, "Bash(safeoutputs:*)", "Expected mounted safeoutputs CLI allowlist command")
+	// Permission mode must be acceptEdits when bash is restricted (not wildcard)
+	assert.Contains(t, stepContent, "--permission-mode acceptEdits", "Expected acceptEdits with restricted bash")
+}
+
+func TestClaudeEnginePermissionMode(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	tests := []struct {
+		name            string
+		tools           map[string]any
+		expectedMode    string
+		notExpectedMode string
+	}{
+		{
+			name:            "no tools — default acceptEdits",
+			tools:           nil,
+			expectedMode:    "acceptEdits",
+			notExpectedMode: "bypassPermissions",
+		},
+		{
+			name: "restricted bash — acceptEdits",
+			tools: map[string]any{
+				"bash": []any{"git", "echo"},
+			},
+			expectedMode:    "acceptEdits",
+			notExpectedMode: "bypassPermissions",
+		},
+		{
+			name: "bash wildcard * — bypassPermissions",
+			tools: map[string]any{
+				"bash": []any{"*"},
+			},
+			expectedMode:    "bypassPermissions",
+			notExpectedMode: "acceptEdits",
+		},
+		{
+			name: "bash colon-wildcard :* — bypassPermissions",
+			tools: map[string]any{
+				"bash": []any{":*"},
+			},
+			expectedMode:    "bypassPermissions",
+			notExpectedMode: "acceptEdits",
+		},
+		{
+			name: "bash nil value (unrestricted) — bypassPermissions",
+			tools: map[string]any{
+				"bash": nil,
+			},
+			expectedMode:    "bypassPermissions",
+			notExpectedMode: "acceptEdits",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:  "test-workflow",
+				Tools: tt.tools,
+			}
+			steps := engine.GetExecutionSteps(workflowData, "test-log")
+			require.Len(t, steps, 1, "Expected one execution step")
+			stepContent := strings.Join([]string(steps[0]), "\n")
+			assert.Contains(t, stepContent, "--permission-mode "+tt.expectedMode,
+				"Expected --permission-mode %s", tt.expectedMode)
+			assert.NotContains(t, stepContent, "--permission-mode "+tt.notExpectedMode,
+				"Did not expect --permission-mode %s", tt.notExpectedMode)
+		})
+	}
 }
 
 func TestClaudeEngineConfiguration(t *testing.T) {
