@@ -159,13 +159,23 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	claudeArgs = append(claudeArgs, "--verbose")
 
 	// Add permission mode for non-interactive execution.
-	// Use "acceptEdits" instead of "bypassPermissions" so that Claude Code honours
-	// the --allowed-tools flag.  In "bypassPermissions" mode the allowlist is silently
-	// ignored, meaning every tool exposed by the MCP gateway is reachable regardless of
-	// the workflow's declared tool configuration.  "acceptEdits" auto-approves file-edit
-	// operations (needed for headless CI execution) while still enforcing MCP tool
-	// restrictions, making --allowed-tools the effective security boundary.
-	claudeArgs = append(claudeArgs, "--permission-mode", "acceptEdits")
+	//
+	// We use "acceptEdits" by default so that Claude Code honours --allowed-tools as
+	// the effective MCP tool boundary.  In "bypassPermissions" mode the allowlist is
+	// silently ignored — every tool exposed by the MCP gateway is reachable regardless
+	// of the workflow's declared tool configuration.
+	//
+	// Exception: when the workflow grants unrestricted bash access (bash: "*"), the
+	// agent can reach any tool via the shell regardless, so --allowed-tools provides
+	// no meaningful security boundary.  In that case we switch back to
+	// "bypassPermissions" which auto-approves all permission requests and produces a
+	// smoother headless execution experience.
+	permissionMode := "acceptEdits"
+	if hasBashWildcardInTools(workflowData.Tools) {
+		claudeLog.Print("Unrestricted bash detected: using bypassPermissions mode")
+		permissionMode = "bypassPermissions"
+	}
+	claudeArgs = append(claudeArgs, "--permission-mode", permissionMode)
 
 	// Add output format for structured output
 	// Use "stream-json" to output JSONL format (newline-delimited JSON objects)
