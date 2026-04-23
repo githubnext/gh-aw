@@ -36,6 +36,7 @@ func NewCoordinator(cfg Config, stages []string) (*Coordinator, error) {
 // TrainEvent routes the event to the miner responsible for evt.Stage.
 // Returns an error when the stage has no associated miner.
 func (c *Coordinator) TrainEvent(evt AgentEvent) (*MatchResult, error) {
+	coordinatorLog.Printf("TrainEvent: routing to stage=%s", evt.Stage)
 	m, err := c.minerFor(evt.Stage)
 	if err != nil {
 		return nil, err
@@ -46,6 +47,7 @@ func (c *Coordinator) TrainEvent(evt AgentEvent) (*MatchResult, error) {
 // AnalyzeEvent routes the event to the correct stage miner and returns both
 // the match result and an anomaly report.
 func (c *Coordinator) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, error) {
+	coordinatorLog.Printf("AnalyzeEvent: routing to stage=%s", evt.Stage)
 	m, err := c.minerFor(evt.Stage)
 	if err != nil {
 		return nil, nil, err
@@ -67,6 +69,7 @@ func (c *Coordinator) AllClusters() map[string][]Cluster {
 // SaveSnapshots serializes each stage miner's state and returns a map from
 // stage name to JSON bytes.
 func (c *Coordinator) SaveSnapshots() (map[string][]byte, error) {
+	coordinatorLog.Printf("SaveSnapshots: serializing %d stage miners", len(c.miners))
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	out := make(map[string][]byte, len(c.miners))
@@ -77,6 +80,7 @@ func (c *Coordinator) SaveSnapshots() (map[string][]byte, error) {
 		}
 		out[stage] = data
 	}
+	coordinatorLog.Printf("SaveSnapshots: completed, saved %d stages", len(out))
 	return out, nil
 }
 
@@ -135,10 +139,12 @@ func (c *Coordinator) SaveWeightsJSON() ([]byte, error) {
 // LoadWeightsJSON restores all stage miners from a combined JSON blob produced
 // by SaveWeightsJSON.
 func (c *Coordinator) LoadWeightsJSON(data []byte) error {
+	coordinatorLog.Printf("LoadWeightsJSON: loading from %d bytes", len(data))
 	var combined map[string]json.RawMessage
 	if err := json.Unmarshal(data, &combined); err != nil {
 		return fmt.Errorf("agentdrain: LoadWeightsJSON: %w", err)
 	}
+	coordinatorLog.Printf("LoadWeightsJSON: restoring %d stages", len(combined))
 	snapshots := make(map[string][]byte, len(combined))
 	for stage, raw := range combined {
 		snapshots[stage] = []byte(raw)

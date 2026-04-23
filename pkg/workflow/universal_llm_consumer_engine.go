@@ -32,6 +32,7 @@ type universalLLMBackendProfile struct {
 }
 
 func resolveUniversalLLMBackendFromModel(model string) (UniversalLLMBackend, error) {
+	universalLLMConsumerLog.Printf("Resolving LLM backend from model: %q", model)
 	model = strings.TrimSpace(model)
 	if model == "" {
 		return "", errors.New("for universal consumer engines (OpenCode/Crush), engine.model is required and must use provider/model format (supported providers: copilot, anthropic, openai, codex)")
@@ -44,10 +45,13 @@ func resolveUniversalLLMBackendFromModel(model string) (UniversalLLMBackend, err
 
 	switch strings.ToLower(strings.TrimSpace(parts[0])) {
 	case "copilot":
+		universalLLMConsumerLog.Printf("Resolved backend: copilot (model=%s)", parts[1])
 		return UniversalLLMBackendCopilot, nil
 	case "anthropic":
+		universalLLMConsumerLog.Printf("Resolved backend: anthropic (model=%s)", parts[1])
 		return UniversalLLMBackendAnthropic, nil
 	case "openai", "codex":
+		universalLLMConsumerLog.Printf("Resolved backend: codex/openai (model=%s)", parts[1])
 		return UniversalLLMBackendCodex, nil
 	default:
 		return "", fmt.Errorf("unsupported provider %q in engine.model; supported providers: copilot, anthropic, openai, codex", parts[0])
@@ -109,6 +113,7 @@ func (e *UniversalLLMConsumerEngine) resolveBackend(workflowData *WorkflowData) 
 
 func (e *UniversalLLMConsumerEngine) GetUniversalRequiredSecretNames(workflowData *WorkflowData) []string {
 	backend := e.resolveBackend(workflowData)
+	universalLLMConsumerLog.Printf("Collecting required secret names for backend: %s", backend)
 	profile := getUniversalLLMBackendProfile(backend, isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData))
 	secrets := append([]string{}, profile.coreSecretNames...)
 
@@ -135,6 +140,7 @@ func (e *UniversalLLMConsumerEngine) GetUniversalRequiredSecretNames(workflowDat
 		secrets = append(secrets, varName)
 	}
 
+	universalLLMConsumerLog.Printf("Resolved %d required secret names for backend %s", len(secrets), backend)
 	return secrets
 }
 
@@ -159,9 +165,11 @@ func (e *UniversalLLMConsumerEngine) GetUniversalSecretValidationStep(workflowDa
 
 func (e *UniversalLLMConsumerEngine) ApplyUniversalProviderEnv(env map[string]string, workflowData *WorkflowData, firewallEnabled bool) {
 	backend := e.resolveBackend(workflowData)
+	universalLLMConsumerLog.Printf("Applying provider env for backend=%s, firewallEnabled=%t", backend, firewallEnabled)
 	profile := getUniversalLLMBackendProfile(backend, isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData))
 	maps.Copy(env, profile.env)
 	if firewallEnabled {
+		universalLLMConsumerLog.Printf("Setting %s to gateway port %d", profile.baseURLEnvName, profile.gatewayPort)
 		env[profile.baseURLEnvName] = fmt.Sprintf("http://host.docker.internal:%d", profile.gatewayPort)
 	}
 }
