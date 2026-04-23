@@ -1768,10 +1768,15 @@ describe("sanitize_content.cjs", () => {
         expect(sanitizeContent(input)).toBe(expected);
       });
 
-      it("should strip U+2061-U+2064 used to fragment a secret-like marker", () => {
-        // Simulate a secret fragmented with invisible operators to bypass static detection
+      it.each([
+        ["\u2061", "U+2061 FUNCTION APPLICATION"],
+        ["\u2062", "U+2062 INVISIBLE TIMES"],
+        ["\u2063", "U+2063 INVISIBLE SEPARATOR"],
+        ["\u2064", "U+2064 INVISIBLE PLUS"],
+      ])("should strip %s (%s) used to fragment a secret-like marker", operator => {
+        // Simulate a secret fragmented with an invisible operator to bypass static detection
         const marker = "SECRET";
-        const fragmented = marker.split("").join("\u2061");
+        const fragmented = marker.split("").join(operator);
         const result = sanitizeContent(fragmented);
         expect(result).toBe(marker);
       });
