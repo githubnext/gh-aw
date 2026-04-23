@@ -40,7 +40,7 @@ Debug this workflow failure using your favorite Agent CLI and the `agentic-workf
 </details>
 
 <details>
-<summary>⚙️ Optional: stop reporting this workflow as a failure</summary>
+<summary>Optional: stop reporting this workflow as a failure</summary>
 
 To stop a workflow from creating failure issues, set `report-failure-as-issue: false` in its frontmatter:
 

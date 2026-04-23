@@ -32,7 +32,7 @@ This issue helps you:
 </details>
 
 <details>
-<summary>⚙️ Configure no-op issue reporting</summary>
+<summary>Configure no-op issue reporting</summary>
 
 To stop a workflow from posting here, set `report-as-issue: false` in its frontmatter:
 

@@ -32,7 +32,7 @@ This issue helps you:
 </details>
 
 <details>
-<summary>⚙️ Configure threat detection behavior</summary>
+<summary>Configure threat detection behavior</summary>
 
 To configure threat detection behavior, update the frontmatter:
 
