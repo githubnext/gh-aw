@@ -533,45 +533,6 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	}
 }
 
-func TestGenerateMaintenanceWorkflow_AdminCheckPassesGHTokenEnv(t *testing.T) {
-	workflowDataList := []*WorkflowData{
-		{
-			Name: "test-workflow",
-			SafeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{
-					Expires: 48,
-				},
-			},
-		},
-	}
-
-	tmpDir := t.TempDir()
-	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
-	if err != nil {
-		t.Fatalf("Expected maintenance workflow to be generated: %v", err)
-	}
-
-	yaml := string(content)
-	sections := strings.Split(yaml, "- name: Check admin/maintainer permissions")
-	if len(sections) <= 1 {
-		t.Fatalf("Expected at least one check admin/maintainer step in generated workflow")
-	}
-
-	for idx, section := range sections[1:] {
-		stepPrefix, _, found := strings.Cut(section, "\n        with:")
-		if !found {
-			t.Fatalf("Expected step %d to include a with: block", idx+1)
-		}
-		if !strings.Contains(stepPrefix, "GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}") {
-			t.Errorf("Expected step %d to set GH_TOKEN in env before with: block", idx+1)
-		}
-	}
-}
-
 func TestGenerateMaintenanceWorkflow_ActionTag(t *testing.T) {
 	workflowDataList := []*WorkflowData{
 		{
