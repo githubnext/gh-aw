@@ -184,7 +184,13 @@ func hasUsefulFallbackMetrics(metrics LogMetrics) bool {
 
 func inferBestEngineMetricsFromContent(logContent string) (LogMetrics, string) {
 	registry := workflow.GetGlobalEngineRegistry()
-	engineIDs := []string{"copilot", "claude", "codex", "gemini", "opencode", "crush"}
+	engineIDs := registry.GetSupportedEngines()
+	const (
+		// Prioritize selecting parsers that recover turn count first (primary signal for audit quality),
+		// then token usage, then tool call shape.
+		fallbackTurnsWeight     = 100000
+		fallbackToolCallsWeight = 1000
+	)
 
 	var bestMetrics LogMetrics
 	var bestEngineID string
@@ -196,7 +202,7 @@ func inferBestEngineMetricsFromContent(logContent string) (LogMetrics, string) {
 			continue
 		}
 		metrics := engine.ParseLogMetrics(logContent, false)
-		score := metrics.TokenUsage + (metrics.Turns * 100000) + (len(metrics.ToolCalls) * 1000)
+		score := metrics.TokenUsage + (metrics.Turns * fallbackTurnsWeight) + (len(metrics.ToolCalls) * fallbackToolCallsWeight)
 		if score > bestScore {
 			bestScore = score
 			bestMetrics = metrics

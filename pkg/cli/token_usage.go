@@ -30,9 +30,11 @@ type TokenUsageEntry struct {
 	OutputTokens     int    `json:"output_tokens"`
 	CacheReadTokens  int    `json:"cache_read_tokens"`
 	CacheWriteTokens int    `json:"cache_write_tokens"`
-	EffectiveTokens  int    `json:"effective_tokens"`
-	DurationMs       int    `json:"duration_ms"`
-	ResponseBytes    int    `json:"response_bytes"`
+	// EffectiveTokens is populated by agent_usage.json fallback data. token-usage.jsonl
+	// entries usually omit this field and rely on computed effective token totals.
+	EffectiveTokens int `json:"effective_tokens"`
+	DurationMs      int `json:"duration_ms"`
+	ResponseBytes   int `json:"response_bytes"`
 }
 
 // AmbientContextMetrics captures token footprint for the first LLM invocation.
