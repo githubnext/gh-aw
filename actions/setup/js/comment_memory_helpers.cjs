@@ -21,27 +21,12 @@ function stripCommentMemoryCodeFence(content) {
   if (!trimmed.startsWith(COMMENT_MEMORY_CODE_FENCE)) {
     return trimmed;
   }
-
-  const firstNewline = trimmed.indexOf("\n", COMMENT_MEMORY_CODE_FENCE.length);
-  if (firstNewline < 0) {
+  const escapedFence = COMMENT_MEMORY_CODE_FENCE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = trimmed.match(new RegExp(`^${escapedFence}[^\\n]*\\n([\\s\\S]*)\\n${escapedFence}$`));
+  if (!match) {
     return trimmed;
   }
-
-  const closingFenceStart = trimmed.lastIndexOf(`\n${COMMENT_MEMORY_CODE_FENCE}`);
-  if (closingFenceStart < 0) {
-    return trimmed;
-  }
-  if (closingFenceStart <= firstNewline) {
-    return trimmed;
-  }
-
-  const closingFenceEnd = closingFenceStart + 1 + COMMENT_MEMORY_CODE_FENCE.length;
-  const trailing = trimmed.slice(closingFenceEnd).trim();
-  if (trailing.length > 0) {
-    return trimmed;
-  }
-
-  return trimmed.slice(firstNewline + 1, closingFenceStart).trim();
+  return match[1].trim();
 }
 
 function isSafeMemoryId(memoryId) {

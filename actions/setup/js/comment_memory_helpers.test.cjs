@@ -32,6 +32,16 @@ describe("comment_memory_helpers", () => {
     expect(stripCommentMemoryCodeFence(content)).toBe("hello");
   });
 
+  it("strips valid fenced text when content contains six-backtick lines", () => {
+    const content = "``````\nline 1\n``````\nline 2\n``````";
+    expect(stripCommentMemoryCodeFence(content)).toBe("line 1\n``````\nline 2");
+  });
+
+  it("keeps fenced text unchanged when closing fence has no leading newline", () => {
+    const content = "``````\nhello``````";
+    expect(stripCommentMemoryCodeFence(content)).toBe(content);
+  });
+
   it("rejects unsafe memory IDs", () => {
     const warning = vi.fn();
     const entries = extractCommentMemoryEntries('<gh-aw-comment-memory id="../bad">\nhello\n</gh-aw-comment-memory>', warning);
