@@ -362,7 +362,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       core.info(`pushSignedCommits: signed commit created: ${lastOid}`);
     }
     core.info(`pushSignedCommits: all ${shas.length} commit(s) pushed as signed commits`);
-    return lastOid || shas[shas.length - 1];
+    return lastOid ?? shas[shas.length - 1];
   } catch (graphqlError) {
     core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${graphqlError instanceof Error ? graphqlError.message : String(graphqlError)}`);
     await exec.exec("git", ["push", "origin", branch], {

@@ -746,7 +746,7 @@ async function main(config = {}) {
           cwd: process.cwd(),
           gitAuthEnv,
         });
-        if (typeof pushedSha === "string" && pushedSha.length > 0) {
+        if (pushedSha) {
           pushedCommitSha = pushedSha;
         }
         core.info(`Changes committed and pushed to branch: ${branchName}`);
