@@ -49,14 +49,14 @@ Test pre-agent-steps.
 		t.Error("Expected pre-agent-step to be in generated workflow")
 	}
 
-	cleanGitCredsIndex := indexInNonCommentLines(lockContent, "- name: Clean git credentials")
+	startMCPGatewayIndex := indexInNonCommentLines(lockContent, "- name: Start MCP Gateway")
 	preAgentStepIndex := indexInNonCommentLines(lockContent, "- name: Finalize prompt context")
 	aiStepIndex := indexInNonCommentLines(lockContent, "- name: Execute Claude Code CLI")
-	if cleanGitCredsIndex == -1 || preAgentStepIndex == -1 || aiStepIndex == -1 {
+	if startMCPGatewayIndex == -1 || preAgentStepIndex == -1 || aiStepIndex == -1 {
 		t.Fatal("Could not find expected steps in generated workflow")
 	}
-	if preAgentStepIndex <= cleanGitCredsIndex {
-		t.Errorf("Pre-agent-step (%d) should appear after clean git credentials (%d)", preAgentStepIndex, cleanGitCredsIndex)
+	if preAgentStepIndex >= startMCPGatewayIndex {
+		t.Errorf("Pre-agent-step (%d) should appear before Start MCP Gateway (%d)", preAgentStepIndex, startMCPGatewayIndex)
 	}
 	if preAgentStepIndex >= aiStepIndex {
 		t.Errorf("Pre-agent-step (%d) should appear before AI execution step (%d)", preAgentStepIndex, aiStepIndex)
@@ -113,12 +113,16 @@ Main workflow.
 
 	importedIdx := indexInNonCommentLines(lockContent, "- name: Imported pre-agent step")
 	mainIdx := indexInNonCommentLines(lockContent, "- name: Main pre-agent step")
+	startMCPGatewayIdx := indexInNonCommentLines(lockContent, "- name: Start MCP Gateway")
 	aiStepIdx := indexInNonCommentLines(lockContent, "- name: Execute Claude Code CLI")
-	if importedIdx == -1 || mainIdx == -1 || aiStepIdx == -1 {
-		t.Fatal("Could not find expected pre-agent and AI steps in generated workflow")
+	if importedIdx == -1 || mainIdx == -1 || startMCPGatewayIdx == -1 || aiStepIdx == -1 {
+		t.Fatal("Could not find expected pre-agent, MCP gateway, and AI steps in generated workflow")
 	}
 	if importedIdx >= mainIdx {
 		t.Errorf("Imported pre-agent-step (%d) should appear before main pre-agent-step (%d)", importedIdx, mainIdx)
+	}
+	if mainIdx >= startMCPGatewayIdx {
+		t.Errorf("Main pre-agent-step (%d) should appear before Start MCP Gateway (%d)", mainIdx, startMCPGatewayIdx)
 	}
 	if mainIdx >= aiStepIdx {
 		t.Errorf("Main pre-agent-step (%d) should appear before AI execution step (%d)", mainIdx, aiStepIdx)
@@ -179,14 +183,14 @@ Main workflow.
 	}
 	lockContent := string(content)
 
-	restoreBaseIdx := indexInNonCommentLines(lockContent, "- name: Restore agent config folders from base branch")
 	restoreAPMIdx := indexInNonCommentLines(lockContent, "- name: Restore APM packages")
+	startMCPGatewayIdx := indexInNonCommentLines(lockContent, "- name: Start MCP Gateway")
 	aiStepIdx := indexInNonCommentLines(lockContent, "- name: Execute Claude Code CLI")
-	if restoreBaseIdx == -1 || restoreAPMIdx == -1 || aiStepIdx == -1 {
-		t.Fatal("Could not find expected PR restore, pre-agent, and AI steps in generated workflow")
+	if restoreAPMIdx == -1 || startMCPGatewayIdx == -1 || aiStepIdx == -1 {
+		t.Fatal("Could not find expected pre-agent, MCP gateway, and AI steps in generated workflow")
 	}
-	if restoreBaseIdx >= restoreAPMIdx {
-		t.Errorf("PR base restore step (%d) should appear before imported pre-agent step (%d)", restoreBaseIdx, restoreAPMIdx)
+	if restoreAPMIdx >= startMCPGatewayIdx {
+		t.Errorf("Imported pre-agent step (%d) should appear before Start MCP Gateway (%d)", restoreAPMIdx, startMCPGatewayIdx)
 	}
 	if restoreAPMIdx >= aiStepIdx {
 		t.Errorf("Imported pre-agent step (%d) should appear before AI execution step (%d)", restoreAPMIdx, aiStepIdx)
