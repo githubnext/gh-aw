@@ -108,6 +108,14 @@ This workflow operates on a separate repository.
 		"generated workflow should download 7 days of logs for activity_report")
 	assert.Contains(t, contentStr, "--count 100",
 		"generated workflow should limit activity_report log downloads to at most 100 runs")
+	assert.Contains(t, contentStr, "--format markdown",
+		"generated workflow should request markdown report output from gh aw logs")
+	assert.Contains(t, contentStr, "./.cache/gh-aw/activity-report-logs/report.md",
+		"generated workflow should write activity_report markdown output to report.md")
+	assert.Contains(t, contentStr, "Generate activity report issue in target repository",
+		"generated workflow should include activity_report issue generation step after cache save")
+	assert.Contains(t, contentStr, "title: '[aw] agentic status report'",
+		"generated workflow should create the activity_report issue with the expected title")
 	assert.Contains(t, contentStr, "actions: read\n      contents: read\n      issues: write",
 		"activity_report job should include contents: read with explicit permissions")
 	assert.Contains(t, contentStr, "timeout-minutes: 120",

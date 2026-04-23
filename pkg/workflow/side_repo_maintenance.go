@@ -471,6 +471,7 @@ jobs:
 `)
 	yaml.WriteString(`      - name: Download activity report logs in target repository
         timeout-minutes: 20
+        shell: bash
         env:
           GH_TOKEN: ` + token + `
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
@@ -480,7 +481,9 @@ jobs:
             --repo "${GH_AW_TARGET_REPO_SLUG}" \
             --start-date -1w \
             --count 100 \
-            --output ./.cache/gh-aw/activity-report-logs
+            --output ./.cache/gh-aw/activity-report-logs \
+            --format markdown \
+            > ./.cache/gh-aw/activity-report-logs/report.md
 
       - name: Save activity report logs cache
         if: ${{ always() }}
@@ -488,6 +491,51 @@ jobs:
         with:
           path: ./.cache/gh-aw/activity-report-logs
           key: ${{ steps.activity_report_logs_cache.outputs.cache-primary-key }}
+
+      - name: Generate activity report issue in target repository
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ` + token + `
+          script: |
+            const fs = require('node:fs');
+            const reportPath = './.cache/gh-aw/activity-report-logs/report.md';
+            if (!fs.existsSync(reportPath)) {
+              core.warning('Activity report markdown not found at ' + reportPath + '; skipping issue creation.');
+              return;
+            }
+            let reportBody = '';
+            try {
+              reportBody = fs.readFileSync(reportPath, 'utf8').trim();
+            } catch (error) {
+              core.warning('Failed to read activity report markdown at ' + reportPath + ': ' + error.message);
+              return;
+            }
+            if (!reportBody) {
+              core.warning('Activity report markdown is empty at ' + reportPath + '; skipping issue creation.');
+              return;
+            }
+            const repoSlug = process.env.GH_AW_TARGET_REPO_SLUG || '';
+            const [owner, repo] = repoSlug.split('/');
+            if (!owner || !repo) {
+              core.setFailed('Invalid GH_AW_TARGET_REPO_SLUG: ' + repoSlug);
+              return;
+            }
+            const body = [
+              '### Agentic workflow activity report',
+              '',
+              'Repository: ' + repoSlug,
+              'Generated at: ' + new Date().toISOString(),
+              '',
+              reportBody,
+            ].join('\n');
+            const createdIssue = await github.rest.issues.create({
+              owner,
+              repo,
+              title: '[aw] agentic status report',
+              body,
+              labels: ['agentic-workflows'],
+            });
+            core.info('Created issue #' + createdIssue.data.number + ': ' + createdIssue.data.html_url);
 `)
 
 	// Add validate_workflows job for workflow_dispatch/workflow_call with operation == 'validate'

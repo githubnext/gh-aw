@@ -361,6 +361,7 @@ jobs:
             ${{ runner.os }}-activity-report-logs-
       - name: Download activity report logs
         timeout-minutes: 20
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_CMD_PREFIX: ./gh-aw
@@ -369,7 +370,9 @@ jobs:
             --repo "${{ github.repository }}" \
             --start-date -1w \
             --count 100 \
-            --output ./.cache/gh-aw/activity-report-logs
+            --output ./.cache/gh-aw/activity-report-logs \
+            --format markdown \
+            > ./.cache/gh-aw/activity-report-logs/report.md
 
       - name: Save activity report logs cache
         if: ${{ always() }}
@@ -377,6 +380,46 @@ jobs:
         with:
           path: ./.cache/gh-aw/activity-report-logs
           key: ${{ steps.activity_report_logs_cache.outputs.cache-primary-key }}
+
+      - name: Generate activity report issue
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('node:fs');
+            const reportPath = './.cache/gh-aw/activity-report-logs/report.md';
+            if (!fs.existsSync(reportPath)) {
+              core.warning(`Activity report markdown not found at ${reportPath}; skipping issue creation.`);
+              return;
+            }
+            let reportBody = '';
+            try {
+              reportBody = fs.readFileSync(reportPath, 'utf8').trim();
+            } catch (error) {
+              core.warning(`Failed to read activity report markdown at ${reportPath}: ${error.message}`);
+              return;
+            }
+            if (!reportBody) {
+              core.warning(`Activity report markdown is empty at ${reportPath}; skipping issue creation.`);
+              return;
+            }
+            const repoSlug = `${context.repo.owner}/${context.repo.repo}`;
+            const body = [
+              '### Agentic workflow activity report',
+              '',
+              `Repository: ${repoSlug}`,
+              `Generated at: ${new Date().toISOString()}`,
+              '',
+              reportBody,
+            ].join('\n');
+            const createdIssue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '[aw] agentic status report',
+              body,
+              labels: ['agentic-workflows'],
+            });
+            core.info(`Created issue #${createdIssue.data.number}: ${createdIssue.data.html_url}`);
 
   close_agentic_workflows_issues:
     if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'close_agentic_workflows_issues' && (!(github.event.repository.fork)) }}

@@ -415,6 +415,18 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "--count 100") {
 		t.Errorf("Job activity_report gh aw logs command should include --count 100 in:\n%s", yaml)
 	}
+	if !strings.Contains(yaml, "--format markdown") {
+		t.Errorf("Job activity_report gh aw logs command should include --format markdown in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "./.cache/gh-aw/activity-report-logs/report.md") {
+		t.Errorf("Job activity_report gh aw logs command should write report markdown output to report.md in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "Generate activity report issue") {
+		t.Errorf("Job activity_report should include issue generation step after cache save in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "title: '[aw] agentic status report'") {
+		t.Errorf("Job activity_report issue generation step should create the activity report issue title in:\n%s", yaml)
+	}
 
 	// close_agentic_workflows_issues job should be triggered when operation == 'close_agentic_workflows_issues'
 	closeAgenticWorkflowIssuesIdx := strings.Index(yaml, "\n  close_agentic_workflows_issues:")
