@@ -642,6 +642,7 @@ index 0000000..abc1234
       const updateActivationCommentModule = require("./update_activation_comment.cjs");
       const updateCommitSpy = vi.spyOn(updateActivationCommentModule, "updateActivationCommentWithCommit").mockResolvedValue(undefined);
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+      // Mock signed-commit replay to keep this test focused on post-push SHA resolution.
       const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue(undefined);
 
       try {

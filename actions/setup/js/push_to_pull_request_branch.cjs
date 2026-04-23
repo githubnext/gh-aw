@@ -867,10 +867,16 @@ async function main(config = {}) {
       if (remoteHeadResult.exitCode === 0) {
         remoteCommitSha = (remoteHeadResult.stdout || "").trim().split(/\s+/)[0] || "";
       } else {
-        core.warning(`Failed to resolve remote HEAD SHA for ${branchName}: ${remoteHeadResult.stderr || `git ls-remote exited with code ${remoteHeadResult.exitCode}`}`);
+        core.warning(
+          `Failed to resolve remote HEAD SHA for ${branchName}: ${remoteHeadResult.stderr || `git ls-remote exited with code ${remoteHeadResult.exitCode}`}. ` +
+            "Commit push may still have succeeded, but the activation comment commit link will be skipped. Check branch existence, authentication, and network connectivity."
+        );
       }
     } catch (resolveRemoteShaError) {
-      core.warning(`Failed to resolve remote HEAD SHA for ${branchName}: ${getErrorMessage(resolveRemoteShaError)}`);
+      core.warning(
+        `Failed to resolve remote HEAD SHA for ${branchName}: ${getErrorMessage(resolveRemoteShaError)}. ` +
+          "Commit push may still have succeeded, but the activation comment commit link will be skipped. Check branch existence, authentication, and network connectivity."
+      );
     }
 
     // Fallback to local HEAD for outputs/summary if remote lookup fails.
@@ -900,7 +906,7 @@ async function main(config = {}) {
       const remoteCommitUrl = `${repoUrl}/commit/${remoteCommitSha}`;
       await updateActivationCommentWithCommit(github, context, core, remoteCommitSha, remoteCommitUrl, { targetIssueNumber: pullNumber });
     } else if (hasChanges) {
-      core.warning("Skipping activation comment commit link update because remote branch HEAD SHA could not be resolved");
+      core.warning("Skipping activation comment commit link update because remote branch HEAD SHA could not be resolved. Commit push may still have succeeded.");
     }
 
     // Write summary to GitHub Actions summary
