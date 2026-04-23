@@ -305,7 +305,11 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 
 	// Emit warning for sandbox.agent: false (disables agent sandbox firewall)
 	if isAgentSandboxDisabled(workflowData) {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("⚠️  WARNING: Agent sandbox disabled (sandbox.agent: false). This removes firewall protection. The AI agent will have direct network access without firewall filtering. The MCP gateway remains enabled. Only use this for testing or in controlled environments where you trust the AI agent completely."))
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+			"Agent sandbox disabled (sandbox.agent: false). This removes firewall protection. "+
+				"The AI agent will have direct network access without firewall filtering. "+
+				"The MCP gateway remains enabled. Only use this for testing or in controlled "+
+				"environments where you trust the AI agent completely."))
 		c.IncrementWarningCount()
 	}
 

@@ -405,11 +405,11 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Validate workflow data
 	if err := c.validateWorkflowData(workflowData, markdownPath); err != nil {
 		// validateWorkflowData always returns formatCompilerError results; pass through directly.
-		// If an unformatted error somehow slips through, wrap it with context.
+		// If an unformatted error somehow slips through, wrap it with compiler context.
 		if isFormattedCompilerError(err) {
 			return err
 		}
-		return fmt.Errorf("workflow validation: %w", err)
+		return formatCompilerError(markdownPath, "error", "workflow validation: "+err.Error(), err)
 	}
 
 	// Note: Markdown content size is now handled by splitting into multiple steps in generatePrompt
@@ -424,11 +424,11 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	yamlContent, bodySecrets, bodyActions, err := c.generateAndValidateYAML(workflowData, markdownPath, lockFile)
 	if err != nil {
 		// generateAndValidateYAML always returns formatCompilerError results; pass through directly.
-		// If an unformatted error somehow slips through, wrap it with context.
+		// If an unformatted error somehow slips through, wrap it with compiler context.
 		if isFormattedCompilerError(err) {
 			return err
 		}
-		return fmt.Errorf("YAML generation: %w", err)
+		return formatCompilerError(markdownPath, "error", "YAML generation: "+err.Error(), err)
 	}
 
 	// Enforce safe update mode: emit a warning prompt (not a hard error) when unapproved
