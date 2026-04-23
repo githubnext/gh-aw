@@ -45,7 +45,9 @@ function formatTimestamp(date) {
 }
 
 /**
- * Run 'gh aw update', 'gh aw upgrade', 'gh aw disable', or 'gh aw enable',
+ * Run maintenance operations handled by run_operation:
+ * - 'gh aw update', 'gh aw upgrade', 'gh aw disable', 'gh aw enable'
+ * - 'update_pull_request_branches'
  * creating a pull request when needed for update/upgrade operations.
  *
  * For update/upgrade: runs with --no-compile so lock files are not modified.
@@ -56,7 +58,7 @@ function formatTimestamp(date) {
  *
  * Required environment variables:
  *   GH_TOKEN           - GitHub token for gh CLI auth and git push
- *   GH_AW_OPERATION    - 'update', 'upgrade', 'disable', or 'enable'
+ *   GH_AW_OPERATION    - 'update', 'upgrade', 'disable', 'enable', or 'update_pull_request_branches'
  *   GH_AW_CMD_PREFIX   - Command prefix: './gh-aw' (dev) or 'gh aw' (release)
  *
  * @returns {Promise<void>}
@@ -70,6 +72,12 @@ async function main() {
 
   const cmdPrefixStr = process.env.GH_AW_CMD_PREFIX || "gh aw";
   const [bin, ...prefixArgs] = cmdPrefixStr.split(" ").filter(Boolean);
+
+  if (operation === "update_pull_request_branches") {
+    const { main: updatePullRequestBranchesMain } = require("./update_pull_request_branches.cjs");
+    await updatePullRequestBranchesMain();
+    return;
+  }
 
   // Handle enable/disable operations: run the command and finish (no PR needed)
   if (operation === "disable" || operation === "enable") {

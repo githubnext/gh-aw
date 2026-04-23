@@ -454,6 +454,11 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		t.Error("workflow_dispatch operation choices should include 'clean_cache_memories'")
 	}
 
+	// Verify update_pull_request_branches is an option in the operation choices
+	if !strings.Contains(yaml, "- 'update_pull_request_branches'") {
+		t.Error("workflow_dispatch operation choices should include 'update_pull_request_branches'")
+	}
+
 	// Verify validate is an option in the operation choices
 	if !strings.Contains(yaml, "- 'validate'") {
 		t.Error("workflow_dispatch operation choices should include 'validate'")
