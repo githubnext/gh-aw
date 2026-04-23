@@ -251,6 +251,22 @@ type DriverProvider interface {
 	GetDriverScriptName() string
 }
 
+// engineRequiresNodeDriver reports whether the engine's execution command wraps
+// the CLI with a driver script launched via node (see nodeRuntimeResolutionCommand
+// in copilot_engine_execution.go). Used by call sites that must ensure node is on
+// PATH before the driver runs — notably the detection job, which does not go
+// through DetectRuntimeRequirements.
+func engineRequiresNodeDriver(engine CodingAgentEngine) bool {
+	if engine == nil {
+		return false
+	}
+	dp, ok := engine.(DriverProvider)
+	if !ok {
+		return false
+	}
+	return dp.GetDriverScriptName() != ""
+}
+
 // CodingAgentEngine is a composite interface that combines all focused interfaces
 // This maintains backward compatibility with existing code while allowing more flexibility
 // Implementations can choose to implement only the interfaces they need by embedding BaseEngine

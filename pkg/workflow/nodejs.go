@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -22,7 +23,19 @@ func GenerateNodeJsSetupStep() GitHubActionStep {
 	}
 }
 
-// GenerateNpmInstallSteps creates GitHub Actions steps for installing an npm package globally.
+// installStepsContainNodeSetup reports whether any of the provided steps is already
+// a "Setup Node.js" step. Uses the same extractStepName matcher as
+// JobManager.ValidateDuplicateSteps so the guard cannot drift from what the
+// validator would flag as a duplicate.
+func installStepsContainNodeSetup(steps []GitHubActionStep) bool {
+	for _, step := range steps {
+		if extractStepName(strings.Join(step, "\n")) == "Setup Node.js" {
+			return true
+		}
+	}
+	return false
+}
+
 // By default, --ignore-scripts is added to the install command to prevent pre/post install
 // scripts from executing (supply chain security). Pass runInstallScripts=true to allow scripts.
 // Parameters:
