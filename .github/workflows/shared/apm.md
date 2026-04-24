@@ -3,8 +3,9 @@
 # Install Microsoft APM packages in your agentic workflow.
 #
 # This shared workflow creates a dedicated "apm" job (depending on activation) that
-# packs packages using microsoft/apm-action and caches the bundle. The agent job
-# then restores and unpacks the bundle as pre-agent-steps.
+# packs packages using microsoft/apm-action, caches the bundle for cross-run reuse,
+# and uploads it as an artifact for reliable same-run access.
+# The agent job restores from cache (preferred) or downloads the artifact as a fallback.
 #
 # Documentation: https://github.com/microsoft/APM
 #
@@ -77,17 +78,33 @@ jobs:
         with:
           path: /tmp/gh-aw/apm-workspace
           key: ${{ steps.apm_cache.outputs.cache-primary-key }}
+      - name: Find APM bundle path
+        id: apm_bundle_path
+        run: echo "path=$(find /tmp/gh-aw/apm-workspace -name '*.tar.gz' | head -1)" >> "$GITHUB_OUTPUT"
+      - name: Upload APM bundle artifact
+        if: success()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: ${{ needs.activation.outputs.artifact_prefix }}apm
+          path: ${{ steps.apm_bundle_path.outputs.path }}
+          retention-days: '1'
 
 pre-agent-steps:
   - name: Restore APM bundle from cache
+    id: apm_cache_restore
     uses: actions/cache/restore@v5.0.5
     with:
       path: /tmp/gh-aw/apm-workspace
       key: apm-${{ needs.activation.outputs.engine_id }}-${{ hashFiles('.github/workflows/*.lock.yml') }}
-      fail-on-cache-miss: true
+  - name: Download APM bundle artifact
+    if: steps.apm_cache_restore.outputs.cache-hit != 'true'
+    uses: actions/download-artifact@v8.0.1
+    with:
+      name: ${{ needs.activation.outputs.artifact_prefix }}apm
+      path: /tmp/gh-aw/apm-bundle
   - name: Find APM bundle path
     id: apm_bundle
-    run: echo "path=$(find /tmp/gh-aw/apm-workspace -name '*.tar.gz' | head -1)" >> "$GITHUB_OUTPUT"
+    run: echo "path=$(find /tmp/gh-aw/apm-workspace /tmp/gh-aw/apm-bundle -name '*.tar.gz' 2>/dev/null | head -1)" >> "$GITHUB_OUTPUT"
   - name: Restore APM packages
     uses: microsoft/apm-action@v1.4.1
     with:
@@ -97,16 +114,19 @@ pre-agent-steps:
 <!--
 ## APM Packages
 
-These packages are installed via a dedicated "apm" job that packs and caches a bundle,
-which the agent job then restores and unpacks as pre-agent-steps.
+These packages are installed via a dedicated "apm" job that packs the bundle, saves it to
+cache for cross-run reuse, and uploads it as an artifact for reliable same-run access.
+The agent job restores from cache (preferred) or falls back to downloading the artifact.
 
 ### How it works
 
 1. **Pack** (`apm` job): checks for a cached bundle keyed by lock file hash + engine ID.
    On a cache miss, `microsoft/apm-action` installs packages and creates a bundle archive,
-   which is saved to the cache for reuse.
-2. **Unpack** (agent job pre-agent-steps): the bundle is restored from cache and unpacked
-   via `microsoft/apm-action` in restore mode, making all skills and tools available to the AI agent.
+   which is saved to the cache and uploaded as an artifact.
+   On a cache hit, the cached bundle is uploaded directly as an artifact.
+2. **Unpack** (agent job pre-agent-steps): the bundle is restored from cache (preferred for
+   speed and cross-run reuse) or downloaded from the artifact (reliable same-run fallback),
+   then unpacked via `microsoft/apm-action` in restore mode.
 
 ### Cache key
 
