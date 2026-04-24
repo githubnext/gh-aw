@@ -20,8 +20,9 @@ func buildMaintenanceWorkflowYAML(
 	version, actionTag string,
 	resolver ActionSHAResolver,
 	configuredRunsOn RunsOnValue,
+	defaultBranch string,
 ) string {
-	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q", actionMode, minExpiresDays, cronSchedule)
+	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q", actionMode, minExpiresDays, cronSchedule, defaultBranch)
 
 	var yaml strings.Builder
 
@@ -50,7 +51,7 @@ on:
 	if actionMode == ActionModeDev {
 		yaml.WriteString(`  push:
     branches:
-      - main
+      - ` + defaultBranch + `
     paths:
       - '.github/workflows/*.md'
 `)

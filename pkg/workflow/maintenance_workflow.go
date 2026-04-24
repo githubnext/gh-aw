@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -83,11 +84,37 @@ func getCLICmdPrefix(actionMode ActionMode) string {
 	return "gh aw"
 }
 
+// FetchDefaultBranch queries the GitHub API to determine the default branch of the
+// given repository slug (owner/repo). Returns "main" as a fallback when the slug is
+// empty, not in owner/repo format, or when the API call fails.
+func FetchDefaultBranch(slug string) string {
+	const fallback = "main"
+	if slug == "" || strings.Count(slug, "/") != 1 {
+		maintenanceLog.Printf("No valid repository slug, using default branch fallback: %s", fallback)
+		return fallback
+	}
+	maintenanceLog.Printf("Fetching default branch for repository: %s", slug)
+	output, err := RunGH("Fetching default branch...", "api", "/repos/"+slug, "--jq", ".default_branch")
+	if err != nil {
+		maintenanceLog.Printf("Failed to fetch default branch for %s: %v, falling back to %s", slug, err, fallback)
+		return fallback
+	}
+	branch := strings.TrimSpace(string(output))
+	if branch == "" {
+		maintenanceLog.Printf("Empty default branch response for %s, falling back to %s", slug, fallback)
+		return fallback
+	}
+	maintenanceLog.Printf("Default branch for %s: %s", slug, branch)
+	return branch
+}
+
 // GenerateMaintenanceWorkflow generates the agentics-maintenance.yml workflow
 // if any workflows use the expires field for discussions or issues.
 // When repoConfig is non-nil and repoConfig.MaintenanceDisabled is true the
 // maintenance workflow is deleted and the function returns immediately.
-func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir string, version string, actionMode ActionMode, actionTag string, verbose bool, repoConfig *RepoConfig) error {
+// repoSlug is the owner/repo slug used to determine the default branch for the push
+// trigger; pass an empty string to fall back to "main".
+func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir string, version string, actionMode ActionMode, actionTag string, verbose bool, repoConfig *RepoConfig, repoSlug string) error {
 	maintenanceLog.Print("Checking if maintenance workflow is needed")
 
 	// Respect explicit opt-out from aw.json: maintenance: false
@@ -144,8 +171,12 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 	cronSchedule, scheduleDesc := generateMaintenanceCron(minExpiresDays)
 	maintenanceLog.Printf("Maintenance schedule: %s (%s)", cronSchedule, scheduleDesc)
 
+	// Fetch the default branch for the push trigger (dev mode only)
+	// Resolved here to avoid passing it through multiple layers; empty slug falls back to "main"
+	defaultBranch := FetchDefaultBranch(repoSlug)
+
 	// Generate the YAML content for the maintenance workflow
-	content := buildMaintenanceWorkflowYAML(cronSchedule, scheduleDesc, minExpiresDays, runsOnValue, actionMode, version, actionTag, resolver, configuredRunsOn)
+	content := buildMaintenanceWorkflowYAML(cronSchedule, scheduleDesc, minExpiresDays, runsOnValue, actionMode, version, actionTag, resolver, configuredRunsOn, defaultBranch)
 
 	// Write the maintenance workflow file
 	maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")
