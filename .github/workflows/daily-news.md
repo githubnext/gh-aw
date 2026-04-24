@@ -301,6 +301,8 @@ features:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
+{{#import: .github/shared/editorial.md}}
+
 # Daily News
 
 Write an upbeat, friendly, motivating summary of recent activity in the repo.
