@@ -1,6 +1,8 @@
 ---
 mcp-servers:
   datadog:
+    type: http
+    container: "node:lts-alpine"
     url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
     headers:
       DD_API_KEY: "${{ secrets.DD_API_KEY }}"

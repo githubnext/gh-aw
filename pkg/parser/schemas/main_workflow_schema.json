@@ -3427,7 +3427,21 @@
             {
               "$ref": "#/$defs/http_mcp_tool"
             }
-          ]
+          ],
+          "if": {
+            "oneOf": [
+              {
+                "properties": { "type": { "const": "http" } },
+                "required": ["type"]
+              },
+              {
+                "required": ["url"]
+              }
+            ]
+          },
+          "then": {
+            "required": ["container"]
+          }
         }
       },
       "additionalProperties": false
@@ -10017,7 +10031,7 @@
         },
         "container": {
           "type": "string",
-          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
+          "pattern": "^(?:[a-zA-Z0-9][a-zA-Z0-9._-]*(?::[0-9]+)?/)?[a-zA-Z0-9][a-zA-Z0-9._-]*(?:/[a-zA-Z0-9][a-zA-Z0-9._-]*)*(?::[a-zA-Z0-9._-]+)?(?:@sha256:[A-Fa-f0-9]{64})?$",
           "description": "Container image that provides the HTTP MCP server (e.g., 'python:3.12-slim'). Required by MCP Gateway v0.2.30+ for all server types. For HTTP servers started externally on the runner, this identifies the container image used to host the service."
         },
         "url": {

@@ -62,7 +62,8 @@ func TestErrorMessageQuality(t *testing.T) {
 			testFunc: func() error {
 				tools := map[string]any{
 					"http-tool": map[string]any{
-						"type": "http",
+						"type":      "http",
+						"container": "node:lts-alpine",
 						// Missing url
 					},
 				}
@@ -244,6 +245,22 @@ func TestMCPValidationErrorQuality(t *testing.T) {
 				"must specify either",
 				"command",
 				"container",
+				"Example",
+			},
+		},
+		{
+			name: "http type missing container",
+			tools: map[string]any{
+				"http-tool": map[string]any{
+					"type": "http",
+					"url":  "https://example.com/mcp",
+					// Missing required container for http type (required by MCP Gateway v0.2.30+)
+				},
+			},
+			errorContains: []string{
+				"http",
+				"container",
+				"must",
 				"Example",
 			},
 		},

@@ -2,6 +2,7 @@
 mcp-servers:
   gh-aw:
     type: http
+    container: "node:lts-alpine"
     url: http://localhost:8765
     allowed:
       - mcp-inspect

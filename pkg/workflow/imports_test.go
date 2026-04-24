@@ -25,6 +25,7 @@ func TestCompileWorkflowWithImports(t *testing.T) {
 on: push
 tools:
   custom-mcp:
+    container: "node:lts-alpine"
     url: "https://example.com/mcp"
     allowed: ["*"]
 ---
@@ -93,6 +94,7 @@ func TestCompileWorkflowWithMultipleImports(t *testing.T) {
 on: push
 tools:
   tool1:
+    container: "node:lts-alpine"
     url: "https://example1.com/mcp"
     allowed: ["*"]
 ---
@@ -107,6 +109,7 @@ tools:
 on: push
 tools:
   tool2:
+    container: "node:lts-alpine"
     url: "https://example2.com/mcp"
     allowed: ["*"]
 ---
@@ -184,6 +187,7 @@ func TestCompileWorkflowWithMCPServersImport(t *testing.T) {
 on: push
 mcp-servers:
   tavily:
+    container: "node:lts-alpine"
     url: "https://mcp.tavily.com/mcp/?tavilyApiKey=test"
     allowed: ["*"]
 ---

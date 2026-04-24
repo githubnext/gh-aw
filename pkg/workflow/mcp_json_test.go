@@ -255,8 +255,9 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "new format: valid http with direct fields",
 			tools: map[string]any{
 				"http-server": map[string]any{
-					"type": "http",
-					"url":  "https://api.example.com/mcp",
+					"type":      "http",
+					"container": "node:lts-alpine",
+					"url":       "https://api.example.com/mcp",
 					"headers": map[string]any{
 						"Authorization": "Bearer token123",
 					},
@@ -322,8 +323,9 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "new format: http missing url",
 			tools: map[string]any{
 				"http-no-url": map[string]any{
-					"type":    "http",
-					"allowed": []any{"tool1"},
+					"type":      "http",
+					"container": "node:lts-alpine",
+					"allowed":   []any{"tool1"},
 				},
 			},
 			wantErr: true,
@@ -362,9 +364,10 @@ func TestValidateMCPConfigs(t *testing.T) {
 					"allowed": []any{"create_card"},
 				},
 				"notionApi": map[string]any{
-					"type":    "http",
-					"url":     "https://mcp.notion.com",
-					"allowed": []any{"*"},
+					"type":      "http",
+					"container": "node:lts-alpine",
+					"url":       "https://mcp.notion.com",
+					"allowed":   []any{"*"},
 				},
 			},
 			wantErr: false,
@@ -410,8 +413,9 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "http type missing URL",
 			tools: map[string]any{
 				"httpMissingUrl": map[string]any{
-					"type":    "http",
-					"allowed": []any{"tool1"},
+					"type":      "http",
+					"container": "node:lts-alpine",
+					"allowed":   []any{"tool1"},
 				},
 			},
 			wantErr: true,
@@ -432,9 +436,10 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "http type with non-string URL",
 			tools: map[string]any{
 				"httpNonStringUrl": map[string]any{
-					"type":    "http",
-					"url":     123,
-					"allowed": []any{"tool1"},
+					"type":      "http",
+					"container": "node:lts-alpine",
+					"url":       123,
+					"allowed":   []any{"tool1"},
 				},
 			},
 			wantErr: true,
@@ -470,7 +475,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 					"allowed": []any{"tool1"},
 				},
 				"badApi": map[string]any{
-					"type": "http",
+					"type":      "http",
+					"container": "node:lts-alpine",
 					// missing url
 					"allowed": []any{"tool2"},
 				},
@@ -497,8 +503,9 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "http server with valid auth config is accepted",
 			tools: map[string]any{
 				"oidc-server": map[string]any{
-					"type": "http",
-					"url":  "https://my-server.example.com/mcp",
+					"type":      "http",
+					"container": "node:lts-alpine",
+					"url":       "https://my-server.example.com/mcp",
 					"auth": map[string]any{
 						"type":     "github-oidc",
 						"audience": "https://my-server.example.com",
@@ -511,8 +518,9 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "http server with auth type only (no audience) is accepted",
 			tools: map[string]any{
 				"oidc-server": map[string]any{
-					"type": "http",
-					"url":  "https://my-server.example.com/mcp",
+					"type":      "http",
+					"container": "node:lts-alpine",
+					"url":       "https://my-server.example.com/mcp",
 					"auth": map[string]any{
 						"type": "github-oidc",
 					},
@@ -538,8 +546,9 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "auth without type field is rejected",
 			tools: map[string]any{
 				"bad-auth": map[string]any{
-					"type": "http",
-					"url":  "https://my-server.example.com/mcp",
+					"type":      "http",
+					"container": "node:lts-alpine",
+					"url":       "https://my-server.example.com/mcp",
 					"auth": map[string]any{
 						"audience": "https://my-server.example.com",
 					},
@@ -552,8 +561,9 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "auth with unsupported type is rejected",
 			tools: map[string]any{
 				"bad-auth-type": map[string]any{
-					"type": "http",
-					"url":  "https://my-server.example.com/mcp",
+					"type":      "http",
+					"container": "node:lts-alpine",
+					"url":       "https://my-server.example.com/mcp",
 					"auth": map[string]any{
 						"type": "bearer-token",
 					},
@@ -566,8 +576,9 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "auth with empty type string is rejected",
 			tools: map[string]any{
 				"empty-auth-type": map[string]any{
-					"type": "http",
-					"url":  "https://my-server.example.com/mcp",
+					"type":      "http",
+					"container": "node:lts-alpine",
+					"url":       "https://my-server.example.com/mcp",
 					"auth": map[string]any{
 						"type": "",
 					},

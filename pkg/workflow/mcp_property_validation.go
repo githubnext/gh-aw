@@ -69,6 +69,11 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 	// Validate type-specific requirements
 	switch typeStr {
 	case "http":
+		// HTTP type requires 'container' property (MCP Gateway v0.2.30+)
+		if _, hasContainer := mcpConfig["container"]; !hasContainer {
+			return fmt.Errorf("tool '%s' mcp configuration with type 'http' must include a 'container' property (required by MCP Gateway v0.2.30+). The container identifies the image hosting the HTTP MCP server.\n\nExample:\ntools:\n  %s:\n    type: http\n    container: \"python:3.12-slim\"\n    url: \"http://localhost:8765/mcp\"\n\nSee: %s", toolName, toolName, constants.DocsToolsURL)
+		}
+
 		// HTTP type requires 'url' property
 		url, hasURL := mcpConfig["url"]
 

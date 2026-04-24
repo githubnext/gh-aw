@@ -210,6 +210,7 @@ engine: copilot
 mcp-servers:
   my-api:
     type: http
+    container: "node:lts-alpine"
     url: https://api.example.com/mcp
     allowed:
       - get_data
@@ -261,6 +262,7 @@ engine: copilot
 mcp-servers:
   my-api:
     type: http
+    container: "node:lts-alpine"
     url: https://api.example.com/mcp
 ---
 
@@ -282,6 +284,7 @@ engine: claude
 mcp-servers:
   my-api:
     type: http
+    container: "node:lts-alpine"
     url: https://api.example.com/mcp
     allowed:
       - get_data
@@ -308,6 +311,7 @@ engine: claude
 mcp-servers:
   my-api:
     type: http
+    container: "node:lts-alpine"
     url: https://api.example.com/mcp
 ---
 

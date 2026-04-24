@@ -199,6 +199,7 @@ func TestSharedWorkflowWithMCPServers(t *testing.T) {
 	sharedContent := `---
 mcp-servers:
   deepwiki:
+    container: "node:lts-alpine"
     url: "https://mcp.deepwiki.com/sse"
     allowed:
       - read_wiki_structure
@@ -235,6 +236,7 @@ func TestSharedWorkflowWithoutMarkdownContent(t *testing.T) {
 	sharedContent := `---
 mcp-servers:
   deepwiki:
+    container: "node:lts-alpine"
     url: "https://mcp.deepwiki.com/sse"
     allowed:
       - read_wiki_structure

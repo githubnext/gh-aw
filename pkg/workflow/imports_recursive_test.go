@@ -25,6 +25,7 @@ func TestRecursiveImports(t *testing.T) {
 	baseSharedContent := `---
 mcp-servers:
   base-tool:
+    container: "node:lts-alpine"
     url: "https://example.com/base"
     allowed: ["*"]
 ---
@@ -41,6 +42,7 @@ imports:
   - base-shared.md
 mcp-servers:
   intermediate-tool:
+    container: "node:lts-alpine"
     url: "https://example.com/intermediate"
     allowed: ["*"]
 ---
@@ -62,6 +64,7 @@ imports:
   - intermediate-shared.md
 mcp-servers:
   main-tool:
+    container: "node:lts-alpine"
     url: "https://example.com/main"
     allowed: ["*"]
 ---
@@ -128,6 +131,7 @@ imports:
   - file-b.md
 mcp-servers:
   tool-a:
+    container: "node:lts-alpine"
     url: "https://example.com/a"
     allowed: ["*"]
 ---
@@ -144,6 +148,7 @@ imports:
   - file-a.md
 mcp-servers:
   tool-b:
+    container: "node:lts-alpine"
     url: "https://example.com/b"
     allowed: ["*"]
 ---
@@ -205,6 +210,7 @@ func TestDiamondImports(t *testing.T) {
 	fileCContent := `---
 mcp-servers:
   tool-c:
+    container: "node:lts-alpine"
     url: "https://example.com/c"
     allowed: ["*"]
 ---
@@ -221,6 +227,7 @@ imports:
   - file-c.md
 mcp-servers:
   tool-a:
+    container: "node:lts-alpine"
     url: "https://example.com/a"
     allowed: ["*"]
 ---
@@ -237,6 +244,7 @@ imports:
   - file-c.md
 mcp-servers:
   tool-b:
+    container: "node:lts-alpine"
     url: "https://example.com/b"
     allowed: ["*"]
 ---
@@ -314,6 +322,7 @@ func TestImportOrdering(t *testing.T) {
 	fileFContent := `---
 mcp-servers:
   tool-f:
+    container: "node:lts-alpine"
     url: "https://example.com/f"
     allowed: ["f"]
 ---
@@ -329,6 +338,7 @@ imports:
   - file-f.md
 mcp-servers:
   tool-c:
+    container: "node:lts-alpine"
     url: "https://example.com/c"
     allowed: ["c"]
 ---
@@ -342,6 +352,7 @@ mcp-servers:
 	fileDContent := `---
 mcp-servers:
   tool-d:
+    container: "node:lts-alpine"
     url: "https://example.com/d"
     allowed: ["d"]
 ---
@@ -355,6 +366,7 @@ mcp-servers:
 	fileEContent := `---
 mcp-servers:
   tool-e:
+    container: "node:lts-alpine"
     url: "https://example.com/e"
     allowed: ["e"]
 ---
@@ -371,6 +383,7 @@ imports:
   - file-d.md
 mcp-servers:
   tool-a:
+    container: "node:lts-alpine"
     url: "https://example.com/a"
     allowed: ["a"]
 ---
@@ -386,6 +399,7 @@ imports:
   - file-e.md
 mcp-servers:
   tool-b:
+    container: "node:lts-alpine"
     url: "https://example.com/b"
     allowed: ["b"]
 ---

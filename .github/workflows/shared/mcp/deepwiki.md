@@ -16,6 +16,8 @@
 
 mcp-servers:
   deepwiki:
+    type: http
+    container: "node:lts-alpine"
     url: "https://mcp.deepwiki.com/sse"
     allowed:
       - read_wiki_structure

@@ -28,6 +28,7 @@ on: push
 mcp-servers:
   test-server:
     type: http
+    container: "node:lts-alpine"
     url: "https://example.com/mcp"
     headers:
       Authorization: "Bearer token"
@@ -140,6 +141,7 @@ on: push
 mcp-servers:
   headers-test:
     type: http
+    container: "node:lts-alpine"
     url: "https://api.example.com/mcp"
     headers:
       Authorization: "Bearer secret-token"
@@ -192,6 +194,7 @@ on: push
 mcp-servers:
   url-test:
     type: http
+    container: "node:lts-alpine"
     url: "https://mcp.service.com/api/v1"
     allowed: ["fetch_resource"]
 ---

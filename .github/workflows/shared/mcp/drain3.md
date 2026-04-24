@@ -4,6 +4,7 @@ tools:
 mcp-servers:
   drain3:
     type: http
+    container: "python:3.11"
     url: http://localhost:8766/mcp
     allowed:
       - index_file

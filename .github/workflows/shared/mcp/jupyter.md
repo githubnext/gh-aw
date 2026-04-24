@@ -31,6 +31,7 @@ services:
 mcp-servers:
   jupyter:
     type: http
+    container: "datalayer/jupyter-mcp-server:latest"
     url: "http://jupyter-mcp:3000"
     allowed: ["*"]
 ---

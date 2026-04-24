@@ -46,7 +46,7 @@
           "type": "string",
           "description": "Container image for the MCP server (e.g., 'ghcr.io/example/mcp-server:latest'). This field is required for stdio servers per MCP Gateway Specification section 4.1.2.",
           "minLength": 1,
-          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9./_-]*(:([a-zA-Z0-9._-]+|latest))?$"
+          "pattern": "^(?:[a-zA-Z0-9][a-zA-Z0-9._-]*(?::[0-9]+)?/)?[a-zA-Z0-9][a-zA-Z0-9._-]*(?:/[a-zA-Z0-9][a-zA-Z0-9._-]*)*(?::[a-zA-Z0-9._-]+)?(?:@sha256:[A-Fa-f0-9]{64})?$"
         },
         "entrypoint": {
           "type": "string",
@@ -111,7 +111,7 @@
           "type": "string",
           "description": "Container image that provides the HTTP MCP server (e.g., 'python:3.12-slim'). Required by MCP Gateway v0.2.30+ for all server types. For HTTP servers started externally on the runner, this identifies the container image used to host the service.",
           "minLength": 1,
-          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9./_-]*(:([a-zA-Z0-9._-]+|latest))?$"
+          "pattern": "^(?:[a-zA-Z0-9][a-zA-Z0-9._-]*(?::[0-9]+)?/)?[a-zA-Z0-9][a-zA-Z0-9._-]*(?:/[a-zA-Z0-9][a-zA-Z0-9._-]*)*(?::[a-zA-Z0-9._-]+)?(?:@sha256:[A-Fa-f0-9]{64})?$"
         },
         "type": {
           "type": "string",
