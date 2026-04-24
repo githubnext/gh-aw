@@ -14,6 +14,8 @@ engine:
 
 timeout-minutes: 60
 
+runs-on: aw-gpu-runner-T4
+
 runtimes:
   node:
     version: "22"
@@ -30,6 +32,11 @@ tools:
   mount-as-clis: true
   bash:
     - "*"
+
+steps:
+  - name: Install @xenova/transformers
+    run: |
+      npm install -g @xenova/transformers
 
 imports:
   - shared/hippo-memory.md
@@ -64,16 +71,7 @@ mcpscripts-hippo args: "audit --fix"
 
 Note the number of entries pruned for your summary.
 
-## Step 2 — Install embedding dependencies
-
-Install `@xenova/transformers` so `hippo embed` can compute vector representations.
-Use the bash tool:
-
-```bash
-npm install -g @xenova/transformers
-```
-
-## Step 3 — Embed all memories
+## Step 2 — Embed all memories
 
 Generate vector embeddings for every memory in the store. This enables hybrid
 BM25 + cosine similarity search and significantly improves semantic recall quality:
@@ -84,7 +82,7 @@ mcpscripts-hippo args: "embed"
 
 This may take several minutes for a store of ~490 memories. Wait for completion.
 
-## Step 4 — Verify and report
+## Step 3 — Verify and report
 
 Check the store status to confirm embeddings were generated:
 
