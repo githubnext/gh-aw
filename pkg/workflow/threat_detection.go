@@ -783,13 +783,9 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	// Detection job depends on agent job and activation job (for trace ID)
 	needs := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
 
-	// Determine runs-on: use threat detection override if set, otherwise ubuntu-latest.
-	// The detection job runs on a fresh runner separate from the agent job, so it does
-	// not need the same custom runner as safe-outputs.
-	runsOn := "runs-on: ubuntu-latest"
-	if data.SafeOutputs.ThreatDetection.RunsOn != "" {
-		runsOn = "runs-on: " + data.SafeOutputs.ThreatDetection.RunsOn
-	}
+	// Determine runs-on using inheritance chain:
+	// safe-outputs.threat-detection.runs-on > safe-outputs.runs-on > runs-on-slim > ubuntu-latest
+	runsOn := c.formatDetectionJobRunsOn(data)
 
 	// Detection job condition: always run if agent job was not skipped AND produced outputs or a patch.
 	// Skip the detection job entirely (result = 'skipped') when there is nothing to detect against,

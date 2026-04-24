@@ -368,3 +368,182 @@ func TestFormatFrameworkJobRunsOn(t *testing.T) {
 		})
 	}
 }
+
+// TestFormatDetectionJobRunsOn tests the formatDetectionJobRunsOn helper directly.
+func TestFormatDetectionJobRunsOn(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name           string
+		data           *WorkflowData
+		expectedRunsOn string
+	}{
+		{
+			name:           "nil WorkflowData returns ubuntu-latest default",
+			data:           nil,
+			expectedRunsOn: "runs-on: ubuntu-latest",
+		},
+		{
+			name:           "empty WorkflowData returns ubuntu-latest default",
+			data:           &WorkflowData{},
+			expectedRunsOn: "runs-on: ubuntu-latest",
+		},
+		{
+			name: "runs-on-slim inherited by detection job",
+			data: &WorkflowData{
+				RunsOnSlim: "ubuntu-latest-cool",
+			},
+			expectedRunsOn: "runs-on: ubuntu-latest-cool",
+		},
+		{
+			name: "safe-outputs.runs-on inherited by detection job",
+			data: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{RunsOn: "self-hosted"},
+			},
+			expectedRunsOn: "runs-on: self-hosted",
+		},
+		{
+			name: "safe-outputs.runs-on takes precedence over runs-on-slim",
+			data: &WorkflowData{
+				RunsOnSlim:  "ubuntu-22.04",
+				SafeOutputs: &SafeOutputsConfig{RunsOn: "self-hosted"},
+			},
+			expectedRunsOn: "runs-on: self-hosted",
+		},
+		{
+			name: "threat-detection.runs-on takes highest precedence",
+			data: &WorkflowData{
+				RunsOnSlim: "ubuntu-22.04",
+				SafeOutputs: &SafeOutputsConfig{
+					RunsOn: "self-hosted",
+					ThreatDetection: &ThreatDetectionConfig{
+						RunsOn: "ubuntu-detection-runner",
+					},
+				},
+			},
+			expectedRunsOn: "runs-on: ubuntu-detection-runner",
+		},
+		{
+			name: "safe-outputs with no runs-on falls back to runs-on-slim",
+			data: &WorkflowData{
+				RunsOnSlim:  "ubuntu-latest-cool",
+				SafeOutputs: &SafeOutputsConfig{},
+			},
+			expectedRunsOn: "runs-on: ubuntu-latest-cool",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.formatDetectionJobRunsOn(tt.data)
+			if result != tt.expectedRunsOn {
+				t.Errorf("formatDetectionJobRunsOn() = %q, want %q", result, tt.expectedRunsOn)
+			}
+		})
+	}
+}
+
+// TestDetectionJobInheritsRunsOnSlim verifies that the compiled detection job
+// inherits runs-on-slim when safe-outputs.threat-detection.runs-on is not set.
+func TestDetectionJobInheritsRunsOnSlim(t *testing.T) {
+	tests := []struct {
+		name           string
+		frontmatter    string
+		expectedRunsOn string
+	}{
+		{
+			name: "detection job inherits runs-on-slim",
+			frontmatter: `---
+on: issues
+runs-on: ubuntu-latest-cool
+runs-on-slim: ubuntu-latest-cool
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn: "runs-on: ubuntu-latest-cool",
+		},
+		{
+			name: "detection job inherits safe-outputs.runs-on",
+			frontmatter: `---
+on: issues
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+  runs-on: custom-runner
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn: "runs-on: custom-runner",
+		},
+		{
+			name: "threat-detection.runs-on overrides runs-on-slim for detection job",
+			frontmatter: `---
+on: issues
+runs-on-slim: ubuntu-latest-cool
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+  threat-detection:
+    runs-on: ubuntu-latest
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn: "runs-on: ubuntu-latest",
+		},
+		{
+			name: "detection job defaults to ubuntu-latest when no runner specified",
+			frontmatter: `---
+on: issues
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn: "runs-on: ubuntu-latest",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "workflow-detection-runs-on-test")
+
+			testFile := filepath.Join(tmpDir, "test.md")
+			if err := os.WriteFile(testFile, []byte(tt.frontmatter), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(testFile); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			lockFile := filepath.Join(tmpDir, "test.lock.yml")
+			yamlContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+			yamlStr := string(yamlContent)
+
+			detectionStart := strings.Index(yamlStr, "\n  detection:")
+			if detectionStart == -1 {
+				t.Skip("Detection job not present in compiled output (threat detection may be disabled)")
+			}
+			detectionSection := yamlStr[detectionStart:min(detectionStart+500, len(yamlStr))]
+			if !strings.Contains(detectionSection, tt.expectedRunsOn) {
+				t.Errorf("Detection job does not use expected runs-on %q.\nDetection section:\n%s", tt.expectedRunsOn, detectionSection)
+			}
+		})
+	}
+}

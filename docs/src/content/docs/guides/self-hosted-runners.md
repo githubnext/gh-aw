@@ -75,7 +75,16 @@ Triage this issue.
 
 ## Configuring the detection job runner
 
-When [threat detection](/gh-aw/reference/threat-detection/) is enabled, the detection job runs on the agent job's runner by default. Override it with `safe-outputs.threat-detection.runs-on`:
+When [threat detection](/gh-aw/reference/threat-detection/) is enabled, the detection job runner is determined by the following precedence (highest to lowest):
+
+1. `safe-outputs.threat-detection.runs-on` — explicit detection override
+2. `safe-outputs.runs-on` — section-level override
+3. `runs-on-slim` — top-level framework job override
+4. `ubuntu-latest` — default
+
+This means that setting `runs-on-slim: ubuntu-latest-cool` or `safe-outputs.runs-on: ubuntu-latest-cool` automatically applies to the detection job as well, without any extra configuration.
+
+Use `safe-outputs.threat-detection.runs-on` when you need a different runner specifically for the detection job — for example, when your self-hosted runner lacks outbound internet access for AI detection, or when you want to run the detection job on a cheaper runner:
 
 ```aw
 ---
@@ -87,8 +96,6 @@ safe-outputs:
     runs-on: ubuntu-latest
 ---
 ```
-
-This is useful when your self-hosted runner lacks outbound internet access for AI detection, or when you want to run the detection job on a cheaper runner.
 
 ## Configuring the framework job runner
 
