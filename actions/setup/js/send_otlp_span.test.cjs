@@ -921,6 +921,7 @@ describe("sendJobSetupSpan", () => {
     "GITHUB_REF_NAME",
     "GITHUB_HEAD_REF",
     "GITHUB_SHA",
+    "GITHUB_WORKFLOW_REF",
     "GH_AW_INFO_VERSION",
     "GH_AW_INFO_STAGED",
   ];
@@ -1286,6 +1287,34 @@ describe("sendJobSetupSpan", () => {
     expect(resourceKeys).not.toContain("github.sha");
   });
 
+  it("includes github.workflow_ref as resource attribute when GITHUB_WORKFLOW_REF is set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_WORKFLOW_REF = "owner/repo/.github/workflows/my-workflow.yml@refs/heads/main";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.workflow_ref", value: { stringValue: "owner/repo/.github/workflows/my-workflow.yml@refs/heads/main" } });
+  });
+
+  it("omits github.workflow_ref resource attribute when GITHUB_WORKFLOW_REF is not set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    const resourceKeys = resourceAttrs.map(a => a.key);
+    expect(resourceKeys).not.toContain("github.workflow_ref");
+  });
+
   it("includes github.actions.run_url as resource attribute when repository and run_id are set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -1554,6 +1583,7 @@ describe("sendJobConclusionSpan", () => {
     "GITHUB_REF_NAME",
     "GITHUB_HEAD_REF",
     "GITHUB_SHA",
+    "GITHUB_WORKFLOW_REF",
     "INPUT_JOB_NAME",
     "GH_AW_AGENT_CONCLUSION",
     "GH_AW_INFO_WORKFLOW_NAME",
@@ -2912,6 +2942,34 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gh-aw.tokens.cache_read");
       expect(keys).not.toContain("gh-aw.tokens.cache_write");
     });
+  });
+
+  it("includes github.workflow_ref as resource attribute when GITHUB_WORKFLOW_REF is set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_WORKFLOW_REF = "owner/repo/.github/workflows/my-workflow.yml@refs/heads/main";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.workflow_ref", value: { stringValue: "owner/repo/.github/workflows/my-workflow.yml@refs/heads/main" } });
+  });
+
+  it("omits github.workflow_ref resource attribute when GITHUB_WORKFLOW_REF is not set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    const resourceKeys = resourceAttrs.map(a => a.key);
+    expect(resourceKeys).not.toContain("github.workflow_ref");
   });
 
   describe("staged / deployment.environment", () => {

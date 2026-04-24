@@ -495,6 +495,7 @@ async function sendJobSetupSpan(options = {}) {
   const refName = process.env.GITHUB_REF_NAME || "";
   const headRef = process.env.GITHUB_HEAD_REF || "";
   const sha = process.env.GITHUB_SHA || "";
+  const workflowRef = process.env.GITHUB_WORKFLOW_REF || "";
 
   const attributes = [
     buildAttr("gh-aw.job.name", jobName),
@@ -532,6 +533,9 @@ async function sendJobSetupSpan(options = {}) {
   }
   if (sha) {
     resourceAttributes.push(buildAttr("github.sha", sha));
+  }
+  if (workflowRef) {
+    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
 
@@ -705,6 +709,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const refName = process.env.GITHUB_REF_NAME || "";
   const headRef = process.env.GITHUB_HEAD_REF || "";
   const sha = process.env.GITHUB_SHA || "";
+  const workflowRef = process.env.GITHUB_WORKFLOW_REF || "";
 
   // Agent conclusion is passed to downstream jobs via GH_AW_AGENT_CONCLUSION.
   // Values: "success", "failure", "timed_out", "cancelled", "skipped".
@@ -818,6 +823,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
   if (sha) {
     resourceAttributes.push(buildAttr("github.sha", sha));
+  }
+  if (workflowRef) {
+    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
 
