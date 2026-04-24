@@ -44,7 +44,19 @@ Schedule frequency is automatically determined by the shortest expiration time.`
 on:
   schedule:
     - cron: "` + cronSchedule + `"  # ` + scheduleDesc + ` (based on minimum expires: ` + strconv.Itoa(minExpiresDays) + ` days)
-  workflow_dispatch:
+`)
+
+	// Add push trigger in dev mode so compile-workflows runs when workflow files change
+	if actionMode == ActionModeDev {
+		yaml.WriteString(`  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/*.md'
+`)
+	}
+
+	yaml.WriteString(`  workflow_dispatch:
     inputs:
       operation:
         description: 'Optional maintenance operation to run'
@@ -93,7 +105,7 @@ permissions: {}
 
 jobs:
   close-expired-entities:
-    if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
+    if: ${{ ` + RenderCondition(buildNotForkAndScheduleOnly()) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       discussions: write
@@ -161,7 +173,7 @@ jobs:
 	// Add cleanup-cache-memory job for scheduled runs and clean_cache_memories operation
 	// This job lists all caches starting with "memory-", groups them by key prefix,
 	// keeps the latest run ID per group, and deletes the rest.
-	cleanupCacheCondition := buildNotForkAndScheduledOrOperation("clean_cache_memories")
+	cleanupCacheCondition := buildNotForkAndScheduleOnlyOrOperation("clean_cache_memories")
 	yaml.WriteString(`
   cleanup-cache-memory:
     if: ${{ ` + RenderCondition(cleanupCacheCondition) + ` }}
@@ -646,7 +658,7 @@ jobs:
             await main();
 
   secret-validation:
-    if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
+    if: ${{ ` + RenderCondition(buildNotForkAndScheduleOnly()) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       contents: read

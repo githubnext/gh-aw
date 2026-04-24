@@ -536,6 +536,110 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	}
 }
 
+func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
+	workflowDataList := []*WorkflowData{
+		{
+			Name: "test-workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					Expires: 48,
+				},
+			},
+		},
+	}
+
+	t.Run("dev mode includes push trigger on main for workflow md files", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+		if err != nil {
+			t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+		}
+		yaml := string(content)
+
+		if !strings.Contains(yaml, "  push:") {
+			t.Error("Dev mode workflow should include push trigger")
+		}
+		if !strings.Contains(yaml, "      - main") {
+			t.Error("Dev mode push trigger should target main branch")
+		}
+		if !strings.Contains(yaml, "      - '.github/workflows/*.md'") {
+			t.Error("Dev mode push trigger should target .github/workflows/*.md paths")
+		}
+	})
+
+	t.Run("release mode does not include push trigger", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeRelease, "", false, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+		if err != nil {
+			t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+		}
+		yaml := string(content)
+
+		if strings.Contains(yaml, "  push:") {
+			t.Error("Release mode workflow should NOT include push trigger")
+		}
+	})
+
+	t.Run("close-expired-entities and secret-validation exclude push events", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+		if err != nil {
+			t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+		}
+		yaml := string(content)
+		pushExclusionCondition := "github.event_name != 'push'"
+
+		const jobSectionSearchRange = 300
+		scheduleOnlyJobs := []string{"close-expired-entities:", "secret-validation:"}
+		for _, job := range scheduleOnlyJobs {
+			jobIdx := strings.Index(yaml, "\n  "+job)
+			if jobIdx == -1 {
+				t.Errorf("Job %q not found in generated workflow", job)
+				continue
+			}
+			jobSection := yaml[jobIdx : jobIdx+jobSectionSearchRange]
+			if !strings.Contains(jobSection, pushExclusionCondition) {
+				t.Errorf("Job %q should exclude push events (%q) but condition is:\n%s", job, pushExclusionCondition, jobSection)
+			}
+		}
+	})
+
+	t.Run("compile-workflows runs on push events (no push exclusion)", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+		if err != nil {
+			t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+		}
+		yaml := string(content)
+
+		const jobSectionSearchRange = 300
+		compileIdx := strings.Index(yaml, "\n  compile-workflows:")
+		if compileIdx == -1 {
+			t.Fatal("Job compile-workflows not found in generated workflow")
+		}
+		jobSection := yaml[compileIdx : compileIdx+jobSectionSearchRange]
+		if strings.Contains(jobSection, "github.event_name != 'push'") {
+			t.Errorf("Job compile-workflows should NOT exclude push events, but condition is:\n%s", jobSection)
+		}
+	})
+}
+
 func TestGenerateMaintenanceWorkflow_ActionTag(t *testing.T) {
 	workflowDataList := []*WorkflowData{
 		{
