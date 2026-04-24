@@ -9,7 +9,7 @@ permissions:
   discussions: read
 engine:
   id: copilot
-  model: gpt-5-mini
+  model: gpt-5.4-mini
 tools:
   mount-as-clis: true
   github:

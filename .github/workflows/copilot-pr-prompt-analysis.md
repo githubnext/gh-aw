@@ -18,6 +18,7 @@ engine: copilot
 network:
   allowed:
     - defaults
+    - github
     - node
 
 sandbox:

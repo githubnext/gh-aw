@@ -1,5 +1,6 @@
 > [!WARNING]
-> **⚠️ Firewall blocked {domain_count} {domain_word}**
+> <details>
+> <summary>Firewall blocked {domain_count} {domain_word}</summary>
 >
 > The following {domain_word} {verb} blocked by the firewall during workflow execution:
 >
@@ -25,3 +26,5 @@
 {yaml_network_list}> ```
 >
 > See [Network Configuration](https://github.github.com/gh-aw/reference/network/) for more information.
+>
+> </details>
