@@ -196,18 +196,19 @@ function generateBlockedDomainsSection(blockedDomains) {
   const domainWord = domainCount === 1 ? "domain" : "domains";
 
   let section = "\n\n> [!WARNING]\n";
-  section += `> **⚠️ Firewall blocked ${domainCount} ${domainWord}**\n`;
+  section += `> <details>\n`;
+  section += `> <summary>⚠️ Firewall blocked ${domainCount} ${domainWord}</summary>\n`;
   section += `>\n`;
   section += `> The following ${domainWord} ${domainCount === 1 ? "was" : "were"} blocked by the firewall during workflow execution:\n`;
   section += `>\n`;
 
-  // List domains as bullet points (within the alert)
+  // List domains as bullet points (within the details)
   for (const domain of blockedDomains) {
     section += `> - \`${domain}\`\n`;
   }
 
   section += `>\n`;
-  section += `> To allow these domains, add them to the \`network.allowed\` list in your workflow frontmatter:\n`;
+  section += `> To allow ${domainCount === 1 ? "this domain" : "these domains"}, add ${domainCount === 1 ? "it" : "them"} to the \`network.allowed\` list in your workflow frontmatter:\n`;
   section += `>\n`;
   section += `> \`\`\`yaml\n`;
   section += `> network:\n`;
@@ -219,6 +220,8 @@ function generateBlockedDomainsSection(blockedDomains) {
   section += `> \`\`\`\n`;
   section += `>\n`;
   section += `> See [Network Configuration](https://github.github.com/gh-aw/reference/network/) for more information.\n`;
+  section += `>\n`;
+  section += `> </details>\n`;
 
   return section;
 }
