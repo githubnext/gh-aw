@@ -18,7 +18,9 @@ engine: copilot
 network:
   allowed:
     - defaults
+    - github
     - node
+    - api.github.com
 
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
@@ -302,5 +304,17 @@ A successful analysis:
 - ✅ Includes concrete examples of good and poor prompts
 
 **Remember**: The goal is to help developers write better prompts that lead to more successful PR merges.
+
+## Efficiency Guidelines
+
+Complete the analysis in **at most 8 turns**. The data is already pre-fetched — no need to fetch it from GitHub API. Follow this sequence:
+
+1. **Turn 1**: Load and verify PR data from `/tmp/gh-aw/pr-data/copilot-prs.json`
+2. **Turn 2**: Categorize prompts and compute success rates using `jq` and bash
+3. **Turn 3**: Load historical data from cache-memory
+4. **Turn 4**: Generate insights and update historical data
+5. **Turn 5**: Write the discussion content and call `create_discussion`
+
+Do not make redundant reads, re-verify data, or loop back to steps already completed. Use a single `jq` pipeline per analysis step. If fewer than 3 PRs are found, skip directly to creating the discussion (Phase 6 above) and note low activity.
 
 {{#import shared/noop-reminder.md}}
