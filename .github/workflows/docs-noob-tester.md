@@ -50,7 +50,7 @@ pre-agent-steps:
       echo "Server PID: $PID"
   - name: Wait for server readiness
     run: |
-      for i in {1..45}; do
+      for i in {1..45}; do  # 45 attempts × 3s = 135s max wait
         STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/gh-aw/)
         [ "$STATUS" = "200" ] && echo "Server ready at http://localhost:4321/gh-aw/!" && break
         echo "Waiting for server... ($i/45) (status: $STATUS)" && sleep 3
@@ -90,10 +90,10 @@ Act as a complete beginner who has never used GitHub Agentic Workflows before. N
 
 **IMPORTANT: Using Playwright in gh-aw Workflows**
 
-- ✅ **Correct**: `browser_run_code` with `page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })`
+- ✅ **Correct**: Read the URL from the file then navigate: `SERVER_URL=$(cat /tmp/gh-aw/agent/server-url.txt)` and use `browser_run_code` with `page.goto(SERVER_URL, { waitUntil: 'domcontentloaded', timeout: 30000 })`
 - ❌ **Incorrect**: Using `http://localhost:4321/...` — use the bridge IP from `/tmp/gh-aw/agent/server-url.txt`
 
-**⚠️ CRITICAL: Navigation Timeout Prevention** — Always use `waitUntil: 'domcontentloaded'` to prevent timeout on the Vite dev server. If Playwright connectivity fails, see the shared **Documentation Server Lifecycle Management** fallback instructions.
+**⚠️ CRITICAL: Navigation Timeout Prevention** — Always use `waitUntil: 'domcontentloaded'` to prevent timeout on the Astro development server. If Playwright connectivity fails, see the shared **Documentation Server Lifecycle Management** fallback instructions.
 
 Using Playwright, visit exactly these 3 pages and stop (use the Playwright server URL read from `/tmp/gh-aw/agent/server-url.txt`):
 
