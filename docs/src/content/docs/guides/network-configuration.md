@@ -194,7 +194,6 @@ View complete ecosystem domain lists in the [ecosystem domains source](https://g
 ## Related Documentation
 
 - [Network Permissions Reference](/gh-aw/reference/network/) - Complete network configuration reference
-- [Supported Languages & Ecosystems](/gh-aw/reference/supported-languages/) - Language-first overview of ecosystem identifiers
 - [Playwright Reference](/gh-aw/reference/playwright/) - Browser automation and network requirements
 - [Security Guide](/gh-aw/introduction/architecture/) - Security best practices
 - [Troubleshooting](/gh-aw/troubleshooting/common-issues/) - Common issues and solutions

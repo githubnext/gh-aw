@@ -14,7 +14,7 @@ sidebar:
 
 ### Recommended: Import shared workflow
 
-The preferred way to add Serena is to import the shared workflow, which configures the complete MCP server automatically:
+The preferred way to add Serena is to copy the file [`shared/mcp/serena.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena.md) into your repo and import it into your workflow, which configures the complete MCP server automatically:
 
 ```aw wrap
 ---
@@ -22,6 +22,7 @@ on: issues
 engine: copilot
 permissions:
   contents: read
+# NOTE: first copy `shared/mcp/serena.md` into your repository before importing it
 imports:
   - uses: shared/mcp/serena.md
     with:
@@ -29,7 +30,7 @@ imports:
 ---
 ```
 
-For Go-only workflows, use the convenience wrapper:
+For Go-only workflows, use the convenience wrapper (copy [`shared/mcp/serena-go.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena-go.md) into your repository before importing it):
 
 ```aw wrap
 ---
@@ -37,6 +38,7 @@ on: issues
 engine: copilot
 permissions:
   contents: read
+# NOTE: first copy `shared/mcp/serena-go.md` into your repository before importing it
 imports:
   - shared/mcp/serena-go.md
 ---
@@ -81,15 +83,7 @@ imports:
       languages: ["go", "typescript"]
 ```
 
-The shared workflow configures the full Serena MCP server (container image, entrypoint, workspace mount) explicitly. Compiling a workflow that still uses `tools.serena` now fails with an error:
-
-```
-✖ 'tools.serena' has been removed. Use the shared/mcp/serena.md workflow instead:
-  imports:
-    - uses: shared/mcp/serena.md
-      with:
-        languages: ["go", "typescript"]
-```
+The shared workflow configures the full Serena MCP server (container image, entrypoint, workspace mount) explicitly. 
 
 ## Language Support
 

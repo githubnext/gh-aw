@@ -1,5 +1,5 @@
 ---
-title: Consuming Audit Reports with Agents
+title: Consuming Audit Reports with Agentic Workflows
 description: How to feed structured audit output into agentic workflows for automated triage, trend analysis, and remediation.
 ---
 

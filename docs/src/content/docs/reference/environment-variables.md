@@ -261,5 +261,4 @@ jobs:
 - [Tools](/gh-aw/reference/tools/) - MCP tool configuration and guard policies
 - [MCP Scripts](/gh-aw/reference/mcp-scripts/) - MCP script tool configuration
 - [Engines](/gh-aw/reference/engines/) - AI engine configuration and model selection
-- [Tokens](/gh-aw/reference/tokens/) - Engine secrets and GitHub token reference
 - [GitHub Actions Environment Variables](https://docs.github.com/en/actions/learn-github-actions/variables) - GitHub Actions documentation
