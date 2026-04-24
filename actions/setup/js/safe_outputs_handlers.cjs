@@ -628,7 +628,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
 
     // prettier-ignore
-    server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+    server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines, diffSize=${patchResult.diffSize ?? "(n/a)"} bytes)`);
 
     // Store the patch path in the entry so consumers know which file to use
     entry.patch_path = patchResult.patchPath;
@@ -636,6 +636,16 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Store the base commit SHA so the push handler can use it directly
     if (patchResult.baseCommit) {
       entry.base_commit = patchResult.baseCommit;
+    }
+
+    // Store the incremental net diff size so push_to_pull_request_branch can
+    // validate `max_patch_size` against the actual incremental change relative
+    // to the existing PR branch head, not the (potentially much larger) size of
+    // the format-patch transport file. This is critical for the long-running
+    // branch pattern (e.g. autoloop) where the format-patch can include many
+    // commits but each iteration only changes a few KB.
+    if (typeof patchResult.diffSize === "number" && patchResult.diffSize >= 0) {
+      entry.diff_size = patchResult.diffSize;
     }
 
     appendSafeOutput(entry);

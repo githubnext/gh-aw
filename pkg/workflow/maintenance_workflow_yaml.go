@@ -20,8 +20,9 @@ func buildMaintenanceWorkflowYAML(
 	version, actionTag string,
 	resolver ActionSHAResolver,
 	configuredRunsOn RunsOnValue,
+	defaultBranch string,
 ) string {
-	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q", actionMode, minExpiresDays, cronSchedule)
+	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q", actionMode, minExpiresDays, cronSchedule, defaultBranch)
 
 	var yaml strings.Builder
 
@@ -44,7 +45,19 @@ Schedule frequency is automatically determined by the shortest expiration time.`
 on:
   schedule:
     - cron: "` + cronSchedule + `"  # ` + scheduleDesc + ` (based on minimum expires: ` + strconv.Itoa(minExpiresDays) + ` days)
-  workflow_dispatch:
+`)
+
+	// Add push trigger in dev mode so compile-workflows runs when workflow files change
+	if actionMode == ActionModeDev {
+		yaml.WriteString(`  push:
+    branches:
+      - ` + defaultBranch + `
+    paths:
+      - '.github/workflows/*.md'
+`)
+	}
+
+	yaml.WriteString(`  workflow_dispatch:
     inputs:
       operation:
         description: 'Optional maintenance operation to run'
@@ -62,6 +75,7 @@ on:
           - 'activity_report'
           - 'close_agentic_workflows_issues'
           - 'clean_cache_memories'
+          - 'update_pull_request_branches'
           - 'validate'
       run_url:
         description: 'Run URL or run ID to replay safe outputs from (e.g. https://github.com/owner/repo/actions/runs/12345 or 12345). Required when operation is safe_outputs.'
@@ -71,7 +85,7 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: 'Optional maintenance operation to run (disable, enable, update, upgrade, safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, validate)'
+        description: 'Optional maintenance operation to run (disable, enable, update, upgrade, safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, update_pull_request_branches, validate)'
         required: false
         type: string
         default: ''
@@ -92,7 +106,7 @@ permissions: {}
 
 jobs:
   close-expired-entities:
-    if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
+    if: ${{ ` + RenderCondition(buildNotForkAndScheduleOnly()) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       discussions: write
@@ -160,7 +174,7 @@ jobs:
 	// Add cleanup-cache-memory job for scheduled runs and clean_cache_memories operation
 	// This job lists all caches starting with "memory-", groups them by key prefix,
 	// keeps the latest run ID per group, and deletes the rest.
-	cleanupCacheCondition := buildNotForkAndScheduledOrOperation("clean_cache_memories")
+	cleanupCacheCondition := buildNotForkAndScheduleOnlyOrOperation("clean_cache_memories")
 	yaml.WriteString(`
   cleanup-cache-memory:
     if: ${{ ` + RenderCondition(cleanupCacheCondition) + ` }}
@@ -196,8 +210,8 @@ jobs:
 `)
 
 	// Add unified run_operation job for all dispatch operations except those with dedicated jobs
-	// (safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, validate)
-	runOperationCondition := buildRunOperationCondition("safe_outputs", "create_labels", "activity_report", "close_agentic_workflows_issues", "clean_cache_memories", "validate")
+	// (safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, update_pull_request_branches, validate)
+	runOperationCondition := buildRunOperationCondition("safe_outputs", "create_labels", "activity_report", "close_agentic_workflows_issues", "clean_cache_memories", "update_pull_request_branches", "validate")
 	yaml.WriteString(`
   run_operation:
     if: ${{ ` + RenderCondition(runOperationCondition) + ` }}
@@ -249,6 +263,55 @@ jobs:
       - name: Record outputs
         id: record
         run: echo "operation=${{ inputs.operation }}" >> "$GITHUB_OUTPUT"
+`)
+
+	// Add update_pull_request_branches job for workflow_dispatch with operation == 'update_pull_request_branches'
+	yaml.WriteString(`
+  update_pull_request_branches:
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("update_pull_request_branches")) + ` }}
+    runs-on: ` + runsOnValue + `
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+`)
+
+	// Add checkout step only in dev/script mode (for local action paths)
+	if actionMode == ActionModeDev || actionMode == ActionModeScript {
+		yaml.WriteString("      - name: Checkout actions folder\n")
+		yaml.WriteString("        uses: " + getActionPin("actions/checkout") + "\n")
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          sparse-checkout: |\n")
+		yaml.WriteString("            actions\n")
+		yaml.WriteString("          persist-credentials: false\n\n")
+	}
+
+	yaml.WriteString(`      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+      - name: Update pull request branches
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/update_pull_request_branches.cjs');
+            await main();
 `)
 
 	// Add apply_safe_outputs job for workflow_dispatch with operation == 'safe_outputs'
@@ -561,6 +624,9 @@ jobs:
   compile-workflows:
     if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
     runs-on: ` + runsOnValue + `
+    concurrency:
+      group: ${{ github.workflow }}-compile-workflows-${{ github.repository }}
+      cancel-in-progress: true
     permissions:
       contents: read
       issues: write
@@ -596,7 +662,7 @@ jobs:
             await main();
 
   secret-validation:
-    if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
+    if: ${{ ` + RenderCondition(buildNotForkAndScheduleOnly()) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       contents: read

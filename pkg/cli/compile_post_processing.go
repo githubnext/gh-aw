@@ -75,7 +75,7 @@ func generateMaintenanceWorkflowWrapper(
 		repoConfig = nil
 	}
 
-	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, compiler.GetVersion(), compiler.GetActionMode(), compiler.GetActionTag(), verbose, repoConfig); err != nil {
+	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, compiler.GetVersion(), compiler.GetActionMode(), compiler.GetActionTag(), verbose, repoConfig, compiler.GetRepositorySlug()); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate maintenance workflow: %w", err)
 		}

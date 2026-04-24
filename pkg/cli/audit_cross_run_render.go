@@ -386,11 +386,3 @@ func formatRunIDs(ids []int64) string {
 	}
 	return strings.Join(parts, ", ")
 }
-
-// safePercent returns percentage of part/total, returning 0 when total is 0.
-func safePercent(part, total int) float64 {
-	if total == 0 {
-		return 0
-	}
-	return float64(part) / float64(total) * 100
-}

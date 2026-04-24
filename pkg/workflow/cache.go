@@ -63,40 +63,6 @@ func generateDefaultCacheKey(cacheID string) string {
 	return fmt.Sprintf("memory-%s-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}", cacheID)
 }
 
-// computeIntegrityCacheKey returns the effective cache key for a cache entry, incorporating
-// the integrity level and policy hash prefix. The key always starts with
-// "memory-{integrityLevel}-{policyHash}-" to ensure cache isolation across integrity levels
-// and guard policies, even when the user has specified a custom key suffix.
-//
-// When no custom key is set the full key is:
-//
-//	memory-{integrityLevel}-{policyHash}-[{cacheID}-]{workflowID}-{runID}
-//
-// When a custom key is set, it is used as the suffix:
-//
-//	memory-{integrityLevel}-{policyHash}-{customKey}-{runID}
-//
-// githubConfig may be nil for workflows without a GitHub guard policy, in which case the
-// sentinel value "nopolicy" and the default integrity level "none" are used.
-func computeIntegrityCacheKey(cache CacheMemoryEntry, githubConfig *GitHubToolConfig) string {
-	integrityLevel := cacheIntegrityLevel(githubConfig)
-	policyHash := computePolicyHash(githubConfig)
-	integrityPrefix := fmt.Sprintf("memory-%s-%s-", integrityLevel, policyHash)
-
-	// If a custom key was explicitly set, prefix it with the integrity/policy namespace
-	// to prevent cross-integrity or cross-policy cache sharing.
-	if cache.Key != "" && cache.Key != generateDefaultCacheKey(cache.ID) {
-		customKey := cache.Key
-		runIdSuffix := "-${{ github.run_id }}"
-		if !strings.HasSuffix(customKey, runIdSuffix) {
-			customKey = customKey + runIdSuffix
-		}
-		return integrityPrefix + customKey
-	}
-
-	return generateIntegrityAwareCacheKey(cache.ID, integrityLevel, policyHash)
-}
-
 // parseCacheMemoryEntry parses a single cache-memory entry from a map
 func parseCacheMemoryEntry(cacheMap map[string]any, defaultID string) (CacheMemoryEntry, error) {
 	cacheLog.Printf("Parsing cache-memory entry: defaultID=%s", defaultID)

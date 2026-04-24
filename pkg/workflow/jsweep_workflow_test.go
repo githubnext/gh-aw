@@ -141,6 +141,26 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 			t.Errorf("jsweep.lock.yml should exist and be accessible: %v", err)
 		}
 	})
+
+	// Test 11: Verify the workflow has explicit done conditions to prevent runaway loops
+	t.Run("HasDoneConditions", func(t *testing.T) {
+		if !strings.Contains(mdContent, "Done Conditions") {
+			t.Error("jsweep workflow should have a 'Done Conditions' section to prevent runaway iteration")
+		}
+		if !strings.Contains(mdContent, "STOP immediately after calling") {
+			t.Error("jsweep workflow should instruct the agent to STOP immediately after calling create_pull_request")
+		}
+		if !strings.Contains(mdContent, "do not loop back to Step 1") {
+			t.Error("jsweep workflow should explicitly tell the agent not to loop back to find another file")
+		}
+	})
+
+	// Test 12: Verify the one-file-per-run constraint includes stop instruction
+	t.Run("OneFilePerRunStopsAfterPR", func(t *testing.T) {
+		if !strings.Contains(mdContent, "after calling `create_pull_request`, STOP immediately") {
+			t.Error("jsweep workflow one-file-per-run constraint should include explicit stop instruction after PR creation")
+		}
+	})
 }
 
 // TestJSweepWorkflowLockFile validates that the compiled jsweep.lock.yml file

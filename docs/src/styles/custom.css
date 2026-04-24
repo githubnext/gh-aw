@@ -732,6 +732,22 @@ header::after {
   word-wrap: normal;
 }
 
+/* Tables - scroll wrapper (no-JS fallback; mirrors what responsive-tables.ts would inject) */
+.sl-markdown-content .table-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 1.5rem 0;
+  /* Preserve the rounded-corner appearance by clipping the scrolling area */
+  border-radius: 6px;
+}
+
+/* Reset the margin that Starlight / remark would otherwise add directly to
+   the table so the wrapper owns the vertical spacing. */
+.sl-markdown-content .table-scroll-wrapper table {
+  margin: 0;
+}
+
 /* Tables - Desktop styles */
 .sl-markdown-content table {
   width: 100%;

@@ -12,8 +12,8 @@ import (
 	"github.com/github/gh-aw/pkg/actionpins"
 )
 
-// TestSpec_PublicAPI_FormatReference validates the documented format "repo@sha # version".
-func TestSpec_PublicAPI_FormatReference(t *testing.T) {
+// TestSpec_PublicAPI_FormatPinnedActionReference validates the documented format "repo@sha # version".
+func TestSpec_PublicAPI_FormatPinnedActionReference(t *testing.T) {
 	tests := []struct {
 		name     string
 		repo     string
@@ -39,8 +39,8 @@ func TestSpec_PublicAPI_FormatReference(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := actionpins.FormatReference(tt.repo, tt.sha, tt.version)
-			assert.Equal(t, tt.expected, result, "FormatReference(%q, %q, %q) should match spec format", tt.repo, tt.sha, tt.version)
+			result := actionpins.FormatPinnedActionReference(tt.repo, tt.sha, tt.version)
+			assert.Equal(t, tt.expected, result, "FormatPinnedActionReference(%q, %q, %q) should match spec format", tt.repo, tt.sha, tt.version)
 		})
 	}
 }
@@ -180,7 +180,7 @@ func TestSpec_PublicAPI_ResolveLatestActionPin(t *testing.T) {
 		require.True(t, ok, "expected latest pin for known repository")
 
 		result := actionpins.ResolveLatestActionPin(known, nil)
-		expected := actionpins.FormatReference(known, latestPin.SHA, latestPin.Version)
+		expected := actionpins.FormatPinnedActionReference(known, latestPin.SHA, latestPin.Version)
 		assert.Equal(t, expected, result, "should resolve latest pinned reference")
 	})
 }
@@ -199,7 +199,7 @@ func TestSpec_Types_PinContext(t *testing.T) {
 	})
 }
 
-// TestSpec_DesignDecision_FormatConsistency validates that FormatReference and FormatCacheKey
+// TestSpec_DesignDecision_FormatConsistency validates that FormatPinnedActionReference and FormatCacheKey
 // produce outputs consistent with the spec: cacheKey = "repo@version", ref = "repo@sha # version".
 func TestSpec_DesignDecision_FormatConsistency(t *testing.T) {
 	repo := "actions/checkout"
@@ -207,7 +207,7 @@ func TestSpec_DesignDecision_FormatConsistency(t *testing.T) {
 	sha := "deadbeef"
 
 	cacheKey := actionpins.FormatCacheKey(repo, version)
-	reference := actionpins.FormatReference(repo, sha, version)
+	reference := actionpins.FormatPinnedActionReference(repo, sha, version)
 
 	assert.True(t, strings.HasPrefix(cacheKey, repo+"@"), "cache key should be repo@version")
 	assert.True(t, strings.HasPrefix(reference, repo+"@"), "reference should start with repo@sha")

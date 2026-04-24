@@ -278,6 +278,11 @@ func (c *Compiler) SetRepositorySlug(slug string) {
 	c.repositorySlug = slug
 }
 
+// GetRepositorySlug returns the repository slug (owner/repo) set on this compiler instance.
+func (c *Compiler) GetRepositorySlug() string {
+	return c.repositorySlug
+}
+
 // GetScheduleWarnings returns all accumulated schedule warnings for this compiler instance
 func (c *Compiler) GetScheduleWarnings() []string {
 	return c.scheduleWarnings

@@ -75,7 +75,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output report-incomplete # Filter logs with report-incomplete messages
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref main                # Filter logs by branch or tag
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref feature-xyz         # Filter logs by feature branch
-  ` + string(constants.CLIExtensionPrefix) + ` logs --filtered-integrity      # Filter logs with DIFC (data integrity flow control) integrity-filtered items in the gateway logs
+  ` + string(constants.CLIExtensionPrefix) + ` logs --filtered-integrity      # Filter logs containing items that were filtered by gateway integrity checks
   ` + string(constants.CLIExtensionPrefix) + ` logs --no-staged               # Exclude staged workflow runs from results
 
   # Run ID range filtering
@@ -208,7 +208,7 @@ Examples:
 	logsCmd.Flags().Bool("firewall", false, "Filter to only runs with firewall enabled")
 	logsCmd.Flags().Bool("no-firewall", false, "Filter to only runs without firewall enabled")
 	logsCmd.Flags().String("safe-output", "", "Filter to runs containing a specific safe output type (e.g., create-issue, missing-tool, missing-data, noop, report-incomplete)")
-	logsCmd.Flags().Bool("filtered-integrity", false, "Filter to runs with DIFC (data integrity flow control) integrity-filtered items in the gateway logs")
+	logsCmd.Flags().Bool("filtered-integrity", false, "Filter to runs containing items that were filtered by gateway integrity checks")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	addJSONFlag(logsCmd)
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in minutes (0 = no timeout)")

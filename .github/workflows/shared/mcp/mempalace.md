@@ -17,13 +17,8 @@ tools:
 
 mcp-servers:
   mempalace:
-    type: stdio
-    command: "python"
-    args:
-      - "-m"
-      - "mempalace.mcp_server"
-      - "--palace"
-      - "/tmp/gh-aw/cache-memory/palace"
+    type: http
+    url: http://localhost:8765/mcp
     allowed:
       - "mempalace_status"
       - "mempalace_list_wings"
@@ -48,6 +43,32 @@ mcp-servers:
 steps:
   - name: Install MemPalace
     run: pip install "mempalace==3.2.0"
+  - name: Start MemPalace MCP server
+    run: |
+      set -e
+      mkdir -p /tmp/gh-aw/mcp-logs/mempalace
+      mkdir -p /tmp/gh-aw/cache-memory/palace
+      python -m mempalace.mcp_server \
+        --palace /tmp/gh-aw/cache-memory/palace \
+        --transport streamable-http \
+        --host 127.0.0.1 \
+        --port 8765 \
+        > /tmp/gh-aw/mcp-logs/mempalace/server.log 2>&1 &
+      MCP_PID=$!
+
+      # Wait for server to start
+      for i in $(seq 1 10); do
+        if curl -sf http://127.0.0.1:8765/mcp >/dev/null 2>&1; then
+          echo "MemPalace MCP server started (PID $MCP_PID)"
+          exit 0
+        fi
+        sleep 1
+      done
+
+      echo "MemPalace MCP server failed to start"
+      echo "Server logs:"
+      cat /tmp/gh-aw/mcp-logs/mempalace/server.log || true
+      exit 1
 ---
 <!--
 ## MemPalace Memory System

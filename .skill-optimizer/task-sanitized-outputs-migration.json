@@ -1,0 +1,12 @@
+{
+  "id": "sanitized-outputs-migration",
+  "input": "I have a workflow that uses `${{ needs.activation.outputs.text }}` and `${{ needs.activation.outputs.title }}` in the agent prompt to get the issue body and title. I'm seeing a deprecation warning during compilation. What should I change, and why?",
+  "ideal": "Replace `needs.activation.outputs.text`, `needs.activation.outputs.title`, and `needs.activation.outputs.body` with `steps.sanitized.outputs.text`, `steps.sanitized.outputs.title`, and `steps.sanitized.outputs.body` respectively. The reason: the agent prompt is generated inside the activation job itself, and a job cannot reference its own needs outputs via `needs.activation.outputs.*` in GitHub Actions. The `sanitized` step within the activation job computes sanitized versions of the triggering content and exposes them as `steps.sanitized.outputs.*`. The compiler still accepts the old form and auto-rewrites it (emitting a deprecation warning), but you should use `steps.sanitized.outputs.*` directly in all new and updated workflows. Note: only `text`, `title`, and `body` are affected—continue using `needs.activation.outputs.*` for other outputs like `comment_id`, `comment_repo`, and `slash_command` in downstream jobs.",
+  "criteria": [
+    "Identifies the correct replacement: steps.sanitized.outputs.text/title/body",
+    "Explains why needs.activation.outputs.* doesn't work inside the activation job",
+    "Mentions that the compiler auto-rewrites the old form with a deprecation warning",
+    "Notes that only text, title, body are affected (not comment_id, slash_command, etc.)",
+    "Clarifies that needs.activation.outputs.* still works in downstream jobs"
+  ]
+}

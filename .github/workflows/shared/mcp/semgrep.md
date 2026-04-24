@@ -84,7 +84,6 @@ Check which languages are supported by Semgrep for our multi-language repository
 - Official Documentation: https://semgrep.dev/docs/
 - Rule Examples: https://semgrep.dev/explore
 - Writing Rules: https://semgrep.dev/docs/writing-rules/overview
-- Supported Languages: https://semgrep.dev/docs/supported-languages
 - Docker Image: https://hub.docker.com/r/semgrep/semgrep
 
 -->
