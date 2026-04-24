@@ -63,7 +63,8 @@ function extractCommentMemoryEntries(commentBody, warn = () => {}) {
   const seenIds = new Set();
 
   // New format: ``````gh-aw-comment-memory:<id>\ncontent\n``````
-  const codeFenceOpenerPattern = new RegExp(`${ESCAPED_COMMENT_MEMORY_CODE_FENCE}${COMMENT_MEMORY_TAG}:([A-Za-z0-9_-]{1,${MAX_MEMORY_ID_LENGTH}})\\n([\\s\\S]*?)\\n${ESCAPED_COMMENT_MEMORY_CODE_FENCE}(?:\\n|$)`, "g");
+  // Use a broad character class and then validate with isSafeMemoryId() to keep validation in one place.
+  const codeFenceOpenerPattern = new RegExp(`${ESCAPED_COMMENT_MEMORY_CODE_FENCE}${COMMENT_MEMORY_TAG}:([^\\n]{1,${MAX_MEMORY_ID_LENGTH}})\\n([\\s\\S]*?)\\n${ESCAPED_COMMENT_MEMORY_CODE_FENCE}(?:\\n|$)`, "g");
   let match;
   while ((match = codeFenceOpenerPattern.exec(commentBody)) !== null) {
     const memoryId = match[1];
@@ -98,13 +99,13 @@ function extractCommentMemoryEntries(commentBody, warn = () => {}) {
       break;
     }
 
-    if (isSafeMemoryId(memoryId) && !seenIds.has(memoryId)) {
+    if (!isSafeMemoryId(memoryId)) {
+      warn(`skipping unsafe memory_id '${memoryId}'`);
+    } else if (!seenIds.has(memoryId)) {
       entries.push({
         memoryId,
         content: stripCommentMemoryCodeFence(commentBody.slice(contentStart, closeStart)),
       });
-    } else if (!isSafeMemoryId(memoryId)) {
-      warn(`skipping unsafe memory_id '${memoryId}'`);
     }
 
     cursor = closeStart + closeTag.length;
