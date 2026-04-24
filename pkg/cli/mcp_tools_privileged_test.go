@@ -257,11 +257,12 @@ func TestAuditToolPassesGithubRepositoryAsRepoFlag(t *testing.T) {
 	}
 }
 
-// TestAuditToolErrorEnvelopeSetsIsErrorTrue verifies that audit command failures
-// returned as JSON envelopes are marked with IsError=true in the MCP response.
-func TestAuditToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
+// TestAuditToolErrorEnvelopeSetsIsErrorFalse verifies that audit command failures
+// returned as JSON envelopes use IsError=false so callers receive graceful JSON
+// rather than a fatal MCP protocol error.
+func TestAuditToolErrorEnvelopeSetsIsErrorFalse(t *testing.T) {
 	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
-		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestAuditToolErrorEnvelopeSetsIsErrorTrueHelperProcess")
+		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestAuditToolErrorEnvelopeHelperProcess")
 		cmd.Env = append(os.Environ(), "GH_AW_AUDIT_HELPER_PROCESS=1")
 		return cmd
 	}
@@ -278,7 +279,7 @@ func TestAuditToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
 	})
 	require.NoError(t, err, "audit tool should return result envelope without protocol error")
 	require.NotNil(t, result, "result should not be nil")
-	assert.True(t, result.IsError, "audit error envelope should set IsError=true")
+	assert.False(t, result.IsError, "audit error envelope should set IsError=false (graceful JSON error)")
 	require.NotEmpty(t, result.Content, "result should contain text content")
 
 	textContent, ok := result.Content[0].(*mcp.TextContent)
@@ -290,9 +291,12 @@ func TestAuditToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
 	errorMessage, ok := envelope["error"].(string)
 	require.True(t, ok, "error envelope should include string error field")
 	assert.Contains(t, errorMessage, "failed to audit workflow run", "error envelope should include contextual prefix")
+	suggestions, hasSuggestions := envelope["suggestions"]
+	assert.True(t, hasSuggestions, "error envelope should include suggestions")
+	assert.NotEmpty(t, suggestions, "suggestions should not be empty")
 }
 
-func TestAuditToolErrorEnvelopeSetsIsErrorTrueHelperProcess(t *testing.T) {
+func TestAuditToolErrorEnvelopeHelperProcess(t *testing.T) {
 	if os.Getenv("GH_AW_AUDIT_HELPER_PROCESS") != "1" {
 		return
 	}
@@ -331,9 +335,9 @@ func TestAuditTool_AcceptsDeprecatedMaxTokensParameter(t *testing.T) {
 	assert.NotContains(t, strings.Join(capturedArgs, " "), "max_tokens", "audit command args should ignore max_tokens")
 }
 
-func TestAuditDiffToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
+func TestAuditDiffToolErrorEnvelopeSetsIsErrorFalse(t *testing.T) {
 	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
-		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestAuditDiffToolErrorEnvelopeSetsIsErrorTrueHelperProcess")
+		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestAuditDiffToolErrorEnvelopeHelperProcess")
 		cmd.Env = append(os.Environ(), "GH_AW_AUDIT_DIFF_HELPER_PROCESS=1")
 		return cmd
 	}
@@ -353,7 +357,7 @@ func TestAuditDiffToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
 	})
 	require.NoError(t, err, "audit-diff tool should return result envelope without protocol error")
 	require.NotNil(t, result, "result should not be nil")
-	assert.True(t, result.IsError, "audit-diff error envelope should set IsError=true")
+	assert.False(t, result.IsError, "audit-diff error envelope should set IsError=false (graceful JSON error)")
 	require.NotEmpty(t, result.Content, "result should contain text content")
 
 	textContent, ok := result.Content[0].(*mcp.TextContent)
@@ -365,9 +369,12 @@ func TestAuditDiffToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
 	errorMessage, ok := envelope["error"].(string)
 	require.True(t, ok, "error envelope should include string error field")
 	assert.Contains(t, errorMessage, "failed to diff workflow runs", "error envelope should include contextual prefix")
+	suggestions, hasSuggestions := envelope["suggestions"]
+	assert.True(t, hasSuggestions, "error envelope should include suggestions")
+	assert.NotEmpty(t, suggestions, "suggestions should not be empty")
 }
 
-func TestAuditDiffToolErrorEnvelopeSetsIsErrorTrueHelperProcess(t *testing.T) {
+func TestAuditDiffToolErrorEnvelopeHelperProcess(t *testing.T) {
 	if os.Getenv("GH_AW_AUDIT_DIFF_HELPER_PROCESS") != "1" {
 		return
 	}
