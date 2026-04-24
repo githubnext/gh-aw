@@ -326,6 +326,8 @@ SAFE_OUTPUTS_FILES=(
   "handler_auth.cjs"
   "missing_messages_helper.cjs"
   "firewall_blocked_domains.cjs"
+  "render_template.cjs"
+  "is_truthy.cjs"
   "gateway_difc_filtered.cjs"
   "missing_info_formatter.cjs"
   "sanitize_content_core.cjs"
