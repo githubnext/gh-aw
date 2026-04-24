@@ -185,7 +185,7 @@ function getBlockedDomains(logsDir) {
 
 /**
  * Generates HTML details/summary section for blocked domains wrapped in a GitHub warning alert
- * @param {string[]} blockedDomains - Array of blocked domain names
+ * @param {string[]} blockedDomains - Array of blocked domain names (expected to be pre-sanitized via getBlockedDomains)
  * @param {string} [templatePath] - Optional path to template file (defaults to RUNNER_TEMP/gh-aw/prompts/firewall_blocked_domains.md)
  * @returns {string} GitHub warning alert with details section, or empty string if no blocked domains
  */
@@ -219,16 +219,24 @@ function generateBlockedDomainsSection(blockedDomains, templatePath) {
       `>\n`
     : "";
 
-  const resolvedTemplatePath = templatePath || (process.env.RUNNER_TEMP ? `${process.env.RUNNER_TEMP}/gh-aw/prompts/firewall_blocked_domains.md` : path.join(__dirname, "../md/firewall_blocked_domains.md"));
+  // Resolve template path: explicit > RUNNER_TEMP (production) > source tree (local dev/test)
+  let resolvedTemplatePath = templatePath;
+  if (!resolvedTemplatePath) {
+    resolvedTemplatePath = process.env.RUNNER_TEMP ? `${process.env.RUNNER_TEMP}/gh-aw/prompts/firewall_blocked_domains.md` : path.join(__dirname, "../md/firewall_blocked_domains.md");
+  }
 
-  return renderTemplateFromFile(resolvedTemplatePath, {
-    domain_count: domainCount,
-    domain_word: domainWord,
-    verb,
-    domain_list: domainList,
-    yaml_network_list: yamlNetworkList,
-    gh_proxy_tip: ghProxyTip,
-  });
+  // Template starts without leading newlines; prepend separator expected by callers
+  return (
+    "\n\n" +
+    renderTemplateFromFile(resolvedTemplatePath, {
+      domain_count: domainCount,
+      domain_word: domainWord,
+      verb,
+      domain_list: domainList,
+      yaml_network_list: yamlNetworkList,
+      gh_proxy_tip: ghProxyTip,
+    })
+  );
 }
 
 module.exports = {

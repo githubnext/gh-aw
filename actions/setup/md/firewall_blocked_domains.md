@@ -1,5 +1,3 @@
-
-
 > [!WARNING]
 > **⚠️ Firewall blocked {domain_count} {domain_word}**
 >
