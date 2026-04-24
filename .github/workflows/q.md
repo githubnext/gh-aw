@@ -5,6 +5,7 @@ on:
   roles: [admin, maintainer, write]
   slash_command:
     name: q
+  schedule: weekly on monday around 09:00
   reaction: rocket
   status-comment: true
 permissions:
