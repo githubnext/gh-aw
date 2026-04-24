@@ -213,8 +213,11 @@ function generateBlockedDomainsSection(blockedDomains, templatePath) {
     resolvedTemplatePath = process.env.RUNNER_TEMP ? `${process.env.RUNNER_TEMP}/gh-aw/prompts/firewall_blocked_domains.md` : path.join(__dirname, "../md/firewall_blocked_domains.md");
   }
 
-  // First pass: substitute {key} placeholders; has_github_api_blocked becomes "true"/"false"
-  // so renderMarkdownTemplate can evaluate the {{#if {has_github_api_blocked}}} conditional.
+  // First pass: substitute {key} placeholders.
+  // has_github_api_blocked is set to the string "true" or "false" so that
+  // renderMarkdownTemplate's isTruthy() correctly evaluates the
+  // {{#if {has_github_api_blocked}}} conditional in the template
+  // (isTruthy("false") === false per the template engine's explicit check).
   const rendered = renderTemplateFromFile(resolvedTemplatePath, {
     domain_count: domainCount,
     domain_word: domainWord,
