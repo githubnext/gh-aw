@@ -923,14 +923,16 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
   // into the agent prompt. Both colon and no-colon syntax are supported:
   //   {{#import filepath}}   {{#import? filepath}}
   //   {{#import: filepath}}  {{#import?: filepath}}
-  const bodyImportRe = /\{\{#import(\?)?(?:[ \t]+|[ \t]*:[ \t]*)([^\}]+?)\}\}/g;
-  if (bodyImportRe.test(content)) {
-    bodyImportRe.lastIndex = 0;
-    content = content.replace(bodyImportRe, (_, optional, importPath) => {
-      const trimmedPath = importPath.trim();
-      core.info(`Resolving body-level {{#import}} directive as runtime-import: ${trimmedPath}`);
-      return `{{#runtime-import${optional || ""} ${trimmedPath}}}`;
-    });
+  // Use [^\{\}] to avoid matching across brace boundaries (e.g. nested expressions).
+  const bodyImportRe = /\{\{#import(\?)?(?:[ \t]+|[ \t]*:[ \t]*)([^\{\}]+?)\}\}/g;
+  let bodyImportCount = 0;
+  content = content.replace(bodyImportRe, (_, optional, importPath) => {
+    bodyImportCount++;
+    const trimmedPath = importPath.trim();
+    return `{{#runtime-import${optional || ""} ${trimmedPath}}}`;
+  });
+  if (bodyImportCount > 0) {
+    core.info(`Normalized ${bodyImportCount} body-level {{#import}} directive(s) to runtime-import`);
   }
 
   // Pattern to match {{#runtime-import filepath}} or {{#runtime-import? filepath}}
