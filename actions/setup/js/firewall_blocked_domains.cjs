@@ -11,6 +11,7 @@
 const fs = require("fs");
 const path = require("path");
 const { sanitizeDomainName } = require("./sanitize_content_core.cjs");
+const { renderTemplateFromFile } = require("./messages_core.cjs");
 
 /**
  * Parses a single firewall log line
@@ -185,59 +186,49 @@ function getBlockedDomains(logsDir) {
 /**
  * Generates HTML details/summary section for blocked domains wrapped in a GitHub warning alert
  * @param {string[]} blockedDomains - Array of blocked domain names
+ * @param {string} [templatePath] - Optional path to template file (defaults to RUNNER_TEMP/gh-aw/prompts/firewall_blocked_domains.md)
  * @returns {string} GitHub warning alert with details section, or empty string if no blocked domains
  */
-function generateBlockedDomainsSection(blockedDomains) {
+function generateBlockedDomainsSection(blockedDomains, templatePath) {
   if (!blockedDomains || blockedDomains.length === 0) {
     return "";
   }
 
   const domainCount = blockedDomains.length;
   const domainWord = domainCount === 1 ? "domain" : "domains";
+  const verb = domainCount === 1 ? "was" : "were";
 
-  let section = "\n\n> [!WARNING]\n";
-  section += `> **⚠️ Firewall blocked ${domainCount} ${domainWord}**\n`;
-  section += `>\n`;
-  section += `> The following ${domainWord} ${domainCount === 1 ? "was" : "were"} blocked by the firewall during workflow execution:\n`;
-  section += `>\n`;
+  // Build domain bullet list lines
+  const domainList = blockedDomains.map(domain => `> - \`${domain}\`\n`).join("");
 
-  // List domains as bullet points (within the alert)
-  for (const domain of blockedDomains) {
-    section += `> - \`${domain}\`\n`;
-  }
+  // Build YAML network.allowed list lines
+  const yamlNetworkList = blockedDomains.map(domain => `>     - "${domain}"\n`).join("");
 
-  section += `>\n`;
-
-  // Check if api.github.com is in the blocked domains list
+  // Build optional gh-proxy tip if api.github.com is blocked
   const hasGitHubApiBlocked = blockedDomains.includes("api.github.com");
+  const ghProxyTip = hasGitHubApiBlocked
+    ? `> **💡 Tip:** \`api.github.com\` is blocked because GitHub API access uses the built-in GitHub tools by default. Instead of adding \`api.github.com\` to \`network.allowed\`, use \`tools.github.mode: gh-proxy\` for direct pre-authenticated GitHub CLI access without requiring network access to \`api.github.com\`:\n` +
+      `>\n` +
+      `> \`\`\`yaml\n` +
+      `> tools:\n` +
+      `>   github:\n` +
+      `>     mode: gh-proxy\n` +
+      `> \`\`\`\n` +
+      `>\n` +
+      `> See [GitHub Tools](https://github.github.com/gh-aw/reference/github-tools/) for more information on \`gh-proxy\` mode.\n` +
+      `>\n`
+    : "";
 
-  if (hasGitHubApiBlocked) {
-    section += `> **💡 Tip:** \`api.github.com\` is blocked because GitHub API access uses the built-in GitHub tools by default. Instead of adding \`api.github.com\` to \`network.allowed\`, use \`tools.github.mode: gh-proxy\` for direct pre-authenticated GitHub CLI access without requiring network access to \`api.github.com\`:\n`;
-    section += `>\n`;
-    section += `> \`\`\`yaml\n`;
-    section += `> tools:\n`;
-    section += `>   github:\n`;
-    section += `>     mode: gh-proxy\n`;
-    section += `> \`\`\`\n`;
-    section += `>\n`;
-    section += `> See [GitHub Tools](https://github.github.com/gh-aw/reference/github-tools/) for more information on \`gh-proxy\` mode.\n`;
-    section += `>\n`;
-  }
+  const resolvedTemplatePath = templatePath || (process.env.RUNNER_TEMP ? `${process.env.RUNNER_TEMP}/gh-aw/prompts/firewall_blocked_domains.md` : path.join(__dirname, "../md/firewall_blocked_domains.md"));
 
-  section += `> To allow these domains, add them to the \`network.allowed\` list in your workflow frontmatter:\n`;
-  section += `>\n`;
-  section += `> \`\`\`yaml\n`;
-  section += `> network:\n`;
-  section += `>   allowed:\n`;
-  section += `>     - defaults\n`;
-  for (const domain of blockedDomains) {
-    section += `>     - "${domain}"\n`;
-  }
-  section += `> \`\`\`\n`;
-  section += `>\n`;
-  section += `> See [Network Configuration](https://github.github.com/gh-aw/reference/network/) for more information.\n`;
-
-  return section;
+  return renderTemplateFromFile(resolvedTemplatePath, {
+    domain_count: domainCount,
+    domain_word: domainWord,
+    verb,
+    domain_list: domainList,
+    yaml_network_list: yamlNetworkList,
+    gh_proxy_tip: ghProxyTip,
+  });
 }
 
 module.exports = {
