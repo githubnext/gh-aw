@@ -354,6 +354,130 @@ func TestAddMultipleWorkflowsNameFlag(t *testing.T) {
 	assert.Contains(t, err.Error(), "--name flag cannot be used when adding multiple workflows", "Error should mention --name restriction")
 }
 
+// setupMinimalGitRepo initialises a bare-minimum git repo in dir and returns the
+// path to the .github/workflows directory so callers can write/read workflow files.
+func setupMinimalGitRepo(t *testing.T, dir string) string {
+	t.Helper()
+
+	t.Setenv("HOME", dir)
+	t.Chdir(dir)
+
+	initCmd := exec.Command("git", "init")
+	initCmd.Dir = dir
+	require.NoError(t, initCmd.Run(), "git init should succeed")
+
+	gitConfigName := exec.Command("git", "config", "user.name", "Test User")
+	gitConfigName.Dir = dir
+	_ = gitConfigName.Run()
+	gitConfigEmail := exec.Command("git", "config", "user.email", "test@example.com")
+	gitConfigEmail.Dir = dir
+	_ = gitConfigEmail.Run()
+
+	workflowsDir := filepath.Join(dir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "should create workflows dir")
+
+	return workflowsDir
+}
+
+// TestAddWorkflowWithTracking_SourceFieldVariants covers the main combinations of local /
+// remote specs and fallback-path resolution for the source: frontmatter field written by
+// addWorkflowWithTracking.
+func TestAddWorkflowWithTracking_SourceFieldVariants(t *testing.T) {
+	simpleContent := []byte("---\non: push\n---\n\n# Workflow\n")
+	const sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+	tests := []struct {
+		name            string
+		spec            *WorkflowSpec
+		sourceInfo      *FetchedWorkflow
+		wantContains    string
+		wantNotContains string
+	}{
+		{
+			// Local workflows must NOT get a source: field — the code guards on !sourceInfo.IsLocal.
+			name: "local workflow — no source field written",
+			spec: &WorkflowSpec{
+				RepoSpec:     RepoSpec{RepoSlug: ""},
+				WorkflowPath: "./local-workflow.md",
+				WorkflowName: "local-workflow",
+			},
+			sourceInfo: &FetchedWorkflow{
+				Content:    simpleContent,
+				CommitSHA:  "",
+				IsLocal:    true,
+				SourcePath: "./local-workflow.md",
+			},
+			wantContains:    "",
+			wantNotContains: "source:",
+		},
+		{
+			// Remote workflow where the parsed spec path already matches SourcePath
+			// (no fallback triggered).  The source: field must use the original path.
+			name: "remote workflow — no fallback, path matches SourcePath",
+			spec: &WorkflowSpec{
+				RepoSpec:     RepoSpec{RepoSlug: "owner/repo", Version: "main"},
+				WorkflowPath: ".github/workflows/my-workflow.md",
+				WorkflowName: "my-workflow",
+			},
+			sourceInfo: &FetchedWorkflow{
+				Content:    simpleContent,
+				CommitSHA:  sha,
+				IsLocal:    false,
+				SourcePath: ".github/workflows/my-workflow.md", // identical — no fallback
+			},
+			wantContains:    "source: owner/repo/.github/workflows/my-workflow.md@" + sha,
+			wantNotContains: "",
+		},
+		{
+			// Remote workflow from the *current* repository (self-referential) where
+			// the spec only carries the short name but the file lives under
+			// .github/workflows/.  Fallback resolution must be reflected in source:.
+			name: "self-referential remote — fallback path resolution",
+			spec: &WorkflowSpec{
+				RepoSpec:     RepoSpec{RepoSlug: "current-org/current-repo", Version: "main"},
+				WorkflowPath: "my-workflow.md", // short-form from parsed spec
+				WorkflowName: "my-workflow",
+			},
+			sourceInfo: &FetchedWorkflow{
+				Content:    simpleContent,
+				CommitSHA:  sha,
+				IsLocal:    false,
+				SourcePath: ".github/workflows/my-workflow.md", // resolved via fallback
+			},
+			wantContains:    "source: current-org/current-repo/.github/workflows/my-workflow.md@" + sha,
+			wantNotContains: "source: current-org/current-repo/my-workflow.md",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := testutil.TempDir(t, "test-source-field-variant-*")
+			workflowsDir := setupMinimalGitRepo(t, tempDir)
+
+			resolved := &ResolvedWorkflow{
+				Spec:       tt.spec,
+				Content:    tt.sourceInfo.Content,
+				SourceInfo: tt.sourceInfo,
+			}
+			opts := AddOptions{DisableSecurityScanner: true}
+
+			err := addWorkflowWithTracking(resolved, nil, opts)
+			require.NoError(t, err, "addWorkflowWithTracking should succeed")
+
+			written, err := os.ReadFile(filepath.Join(workflowsDir, tt.spec.WorkflowName+".md"))
+			require.NoError(t, err, "written file should be readable")
+			body := string(written)
+
+			if tt.wantContains != "" {
+				assert.Contains(t, body, tt.wantContains, "source field should contain expected path")
+			}
+			if tt.wantNotContains != "" {
+				assert.NotContains(t, body, tt.wantNotContains, "source field must not contain forbidden path")
+			}
+		})
+	}
+}
+
 // TestAddWorkflowWithTracking_UsesActualFetchedPath verifies that when a remote workflow is
 // fetched via a fallback path (e.g. .github/workflows/my-workflow.md instead of the
 // short-form my-workflow.md), the written source: field reflects the actual fetched path
@@ -361,25 +485,7 @@ func TestAddMultipleWorkflowsNameFlag(t *testing.T) {
 func TestAddWorkflowWithTracking_UsesActualFetchedPath(t *testing.T) {
 	// Set up a temp git repo
 	tempDir := testutil.TempDir(t, "test-add-source-path-*")
-	t.Setenv("HOME", tempDir)
-	t.Chdir(tempDir)
-
-	// Initialize git repository (required by addWorkflowWithTracking)
-	initCmd := exec.Command("git", "init")
-	initCmd.Dir = tempDir
-	require.NoError(t, initCmd.Run(), "git init should succeed")
-
-	// Configure git identity (required in some CI environments without global git config)
-	gitConfigName := exec.Command("git", "config", "user.name", "Test User")
-	gitConfigName.Dir = tempDir
-	_ = gitConfigName.Run()
-	gitConfigEmail := exec.Command("git", "config", "user.email", "test@example.com")
-	gitConfigEmail.Dir = tempDir
-	_ = gitConfigEmail.Run()
-
-	// Create .github/workflows directory
-	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
-	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "should create workflows dir")
+	workflowsDir := setupMinimalGitRepo(t, tempDir)
 
 	// Simple workflow content with no remote dependencies (avoids network calls)
 	content := []byte("---\non: push\n---\n\n# Test Workflow\n")
