@@ -63,8 +63,7 @@ name: "Dependabot Dependency Checker"
         required: false
         type: string
 
-permissions:
-  vulnerability-alerts: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -306,6 +305,7 @@ jobs:
       issues: read
       pull-requests: read
       security-events: read
+      vulnerability-alerts: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:

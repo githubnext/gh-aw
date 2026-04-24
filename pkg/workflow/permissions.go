@@ -279,21 +279,6 @@ func IsGitHubAppOnlyScope(scope PermissionScope) bool {
 	return isAppOnly
 }
 
-// GetWorkflowOnlyPermissionScopes returns GITHUB_TOKEN permission scopes that are only
-// valid at the workflow level and cannot be used in job-level permissions blocks.
-// The GitHub Actions engine rejects these scopes when placed inside a job's permissions.
-func GetWorkflowOnlyPermissionScopes() []PermissionScope {
-	return []PermissionScope{
-		PermissionVulnerabilityAlerts,
-	}
-}
-
-// IsWorkflowOnlyPermissionScope returns true if the scope is a GITHUB_TOKEN permission
-// that is only valid at the workflow level, not at the job level.
-func IsWorkflowOnlyPermissionScope(scope PermissionScope) bool {
-	return slices.Contains(GetWorkflowOnlyPermissionScopes(), scope)
-}
-
 // Permissions represents GitHub Actions permissions
 // It can be a shorthand (read-all, write-all, read, write, none) or a map of scopes to levels
 // It can also have an "all" permission that expands to all scopes

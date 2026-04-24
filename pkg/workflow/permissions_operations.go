@@ -40,13 +40,6 @@ func filterJobLevelPermissions(rawPermissionsYAML string) string {
 	}
 
 	filtered := NewPermissionsParser(rawPermissionsYAML).ToPermissions()
-
-	// Remove scopes that are workflow-level-only and must not appear in job-level blocks.
-	// The GitHub Actions engine rejects these scopes at the job level.
-	for _, scope := range GetWorkflowOnlyPermissionScopes() {
-		filtered.Delete(scope)
-	}
-
 	rendered := filtered.RenderToYAML()
 	if rendered == "" {
 		// If the raw permissions YAML was an explicit empty block (permissions: {}), preserve
@@ -76,58 +69,6 @@ func filterJobLevelPermissions(rawPermissionsYAML string) string {
 		}
 	}
 	return strings.Join(lines, "\n")
-}
-
-// buildWorkflowLevelPermissions returns a YAML permissions block for the workflow level.
-// It includes only the workflow-only scopes (e.g. vulnerability-alerts) extracted from
-// the raw permissions YAML. All other scopes are handled at the job level.
-// Returns "permissions: {}" when no workflow-only scopes are present, so the workflow
-// always declares an explicit empty top-level permissions block that prevents GitHub
-// Actions from granting the default write-all token permissions.
-func buildWorkflowLevelPermissions(rawPermissionsYAML string) string {
-	if rawPermissionsYAML == "" {
-		return "permissions: {}"
-	}
-
-	parsed := NewPermissionsParser(rawPermissionsYAML).ToPermissions()
-
-	// Collect only the workflow-level-only scopes that the user has explicitly set.
-	wfPerms := NewPermissions()
-	for _, scope := range GetWorkflowOnlyPermissionScopes() {
-		if level, exists := parsed.GetExplicit(scope); exists {
-			wfPerms.Set(scope, level)
-		}
-	}
-
-	rendered := wfPerms.RenderToYAML()
-	if rendered == "" {
-		return "permissions: {}"
-	}
-
-	// RenderToYAML uses 6-space indentation for permission values; normalise to 2 spaces
-	// so the workflow-level block looks like:
-	//   permissions:
-	//     vulnerability-alerts: read
-	const renderYAMLIndent = 6
-	const targetIndent = 2
-	prefix := strings.Repeat(" ", renderYAMLIndent)
-	replacement := strings.Repeat(" ", targetIndent)
-	lines := strings.Split(rendered, "\n")
-	for i := 1; i < len(lines); i++ {
-		if strings.HasPrefix(lines[i], prefix) {
-			lines[i] = replacement + lines[i][renderYAMLIndent:]
-		}
-	}
-	return strings.Join(lines, "\n")
-}
-
-// Delete removes a specific scope from the permissions map.
-// This has no effect if the permission is set via shorthand or hasAll.
-func (p *Permissions) Delete(scope PermissionScope) {
-	if p == nil || p.permissions == nil {
-		return
-	}
-	delete(p.permissions, scope)
 }
 
 // Set sets a permission for a specific scope

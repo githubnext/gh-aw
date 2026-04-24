@@ -706,25 +706,27 @@ func TestFilterJobLevelPermissions(t *testing.T) {
 			excludes: []string{},
 		},
 		{
-			name:  "vulnerability-alerts is moved to workflow level (not in job-level output)",
+			name:  "vulnerability-alerts is preserved (GITHUB_TOKEN scope)",
 			input: "permissions:\n  contents: read\n  pull-requests: read\n  security-events: read\n  vulnerability-alerts: read",
 			contains: []string{
 				"permissions:",
 				"  contents: read",
 				"  pull-requests: read",
 				"  security-events: read",
+				"  vulnerability-alerts: read",
 			},
-			excludes: []string{"vulnerability-alerts"},
+			excludes: []string{},
 		},
 		{
-			name:  "multiple GitHub App-only scopes are filtered out and vulnerability-alerts moved to workflow level",
+			name:  "multiple GitHub App-only scopes are filtered out but vulnerability-alerts is preserved",
 			input: "permissions:\n  contents: read\n  issues: write\n  administration: read\n  members: read\n  vulnerability-alerts: read",
 			contains: []string{
 				"permissions:",
 				"  contents: read",
 				"  issues: write",
+				"  vulnerability-alerts: read",
 			},
-			excludes: []string{"administration", "members", "vulnerability-alerts"},
+			excludes: []string{"administration", "members"},
 		},
 		{
 			name:        "only GitHub App-only scopes returns empty string",

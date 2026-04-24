@@ -214,14 +214,14 @@ jobs:
 			expectError: false,
 		},
 		{
-			name: "vulnerability-alerts permission in workflow-level permissions passes",
+			name: "vulnerability-alerts permission in job permissions passes",
 			yamlContent: `
 name: Test
 on: push
-permissions:
-  vulnerability-alerts: read
 jobs:
   test:
+    permissions:
+      vulnerability-alerts: read
     runs-on: ubuntu-latest
     steps:
       - run: echo hello

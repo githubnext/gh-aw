@@ -273,12 +273,9 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	// Note: GitHub Actions doesn't support workflow-level if conditions
 	// The workflow_run safety check is added to individual jobs instead
 
-	// Build workflow-level permissions block.
-	// Workflow-only scopes (e.g. vulnerability-alerts) must be declared here because the
-	// GitHub Actions engine rejects them when placed inside a job-level permissions block.
-	// All other permissions are applied only to the agent job.
-	workflowLevelPermsBlock := buildWorkflowLevelPermissions(data.Permissions)
-	yaml.WriteString(workflowLevelPermsBlock + "\n\n")
+	// Always write empty permissions at the top level
+	// Agent permissions are applied only to the agent job
+	yaml.WriteString("permissions: {}\n\n")
 
 	yaml.WriteString(data.Concurrency + "\n\n")
 	yaml.WriteString(data.RunName + "\n\n")
