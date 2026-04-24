@@ -119,16 +119,12 @@ async function main() {
   core.info(`Found ${mergeablePullRequests.length} mergeable pull request(s)`);
   if (mergeablePullRequests.length === 0) return;
 
-  const eligiblePullRequests = mergeablePullRequests;
-  core.info(`Found ${eligiblePullRequests.length} eligible pull request(s)`);
-  if (eligiblePullRequests.length === 0) return;
-
   let updatedCount = 0;
   let skippedCount = 0;
   let failedCount = 0;
 
-  for (let i = 0; i < eligiblePullRequests.length; i++) {
-    const pullNumber = eligiblePullRequests[i];
+  for (let i = 0; i < mergeablePullRequests.length; i++) {
+    const pullNumber = mergeablePullRequests[i];
     try {
       core.info(`Updating branch for PR #${pullNumber}`);
       await updatePullRequestBranch(owner, repo, pullNumber);
@@ -143,7 +139,7 @@ async function main() {
       }
     }
 
-    if (i < eligiblePullRequests.length - 1) {
+    if (i < mergeablePullRequests.length - 1) {
       await sleep(UPDATE_DELAY_MS);
     }
   }
