@@ -102,6 +102,7 @@ func (c *Compiler) newActivationJobBuildContext(
 	var awInfoYAML strings.Builder
 	c.generateCreateAwInfo(&awInfoYAML, data, engine)
 	ctx.steps = append(ctx.steps, awInfoYAML.String())
+	ctx.outputs["engine_id"] = "${{ steps.generate_aw_info.outputs.engine_id }}"
 	ctx.outputs["model"] = "${{ steps.generate_aw_info.outputs.model }}"
 	ctx.outputs["lockdown_check_failed"] = "${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}"
 	if !data.StaleCheckDisabled {
