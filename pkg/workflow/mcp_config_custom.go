@@ -60,7 +60,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		return fmt.Errorf("failed to parse MCP config for tool '%s': %w", toolName, err)
 	}
 
-	// Stdio servers must use Docker containerization (MCP Gateway v0.2.30+).
+	// Stdio servers must use Docker containerization.
 	// If a command is present without a container, the server is not containerized and will
 	// be rejected by the gateway schema validation at startup (for both TOML and JSON formats).
 	// For Python/Node/shell servers, use HTTP transport instead:
@@ -70,7 +70,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 	//       url: "http://localhost:8765/mcp"
 	if mcpConfig.Type == "stdio" && mcpConfig.Command != "" && mcpConfig.Command != "docker" {
 		return fmt.Errorf(
-			"tool '%s' stdio MCP server uses command %q which is not supported by MCP Gateway v0.2.30+. "+
+			"tool '%s' stdio MCP server uses command %q which is not supported by MCP Gateway. "+
 				"Stdio servers must be containerized (use 'container' with 'entrypoint'), "+
 				"or switch to HTTP transport for servers that run directly on the runner.\n\n"+
 				"Example (container):\ntools:\n  %s:\n    container: \"my-registry/my-tool:latest\"\n    entrypoint: \"my-tool\"\n    args: [\"--verbose\"]\n\n"+
