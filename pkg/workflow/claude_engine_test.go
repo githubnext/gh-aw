@@ -57,9 +57,12 @@ func TestClaudeEngine(t *testing.T) {
 	if !strings.Contains(installStep, "Install Claude Code CLI") {
 		t.Errorf("Expected 'Install Claude Code CLI' in installation step, got: %s", installStep)
 	}
-	expectedInstallCommand := fmt.Sprintf("npm install --ignore-scripts -g @anthropic-ai/claude-code@%s", constants.DefaultClaudeCodeVersion)
+	expectedInstallCommand := fmt.Sprintf("npm install -g @anthropic-ai/claude-code@%s", constants.DefaultClaudeCodeVersion)
 	if !strings.Contains(installStep, expectedInstallCommand) {
 		t.Errorf("Expected '%s' in install step, got: %s", expectedInstallCommand, installStep)
+	}
+	if strings.Contains(installStep, "--ignore-scripts") {
+		t.Errorf("Expected no --ignore-scripts flag for Claude Code (requires post-install scripts), got: %s", installStep)
 	}
 
 	// Test execution steps
@@ -346,8 +349,11 @@ func TestClaudeEngineWithVersion(t *testing.T) {
 
 	// Check that install step uses the custom version (second step, index 1)
 	installStep := strings.Join([]string(installSteps[1]), "\n")
-	if !strings.Contains(installStep, "npm install --ignore-scripts -g @anthropic-ai/claude-code@v1.2.3") {
-		t.Errorf("Expected npm install with custom version v1.2.3 in install step:\n%s", installStep)
+	if !strings.Contains(installStep, "npm install -g @anthropic-ai/claude-code@v1.2.3") {
+		t.Errorf("Expected npm install with custom version v1.2.3 (no --ignore-scripts) in install step:\n%s", installStep)
+	}
+	if strings.Contains(installStep, "--ignore-scripts") {
+		t.Errorf("Expected no --ignore-scripts flag for Claude Code, got:\n%s", installStep)
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
