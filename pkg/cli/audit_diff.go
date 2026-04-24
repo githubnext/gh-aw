@@ -226,11 +226,6 @@ func formatVolumeChange(total1, total2 int) string {
 	return formatPercent(pctChange)
 }
 
-// formatPercent formats a float percentage with no decimal places
-func formatPercent(pct float64) string {
-	return fmt.Sprintf("%.0f%%", pct)
-}
-
 // MCPToolDiffEntry represents the diff for a single MCP tool between two runs
 type MCPToolDiffEntry struct {
 	ServerName      string `json:"server_name"`
