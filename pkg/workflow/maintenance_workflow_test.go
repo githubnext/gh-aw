@@ -537,7 +537,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 }
 
 func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
-	const jobSectionSearchRange = 300
+	const jobSectionSearchRange = 500
 
 	workflowDataList := []*WorkflowData{
 		{
@@ -648,6 +648,12 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 		jobSection := yaml[compileIdx : compileIdx+jobSectionSearchRange]
 		if strings.Contains(jobSection, "github.event_name != 'push'") {
 			t.Errorf("Job compile-workflows should NOT exclude push events, but condition is:\n%s", jobSection)
+		}
+		if !strings.Contains(jobSection, "cancel-in-progress: true") {
+			t.Errorf("Job compile-workflows should have cancel-in-progress concurrency, but got:\n%s", jobSection)
+		}
+		if !strings.Contains(jobSection, "github.workflow }}-compile-workflows-${{ github.repository") {
+			t.Errorf("Job compile-workflows should have a scoped concurrency group, but got:\n%s", jobSection)
 		}
 	})
 }

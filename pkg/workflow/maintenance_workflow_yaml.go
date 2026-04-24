@@ -624,6 +624,9 @@ jobs:
   compile-workflows:
     if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
     runs-on: ` + runsOnValue + `
+    concurrency:
+      group: ${{ github.workflow }}-compile-workflows-${{ github.repository }}
+      cancel-in-progress: true
     permissions:
       contents: read
       issues: write

@@ -557,6 +557,9 @@ jobs:
   compile-workflows:
     if: ${{ (!(github.event.repository.fork)) && (github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == '') }}
     runs-on: ubuntu-slim
+    concurrency:
+      group: ${{ github.workflow }}-compile-workflows-${{ github.repository }}
+      cancel-in-progress: true
     permissions:
       contents: read
       issues: write
