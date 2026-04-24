@@ -52,7 +52,9 @@ async function filterMergeablePullRequests(owner, repo, pullNumbers) {
       `fetch pull request #${pullNumber}`
     );
 
-    const headRepository = (pull?.head?.repo?.full_name || "").toLowerCase();
+    const headRepositoryRaw = pull?.head?.repo?.full_name;
+    const headRepository = (headRepositoryRaw || "").toLowerCase();
+    const headRepositoryState = typeof headRepositoryRaw === "string" && headRepositoryRaw.trim() ? "present" : "missing";
     const isSameRepository = headRepository === baseRepository;
     const isMergeable = pull?.state === "open" && pull?.mergeable === true && pull?.draft !== true && isSameRepository;
     if (isMergeable) {
@@ -60,7 +62,8 @@ async function filterMergeablePullRequests(owner, repo, pullNumbers) {
       continue;
     }
 
-    core.info(`Skipping PR #${pullNumber}: mergeable=${String(pull?.mergeable)}, state=${pull?.state || "unknown"}, draft=${String(Boolean(pull?.draft))}, head_repo=${headRepository || "unknown"}`);
+    const skipReason = !isSameRepository ? (headRepositoryState === "missing" ? "head_repository_missing" : "head_repository_mismatch") : "not_mergeable";
+    core.info(`Skipping PR #${pullNumber}: reason=${skipReason}, mergeable=${String(pull?.mergeable)}, state=${pull?.state || "unknown"}, draft=${String(Boolean(pull?.draft))}, head_repo=${headRepository || "unknown"}`);
   }
 
   return mergeable;

@@ -106,6 +106,19 @@ describe("update_pull_request_branches", () => {
     const result = await moduleUnderTest.filterMergeablePullRequests("owner", "repo", [1, 2]);
 
     expect(result).toEqual([2]);
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("reason=head_repository_mismatch"));
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("head_repo=fork-owner/repo"));
+  });
+
+  it("logs explicit reason when head repository is unavailable", async () => {
+    mockGithub.rest.pulls.get.mockResolvedValue({
+      data: { state: "open", mergeable: true, draft: false, head: { repo: null } },
+    });
+
+    const result = await moduleUnderTest.filterMergeablePullRequests("owner", "repo", [11]);
+
+    expect(result).toEqual([]);
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("reason=head_repository_missing"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("head_repo=unknown"));
   });
 });
