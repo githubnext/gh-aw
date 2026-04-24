@@ -316,7 +316,9 @@ describe("firewall_blocked_domains.cjs", () => {
       const result = generateBlockedDomainsSection(["blocked.example.com"], TEMPLATE_PATH);
 
       expect(result).toContain("> [!WARNING]");
-      expect(result).toContain("> **⚠️ Firewall blocked 1 domain**");
+      expect(result).toContain("> <details>");
+      expect(result).toContain("> <summary>Firewall blocked 1 domain</summary>");
+      expect(result).toContain("> </details>");
       expect(result).toContain("> - `blocked.example.com`");
       expect(result).toContain("> The following domain was blocked by the firewall during workflow execution:");
       expect(result).toContain('> ```yaml\n> network:\n>   allowed:\n>     - defaults\n>     - "blocked.example.com"\n> ```');
@@ -328,7 +330,9 @@ describe("firewall_blocked_domains.cjs", () => {
       const result = generateBlockedDomainsSection(domains, TEMPLATE_PATH);
 
       expect(result).toContain("> [!WARNING]");
-      expect(result).toContain("> **⚠️ Firewall blocked 3 domains**");
+      expect(result).toContain("> <details>");
+      expect(result).toContain("> <summary>Firewall blocked 3 domains</summary>");
+      expect(result).toContain("> </details>");
       expect(result).toContain("> - `alpha.example.com`");
       expect(result).toContain("> - `beta.example.com`");
       expect(result).toContain("> - `gamma.example.com`");
@@ -360,7 +364,8 @@ describe("firewall_blocked_domains.cjs", () => {
       const result = generateBlockedDomainsSection(["api.github.com"], TEMPLATE_PATH);
 
       expect(result).toContain("> [!WARNING]");
-      expect(result).toContain("> **⚠️ Firewall blocked 1 domain**");
+      expect(result).toContain("> <details>");
+      expect(result).toContain("> <summary>Firewall blocked 1 domain</summary>");
       expect(result).toContain("> - `api.github.com`");
       expect(result).toContain("`tools.github.mode: gh-proxy`");
       expect(result).toContain("> ```yaml\n> tools:\n>   github:\n>     mode: gh-proxy\n> ```");
@@ -373,7 +378,8 @@ describe("firewall_blocked_domains.cjs", () => {
       const result = generateBlockedDomainsSection(domains, TEMPLATE_PATH);
 
       expect(result).toContain("> [!WARNING]");
-      expect(result).toContain("> **⚠️ Firewall blocked 2 domains**");
+      expect(result).toContain("> <details>");
+      expect(result).toContain("> <summary>Firewall blocked 2 domains</summary>");
       expect(result).toContain("> - `api.github.com`");
       expect(result).toContain("> - `other.example.com`");
       expect(result).toContain("> ```yaml\n> tools:\n>   github:\n>     mode: gh-proxy\n> ```");
