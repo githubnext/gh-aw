@@ -9,7 +9,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
-timeout-minutes: 45
+timeout-minutes: 30
 runtimes:
   node:
     version: "22"
@@ -36,6 +36,32 @@ imports:
       expires: 1d
   - shared/docs-server-lifecycle.md
   - shared/keep-it-short.md
+pre-agent-steps:
+  - name: Install docs dependencies
+    run: |
+      cd "${{ github.workspace }}/docs"
+      npm install
+  - name: Start documentation server
+    run: |
+      cd "${{ github.workspace }}/docs"
+      nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/preview.log 2>&1 &
+      PID=$!
+      echo $PID > /tmp/server.pid
+      echo "Server PID: $PID"
+  - name: Wait for server readiness
+    run: |
+      for i in {1..45}; do  # 45 attempts × 3s = 135s max wait
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/gh-aw/)
+        [ "$STATUS" = "200" ] && echo "Server ready at http://localhost:4321/gh-aw/!" && break
+        echo "Waiting for server... ($i/45) (status: $STATUS)" && sleep 3
+      done
+  - name: Detect bridge IP and write server URL
+    run: |
+      SERVER_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
+      if [ -z "$SERVER_IP" ]; then SERVER_IP=$(hostname -I | awk '{print $1}'); fi
+      mkdir -p /tmp/gh-aw/agent
+      echo "http://${SERVER_IP}:4321/gh-aw/" > /tmp/gh-aw/agent/server-url.txt
+      echo "Playwright server URL: http://${SERVER_IP}:4321/gh-aw/"
 features:
   mcp-cli: true
   copilot-requests: true
@@ -53,77 +79,30 @@ You are a brand new user trying to get started with GitHub Agentic Workflows for
 
 ## Your Mission
 
-Act as a complete beginner who has never used GitHub Agentic Workflows before. Build and navigate the documentation site, follow tutorials step-by-step, and document any issues you encounter.
+Act as a complete beginner who has never used GitHub Agentic Workflows before. Navigate the documentation site, follow tutorials step-by-step, and document any issues you encounter.
 
-## Step 1: Build and Serve Documentation Site
+> The documentation server is already running. Read the Playwright server URL from `/tmp/gh-aw/agent/server-url.txt`:
+> ```bash
+> cat /tmp/gh-aw/agent/server-url.txt
+> ```
 
-Navigate to the docs folder and start the documentation site:
-
-```bash
-cd ${{ github.workspace }}/docs
-npm install
-```
-
-Follow the shared **Documentation Server Lifecycle Management** instructions:
-1. Start the preview server (section "Starting the Documentation Preview Server")
-2. Wait for server readiness (section "Waiting for Server Readiness")
-
-**Get the bridge IP for Playwright access** (run this after the server is ready):
-
-```bash
-SERVER_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
-if [ -z "$SERVER_IP" ]; then SERVER_IP=$(hostname -I | awk '{print $1}'); fi
-echo "Playwright server URL: http://${SERVER_IP}:4321/gh-aw/"
-```
-
-Use `http://${SERVER_IP}:4321/gh-aw/` (NOT `localhost:4321`) for all Playwright navigation below.
-
-## Step 2: Navigate Documentation as a Noob
+## Step 1: Navigate Documentation as a Noob
 
 **IMPORTANT: Using Playwright in gh-aw Workflows**
 
-Playwright is provided through an MCP server interface. Use the bridge IP obtained in Step 1 for all navigation:
+- ✅ **Correct**: Read the URL from the file then navigate: `SERVER_URL=$(cat /tmp/gh-aw/agent/server-url.txt)` and use `browser_run_code` with `page.goto(SERVER_URL, { waitUntil: 'domcontentloaded', timeout: 30000 })`
+- ❌ **Incorrect**: Using `http://localhost:4321/...` — use the bridge IP from `/tmp/gh-aw/agent/server-url.txt`
 
-- ✅ **Correct**: `browser_run_code` with `page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })`
-- ✅ **Correct**: `browser_navigate` to `http://${SERVER_IP}:4321/gh-aw/` (use the bridge IP, NOT localhost)
-- ❌ **Incorrect**: Using `http://localhost:4321/...` — Playwright runs with `--network host` so its localhost is the Docker host, not the agent container
+**⚠️ CRITICAL: Navigation Timeout Prevention** — Always use `waitUntil: 'domcontentloaded'` to prevent timeout on the Astro development server. If Playwright connectivity fails, see the shared **Documentation Server Lifecycle Management** fallback instructions.
 
-**⚠️ Playwright Connectivity — If Playwright times out or fails:**
-If `browser_navigate` or `browser_run_code` returns `net::ERR_CONNECTION_TIMED_OUT` or a timeout error, **do not attempt to debug the network or install alternative browsers** (chromium, puppeteer, etc.). This is a known network isolation constraint. Instead:
-1. Skip the Playwright navigation step immediately
-2. Use the following command to fetch and analyze page content via curl:
-   ```bash
-   curl -s http://localhost:4321/gh-aw/ | python3 -c "
-   import sys, re
-   html = sys.stdin.read()
-   text = re.sub(r'<[^>]+>', '', html)
-   print(text[:5000])
-   "
-   ```
-3. Note in the report that visual screenshots were unavailable
+Using Playwright, visit exactly these 3 pages and stop (use the Playwright server URL read from `/tmp/gh-aw/agent/server-url.txt`):
 
-**⚠️ CRITICAL: Navigation Timeout Prevention**
-
-The Astro development server loads many JavaScript modules per page. Always use `waitUntil: 'domcontentloaded'`:
-
-```javascript
-// ALWAYS use domcontentloaded - replace SERVER_IP with the actual IP from Step 1
-mcp__playwright__browser_run_code({
-  code: `async (page) => {
-    await page.goto('http://SERVER_IP:4321/gh-aw/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    return { url: page.url(), title: await page.title() };
-  }`
-})
-```
-
-Using Playwright, visit exactly these 3 pages and stop:
-
-1. **Visit the home page** at `http://${SERVER_IP}:4321/gh-aw/`
+1. **Visit the home page** (e.g. `http://<BRIDGE_IP>:4321/gh-aw/`)
    - Take a screenshot
    - Note: Is it immediately clear what this tool does?
    - Note: Can you quickly find the "Get Started" or "Quick Start" link?
 
-2. **Follow the Quick Start Guide** at `http://${SERVER_IP}:4321/gh-aw/setup/quick-start/`
+2. **Follow the Quick Start Guide** (e.g. `http://<BRIDGE_IP>:4321/gh-aw/setup/quick-start/`)
    - Take screenshots of each major section
    - Try to understand each step from a beginner's perspective
    - Questions to consider:
@@ -133,14 +112,14 @@ Using Playwright, visit exactly these 3 pages and stop:
      - Do code examples work as shown?
      - Are error messages explained?
 
-3. **Check the CLI Commands page** at `http://${SERVER_IP}:4321/gh-aw/setup/cli/`
+3. **Check the CLI Commands page** (e.g. `http://<BRIDGE_IP>:4321/gh-aw/setup/cli/`)
    - Take a screenshot
    - Note: Are the most important commands highlighted?
    - Note: Are examples provided for common use cases?
 
 After visiting all 3 pages, immediately proceed to the report.
 
-## Step 3: Identify Pain Points
+## Step 2: Identify Pain Points
 
 As you navigate, specifically look for:
 
@@ -166,7 +145,7 @@ As you navigate, specifically look for:
 - Useful screenshots or diagrams
 - Logical flow
 
-## Step 4: Take Screenshots
+## Step 3: Take Screenshots
 
 For each confusing or broken area:
 - Take a screenshot showing the issue
@@ -175,7 +154,7 @@ For each confusing or broken area:
 - Upload the screenshot by calling the `upload_asset` safe-output tool with the absolute file path `path: "/tmp/gh-aw/screenshots/<filename>.png"`.
   Record the returned asset URL.
 
-## Step 5: Create Discussion Report
+## Step 4: Create Discussion Report
 
 Create a GitHub discussion titled "📚 Documentation Noob Test Report - [Date]" with:
 
@@ -206,7 +185,7 @@ For each uploaded screenshot, include its asset URL. Format:
 
 Label the discussion with: `documentation`, `user-experience`, `automated-testing`
 
-## Step 6: Cleanup
+## Step 5: Cleanup
 
 Follow the shared **Documentation Server Lifecycle Management** instructions for cleanup (section "Stopping the Documentation Server").
 

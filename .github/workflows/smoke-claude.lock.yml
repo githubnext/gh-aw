@@ -113,6 +113,7 @@ jobs:
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
       comment_repo: ${{ steps.add-comment.outputs.comment-repo }}
       comment_url: ${{ steps.add-comment.outputs.comment-url }}
+      engine_id: ${{ steps.generate_aw_info.outputs.engine_id }}
       lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
@@ -942,14 +943,27 @@ jobs:
           GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode"
           GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md opencode.jsonc"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh"
-      - name: Download APM bundle artifact
+      - id: apm_cache_restore
+        name: Restore APM bundle from cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          key: apm-${{ needs.activation.outputs.engine_id }}-${{ hashFiles('.github/workflows/*.lock.yml') }}
+          path: /tmp/gh-aw/apm-workspace
+      - if: steps.apm_cache_restore.outputs.cache-hit != 'true'
+        name: Download APM bundle artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ needs.activation.outputs.artifact_prefix }}apm
           path: /tmp/gh-aw/apm-bundle
       - id: apm_bundle
         name: Find APM bundle path
-        run: echo "path=$(find /tmp/gh-aw/apm-bundle -name '*.tar.gz' | head -1)" >> "$GITHUB_OUTPUT"
+        run: |
+          bundle=$(find /tmp/gh-aw/apm-workspace /tmp/gh-aw/apm-bundle -name '*.tar.gz' 2>/dev/null | head -1)
+          if [ -z "$bundle" ]; then
+            echo "::error::APM bundle not found in /tmp/gh-aw/apm-workspace or /tmp/gh-aw/apm-bundle"
+            exit 1
+          fi
+          echo "path=$bundle" >> "$GITHUB_OUTPUT"
       - name: Restore APM packages
         uses: microsoft/apm-action@a190b0b1a91031057144dc136acf9757a59c9e4d # v1.4.1
         with:
@@ -2480,8 +2494,22 @@ jobs:
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+      - name: Checkout workflow lock files
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/workflows
+          sparse-checkout-cone-mode: false
+      - name: Restore APM bundle from cache
+        id: apm_cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          key: apm-${{ needs.activation.outputs.engine_id }}-${{ hashFiles('.github/workflows/*.lock.yml') }}
+          path: /tmp/gh-aw/apm-workspace
       - name: Prepare APM package list
         id: apm_prep
+        if: steps.apm_cache.outputs.cache-hit != 'true'
         run: |
           DEPS=$(echo "$AW_APM_PACKAGES" | jq -r '.[] | "- " + .')
           {
@@ -2493,6 +2521,7 @@ jobs:
           AW_APM_PACKAGES: "[\"microsoft/apm-sample-package\"]"
       - name: Pack APM packages
         id: apm_pack
+        if: steps.apm_cache.outputs.cache-hit != 'true'
         uses: microsoft/apm-action@a190b0b1a91031057144dc136acf9757a59c9e4d # v1.4.1
         env:
           GITHUB_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -2503,12 +2532,27 @@ jobs:
           pack: "true"
           target: all
           working-directory: /tmp/gh-aw/apm-workspace
+      - name: Save APM bundle to cache
+        if: steps.apm_cache.outputs.cache-hit != 'true' && success()
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          key: ${{ steps.apm_cache.outputs.cache-primary-key }}
+          path: /tmp/gh-aw/apm-workspace
+      - name: Find APM bundle path
+        id: apm_bundle_path
+        run: |
+          bundle=$(find /tmp/gh-aw/apm-workspace -name '*.tar.gz' | head -1)
+          if [ -z "$bundle" ]; then
+            echo "::error::APM bundle not found in /tmp/gh-aw/apm-workspace"
+            exit 1
+          fi
+          echo "path=$bundle" >> "$GITHUB_OUTPUT"
       - name: Upload APM bundle artifact
         if: success()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ needs.activation.outputs.artifact_prefix }}apm
-          path: ${{ steps.apm_pack.outputs.bundle-path }}
+          path: ${{ steps.apm_bundle_path.outputs.path }}
           retention-days: "1"
 
   conclusion:
