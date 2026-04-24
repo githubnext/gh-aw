@@ -31,7 +31,7 @@ Resolution supports two modes:
 | `GetActionPinsByRepo` | `func(repo string) []ActionPin` | Returns all pins for a repository (version-descending) |
 | `GetActionPinByRepo` | `func(repo string) (ActionPin, bool)` | Returns the latest pin for a repository |
 | `GetContainerPin` | `func(image string) (ContainerPin, bool)` | Returns a pinned container image by its original image reference |
-| `FormatReference` | `func(repo, sha, version string) string` | Formats a pinned reference (`repo@sha # version`) |
+| `FormatPinnedActionReference` | `func(repo, sha, version string) string` | Formats a pinned action reference string (`repo@sha # version`) |
 | `FormatCacheKey` | `func(repo, version string) string` | Formats a cache key (`repo@version`) |
 | `ExtractRepo` | `func(uses string) string` | Extracts the repository from a `uses` reference |
 | `ExtractVersion` | `func(uses string) string` | Extracts the version from a `uses` reference |

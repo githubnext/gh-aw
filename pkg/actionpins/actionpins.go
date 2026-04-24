@@ -210,12 +210,12 @@ func getLatestActionPinReference(repo string) string {
 	if len(pins) == 0 {
 		return ""
 	}
-	return FormatReference(repo, pins[0].SHA, pins[0].Version)
+	return FormatPinnedActionReference(repo, pins[0].SHA, pins[0].Version)
 }
 
-// FormatReference formats an action reference with repo, SHA, and version comment.
+// FormatPinnedActionReference formats a pinned action reference with repo, SHA, and version comment.
 // Example: "actions/checkout@abc123 # v4.1.0"
-func FormatReference(repo, sha, version string) string {
+func FormatPinnedActionReference(repo, sha, version string) string {
 	return fmt.Sprintf("%s@%s # %s", repo, sha, version)
 }
 
@@ -268,7 +268,10 @@ func initWarnings(ctx *PinContext) {
 	}
 }
 
-func notifyResolutionFailure(ctx *PinContext, actionRepo, version string, errorType ResolutionErrorType) {
+// recordPinResolutionFailure silently records an unresolved action-ref pinning event
+// to the audit callback (ctx.RecordResolutionFailure), if one is configured.
+// If ctx is nil or ctx.RecordResolutionFailure is nil, the function returns early without recording.
+func recordPinResolutionFailure(ctx *PinContext, actionRepo, version string, errorType ResolutionErrorType) {
 	if ctx == nil || ctx.RecordResolutionFailure == nil {
 		return
 	}
@@ -295,7 +298,7 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 		sha, err := ctx.Resolver.ResolveSHA(actionRepo, version)
 		if err == nil && sha != "" {
 			log.Printf("Dynamic resolution succeeded: %s@%s → %s", actionRepo, version, sha)
-			result := FormatReference(actionRepo, sha, version)
+			result := FormatPinnedActionReference(actionRepo, sha, version)
 			log.Printf("Returning pinned reference: %s", result)
 			return result, nil
 		}
@@ -319,7 +322,7 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 		for _, pin := range matchingPins {
 			if pin.Version == version {
 				log.Printf("Exact version match: requested=%s, found=%s", version, pin.Version)
-				return FormatReference(actionRepo, pin.SHA, pin.Version), nil
+				return FormatPinnedActionReference(actionRepo, pin.SHA, pin.Version), nil
 			}
 		}
 
@@ -327,11 +330,11 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 			for _, pin := range matchingPins {
 				if pin.SHA == version {
 					log.Printf("Exact SHA match: requested=%s, found version=%s", version, pin.Version)
-					return FormatReference(actionRepo, pin.SHA, pin.Version), nil
+					return FormatPinnedActionReference(actionRepo, pin.SHA, pin.Version), nil
 				}
 			}
 			log.Printf("SHA %s not found in hardcoded pins, returning as-is", version)
-			return FormatReference(actionRepo, version, version), nil
+			return FormatPinnedActionReference(actionRepo, version, version), nil
 		}
 
 		if !ctx.StrictMode && len(matchingPins) > 0 {
@@ -355,13 +358,13 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 			}
 			log.Printf("Using version in non-strict mode: %s@%s (requested) → %s@%s (used)",
 				actionRepo, version, actionRepo, selectedPin.Version)
-			return FormatReference(actionRepo, selectedPin.SHA, version), nil
+			return FormatPinnedActionReference(actionRepo, selectedPin.SHA, version), nil
 		}
 	}
 
 	if isAlreadySHA {
 		log.Printf("SHA %s not found in hardcoded pins, returning as-is", version)
-		return FormatReference(actionRepo, version, version), nil
+		return FormatPinnedActionReference(actionRepo, version, version), nil
 	}
 
 	initWarnings(ctx)
@@ -370,7 +373,7 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 	if ctx.Resolver != nil {
 		errorType = ResolutionErrorTypeDynamicResolutionFailed
 	}
-	notifyResolutionFailure(ctx, actionRepo, version, errorType)
+	recordPinResolutionFailure(ctx, actionRepo, version, errorType)
 	if ctx.EnforcePinned && !ctx.AllowActionRefs {
 		if ctx.Resolver != nil {
 			return "", fmt.Errorf("unable to pin action %s@%s: resolution failed", actionRepo, version)
