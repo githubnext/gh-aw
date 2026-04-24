@@ -369,6 +369,9 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		if !strings.Contains(updatePullRequestBranchesSection, "pull-requests: write") {
 			t.Errorf("Job update_pull_request_branches should include pull-requests: write permission in:\n%s", updatePullRequestBranchesSection)
 		}
+		if !strings.Contains(updatePullRequestBranchesSection, "contents: write") {
+			t.Errorf("Job update_pull_request_branches should include contents: write permission in:\n%s", updatePullRequestBranchesSection)
+		}
 	}
 
 	// validate_workflows job should be triggered when operation == 'validate'

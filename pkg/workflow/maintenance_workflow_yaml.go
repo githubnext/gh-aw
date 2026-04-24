@@ -258,6 +258,7 @@ jobs:
     if: ${{ ` + RenderCondition(buildDispatchOperationCondition("update_pull_request_branches")) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
+      contents: write
       pull-requests: write
     steps:
 `)

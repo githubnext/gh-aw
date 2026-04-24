@@ -218,6 +218,7 @@ jobs:
     if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'update_pull_request_branches' && (!(github.event.repository.fork)) }}
     runs-on: ubuntu-slim
     permissions:
+      contents: write
       pull-requests: write
     steps:
       - name: Checkout actions folder
