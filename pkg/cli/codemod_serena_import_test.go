@@ -196,7 +196,7 @@ engine:
 		assert.False(t, hasEngineTools, "Engine tools should be removed after migration")
 	})
 
-	t.Run("updates github/gh-aw source pin from commit SHA to main when migrating serena", func(t *testing.T) {
+	t.Run("preserves github/gh-aw source pin when migrating serena (does not rewrite to @main)", func(t *testing.T) {
 		content := `---
 source: github/gh-aw/.github/workflows/duplicate-code-detector.md@852cb06ad52958b402ed982b69957ffc57ca0619
 engine: copilot
@@ -217,8 +217,64 @@ tools:
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err, "Codemod should not return an error")
 		assert.True(t, applied, "Codemod should be applied when tools.serena is present")
-		assert.Contains(t, result, "source: github/gh-aw/.github/workflows/duplicate-code-detector.md@main", "Codemod should update pinned gh-aw source to main")
+		assert.Contains(t, result, "source: github/gh-aw/.github/workflows/duplicate-code-detector.md@852cb06ad52958b402ed982b69957ffc57ca0619", "Codemod should preserve the original pinned commit SHA in source")
+		assert.NotContains(t, result, "@main", "Codemod should not rewrite source pin to @main")
 		assert.Contains(t, result, "- uses: shared/mcp/serena.md", "Codemod should still add shared Serena import")
+	})
+
+	t.Run("storybookjs and FluidFramework: preserves pinned source and migrates tools.serena to imports", func(t *testing.T) {
+		// Simulates the duplicate-code-detector.md workflow used by storybookjs/storybook and
+		// microsoft/FluidFramework, both sourced from gh-aw at the same pinned commit.
+		// The codemod must migrate tools.serena without touching the source pin.
+		tests := []struct {
+			name string
+		}{
+			{name: "storybookjs/storybook"},
+			{name: "microsoft/FluidFramework"},
+		}
+
+		content := `---
+source: github/gh-aw/.github/workflows/duplicate-code-detector.md@852cb06ad52958b402ed982b69957ffc57ca0619
+name: Duplicate Code Detector
+description: Identifies duplicate code patterns across the codebase
+on:
+  workflow_dispatch:
+  schedule: daily
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+tools:
+  serena: ["typescript"]
+imports:
+  - shared/mood.md
+strict: true
+---
+
+# Duplicate Code Detection
+`
+		frontmatter := map[string]any{
+			"source": "github/gh-aw/.github/workflows/duplicate-code-detector.md@852cb06ad52958b402ed982b69957ffc57ca0619",
+			"engine": "copilot",
+			"tools": map[string]any{
+				"serena": []any{"typescript"},
+			},
+			"imports": []any{"shared/mood.md"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result, applied, err := codemod.Apply(content, frontmatter)
+				require.NoError(t, err, "Codemod should not return an error")
+				assert.True(t, applied, "Codemod should be applied when tools.serena is present")
+				assert.Contains(t, result, "source: github/gh-aw/.github/workflows/duplicate-code-detector.md@852cb06ad52958b402ed982b69957ffc57ca0619", "Source pin must be preserved unchanged")
+				assert.NotContains(t, result, "@main", "Source pin must not be rewritten to @main")
+				assert.Contains(t, result, "- uses: shared/mcp/serena.md", "Serena import must be added")
+				assert.Contains(t, result, `languages: ["typescript"]`, "Serena import must include languages")
+				assert.NotContains(t, result, "  serena:", "tools.serena must be removed")
+			})
+		}
 	})
 
 	t.Run("falls back to engine.tools.serena when top-level tools.serena is invalid", func(t *testing.T) {
