@@ -59,6 +59,14 @@ func getPushFallbackAsPullRequest(config *PushToPullRequestBranchConfig) bool {
 	return *config.FallbackAsPullRequest
 }
 
+// getCheckBranchProtection returns the effective check-branch-protection setting (defaults to true).
+func getCheckBranchProtection(config *PushToPullRequestBranchConfig) bool {
+	if config == nil || config.CheckBranchProtection == nil {
+		return true // Default: check is enabled
+	}
+	return *config.CheckBranchProtection
+}
+
 // ComputePermissionsForSafeOutputs computes the minimal required permissions
 // based on the configured safe-outputs. This function is used by both the
 // consolidated safe outputs job and the conclusion job to ensure they only
@@ -160,6 +168,13 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 		if safeOutputs.PushToPullRequestBranch.AllowWorkflows {
 			safeOutputsPermissionsLog.Print("Adding workflows: write for push-to-pull-request-branch (allow-workflows: true)")
 			permissions.Set(PermissionWorkflows, PermissionWrite)
+		}
+		// Add administration: read when check-branch-protection is enabled (GitHub App-only permission)
+		// The branch protection API requires administration: read for GitHub App tokens.
+		// Standard GITHUB_TOKEN lacks this scope; set it so the minted app token includes it.
+		if getCheckBranchProtection(safeOutputs.PushToPullRequestBranch) {
+			safeOutputsPermissionsLog.Print("Adding administration: read for push-to-pull-request-branch (check-branch-protection enabled)")
+			permissions.Set(PermissionAdministration, PermissionRead)
 		}
 	}
 	if safeOutputs.UpdatePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UpdatePullRequests.Staged) {

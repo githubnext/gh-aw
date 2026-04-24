@@ -274,10 +274,37 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "push-to-pull-request-branch default fallback - requires pull-requests write",
+			name: "push-to-pull-request-branch default fallback - requires pull-requests write and administration read",
 			safeOutputs: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:       PermissionWrite,
+				PermissionPullRequests:   PermissionWrite,
+				PermissionAdministration: PermissionRead,
+			},
+		},
+		{
+			name: "push-to-pull-request-branch with fallback-as-pull-request false - no pull-requests permission but administration read",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig:  BaseSafeOutputConfig{},
+					FallbackAsPullRequest: boolPtr(false),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:       PermissionWrite,
+				PermissionAdministration: PermissionRead,
+			},
+		},
+		{
+			name: "push-to-pull-request-branch with check-branch-protection false - no administration permission",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig:  BaseSafeOutputConfig{},
+					CheckBranchProtection: boolPtr(false),
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -286,15 +313,17 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "push-to-pull-request-branch with fallback-as-pull-request false - no pull-requests permission",
+			name: "push-to-pull-request-branch with check-branch-protection explicit true - includes administration read",
 			safeOutputs: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
 					BaseSafeOutputConfig:  BaseSafeOutputConfig{},
-					FallbackAsPullRequest: boolPtr(false),
+					CheckBranchProtection: boolPtr(true),
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionWrite,
+				PermissionContents:       PermissionWrite,
+				PermissionPullRequests:   PermissionWrite,
+				PermissionAdministration: PermissionRead,
 			},
 		},
 		{
