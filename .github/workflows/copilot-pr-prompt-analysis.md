@@ -18,9 +18,7 @@ engine: copilot
 network:
   allowed:
     - defaults
-    - github
     - node
-    - api.github.com
 
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
@@ -43,6 +41,8 @@ features:
 
 tools:
   mount-as-clis: true
+  github:
+    mode: gh-proxy
 ---
 # Copilot PR Prompt Pattern Analysis
 
@@ -57,6 +57,7 @@ Generate a daily report analyzing Copilot-generated PRs from the last 30 days, f
 - **Repository**: ${{ github.repository }}
 - **Analysis Period**: Last 30 days
 - **Data Location**: Pre-fetched PR data is available at `/tmp/gh-aw/pr-data/copilot-prs.json`
+- **GitHub Access**: Use the `gh` CLI for any additional GitHub data you need (e.g. `gh pr view`, `gh api`). Do **not** use WebFetch or HTTP requests to `api.github.com` — the `gh` CLI proxy handles authentication automatically.
 
 ## Task Overview
 
