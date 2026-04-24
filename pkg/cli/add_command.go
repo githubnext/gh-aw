@@ -274,7 +274,7 @@ func addWorkflowsWithTracking(workflows []*ResolvedWorkflow, tracker *FileTracke
 		}
 
 		// The --name flag only applies to the first workflow when adding multiple
-		workflowOpts := opts
+		workflowOpts := opts // copy so that clearing Name does not affect subsequent iterations
 		if i > 0 {
 			workflowOpts.Name = ""
 		}
