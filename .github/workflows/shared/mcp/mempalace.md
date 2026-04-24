@@ -62,7 +62,7 @@ steps:
           echo "MemPalace MCP server started (PID $MCP_PID)"
           exit 0
         fi
-        sleep 2
+        sleep 1
       done
 
       echo "MemPalace MCP server failed to start"
