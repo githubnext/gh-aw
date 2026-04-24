@@ -22,6 +22,13 @@ This guide walks you through upgrading agentic workflows. `gh aw upgrade` handle
 
 Before upgrading, ensure you have GitHub CLI (`gh`) v2.0.0+, the latest gh-aw extension, and a clean working directory in your Git repository. Verify with `gh --version`, `gh extension list | grep gh-aw`, and `git status`.
 
+Create a backup branch before upgrading so you can recover if something goes wrong:
+
+```bash wrap
+git checkout -b backup-before-upgrade
+git checkout -
+```
+
 ## Step 1: Upgrade the Extension
 
 Upgrade the `gh aw` extension to get the latest features and codemods:
