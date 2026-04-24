@@ -117,6 +117,8 @@ func (e *ClaudeEngine) GetAgentManifestPathPrefixes() []string {
 // This enables a pre-agent step that verifies the ANTHROPIC_API_KEY is valid
 // and reports available Claude models to GITHUB_STEP_SUMMARY.
 // Returns nil when a custom command is specified (secret validation is skipped in that case).
+// Respects the ANTHROPIC_BASE_URL env var when configured in engine.env so the models check
+// hits the same custom endpoint that the agent will use.
 func (e *ClaudeEngine) GetModelsRoute(workflowData *WorkflowData) *ModelsRoute {
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
 		return nil
@@ -124,16 +126,22 @@ func (e *ClaudeEngine) GetModelsRoute(workflowData *WorkflowData) *ModelsRoute {
 	if workflowData != nil && strings.TrimSpace(workflowData.Environment) != "" {
 		return nil
 	}
-	return &ModelsRoute{
-		URL:          "https://api.anthropic.com/v1/models",
-		AuthHeader:   "x-api-key",
-		AuthScheme:   "",
-		SecretEnvVar: "ANTHROPIC_API_KEY",
-		SecretExpr:   "${{ secrets.ANTHROPIC_API_KEY }}",
-		ExtraHeaders: map[string]string{
-			"anthropic-version": "2023-06-01",
-		},
+	route := &ModelsRoute{
+		URL:           "https://api.anthropic.com/v1/models",
+		AuthHeader:    "x-api-key",
+		AuthScheme:    "",
+		SecretEnvVar:  "ANTHROPIC_API_KEY",
+		SecretExpr:    "${{ secrets.ANTHROPIC_API_KEY }}",
+		ExtraHeaders:  map[string]string{"anthropic-version": "2023-06-01"},
+		BaseURLEnvVar: "ANTHROPIC_BASE_URL",
+		ModelsPath:    "/models",
 	}
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Env != nil {
+		if v, ok := workflowData.EngineConfig.Env["ANTHROPIC_BASE_URL"]; ok && v != "" {
+			route.BaseURLEnvExpr = v
+		}
+	}
+	return route
 }
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude

@@ -258,7 +258,8 @@ type DriverProvider interface {
 // When an engine implements ModelsProvider, the compiler generates a step before agent
 // execution that uses this config to verify API access and report available models.
 type ModelsRoute struct {
-	// URL is the full URL of the models listing endpoint (e.g. "https://api.anthropic.com/v1/models")
+	// URL is the full default URL of the models listing endpoint (e.g. "https://api.anthropic.com/v1/models").
+	// This is used when no custom base URL is configured.
 	URL string
 
 	// AuthHeader is the HTTP header name used for authentication (e.g. "x-api-key", "Authorization")
@@ -278,6 +279,22 @@ type ModelsRoute struct {
 	// ExtraHeaders is an optional map of additional HTTP headers required by the API
 	// (e.g. {"anthropic-version": "2023-06-01"}).
 	ExtraHeaders map[string]string
+
+	// BaseURLEnvVar is the name of the env var that can override the default base URL
+	// (e.g. "ANTHROPIC_BASE_URL", "OPENAI_BASE_URL"). When set, the generated step checks this
+	// env var at runtime and constructs the models URL as "${BaseURLEnvVar%/}${ModelsPath}" when present,
+	// falling back to URL when absent.
+	BaseURLEnvVar string
+
+	// BaseURLEnvExpr is the value or GitHub Actions expression to assign to BaseURLEnvVar in the
+	// step env. Set from engine.env when the user has configured a custom base URL.
+	// E.g. "https://custom.anthropic.example.com/v1" or "${{ vars.ANTHROPIC_BASE_URL }}".
+	// When empty, the env var is not explicitly set in the step (falling back to the default URL).
+	BaseURLEnvExpr string
+
+	// ModelsPath is the URL path to append to the custom base URL (e.g. "/models").
+	// Only used when BaseURLEnvVar is set and the env var is non-empty at runtime.
+	ModelsPath string
 }
 
 // ModelsProvider is an optional interface for engines that support a models listing API endpoint.

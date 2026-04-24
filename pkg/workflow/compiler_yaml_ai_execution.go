@@ -31,8 +31,28 @@ func (c *Compiler) generateModelsCheckStep(yaml *strings.Builder, route *ModelsR
 	fmt.Fprintf(yaml, "        id: %s\n", constants.ModelsCheckStepID)
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          %s: %s\n", route.SecretEnvVar, route.SecretExpr)
+	// Pass the custom base URL env var to the step when the user has configured one in engine.env.
+	// This allows the bash script to override the default API endpoint at runtime.
+	if route.BaseURLEnvVar != "" && route.BaseURLEnvExpr != "" {
+		fmt.Fprintf(yaml, "          %s: %s\n", route.BaseURLEnvVar, route.BaseURLEnvExpr)
+	}
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw\n")
+
+	// When BaseURLEnvVar is set, resolve the models URL at runtime to support custom API endpoints.
+	// The user may have configured ANTHROPIC_BASE_URL or OPENAI_BASE_URL in engine.env to point to
+	// a custom API proxy (e.g., enterprise gateway, Azure OpenAI, internal LLM router).
+	// We strip any trailing slash from the base URL and append the models path.
+	// If the env var is empty/unset, we fall back to the default compiled-in URL.
+	if route.BaseURLEnvVar != "" && route.ModelsPath != "" {
+		fmt.Fprintf(yaml, "          if [ -n \"${%s:-}\" ]; then\n", route.BaseURLEnvVar)
+		fmt.Fprintf(yaml, "            MODELS_URL=\"${%s%%/}%s\"\n", route.BaseURLEnvVar, route.ModelsPath)
+		yaml.WriteString("          else\n")
+		fmt.Fprintf(yaml, "            MODELS_URL=\"%s\"\n", route.URL)
+		yaml.WriteString("          fi\n")
+	} else {
+		fmt.Fprintf(yaml, "          MODELS_URL=\"%s\"\n", route.URL)
+	}
 
 	// Build the curl command with authentication and any extra headers
 	yaml.WriteString("          HTTP_CODE=$(curl -s -o /tmp/gh-aw/models-response.json -w \"%{http_code}\" \\\n")
@@ -48,7 +68,7 @@ func (c *Compiler) generateModelsCheckStep(yaml *strings.Builder, route *ModelsR
 		fmt.Fprintf(yaml, "            -H \"%s: %s\" \\\n", k, route.ExtraHeaders[k])
 	}
 
-	fmt.Fprintf(yaml, "            \"%s\")\n", route.URL)
+	yaml.WriteString("            \"$MODELS_URL\")\n")
 	yaml.WriteString("          echo \"## Engine API Access\" >> \"$GITHUB_STEP_SUMMARY\"\n")
 	yaml.WriteString("          if [ \"$HTTP_CODE\" -lt 200 ] || [ \"$HTTP_CODE\" -ge 300 ]; then\n")
 	yaml.WriteString("            echo \"models_check_failed=true\" >> \"$GITHUB_OUTPUT\"\n")

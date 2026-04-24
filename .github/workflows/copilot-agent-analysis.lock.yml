@@ -764,10 +764,15 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           mkdir -p /tmp/gh-aw
+          if [ -n "${ANTHROPIC_BASE_URL:-}" ]; then
+            MODELS_URL="${ANTHROPIC_BASE_URL%/}/models"
+          else
+            MODELS_URL="https://api.anthropic.com/v1/models"
+          fi
           HTTP_CODE=$(curl -s -o /tmp/gh-aw/models-response.json -w "%{http_code}" \
             -H "x-api-key: $ANTHROPIC_API_KEY" \
             -H "anthropic-version: 2023-06-01" \
-            "https://api.anthropic.com/v1/models")
+            "$MODELS_URL")
           echo "## Engine API Access" >> "$GITHUB_STEP_SUMMARY"
           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
             echo "models_check_failed=true" >> "$GITHUB_OUTPUT"

@@ -123,6 +123,8 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 // This enables a pre-agent step that verifies the OpenAI API key is valid
 // and reports available models to GITHUB_STEP_SUMMARY.
 // Returns nil when a custom command is specified (secret validation is skipped in that case).
+// Respects the OPENAI_BASE_URL env var when configured in engine.env so the models check
+// hits the same custom endpoint that the agent will use.
 func (e *CodexEngine) GetModelsRoute(workflowData *WorkflowData) *ModelsRoute {
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
 		return nil
@@ -130,14 +132,22 @@ func (e *CodexEngine) GetModelsRoute(workflowData *WorkflowData) *ModelsRoute {
 	if workflowData != nil && strings.TrimSpace(workflowData.Environment) != "" {
 		return nil
 	}
-	return &ModelsRoute{
-		URL:          "https://api.openai.com/v1/models",
-		AuthHeader:   "Authorization",
-		AuthScheme:   "Bearer ",
-		SecretEnvVar: "OPENAI_API_KEY",
-		SecretExpr:   "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
-		ExtraHeaders: map[string]string{},
+	route := &ModelsRoute{
+		URL:           "https://api.openai.com/v1/models",
+		AuthHeader:    "Authorization",
+		AuthScheme:    "Bearer ",
+		SecretEnvVar:  "OPENAI_API_KEY",
+		SecretExpr:    "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
+		ExtraHeaders:  map[string]string{},
+		BaseURLEnvVar: "OPENAI_BASE_URL",
+		ModelsPath:    "/models",
 	}
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Env != nil {
+		if v, ok := workflowData.EngineConfig.Env["OPENAI_BASE_URL"]; ok && v != "" {
+			route.BaseURLEnvExpr = v
+		}
+	}
+	return route
 }
 
 // GetAgentManifestFiles returns Codex-specific instruction files that should be

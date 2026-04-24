@@ -265,3 +265,114 @@ Test workflow`
 	assert.Less(t, modelsCheckPos, claudeExecPos,
 		"models check step should appear before the agent execution step")
 }
+
+// TestModelsCheckUsesCustomBaseURLFromEngineEnv verifies that when ANTHROPIC_BASE_URL is
+// configured in engine.env, the models check step uses it at runtime for the API call.
+func TestModelsCheckUsesCustomBaseURLFromEngineEnv(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-models-check-base-url-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	workflow := `---
+on: workflow_dispatch
+engine:
+  id: claude
+  env:
+    ANTHROPIC_BASE_URL: "https://custom.anthropic.example.com/v1"
+---
+
+Test workflow`
+
+	require.NoError(t, os.WriteFile(workflowFile, []byte(workflow), 0644), "write workflow file")
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowFile), "compile workflow")
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "read lock file")
+
+	lockStr := string(lockContent)
+
+	// The step should include ANTHROPIC_BASE_URL in the env section
+	assert.Contains(t, lockStr, "ANTHROPIC_BASE_URL: https://custom.anthropic.example.com/v1",
+		"Expected ANTHROPIC_BASE_URL in step env when set in engine.env")
+
+	// The step should use dynamic URL construction (bash conditional)
+	assert.Contains(t, lockStr, "MODELS_URL=",
+		"Expected dynamic MODELS_URL variable in bash script")
+	assert.Contains(t, lockStr, "ANTHROPIC_BASE_URL",
+		"Expected ANTHROPIC_BASE_URL reference in bash URL construction")
+	assert.Contains(t, lockStr, "https://api.anthropic.com/v1/models",
+		"Expected default fallback URL in bash script")
+}
+
+// TestModelsCheckUsesCustomBaseURLForCodex verifies that when OPENAI_BASE_URL is
+// configured in engine.env for Codex, the models check step uses it at runtime.
+func TestModelsCheckUsesCustomBaseURLForCodex(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-models-check-codex-base-url-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	workflow := `---
+on: workflow_dispatch
+engine:
+  id: codex
+  env:
+    OPENAI_BASE_URL: "https://my-openai-proxy.example.com/v1"
+---
+
+Test workflow`
+
+	require.NoError(t, os.WriteFile(workflowFile, []byte(workflow), 0644), "write workflow file")
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowFile), "compile workflow")
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "read lock file")
+
+	lockStr := string(lockContent)
+
+	// The step should include OPENAI_BASE_URL in the env section
+	assert.Contains(t, lockStr, "OPENAI_BASE_URL: https://my-openai-proxy.example.com/v1",
+		"Expected OPENAI_BASE_URL in step env when set in engine.env")
+
+	// The step should use dynamic URL construction
+	assert.Contains(t, lockStr, "MODELS_URL=",
+		"Expected dynamic MODELS_URL variable in bash script")
+	assert.Contains(t, lockStr, "OPENAI_BASE_URL",
+		"Expected OPENAI_BASE_URL reference in bash URL construction")
+	assert.Contains(t, lockStr, "https://api.openai.com/v1/models",
+		"Expected default fallback URL in bash script")
+}
+
+// TestModelsCheckWithoutCustomBaseURLUsesDefaultURL verifies that when no custom base URL
+// is configured, the models check step uses the static default URL directly.
+func TestModelsCheckWithoutCustomBaseURLUsesDefaultURL(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-models-check-default-url-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	workflow := `---
+on: workflow_dispatch
+engine: claude
+---
+
+Test workflow`
+
+	require.NoError(t, os.WriteFile(workflowFile, []byte(workflow), 0644), "write workflow file")
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowFile), "compile workflow")
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "read lock file")
+
+	lockStr := string(lockContent)
+
+	assert.Contains(t, lockStr, "https://api.anthropic.com/v1/models",
+		"Expected default Anthropic models URL in generated step")
+	// Without custom base URL, MODELS_URL is still set (via the unconditional branch)
+	assert.Contains(t, lockStr, "MODELS_URL=",
+		"Expected MODELS_URL to be set in bash script")
+}

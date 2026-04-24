@@ -823,9 +823,14 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
         run: |
           mkdir -p /tmp/gh-aw
+          if [ -n "${OPENAI_BASE_URL:-}" ]; then
+            MODELS_URL="${OPENAI_BASE_URL%/}/models"
+          else
+            MODELS_URL="https://api.openai.com/v1/models"
+          fi
           HTTP_CODE=$(curl -s -o /tmp/gh-aw/models-response.json -w "%{http_code}" \
             -H "Authorization: Bearer $OPENAI_API_KEY" \
-            "https://api.openai.com/v1/models")
+            "$MODELS_URL")
           echo "## Engine API Access" >> "$GITHUB_STEP_SUMMARY"
           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
             echo "models_check_failed=true" >> "$GITHUB_OUTPUT"
