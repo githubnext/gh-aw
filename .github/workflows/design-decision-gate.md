@@ -15,7 +15,7 @@ permissions:
   issues: read
 engine:
   id: claude
-  max-turns: 15
+  max-turns: 20
 safe-outputs:
   add-comment:
     max: 2
@@ -44,6 +44,7 @@ tools:
   bash:
     - "git diff:*"
     - "git log:*"
+    - "git ls-remote:*"
     - "git show:*"
     - "cat:*"
     - "grep:*"
@@ -112,7 +113,7 @@ You are the Design Decision Gate, an AI agent that enforces a culture of "decide
 - **Pull Request**: #${{ github.event.pull_request.number || github.event.inputs.pr_number }}
 - **Event**: ${{ github.event_name }}
 - **Actor**: ${{ github.actor }}
-- **Hard Turn Budget**: 15 turns maximum (stop early when done)
+- **Hard Turn Budget**: 20 turns maximum (stop early when done)
 
 ### Mandatory Efficiency Rules
 
@@ -122,9 +123,14 @@ You are the Design Decision Gate, an AI agent that enforces a culture of "decide
    - `pr.diff`
    - `design-gate-config.yml`
    - `adr-prefetch-summary.json`
-2. Do **not** perform broad exploration. Only fetch extra data if a required field is missing from pre-fetched files.
-3. Call exactly one final safe output action (`add-comment`, `push-to-pull-request-branch`, or `noop`) and then stop.
-4. If you have enough evidence to decide, stop immediately. Do not gather optional data.
+2. If a pre-fetched file is missing or returns a permission error, fall back to the equivalent GitHub MCP tool immediately (do not retry the file read):
+   - Missing `pr.json` → `mcp__github__get_pull_request`
+   - Missing `pr-files.json` → `mcp__github__get_pull_request_files`
+   - Missing `pr.diff` → `mcp__github__get_pull_request_diff`
+   - Missing `adr-prefetch-summary.json` → compute manually from PR files and labels
+3. Do **not** perform broad exploration. Only fetch extra data if a required field is missing from pre-fetched files.
+4. Call exactly one final safe output action (`add-comment`, `push-to-pull-request-branch`, or `noop`) and then stop.
+5. If you have enough evidence to decide, stop immediately. Do not gather optional data.
 
 ## Step 1: Determine if This PR Requires an ADR
 
