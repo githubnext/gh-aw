@@ -60,15 +60,22 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		return fmt.Errorf("failed to parse MCP config for tool '%s': %w", toolName, err)
 	}
 
-	// For TOML format, stdio servers must use Docker containerization (MCP Gateway v0.1.5+).
-	// If a command is present and is not "docker", the server is not containerized and will
-	// be rejected by the gateway at startup.
-	if renderer.Format == "toml" && mcpConfig.Type == "stdio" && mcpConfig.Command != "" && mcpConfig.Command != "docker" {
+	// Stdio servers must use Docker containerization.
+	// If a command is present without a container, the server is not containerized and will
+	// be rejected by the gateway schema validation at startup (for both TOML and JSON formats).
+	// For Python/Node/shell servers, use HTTP transport instead:
+	//   mcp-servers:
+	//     my-server:
+	//       type: http
+	//       url: "http://localhost:8765/mcp"
+	if mcpConfig.Type == "stdio" && mcpConfig.Command != "" && mcpConfig.Command != "docker" {
 		return fmt.Errorf(
-			"tool '%s' stdio MCP server uses command %q which is not supported by MCP Gateway v0.1.5+. "+
-				"Stdio servers must be containerized. Use 'container' with 'entrypoint' instead.\n\n"+
-				"Example:\ntools:\n  %s:\n    container: \"my-registry/my-tool:latest\"\n    entrypoint: \"my-tool\"\n    args: [\"--verbose\"]",
-			toolName, mcpConfig.Command, toolName,
+			"tool '%s' stdio MCP server uses command %q which is not supported by MCP Gateway. "+
+				"Stdio servers must be containerized (use 'container' with 'entrypoint'), "+
+				"or switch to HTTP transport for servers that run directly on the runner.\n\n"+
+				"Example (container):\ntools:\n  %s:\n    container: \"my-registry/my-tool:latest\"\n    entrypoint: \"my-tool\"\n    args: [\"--verbose\"]\n\n"+
+				"Example (HTTP — for Python/Node servers installed on the runner):\ntools:\n  %s:\n    type: http\n    url: \"http://localhost:8765/mcp\"",
+			toolName, mcpConfig.Command, toolName, toolName,
 		)
 	}
 

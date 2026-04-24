@@ -12,7 +12,7 @@ Environment variables in GitHub Agentic Workflows can be defined at multiple sco
 GitHub Agentic Workflows supports environment variables in 13 distinct contexts:
 
 | Scope | Syntax | Context | Typical Use |
-|-------|--------|---------|-------------|
+| ------- | -------- | --------- | ------------- |
 | **Workflow-level** | `env:` | All jobs | Shared configuration |
 | **Job-level** | `jobs.<job_id>.env` | All steps in job | Job-specific config |
 | **Step-level** | `steps[*].env` | Single step | Step-specific config |
@@ -103,7 +103,7 @@ The output appears in the **Summary** tab of the GitHub Actions workflow run.
 GitHub Agentic Workflows automatically injects the following environment variables into every agentic engine execution step (both the main agent run and the threat detection run). These variables are read-only from the agent's perspective and are useful for writing workflows or agents that need to detect their execution context.
 
 | Variable | Value | Description |
-|----------|-------|-------------|
+| ---------- | ------- | ------------- |
 | `GITHUB_AW` | `"true"` | Present in every gh-aw engine execution step. Agents can check for this variable to confirm they are running inside a GitHub Agentic Workflow. |
 | `GH_AW_PHASE` | `"agent"` or `"detection"` | Identifies which execution phase is active. `"agent"` for the main run; `"detection"` for the threat-detection safety check run that precedes the main run. |
 | `GH_AW_VERSION` | e.g. `"0.40.1"` | The gh-aw compiler version that generated the workflow. Useful for conditional logic that depends on a minimum feature version. |
@@ -126,7 +126,7 @@ env:
 These variables configure the `gh aw` CLI tool. Set them in your local shell environment or as repository/organization variables in GitHub Actions.
 
 | Variable | Default | Description |
-|---|---|---|
+| --- | --- | --- |
 | `DEBUG` | disabled | npm-style namespace debug logging. `DEBUG=*` enables all output; `DEBUG=cli:*,workflow:*` selects specific namespaces. Exclusions are supported: `DEBUG=*,-workflow:test`. Also activated when `ACTIONS_RUNNER_DEBUG=true`. |
 | `DEBUG_COLORS` | `1` (enabled) | Set to `0` to disable ANSI colors in debug output. Colors are automatically disabled when output is not a TTY. |
 | `ACCESSIBLE` | empty | Any non-empty value enables accessibility mode, which disables spinners and animations. Also enabled when `TERM=dumb` or `NO_COLOR` is set. |
@@ -161,7 +161,7 @@ These variables override the default AI model used for agent runs and threat det
 ### Agent runs
 
 | Variable | Engine |
-|---|---|
+| --- | --- |
 | `GH_AW_MODEL_AGENT_COPILOT` | GitHub Copilot |
 | `GH_AW_MODEL_AGENT_CLAUDE` | Anthropic Claude |
 | `GH_AW_MODEL_AGENT_CODEX` | OpenAI Codex |
@@ -172,7 +172,7 @@ These variables override the default AI model used for agent runs and threat det
 ### Detection runs
 
 | Variable | Engine |
-|---|---|
+| --- | --- |
 | `GH_AW_MODEL_DETECTION_COPILOT` | GitHub Copilot |
 | `GH_AW_MODEL_DETECTION_CLAUDE` | Anthropic Claude |
 | `GH_AW_MODEL_DETECTION_CODEX` | OpenAI Codex |
@@ -197,7 +197,7 @@ These variables provide fallback values for guard policy fields when the corresp
 > Explicit `tools.github.*` values in workflow frontmatter always take precedence over these variables.
 
 | Variable | Frontmatter field | Format | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `GH_AW_GITHUB_BLOCKED_USERS` | `tools.github.blocked-users` | Comma- or newline-separated usernames | GitHub usernames blocked from triggering agent runs |
 | `GH_AW_GITHUB_APPROVAL_LABELS` | `tools.github.approval-labels` | Comma- or newline-separated label names | Labels that promote content to "approved" integrity for guard checks |
 | `GH_AW_GITHUB_TRUSTED_USERS` | `tools.github.trusted-users` | Comma- or newline-separated usernames | GitHub usernames elevated to "approved" integrity, bypassing guard checks |
@@ -261,5 +261,4 @@ jobs:
 - [Tools](/gh-aw/reference/tools/) - MCP tool configuration and guard policies
 - [MCP Scripts](/gh-aw/reference/mcp-scripts/) - MCP script tool configuration
 - [Engines](/gh-aw/reference/engines/) - AI engine configuration and model selection
-- [Tokens](/gh-aw/reference/tokens/) - Engine secrets and GitHub token reference
 - [GitHub Actions Environment Variables](https://docs.github.com/en/actions/learn-github-actions/variables) - GitHub Actions documentation

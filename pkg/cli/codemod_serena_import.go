@@ -14,12 +14,12 @@ var serenaImportCodemodLog = logger.New("cli:codemod_serena_import")
 
 // getSerenaToSharedImportCodemod creates a codemod that migrates removed tools.serena
 // or engine.tools.serena configuration to an equivalent imports entry using
-// shared/mcp/serena.md, and may normalize a pinned source ref to @main.
+// shared/mcp/serena.md. The existing source: pin is preserved unchanged.
 func getSerenaToSharedImportCodemod() Codemod {
 	return Codemod{
 		ID:           "serena-tools-to-shared-import",
 		Name:         "Migrate tools.serena or engine.tools.serena to shared Serena import",
-		Description:  "Removes 'tools.serena' or 'engine.tools.serena', adds an equivalent 'imports' entry using shared/mcp/serena.md with languages, and may rewrite a pinned 'source:' ref to '@main'.",
+		Description:  "Removes 'tools.serena' or 'engine.tools.serena' and adds an equivalent 'imports' entry using shared/mcp/serena.md with languages. The existing 'source:' pin is preserved.",
 		IntroducedIn: "1.0.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			languages, ok := findSerenaLanguagesForMigration(frontmatter)
@@ -45,7 +45,6 @@ func getSerenaToSharedImportCodemod() Codemod {
 				return addSerenaImport(result, languages), true
 			})
 			if applied {
-				newContent = maybeUpdatePinnedSourceRef(newContent, frontmatter)
 				if alreadyImported {
 					serenaImportCodemodLog.Print("Removed tools.serena (shared/mcp/serena.md import already present)")
 				} else {
@@ -323,32 +322,4 @@ func hasNestedContent(lines []string, startIndex int, blockIndent string) (bool,
 	}
 
 	return false, len(lines)
-}
-
-func maybeUpdatePinnedSourceRef(content string, frontmatter map[string]any) string {
-	sourceAny, hasSource := frontmatter["source"]
-	if !hasSource {
-		return content
-	}
-
-	source, ok := sourceAny.(string)
-	if !ok || strings.TrimSpace(source) == "" {
-		return content
-	}
-
-	sourceSpec, err := parseSourceSpec(source)
-	if err != nil {
-		return content
-	}
-
-	if sourceSpec.Repo != "github/gh-aw" || !IsCommitSHA(sourceSpec.Ref) {
-		return content
-	}
-
-	updatedSource := sourceSpec.Repo + "/" + sourceSpec.Path + "@main"
-	updatedContent, err := UpdateFieldInFrontmatter(content, "source", updatedSource)
-	if err != nil {
-		return content
-	}
-	return updatedContent
 }

@@ -45,7 +45,8 @@ function formatTimestamp(date) {
 }
 
 /**
- * Run 'gh aw update', 'gh aw upgrade', 'gh aw disable', or 'gh aw enable',
+ * Run maintenance operations handled by run_operation:
+ * - 'gh aw update', 'gh aw upgrade', 'gh aw disable', 'gh aw enable'
  * creating a pull request when needed for update/upgrade operations.
  *
  * For update/upgrade: runs with --no-compile so lock files are not modified.

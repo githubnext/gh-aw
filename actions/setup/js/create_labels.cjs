@@ -17,11 +17,19 @@ function deterministicLabelColor(name) {
   for (let i = 0; i < name.length; i++) {
     hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
   }
-  // Map to pastel range: 128–223 per channel
+  // Map to pastel range: 128–191 per channel
   const r = 128 + (hash & 0x3f);
   const g = 128 + ((hash >> 6) & 0x3f);
   const b = 128 + ((hash >> 12) & 0x3f);
   return ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is string}
+ */
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 /**
@@ -68,17 +76,15 @@ async function main() {
   }
 
   // Collect all unique labels across all workflows
-  /** @type {Set<string>} */
-  const allLabels = new Set();
-  for (const result of validationResults) {
-    if (Array.isArray(result.labels)) {
-      for (const label of result.labels) {
-        if (typeof label === "string" && label.trim()) {
-          allLabels.add(label.trim());
-        }
+  const allLabels = new Set(
+    validationResults.flatMap(
+      /** @param {{ labels?: unknown[] }} result */
+      result => {
+        if (!Array.isArray(result.labels)) return [];
+        return result.labels.filter(isNonEmptyString).map(l => l.trim());
       }
-    }
-  }
+    )
+  );
 
   if (allLabels.size === 0) {
     core.info("No labels found in safe-outputs configurations — nothing to create");
@@ -140,4 +146,4 @@ async function main() {
   core.info(`Done: ${created} label(s) created, ${skipped} already existed`);
 }
 
-module.exports = { main };
+module.exports = { main, deterministicLabelColor };

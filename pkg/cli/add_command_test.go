@@ -337,3 +337,15 @@ func TestAddCommandArgs(t *testing.T) {
 	err = cmd.Args(cmd, []string{"workflow1", "workflow2"})
 	require.NoError(t, err, "Should not error with multiple arguments")
 }
+
+// TestAddMultipleWorkflowsNameFlag verifies that --name is not allowed when multiple workflows are specified.
+func TestAddMultipleWorkflowsNameFlag(t *testing.T) {
+	cmd := NewAddCommand(validateEngineStub)
+
+	// Simulate calling the command with --name and multiple workflow arguments
+	cmd.SetArgs([]string{"workflow1", "workflow2", "--name", "custom-name"})
+
+	err := cmd.Execute()
+	require.Error(t, err, "Should error when --name is used with multiple workflows")
+	assert.Contains(t, err.Error(), "--name flag cannot be used when adding multiple workflows", "Error should mention --name restriction")
+}

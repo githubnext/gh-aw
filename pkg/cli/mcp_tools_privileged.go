@@ -351,16 +351,22 @@ Returns JSON with the following structure:
 
 			// Return a JSON error envelope instead of an MCP protocol error so
 			// callers always receive consistent JSON and the run ID is always present.
+			// IsError must be false so that callers (e.g. mcp_cli_bridge) treat this as
+			// a graceful not-found / failure response rather than a fatal protocol error.
 			errorEnvelope := map[string]any{
 				"error":         "failed to audit workflow run: " + mainMsg,
 				"run_id_or_url": args.RunIDOrURL,
+				"suggestions": []string{
+					"Verify the run ID is correct",
+					"Use the 'logs' tool to list recent run IDs",
+				},
 			}
 			jsonBytes, jsonErr := json.Marshal(errorEnvelope)
 			if jsonErr != nil {
 				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to audit workflow run: "+mainMsg, nil)
 			}
 			return &mcp.CallToolResult{
-				IsError: true,
+				IsError: false,
 				Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
 			}, nil, nil
 		}
@@ -457,13 +463,17 @@ Returns JSON describing the differences between the base run and each comparison
 				"error":        "failed to diff workflow runs: " + mainMsg,
 				"base_run_id":  args.BaseRunID,
 				"compare_runs": args.CompareRunIDs,
+				"suggestions": []string{
+					"Verify the run IDs are correct",
+					"Use the 'logs' tool to list recent run IDs",
+				},
 			}
 			jsonBytes, jsonErr := json.Marshal(errorEnvelope)
 			if jsonErr != nil {
 				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to diff workflow runs: "+mainMsg, nil)
 			}
 			return &mcp.CallToolResult{
-				IsError: true,
+				IsError: false,
 				Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
 			}, nil, nil
 		}

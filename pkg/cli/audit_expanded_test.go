@@ -54,7 +54,7 @@ func TestExtractEngineConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expectNil && tt.awInfoContent == "" {
-				result := extractEngineConfig("")
+				result := extractEngineConfigWithInferredEngine("", "")
 				assert.Nil(t, result, "Should return nil for empty logs path")
 				return
 			}
@@ -69,7 +69,7 @@ func TestExtractEngineConfig(t *testing.T) {
 			err := os.WriteFile(filepath.Join(targetDir, "aw_info.json"), []byte(tt.awInfoContent), 0644)
 			require.NoError(t, err, "Should write aw_info.json")
 
-			result := extractEngineConfig(tmpDir)
+			result := extractEngineConfigWithInferredEngine(tmpDir, "")
 			if tt.expectNil {
 				assert.Nil(t, result, "Should return nil")
 				return
@@ -99,7 +99,7 @@ func TestExtractEngineConfigWithDetails(t *testing.T) {
 	err := os.WriteFile(filepath.Join(tmpDir, "aw_info.json"), []byte(awInfoContent), 0644)
 	require.NoError(t, err, "Should write aw_info.json")
 
-	result := extractEngineConfig(tmpDir)
+	result := extractEngineConfigWithInferredEngine(tmpDir, "")
 	require.NotNil(t, result, "Engine config should not be nil")
 	assert.Equal(t, "copilot", result.EngineID, "Engine ID should match")
 	assert.Equal(t, "GitHub Copilot CLI", result.EngineName, "Engine name should match")

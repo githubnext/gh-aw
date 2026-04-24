@@ -10,90 +10,15 @@ Open-source maintainers face a unique challenge when running agentic workflows: 
 - **Safe-outputs** — The primary mechanism for controlling *what an agent can do*. Every GitHub mutation (opening issues, commenting, creating PRs) must be explicitly declared; anything not listed is blocked.
 - **Integrity filtering** — The primary mechanism for controlling *what content the agent sees*. Content from untrusted authors is filtered from the agent's context before the run starts.
 
-Together they form a defense-in-depth model: integrity filtering keeps untrusted content out of the agent's context, and safe-outputs ensure the agent can only produce authorized side-effects. This guide shows how to use **repo-assist** as the primary entry point for managing incoming work, and how to configure both mechanisms so your repository scales safely.
+Together they form a defense-in-depth model: integrity filtering keeps untrusted content out of the agent's context, and safe-outputs ensure the agent can only produce authorized side-effects. This guide shows how to use [🌈 Repo Assist](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md) as the primary entry point for managing incoming work, and how to configure both mechanisms so your repository scales safely.
 
-## Repo-Assist as Your Triage Layer
+## Repo Assist as Your Triage Layer
 
-Repo-assist is a workflow that runs on every new issue or PR, classifies the content, and routes work to the right place. It is the recommended starting point for any public repository because it:
+[🌈 Repo Assist](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md) is a workflow that runs on every new issue or PR, classifies the content, and routes work to the right place. It is the recommended starting point for any public repository because it:
 
 - Sees all incoming content (including from untrusted users), so nothing is silently ignored.
 - Applies lightweight, low-cost classification (labels, comments) rather than heavy agent actions.
 - Acts as a gate that downstream code-modifying agents depend on before they run.
-
-A minimal repo-assist workflow:
-
-```aw wrap
----
-description: Triage incoming issues and route to appropriate agents
-on:
-  issues:
-    types: [opened]
-engine: copilot
-tools:
-  github:
-    toolsets: [issues, labels]
-    min-integrity: unapproved
-safe-outputs:
-  label-issue:
-  comment-issue:
-permissions:
-  issues: write
-  contents: read
----
-
-Review the newly opened issue. Based on the issue content:
-
-1. Apply the most relevant label from the existing label set.
-2. If the issue is a quality bug report with a clear reproduction, add the label `needs-investigation`.
-3. If the issue is from a maintainer or collaborator, add `trusted-contributor` and consider assigning the Copilot coding agent to investigate.
-4. If the issue appears to be spam or off-topic, add `invalid` and post a brief explanation comment.
-5. Otherwise, post a comment thanking the contributor and explaining what information is still needed.
-```
-
-`min-integrity: unapproved` allows repo-assist to see content from contributors who have previously interacted with the repository — including first-time contributors and users who have had PRs merged before — while still filtering out content from brand-new GitHub users (`FIRST_TIMER`) and users with no repository association (`NONE`). For most active repositories, this captures the vast majority of community input. The `safe-outputs` block limits what repo-assist can do in response: it can only apply labels and post comments. Any other GitHub mutation (opening PRs, merging, closing issues) is blocked by the runtime, regardless of what the agent attempts.
-
-### Routing to Downstream Agents
-
-Downstream agents that do heavier work (code fixes, PR reviews, issue resolution) are triggered by the labels repo-assist applies. They use stricter integrity filtering to ensure they only act on trusted input:
-
-```text
-Issue opened (any author)
-  → Repo-assist (min-integrity: unapproved)
-      Classifies content and applies labels
-      Adds "trusted-contributor" for owners/members/collaborators
-      Assigns Copilot if label indicates ready work
-  → Code fix agent (min-integrity: approved, approval-labels: ["needs-investigation"])
-      Triggered by label, runs only when repo-assist has approved the issue
-      Safe from untrusted input by construction
-```
-
-The code fix agent:
-
-```aw wrap
----
-on:
-  issues:
-    types: [labeled]
-engine: copilot
-tools:
-  github:
-    toolsets: [issues, pull_requests]
-    min-integrity: approved
-    approval-labels:
-      - "needs-investigation"
-safe-outputs:
-  create-pull-request:
-permissions:
-  issues: write
-  pull-requests: write
-  contents: write
----
-
-The issue labeled `needs-investigation` needs a fix. Reproduce the bug,
-implement a minimal fix, and open a pull request.
-```
-
-This separation means compute-intensive agents only run after repo-assist has classified and approved the work.
 
 ## Controlling Workflow Outputs with Safe-Outputs
 
@@ -104,7 +29,7 @@ This is what makes it safe to run repo-assist with `min-integrity: unapproved`: 
 The available safe-outputs map directly to GitHub actions:
 
 | Safe-output | What it allows |
-|------------|---------------|
+| ------------ | --------------- |
 | `label-issue` | Apply or remove labels on an issue |
 | `comment-issue` | Post a comment on an issue |
 | `comment-pull-request` | Post a comment on a pull request |
@@ -114,24 +39,6 @@ The available safe-outputs map directly to GitHub actions:
 | `create-issue` | Open a new issue |
 | `assign-issue` | Assign an issue to a user or team |
 
-**Principle of least privilege**: Declare only the outputs the workflow actually needs. A repo-assist workflow that classifies issues should declare `label-issue` and `comment-issue`, not `create-pull-request`.
-
-```aw wrap
-# Repo-assist: can only label and comment
-safe-outputs:
-  label-issue:
-  comment-issue:
-```
-
-```aw wrap
-# Code fix agent: can create and update pull requests
-safe-outputs:
-  create-pull-request:
-  comment-pull-request:
-```
-
-When a safe-output validation failure appears in your audit logs, it means the agent attempted an action that wasn't declared. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for format requirements and complete output type documentation.
-
 ## Controlling Workflow Inputs with Integrity Filtering
 
 Integrity filtering is the primary mechanism for controlling what content the agent sees. It evaluates the author of each issue, PR, or comment and removes items that don't meet the configured trust threshold — before the agent's context is assembled. Every public repository automatically applies `min-integrity: approved` as a baseline — repo-assist overrides this to `unapproved` so it can see issues from contributors and first-time contributors, not just trusted members.
@@ -139,7 +46,7 @@ Integrity filtering is the primary mechanism for controlling what content the ag
 The four configurable levels, from most to least restrictive:
 
 | Level | Who qualifies |
-|-------|--------------|
+| ------- | -------------- |
 | `merged` | PRs merged into the default branch; commits reachable from main |
 | `approved` | Owners, members, collaborators; non-fork PRs on public repos; recognized bots (`dependabot`, `github-actions`) |
 | `unapproved` | Contributors who have had a PR merged before; first-time contributors |
@@ -151,44 +58,9 @@ Choose based on what the workflow does:
 - **Code-modifying workflows** (open PRs, apply patches, close issues): `approved` or `merged` — only act on trusted input.
 - **Spam detection or analytics**: `none` — see everything, but produce no direct GitHub mutations.
 
-> [!NOTE]
-> Setting `min-integrity: none` on a public repository disables the automatic protection. Only use it when the workflow is designed to handle untrusted input safely.
-
-### Fine-Grained Trust Controls
-
-Beyond the global level, three per-item overrides handle edge cases without changing the baseline:
-
-- **`trusted-users`** — Elevate specific accounts (contractors, bots) to `approved` regardless of their GitHub author association.
-- **`approval-labels`** — Let repo-assist (or a human reviewer) label content to pass it through a stricter downstream filter.
-- **`blocked-users`** — Unconditionally block known-bad accounts regardless of `min-integrity`.
-
-```aw wrap
-tools:
-  github:
-    min-integrity: approved
-    trusted-users:
-      - "contractor-alice"
-      - "partner-org-bot"
-    approval-labels:
-      - "agent-approved"
-      - "needs-investigation"
-    blocked-users:
-      - "known-spam-bot"
-```
-
-To manage these lists across multiple workflows without duplicating them, store them in GitHub repository or organization variables:
-
-| Workflow field | GitHub variable |
-|---------------|----------------|
-| `blocked-users` | `GH_AW_GITHUB_BLOCKED_USERS` |
-| `trusted-users` | `GH_AW_GITHUB_TRUSTED_USERS` |
-| `approval-labels` | `GH_AW_GITHUB_APPROVAL_LABELS` |
-
-The runtime automatically merges per-workflow values with the variable. Set these under **Settings → Secrets and variables → Actions → Variables**.
-
 ### Reactions as Trust Signals
 
-Starting from gh-aw v0.68.2, maintainers can use GitHub reactions (👍, ❤️) to promote content past the integrity filter without modifying labels. This is useful in repo-assist workflows where a maintainer wants to fast-track an external contribution.
+Maintainers can use GitHub reactions (👍, ❤️) to promote content past the integrity filter without modifying labels. This is useful in repo-assist workflows where a maintainer wants to fast-track an external contribution.
 
 To enable reactions, add the `integrity-reactions` feature flag:
 
@@ -309,7 +181,7 @@ gh aw audit diff BASELINE_ID CURRENT_ID
 ### Common Failure Patterns
 
 | Failure | Symptom / Cause | Fixes |
-|---------|-----------------|-------|
+| --------- | ----------------- | ------- |
 | **Missing tool calls** | Tool not configured or wrong name. Check `missing_tools` in audit. | Add to `tools:` in frontmatter; fix any `safeoutputs-` prefix; check MCP connectivity. |
 | **Authentication failures** | Token permissions too narrow or API key missing. | Review `permissions:` block; ensure secrets are set; see [Auth Reference](/gh-aw/reference/auth/). |
 | **Integrity filtering blocking content** | Author's association below `min-integrity`. `DIFC_FILTERED` events in audit show details. | Adjust `min-integrity`; add author to `trusted-users`; use `approval-labels`; check `gh aw logs --filtered-integrity`. |
@@ -324,68 +196,6 @@ gh aw audit diff BASELINE_ID CURRENT_ID
 3. For complex issues, use `/agent agentic-workflows` in Copilot Chat.
 4. Edit the `.md` file → run `gh aw compile` to validate → trigger a new run.
 5. Compare the new run against the baseline with `gh aw audit diff`.
-
-## Worked Examples
-
-### Public Open-Source Repository
-
-A public repository uses the two-agent pattern shown above: repo-assist with `min-integrity: unapproved` classifies incoming issues and applies an `agent-ready` label to quality bug reports, and a downstream code fix agent with `min-integrity: approved` and `approval-labels: ["agent-ready"]` opens a pull request only after repo-assist has promoted the issue. Issues from untrusted users can still trigger the pipeline through label promotion, while the code fix agent never sees unapproved content directly.
-
-### Inner-Source Repository
-
-An organization's internal repository should allow cross-team contributions. Members from partner teams don't have formal collaborator status but are trusted.
-
-```aw wrap
----
-on:
-  pull_request:
-    types: [opened, synchronize]
-engine: copilot
-tools:
-  github:
-    allowed-repos: "myorg/*"
-    min-integrity: approved
-    trusted-users: ${{ vars.TRUSTED_PARTNER_ACCOUNTS }}
-safe-outputs:
-  comment-pull-request:
-permissions:
-  pull-requests: write
-  contents: read
----
-
-Review the pull request for correctness, style, and test coverage.
-Post a detailed review comment.
-```
-
-Partner team members are listed in the `TRUSTED_PARTNER_ACCOUNTS` organization variable. `allowed-repos: "myorg/*"` prevents the agent from reading data from external repos.
-
-### High-Security Repository
-
-A repository requiring auditability wants the agent to only act on code that is already in the default branch.
-
-```aw wrap
----
-on:
-  schedule:
-    - cron: "0 6 * * *"
-engine: copilot
-tools:
-  github:
-    allowed-repos: "myorg/secure-repo"
-    min-integrity: merged
-    blocked-users: ${{ vars.GH_AW_GITHUB_BLOCKED_USERS }}
-safe-outputs:
-  create-issue:
-permissions:
-  issues: write
-  contents: read
----
-
-Scan the merged commits from the last 24 hours for security anti-patterns.
-Open an issue for each finding with severity, location, and remediation steps.
-```
-
-`min-integrity: merged` ensures the agent only analyzes code that has passed code review and been merged. Even if a malicious PR was opened, it would never appear in the agent's context.
 
 ## Related Documentation
 

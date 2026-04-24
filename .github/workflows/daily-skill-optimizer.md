@@ -42,6 +42,11 @@ jobs:
             exit 1
           fi
 
+      - name: Stash any uncommitted changes
+        shell: bash
+        run: |
+          git stash --include-untracked || true
+
       - name: Run skill-optimizer
         id: run_skill_optimizer
         shell: bash
@@ -68,8 +73,8 @@ jobs:
             "models": [
               "openrouter/anthropic/claude-sonnet-4.6"
             ],
-            "maxTasks": 10,
-            "maxIterations": 1
+            "maxTasks": 20,
+            "maxIterations": 3
           }
           EOF
 
@@ -112,6 +117,12 @@ jobs:
 
           echo "run_mode=$RUN_MODE" >> "$GITHUB_OUTPUT"
           echo "run_status=$RUN_STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Restore stashed changes
+        if: always()
+        shell: bash
+        run: |
+          git stash pop || true
 
       - name: Upload skill-optimizer artifact
         if: always()

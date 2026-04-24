@@ -250,7 +250,8 @@ func TestRenderSharedMCPConfig_TypeConversion(t *testing.T) {
 			if tt.inputType == "http" {
 				toolConfig["url"] = "https://api.example.com/mcp"
 			} else {
-				toolConfig["command"] = "test-command"
+				// Use container-based config: command-based stdio is rejected by MCP Gateway v0.2.30+
+				toolConfig["container"] = "test-image:latest"
 			}
 
 			renderer := MCPConfigRenderer{

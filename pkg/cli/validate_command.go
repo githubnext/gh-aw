@@ -15,7 +15,6 @@ func NewValidateCommand(validateEngine func(string) error) *cobra.Command {
 		Short: "Validate agentic workflows without generating lock files",
 		Long: `Validate one or more agentic workflows by compiling and running all linters without
 generating lock files. This is equivalent to:
-
   gh aw compile --validate --no-emit --zizmor --actionlint --poutine
 
 If no workflows are specified, all Markdown files in .github/workflows will be validated.

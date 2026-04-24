@@ -305,8 +305,8 @@ This workflow specifies claude engine directly without any includes.
 	if !strings.Contains(lockStr, "claude --print") {
 		t.Error("Expected lock file to contain claude command reference")
 	}
-	if !strings.Contains(lockStr, "npm install --ignore-scripts -g @anthropic-ai/claude-code") {
-		t.Error("Expected lock file to contain npm install command")
+	if !strings.Contains(lockStr, "npm install -g @anthropic-ai/claude-code") {
+		t.Error("Expected lock file to contain npm install command (without --ignore-scripts)")
 	}
 }
 
