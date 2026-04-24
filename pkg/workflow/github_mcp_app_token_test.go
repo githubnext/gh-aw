@@ -367,14 +367,20 @@ Test that permission-vulnerability-alerts is emitted in the App token minting st
 	assert.Contains(t, lockContent, "permission-security-events: read", "Should also include security-events read permission in App token")
 	// Verify the token minting step is present
 	assert.Contains(t, lockContent, "id: github-mcp-app-token", "GitHub App token step should be generated")
-	// Verify that vulnerability-alerts DOES appear in job-level permissions block.
-	// It is now a valid GITHUB_TOKEN permission scope.
+	// Verify that vulnerability-alerts appears at the WORKFLOW level, not at the job level.
+	// The GitHub Actions engine rejects vulnerability-alerts in job-level permissions blocks.
 	var workflow map[string]any
 	require.NoError(t, goyaml.Unmarshal(content, &workflow), "Lock file should be valid YAML")
+	wfPerms, hasWfPerms := workflow["permissions"]
+	require.True(t, hasWfPerms, "Workflow should have a top-level permissions block")
+	wfPermsMap, ok := wfPerms.(map[string]any)
+	require.True(t, ok, "Workflow-level permissions should be a map")
+	_, foundVulnAlertsAtWfLevel := wfPermsMap["vulnerability-alerts"]
+	assert.True(t, foundVulnAlertsAtWfLevel, "vulnerability-alerts should appear in the workflow-level permissions block (not job-level)")
+	// Verify it does NOT appear in any job-level permissions block
 	jobs, ok := workflow["jobs"].(map[string]any)
 	require.True(t, ok, "Should have jobs section")
-	foundVulnAlerts := false
-	for _, jobConfig := range jobs {
+	for jobName, jobConfig := range jobs {
 		jobMap, ok := jobConfig.(map[string]any)
 		if !ok {
 			continue
@@ -387,11 +393,9 @@ Test that permission-vulnerability-alerts is emitted in the App token minting st
 		if !ok {
 			continue
 		}
-		if _, found := permsMap["vulnerability-alerts"]; found {
-			foundVulnAlerts = true
-		}
+		_, foundAtJobLevel := permsMap["vulnerability-alerts"]
+		assert.False(t, foundAtJobLevel, "vulnerability-alerts must NOT appear in job-level permissions (job: %s)", jobName)
 	}
-	assert.True(t, foundVulnAlerts, "vulnerability-alerts should appear in at least one job-level permissions block (it is a GITHUB_TOKEN scope)")
 }
 
 // TestGitHubMCPAppTokenWithExtraPermissions tests that extra permissions under
