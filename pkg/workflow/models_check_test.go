@@ -380,3 +380,48 @@ Test workflow`
 	assert.Contains(t, lockStr, "MODELS_URL=",
 		"Expected MODELS_URL to be set in bash script")
 }
+
+// TestModelsCheckEngineEnvOverridesAPIKey verifies that when ANTHROPIC_API_KEY is
+// overridden via engine.env (e.g. a GitHub App-minted token), the models check step
+// uses that value instead of the default secret expression. This is the primary "GitHub Apps"
+// use-case: the user mints a token in a pre-step and passes it via engine.env so both
+// the models check and the agent step use the same dynamic credential.
+func TestModelsCheckEngineEnvOverridesAPIKey(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-models-check-api-key-override-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	workflow := `---
+on: workflow_dispatch
+engine:
+  id: claude
+  env:
+    ANTHROPIC_API_KEY: "${{ steps.get-anthropic-token.outputs.token }}"
+---
+
+Test workflow`
+
+	require.NoError(t, os.WriteFile(workflowFile, []byte(workflow), 0644), "write workflow file")
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowFile), "compile workflow")
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "read lock file")
+
+	lockStr := string(lockContent)
+
+	// The engine.env ANTHROPIC_API_KEY override must appear in the models check step's env block
+	assert.Contains(t, lockStr,
+		"ANTHROPIC_API_KEY: ${{ steps.get-anthropic-token.outputs.token }}",
+		"Expected engine.env ANTHROPIC_API_KEY override in models check step env")
+	// The default secrets.ANTHROPIC_API_KEY should NOT appear in the models check step
+	// (the engine.env override replaces it)
+	modelsCheckIdx := strings.Index(lockStr, "id: "+string(constants.ModelsCheckStepID))
+	agentExecIdx := strings.Index(lockStr, "id: agentic_execution")
+	require.Positive(t, modelsCheckIdx, "models check step should be present")
+	require.Positive(t, agentExecIdx, "agent execution step should be present")
+	modelsCheckSection := lockStr[modelsCheckIdx:agentExecIdx]
+	assert.NotContains(t, modelsCheckSection, "secrets.ANTHROPIC_API_KEY",
+		"Default secrets expression should not appear in models check step when overridden by engine.env")
+}

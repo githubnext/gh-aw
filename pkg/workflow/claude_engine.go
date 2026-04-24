@@ -136,11 +136,6 @@ func (e *ClaudeEngine) GetModelsRoute(workflowData *WorkflowData) *ModelsRoute {
 		BaseURLEnvVar: "ANTHROPIC_BASE_URL",
 		ModelsPath:    "/models",
 	}
-	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Env != nil {
-		if v, ok := workflowData.EngineConfig.Env["ANTHROPIC_BASE_URL"]; ok && v != "" {
-			route.BaseURLEnvExpr = v
-		}
-	}
 	return route
 }
 

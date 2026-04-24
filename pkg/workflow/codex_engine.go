@@ -142,11 +142,6 @@ func (e *CodexEngine) GetModelsRoute(workflowData *WorkflowData) *ModelsRoute {
 		BaseURLEnvVar: "OPENAI_BASE_URL",
 		ModelsPath:    "/models",
 	}
-	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Env != nil {
-		if v, ok := workflowData.EngineConfig.Env["OPENAI_BASE_URL"]; ok && v != "" {
-			route.BaseURLEnvExpr = v
-		}
-	}
 	return route
 }
 

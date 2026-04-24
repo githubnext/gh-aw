@@ -281,16 +281,13 @@ type ModelsRoute struct {
 	ExtraHeaders map[string]string
 
 	// BaseURLEnvVar is the name of the env var that can override the default base URL
-	// (e.g. "ANTHROPIC_BASE_URL", "OPENAI_BASE_URL"). When set, the generated step checks this
-	// env var at runtime and constructs the models URL as "${BaseURLEnvVar%/}${ModelsPath}" when present,
-	// falling back to URL when absent.
+	// (e.g. "ANTHROPIC_BASE_URL", "OPENAI_BASE_URL"). When set, the generated step always
+	// exposes this env var (mapping ${{ vars.BaseURLEnvVar || '' }} by default) and checks it
+	// at runtime. If the user has configured a custom URL via engine.env, that value takes
+	// precedence because engine.env is merged on top of the defaults (same as the agent step).
+	// The step constructs the models URL as "${BaseURLEnvVar%/}${ModelsPath}" when the var is
+	// non-empty, falling back to URL when absent.
 	BaseURLEnvVar string
-
-	// BaseURLEnvExpr is the value or GitHub Actions expression to assign to BaseURLEnvVar in the
-	// step env. Set from engine.env when the user has configured a custom base URL.
-	// E.g. "https://custom.anthropic.example.com/v1" or "${{ vars.ANTHROPIC_BASE_URL }}".
-	// When empty, the env var is not explicitly set in the step (falling back to the default URL).
-	BaseURLEnvExpr string
 
 	// ModelsPath is the URL path to append to the custom base URL (e.g. "/models").
 	// Only used when BaseURLEnvVar is set and the env var is non-empty at runtime.

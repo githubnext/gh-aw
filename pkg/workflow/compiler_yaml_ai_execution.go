@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -24,33 +25,55 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 // generateModelsCheckStep generates a step that calls the engine's /models endpoint before the
 // agent runs. The step verifies that the API key is valid, reports available models to
 // GITHUB_STEP_SUMMARY, and sets models_check_failed=true (then exits 1) when the request fails.
-func (c *Compiler) generateModelsCheckStep(yaml *strings.Builder, route *ModelsRoute) {
+// The step's env block mirrors the agent execution step: it starts with the route defaults and
+// then merges engine.env and agentConfig.Env so that custom secrets and GitHub App-minted tokens
+// configured by the user are honoured by the models check just as they are by the agent.
+func (c *Compiler) generateModelsCheckStep(yaml *strings.Builder, route *ModelsRoute, data *WorkflowData) {
 	compilerYamlLog.Printf("Generating models check step: url=%s", route.URL)
+
+	// Build env map the same way as the agent execution step:
+	// 1. Start with the route's default secret expression.
+	// 2. Always expose the base-URL env var so that GitHub Actions variables
+	//    (vars.ANTHROPIC_BASE_URL / vars.OPENAI_BASE_URL) are visible to the bash script.
+	//    GitHub Actions variables are NOT automatically available as process env vars —
+	//    they must be mapped explicitly in the step env block.
+	// 3. Merge engine.env so any user override of the secret or base URL takes effect
+	//    (e.g. GitHub App-minted tokens: ANTHROPIC_API_KEY: ${{ steps.app.outputs.token }}).
+	// 4. Merge agentConfig.Env for consistency with the agent execution step.
+	env := map[string]string{
+		route.SecretEnvVar: route.SecretExpr,
+	}
+	if route.BaseURLEnvVar != "" {
+		env[route.BaseURLEnvVar] = fmt.Sprintf("${{ vars.%s || '' }}", route.BaseURLEnvVar)
+	}
+	if data != nil && data.EngineConfig != nil && len(data.EngineConfig.Env) > 0 {
+		maps.Copy(env, data.EngineConfig.Env)
+	}
+	agentConfig := getAgentConfig(data)
+	if agentConfig != nil && len(agentConfig.Env) > 0 {
+		maps.Copy(env, agentConfig.Env)
+	}
 
 	yaml.WriteString("      - name: Verify engine API access\n")
 	fmt.Fprintf(yaml, "        id: %s\n", constants.ModelsCheckStepID)
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          %s: %s\n", route.SecretEnvVar, route.SecretExpr)
-	// Always include the base URL env var in the step's env so that GitHub Actions variables
-	// (vars.ANTHROPIC_BASE_URL / vars.OPENAI_BASE_URL) are available to the bash script.
-	// GitHub Actions variables are NOT automatically available as process env vars in steps —
-	// they must be explicitly mapped here. When the user has explicitly configured it in
-	// engine.env, use that value; otherwise fall back to the GitHub Actions variable.
-	if route.BaseURLEnvVar != "" {
-		if route.BaseURLEnvExpr != "" {
-			fmt.Fprintf(yaml, "          %s: %s\n", route.BaseURLEnvVar, route.BaseURLEnvExpr)
-		} else {
-			fmt.Fprintf(yaml, "          %s: ${{ vars.%s || '' }}\n", route.BaseURLEnvVar, route.BaseURLEnvVar)
-		}
+
+	// Emit env vars in sorted order for deterministic output (mirrors FormatStepWithCommandAndEnv)
+	envKeys := make([]string, 0, len(env))
+	for k := range env {
+		envKeys = append(envKeys, k)
 	}
+	sort.Strings(envKeys)
+	for _, k := range envKeys {
+		fmt.Fprintf(yaml, "          %s: %s\n", k, yamlStringValue(env[k]))
+	}
+
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw\n")
 
-	// When BaseURLEnvVar is set, resolve the models URL at runtime to support custom API endpoints.
-	// The user may have configured ANTHROPIC_BASE_URL or OPENAI_BASE_URL in engine.env to point to
-	// a custom API proxy (e.g., enterprise gateway, Azure OpenAI, internal LLM router).
-	// We strip any trailing slash from the base URL and append the models path.
-	// If the env var is empty/unset, we fall back to the default compiled-in URL.
+	// Resolve the models URL at runtime. When the base URL env var is set (either by the user
+	// via engine.env or via a GitHub Actions variable), strip any trailing slash and append the
+	// models path. Fall back to the compiled-in default URL when the env var is empty.
 	if route.BaseURLEnvVar != "" && route.ModelsPath != "" {
 		fmt.Fprintf(yaml, "          if [ -n \"${%s:-}\" ]; then\n", route.BaseURLEnvVar)
 		fmt.Fprintf(yaml, "            MODELS_URL=\"${%s%%/}%s\"\n", route.BaseURLEnvVar, route.ModelsPath)

@@ -399,7 +399,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	if mp, ok := engine.(ModelsProvider); ok {
 		if route := mp.GetModelsRoute(data); route != nil {
 			compilerYamlLog.Printf("Generating models check step for engine %s", engine.GetID())
-			c.generateModelsCheckStep(yaml, route)
+			c.generateModelsCheckStep(yaml, route, data)
 		}
 	}
 
