@@ -351,3 +351,60 @@ describe("buildBranchInstruction", () => {
     expect(instruction).not.toContain("NOT from");
   });
 });
+
+describe("checkBranchPushable", () => {
+  const { checkBranchPushable } = require("./pr_helpers.cjs");
+
+  const mockCore = { info: vi.fn(), warning: vi.fn(), error: vi.fn() };
+  beforeEach(() => {
+    global.core = mockCore;
+    vi.clearAllMocks();
+  });
+
+  const makeClient = (defaultBranch, protectionStatus) => ({
+    rest: {
+      repos: {
+        get: vi.fn().mockResolvedValue({ data: { default_branch: defaultBranch } }),
+        getBranchProtection: protectionStatus === null ? vi.fn().mockResolvedValue({}) : vi.fn().mockRejectedValue(Object.assign(new Error("error"), { status: protectionStatus })),
+      },
+    },
+  });
+
+  it("returns null when branch is not default and has no protection rules (404)", async () => {
+    const client = makeClient("main", 404);
+    const result = await checkBranchPushable(client, "owner", "repo", "feature", true);
+    expect(result).toBeNull();
+  });
+
+  it("blocks push when branch is the default branch", async () => {
+    const client = makeClient("main", 404);
+    const result = await checkBranchPushable(client, "owner", "repo", "main", true);
+    expect(result).toContain("default branch");
+  });
+
+  it("blocks push when branch has protection rules", async () => {
+    const client = makeClient("main", null); // null status = successful getBranchProtection response
+    const result = await checkBranchPushable(client, "owner", "repo", "feature", true);
+    expect(result).toContain("protection rules");
+  });
+
+  it("returns null and skips protection check when checkBranchProtection is false", async () => {
+    const client = makeClient("main", null);
+    const result = await checkBranchPushable(client, "owner", "repo", "feature", false);
+    expect(result).toBeNull();
+    expect(client.rest.repos.getBranchProtection).not.toHaveBeenCalled();
+  });
+
+  it("returns error on unexpected protection check failure (5xx)", async () => {
+    const client = makeClient("main", 500);
+    const result = await checkBranchPushable(client, "owner", "repo", "feature", true);
+    expect(result).toContain("Cannot verify branch protection rules");
+  });
+
+  it("returns null and warns on 403 (insufficient permissions)", async () => {
+    const client = makeClient("main", 403);
+    const result = await checkBranchPushable(client, "owner", "repo", "feature", true);
+    expect(result).toBeNull();
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("insufficient permissions"));
+  });
+});
