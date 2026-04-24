@@ -32,6 +32,7 @@ async function listOpenPullRequests(owner, repo) {
  */
 async function filterMergeablePullRequests(owner, repo, pullNumbers) {
   const mergeable = [];
+  const baseRepository = `${owner}/${repo}`.toLowerCase();
 
   for (const pullNumber of pullNumbers) {
     const { data: pull } = await withRetry(
@@ -51,13 +52,15 @@ async function filterMergeablePullRequests(owner, repo, pullNumbers) {
       `fetch pull request #${pullNumber}`
     );
 
-    const isMergeable = pull?.state === "open" && pull?.mergeable === true && pull?.draft !== true;
+    const headRepository = (pull?.head?.repo?.full_name || "").toLowerCase();
+    const isSameRepository = headRepository === baseRepository;
+    const isMergeable = pull?.state === "open" && pull?.mergeable === true && pull?.draft !== true && isSameRepository;
     if (isMergeable) {
       mergeable.push(pullNumber);
       continue;
     }
 
-    core.info(`Skipping PR #${pullNumber}: mergeable=${String(pull?.mergeable)}, state=${pull?.state || "unknown"}, draft=${String(Boolean(pull?.draft))}`);
+    core.info(`Skipping PR #${pullNumber}: mergeable=${String(pull?.mergeable)}, state=${pull?.state || "unknown"}, draft=${String(Boolean(pull?.draft))}, head_repo=${headRepository || "unknown"}`);
   }
 
   return mergeable;

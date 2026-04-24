@@ -51,9 +51,9 @@ describe("update_pull_request_branches", () => {
   it("updates only mergeable pull requests", async () => {
     mockGithub.paginate.mockResolvedValue([{ number: 1 }, { number: 2 }, { number: 3 }]);
     mockGithub.rest.pulls.get.mockImplementation(async ({ pull_number }) => {
-      if (pull_number === 1) return { data: { state: "open", mergeable: true, draft: false } };
-      if (pull_number === 2) return { data: { state: "open", mergeable: false, draft: false } };
-      return { data: { state: "open", mergeable: true, draft: false } };
+      if (pull_number === 1) return { data: { state: "open", mergeable: true, draft: false, head: { repo: { full_name: "owner/repo" } } } };
+      if (pull_number === 2) return { data: { state: "open", mergeable: false, draft: false, head: { repo: { full_name: "owner/repo" } } } };
+      return { data: { state: "open", mergeable: true, draft: false, head: { repo: { full_name: "owner/repo" } } } };
     });
     mockGithub.rest.pulls.updateBranch.mockResolvedValue({ data: {} });
 
@@ -74,7 +74,7 @@ describe("update_pull_request_branches", () => {
 
   it("continues on non-fatal updateBranch failures", async () => {
     mockGithub.paginate.mockResolvedValue([{ number: 7 }]);
-    mockGithub.rest.pulls.get.mockResolvedValue({ data: { state: "open", mergeable: true, draft: false } });
+    mockGithub.rest.pulls.get.mockResolvedValue({ data: { state: "open", mergeable: true, draft: false, head: { repo: { full_name: "owner/repo" } } } });
     const err = new Error("Update branch failed");
     // @ts-ignore
     err.status = 422;
@@ -86,14 +86,26 @@ describe("update_pull_request_branches", () => {
 
   it("ignores draft pull requests when filtering mergeable pull requests", async () => {
     mockGithub.rest.pulls.get.mockImplementation(async ({ pull_number }) => {
-      if (pull_number === 1) return { data: { state: "open", mergeable: true, draft: true } };
-      if (pull_number === 2) return { data: { state: "open", mergeable: true, draft: false } };
-      return { data: { state: "open", mergeable: false, draft: false } };
+      if (pull_number === 1) return { data: { state: "open", mergeable: true, draft: true, head: { repo: { full_name: "owner/repo" } } } };
+      if (pull_number === 2) return { data: { state: "open", mergeable: true, draft: false, head: { repo: { full_name: "owner/repo" } } } };
+      return { data: { state: "open", mergeable: false, draft: false, head: { repo: { full_name: "owner/repo" } } } };
     });
 
     const result = await moduleUnderTest.filterMergeablePullRequests("owner", "repo", [1, 2, 3]);
 
     expect(result).toEqual([2]);
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping PR #1"));
+  });
+
+  it("ignores fork pull requests that cannot be updated by repository token", async () => {
+    mockGithub.rest.pulls.get.mockImplementation(async ({ pull_number }) => {
+      if (pull_number === 1) return { data: { state: "open", mergeable: true, draft: false, head: { repo: { full_name: "fork-owner/repo" } } } };
+      return { data: { state: "open", mergeable: true, draft: false, head: { repo: { full_name: "owner/repo" } } } };
+    });
+
+    const result = await moduleUnderTest.filterMergeablePullRequests("owner", "repo", [1, 2]);
+
+    expect(result).toEqual([2]);
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("head_repo=fork-owner/repo"));
   });
 });
