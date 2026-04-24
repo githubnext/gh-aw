@@ -302,23 +302,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// to avoid double-filtering: the gateway uses the same guard policy for the agent phase.
 	c.generateStopDIFCProxyStep(yaml, data)
 
-	// Add pre-agent-steps (if any) before MCP setup so they can install/configure MCP dependencies
-	// that the gateway may reference when it starts.
-	c.generatePreAgentSteps(yaml, data)
-
-	// Add MCP setup
-	if err := c.generateMCPSetup(yaml, data.Tools, engine, data); err != nil {
-		return fmt.Errorf("failed to generate MCP setup: %w", err)
-	}
-
-	// Mount MCP servers as CLI tools (runs after gateway is started)
-	c.generateMCPCLIMountStep(yaml, data)
-
 	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
 	// No longer generated in the main job steps
 
 	// Download activation artifact from activation job (contains aw_info.json and prompt.txt).
 	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
+	// This must happen BEFORE pre-agent-steps so the base-branch snapshot
+	// (saved in /tmp/gh-aw/base/ inside the artifact) is available for the restore step below.
 	compilerYamlLog.Print("Adding activation artifact download step")
 	activationArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName
 	yaml.WriteString("      - name: Download activation artifact\n")
@@ -347,6 +337,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// PR-branch-injected files (e.g. forked skill/instruction files) with trusted base content.
 	// The .github/mcp.json file is also removed since it may come from the PR branch.
 	// The folder and file lists match those used in the save step (derived from engine registry).
+	//
+	// IMPORTANT: This must run BEFORE pre-agent-steps (below) so that APM-restored skills
+	// placed in .github/skills/ by pre-agent-steps are not clobbered by this restore.
 	if ShouldGeneratePRCheckoutStep(data) {
 		registry := GetGlobalEngineRegistry()
 		generateRestoreBaseGitHubFoldersStep(yaml,
@@ -354,6 +347,21 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			registry.GetAllAgentManifestFiles(),
 		)
 	}
+
+	// Add pre-agent-steps (if any) after base-branch restore but before MCP setup.
+	// Running after base restore ensures APM-restored skills (.github/skills/) are not
+	// overwritten by the restore step above in PR context.
+	// Running before MCP setup ensures pre-agent-steps can install/configure MCP
+	// dependencies that the gateway may reference when it starts.
+	c.generatePreAgentSteps(yaml, data)
+
+	// Add MCP setup
+	if err := c.generateMCPSetup(yaml, data.Tools, engine, data); err != nil {
+		return fmt.Errorf("failed to generate MCP setup: %w", err)
+	}
+
+	// Mount MCP servers as CLI tools (runs after gateway is started)
+	c.generateMCPCLIMountStep(yaml, data)
 
 	// Collect artifact paths for unified upload at the end
 	var artifactPaths []string
