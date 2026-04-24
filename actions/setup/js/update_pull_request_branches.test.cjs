@@ -29,6 +29,9 @@ describe("update_pull_request_branches", () => {
       paginate: vi.fn(),
       graphql: vi.fn(),
       rest: {
+        issues: {
+          createComment: vi.fn(),
+        },
         pulls: {
           list: vi.fn(),
           get: vi.fn(),
@@ -37,6 +40,8 @@ describe("update_pull_request_branches", () => {
       },
     };
     mockContext = {
+      runId: 123,
+      serverUrl: "https://github.com",
       repo: {
         owner: "owner",
         repo: "repo",
@@ -70,6 +75,19 @@ describe("update_pull_request_branches", () => {
       repo: "repo",
       pull_number: 3,
     });
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledTimes(2);
+    expect(mockGithub.rest.issues.createComment).toHaveBeenNthCalledWith(1, {
+      owner: "owner",
+      repo: "repo",
+      issue_number: 1,
+      body: expect.stringContaining("[View workflow run](https://github.com/owner/repo/actions/runs/123)"),
+    });
+    expect(mockGithub.rest.issues.createComment).toHaveBeenNthCalledWith(2, {
+      owner: "owner",
+      repo: "repo",
+      issue_number: 3,
+      body: expect.stringContaining("[View workflow run](https://github.com/owner/repo/actions/runs/123)"),
+    });
   });
 
   it("continues on non-fatal updateBranch failures", async () => {
@@ -82,6 +100,7 @@ describe("update_pull_request_branches", () => {
 
     await expect(moduleUnderTest.main()).resolves.not.toThrow();
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Skipping PR #7"));
+    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
   it("ignores draft pull requests when filtering mergeable pull requests", async () => {

@@ -4,6 +4,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { withRetry, isTransientError, sleep } = require("./error_recovery.cjs");
 const { fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 const LIST_PULL_REQUESTS_PER_PAGE = 100;
 const UPDATE_DELAY_MS = 1000;
@@ -109,14 +110,33 @@ async function updatePullRequestBranch(owner, repo, pullNumber) {
 }
 
 /**
+ * @param {string} owner
+ * @param {string} repo
+ * @param {number} pullNumber
+ * @param {string} runUrl
+ * @returns {Promise<void>}
+ */
+async function addMaintenanceUpdateComment(owner, repo, pullNumber, runUrl) {
+  const body = `🛠️ Agentic Maintenance updated this pull request branch.\n\n[View workflow run](${runUrl})`;
+  await github.rest.issues.createComment({
+    owner,
+    repo,
+    issue_number: pullNumber,
+    body,
+  });
+}
+
+/**
  * Update all mergeable PR branches.
  * @returns {Promise<void>}
  */
 async function main() {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
 
   core.info(`Updating pull request branches in ${owner}/${repo}`);
+  core.info(`Run URL: ${runUrl}`);
   await fetchAndLogRateLimit(github, "update_pull_request_branches_start");
 
   const openPullRequests = await listOpenPullRequests(owner, repo);
@@ -136,6 +156,7 @@ async function main() {
     try {
       core.info(`Updating branch for PR #${pullNumber}`);
       await updatePullRequestBranch(owner, repo, pullNumber);
+      await addMaintenanceUpdateComment(owner, repo, pullNumber, runUrl);
       updatedCount++;
     } catch (error) {
       if (isNonFatalUpdateBranchError(error)) {
