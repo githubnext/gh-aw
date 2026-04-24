@@ -33,7 +33,13 @@ describe("setup_comment_memory_files", () => {
     delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
   });
 
-  it("extracts memory entries from managed comment body", async () => {
+  it("extracts memory entries from new code-fence format", async () => {
+    const module = await import("./setup_comment_memory_files.cjs");
+    const entries = module.extractCommentMemoryEntries("``````gh-aw-comment-memory:default\nhello\n``````\n");
+    expect(entries).toEqual([{ memoryId: "default", content: "hello" }]);
+  });
+
+  it("extracts memory entries from legacy xml format (backward compat)", async () => {
     const module = await import("./setup_comment_memory_files.cjs");
     const entries = module.extractCommentMemoryEntries('<gh-aw-comment-memory id="default">\n``````\nhello\n``````\n</gh-aw-comment-memory>');
     expect(entries).toEqual([{ memoryId: "default", content: "hello" }]);
@@ -47,7 +53,7 @@ describe("setup_comment_memory_files", () => {
           listComments: vi.fn().mockResolvedValue({
             data: [
               {
-                body: '<gh-aw-comment-memory id="default">\n``````\nSaved memory\n``````\n</gh-aw-comment-memory>\nfooter',
+                body: "``````gh-aw-comment-memory:default\nSaved memory\n``````\nfooter",
               },
             ],
           }),

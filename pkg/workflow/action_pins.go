@@ -28,7 +28,7 @@ type ActionPinsData = actionpins.ActionPinsData
 
 // formatActionReference formats an action reference with repo, SHA, and version.
 func formatActionReference(repo, sha, version string) string {
-	return actionpins.FormatReference(repo, sha, version)
+	return actionpins.FormatPinnedActionReference(repo, sha, version)
 }
 
 // formatActionCacheKey generates a cache key for action resolution.
@@ -54,7 +54,7 @@ func getActionPin(repo string) string {
 		actionPinsLog.Printf("No embedded pins found for repo: %s", repo)
 		return ""
 	}
-	return actionpins.FormatReference(repo, pins[0].SHA, pins[0].Version)
+	return actionpins.FormatPinnedActionReference(repo, pins[0].SHA, pins[0].Version)
 }
 
 // getCachedActionPinFromResolver returns the pinned action reference for repo,
