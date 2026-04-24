@@ -10,7 +10,7 @@
     "timeout": 240000,
     "taskGeneration": {
       "enabled": true,
-      "maxTasks": 10,
+      "maxTasks": 20,
       "outputDir": "."
     },
     "models": [
@@ -32,6 +32,7 @@
     "model": "openrouter/anthropic/claude-sonnet-4.6",
     "allowedPaths": ["SKILL.md"],
     "validation": [],
-    "maxIterations": 1
+    "maxIterations": 3,
+    "requireCleanGit": false
   }
 }
