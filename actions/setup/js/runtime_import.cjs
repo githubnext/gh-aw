@@ -906,7 +906,10 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
 }
 
 /**
- * Processes all runtime-import macros in the content recursively
+ * Processes all runtime-import macros in the content recursively.
+ * Also handles body-level {{#import}} directives by normalizing them to
+ * {{#runtime-import}} before processing, so that both the frontmatter `imports:`
+ * style and the inline `{{#import filepath}}` style resolve correctly at runtime.
  * @param {string} content - The markdown content containing runtime-import macros
  * @param {string} workspaceDir - The GITHUB_WORKSPACE directory path
  * @param {Set<string>} [importedFiles] - Set of already imported files (for recursion tracking)
@@ -915,6 +918,21 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
  * @returns {Promise<string>} - Content with runtime-import macros replaced by file/URL contents
  */
 async function processRuntimeImports(content, workspaceDir, importedFiles = new Set(), importCache = new Map(), importStack = []) {
+  // Normalize body-level {{#import}} directives to {{#runtime-import}} equivalents.
+  // This resolves the bug where {{#import filepath}} in the markdown body was never injected
+  // into the agent prompt. Both colon and no-colon syntax are supported:
+  //   {{#import filepath}}   {{#import? filepath}}
+  //   {{#import: filepath}}  {{#import?: filepath}}
+  const bodyImportRe = /\{\{#import(\?)?(?:[ \t]+|[ \t]*:[ \t]*)([^\}]+?)\}\}/g;
+  if (bodyImportRe.test(content)) {
+    bodyImportRe.lastIndex = 0;
+    content = content.replace(bodyImportRe, (_, optional, importPath) => {
+      const trimmedPath = importPath.trim();
+      core.info(`Resolving body-level {{#import}} directive as runtime-import: ${trimmedPath}`);
+      return `{{#runtime-import${optional || ""} ${trimmedPath}}}`;
+    });
+  }
+
   // Pattern to match {{#runtime-import filepath}} or {{#runtime-import? filepath}}
   // Captures: optional flag (?), whitespace, filepath/URL (which may include :startline-endline)
   const pattern = /\{\{#runtime-import(\?)?[ \t]+([^\}]+?)\}\}/g;
@@ -983,9 +1001,11 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
       // Import the file content
       let importedContent = await processRuntimeImport(filepathOrUrl, optional, workspaceDir, startLine, endLine);
 
-      // Recursively process any runtime-import macros in the imported content
-      if (importedContent && /\{\{#runtime-import/.test(importedContent)) {
-        core.info(`Recursively processing runtime-imports in ${filepathWithRange}`);
+      // Recursively process any runtime-import or body-level {{#import}} macros in the
+      // imported content. The recursive call to processRuntimeImports will normalize
+      // any {{#import}} directives before processing them.
+      if (importedContent && /\{\{#(?:runtime-import|import)/.test(importedContent)) {
+        core.info(`Recursively processing imports in ${filepathWithRange}`);
         importedContent = await processRuntimeImports(importedContent, workspaceDir, importedFiles, importCache, [...importStack]);
       }
 

@@ -616,6 +616,61 @@ describe("runtime_import", () => {
           expect(result).toBe("Content");
         }));
     }),
+    describe("body-level {{#import}} directives", () => {
+      (it("should resolve {{#import filepath}} (no colon) as runtime-import", async () => {
+        fs.writeFileSync(path.join(workflowsDir, "import.md"), "Imported content");
+        const result = await processRuntimeImports("Before\n{{#import import.md}}\nAfter", tempDir);
+        expect(result).toBe("Before\nImported content\nAfter");
+      }),
+        it("should resolve {{#import? filepath}} optional variant", async () => {
+          fs.writeFileSync(path.join(workflowsDir, "import.md"), "Optional content");
+          const result = await processRuntimeImports("Before\n{{#import? import.md}}\nAfter", tempDir);
+          expect(result).toBe("Before\nOptional content\nAfter");
+        }),
+        it("should resolve {{#import: filepath}} colon syntax", async () => {
+          fs.writeFileSync(path.join(workflowsDir, "import.md"), "Colon content");
+          const result = await processRuntimeImports("Before\n{{#import: import.md}}\nAfter", tempDir);
+          expect(result).toBe("Before\nColon content\nAfter");
+        }),
+        it("should resolve {{#import?: filepath}} optional colon syntax", async () => {
+          fs.writeFileSync(path.join(workflowsDir, "import.md"), "Optional colon content");
+          const result = await processRuntimeImports("Before\n{{#import?: import.md}}\nAfter", tempDir);
+          expect(result).toBe("Before\nOptional colon content\nAfter");
+        }),
+        it("should return empty string for missing optional {{#import?}} file", async () => {
+          const result = await processRuntimeImports("Before\n{{#import? missing.md}}\nAfter", tempDir);
+          expect(result).toBe("Before\n\nAfter");
+          expect(core.warning).toHaveBeenCalled();
+        }),
+        it("should throw for missing required {{#import}} file", async () => {
+          await expect(processRuntimeImports("Before\n{{#import missing.md}}\nAfter", tempDir)).rejects.toThrow();
+        }),
+        it("should resolve {{#import}} inside a file read via {{#runtime-import}} (nested fix)", async () => {
+          // This is the main bug scenario: a workflow file is loaded via {{#runtime-import}},
+          // and its body contains {{#import shared/broken.md}} which must be resolved.
+          const sharedDir = path.join(workflowsDir, "shared");
+          fs.mkdirSync(sharedDir, { recursive: true });
+          fs.writeFileSync(path.join(sharedDir, "broken.md"), "Shared instructions");
+          // The workflow body contains a body-level {{#import}} directive
+          fs.writeFileSync(path.join(workflowsDir, "my-workflow.md"), "# My Workflow\n\n{{#import shared/broken.md}}\n\nDo the work.");
+          // Simulate the compiled prompt: {{#runtime-import .github/workflows/my-workflow.md}}
+          // (the .github/ prefix is stripped by processRuntimeImport and resolved against the .github folder)
+          const result = await processRuntimeImports("{{#runtime-import .github/workflows/my-workflow.md}}", tempDir);
+          expect(result).toContain("Shared instructions");
+          expect(result).not.toContain("{{#import");
+        }),
+        it("should resolve multiple {{#import}} directives in one file", async () => {
+          fs.writeFileSync(path.join(workflowsDir, "a.md"), "Content A");
+          fs.writeFileSync(path.join(workflowsDir, "b.md"), "Content B");
+          const result = await processRuntimeImports("Before\n{{#import a.md}}\nMiddle\n{{#import b.md}}\nAfter", tempDir);
+          expect(result).toBe("Before\nContent A\nMiddle\nContent B\nAfter");
+        }),
+        it("should not treat {{#importantthing}} (no space/colon) as an import directive", async () => {
+          const content = "Text {{#importantthing}} more text";
+          const result = await processRuntimeImports(content, tempDir);
+          expect(result).toBe(content);
+        }));
+    }),
     describe("Edge Cases", () => {
       (it("should handle very large files", async () => {
         const largeContent = "x".repeat(1e5);
@@ -1027,8 +1082,8 @@ describe("runtime_import", () => {
 
           const result = await processRuntimeImports("{{#runtime-import main.md}}", tempDir);
           expect(result).toBe("Main before\nLevel 1 before\nLevel 2 content\nLevel 1 after\nMain after");
-          expect(core.info).toHaveBeenCalledWith(expect.stringContaining("Recursively processing runtime-imports in main.md"));
-          expect(core.info).toHaveBeenCalledWith(expect.stringContaining("Recursively processing runtime-imports in level1.md"));
+          expect(core.info).toHaveBeenCalledWith(expect.stringContaining("Recursively processing imports in main.md"));
+          expect(core.info).toHaveBeenCalledWith(expect.stringContaining("Recursively processing imports in level1.md"));
         });
 
         it("should handle multiple recursive imports at different levels", async () => {
