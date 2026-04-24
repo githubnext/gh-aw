@@ -32,6 +32,27 @@ test.describe('Mobile and Responsive Layout', () => {
     await context.close();
   });
 
+  test('should wrap markdown tables in a scroll wrapper without JavaScript', async ({ browser }) => {
+    const context = await browser.newContext({
+      javaScriptEnabled: false,
+      viewport: { width: 768, height: 1024 },
+    });
+    const page = await context.newPage();
+
+    await page.goto('/gh-aw/reference/engines/');
+    await page.waitForLoadState('domcontentloaded');
+
+    // The rehype plugin should have added the wrapper div at build time
+    const wrapper = page.locator('.sl-markdown-content .table-scroll-wrapper').first();
+    await expect(wrapper).toBeVisible();
+
+    // The table must be a direct child of the wrapper
+    const tableInWrapper = page.locator('.sl-markdown-content .table-scroll-wrapper > table').first();
+    await expect(tableInWrapper).toBeVisible();
+
+    await context.close();
+  });
+
   for (const formFactor of formFactors) {
     test.describe(`${formFactor.name}`, () => {
       test.beforeEach(async ({ page }) => {

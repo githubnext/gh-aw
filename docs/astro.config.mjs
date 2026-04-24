@@ -10,6 +10,7 @@ import mermaid from 'astro-mermaid';
 import { fileURLToPath } from 'node:url';
 import remarkStripEmojis from './src/lib/remark/stripEmojis.js';
 import remarkTableDataLabels from './src/lib/remark/tableDataLabels.js';
+import rehypeTableWrapper from './src/lib/rehype/tableWrapper.js';
 
 /**
  * Creates blog authors config with GitHub profile pictures
@@ -38,6 +39,7 @@ export default defineConfig({
 	trailingSlash: 'always',
 	markdown: {
 		remarkPlugins: [remarkStripEmojis, remarkTableDataLabels],
+		rehypePlugins: [rehypeTableWrapper],
 	},
 	vite: {
 		server: {
