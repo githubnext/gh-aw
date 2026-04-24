@@ -263,13 +263,25 @@ After cleaning the file, adding/improving tests, and **successfully passing all 
      - Type checking: `npm run typecheck` ✓
      - Tests: `npm run test:js` ✓
 
+## Done Conditions
+
+**Your task for this run is complete when you have processed exactly one file and called `safeoutputs.create_pull_request`.** This is the final step — do not continue after this point.
+
+- **STOP immediately after calling `create_pull_request`** — do not loop back to Step 1 to find another file
+- Do not call `create_pull_request` more than once per run
+- Each workflow run is designed to process **exactly one file per run**
+
+If the pull request cannot be created (e.g., one already exists, validation fails, or the tool returns an error):
+- **Do not retry more than once**
+- Call the `noop` safe-output tool to report what happened, then STOP
+
 ## Important Constraints
 
 - **PRIORITIZE files with `@ts-nocheck`** - These files need type checking enabled. Remove `@ts-nocheck`, add proper type annotations, and fix all type errors.
 - **DO NOT change logic** - only make the code cleaner and more maintainable
 - **Always add or improve tests** - the file must have comprehensive test coverage with at least 5-10 test cases
 - **Preserve all functionality** - ensure the file works exactly as before
-- **One file per run** - focus on quality over quantity
+- **One file per run** - focus on quality over quantity; after calling `create_pull_request`, STOP immediately and do not look for another file
 - **Before creating the PR, you MUST complete ALL validation checks**:
   1. Format the code: `cd actions/setup/js && npm run format:cjs`
   2. Lint the code: `cd actions/setup/js && npm run lint:cjs`
