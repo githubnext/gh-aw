@@ -19,11 +19,10 @@ tools:
     key: schema-consistency-cache-${{ github.workflow }}
 timeout-minutes: 30
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[Schema Consistency] "
       expires: 1d
-  - shared/reporting.md
 ---
 # Schema Consistency Checker
 

@@ -267,7 +267,7 @@ The following packages have no README.md:
 The following specifications are outdated:
 
 <details>
-<summary>View stale specifications (N packages)</summary>
+<summary><b>View stale specifications (N packages)</b></summary>
 
 #### `parser` — Stale by 42 days
 
@@ -284,7 +284,7 @@ The following specifications are outdated:
 ### 🔄 Cross-Package Inconsistencies
 
 <details>
-<summary>View inconsistencies (N issues)</summary>
+<summary><b>View inconsistencies (N issues)</b></summary>
 
 #### Terminology Conflict
 
@@ -328,7 +328,7 @@ The following specifications are outdated:
 1. **Be thorough**: Check ALL packages, not just a sample
 2. **Be precise**: Reference exact file paths, function names, and dates
 3. **Be actionable**: Every finding should have a clear recommendation
-4. **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+4. **Report Formatting**: Use h3 (`###`) or lower for all headers in your report. Never use h1 (`#`) or h2 (`##`) — these are reserved for the issue title. Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
 5. **Use progressive disclosure**: Wrap details in `<details>` tags
 6. **One issue per run**: The `max: 1` limit ensures no issue spam
 7. **Skip if open**: The `skip-if-match` rule prevents duplicate issues

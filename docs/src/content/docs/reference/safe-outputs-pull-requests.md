@@ -457,12 +457,15 @@ Protection covers three categories:
 
 - `.github/` — covers all GitHub Actions workflows, Dependabot config, and other repository-level security settings.
 - `.agents/` — covers generic agent instruction and configuration files stored in the `.agents/` directory.
+- `.githooks/` — covers repository-tracked git hook scripts.
+- `.husky/` — covers Husky-managed git hook scripts.
 
-**4. Repository access control files** — matched by filename anywhere in the repository:
+**4. Repository governance files** — matched by filename anywhere in the repository:
 
 | File | Description |
 |------|-------------|
 | `CODEOWNERS` | Governs required code reviewers; valid at the repository root, `.github/`, or `docs/` |
+| `DESIGN.md` | Defines persistent design-system guidance for coding agents |
 
 > [!NOTE]
-> Runtime manifests and access control files (`CODEOWNERS`) are matched by **basename only** (the filename without its directory path), so they are protected regardless of where they appear in the repository. Path-prefix rules (`.github/`, `.agents/`, `.claude/`, `.codex/`) match the full relative path from the repository root.
+> Runtime manifests and governance files (`CODEOWNERS`, `DESIGN.md`) are matched by **basename only** (the filename without its directory path), so they are protected regardless of where they appear in the repository. Path-prefix rules (`.github/`, `.agents/`, `.githooks/`, `.husky/`, `.claude/`, `.codex/`) match the full relative path from the repository root.

@@ -679,6 +679,25 @@ When developing a new command:
 ### Go Code Style
 - **ALWAYS use `any` instead of `interface{}`** - Use the modern `any` type alias (Go 1.18+) for consistency across the codebase
 
+### Claude Engine Tool Enforcement Security Model
+
+When adding code to `pkg/workflow/claude_engine.go` or `pkg/workflow/claude_tools.go`, be aware of how Claude's permission mode affects tool enforcement:
+
+**Two permission modes are used at runtime:**
+
+1. **`acceptEdits` (default)** — Claude Code honors `--allowed-tools` as the effective tool boundary. Workflow `tools:` and `mcp-servers: allowed:` restrictions are enforced client-side.
+
+2. **`bypassPermissions`** — Claude Code silently ignores `--allowed-tools`. Every tool exposed by the MCP gateway is reachable regardless of the workflow's declared tool configuration. This mode is only used when the workflow grants unrestricted bash access (e.g., `bash: "*"`, `bash: [":*"]`, or `bash: null`).
+
+**Security boundary in `bypassPermissions` mode:**
+When `bypassPermissions` is active, the **MCP gateway `allowed:` filter is the sole effective tool boundary**. The compiled `tools` field in the gateway configuration (`/tmp/gh-aw/mcp-config/mcp-servers.json`) controls which tools each MCP server exposes. Gateway-side enforcement applies regardless of what the agent requests.
+
+**Implication for code changes:**
+- `hasBashWildcardInTools()` in `claude_tools.go` determines which mode is selected — changes here affect the security boundary
+- `computeAllowedClaudeToolsString()` builds the `--allowed-tools` string — only effective in `acceptEdits` mode
+- `convert_gateway_config_claude.sh` preserves the `tools` field from gateway output — this is what enforces restrictions in `bypassPermissions` mode
+- Do not remove or weaken either enforcement layer; they complement each other for different access scenarios
+
 ### Channel Lifecycle Guidelines
 
 Go channels require explicit lifecycle management to prevent goroutine leaks and resource exhaustion. Follow these guidelines when working with channels:

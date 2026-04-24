@@ -43,7 +43,7 @@ func NewPRCommand() *cobra.Command {
 		Long: `Pull request management utilities for transferring PRs between repositories.
 
 This command provides tools for transferring pull requests from one repository
-to another, including the code changes, title, and description. Useful for
+to another, including the code changes, title, and body. Useful for
 migrating work from trial repositories to production repositories.
 
 Available subcommands:
@@ -84,7 +84,7 @@ The command will:
 1. Fetch the PR details (title, body, changes)
 2. Apply changes as a single squashed commit
 3. Create a new PR in the target repository
-4. Copy the original title and description`,
+4. Copy the original title and body`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			prURL := args[0]

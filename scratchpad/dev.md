@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 6.9
-**Last Updated**: 2026-04-23
+**Version**: 7.0
+**Last Updated**: 2026-04-24
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2932,6 +2932,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v7.0 (2026-04-24): Maintenance tone scan — fixed 1 tone issue: `mcp_logs_guardrails.md` (1 fix: "Add more sophisticated query suggestions"→"Add context-aware query suggestions"). Coverage: 64 spec files (no new files).
 - v6.9 (2026-04-23): Maintenance tone scan — fixed 1 tone issue: `agents/hierarchical-agents-quickstart.md` (1 fix: "helps you quickly understand and use"→"explains...and their operational usage"). Coverage: 64 spec files (no new files).
 - v6.8 (2026-04-22): Maintenance tone scan — 0 tone issues found. Documented 4 new features from pending changesets: (1) `label_command` trigger with `status-comment: true` and `reaction: eyes` defaults; (2) GHE support via `configure_gh_for_ghe.sh`; (3) `gh aw audit diff` and `gh aw audit report` commands added to CLI quick reference and Command Categories; (4) container image pinning by digest (PR #27762: `ContainerPin` struct in `pkg/actionpins`, compiler resolves mutable tags to immutable SHA-256 digests). Coverage: 64 spec files (no new files).
 - v6.7 (2026-04-21): Maintenance tone scan — 0 tone issues found. Added Agent Output Metrics section documenting OTLP conclusion span attributes emitted from `agent_output.json` (PR #27495: metrics now emitted on all outcomes including failures and timeouts; new attributes: `gh-aw.error.count`, `gh-aw.error.messages`, `gh-aw.output.item_count`, `gh-aw.output.item_types`). Coverage: 64 spec files (no new files).

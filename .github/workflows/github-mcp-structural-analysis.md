@@ -23,12 +23,11 @@ tools:
   cache-memory:
     key: mcp-response-analysis-${{ github.workflow }}
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[mcp-analysis] "
       expires: 1d
   - shared/python-dataviz.md
-  - shared/reporting.md
 
 features:
   mcp-cli: true

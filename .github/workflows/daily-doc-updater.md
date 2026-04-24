@@ -111,6 +111,11 @@ For each closed issue:
     2. Search for merged PRs in a tight window around issue closure (prefer ±60 minutes) that modify `pkg/<package>/README.md`.
     3. Example query: `repo:${{ github.repository }} is:pr is:merged merged:>=<issue_closed_at-60m> merged:<=<issue_closed_at+60m> path:pkg/<package>/README.md`.
     4. If such a PR exists and the README change fully resolves the issue gap, treat the issue as already addressed and skip it.
+  - If the fallback heuristic still finds no PR, run a direct content check before Step 2:
+    1. Parse the issue body for referenced file paths and the specific missing symbols/constants/phrases.
+    2. Read only those referenced files directly.
+    3. Verify whether each listed gap is still present.
+    4. If all listed items are already documented, treat the issue as already addressed and skip it (do not continue to Step 2 for this issue).
   - Otherwise, treat it as an unaddressed gap and follow the normal Step 2 flow.
 - **closed as not_planned**: Do not create documentation based solely on this issue. Instead, cross-reference the issue's subject matter against commits from the same 7-day window (Step 2). If a related code change is found, treat it as a new documentation gap (independent of the original issue decision) and follow the normal Step 2 flow for that code change.
 

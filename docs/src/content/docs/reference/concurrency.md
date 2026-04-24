@@ -23,11 +23,9 @@ Workflow-level concurrency groups include the workflow name plus context-specifi
 
 This ensures workflows on different issues, PRs, or branches run concurrently without interference.
 
-For label-triggered workflows, the concurrency group includes `github.event.label.name` as an additional segment. This prevents cross-label cancellation when multiple labels are added to the same PR or issue simultaneously: each label event gets its own distinct group, so workflows triggered by different labels do not cancel each other.
-
 ## Per-Engine Concurrency
 
-The default per-engine pattern `gh-aw-{engine-id}` ensures only one agent job runs per engine across all workflows, preventing AI resource exhaustion. The group includes only the engine ID and `gh-aw-` prefix - workflow name, issue/PR numbers, and branches are excluded.
+The default per-engine pattern `gh-aw-{engine-id}` ensures only one agent job runs per engine across all workflows, preventing AI resource exhaustion. The group includes only the engine ID and `gh-aw-` prefix — workflow name, issue/PR numbers, and branches are excluded.
 
 ```yaml wrap
 jobs:
@@ -107,13 +105,6 @@ concurrency:
 
 This generates a unique job-level concurrency group per dispatched run, preventing fan-out cancellations while preserving the per-workflow concurrency group at the workflow level.
 
-Example usage:
-
-```yaml wrap
-concurrency:
-  job-discriminator: ${{ inputs.finding_id }}
-```
-
 Common expressions:
 
 | Scenario | Expression |
@@ -132,7 +123,5 @@ Common expressions:
 
 ## Related Documentation
 
-- [AI Engines](/gh-aw/reference/engines/) - Engine configuration and capabilities
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter reference
-- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Overall workflow organization
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output processing and job configuration

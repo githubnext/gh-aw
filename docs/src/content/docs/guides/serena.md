@@ -14,7 +14,7 @@ sidebar:
 
 ### Recommended: Import shared workflow
 
-The preferred way to add Serena is to import the shared workflow, which configures the complete MCP server automatically:
+The preferred way to add Serena is to copy the file [`shared/mcp/serena.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena.md) into your repo and import it into your workflow, which configures the complete MCP server automatically:
 
 ```aw wrap
 ---
@@ -22,6 +22,7 @@ on: issues
 engine: copilot
 permissions:
   contents: read
+# NOTE: first copy `shared/mcp/serena.md` into your repository before importing it
 imports:
   - uses: shared/mcp/serena.md
     with:
@@ -29,7 +30,7 @@ imports:
 ---
 ```
 
-For Go-only workflows, use the convenience wrapper:
+For Go-only workflows, use the convenience wrapper (copy [`shared/mcp/serena-go.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena-go.md) into your repository before importing it):
 
 ```aw wrap
 ---
@@ -37,6 +38,7 @@ on: issues
 engine: copilot
 permissions:
   contents: read
+# NOTE: first copy `shared/mcp/serena-go.md` into your repository before importing it
 imports:
   - shared/mcp/serena-go.md
 ---
@@ -81,22 +83,14 @@ imports:
       languages: ["go", "typescript"]
 ```
 
-The shared workflow configures the full Serena MCP server (container image, entrypoint, workspace mount) explicitly. Compiling a workflow that still uses `tools.serena` now fails with an error:
-
-```
-✖ 'tools.serena' has been removed. Use the shared/mcp/serena.md workflow instead:
-  imports:
-    - uses: shared/mcp/serena.md
-      with:
-        languages: ["go", "typescript"]
-```
+The shared workflow configures the full Serena MCP server (container image, entrypoint, workspace mount) explicitly.
 
 ## Language Support
 
 Serena supports **30+ programming languages** through Language Server Protocol (LSP):
 
 | Category | Languages |
-|----------|-----------|
+| ---------- | ----------- |
 | **Systems** | C, C++, Rust, Go, Zig |
 | **JVM** | Java, Kotlin, Scala, Groovy (partial) |
 | **Web** | JavaScript, TypeScript, Dart, Elm |
@@ -114,7 +108,7 @@ Serena supports **30+ programming languages** through Language Server Protocol (
 Serena provides semantic code tools organized into three categories:
 
 | Category | Tools |
-|----------|-------|
+| ---------- | ------- |
 | **Symbol Navigation** | `find_symbol`, `find_referencing_symbols`, `get_symbol_definition`, `list_symbols_in_file` |
 | **Code Editing** | `replace_symbol_body`, `insert_after_symbol`, `insert_before_symbol`, `delete_symbol` |
 | **Project Analysis** | `find_files`, `get_project_structure`, `analyze_imports` |

@@ -112,7 +112,7 @@ You are the Design Decision Gate, an AI agent that enforces a culture of "decide
 - **Pull Request**: #${{ github.event.pull_request.number || github.event.inputs.pr_number }}
 - **Event**: ${{ github.event_name }}
 - **Actor**: ${{ github.actor }}
-- **Hard Turn Budget**: 10 turns maximum (stop early when done)
+- **Hard Turn Budget**: 15 turns maximum (stop early when done)
 
 ### Mandatory Efficiency Rules
 

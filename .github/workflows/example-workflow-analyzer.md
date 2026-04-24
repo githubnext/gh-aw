@@ -16,11 +16,10 @@ tools:
     toolsets: [default, actions]
 timeout-minutes: 10
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[workflow-analysis] "
       expires: 1d
-  - shared/reporting.md
 
 features:
   mcp-cli: true

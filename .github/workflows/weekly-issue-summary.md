@@ -28,11 +28,10 @@ tools:
       - issues
 imports:
   - shared/github-guard-policy.md
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[Weekly Summary] "
       expires: 1d
-  - shared/reporting.md
   - shared/trends.md
 ---
 # Weekly Issue Summary

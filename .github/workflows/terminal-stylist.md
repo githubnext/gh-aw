@@ -15,12 +15,11 @@ timeout-minutes: 10
 strict: true
 
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[terminal-stylist] "
       expires: 1d
   - shared/mcp/serena-go.md
-  - shared/reporting.md
 
 tools:
   github:

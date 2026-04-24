@@ -339,6 +339,41 @@ timeout-minutes: 60
 | `max-turns` | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | Iteration budget (Claude only) |
 | `max-continuations` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | Autopilot run budget (Copilot only) |
 
+## Claude Tool Enforcement Security Model
+
+Claude Code uses one of two permission modes at runtime, and which mode is selected determines whether the declared `tools:` allowlist is enforced:
+
+### `acceptEdits` mode (default)
+
+By default, gh-aw starts Claude Code with `--permission-mode acceptEdits`. In this mode, Claude honors the `--allowed-tools` flag. The workflow's declared `tools:` and `mcp-servers: allowed:` configuration is compiled into an explicit allowlist and passed to the Claude CLI. Only the tools listed there are accessible to the agent.
+
+### `bypassPermissions` mode (unrestricted bash)
+
+When the workflow grants unrestricted bash access — `bash: "*"`, `bash: [":*"]`, or `bash: null` — gh-aw switches to `--permission-mode bypassPermissions`. **In this mode, Claude Code silently ignores `--allowed-tools`.** Every tool exposed by the MCP gateway is reachable regardless of the workflow's declared tool configuration.
+
+> [!WARNING]
+> Do not rely on `tools:` or `mcp-servers: allowed:` for security guarantees when unrestricted bash is granted. In `bypassPermissions` mode, the agent can already run arbitrary shell commands, so `--allowed-tools` provides no meaningful additional boundary.
+
+### Gateway-side enforcement
+
+The **MCP gateway's `allowed:` filter is the sole effective tool boundary in `bypassPermissions` mode** (and a second layer of enforcement in `acceptEdits` mode). gh-aw compiles the `allowed:` list from each `mcp-servers:` entry into the gateway configuration before the agent starts. The gateway enforces this list server-side, regardless of what the agent requests.
+
+```yaml wrap
+mcp-servers:
+  notion:
+    container: "mcp/notion"
+    allowed: ["search_pages", "get_page"]   # enforced at gateway level
+```
+
+### Summary
+
+| Workflow config | Permission mode | `--allowed-tools` enforced? | Gateway `allowed:` enforced? |
+|---|---|:---:|:---:|
+| No unrestricted bash | `acceptEdits` | ✅ Yes | ✅ Yes |
+| `bash: "*"` / `bash: [":*"]` / `bash: null` | `bypassPermissions` | ❌ No | ✅ Yes |
+
+For workflows that must restrict which MCP tools are accessible, always specify `allowed:` on each `mcp-servers:` entry. This applies regardless of whether unrestricted bash is used.
+
 ## Related Documentation
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete configuration reference

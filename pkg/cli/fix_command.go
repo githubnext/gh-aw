@@ -345,7 +345,11 @@ imports:
 `
 
 func scaffoldSerenaSharedWorkflowIfNeeded(filePath string, appliedCodemods []string, content string, verbose bool) error {
-	if !wasCodemodApplied(appliedCodemods, "Migrate tools.serena to shared Serena import") {
+	if !wasAnyCodemodApplied(
+		appliedCodemods,
+		"Migrate tools.serena to shared Serena import",
+		"Migrate tools.serena or engine.tools.serena to shared Serena import",
+	) {
 		return nil
 	}
 	if !strings.Contains(content, "shared/mcp/serena.md") {
@@ -377,6 +381,15 @@ func scaffoldSerenaSharedWorkflowIfNeeded(filePath string, appliedCodemods []str
 
 func wasCodemodApplied(appliedCodemods []string, codemodName string) bool {
 	return slices.Contains(appliedCodemods, codemodName)
+}
+
+func wasAnyCodemodApplied(appliedCodemods []string, codemodNames ...string) bool {
+	for _, codemodName := range codemodNames {
+		if wasCodemodApplied(appliedCodemods, codemodName) {
+			return true
+		}
+	}
+	return false
 }
 
 func resolveWorkflowRoot(filePath string) string {

@@ -506,13 +506,14 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		detectionEngineConfig = &EngineConfig{ID: engineSetting}
 	} else {
 		detectionEngineConfig = &EngineConfig{
-			ID:        detectionEngineConfig.ID,
-			Model:     detectionEngineConfig.Model,
-			Version:   detectionEngineConfig.Version,
-			Env:       detectionEngineConfig.Env,
-			Config:    detectionEngineConfig.Config,
-			Args:      detectionEngineConfig.Args,
-			APITarget: detectionEngineConfig.APITarget,
+			ID:           detectionEngineConfig.ID,
+			Model:        detectionEngineConfig.Model,
+			Version:      detectionEngineConfig.Version,
+			Env:          detectionEngineConfig.Env,
+			Config:       detectionEngineConfig.Config,
+			Args:         detectionEngineConfig.Args,
+			APITarget:    detectionEngineConfig.APITarget,
+			DriverScript: detectionEngineConfig.DriverScript,
 		}
 	}
 
@@ -565,6 +566,19 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	// Install the engine in the detection job. The detection job runs on a separate fresh
 	// runner where the agent's installed tools are not available, so we must install them here.
 	installSteps := engine.GetInstallationSteps(threatDetectionData)
+
+	// Ensure node is on PATH when the engine's execution wraps the CLI with a driver
+	// script (see engineRequiresNodeDriver). The detection job does not go through
+	// DetectRuntimeRequirements, so the setup must be emitted here explicitly. Guard
+	// against engines whose install steps already bundle Setup Node.js (Claude/Codex
+	// via BuildStandardNpmEngineInstallSteps) — a duplicate would trip
+	// JobManager.ValidateDuplicateSteps and hard-fail the compile.
+	if engineRequiresNodeDriver(engine) && !installStepsContainNodeSetup(installSteps) {
+		for _, line := range GenerateNodeJsSetupStep() {
+			steps = append(steps, line+"\n")
+		}
+	}
+
 	for _, step := range installSteps {
 		for _, line := range step {
 			steps = append(steps, line+"\n")

@@ -295,7 +295,7 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			// Extract cache-memory config from tools if present
 			compiler := NewCompiler()
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tt.tools)
-			result := engine.computeAllowedClaudeToolsString(tt.tools, nil, cacheMemoryConfig)
+			result := engine.computeAllowedClaudeToolsString(tt.tools, nil, cacheMemoryConfig, nil)
 
 			// Parse expected and actual results into sets for comparison
 			expectedTools := make(map[string]bool)
@@ -351,7 +351,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 			},
-			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write",
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__safeoutputs",
 		},
 		{
 			name: "SafeOutputs with general Write permission - should not add specific Write",
@@ -361,7 +361,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 			},
-			expected: "Edit,ExitPlanMode,Glob,Grep,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write",
+			expected: "Edit,ExitPlanMode,Glob,Grep,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__safeoutputs",
 		},
 		{
 			name:  "No SafeOutputs - should not add Write permission",
@@ -382,7 +382,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				AddComments:        &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 				CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 			},
-			expected: "Bash,BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write",
+			expected: "Bash,BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__safeoutputs",
 		},
 		{
 			name: "SafeOutputs with MCP tools",
@@ -394,7 +394,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 			},
-			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__create_issue,mcp__github__create_pull_request",
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__create_issue,mcp__github__create_pull_request,mcp__safeoutputs",
 		},
 		{
 			name: "SafeOutputs with neutral tools and create-pull-request",
@@ -406,7 +406,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 			},
-			expected: "Bash(echo),Bash(ls),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write",
+			expected: "Bash(echo),Bash(ls),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write,mcp__safeoutputs",
 		},
 	}
 
@@ -415,7 +415,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 			// Extract cache-memory config from tools if present
 			compiler := NewCompiler()
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tt.tools)
-			result := engine.computeAllowedClaudeToolsString(tt.tools, tt.safeOutputs, cacheMemoryConfig)
+			result := engine.computeAllowedClaudeToolsString(tt.tools, tt.safeOutputs, cacheMemoryConfig, nil)
 
 			// Split both expected and result into slices and check each tool is present
 			expectedTools := strings.Split(tt.expected, ",")
@@ -441,6 +441,84 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				if !found {
 					t.Errorf("Unexpected tool '%s' found in result '%s'", actual, result)
 				}
+			}
+		})
+	}
+}
+
+func TestHasBashWildcardInTools(t *testing.T) {
+	tests := []struct {
+		name     string
+		tools    map[string]any
+		expected bool
+	}{
+		{
+			name:     "nil tools",
+			tools:    nil,
+			expected: false,
+		},
+		{
+			name:     "empty tools (no bash key)",
+			tools:    map[string]any{},
+			expected: false,
+		},
+		{
+			name: "bash with specific commands only",
+			tools: map[string]any{
+				"bash": []any{"git", "echo"},
+			},
+			expected: false,
+		},
+		{
+			name: "bash with wildcard *",
+			tools: map[string]any{
+				"bash": []any{"*"},
+			},
+			expected: true,
+		},
+		{
+			name: "bash with colon-wildcard :*",
+			tools: map[string]any{
+				"bash": []any{":*"},
+			},
+			expected: true,
+		},
+		{
+			name: "bash with wildcard mixed with other commands",
+			tools: map[string]any{
+				"bash": []any{"git", "*", "echo"},
+			},
+			expected: true,
+		},
+		{
+			name: "bash with nil value (non-list — unrestricted)",
+			tools: map[string]any{
+				"bash": nil,
+			},
+			expected: true,
+		},
+		{
+			name: "bash with true value (non-list — unrestricted)",
+			tools: map[string]any{
+				"bash": true,
+			},
+			expected: true,
+		},
+		{
+			name: "no bash key at all",
+			tools: map[string]any{
+				"edit":   nil,
+				"github": map[string]any{},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hasBashWildcardInTools(tt.tools)
+			if result != tt.expected {
+				t.Errorf("hasBashWildcardInTools(%v): expected %v, got %v", tt.tools, tt.expected, result)
 			}
 		})
 	}

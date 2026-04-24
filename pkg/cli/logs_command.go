@@ -76,6 +76,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref main                # Filter logs by branch or tag
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref feature-xyz         # Filter logs by feature branch
   ` + string(constants.CLIExtensionPrefix) + ` logs --filtered-integrity      # Filter logs with DIFC (data integrity flow control) integrity-filtered items in the gateway logs
+  ` + string(constants.CLIExtensionPrefix) + ` logs --no-staged               # Exclude staged workflow runs from results
 
   # Run ID range filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000       # Filter runs after run ID 1000
@@ -91,6 +92,8 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --format markdown         # Generate cross-run security audit report in Markdown
   ` + string(constants.CLIExtensionPrefix) + ` logs --format pretty           # Generate cross-run security audit report in console format
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --format markdown --last 10  # Cross-run report for last 10 runs
+  ` + string(constants.CLIExtensionPrefix) + ` logs --train                   # Train log pattern weights from last 10 runs
+  ` + string(constants.CLIExtensionPrefix) + ` logs my-workflow --train -c 50 # Train log pattern weights from up to 50 runs of a specific workflow
 
   # Cross-repository
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,

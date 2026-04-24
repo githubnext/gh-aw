@@ -1706,6 +1706,38 @@ describe("sendJobConclusionSpan", () => {
     expect(conclusionSpan.status.message).toContain("agent timed_out");
   });
 
+  it("emits a dedicated agent span on cancelled when agent_output mtime is unavailable", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.INPUT_JOB_NAME = "agent";
+    process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
+
+    const startMs = 1_700_000_000_000;
+    const statSpy = vi.spyOn(fs, "statSync").mockImplementation(() => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.startTimeUnixNano).toBe(toNanoString(startMs));
+    expect(BigInt(agentSpan.endTimeUnixNano)).toBeGreaterThan(BigInt(toNanoString(startMs)));
+
+    const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(conclusionSpan.name).toBe("gh-aw.agent.conclusion");
+    expect(agentSpan.parentSpanId).toBe(conclusionSpan.spanId);
+    expect(conclusionSpan.status.code).toBe(2);
+    expect(conclusionSpan.status.message).toContain("agent cancelled");
+  });
+
   it("does not emit a dedicated agent span for non-agent jobs", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);

@@ -73,7 +73,7 @@ Workflow specifications:
   - Local wildcard: "./*.md" or "./dir/*.md" (adds all .md files matching pattern)
   - Version can be tag, branch, or SHA (for remote workflows)
 
-The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
+The -n flag allows you to specify a custom name for the workflow file (not allowed when adding multiple workflows at once).
 The --dir flag allows you to specify the workflow directory (default: .github/workflows).
 The --create-pull-request flag creates a pull request with the workflow changes.
 The --force flag overwrites existing workflow files.
@@ -101,6 +101,11 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
 			disableSecurityScanner, _ := cmd.Flags().GetBool("disable-security-scanner")
+
+			if nameFlag != "" && len(workflows) > 1 {
+				return errors.New("--name flag cannot be used when adding multiple workflows at once")
+			}
+
 			if err := validateEngine(engineOverride); err != nil {
 				return err
 			}

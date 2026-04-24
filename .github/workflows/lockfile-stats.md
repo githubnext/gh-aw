@@ -15,11 +15,10 @@ tools:
 timeout-minutes: 15
 strict: true
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[lockfile-stats] "
       expires: 1d
-  - shared/reporting.md
 features:
   mcp-cli: true
 ---

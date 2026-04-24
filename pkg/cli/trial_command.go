@@ -46,6 +46,7 @@ Auto-merge examples:
 Advanced examples:
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo . # Use current repo as host
   ` + string(constants.CLIExtensionPrefix) + ` trial ./local-workflow.md --clone-repo upstream/repo --repeat 2
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --trigger-context https://github.com/owner/repo/issues/123 # Provide issue context for issue-triggered workflows
 
 Repository modes:
 - Default mode (no flags): Creates a temporary trial repository and simulates execution as if running against the current repository (github.repository context points to current repo)
