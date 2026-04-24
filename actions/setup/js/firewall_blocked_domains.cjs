@@ -12,6 +12,7 @@ const fs = require("fs");
 const path = require("path");
 const { sanitizeDomainName } = require("./sanitize_content_core.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
+const { renderMarkdownTemplate } = require("./render_template.cjs");
 
 /**
  * Parses a single firewall log line
@@ -204,20 +205,7 @@ function generateBlockedDomainsSection(blockedDomains, templatePath) {
   // Build YAML network.allowed list lines
   const yamlNetworkList = blockedDomains.map(domain => `>     - "${domain}"\n`).join("");
 
-  // Build optional gh-proxy tip if api.github.com is blocked
   const hasGitHubApiBlocked = blockedDomains.includes("api.github.com");
-  const ghProxyTip = hasGitHubApiBlocked
-    ? `> **💡 Tip:** \`api.github.com\` is blocked because GitHub API access uses the built-in GitHub tools by default. Instead of adding \`api.github.com\` to \`network.allowed\`, use \`tools.github.mode: gh-proxy\` for direct pre-authenticated GitHub CLI access without requiring network access to \`api.github.com\`:\n` +
-      `>\n` +
-      `> \`\`\`yaml\n` +
-      `> tools:\n` +
-      `>   github:\n` +
-      `>     mode: gh-proxy\n` +
-      `> \`\`\`\n` +
-      `>\n` +
-      `> See [GitHub Tools](https://github.github.com/gh-aw/reference/github-tools/) for more information on \`gh-proxy\` mode.\n` +
-      `>\n`
-    : "";
 
   // Resolve template path: explicit > RUNNER_TEMP (production) > source tree (local dev/test)
   let resolvedTemplatePath = templatePath;
@@ -225,18 +213,20 @@ function generateBlockedDomainsSection(blockedDomains, templatePath) {
     resolvedTemplatePath = process.env.RUNNER_TEMP ? `${process.env.RUNNER_TEMP}/gh-aw/prompts/firewall_blocked_domains.md` : path.join(__dirname, "../md/firewall_blocked_domains.md");
   }
 
+  // First pass: substitute {key} placeholders; has_github_api_blocked becomes "true"/"false"
+  // so renderMarkdownTemplate can evaluate the {{#if {has_github_api_blocked}}} conditional.
+  const rendered = renderTemplateFromFile(resolvedTemplatePath, {
+    domain_count: domainCount,
+    domain_word: domainWord,
+    verb,
+    domain_list: domainList,
+    yaml_network_list: yamlNetworkList,
+    has_github_api_blocked: hasGitHubApiBlocked ? "true" : "false",
+  });
+
+  // Second pass: evaluate {{#if ...}} conditional blocks (e.g. the gh-proxy tip section)
   // Template starts without leading newlines; prepend separator expected by callers
-  return (
-    "\n\n" +
-    renderTemplateFromFile(resolvedTemplatePath, {
-      domain_count: domainCount,
-      domain_word: domainWord,
-      verb,
-      domain_list: domainList,
-      yaml_network_list: yamlNetworkList,
-      gh_proxy_tip: ghProxyTip,
-    })
-  );
+  return "\n\n" + renderMarkdownTemplate(rendered);
 }
 
 module.exports = {
