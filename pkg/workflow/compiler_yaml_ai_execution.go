@@ -31,10 +31,17 @@ func (c *Compiler) generateModelsCheckStep(yaml *strings.Builder, route *ModelsR
 	fmt.Fprintf(yaml, "        id: %s\n", constants.ModelsCheckStepID)
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          %s: %s\n", route.SecretEnvVar, route.SecretExpr)
-	// Pass the custom base URL env var to the step when the user has configured one in engine.env.
-	// This allows the bash script to override the default API endpoint at runtime.
-	if route.BaseURLEnvVar != "" && route.BaseURLEnvExpr != "" {
-		fmt.Fprintf(yaml, "          %s: %s\n", route.BaseURLEnvVar, route.BaseURLEnvExpr)
+	// Always include the base URL env var in the step's env so that GitHub Actions variables
+	// (vars.ANTHROPIC_BASE_URL / vars.OPENAI_BASE_URL) are available to the bash script.
+	// GitHub Actions variables are NOT automatically available as process env vars in steps —
+	// they must be explicitly mapped here. When the user has explicitly configured it in
+	// engine.env, use that value; otherwise fall back to the GitHub Actions variable.
+	if route.BaseURLEnvVar != "" {
+		if route.BaseURLEnvExpr != "" {
+			fmt.Fprintf(yaml, "          %s: %s\n", route.BaseURLEnvVar, route.BaseURLEnvExpr)
+		} else {
+			fmt.Fprintf(yaml, "          %s: ${{ vars.%s || '' }}\n", route.BaseURLEnvVar, route.BaseURLEnvVar)
+		}
 	}
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw\n")

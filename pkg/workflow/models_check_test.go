@@ -347,7 +347,8 @@ Test workflow`
 }
 
 // TestModelsCheckWithoutCustomBaseURLUsesDefaultURL verifies that when no custom base URL
-// is configured, the models check step uses the static default URL directly.
+// is configured, the models check step still declares the base URL env var (mapped from
+// GitHub Actions variables) and uses the default URL as fallback.
 func TestModelsCheckWithoutCustomBaseURLUsesDefaultURL(t *testing.T) {
 	testDir := testutil.TempDir(t, "test-models-check-default-url-*")
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
@@ -372,7 +373,10 @@ Test workflow`
 
 	assert.Contains(t, lockStr, "https://api.anthropic.com/v1/models",
 		"Expected default Anthropic models URL in generated step")
-	// Without custom base URL, MODELS_URL is still set (via the unconditional branch)
+	// Even without explicit engine.env config, the base URL env var should be mapped
+	// from GitHub Actions variables so it can be set via vars.ANTHROPIC_BASE_URL.
+	assert.Contains(t, lockStr, "ANTHROPIC_BASE_URL: ${{ vars.ANTHROPIC_BASE_URL || '' }}",
+		"Expected ANTHROPIC_BASE_URL mapped from GitHub vars in step env")
 	assert.Contains(t, lockStr, "MODELS_URL=",
 		"Expected MODELS_URL to be set in bash script")
 }

@@ -802,6 +802,7 @@ jobs:
         id: models-check
         env:
           OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL || '' }}
         run: |
           mkdir -p /tmp/gh-aw
           if [ -n "${OPENAI_BASE_URL:-}" ]; then
