@@ -488,6 +488,7 @@ jobs:
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       model: ${{ needs.activation.outputs.model }}
+      models_check_failed: ${{ steps.models-check.outputs.models_check_failed || 'false' }}
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
@@ -1022,6 +1023,31 @@ jobs:
       - name: Clean git credentials
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
+      - name: Verify engine API access
+        id: models-check
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          mkdir -p /tmp/gh-aw
+          HTTP_CODE=$(curl -s -o /tmp/gh-aw/models-response.json -w "%{http_code}" \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            "https://api.anthropic.com/v1/models")
+          echo "## Engine API Access" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "models_check_failed=true" >> "$GITHUB_OUTPUT"
+            echo "❌ Models request failed (HTTP ${HTTP_CODE}). The engine secret may be incorrect or outdated." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "models_check_failed=false" >> "$GITHUB_OUTPUT"
+          echo "✅ Engine API access verified (HTTP ${HTTP_CODE})" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Available Models" >> "$GITHUB_STEP_SUMMARY"
+          if command -v jq &>/dev/null && [ -s /tmp/gh-aw/models-response.json ]; then
+            jq -r '(.data // .models // []) | .[] | "- " + (.id // .name // .model // "unknown")' \
+              /tmp/gh-aw/models-response.json >> "$GITHUB_STEP_SUMMARY" 2>/dev/null \
+              || cat /tmp/gh-aw/models-response.json >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -1426,6 +1452,7 @@ jobs:
           GH_AW_ENGINE_ID: "claude"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
+          GH_AW_MODELS_CHECK_FAILED: ${{ needs.agent.outputs.models_check_failed }}
           GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
           GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}

@@ -60,6 +60,9 @@ type GitHubActionStep []string
 //   ├── GetDefaultDetectionModel()
 //   └── GetRequiredSecretNames()
 //
+//   ModelsProvider (models listing - optional)
+//   └── GetModelsRoute()
+//
 //   CodingAgentEngine (composite - backward compatibility)
 //   └── Composes all above interfaces
 //
@@ -249,6 +252,43 @@ type DriverProvider interface {
 	// (located in the setup actions directory) used to wrap CLI execution.
 	// Returns an empty string if no driver is needed.
 	GetDriverScriptName() string
+}
+
+// ModelsRoute holds the configuration for calling an engine's models listing API endpoint.
+// When an engine implements ModelsProvider, the compiler generates a step before agent
+// execution that uses this config to verify API access and report available models.
+type ModelsRoute struct {
+	// URL is the full URL of the models listing endpoint (e.g. "https://api.anthropic.com/v1/models")
+	URL string
+
+	// AuthHeader is the HTTP header name used for authentication (e.g. "x-api-key", "Authorization")
+	AuthHeader string
+
+	// AuthScheme is the optional scheme prefix prepended before the secret value (e.g. "Bearer ")
+	AuthScheme string
+
+	// SecretEnvVar is the env var name that holds the API key (e.g. "ANTHROPIC_API_KEY").
+	// The step will expose this env var inside the bash script via step-level env:.
+	SecretEnvVar string
+
+	// SecretExpr is the GitHub Actions expression that supplies the secret to the env var
+	// (e.g. "${{ secrets.ANTHROPIC_API_KEY }}").
+	SecretExpr string
+
+	// ExtraHeaders is an optional map of additional HTTP headers required by the API
+	// (e.g. {"anthropic-version": "2023-06-01"}).
+	ExtraHeaders map[string]string
+}
+
+// ModelsProvider is an optional interface for engines that support a models listing API endpoint.
+// When implemented, the compiler generates a step before agent execution that calls the
+// endpoint to verify API access and report available models to GITHUB_STEP_SUMMARY.
+// If the request fails, the step records models_check_failed=true in its output and fails
+// the job so the conclusion job can create an issue indicating the secret is incorrect or outdated.
+type ModelsProvider interface {
+	// GetModelsRoute returns the route configuration for the engine's models API endpoint.
+	// Returns nil if the engine does not support model listing.
+	GetModelsRoute(workflowData *WorkflowData) *ModelsRoute
 }
 
 // engineRequiresNodeDriver reports whether the engine's execution command wraps

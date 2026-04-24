@@ -391,6 +391,18 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Generate models check step if the engine supports it.
+	// This step calls the engine's /models endpoint before the agent runs to verify that
+	// the API key is valid, and reports available models to GITHUB_STEP_SUMMARY.
+	// If the request fails, the step sets models_check_failed=true and exits 1 so the
+	// conclusion job can create an issue indicating the secret is incorrect or outdated.
+	if mp, ok := engine.(ModelsProvider); ok {
+		if route := mp.GetModelsRoute(data); route != nil {
+			compilerYamlLog.Printf("Generating models check step for engine %s", engine.GetID())
+			c.generateModelsCheckStep(yaml, route)
+		}
+	}
+
 	// Start CLI proxy on the host before AWF execution. When features.cli-proxy is enabled,
 	// the compiler starts a difc-proxy container on the host that AWF's cli-proxy sidecar
 	// connects to via host.docker.internal:18443.

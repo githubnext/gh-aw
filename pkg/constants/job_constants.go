@@ -194,6 +194,11 @@ const PreActivationAppTokenStepID StepID = "pre-activation-app-token"
 // can pass the value as GH_AW_EFFECTIVE_TOKENS to the footer template renderer.
 const ParseMCPGatewayStepID StepID = "parse-mcp-gateway"
 
+// ModelsCheckStepID is the step ID for the optional engine API models check step in the agent job.
+// Its models_check_failed output is exposed as an agent job output so that the conclusion job
+// can create an issue indicating the secret is incorrect or outdated when the check fails.
+const ModelsCheckStepID StepID = "models-check"
+
 // Output names for pre-activation job steps
 const IsTeamMemberOutput = "is_team_member"
 const StopTimeOkOutput = "stop_time_ok"

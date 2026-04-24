@@ -113,6 +113,29 @@ func (e *ClaudeEngine) GetAgentManifestPathPrefixes() []string {
 	return []string{".claude/"}
 }
 
+// GetModelsRoute returns the Anthropic models API endpoint configuration.
+// This enables a pre-agent step that verifies the ANTHROPIC_API_KEY is valid
+// and reports available Claude models to GITHUB_STEP_SUMMARY.
+// Returns nil when a custom command is specified (secret validation is skipped in that case).
+func (e *ClaudeEngine) GetModelsRoute(workflowData *WorkflowData) *ModelsRoute {
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		return nil
+	}
+	if workflowData != nil && strings.TrimSpace(workflowData.Environment) != "" {
+		return nil
+	}
+	return &ModelsRoute{
+		URL:          "https://api.anthropic.com/v1/models",
+		AuthHeader:   "x-api-key",
+		AuthScheme:   "",
+		SecretEnvVar: "ANTHROPIC_API_KEY",
+		SecretExpr:   "${{ secrets.ANTHROPIC_API_KEY }}",
+		ExtraHeaders: map[string]string{
+			"anthropic-version": "2023-06-01",
+		},
+	}
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	claudeLog.Printf("Generating execution steps for Claude engine: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))

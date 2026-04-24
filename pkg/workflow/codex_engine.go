@@ -119,6 +119,27 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 	}
 }
 
+// GetModelsRoute returns the OpenAI models API endpoint configuration.
+// This enables a pre-agent step that verifies the OpenAI API key is valid
+// and reports available models to GITHUB_STEP_SUMMARY.
+// Returns nil when a custom command is specified (secret validation is skipped in that case).
+func (e *CodexEngine) GetModelsRoute(workflowData *WorkflowData) *ModelsRoute {
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		return nil
+	}
+	if workflowData != nil && strings.TrimSpace(workflowData.Environment) != "" {
+		return nil
+	}
+	return &ModelsRoute{
+		URL:          "https://api.openai.com/v1/models",
+		AuthHeader:   "Authorization",
+		AuthScheme:   "Bearer ",
+		SecretEnvVar: "OPENAI_API_KEY",
+		SecretExpr:   "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
+		ExtraHeaders: map[string]string{},
+	}
+}
+
 // GetAgentManifestFiles returns Codex-specific instruction files that should be
 // treated as security-sensitive manifests.  AGENTS.md is the primary OpenAI
 // Codex agent-instruction file; modifying it can redirect agent behaviour.

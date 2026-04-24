@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -18,6 +19,51 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 			yaml.WriteString(line + "\n")
 		}
 	}
+}
+
+// generateModelsCheckStep generates a step that calls the engine's /models endpoint before the
+// agent runs. The step verifies that the API key is valid, reports available models to
+// GITHUB_STEP_SUMMARY, and sets models_check_failed=true (then exits 1) when the request fails.
+func (c *Compiler) generateModelsCheckStep(yaml *strings.Builder, route *ModelsRoute) {
+	compilerYamlLog.Printf("Generating models check step: url=%s", route.URL)
+
+	yaml.WriteString("      - name: Verify engine API access\n")
+	fmt.Fprintf(yaml, "        id: %s\n", constants.ModelsCheckStepID)
+	yaml.WriteString("        env:\n")
+	fmt.Fprintf(yaml, "          %s: %s\n", route.SecretEnvVar, route.SecretExpr)
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          mkdir -p /tmp/gh-aw\n")
+
+	// Build the curl command with authentication and any extra headers
+	yaml.WriteString("          HTTP_CODE=$(curl -s -o /tmp/gh-aw/models-response.json -w \"%{http_code}\" \\\n")
+	fmt.Fprintf(yaml, "            -H \"%s: %s$%s\" \\\n", route.AuthHeader, route.AuthScheme, route.SecretEnvVar)
+
+	// Add extra headers in deterministic order
+	extraHeaderKeys := make([]string, 0, len(route.ExtraHeaders))
+	for k := range route.ExtraHeaders {
+		extraHeaderKeys = append(extraHeaderKeys, k)
+	}
+	sort.Strings(extraHeaderKeys)
+	for _, k := range extraHeaderKeys {
+		fmt.Fprintf(yaml, "            -H \"%s: %s\" \\\n", k, route.ExtraHeaders[k])
+	}
+
+	fmt.Fprintf(yaml, "            \"%s\")\n", route.URL)
+	yaml.WriteString("          echo \"## Engine API Access\" >> \"$GITHUB_STEP_SUMMARY\"\n")
+	yaml.WriteString("          if [ \"$HTTP_CODE\" -lt 200 ] || [ \"$HTTP_CODE\" -ge 300 ]; then\n")
+	yaml.WriteString("            echo \"models_check_failed=true\" >> \"$GITHUB_OUTPUT\"\n")
+	yaml.WriteString("            echo \"❌ Models request failed (HTTP ${HTTP_CODE}). The engine secret may be incorrect or outdated.\" >> \"$GITHUB_STEP_SUMMARY\"\n")
+	yaml.WriteString("            exit 1\n")
+	yaml.WriteString("          fi\n")
+	yaml.WriteString("          echo \"models_check_failed=false\" >> \"$GITHUB_OUTPUT\"\n")
+	yaml.WriteString("          echo \"✅ Engine API access verified (HTTP ${HTTP_CODE})\" >> \"$GITHUB_STEP_SUMMARY\"\n")
+	yaml.WriteString("          echo \"\" >> \"$GITHUB_STEP_SUMMARY\"\n")
+	yaml.WriteString("          echo \"### Available Models\" >> \"$GITHUB_STEP_SUMMARY\"\n")
+	yaml.WriteString("          if command -v jq &>/dev/null && [ -s /tmp/gh-aw/models-response.json ]; then\n")
+	yaml.WriteString("            jq -r '(.data // .models // []) | .[] | \"- \" + (.id // .name // .model // \"unknown\")' \\\n")
+	yaml.WriteString("              /tmp/gh-aw/models-response.json >> \"$GITHUB_STEP_SUMMARY\" 2>/dev/null \\\n")
+	yaml.WriteString("              || cat /tmp/gh-aw/models-response.json >> \"$GITHUB_STEP_SUMMARY\"\n")
+	yaml.WriteString("          fi\n")
 }
 
 // generateLogParsing generates a step that parses the agent's logs and adds them to the step summary

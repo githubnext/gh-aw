@@ -755,6 +755,23 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
 }
 
 /**
+ * Build a context string when the engine /models API check failed.
+ * A failed models check indicates the engine secret is incorrect or outdated.
+ * @param {boolean} hasModelsCheckFailed - Whether the models check step failed
+ * @returns {string} Formatted context string, or empty string if check passed
+ */
+function buildModelsCheckFailedContext(hasModelsCheckFailed) {
+  if (!hasModelsCheckFailed) {
+    return "";
+  }
+  return (
+    "\n**⚠️ Engine API Access Failed**: The request to fetch available models failed. " +
+    "The engine secret may be incorrect or outdated. Please update the secret in your repository settings.\n\n" +
+    "For more information on configuring secrets, see: https://github.github.com/gh-aw/reference/engines/\n"
+  );
+}
+
+/**
  * Build a context string when a GitHub App token minting step failed.
  * @param {boolean} hasAppTokenMintingFailed - Whether any GitHub App token minting step failed
  * @returns {string} Formatted context string, or empty string if no error
@@ -995,6 +1012,7 @@ async function main() {
     const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
     const agenticEngineTimeout = process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT === "true";
     const modelNotSupportedError = process.env.GH_AW_MODEL_NOT_SUPPORTED_ERROR === "true";
+    const modelsCheckFailed = process.env.GH_AW_MODELS_CHECK_FAILED === "true";
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
     const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
     // GitHub App token minting failures from the safe_outputs job, conclusion job, and activation job.
@@ -1045,6 +1063,7 @@ async function main() {
     core.info(`MCP policy error: ${mcpPolicyError}`);
     core.info(`Agentic engine timeout: ${agenticEngineTimeout}`);
     core.info(`Model not supported error: ${modelNotSupportedError}`);
+    core.info(`Models check failed: ${modelsCheckFailed}`);
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
@@ -1317,6 +1336,9 @@ async function main() {
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
 
+        // Build models check failed context (indicates secret is incorrect or outdated)
+        const modelsCheckFailedContext = buildModelsCheckFailedContext(modelsCheckFailed);
+
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
 
@@ -1341,6 +1363,7 @@ async function main() {
             secretVerificationResult === "failed"
               ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
               : "",
+          models_check_failed_context: modelsCheckFailedContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
@@ -1478,6 +1501,9 @@ async function main() {
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
 
+        // Build models check failed context (indicates secret is incorrect or outdated)
+        const modelsCheckFailedContext = buildModelsCheckFailedContext(modelsCheckFailed);
+
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
 
@@ -1503,6 +1529,7 @@ async function main() {
             secretVerificationResult === "failed"
               ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
               : "",
+          models_check_failed_context: modelsCheckFailedContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
@@ -1593,5 +1620,6 @@ module.exports = {
   buildReportIncompleteContext,
   buildMCPPolicyErrorContext,
   buildModelNotSupportedErrorContext,
+  buildModelsCheckFailedContext,
   getActionFailureIssueExpiresHours,
 };

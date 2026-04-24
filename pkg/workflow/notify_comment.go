@@ -267,6 +267,15 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MODEL_NOT_SUPPORTED_ERROR: ${{ needs.%s.outputs.model_not_supported_error }}\n", mainJobName))
 	}
 
+	// Pass models_check_failed to the failure handler for engines that implement ModelsProvider.
+	// When the /models request fails, this indicates the secret is incorrect or outdated.
+	// The conclusion job reuses the existing failure issue to surface this information.
+	if mp, ok := engine.(ModelsProvider); ok {
+		if route := mp.GetModelsRoute(data); route != nil {
+			agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MODELS_CHECK_FAILED: ${{ needs.%s.outputs.models_check_failed }}\n", mainJobName))
+		}
+	}
+
 	// Pass assignment error outputs from safe_outputs job if assign-to-agent is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.AssignToAgent != nil {
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_ASSIGNMENT_ERRORS: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_errors }}\n")

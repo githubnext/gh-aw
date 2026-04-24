@@ -201,6 +201,16 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 			outputs["model_not_supported_error"] = "${{ steps.detect-copilot-errors.outputs.model_not_supported_error || 'false' }}"
 			compilerMainJobLog.Print("Added model_not_supported_error output (Copilot engine)")
 		}
+
+		// Add models_check_failed output for engines that implement ModelsProvider.
+		// The models-check step sets this output when the /models request fails,
+		// indicating the engine secret is incorrect or outdated.
+		if mp, ok := engine.(ModelsProvider); ok {
+			if route := mp.GetModelsRoute(data); route != nil {
+				outputs["models_check_failed"] = fmt.Sprintf("${{ steps.%s.outputs.models_check_failed || 'false' }}", constants.ModelsCheckStepID)
+				compilerMainJobLog.Printf("Added models_check_failed output (engine %s implements ModelsProvider)", engine.GetID())
+			}
+		}
 	}
 
 	// Build job-level environment variables for safe outputs

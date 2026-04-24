@@ -289,6 +289,7 @@ jobs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       model: ${{ needs.activation.outputs.model }}
+      models_check_failed: ${{ steps.models-check.outputs.models_check_failed || 'false' }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
@@ -477,6 +478,30 @@ jobs:
       - name: Clean git credentials
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
+      - name: Verify engine API access
+        id: models-check
+        env:
+          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+        run: |
+          mkdir -p /tmp/gh-aw
+          HTTP_CODE=$(curl -s -o /tmp/gh-aw/models-response.json -w "%{http_code}" \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            "https://api.openai.com/v1/models")
+          echo "## Engine API Access" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "models_check_failed=true" >> "$GITHUB_OUTPUT"
+            echo "❌ Models request failed (HTTP ${HTTP_CODE}). The engine secret may be incorrect or outdated." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "models_check_failed=false" >> "$GITHUB_OUTPUT"
+          echo "✅ Engine API access verified (HTTP ${HTTP_CODE})" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Available Models" >> "$GITHUB_STEP_SUMMARY"
+          if command -v jq &>/dev/null && [ -s /tmp/gh-aw/models-response.json ]; then
+            jq -r '(.data // .models // []) | .[] | "- " + (.id // .name // .model // "unknown")' \
+              /tmp/gh-aw/models-response.json >> "$GITHUB_STEP_SUMMARY" 2>/dev/null \
+              || cat /tmp/gh-aw/models-response.json >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Execute Codex CLI
         id: agentic_execution
         run: |
