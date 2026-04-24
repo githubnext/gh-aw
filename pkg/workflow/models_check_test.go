@@ -416,9 +416,11 @@ Test workflow`
 		"ANTHROPIC_API_KEY: ${{ steps.get-anthropic-token.outputs.token }}",
 		"Expected engine.env ANTHROPIC_API_KEY override in models check step env")
 	// The default secrets.ANTHROPIC_API_KEY should NOT appear in the models check step
-	// (the engine.env override replaces it)
+	// (the engine.env override replaces it).
+	// Isolate the models check section by slicing between its step id and the agent execution
+	// step name to avoid false positives from the ANTHROPIC_API_KEY entry in the agent step.
 	modelsCheckIdx := strings.Index(lockStr, "id: "+string(constants.ModelsCheckStepID))
-	agentExecIdx := strings.Index(lockStr, "id: agentic_execution")
+	agentExecIdx := strings.Index(lockStr, "name: Execute Claude Code CLI")
 	require.Positive(t, modelsCheckIdx, "models check step should be present")
 	require.Positive(t, agentExecIdx, "agent execution step should be present")
 	modelsCheckSection := lockStr[modelsCheckIdx:agentExecIdx]

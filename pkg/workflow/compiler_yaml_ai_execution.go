@@ -37,6 +37,9 @@ func (c *Compiler) generateModelsCheckStep(yaml *strings.Builder, route *ModelsR
 	//    (vars.ANTHROPIC_BASE_URL / vars.OPENAI_BASE_URL) are visible to the bash script.
 	//    GitHub Actions variables are NOT automatically available as process env vars —
 	//    they must be mapped explicitly in the step env block.
+	//    The ${{ vars.X || '' }} fallback is set first; step 3 (engine.env merge) will
+	//    overwrite it with the user's explicit value when one is configured, which is the
+	//    correct precedence (explicit > variable fallback).
 	// 3. Merge engine.env so any user override of the secret or base URL takes effect
 	//    (e.g. GitHub App-minted tokens: ANTHROPIC_API_KEY: ${{ steps.app.outputs.token }}).
 	// 4. Merge agentConfig.Env for consistency with the agent execution step.
