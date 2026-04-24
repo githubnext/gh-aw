@@ -7,7 +7,7 @@ const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 
 /**
  * Generate a deterministic pastel hex color string from a label name.
- * Produces colors in the pastel range (128–223 per channel) for readability.
+ * Produces colors in the pastel range (128–191 per channel) for readability.
  *
  * @param {string} name
  * @returns {string} Six-character hex color (no leading #)
@@ -17,7 +17,7 @@ function deterministicLabelColor(name) {
   for (let i = 0; i < name.length; i++) {
     hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
   }
-  // Map to pastel range: 128–223 per channel
+  // Map to pastel range: 128–191 per channel
   const r = 128 + (hash & 0x3f);
   const g = 128 + ((hash >> 6) & 0x3f);
   const b = 128 + ((hash >> 12) & 0x3f);
