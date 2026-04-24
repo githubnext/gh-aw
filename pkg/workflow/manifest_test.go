@@ -311,3 +311,87 @@ Handle the issue.`
 		}
 	}
 }
+
+// TestManifestIncludePathRelativeToRepoRoot verifies that included files in sibling
+// .github/ subdirectories (e.g. .github/shared/ when the workflow is in .github/workflows/)
+// are recorded with a repo-root-relative path instead of an absolute path.
+func TestManifestIncludePathRelativeToRepoRoot(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "manifest-sibling-test")
+
+	// Create .github/workflows/ and .github/shared/ structure
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	sharedDir := filepath.Join(tmpDir, ".github", "shared")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create an include file in .github/shared/ (sibling of .github/workflows/)
+	editorialFile := filepath.Join(sharedDir, "editorial.md")
+	editorialContent := `## Writing Style
+
+Write in a newspaper editorial tone.`
+	if err := os.WriteFile(editorialFile, []byte(editorialContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create workflow that includes the file via .github/-prefixed path
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+---
+
+# Test Workflow
+
+{{#import: .github/shared/editorial.md}}
+
+Handle the issue.`
+
+	compiler := NewCompiler()
+	testFile := filepath.Join(workflowsDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(workflowContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	// The Includes section should show .github/shared/editorial.md (relative to repo root),
+	// NOT an absolute path like /tmp/.../.../.github/shared/editorial.md
+	expectedLine := "#     - .github/shared/editorial.md"
+	if !strings.Contains(lockContent, expectedLine) {
+		t.Errorf("Expected relative include path %q in lock file, but not found.\nLock file content excerpt:\n%s",
+			expectedLine, extractLockFileHeader(lockContent))
+	}
+
+	// Verify no absolute path appears in the Includes section
+	for line := range strings.SplitSeq(lockContent, "\n") {
+		if strings.HasPrefix(line, "#     - /") {
+			t.Errorf("Found absolute path in lock file Includes section: %q", line)
+		}
+	}
+}
+
+// extractLockFileHeader returns the first 50 lines of a lock file for test diagnostics.
+func extractLockFileHeader(content string) string {
+	lines := strings.Split(content, "\n")
+	if len(lines) > 50 {
+		lines = lines[:50]
+	}
+	return strings.Join(lines, "\n")
+}

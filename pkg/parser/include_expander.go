@@ -48,20 +48,37 @@ func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (str
 		currentContent = processedContent
 	}
 
-	// Convert visited map to slice of file paths (make them relative to baseDir if possible)
+	// Find the repo root by walking up from baseDir to the parent of the .github folder.
+	// This allows files outside baseDir (e.g. .github/shared/ when baseDir is .github/workflows/)
+	// to be recorded with a clean repo-root-relative path instead of an absolute path.
+	repoRoot := findGitHubRepoRoot(baseDir)
+
+	// Convert visited map to slice of file paths (make them relative to baseDir if possible,
+	// falling back to repo-root-relative, and only as a last resort using the absolute path)
 	var includedFiles []string
 	for filePath := range visited {
-		// Try to make path relative to baseDir for cleaner output
+		// First: try to make path relative to baseDir for cleaner output
 		relPath, err := filepath.Rel(baseDir, filePath)
 		if err == nil && !strings.HasPrefix(relPath, "..") {
 			// Normalize to Unix paths (forward slashes) for cross-platform compatibility
 			relPath = filepath.ToSlash(relPath)
 			includedFiles = append(includedFiles, relPath)
-		} else {
-			// Normalize to Unix paths (forward slashes) for cross-platform compatibility
-			filePath = filepath.ToSlash(filePath)
-			includedFiles = append(includedFiles, filePath)
+			continue
 		}
+
+		// Second: try repo-root-relative path to avoid absolute paths for files in sibling
+		// directories (e.g. .github/shared/ relative to .github/workflows/)
+		if repoRoot != "" {
+			repoRelPath, repoRelErr := filepath.Rel(repoRoot, filePath)
+			if repoRelErr == nil && !strings.HasPrefix(repoRelPath, "..") {
+				repoRelPath = filepath.ToSlash(repoRelPath)
+				includedFiles = append(includedFiles, repoRelPath)
+				continue
+			}
+		}
+
+		// Fallback: use the absolute path (should be rare)
+		includedFiles = append(includedFiles, filepath.ToSlash(filePath))
 	}
 
 	includeExpanderLog.Printf("Include expansion complete: visited_files=%d", len(includedFiles))
@@ -72,6 +89,23 @@ func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (str
 	}
 
 	return currentContent, includedFiles, nil
+}
+
+// findGitHubRepoRoot walks up from dir to find the parent of the first ".github" directory.
+// Returns "" if no ".github" directory is found.
+func findGitHubRepoRoot(dir string) string {
+	current := filepath.Clean(dir)
+	for {
+		if filepath.Base(current) == ".github" {
+			return filepath.Dir(current)
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			// Reached filesystem root
+			return ""
+		}
+		current = parent
+	}
 }
 
 // ExpandIncludesForEngines recursively expands @include and @import directives to extract engine configurations

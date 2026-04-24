@@ -37,7 +37,7 @@
 #     - shared/daily-audit-base.md
 #     - shared/trends.md
 #   Includes:
-#     - /home/runner/work/gh-aw/gh-aw/.github/shared/editorial.md
+#     - .github/shared/editorial.md
 #     - shared/noop-reminder.md
 #
 # Secrets used:
