@@ -26,8 +26,6 @@ prompt for any missing required secrets.
 
 Only required secrets are prompted for. Optional secrets are not shown.
 
-Documentation:
-  https://cli.github.com/manual/gh_auth_login
 Examples:
   gh aw secrets bootstrap                        # Check and set up all required secrets
   gh aw secrets bootstrap --non-interactive      # Display missing secrets without prompting
