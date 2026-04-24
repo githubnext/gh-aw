@@ -4,6 +4,9 @@ package cli
 
 import (
 	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -336,4 +339,80 @@ func TestAddCommandArgs(t *testing.T) {
 
 	err = cmd.Args(cmd, []string{"workflow1", "workflow2"})
 	require.NoError(t, err, "Should not error with multiple arguments")
+}
+
+// TestAddMultipleWorkflowsNameFlag verifies that when multiple workflows are added,
+// the --name flag applies only to the first workflow and subsequent workflows use their original names.
+func TestAddMultipleWorkflowsNameFlag(t *testing.T) {
+	// Create a temporary directory for testing
+	tmpDir, err := os.MkdirTemp("", "gh-aw-add-multiple-workflows-test")
+	require.NoError(t, err, "Failed to create temp dir")
+	defer os.RemoveAll(tmpDir)
+
+	// Change to temp directory
+	originalDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	require.NoError(t, os.Chdir(tmpDir), "Failed to change to temp directory")
+
+	// Initialize a git repository
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Skipping test - git not available")
+	}
+	_ = exec.Command("git", "config", "user.email", "test@example.com").Run()
+	_ = exec.Command("git", "config", "user.name", "Test User").Run()
+
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "Failed to create workflows directory")
+
+	workflowContent := func(name string) []byte {
+		return []byte("---\non: push\npermissions:\n  contents: read\nengine: copilot\n---\n\n# " + name + "\n")
+	}
+
+	resolved1 := &ResolvedWorkflow{
+		Spec: &WorkflowSpec{
+			RepoSpec:     RepoSpec{RepoSlug: "test/repo"},
+			WorkflowPath: "./workflow-alpha.md",
+			WorkflowName: "workflow-alpha",
+		},
+		Content: workflowContent("Alpha"),
+		SourceInfo: &FetchedWorkflow{
+			Content:    workflowContent("Alpha"),
+			IsLocal:    true,
+			SourcePath: "./workflow-alpha.md",
+		},
+	}
+
+	resolved2 := &ResolvedWorkflow{
+		Spec: &WorkflowSpec{
+			RepoSpec:     RepoSpec{RepoSlug: "test/repo"},
+			WorkflowPath: "./workflow-beta.md",
+			WorkflowName: "workflow-beta",
+		},
+		Content: workflowContent("Beta"),
+		SourceInfo: &FetchedWorkflow{
+			Content:    workflowContent("Beta"),
+			IsLocal:    true,
+			SourcePath: "./workflow-beta.md",
+		},
+	}
+
+	opts := AddOptions{
+		Name:            "custom-name",
+		NoGitattributes: true,
+	}
+
+	err = addWorkflows([]*ResolvedWorkflow{resolved1, resolved2}, opts)
+	require.NoError(t, err, "addWorkflows should succeed")
+
+	// The first workflow should be saved as custom-name.md
+	_, err = os.Stat(filepath.Join(workflowsDir, "custom-name.md"))
+	require.NoError(t, err, "First workflow should be saved as custom-name.md")
+
+	// The second workflow should use its original name (workflow-beta.md), not custom-name.md
+	_, err = os.Stat(filepath.Join(workflowsDir, "workflow-beta.md"))
+	require.NoError(t, err, "Second workflow should be saved as workflow-beta.md (original name)")
 }

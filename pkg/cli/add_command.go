@@ -273,7 +273,13 @@ func addWorkflowsWithTracking(workflows []*ResolvedWorkflow, tracker *FileTracke
 			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Adding workflow %d/%d: %s", i+1, len(workflows), resolved.Spec.WorkflowName)))
 		}
 
-		if err := addWorkflowWithTracking(resolved, tracker, opts); err != nil {
+		// The --name flag only applies to the first workflow when adding multiple
+		workflowOpts := opts
+		if i > 0 {
+			workflowOpts.Name = ""
+		}
+
+		if err := addWorkflowWithTracking(resolved, tracker, workflowOpts); err != nil {
 			return fmt.Errorf("failed to add workflow '%s': %w", resolved.Spec.String(), err)
 		}
 	}
