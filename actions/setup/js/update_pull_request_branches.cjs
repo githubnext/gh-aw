@@ -53,8 +53,7 @@ async function filterMergeablePullRequests(owner, repo, pullNumbers) {
     );
 
     const headRepositoryRaw = pull?.head?.repo?.full_name;
-    const headRepository = (headRepositoryRaw || "").toLowerCase();
-    const headRepositoryState = typeof headRepositoryRaw === "string" && headRepositoryRaw.trim() ? "present" : "missing";
+    const headRepository = headRepositoryRaw?.toLowerCase() || "";
     const isSameRepository = headRepository === baseRepository;
     const isMergeable = pull?.state === "open" && pull?.mergeable === true && pull?.draft !== true && isSameRepository;
     if (isMergeable) {
@@ -62,7 +61,7 @@ async function filterMergeablePullRequests(owner, repo, pullNumbers) {
       continue;
     }
 
-    const skipReason = !isSameRepository ? (headRepositoryState === "missing" ? "head_repository_missing" : "head_repository_mismatch") : "not_mergeable";
+    const skipReason = !isSameRepository ? (headRepository ? "head_repository_mismatch" : "head_repository_missing") : "not_mergeable";
     core.info(`Skipping PR #${pullNumber}: reason=${skipReason}, mergeable=${String(pull?.mergeable)}, state=${pull?.state || "unknown"}, draft=${String(Boolean(pull?.draft))}, head_repo=${headRepository || "unknown"}`);
   }
 
