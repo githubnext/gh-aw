@@ -99,6 +99,7 @@ jobs:
     outputs:
       comment_id: ""
       comment_repo: ""
+      engine_id: ${{ steps.generate_aw_info.outputs.engine_id }}
       lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}

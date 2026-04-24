@@ -150,8 +150,9 @@ async function main(core, ctx) {
   core.info("Generated aw_info.json at: " + tmpPath);
   core.info(JSON.stringify(awInfo, null, 2));
 
-  // Set model as output for reuse in other steps/jobs
+  // Set model and engine_id as outputs for reuse in other steps/jobs
   core.setOutput("model", awInfo.model);
+  core.setOutput("engine_id", awInfo.engine_id);
 
   // Generate workflow overview and write to step summary
   await generateWorkflowOverview(core);
