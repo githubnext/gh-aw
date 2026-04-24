@@ -294,6 +294,23 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
             patchLines: 0,
           };
         }
+
+        // In incremental mode, the patch must be measured relative to the existing
+        // PR branch head (origin/<branch>), never relative to the default branch.
+        // If Strategy 1 did not produce a patch (e.g. format-patch yielded empty
+        // output for an unusual commit shape), do NOT fall through to Strategy 2
+        // or Strategy 3 — those use GITHUB_SHA..HEAD or merge-base with a remote
+        // ref and would produce a checkout-base diff (which can be many MB on a
+        // long-running branch). Returning an explicit error preserves the
+        // "incremental" contract that the patch reflects only the new commits.
+        if (!patchGenerated && mode === "incremental") {
+          debugLog(`Strategy 1 (incremental): No patch generated from ${baseRef}..${branchName}, refusing to fall through to checkout-base strategies`);
+          return {
+            success: false,
+            error: `Cannot generate incremental patch: no incremental commits found between ${baseRef} and ${branchName}.`,
+            patchPath: patchPath,
+          };
+        }
       } catch (branchError) {
         // Branch does not exist locally
         debugLog(`Strategy 1: Branch '${branchName}' does not exist locally - ${getErrorMessage(branchError)}`);
@@ -450,12 +467,32 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
       };
     }
 
-    debugLog(`Final: SUCCESS - patchSize=${patchSize} bytes, patchLines=${patchLines}, baseCommit=${baseCommitSha || "(unknown)"}`);
+    // In incremental mode, also compute the net diff size between baseRef and the
+    // branch tip. The format-patch file size (patchSize) is the sum of every
+    // commit's individual diff plus per-commit metadata headers, which can be
+    // significantly larger than the actual net change. Consumers (e.g.
+    // push_to_pull_request_branch) should validate `max_patch_size` against the
+    // incremental net diff so the limit reflects how much the branch will
+    // actually change, not the cumulative size of the commit history. See:
+    // https://github.com/github/gh-aw/issues for the long-running branch case.
+    let diffSize = null;
+    if (mode === "incremental" && baseCommitSha && branchName) {
+      try {
+        const diffOutput = execGitSync(["diff", "--binary", `${baseCommitSha}..${branchName}`, ...excludeArgs()], { cwd });
+        diffSize = Buffer.byteLength(diffOutput, "utf8");
+        debugLog(`Final: Computed incremental net diffSize=${diffSize} bytes (baseRef=${baseCommitSha}..${branchName})`);
+      } catch (diffErr) {
+        debugLog(`Final: Failed to compute incremental net diffSize - ${getErrorMessage(diffErr)} (will fall back to patchSize)`);
+      }
+    }
+
+    debugLog(`Final: SUCCESS - patchSize=${patchSize} bytes, patchLines=${patchLines}, diffSize=${diffSize ?? "(n/a)"} bytes, baseCommit=${baseCommitSha || "(unknown)"}`);
     return {
       success: true,
       patchPath: patchPath,
       patchSize: patchSize,
       patchLines: patchLines,
+      diffSize: diffSize,
       baseCommit: baseCommitSha,
     };
   }

@@ -619,6 +619,52 @@ describe("git patch integration tests", () => {
       }
     });
 
+    it("should report diffSize as the net diff between origin/branch and HEAD in incremental mode", async () => {
+      // Reproduces the long-running branch scenario from the issue:
+      //   - origin/<branch> already has accumulated history (e.g. many KB)
+      //   - the agent makes a small new commit on top
+      //   - the format-patch file size only reflects the *new* commit (because
+      //     baseRef = origin/<branch>), but the returned diffSize must also be
+      //     small and must NOT reflect the divergence from main.
+
+      // Create the long-running branch with a "large" accumulated payload.
+      execGit(["checkout", "-b", "long-running-branch"], { cwd: workingRepo });
+      const accumulated = "accumulated content line\n".repeat(2000); // ~50 KB
+      fs.writeFileSync(path.join(workingRepo, "accumulated.txt"), accumulated);
+      execGit(["add", "accumulated.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Accumulated work from previous iterations"], { cwd: workingRepo });
+      execGit(["push", "-u", "origin", "long-running-branch"], { cwd: workingRepo });
+
+      // Now the agent's "new iteration": a tiny incremental change.
+      fs.writeFileSync(path.join(workingRepo, "tiny.txt"), "tiny change\n");
+      execGit(["add", "tiny.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Tiny new iteration"], { cwd: workingRepo });
+
+      const origWorkspace = process.env.GITHUB_WORKSPACE;
+      const origDefaultBranch = process.env.DEFAULT_BRANCH;
+      process.env.GITHUB_WORKSPACE = workingRepo;
+      process.env.DEFAULT_BRANCH = "main";
+
+      try {
+        const result = await generateGitPatch("long-running-branch", "main", { mode: "incremental" });
+
+        expect(result.success).toBe(true);
+        expect(typeof result.diffSize).toBe("number");
+
+        // The incremental net diff is just the tiny.txt addition (well under 1 KB).
+        expect(result.diffSize).toBeGreaterThan(0);
+        expect(result.diffSize).toBeLessThan(1024);
+
+        // And the diffSize must NOT include the accumulated 50 KB payload that
+        // already exists on origin/long-running-branch — that is the entire
+        // point of the fix.
+        expect(result.diffSize).toBeLessThan(2000);
+      } finally {
+        process.env.GITHUB_WORKSPACE = origWorkspace;
+        process.env.DEFAULT_BRANCH = origDefaultBranch;
+      }
+    });
+
     /**
      * Sets GITHUB_WORKSPACE, DEFAULT_BRANCH, GITHUB_TOKEN, and GITHUB_SERVER_URL for
      * a test, then restores the original values (or deletes them if they were unset).

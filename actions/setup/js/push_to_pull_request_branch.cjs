@@ -179,10 +179,26 @@ async function main(config = {}) {
       const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
       const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
-      core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+      // Prefer the incremental net diff size (computed by the MCP server when
+      // the patch was generated in incremental mode) over the format-patch file
+      // size for `max_patch_size` validation. The format-patch file accumulates
+      // per-commit metadata and per-commit diffs, which can be much larger than
+      // the actual net change relative to the existing PR branch head — and on
+      // a long-running branch (e.g. autoloop iteration branches) this drift
+      // grows monotonically even when each iteration only changes a few KB.
+      // The diff size, in contrast, is the size of `git diff origin/<branch>..HEAD`
+      // and is what the user actually expects `max-patch-size` to cap.
+      const diffSizeBytesRaw = message.diff_size;
+      const haveDiffSize = typeof diffSizeBytesRaw === "number" && diffSizeBytesRaw >= 0;
+      const sizeForCheckBytes = haveDiffSize ? diffSizeBytesRaw : patchSizeBytes;
+      const sizeForCheckKb = Math.ceil(sizeForCheckBytes / 1024);
+      const sizeLabel = haveDiffSize ? "Incremental patch size" : "Patch size";
 
-      if (patchSizeKb > maxSizeKb) {
-        const msg = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+      core.info(`Patch file size: ${patchSizeKb} KB`);
+      core.info(`${sizeLabel}: ${sizeForCheckKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+
+      if (sizeForCheckKb > maxSizeKb) {
+        const msg = `Patch size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
         return { success: false, error: msg };
       }
 
