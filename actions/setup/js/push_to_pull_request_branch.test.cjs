@@ -1073,7 +1073,7 @@ index 0000000..abc1234
       expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
       // Verify the size check used the incremental (diff_size) value, not the
       // 2 MB file size.
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Incremental patch size: 5 KB"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Incremental diff size: 5 KB"));
     });
 
     it("should reject when message.diff_size exceeds max size even if file size is small", async () => {
@@ -1103,6 +1103,41 @@ index 0000000..abc1234
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("exceeds maximum");
+    });
+
+    it("should enforce max_patch_size against the bundle file size when bundle transport is used", async () => {
+      // Bundle transport does not have a format-patch file. The max_patch_size
+      // limit must still apply — using the on-disk bundle file size — so large
+      // bundles cannot silently bypass the limit.
+      const bundlePath = path.join(tempDir, "test.bundle");
+      // 2 MB dummy bundle file (contents don't matter; only size is checked)
+      fs.writeFileSync(bundlePath, Buffer.alloc(2 * 1024 * 1024));
+
+      const module = await loadModule();
+      const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
+      const result = await handler({ bundle_path: bundlePath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("exceeds maximum");
+      expect(result.error).toMatch(/Bundle size|Incremental diff size/);
+    });
+
+    it("should prefer diff_size over bundle file size for the limit check", async () => {
+      // Bundle is 2 MB on disk, but the incremental net diff is only 5 KB:
+      // the check must accept the push (limit reflects the real change, not the
+      // compressed transport size).
+      const bundlePath = path.join(tempDir, "test.bundle");
+      fs.writeFileSync(bundlePath, Buffer.alloc(2 * 1024 * 1024));
+
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const module = await loadModule();
+      const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
+      const result = await handler({ bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Incremental diff size: 5 KB"));
     });
   });
 

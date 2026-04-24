@@ -298,16 +298,18 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
         // In incremental mode, the patch must be measured relative to the existing
         // PR branch head (origin/<branch>), never relative to the default branch.
         // If Strategy 1 did not produce a patch (e.g. format-patch yielded empty
-        // output for an unusual commit shape), do NOT fall through to Strategy 2
-        // or Strategy 3 — those use GITHUB_SHA..HEAD or merge-base with a remote
-        // ref and would produce a checkout-base diff (which can be many MB on a
-        // long-running branch). Returning an explicit error preserves the
-        // "incremental" contract that the patch reflects only the new commits.
+        // output for an unusual commit shape — excluded-files filtering away every
+        // change, or binary-only commits with unusual encoding), do NOT fall
+        // through to Strategy 2 or Strategy 3 — those use GITHUB_SHA..HEAD or
+        // merge-base with a remote ref and would produce a checkout-base diff
+        // (which can be many MB on a long-running branch). Returning an explicit
+        // error preserves the "incremental" contract that the patch reflects only
+        // the new commits.
         if (!patchGenerated && mode === "incremental") {
-          debugLog(`Strategy 1 (incremental): No patch generated from ${baseRef}..${branchName}, refusing to fall through to checkout-base strategies`);
+          debugLog(`Strategy 1 (incremental): format-patch produced no output for ${baseRef}..${branchName} despite ${commitCount} incremental commit(s), refusing to fall through to checkout-base strategies`);
           return {
             success: false,
-            error: `Cannot generate incremental patch: no incremental commits found between ${baseRef} and ${branchName}.`,
+            error: `Cannot generate incremental patch: git format-patch produced no output for ${baseRef}..${branchName} despite ${commitCount} incremental commit(s).`,
             patchPath: patchPath,
           };
         }
@@ -473,16 +475,33 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     // significantly larger than the actual net change. Consumers (e.g.
     // push_to_pull_request_branch) should validate `max_patch_size` against the
     // incremental net diff so the limit reflects how much the branch will
-    // actually change, not the cumulative size of the commit history. See:
-    // https://github.com/github/gh-aw/issues for the long-running branch case.
+    // actually change, not the cumulative size of the commit history.
+    //
+    // We use `git diff --output <file>` so the diff is streamed to disk by git
+    // itself and the size measurement is O(1) memory: we just stat the file.
+    // This avoids buffering very large diffs through execGitSync's stdout
+    // (which could be slow or hit the execGitSync maxBuffer and force a
+    // fallback to patchSize).
     let diffSize = null;
     if (mode === "incremental" && baseCommitSha && branchName) {
+      const diffTmpPath = `${patchPath}.diff.tmp`;
       try {
-        const diffOutput = execGitSync(["diff", "--binary", `${baseCommitSha}..${branchName}`, ...excludeArgs()], { cwd });
-        diffSize = Buffer.byteLength(diffOutput, "utf8");
-        debugLog(`Final: Computed incremental net diffSize=${diffSize} bytes (baseRef=${baseCommitSha}..${branchName})`);
+        execGitSync(["diff", "--binary", `--output=${diffTmpPath}`, `${baseCommitSha}..${branchName}`, ...excludeArgs()], { cwd });
+        if (fs.existsSync(diffTmpPath)) {
+          diffSize = fs.statSync(diffTmpPath).size;
+          debugLog(`Final: Computed incremental net diffSize=${diffSize} bytes (baseRef=${baseCommitSha}..${branchName})`);
+        }
       } catch (diffErr) {
         debugLog(`Final: Failed to compute incremental net diffSize - ${getErrorMessage(diffErr)} (will fall back to patchSize)`);
+      } finally {
+        // Best-effort cleanup of the temp diff file; we only needed its size.
+        try {
+          if (fs.existsSync(diffTmpPath)) {
+            fs.unlinkSync(diffTmpPath);
+          }
+        } catch {
+          // Cleanup failure is non-fatal.
+        }
       }
     }
 

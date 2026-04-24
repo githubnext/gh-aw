@@ -175,30 +175,66 @@ async function main(config = {}) {
 
       isEmpty = !patchContent || !patchContent.trim();
     }
-    if (!hasBundleFile && !isEmpty) {
-      const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+    // Validate patch/bundle size against `max_patch_size`.
+    //
+    // Size-check source of truth, in order of preference:
+    //   1. `message.diff_size` — the incremental net diff size recorded at
+    //      patch/bundle generation time (this is the correct quantity to cap:
+    //      how much the PR branch will actually change as a result of the push).
+    //   2. For bundle transport: the on-disk bundle file size.
+    //   3. For patch transport: the format-patch file size.
+    //
+    // Using `diff_size` when present fixes the long-running branch case where
+    // the transport file accumulates per-commit metadata + per-commit diffs and
+    // can be many MB even when each iteration only changes a few KB.
+    if (!isEmpty) {
+      const patchSizeBytes = hasBundleFile ? 0 : Buffer.byteLength(patchContent, "utf8");
       const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
-      // Prefer the incremental net diff size (computed by the MCP server when
-      // the patch was generated in incremental mode) over the format-patch file
-      // size for `max_patch_size` validation. The format-patch file accumulates
-      // per-commit metadata and per-commit diffs, which can be much larger than
-      // the actual net change relative to the existing PR branch head — and on
-      // a long-running branch (e.g. autoloop iteration branches) this drift
-      // grows monotonically even when each iteration only changes a few KB.
-      // The diff size, in contrast, is the size of `git diff origin/<branch>..HEAD`
-      // and is what the user actually expects `max-patch-size` to cap.
+      let bundleSizeBytes = 0;
+      if (hasBundleFile) {
+        try {
+          bundleSizeBytes = fs.statSync(bundleFilePath).size;
+        } catch (statErr) {
+          core.warning(`Failed to stat bundle file for size check: ${getErrorMessage(statErr)}`);
+        }
+      }
+      const bundleSizeKb = Math.ceil(bundleSizeBytes / 1024);
+
       const diffSizeBytesRaw = message.diff_size;
       const haveDiffSize = typeof diffSizeBytesRaw === "number" && diffSizeBytesRaw >= 0;
-      const sizeForCheckBytes = haveDiffSize ? diffSizeBytesRaw : patchSizeBytes;
-      const sizeForCheckKb = Math.ceil(sizeForCheckBytes / 1024);
-      const sizeLabel = haveDiffSize ? "Incremental patch size" : "Patch size";
 
-      core.info(`Patch file size: ${patchSizeKb} KB`);
+      let sizeForCheckBytes;
+      let sizeLabel;
+      if (haveDiffSize) {
+        sizeForCheckBytes = diffSizeBytesRaw;
+        sizeLabel = "Incremental diff size";
+      } else if (hasBundleFile) {
+        sizeForCheckBytes = bundleSizeBytes;
+        sizeLabel = "Bundle size";
+      } else {
+        sizeForCheckBytes = patchSizeBytes;
+        sizeLabel = "Patch size";
+      }
+      const sizeForCheckKb = Math.ceil(sizeForCheckBytes / 1024);
+
+      if (hasBundleFile) {
+        core.info(`Bundle file size: ${bundleSizeKb} KB`);
+      } else {
+        core.info(`Patch file size: ${patchSizeKb} KB`);
+      }
       core.info(`${sizeLabel}: ${sizeForCheckKb} KB (maximum allowed: ${maxSizeKb} KB)`);
 
       if (sizeForCheckKb > maxSizeKb) {
-        const msg = `Patch size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+        let msg;
+        if (haveDiffSize) {
+          const transportLabel = hasBundleFile ? `Bundle size: ${bundleSizeKb} KB` : `Patch file size: ${patchSizeKb} KB`;
+          msg = `Incremental diff size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB). ${transportLabel}.`;
+        } else if (hasBundleFile) {
+          msg = `Bundle size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+        } else {
+          msg = `Patch size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+        }
         return { success: false, error: msg };
       }
 
