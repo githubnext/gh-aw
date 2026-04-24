@@ -203,7 +203,7 @@ func generateAgenticWorkflowsInstallStep(yaml *strings.Builder, hasAgenticWorkfl
 	yaml.WriteString("          # Copy the gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP server containerization\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw\"\n")
 	yaml.WriteString("          GH_AW_BIN=\"\"\n")
-	yaml.WriteString("          GH_AW_BIN=$(which gh-aw 2>/dev/null) || true\n")
+	yaml.WriteString("          GH_AW_BIN=$(command -v gh-aw 2>/dev/null) || true\n")
 	yaml.WriteString("          if [ -z \"$GH_AW_BIN\" ]; then\n")
 	yaml.WriteString("            GH_AW_BIN=$(find \"${HOME}/.local/share/gh/extensions/gh-aw\" -name 'gh-aw' -type f 2>/dev/null | head -1) || true\n")
 	yaml.WriteString("          fi\n")
