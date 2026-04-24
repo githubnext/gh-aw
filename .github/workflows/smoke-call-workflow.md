@@ -11,7 +11,7 @@ permissions:
   pull-requests: read
 engine:
   id: codex
-  model: gpt-5.2-codex
+  model: gpt-5.4-mini
 strict: true
 network:
   allowed:
