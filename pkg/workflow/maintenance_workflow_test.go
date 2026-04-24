@@ -537,6 +537,8 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 }
 
 func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
+	const jobSectionSearchRange = 300
+
 	workflowDataList := []*WorkflowData{
 		{
 			Name: "test-workflow",
@@ -601,7 +603,6 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 		yaml := string(content)
 		pushExclusionCondition := "github.event_name != 'push'"
 
-		const jobSectionSearchRange = 300
 		scheduleOnlyJobs := []string{"close-expired-entities:", "secret-validation:"}
 		for _, job := range scheduleOnlyJobs {
 			jobIdx := strings.Index(yaml, "\n  "+job)
@@ -628,7 +629,6 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 		}
 		yaml := string(content)
 
-		const jobSectionSearchRange = 300
 		compileIdx := strings.Index(yaml, "\n  compile-workflows:")
 		if compileIdx == -1 {
 			t.Fatal("Job compile-workflows not found in generated workflow")
