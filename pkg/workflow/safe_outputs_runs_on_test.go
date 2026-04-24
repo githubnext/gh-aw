@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/github/gh-aw/pkg/constants"
 )
@@ -436,9 +437,7 @@ func TestFormatDetectionJobRunsOn(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := compiler.formatDetectionJobRunsOn(tt.data)
-			if result != tt.expectedRunsOn {
-				t.Errorf("formatDetectionJobRunsOn() = %q, want %q", result, tt.expectedRunsOn)
-			}
+			assert.Equal(t, tt.expectedRunsOn, result, "Detection job runs-on should match expected value")
 		})
 	}
 }

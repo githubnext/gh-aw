@@ -43,16 +43,20 @@ func (c *Compiler) formatFrameworkJobRunsOn(data *WorkflowData) string {
 //  3. runs-on-slim — top-level field for all framework jobs
 //  4. "ubuntu-latest" — detection-specific default
 func (c *Compiler) formatDetectionJobRunsOn(data *WorkflowData) string {
-	if data != nil && data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
-		data.SafeOutputs.ThreatDetection.RunsOn != "" {
-		safeOutputsRuntimeLog.Printf("Detection job runs-on from threat-detection config: %s", data.SafeOutputs.ThreatDetection.RunsOn)
-		return "runs-on: " + data.SafeOutputs.ThreatDetection.RunsOn
+	if data == nil {
+		return "runs-on: ubuntu-latest"
 	}
-	if data != nil && data.SafeOutputs != nil && data.SafeOutputs.RunsOn != "" {
-		safeOutputsRuntimeLog.Printf("Detection job runs-on from safe-outputs: %s", data.SafeOutputs.RunsOn)
-		return "runs-on: " + data.SafeOutputs.RunsOn
+	if so := data.SafeOutputs; so != nil {
+		if td := so.ThreatDetection; td != nil && td.RunsOn != "" {
+			safeOutputsRuntimeLog.Printf("Detection job runs-on from threat-detection config: %s", td.RunsOn)
+			return "runs-on: " + td.RunsOn
+		}
+		if so.RunsOn != "" {
+			safeOutputsRuntimeLog.Printf("Detection job runs-on from safe-outputs: %s", so.RunsOn)
+			return "runs-on: " + so.RunsOn
+		}
 	}
-	if data != nil && data.RunsOnSlim != "" {
+	if data.RunsOnSlim != "" {
 		safeOutputsRuntimeLog.Printf("Detection job runs-on from runs-on-slim: %s", data.RunsOnSlim)
 		return "runs-on: " + data.RunsOnSlim
 	}
