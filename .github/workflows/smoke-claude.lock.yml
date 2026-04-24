@@ -957,7 +957,13 @@ jobs:
           path: /tmp/gh-aw/apm-bundle
       - id: apm_bundle
         name: Find APM bundle path
-        run: echo "path=$(find /tmp/gh-aw/apm-workspace /tmp/gh-aw/apm-bundle -name '*.tar.gz' 2>/dev/null | head -1)" >> "$GITHUB_OUTPUT"
+        run: |
+          bundle=$(find /tmp/gh-aw/apm-workspace /tmp/gh-aw/apm-bundle -name '*.tar.gz' 2>/dev/null | head -1)
+          if [ -z "$bundle" ]; then
+            echo "::error::APM bundle not found in /tmp/gh-aw/apm-workspace or /tmp/gh-aw/apm-bundle"
+            exit 1
+          fi
+          echo "path=$bundle" >> "$GITHUB_OUTPUT"
       - name: Restore APM packages
         uses: microsoft/apm-action@a190b0b1a91031057144dc136acf9757a59c9e4d # v1.4.1
         with:
@@ -2534,7 +2540,13 @@ jobs:
           path: /tmp/gh-aw/apm-workspace
       - name: Find APM bundle path
         id: apm_bundle_path
-        run: echo "path=$(find /tmp/gh-aw/apm-workspace -name '*.tar.gz' | head -1)" >> "$GITHUB_OUTPUT"
+        run: |
+          bundle=$(find /tmp/gh-aw/apm-workspace -name '*.tar.gz' | head -1)
+          if [ -z "$bundle" ]; then
+            echo "::error::APM bundle not found in /tmp/gh-aw/apm-workspace"
+            exit 1
+          fi
+          echo "path=$bundle" >> "$GITHUB_OUTPUT"
       - name: Upload APM bundle artifact
         if: success()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
