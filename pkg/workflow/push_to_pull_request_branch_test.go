@@ -1094,3 +1094,90 @@ This test verifies that the aw-*.patch artifact is downloaded in the safe_output
 		t.Errorf("Expected condition to check for 'push_to_pull_request_branch' in output_types")
 	}
 }
+
+func TestPushToPullRequestBranchCheckBranchProtectionFalse(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    check-branch-protection: false
+---
+
+# Test Push to Branch with check-branch-protection: false
+
+This workflow skips the branch protection pre-flight check.
+`
+
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-no-protection-check.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	compiler := NewCompiler()
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	// Verify check_branch_protection: false is passed to the handler config
+	pushCfg := extractPushToPullRequestBranchHandlerConfig(t, lockContent)
+
+	checkBranchProtection, exists := pushCfg["check_branch_protection"]
+	if !exists {
+		t.Fatalf("Handler config should contain check_branch_protection key when set to false")
+	}
+	if checkBranchProtection != false {
+		t.Errorf("check_branch_protection should be false, got %v", checkBranchProtection)
+	}
+}
+
+func TestPushToPullRequestBranchCheckBranchProtectionDefaultOmitted(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+---
+
+# Test Push to Branch default check-branch-protection
+
+By default, check-branch-protection is not set (JS handler defaults to true).
+`
+
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-default-protection.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	compiler := NewCompiler()
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	// When not specified, check_branch_protection should not be in the handler config
+	// (the JS handler defaults to true via !== false)
+	pushCfg := extractPushToPullRequestBranchHandlerConfig(t, lockContent)
+	if _, exists := pushCfg["check_branch_protection"]; exists {
+		t.Errorf("Handler config should NOT contain check_branch_protection when not explicitly set")
+	}
+}

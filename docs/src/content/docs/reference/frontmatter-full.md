@@ -4843,6 +4843,13 @@ safe-outputs:
     # (optional)
     allow-workflows: true
 
+    # When false, skips the branch protection API pre-flight check before pushing. Set
+    # to false to avoid requiring administration: read permission. The GitHub platform
+    # will still enforce branch protection at push time. Default is true (check
+    # enabled).
+    # (optional)
+    check-branch-protection: true
+
   # Enable AI agents to minimize (hide) comments on issues or pull requests based on
   # relevance, spam detection, or moderation rules.
   # (optional)

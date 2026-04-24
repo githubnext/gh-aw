@@ -28,6 +28,7 @@ type PushToPullRequestBranchConfig struct {
 	PatchFormat                    string   `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "am" (default, uses git format-patch) or "bundle" (uses git bundle, preserves merge topology and per-commit metadata).
 	FallbackAsPullRequest          *bool    `yaml:"fallback-as-pull-request,omitempty"`            // When true (default), creates a fallback pull request if direct push fails due to diverged/non-fast-forward branch. When false, fallback is disabled and pull-requests: write is not requested.
 	AllowWorkflows                 bool     `yaml:"allow-workflows,omitempty"`                     // When true, adds workflows: write to the GitHub App token. Requires safe-outputs.github-app to be configured.
+	CheckBranchProtection          *bool    `yaml:"check-branch-protection,omitempty"`             // When false, skips the branch protection API pre-flight check. Default is true (check enabled). Set to false to avoid needing administration: read permission.
 }
 
 // buildCheckoutRepository generates a checkout step with optional target repository and custom token
@@ -185,6 +186,13 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			if allowWorkflows, exists := configMap["allow-workflows"]; exists {
 				if allowWorkflowsBool, ok := allowWorkflows.(bool); ok {
 					pushToBranchConfig.AllowWorkflows = allowWorkflowsBool
+				}
+			}
+
+			// Parse check-branch-protection: when false, skips the branch protection API pre-flight check
+			if checkBranchProtection, exists := configMap["check-branch-protection"]; exists {
+				if checkBranchProtectionBool, ok := checkBranchProtection.(bool); ok {
+					pushToBranchConfig.CheckBranchProtection = &checkBranchProtectionBool
 				}
 			}
 

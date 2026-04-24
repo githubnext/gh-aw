@@ -262,6 +262,7 @@ safe-outputs:
     github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
     fallback-as-pull-request: true        # on non-fast-forward failure, create fallback PR to original PR branch (default: true)
     ignore-missing-branch-failure: false  # treat deleted/missing branch errors as skipped instead of failed (default: false)
+    check-branch-protection: true         # set to false to skip the branch protection pre-flight check (default: true)
     protected-files: fallback-to-issue  # create review issue if protected files modified
 ```
 
@@ -314,6 +315,8 @@ If `push-to-pull-request-branch` (or `create-pull-request`) fails, the safe-outp
 When `fallback-as-pull-request` is enabled (default), non-fast-forward push failures trigger a fallback pull request that targets the original PR branch. Set `fallback-as-pull-request: false` to disable this fallback behavior.
 
 When `ignore-missing-branch-failure: true` is set, push failures caused by a deleted or missing PR branch return `skipped: true` instead of a hard failure. This is useful when the PR branch may have been deleted before the safe-output job runs (for example, on auto-merged PRs). Without this flag, a missing branch is a terminal error.
+
+When `check-branch-protection: false` is set, the branch protection API pre-flight check is skipped. By default (`true`), the handler calls `GET /repos/{owner}/{repo}/branches/{branch}/protection` before pushing to detect whether the target branch is protected. This API call requires `administration: read`. If the token lacks that permission, the check logs a warning and continues (the GitHub platform still enforces protection at push time). Set `check-branch-protection: false` to suppress the warning and avoid the API call entirely.
 
 ## Protected Files
 

@@ -444,6 +444,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("excluded_files", c.ExcludedFiles).
 			AddIfNotEmpty("patch_format", c.PatchFormat).
 			AddBoolPtr("fallback_as_pull_request", c.FallbackAsPullRequest).
+			AddBoolPtr("check_branch_protection", c.CheckBranchProtection).
 			Build()
 	},
 	"update_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
