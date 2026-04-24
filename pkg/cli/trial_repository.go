@@ -250,7 +250,17 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 
 	// Add source field to frontmatter for remote workflows
 	if !fetched.IsLocal && fetched.CommitSHA != "" {
-		sourceString := buildSourceStringWithCommitSHA(parsedSpec, fetched.CommitSHA)
+		// When the fetch used a fallback path (e.g. .github/workflows/my-workflow.md
+		// instead of the short-form my-workflow.md), SourcePath holds the actual
+		// repo-root-relative path. Use it so that gh aw update can later re-fetch
+		// from the correct location.
+		effectiveSpec := parsedSpec
+		if fetched.SourcePath != "" && fetched.SourcePath != parsedSpec.WorkflowPath {
+			specCopy := *parsedSpec
+			specCopy.WorkflowPath = fetched.SourcePath
+			effectiveSpec = &specCopy
+		}
+		sourceString := buildSourceStringWithCommitSHA(effectiveSpec, fetched.CommitSHA)
 		if sourceString != "" {
 			updatedContent, err := addSourceToWorkflow(string(content), sourceString)
 			if err != nil {

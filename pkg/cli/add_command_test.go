@@ -4,8 +4,12 @@ package cli
 
 import (
 	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -348,4 +352,75 @@ func TestAddMultipleWorkflowsNameFlag(t *testing.T) {
 	err := cmd.Execute()
 	require.Error(t, err, "Should error when --name is used with multiple workflows")
 	assert.Contains(t, err.Error(), "--name flag cannot be used when adding multiple workflows", "Error should mention --name restriction")
+}
+
+// TestAddWorkflowWithTracking_UsesActualFetchedPath verifies that when a remote workflow is
+// fetched via a fallback path (e.g. .github/workflows/my-workflow.md instead of the
+// short-form my-workflow.md), the written source: field reflects the actual fetched path
+// so that gh aw update can later re-fetch from the correct location.
+func TestAddWorkflowWithTracking_UsesActualFetchedPath(t *testing.T) {
+	// Set up a temp git repo
+	tempDir := testutil.TempDir(t, "test-add-source-path-*")
+	t.Setenv("HOME", tempDir)
+	t.Chdir(tempDir)
+
+	// Initialize git repository (required by addWorkflowWithTracking)
+	initCmd := exec.Command("git", "init")
+	initCmd.Dir = tempDir
+	require.NoError(t, initCmd.Run(), "git init should succeed")
+
+	// Configure git identity (required in some CI environments without global git config)
+	gitConfigName := exec.Command("git", "config", "user.name", "Test User")
+	gitConfigName.Dir = tempDir
+	_ = gitConfigName.Run()
+	gitConfigEmail := exec.Command("git", "config", "user.email", "test@example.com")
+	gitConfigEmail.Dir = tempDir
+	_ = gitConfigEmail.Run()
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "should create workflows dir")
+
+	// Simple workflow content with no remote dependencies (avoids network calls)
+	content := []byte("---\non: push\n---\n\n# Test Workflow\n")
+
+	// Simulate: spec parsed from short-form "owner/repo/my-workflow.md@main"
+	// The file was actually found at .github/workflows/my-workflow.md via fallback.
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "owner/repo",
+			Version:  "main",
+		},
+		WorkflowPath: "my-workflow.md", // short-form path from parsed spec
+		WorkflowName: "my-workflow",
+	}
+	sourceInfo := &FetchedWorkflow{
+		Content:    content,
+		CommitSHA:  "abc123def456789012345678901234567890abcd",
+		IsLocal:    false,
+		SourcePath: ".github/workflows/my-workflow.md", // actual path found via fallback
+	}
+	resolved := &ResolvedWorkflow{
+		Spec:       spec,
+		Content:    content,
+		SourceInfo: sourceInfo,
+	}
+
+	opts := AddOptions{
+		DisableSecurityScanner: true,
+	}
+	err := addWorkflowWithTracking(resolved, nil, opts)
+	require.NoError(t, err, "addWorkflowWithTracking should succeed")
+
+	// Read the written file
+	written, err := os.ReadFile(filepath.Join(workflowsDir, "my-workflow.md"))
+	require.NoError(t, err, "written file should be readable")
+
+	// The source: field must use the full path, not the short-form WorkflowPath
+	assert.Contains(t, string(written),
+		"source: owner/repo/.github/workflows/my-workflow.md@abc123def456789012345678901234567890abcd",
+		"source field should use the actual fetched path so gh aw update can find the file")
+	assert.NotContains(t, string(written),
+		"source: owner/repo/my-workflow.md",
+		"source field must NOT use the short-form path that causes 404 on gh aw update")
 }
