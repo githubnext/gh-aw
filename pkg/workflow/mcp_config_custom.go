@@ -107,11 +107,12 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			propertyOrder = []string{"url", "http_headers"}
 		} else {
 			// JSON format - include tools field for MCP gateway tool filtering (all engines)
+			// container is included when specified (required by MCP Gateway v0.2.30+)
 			// For HTTP MCP with secrets in headers, env passthrough is needed
 			if len(headerSecrets) > 0 {
-				propertyOrder = []string{"type", "url", "headers", "auth", "tools", "env"}
+				propertyOrder = []string{"container", "type", "url", "headers", "auth", "tools", "env"}
 			} else {
-				propertyOrder = []string{"type", "url", "headers", "auth", "tools"}
+				propertyOrder = []string{"container", "type", "url", "headers", "auth", "tools"}
 			}
 		}
 	default:
@@ -698,6 +699,9 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryM
 			result.ProxyArgs = proxyArgs
 		}
 	case "http":
+		if container, hasContainer := config.GetString("container"); hasContainer {
+			result.Container = container
+		}
 		if url, hasURL := config.GetString("url"); hasURL {
 			result.URL = url
 		} else {

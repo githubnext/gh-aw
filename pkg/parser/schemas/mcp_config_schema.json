@@ -218,7 +218,7 @@
       "then": {
         "required": ["url"],
         "not": {
-          "anyOf": [{ "required": ["command"] }, { "required": ["container"] }, { "required": ["network"] }]
+          "anyOf": [{ "required": ["command"] }, { "required": ["network"] }]
         }
       }
     },
@@ -253,7 +253,7 @@
     },
     {
       "if": {
-        "anyOf": [{ "required": ["command"] }, { "required": ["container"] }]
+        "anyOf": [{ "required": ["command"] }]
       },
       "then": {
         "not": {
@@ -268,7 +268,7 @@
       "then": {
         "properties": {
           "type": {
-            "enum": ["stdio"]
+            "enum": ["stdio", "http"]
           }
         }
       }

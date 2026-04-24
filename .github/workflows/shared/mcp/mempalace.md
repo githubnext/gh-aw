@@ -18,6 +18,7 @@ tools:
 mcp-servers:
   mempalace:
     type: http
+    container: "python:3.12-slim"
     url: http://localhost:8765/mcp
     allowed:
       - "mempalace_status"

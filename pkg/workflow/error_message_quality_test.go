@@ -248,22 +248,6 @@ func TestMCPValidationErrorQuality(t *testing.T) {
 			},
 		},
 		{
-			name: "http type cannot use container",
-			tools: map[string]any{
-				"http-with-container": map[string]any{
-					"type":      "http",
-					"url":       "https://example.com",
-					"container": "my-image",
-				},
-			},
-			errorContains: []string{
-				"cannot use",
-				"container",
-				"http",
-				"Example:",
-			},
-		},
-		{
 			name: "unknown property in tool config",
 			tools: map[string]any{
 				"typo-tool": map[string]any{

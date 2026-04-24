@@ -72,11 +72,6 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 		// HTTP type requires 'url' property
 		url, hasURL := mcpConfig["url"]
 
-		// HTTP type cannot use container field
-		if _, hasContainer := mcpConfig["container"]; hasContainer {
-			return fmt.Errorf("tool '%s' mcp configuration with type 'http' cannot use 'container' field. HTTP MCP uses URL endpoints, not containers.\n\nExample:\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    headers:\n      Authorization: \"Bearer ${{ secrets.API_KEY }}\"\n\nSee: %s", toolName, toolName, constants.DocsToolsURL)
-		}
-
 		// HTTP type cannot use mounts field (MCP Gateway v0.1.5+)
 		if _, hasMounts := toolConfig["mounts"]; hasMounts {
 			return fmt.Errorf("tool '%s' mcp configuration with type 'http' cannot use 'mounts' field. Volume mounts are only supported for stdio (containerized) MCP servers.\n\nExample:\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n\nSee: %s", toolName, toolName, constants.DocsToolsURL)
