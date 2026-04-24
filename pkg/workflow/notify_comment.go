@@ -119,84 +119,82 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		notifyCommentLog.Print("Added detection runs logging step to conclusion job")
 	}
 
-	// Add missing_tool processing step if missing-tool is configured
-	if data.SafeOutputs.MissingTool != nil {
-		// Build custom environment variables specific to missing-tool
-		var missingToolEnvVars []string
-		missingToolEnvVars = append(missingToolEnvVars, buildTemplatableIntEnvVar("GH_AW_MISSING_TOOL_MAX", data.SafeOutputs.MissingTool.Max)...)
+	// Add a single merged step for missing_tool, missing_data, and report_incomplete if any is configured.
+	// This replaces the former separate "Record missing tool" and "Record incomplete" steps with a single
+	// record_missing_messages.cjs step that loads the agent output once and handles all three types.
+	if data.SafeOutputs.MissingTool != nil || data.SafeOutputs.MissingData != nil || data.SafeOutputs.ReportIncomplete != nil {
+		var recordMissingEnvVars []string
 
-		// Add create-issue configuration
-		if data.SafeOutputs.MissingTool.CreateIssue {
-			missingToolEnvVars = append(missingToolEnvVars, "          GH_AW_MISSING_TOOL_CREATE_ISSUE: \"true\"\n")
-		}
+		// Add workflow metadata (shared across all three types)
+		recordMissingEnvVars = append(recordMissingEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
 
-		// Add title-prefix configuration
-		if data.SafeOutputs.MissingTool.TitlePrefix != "" {
-			missingToolEnvVars = append(missingToolEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_TITLE_PREFIX: %q\n", data.SafeOutputs.MissingTool.TitlePrefix))
-		}
-
-		// Add labels configuration
-		if len(data.SafeOutputs.MissingTool.Labels) > 0 {
-			labelsJSON, err := json.Marshal(data.SafeOutputs.MissingTool.Labels)
-			if err == nil {
-				missingToolEnvVars = append(missingToolEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_LABELS: %q\n", string(labelsJSON)))
+		// Add missing-tool configuration
+		if data.SafeOutputs.MissingTool != nil {
+			recordMissingEnvVars = append(recordMissingEnvVars, buildTemplatableIntEnvVar("GH_AW_MISSING_TOOL_MAX", data.SafeOutputs.MissingTool.Max)...)
+			if data.SafeOutputs.MissingTool.CreateIssue {
+				recordMissingEnvVars = append(recordMissingEnvVars, "          GH_AW_MISSING_TOOL_CREATE_ISSUE: \"true\"\n")
+			}
+			if data.SafeOutputs.MissingTool.TitlePrefix != "" {
+				recordMissingEnvVars = append(recordMissingEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_TITLE_PREFIX: %q\n", data.SafeOutputs.MissingTool.TitlePrefix))
+			}
+			if len(data.SafeOutputs.MissingTool.Labels) > 0 {
+				if labelsJSON, err := json.Marshal(data.SafeOutputs.MissingTool.Labels); err == nil {
+					recordMissingEnvVars = append(recordMissingEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_LABELS: %q\n", string(labelsJSON)))
+				}
 			}
 		}
 
-		// Add workflow metadata for consistency
-		missingToolEnvVars = append(missingToolEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
-
-		// Build the missing_tool processing step (without artifact downloads - already added above)
-		missingToolSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
-			StepName:      "Record missing tool",
-			StepID:        "missing_tool",
-			MainJobName:   mainJobName,
-			CustomEnvVars: missingToolEnvVars,
-			Script:        "const { main } = require('${{ runner.temp }}/gh-aw/actions/missing_tool.cjs'); await main();",
-			ScriptFile:    "missing_tool.cjs",
-			CustomToken:   data.SafeOutputs.MissingTool.GitHubToken,
-		})
-		steps = append(steps, missingToolSteps...)
-	}
-
-	// Add report_incomplete processing step if report-incomplete is configured
-	if data.SafeOutputs.ReportIncomplete != nil {
-		// Build custom environment variables specific to report-incomplete
-		var reportIncompleteEnvVars []string
-		reportIncompleteEnvVars = append(reportIncompleteEnvVars, buildTemplatableIntEnvVar("GH_AW_REPORT_INCOMPLETE_MAX", data.SafeOutputs.ReportIncomplete.Max)...)
-
-		// Add create-issue configuration
-		if data.SafeOutputs.ReportIncomplete.CreateIssue {
-			reportIncompleteEnvVars = append(reportIncompleteEnvVars, "          GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: \"true\"\n")
-		}
-
-		// Add title-prefix configuration
-		if data.SafeOutputs.ReportIncomplete.TitlePrefix != "" {
-			reportIncompleteEnvVars = append(reportIncompleteEnvVars, fmt.Sprintf("          GH_AW_REPORT_INCOMPLETE_TITLE_PREFIX: %q\n", data.SafeOutputs.ReportIncomplete.TitlePrefix))
-		}
-
-		// Add labels configuration
-		if len(data.SafeOutputs.ReportIncomplete.Labels) > 0 {
-			labelsJSON, err := json.Marshal(data.SafeOutputs.ReportIncomplete.Labels)
-			if err == nil {
-				reportIncompleteEnvVars = append(reportIncompleteEnvVars, fmt.Sprintf("          GH_AW_REPORT_INCOMPLETE_LABELS: %q\n", string(labelsJSON)))
+		// Add missing-data configuration
+		if data.SafeOutputs.MissingData != nil {
+			recordMissingEnvVars = append(recordMissingEnvVars, buildTemplatableIntEnvVar("GH_AW_MISSING_DATA_MAX", data.SafeOutputs.MissingData.Max)...)
+			if data.SafeOutputs.MissingData.CreateIssue {
+				recordMissingEnvVars = append(recordMissingEnvVars, "          GH_AW_MISSING_DATA_CREATE_ISSUE: \"true\"\n")
+			}
+			if data.SafeOutputs.MissingData.TitlePrefix != "" {
+				recordMissingEnvVars = append(recordMissingEnvVars, fmt.Sprintf("          GH_AW_MISSING_DATA_TITLE_PREFIX: %q\n", data.SafeOutputs.MissingData.TitlePrefix))
+			}
+			if len(data.SafeOutputs.MissingData.Labels) > 0 {
+				if labelsJSON, err := json.Marshal(data.SafeOutputs.MissingData.Labels); err == nil {
+					recordMissingEnvVars = append(recordMissingEnvVars, fmt.Sprintf("          GH_AW_MISSING_DATA_LABELS: %q\n", string(labelsJSON)))
+				}
 			}
 		}
 
-		// Add workflow metadata for consistency
-		reportIncompleteEnvVars = append(reportIncompleteEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+		// Add report-incomplete configuration
+		if data.SafeOutputs.ReportIncomplete != nil {
+			recordMissingEnvVars = append(recordMissingEnvVars, buildTemplatableIntEnvVar("GH_AW_REPORT_INCOMPLETE_MAX", data.SafeOutputs.ReportIncomplete.Max)...)
+			if data.SafeOutputs.ReportIncomplete.CreateIssue {
+				recordMissingEnvVars = append(recordMissingEnvVars, "          GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: \"true\"\n")
+			}
+			if data.SafeOutputs.ReportIncomplete.TitlePrefix != "" {
+				recordMissingEnvVars = append(recordMissingEnvVars, fmt.Sprintf("          GH_AW_REPORT_INCOMPLETE_TITLE_PREFIX: %q\n", data.SafeOutputs.ReportIncomplete.TitlePrefix))
+			}
+			if len(data.SafeOutputs.ReportIncomplete.Labels) > 0 {
+				if labelsJSON, err := json.Marshal(data.SafeOutputs.ReportIncomplete.Labels); err == nil {
+					recordMissingEnvVars = append(recordMissingEnvVars, fmt.Sprintf("          GH_AW_REPORT_INCOMPLETE_LABELS: %q\n", string(labelsJSON)))
+				}
+			}
+		}
 
-		// Build the report_incomplete processing step (without artifact downloads - already added above)
-		reportIncompleteSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
-			StepName:      "Record incomplete",
-			StepID:        "report_incomplete",
+		// Pick the custom token from the first configured type that has one
+		customToken := ""
+		if data.SafeOutputs.MissingTool != nil && data.SafeOutputs.MissingTool.GitHubToken != "" {
+			customToken = data.SafeOutputs.MissingTool.GitHubToken
+		} else if data.SafeOutputs.MissingData != nil && data.SafeOutputs.MissingData.GitHubToken != "" {
+			customToken = data.SafeOutputs.MissingData.GitHubToken
+		} else if data.SafeOutputs.ReportIncomplete != nil && data.SafeOutputs.ReportIncomplete.GitHubToken != "" {
+			customToken = data.SafeOutputs.ReportIncomplete.GitHubToken
+		}
+
+		recordMissingSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
+			StepName:      "Record missing messages",
+			StepID:        "record_missing",
 			MainJobName:   mainJobName,
-			CustomEnvVars: reportIncompleteEnvVars,
-			Script:        "const { main } = require('${{ runner.temp }}/gh-aw/actions/report_incomplete_handler.cjs'); await main();",
-			ScriptFile:    "report_incomplete_handler.cjs",
-			CustomToken:   data.SafeOutputs.ReportIncomplete.GitHubToken,
+			CustomEnvVars: recordMissingEnvVars,
+			ScriptFile:    "record_missing_messages.cjs",
+			CustomToken:   customToken,
 		})
-		steps = append(steps, reportIncompleteSteps...)
+		steps = append(steps, recordMissingSteps...)
 	}
 
 	// Add agent failure handling step - creates/updates an issue when agent job fails
@@ -524,11 +522,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		outputs["noop_message"] = "${{ steps.noop.outputs.noop_message }}"
 	}
 	if data.SafeOutputs.MissingTool != nil {
-		outputs["tools_reported"] = "${{ steps.missing_tool.outputs.tools_reported }}"
-		outputs["total_count"] = "${{ steps.missing_tool.outputs.total_count }}"
+		outputs["tools_reported"] = "${{ steps.record_missing.outputs.tools_reported }}"
+		outputs["total_count"] = "${{ steps.record_missing.outputs.total_count }}"
 	}
 	if data.SafeOutputs.ReportIncomplete != nil {
-		outputs["incomplete_count"] = "${{ steps.report_incomplete.outputs.incomplete_count }}"
+		outputs["incomplete_count"] = "${{ steps.record_missing.outputs.incomplete_count }}"
 	}
 
 	// Compute permissions based on configured safe outputs (principle of least privilege)

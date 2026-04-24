@@ -1002,10 +1002,10 @@ jobs:
       group: "gh-aw-conclusion-duplicate-code-detector"
       cancel-in-progress: false
     outputs:
-      incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
+      incomplete_count: ${{ steps.record_missing.outputs.incomplete_count }}
       noop_message: ${{ steps.noop.outputs.noop_message }}
-      tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
-      total_count: ${{ steps.missing_tool.outputs.total_count }}
+      tools_reported: ${{ steps.record_missing.outputs.tools_reported }}
+      total_count: ${{ steps.record_missing.outputs.total_count }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -1068,33 +1068,21 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_detection_runs.cjs');
             await main();
-      - name: Record missing tool
-        id: missing_tool
+      - name: Record missing messages
+        id: record_missing
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Duplicate Code Detector"
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "Duplicate Code Detector"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/missing_tool.cjs');
-            await main();
-      - name: Record incomplete
-        id: report_incomplete
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
+          GH_AW_MISSING_DATA_CREATE_ISSUE: "true"
           GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "Duplicate Code Detector"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/report_incomplete_handler.cjs');
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/record_missing_messages.cjs');
             await main();
       - name: Handle agent failure
         id: handle_agent_failure
@@ -1265,18 +1253,18 @@ jobs:
           DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e CODEX_HOME -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.30'
           
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_5c69b70f5aec0ca6_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_6e2bbea97947fc06_EOF
           [history]
           persistence = "none"
           
           [shell_environment_policy]
           inherit = "core"
           include_only = ["CODEX_API_KEY", "HOME", "OPENAI_API_KEY", "PATH"]
-          GH_AW_MCP_CONFIG_5c69b70f5aec0ca6_EOF
+          GH_AW_MCP_CONFIG_6e2bbea97947fc06_EOF
           
           # Generate JSON config for MCP gateway
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_4466cf9782c69339_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_43b516f446b30f06_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
             },
@@ -1287,11 +1275,11 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_4466cf9782c69339_EOF
+          GH_AW_MCP_CONFIG_43b516f446b30f06_EOF
           
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_e23db77d154bd0b1_EOF
+          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_10010ebd5e0ad9f5_EOF
           model_provider = "openai-proxy"
           [model_providers.openai-proxy]
           name = "OpenAI AWF proxy"
@@ -1301,7 +1289,7 @@ jobs:
           [shell_environment_policy]
           inherit = "core"
           include_only = ["CODEX_API_KEY", "HOME", "OPENAI_API_KEY", "PATH"]
-          GH_AW_CODEX_SHELL_POLICY_e23db77d154bd0b1_EOF
+          GH_AW_CODEX_SHELL_POLICY_10010ebd5e0ad9f5_EOF
           awk '
             BEGIN { skip_openai_proxy = 0 }
             /^[[:space:]]*model_provider[[:space:]]*=/ { next }

@@ -137,10 +137,10 @@ Test that missing_tool step is generated inside the conclusion job.
 		t.Error("Conclusion job should exist")
 	}
 
-	// Verify that "Record missing tool" step is in the conclusion job
+	// Verify that the merged "Record missing messages" step is in the conclusion job
 	conclusionSection := extractJobSection(compiled, "conclusion")
-	if !strings.Contains(conclusionSection, "Record missing tool") {
-		t.Error("Conclusion job should contain 'Record missing tool' step")
+	if !strings.Contains(conclusionSection, "Record missing messages") {
+		t.Error("Conclusion job should contain 'Record missing messages' step")
 	}
 
 	// Verify that conclusion job has missing_tool outputs
@@ -214,13 +214,13 @@ Test that both noop and missing_tool steps are generated inside the conclusion j
 		t.Error("There should NOT be a separate missing_tool job")
 	}
 
-	// Verify that conclusion job exists and contains both steps
+	// Verify that conclusion job exists and contains both the noop step and the merged missing messages step
 	conclusionSection := extractJobSection(compiled, "conclusion")
 	if !strings.Contains(conclusionSection, "Process no-op messages") {
 		t.Error("Conclusion job should contain 'Process no-op messages' step")
 	}
-	if !strings.Contains(conclusionSection, "Record missing tool") {
-		t.Error("Conclusion job should contain 'Record missing tool' step")
+	if !strings.Contains(conclusionSection, "Record missing messages") {
+		t.Error("Conclusion job should contain 'Record missing messages' step")
 	}
 
 	// Verify that conclusion job has all outputs
@@ -287,10 +287,10 @@ Test that report_incomplete step is generated inside the conclusion job.
 		t.Error("Conclusion job should exist")
 	}
 
-	// Verify that "Record incomplete" step is in the conclusion job
+	// Verify that the merged "Record missing messages" step is in the conclusion job
 	conclusionSection := extractJobSection(compiled, "conclusion")
-	if !strings.Contains(conclusionSection, "Record incomplete") {
-		t.Error("Conclusion job should contain 'Record incomplete' step")
+	if !strings.Contains(conclusionSection, "Record missing messages") {
+		t.Error("Conclusion job should contain 'Record missing messages' step")
 	}
 
 	// Verify that conclusion job has report_incomplete output

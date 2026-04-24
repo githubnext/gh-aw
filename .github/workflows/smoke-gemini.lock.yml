@@ -1153,10 +1153,10 @@ jobs:
       group: "gh-aw-conclusion-smoke-gemini"
       cancel-in-progress: false
     outputs:
-      incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
+      incomplete_count: ${{ steps.record_missing.outputs.incomplete_count }}
       noop_message: ${{ steps.noop.outputs.noop_message }}
-      tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
-      total_count: ${{ steps.missing_tool.outputs.total_count }}
+      tools_reported: ${{ steps.record_missing.outputs.tools_reported }}
+      total_count: ${{ steps.record_missing.outputs.total_count }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -1219,33 +1219,21 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_detection_runs.cjs');
             await main();
-      - name: Record missing tool
-        id: missing_tool
+      - name: Record missing messages
+        id: record_missing
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Smoke Gemini"
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "Smoke Gemini"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/missing_tool.cjs');
-            await main();
-      - name: Record incomplete
-        id: report_incomplete
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
+          GH_AW_MISSING_DATA_CREATE_ISSUE: "true"
           GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "Smoke Gemini"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/report_incomplete_handler.cjs');
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/record_missing_messages.cjs');
             await main();
       - name: Handle agent failure
         id: handle_agent_failure
