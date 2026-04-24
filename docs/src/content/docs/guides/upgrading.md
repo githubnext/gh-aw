@@ -11,9 +11,11 @@ This guide walks you through upgrading agentic workflows. `gh aw upgrade` handle
 > Quick Upgrade
 >
 > For most users, upgrading is a single command:
+>
 > ```bash wrap
 > gh aw upgrade
 > ```
+>
 > This updates agent files, applies codemods, and compiles all workflows.
 
 ## Prerequisites

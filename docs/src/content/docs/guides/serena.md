@@ -83,14 +83,14 @@ imports:
       languages: ["go", "typescript"]
 ```
 
-The shared workflow configures the full Serena MCP server (container image, entrypoint, workspace mount) explicitly. 
+The shared workflow configures the full Serena MCP server (container image, entrypoint, workspace mount) explicitly.
 
 ## Language Support
 
 Serena supports **30+ programming languages** through Language Server Protocol (LSP):
 
 | Category | Languages |
-|----------|-----------|
+| ---------- | ----------- |
 | **Systems** | C, C++, Rust, Go, Zig |
 | **JVM** | Java, Kotlin, Scala, Groovy (partial) |
 | **Web** | JavaScript, TypeScript, Dart, Elm |
@@ -108,7 +108,7 @@ Serena supports **30+ programming languages** through Language Server Protocol (
 Serena provides semantic code tools organized into three categories:
 
 | Category | Tools |
-|----------|-------|
+| ---------- | ------- |
 | **Symbol Navigation** | `find_symbol`, `find_referencing_symbols`, `get_symbol_definition`, `list_symbols_in_file` |
 | **Code Editing** | `replace_symbol_body`, `insert_after_symbol`, `insert_before_symbol`, `delete_symbol` |
 | **Project Analysis** | `find_files`, `get_project_structure`, `analyze_imports` |

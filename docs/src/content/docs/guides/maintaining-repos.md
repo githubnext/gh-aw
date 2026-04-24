@@ -29,7 +29,7 @@ This is what makes it safe to run repo-assist with `min-integrity: unapproved`: 
 The available safe-outputs map directly to GitHub actions:
 
 | Safe-output | What it allows |
-|------------|---------------|
+| ------------ | --------------- |
 | `label-issue` | Apply or remove labels on an issue |
 | `comment-issue` | Post a comment on an issue |
 | `comment-pull-request` | Post a comment on a pull request |
@@ -46,7 +46,7 @@ Integrity filtering is the primary mechanism for controlling what content the ag
 The four configurable levels, from most to least restrictive:
 
 | Level | Who qualifies |
-|-------|--------------|
+| ------- | -------------- |
 | `merged` | PRs merged into the default branch; commits reachable from main |
 | `approved` | Owners, members, collaborators; non-fork PRs on public repos; recognized bots (`dependabot`, `github-actions`) |
 | `unapproved` | Contributors who have had a PR merged before; first-time contributors |
@@ -181,7 +181,7 @@ gh aw audit diff BASELINE_ID CURRENT_ID
 ### Common Failure Patterns
 
 | Failure | Symptom / Cause | Fixes |
-|---------|-----------------|-------|
+| --------- | ----------------- | ------- |
 | **Missing tool calls** | Tool not configured or wrong name. Check `missing_tools` in audit. | Add to `tools:` in frontmatter; fix any `safeoutputs-` prefix; check MCP connectivity. |
 | **Authentication failures** | Token permissions too narrow or API key missing. | Review `permissions:` block; ensure secrets are set; see [Auth Reference](/gh-aw/reference/auth/). |
 | **Integrity filtering blocking content** | Author's association below `min-integrity`. `DIFC_FILTERED` events in audit show details. | Adjust `min-integrity`; add author to `trusted-users`; use `approval-labels`; check `gh aw logs --filtered-integrity`. |
