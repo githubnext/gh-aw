@@ -14,8 +14,6 @@ describe("update_pull_request_branches", () => {
   let mockGithub;
   /** @type {any} */
   let mockContext;
-  /** @type {any} */
-  let fetchMock;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -48,48 +46,35 @@ describe("update_pull_request_branches", () => {
     global.core = mockCore;
     global.github = mockGithub;
     global.context = mockContext;
-    fetchMock = vi.fn();
-    global.fetch = fetchMock;
-    process.env.GH_TOKEN = "test-token";
   });
 
-  it("updates only mergeable pull requests without active sessions", async () => {
+  it("updates only mergeable pull requests", async () => {
     mockGithub.paginate.mockResolvedValue([{ number: 1 }, { number: 2 }, { number: 3 }]);
     mockGithub.rest.pulls.get.mockImplementation(async ({ pull_number }) => {
       if (pull_number === 1) return { data: { state: "open", mergeable: true, draft: false } };
       if (pull_number === 2) return { data: { state: "open", mergeable: false, draft: false } };
       return { data: { state: "open", mergeable: true, draft: false } };
     });
-    mockGithub.graphql.mockResolvedValue({ viewer: { copilotEndpoints: { api: "https://api.copilot.test" } } });
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        sessions: [
-          { resource_id: 3, state: "open", resource_type: "pull" },
-          { resource_id: 10, state: "closed", resource_type: "pull" },
-        ],
-      }),
-    });
     mockGithub.rest.pulls.updateBranch.mockResolvedValue({ data: {} });
 
     await moduleUnderTest.main();
 
-    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
-    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledWith({
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(2);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenNthCalledWith(1, {
       owner: "owner",
       repo: "repo",
       pull_number: 1,
+    });
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenNthCalledWith(2, {
+      owner: "owner",
+      repo: "repo",
+      pull_number: 3,
     });
   });
 
   it("continues on non-fatal updateBranch failures", async () => {
     mockGithub.paginate.mockResolvedValue([{ number: 7 }]);
     mockGithub.rest.pulls.get.mockResolvedValue({ data: { state: "open", mergeable: true, draft: false } });
-    mockGithub.graphql.mockResolvedValue({ viewer: { copilotEndpoints: { api: "https://api.copilot.test" } } });
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ sessions: [] }),
-    });
     const err = new Error("Update branch failed");
     // @ts-ignore
     err.status = 422;
@@ -97,34 +82,6 @@ describe("update_pull_request_branches", () => {
 
     await expect(moduleUnderTest.main()).resolves.not.toThrow();
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Skipping PR #7"));
-  });
-
-  it("parses pull request numbers and active states correctly", () => {
-    expect(moduleUnderTest.parsePullRequestNumber(12)).toBe(12);
-    expect(moduleUnderTest.parsePullRequestNumber("34")).toBe(34);
-    expect(moduleUnderTest.parsePullRequestNumber("0")).toBeNull();
-    expect(moduleUnderTest.parsePullRequestNumber("not-a-number")).toBeNull();
-
-    expect(moduleUnderTest.isActiveSessionState("OPEN")).toBe(true);
-    expect(moduleUnderTest.isActiveSessionState("in_progress")).toBe(true);
-    expect(moduleUnderTest.isActiveSessionState("closed")).toBe(false);
-  });
-
-  it("filters candidate pull requests to only those without active sessions", async () => {
-    mockGithub.graphql.mockResolvedValue({ viewer: { copilotEndpoints: { api: "https://api.copilot.test" } } });
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        sessions: [
-          { resource_id: 2, state: "OPEN", resource_type: "pull" },
-          { resource_id: 9, state: "queued", resource_type: "pull" },
-        ],
-      }),
-    });
-
-    const result = await moduleUnderTest.filterPullRequestsWithoutActiveSessions([1, 2, 3]);
-
-    expect(result).toEqual([1, 3]);
   });
 
   it("ignores draft pull requests when filtering mergeable pull requests", async () => {
