@@ -12,6 +12,11 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
+const { sanitizeForFilename, sanitizeBranchNameForPatch, sanitizeRepoSlugForPatch, getPatchPath, getPatchPathForRepo, buildExcludePathspecs, computeIncrementalDiffSize } = require("./git_patch_utils.cjs");
+
+// sanitizeForFilename is re-exported below for backward compatibility with
+// existing callers that imported it from this module.
+void sanitizeForFilename;
 
 /**
  * Debug logging helper - logs to stderr when DEBUG env var matches
@@ -22,63 +27,6 @@ function debugLog(message) {
   if (debug === "*" || debug.includes("generate_git_patch") || debug.includes("patch")) {
     console.error(`[generate_git_patch] ${message}`);
   }
-}
-
-/**
- * Sanitize a string for use as a patch filename component.
- * Replaces path separators and special characters with dashes.
- * @param {string} value - The value to sanitize
- * @param {string} fallback - Fallback value when input is empty or nullish
- * @returns {string} The sanitized string safe for use in a filename
- */
-function sanitizeForFilename(value, fallback) {
-  if (!value) return fallback;
-  return value
-    .replace(/[/\\:*?"<>|]/g, "-")
-    .replace(/-{2,}/g, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
-}
-
-/**
- * Sanitize a branch name for use as a patch filename
- * @param {string} branchName - The branch name to sanitize
- * @returns {string} The sanitized branch name safe for use in a filename
- */
-function sanitizeBranchNameForPatch(branchName) {
-  return sanitizeForFilename(branchName, "unknown");
-}
-
-/**
- * Get the patch file path for a given branch name
- * @param {string} branchName - The branch name
- * @returns {string} The full patch file path
- */
-function getPatchPath(branchName) {
-  const sanitized = sanitizeBranchNameForPatch(branchName);
-  return `/tmp/gh-aw/aw-${sanitized}.patch`;
-}
-
-/**
- * Sanitize a repo slug for use in a filename
- * @param {string} repoSlug - The repo slug (owner/repo)
- * @returns {string} The sanitized slug safe for use in a filename
- */
-function sanitizeRepoSlugForPatch(repoSlug) {
-  return sanitizeForFilename(repoSlug, "");
-}
-
-/**
- * Get the patch file path for a given branch name and repo slug
- * Used for multi-repo scenarios to prevent patch file collisions
- * @param {string} branchName - The branch name
- * @param {string} repoSlug - The repository slug (owner/repo)
- * @returns {string} The full patch file path including repo disambiguation
- */
-function getPatchPathForRepo(branchName, repoSlug) {
-  const sanitizedBranch = sanitizeBranchNameForPatch(branchName);
-  const sanitizedRepo = sanitizeRepoSlugForPatch(repoSlug);
-  return `/tmp/gh-aw/aw-${sanitizedRepo}-${sanitizedBranch}.patch`;
 }
 
 /**
@@ -111,15 +59,14 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
   // These are appended after "--" so git treats them as pathspecs, not revisions.
   // Using git's native pathspec magic keeps the exclusions out of the patch entirely
   // without any post-processing of the generated patch file.
-  const excludePathspecs = Array.isArray(options.excludedFiles) && options.excludedFiles.length > 0 ? options.excludedFiles.map(p => `:(exclude)${p}`) : [];
+  const excludeArgsArr = buildExcludePathspecs(options.excludedFiles);
 
   /**
    * Returns the arguments to append to a format-patch call when excludedFiles is set.
-   * Produces ["--", ":(exclude)pattern1", ":(exclude)pattern2", ...] or [].
    * @returns {string[]}
    */
   function excludeArgs() {
-    return excludePathspecs.length > 0 ? ["--", ...excludePathspecs] : [];
+    return excludeArgsArr;
   }
   const patchPath = options.repoSlug ? getPatchPathForRepo(branchName, options.repoSlug) : getPatchPath(branchName);
 
@@ -477,32 +424,19 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     // incremental net diff so the limit reflects how much the branch will
     // actually change, not the cumulative size of the commit history.
     //
-    // We use `git diff --output <file>` so the diff is streamed to disk by git
-    // itself and the size measurement is O(1) memory: we just stat the file.
-    // This avoids buffering very large diffs through execGitSync's stdout
-    // (which could be slow or hit the execGitSync maxBuffer and force a
-    // fallback to patchSize).
+    // The measurement itself (stream to temp file via `git diff --output`, stat,
+    // cleanup) is extracted into git_patch_utils.computeIncrementalDiffSize so
+    // it is O(1) memory and independently unit-testable against a real repo.
     let diffSize = null;
     if (mode === "incremental" && baseCommitSha && branchName) {
-      const diffTmpPath = `${patchPath}.diff.tmp`;
-      try {
-        execGitSync(["diff", "--binary", `--output=${diffTmpPath}`, `${baseCommitSha}..${branchName}`, ...excludeArgs()], { cwd });
-        if (fs.existsSync(diffTmpPath)) {
-          diffSize = fs.statSync(diffTmpPath).size;
-          debugLog(`Final: Computed incremental net diffSize=${diffSize} bytes (baseRef=${baseCommitSha}..${branchName})`);
-        }
-      } catch (diffErr) {
-        debugLog(`Final: Failed to compute incremental net diffSize - ${getErrorMessage(diffErr)} (will fall back to patchSize)`);
-      } finally {
-        // Best-effort cleanup of the temp diff file; we only needed its size.
-        try {
-          if (fs.existsSync(diffTmpPath)) {
-            fs.unlinkSync(diffTmpPath);
-          }
-        } catch {
-          // Cleanup failure is non-fatal.
-        }
-      }
+      diffSize = computeIncrementalDiffSize({
+        baseRef: baseCommitSha,
+        headRef: branchName,
+        cwd,
+        tmpPath: `${patchPath}.diff.tmp`,
+        excludedFiles: options.excludedFiles,
+      });
+      debugLog(`Final: diffSize=${diffSize ?? "(n/a)"} bytes (baseRef=${baseCommitSha}..${branchName})`);
     }
 
     debugLog(`Final: SUCCESS - patchSize=${patchSize} bytes, patchLines=${patchLines}, diffSize=${diffSize ?? "(n/a)"} bytes, baseCommit=${baseCommitSha || "(unknown)"}`);
