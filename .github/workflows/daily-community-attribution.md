@@ -13,7 +13,7 @@ permissions:
 
 engine:
   id: copilot
-  model: claude-haiku-4-5
+  model: claude-haiku-4.5
 timeout-minutes: 30
 
 network:
