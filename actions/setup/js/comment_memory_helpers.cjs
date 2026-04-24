@@ -14,6 +14,16 @@ const COMMENT_MEMORY_PROMPT_END_MARKER = "<!-- gh-aw-comment-memory-prompt:end -
 const COMMENT_MEMORY_CODE_FENCE = "``````";
 const ESCAPED_COMMENT_MEMORY_CODE_FENCE = COMMENT_MEMORY_CODE_FENCE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/**
+ * Builds the opening line of a code-fence memory block.
+ * Format: ``````gh-aw-comment-memory:<memoryId>
+ * @param {string} memoryId
+ * @returns {string}
+ */
+function buildCodeFenceOpener(memoryId) {
+  return `${COMMENT_MEMORY_CODE_FENCE}${COMMENT_MEMORY_TAG}:${memoryId}`;
+}
+
 function stripCommentMemoryCodeFence(content) {
   const trimmed = typeof content === "string" ? content.trim() : "";
   if (trimmed.length === 0) {
@@ -50,6 +60,23 @@ function extractCommentMemoryEntries(commentBody, warn = () => {}) {
   }
 
   const entries = [];
+  const seenIds = new Set();
+
+  // New format: ``````gh-aw-comment-memory:<id>\ncontent\n``````
+  const codeFenceOpenerPattern = new RegExp(`${ESCAPED_COMMENT_MEMORY_CODE_FENCE}${COMMENT_MEMORY_TAG}:([A-Za-z0-9_-]{1,${MAX_MEMORY_ID_LENGTH}})\\n([\\s\\S]*?)\\n${ESCAPED_COMMENT_MEMORY_CODE_FENCE}(?:\\n|$)`, "g");
+  let match;
+  while ((match = codeFenceOpenerPattern.exec(commentBody)) !== null) {
+    const memoryId = match[1];
+    const content = match[2].trim();
+    if (isSafeMemoryId(memoryId)) {
+      entries.push({ memoryId, content });
+      seenIds.add(memoryId);
+    } else {
+      warn(`skipping unsafe memory_id '${memoryId}'`);
+    }
+  }
+
+  // Legacy format (backward compat): <gh-aw-comment-memory id="...">...</gh-aw-comment-memory>
   const closeTag = `</${COMMENT_MEMORY_TAG}>`;
   let cursor = 0;
   while (cursor < commentBody.length) {
@@ -71,12 +98,12 @@ function extractCommentMemoryEntries(commentBody, warn = () => {}) {
       break;
     }
 
-    if (isSafeMemoryId(memoryId)) {
+    if (isSafeMemoryId(memoryId) && !seenIds.has(memoryId)) {
       entries.push({
         memoryId,
         content: stripCommentMemoryCodeFence(commentBody.slice(contentStart, closeStart)),
       });
-    } else {
+    } else if (!isSafeMemoryId(memoryId)) {
       warn(`skipping unsafe memory_id '${memoryId}'`);
     }
 
@@ -118,6 +145,7 @@ module.exports = {
   COMMENT_MEMORY_PROMPT_END_MARKER,
   COMMENT_MEMORY_CODE_FENCE,
   isSafeMemoryId,
+  buildCodeFenceOpener,
   stripCommentMemoryCodeFence,
   extractCommentMemoryEntries,
   listCommentMemoryFiles,

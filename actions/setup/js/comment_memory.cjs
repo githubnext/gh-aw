@@ -14,7 +14,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
-const { COMMENT_MEMORY_TAG, COMMENT_MEMORY_MAX_SCAN_PAGES, COMMENT_MEMORY_CODE_FENCE } = require("./comment_memory_helpers.cjs");
+const { COMMENT_MEMORY_TAG, COMMENT_MEMORY_MAX_SCAN_PAGES, COMMENT_MEMORY_CODE_FENCE, buildCodeFenceOpener } = require("./comment_memory_helpers.cjs");
 // Require provenance marker to avoid accidentally updating user-authored comments
 // that happen to contain a matching comment-memory tag.
 const MANAGED_COMMENT_PROVENANCE_MARKER = "<!-- gh-aw-agentic-workflow:";
@@ -23,9 +23,7 @@ const MANAGED_COMMENT_HEADER = "### Comment Memory";
 function renderManagedCommentDisclosureNote() {
   const promptsDir = process.env.GH_AW_PROMPTS_DIR || `${process.env.RUNNER_TEMP}/gh-aw/prompts`;
   const templatePath = `${promptsDir}/comment_memory_disclosure_note.md`;
-  return renderTemplateFromFile(templatePath, {
-    comment_memory_tag: COMMENT_MEMORY_TAG,
-  });
+  return renderTemplateFromFile(templatePath, {});
 }
 
 function sanitizeMemoryID(memoryID) {
@@ -42,10 +40,11 @@ function buildManagedMemoryBody(rawBody, memoryID, options) {
   if (!/^[a-zA-Z0-9_-]+$/.test(memoryID)) {
     throw new Error(`${SAFE_OUTPUT_E001}: memory_id must contain only alphanumeric characters, hyphens, and underscores`);
   }
-  const openingTag = `<${COMMENT_MEMORY_TAG} id="${memoryID}">`;
-  const closingTag = `</${COMMENT_MEMORY_TAG}>`;
   core.info(`comment_memory: building managed body for memory_id='${memoryID}'`);
-  let body = `${MANAGED_COMMENT_HEADER}\n\n${openingTag}\n${COMMENT_MEMORY_CODE_FENCE}\n${sanitizeContent(rawBody)}\n${COMMENT_MEMORY_CODE_FENCE}\n${closingTag}`;
+  // Use code-fence-as-container so the memory content is visible in GitHub's rendered Markdown.
+  // The language specifier encodes the memory ID: ``````gh-aw-comment-memory:<id>
+  const codeFenceOpener = buildCodeFenceOpener(memoryID);
+  let body = `${MANAGED_COMMENT_HEADER}\n\n${codeFenceOpener}\n${sanitizeContent(rawBody)}\n${COMMENT_MEMORY_CODE_FENCE}`;
 
   const tracker = getTrackerID("markdown");
   if (tracker) {
@@ -58,7 +57,7 @@ function buildManagedMemoryBody(rawBody, memoryID, options) {
     body += "\n\n" + resolvedDisclosureNote;
     body += "\n\n" + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined, historyUrl).trimEnd();
   } else {
-    core.info(`comment_memory: footer disabled for memory_id='${memoryID}', adding XML marker only`);
+    core.info(`comment_memory: footer disabled for memory_id='${memoryID}', adding provenance marker only`);
     body += "\n\n" + generateXMLMarker(workflowName, runUrl);
   }
 
@@ -67,8 +66,9 @@ function buildManagedMemoryBody(rawBody, memoryID, options) {
 }
 
 async function findManagedComment(github, owner, repo, itemNumber, memoryID) {
-  const marker = `<${COMMENT_MEMORY_TAG} id="${memoryID}">`;
-  core.info(`comment_memory: scanning comments for marker='${marker}' on #${itemNumber} in ${owner}/${repo}`);
+  const newFormatMarker = buildCodeFenceOpener(memoryID);
+  const legacyMarker = `<${COMMENT_MEMORY_TAG} id="${memoryID}">`;
+  core.info(`comment_memory: scanning comments for memory_id='${memoryID}' on #${itemNumber} in ${owner}/${repo}`);
   let page = 1;
   const perPage = 100;
   while (page <= COMMENT_MEMORY_MAX_SCAN_PAGES) {
@@ -89,7 +89,7 @@ async function findManagedComment(github, owner, repo, itemNumber, memoryID) {
       if (typeof body !== "string") {
         return false;
       }
-      if (!body.includes(marker)) {
+      if (!body.includes(newFormatMarker) && !body.includes(legacyMarker)) {
         return false;
       }
       return body.includes(MANAGED_COMMENT_PROVENANCE_MARKER);
