@@ -37,28 +37,15 @@ func (c *Compiler) formatFrameworkJobRunsOn(data *WorkflowData) string {
 
 // formatDetectionJobRunsOn returns the runs-on value for the detection job.
 //
-// Precedence (highest to lowest):
-//  1. safe-outputs.threat-detection.runs-on — explicit detection override
-//  2. safe-outputs.runs-on — section-level override
-//  3. runs-on-slim — top-level field for all framework jobs
-//  4. "ubuntu-latest" — detection-specific default
+// The detection job runs on a fresh runner separate from the agent job.
+// Use safe-outputs.threat-detection.runs-on to override; otherwise ubuntu-latest is used.
+// Notably, runs-on-slim and safe-outputs.runs-on do NOT propagate to the detection job
+// because the detection job has different networking and compute requirements.
 func (c *Compiler) formatDetectionJobRunsOn(data *WorkflowData) string {
-	if data == nil {
-		return "runs-on: ubuntu-latest"
-	}
-	if so := data.SafeOutputs; so != nil {
-		if td := so.ThreatDetection; td != nil && td.RunsOn != "" {
-			safeOutputsRuntimeLog.Printf("Detection job runs-on from threat-detection config: %s", td.RunsOn)
-			return "runs-on: " + td.RunsOn
-		}
-		if so.RunsOn != "" {
-			safeOutputsRuntimeLog.Printf("Detection job runs-on from safe-outputs: %s", so.RunsOn)
-			return "runs-on: " + so.RunsOn
-		}
-	}
-	if data.RunsOnSlim != "" {
-		safeOutputsRuntimeLog.Printf("Detection job runs-on from runs-on-slim: %s", data.RunsOnSlim)
-		return "runs-on: " + data.RunsOnSlim
+	if data != nil && data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
+		data.SafeOutputs.ThreatDetection.RunsOn != "" {
+		safeOutputsRuntimeLog.Printf("Detection job runs-on from threat-detection config: %s", data.SafeOutputs.ThreatDetection.RunsOn)
+		return "runs-on: " + data.SafeOutputs.ThreatDetection.RunsOn
 	}
 	safeOutputsRuntimeLog.Printf("Detection job runs-on using default: ubuntu-latest")
 	return "runs-on: ubuntu-latest"

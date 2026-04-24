@@ -390,29 +390,21 @@ func TestFormatDetectionJobRunsOn(t *testing.T) {
 			expectedRunsOn: "runs-on: ubuntu-latest",
 		},
 		{
-			name: "runs-on-slim inherited by detection job",
+			name: "runs-on-slim does NOT propagate to detection job",
 			data: &WorkflowData{
 				RunsOnSlim: "ubuntu-latest-cool",
 			},
-			expectedRunsOn: "runs-on: ubuntu-latest-cool",
+			expectedRunsOn: "runs-on: ubuntu-latest",
 		},
 		{
-			name: "safe-outputs.runs-on inherited by detection job",
+			name: "safe-outputs.runs-on does NOT propagate to detection job",
 			data: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{RunsOn: "self-hosted"},
 			},
-			expectedRunsOn: "runs-on: self-hosted",
+			expectedRunsOn: "runs-on: ubuntu-latest",
 		},
 		{
-			name: "safe-outputs.runs-on takes precedence over runs-on-slim",
-			data: &WorkflowData{
-				RunsOnSlim:  "ubuntu-22.04",
-				SafeOutputs: &SafeOutputsConfig{RunsOn: "self-hosted"},
-			},
-			expectedRunsOn: "runs-on: self-hosted",
-		},
-		{
-			name: "threat-detection.runs-on takes highest precedence",
+			name: "threat-detection.runs-on overrides default",
 			data: &WorkflowData{
 				RunsOnSlim: "ubuntu-22.04",
 				SafeOutputs: &SafeOutputsConfig{
@@ -424,14 +416,6 @@ func TestFormatDetectionJobRunsOn(t *testing.T) {
 			},
 			expectedRunsOn: "runs-on: ubuntu-detection-runner",
 		},
-		{
-			name: "safe-outputs with no runs-on falls back to runs-on-slim",
-			data: &WorkflowData{
-				RunsOnSlim:  "ubuntu-latest-cool",
-				SafeOutputs: &SafeOutputsConfig{},
-			},
-			expectedRunsOn: "runs-on: ubuntu-latest-cool",
-		},
 	}
 
 	for _, tt := range tests {
@@ -442,16 +426,15 @@ func TestFormatDetectionJobRunsOn(t *testing.T) {
 	}
 }
 
-// TestDetectionJobInheritsRunsOnSlim verifies that the compiled detection job
-// inherits runs-on-slim when safe-outputs.threat-detection.runs-on is not set.
-func TestDetectionJobInheritsRunsOnSlim(t *testing.T) {
+// TestDetectionJobRunsOn verifies the compiled detection job runs-on behaviour.
+func TestDetectionJobRunsOn(t *testing.T) {
 	tests := []struct {
 		name           string
 		frontmatter    string
 		expectedRunsOn string
 	}{
 		{
-			name: "detection job inherits runs-on-slim",
+			name: "detection job defaults to ubuntu-latest even when runs-on-slim is set",
 			frontmatter: `---
 on: issues
 runs-on: ubuntu-latest-cool
@@ -464,10 +447,10 @@ safe-outputs:
 # Test Workflow
 
 This is a test workflow.`,
-			expectedRunsOn: "runs-on: ubuntu-latest-cool",
+			expectedRunsOn: "runs-on: ubuntu-latest",
 		},
 		{
-			name: "detection job inherits safe-outputs.runs-on",
+			name: "detection job defaults to ubuntu-latest even when safe-outputs.runs-on is set",
 			frontmatter: `---
 on: issues
 safe-outputs:
@@ -479,10 +462,10 @@ safe-outputs:
 # Test Workflow
 
 This is a test workflow.`,
-			expectedRunsOn: "runs-on: custom-runner",
+			expectedRunsOn: "runs-on: ubuntu-latest",
 		},
 		{
-			name: "threat-detection.runs-on overrides runs-on-slim for detection job",
+			name: "threat-detection.runs-on overrides default",
 			frontmatter: `---
 on: issues
 runs-on-slim: ubuntu-latest-cool
@@ -490,13 +473,13 @@ safe-outputs:
   create-issue:
     title-prefix: "[ai] "
   threat-detection:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-detection-runner
 ---
 
 # Test Workflow
 
 This is a test workflow.`,
-			expectedRunsOn: "runs-on: ubuntu-latest",
+			expectedRunsOn: "runs-on: ubuntu-detection-runner",
 		},
 		{
 			name: "detection job defaults to ubuntu-latest when no runner specified",
