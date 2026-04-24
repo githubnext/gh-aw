@@ -11,6 +11,8 @@
 const fs = require("fs");
 const path = require("path");
 const { sanitizeDomainName } = require("./sanitize_content_core.cjs");
+const { renderTemplateFromFile } = require("./messages_core.cjs");
+const { renderMarkdownTemplate } = require("./render_template.cjs");
 
 /**
  * Parses a single firewall log line
@@ -184,43 +186,50 @@ function getBlockedDomains(logsDir) {
 
 /**
  * Generates HTML details/summary section for blocked domains wrapped in a GitHub warning alert
- * @param {string[]} blockedDomains - Array of blocked domain names
+ * @param {string[]} blockedDomains - Array of blocked domain names (expected to be pre-sanitized via getBlockedDomains)
+ * @param {string} [templatePath] - Optional path to template file (defaults to RUNNER_TEMP/gh-aw/prompts/firewall_blocked_domains.md)
  * @returns {string} GitHub warning alert with details section, or empty string if no blocked domains
  */
-function generateBlockedDomainsSection(blockedDomains) {
+function generateBlockedDomainsSection(blockedDomains, templatePath) {
   if (!blockedDomains || blockedDomains.length === 0) {
     return "";
   }
 
   const domainCount = blockedDomains.length;
   const domainWord = domainCount === 1 ? "domain" : "domains";
+  const verb = domainCount === 1 ? "was" : "were";
 
-  let section = "\n\n> [!WARNING]\n";
-  section += `> **⚠️ Firewall blocked ${domainCount} ${domainWord}**\n`;
-  section += `>\n`;
-  section += `> The following ${domainWord} ${domainCount === 1 ? "was" : "were"} blocked by the firewall during workflow execution:\n`;
-  section += `>\n`;
+  // Build domain bullet list lines
+  const domainList = blockedDomains.map(domain => `> - \`${domain}\`\n`).join("");
 
-  // List domains as bullet points (within the alert)
-  for (const domain of blockedDomains) {
-    section += `> - \`${domain}\`\n`;
+  // Build YAML network.allowed list lines
+  const yamlNetworkList = blockedDomains.map(domain => `>     - "${domain}"\n`).join("");
+
+  const hasGitHubApiBlocked = blockedDomains.includes("api.github.com");
+
+  // Resolve template path: explicit > RUNNER_TEMP (production) > source tree (local dev/test)
+  let resolvedTemplatePath = templatePath;
+  if (!resolvedTemplatePath) {
+    resolvedTemplatePath = process.env.RUNNER_TEMP ? `${process.env.RUNNER_TEMP}/gh-aw/prompts/firewall_blocked_domains.md` : path.join(__dirname, "../md/firewall_blocked_domains.md");
   }
 
-  section += `>\n`;
-  section += `> To allow these domains, add them to the \`network.allowed\` list in your workflow frontmatter:\n`;
-  section += `>\n`;
-  section += `> \`\`\`yaml\n`;
-  section += `> network:\n`;
-  section += `>   allowed:\n`;
-  section += `>     - defaults\n`;
-  for (const domain of blockedDomains) {
-    section += `>     - "${domain}"\n`;
-  }
-  section += `> \`\`\`\n`;
-  section += `>\n`;
-  section += `> See [Network Configuration](https://github.github.com/gh-aw/reference/network/) for more information.\n`;
+  // First pass: substitute {key} placeholders.
+  // has_github_api_blocked is set to the string "true" or "false" so that
+  // renderMarkdownTemplate's isTruthy() correctly evaluates the
+  // {{#if {has_github_api_blocked}}} conditional in the template
+  // (isTruthy("false") === false per the template engine's explicit check).
+  const rendered = renderTemplateFromFile(resolvedTemplatePath, {
+    domain_count: domainCount,
+    domain_word: domainWord,
+    verb,
+    domain_list: domainList,
+    yaml_network_list: yamlNetworkList,
+    has_github_api_blocked: hasGitHubApiBlocked ? "true" : "false",
+  });
 
-  return section;
+  // Second pass: evaluate {{#if ...}} conditional blocks (e.g. the gh-proxy tip section)
+  // Template starts without leading newlines; prepend separator expected by callers
+  return "\n\n" + renderMarkdownTemplate(rendered);
 }
 
 module.exports = {

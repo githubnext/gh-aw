@@ -236,7 +236,7 @@ func TestMCPServer_AuditToolReturnsValidJSON(t *testing.T) {
 	defer session.Close()
 
 	// Call audit tool with an invalid run ID
-	// The tool should return an MCP error for invalid run IDs
+	// The tool should return a graceful JSON error (IsError=false), not a protocol-level MCP error.
 	params := &mcp.CallToolParams{
 		Name: "audit",
 		Arguments: map[string]any{
@@ -245,8 +245,8 @@ func TestMCPServer_AuditToolReturnsValidJSON(t *testing.T) {
 	}
 	result, err := session.CallTool(ctx, params)
 	if err != nil {
-		// Expected behavior: audit command fails with invalid run ID
-		t.Logf("Audit tool correctly returned error for invalid run ID: %v", err)
+		// A permission or network error is acceptable in environments without GitHub credentials.
+		t.Logf("Audit tool returned protocol error (acceptable in CI without credentials): %v", err)
 		return
 	}
 
@@ -265,14 +265,14 @@ func TestMCPServer_AuditToolReturnsValidJSON(t *testing.T) {
 		t.Fatal("Expected non-empty text content from audit tool")
 	}
 
-	// The audit tool may return an error message for invalid run IDs
-	// We check if the output contains "Error:" which indicates an error message
-	if len(textContent.Text) >= 6 && textContent.Text[0:6] == "Error:" {
-		t.Logf("Audit tool returned error message as expected for invalid run ID")
+	// The audit tool must return valid JSON (graceful error envelope or success)
+	// and must NOT set IsError=true.
+	if result.IsError {
+		t.Errorf("Audit tool set IsError=true; expected graceful JSON error (IsError=false). Content: %s", textContent.Text)
 		return
 	}
 
-	// If not an error, verify JSON is valid
+	// Verify JSON is valid
 	if !isValidJSON(textContent.Text) {
 		// Try extracting JSON from output
 		jsonOutput := extractJSONFromOutput(textContent.Text)
