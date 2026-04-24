@@ -179,4 +179,40 @@ The separate `skill_optimizer` job already ran `fastxyz/skill-optimizer` and pac
   - Expected impact for each improvement
 - Keep recommendations specific to this repository and immediately actionable.
 
+## Issue Format Guidelines
+
+Use h3 (`###`) or lower for all headers in your report. Never use h1 (`#`) or h2 (`##`) — these are reserved for the issue title.
+
+Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability. Example:
+
+```markdown
+<details>
+<summary><b>Full Analysis Details</b></summary>
+
+[Long detailed content here...]
+
+</details>
+```
+
+Structure the issue body as follows:
+
+```markdown
+### Summary
+- Run mode: dry-run / benchmark
+- Status: ✅/⚠️/❌
+
+### Key Findings
+[Always visible — the 3 improvements with expected impact]
+
+<details>
+<summary><b>Evidence from Artifact</b></summary>
+
+[Concrete references to artifact files and log excerpts]
+
+</details>
+
+### Recommendations
+[Numbered list of 3 actionable improvements]
+```
+
 Do not call `noop` for this workflow; always create exactly one issue with exactly 3 improvements.
