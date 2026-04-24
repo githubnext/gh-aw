@@ -348,5 +348,37 @@ describe("firewall_blocked_domains.cjs", () => {
       const result = generateBlockedDomainsSection(["example.com"]);
       expect(result).toMatch(/^\n\n> \[!WARNING\]/);
     });
+
+    it("should suggest gh-proxy mode when api.github.com is blocked", () => {
+      const result = generateBlockedDomainsSection(["api.github.com"]);
+
+      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("> **⚠️ Firewall blocked 1 domain**");
+      expect(result).toContain("> - `api.github.com`");
+      expect(result).toContain("`tools.github.mode: gh-proxy`");
+      expect(result).toContain("> ```yaml\n> tools:\n>   github:\n>     mode: gh-proxy\n> ```");
+      expect(result).toContain("> See [GitHub Tools](https://github.github.com/gh-aw/reference/github-tools/) for more information on `gh-proxy` mode.");
+      expect(result).toContain("> See [Network Configuration](https://github.github.com/gh-aw/reference/network/) for more information.");
+    });
+
+    it("should suggest gh-proxy mode when api.github.com is among other blocked domains", () => {
+      const domains = ["api.github.com", "other.example.com"];
+      const result = generateBlockedDomainsSection(domains);
+
+      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("> **⚠️ Firewall blocked 2 domains**");
+      expect(result).toContain("> - `api.github.com`");
+      expect(result).toContain("> - `other.example.com`");
+      expect(result).toContain("> ```yaml\n> tools:\n>   github:\n>     mode: gh-proxy\n> ```");
+      expect(result).toContain("> See [GitHub Tools](https://github.github.com/gh-aw/reference/github-tools/) for more information on `gh-proxy` mode.");
+    });
+
+    it("should not suggest gh-proxy mode when api.github.com is not blocked", () => {
+      const result = generateBlockedDomainsSection(["other.example.com"]);
+
+      expect(result).not.toContain("gh-proxy");
+      expect(result).not.toContain("GitHub Tools");
+      expect(result).toContain("> See [Network Configuration](https://github.github.com/gh-aw/reference/network/) for more information.");
+    });
   });
 });

@@ -207,6 +207,23 @@ function generateBlockedDomainsSection(blockedDomains) {
   }
 
   section += `>\n`;
+
+  // Check if api.github.com is in the blocked domains list
+  const hasGitHubApiBlocked = blockedDomains.includes("api.github.com");
+
+  if (hasGitHubApiBlocked) {
+    section += `> **💡 Tip:** \`api.github.com\` is blocked because GitHub API access uses the built-in GitHub tools by default. Instead of adding \`api.github.com\` to \`network.allowed\`, use \`tools.github.mode: gh-proxy\` for direct pre-authenticated GitHub CLI access without requiring network access to \`api.github.com\`:\n`;
+    section += `>\n`;
+    section += `> \`\`\`yaml\n`;
+    section += `> tools:\n`;
+    section += `>   github:\n`;
+    section += `>     mode: gh-proxy\n`;
+    section += `> \`\`\`\n`;
+    section += `>\n`;
+    section += `> See [GitHub Tools](https://github.github.com/gh-aw/reference/github-tools/) for more information on \`gh-proxy\` mode.\n`;
+    section += `>\n`;
+  }
+
   section += `> To allow these domains, add them to the \`network.allowed\` list in your workflow frontmatter:\n`;
   section += `>\n`;
   section += `> \`\`\`yaml\n`;
