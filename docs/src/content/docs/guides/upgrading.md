@@ -26,7 +26,7 @@ Create a backup branch before upgrading so you can recover if something goes wro
 
 ```bash wrap
 git checkout -b backup-before-upgrade
-git checkout -
+git checkout -  # return to your previous branch
 ```
 
 ## Step 1: Upgrade the Extension
