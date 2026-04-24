@@ -112,11 +112,6 @@ func findAwInfoPath(logsPath string) string {
 	return ""
 }
 
-// extractEngineConfig parses aw_info.json and returns an AuditEngineConfig
-func extractEngineConfig(logsPath string) *AuditEngineConfig {
-	return extractEngineConfigWithInferredEngine(logsPath, "")
-}
-
 func extractEngineConfigWithInferredEngine(logsPath, inferredEngineID string) *AuditEngineConfig {
 	if logsPath == "" {
 		return nil
