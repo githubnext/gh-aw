@@ -318,7 +318,7 @@ func (c *Compiler) buildDetectionGuardStep() []string {
 // This ensures the detection engine runs without any MCP servers.
 func (c *Compiler) buildClearMCPConfigStep() []string {
 	return []string{
-		"      - name: Clear MCP configuration for detection\n",
+		"      - name: Clear MCP Config for detection\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        run: |\n",
 		"          rm -f \"${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json\"\n",

@@ -45,7 +45,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Compute release configuration
+      - name: Compute release Config
         id: compute_config
         uses: actions/github-script@v9
         with:
