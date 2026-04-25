@@ -2,6 +2,7 @@ package parser
 
 import (
 	"encoding/json"
+	"fmt"
 	"maps"
 	"strings"
 
@@ -61,7 +62,9 @@ func extractToolsFromFrontmatter(frontmatter map[string]any) (string, error) {
 	// Create a map to hold the merged result
 	extracted := make(map[string]any)
 
-	// Helper function to merge a field into extracted map
+	// Helper function to merge a field into extracted map.
+	// Non-map values (e.g. arrays in custom-agent format) are skipped here;
+	// schema validation elsewhere will report them as invalid if appropriate.
 	mergeField := func(fieldName string) {
 		if fieldValue, exists := frontmatter[fieldName]; exists {
 			if fieldMap, ok := fieldValue.(map[string]any); ok {
@@ -84,7 +87,7 @@ func extractToolsFromFrontmatter(frontmatter map[string]any) (string, error) {
 	// Convert to JSON string
 	extractedJSON, err := json.Marshal(extracted)
 	if err != nil {
-		return "{}", nil
+		return "", fmt.Errorf("failed to marshal tools to JSON: %w", err)
 	}
 
 	return strings.TrimSpace(string(extractedJSON)), nil
