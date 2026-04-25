@@ -49,7 +49,7 @@ tools:
     - "git"
   # Memory cache for persistent AI memory across runs
   cache-memory:
-    key: poem-memory-${{ github.workflow }}-${{ github.run_id }}
+    key: poem-memory-${{ github.workflow }}
     retention-days: 30
 
 # Comprehensive safe-outputs configuration - ALL types with staged mode

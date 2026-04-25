@@ -85,6 +85,9 @@ func parseCacheMemoryEntry(cacheMap map[string]any, defaultID string) (CacheMemo
 	// Parse custom key
 	if key, exists := cacheMap["key"]; exists {
 		if keyStr, ok := key.(string); ok {
+			if err := validateNoCacheKeyRunID(keyStr); err != nil {
+				return entry, err
+			}
 			entry.Key = keyStr
 			// Automatically append -${{ github.run_id }} if the key doesn't already end with it
 			runIdSuffix := "-${{ github.run_id }}"

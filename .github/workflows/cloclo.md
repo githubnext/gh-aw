@@ -27,7 +27,7 @@ tools:
   playwright:
   bash: true
   cache-memory:
-    key: cloclo-memory-${{ github.workflow }}-${{ github.run_id }}
+    key: cloclo-memory-${{ github.workflow }}
 safe-outputs:
   create-pull-request:
     expires: 2d

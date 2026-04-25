@@ -27,7 +27,7 @@ imports:
 
 tools:
   cache-memory:
-    key: charts-trending-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+    key: charts-trending-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}
 ---
 
 # Charts with Trending - Complete Guide

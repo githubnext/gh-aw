@@ -66,7 +66,7 @@ tools:
       - issues
       - pull_requests
   cache-memory:
-    key: stale-repos-analysis-${{ github.workflow }}-${{ github.run_id }}
+    key: stale-repos-analysis-${{ github.workflow }}
   bash:
     - "*"
   edit:
