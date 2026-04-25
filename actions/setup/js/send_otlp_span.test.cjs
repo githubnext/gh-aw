@@ -1812,7 +1812,7 @@ describe("sendJobConclusionSpan", () => {
     expect(agentSpan.kind).toBe(3); // SPAN_KIND_CLIENT
   });
 
-  it("includes gen_ai.request.model on the agent span from aw_info.json", async () => {
+  it("includes gen_ai.request.model, gen_ai.provider.name, gen_ai.operation.name and gen_ai.workflow.name on the agent span from aw_info.json", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -1824,7 +1824,7 @@ describe("sendJobConclusionSpan", () => {
     const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
       if (filePath === "/tmp/gh-aw/aw_info.json") {
-        return JSON.stringify({ model: "claude-3-5-sonnet-20241022", engine_id: "claude" });
+        return JSON.stringify({ model: "claude-3-5-sonnet-20241022", engine_id: "claude", workflow_name: "otel-advisor" });
       }
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
@@ -1838,11 +1838,13 @@ describe("sendJobConclusionSpan", () => {
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
     expect(agentSpan.name).toBe("gh-aw.agent.agent");
     const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue]));
+    expect(attrs["gen_ai.operation.name"]).toBe("chat");
     expect(attrs["gen_ai.request.model"]).toBe("claude-3-5-sonnet-20241022");
-    expect(attrs["gen_ai.system"]).toBe("claude");
+    expect(attrs["gen_ai.provider.name"]).toBe("claude");
+    expect(attrs["gen_ai.workflow.name"]).toBe("otel-advisor");
   });
 
-  it("omits gen_ai.request.model and gen_ai.system from the agent span when model and engine_id are absent", async () => {
+  it("omits gen_ai.request.model, gen_ai.provider.name and gen_ai.workflow.name from the agent span when model, engine_id and workflow_name are absent", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -1863,9 +1865,13 @@ describe("sendJobConclusionSpan", () => {
 
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue]));
+    // gen_ai.operation.name is always present
+    expect(attrs["gen_ai.operation.name"]).toBe("chat");
     const keys = agentSpan.attributes.map(a => a.key);
     expect(keys).not.toContain("gen_ai.request.model");
-    expect(keys).not.toContain("gen_ai.system");
+    expect(keys).not.toContain("gen_ai.provider.name");
+    expect(keys).not.toContain("gen_ai.workflow.name");
   });
 
   it("includes gh-aw.run.attempt attribute from GITHUB_RUN_ATTEMPT env var", async () => {
@@ -2956,8 +2962,8 @@ describe("sendJobConclusionSpan", () => {
       const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
       expect(attrs["gen_ai.usage.input_tokens"]).toBe(48200);
       expect(attrs["gen_ai.usage.output_tokens"]).toBe(1350);
-      expect(attrs["gen_ai.usage.cache_read_input_tokens"]).toBe(41000);
-      expect(attrs["gen_ai.usage.cache_creation_input_tokens"]).toBe(3100);
+      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(41000);
+      expect(attrs["gen_ai.usage.cache_creation.input_tokens"]).toBe(3100);
     });
 
     it("omits all gen_ai token breakdown attributes when agent_usage.json is absent", async () => {
@@ -2975,8 +2981,8 @@ describe("sendJobConclusionSpan", () => {
       const keys = agentSpan.attributes.map(a => a.key);
       expect(keys).not.toContain("gen_ai.usage.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.output_tokens");
-      expect(keys).not.toContain("gen_ai.usage.cache_read_input_tokens");
-      expect(keys).not.toContain("gen_ai.usage.cache_creation_input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
 
     it("omits a gen_ai token attribute when its value is zero", async () => {
@@ -2999,10 +3005,10 @@ describe("sendJobConclusionSpan", () => {
       const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
       expect(attrs["gen_ai.usage.input_tokens"]).toBe(1000);
-      expect(attrs["gen_ai.usage.cache_read_input_tokens"]).toBe(500);
+      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(500);
       const keys = agentSpan.attributes.map(a => a.key);
       expect(keys).not.toContain("gen_ai.usage.output_tokens");
-      expect(keys).not.toContain("gen_ai.usage.cache_creation_input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
 
     it("omits gen_ai token breakdown attributes when agent_usage.json contains invalid JSON", async () => {
@@ -3025,8 +3031,8 @@ describe("sendJobConclusionSpan", () => {
       const keys = agentSpan.attributes.map(a => a.key);
       expect(keys).not.toContain("gen_ai.usage.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.output_tokens");
-      expect(keys).not.toContain("gen_ai.usage.cache_read_input_tokens");
-      expect(keys).not.toContain("gen_ai.usage.cache_creation_input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
   });
 

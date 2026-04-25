@@ -864,8 +864,15 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     // LLM dashboards in Grafana, Datadog, and Honeycomb without custom mappings.
     const agentUsage = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || {};
     const agentAttributes = [...attributes];
+    // gen_ai.operation.name is Required by the OTel GenAI spec for inference spans.
+    // All gh-aw agent executions are chat-style LLM completions.
+    agentAttributes.push(buildAttr("gen_ai.operation.name", "chat"));
     if (model) agentAttributes.push(buildAttr("gen_ai.request.model", model));
-    if (engineId) agentAttributes.push(buildAttr("gen_ai.system", engineId));
+    // gen_ai.provider.name is the current Required attribute (replaces deprecated gen_ai.system).
+    if (engineId) agentAttributes.push(buildAttr("gen_ai.provider.name", engineId));
+    // gen_ai.workflow.name identifies the agentic workflow, matching the OTel spec example
+    // use-cases (e.g. "multi_agent_rag", "customer_support_pipeline").
+    if (workflowName) agentAttributes.push(buildAttr("gen_ai.workflow.name", workflowName));
     if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
       agentAttributes.push(buildAttr("gen_ai.usage.input_tokens", agentUsage.input_tokens));
     }
@@ -873,10 +880,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       agentAttributes.push(buildAttr("gen_ai.usage.output_tokens", agentUsage.output_tokens));
     }
     if (typeof agentUsage.cache_read_tokens === "number" && agentUsage.cache_read_tokens > 0) {
-      agentAttributes.push(buildAttr("gen_ai.usage.cache_read_input_tokens", agentUsage.cache_read_tokens));
+      agentAttributes.push(buildAttr("gen_ai.usage.cache_read.input_tokens", agentUsage.cache_read_tokens));
     }
     if (typeof agentUsage.cache_write_tokens === "number" && agentUsage.cache_write_tokens > 0) {
-      agentAttributes.push(buildAttr("gen_ai.usage.cache_creation_input_tokens", agentUsage.cache_write_tokens));
+      agentAttributes.push(buildAttr("gen_ai.usage.cache_creation.input_tokens", agentUsage.cache_write_tokens));
     }
 
     const agentPayload = buildOTLPPayload({
