@@ -740,37 +740,13 @@ func renderBashCommandsDiffPrettySection(run1ID, run2ID int64, diff *BashCommand
 			if change == "" {
 				change = "—"
 			}
-			maxInput := "—"
-			if cmd.Run1MaxInputSize > 0 || cmd.Run2MaxInputSize > 0 {
-				v1 := strconv.Itoa(cmd.Run1MaxInputSize)
-				v2 := strconv.Itoa(cmd.Run2MaxInputSize)
-				if cmd.Run1MaxInputSize == 0 {
-					v1 = "—"
-				}
-				if cmd.Run2MaxInputSize == 0 {
-					v2 = "—"
-				}
-				maxInput = v1 + " / " + v2
-			}
-			maxOutput := "—"
-			if cmd.Run1MaxOutputSize > 0 || cmd.Run2MaxOutputSize > 0 {
-				v1 := strconv.Itoa(cmd.Run1MaxOutputSize)
-				v2 := strconv.Itoa(cmd.Run2MaxOutputSize)
-				if cmd.Run1MaxOutputSize == 0 {
-					v1 = "—"
-				}
-				if cmd.Run2MaxOutputSize == 0 {
-					v2 = "—"
-				}
-				maxOutput = v1 + " / " + v2
-			}
 			config.Rows = append(config.Rows, []string{
 				cmd.Name,
 				strconv.Itoa(cmd.Run1CallCount),
 				strconv.Itoa(cmd.Run2CallCount),
 				change,
-				maxInput,
-				maxOutput,
+				formatMaxSizeCell(cmd.Run1MaxInputSize, cmd.Run2MaxInputSize),
+				formatMaxSizeCell(cmd.Run1MaxOutputSize, cmd.Run2MaxOutputSize),
 			})
 		}
 		fmt.Fprint(os.Stderr, console.RenderTable(config))
@@ -822,35 +798,29 @@ func renderBashCommandsDiffMarkdownSection(run1ID, run2ID int64, diff *BashComma
 			if change == "" {
 				change = "—"
 			}
-			maxInput := "—"
-			if cmd.Run1MaxInputSize > 0 || cmd.Run2MaxInputSize > 0 {
-				v1 := strconv.Itoa(cmd.Run1MaxInputSize)
-				v2 := strconv.Itoa(cmd.Run2MaxInputSize)
-				if cmd.Run1MaxInputSize == 0 {
-					v1 = "—"
-				}
-				if cmd.Run2MaxInputSize == 0 {
-					v2 = "—"
-				}
-				maxInput = v1 + " / " + v2
-			}
-			maxOutput := "—"
-			if cmd.Run1MaxOutputSize > 0 || cmd.Run2MaxOutputSize > 0 {
-				v1 := strconv.Itoa(cmd.Run1MaxOutputSize)
-				v2 := strconv.Itoa(cmd.Run2MaxOutputSize)
-				if cmd.Run1MaxOutputSize == 0 {
-					v1 = "—"
-				}
-				if cmd.Run2MaxOutputSize == 0 {
-					v2 = "—"
-				}
-				maxOutput = v1 + " / " + v2
-			}
 			fmt.Printf("| `%s` | %d | %d | %s | %s | %s |\n",
-				cmd.Name, cmd.Run1CallCount, cmd.Run2CallCount, change, maxInput, maxOutput)
+				cmd.Name, cmd.Run1CallCount, cmd.Run2CallCount, change,
+				formatMaxSizeCell(cmd.Run1MaxInputSize, cmd.Run2MaxInputSize),
+				formatMaxSizeCell(cmd.Run1MaxOutputSize, cmd.Run2MaxOutputSize))
 		}
 		fmt.Println()
 	}
+}
+
+// formatMaxSizeCell formats a "run1 / run2" max-size pair for display in a table cell.
+// Returns "—" when both values are zero, and omits the individual value if it is zero.
+func formatMaxSizeCell(run1Size, run2Size int) string {
+	if run1Size == 0 && run2Size == 0 {
+		return "—"
+	}
+	v1, v2 := strconv.Itoa(run1Size), strconv.Itoa(run2Size)
+	if run1Size == 0 {
+		v1 = "—"
+	}
+	if run2Size == 0 {
+		v2 = "—"
+	}
+	return v1 + " / " + v2
 }
 
 // firewallStatusEmoji returns the status emoji for a domain status

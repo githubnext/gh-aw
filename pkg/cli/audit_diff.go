@@ -646,6 +646,9 @@ func computeToolCallsDiff(m1, m2 *LogMetrics) *ToolCallsDiff {
 
 	diff := &ToolCallsDiff{}
 	var run1Total, run2Total int
+	// Collect bash tools during the main iteration to avoid a second traversal in computeBashCommandsDiff.
+	bashRun1 := make(map[string]ToolCallInfo)
+	bashRun2 := make(map[string]ToolCallInfo)
 
 	for _, name := range sortedNames {
 		tc1, inRun1 := run1Tools[name]
@@ -653,9 +656,15 @@ func computeToolCallsDiff(m1, m2 *LogMetrics) *ToolCallsDiff {
 
 		if inRun1 {
 			run1Total += tc1.CallCount
+			if isBashTool(name) {
+				bashRun1[name] = tc1
+			}
 		}
 		if inRun2 {
 			run2Total += tc2.CallCount
+			if isBashTool(name) {
+				bashRun2[name] = tc2
+			}
 		}
 
 		var entry ToolCallDiffEntry
@@ -706,7 +715,7 @@ func computeToolCallsDiff(m1, m2 *LogMetrics) *ToolCallsDiff {
 		diff.AllTools = append(diff.AllTools, entry)
 	}
 
-	diff.BashDiff = computeBashCommandsDiff(run1Tools, run2Tools)
+	diff.BashDiff = computeBashCommandsDiff(bashRun1, bashRun2)
 	diff.Summary = ToolCallsDiffSummary{
 		NewToolCount:     len(diff.NewTools),
 		RemovedToolCount: len(diff.RemovedTools),
@@ -720,21 +729,16 @@ func computeToolCallsDiff(m1, m2 *LogMetrics) *ToolCallsDiff {
 	return diff
 }
 
-// computeBashCommandsDiff builds bash-specific analysis from the tool call maps.
-// It collects all bash-related entries (generic "bash"/"Bash" and per-command "bash_*")
-// and produces a summary with per-command call count comparison.
-// Returns nil when no bash tool calls are present in either run.
+// computeBashCommandsDiff builds bash-specific analysis from pre-filtered bash tool call maps.
+// The maps should contain only bash-related entries (generic "bash"/"Bash" and per-command "bash_*").
+// Returns nil when no bash tool calls are present in either map.
 func computeBashCommandsDiff(run1Tools, run2Tools map[string]ToolCallInfo) *BashCommandsDiff {
 	allNames := make(map[string]bool)
 	for k := range run1Tools {
-		if isBashTool(k) {
-			allNames[k] = true
-		}
+		allNames[k] = true
 	}
 	for k := range run2Tools {
-		if isBashTool(k) {
-			allNames[k] = true
-		}
+		allNames[k] = true
 	}
 
 	if len(allNames) == 0 {

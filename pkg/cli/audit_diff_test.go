@@ -1191,24 +1191,20 @@ func TestComputeToolCallsDiff_SortedOutput(t *testing.T) {
 // --- Bash commands diff tests ---
 
 func TestComputeBashCommandsDiff_NoBash(t *testing.T) {
-	run1Tools := map[string]ToolCallInfo{
-		"gh": {Name: "gh", CallCount: 5},
-	}
-	run2Tools := map[string]ToolCallInfo{
-		"gh": {Name: "gh", CallCount: 3},
-	}
+	// computeBashCommandsDiff receives pre-filtered maps; passing no bash tools → nil
+	run1Tools := map[string]ToolCallInfo{}
+	run2Tools := map[string]ToolCallInfo{}
 	result := computeBashCommandsDiff(run1Tools, run2Tools)
 	assert.Nil(t, result, "Should return nil when no bash tools present")
 }
 
 func TestComputeBashCommandsDiff_GenericBash(t *testing.T) {
+	// Only bash tools are passed to computeBashCommandsDiff
 	run1Tools := map[string]ToolCallInfo{
 		"bash": {Name: "bash", CallCount: 5},
-		"gh":   {Name: "gh", CallCount: 3},
 	}
 	run2Tools := map[string]ToolCallInfo{
 		"bash": {Name: "bash", CallCount: 10},
-		"gh":   {Name: "gh", CallCount: 3},
 	}
 
 	result := computeBashCommandsDiff(run1Tools, run2Tools)
