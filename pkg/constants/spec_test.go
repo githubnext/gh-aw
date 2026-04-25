@@ -28,6 +28,10 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 		{name: "CodexEngine value", constant: constants.CodexEngine, expected: "codex"},
 		// From spec: constants.GeminiEngine // "gemini"
 		{name: "GeminiEngine value", constant: constants.GeminiEngine, expected: "gemini"},
+		// From spec: constants.OpenCodeEngine // "opencode"
+		{name: "OpenCodeEngine value", constant: constants.OpenCodeEngine, expected: "opencode"},
+		// From spec: constants.CrushEngine // "crush"
+		{name: "CrushEngine value", constant: constants.CrushEngine, expected: "crush"},
 		// From spec: constants.DefaultEngine // "copilot"
 		{name: "DefaultEngine is copilot", constant: constants.DefaultEngine, expected: "copilot"},
 	}
@@ -42,17 +46,13 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 
 // TestSpec_EngineConstants_AgenticEngines validates the documented AgenticEngines list.
 // Spec section: "// All supported engine names"
-// Spec documents: constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini"}
-//
-// SPEC_MISMATCH: README documents 4 engines {"claude", "codex", "copilot", "gemini"} but
-// the implementation includes a 5th engine "crush" (CrushEngine). The spec is outdated
-// and does not reflect the current engine catalog.
+// Spec documents: constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "opencode", "crush"}
 func TestSpec_EngineConstants_AgenticEngines(t *testing.T) {
 	engines := constants.AgenticEngines
 	require.NotEmpty(t, engines, "AgenticEngines should be non-empty")
 
-	// Spec documents at least these four engines; implementation may include additional engines.
-	documentedEngines := []string{"claude", "codex", "copilot", "gemini"}
+	// Spec documents all six engines.
+	documentedEngines := []string{"claude", "codex", "copilot", "gemini", "opencode", "crush"}
 	for _, expected := range documentedEngines {
 		assert.Contains(t, engines, expected,
 			"AgenticEngines should contain documented engine %q", expected)
@@ -390,4 +390,35 @@ func TestSpec_SystemSecrets_GlobalSlice(t *testing.T) {
 		"SystemSecrets should include GH_AW_AGENT_TOKEN as documented")
 	assert.Contains(t, names, "GH_AW_GITHUB_MCP_SERVER_TOKEN",
 		"SystemSecrets should include GH_AW_GITHUB_MCP_SERVER_TOKEN as documented")
+}
+
+// TestSpec_ModelEnvVars_OpenCodeAndCrush validates the documented model env var constants
+// for the OpenCode and Crush engines.
+// Spec section: "### Model Environment Variables"
+func TestSpec_ModelEnvVars_OpenCodeAndCrush(t *testing.T) {
+	tests := []struct {
+		name     string
+		actual   string
+		expected string
+	}{
+		// From spec: constants.EnvVarModelAgentOpenCode // "GH_AW_MODEL_AGENT_OPENCODE"
+		{name: "EnvVarModelAgentOpenCode", actual: constants.EnvVarModelAgentOpenCode, expected: "GH_AW_MODEL_AGENT_OPENCODE"},
+		// From spec: constants.EnvVarModelDetectionOpenCode // "GH_AW_MODEL_DETECTION_OPENCODE"
+		{name: "EnvVarModelDetectionOpenCode", actual: constants.EnvVarModelDetectionOpenCode, expected: "GH_AW_MODEL_DETECTION_OPENCODE"},
+		// From spec: constants.OpenCodeCLIModelEnvVar // "OPENCODE_MODEL"
+		{name: "OpenCodeCLIModelEnvVar", actual: constants.OpenCodeCLIModelEnvVar, expected: "OPENCODE_MODEL"},
+		// From spec: constants.EnvVarModelAgentCrush // "GH_AW_MODEL_AGENT_CRUSH"
+		{name: "EnvVarModelAgentCrush", actual: constants.EnvVarModelAgentCrush, expected: "GH_AW_MODEL_AGENT_CRUSH"},
+		// From spec: constants.EnvVarModelDetectionCrush // "GH_AW_MODEL_DETECTION_CRUSH"
+		{name: "EnvVarModelDetectionCrush", actual: constants.EnvVarModelDetectionCrush, expected: "GH_AW_MODEL_DETECTION_CRUSH"},
+		// From spec: constants.CrushCLIModelEnvVar // "CRUSH_MODEL"
+		{name: "CrushCLIModelEnvVar", actual: constants.CrushCLIModelEnvVar, expected: "CRUSH_MODEL"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.actual,
+				"model env var %s should have documented value %q", tt.name, tt.expected)
+		})
+	}
 }

@@ -250,3 +250,149 @@ func TestSpec_DesignDecision_RenderStruct_OmitEmptyTag(t *testing.T) {
 			"omitempty field with non-zero value should appear in rendered output")
 	})
 }
+
+// TestSpec_PublicAPI_FormatNumber validates the documented behavior of FormatNumber.
+// Specification: "Formats a large integer as a compact human-readable string using SI suffixes (k, M, B)."
+func TestSpec_PublicAPI_FormatNumber(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    int
+		expected string
+	}{
+		// From spec: FormatNumber(0) // "0"
+		{name: "zero", input: 0, expected: "0"},
+		// From spec: FormatNumber(999) // "999"
+		{name: "below 1000", input: 999, expected: "999"},
+		// From spec: FormatNumber(1500) // "1.50k"
+		{name: "1500 as 1.50k", input: 1500, expected: "1.50k"},
+		// From spec: FormatNumber(1_200_000) // "1.20M"
+		{name: "1.2M as 1.20M", input: 1_200_000, expected: "1.20M"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatNumber(tt.input)
+			assert.Equal(t, tt.expected, result,
+				"FormatNumber(%d) should match documented output", tt.input)
+		})
+	}
+}
+
+// TestSpec_PublicAPI_ToRelativePath validates the documented behavior of ToRelativePath.
+// Specification: "Converts an absolute path to a path relative to the current working directory.
+// If the relative path would require traversing parent directories (..), the original absolute
+// path is returned unchanged."
+func TestSpec_PublicAPI_ToRelativePath(t *testing.T) {
+	t.Run("absolute path outside cwd returns absolute path unchanged", func(t *testing.T) {
+		// /etc/hosts is outside any likely cwd, so relative path would contain ..
+		result := ToRelativePath("/etc/hosts")
+		assert.Equal(t, "/etc/hosts", result,
+			"path requiring .. traversal should return the original absolute path as documented")
+	})
+
+	t.Run("non-absolute path returned unchanged", func(t *testing.T) {
+		result := ToRelativePath("relative/path.md")
+		assert.Equal(t, "relative/path.md", result,
+			"non-absolute path should be returned unchanged")
+	})
+}
+
+// TestSpec_PublicAPI_FormatErrorWithSuggestions validates the documented behavior.
+// Specification: "Formats an error message followed by a bulleted list of actionable suggestions.
+// Returns an empty suggestions block when suggestions is nil or empty."
+func TestSpec_PublicAPI_FormatErrorWithSuggestions(t *testing.T) {
+	t.Run("with suggestions includes bulleted list", func(t *testing.T) {
+		result := FormatErrorWithSuggestions(
+			"Unknown engine 'myengine'",
+			[]string{
+				"Valid engines are: copilot, claude, codex",
+				"Check your workflow frontmatter",
+			},
+		)
+		assert.Contains(t, result, "Valid engines are: copilot, claude, codex",
+			"formatted result should include each suggestion as documented")
+		assert.Contains(t, result, "Check your workflow frontmatter",
+			"formatted result should include each suggestion as documented")
+	})
+
+	t.Run("with nil suggestions returns non-empty (message only)", func(t *testing.T) {
+		result := FormatErrorWithSuggestions("Some error", nil)
+		assert.NotEmpty(t, result,
+			"result should be non-empty even with nil suggestions")
+	})
+
+	t.Run("with empty suggestions returns non-empty (message only)", func(t *testing.T) {
+		result := FormatErrorWithSuggestions("Some error", []string{})
+		assert.NotEmpty(t, result,
+			"result should be non-empty even with empty suggestions slice")
+	})
+}
+
+// TestSpec_PublicAPI_IsAccessibleMode validates the documented behavior.
+// Specification: "Returns true when the terminal is in accessibility mode based on environment variables:
+// ACCESSIBLE is set, TERM is 'dumb', NO_COLOR is set."
+func TestSpec_PublicAPI_IsAccessibleMode(t *testing.T) {
+	t.Run("ACCESSIBLE env var triggers accessible mode", func(t *testing.T) {
+		t.Setenv("ACCESSIBLE", "1")
+		assert.True(t, IsAccessibleMode(),
+			"IsAccessibleMode should return true when ACCESSIBLE env var is set")
+	})
+
+	t.Run("TERM=dumb triggers accessible mode", func(t *testing.T) {
+		t.Setenv("ACCESSIBLE", "")
+		t.Setenv("NO_COLOR", "")
+		t.Setenv("TERM", "dumb")
+		assert.True(t, IsAccessibleMode(),
+			"IsAccessibleMode should return true when TERM=dumb as documented")
+	})
+
+	t.Run("NO_COLOR env var triggers accessible mode", func(t *testing.T) {
+		t.Setenv("ACCESSIBLE", "")
+		t.Setenv("TERM", "xterm")
+		t.Setenv("NO_COLOR", "1")
+		assert.True(t, IsAccessibleMode(),
+			"IsAccessibleMode should return true when NO_COLOR env var is set")
+	})
+}
+
+// TestSpec_PublicAPI_RenderTable validates the documented RenderTable function.
+// Specification: "Renders a formatted table with optional title and total row."
+func TestSpec_PublicAPI_RenderTable(t *testing.T) {
+	t.Run("renders headers and rows", func(t *testing.T) {
+		config := TableConfig{
+			Headers: []string{"Name", "Status", "Duration"},
+			Rows: [][]string{
+				{"build", "success", "1m30s"},
+				{"test", "failure", "45s"},
+			},
+		}
+		result := RenderTable(config)
+		assert.NotEmpty(t, result, "RenderTable should return non-empty output")
+		assert.Contains(t, result, "build", "RenderTable output should include row data")
+		assert.Contains(t, result, "success", "RenderTable output should include row data")
+	})
+
+	t.Run("renders optional title", func(t *testing.T) {
+		config := TableConfig{
+			Headers: []string{"Name", "Status"},
+			Rows:    [][]string{{"build", "success"}},
+			Title:   "Job Results",
+		}
+		result := RenderTable(config)
+		assert.Contains(t, result, "Job Results",
+			"RenderTable should include the optional title when set")
+	})
+}
+
+// TestSpec_PublicAPI_RenderTitleBox validates the documented RenderTitleBox function.
+// Specification: "Returns a rounded-border box containing title, padded to at least width characters."
+func TestSpec_PublicAPI_RenderTitleBox(t *testing.T) {
+	result := RenderTitleBox("Audit Report", 60)
+	require.NotEmpty(t, result, "RenderTitleBox should return non-empty []string")
+	combined := ""
+	for _, line := range result {
+		combined += line + "\n"
+	}
+	assert.Contains(t, combined, "Audit Report",
+		"RenderTitleBox output should contain the provided title")
+}
