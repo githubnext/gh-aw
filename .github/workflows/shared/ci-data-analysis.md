@@ -129,7 +129,7 @@ Pre-downloaded CI run data and artifacts are available for analysis:
    - `.github/workflows/cgo.yml`
    - `.github/workflows/cjs.yml`
    
-5. **Cache Memory**: `/tmp/cache-memory/`
+5. **Cache Memory**: `/tmp/gh-aw/cache-memory/`
    - Historical analysis data from previous runs
    
 6. **Test Results**: `/tmp/gh-aw/test-results.json`
@@ -204,8 +204,8 @@ Check cache memory for previous analyses:
 
 ```bash
 # Read previous optimization recommendations
-if [ -f /tmp/cache-memory/ci-coach/last-analysis.json ]; then
-  cat /tmp/cache-memory/ci-coach/last-analysis.json
+if [ -f /tmp/gh-aw/cache-memory/ci-coach/last-analysis.json ]; then
+  cat /tmp/gh-aw/cache-memory/ci-coach/last-analysis.json
 fi
 
 # Check if previous recommendations were implemented
