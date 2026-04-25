@@ -19,7 +19,14 @@
 
 package workflow
 
-import "strings"
+import "regexp"
+
+// cacheKeyRunIDPattern matches github.run_id as a complete token — not as a
+// prefix of a longer identifier like "github.run_identifier".
+// It matches "github.run_id" that is either:
+//   - not followed by an underscore or word character (letter/digit/underscore)
+//   - at the end of the string
+var cacheKeyRunIDPattern = regexp.MustCompile(`github\.run_id(?:[^_\w]|$)`)
 
 // validateNoCacheKeyRunID returns an error when a user-supplied cache key
 // contains the ${{ github.run_id }} expression.
@@ -29,7 +36,7 @@ import "strings"
 // appends run_id automatically to the save key while generating a stable
 // restore-keys prefix — users must not add it themselves.
 func validateNoCacheKeyRunID(key string) error {
-	if strings.Contains(key, "github.run_id") {
+	if cacheKeyRunIDPattern.MatchString(key) {
 		return NewValidationError(
 			"tools.cache-memory.key",
 			key,

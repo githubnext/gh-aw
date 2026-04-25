@@ -40,6 +40,16 @@ func TestCacheKeyRunIDValidationObject(t *testing.T) {
 			key:       "my-stable-cache-key",
 			wantError: false,
 		},
+		{
+			name:      "key with github.run_identifier is not a false positive",
+			key:       "my-cache-${{ github.run_identifier }}",
+			wantError: false,
+		},
+		{
+			name:      "key with github.run_id_backup suffix is not a false positive",
+			key:       "my-cache-github.run_id_backup",
+			wantError: false,
+		},
 	}
 
 	for _, tt := range tests {
