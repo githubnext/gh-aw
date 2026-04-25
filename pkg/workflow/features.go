@@ -17,38 +17,39 @@ var featuresLog = logger.New("workflow:features")
 // If workflowData is nil or has no features, it falls back to checking the environment variable only.
 func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bool {
 	flagLower := strings.ToLower(strings.TrimSpace(string(flag)))
-	if featuresLog.Enabled() {
+	logEnabled := featuresLog.Enabled()
+	if logEnabled {
 		featuresLog.Printf("Checking if feature is enabled: %s", flagLower)
 	}
 
 	// First, check if the feature is explicitly set in frontmatter.
 	// Frontmatter values always take precedence.
-	if enabled, found := getFeatureValueFromFrontmatter(flagLower, workflowData); found {
+	if enabled, found := getFeatureValueFromFrontmatter(flagLower, workflowData, logEnabled); found {
 		return enabled
 	}
 
 	// Fall back to checking the environment variable
-	if isFeatureInEnvironment(flagLower) {
-		if featuresLog.Enabled() {
+	if isFeatureInEnvironment(flagLower, logEnabled) {
+		if logEnabled {
 			featuresLog.Printf("Feature found in GH_AW_FEATURES: %s=true", flagLower)
 		}
 		return true
 	}
 
-	if featuresLog.Enabled() {
+	if logEnabled {
 		featuresLog.Printf("Feature not found: %s=false", flagLower)
 	}
 	return false
 }
 
-func getFeatureValueFromFrontmatter(flagLower string, workflowData *WorkflowData) (bool, bool) {
+func getFeatureValueFromFrontmatter(flagLower string, workflowData *WorkflowData, logEnabled bool) (bool, bool) {
 	if workflowData == nil || workflowData.Features == nil {
 		return false, false
 	}
 
 	if value, exists := workflowData.Features[flagLower]; exists {
 		if enabled, found := parseFeatureValue(value); found {
-			if featuresLog.Enabled() {
+			if logEnabled {
 				featuresLog.Printf("Feature found in frontmatter: %s=%v", flagLower, enabled)
 			}
 			return enabled, true
@@ -58,7 +59,7 @@ func getFeatureValueFromFrontmatter(flagLower string, workflowData *WorkflowData
 	for key, value := range workflowData.Features {
 		if strings.ToLower(key) == flagLower {
 			if enabled, found := parseFeatureValue(value); found {
-				if featuresLog.Enabled() {
+				if logEnabled {
 					featuresLog.Printf("Feature found in frontmatter (case-insensitive): %s=%v", flagLower, enabled)
 				}
 				return enabled, true
@@ -79,16 +80,16 @@ func parseFeatureValue(value any) (bool, bool) {
 	return false, false
 }
 
-func isFeatureInEnvironment(flagLower string) bool {
+func isFeatureInEnvironment(flagLower string, logEnabled bool) bool {
 	features := os.Getenv("GH_AW_FEATURES")
 	if features == "" {
-		if featuresLog.Enabled() {
+		if logEnabled {
 			featuresLog.Printf("Feature not found, GH_AW_FEATURES empty: %s=false", flagLower)
 		}
 		return false
 	}
 
-	if featuresLog.Enabled() {
+	if logEnabled {
 		featuresLog.Printf("Checking GH_AW_FEATURES environment variable: %s", features)
 	}
 	for feature := range strings.SplitSeq(features, ",") {
