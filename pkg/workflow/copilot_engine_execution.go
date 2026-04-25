@@ -240,13 +240,26 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Version precedence works because actions/setup-* PREPEND to PATH, so
 		// /opt/hostedtoolcache/go/1.25.6/x64/bin comes before /usr/bin in AWF_HOST_PATH.
 		//
+		// AWF v0.15.0+ uses chroot mode by default, but on self-hosted GPU runners
+		// (e.g. aw-gpu-runner-T4) the tool cache lives at /home/runner/work/_tool
+		// (not /opt/hostedtoolcache). sudo's secure_path also strips the PATH
+		// additions from actions/setup-node, so the container may not find node.
+		//
+		// Prepend GetNpmBinPathSetup() to the engine command so it runs inside the
+		// AWF container before the node resolution command. This adds both
+		// /opt/hostedtoolcache and /home/runner/work/_tool bin directories to PATH,
+		// ensuring that the command -v node fallback in nodeRuntimeResolutionCommand
+		// succeeds regardless of runner type. This mirrors the pattern used by the
+		// Claude and Codex engines.
+		npmPathSetup := GetNpmBinPathSetup()
+		engineCommand := fmt.Sprintf("%s && %s", npmPathSetup, copilotCommand)
+
 		// MCP CLI bin directory: when mount-as-clis is enabled, the CLI wrapper scripts
 		// live under ${RUNNER_TEMP}/gh-aw/mcp-cli/bin. core.addPath() adds this to
 		// $GITHUB_PATH for subsequent steps, but sudo's secure_path may strip it.
 		// Prepending it to the engine command ensures the agent can find them.
-		engineCommand := copilotCommand
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
-			engineCommand = fmt.Sprintf("%s && %s", mcpCLIPath, copilotCommand)
+			engineCommand = fmt.Sprintf("%s && %s", mcpCLIPath, engineCommand)
 		}
 		pathSetup := "touch " + AgentStepSummaryPath + "\n" +
 			"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
@@ -271,7 +284,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// the path here (where PATH is still intact) and exporting it, sudo -E
 			// preserves the variable and AWF's --env-all forwards it into the container,
 			// where the execution command validates GH_AW_NODE_BIN and falls back to
-			// command -v node when the path does not exist in the container.
+			// command -v node (now reliably in PATH via GetNpmBinPathSetup above).
 			PathSetup: pathSetup,
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
