@@ -15,6 +15,31 @@ import (
 
 var cacheLog = logger.New("workflow:cache")
 
+// defaultCacheMemoryDir is the canonical runtime path for the default cache-memory.
+// Backward-compatible: workflows that were compiled before multi-cache support was added
+// continue to use this exact path.
+const defaultCacheMemoryDir = "/tmp/gh-aw/cache-memory"
+
+// cacheMemoryDirPrefix is the path prefix for non-default cache-memory directories.
+// The full path is formed by appending the cache ID: cacheMemoryDirPrefix + cacheID.
+const cacheMemoryDirPrefix = "/tmp/gh-aw/cache-memory-"
+
+// cacheMemoryDirFor returns the canonical runtime directory for the given cache ID.
+// Default cache → /tmp/gh-aw/cache-memory
+// Named cache   → /tmp/gh-aw/cache-memory-{id}
+//
+// The returned path has no trailing slash. Callers that display the path as a directory
+// (e.g. in LLM prompt context) should append "/" explicitly.
+//
+// An empty cacheID is treated the same as "default" as a safety net, though callers
+// should always provide a non-empty ID.
+func cacheMemoryDirFor(cacheID string) string {
+	if cacheID == "default" || cacheID == "" {
+		return defaultCacheMemoryDir
+	}
+	return cacheMemoryDirPrefix + cacheID
+}
+
 // validCacheMemoryScopes defines the allowed values for cache-memory scope
 var validCacheMemoryScopes = []string{"workflow", "repo"}
 
@@ -388,14 +413,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 	integrityLevel := cacheIntegrityLevel(githubConfig)
 
 	for _, cache := range data.CacheMemoryConfig.Caches {
-		// Default cache uses /tmp/gh-aw/cache-memory/ for backward compatibility
-		// Other caches use /tmp/gh-aw/cache-memory-{id}/ to prevent overlaps
-		var cacheDir string
-		if cache.ID == "default" {
-			cacheDir = "/tmp/gh-aw/cache-memory"
-		} else {
-			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
-		}
+		cacheDir := cacheMemoryDirFor(cache.ID)
 
 		// Add step to create cache-memory directory for this cache
 		if useBackwardCompatiblePaths {
@@ -540,12 +558,7 @@ func generateCacheMemoryGitCommitSteps(builder *strings.Builder, data *WorkflowD
 			continue
 		}
 
-		var cacheDir string
-		if cache.ID == "default" {
-			cacheDir = "/tmp/gh-aw/cache-memory"
-		} else {
-			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
-		}
+		cacheDir := cacheMemoryDirFor(cache.ID)
 
 		if useBackwardCompatiblePaths {
 			builder.WriteString("      - name: Commit cache-memory changes\n")
@@ -584,14 +597,7 @@ func generateCacheMemoryValidation(builder *strings.Builder, data *WorkflowData)
 			continue
 		}
 
-		// Default cache uses /tmp/gh-aw/cache-memory/ for backward compatibility
-		// Other caches use /tmp/gh-aw/cache-memory-{id}/ to prevent overlaps
-		var cacheDir string
-		if cache.ID == "default" {
-			cacheDir = "/tmp/gh-aw/cache-memory"
-		} else {
-			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
-		}
+		cacheDir := cacheMemoryDirFor(cache.ID)
 
 		// Prepare allowed extensions array for JavaScript
 		allowedExtsJSON, _ := json.Marshal(cache.AllowedExtensions)
@@ -645,14 +651,7 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 			continue
 		}
 
-		// Default cache uses /tmp/gh-aw/cache-memory/ for backward compatibility
-		// Other caches use /tmp/gh-aw/cache-memory-{id}/ to prevent overlaps
-		var cacheDir string
-		if cache.ID == "default" {
-			cacheDir = "/tmp/gh-aw/cache-memory"
-		} else {
-			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
-		}
+		cacheDir := cacheMemoryDirFor(cache.ID)
 
 		// Add upload-artifact step for each cache (runs always)
 		if useBackwardCompatiblePaths {
@@ -687,7 +686,8 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 	// Check if there's only one cache with ID "default" to use singular template
 	if len(config.Caches) == 1 && config.Caches[0].ID == "default" {
 		cache := config.Caches[0]
-		cacheDir := "/tmp/gh-aw/cache-memory/"
+		// Trailing slash makes the path look like a directory in prompt context.
+		cacheDir := cacheMemoryDirFor(cache.ID) + "/"
 
 		// Build description text
 		descriptionText := ""
@@ -718,12 +718,8 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 	// Build cache list
 	var cacheList strings.Builder
 	for _, cache := range config.Caches {
-		var cacheDir string
-		if cache.ID == "default" {
-			cacheDir = "/tmp/gh-aw/cache-memory/"
-		} else {
-			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s/", cache.ID)
-		}
+		// Trailing slash makes the path look like a directory in prompt context.
+		cacheDir := cacheMemoryDirFor(cache.ID) + "/"
 		if cache.Description != "" {
 			fmt.Fprintf(&cacheList, "- **%s**: `%s` - %s\n", cache.ID, cacheDir, cache.Description)
 		} else {
@@ -771,12 +767,7 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 	// Build cache examples
 	var cacheExamples strings.Builder
 	for _, cache := range config.Caches {
-		var cacheDir string
-		if cache.ID == "default" {
-			cacheDir = "/tmp/gh-aw/cache-memory"
-		} else {
-			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
-		}
+		cacheDir := cacheMemoryDirFor(cache.ID)
 		fmt.Fprintf(&cacheExamples, "- `%s/notes.txt` - general notes and observations\n", cacheDir)
 		fmt.Fprintf(&cacheExamples, "- `%s/notes.md` - markdown formatted notes\n", cacheDir)
 		fmt.Fprintf(&cacheExamples, "- `%s/preferences.json` - user preferences and settings\n", cacheDir)
@@ -825,13 +816,12 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 
 		// Determine artifact name and cache directory.
 		// Apply the workflow_call prefix to ensure we download the correct invocation's artifact.
-		var artifactName, cacheDir string
+		cacheDir := cacheMemoryDirFor(cache.ID)
+		var artifactName string
 		if cache.ID == "default" {
 			artifactName = cacheArtifactPrefix + "cache-memory"
-			cacheDir = "/tmp/gh-aw/cache-memory"
 		} else {
 			artifactName = cacheArtifactPrefix + "cache-memory-" + cache.ID
-			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
 		}
 
 		// Download artifact step

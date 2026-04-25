@@ -107,12 +107,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// if cache-memory tool is used, --add-dir for each cache
 	if workflowData.CacheMemoryConfig != nil {
 		for _, cache := range workflowData.CacheMemoryConfig.Caches {
-			var cacheDir string
-			if cache.ID == "default" {
-				cacheDir = "/tmp/gh-aw/cache-memory/"
-			} else {
-				cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s/", cache.ID)
-			}
+			// Trailing slash tells copilot CLI to treat this as a directory.
+			cacheDir := cacheMemoryDirFor(cache.ID) + "/"
 			copilotArgs = append(copilotArgs, "--add-dir", cacheDir)
 		}
 	}
