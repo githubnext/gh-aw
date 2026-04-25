@@ -152,6 +152,18 @@ Example structure:
 
 ## Step 3 — Update Cache-Memory Trending History
 
+**Cache validation**: Before appending, check whether the cache was restored from a previous run:
+
+```bash
+history_file="/tmp/gh-aw/cache-memory/trending/api-consumption/history.jsonl"
+if [ -f "$history_file" ] && [ -s "$history_file" ]; then
+  entry_count=$(wc -l < "$history_file")
+  echo "Cache restored from previous run: yes ($entry_count existing entries)"
+else
+  echo "Cache restored from previous run: no (first run or empty cache)"
+fi
+```
+
 Append today's summary to the rolling history file:
 
 ```
@@ -405,6 +417,7 @@ Create a discussion with the following structure. Replace placeholders with real
 <summary>📦 Cache Memory Status</summary>
 
 - **Location**: `/tmp/gh-aw/cache-memory/trending/api-consumption/history.jsonl`
+- **Cache restored from previous run**: {yes (N entries) / no (first run)}
 - **Data points stored**: {data_points}
 - **Earliest entry**: {earliest_date}
 - **Retention policy**: 90 days

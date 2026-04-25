@@ -4,7 +4,7 @@
 
 tools:
   cache-memory:
-    key: trending-data-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+    key: trending-data-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}
   bash:
     - "*"
 
