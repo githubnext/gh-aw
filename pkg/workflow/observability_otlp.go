@@ -43,7 +43,11 @@ func normalizeOTLPHeaders(raw any) (string, bool) {
 		sort.Strings(keys)
 		var parts []string
 		for _, k := range keys {
-			val, _ := v[k].(string)
+			val, ok := v[k].(string)
+			if !ok {
+				otlpLog.Printf("OTLP headers map: value for key %q is not a string (got %T), skipping", k, v[k])
+				continue
+			}
 			parts = append(parts, k+"="+val)
 		}
 		return strings.Join(parts, ","), false

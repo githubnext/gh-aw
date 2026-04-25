@@ -729,6 +729,15 @@ func TestNormalizeOTLPHeaders(t *testing.T) {
 			expectedHeaders:    "",
 			expectedDeprecated: false,
 		},
+		{
+			name: "non-string map values are skipped",
+			input: map[string]any{
+				"Authorization": "Bearer tok",
+				"bad-value":     123, // non-string: skipped
+			},
+			expectedHeaders:    "Authorization=Bearer tok",
+			expectedDeprecated: false,
+		},
 	}
 
 	for _, tt := range tests {
