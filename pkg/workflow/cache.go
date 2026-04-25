@@ -695,8 +695,13 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 			descriptionText = " " + cache.Description
 		}
 
-		// Build allowed extensions text
-		allowedExtsText := strings.Join(cache.AllowedExtensions, ", ")
+		// Build allowed extensions text.
+		// When non-empty, wrap as an XML element so the agent knows about file-type restrictions.
+		// When empty (all extensions allowed), the placeholder is replaced with nothing.
+		var allowedExtsText string
+		if len(cache.AllowedExtensions) > 0 {
+			allowedExtsText = "\n<allowed-extensions>" + strings.Join(cache.AllowedExtensions, ", ") + "</allowed-extensions>"
+		}
 
 		cacheLog.Printf("Building cache memory prompt section with env vars: cache_dir=%s, description=%s, allowed_extensions=%v", cacheDir, descriptionText, cache.AllowedExtensions)
 
@@ -727,9 +732,10 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 		}
 	}
 
-	// Build allowed extensions text
-	// Check if all caches have the same allowed extensions
-	allowedExtsText := strings.Join(config.Caches[0].AllowedExtensions, ", ")
+	// Build allowed extensions text.
+	// Compute the union of all allowed extensions across all caches.
+	// When non-empty, wrap as an XML element so the agent knows about file-type restrictions.
+	// When empty (all extensions allowed for all caches), the placeholder is replaced with nothing.
 	allSame := true
 	for i := 1; i < len(config.Caches); i++ {
 		if len(config.Caches[i].AllowedExtensions) != len(config.Caches[0].AllowedExtensions) {
@@ -747,21 +753,25 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 		}
 	}
 
-	// If not all the same, build a union of all extensions
-	if !allSame {
+	var extsUnion []string
+	if allSame {
+		extsUnion = config.Caches[0].AllowedExtensions
+	} else {
 		extensionSet := make(map[string]bool)
 		for _, cache := range config.Caches {
 			for _, ext := range cache.AllowedExtensions {
 				extensionSet[ext] = true
 			}
 		}
-		// Convert set to sorted slice for consistent output
-		var allExtensions []string
 		for ext := range extensionSet {
-			allExtensions = append(allExtensions, ext)
+			extsUnion = append(extsUnion, ext)
 		}
-		sort.Strings(allExtensions)
-		allowedExtsText = strings.Join(allExtensions, ", ")
+		sort.Strings(extsUnion)
+	}
+
+	var allowedExtsText string
+	if len(extsUnion) > 0 {
+		allowedExtsText = "\n<allowed-extensions>" + strings.Join(extsUnion, ", ") + "</allowed-extensions>"
 	}
 
 	// Build cache examples
