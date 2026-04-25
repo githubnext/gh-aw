@@ -465,8 +465,11 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 
 	// Pre-size the builder to avoid reallocations: header line + one line per tool.
 	// Each tool line is: indent + "# - " + toolName + "\n" (~indent+6 bytes + tool length).
+	// avgToolNameLen is a conservative estimate for typical Claude tool names
+	// (e.g., "Bash(echo)" = 10 chars, "mcp__github__issue_read" = 23 chars).
+	const avgToolNameLen = 16
 	var comment strings.Builder
-	comment.Grow(len(indent)*len(tools) + len("# Allowed tools (sorted):\n") + len(tools)*(len("# - \n")+16))
+	comment.Grow(len(indent)*len(tools) + len("# Allowed tools (sorted):\n") + len(tools)*(len("# - \n")+avgToolNameLen))
 	comment.WriteString(indent)
 	comment.WriteString("# Allowed tools (sorted):\n")
 	for _, tool := range tools {
