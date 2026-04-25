@@ -53,6 +53,9 @@ const DefaultCrushVersion Version = "0.59.0"
 // DefaultOpenCodeVersion is the default version of the OpenCode CLI
 const DefaultOpenCodeVersion Version = "1.2.14"
 
+// DefaultPiVersion is the default version of the Pi coding agent CLI
+const DefaultPiVersion Version = "0.70.2"
+
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v1.0.3"
 

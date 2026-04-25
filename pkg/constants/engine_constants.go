@@ -24,6 +24,8 @@ const (
 	OpenCodeEngine EngineName = "opencode"
 	// CrushEngine is the Crush engine identifier
 	CrushEngine EngineName = "crush"
+	// PiEngine is the Pi coding agent engine identifier
+	PiEngine EngineName = "pi"
 
 	// DefaultEngine is the default agentic engine used when no engine is explicitly specified.
 	// Currently defaults to CopilotEngine.
@@ -34,7 +36,7 @@ const (
 // Deprecated: Use workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs() for a
 // catalog-derived list. This slice is maintained for backward compatibility and must
 // stay in sync with the built-in engines registered in NewEngineCatalog.
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(OpenCodeEngine), string(CrushEngine)}
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(OpenCodeEngine), string(CrushEngine), string(PiEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
@@ -104,6 +106,15 @@ var EngineOptions = []EngineOption{
 		AlternativeSecrets: []string{"ANTHROPIC_API_KEY", "GEMINI_API_KEY"},
 		KeyURL:             "https://github.com/charmbracelet/crush#installation",
 		WhenNeeded:         "Crush engine workflows (default: Copilot routing)",
+	},
+	{
+		Value:              string(PiEngine),
+		Label:              "Pi",
+		Description:        "Pi multi-provider AI coding agent (BYOK)",
+		SecretName:         "COPILOT_GITHUB_TOKEN",
+		AlternativeSecrets: []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY"},
+		KeyURL:             "https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/README.md",
+		WhenNeeded:         "Pi engine workflows (default: Copilot routing)",
 	},
 }
 
@@ -207,6 +218,10 @@ const (
 	EnvVarModelAgentCrush = "GH_AW_MODEL_AGENT_CRUSH"
 	// EnvVarModelDetectionCrush configures the default Crush model for detection
 	EnvVarModelDetectionCrush = "GH_AW_MODEL_DETECTION_CRUSH"
+	// EnvVarModelAgentPi configures the default Pi model for agent execution
+	EnvVarModelAgentPi = "GH_AW_MODEL_AGENT_PI"
+	// EnvVarModelDetectionPi configures the default Pi model for detection
+	EnvVarModelDetectionPi = "GH_AW_MODEL_DETECTION_PI"
 
 	// CopilotCLIModelEnvVar is the native environment variable name supported by the Copilot CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.

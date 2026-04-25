@@ -109,6 +109,9 @@ const (
 
 	// CrushLLMGatewayPort is the port for the Crush LLM gateway
 	CrushLLMGatewayPort = 10005
+
+	// PiLLMGatewayPort is the port for the Pi coding agent LLM gateway
+	PiLLMGatewayPort = 10006
 )
 
 // DefaultGitHubLockdown is the default value for the GitHub MCP server lockdown setting.

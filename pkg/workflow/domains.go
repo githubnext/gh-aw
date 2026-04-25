@@ -184,6 +184,42 @@ var OpenCodeDefaultDomains = []string{
 	"registry.npmjs.org", // npm package downloads
 }
 
+// PiBaseDefaultDomains are the default domains required for Pi coding agent operation.
+// Pi is BYOK (any provider), so provider-specific domains are added dynamically
+// based on the model prefix via GetPiDefaultDomains().
+var PiBaseDefaultDomains = []string{
+	"host.docker.internal", // MCP gateway / API proxy access
+	"github.com",           // provider updates and metadata
+	"raw.githubusercontent.com",
+	"registry.npmjs.org", // npm package downloads
+}
+
+// piProviderDomains maps provider prefixes to their API domains.
+// Used by extractPiProviderFromModel() and GetPiDefaultDomains().
+var piProviderDomains = map[string]string{
+	"copilot":   "api.githubcopilot.com",
+	"anthropic": "api.anthropic.com",
+	"openai":    "api.openai.com",
+	"google":    "generativelanguage.googleapis.com",
+	"groq":      "api.groq.com",
+	"mistral":   "api.mistral.ai",
+	"deepseek":  "api.deepseek.com",
+	"xai":       "api.x.ai",
+}
+
+// PiDefaultDomains are the static default domains for backward compatibility.
+// The dynamic path (GetPiDefaultDomains) resolves provider-specific domains
+// based on the model prefix and uses PiBaseDefaultDomains as the base.
+var PiDefaultDomains = []string{
+	"api.githubcopilot.com",             // Default provider (Copilot routing)
+	"api.openai.com",                    // Direct OpenAI provider access
+	"generativelanguage.googleapis.com", // Google/Gemini provider
+	"host.docker.internal",              // MCP gateway / API proxy access
+	"github.com",
+	"raw.githubusercontent.com",
+	"registry.npmjs.org", // npm package downloads
+}
+
 // extractOpenCodeProviderFromModel extracts the provider name from an OpenCode model string.
 // OpenCode uses "provider/model" format (e.g., "anthropic/claude-sonnet-4-20250514").
 // Returns the provider prefix, or "copilot" as default if no slash is found.
@@ -216,6 +252,41 @@ func GetOpenCodeDefaultDomains(model string) []string {
 // Pass the selected model so provider-specific API domains are included.
 func GetOpenCodeAllowedDomainsWithToolsAndRuntimes(model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
 	return GetAllowedDomainsForEngineWithModel(constants.OpenCodeEngine, model, network, tools, runtimes)
+}
+
+// extractPiProviderFromModel extracts the provider name from a Pi model string.
+// Pi uses "provider/model" format (e.g., "anthropic/claude-sonnet-4").
+// Returns the provider prefix, or "copilot" as default if no slash is found.
+func extractPiProviderFromModel(model string) string {
+	if model == "" {
+		return "copilot"
+	}
+	parts := strings.SplitN(model, "/", 2)
+	if len(parts) < 2 {
+		return "copilot"
+	}
+	return strings.ToLower(parts[0])
+}
+
+// GetPiDefaultDomains returns the default domains for Pi based on the model provider.
+// It starts with PiBaseDefaultDomains and adds the provider-specific API domain.
+func GetPiDefaultDomains(model string) []string {
+	provider := extractPiProviderFromModel(model)
+	domains := make([]string, 0, len(PiBaseDefaultDomains)+1)
+	domains = append(domains, PiBaseDefaultDomains...)
+
+	if domain, ok := piProviderDomains[provider]; ok {
+		domains = append(domains, domain)
+	}
+
+	return domains
+}
+
+// GetPiAllowedDomainsWithToolsAndRuntimes merges Pi default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains.
+// Pass the selected model (e.g. "anthropic/claude-sonnet-4") so provider-specific
+// API domains are included. Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
+func GetPiAllowedDomainsWithToolsAndRuntimes(model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	return GetAllowedDomainsForEngineWithModel(constants.PiEngine, model, network, tools, runtimes)
 }
 
 // extractCrushProviderFromModel extracts the provider name from a Crush model string.
@@ -714,6 +785,9 @@ func getDefaultDomainsForEngine(engine constants.EngineName, model string) []str
 	if engine == constants.CrushEngine {
 		return GetCrushDefaultDomains(model)
 	}
+	if engine == constants.PiEngine {
+		return GetPiDefaultDomains(model)
+	}
 
 	return engineDefaultDomains[engine]
 }
@@ -928,6 +1002,12 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 			model = data.EngineConfig.Model
 		}
 		base = GetCrushAllowedDomainsWithToolsAndRuntimes(model, data.NetworkPermissions, data.Tools, data.Runtimes)
+	case "pi":
+		model := ""
+		if data.EngineConfig != nil {
+			model = data.EngineConfig.Model
+		}
+		base = GetPiAllowedDomainsWithToolsAndRuntimes(model, data.NetworkPermissions, data.Tools, data.Runtimes)
 	default:
 		// For other engines, use network permissions only
 		domains := GetAllowedDomains(data.NetworkPermissions)
