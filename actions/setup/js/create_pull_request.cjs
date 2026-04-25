@@ -17,7 +17,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
-const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
@@ -919,6 +919,14 @@ async function main(config = {}) {
     const triggeringPRNumber = context.payload.pull_request?.number;
     const triggeringDiscussionNumber = context.payload.discussion?.number;
 
+    // Prepend threat detection caution alert at the very top of the PR body so it is
+    // immediately visible to reviewers. The caution is omitted from the footer to
+    // avoid duplication (skipDetectionCaution is passed to generateFooterWithMessages).
+    const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+    if (detectionCaution) {
+      bodyLines.unshift(detectionCaution, "");
+    }
+
     // Add fingerprint comment if present
     const trackerIDComment = getTrackerID("markdown");
     if (trackerIDComment) {
@@ -941,7 +949,9 @@ async function main(config = {}) {
         workflowId,
         serverUrl: context.serverUrl,
       });
-      let footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl).trimEnd();
+      // Pass skipDetectionCaution so the caution alert is not duplicated in the footer
+      // (it was already prepended to the top of the body above).
+      let footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, { skipDetectionCaution: true }).trimEnd();
       footer = addExpirationToFooter(footer, expiresHours, "Pull Request");
       if (expiresHours > 0) {
         footer += "\n\n<!-- gh-aw-expires-type: pull-request -->";
@@ -976,6 +986,10 @@ async function main(config = {}) {
       .filter(label => !!label)
       .map(label => String(label).trim())
       .filter(label => label);
+    // Add agentic-threat-detected label when threat detection produced a warning
+    if (detectionCaution && !labels.includes("agentic-threat-detected")) {
+      labels.push("agentic-threat-detected");
+    }
     // Use explicitly configured fallback labels when present; otherwise preserve
     // existing behavior by reusing pull request labels for fallback issues.
     const effectiveFallbackLabels = configFallbackLabels.length > 0 ? configFallbackLabels : labels;
