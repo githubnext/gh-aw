@@ -194,10 +194,11 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	}
 
 	// Validate permissions from imports against top-level permissions
-	// Extract top-level permissions first
-	topLevelPermissions := c.extractPermissions(result.Frontmatter)
+	// Only extract and validate when imports actually contributed permissions — avoids
+	// the YAML marshaling cost of extractPermissions in the common case of no imports.
 	if importsResult.MergedPermissions != "" {
 		orchestratorEngineLog.Printf("Validating included permissions")
+		topLevelPermissions := c.extractPermissions(result.Frontmatter)
 		if err := c.ValidateIncludedPermissions(topLevelPermissions, importsResult.MergedPermissions); err != nil {
 			orchestratorEngineLog.Printf("Included permissions validation failed: %v", err)
 			return nil, fmt.Errorf("permission validation failed: %w", err)

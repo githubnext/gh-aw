@@ -54,6 +54,42 @@ func extractToolsFromContent(content string) (string, error) {
 	return strings.TrimSpace(string(extractedJSON)), nil
 }
 
+// extractToolsFromFrontmatter extracts tools and mcp-servers sections from an already-parsed
+// frontmatter map as a JSON string. This avoids re-parsing YAML when the frontmatter has
+// already been parsed, which is the common case for imported files (both builtin and local).
+func extractToolsFromFrontmatter(frontmatter map[string]any) (string, error) {
+	// Create a map to hold the merged result
+	extracted := make(map[string]any)
+
+	// Helper function to merge a field into extracted map
+	mergeField := func(fieldName string) {
+		if fieldValue, exists := frontmatter[fieldName]; exists {
+			if fieldMap, ok := fieldValue.(map[string]any); ok {
+				maps.Copy(extracted, fieldMap)
+			}
+		}
+	}
+
+	// Extract and merge tools section (tools are stored as tool_name: tool_config)
+	mergeField("tools")
+
+	// Extract and merge mcp-servers section (mcp-servers are stored as server_name: server_config)
+	mergeField("mcp-servers")
+
+	// If nothing was extracted, return empty object
+	if len(extracted) == 0 {
+		return "{}", nil
+	}
+
+	// Convert to JSON string
+	extractedJSON, err := json.Marshal(extracted)
+	if err != nil {
+		return "{}", nil
+	}
+
+	return strings.TrimSpace(string(extractedJSON)), nil
+}
+
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string
 func extractFrontmatterField(content, fieldName, emptyValue string) (string, error) {
 	contentExtractorLog.Printf("Extracting field: %s", fieldName)

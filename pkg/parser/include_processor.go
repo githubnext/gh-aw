@@ -151,9 +151,10 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 	// Custom agent files use GitHub Copilot's format where 'tools' is an array, not an object
 	isAgentFile := isCustomAgentFile(filePath)
 
-	// Always try strict validation first (but skip for agent files which have a different schema)
+	// Always try strict validation first (but skip for agent files which have a different schema,
+	// and skip for builtin virtual files which are immutable trusted assets validated at development time).
 	var validationErr error
-	if !isAgentFile {
+	if !isAgentFile && !strings.HasPrefix(filePath, BuiltinPathPrefix) {
 		validationErr = ValidateIncludedFileFrontmatterWithSchemaAndLocation(result.Frontmatter, filePath)
 	}
 
@@ -251,8 +252,9 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 
 		// Extract tools from frontmatter, using filtered frontmatter for non-workflow files with validation errors
 		if validationErr == nil || isWorkflowFile {
-			// If validation passed or it's a workflow file (which must have valid frontmatter), use original extraction
-			return extractToolsFromContent(string(content))
+			// If validation passed or it's a workflow file (which must have valid frontmatter),
+			// use the already-parsed frontmatter to avoid a redundant YAML re-parse.
+			return extractToolsFromFrontmatter(result.Frontmatter)
 		} else {
 			// For non-workflow files with validation errors, only extract tools section
 			if tools, hasTools := result.Frontmatter["tools"]; hasTools {
