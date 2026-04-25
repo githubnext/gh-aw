@@ -46,7 +46,7 @@ strict: true
 safe-outputs:
   create-issue:
     max: 3
-    labels: [sergo]
+    labels: [sergo, cookie]
     expires: 7d
 ---
 # Sergo 🔬 - The Serena Go Expert
