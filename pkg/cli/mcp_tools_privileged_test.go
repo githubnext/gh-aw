@@ -379,10 +379,9 @@ func TestAuditTool_MultiRunDiffMode(t *testing.T) {
 	assert.Equal(t, "333", capturedArgs[3], "fourth arg should be third run ID")
 }
 
-// TestAuditTool_ReturnsErrorWhenNoRunIDProvided verifies that the audit tool
-// returns an MCP protocol error when neither run_id_or_url nor run_ids_or_urls
-// is provided.
-func TestAuditTool_ReturnsErrorWhenNoRunIDProvided(t *testing.T) {
+// TestAuditTool_FailsWhenNoRunIDProvided verifies that the audit tool
+// returns an error when neither run_id_or_url nor run_ids_or_urls is provided.
+func TestAuditTool_FailsWhenNoRunIDProvided(t *testing.T) {
 	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "nonexistent-command-for-testing-only")
 	}

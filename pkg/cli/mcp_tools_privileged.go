@@ -249,7 +249,7 @@ from where the previous request stopped due to timeout.`,
 func registerAuditTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
 	type auditArgs struct {
 		RunIDOrURL   string   `json:"run_id_or_url,omitempty"   jsonschema:"Deprecated: use run_ids_or_urls instead. Single GitHub Actions workflow run ID or URL."`
-		RunIDsOrURLs []string `json:"run_ids_or_urls,omitempty" jsonschema:"One or more workflow run IDs or URLs. Each item accepts: numeric run ID (e.g., 1234567890), run URL (https://github.com/owner/repo/actions/runs/1234567890), job URL (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210), or job URL with step (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1). When a single item is provided a detailed audit report is generated. When two or more items are provided the first is treated as the base run and the rest are compared against it (diff mode)."`
+		RunIDsOrURLs []string `json:"run_ids_or_urls,omitempty" jsonschema:"One or more workflow run IDs or URLs. Single item: detailed audit report. Multiple items: diff mode with first as base (see tool description for accepted formats)."`
 		Artifacts    []string `json:"artifacts,omitempty"        jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
 		MaxTokens    int      `json:"max_tokens,omitempty"       jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
 	}
@@ -323,7 +323,7 @@ Multi-run diff returns JSON describing changes between the base and each compari
 			runItems = []string{args.RunIDOrURL}
 		}
 		if len(runItems) == 0 {
-			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "run_ids_or_urls must contain at least one run ID or URL", nil)
+			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "at least one run ID or URL must be provided via run_ids_or_urls or run_id_or_url", nil)
 		}
 
 		// Build command arguments.

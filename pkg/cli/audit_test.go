@@ -16,6 +16,8 @@ import (
 
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsPermissionError(t *testing.T) {
@@ -992,5 +994,44 @@ func TestResolveWorkflowDisplayNameFromLocalFile(t *testing.T) {
 	name := extractWorkflowNameFromYAML(content)
 	if name != "My Test Workflow" {
 		t.Errorf("extractWorkflowNameFromYAML() = %q, want %q", name, "My Test Workflow")
+	}
+}
+
+// TestRunAuditMulti_Validation verifies that runAuditMulti rejects invalid
+// argument combinations before attempting to download any run data.
+func TestRunAuditMulti_Validation(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "self comparison rejected",
+			args:    []string{"1234567890", "1234567890"},
+			wantErr: "cannot diff a run against itself",
+		},
+		{
+			name:    "duplicate comparison run ID rejected",
+			args:    []string{"1234567890", "1111111111", "1111111111"},
+			wantErr: "duplicate comparison run ID",
+		},
+		{
+			name:    "invalid base run ID rejected",
+			args:    []string{"not-a-run-id", "1111111111"},
+			wantErr: "invalid base run",
+		},
+		{
+			name:    "invalid comparison run ID rejected",
+			args:    []string{"1234567890", "not-a-run-id"},
+			wantErr: "invalid comparison run",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := runAuditMulti(t.Context(), tt.args, "", "", false, false, nil)
+			require.Error(t, err, "runAuditMulti should return an error for invalid input")
+			assert.Contains(t, err.Error(), tt.wantErr, "error message should be descriptive")
+		})
 	}
 }
