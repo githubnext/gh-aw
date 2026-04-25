@@ -264,9 +264,34 @@ safe-outputs:
     ignore-missing-branch-failure: false  # treat deleted/missing branch errors as skipped instead of failed (default: false)
     check-branch-protection: true         # set to false to skip the branch protection pre-flight check (default: true)
     protected-files: fallback-to-issue  # create review issue if protected files modified
+    target-repo: "owner/repo"    # cross-repository (target repo must be checked out)
+    allowed-repos: ["org/repo1"] # additional allowed repositories
 ```
 
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
+
+### Cross-repo usage
+
+`push-to-pull-request-branch` supports pushing to pull requests in a different repository via `target-repo` (and optionally `allowed-repos`). When `target-repo` is set, **the target repository must be checked out into the workflow workspace** using the `checkout:` frontmatter field with a `path:` specified.
+
+```yaml wrap
+checkout:
+  - fetch-depth: 0                           # checkout current (source) repo
+  - repository: org/target-repo
+    path: ./target-repo                      # must set path for cross-repo checkout
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
+    fetch: ["refs/pulls/open/*"]             # fetch all open PR branches
+
+safe-outputs:
+  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  push-to-pull-request-branch:
+    target-repo: "org/target-repo"
+    title-prefix: "[bot] "
+```
+
+The `path:` field is required so the agent knows where the target repository is mounted in the workspace. Without a `path`, the checkout action writes to the root of the workspace and overwrites the source repository, which will cause the workflow to fail.
+
+See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for a complete example and documentation on `target-repo`, `allowed-repos`, and cross-repository authentication.
 
 Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to enable automatic CI triggers.
 

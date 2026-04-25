@@ -39,7 +39,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Reply to PR Review Comment**](/gh-aw/reference/safe-outputs-pull-requests/#reply-to-pr-review-comment-reply-to-pull-request-review-comment) (`reply-to-pull-request-review-comment`) - Reply to existing review comments (max: 10)
 - [**Resolve PR Review Thread**](/gh-aw/reference/safe-outputs-pull-requests/#resolve-pr-review-thread-resolve-pull-request-review-thread) (`resolve-pull-request-review-thread`) - Resolve review threads after addressing feedback (max: 10)
 - [**Add Reviewer**](/gh-aw/reference/safe-outputs-pull-requests/#add-reviewer-add-reviewer) (`add-reviewer`) - Add reviewers to pull requests (max: 3)
-- [**Push to PR Branch**](/gh-aw/reference/safe-outputs-pull-requests/#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (default max: 1, configurable, same-repo only)
+- [**Push to PR Branch**](/gh-aw/reference/safe-outputs-pull-requests/#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (default max: 1, configurable; cross-repo supported via `target-repo` when the target repository is checked out)
 
 ### Labels, Assignments & Reviews
 
