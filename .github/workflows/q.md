@@ -131,9 +131,14 @@ This workflow was triggered from a comment on discussion #${{ github.event.discu
 
 #### Cache Initialization
 
+The cache root for this workflow is `/tmp/gh-aw/cache-memory` (restored by the `cache-memory: true` setup step).
+Q's state lives in a workflow-specific subdirectory: `/tmp/gh-aw/cache-memory/q/`.
+
 Load prior state from cache at startup so this run can build on previous findings:
 
 ```bash
+# Cache root: /tmp/gh-aw/cache-memory  (restored by the cache-memory setup step)
+# Q-specific state lives in the /q/ subdirectory inside that root
 CACHE_DIR=/tmp/gh-aw/cache-memory/q
 mkdir -p "$CACHE_DIR"
 
@@ -294,7 +299,11 @@ General optimizations:
 
 **ALWAYS** write updated state to cache-memory before creating the PR (or before finishing if no PR is needed). This ensures future runs start warm and avoid re-scanning the same logs.
 
+The cache save step persists the entire `/tmp/gh-aw/cache-memory` tree, so files written to `/tmp/gh-aw/cache-memory/q/` are automatically included.
+
 ```bash
+# Cache root: /tmp/gh-aw/cache-memory  (saved by the cache-memory save step)
+# Q-specific state lives in the /q/ subdirectory inside that root
 CACHE_DIR=/tmp/gh-aw/cache-memory/q
 mkdir -p "$CACHE_DIR"
 
