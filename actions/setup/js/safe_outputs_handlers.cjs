@@ -486,12 +486,15 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Get base branch for the resolved target repository
     const baseBranch = await getBaseBranch(repoParts);
 
-    // Determine the working directory for git operations
-    // If repo is specified, find where it's checked out
+    // Determine the working directory for git operations.
+    // Look up the checkout path when the target repo is explicitly provided by the agent
+    // or explicitly configured via target-repo in the workflow config — this ensures patch
+    // generation runs from the correct directory when the target repo is checked out in a subdirectory.
     let repoCwd = null;
-    if (entry.repo && entry.repo.trim()) {
-      const repoSlug = repoResult.repo;
-      const checkoutResult = findRepoCheckout(repoSlug);
+    const itemRepo = repoResult.repo;
+    if ((entry.repo && entry.repo.trim()) || pushConfig["target-repo"]) {
+      server.debug(`Looking for checkout of target repo: ${itemRepo}`);
+      const checkoutResult = findRepoCheckout(itemRepo);
       if (!checkoutResult.success) {
         return {
           content: [
@@ -499,9 +502,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
               type: "text",
               text: JSON.stringify({
                 result: "error",
-                error:
-                  `Repository checkout not found for ${repoSlug}. Ensure the repository is checked out in this workflow using actions/checkout. ` +
-                  "If checking out multiple repositories, use the 'path' input so the checkout can be located.",
+                error: `Repository '${itemRepo}' not found in workspace. Check out the target repo with a path in checkout. ` + "If checking out multiple repositories, use the 'path' input so the checkout can be located.",
               }),
             },
           ],
@@ -510,7 +511,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       }
       repoCwd = checkoutResult.path;
       entry.repo_cwd = repoCwd;
-      server.debug(`Selected checkout folder for ${repoSlug}: ${repoCwd}`);
+      server.debug(`Selected checkout folder for ${itemRepo}: ${repoCwd}`);
     }
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git

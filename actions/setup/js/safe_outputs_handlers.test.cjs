@@ -675,9 +675,55 @@ describe("safe_outputs_handlers", () => {
       expect(result.isError).toBe(true);
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
-      expect(responseData.error).toContain("Repository checkout not found for test-owner/test-repo");
-      expect(responseData.error).toContain("actions/checkout");
+      expect(responseData.error).toContain("Repository 'test-owner/test-repo' not found in workspace");
+      expect(responseData.error).toContain("path in checkout");
       expect(responseData.error).toContain("'path' input");
+    });
+
+    it("should return error when defaultTargetRepo checkout is not found and entry.repo is not set", async () => {
+      const configWithTarget = {
+        push_to_pull_request_branch: { "target-repo": "test-owner/test-repo" },
+      };
+      const handlersWithTarget = createHandlers(mockServer, mockAppendSafeOutput, configWithTarget);
+
+      const result = await handlersWithTarget.pushToPullRequestBranchHandler({
+        branch: "feature/test-change",
+      });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("Repository 'test-owner/test-repo' not found in workspace");
+      expect(responseData.error).toContain("path in checkout");
+    });
+
+    it("should detect branch from defaultTargetRepo checkout when entry.repo is not provided", async () => {
+      const { targetRepoDir } = createSideRepoWithTrackedAndLocalCommits();
+
+      const configWithTarget = {
+        push_to_pull_request_branch: { "target-repo": "test-owner/test-repo" },
+      };
+      const handlersWithTarget = createHandlers(mockServer, mockAppendSafeOutput, configWithTarget);
+
+      process.env.GITHUB_BASE_REF = "main";
+      try {
+        const result = await handlersWithTarget.pushToPullRequestBranchHandler({
+          branch: "main",
+        });
+
+        expect(result.isError).toBeFalsy();
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining(`Selected checkout folder for test-owner/test-repo: ${targetRepoDir}`));
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("detecting actual working branch: feature/test-change"));
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "push_to_pull_request_branch",
+            branch: "feature/test-change",
+            repo_cwd: targetRepoDir,
+          })
+        );
+      } finally {
+        delete process.env.GITHUB_BASE_REF;
+      }
     });
 
     it("should detect branch from the checked out target repo when repo is provided", async () => {
