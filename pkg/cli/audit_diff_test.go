@@ -1047,6 +1047,40 @@ func TestComputeToolCallsDiff_BothEmpty(t *testing.T) {
 	assert.Nil(t, result, "Should return nil when both metrics have no tool calls")
 }
 
+func TestComputeToolCallsDiff_DuplicateToolNames(t *testing.T) {
+	// When the same tool name appears multiple times (e.g. metrics aggregated from multiple log files),
+	// call counts should be summed and max sizes kept.
+	m1 := &LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "bash", CallCount: 3, MaxInputSize: 100, MaxOutputSize: 200},
+			{Name: "bash", CallCount: 4, MaxInputSize: 150, MaxOutputSize: 180},
+		},
+	}
+	m2 := &LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "bash", CallCount: 5, MaxInputSize: 120, MaxOutputSize: 300},
+			{Name: "bash", CallCount: 2, MaxInputSize: 90, MaxOutputSize: 250},
+		},
+	}
+
+	diff := computeToolCallsDiff(m1, m2)
+	require.NotNil(t, diff, "Should produce diff")
+
+	require.Len(t, diff.AllTools, 1, "Should have 1 unique tool (bash)")
+	bash := diff.AllTools[0]
+	assert.Equal(t, "bash", bash.Name, "Tool should be bash")
+	// Run1: 3+4=7, Run2: 5+2=7 → unchanged
+	assert.Equal(t, 7, bash.Run1CallCount, "Run1 call count should be sum: 3+4=7")
+	assert.Equal(t, 7, bash.Run2CallCount, "Run2 call count should be sum: 5+2=7")
+	assert.Equal(t, "unchanged", bash.Status, "Status should be unchanged when counts are equal")
+	// Max input: run1=max(100,150)=150, run2=max(120,90)=120
+	assert.Equal(t, 150, bash.Run1MaxInputSize, "Run1 max input should be max(100,150)=150")
+	assert.Equal(t, 120, bash.Run2MaxInputSize, "Run2 max input should be max(120,90)=120")
+	// Max output: run1=max(200,180)=200, run2=max(300,250)=300
+	assert.Equal(t, 200, bash.Run1MaxOutputSize, "Run1 max output should be max(200,180)=200")
+	assert.Equal(t, 300, bash.Run2MaxOutputSize, "Run2 max output should be max(300,250)=300")
+}
+
 func TestComputeToolCallsDiff_NewTools(t *testing.T) {
 	m1 := &LogMetrics{
 		ToolCalls: []ToolCallInfo{

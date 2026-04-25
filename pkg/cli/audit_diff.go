@@ -615,14 +615,34 @@ func computeToolCallsDiff(m1, m2 *LogMetrics) *ToolCallsDiff {
 	run1Tools := make(map[string]ToolCallInfo)
 	run2Tools := make(map[string]ToolCallInfo)
 
+	// aggregateToolCall merges a tool call entry into the map, summing call counts and
+	// taking the max of size fields to handle duplicate entries across log files.
+	aggregateToolCall := func(tools map[string]ToolCallInfo, tc ToolCallInfo) {
+		if existing, ok := tools[tc.Name]; ok {
+			existing.CallCount += tc.CallCount
+			if tc.MaxInputSize > existing.MaxInputSize {
+				existing.MaxInputSize = tc.MaxInputSize
+			}
+			if tc.MaxOutputSize > existing.MaxOutputSize {
+				existing.MaxOutputSize = tc.MaxOutputSize
+			}
+			if tc.MaxDuration > existing.MaxDuration {
+				existing.MaxDuration = tc.MaxDuration
+			}
+			tools[tc.Name] = existing
+			return
+		}
+		tools[tc.Name] = tc
+	}
+
 	if m1 != nil {
 		for _, tc := range m1.ToolCalls {
-			run1Tools[tc.Name] = tc
+			aggregateToolCall(run1Tools, tc)
 		}
 	}
 	if m2 != nil {
 		for _, tc := range m2.ToolCalls {
-			run2Tools[tc.Name] = tc
+			aggregateToolCall(run2Tools, tc)
 		}
 	}
 

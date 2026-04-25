@@ -696,7 +696,7 @@ func renderToolCallsDiffPrettySection(run1ID, run2ID int64, diff *ToolCallsDiff)
 		}
 		for _, entry := range diff.AllTools {
 			change := entry.CallCountChange
-			if change == "" && entry.Status == "unchanged" {
+			if change == "" {
 				change = "—"
 			}
 			config.Rows = append(config.Rows, []string{
