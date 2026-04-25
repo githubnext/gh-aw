@@ -2,7 +2,6 @@ package parser
 
 import (
 	"encoding/json"
-	"fmt"
 	"maps"
 	"strings"
 
@@ -84,10 +83,11 @@ func extractToolsFromFrontmatter(frontmatter map[string]any) (string, error) {
 		return "{}", nil
 	}
 
-	// Convert to JSON string
+	// Convert to JSON string. On marshal failure, return an empty object to
+	// match the behaviour of extractToolsFromContent (defensive, not a hard error).
 	extractedJSON, err := json.Marshal(extracted)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal tools to JSON: %w", err)
+		return "{}", nil
 	}
 
 	return strings.TrimSpace(string(extractedJSON)), nil
