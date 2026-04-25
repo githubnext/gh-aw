@@ -30,26 +30,6 @@ Enterprise-wide use is possible as an architecture, but it is not a single built
 > [!IMPORTANT]
 > The built-in Agentic Observability Kit should be treated as the repository-level building block. Organization-wide and enterprise-wide deployments require additional cross-repository authentication, central orchestration, and portfolio aggregation logic.
 
-## Recommended deployment model
-
-The recommended approach depends on scope.
-
-### Single repository
-
-Use the built-in workflow directly in that repository. This is the intended default and requires the least operational overhead.
-
-### One organization
-
-Prefer a central repository or control-plane repository that aggregates results from many repositories. This is usually better than installing an independent copy of the workflow in every repository, because it keeps the reporting logic, authentication, routing, and portfolio rollup in one place.
-
-Installing the workflow in every repository can still make sense when each repository has its own maintainers and needs a self-contained local report. That model is operationally simpler at first, but it produces fragmented reporting and makes organization-level prioritization harder.
-
-### Enterprise-wide across multiple organizations
-
-Prefer the same central aggregation model, but treat it as fleet operations rather than a simple workflow rollout. In practice, that means one or more control-plane repositories collecting normalized data from many repositories or organizations and publishing a portfolio-level report.
-
-This is the recommended model because enterprise-wide observability usually needs shared policy, shared authentication, shared repository allowlists, and a consistent rollup format. Duplicating the workflow everywhere and trying to reconcile the reports afterward is usually the wrong tradeoff.
-
 ## Deployment by scope
 
 The practical setup differs by scope.
@@ -204,13 +184,6 @@ This plot is a workflow-by-workflow similarity heatmap. It is intended to serve 
 
 This is the fastest way to answer: which workflows may be solving the same problem closely enough to justify consolidation review?
 
-The intended visuals are:
-
-- an episode risk-cost frontier showing which execution chains are both expensive and risky
-- a workflow stability matrix showing which workflows repeatedly accumulate control, risk, or fallback problems
-- a repository portfolio map that separates `keep`, `optimize`, `simplify`, and `review` candidates
-- a workflow overlap matrix that acts like a portfolio overlap view, similar in purpose to a Venn diagram but usually more precise for many workflows
-
 This format is better than a purely textual report when maintainers need to answer questions such as:
 
 - which workflows sit on the cost-risk frontier
@@ -335,25 +308,7 @@ The Agentic Observability Kit sits above those tools. It is the scheduled review
 
 ## Portfolio review capabilities
 
-The kit now includes the most useful repository-level capabilities that were previously split into a separate portfolio-style review.
-
-In this repository, the standalone `portfolio-analyst` workflow has been superseded by the kit. Maintainers who want one weekly report should use the Agentic Observability Kit instead of running both workflows.
-
-At repository scope, that means the report can now surface questions such as:
-
-- which workflows appear repeatedly overkill for their task domain
-- which workflows look expensive relative to their recent value or stability
-- which workflows may overlap in purpose, trigger pattern, or schedule
-- which workflows look stale or weakly justified by recent activity
-
-The highest-value cleanup candidates are usually workflows that are dominated on more than one axis at the same time, such as expensive and unstable, cheap but consistently low-value, or overlapping and weaker than a nearby alternative.
-
-This remains an evidence-based repository-maintainer view, not a full fleet-governance system. The primary job of the kit is still operational observability.
-
-At organization or enterprise scope, the same pattern can be extended into a deeper portfolio rollup. That broader layer is where consolidation, retirement, cross-repository overlap, and fleet-wide prioritization fit best.
-
-> [!TIP]
-> The repository-level kit is now sufficient for maintainers who want one weekly report covering both operational regressions and evidence-based repository portfolio cleanup opportunities. Central rollups remain the better place for full portfolio governance.
+The standalone `portfolio-analyst` workflow has been superseded by the Agentic Observability Kit. Maintainers who want one weekly report should use the kit instead of running both workflows. The highest-value cleanup candidates are workflows dominated on more than one axis — expensive and unstable, cheap but consistently low-value, or overlapping and weaker than a nearby alternative.
 
 ## Source workflow
 
