@@ -33,6 +33,7 @@ tools:
     - "mkdir -p *"
     - "find * -maxdepth 1"
     - "date *"
+  timeout: 300
 
 imports:
   - uses: shared/daily-audit-base.md
@@ -48,7 +49,7 @@ imports:
   - shared/session-analysis-charts.md
   - shared/session-analysis-strategies.md
 
-timeout-minutes: 20
+timeout-minutes: 45
 
 features:
   mcp-cli: true
