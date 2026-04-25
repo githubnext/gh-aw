@@ -28,15 +28,9 @@ func NewOpenCodeEngine() *OpenCodeEngine {
 				supportsToolsAllowlist: false,
 				supportsMaxTurns:       false,
 				supportsWebSearch:      false,
-				llmGatewayPort:         constants.OpenCodeLLMGatewayPort,
 			},
 		},
 	}
-}
-
-// SupportsLLMGateway returns the LLM gateway port for OpenCode engine
-func (e *OpenCodeEngine) SupportsLLMGateway() int {
-	return constants.OpenCodeLLMGatewayPort
 }
 
 // GetModelEnvVarName returns the native environment variable name that the OpenCode CLI uses

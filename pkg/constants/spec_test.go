@@ -228,10 +228,6 @@ func TestSpec_NetworkPorts_Values(t *testing.T) {
 		{name: "CopilotLLMGatewayPort", actual: constants.CopilotLLMGatewayPort, expected: 10002},
 		// From spec: GeminiLLMGatewayPort // 10003
 		{name: "GeminiLLMGatewayPort", actual: constants.GeminiLLMGatewayPort, expected: 10003},
-		// From spec: OpenCodeLLMGatewayPort // 10004
-		{name: "OpenCodeLLMGatewayPort", actual: constants.OpenCodeLLMGatewayPort, expected: 10004},
-		// From spec: CrushLLMGatewayPort // 10005
-		{name: "CrushLLMGatewayPort", actual: constants.CrushLLMGatewayPort, expected: 10005},
 	}
 
 	for _, tt := range tests {

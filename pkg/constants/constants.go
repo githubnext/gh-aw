@@ -103,12 +103,6 @@ const (
 
 	// GeminiLLMGatewayPort is the port for the Gemini LLM gateway
 	GeminiLLMGatewayPort = 10003
-
-	// OpenCodeLLMGatewayPort is the port for the OpenCode LLM gateway
-	OpenCodeLLMGatewayPort = 10004
-
-	// CrushLLMGatewayPort is the port for the Crush LLM gateway
-	CrushLLMGatewayPort = 10005
 )
 
 // DefaultGitHubLockdown is the default value for the GitHub MCP server lockdown setting.
