@@ -16,9 +16,6 @@ import (
 
 var includeLog = logger.New("parser:include_processor")
 
-// ProcessIncludes processes @include, @import (deprecated), and {{#import: directives in markdown content
-// This matches the bash process_includes function behavior
-
 // processIncludesWithVisited processes import directives with cycle detection
 func processIncludesWithVisited(content, baseDir string, extractTools bool, visited map[string]bool) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
