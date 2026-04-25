@@ -423,7 +423,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add allowed tools comment before the run section
-	allowedToolsComment := e.generateAllowedToolsComment(e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig, workflowData.MCPScripts), "        ")
+	// Reuse the already-computed allowedTools string (computed earlier for --allowed-tools flag)
+	// to avoid redundant allocations from calling computeAllowedClaudeToolsString twice.
+	allowedToolsComment := e.generateAllowedToolsComment(allowedTools, "        ")
 	if allowedToolsComment != "" {
 		// Split the comment into lines and add each line
 		commentLines := strings.Split(strings.TrimSuffix(allowedToolsComment, "\n"), "\n")

@@ -463,10 +463,17 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 		return ""
 	}
 
+	// Pre-size the builder to avoid reallocations: header line + one line per tool.
+	// Each tool line is: indent + "# - " + toolName + "\n" (~indent+6 bytes + tool length).
 	var comment strings.Builder
-	comment.WriteString(indent + "# Allowed tools (sorted):\n")
+	comment.Grow(len(indent)*len(tools) + len("# Allowed tools (sorted):\n") + len(tools)*(len("# - \n")+16))
+	comment.WriteString(indent)
+	comment.WriteString("# Allowed tools (sorted):\n")
 	for _, tool := range tools {
-		fmt.Fprintf(&comment, "%s# - %s\n", indent, tool)
+		comment.WriteString(indent)
+		comment.WriteString("# - ")
+		comment.WriteString(tool)
+		comment.WriteByte('\n')
 	}
 
 	return comment.String()
