@@ -148,9 +148,12 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 // Returns:
 //   - string: A shell command that exports PATH with hostedtoolcache bin directories prepended
 func GetNpmBinPathSetup() string {
-	// Prepend /tmp/npm-global/bin first so that CLIs installed with a writable
-	// npm prefix (see GenerateNpmInstallStepsWithScope) are found before the
-	// read-only hostedtoolcache paths.
+	// Prepend ${RUNNER_TEMP:-/tmp}/npm-global/bin first so that CLIs installed
+	// with a writable npm prefix (see GenerateNpmInstallStepsWithScope) are found
+	// before the read-only hostedtoolcache paths.
+	// RUNNER_TEMP is the official GitHub Actions temp directory; the /tmp fallback
+	// is used when the variable is not set (e.g. inside AWF containers that do not
+	// inherit it from the host).
 	//
 	// Find all bin directories in hostedtoolcache (Node.js, Python, etc.)
 	// This finds paths like /opt/hostedtoolcache/node/22.13.0/x64/bin
@@ -159,7 +162,7 @@ func GetNpmBinPathSetup() string {
 	// alphabetically, so go/1.23.12 shadows go/1.25.0. Re-prepending GOROOT/bin
 	// ensures the Go version set by actions/setup-go takes precedence.
 	// AWF's entrypoint.sh exports GOROOT before the user command runs.
-	return `export PATH="/tmp/npm-global/bin:$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true`
+	return `export PATH="${RUNNER_TEMP:-/tmp}/npm-global/bin:$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true`
 }
 
 // GenerateNpmInstallStepsWithScope generates npm installation steps with control over global vs local installation.
@@ -198,9 +201,11 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 		nodejsLog.Printf("Version contains GitHub Actions expression, using env var for injection safety: %s", version)
 		installCmd := fmt.Sprintf(`npm install %s%s%s@"${ENGINE_VERSION}"`, ignoreScriptsFlag, globalFlag, packageName)
 		if isGlobal {
-			// Use a writable prefix to avoid EROFS errors when /opt/hostedtoolcache is read-only.
-			// Add /tmp/npm-global/bin to GITHUB_PATH so subsequent steps can find the binary.
-			multiLineCmd := fmt.Sprintf("npm config set prefix /tmp/npm-global\n%s\necho \"/tmp/npm-global/bin\" >> \"$GITHUB_PATH\"", installCmd)
+			// Use $RUNNER_TEMP (official GitHub Actions temp dir) as the npm prefix to
+			// avoid EROFS errors when /opt/hostedtoolcache is read-only after setup-node.
+			// Falls back to /tmp when RUNNER_TEMP is not set.
+			// Add the bin dir to GITHUB_PATH so subsequent steps can find the binary.
+			multiLineCmd := fmt.Sprintf("npm config set prefix \"${RUNNER_TEMP:-/tmp}/npm-global\"\n%s\necho \"${RUNNER_TEMP:-/tmp}/npm-global/bin\" >> \"$GITHUB_PATH\"", installCmd)
 			stepLines := []string{"      - name: " + stepName}
 			stepLines = FormatStepWithCommandAndEnv(stepLines, multiLineCmd, map[string]string{"ENGINE_VERSION": version})
 			installStep = GitHubActionStep(stepLines)
@@ -215,9 +220,11 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 	} else {
 		installCmd := fmt.Sprintf("npm install %s%s%s@%s", ignoreScriptsFlag, globalFlag, packageName, version)
 		if isGlobal {
-			// Use a writable prefix to avoid EROFS errors when /opt/hostedtoolcache is read-only.
-			// Add /tmp/npm-global/bin to GITHUB_PATH so subsequent steps can find the binary.
-			multiLineCmd := fmt.Sprintf("npm config set prefix /tmp/npm-global\n%s\necho \"/tmp/npm-global/bin\" >> \"$GITHUB_PATH\"", installCmd)
+			// Use $RUNNER_TEMP (official GitHub Actions temp dir) as the npm prefix to
+			// avoid EROFS errors when /opt/hostedtoolcache is read-only after setup-node.
+			// Falls back to /tmp when RUNNER_TEMP is not set.
+			// Add the bin dir to GITHUB_PATH so subsequent steps can find the binary.
+			multiLineCmd := fmt.Sprintf("npm config set prefix \"${RUNNER_TEMP:-/tmp}/npm-global\"\n%s\necho \"${RUNNER_TEMP:-/tmp}/npm-global/bin\" >> \"$GITHUB_PATH\"", installCmd)
 			stepLines := []string{"      - name: " + stepName}
 			stepLines = FormatStepWithCommandAndEnv(stepLines, multiLineCmd, nil)
 			installStep = GitHubActionStep(stepLines)

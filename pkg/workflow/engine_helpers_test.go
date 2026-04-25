@@ -167,17 +167,21 @@ func TestShellEscapeArgWithFullyQuotedAgentPath(t *testing.T) {
 func TestGetNpmBinPathSetup(t *testing.T) {
 	pathSetup := GetNpmBinPathSetup()
 
-	// Should include the writable npm global prefix bin directory first
-	if !strings.Contains(pathSetup, "/tmp/npm-global/bin") {
-		t.Errorf("PATH setup should reference /tmp/npm-global/bin for writable prefix, got: %s", pathSetup)
+	// Should include the writable npm global prefix bin directory first, using
+	// $RUNNER_TEMP with a /tmp fallback.
+	if !strings.Contains(pathSetup, "RUNNER_TEMP") {
+		t.Errorf("PATH setup should reference RUNNER_TEMP for writable prefix, got: %s", pathSetup)
+	}
+	if !strings.Contains(pathSetup, "npm-global/bin") {
+		t.Errorf("PATH setup should reference npm-global/bin, got: %s", pathSetup)
 	}
 
-	// /tmp/npm-global/bin should come BEFORE hostedtoolcache so writable-prefix
+	// npm-global/bin should come BEFORE hostedtoolcache so writable-prefix
 	// installs take precedence over any stale hostedtoolcache binaries.
-	npmGlobalIdx := strings.Index(pathSetup, "/tmp/npm-global/bin")
+	npmGlobalIdx := strings.Index(pathSetup, "npm-global/bin")
 	hostedtoolcacheIdx := strings.Index(pathSetup, "/opt/hostedtoolcache")
 	if npmGlobalIdx > hostedtoolcacheIdx {
-		t.Errorf("/tmp/npm-global/bin should come before /opt/hostedtoolcache in PATH setup, got: %s", pathSetup)
+		t.Errorf("npm-global/bin should come before /opt/hostedtoolcache in PATH setup, got: %s", pathSetup)
 	}
 
 	// Should use find command to locate bin directories in hostedtoolcache
