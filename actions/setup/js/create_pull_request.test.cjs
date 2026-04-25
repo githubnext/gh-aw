@@ -342,13 +342,13 @@ describe("create_pull_request - max limit enforcement", () => {
   });
 
   it("should enforce max file limit on patch content", () => {
-    // Create a patch with more than MAX_FILES (100) files
+    // Create a patch with more than MAX_FILES (100) unique files
     const patchLines = [];
     for (let i = 0; i < 101; i++) {
       patchLines.push(`diff --git a/file${i}.txt b/file${i}.txt`);
       patchLines.push("index 1234567..abcdefg 100644");
-      patchLines.push("--- a/file${i}.txt");
-      patchLines.push("+++ b/file${i}.txt");
+      patchLines.push(`--- a/file${i}.txt`);
+      patchLines.push(`+++ b/file${i}.txt`);
       patchLines.push("@@ -1,1 +1,1 @@");
       patchLines.push("-old content");
       patchLines.push("+new content");
@@ -370,8 +370,8 @@ describe("create_pull_request - max limit enforcement", () => {
     for (let i = 0; i < 100; i++) {
       patchLines.push(`diff --git a/file${i}.txt b/file${i}.txt`);
       patchLines.push("index 1234567..abcdefg 100644");
-      patchLines.push("--- a/file${i}.txt");
-      patchLines.push("+++ b/file${i}.txt");
+      patchLines.push(`--- a/file${i}.txt`);
+      patchLines.push(`+++ b/file${i}.txt`);
       patchLines.push("@@ -1,1 +1,1 @@");
       patchLines.push("-old content");
       patchLines.push("+new content");
@@ -382,6 +382,71 @@ describe("create_pull_request - max limit enforcement", () => {
 
     // Should not throw
     expect(() => enforcePullRequestLimits(patchContent)).not.toThrow();
+  });
+
+  it("should count unique files across multi-commit patches (regression: github/gh-aw issue tsessebe autoloop)", () => {
+    // Simulate `git format-patch` output where the same files are modified across
+    // multiple commits. Previously the limit check counted every `diff --git`
+    // header (3 commits * 2 files = 6) instead of the 2 unique files actually
+    // touched. After the fix it should count 2.
+    const { countUniquePatchFiles, enforcePullRequestLimits } = require("./create_pull_request.cjs");
+
+    const patchLines = [];
+    for (let commit = 0; commit < 3; commit++) {
+      for (const file of ["src/a.ts", "src/b.ts"]) {
+        patchLines.push(`diff --git a/${file} b/${file}`);
+        patchLines.push("index 1234567..abcdefg 100644");
+        patchLines.push(`--- a/${file}`);
+        patchLines.push(`+++ b/${file}`);
+        patchLines.push("@@ -1,1 +1,1 @@");
+        patchLines.push(`-old ${commit}`);
+        patchLines.push(`+new ${commit}`);
+      }
+    }
+    const patchContent = patchLines.join("\n");
+
+    expect(countUniquePatchFiles(patchContent)).toBe(2);
+    expect(() => enforcePullRequestLimits(patchContent, 5)).not.toThrow();
+  });
+
+  it("should accept a configurable max-files override", () => {
+    const { enforcePullRequestLimits } = require("./create_pull_request.cjs");
+
+    const patchLines = [];
+    for (let i = 0; i < 150; i++) {
+      patchLines.push(`diff --git a/file${i}.txt b/file${i}.txt`);
+      patchLines.push("index 1234567..abcdefg 100644");
+      patchLines.push(`--- a/file${i}.txt`);
+      patchLines.push(`+++ b/file${i}.txt`);
+      patchLines.push("@@ -1,1 +1,1 @@");
+      patchLines.push("-old content");
+      patchLines.push("+new content");
+    }
+    const patchContent = patchLines.join("\n");
+
+    // With default limit (100) it should fail
+    expect(() => enforcePullRequestLimits(patchContent)).toThrow("E003");
+    // With raised limit it should pass
+    expect(() => enforcePullRequestLimits(patchContent, 200)).not.toThrow();
+    // With smaller limit, error message reflects override
+    expect(() => enforcePullRequestLimits(patchContent, 50)).toThrow("more than 50 files");
+    expect(() => enforcePullRequestLimits(patchContent, 50)).toThrow("received 150");
+  });
+
+  it("should fall back to legacy header counting if path parsing yields no files", () => {
+    // Pathological patch shape (e.g. binary-only with no parseable a/b paths) -
+    // we should still surface a non-zero count from the bare header fallback so
+    // the limit check is never silently skipped.
+    const { countUniquePatchFiles } = require("./create_pull_request.cjs");
+    const patchContent = "diff --git \ndiff --git \ndiff --git \n";
+    expect(countUniquePatchFiles(patchContent)).toBe(3);
+  });
+
+  it("should return 0 for empty patches", () => {
+    const { countUniquePatchFiles, enforcePullRequestLimits } = require("./create_pull_request.cjs");
+    expect(countUniquePatchFiles("")).toBe(0);
+    expect(countUniquePatchFiles("   \n\n")).toBe(0);
+    expect(() => enforcePullRequestLimits("")).not.toThrow();
   });
 });
 

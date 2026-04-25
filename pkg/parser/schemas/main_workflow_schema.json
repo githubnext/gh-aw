@@ -7979,6 +7979,12 @@
           "maximum": 10240,
           "default": 1024
         },
+        "max-patch-files": {
+          "type": "integer",
+          "description": "Maximum allowed number of unique files in a create-pull-request patch. Defaults to 100. The check counts unique file paths (deduplicated across multi-commit patches), so it reflects how many distinct files the agent is pushing in this iteration.",
+          "minimum": 1,
+          "default": 100
+        },
         "threat-detection": {
           "oneOf": [
             {

@@ -443,6 +443,38 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.MaximumPatchSize = 1024 // Default to 1MB = 1024 KB
 			}
 
+			// Handle max-patch-files configuration (maximum unique files allowed in
+			// a create-pull-request patch). Mirrors max-patch-size handling above.
+			if maxPatchFiles, exists := outputMap["max-patch-files"]; exists {
+				switch v := maxPatchFiles.(type) {
+				case int:
+					if v >= 1 {
+						config.MaximumPatchFiles = v
+					}
+				case int64:
+					if v >= 1 {
+						config.MaximumPatchFiles = int(v)
+					}
+				case uint64:
+					if v >= 1 {
+						config.MaximumPatchFiles = int(v)
+					}
+				case float64:
+					intVal := int(v)
+					if v != float64(intVal) {
+						safeOutputsConfigLog.Printf("max-patch-files: float value %.2f truncated to integer %d", v, intVal)
+					}
+					if intVal >= 1 {
+						config.MaximumPatchFiles = intVal
+					}
+				}
+			}
+
+			// Set default value if not specified or invalid
+			if config.MaximumPatchFiles == 0 {
+				config.MaximumPatchFiles = 100 // Default to 100 unique files
+			}
+
 			// Handle threat-detection
 			threatDetectionConfig := c.parseThreatDetectionConfig(outputMap)
 			if threatDetectionConfig != nil {

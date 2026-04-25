@@ -232,28 +232,75 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
  * Maximum limits for pull request parameters to prevent resource exhaustion.
  * These limits align with GitHub's API constraints and security best practices.
  */
-/** @type {number} Maximum number of files allowed per pull request */
+/** @type {number} Default maximum number of unique files allowed per pull request.
+ * Can be overridden via the `max-patch-files` safe-outputs config option. */
 const MAX_FILES = 100;
+
+/**
+ * Counts the number of unique file paths touched by a git patch.
+ *
+ * `git format-patch` emits one patch per commit, so the same file modified
+ * across multiple commits will appear in multiple `diff --git` headers. For
+ * the file-count safety limit we want to count unique files (i.e. how many
+ * distinct files this push touches), not the raw number of diff hunks.
+ *
+ * Each `diff --git a/<path> b/<path>` header is parsed to extract the file
+ * path (preferring the "b/" side, which represents the file's post-image and
+ * matches the working tree path even for renames/deletes).
+ *
+ * @param {string} patchContent - Patch content to inspect (may be empty)
+ * @returns {number} Number of unique file paths referenced in the patch
+ */
+function countUniquePatchFiles(patchContent) {
+  if (!patchContent || !patchContent.trim()) {
+    return 0;
+  }
+  const files = new Set();
+  // Match: diff --git a/<path> b/<path>
+  // Paths may be quoted when they contain unusual characters; we capture both
+  // forms and prefer the "b/" path. The non-greedy capture for the a-path is
+  // bounded by " b/" to handle paths that contain spaces.
+  const re = /^diff --git "?a\/(.+?)"? "?b\/(.+?)"?$/gm;
+  let match;
+  while ((match = re.exec(patchContent)) !== null) {
+    const bPath = match[2] || match[1];
+    if (bPath) {
+      files.add(bPath);
+    }
+  }
+  // Fallback: if the structured regex matched nothing (unexpected patch
+  // shape) but the patch contains diff headers, count those headers so we
+  // never silently skip the limit check.
+  if (files.size === 0) {
+    const fallback = patchContent.match(/^diff --git /gm);
+    return fallback ? fallback.length : 0;
+  }
+  return files.size;
+}
 
 /**
  * Enforces maximum limits on pull request parameters to prevent resource exhaustion attacks.
  * Per Safe Outputs specification requirement SEC-003, limits must be enforced before API calls.
  *
+ * The file-count check measures the number of *unique* files in the patch (not
+ * the number of `diff --git` headers, which can be inflated when the patch
+ * contains multiple commits touching the same file).
+ *
  * @param {string} patchContent - Patch content to validate
+ * @param {number} [maxFiles=MAX_FILES] - Maximum number of unique files allowed
  * @throws {Error} When any limit is exceeded, with error code E003 and details
  */
-function enforcePullRequestLimits(patchContent) {
+function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
   if (!patchContent || !patchContent.trim()) {
     return;
   }
 
-  // Count files in patch by looking for "diff --git" lines
-  const fileMatches = patchContent.match(/^diff --git /gm);
-  const fileCount = fileMatches ? fileMatches.length : 0;
+  const limit = Number.isFinite(maxFiles) && maxFiles > 0 ? maxFiles : MAX_FILES;
+  const fileCount = countUniquePatchFiles(patchContent);
 
   // Check file count - max limit exceeded check
-  if (fileCount > MAX_FILES) {
-    throw new Error(`E003: Cannot create pull request with more than ${MAX_FILES} files (received ${fileCount})`);
+  if (fileCount > limit) {
+    throw new Error(`E003: Cannot create pull request with more than ${limit} files (received ${fileCount})`);
   }
 }
 
@@ -352,6 +399,7 @@ async function main(config = {}) {
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
+  const maxFiles = config.max_patch_files ? parseInt(String(config.max_patch_files), 10) : MAX_FILES;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const allowedBaseBranches = parseAllowedBaseBranches(config.allowed_base_branches);
   const githubClient = await createAuthenticatedGitHubClient(config);
@@ -484,6 +532,7 @@ async function main(config = {}) {
   }
   core.info(`Max count: ${maxCount}`);
   core.info(`Max patch size: ${maxSizeKb} KB`);
+  core.info(`Max patch files: ${maxFiles}`);
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
@@ -682,7 +731,7 @@ async function main(config = {}) {
 
     // Enforce max limits on patch before processing
     try {
-      enforcePullRequestLimits(patchContent);
+      enforcePullRequestLimits(patchContent, maxFiles);
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.warning(`Pull request limit exceeded: ${errorMessage}`);
@@ -1802,4 +1851,4 @@ ${patchPreview}`;
   }; // End of handleCreatePullRequest
 } // End of main
 
-module.exports = { main, enforcePullRequestLimits };
+module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles };
