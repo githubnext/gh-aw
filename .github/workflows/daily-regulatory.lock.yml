@@ -241,7 +241,6 @@ jobs:
           {{#runtime-import .github/workflows/shared/github-queries-mcp-script.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/daily-regulatory.md}}
           GH_AW_PROMPT_4ff4456d5c004992_EOF
           } > "$GH_AW_PROMPT"

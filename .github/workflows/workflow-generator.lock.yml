@@ -263,7 +263,6 @@ jobs:
           cat << 'GH_AW_PROMPT_58bb20f44e85297e_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/workflow-generator.md}}
           GH_AW_PROMPT_58bb20f44e85297e_EOF
           } > "$GH_AW_PROMPT"

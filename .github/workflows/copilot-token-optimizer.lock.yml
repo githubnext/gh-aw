@@ -231,7 +231,6 @@ jobs:
           cat << 'GH_AW_PROMPT_fb7a896802031a54_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/copilot-token-optimizer.md}}
           GH_AW_PROMPT_fb7a896802031a54_EOF
           } > "$GH_AW_PROMPT"

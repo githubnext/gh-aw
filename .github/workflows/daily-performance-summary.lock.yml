@@ -250,7 +250,6 @@ jobs:
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/daily-performance-summary.md}}
           GH_AW_PROMPT_4d1d60523c12164b_EOF
           } > "$GH_AW_PROMPT"

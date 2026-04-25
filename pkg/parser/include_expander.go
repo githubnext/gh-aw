@@ -149,6 +149,13 @@ func ExtractBodyLevelImportPaths(content, baseDir string) []BodyLevelImport {
 			continue
 		}
 		optional := m[1] == "?"
+
+		// Skip optional directives — they are handled with proper semantics at runtime
+		// when runtime_import.cjs processes the workflow body. Promoting an optional
+		// directive as a required macro would cause failures if the file is missing.
+		if optional {
+			continue
+		}
 		importPath := strings.TrimSpace(m[2])
 
 		// Strip section reference (e.g. "file.md#Section" → "file.md")
@@ -176,7 +183,7 @@ func ExtractBodyLevelImportPaths(content, baseDir string) []BodyLevelImport {
 
 		results = append(results, BodyLevelImport{
 			Path:     filepath.ToSlash(importPath),
-			Optional: optional,
+			Optional: false, // optional directives are skipped above; only required imports are promoted
 		})
 	}
 	return results

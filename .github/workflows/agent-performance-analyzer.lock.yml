@@ -228,7 +228,6 @@ jobs:
           cat << 'GH_AW_PROMPT_e8efe57977b9f20b_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/agent-performance-analyzer.md}}
           GH_AW_PROMPT_e8efe57977b9f20b_EOF
           } > "$GH_AW_PROMPT"

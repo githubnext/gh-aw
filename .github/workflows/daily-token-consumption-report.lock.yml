@@ -243,7 +243,6 @@ jobs:
           {{#runtime-import .github/workflows/shared/reporting-otlp.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/daily-token-consumption-report.md}}
           GH_AW_PROMPT_3edd0ce42e733bd2_EOF
           } > "$GH_AW_PROMPT"

@@ -277,7 +277,6 @@ jobs:
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/daily-testify-uber-super-expert.md}}
           GH_AW_PROMPT_692afb371db39ced_EOF
           } > "$GH_AW_PROMPT"

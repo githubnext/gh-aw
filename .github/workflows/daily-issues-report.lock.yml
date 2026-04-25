@@ -260,7 +260,6 @@ jobs:
           {{#runtime-import .github/workflows/shared/trends.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/shared/editorial.md}}
           {{#runtime-import .github/workflows/daily-issues-report.md}}
           GH_AW_PROMPT_9e1e7ac2d1f2b660_EOF

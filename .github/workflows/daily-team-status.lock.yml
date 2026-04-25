@@ -249,7 +249,6 @@ jobs:
           {{#runtime-import .github/workflows/shared/reporting-otlp.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/shared/editorial.md}}
           {{#runtime-import .github/workflows/daily-team-status.md}}
           GH_AW_PROMPT_31fef7a17811ecb8_EOF

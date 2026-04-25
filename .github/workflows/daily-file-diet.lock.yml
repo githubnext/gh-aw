@@ -275,7 +275,6 @@ jobs:
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/daily-file-diet.md}}
           GH_AW_PROMPT_fe4e05911571678a_EOF
           } > "$GH_AW_PROMPT"

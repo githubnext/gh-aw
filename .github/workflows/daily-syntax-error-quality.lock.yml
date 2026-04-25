@@ -232,7 +232,6 @@ jobs:
           {{#runtime-import .github/workflows/shared/reporting-otlp.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/daily-syntax-error-quality.md}}
           GH_AW_PROMPT_b0bed03293d9e959_EOF
           } > "$GH_AW_PROMPT"

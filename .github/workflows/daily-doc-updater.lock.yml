@@ -244,7 +244,6 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/daily-doc-updater.md}}
           GH_AW_PROMPT_741719fb8401d7b7_EOF
           } > "$GH_AW_PROMPT"

@@ -611,7 +611,6 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/workflows/shared/activation-app.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/issue-monster.md}}
           GH_AW_PROMPT_e301ff5ec303eb90_EOF
           } > "$GH_AW_PROMPT"

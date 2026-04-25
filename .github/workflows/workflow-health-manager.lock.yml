@@ -228,7 +228,6 @@ jobs:
           cat << 'GH_AW_PROMPT_d022aa0b1fb5b046_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/workflow-health-manager.md}}
           GH_AW_PROMPT_d022aa0b1fb5b046_EOF
           } > "$GH_AW_PROMPT"
