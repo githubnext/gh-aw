@@ -129,6 +129,45 @@ This workflow was triggered from a comment on discussion #${{ github.event.discu
    - Is this a general optimization request?
 3. **Identify Target Workflows**: Determine which workflows to analyze (specific ones or all)
 
+#### Cache Initialization
+
+The cache root for this workflow is `/tmp/gh-aw/cache-memory` (restored by the `cache-memory: true` setup step).
+Q's state lives in a workflow-specific subdirectory: `/tmp/gh-aw/cache-memory/q/`.
+
+Load prior state from cache at startup so this run can build on previous findings:
+
+```bash
+# Cache root: /tmp/gh-aw/cache-memory  (restored by the cache-memory setup step)
+# Q-specific state lives in the /q/ subdirectory inside that root
+CACHE_DIR=/tmp/gh-aw/cache-memory/q
+mkdir -p "$CACHE_DIR"
+
+if [ -f "$CACHE_DIR/state.json" ]; then
+  echo "Cache restored — loading prior Q state"
+  cat "$CACHE_DIR/state.json" | jq '{workflows_analyzed: (.workflows_analyzed | length), patterns_count: (.patterns | length), last_run: .last_run}'
+else
+  echo "No prior cache found — starting fresh"
+fi
+```
+
+The `state.json` file (if present) has the following shape:
+
+```json
+{
+  "last_run": "2026-04-25-14-30-00",
+  "workflows_analyzed": ["workflow-a", "workflow-b"],
+  "patterns": [
+    {"name": "pattern-name", "description": "brief description", "workflows": ["wf-a", "wf-b"]}
+  ],
+  "processed_run_ids": ["24929839999", "24928863169"]
+}
+```
+
+Use this state to:
+- Skip re-analysis of workflows that were already optimized recently
+- Reuse identified patterns to accelerate the current session
+- Determine which run IDs have already been reviewed so you focus on new data
+
 ### Phase 1: Gather Live Data
 
 **NEVER EVER make up logs or data - always pull from live sources.**
@@ -174,7 +213,7 @@ Use internal resources to research solutions:
 
 1. **Repository Documentation**: Read documentation files in `docs/` to understand best practices
 2. **Workflow Examples**: Examine successful workflows in `.github/workflows/` as reference
-3. **Cache Memory**: Check cache-memory for patterns and solutions from previous analyses
+3. **Cache Memory**: Check `/tmp/gh-aw/cache-memory/q/state.json` for patterns and solutions from previous analyses — if the file exists, load it and reuse known patterns to avoid duplicate research
 4. **GitHub Issues**: Search closed issues for similar problems and their resolutions
 
 ### Phase 4: Workflow Improvements
@@ -255,6 +294,61 @@ General optimizations:
 2. **Check Compilation Output**: Ensure no errors or warnings
 3. **Validate Syntax**: Confirm the workflow is syntactically correct
 4. **Review Generated YAML**: Check that .lock.yml files are properly generated
+
+### Phase 5.5: Persist Cache State
+
+**ALWAYS** write updated state to cache-memory before creating the PR (or before finishing if no PR is needed). This ensures future runs start warm and avoid re-scanning the same logs.
+
+The cache save step persists the entire `/tmp/gh-aw/cache-memory` tree, so files written to `/tmp/gh-aw/cache-memory/q/` are automatically included.
+
+```bash
+# Cache root: /tmp/gh-aw/cache-memory  (saved by the cache-memory save step)
+# Q-specific state lives in the /q/ subdirectory inside that root
+CACHE_DIR=/tmp/gh-aw/cache-memory/q
+mkdir -p "$CACHE_DIR"
+
+# Build the new state.json — use filesystem-safe timestamp (no colons)
+NOW=$(date -u +"%Y-%m-%d-%H-%M-%S")
+
+# Load previously processed run IDs from existing state so we can merge them
+PREV_RUN_IDS="[]"
+PREV_WORKFLOWS="[]"
+PREV_PATTERNS="[]"
+if [ -f "$CACHE_DIR/state.json" ]; then
+  PREV_RUN_IDS=$(jq '.processed_run_ids // []' "$CACHE_DIR/state.json")
+  PREV_WORKFLOWS=$(jq '.workflows_analyzed // []' "$CACHE_DIR/state.json")
+  PREV_PATTERNS=$(jq '.patterns // []' "$CACHE_DIR/state.json")
+fi
+
+# Write merged state — THIS_RUN_* variables must be set by the agent
+# to JSON arrays, e.g. THIS_RUN_WORKFLOWS='["workflow-a","workflow-b"]'
+jq -n \
+  --arg now "$NOW" \
+  --argjson prev_wf "$PREV_WORKFLOWS" \
+  --argjson new_wf "${THIS_RUN_WORKFLOWS:-[]}" \
+  --argjson prev_pat "$PREV_PATTERNS" \
+  --argjson new_pat "${THIS_RUN_PATTERNS:-[]}" \
+  --argjson prev_ids "$PREV_RUN_IDS" \
+  --argjson new_ids "${THIS_RUN_RUN_IDS:-[]}" \
+  '{
+    last_run: $now,
+    workflows_analyzed: ($prev_wf + $new_wf | unique),
+    patterns: ($prev_pat + $new_pat | unique_by(.name)),
+    processed_run_ids: ($prev_ids + $new_ids | unique)
+  }' > "$CACHE_DIR/state.json"
+
+echo "Cache state saved to $CACHE_DIR/state.json"
+ls -lh "$CACHE_DIR/"
+```
+
+**What to include in the saved state — populate the shell variables before running the snippet above:**
+
+- `THIS_RUN_WORKFLOWS`: JSON array of workflow names examined this run, e.g. `'["q","archie"]'`
+- `THIS_RUN_PATTERNS`: JSON array of patterns found, e.g. `'[{"name":"missing-cache-write","description":"workflow enables cache-memory but never writes to it","workflows":["q"]}]'`
+- `THIS_RUN_RUN_IDS`: JSON array of run IDs you pulled logs for, e.g. `'["24929839999","24928863169"]'`
+- `last_run`: Filesystem-safe UTC timestamp (`YYYY-MM-DD-HH-MM-SS`) — no colons
+
+The `jq` merge step deduplicates across runs so history accumulates without growing unbounded.
 
 ### Phase 6: Create Pull Request (Only if Changes Exist)
 

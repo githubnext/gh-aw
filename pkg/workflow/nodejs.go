@@ -137,25 +137,34 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 }
 
 // GetNpmBinPathSetup returns a simple shell command that adds hostedtoolcache bin directories
-// to PATH. This is specifically for npm-installed CLIs (like Claude and Codex) that need
-// to find their binaries installed via `npm install -g`.
+// to PATH. This is specifically for npm-installed CLIs (like Claude, Codex, and the Copilot
+// driver) that need to find their binaries installed via `npm install -g` or via
+// `actions/setup-node`.
 //
 // Unlike GetHostedToolcachePathSetup(), this does NOT use GH_AW_TOOL_BINS because AWF's
 // native chroot mode already handles tool-specific paths (GOROOT, JAVA_HOME, etc.) via
 // AWF_HOST_PATH and the entrypoint.sh script. This function only adds the generic
 // hostedtoolcache bin directories for npm packages.
 //
+// Both /opt/hostedtoolcache (GitHub-hosted runners) and /home/runner/work/_tool
+// (self-hosted GPU runners like aw-gpu-runner-T4, where RUNNER_TOOL_CACHE defaults
+// to /home/runner/work/_tool) are searched so node is found regardless of runner type.
+//
 // Returns:
 //   - string: A shell command that exports PATH with hostedtoolcache bin directories prepended
 func GetNpmBinPathSetup() string {
 	// Find all bin directories in hostedtoolcache (Node.js, Python, etc.)
 	// This finds paths like /opt/hostedtoolcache/node/22.13.0/x64/bin
+	// or /home/runner/work/_tool/node/24.0.0/x64/bin on self-hosted GPU runners.
+	//
+	// Both standard paths are searched; directories that do not exist are silently
+	// skipped by find (due to 2>/dev/null).
 	//
 	// After the find, re-prepend GOROOT/bin if set. The find returns directories
 	// alphabetically, so go/1.23.12 shadows go/1.25.0. Re-prepending GOROOT/bin
 	// ensures the Go version set by actions/setup-go takes precedence.
 	// AWF's entrypoint.sh exports GOROOT before the user command runs.
-	return `export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true`
+	return `export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true`
 }
 
 // GenerateNpmInstallStepsWithScope generates npm installation steps with control over global vs local installation.

@@ -244,6 +244,9 @@ touch %s
 		// internal Gemini CLI debug channels (see: https://gemini-cli-docs.pages.dev/cli/configuration).
 		// Non-JSON debug lines are gracefully skipped by ParseLogMetrics.
 		"DEBUG": "gemini-cli:*",
+		// Trust the workspace to prevent Gemini CLI v1.x from overriding --yolo to default
+		// approval mode when the workspace is untrusted, which causes exit code 55.
+		"GEMINI_CLI_TRUST_WORKSPACE": "true",
 	}
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection
 	// Include the compiler version so agents can identify which gh-aw version generated the workflow
