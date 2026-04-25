@@ -274,6 +274,7 @@ jobs:
           {{#runtime-import .github/skills/documentation/SKILL.md}}
           {{#runtime-import .github/agents/technical-doc-writer.agent.md}}
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/glossary-maintainer.md}}
           GH_AW_PROMPT_1ebb1956aefdacd6_EOF
           } > "$GH_AW_PROMPT"

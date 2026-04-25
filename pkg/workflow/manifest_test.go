@@ -395,3 +395,85 @@ func extractLockFileHeader(content string) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+// TestBodyLevelImportPromotedToRuntimeImport verifies that a body-level {{#import:}} directive
+// generates an explicit {{#runtime-import}} macro in the compiled lock-file prompt,
+// making the imported content visible without having to chase the workflow file at runtime.
+func TestBodyLevelImportPromotedToRuntimeImport(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "body-import-test")
+
+	// Create .github/workflows/ and .github/shared/ structure
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	sharedDir := filepath.Join(tmpDir, ".github", "shared")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create the shared editorial file
+	editorialFile := filepath.Join(sharedDir, "editorial.md")
+	if err := os.WriteFile(editorialFile, []byte("## Writing Style\n\nNewspaper editorial tone.\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Workflow has a body-level {{#import:}} directive
+	workflowContent := `---
+on:
+  schedule:
+    - cron: "0 9 * * *"
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+safe-outputs:
+  create-issue: {}
+---
+
+{{#import: .github/shared/editorial.md}}
+
+# Daily Report
+
+Generate the daily report.`
+
+	compiler := NewCompiler()
+	testFile := filepath.Join(workflowsDir, "daily-report.md")
+	if err := os.WriteFile(testFile, []byte(workflowContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	// The compiled prompt must contain an explicit {{#runtime-import .github/shared/editorial.md}}
+	// BEFORE the {{#runtime-import ...daily-report.md}} line so that the editorial content
+	// is visible in the lock file and imported before the main workflow body is processed.
+	expectedEditorialMacro := "{{#runtime-import .github/shared/editorial.md}}"
+	if !strings.Contains(lockContent, expectedEditorialMacro) {
+		t.Errorf("Expected %q in compiled lock file prompt, but not found.\nContent excerpt:\n%s",
+			expectedEditorialMacro, extractLockFileHeader(lockContent))
+	}
+
+	// The main workflow file must still be imported after the editorial import
+	expectedMainMacro := "{{#runtime-import .github/workflows/daily-report.md}}"
+	if !strings.Contains(lockContent, expectedMainMacro) {
+		t.Errorf("Expected %q in compiled lock file prompt, but not found", expectedMainMacro)
+	}
+
+	// editorial macro must come before the main workflow macro
+	editorialIdx := strings.Index(lockContent, expectedEditorialMacro)
+	mainIdx := strings.Index(lockContent, expectedMainMacro)
+	if editorialIdx >= mainIdx {
+		t.Errorf("Expected editorial import (%d) to appear before main workflow import (%d)", editorialIdx, mainIdx)
+	}
+}

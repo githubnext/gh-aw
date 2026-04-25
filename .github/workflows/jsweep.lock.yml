@@ -264,6 +264,7 @@ jobs:
           4. **Focus on the relevant language files** — ignore unrelated file types
           
           
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/jsweep.md}}
           GH_AW_PROMPT_37c6c49ed0d6231b_EOF
           } > "$GH_AW_PROMPT"

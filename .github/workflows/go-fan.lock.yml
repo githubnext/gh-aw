@@ -267,6 +267,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/go-source-analysis.md}}
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/go-fan.md}}
           GH_AW_PROMPT_19a41fc64857dca9_EOF
           } > "$GH_AW_PROMPT"

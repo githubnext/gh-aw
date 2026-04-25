@@ -205,6 +205,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/jqschema.md}}
           {{#runtime-import .github/workflows/shared/copilot-pr-data-fetch.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/copilot-pr-merged-report.md}}
           GH_AW_PROMPT_5a54057fb049d8a1_EOF
           } > "$GH_AW_PROMPT"

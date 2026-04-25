@@ -237,6 +237,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/charts-with-trending.md}}
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/workflows/shared/trends.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/python-data-charts.md}}
           GH_AW_PROMPT_81a8e50872c6de0c_EOF
           } > "$GH_AW_PROMPT"

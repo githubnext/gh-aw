@@ -291,6 +291,7 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_d35e31e70bc8be49_EOF'
           </system>
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/tidy.md}}
           GH_AW_PROMPT_d35e31e70bc8be49_EOF
           } > "$GH_AW_PROMPT"

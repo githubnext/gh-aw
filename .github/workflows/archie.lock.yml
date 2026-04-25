@@ -309,6 +309,7 @@ jobs:
           
           
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/archie.md}}
           GH_AW_PROMPT_3ebfef017b6df1d9_EOF
           } > "$GH_AW_PROMPT"

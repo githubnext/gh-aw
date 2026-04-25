@@ -256,6 +256,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/reporting-otlp.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-safe-output-optimizer.md}}
           GH_AW_PROMPT_f7001fcf8a3d6b98_EOF
           } > "$GH_AW_PROMPT"

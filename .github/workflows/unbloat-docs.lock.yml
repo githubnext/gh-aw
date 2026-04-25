@@ -286,6 +286,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/docs-server-lifecycle.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/unbloat-docs.md}}
           GH_AW_PROMPT_9f2c437ff49b0ea9_EOF
           } > "$GH_AW_PROMPT"

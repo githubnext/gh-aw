@@ -281,6 +281,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/pr-code-review-config.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/pr-nitpick-reviewer.md}}
           GH_AW_PROMPT_729f0063803645f2_EOF
           } > "$GH_AW_PROMPT"

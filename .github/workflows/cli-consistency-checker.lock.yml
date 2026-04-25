@@ -216,6 +216,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_977dde871b5e4edb_EOF'
           </system>
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/cli-consistency-checker.md}}
           GH_AW_PROMPT_977dde871b5e4edb_EOF
           } > "$GH_AW_PROMPT"

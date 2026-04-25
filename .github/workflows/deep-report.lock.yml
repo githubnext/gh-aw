@@ -241,6 +241,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/discussions-data-fetch.md}}
           {{#runtime-import .github/workflows/shared/weekly-issues-data-fetch.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/deep-report.md}}
           GH_AW_PROMPT_8dfa4824ae875fbc_EOF
           } > "$GH_AW_PROMPT"

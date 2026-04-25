@@ -293,6 +293,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/reporting-otlp.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/smoke-gemini.md}}
           GH_AW_PROMPT_46b9e9e2ca0cb2d1_EOF
           } > "$GH_AW_PROMPT"

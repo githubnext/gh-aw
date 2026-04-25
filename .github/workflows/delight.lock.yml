@@ -237,6 +237,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/jqschema.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/delight.md}}
           GH_AW_PROMPT_b91d149178a86edf_EOF
           } > "$GH_AW_PROMPT"

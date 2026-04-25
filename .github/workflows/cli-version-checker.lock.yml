@@ -231,6 +231,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/jqschema.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/cli-version-checker.md}}
           GH_AW_PROMPT_eb436f0c3b3a7fbb_EOF
           } > "$GH_AW_PROMPT"

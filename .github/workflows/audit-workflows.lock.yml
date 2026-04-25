@@ -257,6 +257,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/audit-workflows.md}}
           GH_AW_PROMPT_c3f11bbbc268c008_EOF
           } > "$GH_AW_PROMPT"

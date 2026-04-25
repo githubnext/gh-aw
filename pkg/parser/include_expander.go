@@ -114,7 +114,60 @@ func findGitHubRepoRoot(dir string) string {
 	}
 }
 
-// ExpandIncludesForEngines recursively expands @include and @import directives to extract engine configurations
+// BodyLevelImport represents a single {{#import:}} directive found in a markdown body,
+// with the path resolved to be workspace-root-relative (suitable for {{#runtime-import}} macros).
+type BodyLevelImport struct {
+	Path     string // workspace-root-relative path for the {{#runtime-import}} macro
+	Optional bool   // true when the original directive used the ? form
+}
+
+// ExtractBodyLevelImportPaths scans the markdown body (content is the body after frontmatter
+// has been stripped) for {{#import:}} directives and returns them as BodyLevelImport entries
+// whose Path fields are ready to use in {{#runtime-import}} macros.
+//
+// Relative paths (e.g. "shared/tools.md") are converted to workspace-root-relative form
+// (e.g. ".github/workflows/shared/tools.md") using baseDir and the repo root.
+// Paths that already start with ".github/" are kept as-is.
+// Legacy @include / @import directives are ignored (they are handled separately).
+func ExtractBodyLevelImportPaths(content, baseDir string) []BodyLevelImport {
+	repoRoot := findGitHubRepoRoot(baseDir)
+
+	var results []BodyLevelImport
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	for scanner.Scan() {
+		line := scanner.Text()
+		directive := ParseImportDirective(line)
+		if directive == nil || directive.IsLegacy {
+			continue
+		}
+
+		importPath := directive.Path
+		// Strip section reference (e.g. "file.md#Section" → "file.md")
+		if idx := strings.Index(importPath, "#"); idx >= 0 {
+			importPath = importPath[:idx]
+		}
+		importPath = strings.TrimSpace(importPath)
+
+		// Convert relative paths to workspace-root-relative.
+		// Paths already starting with ".github/" are workspace-root-relative.
+		// Absolute "/" paths are also used as-is.
+		if !strings.HasPrefix(importPath, ".github/") && !strings.HasPrefix(importPath, "/") {
+			if repoRoot != "" {
+				fullPath := filepath.Join(baseDir, importPath)
+				if rel, err := filepath.Rel(repoRoot, fullPath); err == nil && !strings.HasPrefix(rel, "..") {
+					importPath = rel
+				}
+			}
+		}
+
+		results = append(results, BodyLevelImport{
+			Path:     filepath.ToSlash(importPath),
+			Optional: directive.IsOptional,
+		})
+	}
+	return results
+}
+
 func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
 	includeExpanderLog.Printf("Expanding includes for engines: baseDir=%s", baseDir)
 	return expandIncludesForField(content, baseDir, func(c string) (string, error) {
