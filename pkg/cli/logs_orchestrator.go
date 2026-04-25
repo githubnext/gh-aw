@@ -296,7 +296,7 @@ func DownloadWorkflowLogsWithOptions(ctx context.Context, opts DownloadWorkflowL
 
 		// Apply exclude filter before chunking to avoid downloading artifacts for excluded workflows.
 		if len(resolvedExcludes) > 0 {
-			var filteredRuns []WorkflowRun
+			filteredRuns := make([]WorkflowRun, 0, len(runsRemaining))
 			for _, run := range runsRemaining {
 				if isWorkflowExcluded(run.WorkflowName, resolvedExcludes) {
 					logsOrchestratorLog.Printf("Skipping run %d: workflow '%s' is in exclude list", run.DatabaseID, run.WorkflowName)
