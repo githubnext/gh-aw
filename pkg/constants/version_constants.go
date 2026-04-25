@@ -45,7 +45,7 @@ const DefaultCopilotVersion Version = "1.0.35"
 const DefaultCodexVersion Version = "0.124.0"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
-const DefaultGeminiVersion Version = "0.37.2"
+const DefaultGeminiVersion Version = "0.39.1"
 
 // DefaultCrushVersion is the default version of the Crush CLI
 const DefaultCrushVersion Version = "0.59.0"

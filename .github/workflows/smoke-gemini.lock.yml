@@ -482,7 +482,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.28
       - name: Install Gemini CLI
-        run: npm install --ignore-scripts -g @google/gemini-cli@0.37.2
+        run: npm install --ignore-scripts -g @google/gemini-cli@0.39.1
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
@@ -1410,7 +1410,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.28
       - name: Install Gemini CLI
-        run: npm install --ignore-scripts -g @google/gemini-cli@0.37.2
+        run: npm install --ignore-scripts -g @google/gemini-cli@0.39.1
       - name: Write Gemini Config
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         run: |
