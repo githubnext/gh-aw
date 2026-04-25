@@ -91,8 +91,14 @@ func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (str
 	return currentContent, includedFiles, nil
 }
 
-// findGitHubRepoRoot walks up from dir to find the parent of the first ".github" directory.
-// Returns "" if no ".github" directory is found.
+// findGitHubRepoRoot walks up the directory tree from dir to find the parent of the
+// first ".github" directory encountered. It is used to compute repo-root-relative
+// paths for files that live in sibling .github/ subdirectories (e.g. .github/shared/)
+// so that the lock file Includes header shows ".github/shared/editorial.md" rather
+// than an absolute system path.
+//
+// Returns the repo root directory (the parent of ".github"), or "" if no ".github"
+// ancestor directory is found before reaching the filesystem root.
 func findGitHubRepoRoot(dir string) string {
 	current := filepath.Clean(dir)
 	for {
