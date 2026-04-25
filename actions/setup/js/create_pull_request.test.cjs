@@ -433,20 +433,70 @@ describe("create_pull_request - max limit enforcement", () => {
     expect(() => enforcePullRequestLimits(patchContent, 50)).toThrow("received 150");
   });
 
-  it("should fall back to legacy header counting if path parsing yields no files", () => {
-    // Pathological patch shape (e.g. binary-only with no parseable a/b paths) -
-    // we should still surface a non-zero count from the bare header fallback so
-    // the limit check is never silently skipped.
-    const { countUniquePatchFiles } = require("./create_pull_request.cjs");
-    const patchContent = "diff --git \ndiff --git \ndiff --git \n";
-    expect(countUniquePatchFiles(patchContent)).toBe(3);
-  });
-
   it("should return 0 for empty patches", () => {
     const { countUniquePatchFiles, enforcePullRequestLimits } = require("./create_pull_request.cjs");
     expect(countUniquePatchFiles("")).toBe(0);
     expect(countUniquePatchFiles("   \n\n")).toBe(0);
     expect(() => enforcePullRequestLimits("")).not.toThrow();
+  });
+
+  it("should handle quoted paths with C-style escapes", () => {
+    // git emits quoted, escaped headers when filenames contain special chars
+    // (e.g. embedded quotes or backslashes). The parser must treat these as
+    // distinct unique files and never undercount.
+    const { countUniquePatchFiles, parseDiffGitHeader } = require("./create_pull_request.cjs");
+
+    // Embedded escaped quote: "a/foo\"bar" "b/foo\"bar"
+    expect(parseDiffGitHeader('diff --git "a/foo\\"bar" "b/foo\\"bar"')).toBe('foo\\"bar');
+    // Embedded backslash: "a/foo\\bar" "b/foo\\bar"
+    expect(parseDiffGitHeader('diff --git "a/foo\\\\bar" "b/foo\\\\bar"')).toBe("foo\\\\bar");
+    // Plain unquoted form
+    expect(parseDiffGitHeader("diff --git a/foo.txt b/foo.txt")).toBe("foo.txt");
+    // Path with spaces (git always emits quoted form when path contains spaces)
+    expect(parseDiffGitHeader('diff --git "a/dir/with space/x" "b/dir/with space/x"')).toBe("dir/with space/x");
+
+    // A patch with three different quoted/escaped files should count as 3.
+    const patch = [
+      'diff --git "a/foo\\"bar" "b/foo\\"bar"',
+      "index 1234567..abcdefg 100644",
+      "--- a/x",
+      "+++ b/x",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+      'diff --git "a/foo\\\\bar" "b/foo\\\\bar"',
+      "index 1234567..abcdefg 100644",
+      "--- a/x",
+      "+++ b/x",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+      "diff --git a/normal.txt b/normal.txt",
+      "index 1234567..abcdefg 100644",
+      "--- a/x",
+      "+++ b/x",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+    ].join("\n");
+    expect(countUniquePatchFiles(patch)).toBe(3);
+  });
+
+  it("should count unparseable headers conservatively (never undercount)", () => {
+    // Each `diff --git` header that cannot be parsed contributes one entry
+    // to the unique-file set, so a malformed header can never silently
+    // bypass the limit.
+    const { countUniquePatchFiles, enforcePullRequestLimits } = require("./create_pull_request.cjs");
+    const patchContent = "diff --git \ndiff --git \ndiff --git \n";
+    expect(countUniquePatchFiles(patchContent)).toBe(3);
+
+    // Mixed: 2 parseable + 2 unparseable = 4 unique entries.
+    const mixed = ["diff --git a/a.txt b/a.txt", "diff --git ", "diff --git b/b.txt c/b.txt", "diff --git "].join("\n");
+    expect(countUniquePatchFiles(mixed)).toBe(4);
+
+    // 200 unparseable headers must still trigger the default 100-file limit.
+    const lots = Array.from({ length: 200 }, () => "diff --git ").join("\n");
+    expect(() => enforcePullRequestLimits(lots)).toThrow("E003");
   });
 });
 

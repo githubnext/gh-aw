@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"math"
 	"strings"
 	"testing"
 
@@ -1496,6 +1497,14 @@ func TestParseSafeOutputsMaxPatchFiles(t *testing.T) {
 		{name: "float value", value: 150.0, expected: 150},
 		{name: "zero falls back to default", value: 0, expected: 100},
 		{name: "negative falls back to default", value: -5, expected: 100},
+		// Overflow / out-of-range guards: values that would wrap or produce
+		// undefined results when narrowed to int must be clamped or rejected,
+		// not silently treated as 0 (which would fall back to the default).
+		{name: "uint64 max clamps to MaxInt", value: uint64(math.MaxUint64), expected: math.MaxInt},
+		{name: "huge float ignored (out of int range)", value: 1e30, expected: 100},
+		{name: "negative huge float ignored", value: -1e30, expected: 100},
+		{name: "NaN ignored", value: math.NaN(), expected: 100},
+		{name: "+Inf ignored", value: math.Inf(1), expected: 100},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

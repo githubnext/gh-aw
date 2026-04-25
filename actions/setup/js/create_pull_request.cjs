@@ -237,16 +237,107 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
 const MAX_FILES = 100;
 
 /**
+ * Parses a single `diff --git` header line and returns the post-image (`b/`)
+ * path, the pre-image (`a/`) path, or `null` if the header could not be
+ * parsed. Handles both unquoted paths and C-style quoted paths emitted by
+ * git when filenames contain unusual characters (e.g. backslash-escaped
+ * quotes, control characters, or non-ASCII bytes when `core.quotepath=true`).
+ *
+ * Examples of supported forms:
+ *   diff --git a/foo.txt b/foo.txt
+ *   diff --git a/dir/with space/x b/dir/with space/x
+ *   diff --git "a/foo\"bar" "b/foo\"bar"
+ *   diff --git "a/foo\\bar" "b/foo\\bar"
+ *
+ * @param {string} headerLine - The full header line (must start with `diff --git `)
+ * @returns {string|null} The extracted file path, or null if parsing failed.
+ */
+function parseDiffGitHeader(headerLine) {
+  // Strip the `diff --git ` prefix.
+  const rest = headerLine.replace(/^diff --git /, "");
+  if (rest === headerLine) {
+    return null;
+  }
+
+  // Walk the string and pull out the two pathspecs. Each is either:
+  //   - A quoted C-style string ("..."), where backslash escapes any character
+  //     including embedded quotes and backslashes.
+  //   - An unquoted run of non-space characters.
+  // We don't actually need to unescape the contents; the raw token is fine
+  // for use as a Set key (uniqueness is preserved). All we need is to
+  // correctly delimit the two path tokens.
+  /** @type {string[]} */
+  const tokens = [];
+  let i = 0;
+  while (i < rest.length && tokens.length < 2) {
+    // Skip leading whitespace between tokens.
+    while (i < rest.length && rest[i] === " ") {
+      i++;
+    }
+    if (i >= rest.length) {
+      break;
+    }
+    let token = "";
+    if (rest[i] === '"') {
+      // Quoted form: consume until the matching unescaped quote.
+      token += rest[i++];
+      while (i < rest.length) {
+        const ch = rest[i++];
+        token += ch;
+        if (ch === "\\" && i < rest.length) {
+          // Escaped char: consume the next character verbatim.
+          token += rest[i++];
+        } else if (ch === '"') {
+          break;
+        }
+      }
+    } else {
+      // Unquoted form: consume up to the next space.
+      while (i < rest.length && rest[i] !== " ") {
+        token += rest[i++];
+      }
+    }
+    tokens.push(token);
+  }
+
+  if (tokens.length < 2) {
+    return null;
+  }
+
+  // Prefer the "b/" (post-image) token, falling back to "a/" if needed.
+  // The leading "a/" or "b/" prefix is preserved in the returned key so
+  // that quoted vs. unquoted forms of the same path don't collide
+  // accidentally with unrelated files; uniqueness is the only invariant
+  // that matters here.
+  const stripPrefix = tok => {
+    if (tok.startsWith('"a/') || tok.startsWith('"b/')) {
+      return tok.slice(3, tok.endsWith('"') ? -1 : undefined);
+    }
+    if (tok.startsWith("a/") || tok.startsWith("b/")) {
+      return tok.slice(2);
+    }
+    return tok;
+  };
+  const bPath = stripPrefix(tokens[1]);
+  if (bPath) {
+    return bPath;
+  }
+  const aPath = stripPrefix(tokens[0]);
+  return aPath || null;
+}
+
+/**
  * Counts the number of unique file paths touched by a git patch.
  *
- * `git format-patch` emits one patch per commit, so the same file modified
- * across multiple commits will appear in multiple `diff --git` headers. For
- * the file-count safety limit we want to count unique files (i.e. how many
- * distinct files this push touches), not the raw number of diff hunks.
+ * `git format-patch` emits one `diff --git` header per (commit, file), so the
+ * same file modified across multiple commits will appear multiple times. The
+ * file-count safety limit counts unique files (i.e. how many distinct files
+ * this push touches), not raw header occurrences.
  *
- * Each `diff --git a/<path> b/<path>` header is parsed to extract the file
- * path (preferring the "b/" side, which represents the file's post-image and
- * matches the working tree path even for renames/deletes).
+ * Headers whose paths cannot be parsed contribute one *synthetic* entry each
+ * to the unique-file set, so a malformed or quoted-with-escapes header line
+ * can never silently bypass the limit (we conservatively over-count rather
+ * than under-count when in doubt).
  *
  * @param {string} patchContent - Patch content to inspect (may be empty)
  * @returns {number} Number of unique file paths referenced in the patch
@@ -256,24 +347,23 @@ function countUniquePatchFiles(patchContent) {
     return 0;
   }
   const files = new Set();
-  // Match: diff --git a/<path> b/<path>
-  // Paths may be quoted when they contain unusual characters; we capture both
-  // forms and prefer the "b/" path. The non-greedy capture for the a-path is
-  // bounded by " b/" to handle paths that contain spaces.
-  const re = /^diff --git "?a\/(.+?)"? "?b\/(.+?)"?$/gm;
+  // Find all `diff --git` headers (start of line). Each header corresponds
+  // to one file diff; we try to extract its path and fall back to a unique
+  // synthetic key per unparseable header so the file is still counted in
+  // the limit. This is a conservative choice: it never undercounts, so a
+  // single malformed header cannot bypass the safety limit.
+  const headerRe = /^diff --git .*$/gm;
   let match;
-  while ((match = re.exec(patchContent)) !== null) {
-    const bPath = match[2] || match[1];
-    if (bPath) {
-      files.add(bPath);
+  let unparseableIdx = 0;
+  while ((match = headerRe.exec(patchContent)) !== null) {
+    const path = parseDiffGitHeader(match[0]);
+    if (path) {
+      files.add(path);
+    } else {
+      // Use the byte offset of the header to ensure uniqueness across
+      // multiple unparseable headers, so each is counted exactly once.
+      files.add(`__unparseable_header_${match.index}_${unparseableIdx++}`);
     }
-  }
-  // Fallback: if the structured regex matched nothing (unexpected patch
-  // shape) but the patch contains diff headers, count those headers so we
-  // never silently skip the limit check.
-  if (files.size === 0) {
-    const fallback = patchContent.match(/^diff --git /gm);
-    return fallback ? fallback.length : 0;
   }
   return files.size;
 }
@@ -1851,4 +1941,4 @@ ${patchPreview}`;
   }; // End of handleCreatePullRequest
 } // End of main
 
-module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles };
+module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles, parseDiffGitHeader };

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"math"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -444,7 +445,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			}
 
 			// Handle max-patch-files configuration (maximum unique files allowed in
-			// a create-pull-request patch). Mirrors max-patch-size handling above.
+			// a create-pull-request patch). Mirrors max-patch-size handling above,
+			// with explicit bounds checks before narrowing to int so that very
+			// large source values can't overflow/wrap into a negative or wrapped
+			// number that would silently fall back to the default.
 			if maxPatchFiles, exists := outputMap["max-patch-files"]; exists {
 				switch v := maxPatchFiles.(type) {
 				case int:
@@ -453,13 +457,32 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					}
 				case int64:
 					if v >= 1 {
-						config.MaximumPatchFiles = int(v)
+						if v > int64(math.MaxInt) {
+							safeOutputsConfigLog.Printf("max-patch-files: int64 value %d exceeds platform int range, clamping to %d", v, math.MaxInt)
+							config.MaximumPatchFiles = math.MaxInt
+						} else {
+							config.MaximumPatchFiles = int(v)
+						}
 					}
 				case uint64:
 					if v >= 1 {
-						config.MaximumPatchFiles = int(v)
+						if v > uint64(math.MaxInt) {
+							safeOutputsConfigLog.Printf("max-patch-files: uint64 value %d exceeds platform int range, clamping to %d", v, math.MaxInt)
+							config.MaximumPatchFiles = math.MaxInt
+						} else {
+							config.MaximumPatchFiles = int(v)
+						}
 					}
 				case float64:
+					// Reject NaN/Inf and clamp out-of-range floats before
+					// narrowing — `int(NaN)` and `int(±Inf)` are
+					// implementation-defined and can produce surprising
+					// values (including 0, which would silently fall back
+					// to the default).
+					if v != v || v > float64(math.MaxInt) || v < float64(math.MinInt) {
+						safeOutputsConfigLog.Printf("max-patch-files: float value %.2f is out of range, ignoring", v)
+						break
+					}
 					intVal := int(v)
 					if v != float64(intVal) {
 						safeOutputsConfigLog.Printf("max-patch-files: float value %.2f truncated to integer %d", v, intVal)
