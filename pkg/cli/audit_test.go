@@ -1025,11 +1025,21 @@ func TestRunAuditMulti_Validation(t *testing.T) {
 			args:    []string{"1234567890", "not-a-run-id"},
 			wantErr: "invalid comparison run",
 		},
+		{
+			name:    "base job URL rejected in multi-run mode",
+			args:    []string{"https://github.com/owner/repo/actions/runs/1234567890/job/9876543210", "1111111111"},
+			wantErr: "job/step specificity which is not supported in multi-run diff mode",
+		},
+		{
+			name:    "comparison job URL rejected in multi-run mode",
+			args:    []string{"1234567890", "https://github.com/owner/repo/actions/runs/1111111111/job/9876543210"},
+			wantErr: "job/step specificity which is not supported in multi-run diff mode",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := runAuditMulti(t.Context(), tt.args, "", "", false, false, nil)
+			err := runAuditMulti(t.Context(), tt.args, "", "", false, false, "pretty", nil)
 			require.Error(t, err, "runAuditMulti should return an error for invalid input")
 			assert.Contains(t, err.Error(), tt.wantErr, "error message should be descriptive")
 		})

@@ -61,7 +61,8 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --parse            # Parse agent logs and firewall logs, generating log.md and firewall.md
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --repo owner/repo  # Audit run from a specific repository
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891         # Diff two runs (base vs comparison)
-  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 1234567892  # Diff base against multiple runs`,
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 1234567892  # Diff base against multiple runs
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 --format markdown  # Markdown diff output for PR comments`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputDir, _ := cmd.Flags().GetString("output")
@@ -109,7 +110,8 @@ Examples:
 			}
 
 			// Multiple runs: diff mode (first is base, rest are comparisons)
-			return runAuditMulti(cmd.Context(), args, repoFlag, outputDir, verbose, jsonOutput, artifacts)
+			format, _ := cmd.Flags().GetString("format")
+			return runAuditMulti(cmd.Context(), args, repoFlag, outputDir, verbose, jsonOutput, format, artifacts)
 		},
 	}
 
@@ -118,6 +120,7 @@ Examples:
 	addJSONFlag(cmd)
 	addRepoFlag(cmd)
 	cmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
+	cmd.Flags().String("format", "pretty", "Diff output format for multi-run mode: pretty, markdown")
 	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
 
 	// Register completions for audit command
@@ -131,12 +134,16 @@ Examples:
 
 // runAuditMulti handles the multi-run diff mode for the audit command.
 // The first argument is the base run; remaining arguments are comparison runs.
-// Each argument may be a numeric run ID or a GitHub Actions URL.
-func runAuditMulti(ctx context.Context, args []string, repoFlag, outputDir string, verbose, jsonOutput bool, artifacts []string) error {
+// Each argument may be a numeric run ID or a GitHub Actions run URL.
+// Job URLs and step-anchored URLs are not accepted in multi-run mode.
+func runAuditMulti(ctx context.Context, args []string, repoFlag, outputDir string, verbose, jsonOutput bool, format string, artifacts []string) error {
 	// Parse base run
 	baseComponents, err := parser.ParseRunURLExtended(args[0])
 	if err != nil {
 		return fmt.Errorf("invalid base run %q: %w", args[0], err)
+	}
+	if baseComponents.JobID != 0 || baseComponents.StepNumber != 0 {
+		return fmt.Errorf("base run %q contains job/step specificity which is not supported in multi-run diff mode: provide a run ID or run URL only", args[0])
 	}
 
 	// Resolve owner/repo/hostname from --repo flag or base URL
@@ -160,6 +167,9 @@ func runAuditMulti(ctx context.Context, args []string, repoFlag, outputDir strin
 		if err != nil {
 			return fmt.Errorf("invalid comparison run %q: %w", arg, err)
 		}
+		if c.JobID != 0 || c.StepNumber != 0 {
+			return fmt.Errorf("comparison run %q contains job/step specificity which is not supported in multi-run diff mode: provide a run ID or run URL only", arg)
+		}
 		if c.Number == baseComponents.Number {
 			return fmt.Errorf("comparison run ID %d is the same as the base run ID: cannot diff a run against itself", c.Number)
 		}
@@ -170,7 +180,7 @@ func runAuditMulti(ctx context.Context, args []string, repoFlag, outputDir strin
 		compareRunIDs = append(compareRunIDs, c.Number)
 	}
 
-	return RunAuditDiff(ctx, baseComponents.Number, compareRunIDs, owner, repo, hostname, outputDir, verbose, jsonOutput, "pretty", artifacts)
+	return RunAuditDiff(ctx, baseComponents.Number, compareRunIDs, owner, repo, hostname, outputDir, verbose, jsonOutput, format, artifacts)
 }
 
 // isPermissionError checks if an error is related to permissions/authentication
