@@ -615,11 +615,11 @@ function buildMissingDataContext(cacheMemoryEnabled) {
 
   // Detect cache_miss: if cache-memory is available and the agent reported a cache miss,
   // this indicates the prompt is referencing an incorrect file path within the cache directory.
-  const hasCacheMiss = missingDataMessages.some(m => m.reason === "cache_miss");
+  const hasCacheMiss = missingDataMessages.some(m => m.reason === "cache_memory_miss");
   if (cacheMemoryEnabled && hasCacheMiss) {
     core.info("Cache-miss detected despite cache-memory being available — likely a configuration problem");
     context +=
-      "**⚠️ Cache Configuration Problem**: The agent reported a cache miss (`missing_data` with `reason: cache_miss`) even though cache-memory is configured and was available. " +
+      "**⚠️ Cache Configuration Problem**: The agent reported a cache miss (`missing_data` with `reason: cache_memory_miss`) even though cache-memory is configured and was available. " +
       "This likely indicates the prompt is misconfigured and the agent cannot locate the correct file path within the cache directory. " +
       "Please review the cache-memory configuration and ensure the agent prompt correctly references files inside the cache directory.\n\n";
   }
@@ -1140,16 +1140,16 @@ async function main() {
     }
 
     // Detect cache-miss misconfiguration: the agent reported a missing_data with reason
-    // "cache_miss" while cache-memory was configured and available.  This indicates the
+    // "cache_memory_miss" while cache-memory was configured and available.  This indicates the
     // prompt is referencing an incorrect path inside the cache directory.
     // Check for items regardless of agentOutputResult.success so that cache-miss signals
     // emitted alongside other output are not missed when the agent job also fails.
     let hasCacheMissMisconfiguration = false;
     if (cacheMemoryEnabled && agentOutputResult.items) {
-      const cacheMissItems = agentOutputResult.items.filter(item => item.type === "missing_data" && item.reason === "cache_miss");
+      const cacheMissItems = agentOutputResult.items.filter(item => item.type === "missing_data" && item.reason === "cache_memory_miss");
       if (cacheMissItems.length > 0) {
         hasCacheMissMisconfiguration = true;
-        core.info(`Cache-miss misconfiguration detected: ${cacheMissItems.length} missing_data item(s) with reason "cache_miss" despite cache-memory being available`);
+        core.info(`Cache-miss misconfiguration detected: ${cacheMissItems.length} missing_data item(s) with reason "cache_memory_miss" despite cache-memory being available`);
       }
     }
 

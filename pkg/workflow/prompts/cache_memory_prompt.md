@@ -9,7 +9,7 @@ You have access to a persistent cache folder at `__CACHE_DIR__` where you can re
 - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
 - **File Share**: Use this as a simple file share - organize files as you see fit
 - **Allowed File Types**: Only the following file extensions are allowed: `__ALLOWED_EXTENSIONS__`. Files with other extensions will be rejected during validation.
-- **Cache Miss**: If you look for data in the cache and do not find any, call the `missing_data` tool with `reason: "cache_miss"` to signal that the cache does not contain the expected information.
+- **Cache Miss**: If you look for data in the cache and do not find any, call the `missing_data` tool with `reason: "cache_memory_miss"` to signal that the cache does not contain the expected information.
 
 Examples of what you can store:
 - `__CACHE_DIR__notes.txt` - general notes and observations
