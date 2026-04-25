@@ -868,7 +868,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     // All gh-aw agent executions are chat-style LLM completions.
     agentAttributes.push(buildAttr("gen_ai.operation.name", "chat"));
     if (model) agentAttributes.push(buildAttr("gen_ai.request.model", model));
-    // gen_ai.provider.name is the current Required attribute (replaces deprecated gen_ai.system).
+    // Emit gen_ai.provider.name when engineId is available; it may be omitted when
+    // engine metadata is unavailable, so this span does not guarantee full GenAI spec compliance.
     if (engineId) agentAttributes.push(buildAttr("gen_ai.provider.name", engineId));
     // gen_ai.workflow.name identifies the agentic workflow, matching the OTel spec example
     // use-cases (e.g. "multi_agent_rag", "customer_support_pipeline").
