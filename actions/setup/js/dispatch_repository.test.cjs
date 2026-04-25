@@ -1,5 +1,5 @@
 // @ts-check
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const { main } = require("./dispatch_repository.cjs");
 
@@ -14,7 +14,16 @@ describe("dispatch_repository", () => {
   /** @type {any} */
   let dispatchEventCalls;
 
+  /** @type {{ core: any, github: any, context: any }} */
+  let savedGlobals;
+
   beforeEach(() => {
+    savedGlobals = {
+      core: global.core,
+      github: global.github,
+      context: global.context,
+    };
+
     dispatchEventCalls = [];
 
     mockCore = {
@@ -46,10 +55,13 @@ describe("dispatch_repository", () => {
     global.core = mockCore;
     global.github = mockGithub;
     global.context = mockContext;
+  });
 
-    // Stub handler_auth to return the mock github client
-    const handlerAuth = require("./handler_auth.cjs");
-    vi.spyOn(handlerAuth, "createAuthenticatedGitHubClient").mockResolvedValue(mockGithub);
+  afterEach(() => {
+    global.core = savedGlobals.core;
+    global.github = savedGlobals.github;
+    global.context = savedGlobals.context;
+    vi.restoreAllMocks();
   });
 
   describe("main factory", () => {
