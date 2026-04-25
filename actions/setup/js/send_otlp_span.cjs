@@ -742,29 +742,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
   if (engineId) attributes.push(buildAttr("gh-aw.engine.id", engineId));
-  if (model) attributes.push(buildAttr("gh-aw.model", model));
   if (eventName) attributes.push(buildAttr("gh-aw.event_name", eventName));
   attributes.push(buildAttr("gh-aw.staged", staged));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
-  }
-
-  // Enrich span with per-type token breakdown from agent_usage.json (written by
-  // parse_token_usage.cjs).  These four attributes enable cache-hit-rate panels,
-  // per-type cost attribution, and fine-grained threshold alerts in Grafana /
-  // Honeycomb / Datadog without requiring the step summary HTML.
-  const agentUsage = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || {};
-  if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
-    attributes.push(buildAttr("gh-aw.tokens.input", agentUsage.input_tokens));
-  }
-  if (typeof agentUsage.output_tokens === "number" && agentUsage.output_tokens > 0) {
-    attributes.push(buildAttr("gh-aw.tokens.output", agentUsage.output_tokens));
-  }
-  if (typeof agentUsage.cache_read_tokens === "number" && agentUsage.cache_read_tokens > 0) {
-    attributes.push(buildAttr("gh-aw.tokens.cache_read", agentUsage.cache_read_tokens));
-  }
-  if (typeof agentUsage.cache_write_tokens === "number" && agentUsage.cache_write_tokens > 0) {
-    attributes.push(buildAttr("gh-aw.tokens.cache_write", agentUsage.cache_write_tokens));
   }
 
   if (agentConclusion) {
@@ -877,6 +858,27 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const conclusionSpanId = generateSpanId();
   if (jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs) {
     const agentSpanEvents = buildSpanEvents(agentEndMs);
+
+    // Build OTel GenAI semantic convention attributes for the dedicated agent span.
+    // These follow the OpenTelemetry GenAI specification and enable out-of-the-box
+    // LLM dashboards in Grafana, Datadog, and Honeycomb without custom mappings.
+    const agentUsage = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || {};
+    const agentAttributes = [...attributes];
+    if (model) agentAttributes.push(buildAttr("gen_ai.request.model", model));
+    if (engineId) agentAttributes.push(buildAttr("gen_ai.system", engineId));
+    if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
+      agentAttributes.push(buildAttr("gen_ai.usage.input_tokens", agentUsage.input_tokens));
+    }
+    if (typeof agentUsage.output_tokens === "number" && agentUsage.output_tokens > 0) {
+      agentAttributes.push(buildAttr("gen_ai.usage.output_tokens", agentUsage.output_tokens));
+    }
+    if (typeof agentUsage.cache_read_tokens === "number" && agentUsage.cache_read_tokens > 0) {
+      agentAttributes.push(buildAttr("gen_ai.usage.cache_read_input_tokens", agentUsage.cache_read_tokens));
+    }
+    if (typeof agentUsage.cache_write_tokens === "number" && agentUsage.cache_write_tokens > 0) {
+      agentAttributes.push(buildAttr("gen_ai.usage.cache_creation_input_tokens", agentUsage.cache_write_tokens));
+    }
+
     const agentPayload = buildOTLPPayload({
       traceId,
       spanId: generateSpanId(),
@@ -886,11 +888,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       endMs: agentEndMs,
       serviceName,
       scopeVersion: version,
-      attributes,
+      attributes: agentAttributes,
       resourceAttributes,
       statusCode,
       statusMessage,
       events: agentSpanEvents,
+      kind: SPAN_KIND_CLIENT,
     });
     appendToOTLPJSONL(agentPayload);
     if (endpoint) {
