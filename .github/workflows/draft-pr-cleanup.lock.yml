@@ -1112,7 +1112,7 @@ jobs:
             echo "run_detection=false" >> "$GITHUB_OUTPUT"
             echo "Detection skipped: no agent outputs or patches to analyze"
           fi
-      - name: Clear MCP configuration for detection
+      - name: Clear MCP Config for detection
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         run: |
           rm -f "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json"

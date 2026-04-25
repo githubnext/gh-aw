@@ -5381,6 +5381,13 @@ safe-outputs:
   # (optional)
   max-patch-size: 1
 
+  # Maximum allowed number of unique files in a create-pull-request patch. Defaults
+  # to 100. The check counts unique file paths (deduplicated across multi-commit
+  # patches), so it reflects how many distinct files the agent is pushing in this
+  # iteration.
+  # (optional)
+  max-patch-files: 1
+
   # Enable AI agents to report detected security threats, policy violations, or
   # suspicious patterns for security review.
   # (optional)
