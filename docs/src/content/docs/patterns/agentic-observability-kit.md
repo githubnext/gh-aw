@@ -300,7 +300,7 @@ For organization-wide or enterprise-wide deployment, it is also a poor fit as a 
 The kit does not replace the lower-level debugging tools.
 
 - Use [`gh aw logs`](/gh-aw/reference/audit/#gh-aw-logs---format-fmt) to inspect cross-run trends directly.
-- Use [`gh aw audit`](/gh-aw/reference/audit/#gh-aw-audit-run-id-or-url) for a detailed single-run report.
+- Use [`gh aw audit`](/gh-aw/reference/audit/#gh-aw-audit-run-id-or-url-run-id-or-url) for a detailed single-run report.
 - Use [Cost Management](/gh-aw/reference/cost-management/) to understand Actions minutes, inference spend, and optimization levers.
 - Use [Cross-Repository Operations](/gh-aw/reference/cross-repository/) and [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) when the observability workflow needs to read or coordinate across multiple repositories.
 
