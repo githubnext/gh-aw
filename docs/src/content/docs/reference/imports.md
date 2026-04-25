@@ -78,6 +78,8 @@ Paths starting with `.github/` are resolved from the repository root, making the
 > [!NOTE]
 > Body-level `{{#import}}` injects **content** (markdown text) at the insertion point. It does not merge frontmatter configuration. To share tools, permissions, or MCP servers across workflows, use the `imports:` frontmatter field instead.
 
+`{{#import filepath}}` is a shorthand that normalizes to `{{#runtime-import filepath}}` at runtime. Use `{{#runtime-import}}` directly when you need its advanced features: **URLs** (`{{#runtime-import https://...}}`), **line ranges** (`{{#runtime-import src/main.go:10-20}}`), or files without the `.github/` prefix. See [Runtime Imports](/gh-aw/reference/templating/#runtime-imports) for the full syntax.
+
 ## Shared Workflow Components
 
 Files without an `on` field are shared workflow components — validated but not compiled into GitHub Actions, only imported by other workflows. The compiler skips them with an informative message.
