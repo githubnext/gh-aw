@@ -12,12 +12,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewAuditDiffSubcommand creates the audit diff subcommand
+// NewAuditDiffSubcommand creates the audit diff subcommand.
+// Deprecated: pass multiple run IDs directly to `audit` instead (e.g. `gh aw audit <base> <compare...>`).
+// This subcommand is hidden and kept for backward compatibility only.
 func NewAuditDiffSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "diff <base-run-id> <compare-run-id>...",
-		Short: "Compare behavior across workflow runs",
-		Long: `Compare workflow run behavior between a base run and one or more comparison runs
+		Use:    "diff <base-run-id> <compare-run-id>...",
+		Short:  "Compare behavior across workflow runs",
+		Hidden: true,
+		Long: `Deprecated: pass multiple run IDs directly to the audit command instead.
+
+  gh aw audit <base-run-id> <compare-run-id>...
+
+Compare workflow run behavior between a base run and one or more comparison runs
 to detect policy regressions, new unauthorized domains, behavioral drift, and changes in
 MCP tool usage, token usage, or run metrics.
 

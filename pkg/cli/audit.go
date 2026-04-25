@@ -34,7 +34,7 @@ analyzing MCP tool usage, and generating a concise report suitable for AI agents
 
 When a single run is provided, generates a detailed Markdown report for that run.
 When two or more runs are provided, the first is used as the base (reference) and the
-remaining runs are compared against it, producing a diff report (same as 'audit diff').
+remaining runs are compared against it, producing a diff report.
 
 Each argument accepts:
 - A numeric run ID (e.g., 1234567890)
