@@ -81,8 +81,6 @@ steps:
       echo "Doc file changes: $(wc -l < /tmp/gh-aw/agent/doc-changes.txt)"
       echo "$SCOPE" > /tmp/gh-aw/agent/scan-scope.txt
 
-features:
-  mcp-cli: true
 ---
 
 # Glossary Maintainer

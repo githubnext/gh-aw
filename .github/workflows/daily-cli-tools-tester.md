@@ -24,8 +24,6 @@ timeout-minutes: 60
 strict: true
 imports:
   - shared/reporting-otlp.md
-features:
-  mcp-cli: true
 ---
 
 # Daily CLI Tools Exploratory Tester

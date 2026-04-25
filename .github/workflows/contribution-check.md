@@ -94,8 +94,6 @@ steps:
         echo "ℹ No CONTRIBUTING.md found in $TARGET_REPOSITORY (checked root, .github/, docs/)"
       fi
 
-features:
-  mcp-cli: true
 ---
 
 ## Target Repository

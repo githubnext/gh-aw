@@ -60,7 +60,6 @@ imports:
   - uses: shared/mcp/gh-aw.md
   - shared/python-dataviz.md
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}

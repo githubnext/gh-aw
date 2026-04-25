@@ -27,8 +27,6 @@ timeout-minutes: 180
 imports:
   - shared/reporting.md
 
-features:
-  mcp-cli: true
 ---
 
 # Agent Persona Explorer

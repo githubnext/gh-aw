@@ -99,8 +99,6 @@ steps:
           default_business_additions: $default_business_additions,
           requires_adr_by_default_volume: ($default_business_additions > ($threshold | tonumber))
         }' > /tmp/gh-aw/agent/adr-prefetch-summary.json
-features:
-  mcp-cli: true
 ---
 
 # Design Decision Gate 🏗️

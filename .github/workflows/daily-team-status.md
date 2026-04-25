@@ -30,8 +30,6 @@ tools:
   mount-as-clis: true
   github: null
 
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

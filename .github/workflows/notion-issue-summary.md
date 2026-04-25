@@ -19,8 +19,6 @@ imports:
   - shared/mcp/notion.md
 strict: true
 
-features:
-  mcp-cli: true
 ---
 
 # Issue Summary to Notion

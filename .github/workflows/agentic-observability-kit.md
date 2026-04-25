@@ -37,8 +37,6 @@ imports:
     with:
       title-prefix: "[observability] "
       expires: 7d
-features:
-  mcp-cli: true
 ---
 # Agentic Observability Kit
 

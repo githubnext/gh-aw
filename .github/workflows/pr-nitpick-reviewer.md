@@ -30,8 +30,6 @@ imports:
 tools:
   mount-as-clis: true
 
-features:
-  mcp-cli: true
 ---
 
 # PR Nitpick Reviewer 🔍

@@ -20,7 +20,6 @@ safe-outputs:
     expires: 7d
     title-prefix: "[Daily Report] "
 features:
-  mcp-cli: true
   copilot-requests: true
 
 tools:

@@ -53,8 +53,6 @@ steps:
       .github/workflows/*.yml
       EOF
 
-features:
-  mcp-cli: true
 ---
 
 # Mergefest - Merge Main into Pull Request Branch

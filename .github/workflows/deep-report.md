@@ -60,8 +60,6 @@ imports:
   - shared/weekly-issues-data-fetch.md
   - shared/reporting.md
 
-features:
-  mcp-cli: true
 ---
 
 # DeepReport - Intelligence Gathering Agent

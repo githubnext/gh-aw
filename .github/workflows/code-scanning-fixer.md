@@ -35,8 +35,6 @@ safe-outputs:
     reviewers: [copilot]
 timeout-minutes: 20
 
-features:
-  mcp-cli: true
 ---
 
 # Code Scanning Alert Fixer Agent

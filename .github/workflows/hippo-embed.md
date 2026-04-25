@@ -42,7 +42,6 @@ imports:
   - shared/hippo-memory.md
 
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

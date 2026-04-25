@@ -21,8 +21,6 @@ imports:
       title-prefix: "[workflow-analysis] "
       expires: 1d
 
-features:
-  mcp-cli: true
 ---
 # Weekly Workflow Analysis
 

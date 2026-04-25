@@ -39,7 +39,6 @@ imports:
       expires: 1d
 
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 # Claude Code User Documentation Review

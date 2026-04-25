@@ -32,7 +32,6 @@ safe-outputs:
     run-success: "⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️"
     run-failure: "🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt..."
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

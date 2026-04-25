@@ -148,8 +148,6 @@ safe-outputs:
 timeout-minutes: 10
 strict: true
 
-features:
-  mcp-cli: true
 ---
 
 # Poem Bot - A Creative Agentic Workflow

@@ -31,8 +31,6 @@ timeout-minutes: 30
 imports:
   - shared/reporting.md
 
-features:
-  mcp-cli: true
 ---
 
 # Commit Changes Analyzer

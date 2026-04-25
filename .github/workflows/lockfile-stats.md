@@ -19,8 +19,6 @@ imports:
     with:
       title-prefix: "[lockfile-stats] "
       expires: 1d
-features:
-  mcp-cli: true
 ---
 # Lockfile Statistics Analysis Agent
 

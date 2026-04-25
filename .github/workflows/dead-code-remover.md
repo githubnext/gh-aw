@@ -32,7 +32,6 @@ safe-outputs:
   noop:
 timeout-minutes: 30
 features:
-  mcp-cli: true
   copilot-requests: true
 steps:
   - name: Install deadcode analyzer

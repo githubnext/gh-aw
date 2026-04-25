@@ -57,8 +57,6 @@ imports:
       title-prefix: "[integrity] "
   - shared/python-dataviz.md
 
-features:
-  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

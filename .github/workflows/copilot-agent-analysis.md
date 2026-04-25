@@ -37,8 +37,6 @@ timeout-minutes: 15
 tools:
   mount-as-clis: true
 
-features:
-  mcp-cli: true
 ---
 # Copilot Agent PR Analysis
 

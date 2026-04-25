@@ -466,8 +466,6 @@ steps:
 tools:
   mount-as-clis: true
 
-features:
-  mcp-cli: true
 ---
 
 # Release Highlights Generator

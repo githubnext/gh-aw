@@ -64,8 +64,6 @@ strict: true
 tools:
   mount-as-clis: true
 
-features:
-  mcp-cli: true
 ---
 
 # Go Code Pattern Detector

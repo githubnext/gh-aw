@@ -295,7 +295,6 @@ imports:
   - shared/reporting-otlp.md
   - shared/trends.md
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

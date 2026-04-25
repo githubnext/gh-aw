@@ -31,8 +31,6 @@ timeout-minutes: 30
 strict: true
 imports:
   - shared/reporting-otlp.md
-features:
-  mcp-cli: true
 ---
 
 # Daily OTel Instrumentation Advisor

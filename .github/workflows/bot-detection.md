@@ -827,8 +827,6 @@ safe-outputs:
 timeout-minutes: 10
 strict: true
 
-features:
-  mcp-cli: true
 ---
 
 # Bot Detection

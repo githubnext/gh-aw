@@ -24,8 +24,6 @@ imports:
       title-prefix: "[auth-test] "
       expires: 1d
 
-features:
-  mcp-cli: true
 ---
 # GitHub Remote MCP Authentication Test
 

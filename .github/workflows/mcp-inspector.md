@@ -48,8 +48,6 @@ tools:
   bash: true
   cache-memory: true
 
-features:
-  mcp-cli: true
 ---
 # MCP Inspector Agent
 

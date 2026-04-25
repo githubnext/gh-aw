@@ -33,8 +33,6 @@ safe-outputs:
 timeout-minutes: 60
 imports:
   - shared/reporting.md
-features:
-  mcp-cli: true
 ---
 
 # [aw] Failure Investigator (6h)

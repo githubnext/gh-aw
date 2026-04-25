@@ -44,7 +44,6 @@ imports:
   - copilot-setup-steps.yml
   - uses: shared/mcp/gh-aw.md
 features:
-  mcp-cli: true
   copilot-requests: true
 steps:
   - name: Download Copilot workflow logs

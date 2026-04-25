@@ -152,8 +152,6 @@ tools:
   bash:
     - "*"
   edit:
-features:
-  mcp-cli: true
 ---
 
 # Daily Skill Optimizer Improvements

@@ -25,8 +25,6 @@ safe-outputs:
     max: 1
 timeout-minutes: 15
 
-features:
-  mcp-cli: true
 ---
 
 # Python Data Visualization Generator

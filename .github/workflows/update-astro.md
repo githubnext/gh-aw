@@ -71,8 +71,6 @@ jobs:
             echo "has_updates=false" >> "$GITHUB_OUTPUT"
             echo "No npm updates available in docs folder, skipping agent job"
           fi
-features:
-  mcp-cli: true
 ---
 
 # Update Astro

@@ -51,7 +51,6 @@ imports:
   - shared/reporting.md
 
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

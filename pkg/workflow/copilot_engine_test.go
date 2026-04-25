@@ -347,7 +347,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
+			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "shell(safeoutputs:*)", "--allow-tool", "write"},
 		},
 		{
 			name:  "safe outputs with safe_outputs config",
@@ -546,9 +546,6 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				ParsedTools: &Tools{
 					MountAsCLIs: true,
 				},
-				Features: map[string]any{
-					string(constants.MCPCLIFeatureFlag): true,
-				},
 			},
 			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "shell(echo)", "--allow-tool", "shell(safeoutputs:*)"},
 		},
@@ -570,9 +567,6 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				},
 				ParsedTools: &Tools{
 					MountAsCLIs: true,
-				},
-				Features: map[string]any{
-					string(constants.MCPCLIFeatureFlag): true,
 				},
 			},
 			expected: []string{"--allow-tool", "mcpscripts", "--allow-tool", "shell(mcpscripts:*)", "--allow-tool", "shell(python3 *)"},
@@ -598,9 +592,6 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			workflowData: &WorkflowData{
 				ParsedTools: &Tools{
 					MountAsCLIs: true,
-				},
-				Features: map[string]any{
-					string(constants.MCPCLIFeatureFlag): true,
 				},
 			},
 			expected: []string{

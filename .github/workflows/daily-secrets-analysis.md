@@ -22,7 +22,6 @@ imports:
     with:
       title-prefix: "[daily secrets] "
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}

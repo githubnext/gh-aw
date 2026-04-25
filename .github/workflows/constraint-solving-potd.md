@@ -24,8 +24,6 @@ safe-outputs:
     labels: [constraint-solving, problem-of-the-day]
     close-older-discussions: true
     expires: 7d
-features:
-  mcp-cli: true
 ---
 
 # Constraint Solving — Problem of the Day

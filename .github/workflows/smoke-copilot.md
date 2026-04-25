@@ -45,8 +45,6 @@ tools:
   playwright:
   web-fetch:
   mount-as-clis: true
-features:
-  mcp-cli: true
 runtimes:
   go:
     version: "1.25"

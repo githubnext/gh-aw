@@ -14,8 +14,6 @@ tools:
 timeout-minutes: 5
 strict: true
 
-features:
-  mcp-cli: true
 ---
 
 # Codex GitHub Remote MCP Test

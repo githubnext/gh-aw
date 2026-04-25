@@ -43,8 +43,6 @@ imports:
   - shared/changeset-format.md
   - shared/jqschema.md
 
-features:
-  mcp-cli: true
 ---
 
 # Changeset Generator

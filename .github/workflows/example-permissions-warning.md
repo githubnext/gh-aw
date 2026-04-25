@@ -12,8 +12,6 @@ tools:
   github:
     toolsets: [repos, issues, pull_requests]
 strict: false
-features:
-  mcp-cli: true
 ---
 
 # Example: Properly Provisioned Permissions

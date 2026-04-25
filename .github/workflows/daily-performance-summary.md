@@ -27,8 +27,6 @@ imports:
       title-prefix: "[daily performance] "
   - shared/github-queries-mcp-script.md
 
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

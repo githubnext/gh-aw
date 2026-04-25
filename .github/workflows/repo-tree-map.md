@@ -28,8 +28,6 @@ timeout-minutes: 5
 imports:
   - shared/reporting.md
 
-features:
-  mcp-cli: true
 ---
 
 # Repository Tree Map Generator

@@ -33,8 +33,6 @@ imports:
     with:
       title-prefix: "[audit] "
       expires: 1d
-features:
-  mcp-cli: true
 ---
 # Blog Auditor
 

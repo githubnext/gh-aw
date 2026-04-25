@@ -27,8 +27,6 @@ imports:
       expires: 3d
   - shared/jqschema.md
 
-features:
-  mcp-cli: true
 ---
 
 # GitHub API Consumption Report Agent

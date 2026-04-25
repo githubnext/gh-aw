@@ -35,8 +35,6 @@ imports:
     with:
       title-prefix: "[daily-firewall-report] "
 
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

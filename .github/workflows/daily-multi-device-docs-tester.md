@@ -56,8 +56,6 @@ network:
 imports:
   - shared/docs-server-lifecycle.md
   - shared/reporting-otlp.md
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

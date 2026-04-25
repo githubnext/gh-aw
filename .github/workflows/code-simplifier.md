@@ -34,8 +34,6 @@ tools:
 
 timeout-minutes: 30
 strict: true
-features:
-  mcp-cli: true
 ---
 
 <!-- This prompt will be imported in the agentic workflow .github/workflows/code-simplifier.md at runtime. -->

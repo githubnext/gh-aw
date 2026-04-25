@@ -50,8 +50,6 @@ imports:
 
 timeout-minutes: 20
 
-features:
-  mcp-cli: true
 ---
 # Copilot coding agent Session Analysis
 

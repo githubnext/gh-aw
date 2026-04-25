@@ -33,8 +33,6 @@ imports:
     with:
       title-prefix: "[repo-audit] "
       expires: 1d
-features:
-  mcp-cli: true
 ---
 # Repository Audit & Agentic Workflow Opportunity Analyzer
 

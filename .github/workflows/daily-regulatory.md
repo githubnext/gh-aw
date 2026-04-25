@@ -25,8 +25,6 @@ imports:
       title-prefix: "[daily regulatory] "
   - shared/github-queries-mcp-script.md
 
-features:
-  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

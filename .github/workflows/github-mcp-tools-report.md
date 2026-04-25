@@ -30,8 +30,6 @@ imports:
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[mcp-tools-report] "
-features:
-  mcp-cli: true
 ---
 # GitHub MCP Remote Server Tools Report Generator
 

@@ -24,8 +24,6 @@ timeout-minutes: 30
 imports:
   - shared/mcp/sentry.md
   - shared/reporting-otlp.md
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

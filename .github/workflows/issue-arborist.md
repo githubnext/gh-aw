@@ -71,8 +71,6 @@ safe-outputs:
     close-older-discussions: true
 timeout-minutes: 15
 
-features:
-  mcp-cli: true
 ---
 
 # Issue Arborist 🌳

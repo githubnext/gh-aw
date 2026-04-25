@@ -30,8 +30,6 @@ imports:
       description: "Historical audit data and patterns"
   - shared/jqschema.md
 
-features:
-  mcp-cli: true
 ---
 
 # Agentic Workflow Audit Agent

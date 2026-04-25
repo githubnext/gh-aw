@@ -28,7 +28,6 @@ imports:
   - shared/ci-optimization-strategies.md
   - shared/reporting.md
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

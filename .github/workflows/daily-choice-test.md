@@ -60,8 +60,6 @@ safe-outputs:
 imports:
   - shared/observability-otlp.md
 
-features:
-  mcp-cli: true
 ---
 
 # Daily Choice Type Test

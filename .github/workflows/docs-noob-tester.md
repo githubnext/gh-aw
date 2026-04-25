@@ -63,7 +63,6 @@ pre-agent-steps:
       echo "http://${SERVER_IP}:4321/gh-aw/" > /tmp/gh-aw/agent/server-url.txt
       echo "Playwright server URL: http://${SERVER_IP}:4321/gh-aw/"
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

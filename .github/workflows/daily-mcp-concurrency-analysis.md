@@ -50,7 +50,6 @@ tools:
 timeout-minutes: 45
 strict: true
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

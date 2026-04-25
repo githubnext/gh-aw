@@ -29,8 +29,6 @@ imports:
       expires: 1d
   - shared/python-dataviz.md
 
-features:
-  mcp-cli: true
 ---
 # GitHub MCP Structural Analysis
 

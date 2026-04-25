@@ -47,7 +47,6 @@ imports:
   - shared/reporting-otlp.md
 
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

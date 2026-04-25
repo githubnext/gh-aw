@@ -27,8 +27,6 @@ imports:
   - shared/python-dataviz.md
   - shared/trends.md
 
-features:
-  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

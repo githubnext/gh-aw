@@ -57,8 +57,6 @@ imports:
 
 timeout-minutes: 15
 
-features:
-  mcp-cli: true
 ---
 
 # Go Logger Enhancement

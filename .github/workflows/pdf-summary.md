@@ -49,8 +49,6 @@ safe-outputs:
 
 timeout-minutes: 15
 strict: true
-features:
-  mcp-cli: true
 ---
 
 # Resource Summarizer Agent

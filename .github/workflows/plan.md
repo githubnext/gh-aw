@@ -28,8 +28,6 @@ safe-outputs:
     required-category: "Ideas"
 timeout-minutes: 10
 
-features:
-  mcp-cli: true
 ---
 
 # Planning Assistant

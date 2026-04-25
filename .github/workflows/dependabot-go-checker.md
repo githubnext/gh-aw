@@ -43,8 +43,6 @@ tools:
 imports:
   - shared/reporting.md
 
-features:
-  mcp-cli: true
 ---
 # Dependabot Dependency Checker
 

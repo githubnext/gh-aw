@@ -25,8 +25,6 @@ timeout-minutes: 20
 imports:
   - shared/reporting-otlp.md
 
-features:
-  mcp-cli: true
 ---
 
 # Daily Safe Outputs Conformance Checker

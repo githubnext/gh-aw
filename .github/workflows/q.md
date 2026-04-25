@@ -49,8 +49,6 @@ safe-outputs:
 timeout-minutes: 30
 strict: true
 
-features:
-  mcp-cli: true
 ---
 
 # Q - Agentic Workflow Optimizer

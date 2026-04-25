@@ -25,7 +25,10 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/semverutil"
 )
@@ -40,6 +43,17 @@ func validateFeatures(data *WorkflowData) error {
 	}
 
 	featuresValidationLog.Printf("Validating features: count=%d", len(data.Features))
+
+	// Emit a deprecation warning when features.mcp-cli is explicitly set.
+	// The MCP CLI mounting feature is now enabled by default; the flag has no effect.
+	if _, exists := data.Features[string(constants.MCPCLIFeatureFlag)]; exists {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			"features.mcp-cli is deprecated and has no effect. "+
+				"The MCP CLI mounting feature is now enabled by default. "+
+				"Remove features.mcp-cli from your workflow frontmatter. "+
+				"Use tools.mount-as-clis: true to mount MCP servers as standalone CLI tools.",
+		))
+	}
 
 	// Validate action-tag if present
 	if actionTagVal, exists := data.Features["action-tag"]; exists {

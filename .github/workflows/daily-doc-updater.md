@@ -53,8 +53,6 @@ imports:
   - shared/github-guard-policy.md
   - shared/observability-otlp.md
 
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -46,22 +46,14 @@ var alwaysCLIMountedServers = map[string]bool{
 //   - safeoutputs and mcpscripts ALWAYS (when enabled), regardless of mount-as-clis
 //   - standard MCP tools (playwright, etc.) and custom MCP servers when mount-as-clis is true
 //
-// The entire feature is gated behind the mcp-cli feature flag. Without the flag,
-// this function returns nil and code generation remains unchanged.
 // The GitHub MCP server is excluded (handled differently).
+// Note: the deprecated features.mcp-cli flag has no effect; the feature is always active.
 func getMCPCLIServerNames(data *WorkflowData) []string {
 	if data == nil {
 		return nil
 	}
 
-	// The entire MCP CLI mounting feature is gated behind the mcp-cli feature flag.
-	// Without the feature flag, code generation remains unchanged regardless of
-	// the mount-as-clis setting.
-	if !isFeatureEnabled(constants.MCPCLIFeatureFlag, data) {
-		mcpCLIMountLog.Print("mcp-cli feature flag not enabled, skipping CLI mount generation")
-		return nil
-	}
-	mcpCLIMountLog.Print("mcp-cli feature flag enabled, collecting CLI server names")
+	mcpCLIMountLog.Print("collecting CLI server names")
 
 	var servers []string
 
@@ -141,14 +133,6 @@ func buildCLIWorkflowDataForMounts(workflowData *WorkflowData, tools map[string]
 	}
 	if copied.ParsedTools == nil && copied.Tools != nil {
 		copied.ParsedTools = NewTools(copied.Tools)
-	}
-	// Some call paths may not provide WorkflowData.Features (e.g. direct unit calls).
-	// When mount-as-clis is explicitly enabled in tools config, synthesize the feature
-	// flag so mounted MCP CLI server names can still be derived consistently.
-	if copied.Features == nil && copied.ParsedTools != nil && copied.ParsedTools.MountAsCLIs {
-		copied.Features = map[string]any{
-			string(constants.MCPCLIFeatureFlag): true,
-		}
 	}
 
 	return &copied

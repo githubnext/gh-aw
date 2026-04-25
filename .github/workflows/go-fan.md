@@ -46,8 +46,6 @@ tools:
 
 timeout-minutes: 30
 strict: true
-features:
-  mcp-cli: true
 ---
 # Go Fan 🐹 - Daily Go Module Reviewer
 

@@ -31,8 +31,6 @@ concurrency:
   group: "refiner-${{ github.event.pull_request.number }}"
   cancel-in-progress: true
 
-features:
-  mcp-cli: true
 ---
 
 # Code Refiner

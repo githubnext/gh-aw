@@ -40,8 +40,6 @@ safe-outputs:
 imports:
   - shared/observability-otlp.md
   - shared/mcp/mempalace.md
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

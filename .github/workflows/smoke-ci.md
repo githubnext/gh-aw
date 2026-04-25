@@ -62,8 +62,6 @@ safe-outputs:
     max: 1
     target: "*"
   threat-detection: false
-features:
-  mcp-cli: true
 timeout-minutes: 5
 strict: true
 ---

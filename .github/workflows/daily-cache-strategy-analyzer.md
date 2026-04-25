@@ -36,8 +36,6 @@ timeout-minutes: 60
 imports:
   - shared/reporting.md
   - shared/noop-reminder.md
-features:
-  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

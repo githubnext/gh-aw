@@ -259,8 +259,6 @@ tools:
   bash: true
   edit:
 
-features:
-  mcp-cli: true
 ---
 
 # Daily AstroStyleLite Markdown Spellcheck

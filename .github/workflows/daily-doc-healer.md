@@ -52,8 +52,6 @@ timeout-minutes: 45
 imports:
   - shared/reporting-otlp.md
 
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

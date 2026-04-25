@@ -34,8 +34,6 @@ safe-outputs:
   allowed-domains: [default-safe-outputs]
   noop:
 timeout-minutes: 5
-features:
-  mcp-cli: true
 ---
 
 # Smoke Test: Workflow Call with Inputs

@@ -37,7 +37,6 @@ imports:
 timeout-minutes: 15
 
 features:
-  mcp-cli: true
   copilot-requests: true
 
 tools:

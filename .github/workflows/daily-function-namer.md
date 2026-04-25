@@ -35,8 +35,6 @@ tools:
 
 timeout-minutes: 30
 strict: true
-features:
-  mcp-cli: true
 ---
 
 # Daily Go Function Namer

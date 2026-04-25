@@ -29,8 +29,6 @@ imports:
     with:
       title-prefix: "[daily-team-evolution] "
       expires: 1d
-features:
-  mcp-cli: true
 ---
 # Daily Team Evolution Insights
 

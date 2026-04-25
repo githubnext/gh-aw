@@ -83,7 +83,6 @@ jobs:
               labels: ['bug', 'firewall', 'automated']
             });
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

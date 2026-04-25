@@ -28,8 +28,6 @@ safe-outputs:
     labels: [automation, dependencies, cookie]
     close-older-issues: true
 timeout-minutes: 45
-features:
-  mcp-cli: true
 ---
 
 # CLI Version Checker

@@ -90,8 +90,6 @@ tools:
   edit:
   bash:
     - "*"
-features:
-  mcp-cli: true
 ---
 
 # Super Linter Analysis Report

@@ -49,8 +49,6 @@ safe-outputs:
   threat-detection: false
 checkout: false
 
-features:
-  mcp-cli: true
 ---
 
 # AI Moderator

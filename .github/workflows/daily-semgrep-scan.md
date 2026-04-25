@@ -20,8 +20,6 @@ safe-outputs:
 tools:
   mount-as-clis: true
 
-features:
-  mcp-cli: true
 ---
 
 Scan the repository for SQL injection vulnerabilities using Semgrep.

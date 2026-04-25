@@ -44,8 +44,6 @@ imports:
   - shared/jqschema.md
   - shared/reporting.md
 
-features:
-  mcp-cli: true
 ---
 
 # Organization Health Report

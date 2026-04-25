@@ -25,8 +25,6 @@ strict: true
 tools:
   mount-as-clis: true
 
-features:
-  mcp-cli: true
 ---
 
 # Duplicate Code Detection

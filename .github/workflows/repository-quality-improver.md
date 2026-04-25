@@ -29,8 +29,6 @@ tools:
 timeout-minutes: 20
 strict: true
 
-features:
-  mcp-cli: true
 ---
 # Repository Quality Improvement Agent
 

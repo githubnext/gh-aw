@@ -40,8 +40,6 @@ tools:
 timeout-minutes: 45
 strict: true
 
-features:
-  mcp-cli: true
 ---
 
 # Functional and Immutability Enhancer 🔄

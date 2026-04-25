@@ -56,8 +56,6 @@ tools:
 
 timeout-minutes: 20
 
-features:
-  mcp-cli: true
 ---
 
 # Layout Specification Maintainer

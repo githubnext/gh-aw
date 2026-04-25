@@ -58,7 +58,6 @@ imports:
   - shared/jqschema.md
 
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}

@@ -41,8 +41,6 @@ network:
 timeout-minutes: 20
 strict: true
 
-features:
-  mcp-cli: true
 ---
 
 # jsweep - JavaScript Unbloater

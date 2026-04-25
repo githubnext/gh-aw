@@ -28,8 +28,6 @@ imports:
   - shared/activation-app.md
   - shared/jqschema.md
   - shared/reporting-otlp.md
-features:
-  mcp-cli: true
 
 tools:
   mount-as-clis: true
