@@ -33,15 +33,45 @@ const cacheMemoryDirPrefix = "/tmp/gh-aw/cache-memory-"
 //
 // An empty cacheID is treated the same as "default" as a safety net, though callers
 // should always provide a non-empty ID.
+//
+// Non-default IDs must have already been validated by isValidCacheID before reaching
+// this function. This function panics on invalid IDs as a defence-in-depth measure
+// (the parser should have rejected them first).
 func cacheMemoryDirFor(cacheID string) string {
 	if cacheID == "default" || cacheID == "" {
 		return defaultCacheMemoryDir
+	}
+	if !isValidCacheID(cacheID) {
+		// This should never happen: parseCacheMemoryEntry validates IDs at parse time.
+		// Panic here to surface a clear programming error rather than silently producing
+		// a dangerous path.
+		panic(fmt.Sprintf("cacheMemoryDirFor called with invalid cache ID %q; IDs must match [A-Za-z0-9_-]{1,64}", cacheID))
 	}
 	return cacheMemoryDirPrefix + cacheID
 }
 
 // validCacheMemoryScopes defines the allowed values for cache-memory scope
 var validCacheMemoryScopes = []string{"workflow", "repo"}
+
+// isValidCacheID reports whether id is a safe cache identifier.
+// Allowed pattern: ^[A-Za-z0-9_-]{1,64}$ (1-64 characters).
+// This prevents path-traversal attacks (e.g. "../../etc") when the ID is
+// appended to cacheMemoryDirPrefix to form a filesystem path.
+func isValidCacheID(id string) bool {
+	if len(id) == 0 || len(id) > 64 {
+		return false
+	}
+	for _, c := range id {
+		isLower := c >= 'a' && c <= 'z'
+		isUpper := c >= 'A' && c <= 'Z'
+		isDigit := c >= '0' && c <= '9'
+		isAllowed := c == '_' || c == '-'
+		if !isLower && !isUpper && !isDigit && !isAllowed {
+			return false
+		}
+	}
+	return true
+}
 
 // isValidFileExtension reports whether s is a valid file extension of the form ^\.[A-Za-z0-9]+$
 // (e.g. ".json", ".md"). This strict pattern prevents YAML injection when extensions are
@@ -99,6 +129,9 @@ func parseCacheMemoryEntry(cacheMap map[string]any, defaultID string) (CacheMemo
 	// Parse ID (for array notation)
 	if id, exists := cacheMap["id"]; exists {
 		if idStr, ok := id.(string); ok {
+			if idStr != "default" && !isValidCacheID(idStr) {
+				return entry, fmt.Errorf("invalid cache-memory id %q: must contain only letters, digits, underscores, or hyphens (1-64 characters)", idStr)
+			}
 			entry.ID = idStr
 		}
 	}
