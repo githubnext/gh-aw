@@ -62,6 +62,7 @@ Report back with specific findings and actionable fixes.
 - `gh aw run <workflow-name>` → run a workflow (requires workflow_dispatch trigger)
 - `gh aw logs [workflow-name] --json` → download and analyze workflow logs with JSON output
 - `gh aw audit <run-id> --json` → investigate a specific run with JSON output
+- `gh aw audit <base-run-id> <compare-run-id> [<compare-run-id>...] --json` → diff two or more runs to detect regressions (firewall, MCP, metrics)
 - `gh aw status` → show status of agentic workflows in the repository
 
 > [!IMPORTANT]
@@ -91,7 +92,7 @@ Report back with specific findings and actionable fixes.
 > - `status` tool → equivalent to `gh aw status`
 > - `compile` tool → equivalent to `gh aw compile`
 > - `logs` tool → equivalent to `gh aw logs`
-> - `audit` tool → equivalent to `gh aw audit`
+> - `audit` tool → equivalent to `gh aw audit` (single run: audit report; multiple run IDs: diff mode)
 > - `checks` tool → equivalent to `gh aw checks`
 > - `update` tool → equivalent to `gh aw update`
 > - `add` tool → equivalent to `gh aw add`
@@ -183,6 +184,18 @@ When the user provides a workflow run URL (e.g., `https://github.com/github/gh-a
    - Provides comprehensive JSON analysis
    - Stores artifacts in `logs/run-<run-id>/` for offline inspection
    - Reports missing tools, errors, and execution metrics
+   
+   **Comparing two runs (regression detection)**:
+   Pass a second run ID to produce a diff — no separate `audit diff` command needed:
+   ```bash
+   gh aw audit <base-run-id> <compare-run-id> --json
+   # Or compare base against multiple runs at once:
+   gh aw audit <base-run-id> <run-id-2> <run-id-3> --json
+   ```
+   Or via the `agentic-workflows` tool:
+   ```
+   Use the audit tool with run_ids_or_urls: ["<base-run-id>", "<compare-run-id>"]
+   ```
 
 3. **Analyze Missing Tools**
    

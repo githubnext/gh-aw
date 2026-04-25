@@ -114,7 +114,7 @@ Use `gh aw status` to see which workflows are enabled and their latest run state
 For deeper investigation, the audit commands are the primary monitoring tool for agentic workflows:
 
 - `gh aw audit <run-id>` — single-run report with tool usage, MCP failures, firewall activity, and cost metrics
-- `gh aw audit diff <run-id-1> <run-id-2>` — compare two runs to detect behavioral regressions or new network accesses
+- `gh aw audit <run-id-1> <run-id-2>` — compare two runs to detect behavioral regressions or new network accesses (pass additional IDs to compare base against multiple runs)
 - `gh aw logs --format markdown [workflow]` — cross-run security and performance report for trend monitoring
 
 ```bash
@@ -122,7 +122,10 @@ For deeper investigation, the audit commands are the primary monitoring tool for
 gh aw audit 12345678
 
 # Compare two runs for regressions
-gh aw audit diff 12345678 12345679
+gh aw audit 12345678 12345679
+
+# Compare base against multiple runs at once
+gh aw audit 12345678 12345679 12345680
 
 # Trend report across the last 10 runs of a workflow
 gh aw logs my-workflow --format markdown --count 10

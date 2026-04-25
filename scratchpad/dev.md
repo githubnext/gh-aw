@@ -1099,7 +1099,7 @@ gh aw <command> [flags] [arguments]
 **Command Categories**:
 - **Workflow Management**: `run`, `compile`, `validate`, `fix`
 - **Safe Outputs**: `safe-outputs`
-- **Audit**: `audit diff`, `audit report`, `logs`
+- **Audit**: `audit`, `audit diff` (hidden, use `audit <base> <compare>` instead), `logs`
 - **Utilities**: `version`, `help`
 
 ### Logger Namespace Convention
@@ -2644,7 +2644,7 @@ type Everything interface {
 | `gh aw validate` | Validate workflow | `gh aw validate workflow.md` |
 | `gh aw safe-outputs` | Test safe outputs | `gh aw safe-outputs --staged` |
 | `gh aw fix` | Run migration codemods | `gh aw fix` |
-| `gh aw audit diff <run1> <run2>` | Compare firewall behavior across runs | `gh aw audit diff 12345 67890` |
+| `gh aw audit <run1> <run2>` | Compare firewall behavior across runs | `gh aw audit 12345 67890` |
 | `gh aw audit report` | Cross-run security audit report | `gh aw audit report --format markdown` |
 | `gh aw logs` | Retrieve workflow run logs | `gh aw logs 12345` |
 

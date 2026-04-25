@@ -1272,7 +1272,7 @@ The gateway SHOULD:
 5. Update readiness based on critical server status
 
 > [!TIP]
-> To inspect MCP server health for a specific workflow run at runtime, use `gh aw audit <run-id>`. The **MCP Server Health** section of the audit report shows connection failures, timeout errors, tool call counts, and error rates per server — providing a post-run view of gateway behavior. For recurring MCP failures, `gh aw audit diff` compares MCP tool usage between two runs to identify regressions. See [Audit Commands](/gh-aw/reference/audit/).
+> To inspect MCP server health for a specific workflow run at runtime, use `gh aw audit <run-id>`. The **MCP Server Health** section of the audit report shows connection failures, timeout errors, tool call counts, and error rates per server — providing a post-run view of gateway behavior. For recurring MCP failures, pass two run IDs to `gh aw audit` (e.g. `gh aw audit <base-id> <compare-id>`) to compare MCP tool usage between runs and identify regressions. See [Audit Commands](/gh-aw/reference/audit/).
 
 ---
 

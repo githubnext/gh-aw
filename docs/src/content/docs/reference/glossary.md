@@ -429,9 +429,9 @@ An interactive web-based editor for authoring, compiling, and previewing agentic
 
 A CLI command that downloads workflow run artifacts and logs, analyzes MCP tool usage and network behavior, and generates a structured Markdown or JSON report. The report covers failure analysis, tool usage, MCP server status, firewall activity, token/cost metrics, behavior fingerprint, and safe-output summary. Accepts a numeric run ID or any GitHub Actions run or job URL. See [Audit Commands](/gh-aw/reference/audit/).
 
-### Audit Diff (`gh aw audit diff`)
+### Audit Diff (multi-run mode)
 
-A `gh aw audit` subcommand that compares behavior across two workflow runs across firewall, MCP tool usage, and run metrics dimensions. Reports domain additions and removals, allowed/denied status changes, request volume drift, and anomaly flags. Useful for detecting regressions and behavioral drift between runs. See [Audit Commands](/gh-aw/reference/audit/#gh-aw-audit-diff-base-run-id-comparison-run-id-comparison-run-id).
+Passing two or more run IDs to `gh aw audit` activates diff mode: the first ID is the base and the rest are compared against it. Reports domain additions and removals, allowed/denied status changes, request volume drift, and anomaly flags across firewall, MCP tool usage, and run metrics dimensions. Useful for detecting regressions and behavioral drift between runs. See [Audit Commands](/gh-aw/reference/audit/).
 
 ### Behavior Fingerprint
 
@@ -462,7 +462,7 @@ The token footprint of the first LLM invocation in a workflow run, used as a pro
 
 ### Firewall Analysis
 
-A section of the `gh aw audit` report that breaks down all network requests made during a workflow run — showing allowed domains, denied domains, request volumes, and policy attribution. Derived from AWF firewall logs. Use `gh aw audit diff` to compare firewall behavior across runs and identify new or removed domain accesses. See [Audit Commands](/gh-aw/reference/audit/) and [Network Permissions](/gh-aw/reference/network/).
+A section of the `gh aw audit` report that breaks down all network requests made during a workflow run — showing allowed domains, denied domains, request volumes, and policy attribution. Derived from AWF firewall logs. Pass multiple run IDs to `gh aw audit` (e.g. `gh aw audit <base> <compare>`) to compare firewall behavior across runs and identify new or removed domain accesses. See [Audit Commands](/gh-aw/reference/audit/) and [Network Permissions](/gh-aw/reference/network/).
 
 ### Frontmatter Hash
 

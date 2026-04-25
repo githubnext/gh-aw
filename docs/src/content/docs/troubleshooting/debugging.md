@@ -105,11 +105,11 @@ Audit output includes:
 - **Token/cost metrics** — per-run inference spend and token usage
 - **Safe-outputs** — structured outputs the agent produced
 
-To compare behavior between two runs and detect regressions across firewall, MCP, and metrics dimensions, use `audit diff`:
+To compare behavior between two runs and detect regressions across firewall, MCP, and metrics dimensions, pass multiple run IDs directly to `audit`:
 
 ```bash
-gh aw audit diff 12345678 12345679
-gh aw audit diff 12345678 12345679 --format markdown
+gh aw audit 12345678 12345679
+gh aw audit 12345678 12345679 --format markdown
 ```
 
 For security and performance trends across multiple runs, use `gh aw logs --format`:
