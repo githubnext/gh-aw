@@ -168,6 +168,14 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Without this, Gemini CLI's default approval mode rejects tool calls with "Tool execution denied by policy"
 	geminiArgs = append(geminiArgs, "--yolo")
 
+	// Skip the workspace trust check so --yolo is not overridden to "default" approval mode.
+	// Gemini CLI v1.x checks whether the working directory is trusted and overrides --yolo
+	// with "default" approval mode (exit code 55) when the folder is untrusted.
+	// GEMINI_CLI_TRUST_WORKSPACE=true (also set in the step env) handles the same case via
+	// environment variable, but --skip-trust is more reliable when AWF's sandbox does not
+	// forward all host environment variables into the container.
+	geminiArgs = append(geminiArgs, "--skip-trust")
+
 	// Add streaming JSON output (JSONL format, compatible with the log parser)
 	geminiArgs = append(geminiArgs, "--output-format", "stream-json")
 
