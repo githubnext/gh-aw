@@ -191,7 +191,7 @@ func TestLogsJSONRunDataFields(t *testing.T) {
 
 	// This is what the updated CI test checks
 	requiredFields := []string{
-		"database_id",
+		"run_id",
 		"workflow_name",
 		"workflow_path", // New field - workflow ID
 		"agent",         // Engine ID

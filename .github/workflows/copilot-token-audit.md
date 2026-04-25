@@ -104,7 +104,7 @@ Each element of `.runs` is a `RunData` object with (among others):
 | `turns` | int | Number of agent turns |
 | `duration` | string | Human-readable duration |
 | `created_at` | ISO 8601 | Run creation time |
-| `database_id` | int64 | Unique run ID |
+| `run_id` | int64 | Unique run ID |
 | `url` | string | Link to the run |
 | `status` | string | `completed`, `in_progress`, etc. |
 | `conclusion` | string | `success`, `failure`, etc. |
