@@ -362,7 +362,7 @@ async function main(config = {}) {
     const workflowRepo = process.env.GITHUB_REPOSITORY || "";
     if (itemRepo.toLowerCase() !== workflowRepo.toLowerCase()) {
       core.info(`Cross-repo push: looking for checkout of ${itemRepo}`);
-      const checkoutResult = findRepoCheckout(itemRepo, process.env.GITHUB_WORKSPACE, { allowedRepos });
+      const checkoutResult = findRepoCheckout(itemRepo, process.env.GITHUB_WORKSPACE, { allowedRepos: [...allowedRepos] });
       if (!checkoutResult.success) {
         return {
           success: false,
@@ -774,7 +774,7 @@ async function main(config = {}) {
           repo: repoParts.repo,
           branch: branchName,
           baseRef: remoteHeadBeforePatch || `origin/${branchName}`,
-          ...baseGitOpts,
+          cwd: repoCwd || process.cwd(),
           gitAuthEnv,
         });
         if (pushedSha) {
