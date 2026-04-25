@@ -51,19 +51,32 @@ An imported workflow can only be imported once per workflow.
   New 'with':      {"languages":["typescript"]}
 ```
 
-In markdown, use the special `{{#import ...}}` directive:
+In markdown, use the `{{#import ...}}` directive to inject the content of another file directly into the body at that position. This is useful for sharing reusable prompt snippets, tone instructions, or reference material across workflows.
 
 ```aw wrap
 ---
-...
+on: schedule
+engine: copilot
 ---
 
-# Your Workflow
+{{#import: .github/shared/editorial.md}}
 
-Workflow instructions here...
+# Daily Report
 
-{{#import shared/common-tools.md}}
+Generate the daily report.
 ```
+
+The colon after `#import` is optional — `{{#import: filepath}}` and `{{#import filepath}}` are equivalent. Use `{{#import?: filepath}}` to silently skip a missing file instead of failing:
+
+```aw wrap
+{{#import: .github/shared/editorial.md}}    # required — fails if missing
+{{#import?: .github/shared/optional.md}}    # optional — skipped if missing
+```
+
+Paths starting with `.github/` are resolved from the repository root, making them suitable for shared files used by workflows in different directories.
+
+> [!NOTE]
+> Body-level `{{#import}}` injects **content** (markdown text) at the insertion point. It does not merge frontmatter configuration. To share tools, permissions, or MCP servers across workflows, use the `imports:` frontmatter field instead.
 
 ## Shared Workflow Components
 
@@ -251,7 +264,18 @@ imports:
   - shared/tools.md#WebSearch
 ```
 
-Use the `{{#import? ...}}` syntax to mark an import as optional, which skips missing files silently instead of failing compilation.
+Use `?` after `import` to mark an import as optional — missing files are skipped silently instead of failing compilation. This applies to both frontmatter imports and body-level directives:
+
+```yaml
+# Frontmatter — optional
+imports:
+  - shared/optional-tools.md?
+```
+
+```aw wrap
+# Body — optional content injection
+{{#import?: .github/shared/optional.md}}
+```
 
 ## Remote Repository Imports
 
