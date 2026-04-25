@@ -506,6 +506,8 @@ type WorkflowData struct {
 	EngineConfigSteps           []map[string]any                // steps returned by engine.RenderConfig — prepended before execution steps
 	ServicePortExpressions      string                          // comma-separated ${{ job.services['<id>'].ports['<port>'] }} expressions for AWF --allow-host-service-ports
 	RunInstallScripts           bool                            // true when run-install-scripts: true is set (globally or per node runtime); disables --ignore-scripts on generated npm install steps
+	CachedPermissions           *Permissions                    // cached parsed Permissions object (for performance optimization); populated by applyDefaults after all permission mutations
+	ConcurrencyGroupExpr        string                          // cached concurrency group expression extracted from Concurrency YAML (for performance optimization); populated by applyDefaults
 }
 
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.

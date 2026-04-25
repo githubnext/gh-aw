@@ -216,7 +216,10 @@ func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine Co
 // validateWorkflowRunBranches validates that workflow_run triggers include branch restrictions
 // This is a security best practice to avoid running on all branches
 func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markdownPath string) error {
-	if workflowData.On == "" {
+	// Fast path: skip expensive YAML parsing when the On field cannot possibly contain
+	// a workflow_run trigger (including when it is empty). This avoids yaml.Unmarshal
+	// on every validateWorkflowData call for the common case of non-workflow_run workflows.
+	if !strings.Contains(workflowData.On, "workflow_run") {
 		return nil
 	}
 

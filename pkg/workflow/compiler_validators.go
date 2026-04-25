@@ -69,10 +69,16 @@ func (c *Compiler) validateFeatureConfig(workflowData *WorkflowData, markdownPat
 // branch security, GitHub MCP toolset permissions, and the id-token write warning.
 // It returns the parsed *Permissions for reuse in subsequent validation steps.
 func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath string) (*Permissions, error) {
-	// Parse permissions once for all permission-related validation checks below.
-	// WorkflowData.Permissions contains the raw YAML string (including "permissions:" prefix).
-	// Parsing once here avoids redundant YAML parsing in each validator.
-	workflowPermissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
+	// Use the cached *Permissions object when available to avoid repeated YAML parsing.
+	// CachedPermissions is populated by applyDefaults after all permission mutations are applied.
+	// Fall back to parsing from the raw string for code paths that bypass applyDefaults
+	// (e.g., tests that construct WorkflowData directly).
+	var workflowPermissions *Permissions
+	if workflowData.CachedPermissions != nil {
+		workflowPermissions = workflowData.CachedPermissions
+	} else {
+		workflowPermissions = NewPermissionsParser(workflowData.Permissions).ToPermissions()
+	}
 
 	// Validate dangerous permissions
 	log.Printf("Validating dangerous permissions")
@@ -248,10 +254,9 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// Validate workflow-level concurrency group expression
 	log.Printf("Validating workflow-level concurrency configuration")
 	if workflowData.Concurrency != "" {
-		// Extract the group expression from the concurrency YAML
-		// The Concurrency field contains the full YAML (e.g., "concurrency:\n  group: \"...\"")
-		// We need to extract just the group value
-		groupExpr := extractConcurrencyGroupFromYAML(workflowData.Concurrency)
+		// Use the cached concurrency group expression extracted during applyDefaults to avoid
+		// repeated regex-based extraction on every validateWorkflowData call.
+		groupExpr := workflowData.ConcurrencyGroupExpr
 		if groupExpr != "" {
 			if err := validateConcurrencyGroupExpression(groupExpr); err != nil {
 				return formatCompilerError(markdownPath, "error", "workflow-level concurrency validation failed: "+err.Error(), err)
