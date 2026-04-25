@@ -218,6 +218,22 @@ func getProtectedPathPrefixes(extra ...string) []string {
 	return mergeUnique([]string{".github/", ".agents/", ".githooks/", ".husky/"}, extra...)
 }
 
+// getDotFolderExcludes returns the subset of excludeFiles that are top-level
+// dot-folder path prefixes (i.e. start with "." and end with "/").
+// These are used at compile time to tell the runtime handler which specific
+// dot-folders have been opted out of the general top-level-dot-folder protection.
+func getDotFolderExcludes(excludeFiles []string) []string {
+	var result []string
+	for _, f := range excludeFiles {
+		// Must start with ".", end with "/", and have at least one char between
+		// them (e.g. ".agents/" is valid; "./" is not).
+		if len(f) > 2 && f[0] == '.' && f[len(f)-1] == '/' {
+			result = append(result, f)
+		}
+	}
+	return result
+}
+
 // excludeFromSlice returns a new slice containing the items from base
 // that do not appear in the exclude set. Order of remaining items is preserved.
 // Always returns a fresh slice (never aliases base) even when no items are removed.

@@ -47,6 +47,11 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 				fullPathPrefixes := getProtectedPathPrefixes(engineManifestPathPrefixes...)
 				handlerCfg["protected_files"] = excludeFromSlice(fullManifestFiles, excludeFiles...)
 				handlerCfg["protected_path_prefixes"] = excludeFromSlice(fullPathPrefixes, excludeFiles...)
+				// Compute which top-level dot-folder prefixes are excluded so the runtime
+				// dot-folder check can skip them.
+				if dotFolderExcludes := getDotFolderExcludes(excludeFiles); len(dotFolderExcludes) > 0 {
+					handlerCfg["protected_dot_folder_excludes"] = dotFolderExcludes
+				}
 			}
 			safeOutputsConfig[handlerName] = handlerCfg
 		}

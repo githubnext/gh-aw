@@ -2507,3 +2507,193 @@ func TestProtectedFilesExcludePushToPRBranch(t *testing.T) {
 	assert.Contains(t, ppStrings, ".githooks/", ".githooks/ should be in protected_path_prefixes by default")
 	assert.Contains(t, ppStrings, ".husky/", ".husky/ should be in protected_path_prefixes by default")
 }
+
+// TestGetDotFolderExcludes verifies that getDotFolderExcludes correctly identifies
+// top-level dot-folder path prefixes from an exclusion list.
+func TestGetDotFolderExcludes(t *testing.T) {
+	tests := []struct {
+		name         string
+		excludeFiles []string
+		want         []string
+	}{
+		{
+			name:         "empty input returns nil",
+			excludeFiles: nil,
+			want:         nil,
+		},
+		{
+			name:         "no dot-folder entries",
+			excludeFiles: []string{"AGENTS.md", "CLAUDE.md", "go.mod"},
+			want:         nil,
+		},
+		{
+			name:         "single dot-folder prefix",
+			excludeFiles: []string{".agents/"},
+			want:         []string{".agents/"},
+		},
+		{
+			name:         "mixed files and dot-folder prefixes",
+			excludeFiles: []string{"AGENTS.md", ".agents/", "go.mod", ".cursor/"},
+			want:         []string{".agents/", ".cursor/"},
+		},
+		{
+			name:         "dot-file without trailing slash is not a dot-folder",
+			excludeFiles: []string{".env"},
+			want:         nil,
+		},
+		{
+			name:         "dot alone is not a valid dot-folder",
+			excludeFiles: []string{"./"},
+			want:         nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getDotFolderExcludes(tt.excludeFiles)
+			if len(tt.want) == 0 {
+				assert.Empty(t, got, "expected no dot-folder excludes")
+			} else {
+				assert.Equal(t, tt.want, got, "dot-folder excludes should match expected list")
+			}
+		})
+	}
+}
+
+// TestProtectTopLevelDotFolders verifies that protect_top_level_dot_folders is always
+// set to true in both create_pull_request and push_to_pull_request_branch handler configs.
+func TestProtectTopLevelDotFolders(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			},
+			PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "should produce config steps")
+
+	var configJSON string
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			require.Len(t, parts, 2, "should split env var line")
+			configJSON = strings.TrimSpace(parts[1])
+			configJSON = strings.Trim(configJSON, "\"")
+			configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+		}
+	}
+	require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+	var config map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+	for _, handlerName := range []string{"create_pull_request", "push_to_pull_request_branch"} {
+		handlerCfg, ok := config[handlerName]
+		require.True(t, ok, "%s handler should be present", handlerName)
+		val, exists := handlerCfg["protect_top_level_dot_folders"]
+		assert.True(t, exists, "%s: protect_top_level_dot_folders should be present", handlerName)
+		assert.Equal(t, true, val, "%s: protect_top_level_dot_folders should be true", handlerName)
+	}
+}
+
+// TestProtectedDotFolderExcludes verifies that when a dot-folder prefix is excluded via
+// ProtectedFilesExclude, the runtime config receives a protected_dot_folder_excludes list.
+func TestProtectedDotFolderExcludes(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig:  BaseSafeOutputConfig{Max: strPtr("1")},
+				ProtectedFilesExclude: []string{"AGENTS.md", ".agents/", ".cursor/"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "should produce config steps")
+
+	var configJSON string
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			require.Len(t, parts, 2, "should split env var line")
+			configJSON = strings.TrimSpace(parts[1])
+			configJSON = strings.Trim(configJSON, "\"")
+			configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+		}
+	}
+	require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+	var config map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+	prConfig, ok := config["create_pull_request"]
+	require.True(t, ok, "should have create_pull_request config")
+
+	// Sentinel key must not leak into runtime config
+	_, hasSentinel := prConfig["_protected_files_exclude"]
+	assert.False(t, hasSentinel, "_protected_files_exclude sentinel must not appear in runtime config")
+
+	// Non-dot-folder excludes must not be in protected_dot_folder_excludes
+	raw, exists := prConfig["protected_dot_folder_excludes"]
+	require.True(t, exists, "protected_dot_folder_excludes should be present")
+	excludesAny, ok := raw.([]any)
+	require.True(t, ok, "protected_dot_folder_excludes should be a slice")
+	excludes := make([]string, 0, len(excludesAny))
+	for _, v := range excludesAny {
+		if s, ok := v.(string); ok {
+			excludes = append(excludes, s)
+		}
+	}
+	assert.Contains(t, excludes, ".agents/", ".agents/ should be in protected_dot_folder_excludes")
+	assert.Contains(t, excludes, ".cursor/", ".cursor/ should be in protected_dot_folder_excludes")
+	assert.NotContains(t, excludes, "AGENTS.md", "non-dot-folder files must not be in protected_dot_folder_excludes")
+}
+
+// TestNoProtectedDotFolderExcludesWhenNoneDotFolderExcluded verifies that
+// protected_dot_folder_excludes is absent when the exclusion list has no dot-folder prefixes.
+func TestNoProtectedDotFolderExcludesWhenNoneDotFolderExcluded(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig:  BaseSafeOutputConfig{Max: strPtr("1")},
+				ProtectedFilesExclude: []string{"AGENTS.md", "CLAUDE.md"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "should produce config steps")
+
+	var configJSON string
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			require.Len(t, parts, 2, "should split env var line")
+			configJSON = strings.TrimSpace(parts[1])
+			configJSON = strings.Trim(configJSON, "\"")
+			configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+		}
+	}
+	require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+	var config map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+	prConfig, ok := config["create_pull_request"]
+	require.True(t, ok, "should have create_pull_request config")
+
+	_, exists := prConfig["protected_dot_folder_excludes"]
+	assert.False(t, exists, "protected_dot_folder_excludes should be absent when no dot-folders excluded")
+}
