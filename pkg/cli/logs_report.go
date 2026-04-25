@@ -76,8 +76,7 @@ type LogsSummary struct {
 
 // RunData contains information about a single workflow run
 type RunData struct {
-	RunID               int64                  `json:"run_id"`
-	DatabaseID          int64                  `json:"database_id" console:"header:Run ID"`
+	RunID               int64                  `json:"run_id" console:"header:Run ID"`
 	Number              int                    `json:"number" console:"-"`
 	WorkflowName        string                 `json:"workflow_name" console:"header:Workflow"`
 	WorkflowPath        string                 `json:"workflow_path" console:"-"`
@@ -208,7 +207,6 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 
 		runData := RunData{
 			RunID:               run.DatabaseID,
-			DatabaseID:          run.DatabaseID,
 			Number:              run.Number,
 			WorkflowName:        run.WorkflowName,
 			WorkflowPath:        run.WorkflowPath,
