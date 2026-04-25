@@ -552,9 +552,9 @@ func TestGenerateSafeOutputsConfigCreatePullRequestIncludesEngineManifests(t *te
 	assert.Contains(t, protectedFiles, "DESIGN.md", "DESIGN.md should be protected by default")
 
 	protectedPathPrefixes := parseStringSliceAny(prConfig["protected_path_prefixes"], nil)
-	assert.Contains(t, protectedPathPrefixes, ".claude/", ".claude/ should be protected for Claude engine workflows")
-	assert.Contains(t, protectedPathPrefixes, ".githooks/", ".githooks/ should be protected by default")
-	assert.Contains(t, protectedPathPrefixes, ".husky/", ".husky/ should be protected by default")
+	assert.NotContains(t, protectedPathPrefixes, ".claude/", ".claude/ is covered by the general dot-folder rule, not explicit prefix list")
+	assert.NotContains(t, protectedPathPrefixes, ".githooks/", ".githooks/ is covered by the general dot-folder rule, not explicit prefix list")
+	assert.NotContains(t, protectedPathPrefixes, ".husky/", ".husky/ is covered by the general dot-folder rule, not explicit prefix list")
 }
 
 func TestGenerateSafeOutputsConfigCreatePullRequestAppliesProtectedFilesExclude(t *testing.T) {
@@ -583,8 +583,9 @@ func TestGenerateSafeOutputsConfigCreatePullRequestAppliesProtectedFilesExclude(
 	assert.Contains(t, protectedFiles, "AGENTS.md", "AGENTS.md should remain in protected_files")
 
 	protectedPathPrefixes := parseStringSliceAny(prConfig["protected_path_prefixes"], nil)
-	assert.NotContains(t, protectedPathPrefixes, ".claude/", ".claude/ should be excluded from protected_path_prefixes")
-	assert.Contains(t, protectedPathPrefixes, ".github/", ".github/ should remain protected")
+	assert.NotContains(t, protectedPathPrefixes, ".claude/", ".claude/ should be absent from protected_path_prefixes (covered by general dot-folder rule)")
+	// .github/ is also covered by the general dot-folder rule, not the explicit prefix list
+	assert.NotContains(t, protectedPathPrefixes, ".github/", ".github/ should be absent from protected_path_prefixes (covered by general dot-folder rule)")
 }
 
 // TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssue tests that auto_close_issue
