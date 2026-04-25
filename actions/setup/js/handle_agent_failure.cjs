@@ -1142,8 +1142,10 @@ async function main() {
     // Detect cache-miss misconfiguration: the agent reported a missing_data with reason
     // "cache_miss" while cache-memory was configured and available.  This indicates the
     // prompt is referencing an incorrect path inside the cache directory.
+    // Check for items regardless of agentOutputResult.success so that cache-miss signals
+    // emitted alongside other output are not missed when the agent job also fails.
     let hasCacheMissMisconfiguration = false;
-    if (cacheMemoryEnabled && agentOutputResult.success && agentOutputResult.items) {
+    if (cacheMemoryEnabled && agentOutputResult.items) {
       const cacheMissItems = agentOutputResult.items.filter(item => item.type === "missing_data" && item.reason === "cache_miss");
       if (cacheMissItems.length > 0) {
         hasCacheMissMisconfiguration = true;
