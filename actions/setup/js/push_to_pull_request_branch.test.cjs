@@ -1666,6 +1666,89 @@ ${diffs}
       expect(result.error || "").not.toContain("outside the allowed-files list");
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // Cross-Repo Checkout Scenarios
+  // ──────────────────────────────────────────────────────
+
+  describe("cross-repo checkout", () => {
+    it("should return error when target repo differs from workflow repo and is not found in workspace", async () => {
+      // GITHUB_REPOSITORY is set to "test-owner/test-repo" in beforeEach
+      // Targeting "other-owner/other-repo" - different repo, not checked out
+      mockGithub.rest.pulls.get = vi.fn().mockResolvedValue({
+        data: {
+          head: {
+            ref: "feature-branch",
+            repo: { full_name: "other-owner/other-repo", fork: false, owner: { login: "other-owner" } },
+          },
+          base: {
+            repo: { full_name: "other-owner/other-repo", owner: { login: "other-owner" } },
+          },
+          title: "Cross-repo PR",
+          labels: [],
+        },
+      });
+
+      const patchPath = createPatchFile();
+      const module = await loadModule();
+      const handler = await module.main({ "target-repo": "other-owner/other-repo" });
+
+      const result = await handler({ patch_path: patchPath, pull_request_number: 42 }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("other-owner/other-repo");
+      expect(result.error).toContain("not found in workspace");
+    });
+
+    it("should pass cwd to git commands when target repo is checked out in a subdirectory", async () => {
+      // Create a subdirectory checkout with a remote that matches "other-owner/other-repo"
+      const subRepoDir = path.join(tempDir, "other-repo");
+      fs.mkdirSync(subRepoDir, { recursive: true });
+      const { execSync } = await import("child_process");
+      execSync("git init -b main", { cwd: subRepoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@example.com'", { cwd: subRepoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test User'", { cwd: subRepoDir, stdio: "pipe" });
+      execSync("git remote add origin https://github.com/other-owner/other-repo.git", { cwd: subRepoDir, stdio: "pipe" });
+
+      // Set workspace to tempDir so findRepoCheckout scans it
+      process.env.GITHUB_WORKSPACE = tempDir;
+
+      mockGithub.rest.pulls.get = vi.fn().mockResolvedValue({
+        data: {
+          head: {
+            ref: "feature-branch",
+            repo: { full_name: "other-owner/other-repo", fork: false, owner: { login: "other-owner" } },
+          },
+          base: {
+            repo: { full_name: "other-owner/other-repo", owner: { login: "other-owner" } },
+          },
+          title: "Cross-repo PR",
+          labels: [],
+        },
+      });
+      mockGithub.rest.repos.get = vi.fn().mockResolvedValue({ data: { default_branch: "main" } });
+      mockGithub.rest.repos.getBranchProtection = vi.fn().mockRejectedValue(Object.assign(new Error("not protected"), { status: 404 }));
+
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const patchPath = createPatchFile();
+      const module = await loadModule();
+      const handler = await module.main({ "target-repo": "other-owner/other-repo" });
+
+      await handler({ patch_path: patchPath, pull_request_number: 42 }, {});
+
+      // Verify git ls-remote was called with cwd pointing at the subdirectory
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining(`Found checkout for other-owner/other-repo at: ${subRepoDir}`));
+
+      // Verify at least one exec call received cwd pointing at the subdirectory
+      const allExecCalls = [...mockExec.exec.mock.calls, ...mockExec.getExecOutput.mock.calls];
+      const cwdCalls = allExecCalls.filter(call => {
+        const opts = call.find(arg => arg && typeof arg === "object" && !Array.isArray(arg) && "cwd" in arg);
+        return opts && opts.cwd === subRepoDir;
+      });
+      expect(cwdCalls.length).toBeGreaterThan(0);
+    });
+  });
 });
 
 // ──────────────────────────────────────────────────────
