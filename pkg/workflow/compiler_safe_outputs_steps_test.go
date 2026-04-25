@@ -126,7 +126,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
-			name: "cross-repo without base-branch omits github.ref_name from checkout ref",
+			name: "cross-repo without base-branch uses safe ref omitting github.ref_name",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					TargetRepoSlug: "org/other-repo",
@@ -134,14 +134,6 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 			checkContains: []string{
 				"ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
-			},
-		},
-		{
-			name: "cross-repo without base-branch does not include github.ref_name in checkout ref",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					TargetRepoSlug: "org/other-repo",
-				},
 			},
 			checkNotContains: []string{
 				"github.ref_name",
