@@ -141,7 +141,8 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		if otlpHeaders == "" && workflowData.ParsedFrontmatter != nil &&
 			workflowData.ParsedFrontmatter.Observability != nil &&
 			workflowData.ParsedFrontmatter.Observability.OTLP != nil {
-			otlpHeaders = workflowData.ParsedFrontmatter.Observability.OTLP.Headers
+			normalized, _ := normalizeOTLPHeaders(workflowData.ParsedFrontmatter.Observability.OTLP.Headers)
+			otlpHeaders = normalized
 		}
 	}
 	return &MCPGatewayRuntimeConfig{

@@ -5777,11 +5777,20 @@ observability:
     # (optional)
     endpoint: "example-value"
 
-    # Comma-separated list of key=value HTTP headers to include with every OTLP export
-    # request (e.g. 'Authorization=Bearer <token>'). Supports GitHub Actions
-    # expressions such as ${{ secrets.OTLP_HEADERS }}. Injected as the
-    # OTEL_EXPORTER_OTLP_HEADERS environment variable.
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Map of HTTP header names to values to include with every OTLP export
+    # request. Values support GitHub Actions expressions such as ${{ secrets.TOKEN }}.
+    # Injected as the OTEL_EXPORTER_OTLP_HEADERS environment variable.
+    headers:
+      {}
+
+    # Option 2: Deprecated: use the map form instead. Comma-separated list of
+    # key=value HTTP headers to include with every OTLP export request (e.g.
+    # 'Authorization=Bearer <token>'). Supports GitHub Actions expressions such as ${{
+    # secrets.OTLP_HEADERS }}. Injected as the OTEL_EXPORTER_OTLP_HEADERS environment
+    # variable.
     headers: "example-value"
 
 # Allow list of bot identifiers that can trigger the workflow even if they don't

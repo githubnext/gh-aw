@@ -396,7 +396,9 @@ func TestObservabilityConfigParsing(t *testing.T) {
 			require.NotNil(t, config.Observability, "Observability should not be nil")
 			require.NotNil(t, config.Observability.OTLP, "OTLP should not be nil")
 			assert.Equal(t, tt.expectedEndpoint, config.Observability.OTLP.Endpoint, "Endpoint should match")
-			assert.Equal(t, tt.expectedHeaders, config.Observability.OTLP.Headers, "Headers should match")
+			// Normalize Headers (any) to string for comparison
+			normalizedHeaders, _ := normalizeOTLPHeaders(config.Observability.OTLP.Headers)
+			assert.Equal(t, tt.expectedHeaders, normalizedHeaders, "Headers should match")
 		})
 	}
 }
@@ -659,5 +661,251 @@ func TestInjectOTLPConfig_OTLPEndpointField(t *testing.T) {
 		c.injectOTLPConfig(wd)
 		assert.Equal(t, "${{ secrets.GH_AW_OTEL_ENDPOINT }}", wd.OTLPEndpoint, "OTLPEndpoint should be set from imported observability")
 		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT:", "env var should be injected")
+	})
+}
+
+// TestNormalizeOTLPHeaders verifies the normalizeOTLPHeaders helper function.
+func TestNormalizeOTLPHeaders(t *testing.T) {
+	tests := []struct {
+		name               string
+		input              any
+		expectedHeaders    string
+		expectedDeprecated bool
+	}{
+		{
+			name:               "nil returns empty non-deprecated",
+			input:              nil,
+			expectedHeaders:    "",
+			expectedDeprecated: false,
+		},
+		{
+			name:               "empty string returns empty non-deprecated",
+			input:              "",
+			expectedHeaders:    "",
+			expectedDeprecated: false,
+		},
+		{
+			name:               "non-empty string returns string as deprecated",
+			input:              "Authorization=Bearer tok",
+			expectedHeaders:    "Authorization=Bearer tok",
+			expectedDeprecated: true,
+		},
+		{
+			name:               "secret expression string is deprecated",
+			input:              "${{ secrets.OTLP_HEADERS }}",
+			expectedHeaders:    "${{ secrets.OTLP_HEADERS }}",
+			expectedDeprecated: true,
+		},
+		{
+			name:               "empty map returns empty non-deprecated",
+			input:              map[string]any{},
+			expectedHeaders:    "",
+			expectedDeprecated: false,
+		},
+		{
+			name:            "single-entry map",
+			input:           map[string]any{"Authorization": "Bearer tok"},
+			expectedHeaders: "Authorization=Bearer tok",
+		},
+		{
+			name: "multi-entry map sorts keys deterministically",
+			input: map[string]any{
+				"X-Tenant":      "acme",
+				"Authorization": "Bearer tok",
+			},
+			expectedHeaders: "Authorization=Bearer tok,X-Tenant=acme",
+		},
+		{
+			name: "map with secret expression value",
+			input: map[string]any{
+				"Authorization": "${{ secrets.TOKEN }}",
+				"X-Tenant":      "acme",
+			},
+			expectedHeaders: "Authorization=${{ secrets.TOKEN }},X-Tenant=acme",
+		},
+		{
+			name:               "unsupported type returns empty non-deprecated",
+			input:              42,
+			expectedHeaders:    "",
+			expectedDeprecated: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotHeaders, gotDeprecated := normalizeOTLPHeaders(tt.input)
+			assert.Equal(t, tt.expectedHeaders, gotHeaders, "headers should match")
+			assert.Equal(t, tt.expectedDeprecated, gotDeprecated, "deprecated flag should match")
+		})
+	}
+}
+
+// TestInjectOTLPConfig_MapHeaders verifies that the map form for headers is supported.
+func TestInjectOTLPConfig_MapHeaders(t *testing.T) {
+	t.Run("injects OTEL_EXPORTER_OTLP_HEADERS from map form", func(t *testing.T) {
+		c := &Compiler{}
+		wd := &WorkflowData{
+			RawFrontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+						"headers": map[string]any{
+							"Authorization": "Bearer ${{ secrets.TOKEN }}",
+							"X-Tenant":      "acme",
+						},
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_HEADERS: Authorization=Bearer ${{ secrets.TOKEN }},X-Tenant=acme",
+			"headers should be serialised as sorted key=value pairs")
+	})
+
+	t.Run("map form with single header", func(t *testing.T) {
+		c := &Compiler{}
+		wd := &WorkflowData{
+			RawFrontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+						"headers": map[string]any{
+							"api-key": "${{ secrets.API_KEY }}",
+						},
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_HEADERS: api-key=${{ secrets.API_KEY }}")
+	})
+
+	t.Run("map form via ParsedFrontmatter fallback", func(t *testing.T) {
+		c := &Compiler{}
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{
+						Endpoint: "https://traces.example.com",
+						Headers: map[string]any{
+							"Authorization": "Bearer tok",
+						},
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_HEADERS: Authorization=Bearer tok",
+			"map headers should work via ParsedFrontmatter fallback")
+	})
+}
+
+// TestExtractOTLPConfigFromRaw_MapHeaders verifies map-form headers in extractOTLPConfigFromRaw.
+func TestExtractOTLPConfigFromRaw_MapHeaders(t *testing.T) {
+	tests := []struct {
+		name         string
+		frontmatter  map[string]any
+		wantEndpoint string
+		wantHeaders  string
+	}{
+		{
+			name: "map form with multiple headers sorted",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+						"headers": map[string]any{
+							"X-Tenant":      "acme",
+							"Authorization": "Bearer tok",
+						},
+					},
+				},
+			},
+			wantEndpoint: "https://traces.example.com",
+			wantHeaders:  "Authorization=Bearer tok,X-Tenant=acme",
+		},
+		{
+			name: "map form with secret expression value",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+						"headers": map[string]any{
+							"Authorization": "${{ secrets.TOKEN }}",
+						},
+					},
+				},
+			},
+			wantEndpoint: "https://traces.example.com",
+			wantHeaders:  "Authorization=${{ secrets.TOKEN }}",
+		},
+		{
+			name: "empty map produces no headers",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+						"headers":  map[string]any{},
+					},
+				},
+			},
+			wantEndpoint: "https://traces.example.com",
+			wantHeaders:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotEndpoint, gotHeaders := extractOTLPConfigFromRaw(tt.frontmatter)
+			assert.Equal(t, tt.wantEndpoint, gotEndpoint, "endpoint")
+			assert.Equal(t, tt.wantHeaders, gotHeaders, "headers")
+		})
+	}
+}
+
+// TestObservabilityConfigParsing_MapHeaders verifies that the map form for headers is
+// correctly parsed by ParseFrontmatterConfig.
+func TestObservabilityConfigParsing_MapHeaders(t *testing.T) {
+	t.Run("map headers parsed as any type", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"endpoint": "https://traces.example.com",
+					"headers": map[string]any{
+						"Authorization": "Bearer tok",
+						"X-Tenant":      "acme",
+					},
+				},
+			},
+		}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		require.NoError(t, err, "ParseFrontmatterConfig should not fail")
+		require.NotNil(t, config.Observability)
+		require.NotNil(t, config.Observability.OTLP)
+		assert.Equal(t, "https://traces.example.com", config.Observability.OTLP.Endpoint)
+
+		// The Headers field should hold the map as-is
+		headersMap, ok := config.Observability.OTLP.Headers.(map[string]any)
+		require.True(t, ok, "Headers should be a map[string]any when map form is used")
+		assert.Equal(t, "Bearer tok", headersMap["Authorization"])
+		assert.Equal(t, "acme", headersMap["X-Tenant"])
+	})
+
+	t.Run("string headers parsed as any string", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"endpoint": "https://traces.example.com",
+					"headers":  "Authorization=Bearer tok",
+				},
+			},
+		}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		require.NoError(t, err, "ParseFrontmatterConfig should not fail")
+		require.NotNil(t, config.Observability)
+		require.NotNil(t, config.Observability.OTLP)
+		headersStr, ok := config.Observability.OTLP.Headers.(string)
+		require.True(t, ok, "Headers should be a string when string form is used")
+		assert.Equal(t, "Authorization=Bearer tok", headersStr)
 	})
 }

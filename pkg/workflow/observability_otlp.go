@@ -3,12 +3,55 @@ package workflow
 import (
 	"fmt"
 	"net/url"
+	"os"
+	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var otlpLog = logger.New("workflow:observability_otlp")
+
+// normalizeOTLPHeaders converts the headers field value (which may be a string or a map)
+// into the comma-separated key=value format required by OTEL_EXPORTER_OTLP_HEADERS.
+//
+// The second return value is true when the deprecated string form was used, so callers
+// can emit a deprecation warning.
+//
+// String form (deprecated): "Authorization=Bearer tok,X-Tenant=acme"
+// Map form (preferred):     map[string]any{"Authorization": "Bearer tok", "X-Tenant": "acme"}
+func normalizeOTLPHeaders(raw any) (string, bool) {
+	if raw == nil {
+		return "", false
+	}
+	switch v := raw.(type) {
+	case string:
+		if v == "" {
+			return "", false
+		}
+		return v, true // string form is deprecated
+	case map[string]any:
+		if len(v) == 0 {
+			return "", false
+		}
+		// Sort keys for deterministic output
+		keys := make([]string, 0, len(v))
+		for k := range v {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		var parts []string
+		for _, k := range keys {
+			val, _ := v[k].(string)
+			parts = append(parts, k+"="+val)
+		}
+		return strings.Join(parts, ","), false
+	default:
+		otlpLog.Printf("Unexpected type for OTLP headers: %T", raw)
+		return "", false
+	}
+}
 
 // extractOTLPEndpointDomain parses an OTLP endpoint URL and returns its hostname.
 // Returns an empty string when the endpoint is a GitHub Actions expression (which
@@ -103,8 +146,14 @@ func extractOTLPConfigFromRaw(frontmatter map[string]any) (endpoint, headers str
 	if ep, ok := otlpMap["endpoint"].(string); ok {
 		endpoint = ep
 	}
-	if h, ok := otlpMap["headers"].(string); ok {
-		headers = h
+	if raw, ok := otlpMap["headers"]; ok {
+		normalized, deprecated := normalizeOTLPHeaders(raw)
+		if deprecated {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				"observability.otlp.headers: string form is deprecated. Use the map form instead (e.g. headers: {Authorization: \"Bearer ${{ secrets.TOKEN }}\"})",
+			))
+		}
+		headers = normalized
 	}
 	return
 }
@@ -153,7 +202,13 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	if headers == "" && workflowData.ParsedFrontmatter != nil &&
 		workflowData.ParsedFrontmatter.Observability != nil &&
 		workflowData.ParsedFrontmatter.Observability.OTLP != nil {
-		headers = workflowData.ParsedFrontmatter.Observability.OTLP.Headers
+		normalized, deprecated := normalizeOTLPHeaders(workflowData.ParsedFrontmatter.Observability.OTLP.Headers)
+		if deprecated {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				"observability.otlp.headers: string form is deprecated. Use the map form instead (e.g. headers: {Authorization: \"Bearer ${{ secrets.TOKEN }}\"})",
+			))
+		}
+		headers = normalized
 	}
 	if headers != "" {
 		otlpEnvLines += "\n  OTEL_EXPORTER_OTLP_HEADERS: " + headers

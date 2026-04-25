@@ -122,11 +122,12 @@ type OTLPConfig struct {
 	// network firewall allowlist.
 	Endpoint string `json:"endpoint,omitempty"`
 
-	// Headers is a comma-separated list of key=value HTTP headers to include with
-	// every OTLP export request (e.g. "Authorization=Bearer <token>").
-	// Supports GitHub Actions expressions such as ${{ secrets.OTLP_HEADERS }}.
-	// Injected as the standard OTEL_EXPORTER_OTLP_HEADERS environment variable.
-	Headers string `json:"headers,omitempty"`
+	// Headers holds HTTP headers to include with every OTLP export request.
+	// Preferred form: a map of header name to value (e.g. {"Authorization": "Bearer ${{ secrets.TOKEN }}"}).
+	// Deprecated string form: a comma-separated list of key=value pairs
+	// (e.g. "Authorization=Bearer <token>"). Use the map form instead.
+	// Both forms are injected as the standard OTEL_EXPORTER_OTLP_HEADERS environment variable.
+	Headers any `json:"headers,omitempty"`
 }
 
 // ObservabilityConfig represents workflow observability options.
