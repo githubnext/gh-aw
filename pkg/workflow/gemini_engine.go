@@ -27,7 +27,7 @@ func NewGeminiEngine() *GeminiEngine {
 			supportsMaxContinuations: false, // Gemini CLI does not support --max-autopilot-continues-style continuation mode
 			supportsWebSearch:        false,
 			supportsNativeAgentFile:  false, // Gemini does not support agent file natively; the compiler prepends the agent file content to prompt.txt
-			llmGatewayPort:           constants.GeminiLLMGatewayPort,
+			dedicatedLLMGatewayPort:  constants.GeminiLLMGatewayPort,
 		},
 	}
 }
