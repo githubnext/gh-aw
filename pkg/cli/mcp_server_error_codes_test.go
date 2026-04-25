@@ -194,8 +194,8 @@ func TestMCPServer_ErrorCodes_InternalError(t *testing.T) {
 		if _, hasError := envelope["error"]; !hasError {
 			t.Errorf("Expected 'error' field in audit JSON response, got: %s", textContent.Text)
 		}
-		if _, hasRunID := envelope["run_id_or_url"]; !hasRunID {
-			t.Errorf("Expected 'run_id_or_url' field in audit JSON response, got: %s", textContent.Text)
+		if _, hasRunID := envelope["run_ids_or_urls"]; !hasRunID {
+			t.Errorf("Expected 'run_ids_or_urls' field in audit JSON response, got: %s", textContent.Text)
 		}
 		if _, hasSuggestions := envelope["suggestions"]; !hasSuggestions {
 			t.Errorf("Expected 'suggestions' field in audit JSON response, got: %s", textContent.Text)
