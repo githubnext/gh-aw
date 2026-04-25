@@ -502,7 +502,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
               type: "text",
               text: JSON.stringify({
                 result: "error",
-                error: `Repository '${itemRepo}' not found in workspace. Check out the target repo with a path in checkout. If checking out multiple repositories, use the 'path' input so the checkout can be located.`,
+                error: `Repository '${itemRepo}' not found in workspace. Check out the target repo with actions/checkout and set its 'path' input so the checkout can be located. If checking out multiple repositories, ensure each actions/checkout step uses the appropriate 'path' input.`,
               }),
             },
           ],

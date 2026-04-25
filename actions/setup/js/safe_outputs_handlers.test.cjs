@@ -676,11 +676,11 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
       expect(responseData.error).toContain("Repository 'test-owner/test-repo' not found in workspace");
-      expect(responseData.error).toContain("path in checkout");
+      expect(responseData.error).toContain("actions/checkout");
       expect(responseData.error).toContain("'path' input");
     });
 
-    it("should return error when defaultTargetRepo checkout is not found and entry.repo is not set", async () => {
+    it("should return error when configured target-repo checkout is not found and entry.repo is not set", async () => {
       const configWithTarget = {
         push_to_pull_request_branch: { "target-repo": "test-owner/test-repo" },
       };
@@ -694,7 +694,8 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
       expect(responseData.error).toContain("Repository 'test-owner/test-repo' not found in workspace");
-      expect(responseData.error).toContain("path in checkout");
+      expect(responseData.error).toContain("actions/checkout");
+      expect(responseData.error).toContain("'path' input");
     });
 
     it("should detect branch from defaultTargetRepo checkout when entry.repo is not provided", async () => {
