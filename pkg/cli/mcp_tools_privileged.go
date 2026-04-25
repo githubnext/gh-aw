@@ -44,6 +44,7 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 		Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: 1 for MCP server)"`
 		MaxTokens         int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored. Output is always written to a file."`
 		Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
+		ExcludeWorkflows  []string `json:"exclude_workflows,omitempty" jsonschema:"Workflow names or IDs to exclude from results. Excluded runs are skipped before artifact download, saving API resources."`
 	}
 
 	// Generate schema with elicitation defaults
@@ -167,6 +168,9 @@ from where the previous request stopped due to timeout.`,
 		}
 		if len(args.Artifacts) > 0 {
 			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
+		}
+		if len(args.ExcludeWorkflows) > 0 {
+			cmdArgs = append(cmdArgs, "--exclude", strings.Join(args.ExcludeWorkflows, ","))
 		}
 
 		cmdArgs = appendRepoFlagFromEnv(cmdArgs)

@@ -78,6 +78,10 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --filtered-integrity      # Filter logs containing items that were filtered by gateway integrity checks
   ` + string(constants.CLIExtensionPrefix) + ` logs --no-staged               # Exclude staged workflow runs from results
 
+  # Excluding specific workflows
+  ` + string(constants.CLIExtensionPrefix) + ` logs --exclude ci-tests        # Exclude a specific workflow from results
+  ` + string(constants.CLIExtensionPrefix) + ` logs --exclude ci-tests,nightly-build  # Exclude multiple workflows
+
   # Run ID range filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000       # Filter runs after run ID 1000
   ` + string(constants.CLIExtensionPrefix) + ` logs --before-run-id 2000      # Filter runs before run ID 2000
@@ -155,6 +159,7 @@ Examples:
 			train, _ := cmd.Flags().GetBool("train")
 			format, _ := cmd.Flags().GetString("format")
 			artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
+			excludeWorkflows, _ := cmd.Flags().GetStringSlice("exclude")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -189,7 +194,33 @@ Examples:
 
 			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v", workflowName, count, engine, train)
 
-			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, summaryFile, safeOutputType, filteredIntegrity, train, format, artifacts)
+			return DownloadWorkflowLogsWithOptions(cmd.Context(), DownloadWorkflowLogsOptions{
+				WorkflowName:      workflowName,
+				Count:             count,
+				StartDate:         startDate,
+				EndDate:           endDate,
+				OutputDir:         outputDir,
+				Engine:            engine,
+				Ref:               ref,
+				BeforeRunID:       beforeRunID,
+				AfterRunID:        afterRunID,
+				RepoOverride:      repoOverride,
+				Verbose:           verbose,
+				ToolGraph:         toolGraph,
+				NoStaged:          noStaged,
+				FirewallOnly:      firewallOnly,
+				NoFirewall:        noFirewall,
+				Parse:             parse,
+				JSONOutput:        jsonOutput,
+				Timeout:           timeout,
+				SummaryFile:       summaryFile,
+				SafeOutputType:    safeOutputType,
+				FilteredIntegrity: filteredIntegrity,
+				Train:             train,
+				Format:            format,
+				ArtifactSets:      artifacts,
+				ExcludeWorkflows:  excludeWorkflows,
+			})
 		},
 	}
 
@@ -217,6 +248,7 @@ Examples:
 	logsCmd.Flags().String("format", "", "Output format for cross-run audit report: pretty, markdown (generates security audit report instead of default metrics table)")
 	logsCmd.Flags().Int("last", 0, "Alias for --count: number of recent runs to download")
 	logsCmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
+	logsCmd.Flags().StringSlice("exclude", nil, "Workflow names or IDs to exclude from results (comma-separated or repeated flag). Excluded runs are skipped before artifact download, saving API resources.")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 
 	// Register completions for logs command

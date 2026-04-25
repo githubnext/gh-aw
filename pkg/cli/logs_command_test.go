@@ -264,3 +264,80 @@ func TestLogsCommandHelpText(t *testing.T) {
 	assert.Contains(t, safeOutputFlag.Usage, "noop", "safe-output flag help should mention noop")
 	assert.Contains(t, safeOutputFlag.Usage, "report-incomplete", "safe-output flag help should mention report-incomplete")
 }
+
+func TestLogsCommandExcludeFlag(t *testing.T) {
+	cmd := NewLogsCommand()
+	flags := cmd.Flags()
+
+	// Verify the --exclude flag exists
+	excludeFlag := flags.Lookup("exclude")
+	require.NotNil(t, excludeFlag, "Should have 'exclude' flag")
+	assert.Equal(t, "stringSlice", excludeFlag.Value.Type(), "exclude should be stringSlice type")
+	assert.Equal(t, "[]", excludeFlag.DefValue, "exclude should default to empty slice")
+	assert.Contains(t, excludeFlag.Usage, "exclude", "exclude flag usage should describe its purpose")
+}
+
+func TestIsWorkflowExcluded(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowName string
+		excludes     []string
+		expected     bool
+	}{
+		{
+			name:         "exact match",
+			workflowName: "Weekly Research",
+			excludes:     []string{"Weekly Research"},
+			expected:     true,
+		},
+		{
+			name:         "case-insensitive match",
+			workflowName: "Weekly Research",
+			excludes:     []string{"weekly research"},
+			expected:     true,
+		},
+		{
+			name:         "slug match - id matches display name",
+			workflowName: "Weekly Research",
+			excludes:     []string{"weekly-research"},
+			expected:     true,
+		},
+		{
+			name:         "slug match - multi-word id",
+			workflowName: "CI Failure Doctor",
+			excludes:     []string{"ci-failure-doctor"},
+			expected:     true,
+		},
+		{
+			name:         "no match",
+			workflowName: "Weekly Research",
+			excludes:     []string{"Nightly Build"},
+			expected:     false,
+		},
+		{
+			name:         "empty excludes",
+			workflowName: "Weekly Research",
+			excludes:     nil,
+			expected:     false,
+		},
+		{
+			name:         "multiple excludes, one matches",
+			workflowName: "CI Tests",
+			excludes:     []string{"Weekly Research", "CI Tests", "Nightly Build"},
+			expected:     true,
+		},
+		{
+			name:         "multiple excludes, none match",
+			workflowName: "My Workflow",
+			excludes:     []string{"Weekly Research", "CI Tests"},
+			expected:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isWorkflowExcluded(tt.workflowName, tt.excludes)
+			assert.Equal(t, tt.expected, result, "isWorkflowExcluded(%q, %v) should be %v", tt.workflowName, tt.excludes, tt.expected)
+		})
+	}
+}
