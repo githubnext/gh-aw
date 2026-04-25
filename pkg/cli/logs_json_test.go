@@ -210,6 +210,7 @@ func TestRenderLogsJSON(t *testing.T) {
 		},
 		Runs: []RunData{
 			{
+				RunID:         12345,
 				DatabaseID:    12345,
 				Number:        1,
 				WorkflowName:  "Test Workflow",
@@ -291,6 +292,12 @@ func TestRenderLogsJSON(t *testing.T) {
 	}
 	if len(parsedData.Runs) != 1 {
 		t.Errorf("Expected 1 run in JSON, got %d", len(parsedData.Runs))
+	}
+	if parsedData.Runs[0].RunID != parsedData.Runs[0].DatabaseID {
+		t.Errorf("Expected run_id %d to equal database_id %d", parsedData.Runs[0].RunID, parsedData.Runs[0].DatabaseID)
+	}
+	if parsedData.Runs[0].RunID != 12345 {
+		t.Errorf("Expected run_id 12345, got %d", parsedData.Runs[0].RunID)
 	}
 	if parsedData.Runs[0].Comparison == nil || parsedData.Runs[0].Comparison.Baseline == nil || parsedData.Runs[0].Comparison.Baseline.Selection != "cohort_match" {
 		t.Fatalf("Expected comparison metadata to survive JSON round-trip, got %+v", parsedData.Runs[0].Comparison)
