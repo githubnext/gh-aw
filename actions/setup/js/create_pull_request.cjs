@@ -924,9 +924,9 @@ async function main(config = {}) {
     // avoid duplication (skipDetectionCaution is passed to generateFooterWithMessages).
     const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
     if (detectionCaution) {
-      // unshift(caution, "") places the caution alert at index 0 and a blank separator
-      // line at index 1, so the main body content follows after one empty line.
-      bodyLines.unshift(detectionCaution, "");
+      // unshift(caution, "", "") places the caution alert at index 0 and two blank
+      // separator lines so the main body content follows after a full empty line.
+      bodyLines.unshift(detectionCaution, "", "");
     }
 
     // Add fingerprint comment if present
