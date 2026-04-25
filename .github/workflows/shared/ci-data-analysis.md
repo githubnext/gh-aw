@@ -67,7 +67,7 @@ steps:
       jq -r '"- runs analyzed: \(.total_runs)\n- avg duration (sec): \(.avg_duration_seconds // "n/a")\n- recent failure records: \(.top_recent_failures | length)"' /tmp/ci-summary.json >> "$GITHUB_STEP_SUMMARY"
   
   - name: Setup Node.js
-    uses: actions/setup-node@v6.3.0
+    uses: actions/setup-node@v6.4.0
     with:
       node-version: "24"
       cache: npm
