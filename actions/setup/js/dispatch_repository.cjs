@@ -14,6 +14,7 @@ const { parseRepoSlug, validateTargetRepo, parseAllowedRepos } = require("./repo
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { buildAwContext } = require("./aw_context.cjs");
+const { SAFE_OUTPUT_E001, SAFE_OUTPUT_E099 } = require("./error_codes.cjs");
 
 /**
  * Main handler factory for dispatch_repository
@@ -45,7 +46,7 @@ async function main(config = {}) {
       core.warning("dispatch_repository: tool_name is empty, skipping");
       return {
         success: false,
-        error: "E001: tool_name is required",
+        error: `${SAFE_OUTPUT_E001}: tool_name is required`,
       };
     }
 
@@ -55,7 +56,7 @@ async function main(config = {}) {
       core.warning(`dispatch_repository: unknown tool "${toolName}", skipping`);
       return {
         success: false,
-        error: `E001: tool "${toolName}" is not configured in dispatch_repository`,
+        error: `${SAFE_OUTPUT_E001}: tool "${toolName}" is not configured in dispatch_repository`,
       };
     }
 
@@ -88,7 +89,7 @@ async function main(config = {}) {
       core.warning(`dispatch_repository: no target repository for tool "${toolName}"`);
       return {
         success: false,
-        error: `E001: No target repository configured for tool "${toolName}"`,
+        error: `${SAFE_OUTPUT_E001}: No target repository configured for tool "${toolName}"`,
       };
     }
 
@@ -110,7 +111,7 @@ async function main(config = {}) {
       core.warning(`dispatch_repository: invalid repository slug "${targetRepoSlug}"`);
       return {
         success: false,
-        error: `E001: Invalid repository slug "${targetRepoSlug}" (expected "owner/repo")`,
+        error: `${SAFE_OUTPUT_E001}: Invalid repository slug "${targetRepoSlug}" (expected "owner/repo")`,
       };
     }
 
@@ -118,13 +119,8 @@ async function main(config = {}) {
     /** @type {Record<string, any>} */
     const clientPayload = {
       workflow: toolConfig.workflow || "",
+      ...(message.inputs && typeof message.inputs === "object" ? message.inputs : {}),
     };
-
-    if (message.inputs && typeof message.inputs === "object") {
-      for (const [key, value] of Object.entries(message.inputs)) {
-        clientPayload[key] = value;
-      }
-    }
 
     // Inject aw_context so the receiving repository can trace the dispatch back to its caller.
     clientPayload["aw_context"] = buildAwContext();
@@ -178,7 +174,7 @@ async function main(config = {}) {
 
       return {
         success: false,
-        error: `E099: Failed to dispatch repository_dispatch event "${eventType}" to ${targetRepoSlug}: ${errorMessage}`,
+        error: `${SAFE_OUTPUT_E099}: Failed to dispatch repository_dispatch event "${eventType}" to ${targetRepoSlug}: ${errorMessage}`,
       };
     }
   };
