@@ -222,6 +222,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/hippo-memory.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/daily-hippo-learn.md}}
           GH_AW_PROMPT_3559f743089dd0e1_EOF
           } > "$GH_AW_PROMPT"

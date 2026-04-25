@@ -288,7 +288,6 @@ jobs:
           cat << 'GH_AW_PROMPT_58453f345124cba3_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
-          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/smoke-project.md}}
           GH_AW_PROMPT_58453f345124cba3_EOF
           } > "$GH_AW_PROMPT"

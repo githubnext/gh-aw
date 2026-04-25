@@ -396,10 +396,10 @@ func extractLockFileHeader(content string) string {
 	return strings.Join(lines, "\n")
 }
 
-// TestBodyLevelImportPromotedToRuntimeImport verifies that a body-level {{#import:}} directive
-// generates an explicit {{#runtime-import}} macro in the compiled lock-file prompt,
+// TestBodyLevelRuntimeImportPromotedToMacro verifies that a body-level {{#runtime-import}} directive
+// in the workflow markdown generates an explicit {{#runtime-import}} macro in the compiled lock-file prompt,
 // making the imported content visible without having to chase the workflow file at runtime.
-func TestBodyLevelImportPromotedToRuntimeImport(t *testing.T) {
+func TestBodyLevelRuntimeImportPromotedToMacro(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "body-import-test")
 
 	// Create .github/workflows/ and .github/shared/ structure
@@ -418,7 +418,7 @@ func TestBodyLevelImportPromotedToRuntimeImport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Workflow has a body-level {{#import:}} directive
+	// Workflow uses {{#runtime-import}} directly (preferred form)
 	workflowContent := `---
 on:
   schedule:
@@ -431,7 +431,7 @@ safe-outputs:
   create-issue: {}
 ---
 
-{{#import: .github/shared/editorial.md}}
+{{#runtime-import .github/shared/editorial.md}}
 
 # Daily Report
 

@@ -232,6 +232,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/reporting-otlp.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/daily-malicious-code-scan.md}}
           GH_AW_PROMPT_fa68f658878cf9c1_EOF
           } > "$GH_AW_PROMPT"

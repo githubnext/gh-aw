@@ -238,7 +238,6 @@ jobs:
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/workflows/shared/jqschema.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/org-health-report.md}}
           GH_AW_PROMPT_a30e0b763bcfae81_EOF
           } > "$GH_AW_PROMPT"

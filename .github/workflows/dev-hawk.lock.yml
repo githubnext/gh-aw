@@ -234,7 +234,6 @@ jobs:
           cat << 'GH_AW_PROMPT_24fe2ca9091c6b98_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/dev-hawk.md}}
           GH_AW_PROMPT_24fe2ca9091c6b98_EOF
           } > "$GH_AW_PROMPT"

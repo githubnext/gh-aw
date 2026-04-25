@@ -208,6 +208,7 @@ jobs:
           cat << 'GH_AW_PROMPT_03347271a7635f0d_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/hippo-memory.md}}
+          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/hippo-embed.md}}
           GH_AW_PROMPT_03347271a7635f0d_EOF
           } > "$GH_AW_PROMPT"

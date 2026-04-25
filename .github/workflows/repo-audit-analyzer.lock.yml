@@ -245,7 +245,6 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
-          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/repo-audit-analyzer.md}}
           GH_AW_PROMPT_e2a11b8b3e77a51e_EOF
           } > "$GH_AW_PROMPT"

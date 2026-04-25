@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -114,44 +115,57 @@ func findGitHubRepoRoot(dir string) string {
 	}
 }
 
-// BodyLevelImport represents a single {{#import:}} directive found in a markdown body,
-// with the path resolved to be workspace-root-relative (suitable for {{#runtime-import}} macros).
+// BodyLevelImport represents a single {{#runtime-import}} or deprecated {{#import}} directive
+// found in a markdown body, with the path resolved to be workspace-root-relative.
 type BodyLevelImport struct {
 	Path     string // workspace-root-relative path for the {{#runtime-import}} macro
 	Optional bool   // true when the original directive used the ? form
 }
 
+// bodyLevelRuntimeImportRe matches {{#runtime-import}} and {{#runtime-import?}} directives
+// in a single line of markdown (same pattern as runtime_import.cjs uses at runtime).
+var bodyLevelRuntimeImportRe = regexp.MustCompile(`^\{\{#runtime-import(\?)?[ \t]+([^\}]+?)\}\}$`)
+
 // ExtractBodyLevelImportPaths scans the markdown body (content is the body after frontmatter
-// has been stripped) for {{#import:}} directives and returns them as BodyLevelImport entries
-// whose Path fields are ready to use in {{#runtime-import}} macros.
+// has been stripped) for {{#runtime-import}} directives and returns them as BodyLevelImport entries
+// whose Path fields are ready to use in explicit {{#runtime-import}} macros in the compiled lock file.
 //
 // Relative paths (e.g. "shared/tools.md") are converted to workspace-root-relative form
 // (e.g. ".github/workflows/shared/tools.md") using baseDir and the repo root.
 // Paths that already start with ".github/" are kept as-is.
-// Legacy @include / @import directives are ignored (they are handled separately).
+// Deprecated {{#import}} and legacy @include / @import directives are ignored;
+// they are handled (with deprecation warnings) by include_processor.go.
 func ExtractBodyLevelImportPaths(content, baseDir string) []BodyLevelImport {
 	repoRoot := findGitHubRepoRoot(baseDir)
 
 	var results []BodyLevelImport
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	for scanner.Scan() {
-		line := scanner.Text()
-		directive := ParseImportDirective(line)
-		if directive == nil || directive.IsLegacy {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Match {{#runtime-import}} directives only.
+		m := bodyLevelRuntimeImportRe.FindStringSubmatch(line)
+		if m == nil {
 			continue
 		}
+		optional := m[1] == "?"
+		importPath := strings.TrimSpace(m[2])
 
-		importPath := directive.Path
 		// Strip section reference (e.g. "file.md#Section" → "file.md")
 		if idx := strings.Index(importPath, "#"); idx >= 0 {
 			importPath = importPath[:idx]
 		}
 		importPath = strings.TrimSpace(importPath)
 
+		// Skip URLs — these are fetched at runtime and don't need promotion.
+		if strings.HasPrefix(importPath, "http://") || strings.HasPrefix(importPath, "https://") {
+			continue
+		}
+
 		// Convert relative paths to workspace-root-relative.
 		// Paths already starting with ".github/" are workspace-root-relative.
-		// Absolute "/" paths are also used as-is.
-		if !strings.HasPrefix(importPath, ".github/") && !strings.HasPrefix(importPath, "/") {
+		// Absolute paths are used as-is.
+		if !strings.HasPrefix(importPath, ".github/") && !filepath.IsAbs(importPath) {
 			if repoRoot != "" {
 				fullPath := filepath.Join(baseDir, importPath)
 				if rel, err := filepath.Rel(repoRoot, fullPath); err == nil && !strings.HasPrefix(rel, "..") {
@@ -162,7 +176,7 @@ func ExtractBodyLevelImportPaths(content, baseDir string) []BodyLevelImport {
 
 		results = append(results, BodyLevelImport{
 			Path:     filepath.ToSlash(importPath),
-			Optional: directive.IsOptional,
+			Optional: optional,
 		})
 	}
 	return results

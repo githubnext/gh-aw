@@ -38,10 +38,23 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 				if directive.IsOptional {
 					optionalMarker = "?"
 				}
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: %q. Use {{#import%s %s}} instead.",
+				// Choose the recommended replacement based on which deprecated form was used.
+				// {{#import}} directives → recommend {{#runtime-import}} or imports: frontmatter.
+				// @include / @import directives → recommend {{#import}} (already deprecated itself,
+				// but still a closer equivalent than jumping straight to runtime-import).
+				var suggestion string
+				if strings.HasPrefix(strings.TrimSpace(directive.Original), "{{") {
+					suggestion = fmt.Sprintf("Use {{#runtime-import%s %s}} for content injection or the 'imports:' frontmatter field for configuration merging.",
+						optionalMarker,
+						directive.Path)
+				} else {
+					suggestion = fmt.Sprintf("Use {{#runtime-import%s %s}} instead.",
+						optionalMarker,
+						directive.Path)
+				}
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: %q. %s",
 					directive.Original,
-					optionalMarker,
-					directive.Path)))
+					suggestion)))
 			}
 
 			isOptional := directive.IsOptional

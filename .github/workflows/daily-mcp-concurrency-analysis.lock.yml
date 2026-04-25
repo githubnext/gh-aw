@@ -269,6 +269,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/safe-output-app.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/daily-mcp-concurrency-analysis.md}}
           GH_AW_PROMPT_02905746383fa63a_EOF
           } > "$GH_AW_PROMPT"

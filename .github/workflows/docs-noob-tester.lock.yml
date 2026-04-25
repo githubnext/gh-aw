@@ -240,7 +240,6 @@ jobs:
           {{#runtime-import .github/workflows/shared/keep-it-short.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
-          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/docs-noob-tester.md}}
           GH_AW_PROMPT_f65c908042dcbe78_EOF
           } > "$GH_AW_PROMPT"

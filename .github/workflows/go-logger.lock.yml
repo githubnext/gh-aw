@@ -234,7 +234,6 @@ jobs:
           cat << 'GH_AW_PROMPT_77a0216ea2594c57_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/go-make.md}}
-          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/go-logger.md}}
           GH_AW_PROMPT_77a0216ea2594c57_EOF
           } > "$GH_AW_PROMPT"

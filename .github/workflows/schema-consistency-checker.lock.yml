@@ -238,7 +238,6 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
-          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/schema-consistency-checker.md}}
           GH_AW_PROMPT_7a368a1c473b9485_EOF
           } > "$GH_AW_PROMPT"

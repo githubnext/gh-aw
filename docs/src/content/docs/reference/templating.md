@@ -185,9 +185,9 @@ Runtime imports are processed before other substitutions:
 - **Per-run cache:** URL cache doesn't persist across workflow runs
 - **Line numbers:** Refer to raw file content before front matter removal
 
-### Relationship to `{{#import}}`
+### Deprecated `{{#import}}`
 
-`{{#import filepath}}` (without `runtime-`) is a simpler body-level shorthand that normalizes to `{{#runtime-import filepath}}` at runtime. It supports local files only and accepts the optional colon form (`{{#import: filepath}}`), but does not support URLs, line ranges, or the auto `.github/` prefix. Use it when you only need to inject a local file's content; use `{{#runtime-import}}` directly for URLs or line-range extraction. See [Imports](/gh-aw/reference/imports/) for details.
+`{{#import filepath}}` (without `runtime-`) is a **deprecated** body-level shorthand. It normalizes to `{{#runtime-import filepath}}` at runtime for backward compatibility, but emits deprecation warnings at both compile time and runtime. Use `{{#runtime-import}}` directly for all new workflows. See [Imports](/gh-aw/reference/imports/) for details.
 
 ### Error Handling
 

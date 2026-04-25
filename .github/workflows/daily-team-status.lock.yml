@@ -36,7 +36,6 @@
 #     - shared/reporting.md
 #     - shared/reporting-otlp.md
 #   Includes:
-#     - .github/shared/editorial.md
 #     - shared/noop-reminder.md
 #
 # Secrets used:
@@ -250,8 +249,8 @@ jobs:
           {{#runtime-import .github/workflows/shared/reporting-otlp.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/shared/editorial.md}}
-          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-team-status.md}}
           GH_AW_PROMPT_31fef7a17811ecb8_EOF
           } > "$GH_AW_PROMPT"

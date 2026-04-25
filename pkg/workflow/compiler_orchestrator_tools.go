@@ -240,14 +240,15 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		orchestratorToolsLog.Printf("Found %d import paths for runtime-import macros", len(importPaths))
 	}
 
-	// Extract body-level {{#import:}} directives and append them to importPaths so they
-	// appear as explicit {{#runtime-import}} macros in the compiled lock file (before the
-	// main workflow-file macro). At runtime, runtime_import.cjs deduplicates via an
-	// importedFiles Set, so files imported here won't be imported a second time when
-	// the main workflow file body is processed.
+	// Extract body-level {{#runtime-import}} directives and append them to importPaths so they
+	// appear as explicit macros in the compiled lock file (before the main workflow-file macro).
+	// This makes imported files visible in the lock file at a glance and ensures they are
+	// fetched before the main workflow body is processed.
+	// At runtime, runtime_import.cjs deduplicates via an importedFiles Set, so files listed
+	// here won't be imported a second time when the main workflow file body is processed.
 	bodyImports := parser.ExtractBodyLevelImportPaths(result.Markdown, markdownDir)
 	if len(bodyImports) > 0 {
-		orchestratorToolsLog.Printf("Found %d body-level import directive(s) to promote to runtime-import macros", len(bodyImports))
+		orchestratorToolsLog.Printf("Found %d body-level {{#runtime-import}} directive(s) to promote to lock-file macros", len(bodyImports))
 		for _, bi := range bodyImports {
 			importPaths = append(importPaths, bi.Path)
 		}

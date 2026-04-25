@@ -51,7 +51,7 @@ An imported workflow can only be imported once per workflow.
   New 'with':      {"languages":["typescript"]}
 ```
 
-In markdown, use the `{{#import ...}}` directive to inject the content of another file directly into the body at that position. This is useful for sharing reusable prompt snippets, tone instructions, or reference material across workflows.
+In markdown, use `{{#runtime-import filepath}}` to inject the content of another file directly into the body at that position. This is useful for sharing reusable prompt snippets, tone instructions, or reference material across workflows.
 
 ```aw wrap
 ---
@@ -59,26 +59,27 @@ on: schedule
 engine: copilot
 ---
 
-{{#import: .github/shared/editorial.md}}
+{{#runtime-import .github/shared/editorial.md}}
 
 # Daily Report
 
 Generate the daily report.
 ```
 
-The colon after `#import` is optional — `{{#import: filepath}}` and `{{#import filepath}}` are equivalent. Use `{{#import?: filepath}}` to silently skip a missing file instead of failing:
+Use `{{#runtime-import? filepath}}` to silently skip a missing file instead of failing:
 
 ```aw wrap
-{{#import: .github/shared/editorial.md}}    # required — fails if missing
-{{#import?: .github/shared/optional.md}}    # optional — skipped if missing
+{{#runtime-import .github/shared/editorial.md}}    # required — fails if missing
+{{#runtime-import? .github/shared/optional.md}}    # optional — skipped if missing
 ```
 
-Paths starting with `.github/` are resolved from the repository root, making them suitable for shared files used by workflows in different directories.
+Paths are resolved within the `.github` folder. You can specify paths with or without the `.github/` prefix — both `.github/shared/editorial.md` and `shared/editorial.md` refer to the same file. See [Runtime Imports](/gh-aw/reference/templating/#runtime-imports) for URLs, line ranges, and security details.
 
 > [!NOTE]
-> Body-level `{{#import}}` injects **content** (markdown text) at the insertion point. It does not merge frontmatter configuration. To share tools, permissions, or MCP servers across workflows, use the `imports:` frontmatter field instead.
+> `{{#runtime-import}}` injects **content** (markdown text) at the insertion point. It does not merge frontmatter configuration. To share tools, permissions, or MCP servers across workflows, use the `imports:` frontmatter field instead.
 
-`{{#import filepath}}` is a shorthand that normalizes to `{{#runtime-import filepath}}` at runtime. Use `{{#runtime-import}}` directly when you need its advanced features: **URLs** (`{{#runtime-import https://...}}`), **line ranges** (`{{#runtime-import src/main.go:10-20}}`), or files without the `.github/` prefix. See [Runtime Imports](/gh-aw/reference/templating/#runtime-imports) for the full syntax.
+> [!WARNING]
+> The `{{#import filepath}}` body-level directive is **deprecated**. Replace it with `{{#runtime-import filepath}}`. The old syntax still works at runtime (it normalizes to `{{#runtime-import}}` automatically) but emits deprecation warnings at both compile time and runtime.
 
 ## Shared Workflow Components
 
@@ -276,7 +277,7 @@ imports:
 
 ```aw wrap
 # Body — optional content injection
-{{#import?: .github/shared/optional.md}}
+{{#runtime-import? .github/shared/optional.md}}
 ```
 
 ## Remote Repository Imports

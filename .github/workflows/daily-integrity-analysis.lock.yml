@@ -249,6 +249,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/daily-integrity-analysis.md}}
           GH_AW_PROMPT_3e2cf01d558d33ba_EOF
           } > "$GH_AW_PROMPT"

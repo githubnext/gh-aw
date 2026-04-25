@@ -9,11 +9,11 @@ import (
 
 var importDirectiveLog = logger.New("parser:import_directive")
 
-// IncludeDirectivePattern matches @include, @import (deprecated), or {{#import (new) directives
+// IncludeDirectivePattern matches @include, @import (deprecated), or {{#import (deprecated) directives
 // The colon after #import is optional and ignored if present
 var IncludeDirectivePattern = regexp.MustCompile(`^(?:@(?:include|import)(\?)?\s+(.+)|{{#import(\?)?\s*:?\s*(.+?)\s*}})$`)
 
-// LegacyIncludeDirectivePattern matches only the deprecated @include and @import directives
+// LegacyIncludeDirectivePattern matches the deprecated @include, @import, and {{#import}} directives
 var LegacyIncludeDirectivePattern = regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
 
 // ImportDirectiveMatch holds the parsed components of an import directive
@@ -39,21 +39,23 @@ func ParseImportDirective(line string) *ImportDirectiveMatch {
 		return nil
 	}
 
-	// Determine legacy vs new syntax from the captured groups of the first match.
-	// Group 2 (path for @include/@import) is non-empty iff the legacy alternative matched.
-	isLegacy := matches[2] != ""
-	importDirectiveLog.Printf("Parsing import directive: legacy=%t, line=%s", isLegacy, trimmedLine)
+	// All matched forms are now deprecated/legacy.
+	// Group 2 non-empty → @-style (@include/@import), Group 4 non-empty → {{#import}} style.
+	// Both are legacy; the distinction is kept for message formatting.
+	atStyleLegacy := matches[2] != ""
+	isLegacy := true // every form matched by IncludeDirectivePattern is deprecated
+	importDirectiveLog.Printf("Parsing import directive: legacy=%t, atStyle=%t, line=%s", isLegacy, atStyleLegacy, trimmedLine)
 
 	var isOptional bool
 	var path string
 
-	if isLegacy {
-		// Legacy syntax: @include? path or @import? path
+	if atStyleLegacy {
+		// @-style legacy syntax: @include? path or @import? path
 		// Group 1: optional marker, Group 2: path
 		isOptional = matches[1] == "?"
 		path = strings.TrimSpace(matches[2])
 	} else {
-		// New syntax: {{#import?: path}} or {{#import: path}} (colon is optional)
+		// {{#import}} deprecated syntax: {{#import?: path}} or {{#import: path}} (colon is optional)
 		// Group 3: optional marker, Group 4: path
 		isOptional = matches[3] == "?"
 		path = strings.TrimSpace(matches[4])

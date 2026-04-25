@@ -616,11 +616,12 @@ describe("runtime_import", () => {
           expect(result).toBe("Content");
         }));
     }),
-    describe("body-level {{#import}} directives", () => {
-      (it("should resolve {{#import filepath}} (no colon) as runtime-import", async () => {
+    describe("body-level {{#import}} directives (deprecated)", () => {
+      (it("should resolve {{#import filepath}} (no colon) as runtime-import and emit deprecation warning", async () => {
         fs.writeFileSync(path.join(workflowsDir, "import.md"), "Imported content");
         const result = await processRuntimeImports("Before\n{{#import import.md}}\nAfter", tempDir);
         expect(result).toBe("Before\nImported content\nAfter");
+        expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("Deprecated"));
       }),
         it("should resolve {{#import? filepath}} optional variant", async () => {
           fs.writeFileSync(path.join(workflowsDir, "import.md"), "Optional content");

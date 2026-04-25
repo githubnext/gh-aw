@@ -235,7 +235,6 @@ jobs:
           {{#runtime-import .github/workflows/shared/ci-optimization-strategies.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/jqschema.md}}
-          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/ci-coach.md}}
           GH_AW_PROMPT_b695ae7e2ca86425_EOF
           } > "$GH_AW_PROMPT"

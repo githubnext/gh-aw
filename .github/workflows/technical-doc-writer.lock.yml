@@ -235,7 +235,6 @@ jobs:
           </system>
           {{#runtime-import .github/skills/documentation/SKILL.md}}
           {{#runtime-import .github/agents/technical-doc-writer.agent.md}}
-          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/technical-doc-writer.md}}
           GH_AW_PROMPT_8051d9fb3ffa08e7_EOF
           } > "$GH_AW_PROMPT"

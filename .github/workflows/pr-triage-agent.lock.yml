@@ -228,7 +228,6 @@ jobs:
           cat << 'GH_AW_PROMPT_8ebf52024abd9f0d_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
-          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/pr-triage-agent.md}}
           GH_AW_PROMPT_8ebf52024abd9f0d_EOF
           } > "$GH_AW_PROMPT"

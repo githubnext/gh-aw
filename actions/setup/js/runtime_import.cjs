@@ -919,8 +919,8 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
  */
 async function processRuntimeImports(content, workspaceDir, importedFiles = new Set(), importCache = new Map(), importStack = []) {
   // Normalize body-level {{#import}} directives to {{#runtime-import}} equivalents.
-  // This resolves the bug where {{#import filepath}} in the markdown body was never injected
-  // into the agent prompt. Both colon and no-colon syntax are supported:
+  // {{#import}} is deprecated — use {{#runtime-import}} or the 'imports:' frontmatter field instead.
+  // Both colon and no-colon syntax are supported for backward compatibility:
   //   {{#import filepath}}   {{#import? filepath}}
   //   {{#import: filepath}}  {{#import?: filepath}}
   // Use [^\{\}] to avoid matching across brace boundaries (e.g. nested expressions).
@@ -932,7 +932,7 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
     return `{{#runtime-import${optional || ""} ${trimmedPath}}}`;
   });
   if (bodyImportCount > 0) {
-    core.info(`Normalized ${bodyImportCount} body-level {{#import}} directive(s) to runtime-import`);
+    core.warning(`Deprecated: ${bodyImportCount} {{#import}} directive(s) found. ` + `Use {{#runtime-import}} or the 'imports:' frontmatter field instead.`);
   }
 
   // Pattern to match {{#runtime-import filepath}} or {{#runtime-import? filepath}}

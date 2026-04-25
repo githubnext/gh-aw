@@ -36,7 +36,7 @@ features:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-{{#import: .github/shared/editorial.md}}
+{{#runtime-import .github/shared/editorial.md}}
 
 # Daily Team Status
 

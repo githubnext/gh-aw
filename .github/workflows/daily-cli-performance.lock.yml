@@ -265,7 +265,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/go-make.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
-          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
+          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/daily-cli-performance.md}}
           GH_AW_PROMPT_e4df3d235e59eebe_EOF
           } > "$GH_AW_PROMPT"

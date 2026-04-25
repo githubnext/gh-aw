@@ -219,6 +219,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_prompt.md"
           cat << 'GH_AW_PROMPT_b924bc50dd3709b3_EOF'
           </system>
+          {{#runtime-import .github/shared-instructions.md}}
           {{#runtime-import .github/workflows/metrics-collector.md}}
           GH_AW_PROMPT_b924bc50dd3709b3_EOF
           } > "$GH_AW_PROMPT"
