@@ -3,6 +3,7 @@
 package console
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -389,10 +390,11 @@ func TestSpec_PublicAPI_RenderTable(t *testing.T) {
 func TestSpec_PublicAPI_RenderTitleBox(t *testing.T) {
 	result := RenderTitleBox("Audit Report", 60)
 	require.NotEmpty(t, result, "RenderTitleBox should return non-empty []string")
-	combined := ""
+	var sb strings.Builder
 	for _, line := range result {
-		combined += line + "\n"
+		sb.WriteString(line)
+		sb.WriteString("\n")
 	}
-	assert.Contains(t, combined, "Audit Report",
+	assert.Contains(t, sb.String(), "Audit Report",
 		"RenderTitleBox output should contain the provided title")
 }

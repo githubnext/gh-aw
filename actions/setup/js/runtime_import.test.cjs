@@ -670,6 +670,32 @@ describe("runtime_import", () => {
           const content = "Text {{#importantthing}} more text";
           const result = await processRuntimeImports(content, tempDir);
           expect(result).toBe(content);
+        }),
+        it("should not treat {{#import ...}} inside backtick code spans as an import directive", async () => {
+          // Documentation text like `{{#import ...}}` should not be treated as a real directive
+          const content = "Use the `imports:` field or `{{#import path/to/file.md}}` directive for imports.";
+          const result = await processRuntimeImports(content, tempDir);
+          // Should remain unchanged — no file resolution attempted
+          expect(result).toBe(content);
+        }),
+        it("should not treat {{#import? ...}} inside backtick code spans as an optional import directive", async () => {
+          const content = "Optional imports use the `{{#import? path/to/file.md}}` syntax.";
+          const result = await processRuntimeImports(content, tempDir);
+          expect(result).toBe(content);
+        }),
+        it("should still resolve {{#import}} outside backtick spans even when backtick spans are present", async () => {
+          // A real directive on a separate line should still be resolved normally
+          fs.writeFileSync(path.join(workflowsDir, "real.md"), "Real content");
+          const content = "Docs: use `{{#import example.md}}` syntax.\n{{#import real.md}}\nEnd.";
+          const result = await processRuntimeImports(content, tempDir);
+          expect(result).toBe("Docs: use `{{#import example.md}}` syntax.\nReal content\nEnd.");
+        }),
+        it("does not protect {{#import}} inside multi-line backtick spans (document limitation)", async () => {
+          // Multi-line backtick spans (code fences) are not handled — only single-line inline spans.
+          // This test documents the current behaviour rather than prescribing it.
+          const content = "Text\n`start\n{{#import missing.md}}\nend`\nMore text";
+          // The {{#import}} inside a multi-line "span" (which is unusual) is still treated as a directive
+          await expect(processRuntimeImports(content, tempDir)).rejects.toThrow();
         }));
     }),
     describe("Edge Cases", () => {

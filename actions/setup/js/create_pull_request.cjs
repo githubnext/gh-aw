@@ -232,28 +232,165 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
  * Maximum limits for pull request parameters to prevent resource exhaustion.
  * These limits align with GitHub's API constraints and security best practices.
  */
-/** @type {number} Maximum number of files allowed per pull request */
+/** @type {number} Default maximum number of unique files allowed per pull request.
+ * Can be overridden via the `max-patch-files` safe-outputs config option. */
 const MAX_FILES = 100;
+
+/**
+ * Parses a single `diff --git` header line and returns the post-image (`b/`)
+ * path, the pre-image (`a/`) path, or `null` if the header could not be
+ * parsed. Handles both unquoted paths and C-style quoted paths emitted by
+ * git when filenames contain unusual characters (e.g. backslash-escaped
+ * quotes, control characters, or non-ASCII bytes when `core.quotepath=true`).
+ *
+ * Examples of supported forms:
+ *   diff --git a/foo.txt b/foo.txt
+ *   diff --git a/dir/with space/x b/dir/with space/x
+ *   diff --git "a/foo\"bar" "b/foo\"bar"
+ *   diff --git "a/foo\\bar" "b/foo\\bar"
+ *
+ * @param {string} headerLine - The full header line (must start with `diff --git `)
+ * @returns {string|null} The extracted file path, or null if parsing failed.
+ */
+function parseDiffGitHeader(headerLine) {
+  // Strip the `diff --git ` prefix.
+  const rest = headerLine.replace(/^diff --git /, "");
+  if (rest === headerLine) {
+    return null;
+  }
+
+  // Walk the string and pull out the two pathspecs. Each is either:
+  //   - A quoted C-style string ("..."), where backslash escapes any character
+  //     including embedded quotes and backslashes.
+  //   - An unquoted run of non-space characters.
+  // We don't actually need to unescape the contents; the raw token is fine
+  // for use as a Set key (uniqueness is preserved). All we need is to
+  // correctly delimit the two path tokens.
+  /** @type {string[]} */
+  const tokens = [];
+  let i = 0;
+  while (i < rest.length && tokens.length < 2) {
+    // Skip leading whitespace between tokens.
+    while (i < rest.length && rest[i] === " ") {
+      i++;
+    }
+    if (i >= rest.length) {
+      break;
+    }
+    let token = "";
+    if (rest[i] === '"') {
+      // Quoted form: consume until the matching unescaped quote.
+      token += rest[i++];
+      while (i < rest.length) {
+        const ch = rest[i++];
+        token += ch;
+        if (ch === "\\" && i < rest.length) {
+          // Escaped char: consume the next character verbatim.
+          token += rest[i++];
+        } else if (ch === '"') {
+          break;
+        }
+      }
+    } else {
+      // Unquoted form: consume up to the next space.
+      while (i < rest.length && rest[i] !== " ") {
+        token += rest[i++];
+      }
+    }
+    tokens.push(token);
+  }
+
+  if (tokens.length < 2) {
+    return null;
+  }
+
+  // Prefer the "b/" (post-image) token, falling back to "a/" if needed.
+  // The leading "a/" or "b/" prefix is preserved in the returned key so
+  // that quoted vs. unquoted forms of the same path don't collide
+  // accidentally with unrelated files; uniqueness is the only invariant
+  // that matters here.
+  const stripPrefix = tok => {
+    if (tok.startsWith('"a/') || tok.startsWith('"b/')) {
+      return tok.slice(3, tok.endsWith('"') ? -1 : undefined);
+    }
+    if (tok.startsWith("a/") || tok.startsWith("b/")) {
+      return tok.slice(2);
+    }
+    return tok;
+  };
+  const bPath = stripPrefix(tokens[1]);
+  if (bPath) {
+    return bPath;
+  }
+  const aPath = stripPrefix(tokens[0]);
+  return aPath || null;
+}
+
+/**
+ * Counts the number of unique file paths touched by a git patch.
+ *
+ * `git format-patch` emits one `diff --git` header per (commit, file), so the
+ * same file modified across multiple commits will appear multiple times. The
+ * file-count safety limit counts unique files (i.e. how many distinct files
+ * this push touches), not raw header occurrences.
+ *
+ * Headers whose paths cannot be parsed contribute one *synthetic* entry each
+ * to the unique-file set, so a malformed or quoted-with-escapes header line
+ * can never silently bypass the limit (we conservatively over-count rather
+ * than under-count when in doubt).
+ *
+ * @param {string} patchContent - Patch content to inspect (may be empty)
+ * @returns {number} Number of unique file paths referenced in the patch
+ */
+function countUniquePatchFiles(patchContent) {
+  if (!patchContent || !patchContent.trim()) {
+    return 0;
+  }
+  const files = new Set();
+  // Find all `diff --git` headers (start of line). Each header corresponds
+  // to one file diff; we try to extract its path and fall back to a unique
+  // synthetic key per unparseable header so the file is still counted in
+  // the limit. This is a conservative choice: it never undercounts, so a
+  // single malformed header cannot bypass the safety limit.
+  const headerRe = /^diff --git .*$/gm;
+  let match;
+  let unparseableIdx = 0;
+  while ((match = headerRe.exec(patchContent)) !== null) {
+    const path = parseDiffGitHeader(match[0]);
+    if (path) {
+      files.add(path);
+    } else {
+      // Use the byte offset of the header to ensure uniqueness across
+      // multiple unparseable headers, so each is counted exactly once.
+      files.add(`__unparseable_header_${match.index}_${unparseableIdx++}`);
+    }
+  }
+  return files.size;
+}
 
 /**
  * Enforces maximum limits on pull request parameters to prevent resource exhaustion attacks.
  * Per Safe Outputs specification requirement SEC-003, limits must be enforced before API calls.
  *
+ * The file-count check measures the number of *unique* files in the patch (not
+ * the number of `diff --git` headers, which can be inflated when the patch
+ * contains multiple commits touching the same file).
+ *
  * @param {string} patchContent - Patch content to validate
+ * @param {number} [maxFiles=MAX_FILES] - Maximum number of unique files allowed
  * @throws {Error} When any limit is exceeded, with error code E003 and details
  */
-function enforcePullRequestLimits(patchContent) {
+function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
   if (!patchContent || !patchContent.trim()) {
     return;
   }
 
-  // Count files in patch by looking for "diff --git" lines
-  const fileMatches = patchContent.match(/^diff --git /gm);
-  const fileCount = fileMatches ? fileMatches.length : 0;
+  const limit = Number.isFinite(maxFiles) && maxFiles > 0 ? maxFiles : MAX_FILES;
+  const fileCount = countUniquePatchFiles(patchContent);
 
   // Check file count - max limit exceeded check
-  if (fileCount > MAX_FILES) {
-    throw new Error(`E003: Cannot create pull request with more than ${MAX_FILES} files (received ${fileCount})`);
+  if (fileCount > limit) {
+    throw new Error(`E003: Cannot create pull request with more than ${limit} files (received ${fileCount})`);
   }
 }
 
@@ -352,6 +489,7 @@ async function main(config = {}) {
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
+  const maxFiles = config.max_patch_files ? parseInt(String(config.max_patch_files), 10) : MAX_FILES;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const allowedBaseBranches = parseAllowedBaseBranches(config.allowed_base_branches);
   const githubClient = await createAuthenticatedGitHubClient(config);
@@ -484,6 +622,7 @@ async function main(config = {}) {
   }
   core.info(`Max count: ${maxCount}`);
   core.info(`Max patch size: ${maxSizeKb} KB`);
+  core.info(`Max patch files: ${maxFiles}`);
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
@@ -682,7 +821,7 @@ async function main(config = {}) {
 
     // Enforce max limits on patch before processing
     try {
-      enforcePullRequestLimits(patchContent);
+      enforcePullRequestLimits(patchContent, maxFiles);
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.warning(`Pull request limit exceeded: ${errorMessage}`);
@@ -1802,4 +1941,4 @@ ${patchPreview}`;
   }; // End of handleCreatePullRequest
 } // End of main
 
-module.exports = { main, enforcePullRequestLimits };
+module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles, parseDiffGitHeader };

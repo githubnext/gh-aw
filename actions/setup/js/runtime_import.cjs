@@ -924,13 +924,26 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
   //   {{#import filepath}}   {{#import? filepath}}
   //   {{#import: filepath}}  {{#import?: filepath}}
   // Use [^\{\}] to avoid matching across brace boundaries (e.g. nested expressions).
+  //
+  // To avoid treating documentation examples inside backtick code spans (e.g. `{{#import ...}}`)
+  // as real directives, temporarily replace inline code spans with placeholders before matching.
+  // Note: only single-line backtick spans are protected (multi-line spans use fences, not backticks).
+  const codeSpanPlaceholders = [];
+  const contentWithPlaceholders = content.replace(/`[^`\n]+`/g, match => {
+    const idx = codeSpanPlaceholders.length;
+    codeSpanPlaceholders.push(match);
+    // Use a sentinel that cannot appear in normal workflow content.
+    return `\u0000GH_AW_CODESPAN_${idx}_GH_AW\u0000`;
+  });
   const bodyImportRe = /\{\{#import(\?)?(?:[ \t]+|[ \t]*:[ \t]*)([^\{\}]+?)\}\}/g;
   let bodyImportCount = 0;
-  content = content.replace(bodyImportRe, (_, optional, importPath) => {
+  const normalizedContent = contentWithPlaceholders.replace(bodyImportRe, (_, optional, importPath) => {
     bodyImportCount++;
     const trimmedPath = importPath.trim();
     return `{{#runtime-import${optional || ""} ${trimmedPath}}}`;
   });
+  // Restore inline code spans after directive normalization
+  content = normalizedContent.replace(/\u0000GH_AW_CODESPAN_(\d+)_GH_AW\u0000/g, (_, idx) => codeSpanPlaceholders[parseInt(idx, 10)]);
   if (bodyImportCount > 0) {
     core.warning(`Deprecated: ${bodyImportCount} {{#import}} directive(s) found. ` + `Use {{#runtime-import}} or the 'imports:' frontmatter field instead.`);
   }
