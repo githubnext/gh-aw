@@ -134,16 +134,13 @@ Examples:
 
 // runAuditMulti handles the multi-run diff mode for the audit command.
 // The first argument is the base run; remaining arguments are comparison runs.
-// Each argument may be a numeric run ID or a GitHub Actions run URL.
-// Job URLs and step-anchored URLs are not accepted in multi-run mode.
+// Each argument may be a numeric run ID, a GitHub Actions run URL, or a job/step
+// URL — job and step specificity is silently normalized to the parent run ID.
 func runAuditMulti(ctx context.Context, args []string, repoFlag, outputDir string, verbose, jsonOutput bool, format string, artifacts []string) error {
-	// Parse base run
+	// Parse base run (job/step URLs are accepted; only the run number is used)
 	baseComponents, err := parser.ParseRunURLExtended(args[0])
 	if err != nil {
 		return fmt.Errorf("invalid base run %q: %w", args[0], err)
-	}
-	if baseComponents.JobID != 0 || baseComponents.StepNumber != 0 {
-		return fmt.Errorf("base run %q contains job/step specificity which is not supported in multi-run diff mode: provide a run ID or run URL only", args[0])
 	}
 
 	// Resolve owner/repo/hostname from --repo flag or base URL
@@ -159,16 +156,13 @@ func runAuditMulti(ctx context.Context, args []string, repoFlag, outputDir strin
 		repo = parts[1]
 	}
 
-	// Parse comparison run IDs
+	// Parse comparison run IDs (job/step URLs are accepted; only the run number is used)
 	seen := make(map[int64]bool)
 	compareRunIDs := make([]int64, 0, len(args)-1)
 	for _, arg := range args[1:] {
 		c, err := parser.ParseRunURLExtended(arg)
 		if err != nil {
 			return fmt.Errorf("invalid comparison run %q: %w", arg, err)
-		}
-		if c.JobID != 0 || c.StepNumber != 0 {
-			return fmt.Errorf("comparison run %q contains job/step specificity which is not supported in multi-run diff mode: provide a run ID or run URL only", arg)
 		}
 		if c.Number == baseComponents.Number {
 			return fmt.Errorf("comparison run ID %d is the same as the base run ID: cannot diff a run against itself", c.Number)

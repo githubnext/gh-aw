@@ -29,6 +29,8 @@ Audit one or more workflow runs. When a single run is provided, a detailed Markd
 
 When a job URL is provided without a step anchor (single-run mode), the command extracts the output of the first failing step. When a step anchor is included, it extracts that specific step.
 
+In diff mode, job URLs and step-anchored URLs are accepted for any argument — the job/step specificity is silently normalized to the parent run ID, so it is always a run-level diff.
+
 Self-comparisons and duplicate run IDs are rejected when using diff mode.
 
 **Flags:**

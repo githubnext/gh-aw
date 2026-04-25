@@ -1026,14 +1026,18 @@ func TestRunAuditMulti_Validation(t *testing.T) {
 			wantErr: "invalid comparison run",
 		},
 		{
-			name:    "base job URL rejected in multi-run mode",
-			args:    []string{"https://github.com/owner/repo/actions/runs/1234567890/job/9876543210", "1111111111"},
-			wantErr: "job/step specificity which is not supported in multi-run diff mode",
+			// Job URL as base is normalized to its parent run ID (1234567890), so
+			// a self-comparison against the same run ID should still be caught.
+			name:    "base job URL normalized and self-comparison rejected",
+			args:    []string{"https://github.com/owner/repo/actions/runs/1234567890/job/9876543210", "1234567890"},
+			wantErr: "cannot diff a run against itself",
 		},
 		{
-			name:    "comparison job URL rejected in multi-run mode",
-			args:    []string{"1234567890", "https://github.com/owner/repo/actions/runs/1111111111/job/9876543210"},
-			wantErr: "job/step specificity which is not supported in multi-run diff mode",
+			// Job URL as comparison is normalized to its parent run ID (1111111111),
+			// so duplicate detection should still work.
+			name:    "comparison job URL normalized and duplicate detected",
+			args:    []string{"1234567890", "https://github.com/owner/repo/actions/runs/1111111111/job/9876543210", "1111111111"},
+			wantErr: "duplicate comparison run ID",
 		},
 	}
 
