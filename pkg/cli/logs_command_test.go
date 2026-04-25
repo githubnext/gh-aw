@@ -341,3 +341,54 @@ func TestIsWorkflowExcluded(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveExcludeWorkflows(t *testing.T) {
+	tests := []struct {
+		name     string
+		excludes []string
+		expected []string
+	}{
+		{
+			name:     "nil input returns nil",
+			excludes: nil,
+			expected: nil,
+		},
+		{
+			name:     "empty slice returns nil",
+			excludes: []string{},
+			expected: nil,
+		},
+		{
+			name:     "blank entries are dropped",
+			excludes: []string{"  ", ""},
+			expected: []string{},
+		},
+		{
+			name:     "unknown workflow kept as raw value",
+			excludes: []string{"no-such-workflow"},
+			expected: []string{"no-such-workflow"},
+		},
+		{
+			name:     "whitespace is trimmed from raw values",
+			excludes: []string{"  my-workflow  "},
+			expected: []string{"my-workflow"},
+		},
+		{
+			name:     "multiple unknown workflows all kept",
+			excludes: []string{"alpha", "beta"},
+			expected: []string{"alpha", "beta"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := resolveExcludeWorkflows(tt.excludes, false)
+			if tt.expected == nil {
+				assert.Nil(t, result, "resolveExcludeWorkflows(%v) should return nil", tt.excludes)
+			} else {
+				require.NotNil(t, result, "resolveExcludeWorkflows(%v) should not return nil", tt.excludes)
+				assert.Equal(t, tt.expected, result, "resolveExcludeWorkflows(%v) should return %v", tt.excludes, tt.expected)
+			}
+		})
+	}
+}

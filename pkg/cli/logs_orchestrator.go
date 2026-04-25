@@ -66,7 +66,8 @@ type DownloadWorkflowLogsOptions struct {
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics.
-// It is a thin wrapper around DownloadWorkflowLogsWithOptions for backward compatibility.
+// It is a thin wrapper around DownloadWorkflowLogsWithOptions that maps the
+// positional arguments into DownloadWorkflowLogsOptions.
 func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool, train bool, format string, artifactSets []string, excludeWorkflows []string) error {
 	return DownloadWorkflowLogsWithOptions(ctx, DownloadWorkflowLogsOptions{
 		WorkflowName:      workflowName,
