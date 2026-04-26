@@ -62,7 +62,7 @@ jobs:
       - name: Pack APM packages
         id: apm_pack
         if: steps.apm_cache.outputs.cache-hit != 'true'
-        uses: microsoft/apm-action@v1.4.1
+        uses: microsoft/apm-action@v1.4.2
         env:
           GITHUB_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
@@ -118,7 +118,7 @@ pre-agent-steps:
       fi
       echo "path=$bundle" >> "$GITHUB_OUTPUT"
   - name: Restore APM packages
-    uses: microsoft/apm-action@v1.4.1
+    uses: microsoft/apm-action@v1.4.2
     with:
       bundle: ${{ steps.apm_bundle.outputs.path }}
 ---

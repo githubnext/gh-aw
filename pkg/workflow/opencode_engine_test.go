@@ -21,7 +21,6 @@ func TestOpenCodeEngine(t *testing.T) {
 		assert.False(t, engine.SupportsToolsAllowlist(), "Should not support tools allowlist")
 		assert.False(t, engine.SupportsMaxTurns(), "Should not support max turns")
 		assert.False(t, engine.SupportsWebSearch(), "Should not support built-in web search")
-		assert.Equal(t, constants.OpenCodeLLMGatewayPort, engine.SupportsLLMGateway(), "Should support LLM gateway on OpenCode port")
 	})
 
 	t.Run("model env var name", func(t *testing.T) {

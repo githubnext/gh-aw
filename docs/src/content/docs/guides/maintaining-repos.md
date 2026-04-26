@@ -175,7 +175,7 @@ gh aw logs --filtered-integrity    # only runs with DIFC-filtered events
 **Compare two runs for regressions:**
 
 ```bash
-gh aw audit diff BASELINE_ID CURRENT_ID
+gh aw audit BASELINE_ID CURRENT_ID
 ```
 
 ### Common Failure Patterns
@@ -195,7 +195,7 @@ gh aw audit diff BASELINE_ID CURRENT_ID
 2. Run `gh aw audit RUN_ID` for a structured breakdown.
 3. For complex issues, use `/agent agentic-workflows` in Copilot Chat.
 4. Edit the `.md` file → run `gh aw compile` to validate → trigger a new run.
-5. Compare the new run against the baseline with `gh aw audit diff`.
+5. Compare the new run against the baseline with `gh aw audit BASELINE_ID NEW_ID`.
 
 ## Related Documentation
 

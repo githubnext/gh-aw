@@ -200,7 +200,7 @@ The `audit` command now automatically:
 
 - **Minimal overhead:** Parser only runs when firewall logs are present
 - **Efficient parsing:** Single-pass scanning with buffered I/O
-- **Smart caching:** Results cached in `run_summary.json`
+- **Result caching:** Results cached in `run_summary.json`
 - **Concurrent processing:** Runs are processed in parallel
 
 ## Testing

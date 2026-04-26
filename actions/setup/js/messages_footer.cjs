@@ -358,6 +358,12 @@ function generateXMLMarker(workflowName, runUrl) {
 }
 
 /**
+ * @typedef {Object} GenerateFooterOptions
+ * @property {boolean} [skipDetectionCaution=false] - When true, omit the threat detection caution alert
+ *   from the footer. Use this when the caution alert has already been placed at the top of the body.
+ */
+
+/**
  * Generate the complete footer with AI attribution and optional installation instructions.
  * This is a drop-in replacement for the original generateFooter function.
  * @param {string} workflowName - Name of the workflow
@@ -368,9 +374,10 @@ function generateXMLMarker(workflowName, runUrl) {
  * @param {number|undefined} triggeringPRNumber - Pull request number that triggered this workflow
  * @param {number|undefined} triggeringDiscussionNumber - Discussion number that triggered this workflow
  * @param {string|null|undefined} [historyUrl] - GitHub search URL for items created by this workflow
+ * @param {GenerateFooterOptions} [options] - Optional generation flags
  * @returns {string} Complete footer text
  */
-function generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl) {
+function generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, options) {
   // Determine triggering number (issue takes precedence, then PR, then discussion)
   let triggeringNumber;
   if (triggeringIssueNumber) {
@@ -396,13 +403,18 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
     effectiveTokens,
   };
 
+  const { skipDetectionCaution = false } = options || {};
+
   // Collect guard notices to show BEFORE the attribution footer
   let guardNotices = "";
 
-  // Add detection caution alert if detection job found a potential issue
-  const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
-  if (detectionCaution) {
-    guardNotices += detectionCaution;
+  // Add detection caution alert if detection job found a potential issue.
+  // Skip when the caller has already placed the caution alert at the top of the body.
+  if (!skipDetectionCaution) {
+    const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+    if (detectionCaution) {
+      guardNotices += detectionCaution;
+    }
   }
 
   // Add firewall blocked domains section if any domains were blocked

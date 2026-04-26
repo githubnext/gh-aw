@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +24,6 @@ func TestCrushEngine(t *testing.T) {
 		assert.False(t, engine.SupportsToolsAllowlist(), "Should not support tools allowlist")
 		assert.False(t, engine.SupportsMaxTurns(), "Should not support max turns")
 		assert.False(t, engine.SupportsWebSearch(), "Should not support built-in web search")
-		assert.Equal(t, constants.CrushLLMGatewayPort, engine.SupportsLLMGateway(), "Should support LLM gateway on the Crush port")
 	})
 
 	t.Run("model env var name", func(t *testing.T) {

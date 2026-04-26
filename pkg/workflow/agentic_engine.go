@@ -293,7 +293,7 @@ type BaseEngine struct {
 	supportsWebSearch        bool
 	supportsNativeAgentFile  bool
 	supportsBareMode         bool
-	llmGatewayPort           int
+	dedicatedLLMGatewayPort  int
 }
 
 func (e *BaseEngine) GetID() string {
@@ -336,8 +336,8 @@ func (e *BaseEngine) SupportsBareMode() bool {
 	return e.supportsBareMode
 }
 
-func (e *BaseEngine) getLLMGatewayPort() int {
-	return e.llmGatewayPort
+func (e *BaseEngine) getDedicatedLLMGatewayPort() int {
+	return e.dedicatedLLMGatewayPort
 }
 
 // GetDeclaredOutputFiles returns an empty list by default (engines can override)
@@ -473,9 +473,9 @@ func GetGlobalEngineRegistry() *EngineRegistry {
 
 // Register adds an engine to the registry
 func (r *EngineRegistry) Register(engine CodingAgentEngine) {
-	type portProvider interface{ getLLMGatewayPort() int }
-	if p, ok := engine.(portProvider); ok && p.getLLMGatewayPort() < 0 {
-		panic(fmt.Sprintf("engine '%s': llmGatewayPort must be >= 0, got %d", engine.GetID(), p.getLLMGatewayPort()))
+	type portProvider interface{ getDedicatedLLMGatewayPort() int }
+	if p, ok := engine.(portProvider); ok && p.getDedicatedLLMGatewayPort() < 0 {
+		panic(fmt.Sprintf("engine '%s': dedicatedLLMGatewayPort must be >= 0, got %d", engine.GetID(), p.getDedicatedLLMGatewayPort()))
 	}
 	agenticEngineLog.Printf("Registering engine: id=%s, name=%s", engine.GetID(), engine.GetDisplayName())
 	r.engines[engine.GetID()] = engine

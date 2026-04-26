@@ -3,12 +3,59 @@ package workflow
 import (
 	"fmt"
 	"net/url"
+	"os"
+	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var otlpLog = logger.New("workflow:observability_otlp")
+
+// normalizeOTLPHeaders converts the headers field value (which may be a string or a map)
+// into the comma-separated key=value format required by OTEL_EXPORTER_OTLP_HEADERS.
+//
+// The second return value is true when the deprecated string form was used, so callers
+// can emit a deprecation warning.
+//
+// String form (deprecated): "Authorization=Bearer tok,X-Tenant=acme"
+// Map form (preferred):     map[string]any{"Authorization": "Bearer tok", "X-Tenant": "acme"}
+func normalizeOTLPHeaders(raw any) (string, bool) {
+	if raw == nil {
+		return "", false
+	}
+	switch v := raw.(type) {
+	case string:
+		if v == "" {
+			return "", false
+		}
+		return v, true // string form is deprecated
+	case map[string]any:
+		if len(v) == 0 {
+			return "", false
+		}
+		// Sort keys for deterministic output
+		keys := make([]string, 0, len(v))
+		for k := range v {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		var parts []string
+		for _, k := range keys {
+			val, ok := v[k].(string)
+			if !ok {
+				otlpLog.Printf("OTLP headers map: value for key %q is not a string (got %T), skipping", k, v[k])
+				continue
+			}
+			parts = append(parts, k+"="+val)
+		}
+		return strings.Join(parts, ","), false
+	default:
+		otlpLog.Printf("Unexpected type for OTLP headers: %T", raw)
+		return "", false
+	}
+}
 
 // extractOTLPEndpointDomain parses an OTLP endpoint URL and returns its hostname.
 // Returns an empty string when the endpoint is a GitHub Actions expression (which
@@ -59,22 +106,24 @@ func isOTLPHeadersPresent(data *WorkflowData) bool {
 	return strings.Contains(data.Env, "OTEL_EXPORTER_OTLP_HEADERS")
 }
 
-// generateOTLPHeadersMaskStep returns a GitHub Actions step that issues the
-// ::add-mask:: workflow command for the OTEL_EXPORTER_OTLP_HEADERS environment
-// variable. Masking the value causes the GitHub Actions runner to replace any
-// subsequent occurrence of it in the job logs with "***", preventing authentication
-// tokens from leaking even when runner debug logging is enabled.
+// generateOTLPHeadersMaskStep returns a GitHub Actions step that runs
+// mask_otlp_headers.sh to issue the ::add-mask:: workflow command for the
+// OTEL_EXPORTER_OTLP_HEADERS environment variable. Masking the value causes the
+// GitHub Actions runner to replace any subsequent occurrence of it in the job
+// logs with "***", preventing authentication tokens from leaking even when runner
+// debug logging is enabled.
 //
-// The run command uses mixed quoting ('::add-mask::'  followed by "$VAR") so that
-// the prefix is treated as a literal string (safe from injection in the prefix)
-// while the environment variable is still expanded at runtime.
+// The script performs three levels of masking:
+//  1. The entire OTEL_EXPORTER_OTLP_HEADERS value (comma-separated header pairs).
+//  2. Each individual header value extracted from the pairs, so that a token
+//     appearing without its header name prefix is also redacted.
+//  3. For Authorization-style "Bearer <token>" credentials, the raw token after
+//     stripping the "Bearer " scheme prefix, so it is masked even when it appears
+//     without the scheme (e.g. in downstream tool logs).
 func generateOTLPHeadersMaskStep() string {
 	var sb strings.Builder
 	sb.WriteString("      - name: Mask OTLP telemetry headers\n")
-	// Use mixed quoting: single-quoted prefix concatenated with double-quoted variable
-	// so the ::add-mask:: prefix is never subject to shell word-splitting or glob expansion,
-	// and the variable value is expanded but not further interpreted.
-	sb.WriteString("        run: echo '::add-mask::'\"$OTEL_EXPORTER_OTLP_HEADERS\"\n")
+	sb.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh\"\n")
 	return sb.String()
 }
 
@@ -83,7 +132,10 @@ func generateOTLPHeadersMaskStep() string {
 // succeeding -- that function may fail for workflows with complex tool configurations
 // (e.g. engine objects, array-style bash configs), which would leave ParsedFrontmatter
 // nil and prevent OTLP injection.
-func extractOTLPConfigFromRaw(frontmatter map[string]any) (endpoint, headers string) {
+//
+// The third return value is true when the deprecated string form was used for headers,
+// so the caller can emit a deprecation warning.
+func extractOTLPConfigFromRaw(frontmatter map[string]any) (endpoint, headers string, deprecated bool) {
 	obs, ok := frontmatter["observability"]
 	if !ok {
 		return
@@ -103,8 +155,8 @@ func extractOTLPConfigFromRaw(frontmatter map[string]any) (endpoint, headers str
 	if ep, ok := otlpMap["endpoint"].(string); ok {
 		endpoint = ep
 	}
-	if h, ok := otlpMap["headers"].(string); ok {
-		headers = h
+	if raw, ok := otlpMap["headers"]; ok {
+		headers, deprecated = normalizeOTLPHeaders(raw)
 	}
 	return
 }
@@ -123,7 +175,7 @@ func extractOTLPConfigFromRaw(frontmatter map[string]any) (endpoint, headers str
 func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	// Read OTLP config from the raw frontmatter map so that injection works even
 	// when ParseFrontmatterConfig failed (e.g. due to complex tool configs).
-	endpoint, headers := extractOTLPConfigFromRaw(workflowData.RawFrontmatter)
+	endpoint, headers, deprecated := extractOTLPConfigFromRaw(workflowData.RawFrontmatter)
 
 	// Fall back to ParsedFrontmatter when the raw map didn't yield an endpoint.
 	if endpoint == "" {
@@ -153,8 +205,20 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	if headers == "" && workflowData.ParsedFrontmatter != nil &&
 		workflowData.ParsedFrontmatter.Observability != nil &&
 		workflowData.ParsedFrontmatter.Observability.OTLP != nil {
-		headers = workflowData.ParsedFrontmatter.Observability.OTLP.Headers
+		var parsedDeprecated bool
+		headers, parsedDeprecated = normalizeOTLPHeaders(workflowData.ParsedFrontmatter.Observability.OTLP.Headers)
+		if parsedDeprecated {
+			deprecated = true
+		}
 	}
+
+	// Emit the deprecation warning once after resolving headers from all sources.
+	if deprecated {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			"observability.otlp.headers: string form is deprecated. Use the map form instead (e.g. headers: {Authorization: \"Bearer ${{ secrets.TOKEN }}\"})",
+		))
+	}
+
 	if headers != "" {
 		otlpEnvLines += "\n  OTEL_EXPORTER_OTLP_HEADERS: " + headers
 		otlpLog.Printf("Injected OTEL_EXPORTER_OTLP_HEADERS env var")
@@ -167,8 +231,9 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	}
 	otlpLog.Printf("Injected OTEL env vars into workflow env block")
 
-	// Store the resolved endpoint so downstream code (mcp_gateway_config, mcp_setup_generator)
-	// can use workflowData.OTLPEndpoint as the single source of truth instead of
-	// re-reading raw frontmatter independently.
+	// Store the resolved endpoint and headers so downstream code (mcp_gateway_config,
+	// mcp_setup_generator) can use workflowData.OTLPEndpoint / OTLPHeaders as the single
+	// source of truth instead of re-reading raw frontmatter independently.
 	workflowData.OTLPEndpoint = endpoint
+	workflowData.OTLPHeaders = headers
 }

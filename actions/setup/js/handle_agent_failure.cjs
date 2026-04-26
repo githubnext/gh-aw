@@ -571,10 +571,10 @@ function loadMissingDataMessages() {
     const missingDataMessages = [];
     for (const item of agentOutputResult.items) {
       if (item.type === "missing_data") {
-        // Extract the fields we need
-        if (item.data_type && item.reason) {
+        // Accept items with at least a reason; data_type may be absent for cache-miss signals
+        if (item.reason) {
           missingDataMessages.push({
-            data_type: item.data_type,
+            data_type: item.data_type || "",
             reason: item.reason,
             context: item.context || null,
             alternatives: item.alternatives || null,
@@ -591,10 +591,13 @@ function loadMissingDataMessages() {
 }
 
 /**
- * Build missing_data context string for display in failure issues/comments
+ * Build missing_data context string for display in failure issues/comments.
+ * When cache-memory is enabled and a cache_miss is detected, appends a
+ * configuration-problem warning to the context.
+ * @param {boolean} cacheMemoryEnabled - Whether cache-memory is configured for this workflow
  * @returns {string} Formatted missing data context
  */
-function buildMissingDataContext() {
+function buildMissingDataContext(cacheMemoryEnabled) {
   const missingDataMessages = loadMissingDataMessages();
 
   if (missingDataMessages.length === 0) {
@@ -609,6 +612,17 @@ function buildMissingDataContext() {
   let context = "\n**⚠️ Missing Data Reported**: The agent reported missing data during execution.\n\n**Missing Data:**\n";
   context += formattedList;
   context += "\n\n";
+
+  // Detect cache_miss: if cache-memory is available and the agent reported a cache miss,
+  // this indicates the prompt is referencing an incorrect file path within the cache directory.
+  const hasCacheMiss = missingDataMessages.some(m => m.reason === "cache_memory_miss");
+  if (cacheMemoryEnabled && hasCacheMiss) {
+    core.info("Cache-miss detected despite cache-memory being available — likely a configuration problem");
+    context +=
+      "**⚠️ Cache Configuration Problem**: The agent reported a cache miss (`missing_data` with `reason: cache_memory_miss`) even though cache-memory is configured and was available. " +
+      "This likely indicates the prompt is misconfigured and the agent cannot locate the correct file path within the cache directory. " +
+      "Please review the cache-memory configuration and ensure the agent prompt correctly references files inside the cache directory.\n\n";
+  }
 
   return context;
 }
@@ -1010,6 +1024,9 @@ async function main() {
     // stored in the compiled .lock.yml no longer matches the source .md file.
     // The agent is skipped in this case; the conclusion job runs to surface remediation guidance.
     const hasStaleLockFileFailed = process.env.GH_AW_STALE_LOCK_FILE_FAILED === "true";
+    // Cache-memory availability flag — set when cache-memory is configured for the workflow.
+    // Used to detect cache-miss misconfigurations reported by the agent.
+    const cacheMemoryEnabled = process.env.GH_AW_CACHE_MEMORY_ENABLED === "true";
 
     // Collect repo-memory validation errors from all memory configurations
     const repoMemoryValidationErrors = [];
@@ -1049,6 +1066,7 @@ async function main() {
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
     core.info(`Stale lock file check failed: ${hasStaleLockFileFailed}`);
+    core.info(`Cache memory enabled: ${cacheMemoryEnabled}`);
 
     // Check if the agent timed out.
     // A job-level timeout sets agentConclusion to "timed_out".
@@ -1121,10 +1139,25 @@ async function main() {
       }
     }
 
+    // Detect cache-miss misconfiguration: the agent reported a missing_data with reason
+    // "cache_memory_miss" while cache-memory was configured and available.  This indicates the
+    // prompt is referencing an incorrect path inside the cache directory.
+    // Check for items regardless of agentOutputResult.success so that cache-miss signals
+    // emitted alongside other output are not missed when the agent job also fails.
+    let hasCacheMissMisconfiguration = false;
+    if (cacheMemoryEnabled && agentOutputResult.items) {
+      const cacheMissItems = agentOutputResult.items.filter(item => item.type === "missing_data" && item.reason === "cache_memory_miss");
+      if (cacheMissItems.length > 0) {
+        hasCacheMissMisconfiguration = true;
+        core.info(`Cache-miss misconfiguration detected: ${cacheMissItems.length} missing_data item(s) with reason "cache_memory_miss" despite cache-memory being available`);
+      }
+    }
+
     // Only proceed if the agent job actually failed OR timed out OR there are assignment errors OR
     // create_discussion errors OR code-push failures OR push_repo_memory failed OR missing safe outputs
     // OR a GitHub App token minting step failed OR the lockdown check failed OR copilot assignment failed
-    // OR the stale lock file check failed OR the agent reported task incompletion via report_incomplete.
+    // OR the stale lock file check failed OR the agent reported task incompletion via report_incomplete
+    // OR a cache-miss was detected despite cache-memory being available (configuration problem).
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
     if (
       agentConclusion !== "failure" &&
@@ -1138,14 +1171,17 @@ async function main() {
       !hasAppTokenMintingFailed &&
       !hasLockdownCheckFailed &&
       !hasStaleLockFileFailed &&
-      !hasReportIncomplete
+      !hasReportIncomplete &&
+      !hasCacheMissMisconfiguration
     ) {
-      core.info(`Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/report-incomplete errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
+      core.info(
+        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/report-incomplete/cache-miss errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
+      );
       return;
     }
 
-    // If we only have noop outputs (and no report_incomplete), skip failure handling - this is a successful no-action scenario
-    if (hasOnlyNoopOutputs && !hasReportIncomplete) {
+    // If we only have noop outputs (and no report_incomplete or cache-miss), skip failure handling
+    if (hasOnlyNoopOutputs && !hasReportIncomplete && !hasCacheMissMisconfiguration) {
       core.info("Agent completed with only noop outputs - skipping failure handling");
       return;
     }
@@ -1281,7 +1317,7 @@ async function main() {
         const pushRepoMemoryFailureContext = buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryPatchSizeExceededIDs, runUrl);
 
         // Build missing_data context
-        const missingDataContext = buildMissingDataContext();
+        const missingDataContext = buildMissingDataContext(cacheMemoryEnabled);
 
         // Build report_incomplete context
         const reportIncompleteContext = buildReportIncompleteContext();
@@ -1442,7 +1478,7 @@ async function main() {
         const pushRepoMemoryFailureContext = buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryPatchSizeExceededIDs, runUrl);
 
         // Build missing_data context
-        const missingDataContext = buildMissingDataContext();
+        const missingDataContext = buildMissingDataContext(cacheMemoryEnabled);
 
         // Build report_incomplete context
         const reportIncompleteContext = buildReportIncompleteContext();
@@ -1593,5 +1629,6 @@ module.exports = {
   buildReportIncompleteContext,
   buildMCPPolicyErrorContext,
   buildModelNotSupportedErrorContext,
+  buildMissingDataContext,
   getActionFailureIssueExpiresHours,
 };

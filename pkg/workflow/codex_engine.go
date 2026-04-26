@@ -41,7 +41,7 @@ func NewCodexEngine() *CodexEngine {
 			supportsMaxContinuations: false, // Codex does not support --max-autopilot-continues-style continuation mode
 			supportsWebSearch:        true,  // Codex has built-in web-search support
 			supportsNativeAgentFile:  false, // Codex does not support agent file natively; the compiler prepends the agent file content to prompt.txt
-			llmGatewayPort:           constants.CodexLLMGatewayPort,
+			dedicatedLLMGatewayPort:  constants.CodexLLMGatewayPort,
 		},
 	}
 }

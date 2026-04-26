@@ -20,6 +20,17 @@ var toolsLog = logger.New("workflow:tools")
 func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error {
 	toolsLog.Printf("Applying defaults to workflow: name=%s, path=%s", data.Name, markdownPath)
 
+	// Populate cached values after all mutations to Permissions and Concurrency have been applied.
+	// Using defer ensures the cache is always set on every return path, including early returns.
+	// applyDefaults is the final stage that mutates data.Permissions (setting defaults and
+	// injecting feature-flag permissions), so the values computed here represent the stable,
+	// final state that validateWorkflowData will use. These caches eliminate repeated
+	// YAML parsing and regex extraction in the hot validateWorkflowData loop.
+	defer func() {
+		data.CachedPermissions = NewPermissionsParser(data.Permissions).ToPermissions()
+		data.ConcurrencyGroupExpr = extractConcurrencyGroupFromYAML(data.Concurrency)
+	}()
+
 	// Check if this is a command trigger workflow (by checking if user specified "on.command")
 	isCommandTrigger := false
 	isLabelCommandTrigger := false

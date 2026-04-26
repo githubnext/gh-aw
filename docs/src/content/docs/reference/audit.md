@@ -7,17 +7,18 @@ sidebar:
 
 The `gh aw audit` commands download workflow run artifacts and logs, analyze MCP tool usage and network behavior, and produce structured reports suited for security reviews, debugging, and feeding to AI agents.
 
-## `gh aw audit <run-id-or-url>`
+## `gh aw audit <run-id-or-url> [<run-id-or-url>...]`
 
-Audit a single workflow run and generate a detailed Markdown report.
+Audit one or more workflow runs. When a single run is provided, a detailed Markdown report is generated. When two or more runs are provided, the first is used as the base (reference) run and the remaining runs are compared against it, producing a diff report.
 
 **Arguments:**
 
 | Argument | Description |
 |----------|-------------|
 | `<run-id-or-url>` | A numeric run ID, GitHub Actions run URL, job URL, or job URL with step anchor |
+| `[<run-id-or-url>...]` | Additional run IDs or URLs to compare against the first (diff mode) |
 
-**Accepted input formats:**
+**Accepted input formats (per argument):**
 
 - Numeric run ID: `1234567890`
 - Run URL: `https://github.com/owner/repo/actions/runs/1234567890`
@@ -26,7 +27,11 @@ Audit a single workflow run and generate a detailed Markdown report.
 - Short run URL: `https://github.com/owner/repo/runs/1234567890`
 - GitHub Enterprise URLs using the same formats above
 
-When a job URL is provided without a step anchor, the command extracts the output of the first failing step. When a step anchor is included, it extracts that specific step.
+When a job URL is provided without a step anchor (single-run mode), the command extracts the output of the first failing step. When a step anchor is included, it extracts that specific step.
+
+In diff mode, job URLs and step-anchored URLs are accepted for any argument — the job/step specificity is silently normalized to the parent run ID, so it is always a run-level diff.
+
+Self-comparisons and duplicate run IDs are rejected when using diff mode.
 
 **Flags:**
 
@@ -34,11 +39,12 @@ When a job URL is provided without a step anchor, the command extracts the outpu
 |------|---------|-------------|
 | `-o, --output <dir>` | `./logs` | Directory to write downloaded artifacts and report files |
 | `--json` | off | Output report as JSON to stdout |
-| `--parse` | off | Run JavaScript parsers on agent and firewall logs, writing `log.md` and `firewall.md` |
+| `--parse` | off | Run JavaScript parsers on agent and firewall logs, writing `log.md` and `firewall.md` (single-run only) |
 | `--repo <owner/repo>` | auto | Specify repository when the run ID is not from a URL |
 | `--verbose` | off | Print detailed progress information |
+| `--format <fmt>` | `pretty` | Diff output format: `pretty` or `markdown` (multi-run only) |
 
-**Examples:**
+**Single-run examples:**
 
 ```bash
 gh aw audit 1234567890
@@ -49,38 +55,24 @@ gh aw audit 1234567890 -o ./audit-reports
 gh aw audit 1234567890 --repo owner/repo
 ```
 
-**Report sections** (rendered in Markdown or JSON): Overview, Comparison, Task/Domain, Behavior Fingerprint, Agentic Assessments, Metrics, Key Findings, Recommendations, Observability Insights, Performance Metrics, Engine Config, Prompt Analysis, Session Analysis, Safe Output Summary, MCP Server Health, Jobs, Downloaded Files, Missing Tools, Missing Data, Noops, MCP Failures, Firewall Analysis, Policy Analysis, Redacted Domains, Errors, Warnings, Tool Usage, MCP Tool Usage, Created Items.
+**Multi-run diff examples:**
+
+```bash
+gh aw audit 12345 12346                        # Compare two runs
+gh aw audit 12345 12346 12347 12348            # Compare base against 3 runs
+gh aw audit 12345 12346 --format markdown      # Markdown output for PR comments
+gh aw audit 12345 12346 --json                 # JSON for CI integration
+gh aw audit 12345 12346 --repo owner/repo      # Specify repository
+```
+
+**Single-run report sections** (rendered in Markdown or JSON): Overview, Comparison, Task/Domain, Behavior Fingerprint, Agentic Assessments, Metrics, Key Findings, Recommendations, Observability Insights, Performance Metrics, Engine Config, Prompt Analysis, Session Analysis, Safe Output Summary, MCP Server Health, Jobs, Downloaded Files, Missing Tools, Missing Data, Noops, MCP Failures, Firewall Analysis, Policy Analysis, Redacted Domains, Errors, Warnings, Tool Usage, MCP Tool Usage, Created Items.
 
 The Metrics section includes an `ambient_context` object when available. Ambient context captures the first LLM inference footprint for the run:
 - `ambient_context.input_tokens` — input tokens for the first invocation
 - `ambient_context.cached_tokens` — cache-read tokens reused by the first invocation
 - `ambient_context.effective_tokens` — `input_tokens + cached_tokens`
 
-## `gh aw audit diff <base-run-id> <comparison-run-id> [<comparison-run-id>...]`
-
-Compare behavior between workflow runs. Detects policy regressions, new unauthorized domains, behavioral drift, and changes in MCP tool usage or run metrics.
-
-**Arguments:**
-
-| Argument | Description |
-|----------|-------------|
-| `<base-run-id>` | Numeric run ID for the baseline run |
-| `<comparison-run-id>` | Numeric run ID for the comparison run |
-| `[<comparison-run-id>...]` | Additional run IDs to compare against the same base |
-
-The base run is downloaded once and reused when multiple comparison runs are provided. Self-comparisons and duplicate run IDs are rejected.
-
-**Flags:**
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--format <fmt>` | `pretty` | Output format: `pretty` or `markdown` |
-| `--json` | off | Output diff as JSON |
-| `--repo <owner/repo>` | auto | Specify repository |
-| `-o, --output <dir>` | `./logs` | Directory for downloaded artifacts |
-| `--verbose` | off | Print detailed progress |
-
-The diff output includes:
+**Diff output** includes:
 - New and removed network domains
 - Domain status changes (allowed ↔ denied)
 - Volume changes (request count changes above a 100% threshold)
@@ -89,19 +81,9 @@ The diff output includes:
 - Run metrics comparison (token usage, duration, turns)
 - Token usage breakdown: input tokens, output tokens, cache read/write tokens, effective tokens, total API requests, and cache efficiency per run
 
-**Output behavior with multiple comparisons:**
+**Diff output behavior with multiple comparisons:**
 - `--json` outputs a single object for one comparison, or an array for multiple
 - `--format pretty` and `--format markdown` separate multiple diffs with dividers
-
-**Examples:**
-
-```bash
-gh aw audit diff 12345 12346
-gh aw audit diff 12345 12346 12347 12348
-gh aw audit diff 12345 12346 --format markdown
-gh aw audit diff 12345 12346 --json
-gh aw audit diff 12345 12346 --repo owner/repo
-```
 
 ## `gh aw logs --format <fmt>`
 

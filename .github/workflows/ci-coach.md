@@ -60,7 +60,7 @@ The `ci-data-analysis` shared module has pre-downloaded CI run data and built th
    - `.github/workflows/ci.yml`
    - `.github/workflows/cgo.yml`
    - `.github/workflows/cjs.yml`
-5. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data
+5. **Cache Memory**: `/tmp/gh-aw/cache-memory/` - Historical analysis data
 6. **Test Results**: `/tmp/gh-aw/test-results.json` - Test performance data
 7. **Fuzz Results**: `/tmp/ci-artifacts/*/fuzz-results/` - Fuzz test output and corpus data
 
@@ -149,8 +149,8 @@ If you identify improvements worth implementing:
 
 4. **Save analysis** to cache memory:
    ```bash
-   mkdir -p /tmp/cache-memory/ci-coach
-   cat > /tmp/cache-memory/ci-coach/last-analysis.json << EOF
+   mkdir -p /tmp/gh-aw/cache-memory/ci-coach
+   cat > /tmp/gh-aw/cache-memory/ci-coach/last-analysis.json << EOF
    {
      "date": "$(date -I)",
      "optimizations_proposed": [...],

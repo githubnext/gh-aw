@@ -1787,6 +1787,93 @@ describe("sendJobConclusionSpan", () => {
     expect(span.name).toBe("gh-aw.safe-outputs.conclusion");
   });
 
+  it("emits the agent span with SPAN_KIND_CLIENT (3)", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.INPUT_JOB_NAME = "agent";
+
+    const startMs = 1_700_000_000_000;
+    const endMs = 1_700_000_005_000;
+    const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    readFileSpy.mockRestore();
+
+    const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.kind).toBe(3); // SPAN_KIND_CLIENT
+  });
+
+  it("includes gen_ai.request.model, gen_ai.provider.name, gen_ai.operation.name and gen_ai.workflow.name on the agent span from aw_info.json", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.INPUT_JOB_NAME = "agent";
+
+    const startMs = 1_700_000_000_000;
+    const endMs = 1_700_000_005_000;
+    const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        return JSON.stringify({ model: "claude-3-5-sonnet-20241022", engine_id: "claude", workflow_name: "otel-advisor" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    readFileSpy.mockRestore();
+
+    const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue]));
+    expect(attrs["gen_ai.operation.name"]).toBe("chat");
+    expect(attrs["gen_ai.request.model"]).toBe("claude-3-5-sonnet-20241022");
+    expect(attrs["gen_ai.provider.name"]).toBe("claude");
+    expect(attrs["gen_ai.workflow.name"]).toBe("otel-advisor");
+  });
+
+  it("omits gen_ai.request.model, gen_ai.provider.name and gen_ai.workflow.name from the agent span when model, engine_id and workflow_name are absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.INPUT_JOB_NAME = "agent";
+
+    const startMs = 1_700_000_000_000;
+    const endMs = 1_700_000_005_000;
+    const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    readFileSpy.mockRestore();
+
+    const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue]));
+    // gen_ai.operation.name is always present
+    expect(attrs["gen_ai.operation.name"]).toBe("chat");
+    const keys = agentSpan.attributes.map(a => a.key);
+    expect(keys).not.toContain("gen_ai.request.model");
+    expect(keys).not.toContain("gen_ai.provider.name");
+    expect(keys).not.toContain("gen_ai.workflow.name");
+  });
+
   it("includes gh-aw.run.attempt attribute from GITHUB_RUN_ATTEMPT env var", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -2836,10 +2923,14 @@ describe("sendJobConclusionSpan", () => {
     });
   });
 
-  describe("token breakdown enrichment in conclusion span", () => {
+  describe("token breakdown enrichment in agent span", () => {
     let readFileSpy;
+    let statSpy;
 
     beforeEach(() => {
+      process.env.INPUT_JOB_NAME = "agent";
+      const agentEndMs = 1_700_000_005_000;
+      statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: agentEndMs });
       readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
@@ -2847,9 +2938,10 @@ describe("sendJobConclusionSpan", () => {
 
     afterEach(() => {
       readFileSpy.mockRestore();
+      statSpy.mockRestore();
     });
 
-    it("includes all four token breakdown attributes when agent_usage.json is present", async () => {
+    it("includes all four gen_ai token breakdown attributes on the agent span when agent_usage.json is present", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -2863,18 +2955,18 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
 
-      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
-      expect(attrs["gh-aw.tokens.input"]).toBe(48200);
-      expect(attrs["gh-aw.tokens.output"]).toBe(1350);
-      expect(attrs["gh-aw.tokens.cache_read"]).toBe(41000);
-      expect(attrs["gh-aw.tokens.cache_write"]).toBe(3100);
+      const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      expect(attrs["gen_ai.usage.input_tokens"]).toBe(48200);
+      expect(attrs["gen_ai.usage.output_tokens"]).toBe(1350);
+      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(41000);
+      expect(attrs["gen_ai.usage.cache_creation.input_tokens"]).toBe(3100);
     });
 
-    it("omits all token breakdown attributes when agent_usage.json is absent", async () => {
+    it("omits all gen_ai token breakdown attributes when agent_usage.json is absent", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -2882,18 +2974,18 @@ describe("sendJobConclusionSpan", () => {
 
       // readFileSpy already throws ENOENT for all paths
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
 
-      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      const keys = span.attributes.map(a => a.key);
-      expect(keys).not.toContain("gh-aw.tokens.input");
-      expect(keys).not.toContain("gh-aw.tokens.output");
-      expect(keys).not.toContain("gh-aw.tokens.cache_read");
-      expect(keys).not.toContain("gh-aw.tokens.cache_write");
+      const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = agentSpan.attributes.map(a => a.key);
+      expect(keys).not.toContain("gen_ai.usage.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.output_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
 
-    it("omits a token attribute when its value is zero", async () => {
+    it("omits a gen_ai token attribute when its value is zero", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -2907,19 +2999,19 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
 
-      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
-      expect(attrs["gh-aw.tokens.input"]).toBe(1000);
-      expect(attrs["gh-aw.tokens.cache_read"]).toBe(500);
-      const keys = span.attributes.map(a => a.key);
-      expect(keys).not.toContain("gh-aw.tokens.output");
-      expect(keys).not.toContain("gh-aw.tokens.cache_write");
+      const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      expect(attrs["gen_ai.usage.input_tokens"]).toBe(1000);
+      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(500);
+      const keys = agentSpan.attributes.map(a => a.key);
+      expect(keys).not.toContain("gen_ai.usage.output_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
 
-    it("omits token breakdown attributes when agent_usage.json contains invalid JSON", async () => {
+    it("omits gen_ai token breakdown attributes when agent_usage.json contains invalid JSON", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -2932,15 +3024,15 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
 
-      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      const keys = span.attributes.map(a => a.key);
-      expect(keys).not.toContain("gh-aw.tokens.input");
-      expect(keys).not.toContain("gh-aw.tokens.output");
-      expect(keys).not.toContain("gh-aw.tokens.cache_read");
-      expect(keys).not.toContain("gh-aw.tokens.cache_write");
+      const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = agentSpan.attributes.map(a => a.key);
+      expect(keys).not.toContain("gen_ai.usage.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.output_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
   });
 

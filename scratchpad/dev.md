@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 7.0
-**Last Updated**: 2026-04-24
+**Version**: 8.0
+**Last Updated**: 2026-04-25
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -1099,7 +1099,7 @@ gh aw <command> [flags] [arguments]
 **Command Categories**:
 - **Workflow Management**: `run`, `compile`, `validate`, `fix`
 - **Safe Outputs**: `safe-outputs`
-- **Audit**: `audit diff`, `audit report`, `logs`
+- **Audit**: `audit`, `audit diff` (hidden, use `audit <base> <compare>` instead), `logs`
 - **Utilities**: `version`, `help`
 
 ### Logger Namespace Convention
@@ -2644,7 +2644,7 @@ type Everything interface {
 | `gh aw validate` | Validate workflow | `gh aw validate workflow.md` |
 | `gh aw safe-outputs` | Test safe outputs | `gh aw safe-outputs --staged` |
 | `gh aw fix` | Run migration codemods | `gh aw fix` |
-| `gh aw audit diff <run1> <run2>` | Compare firewall behavior across runs | `gh aw audit diff 12345 67890` |
+| `gh aw audit <run1> <run2>` | Compare firewall behavior across runs | `gh aw audit 12345 67890` |
 | `gh aw audit report` | Cross-run security audit report | `gh aw audit report --format markdown` |
 | `gh aw logs` | Retrieve workflow run logs | `gh aw logs 12345` |
 
@@ -2932,6 +2932,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v8.0 (2026-04-25): Maintenance tone scan — fixed 4 tone issues across 4 spec files: `file-inlining.md` (1 fix: "Smart email address filtering"→"Email address detection"), `firewall-log-parsing.md` (1 fix: "**Smart caching:**"→"**Result caching:**"), `gastown.md` (1 fix: "**Best of Both Worlds**:"→"**Combining both systems**:"), `agents/hierarchical-agents-quickstart.md` (1 fix: "nice to have"→"non-blocking"). Coverage: 64 spec files (no new files).
 - v7.0 (2026-04-24): Maintenance tone scan — fixed 1 tone issue: `mcp_logs_guardrails.md` (1 fix: "Add more sophisticated query suggestions"→"Add context-aware query suggestions"). Coverage: 64 spec files (no new files).
 - v6.9 (2026-04-23): Maintenance tone scan — fixed 1 tone issue: `agents/hierarchical-agents-quickstart.md` (1 fix: "helps you quickly understand and use"→"explains...and their operational usage"). Coverage: 64 spec files (no new files).
 - v6.8 (2026-04-22): Maintenance tone scan — 0 tone issues found. Documented 4 new features from pending changesets: (1) `label_command` trigger with `status-comment: true` and `reaction: eyes` defaults; (2) GHE support via `configure_gh_for_ghe.sh`; (3) `gh aw audit diff` and `gh aw audit report` commands added to CLI quick reference and Command Categories; (4) container image pinning by digest (PR #27762: `ContainerPin` struct in `pkg/actionpins`, compiler resolves mutable tags to immutable SHA-256 digests). Coverage: 64 spec files (no new files).

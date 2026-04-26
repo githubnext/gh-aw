@@ -248,9 +248,10 @@ from where the previous request stopped due to timeout.`,
 // Returns an error if schema generation fails.
 func registerAuditTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
 	type auditArgs struct {
-		RunIDOrURL string   `json:"run_id_or_url" jsonschema:"GitHub Actions workflow run ID or URL. Accepts: numeric run ID (e.g., 1234567890), run URL (https://github.com/owner/repo/actions/runs/1234567890), job URL (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210), or job URL with step (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1)"`
-		Artifacts  []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
-		MaxTokens  int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
+		RunIDOrURL   string   `json:"run_id_or_url,omitempty"   jsonschema:"Deprecated: use run_ids_or_urls instead. Single GitHub Actions workflow run ID or URL."`
+		RunIDsOrURLs []string `json:"run_ids_or_urls,omitempty" jsonschema:"One or more workflow run IDs or URLs. Single item: detailed audit report. Multiple items: diff mode with first as base (see tool description for accepted formats)."`
+		Artifacts    []string `json:"artifacts,omitempty"        jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
+		MaxTokens    int      `json:"max_tokens,omitempty"       jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
 	}
 
 	// Generate schema for audit tool
@@ -267,20 +268,25 @@ func registerAuditTool(server *mcp.Server, execCmd execCmdFunc, actor string, va
 			IdempotentHint: true,
 			OpenWorldHint:  boolPtr(true),
 		},
-		Description: `Investigate a workflow run, job, or specific step and generate a concise report.
+		Description: `Investigate one or more workflow runs and generate a concise report.
 
-Accepts multiple input formats:
+When a single run is provided, generates a detailed audit report.
+When two or more runs are provided, the first is the base (reference) run and
+the remaining runs are compared against it (diff mode), showing changes in
+firewall domains, MCP tool usage, and run metrics.
+
+Each run accepts:
 - Numeric run ID: 1234567890
 - Run URL: https://github.com/owner/repo/actions/runs/1234567890
 - Job URL: https://github.com/owner/repo/actions/runs/1234567890/job/9876543210
 - Job URL with step: https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1
 
-When a job URL is provided:
+When a job URL is provided (single-run mode only):
 - If a step number is included (#step:7:1), extracts that specific step's output
 - If no step number, finds and extracts the first failing step's output
 - Saves job logs and step-specific logs to the output directory
 
-Returns JSON with the following structure:
+Single-run returns JSON with:
 - overview: Basic run information (run_id, workflow_name, status, conclusion, created_at, started_at, updated_at, duration, event, branch, url, logs_path)
 - metrics: Execution metrics (token_usage, estimated_cost, turns, error_count, warning_count)
 - jobs: List of job details (name, status, conclusion, duration)
@@ -290,7 +296,9 @@ Returns JSON with the following structure:
 - errors: Error details (file, line, type, message)
 - warnings: Warning details (file, line, type, message)
 - tool_usage: Tool usage statistics (name, call_count, max_output_size, max_duration)
-- firewall_analysis: Network firewall analysis if available (total_requests, allowed_requests, blocked_requests, allowed_domains, blocked_domains)`,
+- firewall_analysis: Network firewall analysis if available (total_requests, allowed_requests, blocked_requests, allowed_domains, blocked_domains)
+
+Multi-run diff returns JSON describing changes between the base and each comparison run.`,
 		InputSchema: auditSchema,
 		Icons: []mcp.Icon{
 			{Source: "🔍"},
@@ -308,18 +316,30 @@ Returns JSON with the following structure:
 		default:
 		}
 
-		// Build command arguments
-		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server (same as logs)
-		// Use --json flag to output structured JSON for MCP consumption
-		// Pass the run ID or URL directly - the audit command will parse it
-		cmdArgs := []string{"audit", args.RunIDOrURL, "-o", "/tmp/gh-aw/aw-mcp/logs", "--json"}
+		// Resolve the list of run IDs/URLs to pass to the audit command.
+		// run_ids_or_urls takes precedence; fall back to the deprecated run_id_or_url field.
+		runItems := args.RunIDsOrURLs
+		if len(runItems) == 0 && args.RunIDOrURL != "" {
+			runItems = []string{args.RunIDOrURL}
+		}
+		if len(runItems) == 0 {
+			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "at least one run ID or URL must be provided via run_ids_or_urls or run_id_or_url", nil)
+		}
+
+		// Build command arguments.
+		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server (same as logs).
+		// Use --json flag to output structured JSON for MCP consumption.
+		// Pass all run IDs/URLs directly - the audit command handles single vs. diff mode.
+		cmdArgs := []string{"audit"}
+		cmdArgs = append(cmdArgs, runItems...)
+		cmdArgs = append(cmdArgs, "-o", "/tmp/gh-aw/aw-mcp/logs", "--json")
 		if len(args.Artifacts) > 0 {
 			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
 		}
 
 		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
 
-		// Execute the CLI command
+		// Execute the CLI command.
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
 		// - Stderr contains console messages and debug logs that shouldn't be mixed with JSON
@@ -350,12 +370,16 @@ Returns JSON with the following structure:
 			}
 
 			// Return a JSON error envelope instead of an MCP protocol error so
-			// callers always receive consistent JSON and the run ID is always present.
+			// callers always receive consistent JSON and the run IDs are always present.
 			// IsError must be false so that callers (e.g. mcp_cli_bridge) treat this as
 			// a graceful not-found / failure response rather than a fatal protocol error.
+			errorMsg := "failed to audit workflow run: " + mainMsg
+			if len(runItems) > 1 {
+				errorMsg = "failed to audit workflow runs: " + mainMsg
+			}
 			errorEnvelope := map[string]any{
-				"error":         "failed to audit workflow run: " + mainMsg,
-				"run_id_or_url": args.RunIDOrURL,
+				"error":           errorMsg,
+				"run_ids_or_urls": runItems,
 				"suggestions": []string{
 					"Verify the run ID is correct",
 					"Use the 'logs' tool to list recent run IDs",
@@ -363,7 +387,7 @@ Returns JSON with the following structure:
 			}
 			jsonBytes, jsonErr := json.Marshal(errorEnvelope)
 			if jsonErr != nil {
-				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to audit workflow run: "+mainMsg, nil)
+				return nil, nil, newMCPError(jsonrpc.CodeInternalError, errorMsg, nil)
 			}
 			return &mcp.CallToolResult{
 				IsError: false,

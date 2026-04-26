@@ -233,10 +233,6 @@ func expandIncludesForField(content, baseDir string, extractFunc func(string) (s
 	return results, nil
 }
 
-// ProcessIncludesForEngines processes import directives to extract engine configurations
-
-// ProcessIncludesForSafeOutputs processes import directives to extract safe-outputs configurations
-
 // processIncludesForField processes import directives to extract a specific frontmatter field
 func processIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))

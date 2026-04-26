@@ -48,7 +48,7 @@ Conduct a comprehensive audit of the target repository to discover patterns, ine
 
 - **Target Repository**: ${{ inputs.repository }}
 - **Analysis Date**: $(date +%Y-%m-%d)
-- **Cache Location**: `/tmp/gh-aw/cache-memory/repo-audits/`
+- **Cache Location**: `/tmp/gh-aw/cache-memory-repo-audits/`
 
 ## Phase 0: Setup and Repository Discovery
 
@@ -58,13 +58,13 @@ Check if this repository has been analyzed before:
 
 ```bash
 # Create cache directory if it doesn't exist
-mkdir -p /tmp/gh-aw/cache-memory/repo-audits/
+mkdir -p /tmp/gh-aw/cache-memory-repo-audits/
 
 # Check for previous analysis
 REPO_SLUG=$(echo "${{ inputs.repository }}" | tr '/' '_')
-if [ -f "/tmp/gh-aw/cache-memory/repo-audits/${REPO_SLUG}.json" ]; then
+if [ -f "/tmp/gh-aw/cache-memory-repo-audits/${REPO_SLUG}.json" ]; then
   echo "Found previous analysis:"
-  cat "/tmp/gh-aw/cache-memory/repo-audits/${REPO_SLUG}.json"
+  cat "/tmp/gh-aw/cache-memory-repo-audits/${REPO_SLUG}.json"
 fi
 ```
 
@@ -657,9 +657,9 @@ safe-outputs:
 [Document what was stored in cache for future analysis]
 
 **Stored Data:**
-- Repository metadata: `/tmp/gh-aw/cache-memory/repo-audits/${REPO_SLUG}.json`
-- Workflow patterns: `/tmp/gh-aw/cache-memory/repo-audits/${REPO_SLUG}_workflows.json`
-- Issue patterns: `/tmp/gh-aw/cache-memory/repo-audits/${REPO_SLUG}_issues.json`
+- Repository metadata: `/tmp/gh-aw/cache-memory-repo-audits/${REPO_SLUG}.json`
+- Workflow patterns: `/tmp/gh-aw/cache-memory-repo-audits/${REPO_SLUG}_workflows.json`
+- Issue patterns: `/tmp/gh-aw/cache-memory-repo-audits/${REPO_SLUG}_issues.json`
 
 **Next Analysis:**
 - Recommended re-analysis: 30 days
@@ -704,7 +704,7 @@ After generating the report, save analysis data for future reference:
 # Save repository metadata
 REPO_SLUG=$(echo "${{ inputs.repository }}" | tr '/' '_')
 
-cat > "/tmp/gh-aw/cache-memory/repo-audits/${REPO_SLUG}.json" << EOF
+cat > "/tmp/gh-aw/cache-memory-repo-audits/${REPO_SLUG}.json" << EOF
 {
   "repository": "${{ inputs.repository }}",
   "analysis_date": "$(date +%Y-%m-%d)",

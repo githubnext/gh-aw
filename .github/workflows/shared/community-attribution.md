@@ -15,7 +15,7 @@ steps:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      mkdir -p /tmp/gh-aw/community-data
+      mkdir -p /tmp/gh-aw/agent/community-data
 
       # The "community" label is the **primary attribution signal**: a maintainer
       # explicitly tagged the issue as community-authored, making it a strong and
@@ -26,13 +26,13 @@ steps:
         --state all \
         --limit 500 \
         --json number,title,author,labels,closedAt,createdAt,url,stateReason \
-        > /tmp/gh-aw/community-data/community_issues.json; then
-        echo "[]" > /tmp/gh-aw/community-data/community_issues.json
+        > /tmp/gh-aw/agent/community-data/community_issues.json; then
+        echo "[]" > /tmp/gh-aw/agent/community-data/community_issues.json
       fi
 
-      COMMUNITY_COUNT=$(jq length "/tmp/gh-aw/community-data/community_issues.json")
+      COMMUNITY_COUNT=$(jq length "/tmp/gh-aw/agent/community-data/community_issues.json")
       echo "✓ Fetched $COMMUNITY_COUNT community-labeled issues"
-      echo "  Data: /tmp/gh-aw/community-data/community_issues.json"
+      echo "  Data: /tmp/gh-aw/agent/community-data/community_issues.json"
 ---
 
 ## Community Attribution Strategy
@@ -41,11 +41,11 @@ The **`community` label** is the primary attribution signal.  It is applied by
 maintainers to explicitly mark issues as community-authored — a strong,
 intentional indicator that does not rely on free-text heuristics.
 
-Pre-fetched data is available at `/tmp/gh-aw/community-data/`:
+Pre-fetched data is available at `/tmp/gh-aw/agent/community-data/`:
 
 ```bash
 # List all community-labeled issues
-cat /tmp/gh-aw/community-data/community_issues.json \
+cat /tmp/gh-aw/agent/community-data/community_issues.json \
   | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login) (closed: \(.closedAt // "open"))"'
 ```
 
@@ -64,7 +64,7 @@ is closed as `COMPLETED`.  This is the strongest possible attribution signal.
 
 ```bash
 # List all community issues closed as COMPLETED (direct contributions)
-cat /tmp/gh-aw/community-data/community_issues.json \
+cat /tmp/gh-aw/agent/community-data/community_issues.json \
   | jq -r '.[] | select(.stateReason == "COMPLETED") | "- #\(.number): \(.title) by @\(.author.login) (closed: \(.closedAt))"'
 ```
 
@@ -80,13 +80,13 @@ native close-with-keyword feature).  This is the strongest PR-linkage signal
 because it does not depend on free-text conventions.
 
 ```bash
-COMMUNITY_NUMBERS=$(jq '[.[].number]' /tmp/gh-aw/community-data/community_issues.json)
+COMMUNITY_NUMBERS=$(jq '[.[].number]' /tmp/gh-aw/agent/community-data/community_issues.json)
 
 jq --argjson community "$COMMUNITY_NUMBERS" \
   'to_entries
    | map(select((.key | tonumber) as $n | $community | any(. == $n)))
    | from_entries' \
-  /tmp/gh-aw/community-data/closing_refs_by_issue.json
+  /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json
 ```
 
 Record every matched issue as **confirmed** attribution.
@@ -98,7 +98,7 @@ closing keywords.  Both bare (`#123`) and fully-qualified (`org/repo#123`)
 forms are supported.
 
 ```bash
-jq -r '.[].body // ""' /tmp/gh-aw/community-data/pull_requests.json \
+jq -r '.[].body // ""' /tmp/gh-aw/agent/community-data/pull_requests.json \
   | grep -oP '(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*(?:github/gh-aw#|#)\K[0-9]+' \
   | sort -u
 ```
@@ -129,7 +129,7 @@ make the final call.
 
 ```bash
 # Issues in the window that are NOT COMPLETED (Tier 0) and not matched by PR tiers
-cat /tmp/gh-aw/community-data/community_issues_closed_in_window.json | \
+cat /tmp/gh-aw/agent/community-data/community_issues_closed_in_window.json | \
   jq '[.[] | select(.stateReason != "COMPLETED")] | length'
 ```
 

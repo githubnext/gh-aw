@@ -1,5 +1,74 @@
 # Architecture Diagram
 
+> Last updated: 2026-04-25 · Source: [Issue #28411](https://github.com/github/gh-aw/issues)
+
+## Overview
+
+This diagram shows the package structure and dependencies of the `gh-aw` codebase.
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                        ENTRY POINTS                                              │
+│   ┌──────────────────┐                                    ┌──────────────────────┐              │
+│   │    cmd/gh-aw     │                                    │   cmd/gh-aw-wasm     │              │
+│   │  (main binary)   │                                    │  (WebAssembly target)│              │
+│   └────────┬─────────┘                                    └──────────┬───────────┘              │
+│            │                                                          │                          │
+├────────────┼──────────────────────────────────────────────────────────┼──────────────────────────┤
+│            ▼                  CORE PACKAGES                           ▼                          │
+│   ┌─────────────────┐    ┌──────────────────┐    ┌────────────────────────┐                    │
+│   │      cli        │───▶│     workflow      │───▶│        parser          │                    │
+│   │  CLI commands   │    │ Workflow compiler │    │ Markdown/YAML parsing  │                    │
+│   └────────┬────────┘    └────────┬─────────┘    └───────────┬────────────┘                   │
+│            │                      │                           │                                  │
+│            │             ┌────────▼─────────┐    ┌───────────▼────────────┐                   │
+│            └────────────▶│     console      │    │      actionpins        │                    │
+│                           │  Terminal UI     │    │  Action pin resolver   │                    │
+│                           └──────────────────┘    └────────────────────────┘                   │
+│                                                                                                  │
+│   ┌──────────────────┐    ┌──────────────────┐                                                  │
+│   │   agentdrain     │    │      stats       │                                                  │
+│   │  Agent draining  │    │  Numeric stats   │                                                  │
+│   └──────────────────┘    └──────────────────┘                                                  │
+│                                                                                                  │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                     UTILITY PACKAGES                                             │
+│  ┌─────────┐ ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐ ┌──────────┐ ┌──────────┐  │
+│  │ logger  │ │ styles  │ │   tty    │ │constants │ │   types   │ │ fileutil │ │ gitutil  │  │
+│  └─────────┘ └─────────┘ └──────────┘ └──────────┘ └───────────┘ └──────────┘ └──────────┘  │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ │
+│  │stringutil│ │ sliceutil│ │ repoutil │ │semverutil│ │ envutil  │ │ typeutil │ │ timeutil │ │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘ │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+## Package Reference
+
+| Package | Layer | Description |
+|---------|-------|-------------|
+| `cli` | Core | Command-line interface implementations |
+| `workflow` | Core | Workflow compilation engine (Markdown → GitHub Actions YAML) |
+| `parser` | Core | Markdown frontmatter and YAML parsing |
+| `console` | Core | Terminal UI rendering and output formatting |
+| `actionpins` | Core | GitHub Actions action pin resolution |
+| `agentdrain` | Core | Agent output draining utilities |
+| `stats` | Core | Numerical statistics utilities |
+| `logger` | Utility | Namespace-based debug logging with zero overhead |
+| `styles` | Utility | Terminal color and style theme definitions |
+| `tty` | Utility | TTY detection utilities |
+| `constants` | Utility | Shared constants and semantic type aliases |
+| `types` | Utility | Shared type definitions across packages |
+| `fileutil` | Utility | File path and file operation utilities |
+| `gitutil` | Utility | Git operation utilities |
+| `stringutil` | Utility | String manipulation utilities (incl. ANSI stripping) |
+| `sliceutil` | Utility | Generic slice operation utilities |
+| `repoutil` | Utility | GitHub repository slug/URL utilities |
+| `semverutil` | Utility | Semantic versioning primitives |
+| `envutil` | Utility | Environment variable reading/validation utilities |
+| `typeutil` | Utility | General-purpose type conversion utilities |
+| `timeutil` | Utility | Time utilities |
+| `testutil` | Utility | Test helpers and shared test utilities |
+
 > Last updated: 2026-04-24 · Source: [🏗️ Architecture Diagram: gh-aw Repository Architecture Diagram (2026-04-24)](https://github.com/github/gh-aw/issues)
 
 ## Overview

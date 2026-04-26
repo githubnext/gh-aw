@@ -361,6 +361,13 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_TIMEOUT_MINUTES: %q\n", timeoutValue))
 	}
 
+	// Pass cache-memory availability flag so the failure handler can detect cache-miss
+	// misconfigurations: a cache_miss reported by the agent despite cache-memory being available
+	// indicates the prompt is referencing an incorrect file path within the cache directory.
+	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_CACHE_MEMORY_ENABLED: \"true\"\n")
+	}
+
 	// Build the agent failure handling step.
 	// Use if: always() so this step runs even when an earlier step in the conclusion job
 	// (such as the GitHub App token minting step) has failed. The handler uses the default

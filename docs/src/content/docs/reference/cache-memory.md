@@ -16,7 +16,7 @@ tools:
 ---
 ```
 
-Stores files at `/tmp/gh-aw/cache-memory/` using default key `memory-${{ github.workflow }}-${{ github.run_id }}`. Use standard file operations to store/retrieve JSON/YAML, text files, or subdirectories.
+Stores files at `/tmp/gh-aw/cache-memory/` using a workflow-scoped cache key. Use standard file operations to store/retrieve JSON/YAML, text files, or subdirectories.
 
 ## Advanced Configuration
 
@@ -24,11 +24,14 @@ Stores files at `/tmp/gh-aw/cache-memory/` using default key `memory-${{ github.
 ---
 tools:
   cache-memory:
-    key: custom-memory-${{ github.workflow }}-${{ github.run_id }}
+    key: custom-memory-${{ github.repository_owner }}
     retention-days: 30  # 1-90 days, extends access beyond cache expiration
     allowed-extensions: [".json", ".txt", ".md"]  # Restrict file types (default: empty/all files allowed)
 ---
 ```
+
+> [!NOTE]
+> Do not include `${{ github.run_id }}` in a user-supplied key — the compiler appends it automatically to the save key and generates stable restore-keys from the prefix.
 
 ### File Type Restrictions
 
@@ -59,7 +62,7 @@ tools:
 ---
 ```
 
-Mounts at `/tmp/gh-aw/cache-memory/` (default) or `/tmp/gh-aw/cache-memory-{id}/`. The `id` determines folder name; `key` defaults to `memory-{id}-${{ github.workflow }}-${{ github.run_id }}`.
+Mounts at `/tmp/gh-aw/cache-memory/` (default) or `/tmp/gh-aw/cache-memory-{id}/`. The `id` determines the folder name; `key` defaults to a workflow-scoped prefix derived from the sanitized workflow name.
 
 ## Merging from Shared Workflows
 
@@ -78,7 +81,9 @@ Merge rules: **Single→Single** (local overrides), **Single→Multiple** (local
 
 GitHub Actions cache: 7-day retention, 10GB per repo, LRU eviction. Add `retention-days` to upload artifacts (1-90 days) for extended access.
 
-Caches accessible across branches with unique per-run keys. Custom keys auto-append `-${{ github.run_id }}`. Progressive restore splits on dashes: `custom-memory-project-v1-${{ github.run_id }}` tries `custom-memory-project-v1-`, `custom-memory-project-`, `custom-memory-`, `custom-`.
+Caches are accessible across branches with unique per-run save keys. The compiler automatically generates a restore-keys prefix by stripping `${{ github.run_id }}` from the save key, so each run can fall back to the previous run's cache. For `scope: repo`, an additional restore key without the workflow ID is added to allow cross-workflow cache sharing.
+
+Custom user-supplied keys auto-append `-${{ github.run_id }}` if not already present.
 
 ## Best Practices
 

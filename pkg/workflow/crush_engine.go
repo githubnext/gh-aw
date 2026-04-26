@@ -29,15 +29,9 @@ func NewCrushEngine() *CrushEngine {
 				supportsToolsAllowlist: false, // Crush manages its own tool permissions via .crush.json
 				supportsMaxTurns:       false, // No --max-turns flag in crush run
 				supportsWebSearch:      false, // Has built-in websearch but not exposed via gh-aw neutral tools yet
-				llmGatewayPort:         constants.CrushLLMGatewayPort,
 			},
 		},
 	}
-}
-
-// SupportsLLMGateway returns the LLM gateway port for Crush engine
-func (e *CrushEngine) SupportsLLMGateway() int {
-	return constants.CrushLLMGatewayPort
 }
 
 // GetModelEnvVarName returns the native environment variable name that the Crush CLI uses

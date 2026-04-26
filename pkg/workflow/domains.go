@@ -4,6 +4,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 
@@ -294,11 +296,7 @@ func getEcosystemDomains(category string) []string {
 				domainMap[d] = true
 			}
 		}
-		result := make([]string, 0, len(domainMap))
-		for d := range domainMap {
-			result = append(result, d)
-		}
-		sort.Strings(result)
+		result := slices.Sorted(maps.Keys(domainMap))
 		return result
 	}
 
@@ -363,14 +361,7 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 		}
 	}
 
-	// Convert map to sorted slice
-	result := make([]string, 0, len(domainMap))
-	for domain := range domainMap {
-		result = append(result, domain)
-	}
-	sort.Strings(result)
-
-	return result
+	return slices.Sorted(maps.Keys(domainMap))
 }
 
 // GetAllowedDomains returns the allowed domains from network permissions.
@@ -465,14 +456,7 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 		}
 	}
 
-	// Convert map to sorted slice
-	expandedDomains := make([]string, 0, len(domainMap))
-	for domain := range domainMap {
-		expandedDomains = append(expandedDomains, domain)
-	}
-	sort.Strings(expandedDomains)
-
-	return expandedDomains
+	return slices.Sorted(maps.Keys(domainMap))
 }
 
 // ecosystemPriority defines the order in which ecosystems are checked by GetDomainEcosystem.
@@ -681,12 +665,7 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 		}
 	}
 
-	// Convert to sorted slice for consistent output
-	domains := make([]string, 0, len(domainMap))
-	for domain := range domainMap {
-		domains = append(domains, domain)
-	}
-	sort.Strings(domains)
+	domains := slices.Sorted(maps.Keys(domainMap))
 
 	// Join with commas for AWF --allow-domains flag
 	return strings.Join(domains, ",")
@@ -812,14 +791,7 @@ func GetBlockedDomains(network *NetworkPermissions) []string {
 		}
 	}
 
-	// Convert map to sorted slice
-	expandedDomains := make([]string, 0, len(domainMap))
-	for domain := range domainMap {
-		expandedDomains = append(expandedDomains, domain)
-	}
-	sort.Strings(expandedDomains)
-
-	return expandedDomains
+	return slices.Sorted(maps.Keys(domainMap))
 }
 
 // formatBlockedDomains formats blocked domains as a comma-separated string suitable for AWF's --block-domains flag
@@ -885,12 +857,7 @@ func mergeAPITargetDomains(domainsStr string, apiTarget string) string {
 		domainMap[d] = true
 	}
 
-	result := make([]string, 0, len(domainMap))
-	for d := range domainMap {
-		result = append(result, d)
-	}
-	sort.Strings(result)
-	return strings.Join(result, ",")
+	return strings.Join(slices.Sorted(maps.Keys(domainMap)), ",")
 }
 
 // computeAllowedDomainsForSanitization computes the allowed domains for sanitization
@@ -964,12 +931,7 @@ func expandAllowedDomains(entries []string) []string {
 			domainMap[entry] = true
 		}
 	}
-	result := make([]string, 0, len(domainMap))
-	for d := range domainMap {
-		result = append(result, d)
-	}
-	sort.Strings(result)
-	return result
+	return slices.Sorted(maps.Keys(domainMap))
 }
 
 // computeExpandedAllowedDomainsForSanitization computes the allowed domains for URL sanitization,
@@ -1006,10 +968,5 @@ func (c *Compiler) computeExpandedAllowedDomainsForSanitization(data *WorkflowDa
 	domainMap["github.com"] = true
 
 	// Produce a sorted, comma-separated result
-	result := make([]string, 0, len(domainMap))
-	for d := range domainMap {
-		result = append(result, d)
-	}
-	sort.Strings(result)
-	return strings.Join(result, ",")
+	return strings.Join(slices.Sorted(maps.Keys(domainMap)), ",")
 }

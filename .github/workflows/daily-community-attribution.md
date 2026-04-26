@@ -57,7 +57,7 @@ steps:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      mkdir -p /tmp/gh-aw/community-data
+      mkdir -p /tmp/gh-aw/agent/community-data
 
       # Fetch merged PRs from the last 90 days (wide enough to catch any recently attributed issue)
       SINCE=$(date -d '90 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
@@ -69,10 +69,10 @@ steps:
         --limit 500 \
         --json number,title,author,mergedAt,url,body,closingIssuesReferences \
         --jq "[.[] | select(.mergedAt >= \"$SINCE\")]" \
-        > /tmp/gh-aw/community-data/pull_requests.json \
-        || echo "[]" > /tmp/gh-aw/community-data/pull_requests.json
+        > /tmp/gh-aw/agent/community-data/pull_requests.json \
+        || echo "[]" > /tmp/gh-aw/agent/community-data/pull_requests.json
 
-      PR_COUNT=$(jq length /tmp/gh-aw/community-data/pull_requests.json)
+      PR_COUNT=$(jq length /tmp/gh-aw/agent/community-data/pull_requests.json)
       echo "✓ Fetched $PR_COUNT merged PRs"
 
       # Build closing references index: {issue_number: [pr_numbers]}
@@ -87,25 +87,25 @@ steps:
             .[$key] = (.[$key] // []) + [$pr.number]
           )
         )
-      ' /tmp/gh-aw/community-data/pull_requests.json \
-        > /tmp/gh-aw/community-data/closing_refs_by_issue.json 2>/dev/null \
-        || echo "{}" > /tmp/gh-aw/community-data/closing_refs_by_issue.json
+      ' /tmp/gh-aw/agent/community-data/pull_requests.json \
+        > /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json 2>/dev/null \
+        || echo "{}" > /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json
 
-      LINK_COUNT=$(jq 'keys | length' /tmp/gh-aw/community-data/closing_refs_by_issue.json)
+      LINK_COUNT=$(jq 'keys | length' /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json)
       echo "✓ Built closing refs index: $LINK_COUNT issues with native GitHub close links"
 
       # Find community issues closed within the PR lookback window (attribution candidates)
       jq --arg since "$SINCE" \
         '[.[] | select(.closedAt != null and .closedAt >= $since)]' \
-        /tmp/gh-aw/community-data/community_issues.json \
-        > /tmp/gh-aw/community-data/community_issues_closed_in_window.json 2>/dev/null \
-        || echo "[]" > /tmp/gh-aw/community-data/community_issues_closed_in_window.json
+        /tmp/gh-aw/agent/community-data/community_issues.json \
+        > /tmp/gh-aw/agent/community-data/community_issues_closed_in_window.json 2>/dev/null \
+        || echo "[]" > /tmp/gh-aw/agent/community-data/community_issues_closed_in_window.json
 
-      CLOSED_COUNT=$(jq length /tmp/gh-aw/community-data/community_issues_closed_in_window.json)
+      CLOSED_COUNT=$(jq length /tmp/gh-aw/agent/community-data/community_issues_closed_in_window.json)
       echo "✓ Found $CLOSED_COUNT community issues closed in the lookback window"
 
       echo ""
-      echo "Data available in /tmp/gh-aw/community-data/:"
+      echo "Data available in /tmp/gh-aw/agent/community-data/:"
       echo "  community_issues.json                  — all community-labeled issues (includes stateReason)"
       echo "  pull_requests.json                     — merged PRs (last 90 days)"
       echo "  closing_refs_by_issue.json             — native GitHub close links"
@@ -119,15 +119,15 @@ steps:
       # Tier 0: COMPLETED issues (direct contributions, no PR needed)
       jq '[.[] | select(.stateReason == "COMPLETED") |
           . + {tier: 0, attribution_type: "direct issue", closing_prs: []}]' \
-        /tmp/gh-aw/community-data/community_issues.json \
-        > /tmp/gh-aw/community-data/tier0_attributed.json
+        /tmp/gh-aw/agent/community-data/community_issues.json \
+        > /tmp/gh-aw/agent/community-data/tier0_attributed.json
 
-      T0=$(jq length /tmp/gh-aw/community-data/tier0_attributed.json)
+      T0=$(jq length /tmp/gh-aw/agent/community-data/tier0_attributed.json)
       echo "Tier 0 (direct issue — COMPLETED): $T0"
 
       # Tier 1: native GitHub close references (exclude Tier 0 issues)
-      jq --slurpfile issues /tmp/gh-aw/community-data/community_issues.json \
-         --slurpfile t0 /tmp/gh-aw/community-data/tier0_attributed.json '
+      jq --slurpfile issues /tmp/gh-aw/agent/community-data/community_issues.json \
+         --slurpfile t0 /tmp/gh-aw/agent/community-data/tier0_attributed.json '
         ($t0[0] | map(.number) | map(tostring)) as $t0_keys |
         ($issues[0] | map(.number | tostring)) as $issue_keys |
         to_entries |
@@ -140,22 +140,22 @@ steps:
           ($issues[0] | map(select(.number | tostring == $k))[0]) +
           {tier: 1, attribution_type: "resolved by PR", closing_prs: $prs}
         )
-      ' /tmp/gh-aw/community-data/closing_refs_by_issue.json \
-        > /tmp/gh-aw/community-data/tier1_attributed.json 2>/dev/null \
-        || echo "[]" > /tmp/gh-aw/community-data/tier1_attributed.json
+      ' /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json \
+        > /tmp/gh-aw/agent/community-data/tier1_attributed.json 2>/dev/null \
+        || echo "[]" > /tmp/gh-aw/agent/community-data/tier1_attributed.json
 
-      T1=$(jq length /tmp/gh-aw/community-data/tier1_attributed.json)
+      T1=$(jq length /tmp/gh-aw/agent/community-data/tier1_attributed.json)
       echo "Tier 1 (native close refs): $T1"
 
       # Tier 2: PR body keyword matching (exclude Tier 0 and Tier 1 issues)
-      KW_ISSUES=$(jq -r '.[].body // ""' /tmp/gh-aw/community-data/pull_requests.json \
+      KW_ISSUES=$(jq -r '.[].body // ""' /tmp/gh-aw/agent/community-data/pull_requests.json \
         | grep -oP '(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*(?:github/gh-aw#|#)\K[0-9]+' 2>/dev/null \
         | sort -u | jq -R 'tonumber' | jq -s 'sort | unique' 2>/dev/null \
         || echo "[]")
 
       jq --argjson kw "$KW_ISSUES" \
-         --slurpfile t0 /tmp/gh-aw/community-data/tier0_attributed.json \
-         --slurpfile t1 /tmp/gh-aw/community-data/tier1_attributed.json '
+         --slurpfile t0 /tmp/gh-aw/agent/community-data/tier0_attributed.json \
+         --slurpfile t1 /tmp/gh-aw/agent/community-data/tier1_attributed.json '
         ($t0[0] | map(.number)) as $t0_nums |
         ($t1[0] | map(.number)) as $t1_nums |
         [.[] |
@@ -167,37 +167,37 @@ steps:
           ) |
           . + {tier: 2, attribution_type: "resolved by PR", closing_prs: []}
         ]
-      ' /tmp/gh-aw/community-data/community_issues.json \
-        > /tmp/gh-aw/community-data/tier2_attributed.json 2>/dev/null \
-        || echo "[]" > /tmp/gh-aw/community-data/tier2_attributed.json
+      ' /tmp/gh-aw/agent/community-data/community_issues.json \
+        > /tmp/gh-aw/agent/community-data/tier2_attributed.json 2>/dev/null \
+        || echo "[]" > /tmp/gh-aw/agent/community-data/tier2_attributed.json
 
-      T2=$(jq length /tmp/gh-aw/community-data/tier2_attributed.json)
+      T2=$(jq length /tmp/gh-aw/agent/community-data/tier2_attributed.json)
       echo "Tier 2 (PR body keywords): $T2"
 
       # Combine Tier 0 + 1 + 2 into pre_attributed.json
       jq -n \
-        --slurpfile t0 /tmp/gh-aw/community-data/tier0_attributed.json \
-        --slurpfile t1 /tmp/gh-aw/community-data/tier1_attributed.json \
-        --slurpfile t2 /tmp/gh-aw/community-data/tier2_attributed.json \
+        --slurpfile t0 /tmp/gh-aw/agent/community-data/tier0_attributed.json \
+        --slurpfile t1 /tmp/gh-aw/agent/community-data/tier1_attributed.json \
+        --slurpfile t2 /tmp/gh-aw/agent/community-data/tier2_attributed.json \
         '$t0[0] + $t1[0] + $t2[0]' \
-        > /tmp/gh-aw/community-data/pre_attributed.json
+        > /tmp/gh-aw/agent/community-data/pre_attributed.json
 
-      TOTAL=$(jq length /tmp/gh-aw/community-data/pre_attributed.json)
+      TOTAL=$(jq length /tmp/gh-aw/agent/community-data/pre_attributed.json)
       echo ""
       echo "Pre-attributed: $TOTAL issues (Tier 0: $T0, Tier 1: $T1, Tier 2: $T2)"
 
       # Compute Tier 3+ candidates (closed in window, not yet pre-attributed)
-      jq --slurpfile pre /tmp/gh-aw/community-data/pre_attributed.json '
+      jq --slurpfile pre /tmp/gh-aw/agent/community-data/pre_attributed.json '
         ($pre[0] | map(.number)) as $attributed |
         [.[] | select(.number as $n | $attributed | index($n) == null)]
-      ' /tmp/gh-aw/community-data/community_issues_closed_in_window.json \
-        > /tmp/gh-aw/community-data/tier3_candidates.json 2>/dev/null \
-        || echo "[]" > /tmp/gh-aw/community-data/tier3_candidates.json
+      ' /tmp/gh-aw/agent/community-data/community_issues_closed_in_window.json \
+        > /tmp/gh-aw/agent/community-data/tier3_candidates.json 2>/dev/null \
+        || echo "[]" > /tmp/gh-aw/agent/community-data/tier3_candidates.json
 
-      T3=$(jq length /tmp/gh-aw/community-data/tier3_candidates.json)
+      T3=$(jq length /tmp/gh-aw/agent/community-data/tier3_candidates.json)
       echo "Tier 3+ candidates (agent lookup needed): $T3"
       echo ""
-      echo "Data available in /tmp/gh-aw/community-data/:"
+      echo "Data available in /tmp/gh-aw/agent/community-data/:"
       echo "  pre_attributed.json    — Tier 0+1+2 confirmed attributions"
       echo "  tier3_candidates.json  — issues needing Tier 3 agent lookup"
 
@@ -221,22 +221,22 @@ and opens a PR for review.
 
 ## Pre-fetched Data
 
-All data is in `/tmp/gh-aw/community-data/`:
+All data is in `/tmp/gh-aw/agent/community-data/`:
 
 ```bash
 # Tier 0+1+2 are already computed — start here:
-cat /tmp/gh-aw/community-data/pre_attributed.json | \
+cat /tmp/gh-aw/agent/community-data/pre_attributed.json | \
   jq -r '.[] | "- #\(.number) [Tier \(.tier)] \(.attribution_type) — \(.title) by @\(.author.login)"'
 
 # Issues still needing Tier 3 agent lookup:
-cat /tmp/gh-aw/community-data/tier3_candidates.json | \
+cat /tmp/gh-aw/agent/community-data/tier3_candidates.json | \
   jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login) (closed: \(.closedAt), stateReason: \(.stateReason // "null"))"'
 
 # View closing reference index
-cat /tmp/gh-aw/community-data/closing_refs_by_issue.json | jq
+cat /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json | jq
 
 # View current README
-head -80 /tmp/gh-aw/community-data/README_current.md
+head -80 /tmp/gh-aw/agent/community-data/README_current.md
 
 # View existing wiki page (if any)
 cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md 2>/dev/null || echo "(wiki page does not exist yet)"

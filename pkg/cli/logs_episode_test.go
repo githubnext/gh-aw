@@ -13,7 +13,7 @@ import (
 func TestBuildEpisodeDataIncludesToolCalls(t *testing.T) {
 	runs := []RunData{
 		{
-			DatabaseID:   101,
+			RunID:        101,
 			WorkflowName: "my-workflow",
 			Status:       "completed",
 			Conclusion:   "success",
@@ -82,7 +82,7 @@ func TestBuildEpisodeDataIncludesToolCalls(t *testing.T) {
 func TestBuildEpisodeDataNoToolCallsWhenMCPUsageAbsent(t *testing.T) {
 	runs := []RunData{
 		{
-			DatabaseID:   200,
+			RunID:        200,
 			WorkflowName: "no-mcp-workflow",
 			Status:       "completed",
 			CreatedAt:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
@@ -110,7 +110,7 @@ func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
 	workflowCallID := "dispatch:wc-42"
 	runs := []RunData{
 		{
-			DatabaseID:   301,
+			RunID:        301,
 			WorkflowName: "orchestrator",
 			Status:       "completed",
 			CreatedAt:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
@@ -119,7 +119,7 @@ func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
 			},
 		},
 		{
-			DatabaseID:   302,
+			RunID:        302,
 			WorkflowName: "worker",
 			Status:       "completed",
 			CreatedAt:    time.Date(2024, 1, 1, 12, 1, 0, 0, time.UTC),

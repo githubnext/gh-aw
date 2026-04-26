@@ -1032,3 +1032,401 @@ func TestComputeRunMetricsDiff_RateLimitAloneNotNil(t *testing.T) {
 	require.NotNil(t, diff, "diff should not be nil when rate limit data is present")
 	require.NotNil(t, diff.GitHubRateLimitDetails, "GitHubRateLimitDetails should be populated")
 }
+
+// --- Tool calls diff tests ---
+
+func TestComputeToolCallsDiff_BothNil(t *testing.T) {
+	result := computeToolCallsDiff(nil, nil)
+	assert.Nil(t, result, "Should return nil when both metrics are nil")
+}
+
+func TestComputeToolCallsDiff_BothEmpty(t *testing.T) {
+	m1 := &LogMetrics{}
+	m2 := &LogMetrics{}
+	result := computeToolCallsDiff(m1, m2)
+	assert.Nil(t, result, "Should return nil when both metrics have no tool calls")
+}
+
+func TestComputeToolCallsDiff_DuplicateToolNames(t *testing.T) {
+	// When the same tool name appears multiple times (e.g. metrics aggregated from multiple log files),
+	// call counts should be summed and max sizes kept.
+	m1 := &LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "bash", CallCount: 3, MaxInputSize: 100, MaxOutputSize: 200},
+			{Name: "bash", CallCount: 4, MaxInputSize: 150, MaxOutputSize: 180},
+		},
+	}
+	m2 := &LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "bash", CallCount: 5, MaxInputSize: 120, MaxOutputSize: 300},
+			{Name: "bash", CallCount: 2, MaxInputSize: 90, MaxOutputSize: 250},
+		},
+	}
+
+	diff := computeToolCallsDiff(m1, m2)
+	require.NotNil(t, diff, "Should produce diff")
+
+	require.Len(t, diff.AllTools, 1, "Should have 1 unique tool (bash)")
+	bash := diff.AllTools[0]
+	assert.Equal(t, "bash", bash.Name, "Tool should be bash")
+	// Run1: 3+4=7, Run2: 5+2=7 → unchanged
+	assert.Equal(t, 7, bash.Run1CallCount, "Run1 call count should be sum: 3+4=7")
+	assert.Equal(t, 7, bash.Run2CallCount, "Run2 call count should be sum: 5+2=7")
+	assert.Equal(t, "unchanged", bash.Status, "Status should be unchanged when counts are equal")
+	// Max input: run1=max(100,150)=150, run2=max(120,90)=120
+	assert.Equal(t, 150, bash.Run1MaxInputSize, "Run1 max input should be max(100,150)=150")
+	assert.Equal(t, 120, bash.Run2MaxInputSize, "Run2 max input should be max(120,90)=120")
+	// Max output: run1=max(200,180)=200, run2=max(300,250)=300
+	assert.Equal(t, 200, bash.Run1MaxOutputSize, "Run1 max output should be max(200,180)=200")
+	assert.Equal(t, 300, bash.Run2MaxOutputSize, "Run2 max output should be max(300,250)=300")
+}
+
+func TestComputeToolCallsDiff_NewTools(t *testing.T) {
+	m1 := &LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "gh", CallCount: 5},
+		},
+	}
+	m2 := &LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "gh", CallCount: 5},
+			{Name: "bash", CallCount: 3, MaxInputSize: 200, MaxOutputSize: 500},
+			{Name: "edit", CallCount: 2},
+		},
+	}
+
+	diff := computeToolCallsDiff(m1, m2)
+	require.NotNil(t, diff, "Should produce diff when tool calls exist")
+
+	assert.Len(t, diff.NewTools, 2, "Should have 2 new tools (bash, edit)")
+	assert.Empty(t, diff.RemovedTools, "Should have no removed tools")
+	assert.Empty(t, diff.ChangedTools, "Should have no changed tools")
+	assert.Len(t, diff.AllTools, 3, "AllTools should include all 3 tools")
+
+	bashEntry := findToolCallDiffEntry(diff.NewTools, "bash")
+	require.NotNil(t, bashEntry, "Should find bash in new tools")
+	assert.Equal(t, "new", bashEntry.Status, "bash status should be 'new'")
+	assert.Equal(t, 3, bashEntry.Run2CallCount, "bash call count should be 3")
+	assert.Equal(t, 200, bashEntry.Run2MaxInputSize, "bash max input should be 200")
+	assert.Equal(t, 500, bashEntry.Run2MaxOutputSize, "bash max output should be 500")
+
+	assert.Equal(t, 2, diff.Summary.NewToolCount, "Summary should show 2 new tools")
+	assert.Equal(t, 5, diff.Summary.Run1TotalCalls, "Run1 total should be 5")
+	assert.Equal(t, 10, diff.Summary.Run2TotalCalls, "Run2 total should be 10 (5+3+2)")
+}
+
+func TestComputeToolCallsDiff_RemovedTools(t *testing.T) {
+	m1 := &LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "bash", CallCount: 8},
+			{Name: "gh", CallCount: 4},
+			{Name: "edit", CallCount: 2},
+		},
+	}
+	m2 := &LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "bash", CallCount: 6},
+		},
+	}
+
+	diff := computeToolCallsDiff(m1, m2)
+	require.NotNil(t, diff, "Should produce diff")
+
+	assert.Len(t, diff.RemovedTools, 2, "Should have 2 removed tools (gh, edit)")
+	assert.Empty(t, diff.NewTools, "Should have no new tools")
+
+	assert.Equal(t, 2, diff.Summary.RemovedToolCount, "Summary should show 2 removed tools")
+	assert.Equal(t, 14, diff.Summary.Run1TotalCalls, "Run1 total should be 14")
+	assert.Equal(t, 6, diff.Summary.Run2TotalCalls, "Run2 total should be 6")
+}
+
+func TestComputeToolCallsDiff_ChangedTools(t *testing.T) {
+	m1 := &LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "bash", CallCount: 5, MaxOutputSize: 300},
+			{Name: "gh", CallCount: 3},
+		},
+	}
+	m2 := &LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "bash", CallCount: 12, MaxOutputSize: 800},
+			{Name: "gh", CallCount: 3},
+		},
+	}
+
+	diff := computeToolCallsDiff(m1, m2)
+	require.NotNil(t, diff, "Should produce diff")
+
+	assert.Len(t, diff.ChangedTools, 1, "Should have 1 changed tool (bash)")
+	assert.Empty(t, diff.NewTools, "Should have no new tools")
+	assert.Empty(t, diff.RemovedTools, "Should have no removed tools")
+
+	bashEntry := findToolCallDiffEntry(diff.ChangedTools, "bash")
+	require.NotNil(t, bashEntry, "Should find bash in changed tools")
+	assert.Equal(t, "changed", bashEntry.Status, "bash status should be 'changed'")
+	assert.Equal(t, 5, bashEntry.Run1CallCount, "bash run1 call count should be 5")
+	assert.Equal(t, 12, bashEntry.Run2CallCount, "bash run2 call count should be 12")
+	assert.Equal(t, "+7", bashEntry.CallCountChange, "bash change should be +7")
+	assert.Equal(t, 300, bashEntry.Run1MaxOutputSize, "run1 max output should be 300")
+	assert.Equal(t, 800, bashEntry.Run2MaxOutputSize, "run2 max output should be 800")
+
+	assert.Equal(t, 1, diff.Summary.ChangedToolCount, "Summary should show 1 changed tool")
+}
+
+func TestComputeToolCallsDiff_AllToolsContainsEverything(t *testing.T) {
+	m1 := &LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "bash", CallCount: 4},
+			{Name: "gh", CallCount: 2},
+		},
+	}
+	m2 := &LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "bash", CallCount: 8},
+			{Name: "edit", CallCount: 3},
+		},
+	}
+
+	diff := computeToolCallsDiff(m1, m2)
+	require.NotNil(t, diff, "Should produce diff")
+
+	// AllTools should include bash (changed), gh (removed), edit (new) - all 3 tools
+	assert.Len(t, diff.AllTools, 3, "AllTools should contain all 3 unique tools")
+
+	statuses := make(map[string]string)
+	for _, e := range diff.AllTools {
+		statuses[e.Name] = e.Status
+	}
+	assert.Equal(t, "changed", statuses["bash"], "bash should be changed")
+	assert.Equal(t, "removed", statuses["gh"], "gh should be removed")
+	assert.Equal(t, "new", statuses["edit"], "edit should be new")
+}
+
+func TestComputeToolCallsDiff_SortedOutput(t *testing.T) {
+	m1 := &LogMetrics{}
+	m2 := &LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "z-tool", CallCount: 1},
+			{Name: "a-tool", CallCount: 1},
+			{Name: "m-tool", CallCount: 1},
+		},
+	}
+
+	diff := computeToolCallsDiff(m1, m2)
+	require.NotNil(t, diff, "Should produce diff")
+	require.Len(t, diff.AllTools, 3, "Should have 3 tools in AllTools")
+
+	// AllTools is built from sorted keys
+	assert.Equal(t, "a-tool", diff.AllTools[0].Name, "First tool should be a-tool (sorted)")
+	assert.Equal(t, "m-tool", diff.AllTools[1].Name, "Second tool should be m-tool (sorted)")
+	assert.Equal(t, "z-tool", diff.AllTools[2].Name, "Third tool should be z-tool (sorted)")
+}
+
+// --- Bash commands diff tests ---
+
+func TestComputeBashCommandsDiff_NoBash(t *testing.T) {
+	// computeBashCommandsDiff receives pre-filtered maps; passing no bash tools → nil
+	run1Tools := map[string]ToolCallInfo{}
+	run2Tools := map[string]ToolCallInfo{}
+	result := computeBashCommandsDiff(run1Tools, run2Tools)
+	assert.Nil(t, result, "Should return nil when no bash tools present")
+}
+
+func TestComputeBashCommandsDiff_GenericBash(t *testing.T) {
+	// Only bash tools are passed to computeBashCommandsDiff
+	run1Tools := map[string]ToolCallInfo{
+		"bash": {Name: "bash", CallCount: 5},
+	}
+	run2Tools := map[string]ToolCallInfo{
+		"bash": {Name: "bash", CallCount: 10},
+	}
+
+	result := computeBashCommandsDiff(run1Tools, run2Tools)
+	require.NotNil(t, result, "Should produce bash diff when bash tool present")
+
+	assert.Equal(t, 5, result.Run1TotalCalls, "Run1 total bash calls should be 5")
+	assert.Equal(t, 10, result.Run2TotalCalls, "Run2 total bash calls should be 10")
+	assert.Equal(t, "+5", result.TotalCallsChange, "Total change should be +5")
+
+	require.Len(t, result.Commands, 1, "Should have 1 command (bash)")
+	assert.Equal(t, "bash", result.Commands[0].Name, "Command should be bash")
+	assert.Equal(t, "changed", result.Commands[0].Status, "bash status should be changed")
+	assert.Equal(t, "+5", result.Commands[0].CallCountChange, "bash change should be +5")
+}
+
+func TestComputeBashCommandsDiff_PerCommandTracking(t *testing.T) {
+	// Codex-style per-command bash tracking
+	run1Tools := map[string]ToolCallInfo{
+		"bash_git_status": {Name: "bash_git_status", CallCount: 3},
+		"bash_ls_la":      {Name: "bash_ls_la", CallCount: 1},
+		"bash_cat_readme": {Name: "bash_cat_readme", CallCount: 2},
+	}
+	run2Tools := map[string]ToolCallInfo{
+		"bash_git_status": {Name: "bash_git_status", CallCount: 5},
+		"bash_git_diff":   {Name: "bash_git_diff", CallCount: 4},
+		"bash_cat_readme": {Name: "bash_cat_readme", CallCount: 2},
+	}
+
+	result := computeBashCommandsDiff(run1Tools, run2Tools)
+	require.NotNil(t, result, "Should produce bash diff")
+
+	assert.Equal(t, 6, result.Run1TotalCalls, "Run1 total: 3+1+2=6")
+	assert.Equal(t, 11, result.Run2TotalCalls, "Run2 total: 5+4+2=11")
+	assert.Equal(t, "+5", result.TotalCallsChange, "Total change should be +5")
+
+	require.Len(t, result.Commands, 4, "Should have 4 commands (ls removed, diff added, status/cat changed/unchanged)")
+
+	statusMap := make(map[string]string)
+	for _, cmd := range result.Commands {
+		statusMap[cmd.Name] = cmd.Status
+	}
+	assert.Equal(t, "changed", statusMap["bash_git_status"], "git_status should be changed")
+	assert.Equal(t, "removed", statusMap["bash_ls_la"], "ls_la should be removed")
+	assert.Equal(t, "unchanged", statusMap["bash_cat_readme"], "cat_readme should be unchanged")
+	assert.Equal(t, "new", statusMap["bash_git_diff"], "git_diff should be new")
+}
+
+func TestComputeBashCommandsDiff_BashCapitalized(t *testing.T) {
+	// Claude uses "Bash" (capitalized)
+	run1Tools := map[string]ToolCallInfo{
+		"Bash": {Name: "Bash", CallCount: 7},
+	}
+	run2Tools := map[string]ToolCallInfo{
+		"Bash": {Name: "Bash", CallCount: 4},
+	}
+
+	result := computeBashCommandsDiff(run1Tools, run2Tools)
+	require.NotNil(t, result, "Should detect capitalized Bash tool")
+	assert.Equal(t, 7, result.Run1TotalCalls, "Run1 total should be 7")
+	assert.Equal(t, 4, result.Run2TotalCalls, "Run2 total should be 4")
+}
+
+// --- Tokens per turn tests ---
+
+func TestComputeRunMetricsDiff_TokensPerTurn(t *testing.T) {
+	summary1 := &RunSummary{
+		Run: WorkflowRun{
+			TokenUsage: 10000,
+			Turns:      5,
+		},
+	}
+	summary2 := &RunSummary{
+		Run: WorkflowRun{
+			TokenUsage: 18000,
+			Turns:      6,
+		},
+	}
+
+	diff := computeRunMetricsDiff(summary1, summary2)
+	require.NotNil(t, diff, "Should produce metrics diff")
+
+	// Without effective tokens, falls back to engine token count
+	assert.Equal(t, 2000, diff.Run1TokensPerTurn, "Run1 tokens/turn should be 10000/5=2000")
+	assert.Equal(t, 3000, diff.Run2TokensPerTurn, "Run2 tokens/turn should be 18000/6=3000")
+	assert.Equal(t, "+50%", diff.TokensPerTurnChange, "Tokens/turn should increase by 50%")
+}
+
+func TestComputeRunMetricsDiff_TokensPerTurnFromEffective(t *testing.T) {
+	// When effective token data is available it should be used for tokens/turn
+	summary1 := &RunSummary{
+		Run: WorkflowRun{
+			TokenUsage: 10000,
+			Turns:      4,
+		},
+		TokenUsage: &TokenUsageSummary{
+			TotalEffectiveTokens: 8000,
+			TotalInputTokens:     10000,
+			TotalRequests:        4,
+		},
+	}
+	summary2 := &RunSummary{
+		Run: WorkflowRun{
+			TokenUsage: 16000,
+			Turns:      4,
+		},
+		TokenUsage: &TokenUsageSummary{
+			TotalEffectiveTokens: 12000,
+			TotalInputTokens:     16000,
+			TotalRequests:        4,
+		},
+	}
+
+	diff := computeRunMetricsDiff(summary1, summary2)
+	require.NotNil(t, diff, "Should produce metrics diff")
+
+	// Effective tokens should be used: 8000/4=2000, 12000/4=3000
+	assert.Equal(t, 2000, diff.Run1TokensPerTurn, "Run1 tokens/turn should use effective: 8000/4=2000")
+	assert.Equal(t, 3000, diff.Run2TokensPerTurn, "Run2 tokens/turn should use effective: 12000/4=3000")
+}
+
+func TestComputeRunMetricsDiff_TokensPerTurnZeroTurns(t *testing.T) {
+	// When turns = 0, tokens per turn should remain 0 (no division)
+	summary1 := &RunSummary{
+		Run: WorkflowRun{
+			TokenUsage: 5000,
+			Turns:      0,
+		},
+	}
+	summary2 := &RunSummary{
+		Run: WorkflowRun{
+			TokenUsage: 8000,
+			Turns:      4,
+		},
+	}
+
+	diff := computeRunMetricsDiff(summary1, summary2)
+	require.NotNil(t, diff, "Should produce metrics diff")
+
+	assert.Equal(t, 0, diff.Run1TokensPerTurn, "Run1 tokens/turn should be 0 when turns=0")
+	assert.Equal(t, 2000, diff.Run2TokensPerTurn, "Run2 tokens/turn should be 8000/4=2000")
+}
+
+// --- Tool calls diff in RunMetricsDiff integration test ---
+
+func TestComputeRunMetricsDiff_WithToolCallsDiff(t *testing.T) {
+	m1 := LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "bash", CallCount: 5},
+			{Name: "gh", CallCount: 3},
+		},
+		Turns: 4,
+	}
+	m2 := LogMetrics{
+		ToolCalls: []ToolCallInfo{
+			{Name: "bash", CallCount: 12},
+			{Name: "gh", CallCount: 3},
+			{Name: "edit", CallCount: 4},
+		},
+		Turns: 6,
+	}
+	summary1 := &RunSummary{
+		Run:     WorkflowRun{TokenUsage: 5000, Turns: 4},
+		Metrics: m1,
+	}
+	summary2 := &RunSummary{
+		Run:     WorkflowRun{TokenUsage: 9000, Turns: 6},
+		Metrics: m2,
+	}
+
+	diff := computeRunMetricsDiff(summary1, summary2)
+	require.NotNil(t, diff, "Should produce metrics diff")
+	require.NotNil(t, diff.ToolCallsDiff, "Should include tool calls diff")
+
+	assert.Len(t, diff.ToolCallsDiff.NewTools, 1, "Should have 1 new tool (edit)")
+	assert.Len(t, diff.ToolCallsDiff.ChangedTools, 1, "Should have 1 changed tool (bash)")
+	assert.Empty(t, diff.ToolCallsDiff.RemovedTools, "Should have no removed tools")
+
+	require.NotNil(t, diff.ToolCallsDiff.BashDiff, "Should have bash diff")
+	assert.Equal(t, 5, diff.ToolCallsDiff.BashDiff.Run1TotalCalls, "Bash run1 total should be 5")
+	assert.Equal(t, 12, diff.ToolCallsDiff.BashDiff.Run2TotalCalls, "Bash run2 total should be 12")
+}
+
+// findToolCallDiffEntry is a test helper to find a tool entry by name
+func findToolCallDiffEntry(entries []ToolCallDiffEntry, name string) *ToolCallDiffEntry {
+	for i := range entries {
+		if entries[i].Name == name {
+			return &entries[i]
+		}
+	}
+	return nil
+}

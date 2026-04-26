@@ -83,11 +83,6 @@
       "version": "v5.2.0",
       "sha": "be666c2fcd27ec809703dec50e508c2fdc7f6654"
     },
-    "actions/setup-node@v6.3.0": {
-      "repo": "actions/setup-node",
-      "version": "v6.3.0",
-      "sha": "53b83947a5a98c8d113130e565377fae1a50d02f"
-    },
     "actions/setup-node@v6.4.0": {
       "repo": "actions/setup-node",
       "version": "v6.4.0",
@@ -163,11 +158,6 @@
       "version": "v2.11",
       "sha": "1cb3cd8a008d80c9fa129c0f0823d69584905f5b"
     },
-    "microsoft/apm-action@v1.4.1": {
-      "repo": "microsoft/apm-action",
-      "version": "v1.4.1",
-      "sha": "a190b0b1a91031057144dc136acf9757a59c9e4d"
-    },
     "oven-sh/setup-bun@v2.2.0": {
       "repo": "oven-sh/setup-bun",
       "version": "v2.2.0",
@@ -182,6 +172,11 @@
       "repo": "super-linter/super-linter",
       "version": "v8.6.0",
       "sha": "9e863354e3ff62e0727d37183162c4a88873df41"
+    },
+    "microsoft/apm-action@v1.4.2": {
+      "repo": "microsoft/apm-action",
+      "version": "v1.4.2",
+      "sha": "9fe9337ef58b5e620e0113071ceb47a6a8a232f7"
     }
   },
   "containers": {

@@ -31,6 +31,27 @@ func TestBuildCacheMemoryPromptSection_SingleDefaultCache(t *testing.T) {
 	require.NotNil(t, section.EnvVars, "Should have environment variables")
 	assert.Equal(t, "/tmp/gh-aw/cache-memory/", section.EnvVars["GH_AW_CACHE_DIR"], "Should have correct cache directory")
 	assert.Empty(t, section.EnvVars["GH_AW_CACHE_DESCRIPTION"], "Should have empty description when not provided")
+	// No file type restrictions → placeholder is replaced with empty string
+	assert.Empty(t, section.EnvVars["GH_AW_ALLOWED_EXTENSIONS"], "Should have empty allowed-extensions when none configured")
+}
+
+func TestBuildCacheMemoryPromptSection_SingleDefaultCacheWithAllowedExtensions(t *testing.T) {
+	config := &CacheMemoryConfig{
+		Caches: []CacheMemoryEntry{
+			{
+				ID:                "default",
+				AllowedExtensions: []string{".json", ".txt"},
+			},
+		},
+	}
+
+	section := buildCacheMemoryPromptSection(config)
+
+	require.NotNil(t, section, "Should return a prompt section")
+	require.NotNil(t, section.EnvVars, "Should have environment variables")
+	// Allowed extensions should be wrapped in an XML element for the agent prompt
+	assert.Equal(t, "\n<allowed-extensions>.json, .txt</allowed-extensions>", section.EnvVars["GH_AW_ALLOWED_EXTENSIONS"],
+		"Should wrap allowed extensions in XML element")
 }
 
 func TestBuildCacheMemoryPromptSection_SingleDefaultCacheWithDescription(t *testing.T) {
@@ -93,6 +114,25 @@ func TestBuildCacheMemoryPromptSection_MultipleCaches(t *testing.T) {
 	cacheExamples := section.EnvVars["GH_AW_CACHE_EXAMPLES"]
 	assert.Contains(t, cacheExamples, "/tmp/gh-aw/cache-memory/notes.txt", "Should have examples for default cache")
 	assert.Contains(t, cacheExamples, "/tmp/gh-aw/cache-memory-session/notes.txt", "Should have examples for session cache")
+	// Neither cache has AllowedExtensions → placeholder replaced with empty string
+	assert.Empty(t, section.EnvVars["GH_AW_ALLOWED_EXTENSIONS"], "Should have empty allowed-extensions when none configured")
+}
+
+func TestBuildCacheMemoryPromptSection_MultipleCachesWithAllowedExtensions(t *testing.T) {
+	config := &CacheMemoryConfig{
+		Caches: []CacheMemoryEntry{
+			{ID: "default", AllowedExtensions: []string{".json", ".txt"}},
+			{ID: "session", AllowedExtensions: []string{".jsonl"}},
+		},
+	}
+
+	section := buildCacheMemoryPromptSection(config)
+
+	require.NotNil(t, section, "Should return a prompt section")
+	require.NotNil(t, section.EnvVars, "Should have environment variables")
+	// Union of .json, .jsonl, .txt — sorted
+	assert.Equal(t, "\n<allowed-extensions>.json, .jsonl, .txt</allowed-extensions>", section.EnvVars["GH_AW_ALLOWED_EXTENSIONS"],
+		"Should wrap union of allowed extensions in XML element")
 }
 
 func TestBuildCacheMemoryPromptSection_SingleNonDefaultCache(t *testing.T) {

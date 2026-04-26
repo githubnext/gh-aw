@@ -441,15 +441,16 @@ Logs are saved to `logs/run-{id}/` with filenames indicating the extraction leve
 | **Jobs** | Status of each GitHub Actions job in the run |
 | **Artifacts** | Downloaded artifacts and their contents |
 
-##### `audit diff`
+##### Multi-run diff mode
 
-Compare behavior between two workflow runs to detect policy regressions, new unauthorized domains, behavioral drift, and changes in MCP tool usage or run metrics.
+Compare behavior between two or more workflow runs to detect policy regressions, new unauthorized domains, behavioral drift, and changes in MCP tool usage or run metrics. Pass multiple run IDs directly to `audit` — the first is the base, the rest are comparisons:
 
 ```bash wrap
-gh aw audit diff 12345 12346                     # Compare two runs
-gh aw audit diff 12345 12346 --format markdown   # Markdown output for PR comments
-gh aw audit diff 12345 12346 --json              # JSON for CI integration
-gh aw audit diff 12345 12346 --repo owner/repo   # Specify repository
+gh aw audit 12345 12346                     # Compare two runs
+gh aw audit 12345 12346 12347 12348         # Compare base against 3 runs
+gh aw audit 12345 12346 --format markdown   # Markdown output for PR comments
+gh aw audit 12345 12346 --json              # JSON for CI integration
+gh aw audit 12345 12346 --repo owner/repo   # Specify repository
 ```
 
 The diff output shows: new or removed network domains, status changes (allowed ↔ denied), volume changes (>100% threshold), MCP tool invocation changes, and run metric comparisons (token usage, duration, turns).

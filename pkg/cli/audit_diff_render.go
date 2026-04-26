@@ -263,6 +263,9 @@ func renderRunMetricsDiffMarkdownSection(run1ID, run2ID int64, diff *RunMetricsD
 		turnsChange := fmt.Sprintf("%+d", diff.TurnsChange)
 		fmt.Printf("| Turns | %d | %d | %s |\n", diff.Run1Turns, diff.Run2Turns, turnsChange)
 	}
+	if diff.Run1TokensPerTurn > 0 || diff.Run2TokensPerTurn > 0 {
+		fmt.Printf("| Tokens / turn | %d | %d | %s |\n", diff.Run1TokensPerTurn, diff.Run2TokensPerTurn, diff.TokensPerTurnChange)
+	}
 	fmt.Println()
 
 	if diff.TokenUsageDetails != nil {
@@ -270,6 +273,9 @@ func renderRunMetricsDiffMarkdownSection(run1ID, run2ID int64, diff *RunMetricsD
 	}
 	if diff.GitHubRateLimitDetails != nil {
 		renderGitHubRateLimitDiffMarkdownSection(run1ID, run2ID, diff.GitHubRateLimitDetails)
+	}
+	if diff.ToolCallsDiff != nil {
+		renderToolCallsDiffMarkdownSection(run1ID, run2ID, diff.ToolCallsDiff)
 	}
 }
 
@@ -503,6 +509,14 @@ func renderRunMetricsDiffPrettySection(run1ID, run2ID int64, diff *RunMetricsDif
 			fmt.Sprintf("%+d", diff.TurnsChange),
 		})
 	}
+	if diff.Run1TokensPerTurn > 0 || diff.Run2TokensPerTurn > 0 {
+		config.Rows = append(config.Rows, []string{
+			"Tokens / turn",
+			strconv.Itoa(diff.Run1TokensPerTurn),
+			strconv.Itoa(diff.Run2TokensPerTurn),
+			diff.TokensPerTurnChange,
+		})
+	}
 
 	if len(config.Rows) > 0 {
 		fmt.Fprint(os.Stderr, console.RenderTable(config))
@@ -515,6 +529,10 @@ func renderRunMetricsDiffPrettySection(run1ID, run2ID int64, diff *RunMetricsDif
 	if diff.GitHubRateLimitDetails != nil {
 		fmt.Fprintln(os.Stderr)
 		renderGitHubRateLimitDiffPrettySection(run1ID, run2ID, diff.GitHubRateLimitDetails)
+	}
+	if diff.ToolCallsDiff != nil {
+		fmt.Fprintln(os.Stderr)
+		renderToolCallsDiffPrettySection(run1ID, run2ID, diff.ToolCallsDiff)
 	}
 }
 
@@ -658,6 +676,151 @@ func renderGitHubRateLimitDiffPrettySection(run1ID, run2ID int64, diff *GitHubRa
 	if len(config.Rows) > 0 {
 		fmt.Fprint(os.Stderr, console.RenderTable(config))
 	}
+}
+
+// renderToolCallsDiffPrettySection renders the engine-level tool calls diff as a pretty console sub-section.
+// It shows a high-level table of all tool types and a dedicated bash commands breakdown.
+func renderToolCallsDiffPrettySection(run1ID, run2ID int64, diff *ToolCallsDiff) {
+	if diff == nil {
+		return
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Tool Call Breakdown"))
+	fmt.Fprintln(os.Stderr)
+
+	// All-tools overview table
+	if len(diff.AllTools) > 0 {
+		config := console.TableConfig{
+			Headers: []string{"Tool", fmt.Sprintf("Run #%d", run1ID), fmt.Sprintf("Run #%d", run2ID), "Change"},
+			Rows:    make([][]string, 0, len(diff.AllTools)),
+		}
+		for _, entry := range diff.AllTools {
+			change := entry.CallCountChange
+			if change == "" {
+				change = "—"
+			}
+			config.Rows = append(config.Rows, []string{
+				entry.Name,
+				strconv.Itoa(entry.Run1CallCount),
+				strconv.Itoa(entry.Run2CallCount),
+				change,
+			})
+		}
+		fmt.Fprint(os.Stderr, console.RenderTable(config))
+	}
+
+	// Bash-specific breakdown
+	if diff.BashDiff != nil {
+		fmt.Fprintln(os.Stderr)
+		renderBashCommandsDiffPrettySection(run1ID, run2ID, diff.BashDiff)
+	}
+}
+
+// renderBashCommandsDiffPrettySection renders the bash commands breakdown as a pretty console sub-section.
+func renderBashCommandsDiffPrettySection(run1ID, run2ID int64, diff *BashCommandsDiff) {
+	fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Bash Commands"))
+	fmt.Fprintln(os.Stderr)
+
+	// Summary line
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+		fmt.Sprintf("Total bash calls: Run #%d=%d, Run #%d=%d (%s)",
+			run1ID, diff.Run1TotalCalls,
+			run2ID, diff.Run2TotalCalls,
+			diff.TotalCallsChange),
+	))
+
+	if len(diff.Commands) > 0 {
+		fmt.Fprintln(os.Stderr)
+		config := console.TableConfig{
+			Headers: []string{"Command", fmt.Sprintf("Run #%d", run1ID), fmt.Sprintf("Run #%d", run2ID), "Change", "Max Input", "Max Output"},
+			Rows:    make([][]string, 0, len(diff.Commands)),
+		}
+		for _, cmd := range diff.Commands {
+			change := cmd.CallCountChange
+			if change == "" {
+				change = "—"
+			}
+			config.Rows = append(config.Rows, []string{
+				cmd.Name,
+				strconv.Itoa(cmd.Run1CallCount),
+				strconv.Itoa(cmd.Run2CallCount),
+				change,
+				formatMaxSizeCell(cmd.Run1MaxInputSize, cmd.Run2MaxInputSize),
+				formatMaxSizeCell(cmd.Run1MaxOutputSize, cmd.Run2MaxOutputSize),
+			})
+		}
+		fmt.Fprint(os.Stderr, console.RenderTable(config))
+	}
+}
+
+// renderToolCallsDiffMarkdownSection renders the engine-level tool calls diff as markdown.
+// It includes a full tool type table and a bash commands breakdown.
+func renderToolCallsDiffMarkdownSection(run1ID, run2ID int64, diff *ToolCallsDiff) {
+	if diff == nil {
+		return
+	}
+
+	fmt.Println("#### Tool Call Breakdown")
+	fmt.Println()
+
+	if len(diff.AllTools) > 0 {
+		fmt.Printf("| Tool | Run #%d | Run #%d | Change |\n", run1ID, run2ID)
+		fmt.Println("|------|---------|---------|--------|")
+		for _, entry := range diff.AllTools {
+			change := entry.CallCountChange
+			if change == "" {
+				change = "—"
+			}
+			fmt.Printf("| `%s` | %d | %d | %s |\n", entry.Name, entry.Run1CallCount, entry.Run2CallCount, change)
+		}
+		fmt.Println()
+	}
+
+	if diff.BashDiff != nil {
+		renderBashCommandsDiffMarkdownSection(run1ID, run2ID, diff.BashDiff)
+	}
+}
+
+// renderBashCommandsDiffMarkdownSection renders the bash commands diff sub-section as markdown.
+func renderBashCommandsDiffMarkdownSection(run1ID, run2ID int64, diff *BashCommandsDiff) {
+	fmt.Println("#### Bash Commands")
+	fmt.Println()
+	fmt.Printf("Total bash calls: Run #%d=%d, Run #%d=%d (%s)\n\n",
+		run1ID, diff.Run1TotalCalls,
+		run2ID, diff.Run2TotalCalls,
+		diff.TotalCallsChange)
+
+	if len(diff.Commands) > 0 {
+		fmt.Printf("| Command | Run #%d | Run #%d | Change | Max Input (r1/r2) | Max Output (r1/r2) |\n", run1ID, run2ID)
+		fmt.Println("|---------|---------|---------|--------|-------------------|-------------------|")
+		for _, cmd := range diff.Commands {
+			change := cmd.CallCountChange
+			if change == "" {
+				change = "—"
+			}
+			fmt.Printf("| `%s` | %d | %d | %s | %s | %s |\n",
+				cmd.Name, cmd.Run1CallCount, cmd.Run2CallCount, change,
+				formatMaxSizeCell(cmd.Run1MaxInputSize, cmd.Run2MaxInputSize),
+				formatMaxSizeCell(cmd.Run1MaxOutputSize, cmd.Run2MaxOutputSize))
+		}
+		fmt.Println()
+	}
+}
+
+// formatMaxSizeCell formats a "run1 / run2" max-size pair for display in a table cell.
+// Returns "—" when both values are zero, and omits the individual value if it is zero.
+func formatMaxSizeCell(run1Size, run2Size int) string {
+	if run1Size == 0 && run2Size == 0 {
+		return "—"
+	}
+	v1, v2 := strconv.Itoa(run1Size), strconv.Itoa(run2Size)
+	if run1Size == 0 {
+		v1 = "—"
+	}
+	if run2Size == 0 {
+		v2 = "—"
+	}
+	return v1 + " / " + v2
 }
 
 // firewallStatusEmoji returns the status emoji for a domain status

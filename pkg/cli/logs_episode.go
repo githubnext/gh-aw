@@ -95,10 +95,10 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 	seedsByRunID := make(map[int64]episodeSeed, len(runs))
 	parents := make(map[int64]int64, len(runs))
 	for _, run := range runs {
-		runsByID[run.DatabaseID] = run
+		runsByID[run.RunID] = run
 		episodeID, kind, confidence, reasons := classifyEpisode(run)
-		seedsByRunID[run.DatabaseID] = episodeSeed{EpisodeID: episodeID, Kind: kind, Confidence: confidence, Reasons: append([]string(nil), reasons...)}
-		parents[run.DatabaseID] = run.DatabaseID
+		seedsByRunID[run.RunID] = episodeSeed{EpisodeID: episodeID, Kind: kind, Confidence: confidence, Reasons: append([]string(nil), reasons...)}
+		parents[run.RunID] = run.RunID
 	}
 	for _, processedRun := range processedRuns {
 		processedByID[processedRun.Run.DatabaseID] = processedRun
@@ -115,8 +115,8 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 	episodeMap := make(map[string]*episodeAccumulator)
 	rootMetadata := make(map[int64]episodeSeed)
 	for _, run := range runs {
-		root := findEpisodeParent(parents, run.DatabaseID)
-		seed := seedsByRunID[run.DatabaseID]
+		root := findEpisodeParent(parents, run.RunID)
+		seed := seedsByRunID[run.RunID]
 		best, exists := rootMetadata[root]
 		if !exists || compareEpisodeSeeds(seed, best) > 0 {
 			rootMetadata[root] = seed
@@ -124,7 +124,7 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 	}
 
 	for _, run := range runs {
-		root := findEpisodeParent(parents, run.DatabaseID)
+		root := findEpisodeParent(parents, run.RunID)
 		selectedSeed := rootMetadata[root]
 		episodeID, kind, confidence, reasons := selectedSeed.EpisodeID, selectedSeed.Kind, selectedSeed.Confidence, selectedSeed.Reasons
 		acc, exists := episodeMap[episodeID]
@@ -146,9 +146,9 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 			episodeMap[episodeID] = acc
 		}
 
-		if !acc.runSet[run.DatabaseID] {
-			acc.runSet[run.DatabaseID] = true
-			acc.metadata.RunIDs = append(acc.metadata.RunIDs, run.DatabaseID)
+		if !acc.runSet[run.RunID] {
+			acc.runSet[run.RunID] = true
+			acc.metadata.RunIDs = append(acc.metadata.RunIDs, run.RunID)
 		}
 		if run.WorkflowName != "" && !acc.nameSet[run.WorkflowName] {
 			acc.nameSet[run.WorkflowName] = true
@@ -183,7 +183,7 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 			acc.metadata.PoorControlNodeCount++
 		}
 		acc.metadata.MissingToolCount += run.MissingToolCount
-		if pr, ok := processedByID[run.DatabaseID]; ok {
+		if pr, ok := processedByID[run.RunID]; ok {
 			acc.metadata.MCPFailureCount += len(pr.MCPFailures)
 			if pr.FirewallAnalysis != nil {
 				acc.metadata.BlockedRequestCount += pr.FirewallAnalysis.BlockedRequests
@@ -197,7 +197,7 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 		}
 		if !run.CreatedAt.IsZero() && (acc.metadata.RootRunID == 0 || run.CreatedAt.Before(acc.rootTime)) {
 			acc.rootTime = run.CreatedAt
-			acc.metadata.RootRunID = run.DatabaseID
+			acc.metadata.RootRunID = run.RunID
 			acc.metadata.PrimaryWorkflow = run.WorkflowName
 		}
 		if acc.metadata.PrimaryWorkflow == "" && run.WorkflowName != "" {
@@ -213,7 +213,7 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 			acc.duration += run.CreatedAt.Sub(run.CreatedAt)
 		} else if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() && run.UpdatedAt.After(run.StartedAt) {
 			acc.duration += run.UpdatedAt.Sub(run.StartedAt)
-		} else if pr, ok := processedByID[run.DatabaseID]; ok && pr.Run.Duration > 0 {
+		} else if pr, ok := processedByID[run.RunID]; ok && pr.Run.Duration > 0 {
 			acc.duration += pr.Run.Duration
 		}
 	}
@@ -352,7 +352,7 @@ func seedConfidenceRank(confidence string) int {
 }
 
 func classifyEpisode(run RunData) (string, string, string, []string) {
-	logsEpisodeLog.Printf("Classifying episode for run: id=%d event=%s", run.DatabaseID, run.Event)
+	logsEpisodeLog.Printf("Classifying episode for run: id=%d event=%s", run.RunID, run.Event)
 	if run.AwContext != nil {
 		if run.AwContext.WorkflowCallID != "" {
 			return "dispatch:" + run.AwContext.WorkflowCallID, "dispatch_workflow", "high", []string{"context.workflow_call_id"}
@@ -365,9 +365,9 @@ func classifyEpisode(run RunData) (string, string, string, []string) {
 		return episodeID, kind, confidence, reasons
 	}
 	if run.Event == "workflow_run" {
-		return fmt.Sprintf("workflow_run:%d", run.DatabaseID), "workflow_run", "low", []string{"event=workflow_run", "upstream run metadata unavailable in logs summary"}
+		return fmt.Sprintf("workflow_run:%d", run.RunID), "workflow_run", "low", []string{"event=workflow_run", "upstream run metadata unavailable in logs summary"}
 	}
-	return fmt.Sprintf("standalone:%d", run.DatabaseID), "standalone", "high", []string{"no_shared_lineage_markers"}
+	return fmt.Sprintf("standalone:%d", run.RunID), "standalone", "high", []string{"no_shared_lineage_markers"}
 }
 
 func buildEpisodeEdge(run RunData, runs []RunData, runsByID map[int64]RunData) (EpisodeEdge, bool) {
@@ -389,14 +389,14 @@ func buildDispatchEpisodeEdge(run RunData, runsByID map[int64]RunData) (EpisodeE
 	}
 	sourceRunID, err := strconv.ParseInt(run.AwContext.RunID, 10, 64)
 	if err != nil {
-		logsEpisodeLog.Printf("Failed to parse dispatch source run ID for run %d: %v", run.DatabaseID, err)
+		logsEpisodeLog.Printf("Failed to parse dispatch source run ID for run %d: %v", run.RunID, err)
 		return EpisodeEdge{}, false
 	}
 	if _, ok := runsByID[sourceRunID]; !ok {
-		logsEpisodeLog.Printf("Dispatch source run %d not found in run set for run %d", sourceRunID, run.DatabaseID)
+		logsEpisodeLog.Printf("Dispatch source run %d not found in run set for run %d", sourceRunID, run.RunID)
 		return EpisodeEdge{}, false
 	}
-	logsEpisodeLog.Printf("Building dispatch episode edge: target_run=%d source_run=%d", run.DatabaseID, sourceRunID)
+	logsEpisodeLog.Printf("Building dispatch episode edge: target_run=%d source_run=%d", run.RunID, sourceRunID)
 	confidence := "medium"
 	reasons := []string{"context.run_id"}
 	if run.AwContext.WorkflowCallID != "" {
@@ -408,7 +408,7 @@ func buildDispatchEpisodeEdge(run RunData, runsByID map[int64]RunData) (EpisodeE
 	}
 	return EpisodeEdge{
 		SourceRunID: sourceRunID,
-		TargetRunID: run.DatabaseID,
+		TargetRunID: run.RunID,
 		EdgeType:    "dispatch_workflow",
 		Confidence:  confidence,
 		Reasons:     reasons,
@@ -422,10 +422,10 @@ func classifyWorkflowCallEpisode(run RunData) (string, string, string, []string,
 	if run.Event != "workflow_call" {
 		return "", "", "", nil, false
 	}
-	logsEpisodeLog.Printf("Classifying workflow_call episode: run_id=%d repo=%s ref=%s", run.DatabaseID, run.Repository, run.Ref)
+	logsEpisodeLog.Printf("Classifying workflow_call episode: run_id=%d repo=%s ref=%s", run.RunID, run.Repository, run.Ref)
 	reasons := []string{"event=workflow_call"}
 	if run.Repository == "" || run.Ref == "" || run.SHA == "" || run.RunAttempt == "" || run.Actor == "" {
-		return fmt.Sprintf("workflow_call:%d", run.DatabaseID), "workflow_call", "low", append(reasons, "insufficient_aw_info_metadata"), true
+		return fmt.Sprintf("workflow_call:%d", run.RunID), "workflow_call", "low", append(reasons, "insufficient_aw_info_metadata"), true
 	}
 	parts := make([]string, 0, 6)
 	parts = append(parts, run.Repository)
@@ -496,7 +496,7 @@ func buildWorkflowRunEpisodeEdge(run RunData, runs []RunData) (EpisodeEdge, bool
 func filterLineageCandidates(runs []RunData, child RunData, matches func(RunData) bool) []RunData {
 	candidates := make([]RunData, 0)
 	for _, candidate := range runs {
-		if candidate.DatabaseID == child.DatabaseID {
+		if candidate.RunID == child.RunID {
 			continue
 		}
 		if child.CreatedAt.IsZero() || candidate.CreatedAt.IsZero() || candidate.CreatedAt.After(child.CreatedAt) {
@@ -526,7 +526,7 @@ func filterLineageCandidates(runs []RunData, child RunData, matches func(RunData
 			}
 			return -1
 		}
-		return cmp.Compare(left.DatabaseID, right.DatabaseID)
+		return cmp.Compare(left.RunID, right.RunID)
 	})
 	return candidates
 }
@@ -537,8 +537,8 @@ func buildUniqueCandidateEdge(run RunData, candidates []RunData, edgeType, confi
 	}
 	parent := candidates[0]
 	return EpisodeEdge{
-		SourceRunID: parent.DatabaseID,
-		TargetRunID: run.DatabaseID,
+		SourceRunID: parent.RunID,
+		TargetRunID: run.RunID,
 		EdgeType:    edgeType,
 		Confidence:  confidence,
 		Reasons:     append([]string(nil), reasons...),

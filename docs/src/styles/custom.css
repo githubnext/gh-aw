@@ -462,7 +462,7 @@ body:has(.hero)::before {
 .sidebar .top-level > li > details > summary,
 .sidebar .top-level > li > a {
   font-weight: 600;
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   color: #8d96a0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1089,7 +1089,7 @@ starlight-toc a[aria-current="true"] {
 }
 
 starlight-toc h2 {
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: #8d96a0;
   text-transform: uppercase;
@@ -1174,7 +1174,7 @@ starlight-toc h2 {
 }
 
 .pagination-links a .meta {
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1376,38 +1376,16 @@ html {
   }
 }
 
-/* Mobile Navigation - Ensure header elements are visible on mobile */
-@media (max-width: 769px) {
-  /* Keep custom header links visible on mobile but make them more compact */
-  .custom-header-links {
-    display: flex !important;
-    gap: 0.5rem !important;
-    margin-right: 0.5rem !important;
-  }
-  
-  /* Increase touch target size for header links to meet WCAG 2.1 Level AAA (44x44px) */
-  .header-link {
-    padding: 0.625rem 0.75rem !important; /* Increased from 0.25rem 0.5rem */
-    font-size: 0.8125rem !important;
-    min-height: 44px !important;
-    min-width: 44px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-  
+/* Mobile Navigation - Ensure theme toggle is visible on mobile */
+@media (max-width: 768px) {
   /* Ensure theme toggle is visible on mobile */
   starlight-theme-select {
     display: flex !important;
   }
 }
 
-/* Extra small mobile - responsive navigation */
+/* Mobile - responsive navigation */
 @media (max-width: 768px) {
-  .custom-header-links {
-    display: none !important;
-  }
-  
   /* Hide title text on mobile to save space - keep only logo icon */
   .site-title span {
     display: none !important;
@@ -1631,20 +1609,20 @@ main,
   }
 }
 
-/* Tablet-specific fixes (iPad at 768px, iPad Pro 11 at 834px) — header hamburger */
-@media (min-width: 768px) and (max-width: 900px) {
-  /* Hide full nav to prevent overflow; hamburger replaces it */
+/* Mobile and tablet navigation (all viewports ≤900px) — hamburger replaces full header nav */
+@media (max-width: 900px) {
+  /* Hide full nav; hamburger provides equivalent navigation on mobile and tablet */
   .custom-header-links {
     display: none !important;
   }
 
-  /* Show tablet hamburger wrapper */
+  /* Show hamburger wrapper on mobile and tablet */
   .tablet-nav-wrapper {
     display: flex !important;
     align-items: center;
   }
 
-  /* Ensure content has proper padding on tablets */
+  /* Ensure content has proper padding on mobile and tablet */
   .sl-markdown-content {
     padding-left: 1rem;
     padding-right: 1rem;

@@ -385,7 +385,7 @@ func TestGeneratedSchemasValidateRealOutput(t *testing.T) {
 			},
 			Runs: []RunData{
 				{
-					DatabaseID:    123456,
+					RunID:         123456,
 					Number:        1,
 					WorkflowName:  "test-workflow",
 					Agent:         "copilot",

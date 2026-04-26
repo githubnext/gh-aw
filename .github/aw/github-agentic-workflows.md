@@ -2223,7 +2223,7 @@ imports:
 ---
 ```
 
-**Object form with inputs** — Use `path:`/`uses:` + `with:`/`inputs:` to pass values to shared workflows that define an `import-schema:`:
+**Object form with inputs** — Use `path:`/`uses:` + `with:`/`inputs:` to pass values to shared workflows that define an `import-schema:`. Optional `checkout:` and `env:` fields customize the import:
 
 ```yaml
 imports:
@@ -2231,8 +2231,14 @@ imports:
     with:
       environment: staging
       max-issues: 3
+    env:
+      MY_VAR: "value"         # Optional: pass env vars into the imported workflow
+    checkout: main            # Optional: ref to check out when this import is processed
   - uses: shared/security-notice.md  # 'uses' is an alias for 'path'
 ```
+
+- `env:` - Environment variables passed into the imported workflow context (object). Use when a shared workflow relies on environment variables that must be supplied by the importing workflow.
+- `checkout:` - Ref (branch, tag, or SHA) to check out when processing this import (string). Overrides the default checkout for this specific import entry.
 
 Inside the imported workflow, access values via `${{ github.aw.import-inputs.<name> }}`.
 

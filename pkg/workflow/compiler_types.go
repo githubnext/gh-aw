@@ -491,6 +491,7 @@ type WorkflowData struct {
 	ParsedFrontmatter           *FrontmatterConfig              // cached parsed frontmatter configuration (for performance optimization)
 	RawFrontmatter              map[string]any                  // raw parsed frontmatter map (for passing to hash functions without re-parsing)
 	OTLPEndpoint                string                          // resolved OTLP endpoint (from observability.otlp.endpoint, including imports; set by injectOTLPConfig)
+	OTLPHeaders                 string                          // normalized OTLP headers in key=value,key=value format (from observability.otlp.headers, including imports; set by injectOTLPConfig)
 	ResolvedMCPServers          map[string]any                  // fully merged mcp-servers from main workflow and all imports (for mcp inspect)
 	ActionPinWarnings           map[string]bool                 // cache of already-warned action pin failures (key: "repo@version")
 	ActionMode                  ActionMode                      // action mode for workflow compilation (dev, release, script)
@@ -506,6 +507,8 @@ type WorkflowData struct {
 	EngineConfigSteps           []map[string]any                // steps returned by engine.RenderConfig — prepended before execution steps
 	ServicePortExpressions      string                          // comma-separated ${{ job.services['<id>'].ports['<port>'] }} expressions for AWF --allow-host-service-ports
 	RunInstallScripts           bool                            // true when run-install-scripts: true is set (globally or per node runtime); disables --ignore-scripts on generated npm install steps
+	CachedPermissions           *Permissions                    // cached parsed Permissions object (for performance optimization); populated by applyDefaults after all permission mutations
+	ConcurrencyGroupExpr        string                          // cached concurrency group expression extracted from Concurrency YAML (for performance optimization); populated by applyDefaults
 }
 
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.
@@ -602,6 +605,7 @@ type SafeOutputsConfig struct {
 	Env                             map[string]string                      `yaml:"env,omitempty"`                          // Environment variables to pass to safe output jobs
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"`                 // GitHub token for safe output jobs
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"`               // Maximum allowed patch size in KB (defaults to 1024)
+	MaximumPatchFiles               int                                    `yaml:"max-patch-files,omitempty"`              // Maximum allowed unique files per create-pull-request patch (defaults to 100)
 	RunsOn                          string                                 `yaml:"runs-on,omitempty"`                      // Runner configuration for safe-outputs jobs
 	Messages                        *SafeOutputMessagesConfig              `yaml:"messages,omitempty"`                     // Custom message templates for footer and notifications
 	Mentions                        *MentionsConfig                        `yaml:"mentions,omitempty"`                     // Configuration for @mention filtering in safe outputs

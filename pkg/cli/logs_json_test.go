@@ -149,8 +149,8 @@ func TestBuildLogsData(t *testing.T) {
 	}
 
 	// Verify first run
-	if logsData.Runs[0].DatabaseID != 12345 {
-		t.Errorf("Expected DatabaseID 12345, got %d", logsData.Runs[0].DatabaseID)
+	if logsData.Runs[0].RunID != 12345 {
+		t.Errorf("Expected RunID 12345, got %d", logsData.Runs[0].RunID)
 	}
 	if logsData.Runs[0].TaskDomain == nil || logsData.Runs[0].TaskDomain.Name != "triage" {
 		t.Fatalf("Expected first run to include task domain, got %+v", logsData.Runs[0].TaskDomain)
@@ -210,7 +210,7 @@ func TestRenderLogsJSON(t *testing.T) {
 		},
 		Runs: []RunData{
 			{
-				DatabaseID:    12345,
+				RunID:         12345,
 				Number:        1,
 				WorkflowName:  "Test Workflow",
 				Status:        "completed",

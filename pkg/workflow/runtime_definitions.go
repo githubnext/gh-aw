@@ -203,19 +203,38 @@ func getAllManifestFiles(extra ...string) []string {
 	return mergeUnique(files, extra...)
 }
 
-// getProtectedPathPrefixes returns path prefixes (relative to repo root) whose
-// contents are always protected regardless of file basename.  Any file whose
-// path in the diff starts with one of these prefixes is considered a protected
-// file and will trigger the same manifest-file protection logic.
+// getProtectedPathPrefixes returns non-dot path prefixes (relative to repo root)
+// whose contents are always protected regardless of file basename.
 //
-// ".github/" covers workflow definitions, Dependabot config, and other
-// repository-level security-sensitive configuration.  Note: CODEOWNERS is
-// additionally protected by filename (see securityConfigFiles) so that root-
-// and docs/-level placements are covered too.
-// ".agents/" covers generic agent instruction and configuration files.
-// ".githooks/" and ".husky/" cover repository-tracked git hook scripts.
+// Dot-folder prefixes (e.g. ".github/", ".agents/", ".githooks/", ".husky/")
+// are NOT included here because they are already covered by the general
+// top-level dot-folder protection rule (protect_top_level_dot_folders).
+// Only non-dot path prefixes need to be listed explicitly.
+// Any dot-prefix entries in `extra` are also dropped for the same reason.
 func getProtectedPathPrefixes(extra ...string) []string {
-	return mergeUnique([]string{".github/", ".agents/", ".githooks/", ".husky/"}, extra...)
+	var nonDot []string
+	for _, p := range extra {
+		if len(p) < 2 || p[0] != '.' {
+			nonDot = append(nonDot, p)
+		}
+	}
+	return mergeUnique(nil, nonDot...)
+}
+
+// getDotFolderExcludes returns the subset of excludeFiles that are top-level
+// dot-folder path prefixes (i.e. start with "." and end with "/").
+// These are used at compile time to tell the runtime handler which specific
+// dot-folders have been opted out of the general top-level-dot-folder protection.
+func getDotFolderExcludes(excludeFiles []string) []string {
+	var result []string
+	for _, f := range excludeFiles {
+		// Must start with ".", end with "/", and have at least one char between
+		// them (e.g. ".agents/" is valid; "./" is not).
+		if len(f) > 2 && f[0] == '.' && f[len(f)-1] == '/' {
+			result = append(result, f)
+		}
+	}
+	return result
 }
 
 // excludeFromSlice returns a new slice containing the items from base

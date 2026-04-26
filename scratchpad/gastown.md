@@ -936,7 +936,7 @@ Based on Gastown's proven patterns, here are recommended enhancements for gh-aw:
 
 ### Hybrid Approach
 
-**Best of Both Worlds**:
+**Combining both systems**:
 - Use gh-aw for GitHub-facing automation and CI/CD
 - Use Gastown (with beads) for local multi-agent development
 - Bridge with gh-aw workflows that sync with beads state

@@ -345,9 +345,19 @@ When `check-branch-protection: false` is set, the branch protection API pre-flig
 
 ## Protected Files
 
-Both `create-pull-request` and `push-to-pull-request-branch` enforce protected file protection by default. Patches that modify package manifests, agent instruction files, or repository security configuration are refused unless you explicitly configure a policy.
+Both `create-pull-request` and `push-to-pull-request-branch` enforce protected file protection by default. Patches that modify package manifests, agent instruction files, repository security configuration, or any top-level directory whose name starts with `.` are refused unless you explicitly configure a policy.
 
 This protects against supply chain attacks where an AI agent could inadvertently (or through prompt injection) alter dependency definitions, CI/CD pipelines, or agent behaviour files.
+
+### What Is Protected
+
+The following are always protected regardless of policy (unless explicitly excluded):
+
+- **Package manifests**: `package.json`, `go.mod`, `go.sum`, `Gemfile`, `Pipfile`, `pyproject.toml`, and other runtime lockfiles.
+- **Security configuration**: `CODEOWNERS`, `DESIGN.md`.
+- **Agent instruction files**: `AGENTS.md`, `CLAUDE.md`, and other engine-specific instruction files.
+- **Specific protected directories**: `.github/`, `.agents/`, `.githooks/`, `.husky/`.
+- **Any top-level directory starting with `.`**: for example `.cursor/`, `.vscode/`, `.devcontainer/`, or any other hidden configuration directory at the repository root. This rule catches newly-created dot-directories without requiring an explicit list update.
 
 ### Policy Options
 
@@ -371,9 +381,10 @@ safe-outputs:
       exclude:
         - AGENTS.md               # allow the agent to update its own instruction file
         - .agents/                # allow updates to the .agents/ directory
+        - .cursor/                # allow updates to the .cursor/ directory
 ```
 
-The `exclude` list names files by **basename** (e.g., `AGENTS.md`) or **path prefix** (e.g., `.agents/`) to remove from the default protected set. The remaining protected files still enforce the configured policy. This is useful when a workflow is explicitly designed to manage one specific instruction file without disabling all protection.
+The `exclude` list names files by **basename** (e.g., `AGENTS.md`) or **path prefix** (e.g., `.agents/`) to remove from the default protected set. Dot-folder path prefixes in the `exclude` list (e.g. `.cursor/`) also opt that directory out of the general top-level-dot-folder protection rule. The remaining protected files still enforce the configured policy. This is useful when a workflow is explicitly designed to manage one specific instruction file or configuration directory without disabling all protection.
 
 **`create-pull-request` with `fallback-to-issue`**: the branch is pushed normally, then a review issue is created with a PR creation intent link, a `[!WARNING]` banner explaining why the fallback was triggered, and instructions to review carefully before creating the PR.
 

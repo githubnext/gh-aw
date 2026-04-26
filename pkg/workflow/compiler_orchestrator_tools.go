@@ -90,14 +90,14 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	}
 
 	// Combine imported tools with included tools
-	var allIncludedTools string
-	if importsResult.MergedTools != "" && includedTools != "" {
-		allIncludedTools = importsResult.MergedTools + "\n" + includedTools
-	} else if importsResult.MergedTools != "" {
-		allIncludedTools = importsResult.MergedTools
-	} else {
-		allIncludedTools = includedTools
+	var toolsParts []string
+	if importsResult.MergedTools != "" {
+		toolsParts = append(toolsParts, importsResult.MergedTools)
 	}
+	if includedTools != "" {
+		toolsParts = append(toolsParts, includedTools)
+	}
+	allIncludedTools := strings.Join(toolsParts, "\n")
 
 	// Combine imported mcp-servers with top-level mcp-servers
 	// Imported mcp-servers are in JSON format (newline-separated), need to merge them
@@ -122,19 +122,13 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	}
 
 	// Check if GitHub tool was explicitly configured in the original frontmatter
-	// This is needed to determine if permissions validation should be skipped
-	hasExplicitGitHubTool := false
-	if tools != nil {
-		if _, exists := tools["github"]; exists {
-			// GitHub tool exists in merged tools - check if it was explicitly configured
-			// by looking at the original frontmatter before any merging
-			if topTools != nil {
-				if _, existsInTop := topTools["github"]; existsInTop {
-					hasExplicitGitHubTool = true
-					orchestratorToolsLog.Print("GitHub tool was explicitly configured in frontmatter")
-				}
-			}
-		}
+	// This is needed to determine if permissions validation should be skipped.
+	// In Go, reading from a nil map returns zero-value, so these are nil-safe.
+	_, inMergedTools := tools["github"]
+	_, inTopTools := topTools["github"]
+	hasExplicitGitHubTool := inMergedTools && inTopTools
+	if hasExplicitGitHubTool {
+		orchestratorToolsLog.Print("GitHub tool was explicitly configured in frontmatter")
 	}
 	orchestratorToolsLog.Printf("hasExplicitGitHubTool: %v", hasExplicitGitHubTool)
 
