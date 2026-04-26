@@ -18,6 +18,35 @@ func SortPermissionScopes(s []PermissionScope) {
 	})
 }
 
+// HasContentsReadAccess returns true if the permissions allow reading the repository contents.
+// This is equivalent to PermissionsParser.HasContentsReadAccess but operates directly on the
+// parsed Permissions struct to avoid redundant YAML parsing when CachedPermissions is available.
+func (p *Permissions) HasContentsReadAccess() bool {
+	if p == nil {
+		return false
+	}
+	if p.shorthand != "" {
+		switch p.shorthand {
+		case "read-all", "write-all":
+			return true
+		// "none" shorthand denies all access; any other unexpected value is also denied.
+		default:
+			return false
+		}
+	}
+	// all: write implies write-level access on every scope, which includes read access.
+	if p.hasAll && (p.allLevel == PermissionRead || p.allLevel == PermissionWrite) {
+		if contentsLevel, exists := p.permissions[PermissionContents]; exists {
+			return contentsLevel == PermissionRead || contentsLevel == PermissionWrite
+		}
+		return true
+	}
+	if contentsLevel, exists := p.permissions[PermissionContents]; exists {
+		return contentsLevel == PermissionRead || contentsLevel == PermissionWrite
+	}
+	return false
+}
+
 // filterJobLevelPermissions takes a raw permissions YAML string (as stored in WorkflowData.Permissions)
 // and returns a version suitable for use in a GitHub Actions job-level permissions block.
 //
@@ -32,14 +61,22 @@ func SortPermissionScopes(s []PermissionScope) {
 // indentYAMLLines("    ") call adds 4 spaces, producing the correct 6-space job-level
 // indentation in the final YAML (matching the renderJob format).
 //
+// If cachedPerms is provided and non-nil, the YAML parsing step is skipped and cachedPerms is used
+// directly, avoiding the overhead of re-parsing the YAML string on every call.
+//
 // If the input YAML is malformed or contains only App-only scopes, an empty string is returned
 // so the caller omits the permissions block entirely rather than emitting invalid YAML.
-func filterJobLevelPermissions(rawPermissionsYAML string) string {
+func filterJobLevelPermissions(rawPermissionsYAML string, cachedPerms ...*Permissions) string {
 	if rawPermissionsYAML == "" {
 		return ""
 	}
 
-	filtered := NewPermissionsParser(rawPermissionsYAML).ToPermissions()
+	var filtered *Permissions
+	if len(cachedPerms) > 0 && cachedPerms[0] != nil {
+		filtered = cachedPerms[0]
+	} else {
+		filtered = NewPermissionsParser(rawPermissionsYAML).ToPermissions()
+	}
 	rendered := filtered.RenderToYAML()
 	if rendered == "" {
 		// If the raw permissions YAML was an explicit empty block (permissions: {}), preserve

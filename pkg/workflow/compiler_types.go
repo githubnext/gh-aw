@@ -509,6 +509,7 @@ type WorkflowData struct {
 	RunInstallScripts           bool                            // true when run-install-scripts: true is set (globally or per node runtime); disables --ignore-scripts on generated npm install steps
 	CachedPermissions           *Permissions                    // cached parsed Permissions object (for performance optimization); populated by applyDefaults after all permission mutations
 	ConcurrencyGroupExpr        string                          // cached concurrency group expression extracted from Concurrency YAML (for performance optimization); populated by applyDefaults
+	CachedAllowedDomainsStr     string                          // cached allowed-domains string for sanitization (for performance optimization); computed once and reused across multiple compilation steps
 }
 
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.

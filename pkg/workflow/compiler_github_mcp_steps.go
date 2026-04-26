@@ -100,11 +100,12 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingSteps(data *WorkflowData) []s
 	app := data.ParsedTools.GitHub.GitHubApp
 	githubConfigLog.Printf("Generating GitHub App token minting step for GitHub MCP server: client-id=%s", app.AppID)
 
-	// Get permissions from the agent job - parse from YAML string
+	// Get permissions from the agent job - use cached permissions when available to avoid YAML re-parsing
 	var permissions *Permissions
-	if data.Permissions != "" {
-		parser := NewPermissionsParser(data.Permissions)
-		permissions = parser.ToPermissions()
+	if data.CachedPermissions != nil {
+		permissions = data.CachedPermissions
+	} else if data.Permissions != "" {
+		permissions = NewPermissionsParser(data.Permissions).ToPermissions()
 	} else {
 		githubConfigLog.Print("No permissions specified, using empty permissions")
 		permissions = NewPermissions()

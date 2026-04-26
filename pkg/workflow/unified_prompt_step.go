@@ -265,8 +265,12 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	// 11. PR context (if comment-related triggers and checkout is needed)
 	hasCommentTriggers := c.hasCommentRelatedTriggers(data)
 	needsCheckout := c.shouldAddCheckoutStep(data)
-	permParser := NewPermissionsParser(data.Permissions)
-	hasContentsRead := permParser.HasContentsReadAccess()
+	var hasContentsRead bool
+	if data.CachedPermissions != nil {
+		hasContentsRead = data.CachedPermissions.HasContentsReadAccess()
+	} else {
+		hasContentsRead = NewPermissionsParser(data.Permissions).HasContentsReadAccess()
+	}
 
 	if hasCommentTriggers && needsCheckout && hasContentsRead {
 		unifiedPromptLog.Print("Adding PR context section with condition")

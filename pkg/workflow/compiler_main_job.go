@@ -256,13 +256,15 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// rendering to the job-level permissions block. These scopes are not valid GitHub Actions
 	// workflow permissions and cause a parse error when queued. They are handled separately
 	// when minting GitHub App installation access tokens (as permission-* inputs).
-	permissions := filterJobLevelPermissions(data.Permissions)
+	permissions := filterJobLevelPermissions(data.Permissions, data.CachedPermissions)
 	needsContentsRead := (c.actionMode.IsDev() || c.actionMode.IsScript()) && len(c.generateCheckoutActionsFolder(data)) > 0
 	if needsContentsRead {
 		if permissions == "" {
 			perms := NewPermissionsContentsRead()
 			permissions = perms.RenderToYAML()
 		} else {
+			// Parse the already-filtered permissions string (not the raw data.Permissions)
+			// since filterJobLevelPermissions may have adjusted the indentation/format.
 			parser := NewPermissionsParser(permissions)
 			perms := parser.ToPermissions()
 			if level, exists := perms.Get(PermissionContents); !exists || level == PermissionNone {
