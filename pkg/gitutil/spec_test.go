@@ -294,7 +294,7 @@ func TestSpec_PublicAPI_ReadFileFromHEADWithRoot(t *testing.T) {
 	}
 
 	t.Run("reads known file from HEAD without error", func(t *testing.T) {
-		content, err := ReadFileFromHEADWithRoot("go.mod", root)
+		content, err := ReadFileFromHEADWithRoot(filepath.Join(root, "go.mod"), root)
 		assert.NoError(t, err, "ReadFileFromHEADWithRoot should read go.mod without error")
 		assert.NotEmpty(t, content, "content of go.mod should not be empty")
 	})
