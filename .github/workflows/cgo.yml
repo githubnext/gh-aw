@@ -1684,3 +1684,99 @@ jobs:
         name: safe-outputs-conformance-report
         path: conformance-output.txt
         retention-days: 7
+
+  notify-failure:
+    name: Notify on CGO Failure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always() && github.ref == 'refs/heads/main'
+    needs:
+    - test
+    - canary-go
+    - build
+    - build-wasm
+    - validate-yaml
+    - bench
+    - check-validator-sizes
+    - lint-go
+    - actions-build
+    - fuzz
+    - security
+    - security-scan
+    - mcp-server-compile-test
+    - cross-platform-build
+    - alpine-container-test
+    - safe-outputs-conformance
+    permissions:
+      issues: write
+    steps:
+    - name: Check for job failures and create issue
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9
+      with:
+        script: |
+          const needs = ${{ toJSON(needs) }};
+          const failedJobs = Object.entries(needs)
+            .filter(([, job]) => job.result === 'failure')
+            .map(([name]) => name);
+
+          if (failedJobs.length === 0) {
+            core.info('No jobs failed. Nothing to do.');
+            return;
+          }
+
+          core.info(`Failed jobs: ${failedJobs.join(', ')}`);
+
+          // Check for an existing open CGO failure issue to avoid duplicates
+          const existingIssues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: 'cgo-failure',
+            state: 'open',
+          });
+
+          if (existingIssues.data.length > 0) {
+            core.info(`Existing CGO failure issue #${existingIssues.data[0].number} is still open. Skipping.`);
+            return;
+          }
+
+          // Ensure required labels exist, creating them if missing
+          for (const [label, color] of [['cookie', 'e4e669'], ['cgo-failure', 'b60205']]) {
+            try {
+              await github.rest.issues.getLabel({ owner: context.repo.owner, repo: context.repo.repo, name: label });
+            } catch (e) {
+              if (e.status === 404) {
+                await github.rest.issues.createLabel({ owner: context.repo.owner, repo: context.repo.repo, name: label, color });
+              }
+            }
+          }
+
+          const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+          const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+
+          const body = [
+            `## CGO Workflow Failure`,
+            ``,
+            `Workflow run [#${context.runNumber}](${runUrl}) on the \`main\` branch completed with failed jobs.`,
+            ``,
+            `| Field | Value |`,
+            `| --- | --- |`,
+            `| Run ID | ${context.runId} |`,
+            `| Commit | ${context.sha} |`,
+            `| Expires | ${expiresAt} |`,
+            ``,
+            `## Failed Jobs`,
+            ``,
+            ...failedJobs.map(name => `- \`${name}\``),
+            ``,
+            `> This issue expires at ${expiresAt}. Please investigate the failed jobs above and close once resolved.`,
+          ].join('\n');
+
+          const issue = await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `[CGO] Workflow failure on main - Run #${context.runNumber}`,
+            body,
+            labels: ['cookie', 'cgo-failure'],
+          });
+
+          core.info(`Created issue #${issue.data.number}: ${issue.data.html_url}`);
