@@ -121,6 +121,7 @@ describe("checkout_pr_branch.cjs", () => {
       }
       if (module === "./messages_core.cjs") {
         return {
+          getPromptPath: name => `/mock/prompts/${name}`,
           renderTemplateFromFile: (templatePath, context) => {
             const template = mockRequire("fs").readFileSync(templatePath, "utf8");
             return template.replace(/\{(\w+)\}/g, (match, key) => {

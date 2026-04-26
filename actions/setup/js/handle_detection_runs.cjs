@@ -6,7 +6,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
-const { renderTemplateFromFile } = require("./messages_core.cjs");
+const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { getEffectiveTokensSuffix } = require("./effective_tokens.cjs");
 
 /**
@@ -46,7 +46,7 @@ async function ensureDetectionRunsIssue() {
   core.info(`No detection runs issue found, creating one`);
 
   // Load template from file
-  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/detection_runs_issue.md`;
+  const templatePath = getPromptPath("detection_runs_issue.md");
   const parentBodyContent = fs.readFileSync(templatePath, "utf8");
 
   const parentBody = generateFooterWithExpiration({
@@ -107,7 +107,7 @@ async function main() {
     }
 
     // Load and render comment template from file
-    const commentTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/detection_runs_comment.md`;
+    const commentTemplatePath = getPromptPath("detection_runs_comment.md");
 
     // Compute effective tokens suffix from environment variable (set by parse_token_usage.cjs / parse_mcp_gateway_log.cjs)
     const effectiveTokensSuffix = getEffectiveTokensSuffix();
