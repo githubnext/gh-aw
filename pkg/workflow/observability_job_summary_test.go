@@ -139,7 +139,7 @@ imports:
 }
 
 // TestCompileWorkflow_MasksOTLPHeadersWhenConfigured verifies that the compiled
-// workflow includes a ::add-mask:: step for OTEL_EXPORTER_OTLP_HEADERS in all
+// workflow includes a masking step that calls mask_otlp_headers.sh in all
 // relevant jobs when headers are configured.
 func TestCompileWorkflow_MasksOTLPHeadersWhenConfigured(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -175,15 +175,12 @@ engine: copilot
 
 	compiled := string(lockContent)
 
-	// The ::add-mask:: step must appear in the compiled YAML
+	// The masking step must appear in the compiled YAML and delegate to the .sh script.
 	if !strings.Contains(compiled, "- name: Mask OTLP telemetry headers") {
 		t.Fatal("Expected OTLP headers masking step to be generated when headers are configured")
 	}
-	if !strings.Contains(compiled, "::add-mask::") {
-		t.Fatal("Expected ::add-mask:: command for OTEL_EXPORTER_OTLP_HEADERS")
-	}
-	if !strings.Contains(compiled, "$OTEL_EXPORTER_OTLP_HEADERS") {
-		t.Fatal("Expected OTEL_EXPORTER_OTLP_HEADERS env var reference in masking step")
+	if !strings.Contains(compiled, "mask_otlp_headers.sh") {
+		t.Fatal("Expected masking step to delegate to mask_otlp_headers.sh")
 	}
 
 	// The masking step must appear in both the activation job and the agent job.

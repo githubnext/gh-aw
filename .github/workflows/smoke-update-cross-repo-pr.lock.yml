@@ -121,14 +121,7 @@ jobs:
           job-name: ${{ github.job }}
           trace-id: ${{ needs.pre_activation.outputs.setup-trace-id }}
       - name: Mask OTLP telemetry headers
-        run: |
-          echo '::add-mask::'"$OTEL_EXPORTER_OTLP_HEADERS"
-          printf '%s' "$OTEL_EXPORTER_OTLP_HEADERS" | tr ',' '\n' | while IFS= read -r _pair; do
-            _val="${_pair#*=}"
-            [ -n "$_val" ] && echo '::add-mask::'"$_val"
-            _no_bearer="${_val#Bearer }"
-            [ "$_no_bearer" != "$_val" ] && echo '::add-mask::'"$_no_bearer"
-          done
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -412,14 +405,7 @@ jobs:
             echo "GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json"
           } >> "$GITHUB_OUTPUT"
       - name: Mask OTLP telemetry headers
-        run: |
-          echo '::add-mask::'"$OTEL_EXPORTER_OTLP_HEADERS"
-          printf '%s' "$OTEL_EXPORTER_OTLP_HEADERS" | tr ',' '\n' | while IFS= read -r _pair; do
-            _val="${_pair#*=}"
-            [ -n "$_val" ] && echo '::add-mask::'"$_val"
-            _no_bearer="${_val#Bearer }"
-            [ "$_no_bearer" != "$_val" ] && echo '::add-mask::'"$_no_bearer"
-          done
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1465,14 +1451,7 @@ jobs:
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
       - name: Mask OTLP telemetry headers
-        run: |
-          echo '::add-mask::'"$OTEL_EXPORTER_OTLP_HEADERS"
-          printf '%s' "$OTEL_EXPORTER_OTLP_HEADERS" | tr ',' '\n' | while IFS= read -r _pair; do
-            _val="${_pair#*=}"
-            [ -n "$_val" ] && echo '::add-mask::'"$_val"
-            _no_bearer="${_val#Bearer }"
-            [ "$_no_bearer" != "$_val" ] && echo '::add-mask::'"$_no_bearer"
-          done
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true

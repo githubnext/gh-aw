@@ -106,37 +106,24 @@ func isOTLPHeadersPresent(data *WorkflowData) bool {
 	return strings.Contains(data.Env, "OTEL_EXPORTER_OTLP_HEADERS")
 }
 
-// generateOTLPHeadersMaskStep returns a GitHub Actions step that issues the
-// ::add-mask:: workflow command for the OTEL_EXPORTER_OTLP_HEADERS environment
-// variable. Masking the value causes the GitHub Actions runner to replace any
-// subsequent occurrence of it in the job logs with "***", preventing authentication
-// tokens from leaking even when runner debug logging is enabled.
+// generateOTLPHeadersMaskStep returns a GitHub Actions step that runs
+// mask_otlp_headers.sh to issue the ::add-mask:: workflow command for the
+// OTEL_EXPORTER_OTLP_HEADERS environment variable. Masking the value causes the
+// GitHub Actions runner to replace any subsequent occurrence of it in the job
+// logs with "***", preventing authentication tokens from leaking even when runner
+// debug logging is enabled.
 //
-// The step performs three levels of masking:
+// The script performs three levels of masking:
 //  1. The entire OTEL_EXPORTER_OTLP_HEADERS value (comma-separated header pairs).
 //  2. Each individual header value extracted from the pairs, so that a token
 //     appearing without its header name prefix is also redacted.
 //  3. For Authorization-style "Bearer <token>" credentials, the raw token after
 //     stripping the "Bearer " scheme prefix, so it is masked even when it appears
 //     without the scheme (e.g. in downstream tool logs).
-//
-// Mixed quoting ('::add-mask::' followed by "$VAR") is used throughout so the
-// directive prefix is treated as a literal string while the variable values are
-// expanded at runtime.
 func generateOTLPHeadersMaskStep() string {
 	var sb strings.Builder
 	sb.WriteString("      - name: Mask OTLP telemetry headers\n")
-	sb.WriteString("        run: |\n")
-	// Level 1: mask the entire comma-separated headers string.
-	sb.WriteString("          echo '::add-mask::'\"$OTEL_EXPORTER_OTLP_HEADERS\"\n")
-	// Levels 2 & 3: split on commas, extract each value, and mask it individually.
-	// For "Bearer <token>" values, also mask the raw token without the scheme prefix.
-	sb.WriteString("          printf '%s' \"$OTEL_EXPORTER_OTLP_HEADERS\" | tr ',' '\\n' | while IFS= read -r _pair; do\n")
-	sb.WriteString("            _val=\"${_pair#*=}\"\n")
-	sb.WriteString("            [ -n \"$_val\" ] && echo '::add-mask::'\"$_val\"\n")
-	sb.WriteString("            _no_bearer=\"${_val#Bearer }\"\n")
-	sb.WriteString("            [ \"$_no_bearer\" != \"$_val\" ] && echo '::add-mask::'\"$_no_bearer\"\n")
-	sb.WriteString("          done\n")
+	sb.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh\"\n")
 	return sb.String()
 }
 

@@ -589,18 +589,13 @@ func TestIsOTLPHeadersPresent(t *testing.T) {
 }
 
 // TestGenerateOTLPHeadersMaskStep verifies that generateOTLPHeadersMaskStep
-// emits a step that uses the ::add-mask:: workflow command.
+// emits a step that delegates to mask_otlp_headers.sh.
 func TestGenerateOTLPHeadersMaskStep(t *testing.T) {
 	step := generateOTLPHeadersMaskStep()
 
 	assert.Contains(t, step, "- name: Mask OTLP telemetry headers", "should have the masking step name")
-	assert.Contains(t, step, "::add-mask::", "should emit the ::add-mask:: workflow command")
-	assert.Contains(t, step, "$OTEL_EXPORTER_OTLP_HEADERS", "should reference the headers env var")
-	assert.Contains(t, step, "echo", "should use echo to emit the mask command")
-	// Should also parse individual header values and strip "Bearer " prefix.
-	assert.Contains(t, step, "Bearer ", "should strip Bearer prefix from authorization values")
-	assert.Contains(t, step, "tr ',' '\\n'", "should split headers on commas")
-	assert.Contains(t, step, "_no_bearer", "should extract value without Bearer prefix")
+	assert.Contains(t, step, "mask_otlp_headers.sh", "should delegate to the mask_otlp_headers.sh script")
+	assert.Contains(t, step, "${RUNNER_TEMP}/gh-aw/actions/", "should reference the runtime actions directory")
 }
 
 // TestInjectOTLPConfig_HeadersPresenceAfterInjection verifies that
