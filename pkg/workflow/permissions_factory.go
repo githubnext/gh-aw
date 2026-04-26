@@ -166,7 +166,26 @@ func NewPermissionsContentsReadSecurityEventsWriteActionsRead() *Permissions {
 	})
 }
 
-// NewPermissionsContentsReadProjectsWrite creates permissions with contents: read and organization-projects: write
+// Clone returns a deep copy of the Permissions object. The clone shares no underlying
+// state with the original, so callers can safely call Set() on the clone without
+// affecting the original (e.g. when reusing CachedPermissions).
+func (p *Permissions) Clone() *Permissions {
+	if p == nil {
+		return NewPermissions()
+	}
+	clone := &Permissions{
+		shorthand:     p.shorthand,
+		hasAll:        p.hasAll,
+		allLevel:      p.allLevel,
+		explicitEmpty: p.explicitEmpty,
+	}
+	if p.permissions != nil {
+		clone.permissions = make(map[PermissionScope]PermissionLevel, len(p.permissions))
+		maps.Copy(clone.permissions, p.permissions)
+	}
+	return clone
+}
+
 // Note: organization-projects is only valid for GitHub App tokens, not workflow permissions
 func NewPermissionsContentsReadProjectsWrite() *Permissions {
 	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{

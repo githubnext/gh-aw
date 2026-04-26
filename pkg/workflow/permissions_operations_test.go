@@ -906,3 +906,52 @@ func TestFilterJobLevelPermissionsWithCache(t *testing.T) {
 		})
 	}
 }
+
+func TestPermissions_Clone(t *testing.T) {
+	t.Run("clone is independent - mutations do not affect original", func(t *testing.T) {
+		original := NewPermissionsContentsRead()
+		clone := original.Clone()
+
+		// Mutate the clone
+		clone.Set(PermissionIssues, PermissionWrite)
+
+		// Original must be unchanged
+		if _, exists := original.permissions[PermissionIssues]; exists {
+			t.Error("Clone.Set() mutated the original Permissions object")
+		}
+	})
+
+	t.Run("clone of shorthand is independent", func(t *testing.T) {
+		original := NewPermissionsReadAll()
+		clone := original.Clone()
+
+		if clone.shorthand != original.shorthand {
+			t.Errorf("Clone shorthand mismatch: got %q, want %q", clone.shorthand, original.shorthand)
+		}
+
+		// Mutating clone should not affect original
+		clone.shorthand = "none"
+		if original.shorthand != "read-all" {
+			t.Errorf("Clone mutation affected original shorthand: %q", original.shorthand)
+		}
+	})
+
+	t.Run("clone of nil returns empty permissions", func(t *testing.T) {
+		var p *Permissions
+		clone := p.Clone()
+		if clone == nil {
+			t.Fatal("Clone of nil should return non-nil empty Permissions")
+		}
+		if len(clone.permissions) != 0 || clone.shorthand != "" {
+			t.Error("Clone of nil should return empty Permissions")
+		}
+	})
+
+	t.Run("clone of all:read preserves hasAll flag", func(t *testing.T) {
+		original := NewPermissionsAllRead()
+		clone := original.Clone()
+		if !clone.hasAll || clone.allLevel != PermissionRead {
+			t.Errorf("Clone of all:read did not preserve hasAll/allLevel: hasAll=%v allLevel=%q", clone.hasAll, clone.allLevel)
+		}
+	})
+}

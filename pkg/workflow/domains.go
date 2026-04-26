@@ -866,8 +866,10 @@ func mergeAPITargetDomains(domainsStr string, apiTarget string) string {
 // repeated calls (e.g. from the activation job, safe-outputs steps, and agent run step)
 // do not recompute the same domain list.
 func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) string {
-	// Return cached result if available (engine/network/tools/runtimes do not change during compilation)
-	if data.CachedAllowedDomainsStr != "" {
+	// Return cached result if available (engine/network/tools/runtimes do not change during compilation).
+	// CachedAllowedDomainsComputed is used as the sentinel so that a legitimately empty domain
+	// list is not confused with "not yet computed".
+	if data.CachedAllowedDomainsComputed {
 		return data.CachedAllowedDomainsStr
 	}
 
@@ -921,7 +923,9 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 		base = mergeAPITargetDomains(base, geminiAPITarget)
 	}
 
-	// Cache the result for subsequent calls during the same compilation
+	// Cache the result for subsequent calls during the same compilation.
+	// Set the boolean sentinel first so that an empty result is also treated as cached.
+	data.CachedAllowedDomainsComputed = true
 	data.CachedAllowedDomainsStr = base
 	return base
 }
