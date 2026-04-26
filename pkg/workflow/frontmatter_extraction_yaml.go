@@ -708,7 +708,8 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
 	var ifExpr string
 	if value, exists := frontmatter["if"]; exists {
 		if strValue, ok := value.(string); ok {
-			ifExpr = c.extractExpressionFromIfString(strValue)
+			// Strip "if: " prefix and ${{ }} wrapper to get a bare expression for safe merging
+			ifExpr = stripExpressionWrapper(c.extractExpressionFromIfString(strValue))
 			frontmatterLog.Printf("Extracted if condition from frontmatter: %s", ifExpr)
 		}
 	}
