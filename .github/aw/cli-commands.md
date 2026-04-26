@@ -66,11 +66,12 @@ Use the compile tool with workflow_name: "my-workflow"
 
 ---
 
-### `gh aw run` ⭐
+### `gh aw run`
 
-Trigger a workflow on demand using `workflow_dispatch`.
+> [!IMPORTANT]
+> **Always prefer `gh aw run` over `gh workflow run <file>.lock.yml`** — it handles workflow resolution by short name, validates inputs, and enables correct run-tracking with `gh aw audit` and `gh aw logs`.
 
-**Always prefer `gh aw run` over `gh workflow run <file>.lock.yml`** — it handles:
+Trigger a workflow on demand using `workflow_dispatch`. Capabilities:
 - Workflow resolution by short name (no need to remember `.lock.yml`)
 - Input parsing and validation against declared inputs
 - Correct run-tracking so `gh aw audit` and `gh aw logs` work immediately after
@@ -94,10 +95,6 @@ Use the github MCP server tool "create_workflow_dispatch" with:
   - ref: main
   - inputs: { ... }
 ```
-
-> [!IMPORTANT]
-> **Never use `gh workflow run <file>.lock.yml` when `gh aw run` is available.**
-> Running the lock file directly bypasses input validation and breaks run-tracking.
 
 ---
 
@@ -234,7 +231,7 @@ gh aw mcp list                                   # List workflows with MCP serve
 
 ## Debugging Scenarios
 
-For detailed debugging guidance, see **[debug-agentic-workflow.md](.github/aw/debug-agentic-workflow.md)** (local) or the [canonical upstream](https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md).
+For detailed debugging guidance, see **[debug-agentic-workflow.md](./debug-agentic-workflow.md)** (local) or the [canonical upstream](https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md).
 
 ### Scenario: Trigger a workflow and immediately audit it
 
