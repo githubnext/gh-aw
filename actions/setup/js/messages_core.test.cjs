@@ -212,6 +212,11 @@ describe("messages_core.cjs", () => {
       expect(getPromptPath("foo.md")).toBe("/tmp/runner/gh-aw/prompts/foo.md");
       expect(getPromptPath("bar.md")).toBe("/tmp/runner/gh-aw/prompts/bar.md");
     });
+
+    it("should throw when neither GH_AW_PROMPTS_DIR nor RUNNER_TEMP is set", async () => {
+      const { getPromptPath } = await import("./messages_core.cjs?" + Date.now());
+      expect(() => getPromptPath("any.md")).toThrow("Cannot resolve prompt path: neither GH_AW_PROMPTS_DIR nor RUNNER_TEMP is set");
+    });
   });
 
   describe("getMessages", () => {

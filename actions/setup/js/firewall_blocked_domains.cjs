@@ -210,7 +210,8 @@ function generateBlockedDomainsSection(blockedDomains, templatePath) {
   // Resolve template path: explicit > GH_AW_PROMPTS_DIR / RUNNER_TEMP (production) > source tree (local dev/test)
   let resolvedTemplatePath = templatePath;
   if (!resolvedTemplatePath) {
-    resolvedTemplatePath = process.env.RUNNER_TEMP || process.env.GH_AW_PROMPTS_DIR ? getPromptPath("firewall_blocked_domains.md") : path.join(__dirname, "../md/firewall_blocked_domains.md");
+    const hasRuntimePromptsDir = !!(process.env.RUNNER_TEMP || process.env.GH_AW_PROMPTS_DIR);
+    resolvedTemplatePath = hasRuntimePromptsDir ? getPromptPath("firewall_blocked_domains.md") : path.join(__dirname, "../md/firewall_blocked_domains.md");
   }
 
   // First pass: substitute {key} placeholders.

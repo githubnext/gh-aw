@@ -505,6 +505,7 @@ describe("handle_agent_failure", () => {
 
     beforeEach(() => {
       vi.resetModules();
+      process.env.RUNNER_TEMP = "/nonexistent";
       // Stub readFileSync so the runtime path resolves to the source-tree template
       fs.readFileSync = (filePath, encoding) => {
         if (typeof filePath === "string" && filePath.includes("lockdown_check_failed.md")) {
@@ -517,6 +518,7 @@ describe("handle_agent_failure", () => {
 
     afterEach(() => {
       fs.readFileSync = originalReadFileSync;
+      delete process.env.RUNNER_TEMP;
     });
 
     it("returns empty string when no failure", () => {
@@ -553,6 +555,7 @@ describe("handle_agent_failure", () => {
 
     beforeEach(() => {
       vi.resetModules();
+      process.env.RUNNER_TEMP = "/nonexistent";
       fs.readFileSync = (filePath, encoding) => {
         if (typeof filePath === "string" && filePath.includes("stale_lock_file_failed.md")) {
           return templateContent;
@@ -564,6 +567,7 @@ describe("handle_agent_failure", () => {
 
     afterEach(() => {
       fs.readFileSync = originalReadFileSync;
+      delete process.env.RUNNER_TEMP;
     });
 
     it("returns empty string when check did not fail", () => {
@@ -605,6 +609,7 @@ describe("handle_agent_failure", () => {
 
     beforeEach(() => {
       vi.resetModules();
+      process.env.RUNNER_TEMP = "/nonexistent";
       // Stub readFileSync so the runtime path resolves to the source-tree template
       fs.readFileSync = (filePath, encoding) => {
         if (typeof filePath === "string" && filePath.includes("agent_timeout.md")) {
@@ -617,6 +622,7 @@ describe("handle_agent_failure", () => {
 
     afterEach(() => {
       fs.readFileSync = originalReadFileSync;
+      delete process.env.RUNNER_TEMP;
     });
 
     it("returns empty string when not timed out", () => {
