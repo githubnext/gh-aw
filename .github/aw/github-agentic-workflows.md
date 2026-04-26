@@ -2762,6 +2762,16 @@ gh aw compile <workflow-id>
 gh aw compile <workflow-id> --no-emit
 ```
 
+### Run a Workflow on Demand
+
+Always prefer `gh aw run` over `gh workflow run <file>.lock.yml` — it handles workflow resolution by short name, validates inputs, and enables correct run-tracking with `gh aw audit` and `gh aw logs`.
+
+```bash
+gh aw run                            # Interactive mode
+gh aw run <workflow-id>              # Run by short name
+gh aw run <workflow-id> --ref main   # Run on a specific branch
+```
+
 ### View Logs
 
 ```bash
@@ -2772,5 +2782,7 @@ gh aw logs <workflow-id>
 ```
 
 ### Documentation
+
+For the complete CLI command reference (including MCP tool equivalents for restricted environments), see: https://github.com/github/gh-aw/blob/main/.github/aw/cli-commands.md
 
 For complete CLI documentation, see: <https://github.github.com/gh-aw/setup/cli/>
