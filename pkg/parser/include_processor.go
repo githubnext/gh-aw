@@ -18,6 +18,19 @@ var includeLog = logger.New("parser:include_processor")
 
 // processIncludesWithVisited processes import directives with cycle detection
 func processIncludesWithVisited(content, baseDir string, extractTools bool, visited map[string]bool) (string, error) {
+	// Fast path: skip scanner allocation when no include/import directives are present.
+	// ParseImportDirective only matches lines starting with '@' or '{{#import'.
+	// For content mode, preserve the scanner's trailing-newline normalization behavior.
+	if !hasIncludeDirectives(content) {
+		if extractTools {
+			return "", nil
+		}
+		if !strings.HasSuffix(content, "\n") {
+			return content + "\n", nil
+		}
+		return content, nil
+	}
+
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
 

@@ -215,11 +215,10 @@ func ExtractMarkdownContent(content string) (string, error) {
 func ExtractWorkflowNameFromMarkdownBody(markdownBody string, virtualPath string) (string, error) {
 	log.Printf("Extracting workflow name from markdown body: virtualPath=%s, size=%d bytes", virtualPath, len(markdownBody))
 
-	scanner := bufio.NewScanner(strings.NewReader(markdownBody))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "# ") {
-			workflowName := strings.TrimSpace(line[2:])
+	for line := range strings.Lines(markdownBody) {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "# ") {
+			workflowName := strings.TrimSpace(trimmed[2:])
 			log.Printf("Found workflow name from H1 header: %s", workflowName)
 			return workflowName, nil
 		}
@@ -241,11 +240,10 @@ func ExtractWorkflowNameFromContent(content string, virtualPath string) (string,
 		return "", err
 	}
 
-	scanner := bufio.NewScanner(strings.NewReader(markdownContent))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "# ") {
-			workflowName := strings.TrimSpace(line[2:])
+	for line := range strings.Lines(markdownContent) {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "# ") {
+			workflowName := strings.TrimSpace(trimmed[2:])
 			log.Printf("Found workflow name from H1 header: %s", workflowName)
 			return workflowName, nil
 		}

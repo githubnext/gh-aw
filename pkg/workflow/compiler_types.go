@@ -399,6 +399,7 @@ type WorkflowData struct {
 	FrontmatterName             string         // name field from frontmatter (for code scanning alert driver default)
 	FrontmatterYAML             string         // raw frontmatter YAML content (rendered as comment in lock file for reference)
 	FrontmatterHash             string         // SHA-256 hash of frontmatter (computed before job building, used to derive stable heredoc delimiters)
+	RawMarkdown                 string         // raw markdown body before include expansion, used for frontmatter hash computation without re-reading the file
 	Description                 string         // optional description rendered as comment in lock file
 	Source                      string         // optional source field (owner/repo@ref/path) rendered as comment in lock file
 	Redirect                    string         // optional redirect field describing a moved workflow location
