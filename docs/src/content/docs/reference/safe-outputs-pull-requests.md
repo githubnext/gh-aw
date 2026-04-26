@@ -347,7 +347,7 @@ When `check-branch-protection: false` is set, the branch protection API pre-flig
 
 Both `create-pull-request` and `push-to-pull-request-branch` enforce protected file protection by default. Patches that modify package manifests, agent instruction files, repository security configuration, or any top-level directory whose name starts with `.` are refused unless you explicitly configure a policy.
 
-This protects against supply chain attacks where an AI agent could inadvertently (or through prompt injection) alter dependency definitions, CI/CD pipelines, or agent behaviour files.
+This protects against supply chain attacks where an AI agent could inadvertently (or through prompt injection) alter dependency definitions, CI/CD pipelines, or agent behavior files.
 
 ### What Is Protected
 
@@ -365,7 +365,7 @@ The `protected-files` field accepts either a string policy value or an object wi
 
 **String form** — set a single policy for all protected files:
 
-| Value | Behaviour |
+| Value | Behavior |
 |-------|-----------|
 | `blocked` (default) | Hard-block: the safe output fails with an error |
 | `fallback-to-issue` | Create a review issue with instructions for the human to apply or reject the changes manually |

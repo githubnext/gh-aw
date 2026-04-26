@@ -1162,7 +1162,7 @@ Implementations MUST validate all user inputs before processing:
   - `avoidHourBoundary`: shifts minutes [0,4]→[5,9] and [55,59]→[50,54]
   - `avoidPeakMinutes`: EU peak (hours 06–09) avoids ±3 min of :30 (shifts [27,33]→34); US business hours (14–18) avoids ±3 min of :15 (shifts [12,18]→19) and ±3 min of :45 (shifts [42,48]→49)
 - **Renumbered**: Section 6.4 (Algorithm Requirements) → Section 6.5
-- **Added**: Compliance tests T-SCATTER-011 through T-SCATTER-016 covering weighted pool behaviour and peak avoidance
+- **Added**: Compliance tests T-SCATTER-011 through T-SCATTER-016 covering weighted pool behavior and peak avoidance
 - **Updated**: Compliance checklist (Section 9.3) with new required rows for weighted pool and peak avoidance
 
 ### Version 1.1.0 (Draft)

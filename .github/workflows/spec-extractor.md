@@ -30,6 +30,7 @@ tools:
   cache-memory: true
   edit:
   bash:
+    - "mkdir"
     - "find pkg -type f -name '*.go' ! -name '*_test.go'"
     - "find pkg -maxdepth 1 -type d"
     - "find pkg/* -maxdepth 0 -type d"

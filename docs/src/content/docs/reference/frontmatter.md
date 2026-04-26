@@ -832,6 +832,71 @@ cache:
     node-modules-
 ```
 
+## Observability (`observability:`)
+
+The `observability.otlp` field exports distributed traces from workflow runs to any [OpenTelemetry](https://opentelemetry.io/) Protocol (OTLP) compatible backend such as Honeycomb, Grafana Tempo, or Sentry.
+
+```yaml wrap
+observability:
+  otlp:
+    endpoint: ${{ secrets.OTLP_ENDPOINT }}
+    headers:
+      Authorization: ${{ secrets.OTLP_TOKEN }}
+      X-Tenant: my-org
+```
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `observability.otlp.endpoint` | string | OTLP/HTTP collector endpoint URL (e.g. `https://traces.example.com:4318`). Supports GitHub Actions expressions. When a static URL is provided, its hostname is automatically added to the network firewall allowlist. |
+| `observability.otlp.headers` | map or string | HTTP headers sent with every OTLP export request. |
+
+### `observability.otlp.headers`
+
+The `headers` field accepts two forms:
+
+**Map form (preferred)** — define each header as a key/value pair:
+
+```yaml wrap
+observability:
+  otlp:
+    endpoint: ${{ secrets.OTLP_ENDPOINT }}
+    headers:
+      Authorization: ${{ secrets.OTLP_TOKEN }}
+      X-Tenant: acme
+```
+
+**String form (deprecated)** — comma-separated `key=value` pairs. Use the map form instead:
+
+```yaml wrap
+observability:
+  otlp:
+    endpoint: ${{ secrets.OTLP_ENDPOINT }}
+    headers: "Authorization=${{ secrets.OTLP_TOKEN }},X-Tenant=acme"
+```
+
+> [!NOTE]
+> Using the string form emits a deprecation warning. Migrate to the map form to suppress it.
+
+### Agent span attributes
+
+The agent span (`gh-aw.agent.agent`) uses [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) and is emitted as a `SPAN_KIND_CLIENT` span. The following attributes are set on the agent span:
+
+| Attribute | Description |
+|-----------|-------------|
+| `gen_ai.request.model` | Model name used for inference |
+| `gen_ai.operation.name` | Always `"chat"` |
+| `gen_ai.provider.name` | Engine identifier (e.g. `copilot`, `claude`) |
+| `gen_ai.workflow.name` | Workflow name |
+| `gen_ai.usage.input_tokens` | Total input tokens consumed |
+| `gen_ai.usage.output_tokens` | Total output tokens produced |
+| `gen_ai.usage.cache_read.input_tokens` | Cache-read tokens reused |
+| `gen_ai.usage.cache_creation.input_tokens` | Cache-creation tokens written |
+
+> [!NOTE]
+> Prior to v0.70, the agent span used private `gh-aw.*` attribute names (`gh-aw.model`, `gh-aw.tokens.input`, etc.) and `SPAN_KIND_INTERNAL`. These attributes were removed and replaced with the `gen_ai.*` convention above. Update any dashboards or alert rules that reference the old attribute names.
+
 ## Related Documentation
 
 See also: [Trigger Events](/gh-aw/reference/triggers/), [AI Engines](/gh-aw/reference/engines/), [CLI Commands](/gh-aw/setup/cli/), [Workflow Structure](/gh-aw/reference/workflow-structure/), [Network Permissions](/gh-aw/reference/network/), [Command Triggers](/gh-aw/reference/command-triggers/), [MCPs](/gh-aw/guides/mcps/), [Tools](/gh-aw/reference/tools/), [Imports](/gh-aw/reference/imports/)

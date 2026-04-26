@@ -280,7 +280,7 @@ The YAML frontmatter supports these fields:
     - `action-mode: "script"` - Control how the compiler generates action references: `"dev"` (local paths, default), `"release"` (SHA-pinned remote), `"action"` (gh-aw-actions repo), `"script"` (direct shell calls). Can also be overridden via `--action-mode` CLI flag.
     - `difc-proxy: true` - Enable DIFC (Data Integrity and Flow Control) proxy injection. When set alongside `tools.github.min-integrity`, injects proxy steps around the agent for full network-boundary integrity enforcement.
     - `cli-proxy: true` - Enable AWF CLI proxy sidecar for secure gh CLI access and reaction-based integrity decisions. Required for `integrity-reactions`.
-    - `integrity-reactions: true` - Enable reaction-based integrity promotion/demotion. Maintainers can use 👍/❤️ reactions to promote content to `approved` and 👎/😕 to demote it to `none`. Compiler automatically enables `cli-proxy`. Requires `tools.github.min-integrity` to be set and MCPG >= v0.2.18. Defaults: endorsement reactions THUMBS_UP/HEART, disapproval reactions THUMBS_DOWN/CONFUSED, endorser-min-integrity: approved, disapproval-integrity: none. Available from v0.68.2.
+    - `integrity-reactions: true` - Enable reaction-based integrity promotion/demotion. Maintainers can use 👍/❤️ reactions to promote content to `approved` and 👎/😕 to demote it to `none`. Compiler automatically enables `cli-proxy`. Requires `tools.github.min-integrity` to be set and MCPG >= v0.2.18. Defaults: endorsement reactions THUMBS_UP/HEART, disapproval reactions THUMBS_DOWN/CONFUSED, endorser-min-integrity: approved, disapproval-integrity: none.
     - `mcp-cli: true` - Enable MCP CLI mounting feature. When enabled, MCP servers can be mounted as local CLI tools on `PATH`. Requires `tools.mount-as-clis: true` to mount standard MCP servers as CLIs; `safeoutputs` and `mcpscripts` are always mounted as CLIs when this feature is active.
 
 - **`imports:`** - Array of workflow specifications to import (array)
@@ -584,7 +584,7 @@ The YAML frontmatter supports these fields:
       tools:
         bash: ["*"]
       ```
-  - `playwright:` - Browser automation tools
+  - `playwright:` - Browser automation tools for visual regression, accessibility testing, and end-to-end testing. Pin a specific version with `version:` and restrict network access to `local` + `playwright` for security. See [`visual-regression-checker.md`](../../.github/workflows/visual-regression-checker.md) for a minimal pull-request example.
   - Custom tool names for MCP servers
   - `timeout:` - Per-operation timeout in seconds for all tool and MCP server calls (integer or GitHub Actions expression). Defaults vary by engine (Claude: 60 s, Codex: 120 s).
   - `startup-timeout:` - Timeout in seconds for MCP server initialization (integer or GitHub Actions expression, default: 120). Useful in `workflow_call` reusable workflows: `startup-timeout: ${{ inputs.startup-timeout }}`
@@ -1517,6 +1517,9 @@ The YAML frontmatter supports these fields:
 
   - `max-patch-size:` - Maximum allowed git patch size in kilobytes (integer, default: 1024 KB = 1 MB)
     - Patches exceeding this size are rejected to prevent accidental large changes
+  - `max-patch-files:` - Maximum allowed number of unique files in a create-pull-request patch (integer, default: 100)
+    - Counts unique file paths deduplicated across multi-commit patches; reflects how many distinct files the agent is pushing per iteration
+    - Increase this limit for long-running autoloop branches that touch many files
   - `group-reports:` - Group workflow failure reports as sub-issues (boolean, default: `false`)
     - When `true`, creates a parent `[aw] Failed runs` issue that tracks all workflow failures as sub-issues; useful for larger repositories
   - `report-failure-as-issue:` - Control whether workflow failures are reported as GitHub issues (boolean, default: `true`)

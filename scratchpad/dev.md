@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 8.0
-**Last Updated**: 2026-04-25
+**Version**: 8.1
+**Last Updated**: 2026-04-26
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2932,6 +2932,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v8.1 (2026-04-26): Maintenance tone scan — fixed 4 tone issues across 2 spec files: `oh-my-code.md` (3 fixes: "Smart search with relevance ranking"→"Search with relevance ranking", "**Best of both**: Power of oh-my-opencode..."→"**Combined use**: oh-my-opencode for development, gh-aw for automated workflows", "Best of both worlds"→"Combines local development with automated workflows"), `engine-architecture-review.md` (1 fix: "**Significantly improved**"→"**Improved**"). Coverage: 64 spec files (no new files).
 - v8.0 (2026-04-25): Maintenance tone scan — fixed 4 tone issues across 4 spec files: `file-inlining.md` (1 fix: "Smart email address filtering"→"Email address detection"), `firewall-log-parsing.md` (1 fix: "**Smart caching:**"→"**Result caching:**"), `gastown.md` (1 fix: "**Best of Both Worlds**:"→"**Combining both systems**:"), `agents/hierarchical-agents-quickstart.md` (1 fix: "nice to have"→"non-blocking"). Coverage: 64 spec files (no new files).
 - v7.0 (2026-04-24): Maintenance tone scan — fixed 1 tone issue: `mcp_logs_guardrails.md` (1 fix: "Add more sophisticated query suggestions"→"Add context-aware query suggestions"). Coverage: 64 spec files (no new files).
 - v6.9 (2026-04-23): Maintenance tone scan — fixed 1 tone issue: `agents/hierarchical-agents-quickstart.md` (1 fix: "helps you quickly understand and use"→"explains...and their operational usage"). Coverage: 64 spec files (no new files).
