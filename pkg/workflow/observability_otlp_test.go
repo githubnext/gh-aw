@@ -579,6 +579,10 @@ func TestGenerateOTLPHeadersMaskStep(t *testing.T) {
 	assert.Contains(t, step, "::add-mask::", "should emit the ::add-mask:: workflow command")
 	assert.Contains(t, step, "$OTEL_EXPORTER_OTLP_HEADERS", "should reference the headers env var")
 	assert.Contains(t, step, "echo", "should use echo to emit the mask command")
+	// Should also parse individual header values and strip "Bearer " prefix.
+	assert.Contains(t, step, "Bearer ", "should strip Bearer prefix from authorization values")
+	assert.Contains(t, step, "tr ',' '\\n'", "should split headers on commas")
+	assert.Contains(t, step, "_no_bearer", "should extract value without Bearer prefix")
 }
 
 // TestInjectOTLPConfig_HeadersPresenceAfterInjection verifies that
