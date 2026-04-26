@@ -2,7 +2,7 @@ name: Train Log Pattern Weights
 
 on:
   schedule:
-    - cron: "17 4 * * *"  # Daily at 04:00 UTC
+    - cron: "17 4 * * 1"  # Weekly on Mondays at 04:00 UTC
   workflow_dispatch:
 
 permissions: {}
@@ -42,7 +42,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/drain3-logs
-          ./gh-aw logs --train --output /tmp/drain3-logs --count 100
+          ./gh-aw logs --train --output /tmp/drain3-logs --count 500
 
       - name: Copy trained weights to source tree
         run: |
@@ -80,7 +80,7 @@ jobs:
 
           git checkout -b "$BRANCH_NAME"
           git add pkg/agentdrain/data/default_weights.json
-          git commit -m "chore: update drain3 default weights from daily training run"
+          git commit -m "chore: update drain3 default weights from weekly training run"
 
           git push origin "$BRANCH_NAME"
 
