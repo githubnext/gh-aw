@@ -17,7 +17,6 @@ engine:
   bare: true
 strict: true
 timeout-minutes: 15
-runs-on: aw-gpu-runner-T4
 inlined-imports: true
 network:
   allowed:
