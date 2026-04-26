@@ -571,10 +571,10 @@ function loadMissingDataMessages() {
     const missingDataMessages = [];
     for (const item of agentOutputResult.items) {
       if (item.type === "missing_data") {
-        // Extract the fields we need
-        if (item.data_type && item.reason) {
+        // Accept items with at least a reason; data_type may be absent for cache-miss signals
+        if (item.reason) {
           missingDataMessages.push({
-            data_type: item.data_type,
+            data_type: item.data_type || "",
             reason: item.reason,
             context: item.context || null,
             alternatives: item.alternatives || null,
@@ -1629,5 +1629,6 @@ module.exports = {
   buildReportIncompleteContext,
   buildMCPPolicyErrorContext,
   buildModelNotSupportedErrorContext,
+  buildMissingDataContext,
   getActionFailureIssueExpiresHours,
 };
