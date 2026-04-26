@@ -1141,10 +1141,13 @@ describe("handle_agent_failure", () => {
           items: [{ type: "missing_data", data_type: "cache_memory", reason: "cache_memory_miss" }],
         })
       );
-      fs.writeFileSync(
-        path.join(promptsDir, "cache_memory_miss.md"),
-        "<details>\n<summary>⚠️ Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>\n\nReview the [cache-memory configuration](https://github.github.com/gh-aw/reference/cache-memory/) and ensure the agent prompt correctly references files inside the cache directory.\n\n**File naming convention:** Cache files are stored at `/tmp/gh-aw/cache-memory/`.\n\n</details>\n"
-      );
+      const templateContent =
+        "<details>\n" +
+        "<summary>⚠️ Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>\n\n" +
+        "Review the [cache-memory configuration](https://github.github.com/gh-aw/reference/cache-memory/) and ensure the agent prompt correctly references files inside the cache directory.\n\n" +
+        "**File naming convention:** Cache files are stored at `/tmp/gh-aw/cache-memory/`.\n\n" +
+        "</details>\n";
+      fs.writeFileSync(path.join(promptsDir, "cache_memory_miss.md"), templateContent);
       vi.resetModules();
       ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
       const result = buildMissingDataContext(true);
@@ -1164,7 +1167,8 @@ describe("handle_agent_failure", () => {
           items: [{ type: "missing_data", reason: "cache_memory_miss" }],
         })
       );
-      fs.writeFileSync(path.join(promptsDir, "cache_memory_miss.md"), "<details>\n<summary>⚠️ Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>\n\nDetails here.\n\n</details>\n");
+      const templateContent = "<details>\n" + "<summary>⚠️ Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>\n\n" + "Details here.\n\n" + "</details>\n";
+      fs.writeFileSync(path.join(promptsDir, "cache_memory_miss.md"), templateContent);
       vi.resetModules();
       ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
       const result = buildMissingDataContext(true);
