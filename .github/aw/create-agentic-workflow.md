@@ -828,6 +828,16 @@ Based on the parsed requirements, determine:
    - **No action needed** → `safe-outputs: noop:` - **IMPORTANT**: When the agent successfully completes but determines nothing needs to be done, use `noop` to signal completion. This is critical for transparency—it shows the agent worked AND that no output was necessary.
    - **Daily reporting workflows** (creates issues/discussions): Add `close-older-issues: true` or `close-older-discussions: true` to prevent clutter
    - **Daily improver workflows** (creates PRs): Add `skip-if-match:` with a filter to avoid opening duplicate PRs (e.g., `'is:pr is:open in:title "[workflow-name]"'`)
+   - **Scheduled workflows that create issues**: Add `skip-if-match:` to avoid creating duplicate issues on every run. Pair with `expires:` so resolved issues are cleaned up automatically. Example:
+     ```yaml
+     on:
+       skip-if-match: 'is:issue is:open in:title "[workflow-name]"'
+     safe-outputs:
+       create-issue:
+         title-prefix: "[workflow-name] "
+         expires: 7   # auto-close after 7 days
+     ```
+     Without `skip-if-match`, a scheduled workflow that creates issues will open a new issue on every run even if an identical issue is already open.
    - **New workflows** (when creating, not updating): Consider enabling `missing-tool: create-issue: true` to automatically track missing tools as GitHub issues that expire after 1 week
 5. **Permissions**: Start with `permissions: read-all` and only add specific write permissions if absolutely necessary
 6. **Repository Access Roles**: Consider who should be able to trigger the workflow:

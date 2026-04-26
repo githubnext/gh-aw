@@ -610,6 +610,20 @@ The YAML frontmatter supports these fields:
     **Auto-Expiration**: The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Generates `agentics-maintenance.yml` workflow that runs at minimum required frequency based on shortest expiration time: 1 day or less → every 2 hours, 2 days → every 6 hours, 3-4 days → every 12 hours, 5+ days → daily.
     When using `safe-outputs.create-issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
 
+    **Deduplication for Scheduled Workflows**: When a `schedule:` trigger is combined with `create-issue`, use `skip-if-match:` in the `on:` block to prevent opening a duplicate issue on every run. Pair with `expires:` so stale issues are cleaned up automatically:
+
+    ```yaml
+    on:
+      schedule: daily on weekdays
+      skip-if-match: 'is:issue is:open in:title "[my-workflow] "'
+    safe-outputs:
+      create-issue:
+        title-prefix: "[my-workflow] "
+        expires: 7   # auto-close after 7 days
+    ```
+
+    Without `skip-if-match`, the workflow creates a new issue on every scheduled run even when an identical open issue already exists.
+
     **Temporary IDs and Sub-Issues:**
     When creating multiple issues, use `temporary_id` (format: `aw_` + 3-8 alphanumeric chars) to reference parent issues before creation. References like `#aw_abc123` in issue bodies are automatically replaced with actual issue numbers. Use the `parent` field to create sub-issue relationships:
 
