@@ -142,12 +142,17 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	// parsed representation of the compiled YAML.  Parse it once here and share the
 	// result between the two validators to avoid redundant yaml.Unmarshal calls.
 	//
-	// Fast-path: use a lightweight text scan to check whether any unsafe context
-	// expression actually appears inside a run: block.  Most compiled workflows place
-	// unsafe expressions only in env: values (the compiler's normal output pattern),
-	// so the expensive full YAML parse can be skipped in the common case.
-	needsTemplateCheck := hasUnsafeExpressionInRunContent(yamlContent)
+	// Optimised approach: when schema validation is enabled (needsSchemaCheck=true) the
+	// YAML must be parsed for schema checking regardless.  In that case the expensive
+	// hasUnsafeExpressionInRunContent text scan (strings.Split + 1300-line scan) is
+	// redundant; we reuse the pre-parsed result for template injection checking instead.
+	// The text scan is only useful when schema validation is disabled (skipValidation=true),
+	// where it avoids an otherwise unnecessary yaml.Unmarshal call.
 	needsSchemaCheck := !c.skipValidation
+
+	// When schema validation is disabled, use the lightweight text scan to decide
+	// whether a full YAML parse is needed solely for template injection checking.
+	needsTemplateCheck := !needsSchemaCheck && hasUnsafeExpressionInRunContent(yamlContent)
 
 	var parsedWorkflow map[string]any
 	if needsTemplateCheck || needsSchemaCheck {
@@ -159,7 +164,12 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		}
 	}
 
-	// Validate for template injection vulnerabilities - detect unsafe expression usage in run: commands
+	// Validate for template injection vulnerabilities - detect unsafe expression usage in run: commands.
+	// Two paths depending on whether schema validation is also enabled:
+	//   - Schema disabled (needsTemplateCheck=true): hasUnsafeExpressionInRunContent already
+	//     confirmed unsafe expressions in run: blocks; validate with the freshly-parsed YAML.
+	//   - Schema enabled (parsedWorkflow available): skip the text scan and use the pre-parsed
+	//     YAML directly, guarded by a fast regex pre-check to skip safe workflows.
 	if needsTemplateCheck {
 		log.Print("Validating for template injection vulnerabilities")
 		var templateErr error
@@ -177,6 +187,23 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
 			}
 			return "", nil, nil, formattedErr
+		}
+	} else if parsedWorkflow != nil {
+		// Schema validation enabled: re-use the parsed YAML for template injection checking.
+		// The quick regex pre-filter skips workflows that contain no unsafe context expressions
+		// at all, avoiding the parsed-tree walk for the common safe case.
+		if unsafeContextRegex.MatchString(yamlContent) {
+			log.Print("Validating for template injection vulnerabilities")
+			if templateErr := validateNoTemplateInjectionFromParsed(parsedWorkflow); templateErr != nil {
+				// Store error first so we can write invalid YAML before returning
+				formattedErr := formatCompilerError(markdownPath, "error", templateErr.Error(), templateErr)
+				// Write the invalid YAML to a .invalid.yml file for inspection
+				invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
+				if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
+				}
+				return "", nil, nil, formattedErr
+			}
 		}
 	}
 
