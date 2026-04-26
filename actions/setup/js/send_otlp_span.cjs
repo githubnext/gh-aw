@@ -512,6 +512,13 @@ async function sendJobSetupSpan(options = {}) {
   if (eventName) {
     attributes.push(buildAttr("gh-aw.event_name", eventName));
   }
+  // Deployment state: prefer the env var (set from github.event.deployment_status.state
+  // in the compiled workflow), fall back to aw_context propagation via awInfo.
+  const deploymentStateSetup =
+    process.env.GH_AW_GITHUB_EVENT_DEPLOYMENT_STATUS_STATE || (typeof awInfo.deployment_state === "string" ? awInfo.deployment_state : "") || (typeof awInfo.context?.deployment_state === "string" ? awInfo.context.deployment_state : "");
+  if (deploymentStateSetup) {
+    attributes.push(buildAttr("gh-aw.deployment.state", deploymentStateSetup));
+  }
   attributes.push(buildAttr("gh-aw.staged", staged));
 
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
@@ -743,6 +750,13 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
   if (engineId) attributes.push(buildAttr("gh-aw.engine.id", engineId));
   if (eventName) attributes.push(buildAttr("gh-aw.event_name", eventName));
+  // Deployment state: prefer the env var (set from github.event.deployment_status.state
+  // in the compiled workflow), fall back to aw_info.deployment_state or aw_context propagation.
+  const deploymentStateConclusion =
+    process.env.GH_AW_GITHUB_EVENT_DEPLOYMENT_STATUS_STATE || (typeof awInfo.deployment_state === "string" ? awInfo.deployment_state : "") || (typeof awInfo.context?.deployment_state === "string" ? awInfo.context.deployment_state : "");
+  if (deploymentStateConclusion) {
+    attributes.push(buildAttr("gh-aw.deployment.state", deploymentStateConclusion));
+  }
   attributes.push(buildAttr("gh-aw.staged", staged));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
