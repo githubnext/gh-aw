@@ -370,7 +370,7 @@ astgrep_replace({
 #### Category 3: File System Tools
 - `grep`: Search file contents (regex)
 - `glob`: Find files by pattern
-- `contextual_grep`: Smart search with relevance ranking
+- `contextual_grep`: Search with relevance ranking
 
 #### Category 4: Agent Delegation Tools
 - `call_agent`: Synchronous agent call (wait for response)
@@ -1384,7 +1384,7 @@ opencode metrics --agent sisyphus
    ```
 
 **Benefits**:
-- **Best of both**: Power of oh-my-opencode for development + safety of gh-aw for automation
+- **Combined use**: oh-my-opencode for development, gh-aw for automated workflows
 - **Separation of concerns**: Local dev vs team automation
 - **Security**: Personal work unrestricted, team automation secured
 - **Audit trail**: Local changes via git, automation via GitHub Actions
@@ -1428,7 +1428,7 @@ Use oh-my-opencode with gh-aw integration:
 - oh-my-opencode creates PRs with specific labels
 - gh-aw workflows triggered by labels
 - Automated review, testing, deployment
-- Best of both worlds
+- Combines local development with automated workflows
 ```
 
 ---
