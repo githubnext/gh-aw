@@ -164,14 +164,12 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 
 	// Validate for template injection vulnerabilities (unsafe expression usage in run: commands).
 	//
-	// Path A – YAML already parsed for schema validation: walk the pre-parsed tree directly.
-	//   validateNoTemplateInjectionFromParsed only inspects run: block values (~20 small
-	//   strings), which is faster than a regex scan on the full ~71KB YAML string.
-	//
-	// Path B – schema validation disabled (skipValidation=true): rely on the
-	//   lightweight hasUnsafeExpressionInRunContent text scan.  Only if it detects
-	//   unsafe expressions in a run: block do we trigger a full YAML parse.
-	if err := c.validateTemplateInjection(yamlContent, lockFile, markdownPath, parsedWorkflow, needsSchemaCheck); err != nil {
+	// parsedWorkflow != nil means the YAML was already parsed for schema validation;
+	// validateTemplateInjection reuses it directly (walk the ~20 small run: block values)
+	// rather than re-scanning the full ~71KB string.  When parsedWorkflow is nil (schema
+	// validation disabled), the lightweight hasUnsafeExpressionInRunContent text scan is
+	// used first to avoid an unnecessary yaml.Unmarshal.
+	if err := c.validateTemplateInjection(yamlContent, lockFile, markdownPath, parsedWorkflow); err != nil {
 		return "", nil, nil, err
 	}
 
@@ -300,29 +298,25 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 // validateTemplateInjection checks compiled YAML for template injection vulnerabilities
 // (unsafe GitHub Actions expressions used directly in run: blocks).
 //
-// Two paths are supported:
-//   - YAML already parsed (yamlAlreadyParsed=true, parsedWorkflow!=nil): the YAML was
-//     parsed for schema checking; reuse it here.  Walking the pre-parsed tree to locate
-//     run: blocks is faster than a regex scan on the full ~71 KB YAML string because
-//     validateNoTemplateInjectionFromParsed only inspects the ~20 small run: values.
-//   - YAML not yet parsed (yamlAlreadyParsed=false, schema disabled): use the lightweight
-//     hasUnsafeExpressionInRunContent text scan.  Only if it reports unsafe expressions
-//     inside a run: block is a full yaml.Unmarshal triggered.
-func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath string, parsedWorkflow map[string]any, yamlAlreadyParsed bool) error {
+// When parsedWorkflow is non-nil the YAML was already parsed for schema validation;
+// this function reuses it directly by walking only the ~20 small run: block values,
+// which is faster than re-scanning the full ~71 KB YAML string.
+//
+// When parsedWorkflow is nil (schema validation disabled via skipValidation), the
+// function first uses the lightweight hasUnsafeExpressionInRunContent text scan
+// to avoid an unnecessary yaml.Unmarshal call.
+func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath string, parsedWorkflow map[string]any) error {
 	var templateErr error
 
-	if yamlAlreadyParsed {
-		// Path A: YAML was parsed for schema validation; reuse it.
-		// Walking the pre-parsed tree (only run: block values, ~20 small strings)
-		// is more efficient than scanning the entire ~71 KB YAML string with a regex.
-		if parsedWorkflow != nil {
-			log.Print("Validating for template injection vulnerabilities")
-			templateErr = validateNoTemplateInjectionFromParsed(parsedWorkflow)
-		}
+	if parsedWorkflow != nil {
+		// Path A: YAML was already parsed for schema validation; reuse it.
+		// Walking only the run: block values is faster than scanning the full YAML string.
+		log.Print("Validating for template injection vulnerabilities")
+		templateErr = validateNoTemplateInjectionFromParsed(parsedWorkflow)
 	} else {
-		// Path B: schema validation is disabled.  Use the text scan to cheaply
-		// determine whether unsafe expressions actually appear inside a run: block
-		// before paying the cost of a full yaml.Unmarshal.
+		// Path B: schema validation is disabled (parsedWorkflow is nil).
+		// Use the text scan to cheaply determine whether unsafe expressions appear
+		// inside a run: block before paying the cost of a full yaml.Unmarshal.
 		if hasUnsafeExpressionInRunContent(yamlContent) {
 			log.Print("Validating for template injection vulnerabilities")
 			templateErr = validateNoTemplateInjection(yamlContent)
