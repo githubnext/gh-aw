@@ -19,6 +19,7 @@ This is a **dispatcher agent** that routes your request to the appropriate speci
 - **Creating shared components**: Routes to `create-shared-agentic-workflow` prompt
 - **Fixing Dependabot PRs**: Routes to `dependabot` prompt — use this when Dependabot opens PRs that modify generated manifest files (`.github/workflows/package.json`, `.github/workflows/requirements.txt`, `.github/workflows/go.mod`). Never merge those PRs directly; instead update the source `.md` files and rerun `gh aw compile --dependabot` to bundle all fixes
 - **Analyzing test coverage**: Routes to `test-coverage` prompt — consult this whenever the workflow reads, analyzes, or reports on test coverage data from PRs or CI runs
+- **CLI commands and triggering workflows**: Routes to `cli-commands` guide — consult this whenever the user asks how to run, compile, debug, or manage workflows from the command line, or when they need the MCP tool equivalent of a `gh aw` command
 
 Workflows may optionally include:
 
@@ -129,6 +130,17 @@ When you interact with this agent, it will:
 - "Analyze coverage trends over time"
 - "Add a coverage gate that blocks PRs below a threshold"
 
+### CLI Commands Reference
+**Load when**: The user asks how to run, compile, debug, or manage workflows from the command line; needs the MCP tool equivalent of a `gh aw` command; or is in a restricted environment (e.g., Copilot Cloud) without direct CLI access.
+
+**Reference file**: https://github.com/github/gh-aw/blob/main/.github/aw/cli-commands.md
+
+**Use cases**:
+- "How do I trigger workflow X on the main branch?"
+- "What's the MCP equivalent of `gh aw logs`?"
+- "I'm in Copilot Cloud — how do I compile a workflow?"
+- "Show me all available gh aw commands"
+
 ## Instructions
 
 When a user interacts with you:
@@ -146,6 +158,10 @@ gh aw init
 
 # Generate the lock file for a workflow
 gh aw compile [workflow-name]
+
+# Trigger a workflow on demand (preferred over gh workflow run)
+gh aw run <workflow-name>             # interactive input collection
+gh aw run <workflow-name> --ref main  # run on a specific branch
 
 # Debug workflow runs
 gh aw logs [workflow-name]
@@ -176,3 +192,5 @@ gh aw compile --validate
 - Follow security best practices: minimal permissions, explicit network access, no template injection
 - **Network configuration**: Use ecosystem identifiers (`node`, `python`, `go`, etc.) or explicit FQDNs in `network.allowed`. Bare shorthands like `npm` or `pypi` are **not** valid. See https://github.com/github/gh-aw/blob/main/.github/aw/network.md for the full list of valid ecosystem identifiers and domain patterns.
 - **Single-file output**: When creating a workflow, produce exactly **one** workflow `.md` file. Do not create separate documentation files (architecture docs, runbooks, usage guides, etc.). If documentation is needed, add a brief `## Usage` section inside the workflow file itself.
+- **Triggering runs**: Always use `gh aw run <workflow-name>` to trigger a workflow on demand — not `gh workflow run <file>.lock.yml`. `gh aw run` handles workflow resolution by short name, input parsing and validation, and correct run-tracking for agentic workflows. Use `--ref <branch>` to run on a specific branch.
+- **CLI commands reference**: For a complete guide on all `gh aw` commands and their MCP tool equivalents (for restricted environments), see https://github.com/github/gh-aw/blob/main/.github/aw/cli-commands.md
