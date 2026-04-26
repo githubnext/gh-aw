@@ -298,13 +298,16 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 // validateTemplateInjection checks compiled YAML for template injection vulnerabilities
 // (unsafe GitHub Actions expressions used directly in run: blocks).
 //
-// When parsedWorkflow is non-nil the YAML was already parsed for schema validation;
-// this function reuses it directly by walking the run: block values in the pre-parsed
-// tree, which is faster than re-scanning the full YAML string with a regex.
+// When parsedWorkflow is non-nil the YAML was already parsed for schema validation
+// (using go.yaml.in/yaml/v3); this function reuses it directly by walking the run:
+// block values in the pre-parsed tree, which is faster than re-scanning the full
+// YAML string with a regex.
 //
 // When parsedWorkflow is nil (schema validation disabled via skipValidation), the
 // function first uses the lightweight hasUnsafeExpressionInRunContent text scan
-// to avoid an unnecessary yaml.Unmarshal call.
+// to avoid an unnecessary yaml.Unmarshal call.  When the scan detects unsafe
+// expressions, the YAML is parsed with the same go.yaml.in/yaml/v3 library for
+// consistency with Path A.
 func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath string, parsedWorkflow map[string]any) error {
 	var templateErr error
 
@@ -320,7 +323,17 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 		// inside a run: block before paying the cost of a full yaml.Unmarshal.
 		if hasUnsafeExpressionInRunContent(yamlContent) {
 			log.Print("Validating for template injection vulnerabilities")
-			templateErr = validateNoTemplateInjection(yamlContent)
+			// Parse with go.yaml.in/yaml/v3 (same library as Path A) so that both
+			// paths produce identical results for any given YAML input.
+			var reparsed map[string]any
+			if err := yaml.Unmarshal([]byte(yamlContent), &reparsed); err != nil {
+				// Malformed YAML: skip validation (compilation would have surfaced this elsewhere).
+				templateInjectionValidationLog.Printf("Failed to parse YAML for template injection check: %v", err)
+				reparsed = nil
+			}
+			if reparsed != nil {
+				templateErr = validateNoTemplateInjectionFromParsed(reparsed)
+			}
 		}
 	}
 
