@@ -113,6 +113,7 @@ You can also trigger cleanup manually from the GitHub Actions UI by running the 
 - **Files not persisting**: Check cache key consistency and logs for restore/save messages.
 - **File access issues**: Create subdirectories first, verify permissions, use absolute paths.
 - **Cache size issues**: Track growth, clear periodically, or use time-based keys for auto-expiration.
+- **Cache path misconfiguration**: When the agent calls `missing_data` with `reason: "cache_memory_miss"`, the conclusion handler automatically opens a failure issue flagging a likely cache path problem. Check that the agent prompt references the correct path (`/tmp/gh-aw/cache-memory/` by default, or `/tmp/gh-aw/cache-memory-{id}/` for named caches) and that the cache key is consistent across runs.
 
 ## Integrity-Aware Caching
 

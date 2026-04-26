@@ -80,6 +80,9 @@ The Metrics section includes an `ambient_context` object when available. Ambient
 - MCP tool invocation changes (new/removed tools, call count and error count diffs)
 - Run metrics comparison (token usage, duration, turns)
 - Token usage breakdown: input tokens, output tokens, cache read/write tokens, effective tokens, total API requests, and cache efficiency per run
+- Tokens per turn: effective tokens divided by turn count for each run, with the change between runs
+- Tool call breakdown: per-tool call counts (new, removed, and changed tools) with max input/output sizes
+- Bash command breakdown: aggregated call counts and max input/output sizes for each distinct bash command invoked
 
 **Diff output behavior with multiple comparisons:**
 - `--json` outputs a single object for one comparison, or an array for multiple
