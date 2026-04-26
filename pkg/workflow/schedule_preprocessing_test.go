@@ -1920,7 +1920,7 @@ func TestTriggerShorthandConditionPropagation(t *testing.T) {
 				"on": "deployment failed",
 			},
 			wantEvent: "deployment_status",
-			wantIf:    "github.event.deployment_status.state == 'failure'",
+			wantIf:    "github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'failure')",
 		},
 		{
 			name: "deployment error sets if condition",
@@ -1928,7 +1928,7 @@ func TestTriggerShorthandConditionPropagation(t *testing.T) {
 				"on": "deployment error",
 			},
 			wantEvent: "deployment_status",
-			wantIf:    "github.event.deployment_status.state == 'error'",
+			wantIf:    "github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'error')",
 		},
 		{
 			name: "deployment failed or error sets combined if condition",
@@ -1936,7 +1936,7 @@ func TestTriggerShorthandConditionPropagation(t *testing.T) {
 				"on": "deployment failed or error",
 			},
 			wantEvent: "deployment_status",
-			wantIf:    "github.event.deployment_status.state == 'failure' || github.event.deployment_status.state == 'error'",
+			wantIf:    "github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'failure' || github.event.deployment_status.state == 'error')",
 		},
 		{
 			name: "deployment failed merges with existing bare if condition",
@@ -1945,7 +1945,7 @@ func TestTriggerShorthandConditionPropagation(t *testing.T) {
 				"if": "github.actor != 'bot'",
 			},
 			wantEvent: "deployment_status",
-			wantIf:    "(github.actor != 'bot') && (github.event.deployment_status.state == 'failure')",
+			wantIf:    "(github.actor != 'bot') && (github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'failure'))",
 		},
 		{
 			name: "deployment failed merges with wrapped ${{ }} if condition",
@@ -1954,7 +1954,7 @@ func TestTriggerShorthandConditionPropagation(t *testing.T) {
 				"if": "${{ github.actor != 'bot' }}",
 			},
 			wantEvent: "deployment_status",
-			wantIf:    "(github.actor != 'bot') && (github.event.deployment_status.state == 'failure')",
+			wantIf:    "(github.actor != 'bot') && (github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'failure'))",
 		},
 		{
 			name: "deployment failed merges with if: prefix condition",
@@ -1965,7 +1965,7 @@ func TestTriggerShorthandConditionPropagation(t *testing.T) {
 			wantEvent: "deployment_status",
 			// if: prefix is not stripped in schedule_preprocessing, only in extractIfCondition
 			// the merge wraps the raw existing value (after wrapper strip)
-			wantIf: "(if: github.actor != 'bot') && (github.event.deployment_status.state == 'failure')",
+			wantIf: "(if: github.actor != 'bot') && (github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'failure'))",
 		},
 	}
 

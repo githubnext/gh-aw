@@ -772,7 +772,13 @@ func extractDeploymentStatusStateCondition(frontmatter map[string]any) string {
 	for _, s := range states {
 		parts = append(parts, "github.event.deployment_status.state == '"+s+"'")
 	}
-	return strings.Join(parts, " || ")
+	stateExpr := strings.Join(parts, " || ")
+
+	// Guard the state check with an event_name test so the condition remains true
+	// when the workflow is triggered by other events (e.g. workflow_dispatch).
+	// Without the guard, a non-deployment_status event would see the state as
+	// empty/undefined and the entire activation condition would evaluate to false.
+	return "github.event_name != 'deployment_status' || (" + stateExpr + ")"
 }
 
 // extractExpressionFromIfString extracts the expression part from a string that might

@@ -54,6 +54,7 @@ const ALLOWED_EXPRESSIONS = [
   "github.event.comment.id",
   "github.event.deployment.id",
   "github.event.deployment_status.id",
+  "github.event.deployment_status.state",
   "github.event.head_commit.id",
   "github.event.installation.id",
   "github.event.issue.number",

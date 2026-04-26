@@ -679,7 +679,11 @@ func parseDeploymentTrigger(input string) (*TriggerIR, error) {
 	for _, s := range states {
 		parts = append(parts, "github.event.deployment_status.state == '"+s+"'")
 	}
-	condition := strings.Join(parts, " || ")
+	stateExpr := strings.Join(parts, " || ")
+
+	// Guard with event_name so the condition is transparent when the workflow is
+	// triggered by other events (e.g. workflow_dispatch combined with deployment_status).
+	condition := "github.event_name != 'deployment_status' || (" + stateExpr + ")"
 
 	triggerParserLog.Printf("Parsed deployment trigger with states %v, condition: %s", states, condition)
 

@@ -64,8 +64,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && (github.event.deployment_status.state == 'error' ||
-      github.event.deployment_status.state == 'failure')
+      needs.pre_activation.outputs.activated == 'true' && (github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'error' ||
+      github.event.deployment_status.state == 'failure'))
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -1163,7 +1163,8 @@ jobs:
             await main();
 
   pre_activation:
-    if: github.event.deployment_status.state == 'error' || github.event.deployment_status.state == 'failure'
+    if: >
+      github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'error' || github.event.deployment_status.state == 'failure')
     runs-on: ubuntu-slim
     permissions:
       contents: read
