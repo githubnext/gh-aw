@@ -3,6 +3,7 @@
 package gitutil
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -209,4 +210,110 @@ func TestSpec_PublicAPI_ExtractBaseRepo(t *testing.T) {
 				"ExtractBaseRepo(%q) should extract owner/repo portion", tt.input)
 		})
 	}
+}
+
+// TestSpec_PublicAPI_IsValidFullSHA validates the documented behavior of
+// IsValidFullSHA as described in the package README.md.
+//
+// Specification: Returns true if s is a valid 40-character lowercase hexadecimal
+// SHA (the standard Git commit SHA format). Use this for strict SHA validation
+// when the full 40-character form is required.
+func TestSpec_PublicAPI_IsValidFullSHA(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "40-character lowercase hex returns true",
+			input:    "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+			expected: true,
+		},
+		{
+			name:     "40-character with uppercase hex returns false (must be lowercase)",
+			input:    "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709",
+			expected: false,
+		},
+		{
+			name:     "39 characters returns false (too short)",
+			input:    "da39a3ee5e6b4b0d3255bfef95601890afd807",
+			expected: false,
+		},
+		{
+			name:     "41 characters returns false (too long)",
+			input:    "da39a3ee5e6b4b0d3255bfef95601890afd807091",
+			expected: false,
+		},
+		{
+			name:     "empty string returns false",
+			input:    "",
+			expected: false,
+		},
+		{
+			name:     "non-hex character in 40-char string returns false",
+			input:    "za39a3ee5e6b4b0d3255bfef95601890afd80709",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsValidFullSHA(tt.input)
+			assert.Equal(t, tt.expected, result,
+				"IsValidFullSHA(%q) should match documented behavior", tt.input)
+		})
+	}
+}
+
+// TestSpec_PublicAPI_FindGitRoot validates the documented behavior of
+// FindGitRoot as described in the package README.md.
+//
+// Specification: Returns the absolute path of the root directory of the current
+// Git repository by running `git rev-parse --show-toplevel`. Returns an error
+// if the working directory is not inside a Git repository.
+func TestSpec_PublicAPI_FindGitRoot(t *testing.T) {
+	t.Run("returns non-empty absolute path when in git repository", func(t *testing.T) {
+		root, err := FindGitRoot()
+		assert.NoError(t, err, "FindGitRoot should not error when inside a git repository")
+		assert.NotEmpty(t, root, "FindGitRoot should return a non-empty path")
+		assert.True(t, filepath.IsAbs(root),
+			"FindGitRoot should return an absolute path, got %q", root)
+	})
+}
+
+// TestSpec_PublicAPI_ReadFileFromHEADWithRoot validates the documented behavior of
+// ReadFileFromHEADWithRoot as described in the package README.md.
+//
+// Specification: Reads a file's content from the HEAD commit without touching
+// the working tree. gitRoot must be the repository root. The function rejects
+// paths that escape the repository (i.e. paths containing .. after resolution).
+func TestSpec_PublicAPI_ReadFileFromHEADWithRoot(t *testing.T) {
+	root, err := FindGitRoot()
+	if err != nil {
+		t.Skip("not inside a git repository, skipping ReadFileFromHEADWithRoot tests")
+	}
+
+	t.Run("reads known file from HEAD without error", func(t *testing.T) {
+		content, err := ReadFileFromHEADWithRoot("go.mod", root)
+		assert.NoError(t, err, "ReadFileFromHEADWithRoot should read go.mod without error")
+		assert.NotEmpty(t, content, "content of go.mod should not be empty")
+	})
+
+	t.Run("returns error for non-existent file", func(t *testing.T) {
+		_, err := ReadFileFromHEADWithRoot("this-file-does-not-exist-xyzzy.txt", root)
+		assert.Error(t, err, "ReadFileFromHEADWithRoot should return error for non-existent file")
+	})
+
+	t.Run("rejects path with .. traversal", func(t *testing.T) {
+		// Specification: "The function rejects paths that escape the repository
+		// (i.e. paths containing .. after resolution)."
+		_, err := ReadFileFromHEADWithRoot("../outside/file.txt", root)
+		assert.Error(t, err, "ReadFileFromHEADWithRoot should reject path-traversal attempts")
+	})
+
+	t.Run("returns error when gitRoot is empty", func(t *testing.T) {
+		// Specification: gitRoot must be the repository root (from FindGitRoot)
+		_, err := ReadFileFromHEADWithRoot("go.mod", "")
+		assert.Error(t, err, "ReadFileFromHEADWithRoot should return error when gitRoot is empty")
+	})
 }
