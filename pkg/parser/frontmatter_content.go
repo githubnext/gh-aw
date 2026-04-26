@@ -215,7 +215,13 @@ func ExtractMarkdownContent(content string) (string, error) {
 func ExtractWorkflowNameFromMarkdownBody(markdownBody string, virtualPath string) (string, error) {
 	log.Printf("Extracting workflow name from markdown body: virtualPath=%s, size=%d bytes", virtualPath, len(markdownBody))
 
+	const maxLines = 64
+	lineCount := 0
 	for line := range strings.Lines(markdownBody) {
+		lineCount++
+		if lineCount > maxLines {
+			break
+		}
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "# ") {
 			workflowName := strings.TrimSpace(trimmed[2:])
@@ -240,7 +246,13 @@ func ExtractWorkflowNameFromContent(content string, virtualPath string) (string,
 		return "", err
 	}
 
+	const maxLines = 64
+	lineCount := 0
 	for line := range strings.Lines(markdownContent) {
+		lineCount++
+		if lineCount > maxLines {
+			break
+		}
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "# ") {
 			workflowName := strings.TrimSpace(trimmed[2:])
