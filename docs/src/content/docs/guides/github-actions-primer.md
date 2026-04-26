@@ -108,7 +108,7 @@ jobs:
       - run: echo "Job has specified permissions only"
 ```
 
-With GItHub Agentic Workflows, **write permissions are not used explicitly**. Instead much more restricted capabilities to write to GitHub are delared through **safe outputs**, which validate, constrain and sanitize all GitHub API interactions.
+With GItHub Agentic Workflows, **write permissions are not used explicitly**. Instead much more restricted capabilities to write to GitHub are declared through **safe outputs**, which validate, constrain and sanitize all GitHub API interactions.
 
 ### Secret Management
 

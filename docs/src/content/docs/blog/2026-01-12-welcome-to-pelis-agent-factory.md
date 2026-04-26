@@ -83,7 +83,7 @@ After that we have a cornucopia of specialized workflow categories for you to di
 - [Go Deep with Advanced Analytics & ML Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/)
 - [Go Deep with Project Coordination Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-campaigns/)
 
-Every post comes with instructions about how to add the workflow to your own repository, or cusomtize and remix it to create your own variant.
+Every post comes with instructions about how to add the workflow to your own repository, or customize and remix it to create your own variant.
 
 ## What We're Learning
 

@@ -64,7 +64,7 @@ Some key characteristics are:
 
 **On-demand assistance via slash commands**
 
-These agentic workflows areactivated by `/command` mentions in issues or PRs. Role-gated for security. They respond with analysis, visualizations, or actions.
+These agentic workflows are activated by `/command` mentions in issues or PRs. Role-gated for security. They respond with analysis, visualizations, or actions.
 
 Use these when:
 

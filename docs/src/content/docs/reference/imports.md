@@ -203,7 +203,7 @@ imports:
 ```
 
 > [!NOTE]
-> This is the existing, backward-compatible behaviour. Workflows that already use relative paths continue to work without any changes.
+> This is the existing, backward-compatible behavior. Workflows that already use relative paths continue to work without any changes.
 
 ### Repo-root-relative paths
 
