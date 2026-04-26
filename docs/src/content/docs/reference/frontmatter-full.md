@@ -482,7 +482,17 @@ on:
 
   # Option 2: object
   deployment_status:
-    {}
+    # Filter to specific deployment states (compiled into if condition). Use a string
+    # for one state or an array for multiple states.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: string
+    state: "error"
+
+    # Option 2: array
+    state: []
+      # Array items: string
 
   # Fork event trigger that runs when someone forks the repository
   # (optional)
@@ -3595,7 +3605,7 @@ safe-outputs:
     github-token-for-extra-empty-commit: "example-value"
 
     # Controls protected-file protection. String form: blocked (default), allowed, or
-    # fallback-to-issue. Object form: { policy, exclude } to customize the
+    # fallback-to-issue. Object form: { policy, exclude } to customise the
     # protected-file set.
     # (optional)
     # This field supports multiple formats (oneOf):
@@ -4777,7 +4787,7 @@ safe-outputs:
       # Array of strings
 
     # Controls protected-file protection. String form: blocked (default), allowed, or
-    # fallback-to-issue. Object form: { policy, exclude } to customize the
+    # fallback-to-issue. Object form: { policy, exclude } to customise the
     # protected-file set.
     # (optional)
     # This field supports multiple formats (oneOf):
@@ -5298,7 +5308,7 @@ safe-outputs:
     # Default values injected when the model omits a field
     # (optional)
     defaults:
-      # Behavior when no files match: 'error' (default) or 'ignore'
+      # Behaviour when no files match: 'error' (default) or 'ignore'
       # (optional)
       if-no-files: "error"
 

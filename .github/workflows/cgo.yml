@@ -1750,8 +1750,33 @@ jobs:
             }
           }
 
+          // Fetch all jobs for this run to get direct job links
+          const jobsResponse = await github.rest.actions.listJobsForWorkflowRun({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            run_id: context.runId,
+            per_page: 100,
+          });
+
+          // Build a map from job name to job URL for failed jobs
+          const jobUrlMap = {};
+          for (const job of jobsResponse.data.jobs) {
+            if (failedJobs.includes(job.name)) {
+              jobUrlMap[job.name] = job.html_url;
+            }
+          }
+
           const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
           const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+
+          // Format expiration line using the gh-aw-expires XML comment format
+          const expiresDate = new Date(expiresAt);
+          const humanReadableDate = expiresDate.toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+            timeZone: 'UTC',
+          });
+          const expirationLine = `- [x] expires <!-- gh-aw-expires: ${expiresAt} --> on ${humanReadableDate} UTC`;
 
           const body = [
             `## CGO Workflow Failure`,
@@ -1766,9 +1791,13 @@ jobs:
             ``,
             `## Failed Jobs`,
             ``,
-            ...failedJobs.map(name => `- \`${name}\``),
+            // Map job names to direct links; fall back to plain text if a job ID wasn't found
+            ...failedJobs.map(name => jobUrlMap[name]
+              ? `- [\`${name}\`](${jobUrlMap[name]})`
+              : `- \`${name}\``),
             ``,
             `> This issue expires at ${expiresAt}. Please investigate the failed jobs above and close once resolved.`,
+            `> ${expirationLine}`,
           ].join('\n');
 
           const issue = await github.rest.issues.create({

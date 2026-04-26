@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestSpec_PublicAPI_IsRateLimitError validates the documented behavior of
@@ -274,7 +275,7 @@ func TestSpec_PublicAPI_IsValidFullSHA(t *testing.T) {
 func TestSpec_PublicAPI_FindGitRoot(t *testing.T) {
 	t.Run("returns non-empty absolute path when in git repository", func(t *testing.T) {
 		root, err := FindGitRoot()
-		assert.NoError(t, err, "FindGitRoot should not error when inside a git repository")
+		require.NoError(t, err, "FindGitRoot should not error when inside a git repository")
 		assert.NotEmpty(t, root, "FindGitRoot should return a non-empty path")
 		assert.True(t, filepath.IsAbs(root),
 			"FindGitRoot should return an absolute path, got %q", root)
@@ -295,7 +296,7 @@ func TestSpec_PublicAPI_ReadFileFromHEADWithRoot(t *testing.T) {
 
 	t.Run("reads known file from HEAD without error", func(t *testing.T) {
 		content, err := ReadFileFromHEADWithRoot(filepath.Join(root, "go.mod"), root)
-		assert.NoError(t, err, "ReadFileFromHEADWithRoot should read go.mod without error")
+		require.NoError(t, err, "ReadFileFromHEADWithRoot should read go.mod without error")
 		assert.NotEmpty(t, content, "content of go.mod should not be empty")
 	})
 
