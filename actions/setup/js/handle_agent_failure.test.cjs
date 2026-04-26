@@ -1142,6 +1142,10 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("Missing Data Reported");
       expect(result).toContain("cache_memory_miss");
       expect(result).toContain("Cache Configuration Problem");
+      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("<details>");
+      expect(result).toContain("/gh-aw/reference/cache-memory/");
+      expect(result).toContain("File naming convention");
     });
 
     it("captures reason-only missing_data items (no data_type) and detects cache miss", () => {
@@ -1157,6 +1161,8 @@ describe("handle_agent_failure", () => {
       const result = buildMissingDataContext(true);
       expect(result).toContain("Missing Data Reported");
       expect(result).toContain("Cache Configuration Problem");
+      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("<details>");
     });
 
     it("does not append cache warning for unrelated missing_data reasons when cacheMemoryEnabled is true", () => {
