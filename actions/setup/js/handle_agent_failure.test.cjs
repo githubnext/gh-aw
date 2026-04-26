@@ -1143,14 +1143,14 @@ describe("handle_agent_failure", () => {
       );
       fs.writeFileSync(
         path.join(promptsDir, "cache_memory_miss.md"),
-        "> [!WARNING]\n> **Cache Configuration Problem**: cache miss detected despite cache-memory being configured.\n\n<details>\n<summary>How to fix</summary>\n\nReview the [cache-memory configuration](https://github.github.com/gh-aw/reference/cache-memory/) and ensure the agent prompt correctly references files inside the cache directory.\n\n**File naming convention:** Cache files are stored at `/tmp/gh-aw/cache-memory/`.\n\n</details>\n"
+        "<details>\n<summary>⚠️ Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>\n\nReview the [cache-memory configuration](https://github.github.com/gh-aw/reference/cache-memory/) and ensure the agent prompt correctly references files inside the cache directory.\n\n**File naming convention:** Cache files are stored at `/tmp/gh-aw/cache-memory/`.\n\n</details>\n"
       );
       vi.resetModules();
       ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
       const result = buildMissingDataContext(true);
       expect(result).toContain("Missing Data Reported");
       expect(result).toContain("Cache Configuration Problem");
-      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("<summary>");
       expect(result).toContain("<details>");
       expect(result).toContain("/gh-aw/reference/cache-memory/");
       expect(result).toContain("File naming convention");
@@ -1164,16 +1164,13 @@ describe("handle_agent_failure", () => {
           items: [{ type: "missing_data", reason: "cache_memory_miss" }],
         })
       );
-      fs.writeFileSync(
-        path.join(promptsDir, "cache_memory_miss.md"),
-        "> [!WARNING]\n> **Cache Configuration Problem**: cache miss detected despite cache-memory being configured.\n\n<details>\n<summary>How to fix</summary>\n\nDetails here.\n\n</details>\n"
-      );
+      fs.writeFileSync(path.join(promptsDir, "cache_memory_miss.md"), "<details>\n<summary>⚠️ Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>\n\nDetails here.\n\n</details>\n");
       vi.resetModules();
       ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
       const result = buildMissingDataContext(true);
       expect(result).toContain("Missing Data Reported");
       expect(result).toContain("Cache Configuration Problem");
-      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("<summary>");
       expect(result).toContain("<details>");
     });
 

@@ -1,8 +1,5 @@
-> [!WARNING]
-> **Cache Configuration Problem**: cache miss detected despite cache-memory being configured.
-
 <details>
-<summary>How to fix</summary>
+<summary>⚠️ Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>
 
 The agent reported a cache miss (`missing_data` with `reason: cache_memory_miss`) even though cache-memory is configured and was available. This likely indicates the prompt is misconfigured and the agent cannot locate the correct file path within the cache directory.
 
