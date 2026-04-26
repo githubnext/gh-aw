@@ -34,8 +34,6 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 		return nil
 	}
 
-	discussionLog.Print("Parsing create-discussion configuration")
-
 	// Get the config data to check for special cases before unmarshaling
 	configData, _ := outputMap["create-discussion"].(map[string]any)
 
@@ -56,12 +54,13 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 		return nil
 	}
 
-	// Unmarshal into typed config struct
-	var config CreateDiscussionsConfig
-	if err := unmarshalConfig(outputMap, "create-discussion", &config, discussionLog); err != nil {
+	config := parseConfigScaffold(outputMap, "create-discussion", discussionLog, func(err error) *CreateDiscussionsConfig {
 		discussionLog.Printf("Failed to unmarshal config: %v", err)
 		// For backward compatibility, handle nil/empty config
-		config = CreateDiscussionsConfig{}
+		return &CreateDiscussionsConfig{}
+	})
+	if config == nil {
+		return nil
 	}
 
 	// Set default max if not specified
@@ -120,7 +119,7 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 		discussionLog.Printf("Fallback to issue configured: %t", *config.FallbackToIssue)
 	}
 
-	return &config
+	return config
 }
 
 // Returns normalized category (or original if it's a category ID)

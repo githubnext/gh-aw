@@ -54,8 +54,6 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		return nil
 	}
 
-	createPRLog.Print("Parsing create-pull-request configuration")
-
 	// Get the config data to check for special cases before unmarshaling
 	configData, _ := outputMap["create-pull-request"].(map[string]any)
 
@@ -129,12 +127,13 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		return nil
 	}
 
-	// Unmarshal into typed config struct
-	var config CreatePullRequestsConfig
-	if err := unmarshalConfig(outputMap, "create-pull-request", &config, createPRLog); err != nil {
+	config := parseConfigScaffold(outputMap, "create-pull-request", createPRLog, func(err error) *CreatePullRequestsConfig {
 		createPRLog.Printf("Failed to unmarshal config: %v", err)
 		// For backward compatibility, handle nil/empty config
-		config = CreatePullRequestsConfig{}
+		return &CreatePullRequestsConfig{}
+	})
+	if config == nil {
+		return nil
 	}
 
 	// Log expires if configured
@@ -153,5 +152,5 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		createPRLog.Printf("Pull request max count configured: %s", *config.Max)
 	}
 
-	return &config
+	return config
 }

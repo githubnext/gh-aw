@@ -21,8 +21,6 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 		return nil
 	}
 
-	addReviewerLog.Print("Parsing add-reviewer configuration")
-
 	// Get config data for pre-processing before YAML unmarshaling
 	configData, _ := outputMap["add-reviewer"].(map[string]any)
 
@@ -46,12 +44,13 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 		return nil
 	}
 
-	// Unmarshal into typed config struct
-	var config AddReviewerConfig
-	if err := unmarshalConfig(outputMap, "add-reviewer", &config, addReviewerLog); err != nil {
+	config := parseConfigScaffold(outputMap, "add-reviewer", addReviewerLog, func(err error) *AddReviewerConfig {
 		addReviewerLog.Printf("Failed to unmarshal config: %v", err)
 		// For backward compatibility, handle nil/empty config
-		config = AddReviewerConfig{}
+		return &AddReviewerConfig{}
+	})
+	if config == nil {
+		return nil
 	}
 
 	// Set default max if not specified
@@ -61,5 +60,5 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 
 	addReviewerLog.Printf("Parsed add-reviewer config: allowed_reviewers=%d, target=%s", len(config.Reviewers), config.Target)
 
-	return &config
+	return config
 }
