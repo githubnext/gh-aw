@@ -145,7 +145,10 @@ func generateOTLPHeadersMaskStep() string {
 // succeeding -- that function may fail for workflows with complex tool configurations
 // (e.g. engine objects, array-style bash configs), which would leave ParsedFrontmatter
 // nil and prevent OTLP injection.
-func extractOTLPConfigFromRaw(frontmatter map[string]any) (endpoint, headers string) {
+//
+// The third return value is true when the deprecated string form was used for headers,
+// so the caller can emit a deprecation warning.
+func extractOTLPConfigFromRaw(frontmatter map[string]any) (endpoint, headers string, deprecated bool) {
 	obs, ok := frontmatter["observability"]
 	if !ok {
 		return
@@ -166,13 +169,7 @@ func extractOTLPConfigFromRaw(frontmatter map[string]any) (endpoint, headers str
 		endpoint = ep
 	}
 	if raw, ok := otlpMap["headers"]; ok {
-		normalized, deprecated := normalizeOTLPHeaders(raw)
-		if deprecated {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-				"observability.otlp.headers: string form is deprecated. Use the map form instead (e.g. headers: {Authorization: \"Bearer ${{ secrets.TOKEN }}\"})",
-			))
-		}
-		headers = normalized
+		headers, deprecated = normalizeOTLPHeaders(raw)
 	}
 	return
 }
@@ -191,7 +188,7 @@ func extractOTLPConfigFromRaw(frontmatter map[string]any) (endpoint, headers str
 func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	// Read OTLP config from the raw frontmatter map so that injection works even
 	// when ParseFrontmatterConfig failed (e.g. due to complex tool configs).
-	endpoint, headers := extractOTLPConfigFromRaw(workflowData.RawFrontmatter)
+	endpoint, headers, deprecated := extractOTLPConfigFromRaw(workflowData.RawFrontmatter)
 
 	// Fall back to ParsedFrontmatter when the raw map didn't yield an endpoint.
 	if endpoint == "" {
@@ -221,14 +218,20 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	if headers == "" && workflowData.ParsedFrontmatter != nil &&
 		workflowData.ParsedFrontmatter.Observability != nil &&
 		workflowData.ParsedFrontmatter.Observability.OTLP != nil {
-		normalized, deprecated := normalizeOTLPHeaders(workflowData.ParsedFrontmatter.Observability.OTLP.Headers)
-		if deprecated {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-				"observability.otlp.headers: string form is deprecated. Use the map form instead (e.g. headers: {Authorization: \"Bearer ${{ secrets.TOKEN }}\"})",
-			))
+		var parsedDeprecated bool
+		headers, parsedDeprecated = normalizeOTLPHeaders(workflowData.ParsedFrontmatter.Observability.OTLP.Headers)
+		if parsedDeprecated {
+			deprecated = true
 		}
-		headers = normalized
 	}
+
+	// Emit the deprecation warning once after resolving headers from all sources.
+	if deprecated {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			"observability.otlp.headers: string form is deprecated. Use the map form instead (e.g. headers: {Authorization: \"Bearer ${{ secrets.TOKEN }}\"})",
+		))
+	}
+
 	if headers != "" {
 		otlpEnvLines += "\n  OTEL_EXPORTER_OTLP_HEADERS: " + headers
 		otlpLog.Printf("Injected OTEL_EXPORTER_OTLP_HEADERS env var")
@@ -241,8 +244,9 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	}
 	otlpLog.Printf("Injected OTEL env vars into workflow env block")
 
-	// Store the resolved endpoint so downstream code (mcp_gateway_config, mcp_setup_generator)
-	// can use workflowData.OTLPEndpoint as the single source of truth instead of
-	// re-reading raw frontmatter independently.
+	// Store the resolved endpoint and headers so downstream code (mcp_gateway_config,
+	// mcp_setup_generator) can use workflowData.OTLPEndpoint / OTLPHeaders as the single
+	// source of truth instead of re-reading raw frontmatter independently.
 	workflowData.OTLPEndpoint = endpoint
+	workflowData.OTLPHeaders = headers
 }
