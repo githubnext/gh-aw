@@ -25,6 +25,7 @@ safe-outputs:
     labels: [documentation, automation]
     reviewers: copilot
     draft: false
+    protected-files: fallback-to-issue
 timeout-minutes: 15
 imports:
   - uses: shared/daily-audit-base.md
