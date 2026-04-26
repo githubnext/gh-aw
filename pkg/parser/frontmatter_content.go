@@ -207,14 +207,9 @@ func ExtractMarkdownContent(content string) (string, error) {
 	return result.Markdown, nil
 }
 
-// ExtractWorkflowNameFromMarkdownBody extracts the workflow name from an already-extracted
-// markdown body (i.e. the content after the frontmatter has been stripped). This is more
-// efficient than ExtractWorkflowNameFromMarkdown or ExtractWorkflowNameFromContent because it
-// avoids the redundant file-read and YAML-parse that those functions perform when the caller
-// already holds the parsed FrontmatterResult.
-func ExtractWorkflowNameFromMarkdownBody(markdownBody string, virtualPath string) (string, error) {
-	log.Printf("Extracting workflow name from markdown body: virtualPath=%s, size=%d bytes", virtualPath, len(markdownBody))
-
+// findH1WorkflowName scans at most the first 64 lines of markdownBody for an H1 header
+// and returns the trimmed title. Returns "" if no H1 is found within those lines.
+func findH1WorkflowName(markdownBody string) string {
 	const maxLines = 64
 	lineCount := 0
 	for line := range strings.Lines(markdownBody) {
@@ -224,10 +219,23 @@ func ExtractWorkflowNameFromMarkdownBody(markdownBody string, virtualPath string
 		}
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "# ") {
-			workflowName := strings.TrimSpace(trimmed[2:])
-			log.Printf("Found workflow name from H1 header: %s", workflowName)
-			return workflowName, nil
+			return strings.TrimSpace(trimmed[2:])
 		}
+	}
+	return ""
+}
+
+// ExtractWorkflowNameFromMarkdownBody extracts the workflow name from an already-extracted
+// markdown body (i.e. the content after the frontmatter has been stripped). This is more
+// efficient than ExtractWorkflowNameFromMarkdown or ExtractWorkflowNameFromContent because it
+// avoids the redundant file-read and YAML-parse that those functions perform when the caller
+// already holds the parsed FrontmatterResult.
+func ExtractWorkflowNameFromMarkdownBody(markdownBody string, virtualPath string) (string, error) {
+	log.Printf("Extracting workflow name from markdown body: virtualPath=%s, size=%d bytes", virtualPath, len(markdownBody))
+
+	if name := findH1WorkflowName(markdownBody); name != "" {
+		log.Printf("Found workflow name from H1 header: %s", name)
+		return name, nil
 	}
 
 	defaultName := generateDefaultWorkflowName(virtualPath)
@@ -246,19 +254,9 @@ func ExtractWorkflowNameFromContent(content string, virtualPath string) (string,
 		return "", err
 	}
 
-	const maxLines = 64
-	lineCount := 0
-	for line := range strings.Lines(markdownContent) {
-		lineCount++
-		if lineCount > maxLines {
-			break
-		}
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "# ") {
-			workflowName := strings.TrimSpace(trimmed[2:])
-			log.Printf("Found workflow name from H1 header: %s", workflowName)
-			return workflowName, nil
-		}
+	if name := findH1WorkflowName(markdownContent); name != "" {
+		log.Printf("Found workflow name from H1 header: %s", name)
+		return name, nil
 	}
 
 	defaultName := generateDefaultWorkflowName(virtualPath)
