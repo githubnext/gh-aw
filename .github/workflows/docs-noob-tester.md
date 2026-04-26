@@ -50,11 +50,25 @@ pre-agent-steps:
       echo "Server PID: $PID"
   - name: Wait for server readiness
     run: |
-      for i in {1..45}; do  # 45 attempts × 3s = 135s max wait
-        STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/gh-aw/)
-        [ "$STATUS" = "200" ] && echo "Server ready at http://localhost:4321/gh-aw/!" && break
-        echo "Waiting for server... ($i/45) (status: $STATUS)" && sleep 3
+      MAX_WAIT=135  # 45 attempts × 3s = 135s max wait
+      WAITED=0
+      until curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; do
+        # Check if the server process has already died
+        if [ -f /tmp/server.pid ] && ! kill -0 "$(cat /tmp/server.pid)" 2>/dev/null; then
+          echo "::error::Documentation server process died before becoming ready. Server log:"
+          cat /tmp/preview.log
+          exit 1
+        fi
+        WAITED=$((WAITED + 3))
+        if [ $WAITED -ge $MAX_WAIT ]; then
+          echo "::error::Documentation server did not start after ${MAX_WAIT}s. Server log:"
+          cat /tmp/preview.log
+          exit 1
+        fi
+        echo "Waiting for server... ($WAITED/${MAX_WAIT}s)"
+        sleep 3
       done
+      echo "Server ready at http://localhost:4321/gh-aw/!"
   - name: Detect bridge IP and write server URL
     run: |
       SERVER_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
