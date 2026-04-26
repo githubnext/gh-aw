@@ -60,9 +60,96 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 	})
 }
 
+// TestGenerateAWFInstallationSteps verifies the multi-step AWF installation includes caching
+func TestGenerateAWFInstallationSteps(t *testing.T) {
+	t.Run("returns two steps: cache restore and install", func(t *testing.T) {
+		steps := generateAWFInstallationSteps("", nil)
+
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps (cache restore + install), got %d", len(steps))
+		}
+
+		cacheStepStr := strings.Join(steps[0], "\n")
+		installStepStr := strings.Join(steps[1], "\n")
+
+		// Cache step should use actions/cache
+		if !strings.Contains(cacheStepStr, "actions/cache") {
+			t.Error("Cache step should use actions/cache action")
+		}
+
+		// Cache step should have an id for output reference
+		if !strings.Contains(cacheStepStr, "id: awf-cache") {
+			t.Error("Cache step should have id: awf-cache")
+		}
+
+		// Cache key should include runner os+arch and version
+		expectedVersion := string(constants.DefaultFirewallVersion)
+		if !strings.Contains(cacheStepStr, expectedVersion) {
+			t.Errorf("Cache key should include version %s", expectedVersion)
+		}
+		if !strings.Contains(cacheStepStr, "runner.os") {
+			t.Error("Cache key should include runner.os")
+		}
+		if !strings.Contains(cacheStepStr, "runner.arch") {
+			t.Error("Cache key should include runner.arch")
+		}
+
+		// Cache step should have restore-keys for stale fallback
+		if !strings.Contains(cacheStepStr, "restore-keys") {
+			t.Error("Cache step should have restore-keys for stale-version fallback")
+		}
+
+		// Install step should reference cache hit output
+		if !strings.Contains(installStepStr, "awf-cache.outputs.cache-hit") {
+			t.Error("Install step should reference cache hit output from cache step")
+		}
+
+		// Install step should set AWF_CACHE_DIR env var
+		if !strings.Contains(installStepStr, "AWF_CACHE_DIR") {
+			t.Error("Install step should set AWF_CACHE_DIR env var")
+		}
+
+		// Install step should still call the install script
+		if !strings.Contains(installStepStr, "install_awf_binary.sh") {
+			t.Error("Install step should call install_awf_binary.sh")
+		}
+
+		if !strings.Contains(installStepStr, expectedVersion) {
+			t.Errorf("Install step should pass version %s to script", expectedVersion)
+		}
+	})
+
+	t.Run("returns nil when custom command specified", func(t *testing.T) {
+		steps := generateAWFInstallationSteps("", &AgentSandboxConfig{Command: "custom-awf"})
+
+		if len(steps) != 0 {
+			t.Errorf("Expected 0 steps when custom command specified, got %d", len(steps))
+		}
+	})
+
+	t.Run("cache key uses provided version", func(t *testing.T) {
+		customVersion := "v0.99.0"
+		steps := generateAWFInstallationSteps(customVersion, nil)
+
+		if len(steps) != 2 {
+			t.Fatalf("Expected 2 steps, got %d", len(steps))
+		}
+
+		cacheStepStr := strings.Join(steps[0], "\n")
+		installStepStr := strings.Join(steps[1], "\n")
+
+		if !strings.Contains(cacheStepStr, customVersion) {
+			t.Errorf("Cache key should contain version %s", customVersion)
+		}
+		if !strings.Contains(installStepStr, customVersion) {
+			t.Errorf("Install step should pass version %s to script", customVersion)
+		}
+	})
+}
+
 // TestCopilotEngineFirewallInstallation verifies that Copilot engine includes AWF installation when firewall is enabled
 func TestCopilotEngineFirewallInstallation(t *testing.T) {
-	t.Run("includes AWF installation step when firewall enabled", func(t *testing.T) {
+	t.Run("includes AWF cache and installation steps when firewall enabled", func(t *testing.T) {
 		engine := NewCopilotEngine()
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
@@ -81,17 +168,24 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 		// Find the AWF installation step
 		var foundAWFStep bool
 		var awfStepStr string
+		var foundCacheStep bool
 		for _, step := range steps {
 			stepStr := strings.Join(step, "\n")
 			if strings.Contains(stepStr, "Install AWF binary") {
 				foundAWFStep = true
 				awfStepStr = stepStr
-				break
+			}
+			if strings.Contains(stepStr, "Restore AWF binary from cache") {
+				foundCacheStep = true
 			}
 		}
 
 		if !foundAWFStep {
 			t.Fatal("Expected to find AWF installation step when firewall is enabled")
+		}
+
+		if !foundCacheStep {
+			t.Error("Expected to find AWF cache restore step when firewall is enabled")
 		}
 
 		// Verify it passes the default version to the script

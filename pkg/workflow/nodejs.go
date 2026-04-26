@@ -123,10 +123,8 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 		if firewallConfig != nil {
 			awfVersion = firewallConfig.Version
 		}
-		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
-		if len(awfInstall) > 0 {
-			steps = append(steps, awfInstall)
-		}
+		awfSteps := generateAWFInstallationSteps(awfVersion, agentConfig)
+		steps = append(steps, awfSteps...)
 	}
 
 	if len(npmSteps) > 1 {

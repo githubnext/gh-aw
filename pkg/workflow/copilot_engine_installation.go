@@ -87,25 +87,24 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
 
-// generateAWFInstallationStep creates a GitHub Actions step to install the AWF binary
-// with SHA256 checksum verification to protect against supply chain attacks.
+// generateAWFInstallationSteps creates GitHub Actions steps to install the AWF binary
+// with SHA256 checksum verification and cross-run caching to protect against both
+// supply chain attacks and CDN availability blips.
 //
-// The installation logic is implemented in a separate shell script (install_awf_binary.sh)
-// which downloads the binary directly from GitHub releases, verifies its checksum against
-// the official checksums.txt file, and installs it. This approach:
-// - Eliminates trust in the installer script itself
-// - Provides full transparency of the installation process
-// - Protects against tampered or compromised installer scripts
-// - Verifies the binary integrity before execution
+// The returned steps are:
+//  1. "Restore AWF binary from cache" — uses actions/cache to restore a previously
+//     downloaded binary. The exact key is version+os+arch. The restore-keys fallback
+//     allows any previous version to be used if the exact version is not cached.
+//  2. "Install AWF binary" — calls install_awf_binary.sh, which skips the download
+//     on an exact cache hit and falls back to the stale cached binary on CDN failure.
 //
 // If a custom command is specified in the agent config, the installation is skipped
 // as the custom command replaces the AWF binary.
-func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig) GitHubActionStep {
+func generateAWFInstallationSteps(version string, agentConfig *AgentSandboxConfig) []GitHubActionStep {
 	// If custom command is specified, skip installation (command replaces binary)
 	if agentConfig != nil && agentConfig.Command != "" {
 		copilotInstallLog.Print("Skipping AWF binary installation (custom command specified)")
-		// Return empty step - custom command will be used in execution
-		return GitHubActionStep([]string{})
+		return nil
 	}
 
 	// Use default version for logging when not specified
@@ -113,10 +112,42 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 		version = string(constants.DefaultFirewallVersion)
 	}
 
-	stepLines := []string{
+	// Cache directory for the AWF binary
+	const awfCacheDir = "/tmp/gh-aw/awf-binary-cache"
+
+	// Step 1: Restore AWF binary from cache
+	cacheKey := "awf-binary-${{ runner.os }}-${{ runner.arch }}-" + version
+	restoreKeyPrefix := "awf-binary-${{ runner.os }}-${{ runner.arch }}-"
+	cacheStep := GitHubActionStep{
+		"      - name: Restore AWF binary from cache",
+		"        id: awf-cache",
+		"        uses: " + getActionPin("actions/cache"),
+		"        with:",
+		"          key: " + cacheKey,
+		"          path: " + awfCacheDir,
+		"          restore-keys: |",
+		"            " + restoreKeyPrefix,
+	}
+
+	// Step 2: Install AWF binary (using cache when available)
+	installStep := GitHubActionStep{
 		"      - name: Install AWF binary",
+		"        env:",
+		"          AWF_CACHE_DIR: " + awfCacheDir,
+		"          AWF_CACHE_HIT: ${{ steps.awf-cache.outputs.cache-hit }}",
 		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh\" " + version,
 	}
 
-	return GitHubActionStep(stepLines)
+	return []GitHubActionStep{cacheStep, installStep}
+}
+
+// generateAWFInstallationStep is the single-step variant of generateAWFInstallationSteps
+// retained for backward compatibility. New callers should use generateAWFInstallationSteps.
+func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig) GitHubActionStep {
+	steps := generateAWFInstallationSteps(version, agentConfig)
+	if len(steps) == 0 {
+		return GitHubActionStep{}
+	}
+	// Return only the install step (last step) for single-step callers
+	return steps[len(steps)-1]
 }

@@ -33,6 +33,12 @@ AWF_INSTALL_DIR="/usr/local/bin"
 AWF_INSTALL_NAME="awf"
 AWF_LIB_DIR="/usr/local/lib/awf"
 
+# Optional cache directory for persisting the AWF binary across runs.
+# Set AWF_CACHE_DIR to a directory path to enable cross-run caching.
+# Set AWF_CACHE_HIT=true when the exact version was restored from cache.
+AWF_CACHE_DIR="${AWF_CACHE_DIR:-}"
+AWF_CACHE_HIT="${AWF_CACHE_HIT:-false}"
+
 if [ -z "$AWF_VERSION" ]; then
   echo "ERROR: AWF version is required"
   echo "Usage: $0 VERSION"
@@ -66,9 +72,56 @@ sha256_hash() {
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-# Download checksums
+# ---------------------------------------------------------------------------
+# Cache support
+#
+# When AWF_CACHE_DIR is set:
+#   - AWF_CACHE_HIT=true means the exact requested version was restored from
+#     cache; skip all downloads and install directly from the cache directory.
+#   - Otherwise, attempt a fresh download. On download failure, fall back to
+#     any binary present in AWF_CACHE_DIR (stale version from a prior run).
+#   - After a successful download, save the binary and checksums to cache.
+# ---------------------------------------------------------------------------
+
+# Check for exact cache hit: exact version already restored into AWF_CACHE_DIR
+if [ "$AWF_CACHE_HIT" = "true" ] && [ -n "$AWF_CACHE_DIR" ] && [ -f "${AWF_CACHE_DIR}/awf" ]; then
+  echo "Cache hit! Restoring AWF ${AWF_VERSION} from cache directory..."
+  sudo install -m 0755 "${AWF_CACHE_DIR}/awf" "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
+
+  # Restore bundle file if present (needed for the Node.js wrapper path)
+  if [ -f "${AWF_CACHE_DIR}/awf-bundle.js" ]; then
+    sudo mkdir -p "${AWF_LIB_DIR}"
+    sudo cp "${AWF_CACHE_DIR}/awf-bundle.js" "${AWF_LIB_DIR}/awf-bundle.js"
+  fi
+
+  # Verify the restored binary works
+  sudo env -u GITHUB_API_URL -u GITHUB_GRAPHQL_URL -u GH_HOST \
+      "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" --version
+  echo "✓ AWF installation complete (from cache)"
+  exit 0
+fi
+
+# Download checksums (with increased retry budget to tolerate CDN blips)
 echo "Downloading checksums from ${CHECKSUMS_URL@Q}..."
-curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"
+if ! curl -fsSL --retry 6 --retry-delay 15 --retry-max-time 300 \
+    -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"; then
+  # Download failed — attempt stale-cache fallback before giving up
+  if [ -n "$AWF_CACHE_DIR" ] && [ -f "${AWF_CACHE_DIR}/awf" ]; then
+    cached_version="$(cat "${AWF_CACHE_DIR}/VERSION" 2>/dev/null || echo unknown)"
+    echo "⚠ Checksums download failed. Falling back to cached AWF binary (${cached_version})."
+    sudo install -m 0755 "${AWF_CACHE_DIR}/awf" "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
+    if [ -f "${AWF_CACHE_DIR}/awf-bundle.js" ]; then
+      sudo mkdir -p "${AWF_LIB_DIR}"
+      sudo cp "${AWF_CACHE_DIR}/awf-bundle.js" "${AWF_LIB_DIR}/awf-bundle.js"
+    fi
+    sudo env -u GITHUB_API_URL -u GITHUB_GRAPHQL_URL -u GH_HOST \
+        "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" --version
+    echo "✓ AWF installation complete (stale-cache fallback)"
+    exit 0
+  fi
+  echo "ERROR: Failed to download checksums and no cached fallback available."
+  exit 22
+fi
 
 verify_checksum() {
   local file="$1"
@@ -93,6 +146,24 @@ verify_checksum() {
   fi
 
   echo "✓ Checksum verification passed for ${fname}"
+}
+
+# save_to_cache copies installed artifacts to AWF_CACHE_DIR for future runs.
+save_to_cache() {
+  if [ -z "$AWF_CACHE_DIR" ]; then
+    return 0
+  fi
+  echo "Saving AWF ${AWF_VERSION} to cache directory (${AWF_CACHE_DIR})..."
+  mkdir -p "$AWF_CACHE_DIR"
+  # Copy the installed binary wrapper
+  cp "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" "${AWF_CACHE_DIR}/awf"
+  # Copy the bundle file if present
+  if [ -f "${AWF_LIB_DIR}/awf-bundle.js" ]; then
+    cp "${AWF_LIB_DIR}/awf-bundle.js" "${AWF_CACHE_DIR}/awf-bundle.js"
+  fi
+  # Record the version for stale-fallback identification
+  echo "${AWF_VERSION}" > "${AWF_CACHE_DIR}/VERSION"
+  echo "✓ Cached AWF ${AWF_VERSION}"
 }
 
 # Check if Node.js >= 20 is available
@@ -120,7 +191,7 @@ install_bundle() {
 
   echo "Node.js >= 20 detected ($(node --version)), using lightweight bundle..."
   echo "Downloading bundle from ${bundle_url@Q}..."
-  if ! curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 -o "${TEMP_DIR}/${bundle_name}" "${bundle_url}"; then
+  if ! curl -fsSL --retry 6 --retry-delay 15 --retry-max-time 300 -o "${TEMP_DIR}/${bundle_name}" "${bundle_url}"; then
     echo "⚠ Bundle download failed (asset may not exist for this version)"
     return 1
   fi
@@ -159,7 +230,7 @@ install_linux_binary() {
 
   local binary_url="${BASE_URL}/${awf_binary}"
   echo "Downloading binary from ${binary_url@Q}..."
-  curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 -o "${TEMP_DIR}/${awf_binary}" "${binary_url}"
+  curl -fsSL --retry 6 --retry-delay 15 --retry-max-time 300 -o "${TEMP_DIR}/${awf_binary}" "${binary_url}"
 
   # Verify checksum
   verify_checksum "${TEMP_DIR}/${awf_binary}" "${awf_binary}"
@@ -184,7 +255,7 @@ install_darwin_binary() {
 
   local binary_url="${BASE_URL}/${awf_binary}"
   echo "Downloading binary from ${binary_url@Q}..."
-  curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 -o "${TEMP_DIR}/${awf_binary}" "${binary_url}"
+  curl -fsSL --retry 6 --retry-delay 15 --retry-max-time 300 -o "${TEMP_DIR}/${awf_binary}" "${binary_url}"
 
   # Verify checksum
   verify_checksum "${TEMP_DIR}/${awf_binary}" "${awf_binary}"
@@ -219,6 +290,9 @@ else
   echo "Node.js >= 20 not available, falling back to platform binary..."
   install_platform_binary
 fi
+
+# Save installed binary to cache directory for future runs (skipped on cache hit)
+save_to_cache
 
 # Verify installation by running --version with sudo.
 # Use sudo to match how awf is invoked in subsequent steps (sudo -E awf ...).

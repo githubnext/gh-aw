@@ -100,10 +100,8 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		}
 
 		// Install AWF binary (or skip if custom command is specified)
-		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
-		if len(awfInstall) > 0 {
-			steps = append(steps, awfInstall)
-		}
+		awfSteps := generateAWFInstallationSteps(awfVersion, agentConfig)
+		steps = append(steps, awfSteps...)
 	}
 
 	return steps

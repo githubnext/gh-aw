@@ -1582,9 +1582,17 @@ func TestCopilotEngineSkipInstallationWithCommand(t *testing.T) {
 		t.Fatal("Expected installation steps when firewall is enabled with custom command")
 	}
 
-	installContent := strings.Join([]string(steps[0]), "\n")
-	if !strings.Contains(installContent, "Install AWF binary") {
-		t.Errorf("Expected AWF installation step when firewall is enabled with custom command, got:\n%s", installContent)
+	// With caching, there are 2 AWF steps: cache restore + install
+	// Find the install step (not the cache restore)
+	var foundInstall bool
+	for _, step := range steps {
+		if strings.Contains(strings.Join([]string(step), "\n"), "Install AWF binary") {
+			foundInstall = true
+			break
+		}
+	}
+	if !foundInstall {
+		t.Errorf("Expected AWF installation step when firewall is enabled with custom command")
 	}
 }
 

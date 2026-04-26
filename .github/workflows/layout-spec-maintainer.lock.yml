@@ -400,7 +400,18 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.36
         env:
           GH_HOST: github.com
+      - name: Restore AWF binary from cache
+        id: awf-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          key: awf-binary-${{ runner.os }}-${{ runner.arch }}-v0.25.28
+          path: /tmp/gh-aw/awf-binary-cache
+          restore-keys: |
+            awf-binary-${{ runner.os }}-${{ runner.arch }}-
       - name: Install AWF binary
+        env:
+          AWF_CACHE_DIR: /tmp/gh-aw/awf-binary-cache
+          AWF_CACHE_HIT: ${{ steps.awf-cache.outputs.cache-hit }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.28
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
@@ -1176,7 +1187,18 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.36
         env:
           GH_HOST: github.com
+      - name: Restore AWF binary from cache
+        id: awf-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          key: awf-binary-${{ runner.os }}-${{ runner.arch }}-v0.25.28
+          path: /tmp/gh-aw/awf-binary-cache
+          restore-keys: |
+            awf-binary-${{ runner.os }}-${{ runner.arch }}-
       - name: Install AWF binary
+        env:
+          AWF_CACHE_DIR: /tmp/gh-aw/awf-binary-cache
+          AWF_CACHE_HIT: ${{ steps.awf-cache.outputs.cache-hit }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.28
       - name: Execute GitHub Copilot CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
