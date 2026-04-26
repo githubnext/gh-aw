@@ -1255,7 +1255,26 @@
                 },
                 {
                   "type": "object",
-                  "additionalProperties": false
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "description": "Filter to specific deployment states (compiled into if condition). Use a string for one state or an array for multiple states.",
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": ["error", "failure", "pending", "success", "inactive", "in_progress", "queued", "waiting"]
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["error", "failure", "pending", "success", "inactive", "in_progress", "queued", "waiting"]
+                          },
+                          "minItems": 1
+                        }
+                      ]
+                    }
+                  }
                 }
               ]
             },

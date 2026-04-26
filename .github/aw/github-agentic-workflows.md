@@ -2492,8 +2492,8 @@ Canonical pattern for detecting deployment failures from external services (Hero
 description: Monitors deployment failures and automatically creates deduplicated incident issues with root cause analysis.
 on:
   deployment_status:
+    state: [error, failure]
   skip-if-match: "is:issue is:open label:incident label:deployment-failure"
-if: ${{ github.event.deployment_status.state == 'error' || github.event.deployment_status.state == 'failure' }}
 permissions:
   contents: read
   actions: read
@@ -2519,19 +2519,19 @@ with state `${{ github.event.deployment_status.state }}`.
 
 Perform root cause analysis using available GitHub MCP tools and create
 a focused incident issue with evidence and remediation steps.
-Use `noop` if no failure is detected or a duplicate issue already exists.
+Use `noop` if a duplicate issue already exists.
 ```
 
 **Key features of this pattern:**
 
-- **`deployment_status:` trigger** — fires when external deployment services post a status update to GitHub (no types filter needed; the `if:` condition restricts to `error`/`failure`)
+- **`deployment_status: state: [error, failure]`** — fires when external deployment services post an `error` or `failure` status update; the `state:` field is compiled into a job `if:` condition automatically. You can also use the natural language shorthand `on: "deployment failed or error"` for the same result.
 - **`skip-if-match:`** — deduplication via GitHub search; skips the run when an open incident issue already exists, preventing issue spam
-- **`expires: 7`** — auto-closes incident issues after 7 days so stale incidents don't accumulate
+- **`expires: 7d`** — auto-closes incident issues after 7 days so stale incidents don't accumulate
 - **`close-older-issues: true`** — automatically closes the previous incident issue when a new one is created for the same workflow, keeping the tracker current
 - **`toolsets: [repos, actions]`** — gives the agent access to commit history and workflow run logs for root cause analysis
 - **`deployments: read`** — required permission for the `deployment_status` event payload
 
-For reference patterns on `deployment_status` context variables, see `.github/aw/deployment-status.md`.
+**`deployment_status` `state:` values**: `error`, `failure`, `pending`, `success`, `inactive`, `in_progress`, `queued`, `waiting`
 
 ### High-Volume Processing Patterns
 
