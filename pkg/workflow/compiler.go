@@ -164,10 +164,9 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 
 	// Validate for template injection vulnerabilities (unsafe expression usage in run: commands).
 	//
-	// Path A – schema validation enabled: the YAML is already parsed; reuse it.
-	//   A quick regex pre-filter (unsafeContextRegex) is applied first to skip
-	//   the parsed-tree walk entirely for the common case where the compiled YAML
-	//   contains no unsafe context expressions at all.
+	// Path A – YAML already parsed for schema validation: walk the pre-parsed tree directly.
+	//   validateNoTemplateInjectionFromParsed only inspects run: block values (~20 small
+	//   strings), which is faster than a regex scan on the full ~71KB YAML string.
 	//
 	// Path B – schema validation disabled (skipValidation=true): rely on the
 	//   lightweight hasUnsafeExpressionInRunContent text scan.  Only if it detects
@@ -302,22 +301,21 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 // (unsafe GitHub Actions expressions used directly in run: blocks).
 //
 // Two paths are supported:
-//   - Schema validation enabled (schemaEnabled=true, parsedWorkflow!=nil): the YAML was
-//     already parsed for schema checking; reuse it here.  A fast regex pre-filter
-//     (unsafeContextRegex) skips the parsed-tree walk when the YAML contains no unsafe
-//     context expressions at all—the common case for correctly-generated workflows.
-//   - Schema validation disabled (schemaEnabled=false): use the lightweight
+//   - YAML already parsed (yamlAlreadyParsed=true, parsedWorkflow!=nil): the YAML was
+//     parsed for schema checking; reuse it here.  Walking the pre-parsed tree to locate
+//     run: blocks is faster than a regex scan on the full ~71 KB YAML string because
+//     validateNoTemplateInjectionFromParsed only inspects the ~20 small run: values.
+//   - YAML not yet parsed (yamlAlreadyParsed=false, schema disabled): use the lightweight
 //     hasUnsafeExpressionInRunContent text scan.  Only if it reports unsafe expressions
 //     inside a run: block is a full yaml.Unmarshal triggered.
-func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath string, parsedWorkflow map[string]any, schemaEnabled bool) error {
+func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath string, parsedWorkflow map[string]any, yamlAlreadyParsed bool) error {
 	var templateErr error
 
-	if schemaEnabled {
-		// Path A: schema validation already parsed the YAML; reuse it.
-		// The regex pre-filter avoids the parsed-tree walk when no unsafe context
-		// expressions (${{ github.event.*, steps.*.outputs.*, inputs.* }}) appear
-		// anywhere in the compiled YAML.
-		if parsedWorkflow != nil && unsafeContextRegex.MatchString(yamlContent) {
+	if yamlAlreadyParsed {
+		// Path A: YAML was parsed for schema validation; reuse it.
+		// Walking the pre-parsed tree (only run: block values, ~20 small strings)
+		// is more efficient than scanning the entire ~71 KB YAML string with a regex.
+		if parsedWorkflow != nil {
 			log.Print("Validating for template injection vulnerabilities")
 			templateErr = validateNoTemplateInjectionFromParsed(parsedWorkflow)
 		}
