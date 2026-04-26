@@ -14,7 +14,7 @@ tools:
     toolsets: [repos, actions]
 safe-outputs:
   create-issue:
-    expires: 7
+    expires: 7d
     title-prefix: "[Incident] "
     labels: [incident, deployment-failure]
     close-older-issues: true
