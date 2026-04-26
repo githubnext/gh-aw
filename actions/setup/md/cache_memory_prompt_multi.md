@@ -4,4 +4,5 @@ __GH_AW_CACHE_LIST__
 <examples>
 __GH_AW_CACHE_EXAMPLES__
 </examples>
+<cache-miss-guidance>If you look for data in the cache and do not find any, call the `missing_data` tool with `data_type: "cache_memory"` and `reason: "cache_memory_miss"` to signal that the cache does not contain the expected information.</cache-miss-guidance>
 </cache-memory>

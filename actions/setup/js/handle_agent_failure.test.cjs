@@ -1072,4 +1072,105 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("gpt-5-mini");
     });
   });
+
+  // buildMissingDataContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildMissingDataContext", () => {
+    let buildMissingDataContext;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-missing-data-"));
+      process.env.RUNNER_TEMP = tmpDir;
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty string when agent output file does not exist", () => {
+      expect(buildMissingDataContext(false)).toBe("");
+      expect(buildMissingDataContext(true)).toBe("");
+    });
+
+    it("returns empty string when agent output has no missing_data items", () => {
+      fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [{ type: "noop", reason: "done" }] }));
+      vi.resetModules();
+      ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
+      expect(buildMissingDataContext(false)).toBe("");
+      expect(buildMissingDataContext(true)).toBe("");
+    });
+
+    it("returns missing data context without cache warning when cacheMemoryEnabled is false", () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "missing_data", data_type: "cache_memory", reason: "cache_memory_miss" }],
+        })
+      );
+      vi.resetModules();
+      ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
+      const result = buildMissingDataContext(false);
+      expect(result).toContain("Missing Data Reported");
+      expect(result).toContain("cache\\_memory"); // data_type after markdown escaping
+      expect(result).not.toContain("Cache Configuration Problem");
+    });
+
+    it("appends cache configuration warning when cacheMemoryEnabled is true and cache_memory_miss item present", () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "missing_data", data_type: "cache_memory", reason: "cache_memory_miss" }],
+        })
+      );
+      vi.resetModules();
+      ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
+      const result = buildMissingDataContext(true);
+      expect(result).toContain("Missing Data Reported");
+      expect(result).toContain("cache_memory_miss");
+      expect(result).toContain("Cache Configuration Problem");
+    });
+
+    it("captures reason-only missing_data items (no data_type) and detects cache miss", () => {
+      // Agents may emit missing_data with only reason (no data_type) — ensure it is still captured
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "missing_data", reason: "cache_memory_miss" }],
+        })
+      );
+      vi.resetModules();
+      ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
+      const result = buildMissingDataContext(true);
+      expect(result).toContain("Missing Data Reported");
+      expect(result).toContain("Cache Configuration Problem");
+    });
+
+    it("does not append cache warning for unrelated missing_data reasons when cacheMemoryEnabled is true", () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "missing_data", data_type: "user_data", reason: "not_provided" }],
+        })
+      );
+      vi.resetModules();
+      ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
+      const result = buildMissingDataContext(true);
+      expect(result).toContain("Missing Data Reported");
+      expect(result).not.toContain("Cache Configuration Problem");
+    });
+  });
 });
