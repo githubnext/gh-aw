@@ -165,8 +165,8 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	// Validate for template injection vulnerabilities (unsafe expression usage in run: commands).
 	//
 	// parsedWorkflow != nil means the YAML was already parsed for schema validation;
-	// validateTemplateInjection reuses it directly (walk the ~20 small run: block values)
-	// rather than re-scanning the full ~71KB string.  When parsedWorkflow is nil (schema
+	// validateTemplateInjection reuses the pre-parsed tree (inspects only run: block values)
+	// rather than re-scanning the full YAML string.  When parsedWorkflow is nil (schema
 	// validation disabled), the lightweight hasUnsafeExpressionInRunContent text scan is
 	// used first to avoid an unnecessary yaml.Unmarshal.
 	if err := c.validateTemplateInjection(yamlContent, lockFile, markdownPath, parsedWorkflow); err != nil {
@@ -299,8 +299,8 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 // (unsafe GitHub Actions expressions used directly in run: blocks).
 //
 // When parsedWorkflow is non-nil the YAML was already parsed for schema validation;
-// this function reuses it directly by walking only the ~20 small run: block values,
-// which is faster than re-scanning the full ~71 KB YAML string.
+// this function reuses it directly by walking the run: block values in the pre-parsed
+// tree, which is faster than re-scanning the full YAML string with a regex.
 //
 // When parsedWorkflow is nil (schema validation disabled via skipValidation), the
 // function first uses the lightweight hasUnsafeExpressionInRunContent text scan
@@ -310,7 +310,8 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 
 	if parsedWorkflow != nil {
 		// Path A: YAML was already parsed for schema validation; reuse it.
-		// Walking only the run: block values is faster than scanning the full YAML string.
+		// Walking the pre-parsed tree (run: block values only) is faster than
+		// scanning the full YAML string.
 		log.Print("Validating for template injection vulnerabilities")
 		templateErr = validateNoTemplateInjectionFromParsed(parsedWorkflow)
 	} else {
