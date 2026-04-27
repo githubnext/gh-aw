@@ -464,7 +464,7 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
 - Optional dependency validation
 - Best-effort external checks
 - Non-critical validations
-- Developer-friendly warnings
+- Non-critical diagnostic warnings
 
 ## Validation Helper Patterns
 

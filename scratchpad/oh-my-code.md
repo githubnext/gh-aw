@@ -1447,7 +1447,7 @@ Use oh-my-opencode with gh-aw integration:
 - ✅ You primarily work locally, not in CI/CD
 
 **Ideal User Profiles**:
-- **Power Users**: Developers who want "coding on steroids"
+- **Power Users**: Developers who want high-throughput automated code assistance
 - **Refactoring Projects**: Large-scale code transformations
 - **Rapid Prototyping**: Build features using parallel agents
 - **Open Source Contributors**: Personal productivity tool
