@@ -28,7 +28,7 @@ func TestExtractLabelNames(t *testing.T) {
 					"pull_request_target": map[string]any{
 						"types": []any{"labeled"},
 					},
-					"label-names": "panel-review",
+					"labels": "panel-review",
 				},
 			},
 			expected: []string{"panel-review"},
@@ -40,13 +40,13 @@ func TestExtractLabelNames(t *testing.T) {
 					"pull_request_target": map[string]any{
 						"types": []any{"labeled"},
 					},
-					"label-names": []any{"panel-review", "needs-triage"},
+					"labels": []any{"panel-review", "needs-triage"},
 				},
 			},
 			expected: []string{"panel-review", "needs-triage"},
 		},
 		{
-			name: "no label-names field returns nil",
+			name: "no labels field returns nil",
 			frontmatter: map[string]any{
 				"on": map[string]any{
 					"pull_request_target": map[string]any{
@@ -97,11 +97,11 @@ func TestBuildLabelNamesCondition(t *testing.T) {
 	}
 }
 
-// TestLabelNamesPreActivationFilter verifies that on.label-names generates a job-level
+// TestLabelNamesPreActivationFilter verifies that on.labels generates a job-level
 // if: condition on the pre_activation job that skips the workflow when the triggering
 // label does not match (gray ⊘ rather than red ❌).
 func TestLabelNamesPreActivationFilter(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "label-names-filter-test")
+	tmpDir := testutil.TempDir(t, "labels-filter-test")
 	compiler := NewCompiler()
 
 	tests := []struct {
@@ -111,12 +111,12 @@ func TestLabelNamesPreActivationFilter(t *testing.T) {
 		shouldHaveIf bool
 	}{
 		{
-			name: "pull_request_target with single label-names",
+			name: "pull_request_target with single labels",
 			frontmatter: `---
 on:
   pull_request_target:
     types: [labeled]
-  label-names: panel-review
+  labels: panel-review
 
 permissions:
   contents: read
@@ -132,12 +132,12 @@ tools:
 			shouldHaveIf: true,
 		},
 		{
-			name: "pull_request_target with multiple label-names",
+			name: "pull_request_target with multiple labels",
 			frontmatter: `---
 on:
   pull_request_target:
     types: [labeled]
-  label-names: [panel-review, needs-triage]
+  labels: [panel-review, needs-triage]
 
 permissions:
   contents: read
@@ -153,7 +153,7 @@ tools:
 			shouldHaveIf: true,
 		},
 		{
-			name: "pull_request_target without label-names has no if condition from label filter",
+			name: "pull_request_target without labels has no if condition from label filter",
 			frontmatter: `---
 on:
   pull_request_target:
@@ -173,12 +173,12 @@ tools:
 			shouldHaveIf: false,
 		},
 		{
-			name: "issues with label-names generates pre-activation if condition",
+			name: "issues with labels generates pre-activation if condition",
 			frontmatter: `---
 on:
   issues:
     types: [labeled]
-  label-names: [bug, enhancement]
+  labels: [bug, enhancement]
 
 permissions:
   contents: read
@@ -198,7 +198,7 @@ tools:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testFile := tmpDir + "/test-" + strings.ReplaceAll(tt.name, " ", "-") + ".md"
-			content := tt.frontmatter + "\n\n# Test Workflow\n\nTest label-names filter."
+			content := tt.frontmatter + "\n\n# Test Workflow\n\nTest labels filter."
 			require.NoError(t, os.WriteFile(testFile, []byte(content), 0644), "should write test file")
 
 			err := compiler.CompileWorkflow(testFile)
@@ -218,7 +218,7 @@ tools:
 					"pre_activation job should have if condition matching label filter")
 			} else {
 				assert.NotContains(t, lockContent, tt.expectedIf,
-					"pre_activation job should not have label-name if condition when label-names not specified")
+					"pre_activation job should not have label-name if condition when labels not specified")
 			}
 		})
 	}

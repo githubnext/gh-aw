@@ -421,7 +421,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		jobIfCondition = data.If
 	}
 
-	// When label-names is specified, add a job-level if: condition to the pre-activation job.
+	// When labels is specified, add a job-level if: condition to the pre-activation job.
 	// This causes the entire job to be skipped (gray ⊘) rather than failed (red ❌) when
 	// the triggering label does not match, keeping CI dashboards noise-free.
 	// workflow_dispatch is always allowed so manual runs are not blocked.
@@ -456,7 +456,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	return job, nil
 }
 
-// buildLabelNamesCondition constructs the GitHub Actions if: expression for label-names filtering.
+// buildLabelNamesCondition constructs the GitHub Actions if: expression for labels filtering.
 // The generated condition passes when:
 //   - the triggering label name matches any of the specified names, OR
 //   - the event is workflow_dispatch (so manual runs are never blocked).
