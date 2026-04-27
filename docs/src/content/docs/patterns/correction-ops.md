@@ -1,6 +1,8 @@
 ---
 title: CorrectionOps
 description: Improve agentic workflows from trusted human corrections without retraining the underlying model
+sidebar:
+  badge: Pattern
 ---
 
 CorrectionOps is a workflow pattern that compares predictions with later human corrections.
