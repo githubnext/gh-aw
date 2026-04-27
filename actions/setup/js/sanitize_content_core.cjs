@@ -744,69 +744,97 @@ function neutralizeBotTriggers(s, maxBotMentions = MAX_BOT_TRIGGER_REFERENCES) {
  * template syntax, but this prevents issues if content is later processed by
  * template engines (Jinja2, Liquid, ERB, JavaScript template literals).
  *
+ * Fenced code blocks (including GitHub suggestion blocks) and inline code spans are
+ * preserved verbatim so that legitimate source content inside code regions is not altered.
+ *
  * @param {string} s - The string to process
- * @returns {string} The string with escaped template delimiters
+ * @returns {string} The string with escaped template delimiters (outside code regions)
  */
 function neutralizeTemplateDelimiters(s) {
   if (!s || typeof s !== "string") {
     return "";
   }
 
-  let result = s;
-  let templatesDetected = false;
+  // Track which template types were detected (outside code regions) for deduped logging.
+  const detectedTypes = new Set();
 
-  // Escape Jinja2/Liquid double curly braces: {{ ... }}
-  // Replace {{ with \{\{ to prevent template evaluation
-  if (/\{\{/.test(result)) {
-    templatesDetected = true;
-    if (typeof core !== "undefined" && core.info) {
-      core.info("Template syntax detected: Jinja2/Liquid double braces {{");
+  /**
+   * Escapes template delimiters in a plain-text segment (no fenced blocks or inline code).
+   * @param {string} text - Plain text to escape
+   * @returns {string} Text with template delimiters escaped
+   */
+  function escapeInText(text) {
+    let result = text;
+
+    // Escape Jinja2/Liquid double curly braces: {{ ... }}
+    // Replace {{ with \{\{ to prevent template evaluation
+    if (/\{\{/.test(result)) {
+      if (!detectedTypes.has("jinja2")) {
+        detectedTypes.add("jinja2");
+        if (typeof core !== "undefined" && core.info) {
+          core.info("Template syntax detected: Jinja2/Liquid double braces {{");
+        }
+      }
+      result = result.replace(/\{\{/g, "\\{\\{");
     }
-    result = result.replace(/\{\{/g, "\\{\\{");
+
+    // Escape ERB delimiters: <%= ... %>
+    // Replace <%= with \<%= to prevent ERB evaluation
+    if (/<%=/.test(result)) {
+      if (!detectedTypes.has("erb")) {
+        detectedTypes.add("erb");
+        if (typeof core !== "undefined" && core.info) {
+          core.info("Template syntax detected: ERB delimiter <%=");
+        }
+      }
+      result = result.replace(/<%=/g, "\\<%=");
+    }
+
+    // Escape JavaScript template literal delimiters: ${ ... }
+    // Replace ${ with \$\{ to prevent template literal evaluation
+    if (/\$\{/.test(result)) {
+      if (!detectedTypes.has("js")) {
+        detectedTypes.add("js");
+        if (typeof core !== "undefined" && core.info) {
+          core.info("Template syntax detected: JavaScript template literal ${");
+        }
+      }
+      result = result.replace(/\$\{/g, "\\$\\{");
+    }
+
+    // Escape Jinja2 comment delimiters: {# ... #}
+    // Replace {# with \{\# to prevent Jinja2 comment evaluation
+    if (/\{#/.test(result)) {
+      if (!detectedTypes.has("jinja2comment")) {
+        detectedTypes.add("jinja2comment");
+        if (typeof core !== "undefined" && core.info) {
+          core.info("Template syntax detected: Jinja2 comment {#");
+        }
+      }
+      result = result.replace(/\{#/g, "\\{\\#");
+    }
+
+    // Escape Jekyll raw blocks: {% raw %} and {% endraw %}
+    // Replace {% with \{\% to prevent Jekyll directive evaluation
+    if (/\{%/.test(result)) {
+      if (!detectedTypes.has("jekyll")) {
+        detectedTypes.add("jekyll");
+        if (typeof core !== "undefined" && core.info) {
+          core.info("Template syntax detected: Jekyll/Liquid directive {%");
+        }
+      }
+      result = result.replace(/\{%/g, "\\{\\%");
+    }
+
+    return result;
   }
 
-  // Escape ERB delimiters: <%= ... %>
-  // Replace <%= with \<%= to prevent ERB evaluation
-  if (/<%=/.test(result)) {
-    templatesDetected = true;
-    if (typeof core !== "undefined" && core.info) {
-      core.info("Template syntax detected: ERB delimiter <%=");
-    }
-    result = result.replace(/<%=/g, "\\<%=");
-  }
-
-  // Escape JavaScript template literal delimiters: ${ ... }
-  // Replace ${ with \$\{ to prevent template literal evaluation
-  if (/\$\{/.test(result)) {
-    templatesDetected = true;
-    if (typeof core !== "undefined" && core.info) {
-      core.info("Template syntax detected: JavaScript template literal ${");
-    }
-    result = result.replace(/\$\{/g, "\\$\\{");
-  }
-
-  // Escape Jinja2 comment delimiters: {# ... #}
-  // Replace {# with \{\# to prevent Jinja2 comment evaluation
-  if (/\{#/.test(result)) {
-    templatesDetected = true;
-    if (typeof core !== "undefined" && core.info) {
-      core.info("Template syntax detected: Jinja2 comment {#");
-    }
-    result = result.replace(/\{#/g, "\\{\\#");
-  }
-
-  // Escape Jekyll raw blocks: {% raw %} and {% endraw %}
-  // Replace {% with \{\% to prevent Jekyll directive evaluation
-  if (/\{%/.test(result)) {
-    templatesDetected = true;
-    if (typeof core !== "undefined" && core.info) {
-      core.info("Template syntax detected: Jekyll/Liquid directive {%");
-    }
-    result = result.replace(/\{%/g, "\\{\\%");
-  }
+  // Apply escaping only to non-code regions (skip fenced code blocks and inline code spans).
+  // This preserves the verbatim content of suggestion blocks and other code fences.
+  const result = applyToNonCodeRegions(s, escapeInText);
 
   // Log a summary warning if any template patterns were detected
-  if (templatesDetected && typeof core !== "undefined" && core.warning) {
+  if (detectedTypes.size > 0 && typeof core !== "undefined" && core.warning) {
     core.warning(
       "Template-like syntax detected and escaped. " +
         "This is a defense-in-depth measure to prevent potential template injection " +
