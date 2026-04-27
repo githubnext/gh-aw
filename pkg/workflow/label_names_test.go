@@ -80,12 +80,12 @@ func TestBuildLabelNamesCondition(t *testing.T) {
 		{
 			name:       "single label name",
 			labelNames: []string{"panel-review"},
-			expected:   "github.event.label.name == 'panel-review' || github.event_name == 'workflow_dispatch'",
+			expected:   "github.event.label.name == '' || github.event.label.name == 'panel-review'",
 		},
 		{
 			name:       "multiple label names",
 			labelNames: []string{"panel-review", "needs-triage"},
-			expected:   "github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage' || github.event_name == 'workflow_dispatch'",
+			expected:   "github.event.label.name == '' || github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage'",
 		},
 	}
 
@@ -128,7 +128,7 @@ tools:
   github:
     allowed: [get_pull_request]
 ---`,
-			expectedIf:   "github.event.label.name == 'panel-review' || github.event_name == 'workflow_dispatch'",
+			expectedIf:   "github.event.label.name == '' || github.event.label.name == 'panel-review'",
 			shouldHaveIf: true,
 		},
 		{
@@ -149,7 +149,7 @@ tools:
   github:
     allowed: [get_pull_request]
 ---`,
-			expectedIf:   "github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage' || github.event_name == 'workflow_dispatch'",
+			expectedIf:   "github.event.label.name == '' || github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage'",
 			shouldHaveIf: true,
 		},
 		{
@@ -190,7 +190,7 @@ tools:
   github:
     allowed: [issue_read]
 ---`,
-			expectedIf:   "github.event.label.name == 'bug' || github.event.label.name == 'enhancement' || github.event_name == 'workflow_dispatch'",
+			expectedIf:   "github.event.label.name == '' || github.event.label.name == 'bug' || github.event.label.name == 'enhancement'",
 			shouldHaveIf: true,
 		},
 	}

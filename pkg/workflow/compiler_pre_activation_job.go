@@ -458,34 +458,29 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 // buildLabelNamesCondition constructs the GitHub Actions if: expression for labels filtering.
 // The generated condition passes when:
-//   - the triggering label name matches any of the specified names, OR
-//   - the event is workflow_dispatch (so manual runs are never blocked).
+//   - the event has no label data (github.event.label.name is empty, which covers
+//     workflow_dispatch, push, schedule, and any other non-labeled events), OR
+//   - the triggering label name matches any of the specified names.
+//
+// This ensures the filter only acts on events that actually carry label information,
+// leaving all other events (e.g. workflow_dispatch, push) unaffected.
 func buildLabelNamesCondition(labelNames []string) string {
-	var labelChecks []ConditionNode
+	// Pass through events without label data: github.event.label.name is empty
+	// for workflow_dispatch, push, and any event that does not carry a label payload.
+	noLabelEvent := BuildEquals(
+		BuildPropertyAccess("github.event.label.name"),
+		BuildStringLiteral(""),
+	)
+
+	result := ConditionNode(noLabelEvent)
 	for _, name := range labelNames {
-		labelChecks = append(labelChecks, BuildEquals(
+		result = BuildOr(result, BuildEquals(
 			BuildPropertyAccess("github.event.label.name"),
 			BuildStringLiteral(name),
 		))
 	}
 
-	var labelMatch ConditionNode
-	if len(labelChecks) == 1 {
-		labelMatch = labelChecks[0]
-	} else {
-		labelMatch = labelChecks[0]
-		for i := 1; i < len(labelChecks); i++ {
-			labelMatch = BuildOr(labelMatch, labelChecks[i])
-		}
-	}
-
-	// Always allow workflow_dispatch so manual runs are not blocked by the label filter.
-	workflowDispatch := BuildEquals(
-		BuildPropertyAccess("github.event_name"),
-		BuildStringLiteral("workflow_dispatch"),
-	)
-
-	return BuildOr(labelMatch, workflowDispatch).Render()
+	return result.Render()
 }
 
 // generateReportSkipStep generates the "Report skip reason" step for the pre-activation job.
