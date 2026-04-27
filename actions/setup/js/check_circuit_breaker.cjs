@@ -9,13 +9,15 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 /**
  * Circuit breaker check for agentic workflows.
  *
- * Reads the circuit-breaker state from /tmp/gh-aw/circuit-breaker-state.json
+ * Reads the circuit-breaker state from <stateDir>/circuit-breaker-state.json
  * (downloaded by the preceding actions/download-artifact step) and implements
  * the standard closed → open → half-open state machine pattern:
  *
  *   CLOSED    → normal execution (consecutive_failures < max)
  *   OPEN      → execution blocked (consecutive_failures >= max AND cooldown not elapsed)
  *   HALF-OPEN → one retry allowed (consecutive_failures >= max AND cooldown elapsed)
+ *
+ * GH_AW_CB_STATE_DIR overrides the default state directory (/tmp/gh-aw) for tests.
  */
 async function main() {
   const maxFailures = parseInt(process.env.GH_AW_CB_MAX_FAILURES?.trim() || "5", 10);
@@ -23,14 +25,13 @@ async function main() {
   const cooldownMinutes = parseInt(process.env.GH_AW_CB_COOLDOWN_MINUTES?.trim() || "60", 10);
   const notify = (process.env.GH_AW_CB_NOTIFY?.trim() || "true") === "true";
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Unknown Workflow";
+  const stateDir = process.env.GH_AW_CB_STATE_DIR || "/tmp/gh-aw";
 
   core.info(`🔌 Circuit breaker check for workflow '${workflowName}'`);
   core.info(`   Configuration: max=${maxFailures} failures, window=${timeWindowMinutes}m, cooldown=${cooldownMinutes}m`);
 
   // Read the circuit breaker state downloaded by the preceding download-artifact step.
-  // The artifact is extracted to /tmp/gh-aw, so the JSON file is at:
-  //   /tmp/gh-aw/circuit-breaker-state.json
-  const stateFile = path.join("/tmp/gh-aw", "circuit-breaker-state.json");
+  const stateFile = path.join(stateDir, "circuit-breaker-state.json");
   let state = { consecutive_failures: 0 };
 
   try {

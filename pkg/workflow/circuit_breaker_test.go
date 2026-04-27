@@ -232,6 +232,8 @@ func TestCircuitBreakerDurationToMinutes(t *testing.T) {
 		{name: "24 hours", input: "24h", expected: 1440},
 		{name: "30 minutes", input: "30m", expected: 30},
 		{name: "90 minutes", input: "1h30m", expected: 90},
+		{name: "sub-minute (30s) rounds up to 1", input: "30s", expected: 1},
+		{name: "zero seconds rounds up to 1", input: "0s", expected: 1},
 		{name: "invalid duration", input: "invalid", expectError: true},
 	}
 
@@ -325,6 +327,7 @@ func TestGenerateCircuitBreakerUpdateSteps(t *testing.T) {
 	assert.Contains(t, output, "Upload circuit breaker state", "upload step should be present")
 	assert.Contains(t, output, "circuit-breaker-state", "artifact name should be present")
 	assert.Contains(t, output, "GH_AW_CB_JOB_STATUS", "job status env var should be present")
+	assert.Contains(t, output, "GH_AW_CB_TIME_WINDOW_MINUTES", "time window env var should be passed to update step")
 }
 
 // TestGenerateCircuitBreakerUpdateSteps_NilConfig ensures no steps are generated when disabled.

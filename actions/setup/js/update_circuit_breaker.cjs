@@ -10,30 +10,29 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  *
  * Reads the current job status and updates the circuit breaker state:
  *   - SUCCESS: reset consecutive_failures to 0
- *   - FAILURE/CANCELLED: increment consecutive_failures
+ *   - FAILURE/CANCELLED: increment consecutive_failures (but only count failures
+ *     within the configured time window; older failures are discarded)
  *
- * The updated state is written to /tmp/gh-aw/circuit-breaker-state.json,
+ * The updated state is written to <stateDir>/circuit-breaker-state.json,
  * which is then uploaded as the 'circuit-breaker-state' artifact.
+ *
+ * GH_AW_CB_STATE_DIR overrides the default state directory (/tmp/gh-aw) for tests.
  */
 async function main() {
   const jobStatus = (process.env.GH_AW_CB_JOB_STATUS || "").toLowerCase();
   const maxFailures = parseInt(process.env.GH_AW_CB_MAX_FAILURES?.trim() || "5", 10);
+  const timeWindowMinutes = parseInt(process.env.GH_AW_CB_TIME_WINDOW_MINUTES?.trim() || "1440", 10);
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Unknown Workflow";
-
-  const {
-    repo: { owner, repo },
-    runId,
-  } = context;
+  const stateDir = process.env.GH_AW_CB_STATE_DIR || "/tmp/gh-aw";
 
   core.info(`🔌 Updating circuit breaker state for workflow '${workflowName}'`);
   core.info(`   Job status: ${jobStatus}`);
 
   // Load the previous state from the artifact downloaded in the check step (if available).
-  // The check step would have written the state to /tmp/gh-aw/circuit-breaker-state.json
+  // The check step would have written the state to <stateDir>/circuit-breaker-state.json
   // if one was found; otherwise we start fresh.
   let previousState = { consecutive_failures: 0 };
 
-  const stateDir = "/tmp/gh-aw";
   const stateFile = path.join(stateDir, "circuit-breaker-state.json");
 
   try {
@@ -47,6 +46,14 @@ async function main() {
   }
 
   const nowISO = new Date().toISOString();
+  const nowMs = Date.now();
+  const windowMs = timeWindowMinutes * 60 * 1000;
+
+  // If the last failure is outside the time window, the accumulated count no longer
+  // applies and we treat the previous state as if it were a fresh start.
+  const lastFailureMs = previousState.last_failure ? new Date(previousState.last_failure).getTime() : null;
+  const previousCountInWindow = lastFailureMs !== null && nowMs - lastFailureMs <= windowMs ? (previousState.consecutive_failures ?? 0) : 0;
+
   let newState;
 
   if (jobStatus === "success") {
@@ -59,8 +66,8 @@ async function main() {
     };
     core.info(`✅ Job succeeded — resetting circuit breaker (was ${previousState.consecutive_failures} failures)`);
   } else {
-    // Failure or cancellation — increment the failure counter
-    const newCount = (previousState.consecutive_failures ?? 0) + 1;
+    // Failure or cancellation — increment the failure counter (using only in-window count)
+    const newCount = previousCountInWindow + 1;
     // Preserve the original circuit_opened_at timestamp from when the circuit first opened.
     // Using ?? ensures we only record the timestamp on the first opening (newCount === maxFailures),
     // and keep that value on all subsequent failures without overwriting it.

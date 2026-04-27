@@ -120,13 +120,15 @@ func applyCircuitBreakerDefaults(config *CircuitBreakerConfig) {
 }
 
 // circuitBreakerDurationToMinutes parses a duration string (e.g. "24h", "30m") and returns
-// the equivalent number of minutes as an integer string suitable for passing to the check script.
+// the equivalent number of minutes as an integer. Sub-minute durations are rounded up to 1 minute
+// to prevent a 0-minute window/cooldown from breaking the check logic.
 func circuitBreakerDurationToMinutes(d string) (int, error) {
 	dur, err := time.ParseDuration(d)
 	if err != nil {
 		return 0, fmt.Errorf("invalid circuit-breaker duration %q: %w", d, err)
 	}
-	return int(dur.Minutes()), nil
+	// Round up to 1 minute to avoid a 0-minute window that would disable the check.
+	return max(int(dur.Minutes()), 1), nil
 }
 
 // generateCircuitBreakerCheckSteps generates the pre-activation steps that check whether
@@ -200,6 +202,12 @@ func (c *Compiler) generateCircuitBreakerUpdateSteps(yaml *strings.Builder, data
 		return
 	}
 
+	timeWindowMinutes, err := circuitBreakerDurationToMinutes(data.CircuitBreaker.TimeWindow)
+	if err != nil {
+		circuitBreakerLog.Printf("Warning: could not parse circuit-breaker time-window %q for update step, using default 1440 minutes: %v", data.CircuitBreaker.TimeWindow, err)
+		timeWindowMinutes = 1440
+	}
+
 	circuitBreakerLog.Print("Adding circuit breaker state update steps to agent job")
 
 	yaml.WriteString("      - name: Update circuit breaker state\n")
@@ -209,6 +217,7 @@ func (c *Compiler) generateCircuitBreakerUpdateSteps(yaml *strings.Builder, data
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_CB_JOB_STATUS: ${{ job.status }}\n")
 	fmt.Fprintf(yaml, "          GH_AW_CB_MAX_FAILURES: \"%d\"\n", data.CircuitBreaker.MaxConsecutiveFailures)
+	fmt.Fprintf(yaml, "          GH_AW_CB_TIME_WINDOW_MINUTES: \"%d\"\n", timeWindowMinutes)
 	fmt.Fprintf(yaml, "          GH_AW_WORKFLOW_NAME: %q\n", data.Name)
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
