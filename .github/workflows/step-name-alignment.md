@@ -156,7 +156,7 @@ Check if similar steps use consistent naming patterns:
 - `Download <artifact>` - e.g., "Download container images"
 - `Configure <component>` - e.g., "Configure Git credentials"
 - `Validate <target>` - e.g., "Validate COPILOT_GITHUB_TOKEN secret"
-- `Generate <output>` - e.g., "Generate agentic run info", "Generate workflow overview"
+- `Generate <output>` - e.g., "Generate agentic run information", "Generate workflow overview"
 - `Start <service>` - e.g., "Start MCP gateway"
 - `Stop <service>` - e.g., "Stop MCP gateway"
 

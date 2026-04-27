@@ -157,7 +157,7 @@ jobs:
           job-name: ${{ github.job }}
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
-      - name: Generate agentic run info
+      - name: Generate agentic run information
         id: generate_aw_info
         env:
           GH_AW_INFO_ENGINE_ID: "copilot"

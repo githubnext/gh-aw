@@ -118,9 +118,9 @@ This workflow tests that the step summary includes agentic run information.
 
 	lockContent := string(content)
 
-	// Verify that the "Generate agentic run info" step exists
-	if !strings.Contains(lockContent, "- name: Generate agentic run info") {
-		t.Error("Expected 'Generate agentic run info' step")
+	// Verify that the "Generate agentic run information" step exists
+	if !strings.Contains(lockContent, "- name: Generate agentic run information") {
+		t.Error("Expected 'Generate agentic run information' step")
 	}
 
 	// Verify that the step does NOT include the "Agentic Run Information" section in step summary
@@ -135,7 +135,7 @@ This workflow tests that the step summary includes agentic run information.
 
 	// Verify that the generate_aw_info.cjs helper is invoked from the step
 	if !strings.Contains(lockContent, "require('${{ runner.temp }}/gh-aw/actions/generate_aw_info.cjs')") {
-		t.Error("Expected generate_aw_info.cjs require call in 'Generate agentic run info' step")
+		t.Error("Expected generate_aw_info.cjs require call in 'Generate agentic run information' step")
 	}
 
 	t.Log("Step correctly creates aw_info.json without adding to step summary")
@@ -228,19 +228,19 @@ This workflow tests the workflow overview for Claude engine.
 
 			lockContent := string(content)
 
-			// Verify that the "Generate agentic run info" step exists and contains network config
-			if !strings.Contains(lockContent, "- name: Generate agentic run info") {
-				t.Error("Expected 'Generate agentic run info' step")
+			// Verify that the "Generate agentic run information" step exists and contains network config
+			if !strings.Contains(lockContent, "- name: Generate agentic run information") {
+				t.Error("Expected 'Generate agentic run information' step")
 			}
 
 			// Verify workflow overview is merged into the generate_aw_info step (no separate step)
 			if strings.Contains(lockContent, "- name: Generate workflow overview") {
-				t.Error("Expected no separate 'Generate workflow overview' step (should be merged into 'Generate agentic run info')")
+				t.Error("Expected no separate 'Generate workflow overview' step (should be merged into 'Generate agentic run information')")
 			}
 
 			// Verify workflow overview call is present in the generate_aw_info step
 			if !strings.Contains(lockContent, "require('${{ runner.temp }}/gh-aw/actions/generate_aw_info.cjs')") {
-				t.Error("Expected generate_aw_info.cjs require call inside 'Generate agentic run info' step")
+				t.Error("Expected generate_aw_info.cjs require call inside 'Generate agentic run information' step")
 			}
 
 			// Verify engine ID is set as an env var in the generate_aw_info step
@@ -288,12 +288,12 @@ This workflow tests the workflow overview for Claude engine.
 			}
 
 			// Verify step runs before "Download activation artifact" (activation job appears before agent job in YAML)
-			// Note: "Generate agentic run info" (which includes the overview) is in the activation job,
+			// Note: "Generate agentic run information" (which includes the overview) is in the activation job,
 			// and "Download activation artifact" is in the agent job, which follows activation in the YAML.
-			awInfoIdx := strings.Index(lockContent, "- name: Generate agentic run info")
+			awInfoIdx := strings.Index(lockContent, "- name: Generate agentic run information")
 			promptIdx := strings.Index(lockContent, "- name: Download activation artifact")
 			if awInfoIdx >= promptIdx {
-				t.Error("Expected 'Generate agentic run info' step to run BEFORE 'Download activation artifact' step")
+				t.Error("Expected 'Generate agentic run information' step to run BEFORE 'Download activation artifact' step")
 			}
 
 			// Note: HTML details/summary format is now in generate_workflow_overview.cjs

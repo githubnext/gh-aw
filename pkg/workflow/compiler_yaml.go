@@ -761,7 +761,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		firewallType = "squid"
 	}
 
-	yaml.WriteString("      - name: Generate agentic run info\n")
+	yaml.WriteString("      - name: Generate agentic run information\n")
 	yaml.WriteString("        id: generate_aw_info\n")
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_INFO_ENGINE_ID: \"%s\"\n", engineID)

@@ -41,7 +41,7 @@ safe-outputs:
     target-repo: ${{ vars.TARGET_REPOSITORY }}
     hide-older-comments: true
 steps:
-  - name: Fetch and filter PRs
+  - name: Fetch and filter pull requests
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
