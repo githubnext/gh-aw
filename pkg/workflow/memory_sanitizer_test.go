@@ -3,12 +3,27 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// promptFileDir is the path from this test file to the actions/setup/md directory
+// where runtime prompt files live.
+const promptFileDir = "../../actions/setup/md"
+
+// readPromptFile reads a prompt file from the actions/setup/md directory.
+func readPromptFile(t *testing.T, filename string) string {
+	t.Helper()
+	path := filepath.Join(promptFileDir, filename)
+	content, err := os.ReadFile(path)
+	require.NoError(t, err, "Should be able to read prompt file %s", filename)
+	return string(content)
+}
 
 // TestGenerateRepoMemorySanitizationStep_DefaultMemory verifies that the
 // sanitization step is generated for a standard (non-wiki) default memory.
@@ -76,10 +91,22 @@ func TestSanitizeMemoryScriptNameConstant(t *testing.T) {
 		"Script name constant should match the deployed script filename")
 }
 
-// TestRepoMemoryPromptHasSanitizedAttribute verifies that the prompt boundary
-// markers include the sanitized="true" attribute per ASI-06.
+// TestRepoMemoryPromptHasSanitizedAttribute verifies that the repo-memory prompt
+// boundary markers include the sanitized="true" attribute per ASI-06.
 func TestRepoMemoryPromptHasSanitizedAttribute(t *testing.T) {
-	t.Run("single default repo memory prompt section", func(t *testing.T) {
+	t.Run("single repo memory prompt file has sanitized attribute", func(t *testing.T) {
+		content := readPromptFile(t, repoMemoryPromptFile)
+		assert.Contains(t, content, `<repo-memory sanitized="true">`,
+			"repo_memory_prompt.md should have sanitized=\"true\" attribute on boundary marker (ASI-06)")
+	})
+
+	t.Run("multi repo memory prompt file has sanitized attribute", func(t *testing.T) {
+		content := readPromptFile(t, repoMemoryPromptMultiFile)
+		assert.Contains(t, content, `<repo-memory sanitized="true">`,
+			"repo_memory_prompt_multi.md should have sanitized=\"true\" attribute on boundary marker (ASI-06)")
+	})
+
+	t.Run("single default repo memory prompt section references correct file", func(t *testing.T) {
 		config := &RepoMemoryConfig{
 			Memories: []RepoMemoryEntry{
 				{
@@ -93,10 +120,9 @@ func TestRepoMemoryPromptHasSanitizedAttribute(t *testing.T) {
 		require.NotNil(t, section, "Should return a prompt section")
 		assert.Equal(t, repoMemoryPromptFile, section.Content,
 			"Should reference the repo memory prompt file")
-		// The sanitized="true" attribute is in the prompt file content itself (validated at a higher level)
 	})
 
-	t.Run("multi repo memory prompt section", func(t *testing.T) {
+	t.Run("multi repo memory prompt section references correct file", func(t *testing.T) {
 		config := &RepoMemoryConfig{
 			Memories: []RepoMemoryEntry{
 				{ID: "default", BranchName: "memory/test"},
@@ -111,10 +137,22 @@ func TestRepoMemoryPromptHasSanitizedAttribute(t *testing.T) {
 	})
 }
 
-// TestCacheMemoryPromptHasSanitizedAttribute verifies that cache memory prompt
-// sections reference prompt files that carry the sanitized="true" boundary marker.
+// TestCacheMemoryPromptHasSanitizedAttribute verifies that the cache-memory prompt
+// boundary markers include the sanitized="true" attribute per ASI-06.
 func TestCacheMemoryPromptHasSanitizedAttribute(t *testing.T) {
-	t.Run("single default cache memory prompt section", func(t *testing.T) {
+	t.Run("single cache memory prompt file has sanitized attribute", func(t *testing.T) {
+		content := readPromptFile(t, cacheMemoryPromptFile)
+		assert.Contains(t, content, `<cache-memory sanitized="true">`,
+			"cache_memory_prompt.md should have sanitized=\"true\" attribute on boundary marker (ASI-06)")
+	})
+
+	t.Run("multi cache memory prompt file has sanitized attribute", func(t *testing.T) {
+		content := readPromptFile(t, cacheMemoryPromptMultiFile)
+		assert.Contains(t, content, `<cache-memory sanitized="true">`,
+			"cache_memory_prompt_multi.md should have sanitized=\"true\" attribute on boundary marker (ASI-06)")
+	})
+
+	t.Run("single default cache memory prompt section references correct file", func(t *testing.T) {
 		config := &CacheMemoryConfig{
 			Caches: []CacheMemoryEntry{
 				{ID: "default"},
@@ -127,7 +165,7 @@ func TestCacheMemoryPromptHasSanitizedAttribute(t *testing.T) {
 			"Should reference the cache memory prompt file")
 	})
 
-	t.Run("multi cache memory prompt section", func(t *testing.T) {
+	t.Run("multi cache memory prompt section references correct file", func(t *testing.T) {
 		config := &CacheMemoryConfig{
 			Caches: []CacheMemoryEntry{
 				{ID: "default"},

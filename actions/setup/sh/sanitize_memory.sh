@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set +o histexpand
 
 # sanitize_memory.sh
 # Pre-agent content scanning for prompt injection in memory files.
@@ -103,8 +102,14 @@ while IFS= read -r -d '' file; do
   done
 
   if [ -n "$matched_pattern" ]; then
-    rel_path="${file#./}"
-    quarantine_target="$QUARANTINE_DIR/$(basename "$file").$(date +%s%N 2>/dev/null || date +%s)"
+    rel_path="${file#$SCAN_DIR/}"
+    # Preserve the relative directory structure in the quarantine so that
+    # the original location can be traced back easily.
+    quarantine_target="$QUARANTINE_DIR/$rel_path"
+    quarantine_target_dir="$(dirname "$quarantine_target")"
+    mkdir -p "$quarantine_target_dir"
+    # Append a nanosecond timestamp to the filename to avoid collisions across runs.
+    quarantine_target="${quarantine_target}.$(date +%s%N 2>/dev/null || date +%s)"
     echo "::warning::Memory file quarantined (injection pattern detected): $rel_path (pattern: $matched_pattern)"
     echo "Quarantining suspicious file: $rel_path -> $quarantine_target"
     mv "$file" "$quarantine_target"
