@@ -279,6 +279,97 @@ Workflows with `workflow_run` triggers include automatic security protections:
 
 See the [Security Architecture](/gh-aw/introduction/architecture/) for details.
 
+### Deployment Status Triggers (`deployment_status:`)
+
+Trigger workflows when a GitHub deployment status changes. [Full event reference](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#deployment_status).
+
+```yaml wrap
+on:
+  deployment_status:
+```
+
+#### State Filtering (`state:`)
+
+Use `state:` to restrict the trigger to specific deployment states. The compiler compiles this into a guarded `if:` condition so the workflow only runs for the matching states. Other combined triggers (such as `workflow_dispatch`) are not blocked by the guard.
+
+```yaml wrap
+on:
+  deployment_status:
+    state: failure            # Single state
+```
+
+```yaml wrap
+on:
+  deployment_status:
+    state: [error, failure]   # Multiple states
+  workflow_dispatch:           # Safely combined — guard ensures dispatch passes through
+```
+
+Valid `state` values: `error`, `failure`, `pending`, `success`, `inactive`, `in_progress`, `queued`, `waiting`.
+
+> [!NOTE]
+> The `state` field compiles into a GitHub Actions `if:` condition: `github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'failure')`. This means the workflow still runs when triggered by other events in the same `on:` block.
+
+#### Required Permissions
+
+Workflows triggered by `deployment_status` need `deployments: read` to access the event payload:
+
+```yaml wrap
+permissions:
+  contents: read
+  deployments: read
+```
+
+#### Natural Language Shorthands
+
+```yaml wrap
+on: "deployment failed"             # deployment_status with state == 'failure'
+on: "deployment error"              # deployment_status with state == 'error'
+on: "deployment failed or error"    # deployment_status with state == 'failure' or 'error'
+```
+
+These shorthands also include `workflow_dispatch` automatically.
+
+#### Deployment Incident Monitor Example
+
+```aw wrap
+---
+on:
+  deployment_status:
+    state: [error, failure]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+tools:
+  github:
+    toolsets: [repos, actions]
+safe-outputs:
+  create-issue:
+    expires: 7d
+    title-prefix: "[Incident] "
+    labels: [incident, deployment-failure]
+    close-older-issues: true
+    skip-if-match: 'is:issue is:open label:incident label:deployment-failure'
+  noop:
+---
+
+# Deployment Incident Monitor
+
+A deployment to ${{ github.event.deployment.environment }} has failed with state: ${{ github.event.deployment_status.state }}.
+
+Investigate the root cause:
+1. Check the deployment workflow logs for the failing step
+2. Review recent commits to the deployed branch for potential causes
+3. Check if this environment has had recent failures (look for existing incident issues)
+
+If a new incident is found, create an issue summarising the failure, the likely root cause, and the recommended next step.
+If an incident issue for this deployment already exists, call noop.
+```
+
+See the [Natural Language Shorthands](#other-shorthands) section for additional shorthand formats.
+
 ### Command Triggers (`slash_command:`)
 
 The `slash_command:` trigger creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments.
@@ -727,6 +818,9 @@ on: dependabot pull request         # PR from Dependabot (adds actor condition)
 on: security alert                  # Code scanning alert
 on: code scanning alert             # Alias for security alert (code scanning alert)
 on: api dispatch custom-event       # Repository dispatch with custom event type
+on: "deployment failed"             # deployment_status with state == 'failure' guard
+on: "deployment error"              # deployment_status with state == 'error' guard
+on: "deployment failed or error"    # deployment_status with state == 'failure' or 'error' guard
 ```
 
 ## Related Documentation
