@@ -258,8 +258,11 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	//
 	// The fast path is safe when:
 	//  - len(includedEngines) == 0: no @include directives contributed engine specs
-	//  - len(importsResult.MergedEngines) <= 1: at most the injected builtin in imports
-	//    (> 1 means user imports also had an engine field → conflict)
+	//  - len(importsResult.MergedEngines) <= 1: at most one engine entry from imports.
+	//    When builtinSkippedInjection=true (no user imports), len == 0 always.
+	//    When builtinSkippedInjection=false (builtin was injected), len == 1 means
+	//    only the injected builtin contributed; len > 1 means user imports also had
+	//    an engine field → fall through to the conflict-detection general path.
 	//
 	// General path: when @include/import engines are present, run full validation to
 	// detect and report duplicate engine specifications with a helpful error message.
@@ -267,6 +270,9 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// known engine ID as mainEngineSetting so the validator counts it correctly.
 	if builtinInjectedEngineID != "" && len(includedEngines) == 0 && len(importsResult.MergedEngines) <= 1 {
 		// Common case: single builtin engine, no @include engines, no conflicting imports.
+		// EngineConfig only needs the ID here; downstream code (engineCatalog.Resolve)
+		// retrieves the full engine definition (runtime, auth, etc.) from the catalog
+		// that was populated at startup by loadBuiltinEngineDefinitions.
 		engineSetting = builtinInjectedEngineID
 		engineConfig = &EngineConfig{ID: builtinInjectedEngineID}
 		orchestratorEngineLog.Printf("Fast path: reusing pre-known builtin engine setting %s", engineSetting)
