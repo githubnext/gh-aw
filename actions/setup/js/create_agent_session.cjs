@@ -7,9 +7,6 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 
-const fs = require("fs");
-const path = require("path");
-
 /**
  * Module-level state — populated by handleMessage(), read by the exported getters below.
  * Using module-level variables (rather than closure-only state) allows the handler
@@ -17,14 +14,6 @@ const path = require("path");
  * @type {Array<{number: string, url: string, success: boolean, error?: string}>}
  */
 let _allResults = [];
-
-/**
- * Monotonically increasing counter used to generate unique temp file names.
- * Incremented synchronously before any `await`, so concurrent async calls never
- * derive the same value (Node.js is single-threaded; no locks needed).
- * @type {number}
- */
-let _taskCounter = 0;
 
 /**
  * Handler factory for create-agent-session safe output.
@@ -39,7 +28,6 @@ let _taskCounter = 0;
 async function main(config = {}) {
   // Reset module-level state for this run
   _allResults = [];
-  _taskCounter = 0;
 
   // Parse configuration
   const configuredBaseBranch = config.base ? String(config.base).trim() : null;
@@ -96,38 +84,27 @@ async function main(config = {}) {
     }
 
     try {
-      // Write task description to a temporary file
-      const tmpDir = "/tmp/gh-aw";
-      if (!fs.existsSync(tmpDir)) {
-        fs.mkdirSync(tmpDir, { recursive: true });
-      }
-
-      // Increment the counter synchronously (before any await) to guarantee a unique
-      // task index even when multiple handleMessage calls are interleaved concurrently.
-      const taskIndex = ++_taskCounter;
-      const taskFile = path.join(tmpDir, `agent-task-description-${taskIndex}.md`);
-      fs.writeFileSync(taskFile, taskDescription, "utf8");
-      core.info(`Task ${taskIndex}: Task description written to ${taskFile}`);
-
-      // Build gh agent-task create command
-      const ghArgs = ["agent-task", "create", "--from-file", taskFile, "--base", baseBranch];
+      // Build gh agent-task create command — task description is passed via stdin
+      // ("-F -") to avoid creating temporary files on disk.
+      const ghArgs = ["agent-task", "create", "--from-file", "-", "--base", baseBranch];
 
       const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
       if (effectiveRepo !== contextRepo) {
         ghArgs.push("--repo", effectiveRepo);
       }
 
-      core.info(`Task ${taskIndex}: Creating agent session with command: gh ${ghArgs.join(" ")}`);
+      core.info(`Creating agent session with command: gh ${ghArgs.join(" ")}`);
 
       // Determine token: prefer per-handler token, fall back to step-level token
       const ghToken = config["github-token"] || process.env.GH_AW_AGENT_SESSION_TOKEN || process.env.GITHUB_TOKEN || "";
 
-      // Execute gh agent-task create command
+      // Execute gh agent-task create command, passing task description via stdin
       let taskOutput;
       try {
         taskOutput = await exec.getExecOutput("gh", ghArgs, {
           silent: false,
           ignoreReturnCode: false,
+          input: Buffer.from(taskDescription, "utf8"),
           env: {
             ...process.env,
             GH_TOKEN: ghToken,
@@ -138,12 +115,12 @@ async function main(config = {}) {
 
         // Check for authentication/permission errors
         if (errorMessage.includes("authentication") || errorMessage.includes("permission") || errorMessage.includes("forbidden") || errorMessage.includes("401") || errorMessage.includes("403")) {
-          core.error(`Task ${taskIndex}: Failed to create agent session due to authentication/permission error.`);
+          core.error(`Failed to create agent session due to authentication/permission error.`);
           core.error(`The default GITHUB_TOKEN may not have permission to create agent sessions.`);
           core.error(`Configure a Personal Access Token (PAT) using the handler's github-token setting or GH_AW_AGENT_SESSION_TOKEN.`);
           core.error(`See documentation: https://github.github.com/gh-aw/reference/safe-outputs/#agent-task-creation-create-agent-session`);
         } else {
-          core.error(`Task ${taskIndex}: Failed to create agent session: ${errorMessage}`);
+          core.error(`Failed to create agent session: ${errorMessage}`);
         }
         _allResults.push({ number: "", url: "", success: false, error: errorMessage });
         return { success: false, error: errorMessage };
@@ -153,7 +130,7 @@ async function main(config = {}) {
       // Expected output format from gh agent-task create is typically:
       // https://github.com/owner/repo/issues/123
       const output = taskOutput.stdout.trim();
-      core.info(`Task ${taskIndex}: Agent task created: ${output}`);
+      core.info(`Agent task created: ${output}`);
 
       // Extract task number from URL
       const urlMatch = output.match(/github\.com\/[^/]+\/[^/]+\/issues\/(\d+)/);
@@ -163,7 +140,7 @@ async function main(config = {}) {
         _allResults.push({ number: taskNumber, url: output, success: true });
         return { success: true, number: taskNumber, url: output };
       } else {
-        core.warning(`Task ${taskIndex}: Could not parse task number from output: ${output}`);
+        core.warning(`Could not parse task number from output: ${output}`);
         _allResults.push({ number: "", url: output, success: true });
         return { success: true, number: "", url: output };
       }

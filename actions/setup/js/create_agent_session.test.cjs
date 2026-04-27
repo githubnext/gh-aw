@@ -1,5 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import fs from "fs";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import path from "path";
 
 const mockCore = {
@@ -44,16 +43,6 @@ describe("create_agent_session.cjs", () => {
     const scriptPath = path.join(process.cwd(), "create_agent_session.cjs");
     delete require.cache[require.resolve(scriptPath)];
     createAgentSessionModule = require(scriptPath);
-  });
-
-  afterEach(() => {
-    // Clean up tmp files
-    try {
-      const files = fs.readdirSync("/tmp/gh-aw").filter(f => f.startsWith("agent-task-description-"));
-      for (const file of files) {
-        fs.unlinkSync(path.join("/tmp/gh-aw", file));
-      }
-    } catch {}
   });
 
   describe("handler factory", () => {
@@ -132,6 +121,63 @@ describe("create_agent_session.cjs", () => {
       expect(result.success).toBe(true);
       expect(result.number).toBe("123");
       expect(result.url).toBe("https://github.com/test-owner/test-repo/issues/123");
+    });
+
+    it("should pass task description via stdin (--from-file -) without writing temp files", async () => {
+      mockExec.getExecOutput.mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: "https://github.com/test-owner/test-repo/issues/77",
+        stderr: "",
+      });
+
+      const handler = await createAgentSessionModule.main({ base: "main" });
+      await handler({ type: "create_agent_session", body: "My task description" });
+
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith(
+        "gh",
+        expect.arrayContaining(["--from-file", "-"]),
+        expect.objectContaining({
+          input: Buffer.from("My task description", "utf8"),
+        })
+      );
+    });
+
+    it("should handle concurrent calls without temp file collisions", async () => {
+      // Simulate a delay so the second call starts before the first resolves
+      let firstCallResolve;
+      const firstCallPromise = new Promise(resolve => {
+        firstCallResolve = resolve;
+      });
+
+      const capturedInputs = [];
+      mockExec.getExecOutput.mockImplementation((_cmd, _args, opts) => {
+        capturedInputs.push(opts.input ? opts.input.toString("utf8") : null);
+        // First call blocks until manually resolved; second call resolves immediately
+        if (capturedInputs.length === 1) {
+          return firstCallPromise.then(() => ({
+            exitCode: 0,
+            stdout: "https://github.com/test-owner/test-repo/issues/1",
+            stderr: "",
+          }));
+        }
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "https://github.com/test-owner/test-repo/issues/2",
+          stderr: "",
+        });
+      });
+
+      const handler = await createAgentSessionModule.main({ base: "main" });
+      const callA = handler({ type: "create_agent_session", body: "Task A" });
+      const callB = handler({ type: "create_agent_session", body: "Task B" });
+      // Unblock call A
+      firstCallResolve();
+      await Promise.all([callA, callB]);
+
+      // Each exec call should have received the correct, distinct description
+      expect(capturedInputs).toHaveLength(2);
+      expect(capturedInputs[0]).toBe("Task A");
+      expect(capturedInputs[1]).toBe("Task B");
     });
 
     it("should use configured base branch when calling gh CLI", async () => {
