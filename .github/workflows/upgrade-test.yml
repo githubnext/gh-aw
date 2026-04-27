@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-slim, macos-latest, windows-latest]
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       VERSION_REGEX: 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?'
