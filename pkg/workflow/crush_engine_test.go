@@ -462,4 +462,8 @@ func TestExtractProviderFromModel(t *testing.T) {
 	t.Run("case insensitive provider", func(t *testing.T) {
 		assert.Equal(t, "openai", extractProviderFromModel("OpenAI/gpt-4.1"))
 	})
+
+	t.Run("leading slash returns copilot", func(t *testing.T) {
+		assert.Equal(t, "copilot", extractProviderFromModel("/gpt-4.1"))
+	})
 }

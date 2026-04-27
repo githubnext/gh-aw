@@ -187,7 +187,8 @@ var OpenCodeDefaultDomains = []string{
 }
 
 // extractProviderFromModel parses "provider/model" format and returns the
-// lowercase provider prefix; returns "copilot" when the format is absent.
+// lowercase provider prefix; returns "copilot" when the format is absent or
+// the provider prefix is empty (e.g. a leading slash like "/gpt-4.1").
 // Both OpenCode and Crush use this same "provider/model" convention.
 func extractProviderFromModel(model string) string {
 	if model == "" {
@@ -197,7 +198,11 @@ func extractProviderFromModel(model string) string {
 	if len(parts) < 2 {
 		return "copilot"
 	}
-	return strings.ToLower(parts[0])
+	provider := strings.ToLower(parts[0])
+	if provider == "" {
+		return "copilot"
+	}
+	return provider
 }
 
 // GetOpenCodeDefaultDomains returns the default domains for OpenCode based on the model provider.
