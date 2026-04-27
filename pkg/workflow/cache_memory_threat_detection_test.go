@@ -125,9 +125,9 @@ Test workflow with multiple cache-memory and threat detection enabled.`,
 				// Both caches should use restore
 				"- name: Restore cache-memory file share data (default)",
 				"uses: actions/cache/restore@",
-				"key: memory-none-nopolicy-memory-default-${{ github.run_id }}",
+				"key: memory-none-nopolicy-memory-default",
 				"- name: Restore cache-memory file share data (session)",
-				"key: memory-none-nopolicy-memory-session-${{ github.run_id }}",
+				"key: memory-none-nopolicy-memory-session",
 				// Should upload both artifacts with if: always()
 				"- name: Upload cache-memory data as artifact (default)",
 				"if: always()",

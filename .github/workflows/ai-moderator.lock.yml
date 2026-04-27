@@ -412,10 +412,9 @@ jobs:
       - name: Restore cache-memory file share data
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          key: memory-none-9f0b69b3-spam-tracking-${{ github.repository_owner }}-${{ github.run_id }}
+          key: memory-none-9f0b69b3-spam-tracking-${{ github.repository_owner }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            memory-none-9f0b69b3-spam-tracking-${{ github.repository_owner }}-
       - name: Setup cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory

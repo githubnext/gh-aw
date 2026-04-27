@@ -339,7 +339,7 @@ func TestComputeIntegrityCacheKey_NoPolicy(t *testing.T) {
 }
 
 // TestComputeIntegrityCacheKey_CustomKey verifies that custom keys get the integrity prefix
-// to prevent cross-integrity cache sharing.
+// to prevent cross-integrity cache sharing, and are NOT appended with run_id (stable keys).
 func TestComputeIntegrityCacheKey_CustomKey(t *testing.T) {
 	cfg := &GitHubToolConfig{
 		MinIntegrity: GitHubIntegrityMerged,
@@ -357,12 +357,17 @@ func TestComputeIntegrityCacheKey_CustomKey(t *testing.T) {
 	expectedPrefix := "memory-merged-" + policyHash + "-"
 	assert.True(t, strings.HasPrefix(key, expectedPrefix),
 		"Custom keys must be prefixed with integrity/policy, got: %s", key)
-	assert.True(t, strings.HasSuffix(key, "-${{ github.run_id }}"),
-		"Custom keys should end with run_id suffix, got: %s", key)
+	// Custom keys must NOT have run_id appended — they are stable keys.
+	// Appending run_id to a user-supplied key makes every primary cache key unique,
+	// causing a 100% cache miss rate on the primary key.
+	assert.False(t, strings.HasSuffix(key, "-${{ github.run_id }}"),
+		"Custom keys must NOT end with run_id suffix (stable key), got: %s", key)
+	assert.Equal(t, expectedPrefix+"my-custom-key", key,
+		"Custom key should be exactly integrity-prefix + user key, got: %s", key)
 }
 
 // TestComputeIntegrityCacheKey_CustomKeyWithRunID verifies that custom keys already containing
-// the run_id suffix are not duplicated, but still get the integrity prefix.
+// the run_id suffix are kept as-is (user's explicit intent) and still get the integrity prefix.
 func TestComputeIntegrityCacheKey_CustomKeyWithRunID(t *testing.T) {
 	entry := CacheMemoryEntry{
 		ID:  "default",
@@ -370,11 +375,11 @@ func TestComputeIntegrityCacheKey_CustomKeyWithRunID(t *testing.T) {
 	}
 	key := computeIntegrityCacheKey(entry, nil)
 
-	// Should have none-nopolicy prefix + custom key (with single run_id)
+	// Should have none-nopolicy prefix + custom key (user explicitly included run_id)
 	assert.True(t, strings.HasPrefix(key, "memory-none-nopolicy-"),
 		"Custom keys must be prefixed even without a guard policy, got: %s", key)
 	assert.Equal(t, 1, strings.Count(key, "${{ github.run_id }}"),
-		"run_id suffix should appear exactly once, got: %s", key)
+		"run_id should appear exactly once (not duplicated), got: %s", key)
 }
 
 // TestCacheMemoryStepsIncludeGitSetup verifies that generated workflow YAML includes

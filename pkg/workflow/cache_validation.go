@@ -31,17 +31,18 @@ var cacheKeyRunIDPattern = regexp.MustCompile(`github\.run_id(?:[^_\w]|$)`)
 // validateNoCacheKeyRunID returns an error when a user-supplied cache key
 // contains the ${{ github.run_id }} expression.
 //
-// Including run_id in the key means every run writes to a unique cache slot and
-// the cache can never be restored from a previous run. The compiler already
-// appends run_id automatically to the save key while generating a stable
-// restore-keys prefix — users must not add it themselves.
+// Including run_id in a custom key makes every run write to a unique cache slot,
+// so the primary cache entry can never be restored from a previous run.
+// Custom keys are used as-is (stable) — they are NOT modified by the compiler.
+// Users who want rolling-cache behaviour should use the default key (omit the key
+// field entirely) which the compiler handles with its own run_id suffix.
 func validateNoCacheKeyRunID(key string) error {
 	if cacheKeyRunIDPattern.MatchString(key) {
 		return NewValidationError(
 			"tools.cache-memory.key",
 			key,
 			"cache key must not reference github.run_id — every run would write to a unique cache slot, preventing cross-run cache restoration",
-			"Remove github.run_id from the key. The compiler appends it automatically to the save key and generates a stable restore-keys prefix.\n\nExample:\n\ntools:\n  cache-memory:\n    key: my-data-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}\n    # ✓ compiler adds run_id to the save key; restore-keys prefix enables cross-run restoration",
+			"Remove github.run_id from the key. Custom keys are kept stable so the same primary cache entry is reused across runs.\n\nExample:\n\ntools:\n  cache-memory:\n    key: my-data-${{ github.repository_owner }}\n    # ✓ stable key — same primary entry restored on every run",
 		)
 	}
 	return nil

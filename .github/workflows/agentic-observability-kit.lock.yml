@@ -445,10 +445,9 @@ jobs:
       - name: Restore cache-memory file share data
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          key: memory-none-nopolicy-trending-data-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+          key: memory-none-nopolicy-trending-data-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            memory-none-nopolicy-trending-data-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
       - name: Setup cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory

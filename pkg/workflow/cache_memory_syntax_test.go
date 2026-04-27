@@ -174,7 +174,8 @@ func TestCacheMemorySyntaxVariations(t *testing.T) {
 					t.Errorf("Expected cache ID 'default', got '%s' for %s", config.Caches[0].ID, tt.description)
 				}
 				if customKey, hasKey := configMap["key"]; hasKey {
-					expectedKey := customKey.(string) + "-${{ github.run_id }}"
+					// Custom keys are stable — run_id is NOT appended automatically
+					expectedKey := customKey.(string)
 					if config.Caches[0].Key != expectedKey {
 						t.Errorf("Expected Key=%s, got %s", expectedKey, config.Caches[0].Key)
 					}

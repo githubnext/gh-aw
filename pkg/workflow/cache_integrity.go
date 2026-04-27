@@ -193,13 +193,17 @@ func cacheIntegrityLevel(github *GitHubToolConfig) string {
 // "memory-{integrityLevel}-{policyHash}-" to ensure cache isolation across integrity levels
 // and guard policies, even when the user has specified a custom key suffix.
 //
-// When no custom key is set the full key is:
+// When no custom key is set the full key is (rolling key, includes run_id):
 //
 //	memory-{integrityLevel}-{policyHash}-[{cacheID}-]{workflowID}-{runID}
 //
-// When a custom key is set, it is used as the suffix:
+// When a custom key is set, it is used as a stable suffix (no run_id appended):
 //
-//	memory-{integrityLevel}-{policyHash}-{customKey}-{runID}
+//	memory-{integrityLevel}-{policyHash}-{customKey}
+//
+// Custom keys are stable by design: the user's key is used verbatim so the same
+// primary cache entry can be reused across runs. This avoids the 100% primary-key
+// miss rate that would occur if run_id were appended to every user-supplied key.
 //
 // githubConfig may be nil for workflows without a GitHub guard policy, in which case the
 // sentinel value "nopolicy" and the default integrity level "none" are used.
@@ -210,13 +214,10 @@ func computeIntegrityCacheKey(cache CacheMemoryEntry, githubConfig *GitHubToolCo
 
 	// If a custom key was explicitly set, prefix it with the integrity/policy namespace
 	// to prevent cross-integrity or cross-policy cache sharing.
+	// Custom keys are kept stable (no run_id suffix) so that the same primary cache entry
+	// is reused on every run — matching the user's intent when they supplied a fixed key.
 	if cache.Key != "" && cache.Key != generateDefaultCacheKey(cache.ID) {
-		customKey := cache.Key
-		runIdSuffix := "-${{ github.run_id }}"
-		if !strings.HasSuffix(customKey, runIdSuffix) {
-			customKey = customKey + runIdSuffix
-		}
-		return integrityPrefix + customKey
+		return integrityPrefix + cache.Key
 	}
 
 	return generateIntegrityAwareCacheKey(cache.ID, integrityLevel, policyHash)

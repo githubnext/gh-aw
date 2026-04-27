@@ -427,10 +427,9 @@ jobs:
       - name: Restore cache-memory file share data (focus-areas)
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          key: memory-none-nopolicy-quality-focus-${{ github.workflow }}-${{ github.run_id }}
+          key: memory-none-nopolicy-quality-focus-${{ github.workflow }}
           path: /tmp/gh-aw/cache-memory-focus-areas
           restore-keys: |
-            memory-none-nopolicy-quality-focus-${{ github.workflow }}-
       - name: Setup cache-memory git repository (focus-areas)
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory-focus-areas

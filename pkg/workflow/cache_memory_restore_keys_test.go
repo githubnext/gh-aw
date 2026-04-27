@@ -91,10 +91,10 @@ tools:
     allowed: [get_repository]
 ---`,
 			expectedInLock: []string{
-				// Key becomes memory-none-nopolicy-chroma-... (default key match → integrity-aware format)
-				// Restore key should only remove run_id
-				"restore-keys: |",
-				"memory-none-nopolicy-chroma-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-",
+				// Custom keys are stable (no run_id appended). The user key
+				// "memory-chroma-..." != generateDefaultCacheKey("chroma"), so the custom
+				// prefix path is taken. Primary key is stable and reused across runs.
+				"key: memory-none-nopolicy-memory-chroma-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}",
 			},
 			genericFallbacks: []string{"memory-chroma-", "memory-"},
 		},
@@ -118,12 +118,12 @@ tools:
     allowed: [get_repository]
 ---`,
 			expectedInLock: []string{
-				// "default" cache: custom key `memory-default-...` does NOT match generateDefaultCacheKey("default")
-				// (which produces `memory-{workflowID}-...`), so it goes through the custom key prefix path.
-				// "session" cache: custom key `memory-session-...` DOES match generateDefaultCacheKey("session"),
-				// so it goes through the integrity-aware non-custom path.
-				"memory-none-nopolicy-memory-default-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-",
-				"memory-none-nopolicy-session-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-",
+				// Both caches use custom keys, which are stored as-is (no run_id appended).
+				// "default" cache: key "memory-default-..." != generateDefaultCacheKey("default")
+				// "session" cache: key "memory-session-..." != generateDefaultCacheKey("session") (which has run_id)
+				// Both go through the custom key prefix path → stable primary keys, no restore keys.
+				"key: memory-none-nopolicy-memory-default-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}",
+				"key: memory-none-nopolicy-memory-session-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}",
 			},
 			genericFallbacks: []string{"memory-default-", "memory-session-", "memory-"},
 		},
@@ -172,12 +172,10 @@ tools:
     allowed: [get_repository]
 ---`,
 			expectedInLock: []string{
-				// Repo scope generates two restore keys:
-				// 1. With workflow ID (try same workflow first)
-				// 2. Without workflow ID (allows cross-workflow sharing)
-				"restore-keys: |",
-				"shared-cache-${{ github.workflow }}-",
-				"shared-cache-",
+				// Custom keys are stable (no run_id). Repo scope is a no-op for stable keys
+				// since there is no run_id suffix to strip for restore-key generation.
+				// The stable primary key is reused directly across runs.
+				"key: memory-none-nopolicy-shared-cache-${{ github.workflow }}",
 			},
 			genericFallbacks: []string{}, // No check - repo scope intentionally allows generic restore key
 		},
