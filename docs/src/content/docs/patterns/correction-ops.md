@@ -15,7 +15,7 @@ The basic loop is simple:
 2. Collect what humans later decided
 3. Use the difference to improve the workflow
 
-Discussion labelling is a good example: a workflow applies labels, humans later correct those labels, and the system uses that correction evidence to improve future runs.
+Discussion labeling is a good example: a workflow applies labels, humans later correct those labels, and the system uses that correction evidence to improve future runs.
 
 ## When to Use CorrectionOps
 
@@ -23,7 +23,7 @@ Use CorrectionOps when you want to turn a human decision process into an agentic
 
 It is a good fit when humans still make or correct the real decision, but you want the workflow to improve over time by updating instructions, routing, thresholds, or rollout state.
 
-Typical fits include labelling and classification, routing and prioritization, moderation and approvals, and summaries or recommendations that humans later correct.
+Typical fits include labeling and classification, routing and prioritization, moderation and approvals, and summaries or recommendations that humans later correct.
 
 It is especially useful when the rollout path is gradual:
 
@@ -278,7 +278,7 @@ Before adding rollout logic or adaptation prompts, define four small determinist
 3. correction review input: the deterministic diff artifact used by reporting and adaptation
 4. write target contract: which repository receives evaluation writes before direct production writes are enabled
 
-Discussion labelling, routing, moderation, prioritization, approvals, and summaries can all reuse this shape. The production object changes, but the CorrectionOps setup does not.
+Discussion labeling, routing, moderation, prioritization, approvals, and summaries can all reuse this shape. The production object changes, but the CorrectionOps setup does not.
 
 ## Relationship To Other Patterns
 
