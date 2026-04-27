@@ -446,20 +446,20 @@ func TestCrushEngineFirewallIntegration(t *testing.T) {
 
 func TestExtractProviderFromModel(t *testing.T) {
 	t.Run("standard provider/model format", func(t *testing.T) {
-		assert.Equal(t, "anthropic", extractCrushProviderFromModel("anthropic/claude-sonnet-4-20250514"))
-		assert.Equal(t, "openai", extractCrushProviderFromModel("openai/gpt-4.1"))
-		assert.Equal(t, "google", extractCrushProviderFromModel("google/gemini-2.5-pro"))
+		assert.Equal(t, "anthropic", extractProviderFromModel("anthropic/claude-sonnet-4-20250514"))
+		assert.Equal(t, "openai", extractProviderFromModel("openai/gpt-4.1"))
+		assert.Equal(t, "google", extractProviderFromModel("google/gemini-2.5-pro"))
 	})
 
 	t.Run("empty model defaults to copilot", func(t *testing.T) {
-		assert.Equal(t, "copilot", extractCrushProviderFromModel(""))
+		assert.Equal(t, "copilot", extractProviderFromModel(""))
 	})
 
 	t.Run("no slash defaults to copilot", func(t *testing.T) {
-		assert.Equal(t, "copilot", extractCrushProviderFromModel("claude-sonnet-4-20250514"))
+		assert.Equal(t, "copilot", extractProviderFromModel("claude-sonnet-4-20250514"))
 	})
 
 	t.Run("case insensitive provider", func(t *testing.T) {
-		assert.Equal(t, "openai", extractCrushProviderFromModel("OpenAI/gpt-4.1"))
+		assert.Equal(t, "openai", extractProviderFromModel("OpenAI/gpt-4.1"))
 	})
 }

@@ -380,15 +380,6 @@ mkdir -p "$CODEX_HOME/logs"
 	return steps
 }
 
-// GetFirewallLogsCollectionStep returns the step for collecting firewall logs (before secret redaction).
-// This method is part of the firewall integration interface. It returns an empty slice because
-// firewall logs are written to a known location (/tmp/gh-aw/sandbox/firewall/logs/) and don't need
-// a separate collection step. The method is still called from compiler_yaml_main_job.go to maintain
-// consistent behavior with other engines that may need log collection steps.
-func (e *CodexEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
-	return []GitHubActionStep{}
-}
-
 // GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
 func (e *CodexEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
 	return defaultGetSquidLogsSteps(workflowData, codexEngineLog)

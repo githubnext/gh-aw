@@ -124,7 +124,7 @@ var CrushBaseDefaultDomains = []string{
 }
 
 // crushProviderDomains maps provider prefixes to their API domains.
-// Used by extractCrushProviderFromModel() and GetCrushDefaultDomains().
+// Used by extractProviderFromModel() and GetCrushDefaultDomains().
 var crushProviderDomains = map[string]string{
 	"copilot":   "api.githubcopilot.com",
 	"anthropic": "api.anthropic.com",
@@ -161,7 +161,7 @@ var OpenCodeBaseDefaultDomains = []string{
 }
 
 // openCodeProviderDomains maps provider prefixes to their API domains.
-// Used by extractOpenCodeProviderFromModel() and GetOpenCodeDefaultDomains().
+// Used by extractProviderFromModel() and GetOpenCodeDefaultDomains().
 var openCodeProviderDomains = map[string]string{
 	"copilot":   "api.githubcopilot.com",
 	"anthropic": "api.anthropic.com",
@@ -186,10 +186,10 @@ var OpenCodeDefaultDomains = []string{
 	"registry.npmjs.org", // npm package downloads
 }
 
-// extractOpenCodeProviderFromModel extracts the provider name from an OpenCode model string.
-// OpenCode uses "provider/model" format (e.g., "anthropic/claude-sonnet-4-20250514").
-// Returns the provider prefix, or "copilot" as default if no slash is found.
-func extractOpenCodeProviderFromModel(model string) string {
+// extractProviderFromModel parses "provider/model" format and returns the
+// lowercase provider prefix; returns "copilot" when the format is absent.
+// Both OpenCode and Crush use this same "provider/model" convention.
+func extractProviderFromModel(model string) string {
 	if model == "" {
 		return "copilot"
 	}
@@ -203,7 +203,7 @@ func extractOpenCodeProviderFromModel(model string) string {
 // GetOpenCodeDefaultDomains returns the default domains for OpenCode based on the model provider.
 // It starts with OpenCodeBaseDefaultDomains and adds the provider-specific API domain.
 func GetOpenCodeDefaultDomains(model string) []string {
-	provider := extractOpenCodeProviderFromModel(model)
+	provider := extractProviderFromModel(model)
 	domains := make([]string, 0, len(OpenCodeBaseDefaultDomains)+1)
 	domains = append(domains, OpenCodeBaseDefaultDomains...)
 
@@ -220,24 +220,10 @@ func GetOpenCodeAllowedDomainsWithToolsAndRuntimes(model string, network *Networ
 	return GetAllowedDomainsForEngineWithModel(constants.OpenCodeEngine, model, network, tools, runtimes)
 }
 
-// extractCrushProviderFromModel extracts the provider name from a Crush model string.
-// Crush uses "provider/model" format (e.g., "anthropic/claude-sonnet-4-20250514").
-// Returns the provider prefix, or "copilot" as default if no slash is found.
-func extractCrushProviderFromModel(model string) string {
-	if model == "" {
-		return "copilot"
-	}
-	parts := strings.SplitN(model, "/", 2)
-	if len(parts) < 2 {
-		return "copilot"
-	}
-	return strings.ToLower(parts[0])
-}
-
 // GetCrushDefaultDomains returns the default domains for Crush based on the model provider.
 // It starts with CrushBaseDefaultDomains and adds the provider-specific API domain.
 func GetCrushDefaultDomains(model string) []string {
-	provider := extractCrushProviderFromModel(model)
+	provider := extractProviderFromModel(model)
 	domains := make([]string, 0, len(CrushBaseDefaultDomains)+1)
 	domains = append(domains, CrushBaseDefaultDomains...)
 
