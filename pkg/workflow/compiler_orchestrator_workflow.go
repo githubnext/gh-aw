@@ -267,6 +267,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.Roles = c.extractRoles(frontmatter)
 	workflowData.Bots = c.extractBots(frontmatter)
 	workflowData.RateLimit = c.extractRateLimitConfig(frontmatter)
+	workflowData.CircuitBreaker = c.extractCircuitBreakerConfig(frontmatter)
 	workflowData.SkipRoles = c.mergeSkipRoles(c.extractSkipRoles(frontmatter), importsResult.MergedSkipRoles)
 	workflowData.SkipBots = c.mergeSkipBots(c.extractSkipBots(frontmatter), importsResult.MergedSkipBots)
 	workflowData.ActivationGitHubToken = c.resolveActivationGitHubToken(frontmatter, importsResult)

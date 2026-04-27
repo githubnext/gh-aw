@@ -475,6 +475,7 @@ type WorkflowData struct {
 	Roles                         []string                        // permission levels required to trigger workflow
 	Bots                          []string                        // allow list of bot identifiers that can trigger workflow
 	RateLimit                     *RateLimitConfig                // rate limiting configuration for workflow triggers
+	CircuitBreaker                *CircuitBreakerConfig           // circuit breaker configuration for repeated failure protection
 	CacheMemoryConfig             *CacheMemoryConfig              // parsed cache-memory configuration
 	RepoMemoryConfig              *RepoMemoryConfig               // parsed repo-memory configuration
 	Runtimes                      map[string]any                  // runtime version overrides from frontmatter

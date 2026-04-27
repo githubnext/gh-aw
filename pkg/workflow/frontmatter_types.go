@@ -105,6 +105,17 @@ type PermissionsConfig struct {
 	GitHubAppPermissionsConfig
 }
 
+// CircuitBreakerConfig represents the circuit breaker configuration for a workflow.
+// The circuit breaker prevents repeated execution of a consistently failing workflow,
+// following the standard closed → open → half-open state machine pattern.
+// See: https://github.github.com/gh-aw/reference/frontmatter/#circuit-breaker
+type CircuitBreakerConfig struct {
+	MaxConsecutiveFailures int    `json:"max-consecutive-failures,omitempty"` // Number of consecutive failures before circuit opens (default: 5)
+	TimeWindow             string `json:"time-window,omitempty"`              // Duration window for counting failures, e.g. "24h" (default: "24h")
+	Cooldown               string `json:"cooldown,omitempty"`                 // Duration to wait before allowing retry after circuit opens, e.g. "1h" (default: "1h")
+	Notify                 *bool  `json:"notify,omitempty"`                   // Post workflow annotation when circuit opens/closes (default: true)
+}
+
 // RateLimitConfig represents rate limiting configuration for workflow triggers
 // Limits how many times a user can trigger a workflow within a time window
 type RateLimitConfig struct {
@@ -209,6 +220,9 @@ type FrontmatterConfig struct {
 
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`
+
+	// Circuit breaker configuration
+	CircuitBreaker *CircuitBreakerConfig `json:"circuit-breaker,omitempty"`
 
 	// Update check configuration.
 	// When set to false, the version update check step is skipped in the activation job.

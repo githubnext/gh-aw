@@ -56,6 +56,14 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		perms.Set(PermissionActions, PermissionRead)
 	}
 
+	// Add actions: read permission if circuit breaker is configured (needed to list/download artifacts)
+	if data.CircuitBreaker != nil {
+		if perms == nil {
+			perms = NewPermissions()
+		}
+		perms.Set(PermissionActions, PermissionRead)
+	}
+
 	// Merge on.permissions into the pre-activation job permissions.
 	// on.permissions lets users declare extra scopes required by their on.steps steps.
 	if data.OnPermissions != nil {
@@ -78,6 +86,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Add rate limit check if configured
 	if data.RateLimit != nil {
 		steps = c.generateRateLimitCheck(data, steps)
+	}
+
+	// Add circuit breaker check if configured
+	if data.CircuitBreaker != nil {
+		steps = c.generateCircuitBreakerCheckSteps(data, steps)
 	}
 
 	// Add stop-time check if configured
@@ -337,6 +350,16 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			BuildStringLiteral("true"),
 		)
 		conditions = append(conditions, rateLimitCheck)
+	}
+
+	if data.CircuitBreaker != nil {
+		// Add circuit breaker check condition
+		circuitBreakerCheck := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckCircuitBreakerStepID, constants.CircuitBreakerOkOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, circuitBreakerCheck)
 	}
 
 	if len(data.Command) > 0 {

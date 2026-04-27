@@ -185,6 +185,15 @@ const CheckSkipRolesStepID StepID = "check_skip_roles"
 const CheckSkipBotsStepID StepID = "check_skip_bots"
 const CheckSkipIfCheckFailingStepID StepID = "check_skip_if_check_failing"
 
+// CheckCircuitBreakerStepID is the step ID for the circuit breaker check in the pre-activation job.
+const CheckCircuitBreakerStepID StepID = "check_circuit_breaker"
+
+// UpdateCircuitBreakerStepID is the step ID for the circuit breaker state update in the agent job.
+const UpdateCircuitBreakerStepID StepID = "update_circuit_breaker"
+
+// CircuitBreakerArtifactName is the artifact name used to persist the circuit breaker state.
+const CircuitBreakerArtifactName = "circuit-breaker-state"
+
 // PreActivationAppTokenStepID is the step ID for the unified GitHub App token mint step
 // emitted in the pre-activation job when on.github-app is configured alongside skip-if checks.
 const PreActivationAppTokenStepID StepID = "pre-activation-app-token"
@@ -206,6 +215,7 @@ const SkipRolesOkOutput = "skip_roles_ok"
 const SkipBotsOkOutput = "skip_bots_ok"
 const SkipIfCheckFailingOkOutput = "skip_if_check_failing_ok"
 const ActivatedOutput = "activated"
+const CircuitBreakerOkOutput = "circuit_breaker_ok"
 
 // Rate limit defaults
 const DefaultRateLimitMax = 5     // Default maximum runs per time window

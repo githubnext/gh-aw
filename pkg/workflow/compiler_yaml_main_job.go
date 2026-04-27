@@ -611,6 +611,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
 
+	// Add circuit breaker state update and upload (runs always, even on failure)
+	// This must run after agent execution so that the job.status reflects the agent outcome.
+	c.generateCircuitBreakerUpdateSteps(yaml, data)
+
 	// Include firewall audit/observability logs in the unified agent artifact
 	// so all agent job outputs ship as a single artifact (AWF v0.25.0+).
 	if isFirewallEnabled(data) {

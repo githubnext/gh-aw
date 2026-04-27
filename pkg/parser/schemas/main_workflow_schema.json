@@ -8788,6 +8788,59 @@
         }
       ]
     },
+    "circuit-breaker": {
+      "description": "Circuit breaker configuration to prevent runaway execution of a consistently failing workflow. Opens after N consecutive failures and blocks execution until the cooldown period expires. Follows the standard closed → open → half-open state machine pattern.",
+      "oneOf": [
+        {
+          "type": "boolean",
+          "description": "Set to true to enable the circuit breaker with default settings (5 failures, 24h window, 1h cooldown). Set to false to explicitly disable it."
+        },
+        {
+          "type": "object",
+          "description": "Circuit breaker object configuration with explicit thresholds.",
+          "properties": {
+            "max-consecutive-failures": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 5,
+              "description": "Number of consecutive failures before the circuit opens. Defaults to 5."
+            },
+            "time-window": {
+              "type": "string",
+              "default": "24h",
+              "description": "Duration window within which consecutive failures are counted (e.g. '24h', '1h', '30m'). Defaults to '24h'.",
+              "examples": ["24h", "6h", "1h", "30m"]
+            },
+            "cooldown": {
+              "type": "string",
+              "default": "1h",
+              "description": "Duration to wait before allowing a retry (half-open probe) after the circuit opens (e.g. '1h', '30m'). Defaults to '1h'.",
+              "examples": ["1h", "30m", "15m"]
+            },
+            "notify": {
+              "type": "boolean",
+              "default": true,
+              "description": "Post a workflow annotation when the circuit opens or closes. Defaults to true."
+            }
+          },
+          "additionalProperties": false,
+          "examples": [
+            {
+              "max-consecutive-failures": 5,
+              "time-window": "24h",
+              "cooldown": "1h"
+            },
+            {
+              "max-consecutive-failures": 3,
+              "time-window": "6h",
+              "cooldown": "30m",
+              "notify": true
+            }
+          ]
+        }
+      ]
+    },
     "strict": {
       "type": "boolean",
       "default": true,
