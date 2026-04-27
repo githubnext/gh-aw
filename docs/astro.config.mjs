@@ -133,6 +133,9 @@ export default defineConfig({
 		'/patterns/taskops/': '/gh-aw/patterns/task-ops/',
 		'/patterns/trialops/': '/gh-aw/patterns/trial-ops/',
 		'/patterns/workqueueops/': '/gh-aw/patterns/workqueue-ops/',
+		'/patterns/shadowops/': '/gh-aw/organization-practices/safe-rollout/',
+		'/patterns/shadow-ops/': '/gh-aw/organization-practices/safe-rollout/',
+		'/organization-practices/shadow-evaluation/': '/gh-aw/organization-practices/safe-rollout/',
 	},
 	integrations: [
 		sitemap(),
@@ -277,6 +280,14 @@ export default defineConfig({
 						{ label: 'Ephemerals', link: '/guides/ephemerals/' },
 						{ label: 'Web Search', link: '/guides/web-search/' },
 						{ label: 'Audit Reports', link: '/guides/audit-with-agents/' },
+					],
+				},
+				{
+					label: 'Organization Practices',
+					items: [
+						{ label: 'Overview', link: '/organization-practices/' },
+						{ label: 'Safe Rollout', link: '/organization-practices/safe-rollout/' },
+						{ label: 'Sharing Workflows', link: '/organization-practices/sharing-workflows/' },
 					],
 				},
 				{
