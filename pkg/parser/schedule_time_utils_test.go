@@ -2,7 +2,12 @@
 
 package parser
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
 
 func TestMapWeekday(t *testing.T) {
 	tests := []struct {
@@ -32,9 +37,7 @@ func TestMapWeekday(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			result := mapWeekday(tt.input)
-			if result != tt.expected {
-				t.Errorf("mapWeekday(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "mapWeekday(%q) should return %q", tt.input, tt.expected)
 		})
 	}
 }
@@ -75,10 +78,8 @@ func TestParseTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			min, hour := parseTime(tt.input)
-			if min != tt.expectedMin || hour != tt.expectedHour {
-				t.Errorf("parseTime(%q) = (%q, %q), want (%q, %q)",
-					tt.input, min, hour, tt.expectedMin, tt.expectedHour)
-			}
+			assert.Equal(t, tt.expectedMin, min, "parseTime(%q) minute should be %q", tt.input, tt.expectedMin)
+			assert.Equal(t, tt.expectedHour, hour, "parseTime(%q) hour should be %q", tt.input, tt.expectedHour)
 		})
 	}
 }
@@ -99,10 +100,7 @@ func TestParseTimeToMinutes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.hourStr+":"+tt.minuteStr, func(t *testing.T) {
 			result := parseTimeToMinutes(tt.hourStr, tt.minuteStr)
-			if result != tt.expected {
-				t.Errorf("parseTimeToMinutes(%q, %q) = %d, want %d",
-					tt.hourStr, tt.minuteStr, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "parseTimeToMinutes(%q, %q) should return %d", tt.hourStr, tt.minuteStr, tt.expected)
 		})
 	}
 }
@@ -124,10 +122,7 @@ func TestParseUTCOffset(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			result := parseUTCOffset(tt.input)
-			if result != tt.expected {
-				t.Errorf("parseUTCOffset(%q) = %d, want %d",
-					tt.input, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "parseUTCOffset(%q) should return %d", tt.input, tt.expected)
 		})
 	}
 }
@@ -152,13 +147,10 @@ func TestParseHourMinute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			hour, minute, ok := parseHourMinute(tt.input)
-			if ok != tt.shouldSucceed {
-				t.Errorf("parseHourMinute(%q) success = %v, want %v",
-					tt.input, ok, tt.shouldSucceed)
-			}
-			if tt.shouldSucceed && (hour != tt.hour || minute != tt.minute) {
-				t.Errorf("parseHourMinute(%q) = (%d, %d), want (%d, %d)",
-					tt.input, hour, minute, tt.hour, tt.minute)
+			require.Equal(t, tt.shouldSucceed, ok, "parseHourMinute(%q) success should be %v", tt.input, tt.shouldSucceed)
+			if tt.shouldSucceed {
+				assert.Equal(t, tt.hour, hour, "parseHourMinute(%q) hour should be %d", tt.input, tt.hour)
+				assert.Equal(t, tt.minute, minute, "parseHourMinute(%q) minute should be %d", tt.input, tt.minute)
 			}
 		})
 	}
@@ -182,10 +174,7 @@ func TestIsAMPMToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			result := isAMPMToken(tt.input)
-			if result != tt.expected {
-				t.Errorf("isAMPMToken(%q) = %v, want %v",
-					tt.input, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "isAMPMToken(%q) should return %v", tt.input, tt.expected)
 		})
 	}
 }
@@ -209,13 +198,9 @@ func TestNormalizeTimezoneAbbreviation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			result, ok := normalizeTimezoneAbbreviation(tt.input)
-			if ok != tt.shouldNormalize {
-				t.Errorf("normalizeTimezoneAbbreviation(%q) normalized = %v, want %v",
-					tt.input, ok, tt.shouldNormalize)
-			}
-			if tt.shouldNormalize && result != tt.expected {
-				t.Errorf("normalizeTimezoneAbbreviation(%q) = %q, want %q",
-					tt.input, result, tt.expected)
+			require.Equal(t, tt.shouldNormalize, ok, "normalizeTimezoneAbbreviation(%q) normalized should be %v", tt.input, tt.shouldNormalize)
+			if tt.shouldNormalize {
+				assert.Equal(t, tt.expected, result, "normalizeTimezoneAbbreviation(%q) should return %q", tt.input, tt.expected)
 			}
 		})
 	}
@@ -267,10 +252,7 @@ func TestNormalizeTimeTokens(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := normalizeTimeTokens(tt.tokens)
-			if result != tt.expected {
-				t.Errorf("normalizeTimeTokens(%v) = %q, want %q",
-					tt.tokens, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "normalizeTimeTokens(%v) should return %q", tt.tokens, tt.expected)
 		})
 	}
 }
