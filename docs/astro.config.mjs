@@ -280,14 +280,14 @@ export default defineConfig({
 						{ label: 'Ephemerals', link: '/guides/ephemerals/' },
 						{ label: 'Web Search', link: '/guides/web-search/' },
 						{ label: 'Audit Reports', link: '/guides/audit-with-agents/' },
-					],
-				},
-				{
-					label: 'Organization Practices',
-					items: [
-						{ label: 'Overview', link: '/organization-practices/' },
-						{ label: 'Safe Rollout', link: '/organization-practices/safe-rollout/' },
-						{ label: 'Sharing Workflows', link: '/organization-practices/sharing-workflows/' },
+						{
+							label: 'Organization Practices',
+							items: [
+								{ label: 'Overview', link: '/organization-practices/' },
+								{ label: 'Safe Rollout', link: '/organization-practices/safe-rollout/' },
+								{ label: 'Sharing Workflows', link: '/organization-practices/sharing-workflows/' },
+							],
+						},
 					],
 				},
 				{
