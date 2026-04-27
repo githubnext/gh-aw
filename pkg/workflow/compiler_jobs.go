@@ -268,10 +268,14 @@ func (c *Compiler) buildPreActivationAndActivationJobs(data *WorkflowData, front
 	hasRateLimit := data.RateLimit != nil
 	hasOnSteps := len(data.OnSteps) > 0
 	hasOnNeeds := len(data.OnNeeds) > 0
-	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasSkipIfNoMatch=%v, hasSkipRoles=%v, hasSkipBots=%v, hasCommand=%v, hasRateLimit=%v, hasOnSteps=%v, hasOnNeeds=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, hasSkipIfNoMatch, hasSkipRoles, hasSkipBots, hasCommandTrigger, hasRateLimit, hasOnSteps, hasOnNeeds)
+	hasLabelNames := len(data.LabelNames) > 0
+	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasSkipIfNoMatch=%v, hasSkipRoles=%v, hasSkipBots=%v, hasCommand=%v, hasRateLimit=%v, hasOnSteps=%v, hasOnNeeds=%v, hasLabelNames=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, hasSkipIfNoMatch, hasSkipRoles, hasSkipBots, hasCommandTrigger, hasRateLimit, hasOnSteps, hasOnNeeds, hasLabelNames)
 
-	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, skip-if-no-match check, skip-roles check, skip-bots check, rate limit check, command position check, and on.steps injection)
-	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasSkipRoles || hasSkipBots || hasCommandTrigger || hasRateLimit || hasOnSteps || hasOnNeeds {
+	// Build pre-activation job if needed. The job combines:
+	//   - membership checks, stop-time validation, skip-if-match/no-match checks
+	//   - skip-roles/bots checks, rate limit check, command position check
+	//   - on.steps injection, label-names filter
+	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasSkipRoles || hasSkipBots || hasCommandTrigger || hasRateLimit || hasOnSteps || hasOnNeeds || hasLabelNames {
 		compilerJobsLog.Print("Building pre-activation job")
 		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
 		if err != nil {

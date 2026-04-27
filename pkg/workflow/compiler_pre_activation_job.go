@@ -421,6 +421,22 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		jobIfCondition = data.If
 	}
 
+	// When labels is specified, add a job-level if: condition to the pre-activation job.
+	// This causes the entire job to be skipped (gray ⊘) rather than failed (red ❌) when
+	// the triggering label does not match, keeping CI dashboards noise-free.
+	// workflow_dispatch is always allowed so manual runs are not blocked.
+	if len(data.LabelNames) > 0 {
+		labelIfCondition := buildLabelNamesCondition(data.LabelNames)
+		if jobIfCondition != "" {
+			jobIfCondition = RenderCondition(BuildAnd(
+				&ExpressionNode{Expression: labelIfCondition},
+				&ExpressionNode{Expression: jobIfCondition},
+			))
+		} else {
+			jobIfCondition = labelIfCondition
+		}
+	}
+
 	// In script mode, explicitly add a cleanup step (mirrors post.js in dev/release/action mode).
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
@@ -438,6 +454,34 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	}
 
 	return job, nil
+}
+
+// buildLabelNamesCondition constructs the GitHub Actions if: expression for labels filtering.
+// The generated condition passes when:
+//   - the event has no label object (github.event.label == null), which covers
+//     workflow_dispatch, push, schedule, and any other non-labeled events, OR
+//   - the triggering label name matches any of the specified names.
+//
+// Using github.event.label == null (rather than checking the name) is semantically
+// clearer and handles cases where GitHub Actions evaluates missing nested properties
+// as null before coercing to empty string.
+func buildLabelNamesCondition(labelNames []string) string {
+	// Pass through events without a label payload.
+	// github.event.label is null for workflow_dispatch, push, schedule, etc.
+	noLabelEvent := ConditionNode(BuildEquals(
+		BuildPropertyAccess("github.event.label"),
+		BuildNullLiteral(),
+	))
+
+	result := noLabelEvent
+	for _, name := range labelNames {
+		result = BuildOr(result, BuildEquals(
+			BuildPropertyAccess("github.event.label.name"),
+			BuildStringLiteral(name),
+		))
+	}
+
+	return result.Render()
 }
 
 // generateReportSkipStep generates the "Report skip reason" step for the pre-activation job.

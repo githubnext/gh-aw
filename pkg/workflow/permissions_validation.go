@@ -26,13 +26,16 @@ type PermissionsValidationResult struct {
 // Parameters:
 //   - permissions: The workflow's declared permissions
 //   - githubTool: The GitHub tool configuration implementing ValidatableTool interface
+//   - parsedToolsets: optional pre-parsed toolsets slice; when provided it is used directly
+//     instead of calling ParseGitHubToolsets(githubTool.GetToolsets()). Pass nil or omit to
+//     let ValidatePermissions derive the toolsets from the tool configuration.
 //
 // Returns:
 //   - A validation result indicating any missing permissions and which toolsets require them
 //
 // Use ValidatePermissions (this function) for general permission validation against GitHub MCP toolsets.
 // Use ValidateIncludedPermissions (in imports.go) when validating permissions from included/imported workflow files.
-func ValidatePermissions(permissions *Permissions, githubTool ValidatableTool) *PermissionsValidationResult {
+func ValidatePermissions(permissions *Permissions, githubTool ValidatableTool, parsedToolsets ...[]string) *PermissionsValidationResult {
 	permissionsValidationLog.Print("Starting permissions validation")
 
 	result := &PermissionsValidationResult{
@@ -53,15 +56,20 @@ func ValidatePermissions(permissions *Permissions, githubTool ValidatableTool) *
 		return result
 	}
 
-	// Extract toolsets from GitHub tool configuration
-	toolsetsStr := githubTool.GetToolsets()
 	readOnly := githubTool.IsReadOnly()
 	result.ReadOnlyMode = readOnly
 
-	permissionsValidationLog.Printf("Validating toolsets: %s, read-only: %v", toolsetsStr, readOnly)
+	// Use pre-parsed toolsets when provided (avoids redundant ParseGitHubToolsets calls in hot paths).
+	var toolsets []string
+	if len(parsedToolsets) > 0 && parsedToolsets[0] != nil {
+		toolsets = parsedToolsets[0]
+		permissionsValidationLog.Printf("Validating with pre-parsed toolsets: %v, read-only: %v", toolsets, readOnly)
+	} else {
+		toolsetsStr := githubTool.GetToolsets()
+		permissionsValidationLog.Printf("Validating toolsets: %s, read-only: %v", toolsetsStr, readOnly)
+		toolsets = ParseGitHubToolsets(toolsetsStr)
+	}
 
-	// Parse toolsets
-	toolsets := ParseGitHubToolsets(toolsetsStr)
 	if len(toolsets) == 0 {
 		permissionsValidationLog.Print("No toolsets to validate")
 		return result

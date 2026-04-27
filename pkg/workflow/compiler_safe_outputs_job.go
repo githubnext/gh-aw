@@ -201,7 +201,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Critical for workflows that create projects and then add issues/PRs to those projects
 	if hasHandlerManagerTypes {
 		consolidatedSafeOutputsJobLog.Print("Using handler manager for safe outputs")
-		handlerManagerSteps := c.buildHandlerManagerStep(data)
+		handlerManagerSteps, err := c.buildHandlerManagerStep(data)
+		if err != nil {
+			return nil, nil, err
+		}
 		steps = append(steps, handlerManagerSteps...)
 		safeOutputStepNames = append(safeOutputStepNames, "process_safe_outputs")
 

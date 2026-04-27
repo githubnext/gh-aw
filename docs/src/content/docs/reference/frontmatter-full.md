@@ -816,6 +816,22 @@ on:
     # Array of Bot identifier/name (e.g., 'dependabot[bot]', 'renovate[bot]',
     # 'github-actions[bot]')
 
+  # Filter workflows triggered by pull_request_target (or other labeled events) to
+  # only fire when the triggering label matches one of these names. Generates a
+  # job-level if: condition on the pre-activation job so unmatched label events show
+  # as Skipped (⊘) rather than Failed (❌).
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Single label name that must match the triggering label (e.g.,
+  # 'panel-review')
+  labels: "example-value"
+
+  # Option 2: List of label names; the workflow fires when the triggering label
+  # matches any entry.
+  labels: []
+    # Array items: Label name (e.g., 'panel-review', 'needs-triage')
+
   # Environment name that requires manual approval before the workflow can run. Must
   # match a valid environment configured in the repository settings.
   # (optional)

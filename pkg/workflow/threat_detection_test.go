@@ -1769,9 +1769,9 @@ func TestBuildDetectionEngineExecutionStepPropagatesHarnessScriptOverride(t *tes
 	s := strings.Join(steps, "")
 
 	if !strings.Contains(s, "custom_copilot_harness.cjs") {
-		t.Errorf("expected custom driver script in detection steps, got:\n%s", s)
+		t.Errorf("expected custom harness script in detection steps, got:\n%s", s)
 	}
 	if strings.Contains(s, "actions/copilot_harness.cjs") {
-		t.Errorf("expected default driver to be replaced by custom override, got:\n%s", s)
+		t.Errorf("expected default harness to be replaced by custom override, got:\n%s", s)
 	}
 }

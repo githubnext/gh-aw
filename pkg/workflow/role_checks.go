@@ -91,6 +91,24 @@ func (c *Compiler) generateRateLimitCheck(data *WorkflowData, steps []string) []
 	return steps
 }
 
+// extractLabelNames extracts the 'labels' field from frontmatter.
+// When set, the pre-activation job emits a job-level if: condition that skips the workflow
+// (gray ⊘ rather than red ❌) when the triggering label does not match.
+func (c *Compiler) extractLabelNames(frontmatter map[string]any) []string {
+	if onValue, exists := frontmatter["on"]; exists {
+		if onMap, ok := onValue.(map[string]any); ok {
+			if labelNamesValue, hasLabelNames := onMap["labels"]; hasLabelNames {
+				names := parseOptionalStringSliceField(labelNamesValue, "on.labels")
+				if len(names) > 0 {
+					roleLog.Printf("Extracted %d labels: %v", len(names), names)
+					return names
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // extractRoles extracts the 'roles' field from frontmatter to determine permission requirements
 func (c *Compiler) extractRoles(frontmatter map[string]any) []string {
 	// Check on.roles
@@ -369,8 +387,8 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 			for eventName := range onMap {
 				// Skip command events as they are handled separately
 				// Skip stop-after and reaction as they are not event types
-				// Skip roles and bots as they are configuration, not event types
-				if eventName == "command" || eventName == "stop-after" || eventName == "reaction" || eventName == "roles" || eventName == "bots" {
+				// Skip roles, bots, and labels as they are configuration, not event types
+				if eventName == "command" || eventName == "stop-after" || eventName == "reaction" || eventName == "roles" || eventName == "bots" || eventName == "labels" {
 					continue
 				}
 
@@ -406,6 +424,9 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 				eventCount--
 			}
 			if _, hasBots := onMap["bots"]; hasBots {
+				eventCount--
+			}
+			if _, hasLabelNames := onMap["labels"]; hasLabelNames {
 				eventCount--
 			}
 

@@ -2416,11 +2416,37 @@ describe("sanitize_content.cjs", () => {
       expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Template-like syntax detected"));
     });
 
-    it("should escape template delimiters in code blocks", () => {
-      // Template delimiters should still be escaped even in code blocks
-      // This is defense-in-depth - we escape everywhere
+    it("should preserve template delimiters inside inline code spans", () => {
+      // Template delimiters inside inline code spans must NOT be escaped –
+      // code content is reproduced verbatim.
       const result = sanitizeContent("`code with {{ var }}`");
-      expect(result).toBe("`code with \\{\\{ var }}`");
+      expect(result).toBe("`code with {{ var }}`");
+    });
+
+    it("should preserve template delimiters inside fenced code blocks", () => {
+      // Template delimiters inside fenced code blocks must NOT be escaped.
+      const input = "Text before\n```\n{{ template_var }}\n```\nText after";
+      const result = sanitizeContent(input);
+      expect(result).toContain("{{ template_var }}");
+      expect(result).not.toContain("\\{\\{");
+    });
+
+    it("should preserve template delimiters inside GitHub suggestion blocks", () => {
+      // Suggestion blocks are fenced code blocks – their content is applied literally
+      // as a patch, so template delimiters must not be escaped.
+      const input = "Review comment\n```suggestion\nRefer to [Advanced {{fleet-server}} options](/ref.md).\n```";
+      const result = sanitizeContent(input);
+      expect(result).toContain("{{fleet-server}}");
+      expect(result).not.toContain("\\{\\{");
+    });
+
+    it("should still escape template delimiters outside code blocks", () => {
+      // Template delimiters in regular prose must still be escaped.
+      const input = "Outside: {{ var }}\n```\nInside: {{ safe }}\n```\nAlso outside: {{ other }}";
+      const result = sanitizeContent(input);
+      expect(result).toContain("\\{\\{ var }}");
+      expect(result).toContain("\\{\\{ other }}");
+      expect(result).toContain("{{ safe }}"); // inside fence – preserved
     });
 
     it("should handle real-world GitHub Actions template expressions", () => {

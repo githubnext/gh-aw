@@ -306,7 +306,8 @@ func TestHandlerManagerStepIncludesScriptsEnvVar(t *testing.T) {
 		},
 	}
 
-	steps := compiler.buildHandlerManagerStep(workflowData)
+	steps, err := compiler.buildHandlerManagerStep(workflowData)
+	require.NoError(t, err)
 	fullYAML := strings.Join(steps, "")
 
 	assert.Contains(t, fullYAML, "GH_AW_SAFE_OUTPUT_SCRIPTS", "Should include GH_AW_SAFE_OUTPUT_SCRIPTS env var")
@@ -323,7 +324,8 @@ func TestHandlerManagerStepNoScriptsEnvVar(t *testing.T) {
 		},
 	}
 
-	steps := compiler.buildHandlerManagerStep(workflowData)
+	steps, err := compiler.buildHandlerManagerStep(workflowData)
+	require.NoError(t, err)
 	fullYAML := strings.Join(steps, "")
 
 	assert.NotContains(t, fullYAML, "GH_AW_SAFE_OUTPUT_SCRIPTS", "Should not include GH_AW_SAFE_OUTPUT_SCRIPTS env var when no scripts")

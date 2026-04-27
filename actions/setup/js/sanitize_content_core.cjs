@@ -208,12 +208,8 @@ function sanitizeUrlProtocols(s) {
       const domainLower = domain.toLowerCase();
       const sanitized = sanitizeDomainName(domainLower);
       const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
-      if (typeof core !== "undefined" && core.info) {
-        core.info(`Redacted URL: ${truncated}`);
-      }
-      if (typeof core !== "undefined" && core.debug) {
-        core.debug(`Redacted URL (full): ${match}`);
-      }
+      core.info(`Redacted URL: ${truncated}`);
+      core.debug(`Redacted URL (full): ${match}`);
       addRedactedDomain(domainLower);
       // Return sanitized domain format
       return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
@@ -224,12 +220,8 @@ function sanitizeUrlProtocols(s) {
         const protocol = protocolMatch[1] + ":";
         // Truncate the matched URL for logging (keep first 12 chars + "...")
         const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-        if (typeof core !== "undefined" && core.info) {
-          core.info(`Redacted URL: ${truncated}`);
-        }
-        if (typeof core !== "undefined" && core.debug) {
-          core.debug(`Redacted URL (full): ${match}`);
-        }
+        core.info(`Redacted URL: ${truncated}`);
+        core.debug(`Redacted URL (full): ${match}`);
         addRedactedDomain(protocol);
       }
       return "(redacted)";
@@ -288,12 +280,8 @@ function sanitizeUrlDomains(s, allowed) {
       // Redact the domain but preserve the protocol and structure for debugging
       const sanitized = sanitizeDomainName(hostname);
       const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
-      if (typeof core !== "undefined" && core.info) {
-        core.info(`Redacted URL: ${truncated}`);
-      }
-      if (typeof core !== "undefined" && core.debug) {
-        core.debug(`Redacted URL (full): ${match}`);
-      }
+      core.info(`Redacted URL: ${truncated}`);
+      core.debug(`Redacted URL (full): ${match}`);
       addRedactedDomain(hostname);
       // Return sanitized domain format
       return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
@@ -356,9 +344,7 @@ function neutralizeAllMentions(s) {
   // This prevents bypass patterns like "test_@user" from escaping sanitization
   return s.replace(/(^|[^A-Za-z0-9`])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (m, p1, p2) => {
     // Log when a mention is escaped to help debug issues
-    if (typeof core !== "undefined" && core.info) {
-      core.info(`Escaped mention: @${p2} (not in allowed list)`);
-    }
+    core.info(`Escaped mention: @${p2} (not in allowed list)`);
     return `${p1}\`@${p2}\``;
   });
 }
@@ -744,69 +730,87 @@ function neutralizeBotTriggers(s, maxBotMentions = MAX_BOT_TRIGGER_REFERENCES) {
  * template syntax, but this prevents issues if content is later processed by
  * template engines (Jinja2, Liquid, ERB, JavaScript template literals).
  *
+ * Fenced code blocks (including GitHub suggestion blocks) and inline code spans are
+ * preserved verbatim so that legitimate source content inside code regions is not altered.
+ *
  * @param {string} s - The string to process
- * @returns {string} The string with escaped template delimiters
+ * @returns {string} The string with escaped template delimiters (outside code regions)
  */
 function neutralizeTemplateDelimiters(s) {
   if (!s || typeof s !== "string") {
     return "";
   }
 
-  let result = s;
-  let templatesDetected = false;
+  // Track which template types were detected (outside code regions) for deduped logging.
+  const detectedTypes = new Set();
 
-  // Escape Jinja2/Liquid double curly braces: {{ ... }}
-  // Replace {{ with \{\{ to prevent template evaluation
-  if (/\{\{/.test(result)) {
-    templatesDetected = true;
-    if (typeof core !== "undefined" && core.info) {
-      core.info("Template syntax detected: Jinja2/Liquid double braces {{");
+  /**
+   * Escapes template delimiters in a plain-text segment (no fenced blocks or inline code).
+   * @param {string} text - Plain text to escape
+   * @returns {string} Text with template delimiters escaped
+   */
+  function escapeInText(text) {
+    let result = text;
+
+    // Escape Jinja2/Liquid double curly braces: {{ ... }}
+    // Replace {{ with \{\{ to prevent template evaluation
+    if (/\{\{/.test(result)) {
+      if (!detectedTypes.has("jinja2")) {
+        detectedTypes.add("jinja2");
+        core.info("Template syntax detected: Jinja2/Liquid double braces {{");
+      }
+      result = result.replace(/\{\{/g, "\\{\\{");
     }
-    result = result.replace(/\{\{/g, "\\{\\{");
+
+    // Escape ERB delimiters: <%= ... %>
+    // Replace <%= with \<%= to prevent ERB evaluation
+    if (/<%=/.test(result)) {
+      if (!detectedTypes.has("erb")) {
+        detectedTypes.add("erb");
+        core.info("Template syntax detected: ERB delimiter <%=");
+      }
+      result = result.replace(/<%=/g, "\\<%=");
+    }
+
+    // Escape JavaScript template literal delimiters: ${ ... }
+    // Replace ${ with \$\{ to prevent template literal evaluation
+    if (/\$\{/.test(result)) {
+      if (!detectedTypes.has("js")) {
+        detectedTypes.add("js");
+        core.info("Template syntax detected: JavaScript template literal ${");
+      }
+      result = result.replace(/\$\{/g, "\\$\\{");
+    }
+
+    // Escape Jinja2 comment delimiters: {# ... #}
+    // Replace {# with \{\# to prevent Jinja2 comment evaluation
+    if (/\{#/.test(result)) {
+      if (!detectedTypes.has("jinja2comment")) {
+        detectedTypes.add("jinja2comment");
+        core.info("Template syntax detected: Jinja2 comment {#");
+      }
+      result = result.replace(/\{#/g, "\\{\\#");
+    }
+
+    // Escape Jekyll raw blocks: {% raw %} and {% endraw %}
+    // Replace {% with \{\% to prevent Jekyll directive evaluation
+    if (/\{%/.test(result)) {
+      if (!detectedTypes.has("jekyll")) {
+        detectedTypes.add("jekyll");
+        core.info("Template syntax detected: Jekyll/Liquid directive {%");
+      }
+      result = result.replace(/\{%/g, "\\{\\%");
+    }
+
+    return result;
   }
 
-  // Escape ERB delimiters: <%= ... %>
-  // Replace <%= with \<%= to prevent ERB evaluation
-  if (/<%=/.test(result)) {
-    templatesDetected = true;
-    if (typeof core !== "undefined" && core.info) {
-      core.info("Template syntax detected: ERB delimiter <%=");
-    }
-    result = result.replace(/<%=/g, "\\<%=");
-  }
-
-  // Escape JavaScript template literal delimiters: ${ ... }
-  // Replace ${ with \$\{ to prevent template literal evaluation
-  if (/\$\{/.test(result)) {
-    templatesDetected = true;
-    if (typeof core !== "undefined" && core.info) {
-      core.info("Template syntax detected: JavaScript template literal ${");
-    }
-    result = result.replace(/\$\{/g, "\\$\\{");
-  }
-
-  // Escape Jinja2 comment delimiters: {# ... #}
-  // Replace {# with \{\# to prevent Jinja2 comment evaluation
-  if (/\{#/.test(result)) {
-    templatesDetected = true;
-    if (typeof core !== "undefined" && core.info) {
-      core.info("Template syntax detected: Jinja2 comment {#");
-    }
-    result = result.replace(/\{#/g, "\\{\\#");
-  }
-
-  // Escape Jekyll raw blocks: {% raw %} and {% endraw %}
-  // Replace {% with \{\% to prevent Jekyll directive evaluation
-  if (/\{%/.test(result)) {
-    templatesDetected = true;
-    if (typeof core !== "undefined" && core.info) {
-      core.info("Template syntax detected: Jekyll/Liquid directive {%");
-    }
-    result = result.replace(/\{%/g, "\\{\\%");
-  }
+  // Apply escaping only to non-code regions (skip fenced code blocks and inline code spans).
+  // This preserves the verbatim content of suggestion blocks and other code fences.
+  const result = applyToNonCodeRegions(s, escapeInText);
 
   // Log a summary warning if any template patterns were detected
-  if (templatesDetected && typeof core !== "undefined" && core.warning) {
+  if (detectedTypes.size > 0) {
     core.warning(
       "Template-like syntax detected and escaped. " +
         "This is a defense-in-depth measure to prevent potential template injection " +
@@ -831,9 +835,7 @@ function buildAllowedGitHubReferences() {
   }
 
   if (allowedRefsEnv === "") {
-    if (typeof core !== "undefined" && core.info) {
-      core.info("GitHub reference filtering: all references will be escaped (GH_AW_ALLOWED_GITHUB_REFS is empty)");
-    }
+    core.info("GitHub reference filtering: all references will be escaped (GH_AW_ALLOWED_GITHUB_REFS is empty)");
     return []; // Empty array means escape all references
   }
 
@@ -841,9 +843,7 @@ function buildAllowedGitHubReferences() {
     .split(",")
     .map(ref => ref.trim().toLowerCase())
     .filter(ref => ref);
-  if (typeof core !== "undefined" && core.info) {
-    core.info(`GitHub reference filtering: allowed repos = ${refs.join(", ")}`);
-  }
+  core.info(`GitHub reference filtering: allowed repos = ${refs.join(", ")}`);
   return refs;
 }
 
@@ -903,9 +903,7 @@ function neutralizeGitHubReferences(s, allowedRepos) {
       const refText = owner && repo ? `${owner}/${repo}#${issueNum}` : `#${issueNum}`;
 
       // Log when a reference is escaped
-      if (typeof core !== "undefined" && core.info) {
-        core.info(`Escaped GitHub reference: ${refText} (not in allowed list)`);
-      }
+      core.info(`Escaped GitHub reference: ${refText} (not in allowed list)`);
 
       return `${prefix}\`${refText}\``;
     }

@@ -169,7 +169,9 @@ type StringLiteralNode struct {
 }
 
 func (s *StringLiteralNode) Render() string {
-	return fmt.Sprintf("'%s'", s.Value)
+	// GitHub Actions single-quoted strings escape embedded single quotes by doubling them.
+	escaped := strings.ReplaceAll(s.Value, "'", "''")
+	return fmt.Sprintf("'%s'", escaped)
 }
 
 // BooleanLiteralNode represents a boolean literal value

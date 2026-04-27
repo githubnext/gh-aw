@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestHandlerManagerGitHubTokenEnvVarForCrossRepo verifies that GITHUB_TOKEN is exposed as
@@ -154,7 +155,8 @@ func TestHandlerManagerGitHubTokenEnvVarForCrossRepo(t *testing.T) {
 				SafeOutputs: compiler.extractSafeOutputsConfig(tt.frontmatter),
 			}
 
-			steps := compiler.buildHandlerManagerStep(workflowData)
+			steps, err := compiler.buildHandlerManagerStep(workflowData)
+			require.NoError(t, err)
 			yamlStr := strings.Join(steps, "")
 
 			if tt.shouldHaveGitHubToken {
@@ -300,7 +302,8 @@ func TestHandlerManagerProjectGitHubTokenEnvVar(t *testing.T) {
 			}
 
 			// Build the handler manager step
-			steps := compiler.buildHandlerManagerStep(workflowData)
+			steps, err := compiler.buildHandlerManagerStep(workflowData)
+			require.NoError(t, err)
 			yamlStr := strings.Join(steps, "")
 
 			if tt.shouldHaveToken {

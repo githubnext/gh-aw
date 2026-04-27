@@ -72,10 +72,18 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// targeting.  Then a lot of this gnarly event code will be only on the "front end" (prepping the
 	// coding agent) not the "backend" (applying the safe outputs)
 	const baseBranchFallbackExpr = "${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}"
+	// Cross-repo fallback omits github.ref_name because it refers to the branch in the triggering repository,
+	// which may not exist in the target repository (e.g., when triggered via workflow_dispatch from a feature branch).
+	const crossRepoFallbackExpr = "${{ github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}"
 	var checkoutRef string
 	if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.BaseBranch != "" {
 		checkoutRef = data.SafeOutputs.CreatePullRequests.BaseBranch
 		consolidatedSafeOutputsStepsLog.Printf("Using custom base-branch from create-pull-request for checkout ref: %s", checkoutRef)
+	} else if targetRepoSlug != "" {
+		// Cross-repo checkout: avoid github.ref_name which refers to the triggering branch,
+		// not a branch in the target repository.
+		checkoutRef = crossRepoFallbackExpr
+		consolidatedSafeOutputsStepsLog.Printf("Using cross-repo fallback base branch expression for checkout ref (no github.ref_name)")
 	} else {
 		checkoutRef = baseBranchFallbackExpr
 		consolidatedSafeOutputsStepsLog.Printf("Using fallback base branch expression for checkout ref")
@@ -134,7 +142,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 // buildHandlerManagerStep builds a single step that uses the safe output handler manager
 // to dispatch messages to appropriate handlers. This replaces multiple individual steps
 // with a single dispatcher step that processes all safe output types.
-func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
+func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error) {
 	consolidatedSafeOutputsStepsLog.Print("Building handler manager step")
 
 	var steps []string
@@ -154,9 +162,17 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	var domainsStr string
 	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
 		// allowed-domains: additional domains unioned with engine/network base set; supports ecosystem identifiers
-		domainsStr = c.computeExpandedAllowedDomainsForSanitization(data)
+		expanded, err := c.computeExpandedAllowedDomainsForSanitization(data)
+		if err != nil {
+			return nil, err
+		}
+		domainsStr = expanded
 	} else {
-		domainsStr = c.computeAllowedDomainsForSanitization(data)
+		computed, err := c.computeAllowedDomainsForSanitization(data)
+		if err != nil {
+			return nil, err
+		}
+		domainsStr = computed
 	}
 	if domainsStr != "" {
 		steps = append(steps, fmt.Sprintf("          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr))
@@ -324,5 +340,5 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/safe_output_handler_manager.cjs');\n")
 	steps = append(steps, "            await main();\n")
 
-	return steps
+	return steps, nil
 }

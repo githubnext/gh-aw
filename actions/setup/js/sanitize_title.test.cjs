@@ -1,9 +1,21 @@
 // @ts-check
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 
 describe("sanitize_title", () => {
+  beforeEach(() => {
+    global.core = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+    };
+  });
+
+  afterEach(() => {
+    delete global.core;
+  });
   describe("sanitizeTitle", () => {
     describe("basic sanitization", () => {
       it("should return empty string for null/undefined", () => {

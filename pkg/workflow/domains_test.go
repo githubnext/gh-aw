@@ -1094,7 +1094,10 @@ func TestComputeExpandedAllowedDomainsForSanitization(t *testing.T) {
 				AllowedDomains: []string{"extra-domain.com"},
 			},
 		}
-		result := compiler.computeExpandedAllowedDomainsForSanitization(data)
+		result, err := compiler.computeExpandedAllowedDomainsForSanitization(data)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		if !strings.Contains(result, "extra-domain.com") {
 			t.Error("Expected extra-domain.com in result")
 		}
@@ -1113,7 +1116,10 @@ func TestComputeExpandedAllowedDomainsForSanitization(t *testing.T) {
 				AllowedDomains: []string{"extra-domain.com"},
 			},
 		}
-		result := compiler.computeExpandedAllowedDomainsForSanitization(data)
+		result, err := compiler.computeExpandedAllowedDomainsForSanitization(data)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		if !strings.Contains(result, "localhost") {
 			t.Error("Expected localhost to always be in allowed-domains result")
 		}
@@ -1126,7 +1132,10 @@ func TestComputeExpandedAllowedDomainsForSanitization(t *testing.T) {
 				AllowedDomains: []string{"extra-domain.com"},
 			},
 		}
-		result := compiler.computeExpandedAllowedDomainsForSanitization(data)
+		result, err := compiler.computeExpandedAllowedDomainsForSanitization(data)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		if !strings.Contains(result, "github.com") {
 			t.Error("Expected github.com to always be in allowed-domains result")
 		}
@@ -1139,7 +1148,10 @@ func TestComputeExpandedAllowedDomainsForSanitization(t *testing.T) {
 				AllowedDomains: []string{"python", "dev-tools"},
 			},
 		}
-		result := compiler.computeExpandedAllowedDomainsForSanitization(data)
+		result, err := compiler.computeExpandedAllowedDomainsForSanitization(data)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		if !strings.Contains(result, "pypi.org") {
 			t.Error("Expected pypi.org from python ecosystem in result")
 		}

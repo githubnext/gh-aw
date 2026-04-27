@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
-
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 // extractQuotedCSV returns the comma-separated domain list embedded inside
@@ -492,7 +492,8 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 			}
 
 			// Call the function
-			domainsStr := compiler.computeAllowedDomainsForSanitization(data)
+			domainsStr, err := compiler.computeAllowedDomainsForSanitization(data)
+			require.NoError(t, err, "computeAllowedDomainsForSanitization should not return an error for valid test data")
 
 			// Verify expected domains are present (substring match is fine here since domain names
 			// in a CSV string that are exact entries won't appear as substrings of other entries

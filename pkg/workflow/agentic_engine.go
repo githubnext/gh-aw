@@ -378,7 +378,10 @@ func (e *BaseEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubA
 }
 
 // GetFirewallLogsCollectionStep returns an empty slice by default.
-// Engines that need to copy session or firewall state files before secret redaction should override this.
+// Firewall logs are written to a known location (/tmp/gh-aw/sandbox/firewall/logs/)
+// and do not require a separate collection step. The method is still called from
+// compiler_yaml_main_job.go to maintain a consistent interface; engines that need
+// to copy session or firewall state files before secret redaction should override it.
 func (e *BaseEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
 	return []GitHubActionStep{}
 }

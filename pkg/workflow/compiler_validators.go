@@ -122,8 +122,10 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 		if hasPermissions && !workflowData.HasExplicitGitHubTool {
 			log.Printf("Skipping permission validation: permissions exist but tools.github not explicitly configured")
 		} else {
-			// Validate permissions using the typed GitHub tool configuration
-			validationResult := ValidatePermissions(workflowPermissions, workflowData.ParsedTools.GitHub)
+			// Validate permissions using the typed GitHub tool configuration.
+			// Pass the cached parsed toolsets from applyDefaults to avoid a redundant
+			// ParseGitHubToolsets call inside ValidatePermissions.
+			validationResult := ValidatePermissions(workflowPermissions, workflowData.ParsedTools.GitHub, workflowData.CachedParsedToolsets)
 
 			if validationResult.HasValidationIssues {
 				// Format the validation message
@@ -254,12 +256,21 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// Validate workflow-level concurrency group expression
 	log.Printf("Validating workflow-level concurrency configuration")
 	if workflowData.Concurrency != "" {
-		// Use the cached concurrency group expression extracted during applyDefaults to avoid
-		// repeated regex-based extraction on every validateWorkflowData call.
-		groupExpr := workflowData.ConcurrencyGroupExpr
-		if groupExpr != "" {
-			if err := validateConcurrencyGroupExpression(groupExpr); err != nil {
-				return formatCompilerError(markdownPath, "error", "workflow-level concurrency validation failed: "+err.Error(), err)
+		// Use the cached validation result from applyDefaults to avoid re-running the
+		// expensive ExpressionParser (regex + tokenize + parse) on every validateWorkflowData call.
+		if workflowData.CachedConcurrencyGroupExprSet {
+			if workflowData.CachedConcurrencyGroupExprErr != nil {
+				return formatCompilerError(markdownPath, "error", "workflow-level concurrency validation failed: "+workflowData.CachedConcurrencyGroupExprErr.Error(), workflowData.CachedConcurrencyGroupExprErr)
+			}
+		} else {
+			// Fallback: cache not populated (e.g. WorkflowData created without applyDefaults).
+			// Extract the group expression directly from Concurrency YAML so validation is not
+			// skipped for WorkflowData constructed outside of ParseWorkflowFile.
+			groupExpr := extractConcurrencyGroupFromYAML(workflowData.Concurrency)
+			if groupExpr != "" {
+				if err := validateConcurrencyGroupExpression(groupExpr); err != nil {
+					return formatCompilerError(markdownPath, "error", "workflow-level concurrency validation failed: "+err.Error(), err)
+				}
 			}
 		}
 	}
@@ -365,9 +376,15 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// Validate GitHub tools against enabled toolsets
 	log.Printf("Validating GitHub tools against enabled toolsets")
 	if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil {
-		// Extract allowed tools and enabled toolsets from ParsedTools
+		// Extract allowed tools and reuse the cached parsed toolsets from applyDefaults to
+		// avoid a redundant ParseGitHubToolsets call on every validateWorkflowData iteration.
 		allowedTools := workflowData.ParsedTools.GitHub.Allowed.ToStringSlice()
-		enabledToolsets := ParseGitHubToolsets(strings.Join(workflowData.ParsedTools.GitHub.Toolset.ToStringSlice(), ","))
+		var enabledToolsets []string
+		if workflowData.CachedParsedToolsets != nil {
+			enabledToolsets = workflowData.CachedParsedToolsets
+		} else {
+			enabledToolsets = ParseGitHubToolsets(strings.Join(workflowData.ParsedTools.GitHub.Toolset.ToStringSlice(), ","))
+		}
 
 		// Validate that all allowed tools have their toolsets enabled
 		if err := ValidateGitHubToolsAgainstToolsets(allowedTools, enabledToolsets); err != nil {
