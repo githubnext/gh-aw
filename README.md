@@ -967,6 +967,9 @@ should be credited:
 - **@jeremiah-snee-openx** for Enhance Daily Documentation Updater ([#18204](https://github.com/github/gh-aw/issues/18204)) — closed 2026-02-25, NOT_PLANNED
 - **@Ray961123** for Question: Why do some GitHub Actions steps intermittently have no logs ([#26175](https://github.com/github/gh-aw/issues/26175)) — closed 2026-04-19, NOT_PLANNED
 - **@viktoriyabogdanova** for [aw-failures] Workflow timing out at 40min — MCP get_file_contents 37–71s per call ([#27556](https://github.com/github/gh-aw/issues/27556)) — closed 2026-04-22, NOT_PLANNED
+- **@askpaisa** for create_pull_request returns patch file instead of creating PR when multiple PRs exist ([#28389](https://github.com/github/gh-aw/issues/28389)) — closed 2026-04-25, NOT_PLANNED
+- **@samuelkahessay** for Feature request: force-rerun semantic for workflow_dispatch against the same bound issue ([#22585](https://github.com/github/gh-aw/issues/22585)) — closed 2026-04-23, NOT_PLANNED
+- **@pelikhan** for Trolql ([#19851](https://github.com/github/gh-aw/issues/19851)) — closed 2026-03-06, NOT_PLANNED
 
 ## Share Feedback
 
