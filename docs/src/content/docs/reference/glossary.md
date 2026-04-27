@@ -670,7 +670,7 @@ Rollout practice for moving from report-only or staged behavior to direct produc
 
 ### Shadow Evaluation
 
-One safe-rollout technique where a workflow runs on live production signals without writing directly to the production system. Shadow evaluation usually keeps production as the source of truth, uses an ops repository to measure prediction-versus-truth deltas, and may introduce a temporary mirror surface during trust-building. See [Safe Rollout](/gh-aw/organization-practices/safe-rollout/).
+One safe-rollout technique where a workflow runs on live production signals without writing directly to the production system. Shadow evaluation usually keeps production as the source of truth, uses an ops repository to measure prediction-versus-truth deltas, and may introduce a temporary mirror surface during trust-building. See [Safe Rollout](/gh-aw/organization-practices/safe-rollout/#when-shadow-evaluation-is-needed).
 
 ### SpecOps
 
