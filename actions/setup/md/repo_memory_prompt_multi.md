@@ -1,4 +1,4 @@
-<repo-memory>
+<repo-memory sanitized="true">
 ## Repo Memory Locations Available
 
 You have access to persistent repo memory folders where you can read and write files that are stored in git branches:

@@ -545,6 +545,12 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
 		fmt.Fprintf(builder, "          CREATE_ORPHAN: %t\n", memory.CreateOrphan)
 		builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh\"\n")
+
+		// Step 2: Scan the cloned memory for prompt injection (ASI-06).
+		// The sanitize_memory.sh script is also invoked directly by the clone script,
+		// but we emit an explicit step here so that the scan appears in the workflow
+		// summary and its output is auditable independently of the clone step.
+		generateRepoMemorySanitizationStep(builder, memory, memoryDir)
 	}
 }
 

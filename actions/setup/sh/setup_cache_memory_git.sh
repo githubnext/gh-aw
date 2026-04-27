@@ -167,3 +167,9 @@ if [ -n "${GH_AW_ALLOWED_EXTENSIONS:-}" ]; then
   done < <(find . -not -path './.git/*' -type f -print0)
   echo "Pre-agent sanitization complete: removed ${removed} file(s) with disallowed extensions"
 fi
+
+# 4. Scan remaining text files for prompt injection patterns (ASI-06).
+# Any file whose content matches a known injection pattern is quarantined before
+# the agent can read it, preventing Memory & Context Poisoning attacks.
+GH_AW_SCAN_DIR="$CACHE_DIR" \
+  bash "${RUNNER_TEMP}/gh-aw/actions/sanitize_memory.sh"

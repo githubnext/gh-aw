@@ -1,4 +1,4 @@
-<repo-memory>
+<repo-memory sanitized="true">
 ## Repo Memory Available
 
 You have access to a persistent repo memory folder at `__GH_AW_MEMORY_DIR__` where you can read and write files that are stored in a git branch.__GH_AW_MEMORY_DESCRIPTION____GH_AW_WIKI_NOTE__
