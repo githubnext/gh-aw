@@ -505,6 +505,7 @@ describe("handle_agent_failure", () => {
 
     beforeEach(() => {
       vi.resetModules();
+      process.env.RUNNER_TEMP = "/nonexistent";
       // Stub readFileSync so the runtime path resolves to the source-tree template
       fs.readFileSync = (filePath, encoding) => {
         if (typeof filePath === "string" && filePath.includes("lockdown_check_failed.md")) {
@@ -517,6 +518,7 @@ describe("handle_agent_failure", () => {
 
     afterEach(() => {
       fs.readFileSync = originalReadFileSync;
+      delete process.env.RUNNER_TEMP;
     });
 
     it("returns empty string when no failure", () => {
@@ -553,6 +555,7 @@ describe("handle_agent_failure", () => {
 
     beforeEach(() => {
       vi.resetModules();
+      process.env.RUNNER_TEMP = "/nonexistent";
       fs.readFileSync = (filePath, encoding) => {
         if (typeof filePath === "string" && filePath.includes("stale_lock_file_failed.md")) {
           return templateContent;
@@ -564,6 +567,7 @@ describe("handle_agent_failure", () => {
 
     afterEach(() => {
       fs.readFileSync = originalReadFileSync;
+      delete process.env.RUNNER_TEMP;
     });
 
     it("returns empty string when check did not fail", () => {
@@ -605,6 +609,7 @@ describe("handle_agent_failure", () => {
 
     beforeEach(() => {
       vi.resetModules();
+      process.env.RUNNER_TEMP = "/nonexistent";
       // Stub readFileSync so the runtime path resolves to the source-tree template
       fs.readFileSync = (filePath, encoding) => {
         if (typeof filePath === "string" && filePath.includes("agent_timeout.md")) {
@@ -617,6 +622,7 @@ describe("handle_agent_failure", () => {
 
     afterEach(() => {
       fs.readFileSync = originalReadFileSync;
+      delete process.env.RUNNER_TEMP;
     });
 
     it("returns empty string when not timed out", () => {
@@ -1085,9 +1091,14 @@ describe("handle_agent_failure", () => {
     /** @type {string} */
     let tmpDir;
 
+    /** @type {string} */
+    let promptsDir;
+
     beforeEach(() => {
       vi.resetModules();
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-missing-data-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
       process.env.RUNNER_TEMP = tmpDir;
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
       ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
@@ -1136,12 +1147,24 @@ describe("handle_agent_failure", () => {
           items: [{ type: "missing_data", data_type: "cache_memory", reason: "cache_memory_miss" }],
         })
       );
+      const templateContent =
+        "> [!WARNING]\n" +
+        "> <details>\n" +
+        "> <summary>Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>\n>\n" +
+        "> Review the [cache-memory configuration](https://github.github.com/gh-aw/reference/cache-memory/) and ensure the agent prompt correctly references files inside the cache directory.\n>\n" +
+        "> **File naming convention:** Cache files are stored at `/tmp/gh-aw/cache-memory/`.\n>\n" +
+        "> </details>";
+      fs.writeFileSync(path.join(promptsDir, "cache_memory_miss.md"), templateContent);
       vi.resetModules();
       ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
       const result = buildMissingDataContext(true);
       expect(result).toContain("Missing Data Reported");
-      expect(result).toContain("cache_memory_miss");
       expect(result).toContain("Cache Configuration Problem");
+      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("<summary>");
+      expect(result).toContain("<details>");
+      expect(result).toContain("/gh-aw/reference/cache-memory/");
+      expect(result).toContain("File naming convention");
     });
 
     it("captures reason-only missing_data items (no data_type) and detects cache miss", () => {
@@ -1152,11 +1175,16 @@ describe("handle_agent_failure", () => {
           items: [{ type: "missing_data", reason: "cache_memory_miss" }],
         })
       );
+      const templateContent = "> [!WARNING]\n" + "> <details>\n" + "> <summary>Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>\n>\n" + "> Details here.\n>\n" + "> </details>";
+      fs.writeFileSync(path.join(promptsDir, "cache_memory_miss.md"), templateContent);
       vi.resetModules();
       ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
       const result = buildMissingDataContext(true);
       expect(result).toContain("Missing Data Reported");
       expect(result).toContain("Cache Configuration Problem");
+      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("<summary>");
+      expect(result).toContain("<details>");
     });
 
     it("does not append cache warning for unrelated missing_data reasons when cacheMemoryEnabled is true", () => {

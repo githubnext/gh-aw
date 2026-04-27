@@ -774,3 +774,184 @@ func TestFilterJobLevelPermissions(t *testing.T) {
 		})
 	}
 }
+
+func TestPermissions_HasContentsReadAccess(t *testing.T) {
+	tests := []struct {
+		name     string
+		perms    *Permissions
+		expected bool
+	}{
+		{
+			name:     "nil permissions returns false",
+			perms:    nil,
+			expected: false,
+		},
+		{
+			name:     "read-all shorthand grants contents read",
+			perms:    NewPermissionsReadAll(),
+			expected: true,
+		},
+		{
+			name:     "write-all shorthand grants contents read",
+			perms:    NewPermissionsWriteAll(),
+			expected: true,
+		},
+		{
+			name:     "none shorthand denies contents read",
+			perms:    NewPermissionsNone(),
+			expected: false,
+		},
+		{
+			name:     "empty permissions denies contents read",
+			perms:    NewPermissions(),
+			expected: false,
+		},
+		{
+			name:     "contents: read grants access",
+			perms:    NewPermissionsContentsRead(),
+			expected: true,
+		},
+		{
+			name:     "contents: write grants access (write implies read)",
+			perms:    NewPermissionsContentsWrite(),
+			expected: true,
+		},
+		{
+			name: "no contents permission denies access",
+			perms: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionIssues: PermissionWrite,
+			}),
+			expected: false,
+		},
+		{
+			name: "contents: none denies access",
+			perms: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionContents: PermissionNone,
+			}),
+			expected: false,
+		},
+		{
+			name:     "all: read grants contents read",
+			perms:    NewPermissionsAllRead(),
+			expected: true,
+		},
+		{
+			name: "all: write grants contents read (write implies read)",
+			perms: func() *Permissions {
+				p := NewPermissions()
+				p.hasAll = true
+				p.allLevel = PermissionWrite
+				return p
+			}(),
+			expected: true,
+		},
+		{
+			name: "all: read with explicit contents: none denies access",
+			perms: func() *Permissions {
+				p := NewPermissionsAllRead()
+				p.Set(PermissionContents, PermissionNone)
+				return p
+			}(),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.perms.HasContentsReadAccess()
+			if result != tt.expected {
+				t.Errorf("HasContentsReadAccess() = %v, expected %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFilterJobLevelPermissionsWithCache(t *testing.T) {
+	// Verify that passing a pre-parsed *Permissions produces the same result
+	// as parsing from the raw YAML string.
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "standard permissions with cache",
+			input: "permissions:\n  contents: read\n  issues: write",
+		},
+		{
+			name:  "shorthand read-all with cache",
+			input: "permissions: read-all",
+		},
+		{
+			name:  "shorthand none with cache",
+			input: "permissions: none",
+		},
+		{
+			name:  "App-only scopes filtered with cache",
+			input: "permissions:\n  contents: read\n  members: read",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Compute expected result without cache
+			withoutCache := filterJobLevelPermissions(tt.input)
+
+			// Compute result using cached permissions
+			cached := NewPermissionsParser(tt.input).ToPermissions()
+			withCache := filterJobLevelPermissions(tt.input, cached)
+
+			if withoutCache != withCache {
+				t.Errorf("filterJobLevelPermissions() with cache produced different result:\nwithout cache: %q\nwith cache:    %q", withoutCache, withCache)
+			}
+		})
+	}
+}
+
+func TestPermissions_Clone(t *testing.T) {
+	t.Run("clone is independent - mutations do not affect original", func(t *testing.T) {
+		original := NewPermissionsContentsRead()
+		clone := original.Clone()
+
+		// Mutate the clone
+		clone.Set(PermissionIssues, PermissionWrite)
+
+		// Original must be unchanged
+		if _, exists := original.permissions[PermissionIssues]; exists {
+			t.Error("Clone.Set() mutated the original Permissions object")
+		}
+	})
+
+	t.Run("clone of shorthand is independent", func(t *testing.T) {
+		original := NewPermissionsReadAll()
+		clone := original.Clone()
+
+		if clone.shorthand != original.shorthand {
+			t.Errorf("Clone shorthand mismatch: got %q, want %q", clone.shorthand, original.shorthand)
+		}
+
+		// Mutating clone should not affect original
+		clone.shorthand = "none"
+		if original.shorthand != "read-all" {
+			t.Errorf("Clone mutation affected original shorthand: %q", original.shorthand)
+		}
+	})
+
+	t.Run("clone of nil returns empty permissions", func(t *testing.T) {
+		var p *Permissions
+		clone := p.Clone()
+		if clone == nil {
+			t.Fatal("Clone of nil should return non-nil empty Permissions")
+		}
+		if len(clone.permissions) != 0 || clone.shorthand != "" {
+			t.Error("Clone of nil should return empty Permissions")
+		}
+	})
+
+	t.Run("clone of all:read preserves hasAll flag", func(t *testing.T) {
+		original := NewPermissionsAllRead()
+		clone := original.Clone()
+		if !clone.hasAll || clone.allLevel != PermissionRead {
+			t.Errorf("Clone of all:read did not preserve hasAll/allLevel: hasAll=%v allLevel=%q", clone.hasAll, clone.allLevel)
+		}
+	})
+}

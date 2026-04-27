@@ -310,4 +310,106 @@ tools:
 		assert.Contains(t, result, "- uses: shared/mcp/serena.md", "Codemod should add shared Serena import")
 		assert.Contains(t, result, "languages: [\"typescript\"]", "Codemod should use languages from engine.tools.serena")
 	})
+
+	t.Run("migrates tools list form (tools: [serena]) with empty languages placeholder", func(t *testing.T) {
+		content := `---
+engine: copilot
+tools:
+  - serena
+strict: false
+---
+
+# Test Workflow
+`
+		frontmatter := map[string]any{
+			"engine": "copilot",
+			"tools":  []any{"serena"},
+			"strict": false,
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "Codemod should not return an error")
+		assert.True(t, applied, "Codemod should be applied for list-form tools: [serena]")
+		assert.NotContains(t, result, "- serena", "Codemod should remove 'serena' from tools list")
+		assert.Contains(t, result, "imports:", "Codemod should add imports block")
+		assert.Contains(t, result, "- uses: shared/mcp/serena.md", "Codemod should add Serena shared import")
+		assert.Contains(t, result, "languages: []", "Codemod should emit empty languages placeholder")
+		assert.Contains(t, result, "TODO", "Codemod should include TODO comment for languages")
+
+		parsed, parseErr := parser.ExtractFrontmatterFromContent(result)
+		require.NoError(t, parseErr, "Result should contain valid frontmatter")
+		_, hasTools := parsed.Frontmatter["tools"]
+		assert.False(t, hasTools, "Codemod should remove the now-empty tools block")
+	})
+
+	t.Run("migrates tools inline list form (tools: [serena]) with empty languages placeholder", func(t *testing.T) {
+		content := `---
+engine: copilot
+tools: [serena]
+strict: false
+---
+
+# Test Workflow
+`
+		frontmatter := map[string]any{
+			"engine": "copilot",
+			"tools":  []any{"serena"},
+			"strict": false,
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "Codemod should not return an error")
+		assert.True(t, applied, "Codemod should be applied for inline list-form tools: [serena]")
+		assert.Contains(t, result, "imports:", "Codemod should add imports block")
+		assert.Contains(t, result, "- uses: shared/mcp/serena.md", "Codemod should add Serena shared import")
+		assert.Contains(t, result, "languages: []", "Codemod should emit empty languages placeholder")
+		assert.NotContains(t, result, "tools: [serena]", "Codemod should remove the inline serena entry")
+	})
+
+	t.Run("migrates tools list form with other tools preserved", func(t *testing.T) {
+		content := `---
+engine: copilot
+tools:
+  - serena
+  - playwright
+strict: false
+---
+
+# Test Workflow
+`
+		frontmatter := map[string]any{
+			"engine": "copilot",
+			"tools":  []any{"serena", "playwright"},
+			"strict": false,
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "Codemod should not return an error")
+		assert.True(t, applied, "Codemod should be applied when serena is in a list with other tools")
+		assert.NotContains(t, result, "- serena", "Codemod should remove 'serena' from the tools list")
+		assert.Contains(t, result, "- playwright", "Codemod should preserve other tools list items")
+		assert.Contains(t, result, "tools:", "Codemod should preserve the non-empty tools block")
+		assert.Contains(t, result, "- uses: shared/mcp/serena.md", "Codemod should add Serena shared import")
+		assert.Contains(t, result, "languages: []", "Codemod should emit empty languages placeholder")
+	})
+
+	t.Run("does not modify workflows with tools list that does not contain serena", func(t *testing.T) {
+		content := `---
+engine: copilot
+tools:
+  - playwright
+---
+
+# Test Workflow
+`
+		frontmatter := map[string]any{
+			"engine": "copilot",
+			"tools":  []any{"playwright"},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "Codemod should not return an error")
+		assert.False(t, applied, "Codemod should not be applied when tools list does not contain serena")
+		assert.Equal(t, content, result, "Content should remain unchanged")
+	})
 }

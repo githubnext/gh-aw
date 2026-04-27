@@ -105,20 +105,56 @@ Create an issue for each category of problems found.
 
 ### Visual Regression Testing
 
+Pin to a specific version and use `steps:` to start the application before the agent runs. This is the recommended pattern when testing a local dev server.
+
 ```aw wrap
 ---
 on:
   pull_request:
     types: [opened, synchronize]
+    paths:
+      - 'docs/src/**/*.css'
+      - 'docs/src/**/*.tsx'
+      - 'docs/src/**/*.astro'
+      - 'docs/astro.config.mjs'
+
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v6
+    with:
+      persist-credentials: false
+  - name: Install dependencies
+    working-directory: ./docs
+    run: npm ci
+  - name: Build documentation
+    working-directory: ./docs
+    run: npm run build
+  - name: Start dev server
+    working-directory: ./docs
+    run: npm run dev &
+  - name: Wait for dev server
+    run: |
+      for i in $(seq 1 30); do
+        if curl -sf http://localhost:4321/ > /dev/null 2>&1; then
+          echo "Dev server is ready"; exit 0
+        fi
+        sleep 1
+      done
+      exit 1
 
 tools:
   playwright:
+    version: "v1.52.0"
+  bash:
+    - "npm *"
+    - "curl http://localhost:*"
 
 network:
   allowed:
     - defaults
     - playwright
-    - github
+    - local
+    - node
 
 permissions:
   contents: read
@@ -126,14 +162,30 @@ permissions:
 safe-outputs:
   add-comment:
     max: 1
+  noop:
 ---
 
 # Visual Regression Check
 
-Compare screenshots of the documentation site before and after this PR.
+The documentation site dev server is running at http://localhost:4321/.
 
-Test on multiple viewports (mobile, tablet, desktop) and report any visual differences.
+Check for visual regressions on these pages: home, getting-started, and reference.
+
+Test on multiple viewports:
+- Mobile: 375×812
+- Tablet: 768×1024
+- Desktop: 1440×900
+
+Take screenshots at each viewport and compare against baseline. Report any visual differences as a pull request comment, including screenshots. If there are no regressions, call noop.
 ```
+
+**Key patterns for dev server visual regression:**
+
+- **Path filter** — restricts the trigger to runs affecting frontend assets, avoiding noise on unrelated changes.
+- **`steps:`** — run before the agent. Use them to install dependencies, build, start the server, and poll until it is ready. The agent only starts after all steps succeed.
+- **Version pin** — pin Playwright to a specific version (`v1.52.0`) to prevent baseline drift from browser engine upgrades mid-test.
+- **`local` network identifier** — allows the Playwright container to reach `localhost`/`127.0.0.1` where the dev server runs. Required when testing local servers.
+- **`bash` allowlist** — restricts the `bash` tool to `npm *` and `curl http://localhost:*` only, keeping the tool surface minimal.
 
 ### End-to-End Testing
 

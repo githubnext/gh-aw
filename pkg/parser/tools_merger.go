@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -18,6 +17,11 @@ func mergeToolsFromJSON(content string) (string, error) {
 	// Clean up the content first
 	content = strings.TrimSpace(content)
 
+	// Empty content: nothing to merge
+	if content == "" {
+		return "{}", nil
+	}
+
 	// Try to parse as a single JSON object first
 	var singleObj map[string]any
 	if err := json.Unmarshal([]byte(content), &singleObj); err == nil {
@@ -33,9 +37,8 @@ func mergeToolsFromJSON(content string) (string, error) {
 	// Find all JSON objects in the content (line by line)
 	var jsonObjects []map[string]any
 
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	for line := range strings.SplitSeq(content, "\n") {
+		line = strings.TrimSpace(line)
 		if line == "" || line == "{}" {
 			continue
 		}

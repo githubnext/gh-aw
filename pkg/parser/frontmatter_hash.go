@@ -122,6 +122,28 @@ func marshalSorted(data any) string {
 	}
 }
 
+// ComputeFrontmatterHashFromParsedContent computes the frontmatter hash from already-parsed
+// workflow data, avoiding a redundant file read when content has already been loaded.
+// frontmatterText is the raw text between the --- delimiters (e.g. WorkflowData.FrontmatterYAML).
+// markdownBody is the raw markdown body before include expansion (e.g. WorkflowData.RawMarkdown).
+// parsedFrontmatter is used to detect the inlined-imports flag.
+// baseDir is the directory containing the workflow file, used for resolving imports.
+func ComputeFrontmatterHashFromParsedContent(frontmatterText, markdownBody string, parsedFrontmatter map[string]any, baseDir string, cache *ImportCache, fileReader FileReader) (string, error) {
+	frontmatterHashLog.Printf("Computing hash from parsed content (baseDir=%s)", baseDir)
+
+	inlinedImports := parseBoolFromFrontmatter(parsedFrontmatter, "inlined-imports")
+
+	var relevantExpressions []string
+	var fullBody string
+	if inlinedImports {
+		fullBody = normalizeFrontmatterText(markdownBody)
+	} else {
+		relevantExpressions = extractRelevantTemplateExpressions(markdownBody)
+	}
+
+	return computeFrontmatterHashTextBasedWithReader(frontmatterText, fullBody, baseDir, cache, relevantExpressions, fileReader)
+}
+
 // ComputeFrontmatterHashFromFile computes the frontmatter hash for a workflow file
 // using text-based approach (no YAML parsing) to match JavaScript implementation
 func ComputeFrontmatterHashFromFile(filePath string, cache *ImportCache) (string, error) {

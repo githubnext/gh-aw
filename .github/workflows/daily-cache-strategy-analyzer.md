@@ -86,6 +86,8 @@ else
 fi
 ```
 
+> **Important**: An absent or empty `cache-strategy/` directory at startup is **expected and normal** for the first few runs of this workflow or after a cache reset. See the [**When to Call `missing_data`**](#when-to-call-missing_data) section for guidance.
+
 2. Load:
    - `index.json` — map of `workflow_name → { last_analyzed, miss_streak, miss_rate, last_cache_hit_run_id }`
    - `runs.json` — array of run records appended each day (prune entries older than 30 days)
@@ -407,6 +409,14 @@ When evaluating workflows, check for these common mistakes:
 Always check `known-issues.json` before creating a new issue. If an issue title already exists in the map:
 - Skip issue creation for that workflow
 - Mention the existing issue number in the discussion report
+
+### When to Call `missing_data`
+
+Only call the `missing_data` tool when an **external** dependency is truly unavailable and prevents analysis from completing — for example, the `agentic-workflows` MCP server is unreachable and no workflow logs can be downloaded.
+
+**Do NOT call `missing_data` for**:
+- An absent or empty `cache-strategy/` directory at startup (this is normal for first runs or after cache resets — just initialize and proceed)
+- Having few or no historical runs to compare against yet
 
 ---
 

@@ -957,4 +957,20 @@ tools:
 	if !strings.Contains(scaffolded, "github/gh-aw/.github/workflows/shared/mcp/serena.md@main") {
 		t.Errorf("Expected scaffolded Serena workflow to import upstream shared workflow, got:\n%s", scaffolded)
 	}
+
+	// The scaffolded file must declare import-schema so that the caller's
+	// "languages" input is accepted and can be forwarded to the upstream.
+	if !strings.Contains(scaffolded, "import-schema:") {
+		t.Errorf("Expected scaffolded Serena workflow to declare import-schema, got:\n%s", scaffolded)
+	}
+	if !strings.Contains(scaffolded, "languages:") {
+		t.Errorf("Expected scaffolded Serena workflow to declare 'languages' in import-schema, got:\n%s", scaffolded)
+	}
+
+	// The scaffolded file must forward the languages input to the upstream import via
+	// ${{ github.aw.import-inputs.languages }}, otherwise compilation fails with:
+	// "required 'with' input 'languages' is missing (declared in import-schema)".
+	if !strings.Contains(scaffolded, "github.aw.import-inputs.languages") {
+		t.Errorf("Expected scaffolded Serena workflow to pass languages through to upstream import, got:\n%s", scaffolded)
+	}
 }

@@ -131,6 +131,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	inIssues := false
 	inDiscussion := false
 	inIssueComment := false
+	inDeploymentStatus := false
 	inForksArray := false
 	inSkipIfMatch := false
 	inSkipIfNoMatch := false
@@ -156,6 +157,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inIssues = false
 				inDiscussion = false
 				inIssueComment = false
+				inDeploymentStatus = false
 				currentSection = "pull_request"
 				result = append(result, line)
 				continue
@@ -165,6 +167,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inPullRequest = false
 				inDiscussion = false
 				inIssueComment = false
+				inDeploymentStatus = false
 				currentSection = "issues"
 				result = append(result, line)
 				continue
@@ -174,6 +177,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inPullRequest = false
 				inIssues = false
 				inIssueComment = false
+				inDeploymentStatus = false
 				currentSection = "discussion"
 				result = append(result, line)
 				continue
@@ -183,7 +187,18 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inPullRequest = false
 				inIssues = false
 				inDiscussion = false
+				inDeploymentStatus = false
 				currentSection = "issue_comment"
+				result = append(result, line)
+				continue
+			}
+			if strings.Contains(line, "deployment_status:") {
+				inDeploymentStatus = true
+				inPullRequest = false
+				inIssues = false
+				inDiscussion = false
+				inIssueComment = false
+				currentSection = ""
 				result = append(result, line)
 				continue
 			}
@@ -200,6 +215,11 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inForksArray = false
 				currentSection = ""
 			}
+		}
+
+		// Check if we're leaving the deployment_status section
+		if inDeploymentStatus && strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
+			inDeploymentStatus = false
 		}
 
 		trimmedLine := strings.TrimSpace(line)
@@ -517,6 +537,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		} else if inForksArray && strings.HasPrefix(trimmedLine, "-") {
 			shouldComment = true
 			commentReason = " # Fork filtering applied via job conditions"
+		} else if inDeploymentStatus && strings.HasPrefix(trimmedLine, "state:") {
+			shouldComment = true
+			commentReason = " # State filtering compiled into if condition"
+		} else if inDeploymentStatus && strings.HasPrefix(trimmedLine, "-") {
+			// Comment out array items inside deployment_status.state
+			shouldComment = true
+			commentReason = " # State filtering compiled into if condition"
 		} else if (inPullRequest || inIssues || inDiscussion || inIssueComment) && strings.HasPrefix(trimmedLine, "lock-for-agent:") {
 			shouldComment = true
 			commentReason = " # Lock-for-agent processed as issue locking in activation job"
@@ -676,21 +703,82 @@ func (c *Compiler) extractPermissions(frontmatter map[string]any) string {
 }
 
 // extractIfCondition extracts the if condition from frontmatter, returning just the expression
-// without the "if: " prefix
+// without the "if: " prefix. Also merges any condition derived from on.deployment_status.state.
 func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
-	value, exists := frontmatter["if"]
-	if !exists {
+	var ifExpr string
+	if value, exists := frontmatter["if"]; exists {
+		if strValue, ok := value.(string); ok {
+			// Strip "if: " prefix and ${{ }} wrapper to get a bare expression for safe merging
+			ifExpr = stripExpressionWrapper(c.extractExpressionFromIfString(strValue))
+			frontmatterLog.Printf("Extracted if condition from frontmatter: %s", ifExpr)
+		}
+	}
+
+	// Merge any condition generated from on.deployment_status.state
+	stateCondition := extractDeploymentStatusStateCondition(frontmatter)
+	if stateCondition != "" {
+		frontmatterLog.Printf("Merging deployment_status state condition: %s", stateCondition)
+		if ifExpr != "" {
+			ifExpr = "(" + ifExpr + ") && (" + stateCondition + ")"
+		} else {
+			ifExpr = stateCondition
+		}
+	}
+
+	return ifExpr
+}
+
+// extractDeploymentStatusStateCondition reads on.deployment_status.state and converts it
+// into a GitHub Actions expression string (without ${{ }} wrappers). Returns "" if not set.
+func extractDeploymentStatusStateCondition(frontmatter map[string]any) string {
+	onValue, ok := frontmatter["on"]
+	if !ok {
+		return ""
+	}
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return ""
+	}
+	dsValue, ok := onMap["deployment_status"]
+	if !ok {
+		return ""
+	}
+	dsMap, ok := dsValue.(map[string]any)
+	if !ok {
+		return ""
+	}
+	stateValue, ok := dsMap["state"]
+	if !ok {
 		return ""
 	}
 
-	// Convert the value to string - it should be just the expression
-	if strValue, ok := value.(string); ok {
-		expr := c.extractExpressionFromIfString(strValue)
-		frontmatterLog.Printf("Extracted if condition from frontmatter: %s", expr)
-		return expr
+	var states []string
+	switch v := stateValue.(type) {
+	case string:
+		states = []string{v}
+	case []any:
+		for _, s := range v {
+			if str, ok := s.(string); ok {
+				states = append(states, str)
+			}
+		}
 	}
 
-	return ""
+	if len(states) == 0 {
+		return ""
+	}
+
+	parts := make([]string, 0, len(states))
+	for _, s := range states {
+		parts = append(parts, "github.event.deployment_status.state == '"+s+"'")
+	}
+	stateExpr := strings.Join(parts, " || ")
+
+	// Guard the state check with an event_name test so the condition remains true
+	// when the workflow is triggered by other events (e.g. workflow_dispatch).
+	// Without the guard, a non-deployment_status event would see the state as
+	// empty/undefined and the entire activation condition would evaluate to false.
+	return "github.event_name != 'deployment_status' || (" + stateExpr + ")"
 }
 
 // extractExpressionFromIfString extracts the expression part from a string that might

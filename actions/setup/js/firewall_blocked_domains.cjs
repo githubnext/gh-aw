@@ -11,7 +11,7 @@
 const fs = require("fs");
 const path = require("path");
 const { sanitizeDomainName } = require("./sanitize_content_core.cjs");
-const { renderTemplateFromFile } = require("./messages_core.cjs");
+const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { renderMarkdownTemplate } = require("./render_template.cjs");
 
 /**
@@ -207,10 +207,11 @@ function generateBlockedDomainsSection(blockedDomains, templatePath) {
 
   const hasGitHubApiBlocked = blockedDomains.includes("api.github.com");
 
-  // Resolve template path: explicit > RUNNER_TEMP (production) > source tree (local dev/test)
+  // Resolve template path: explicit > GH_AW_PROMPTS_DIR / RUNNER_TEMP (production) > source tree (local dev/test)
   let resolvedTemplatePath = templatePath;
   if (!resolvedTemplatePath) {
-    resolvedTemplatePath = process.env.RUNNER_TEMP ? `${process.env.RUNNER_TEMP}/gh-aw/prompts/firewall_blocked_domains.md` : path.join(__dirname, "../md/firewall_blocked_domains.md");
+    const hasRuntimePromptsDir = !!(process.env.RUNNER_TEMP || process.env.GH_AW_PROMPTS_DIR);
+    resolvedTemplatePath = hasRuntimePromptsDir ? getPromptPath("firewall_blocked_domains.md") : path.join(__dirname, "../md/firewall_blocked_domains.md");
   }
 
   // First pass: substitute {key} placeholders.

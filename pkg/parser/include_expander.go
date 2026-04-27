@@ -13,12 +13,36 @@ import (
 
 var includeExpanderLog = logger.New("parser:include_expander")
 
+// hasIncludeDirectives reports whether content contains any include/import directive that
+// ParseImportDirective could match. Used as a fast pre-check to avoid scanner allocations.
+// Matches @include, @import (legacy), and {{#import (legacy) forms.
+func hasIncludeDirectives(content string) bool {
+	return strings.Contains(content, "@include") ||
+		strings.Contains(content, "@import") ||
+		strings.Contains(content, "{{#import")
+}
+
 // ExpandIncludes recursively expands @include and @import directives until no more remain
 // This matches the bash expand_includes function behavior
 
 // ExpandIncludesWithManifest recursively expands @include and @import directives and returns list of included files
 func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (string, []string, error) {
 	includeExpanderLog.Printf("Expanding includes: baseDir=%s, extractTools=%t, content_size=%d", baseDir, extractTools, len(content))
+
+	// Fast path: skip expansion entirely when no include/import directives are present.
+	// This avoids scanner and buffer allocations in the common case where there are no includes.
+	// For content mode, preserve the scanner's trailing-newline normalization behavior.
+	if !hasIncludeDirectives(content) {
+		includeExpanderLog.Print("Fast path: no include directives found")
+		if extractTools {
+			return "{}", nil, nil
+		}
+		if !strings.HasSuffix(content, "\n") {
+			return content + "\n", nil, nil
+		}
+		return content, nil, nil
+	}
+
 	const maxDepth = 10
 	currentContent := content
 	visited := make(map[string]bool)
@@ -136,6 +160,11 @@ var bodyLevelRuntimeImportRe = regexp.MustCompile(`^\{\{#runtime-import(\?)?[ \t
 // Deprecated {{#import}} and legacy @include / @import directives are ignored;
 // they are handled (with deprecation warnings) by include_processor.go.
 func ExtractBodyLevelImportPaths(content, baseDir string) []BodyLevelImport {
+	// Fast path: no {{#runtime-import}} directives present.
+	if !strings.Contains(content, "{{#runtime-import") {
+		return nil
+	}
+
 	repoRoot := findGitHubRepoRoot(baseDir)
 
 	var results []BodyLevelImport
@@ -206,6 +235,11 @@ func ExpandIncludesForSafeOutputs(content, baseDir string) ([]string, error) {
 
 // expandIncludesForField recursively expands includes to extract a specific frontmatter field
 func expandIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, error) {
+	// Fast path: skip expansion entirely when no include/import directives are present.
+	if !hasIncludeDirectives(content) {
+		return nil, nil
+	}
+
 	const maxDepth = 10
 	var results []string
 	currentContent := content
@@ -235,6 +269,11 @@ func expandIncludesForField(content, baseDir string, extractFunc func(string) (s
 
 // processIncludesForField processes import directives to extract a specific frontmatter field
 func processIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, string, error) {
+	// Fast path: skip scanner allocation when no include/import directives are present.
+	if !hasIncludeDirectives(content) {
+		return nil, content, nil
+	}
+
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
 	var results []string

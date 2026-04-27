@@ -32,8 +32,6 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 		return nil
 	}
 
-	createIssueLog.Print("Parsing create-issue configuration")
-
 	// Get the config data to check for special cases before unmarshaling
 	configData, _ := outputMap["create-issue"].(map[string]any)
 
@@ -55,12 +53,13 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 		return nil
 	}
 
-	// Unmarshal into typed config struct
-	var config CreateIssuesConfig
-	if err := unmarshalConfig(outputMap, "create-issue", &config, createIssueLog); err != nil {
+	config := parseConfigScaffold(outputMap, "create-issue", createIssueLog, func(err error) *CreateIssuesConfig {
 		createIssueLog.Printf("Failed to unmarshal config: %v", err)
 		// For backward compatibility, handle nil/empty config
-		config = CreateIssuesConfig{}
+		return &CreateIssuesConfig{}
+	})
+	if config == nil {
+		return nil
 	}
 
 	// Handle single string assignee (YAML unmarshaling won't convert string to []string)
@@ -85,7 +84,7 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 		createIssueLog.Printf("Issue expiration configured: %d hours", config.Expires)
 	}
 
-	return &config
+	return config
 }
 
 // hasCopilotAssignee checks if "copilot" is in the assignees list

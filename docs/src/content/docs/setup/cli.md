@@ -453,7 +453,7 @@ gh aw audit 12345 12346 --json              # JSON for CI integration
 gh aw audit 12345 12346 --repo owner/repo   # Specify repository
 ```
 
-The diff output shows: new or removed network domains, status changes (allowed ↔ denied), volume changes (>100% threshold), MCP tool invocation changes, and run metric comparisons (token usage, duration, turns).
+The diff output shows: new or removed network domains, status changes (allowed ↔ denied), volume changes (>100% threshold), MCP tool invocation changes, run metric comparisons (token usage, duration, turns), tokens-per-turn changes, and per-tool and per-bash-command call breakdowns.
 
 **Options:** `--format` (pretty, markdown; default: pretty), `--json`, `--repo/-r`
 

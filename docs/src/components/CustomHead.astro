@@ -84,6 +84,11 @@ const filteredHead = head.filter(({ tag, attrs }) => {
   import '../scripts/copy-button-aria.ts';
 </script>
 
+<!-- Skip link accessibility enhancement: adds id="main-content" and tabindex="-1" to <main> -->
+<script>
+  import '../scripts/skip-link.ts';
+</script>
+
 <script is:inline>
   (function() {
     const storedTheme = localStorage.getItem('starlight-theme') || 'auto';

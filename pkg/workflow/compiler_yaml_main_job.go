@@ -53,9 +53,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	if checkoutMgr.HasAppAuth() {
 		compilerYamlLog.Print("Generating checkout app token minting steps in agent job")
 		var checkoutPermissions *Permissions
-		if data.Permissions != "" {
-			parser := NewPermissionsParser(data.Permissions)
-			checkoutPermissions = parser.ToPermissions()
+		if data.CachedPermissions != nil {
+			checkoutPermissions = data.CachedPermissions
+		} else if data.Permissions != "" {
+			checkoutPermissions = NewPermissionsParser(data.Permissions).ToPermissions()
 		} else {
 			checkoutPermissions = NewPermissions()
 		}

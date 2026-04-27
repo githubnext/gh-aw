@@ -1903,3 +1903,126 @@ func TestScheduleTimezoneField(t *testing.T) {
 		})
 	}
 }
+
+// TestTriggerShorthandConditionPropagation verifies that job-level conditions from trigger
+// shorthands (e.g. deployment state filtering) are propagated into the frontmatter if: field.
+func TestTriggerShorthandConditionPropagation(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		wantEvent   string // expected event in on map (empty = check wantIf only)
+		wantIf      string // expected if condition (bare expression, no ${{ }})
+		wantErr     bool
+	}{
+		{
+			name: "deployment failed sets if condition",
+			frontmatter: map[string]any{
+				"on": "deployment failed",
+			},
+			wantEvent: "deployment_status",
+			wantIf:    "github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'failure')",
+		},
+		{
+			name: "deployment error sets if condition",
+			frontmatter: map[string]any{
+				"on": "deployment error",
+			},
+			wantEvent: "deployment_status",
+			wantIf:    "github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'error')",
+		},
+		{
+			name: "deployment failed or error sets combined if condition",
+			frontmatter: map[string]any{
+				"on": "deployment failed or error",
+			},
+			wantEvent: "deployment_status",
+			wantIf:    "github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'failure' || github.event.deployment_status.state == 'error')",
+		},
+		{
+			name: "deployment failed merges with existing bare if condition",
+			frontmatter: map[string]any{
+				"on": "deployment failed",
+				"if": "github.actor != 'bot'",
+			},
+			wantEvent: "deployment_status",
+			wantIf:    "(github.actor != 'bot') && (github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'failure'))",
+		},
+		{
+			name: "deployment failed merges with wrapped ${{ }} if condition",
+			frontmatter: map[string]any{
+				"on": "deployment failed",
+				"if": "${{ github.actor != 'bot' }}",
+			},
+			wantEvent: "deployment_status",
+			wantIf:    "(github.actor != 'bot') && (github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'failure'))",
+		},
+		{
+			name: "deployment failed merges with if: prefix condition",
+			frontmatter: map[string]any{
+				"on": "deployment failed",
+				"if": "if: github.actor != 'bot'",
+			},
+			wantEvent: "deployment_status",
+			// if: prefix is not stripped in schedule_preprocessing, only in extractIfCondition
+			// the merge wraps the raw existing value (after wrapper strip)
+			wantIf: "(if: github.actor != 'bot') && (github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'failure'))",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.SetWorkflowIdentifier("test-workflow.md")
+
+			err := compiler.preprocessScheduleFields(tt.frontmatter, "", "")
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Verify event is set in on map
+			if tt.wantEvent != "" {
+				onValue, exists := tt.frontmatter["on"]
+				if !exists {
+					t.Fatal("expected 'on' field to exist")
+				}
+				onMap, ok := onValue.(map[string]any)
+				if !ok {
+					t.Fatalf("expected 'on' to be a map, got %T", onValue)
+				}
+				if _, hasEvent := onMap[tt.wantEvent]; !hasEvent {
+					t.Errorf("expected event %q in on map, got keys: %v", tt.wantEvent, mapKeys(onMap))
+				}
+			}
+
+			// Verify if condition
+			if tt.wantIf != "" {
+				ifValue, exists := tt.frontmatter["if"]
+				if !exists {
+					t.Fatal("expected 'if' field to exist in frontmatter")
+				}
+				ifStr, ok := ifValue.(string)
+				if !ok {
+					t.Fatalf("expected 'if' to be string, got %T", ifValue)
+				}
+				if ifStr != tt.wantIf {
+					t.Errorf("if condition mismatch:\n  got  %q\n  want %q", ifStr, tt.wantIf)
+				}
+			}
+		})
+	}
+}
+
+// mapKeys returns the keys of a map for use in error messages
+func mapKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}

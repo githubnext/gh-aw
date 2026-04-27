@@ -216,7 +216,7 @@ engine:
 
 ### Custom Driver Script (`driver`)
 
-The `driver` field lets you replace the built-in Node.js driver wrapper that the Copilot engine uses to launch the CLI. Use this when you need to customise startup behaviour, inject pre/post hooks, or test an alternative driver implementation.
+The `driver` field lets you replace the built-in Node.js driver wrapper that the Copilot engine uses to launch the CLI. Use this when you need to customize startup behavior, inject pre/post hooks, or test an alternative driver implementation.
 
 ```yaml wrap
 engine:

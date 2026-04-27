@@ -26,7 +26,7 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
-const { renderTemplateFromFile, buildProtectedFileList, encodePathSegments } = require("./messages_core.cjs");
+const { renderTemplateFromFile, buildProtectedFileList, encodePathSegments, getPromptPath } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL, MAX_ASSIGNEES } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
@@ -1617,7 +1617,7 @@ ${patchPreview}`;
         // Use the push-failed template with artifact download instructions.
         const runId = context.runId;
         const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
-        const pushFailedTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_push_failed_fallback.md`;
+        const pushFailedTemplatePath = getPromptPath("manifest_protection_push_failed_fallback.md");
         fallbackBody = renderTemplateFromFile(pushFailedTemplatePath, {
           main_body: mainBodyContent,
           footer: footerContent,
@@ -1634,7 +1634,7 @@ ${patchPreview}`;
         const encodedBase = encodePathSegments(baseBranch);
         const encodedHead = encodePathSegments(branchName);
         const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
-        const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_create_pr_fallback.md`;
+        const templatePath = getPromptPath("manifest_protection_create_pr_fallback.md");
         fallbackBody = renderTemplateFromFile(templatePath, {
           main_body: mainBodyContent,
           footer: footerContent,
@@ -1834,7 +1834,7 @@ ${patchPreview}`;
           patchPreview = generatePatchPreview(patchContent);
         }
 
-        const fallbackTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/pr_permission_denied_fallback.md`;
+        const fallbackTemplatePath = getPromptPath("pr_permission_denied_fallback.md");
         const fallbackBody = renderTemplateFromFile(fallbackTemplatePath, {
           body,
           branch_name: branchName,

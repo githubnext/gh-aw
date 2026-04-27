@@ -14,21 +14,12 @@ This pattern is useful when a repository has enough agentic activity that per-ru
 
 ## Scope
 
-The built-in workflow is repository-scoped. It reads workflow runs for the repository where it is installed and produces one report for that repository.
-
-At repository scope, the report combines two layers:
+The built-in workflow is repository-scoped. The report combines two layers:
 
 - operational observability for recent runs, episodes, regressions, and control failures
-- an evidence-based repository portfolio appendix for overlap, stale workflows, and weakly justified agentic workflows
+- an evidence-based portfolio appendix for overlap, stale workflows, and weakly justified agentic workflows
 
-The same pattern can be extended to an organization. For org-wide reporting, run the workflow from a central repository or control-plane repository, give it cross-repository read access, and aggregate results across target repositories using the [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) or [CentralRepoOps](/gh-aw/patterns/central-repo-ops/) patterns. In practice, that means collecting `gh aw logs` or MCP `logs` output per repository, then generating an organization-level rollup.
-
-At organization or enterprise scope, the same pattern can grow into a broader portfolio-governance rollup. That is where deeper questions such as consolidation, duplicate ownership, shared policy, and fleet-wide prioritization fit best.
-
-Enterprise-wide use is possible as an architecture, but it is not a single built-in turnkey workflow today. At enterprise scope, the usual design is a control-plane repository that fans out across multiple organizations or repository groups, collects normalized run data, and publishes a portfolio report. This is closer to a fleet-operations pattern than a drop-in single-repository workflow.
-
-> [!IMPORTANT]
-> The built-in Agentic Observability Kit should be treated as the repository-level building block. Organization-wide and enterprise-wide deployments require additional cross-repository authentication, central orchestration, and portfolio aggregation logic.
+The same pattern extends to organization and enterprise scope via central repository aggregation — see [Deployment by scope](#deployment-by-scope) below. Organization-wide and enterprise-wide deployments require additional cross-repository authentication, central orchestration, and portfolio aggregation logic beyond the single built-in workflow.
 
 ## Deployment by scope
 
@@ -136,114 +127,61 @@ This should be treated as fleet operations. The goal is not to replicate the rep
 
 ## What it analyzes
 
-The kit is built around the deterministic lineage data returned by `gh aw logs`. Instead of treating every workflow run as an isolated event, it prefers `episodes[]` and `edges[]` so orchestrator and worker runs are analyzed as one logical execution. This avoids misreading delegated runs in isolation and makes cost, risk, and control signals easier to attribute.
+Built around `gh aw logs`, the kit prefers `episodes[]` and `edges[]` to analyze orchestrator and worker runs as one logical execution, avoiding misreads of delegated runs in isolation. When episode summaries are insufficient, it audits individual runs to explain regressions or MCP failures. For portfolio review, it uses targeted workflow-file inspection to confirm trigger or schedule overlap.
 
-The episode rollups include aggregate fields such as total runs, total tokens, total estimated cost, blocked requests, MCP failures, risky nodes, and a suggested routing hint for follow-up. When the summary data is not sufficient, the workflow can audit a small number of individual runs to explain the latest regression, a new MCP failure, or a changed write posture.
+It consumes signals from `gh aw logs` and `gh aw audit`:
 
-For the portfolio portion of the report, the kit can also use targeted workflow-file inspection to confirm trigger or schedule overlap when recent run data suggests that two workflows may be serving the same job.
-
-## What it computes
-
-The kit consumes several classes of signals that are already produced by `gh aw logs` and `gh aw audit`:
-
-- Episode-level rollups for lineage, risk, blocked requests, MCP failures, and suggested route.
-- Per-run metrics such as duration, action minutes, token usage, turns, warnings, and `estimated_cost`.
-- Effective Tokens, a normalized token metric that weights input, output, cache-read, and cache-write tokens before applying a per-model multiplier.
-- Behavior fingerprint and agentic assessments, which help distinguish overkill workflows from genuinely agentic ones.
-- Repository-level portfolio signals derived from repeated overkill assessments, weak recent activity, repeated instability, and possible overlap in workflow purpose, trigger pattern, or schedule.
-
-Effective Tokens matter because raw token counts alone are not comparable across models or token classes. The implementation normalizes token classes first, then applies a model multiplier. This makes it easier to compare a cache-heavy run against an output-heavy run, or a lightweight model against a more expensive one, without collapsing everything into raw token totals.
+- Episode-level rollups for lineage, risk, blocked requests, MCP failures, and suggested route
+- Per-run metrics: duration, action minutes, token usage, turns, warnings, and `estimated_cost`
+- Effective Tokens — a normalized metric weighting input, output, cache-read, and cache-write tokens by per-model multiplier, enabling cross-run and cross-model comparisons
+- Behavior fingerprints and agentic assessments to distinguish overkill workflows from genuinely agentic ones
+- Portfolio signals from repeated overkill assessments, weak activity, instability, and workflow overlap
 
 ## Visual report form
 
 The kit can produce a chart-backed report format designed for fast interpretation. Instead of relying only on prose, the discussion can include a `Visual Diagnostics` section with a small number of scientific-style plots that make portfolio and observability signals legible at a glance.
 
-The visual report is most useful when it is concrete. The kit is designed around four fixed plot types, each answering a different maintainer question.
+The kit is designed around four fixed plot types, each answering a different maintainer question:
 
-### 1. Episode Risk-Cost Frontier
+| Chart | What it shows | Key question |
+|-------|---------------|--------------|
+| **Episode Risk-Cost Frontier** | Episodes in cost-risk space (x=cost, y=risk score derived from risky nodes/MCP failures/blocked requests, size=run count) | Which execution chains sit on the cost-risk frontier? |
+| **Workflow Stability Matrix** | Workflow-by-metric heatmap of instability signals (risky run rate, fallback rate, poor-control rate, etc.) | Which workflows are chronically unstable vs. noisy in one dimension? |
+| **Repository Portfolio Map** | Scatter by cost/value proxy; quadrants labeled keep/optimize/simplify/review | Which workflows deserve investment, simplification, or a decision? |
+| **Workflow Overlap Matrix** | Workflow-by-workflow similarity heatmap (task domain, trigger/schedule, fingerprints) | Which workflows solve the same problem closely enough to justify consolidation? |
 
-This plot shows execution episodes in cost-risk space. The x-axis is episode cost, the y-axis is an episode risk score derived from risky nodes, poor-control signals, MCP failures, blocked requests, and escalation eligibility, and the point size reflects run count.
-
-This is the fastest way to answer: which execution chains sit on the cost-risk frontier and deserve immediate attention?
-
-### 2. Workflow Stability Matrix
-
-This plot is a workflow-by-metric heatmap. Each row is a workflow, and the columns represent repeated instability signals such as risky run rate, latest-success fallback rate, resource-heavy assessment rate, poor-control rate, blocked-request incidence, and MCP failure incidence.
-
-This is the fastest way to answer: which workflows are chronically unstable, and which ones are noisy only in one dimension?
-
-### 3. Repository Portfolio Map
-
-This plot is a workflow portfolio scatter plot. The x-axis represents recent cost, the y-axis represents an evidence-based value proxy, the point size reflects run count, and the quadrants separate workflows into `keep`, `optimize`, `simplify`, and `review`.
-
-This is the fastest way to answer: which workflows deserve investment, which should be simplified, and which demand a maintainer decision?
-
-### 4. Workflow Overlap Matrix
-
-This plot is a workflow-by-workflow similarity heatmap. It is intended to serve the role that people often imagine for a Venn diagram, but in a form that scales beyond two or three workflows. Similarity can be inferred from task domains, naming, trigger or schedule similarity, behavioral fingerprints, and repeated overlap signals from recent runs.
-
-This is the fastest way to answer: which workflows may be solving the same problem closely enough to justify consolidation review?
-
-This format is better than a purely textual report when maintainers need to answer questions such as:
-
-- which workflows sit on the cost-risk frontier
-- which workflows are stable but overbuilt
-- which workflows cluster together strongly enough to deserve consolidation review
-- which problems are isolated incidents versus repeated patterns across the repository
-
-The goal is not visual novelty for its own sake. Each chart should support a decision. In practice, the overlap matrix supports consolidation review, the portfolio map supports prioritization, and the risk-cost frontier supports immediate optimization work.
-
-The most useful reading of those plots is outcome-adjusted rather than usage-only. Cost is more informative when read as cost per successful run. Token volume is more informative when read as effective tokens per successful run. Tool overhead is more informative when read as median tool calls or turns per successful run rather than raw totals.
+Each chart should support a decision: the overlap matrix targets consolidation review, the portfolio map targets prioritization, and the risk-cost frontier targets immediate optimization. Read plots outcome-adjusted — cost per successful run is more useful than raw spend; effective tokens per successful run is more useful than raw token totals.
 
 ## Metric glossary
 
-The visual report uses a small number of derived metrics to keep the plots decision-oriented.
-
-`episode_risk_score`
-This is a composite risk score for a single execution episode. It combines risky nodes, poor-control nodes, MCP failures, blocked requests, repeated regression markers, and escalation eligibility. It exists to answer one question quickly: which episodes combine multiple warning signals at once?
-
-`workflow_instability_score`
-This is a workflow-level instability score derived from repeated risky runs, poor-control assessments, resource-heavy assessments, latest-success fallback usage, blocked requests, and MCP failures. It exists to separate chronic instability from one-off incidents.
-
-`workflow_value_proxy`
-This is a repository-local proxy for workflow value. It is not a business KPI. It combines successful recent usage, stability, repeat use, and the absence of strong overkill or reduction signals. It exists to help rank workflows into `keep`, `optimize`, `simplify`, and `review` rather than to claim objective business value.
-
-`workflow_overlap_score`
-This is an approximate similarity score between two workflows. It blends task domain, trigger or schedule similarity, naming, behavioral fingerprints, and assessment patterns. It exists to support consolidation review, not to prove duplication with mathematical certainty.
-
-`cost per successful run`
-This is the preferred cost view when enough successful runs exist. It is more decision-useful than raw spend because it separates expensive-but-effective workflows from expensive-and-unreliable workflows.
-
-`effective tokens per successful run`
-This is the preferred token-efficiency view when comparing routes or workflows across models. It is more useful than raw token totals because it accounts for token class weighting and model differences.
+| Metric | Definition |
+|--------|-----------|
+| `episode_risk_score` | Composite risk score combining risky nodes, poor-control nodes, MCP failures, blocked requests, regression markers, and escalation eligibility |
+| `workflow_instability_score` | Workflow-level score from repeated risky runs, poor-control assessments, resource-heavy assessments, fallback usage, and MCP failures — separates chronic instability from one-off incidents |
+| `workflow_value_proxy` | Repository-local value proxy (not a business KPI) combining recent successful usage, stability, repeat use, and absence of overkill signals — used to rank workflows into keep/optimize/simplify/review |
+| `workflow_overlap_score` | Approximate similarity between two workflows, blending task domain, trigger/schedule similarity, naming, and behavioral fingerprints — supports consolidation review, not proof of duplication |
+| `cost per successful run` | Preferred cost view that separates expensive-but-effective workflows from expensive-and-unreliable ones |
+| `effective tokens per successful run` | Preferred token-efficiency view across routes and models, accounting for token class weighting and model multipliers |
 
 ## Calibration from a real repository sample
 
-In this repository, a live sample of recent runs produced three practical calibration lessons for the kit.
+A live sample of recent runs in this repository surfaced three calibration lessons:
 
-First, estimated dollar cost was sparse. Effective Tokens carried much more of the usable efficiency signal across workflows. In repositories with similar telemetry, the portfolio map should switch its primary x-axis from recent cost to Effective Tokens, or Effective Tokens per successful run when enough successful runs exist.
-
-Second, task-domain coverage was coarse. Most sampled runs landed in `general_automation`, while the behavior fingerprints still separated them into meaningful groups such as directed lean runs, exploratory heavy runs, and adaptive moderate runs. In repositories with similar distributions, the portfolio analysis should compare workflows by behavior cluster and workflow family when the domain layer is too coarse to be reliable.
-
-Third, `partially_reducible` appeared often enough that it should be treated as a repeated reduction hint, not an automatic negative verdict. In practice, that signal becomes most useful when it appears together with high Effective Tokens, high turn counts, or repeated resource-heavy behavior.
-
-Those findings do not replace the general design. They make the default interpretation more robust when repositories have sparse cost fields, weak domain separation, or many exploratory workflows.
+1. **Sparse cost data**: Effective Tokens carried more usable signal than estimated dollar cost. When cost fields are sparse, switch the portfolio map's x-axis to Effective Tokens per successful run.
+2. **Coarse task domains**: Most runs landed in `general_automation`, but behavior fingerprints (directed/exploratory/adaptive) still separated them meaningfully. Compare by behavior cluster when the domain layer is too coarse.
+3. **`partially_reducible` is a hint, not a verdict**: Treat it as significant only when paired with high Effective Tokens, high turn counts, or repeated resource-heavy assessments.
 
 ## Domain-specific reading
 
-The same signals do not mean the same thing for every workflow type.
+The same signals mean different things across workflow types. Compare within similar domains first — a cheap triage workflow and an expensive research workflow are not substitutes for each other.
 
-For `triage`, `repo_maintenance`, and `issue_response`, the most valuable question is whether the workflow is too agentic for its job. These domains are the strongest candidates for deterministic replacements, smaller models, and narrow-tool routing.
-
-For `research`, broader tool use and exploration can be justified, but repeated cost still needs evidence of value. In practice, the most important question is often whether data-gathering work should move into deterministic pre-steps while the agent keeps only the analytical core.
-
-For `code_fix`, higher cost may be justified when successful write actions are intentional and controlled. The most important question is usually not pure spend, but whether the workflow combines cost with instability, blocked requests, or weak control.
-
-For `release_ops`, reliability dominates. The most important question is whether the workflow is stable, repeatable, and well controlled; moderate cost is often acceptable, repeated instability is not.
-
-For delegated workflows, episode-level interpretation matters more than local workflow-level interpretation. A worker that looks expensive in isolation may still be justified inside a coherent larger execution chain.
-
-This is why the kit should compare workflows within similar task domains first. A cheap triage workflow and an expensive research workflow are not automatically substitutes for each other.
+| Domain | Key question | Notes |
+|--------|--------------|-------|
+| `triage`, `repo_maintenance`, `issue_response` | Is the workflow too agentic for its job? | Strongest candidates for deterministic replacements, smaller models, narrow-tool routing |
+| `research` | Does repeated cost have evidence of value? | Consider moving data-gathering into deterministic pre-steps; keep agent for the analytical core |
+| `code_fix` | Does cost combine with instability, blocked requests, or weak control? | Higher cost is acceptable when write actions are intentional and controlled |
+| `release_ops` | Is the workflow stable and repeatable? | Reliability dominates; moderate cost is acceptable, repeated instability is not |
+| Delegated workflows | Is the worker justified within its episode chain? | A worker expensive in isolation may be fine inside a coherent larger execution |
 
 ### Report form
 
@@ -260,17 +198,12 @@ Under each chart, the report should include two short blocks: `Decision` and `Wh
 
 ## Why it matters for COGS reduction
 
-The kit is useful for COGS reduction because it turns agentic workflow spend into a reviewable operational signal instead of a vague complaint about “expensive runs”. In practice it helps surface four common sources of waste.
+The kit turns agentic workflow spend into a reviewable operational signal. It surfaces four common sources of waste:
 
-First, it highlights workflows that are too expensive for the task domain they serve. A workflow that is consistently resource-heavy, repeatedly compared against `latest_success`, or marked as overkill for agentic execution is a candidate for a smaller model, tighter prompts, or deterministic automation.
-
-Second, it exposes avoidable control failures. Repeated blocked requests, MCP failures, or poor-control assessments often mean the system is spending tokens and Actions minutes on retries, fallback behavior, or incomplete execution paths rather than useful work.
-
-Third, it makes orchestration costs legible. Episode rollups prevent distributed workflows from hiding their true aggregate cost across many child runs. This is important for repositories that dispatch workers or chain `workflow_run` triggers.
-
-Fourth, it gives maintainers a way to prioritize optimization work. The escalation logic is designed to avoid one issue per workflow. Instead, it groups repeated problems into a single actionable report so repository owners can focus on the highest-value fixes first.
-
-Fifth, it helps maintainers spot workflows that may no longer deserve their current shape. When a workflow is repeatedly overkill for its domain, rarely active, or plausibly overlapping with another workflow, the kit can surface that as a cleanup opportunity before the repository accumulates more operational drag.
+- **Overbuilt workflows**: Resource-heavy runs, repeated `latest_success` comparisons, or overkill assessments signal candidates for smaller models, tighter prompts, or deterministic automation.
+- **Avoidable control failures**: Repeated blocked requests, MCP failures, or poor-control assessments mean tokens and Actions minutes are going to retries and fallback paths rather than useful work.
+- **Hidden orchestration costs**: Episode rollups expose the true aggregate cost of distributed workflows that dispatch workers or chain `workflow_run` triggers.
+- **Low-priority optimization**: Escalation logic groups repeated problems into a single actionable report, so owners focus on the highest-value fixes rather than one issue per workflow.
 
 ## Accuracy and cost caveats
 

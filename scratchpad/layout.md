@@ -1,14 +1,14 @@
 # GitHub Actions Workflow Layout Specification
 
 > Auto-generated specification documenting patterns used in compiled `.lock.yml` files.
-> Last updated: 2026-04-20
+> Last updated: 2026-04-27
 
 ## Overview
 
 This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). It serves as a reference for developers working with the gh-aw codebase.
 
 **Statistics:**
-- **Lock files analyzed**: 197
+- **Lock files analyzed**: 204
 - **Unique GitHub Actions**: 25
 - **Artifact patterns**: 27
 - **Job name patterns**: 30
@@ -23,20 +23,20 @@ Common GitHub Actions used across compiled workflows:
 | `actions/checkout` | `de0fac2e...` | Checks out repository code | Used in almost all workflows for accessing repo content |
 | `actions/upload-artifact` | `043fb46d...` | Uploads build artifacts | Used for agent outputs, patches, prompts, logs, and safe-output data |
 | `actions/download-artifact` | `3e5f45b2...` | Downloads artifacts from previous jobs | Used in safe-output jobs and conclusion jobs |
-| `actions/setup-node` | `53b83947...` | Sets up Node.js environment | Used in workflows requiring npm/node |
+| `actions/setup-node` | `48b55a01...` | Sets up Node.js environment | Used in workflows requiring npm/node |
 | `actions/setup-python` | `a309ff8b...` | Sets up Python environment | Used for Python-based workflows and scripts |
 | `actions/setup-go` | `4a360112...` | Sets up Go environment | Used for Go-based builds and tests |
 | `actions/setup-java` | `be666c2f...` | Sets up Java environment | Used for Java-based workflows |
 | `actions/setup-dotnet` | `c2fa09f4...` | Sets up .NET environment | Used for .NET-based workflows |
 | `actions/github-script` | `373c709c...` | Runs GitHub API scripts | Used for GitHub API interactions and workflow logic |
-| `actions/cache` | `66822842...` | Caches dependencies | Used for caching npm, pip, go modules |
-| `actions/cache/restore` | `66822842...` | Restores cached dependencies | Explicit cache restore action |
-| `actions/cache/save` | `66822842...` | Saves dependencies to cache | Explicit cache save action |
+| `actions/cache` | `27d5ce7f...` | Caches dependencies | Used for caching npm, pip, go modules |
+| `actions/cache/restore` | `27d5ce7f...` | Restores cached dependencies | Explicit cache restore action |
+| `actions/cache/save` | `27d5ce7f...` | Saves dependencies to cache | Explicit cache save action |
 | `docker/setup-buildx-action` | `4d04d5d9...` | Sets up Docker Buildx | Used for multi-platform Docker builds |
 | `docker/build-push-action` | `bcafcacb...` | Builds and pushes Docker images | Used in release workflows |
 | `docker/login-action` | `4907a6dd...` | Logs in to Docker registry | Used before pushing Docker images |
 | `docker/metadata-action` | `030e8812...` | Extracts Docker metadata | Used for tagging Docker images |
-| `astral-sh/setup-uv` | `cec20831...`, `eac588ad...` | Sets up uv package manager | Used for Python package management |
+| `astral-sh/setup-uv` | `08807647...`, `eac588ad...` | Sets up uv package manager | Used for Python package management |
 | `anchore/sbom-action` | `e22c3899...` | Generates SBOM | Used for security and compliance |
 | `super-linter/super-linter` | `9e863354...` | Runs super-linter | Used for code quality checks |
 | `github/codeql-action/upload-sarif` | `0e9f5595...` | Uploads SARIF to GitHub Code Scanning | Used for security scanning results from threat detection |
@@ -73,6 +73,8 @@ Artifacts uploaded/downloaded between workflow jobs:
 | `code-scanning-sarif` | Detection/SARIF job | upload_code_scanning_sarif job | SARIF formatted code scanning results |
 | `runner-guard-results` | Runner guard job | Debug/analysis step | Runner security guard check results |
 | `sbom-artifacts` | SBOM job | Download step | Software Bill of Materials artifacts |
+| `skill-optimizer-results` | Skill optimizer job | Download step | Results from the skill optimizer run |
+| `spellcheck-results` | Spellcheck job | Download step | Spellcheck findings and summary data |
 | `super-linter-log` | Super-linter job | Debug step | Linter execution logs |
 | `${{ needs.activation.outputs.artifact_prefix }}agent` | Agent job | Downstream jobs | Dynamic-prefixed agent artifact (used in `workflow_call` context) |
 | `${{ needs.activation.outputs.artifact_prefix }}activation` | Activation job | Agent job | Dynamic-prefixed activation artifact (used in `workflow_call` context) |
@@ -104,6 +106,8 @@ Standard job names across compiled workflows:
 | `search_issues` | Issue search | Various | Searches GitHub issues based on criteria |
 | `post-issue` | Issue posting | Various | Posts new GitHub issues |
 | `release` | Release job | Build/test jobs | Creates GitHub releases |
+| `skill_optimizer` | Skill optimization | Various | Runs the skill optimizer to tune agent behavior |
+| `spellcheck` | Spell checking | Various | Runs cspell spell checking on repository content |
 | `super_linter` | Code linting | Various | Runs super-linter on codebase |
 | `ast_grep` | AST analysis | Various | Runs AST-based code analysis |
 | `apm` | APM bundle collection | Various | Collects Application Performance Monitoring data bundle |
@@ -578,8 +582,8 @@ This specification is automatically maintained by the **Layout Specification Mai
 4. Updates this document with findings
 5. Creates a PR with the changes
 
-**Last extraction run**: 2026-04-20
-**Lock files analyzed**: 197
+**Last extraction run**: 2026-04-27
+**Lock files analyzed**: 204
 **Patterns documented**: 300+
 
 ---

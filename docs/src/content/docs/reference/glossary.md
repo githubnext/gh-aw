@@ -351,6 +351,16 @@ A frontmatter field that declares custom jobs that both the `pre_activation` and
 
 A workflow configuration field (`stop-after:`) that automatically prevents new runs after a specified time limit. Accepts absolute dates (`YYYY-MM-DD`, ISO 8601) or relative time deltas (`+48h`, `+7d`). Minimum granularity is hours. Useful for trial periods, experimental features, and cost-controlled schedules. Recompile with `gh aw compile --refresh-stop-time` to reset the deadline. See [Ephemerals](/gh-aw/guides/ephemerals/).
 
+### `deployment_status` Trigger
+
+A GitHub Actions trigger that fires when an external deployment changes state. Supported states are `error`, `failure`, `pending`, `queued`, `in_progress`, `success`, `inactive`, and `waiting`. The gh-aw compiler accepts an optional `state:` filter in the trigger definition and synthesises a job-level `if:` condition so that the agent only runs for the specified states. A natural-language shorthand is also supported — `on: "deployment failed"` expands to `deployment_status` with `state: [failure]`. See [Frontmatter Reference](/gh-aw/reference/frontmatter/).
+
+```aw wrap
+on:
+  deployment_status:
+    state: [error, failure]
+```
+
 ### Triggers
 
 Events that cause a workflow to run, defined in the `on:` section of frontmatter. Includes issue events, pull requests, schedules, manual runs, and slash commands.

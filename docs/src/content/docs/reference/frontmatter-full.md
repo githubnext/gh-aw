@@ -482,7 +482,17 @@ on:
 
   # Option 2: object
   deployment_status:
-    {}
+    # Filter to specific deployment states (compiled into if condition). Use a string
+    # for one state or an array for multiple states.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: string
+    state: "error"
+
+    # Option 2: array
+    state: []
+      # Array items: string
 
   # Fork event trigger that runs when someone forks the repository
   # (optional)

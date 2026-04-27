@@ -861,8 +861,18 @@ func mergeAPITargetDomains(domainsStr string, apiTarget string) string {
 }
 
 // computeAllowedDomainsForSanitization computes the allowed domains for sanitization
-// based on the engine and network configuration, matching what's provided to the firewall
+// based on the engine and network configuration, matching what's provided to the firewall.
+// The result is cached in data.CachedAllowedDomainsStr after the first call so that
+// repeated calls (e.g. from the activation job, safe-outputs steps, and agent run step)
+// do not recompute the same domain list.
 func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) string {
+	// Return cached result if available (engine/network/tools/runtimes do not change during compilation).
+	// CachedAllowedDomainsComputed is used as the sentinel so that a legitimately empty domain
+	// list is not confused with "not yet computed".
+	if data.CachedAllowedDomainsComputed {
+		return data.CachedAllowedDomainsStr
+	}
+
 	// Determine which engine is being used
 	var engineID string
 	if data.EngineConfig != nil {
@@ -913,6 +923,10 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 		base = mergeAPITargetDomains(base, geminiAPITarget)
 	}
 
+	// Cache the result for subsequent calls during the same compilation.
+	// Set the boolean sentinel first so that an empty result is also treated as cached.
+	data.CachedAllowedDomainsComputed = true
+	data.CachedAllowedDomainsStr = base
 	return base
 }
 

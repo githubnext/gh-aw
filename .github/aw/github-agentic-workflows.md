@@ -280,7 +280,7 @@ The YAML frontmatter supports these fields:
     - `action-mode: "script"` - Control how the compiler generates action references: `"dev"` (local paths, default), `"release"` (SHA-pinned remote), `"action"` (gh-aw-actions repo), `"script"` (direct shell calls). Can also be overridden via `--action-mode` CLI flag.
     - `difc-proxy: true` - Enable DIFC (Data Integrity and Flow Control) proxy injection. When set alongside `tools.github.min-integrity`, injects proxy steps around the agent for full network-boundary integrity enforcement.
     - `cli-proxy: true` - Enable AWF CLI proxy sidecar for secure gh CLI access and reaction-based integrity decisions. Required for `integrity-reactions`.
-    - `integrity-reactions: true` - Enable reaction-based integrity promotion/demotion. Maintainers can use 👍/❤️ reactions to promote content to `approved` and 👎/😕 to demote it to `none`. Compiler automatically enables `cli-proxy`. Requires `tools.github.min-integrity` to be set and MCPG >= v0.2.18. Defaults: endorsement reactions THUMBS_UP/HEART, disapproval reactions THUMBS_DOWN/CONFUSED, endorser-min-integrity: approved, disapproval-integrity: none. Available from v0.68.2.
+    - `integrity-reactions: true` - Enable reaction-based integrity promotion/demotion. Maintainers can use 👍/❤️ reactions to promote content to `approved` and 👎/😕 to demote it to `none`. Compiler automatically enables `cli-proxy`. Requires `tools.github.min-integrity` to be set and MCPG >= v0.2.18. Defaults: endorsement reactions THUMBS_UP/HEART, disapproval reactions THUMBS_DOWN/CONFUSED, endorser-min-integrity: approved, disapproval-integrity: none.
     - `mcp-cli: true` - Enable MCP CLI mounting feature. When enabled, MCP servers can be mounted as local CLI tools on `PATH`. Requires `tools.mount-as-clis: true` to mount standard MCP servers as CLIs; `safeoutputs` and `mcpscripts` are always mounted as CLIs when this feature is active.
 
 - **`imports:`** - Array of workflow specifications to import (array)
@@ -584,7 +584,7 @@ The YAML frontmatter supports these fields:
       tools:
         bash: ["*"]
       ```
-  - `playwright:` - Browser automation tools
+  - `playwright:` - Browser automation tools for visual regression, accessibility testing, and end-to-end testing. Pin a specific version with `version:` and restrict network access to `local` + `playwright` for security. See [`visual-regression-checker.md`](../../.github/workflows/visual-regression-checker.md) for a minimal pull-request example.
   - Custom tool names for MCP servers
   - `timeout:` - Per-operation timeout in seconds for all tool and MCP server calls (integer or GitHub Actions expression). Defaults vary by engine (Claude: 60 s, Codex: 120 s).
   - `startup-timeout:` - Timeout in seconds for MCP server initialization (integer or GitHub Actions expression, default: 120). Useful in `workflow_call` reusable workflows: `startup-timeout: ${{ inputs.startup-timeout }}`
@@ -609,6 +609,20 @@ The YAML frontmatter supports these fields:
 
     **Auto-Expiration**: The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Generates `agentics-maintenance.yml` workflow that runs at minimum required frequency based on shortest expiration time: 1 day or less → every 2 hours, 2 days → every 6 hours, 3-4 days → every 12 hours, 5+ days → daily.
     When using `safe-outputs.create-issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
+
+    **Deduplication for Scheduled Workflows**: When a `schedule:` trigger is combined with `create-issue`, use `skip-if-match:` in the `on:` block to prevent opening a duplicate issue on every run. Pair with `expires:` so stale issues are cleaned up automatically:
+
+    ```yaml
+    on:
+      schedule: daily on weekdays
+      skip-if-match: 'is:issue is:open in:title "[my-workflow] "'
+    safe-outputs:
+      create-issue:
+        title-prefix: "[my-workflow] "
+        expires: 7   # auto-close after 7 days
+    ```
+
+    Without `skip-if-match`, the workflow creates a new issue on every scheduled run even when an identical open issue already exists.
 
     **Temporary IDs and Sub-Issues:**
     When creating multiple issues, use `temporary_id` (format: `aw_` + 3-8 alphanumeric chars) to reference parent issues before creation. References like `#aw_abc123` in issue bodies are automatically replaced with actual issue numbers. Use the `parent` field to create sub-issue relationships:
@@ -1503,6 +1517,9 @@ The YAML frontmatter supports these fields:
 
   - `max-patch-size:` - Maximum allowed git patch size in kilobytes (integer, default: 1024 KB = 1 MB)
     - Patches exceeding this size are rejected to prevent accidental large changes
+  - `max-patch-files:` - Maximum allowed number of unique files in a create-pull-request patch (integer, default: 100)
+    - Counts unique file paths deduplicated across multi-commit patches; reflects how many distinct files the agent is pushing per iteration
+    - Increase this limit for long-running autoloop branches that touch many files
   - `group-reports:` - Group workflow failure reports as sub-issues (boolean, default: `false`)
     - When `true`, creates a parent `[aw] Failed runs` issue that tracks all workflow failures as sub-issues; useful for larger repositories
   - `report-failure-as-issue:` - Control whether workflow failures are reported as GitHub issues (boolean, default: `true`)
@@ -2469,6 +2486,56 @@ Create an issue with your findings, including:
 
 This example demonstrates using the agentic-workflows tool to analyze workflow execution history and provide actionable improvement recommendations.
 
+### Deployment Incident Monitor (DevOps)
+
+Canonical pattern for detecting deployment failures from external services (Heroku, Vercel, Railway, Fly.io) and creating deduplicated incident issues with root cause analysis. See `.github/workflows/deployment-incident-monitor.md` for the full working example.
+
+```markdown
+---
+description: Monitors deployment failures and automatically creates deduplicated incident issues with root cause analysis.
+on:
+  deployment_status:
+    state: [error, failure]
+  skip-if-match: "is:issue is:open label:incident label:deployment-failure"
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+engine: copilot
+tools:
+  github:
+    toolsets: [repos, actions]
+safe-outputs:
+  create-issue:
+    expires: 7d
+    title-prefix: "[Incident] "
+    labels: [incident, deployment-failure]
+    close-older-issues: true
+  noop:
+timeout-minutes: 10
+---
+
+# Deployment Incident Monitor
+
+A deployment to **${{ github.event.deployment.environment }}** has failed
+with state `${{ github.event.deployment_status.state }}`.
+
+Perform root cause analysis using available GitHub MCP tools and create
+a focused incident issue with evidence and remediation steps.
+Use `noop` if a duplicate issue already exists.
+```
+
+**Key features of this pattern:**
+
+- **`deployment_status: state: [error, failure]`** — fires when external deployment services post an `error` or `failure` status update; the `state:` field is compiled into a job `if:` condition automatically. You can also use the natural language shorthand `on: "deployment failed or error"` for the same result.
+- **`skip-if-match:`** — deduplication via GitHub search; skips the run when an open incident issue already exists, preventing issue spam
+- **`expires: 7d`** — auto-closes incident issues after 7 days so stale incidents don't accumulate
+- **`close-older-issues: true`** — automatically closes the previous incident issue when a new one is created for the same workflow, keeping the tracker current
+- **`toolsets: [repos, actions]`** — gives the agent access to commit history and workflow run logs for root cause analysis
+- **`deployments: read`** — required permission for the `deployment_status` event payload
+
+**`deployment_status` `state:` values**: `error`, `failure`, `pending`, `success`, `inactive`, `in_progress`, `queued`, `waiting`
+
 ### High-Volume Processing Patterns
 
 For workflows processing large numbers of items, use these design patterns:
@@ -2695,6 +2762,16 @@ gh aw compile <workflow-id>
 gh aw compile <workflow-id> --no-emit
 ```
 
+### Run a Workflow on Demand
+
+Always prefer `gh aw run` over `gh workflow run <file>.lock.yml` — it handles workflow resolution by short name, validates inputs, and enables correct run-tracking with `gh aw audit` and `gh aw logs`.
+
+```bash
+gh aw run                            # Interactive mode
+gh aw run <workflow-id>              # Run by short name
+gh aw run <workflow-id> --ref main   # Run on a specific branch
+```
+
 ### View Logs
 
 ```bash
@@ -2705,5 +2782,7 @@ gh aw logs <workflow-id>
 ```
 
 ### Documentation
+
+For the complete CLI command reference (including MCP tool equivalents for restricted environments), see: https://github.com/github/gh-aw/blob/main/.github/aw/cli-commands.md
 
 For complete CLI documentation, see: <https://github.github.com/gh-aw/setup/cli/>

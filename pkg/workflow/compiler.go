@@ -13,7 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
-	"go.yaml.in/yaml/v3"
+	"github.com/goccy/go-yaml"
 )
 
 var log = logger.New("workflow:compiler")
@@ -142,15 +142,18 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	// parsed representation of the compiled YAML.  Parse it once here and share the
 	// result between the two validators to avoid redundant yaml.Unmarshal calls.
 	//
-	// Fast-path: use a lightweight text scan to check whether any unsafe context
-	// expression actually appears inside a run: block.  Most compiled workflows place
-	// unsafe expressions only in env: values (the compiler's normal output pattern),
-	// so the expensive full YAML parse can be skipped in the common case.
-	needsTemplateCheck := hasUnsafeExpressionInRunContent(yamlContent)
+	// Performance note: when schema validation is enabled (needsSchemaCheck=true) the
+	// YAML is parsed regardless.  hasUnsafeExpressionInRunContent performs an expensive
+	// text scan (regex + strings.Split + full line walk) that would be redundant in that
+	// path; we skip it and reuse the pre-parsed result for template injection instead.
+	// The text scan is only used when schema validation is disabled (skipValidation=true),
+	// where it avoids an otherwise unnecessary yaml.Unmarshal call.
 	needsSchemaCheck := !c.skipValidation
 
 	var parsedWorkflow map[string]any
-	if needsTemplateCheck || needsSchemaCheck {
+	if needsSchemaCheck {
+		// Schema validation requires parsed YAML; parse once and share with the
+		// template injection validator below.
 		log.Print("Parsing compiled YAML for validation")
 		if parseErr := yaml.Unmarshal([]byte(yamlContent), &parsedWorkflow); parseErr != nil {
 			// If parsing fails here the subsequent validators would also fail; keep going
@@ -159,25 +162,15 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		}
 	}
 
-	// Validate for template injection vulnerabilities - detect unsafe expression usage in run: commands
-	if needsTemplateCheck {
-		log.Print("Validating for template injection vulnerabilities")
-		var templateErr error
-		if parsedWorkflow != nil {
-			templateErr = validateNoTemplateInjectionFromParsed(parsedWorkflow)
-		} else {
-			templateErr = validateNoTemplateInjection(yamlContent)
-		}
-		if templateErr != nil {
-			// Store error first so we can write invalid YAML before returning
-			formattedErr := formatCompilerError(markdownPath, "error", templateErr.Error(), templateErr)
-			// Write the invalid YAML to a .invalid.yml file for inspection
-			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
-			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
-			}
-			return "", nil, nil, formattedErr
-		}
+	// Validate for template injection vulnerabilities (unsafe expression usage in run: commands).
+	//
+	// parsedWorkflow != nil means the YAML was already parsed for schema validation;
+	// validateTemplateInjection reuses the pre-parsed tree (inspects only run: block values)
+	// rather than re-scanning the full YAML string.  When parsedWorkflow is nil (schema
+	// validation disabled), the lightweight hasUnsafeExpressionInRunContent text scan is
+	// used first to avoid an unnecessary yaml.Unmarshal.
+	if err := c.validateTemplateInjection(yamlContent, lockFile, markdownPath, parsedWorkflow); err != nil {
+		return "", nil, nil, err
 	}
 
 	// Validate against GitHub Actions schema (unless skipped)
@@ -298,6 +291,58 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
 			}
 		}
+	}
+	return nil
+}
+
+// validateTemplateInjection checks compiled YAML for template injection vulnerabilities
+// (unsafe GitHub Actions expressions used directly in run: blocks).
+//
+// When parsedWorkflow is non-nil the YAML was already parsed for schema validation;
+// this function reuses it directly by walking the run: block values in the pre-parsed
+// tree, which is faster than re-scanning the full YAML string with a regex.
+//
+// When parsedWorkflow is nil (schema validation disabled via skipValidation), the
+// function first uses the lightweight hasUnsafeExpressionInRunContent text scan
+// to avoid an unnecessary yaml.Unmarshal call.  When the scan detects unsafe
+// expressions, the YAML is parsed with github.com/goccy/go-yaml for consistency
+// with validateNoTemplateInjection.
+func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath string, parsedWorkflow map[string]any) error {
+	var templateErr error
+
+	if parsedWorkflow != nil {
+		// Path A: YAML was already parsed for schema validation; reuse it.
+		// Walking the pre-parsed tree (run: block values only) is faster than
+		// scanning the full YAML string.
+		log.Print("Validating for template injection vulnerabilities")
+		templateErr = validateNoTemplateInjectionFromParsed(parsedWorkflow)
+	} else {
+		// Path B: schema validation is disabled (parsedWorkflow is nil).
+		// Use the text scan to cheaply determine whether unsafe expressions appear
+		// inside a run: block before paying the cost of a full yaml.Unmarshal.
+		if hasUnsafeExpressionInRunContent(yamlContent) {
+			log.Print("Validating for template injection vulnerabilities")
+			var reparsed map[string]any
+			if err := yaml.Unmarshal([]byte(yamlContent), &reparsed); err != nil {
+				// Malformed YAML: skip validation (compilation would have surfaced this elsewhere).
+				templateInjectionValidationLog.Printf("Failed to parse YAML for template injection check: %v", err)
+				reparsed = nil
+			}
+			if reparsed != nil {
+				templateErr = validateNoTemplateInjectionFromParsed(reparsed)
+			}
+		}
+	}
+
+	if templateErr != nil {
+		// Store error first so we can write invalid YAML before returning
+		formattedErr := formatCompilerError(markdownPath, "error", templateErr.Error(), templateErr)
+		// Write the invalid YAML to a .invalid.yml file for inspection
+		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
+		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
+		}
+		return formattedErr
 	}
 	return nil
 }

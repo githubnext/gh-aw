@@ -23,14 +23,27 @@ func getSerenaToSharedImportCodemod() Codemod {
 		IntroducedIn: "1.0.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			languages, ok := findSerenaLanguagesForMigration(frontmatter)
+			isListForm := false
 			if !ok || len(languages) == 0 {
-				return content, false, nil
+				// Check if tools is a list containing "serena" (no languages specified)
+				if !isSerenaInToolsList(frontmatter) {
+					return content, false, nil
+				}
+				// List form detected — migrate with empty placeholder (languages stays nil/empty)
+				isListForm = true
 			}
 
 			alreadyImported := hasSerenaSharedImport(frontmatter)
 
 			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				result, modified := removeFieldFromBlock(lines, "serena", "tools")
+				var result []string
+				var modified bool
+
+				if isListForm {
+					result, modified = removeSerenaFromToolsList(lines)
+				} else {
+					result, modified = removeFieldFromBlock(lines, "serena", "tools")
+				}
 				if !modified {
 					return lines, false
 				}
@@ -47,6 +60,8 @@ func getSerenaToSharedImportCodemod() Codemod {
 			if applied {
 				if alreadyImported {
 					serenaImportCodemodLog.Print("Removed tools.serena (shared/mcp/serena.md import already present)")
+				} else if isListForm {
+					serenaImportCodemodLog.Print("Migrated tools list entry 'serena' to shared/mcp/serena.md import (no languages specified — placeholder added)")
 				} else {
 					serenaImportCodemodLog.Printf("Migrated tools.serena to shared/mcp/serena.md import with %d language(s)", len(languages))
 				}
@@ -100,6 +115,131 @@ func findSerenaLanguagesForMigration(frontmatter map[string]any) ([]string, bool
 	}
 
 	return languages, true
+}
+
+// isSerenaInToolsList reports whether the "tools" frontmatter key is a YAML list that
+// contains the plain string "serena". This covers the shorthand syntax:
+//
+//	tools:
+//	  - serena
+//
+// which does not carry a languages specification.
+func isSerenaInToolsList(frontmatter map[string]any) bool {
+	toolsAny, hasTools := frontmatter["tools"]
+	if !hasTools {
+		return false
+	}
+	switch tools := toolsAny.(type) {
+	case []string:
+		for _, item := range tools {
+			if strings.EqualFold(strings.TrimSpace(item), "serena") {
+				return true
+			}
+		}
+	case []any:
+		for _, item := range tools {
+			s, ok := item.(string)
+			if ok && strings.EqualFold(strings.TrimSpace(s), "serena") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// removeSerenaFromToolsList removes the string item "serena" from the "tools:" YAML list.
+// It handles both block form (tools:\n  - serena) and inline form (tools: [serena]).
+// When "serena" is the only item in an inline list, the entire "tools:" line is removed
+// so that removeBlockIfEmpty can clean up the empty block.
+// Returns the modified lines and whether any changes were made.
+func removeSerenaFromToolsList(lines []string) ([]string, bool) {
+	result := make([]string, 0, len(lines))
+	modified := false
+	inToolsBlock := false
+	toolsIndent := ""
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Detect the "tools:" top-level key.
+		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "tools:") {
+			valuePart := strings.TrimSpace(trimmed[len("tools:"):])
+
+			// Inline list form: tools: [serena] or tools: [serena, other]
+			if strings.HasPrefix(valuePart, "[") {
+				newValue, changed := removeSerenaFromInlineList(valuePart)
+				if changed {
+					modified = true
+					if newValue == "[]" {
+						// Empty inline list — skip the line; removeBlockIfEmpty will
+						// drop the tools: block because no child lines follow.
+						continue
+					}
+					result = append(result, "tools: "+newValue)
+				} else {
+					result = append(result, line)
+				}
+				continue
+			}
+
+			// Block form: tools:\n  - serena
+			inToolsBlock = true
+			toolsIndent = getIndentation(line)
+			result = append(result, line)
+			continue
+		}
+
+		// Track block exit.
+		if inToolsBlock && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") {
+			if hasExitedBlock(line, toolsIndent) {
+				inToolsBlock = false
+			}
+		}
+
+		// Remove "- serena" list items (with or without quotes).
+		if inToolsBlock {
+			bare := strings.TrimPrefix(trimmed, "- ")
+			bare = strings.Trim(bare, "\"'")
+			if strings.EqualFold(bare, "serena") {
+				modified = true
+				continue
+			}
+		}
+
+		result = append(result, line)
+	}
+
+	return result, modified
+}
+
+// removeSerenaFromInlineList removes "serena" from a YAML inline list string such as
+// "[serena]" or "[serena, other]". Returns the new value and whether a change was made.
+func removeSerenaFromInlineList(value string) (string, bool) {
+	if !strings.HasPrefix(value, "[") || !strings.HasSuffix(value, "]") {
+		return value, false
+	}
+	inner := value[1 : len(value)-1]
+	parts := strings.Split(inner, ",")
+	kept := make([]string, 0, len(parts))
+	modified := false
+	for _, part := range parts {
+		trimmedPart := strings.TrimSpace(part)
+		unquoted := strings.Trim(trimmedPart, "\"'")
+		if strings.EqualFold(unquoted, "serena") {
+			modified = true
+			continue
+		}
+		if trimmedPart != "" {
+			kept = append(kept, trimmedPart)
+		}
+	}
+	if !modified {
+		return value, false
+	}
+	if len(kept) == 0 {
+		return "[]", true
+	}
+	return "[" + strings.Join(kept, ", ") + "]", true
 }
 
 func extractSerenaLanguages(serenaAny any) ([]string, bool) {
@@ -203,10 +343,19 @@ func isSerenaImportPath(path string) bool {
 }
 
 func addSerenaImport(lines []string, languages []string) []string {
+	var langLine string
+	if len(languages) == 0 {
+		// No languages were specified in the original workflow. Emit a placeholder so
+		// the user knows what to fill in. The empty array is valid per the import-schema
+		// (the field is present); Serena simply won't analyse any language until updated.
+		langLine = `      languages: []  # TODO: specify languages, e.g. ["TypeScript", "JavaScript"]`
+	} else {
+		langLine = "      languages: " + formatStringArrayInline(languages)
+	}
 	entry := []string{
 		"  - uses: shared/mcp/serena.md",
 		"    with:",
-		"      languages: " + formatStringArrayInline(languages),
+		langLine,
 	}
 
 	importsIdx := -1

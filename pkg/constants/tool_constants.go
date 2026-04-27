@@ -10,6 +10,7 @@ var AllowedExpressions = []string{
 	"github.event.comment.id",
 	"github.event.deployment.id",
 	"github.event.deployment_status.id",
+	"github.event.deployment_status.state", // enum-like: "error", "failure", "success", "pending", "inactive", "in_progress", "queued", "waiting"
 	"github.event.head_commit.id",
 	"github.event.installation.id",
 	"github.event.issue.number",

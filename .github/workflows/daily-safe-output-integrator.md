@@ -668,6 +668,8 @@ git diff --name-only
 
 ## Phase 7: Create PR or Report NOOP
 
+- **Report Formatting**: Use h3 (###) or lower for all headers in your PR body and report content to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+
 ### If files were created:
 
 Create a pull request with all the new test workflows and Go tests.

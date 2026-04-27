@@ -341,7 +341,7 @@ An AI agent operating in a repository can be tricked (through prompt injection o
 
 - **Dependency manifests** (`package.json`, `go.mod`, `requirements.txt`, `Gemfile`, `pom.xml`, etc.) — changing what third-party code is installed.
 - **CI/CD configuration** (`.github/workflows/*.yml`, `.github/dependabot.yml`, etc.) — altering how and when pipelines run, potentially exfiltrating secrets or bypassing security checks.
-- **Agent instruction files** (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.agents/`, etc.) — redirecting the AI agent's behaviour on subsequent runs.
+- **Agent instruction files** (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.agents/`, etc.) — redirecting the AI agent's behavior on subsequent runs.
 
 ### Default Remediation
 
@@ -358,7 +358,7 @@ This error is also surfaced as a **🛡️ Protected Files** section in the agen
 
 Configure how each safe output handles protected file changes using the `protected-files` field:
 
-| Value | Behaviour |
+| Value | Behavior |
 |-------|-----------|
 | `blocked` (default) | Hard-block: the safe output fails with an error message |
 | `allowed` | No restriction — all protected file changes are permitted |

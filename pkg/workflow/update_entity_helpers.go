@@ -125,7 +125,6 @@ type UpdateEntityJobBuilder struct {
 // parseUpdateEntityConfig is a generic function to parse update entity configurations
 func (c *Compiler) parseUpdateEntityConfig(outputMap map[string]any, params UpdateEntityJobParams, logger *logger.Logger, parseSpecificFields func(map[string]any, *UpdateEntityConfig)) *UpdateEntityConfig {
 	if configData, exists := outputMap[params.ConfigKey]; exists {
-		updateEntityHelpersLog.Printf("Parsing %s configuration", params.ConfigKey)
 		logger.Printf("Parsing %s configuration", params.ConfigKey)
 		config := &UpdateEntityConfig{}
 
@@ -133,8 +132,7 @@ func (c *Compiler) parseUpdateEntityConfig(outputMap map[string]any, params Upda
 			// Parse target config (target, target-repo) with validation
 			targetConfig, isInvalid := ParseTargetConfig(configMap)
 			if isInvalid {
-				updateEntityHelpersLog.Printf("Invalid target-repo configuration for %s", params.ConfigKey)
-				logger.Print("Invalid target-repo configuration")
+				logger.Printf("Invalid target-repo configuration for %s", params.ConfigKey)
 				return nil
 			}
 			config.SafeOutputTargetConfig = targetConfig

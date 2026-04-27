@@ -26,7 +26,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { renderTemplateFromFile } = require("./messages_core.cjs");
+const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
 
@@ -323,7 +323,7 @@ Pull request #${pullRequest.number} was merged after this workflow was triggered
     core.setOutput("checkout_pr_success", "false");
 
     // Load and render step summary template
-    const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/pr_checkout_failure.md`;
+    const templatePath = getPromptPath("pr_checkout_failure.md");
     const summaryContent = renderTemplateFromFile(templatePath, {
       error_message: errorMsg,
     });

@@ -35,6 +35,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		Name:                  toolsResult.workflowName,
 		FrontmatterName:       toolsResult.frontmatterName,
 		FrontmatterYAML:       strings.Join(result.FrontmatterLines, "\n"),
+		RawMarkdown:           result.Markdown,
 		Description:           c.extractDescription(result.Frontmatter),
 		Source:                c.extractSource(result.Frontmatter),
 		Redirect:              c.extractRedirect(result.Frontmatter),

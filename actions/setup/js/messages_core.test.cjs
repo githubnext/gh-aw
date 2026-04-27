@@ -26,6 +26,8 @@ describe("messages_core.cjs", () => {
     vi.clearAllMocks();
     vi.resetModules();
     delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+    delete process.env.GH_AW_PROMPTS_DIR;
+    delete process.env.RUNNER_TEMP;
   });
 
   describe("renderTemplate", () => {
@@ -178,6 +180,42 @@ describe("messages_core.cjs", () => {
       expect(result.workflow_name).toBe("my-workflow");
       expect(result.workflowName).toBe("my-workflow");
       expect(result.run_url).toBe("https://example.com");
+    });
+  });
+
+  describe("getPromptPath", () => {
+    it("should use RUNNER_TEMP when no override is set", async () => {
+      process.env.RUNNER_TEMP = "/tmp/runner";
+      const { getPromptPath } = await import("./messages_core.cjs?" + Date.now());
+      const result = getPromptPath("agent_timeout.md");
+      expect(result).toBe("/tmp/runner/gh-aw/prompts/agent_timeout.md");
+    });
+
+    it("should prefer GH_AW_PROMPTS_DIR over RUNNER_TEMP", async () => {
+      process.env.RUNNER_TEMP = "/tmp/runner";
+      process.env.GH_AW_PROMPTS_DIR = "/custom/prompts";
+      const { getPromptPath } = await import("./messages_core.cjs?" + Date.now());
+      const result = getPromptPath("agent_timeout.md");
+      expect(result).toBe("/custom/prompts/agent_timeout.md");
+    });
+
+    it("should use GH_AW_PROMPTS_DIR when RUNNER_TEMP is not set", async () => {
+      process.env.GH_AW_PROMPTS_DIR = "/custom/prompts";
+      const { getPromptPath } = await import("./messages_core.cjs?" + Date.now());
+      const result = getPromptPath("cache_memory_miss.md");
+      expect(result).toBe("/custom/prompts/cache_memory_miss.md");
+    });
+
+    it("should include the template name in the path", async () => {
+      process.env.RUNNER_TEMP = "/tmp/runner";
+      const { getPromptPath } = await import("./messages_core.cjs?" + Date.now());
+      expect(getPromptPath("foo.md")).toBe("/tmp/runner/gh-aw/prompts/foo.md");
+      expect(getPromptPath("bar.md")).toBe("/tmp/runner/gh-aw/prompts/bar.md");
+    });
+
+    it("should throw when neither GH_AW_PROMPTS_DIR nor RUNNER_TEMP is set", async () => {
+      const { getPromptPath } = await import("./messages_core.cjs?" + Date.now());
+      expect(() => getPromptPath("any.md")).toThrow("Cannot resolve prompt path: neither GH_AW_PROMPTS_DIR nor RUNNER_TEMP is set");
     });
   });
 

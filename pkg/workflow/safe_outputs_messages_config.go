@@ -13,15 +13,6 @@ var safeOutputMessagesLog = logger.New("workflow:safe_outputs_config_messages")
 // Safe Output Messages Configuration
 // ========================================
 
-// setStringFromMap reads m[key] and assigns its string value to *dest if found.
-func setStringFromMap(m map[string]any, key string, dest *string) {
-	if val, exists := m[key]; exists {
-		if str, ok := val.(string); ok {
-			*dest = str
-		}
-	}
-}
-
 // parseMessagesConfig parses the messages configuration from safe-outputs frontmatter
 func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 	safeOutputMessagesLog.Printf("Parsing messages configuration with %d fields", len(messagesMap))
@@ -34,21 +25,21 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 		}
 	}
 
-	setStringFromMap(messagesMap, "footer", &config.Footer)
-	setStringFromMap(messagesMap, "footer-install", &config.FooterInstall)
-	setStringFromMap(messagesMap, "footer-workflow-recompile", &config.FooterWorkflowRecompile)
-	setStringFromMap(messagesMap, "footer-workflow-recompile-comment", &config.FooterWorkflowRecompileComment)
-	setStringFromMap(messagesMap, "staged-title", &config.StagedTitle)
-	setStringFromMap(messagesMap, "staged-description", &config.StagedDescription)
-	setStringFromMap(messagesMap, "run-started", &config.RunStarted)
-	setStringFromMap(messagesMap, "run-success", &config.RunSuccess)
-	setStringFromMap(messagesMap, "run-failure", &config.RunFailure)
-	setStringFromMap(messagesMap, "detection-failure", &config.DetectionFailure)
-	setStringFromMap(messagesMap, "pull-request-created", &config.PullRequestCreated)
-	setStringFromMap(messagesMap, "issue-created", &config.IssueCreated)
-	setStringFromMap(messagesMap, "commit-pushed", &config.CommitPushed)
-	setStringFromMap(messagesMap, "agent-failure-issue", &config.AgentFailureIssue)
-	setStringFromMap(messagesMap, "agent-failure-comment", &config.AgentFailureComment)
+	config.Footer = extractStringFromMap(messagesMap, "footer", nil)
+	config.FooterInstall = extractStringFromMap(messagesMap, "footer-install", nil)
+	config.FooterWorkflowRecompile = extractStringFromMap(messagesMap, "footer-workflow-recompile", nil)
+	config.FooterWorkflowRecompileComment = extractStringFromMap(messagesMap, "footer-workflow-recompile-comment", nil)
+	config.StagedTitle = extractStringFromMap(messagesMap, "staged-title", nil)
+	config.StagedDescription = extractStringFromMap(messagesMap, "staged-description", nil)
+	config.RunStarted = extractStringFromMap(messagesMap, "run-started", nil)
+	config.RunSuccess = extractStringFromMap(messagesMap, "run-success", nil)
+	config.RunFailure = extractStringFromMap(messagesMap, "run-failure", nil)
+	config.DetectionFailure = extractStringFromMap(messagesMap, "detection-failure", nil)
+	config.PullRequestCreated = extractStringFromMap(messagesMap, "pull-request-created", nil)
+	config.IssueCreated = extractStringFromMap(messagesMap, "issue-created", nil)
+	config.CommitPushed = extractStringFromMap(messagesMap, "commit-pushed", nil)
+	config.AgentFailureIssue = extractStringFromMap(messagesMap, "agent-failure-issue", nil)
+	config.AgentFailureComment = extractStringFromMap(messagesMap, "agent-failure-comment", nil)
 
 	return config
 }

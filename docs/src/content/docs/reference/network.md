@@ -110,7 +110,7 @@ Common identifiers: `python` (PyPI/pip), `node` (npm/yarn/pnpm), `containers` (D
 
 ### Ecosystem Identifier Validation
 
-Single-word entries in `network.allowed` that match the ecosystem identifier pattern (`[a-z][a-z0-9-]*`) are validated against the known ecosystem list at compile time. An unrecognised identifier produces a compilation error with the full list of valid options:
+Single-word entries in `network.allowed` that match the ecosystem identifier pattern (`[a-z][a-z0-9-]*`) are validated against the known ecosystem list at compile time. An unrecognized identifier produces a compilation error with the full list of valid options:
 
 ```yaml wrap
 # ❌ Compilation error: 'rustxxxx' is not a valid ecosystem identifier
