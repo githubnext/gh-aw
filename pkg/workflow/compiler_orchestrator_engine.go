@@ -126,12 +126,44 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// import. This makes "engine: copilot" syntactic sugar for importing the builtin
 	// copilot.md, which carries the full engine definition. The engine field is removed
 	// from the frontmatter so the definition comes entirely from the import.
+	//
+	// Performance optimisation: if the workflow has no user-specified imports, the
+	// builtin engine .md would be the only import. All builtin engine .md files
+	// contain only an engine definition (no tools, steps, runtimes, or network
+	// config), so importing them produces nothing that is not already available in
+	// the engine catalog (populated at startup by loadBuiltinEngineDefinitions).
+	// In this common case we skip the import injection entirely — avoiding a full
+	// ProcessImportsFromFrontmatterWithSource round-trip — and record the engine ID
+	// in builtinInjectedEngineID so the fast path below can restore it without
+	// JSON re-parsing.
+	//
+	// When the workflow DOES have user-specified imports we still inject the builtin
+	// so that the engine definition is part of the import chain (for correctness,
+	// e.g. duplicate-engine detection across all imported files).
+	//
+	// builtinSkippedInjection is true when the optimisation fired and the builtin
+	// was NOT added to the imports list. It is used later to represent the engine
+	// in duplicate-engine conflict detection even though it is absent from allEngines.
+	var builtinInjectedEngineID string
+	var builtinSkippedInjection bool
 	if c.engineOverride == "" && isStringFormEngine(result.Frontmatter) && engineSetting != "" {
 		builtinPath := builtinEnginePath(engineSetting)
 		if parser.BuiltinVirtualFileExists(builtinPath) {
-			orchestratorEngineLog.Printf("Injecting builtin engine import: %s", builtinPath)
-			addImportToFrontmatter(result.Frontmatter, builtinPath)
+			_, hadUserImports := result.Frontmatter["imports"]
+			if hadUserImports {
+				// User already specified imports: inject normally so the engine
+				// definition participates in the full import processing chain.
+				orchestratorEngineLog.Printf("Injecting builtin engine import: %s", builtinPath)
+				addImportToFrontmatter(result.Frontmatter, builtinPath)
+			} else {
+				// No user imports: skip the injection to avoid the import
+				// processing overhead. The engine catalog already has the full
+				// definition for this builtin engine.
+				orchestratorEngineLog.Printf("Skipping builtin engine import injection (no user imports): %s", builtinPath)
+				builtinSkippedInjection = true
+			}
 			delete(result.Frontmatter, "engine")
+			builtinInjectedEngineID = engineSetting
 			engineSetting = ""
 			engineConfig = nil
 		}
@@ -216,38 +248,68 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// Combine imported engines with included engines
 	allEngines := append(importsResult.MergedEngines, includedEngines...)
 
-	// Validate that only one engine field exists across all files
-	orchestratorEngineLog.Printf("Validating single engine specification")
-	finalEngineSetting, err := c.validateSingleEngineSpecification(engineSetting, allEngines)
-	if err != nil {
-		orchestratorEngineLog.Printf("Engine specification validation failed: %v", err)
-		return nil, err
-	}
-	if finalEngineSetting != "" {
-		engineSetting = finalEngineSetting
-	}
-
-	// If engineConfig is nil (engine was in an included file), extract it from the included engine JSON
-	if engineConfig == nil && len(allEngines) > 0 {
-		orchestratorEngineLog.Printf("Extracting engine config from included file")
-		extractedConfig, err := c.extractEngineConfigFromJSON(allEngines[0])
-		if err != nil {
-			orchestratorEngineLog.Printf("Failed to extract engine config: %v", err)
-			return nil, fmt.Errorf("failed to extract engine config from included file: %w", err)
+	// Resolve engine setting and config from the available engine specifications.
+	//
+	// Fast path: when we know the engine ID (builtinInjectedEngineID) and there are
+	// no engine specs from @include directives or conflicting user imports, skip the
+	// JSON parsing overhead of validateSingleEngineSpecification and
+	// extractEngineConfigFromJSON (saves ~15µs per ParseWorkflowFile call for the
+	// common case of a simple string-form builtin engine with no imports).
+	//
+	// The fast path is safe when:
+	//  - len(includedEngines) == 0: no @include directives contributed engine specs
+	//  - len(importsResult.MergedEngines) <= 1: at most the injected builtin in imports
+	//    (> 1 means user imports also had an engine field → conflict)
+	//
+	// General path: when @include/import engines are present, run full validation to
+	// detect and report duplicate engine specifications with a helpful error message.
+	// When the builtin injection was skipped (builtinSkippedInjection), pass the
+	// known engine ID as mainEngineSetting so the validator counts it correctly.
+	if builtinInjectedEngineID != "" && len(includedEngines) == 0 && len(importsResult.MergedEngines) <= 1 {
+		// Common case: single builtin engine, no @include engines, no conflicting imports.
+		engineSetting = builtinInjectedEngineID
+		engineConfig = &EngineConfig{ID: builtinInjectedEngineID}
+		orchestratorEngineLog.Printf("Fast path: reusing pre-known builtin engine setting %s", engineSetting)
+	} else {
+		// General path: validate that only one engine field exists across all files.
+		// When the builtin injection was skipped, inject the pre-known engine ID as
+		// the "main engine" so the duplicate check accounts for it correctly.
+		mainEngineForValidation := engineSetting
+		if builtinSkippedInjection {
+			mainEngineForValidation = builtinInjectedEngineID
 		}
-		engineConfig = extractedConfig
+		orchestratorEngineLog.Printf("Validating single engine specification")
+		finalEngineSetting, err := c.validateSingleEngineSpecification(mainEngineForValidation, allEngines)
+		if err != nil {
+			orchestratorEngineLog.Printf("Engine specification validation failed: %v", err)
+			return nil, err
+		}
+		if finalEngineSetting != "" {
+			engineSetting = finalEngineSetting
+		}
 
-		// If the imported engine is an inline definition (engine.runtime sub-object),
-		// validate and register it in the catalog. This mirrors the handling for inline
-		// definitions declared directly in the main workflow (above).
-		if engineConfig != nil && engineConfig.IsInlineDefinition {
-			if err := c.validateEngineInlineDefinition(engineConfig); err != nil {
-				return nil, err
+		// If engineConfig is nil (engine was in an included file), extract it from the included engine JSON
+		if engineConfig == nil && len(allEngines) > 0 {
+			orchestratorEngineLog.Printf("Extracting engine config from included file")
+			extractedConfig, err := c.extractEngineConfigFromJSON(allEngines[0])
+			if err != nil {
+				orchestratorEngineLog.Printf("Failed to extract engine config: %v", err)
+				return nil, fmt.Errorf("failed to extract engine config from included file: %w", err)
 			}
-			if err := c.validateEngineAuthDefinition(engineConfig); err != nil {
-				return nil, err
+			engineConfig = extractedConfig
+
+			// If the imported engine is an inline definition (engine.runtime sub-object),
+			// validate and register it in the catalog. This mirrors the handling for inline
+			// definitions declared directly in the main workflow (above).
+			if engineConfig != nil && engineConfig.IsInlineDefinition {
+				if err := c.validateEngineInlineDefinition(engineConfig); err != nil {
+					return nil, err
+				}
+				if err := c.validateEngineAuthDefinition(engineConfig); err != nil {
+					return nil, err
+				}
+				c.registerInlineEngineDefinition(engineConfig)
 			}
-			c.registerInlineEngineDefinition(engineConfig)
 		}
 	}
 
