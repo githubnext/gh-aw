@@ -179,21 +179,21 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// The --add-dir "${GITHUB_WORKSPACE}" arg is appended raw (not through shellJoinArgs)
 	// because it contains a shell variable reference that must expand at runtime.
 	//
-	// When a driver script is provided (GetDriverScriptName), wrap the copilot invocation with
-	// `node <driver> <commandName> <args>` to enable retry logic for transient CAPIError 400 errors.
+	// When a harness script is provided (GetHarnessScriptName), wrap the copilot invocation with
+	// `node <harness> <commandName> <args>` to enable retry logic for transient CAPIError 400 errors.
 	//
 	// Resolve node dynamically at runtime:
 	// - Prefer GH_AW_NODE_BIN when set and executable.
 	// - Fall back to `command -v node` if GH_AW_NODE_BIN points to a non-mounted toolcache path.
 	// This prevents agent startup failures when host toolcache paths are not present in the AWF container.
-	driverScriptName := e.GetDriverScriptName()
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.DriverScript != "" {
-		driverScriptName = workflowData.EngineConfig.DriverScript
+	harnessScriptName := e.GetHarnessScriptName()
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.HarnessScript != "" {
+		harnessScriptName = workflowData.EngineConfig.HarnessScript
 	}
 	var execPrefix string
-	if driverScriptName != "" {
-		// Driver wraps the copilot subprocess; ${RUNNER_TEMP} and ${GH_AW_NODE_BIN} expand in the shell context.
-		execPrefix = fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, driverScriptName, commandName)
+	if harnessScriptName != "" {
+		// Harness wraps the copilot subprocess; ${RUNNER_TEMP} and ${GH_AW_NODE_BIN} expand in the shell context.
+		execPrefix = fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
 	} else {
 		execPrefix = commandName
 	}

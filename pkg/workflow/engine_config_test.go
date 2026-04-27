@@ -208,15 +208,15 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "codex", UserAgent: "my-custom-agent-hyphen"},
 		},
 		{
-			name: "object format - with copilot driver script",
+			name: "object format - with copilot harness script",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
-					"id":     "copilot",
-					"driver": "custom_copilot_driver.cjs",
+					"id":      "copilot",
+					"harness": "custom_copilot_harness.cjs",
 				},
 			},
 			expectedEngineSetting: "copilot",
-			expectedConfig:        &EngineConfig{ID: "copilot", DriverScript: "custom_copilot_driver.cjs"},
+			expectedConfig:        &EngineConfig{ID: "copilot", HarnessScript: "custom_copilot_harness.cjs"},
 		},
 		{
 			name: "object format - complete with user-agent",
@@ -275,8 +275,8 @@ func TestExtractEngineConfig(t *testing.T) {
 					t.Errorf("Expected config.UserAgent '%s', got '%s'", test.expectedConfig.UserAgent, config.UserAgent)
 				}
 
-				if config.DriverScript != test.expectedConfig.DriverScript {
-					t.Errorf("Expected config.DriverScript '%s', got '%s'", test.expectedConfig.DriverScript, config.DriverScript)
+				if config.HarnessScript != test.expectedConfig.HarnessScript {
+					t.Errorf("Expected config.HarnessScript '%s', got '%s'", test.expectedConfig.HarnessScript, config.HarnessScript)
 				}
 
 				if len(config.Env) != len(test.expectedConfig.Env) {

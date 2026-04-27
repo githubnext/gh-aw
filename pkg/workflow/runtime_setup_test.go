@@ -1048,8 +1048,8 @@ func TestDetectRuntimeRequirements_CustomDriverAddsNode24(t *testing.T) {
 	data := &WorkflowData{
 		RunsOn: "runs-on: ubuntu-latest",
 		EngineConfig: &EngineConfig{
-			ID:           "copilot",
-			DriverScript: "custom_driver.cjs",
+			ID:            "copilot",
+			HarnessScript: "custom_harness.cjs",
 		},
 	}
 
@@ -1072,8 +1072,8 @@ func TestDetectRuntimeRequirements_CustomDriverDoesNotAddNodeForNonCopilotEngine
 	data := &WorkflowData{
 		RunsOn: "runs-on: ubuntu-latest",
 		EngineConfig: &EngineConfig{
-			ID:           "claude",
-			DriverScript: "custom_driver.cjs",
+			ID:            "claude",
+			HarnessScript: "custom_harness.cjs",
 		},
 	}
 

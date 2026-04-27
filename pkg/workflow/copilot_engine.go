@@ -125,10 +125,10 @@ func (e *CopilotEngine) GetAgentManifestPathPrefixes() []string {
 	return []string{".github/"}
 }
 
-// GetDriverScriptName returns the filename of the JavaScript driver script that wraps
+// GetHarnessScriptName returns the filename of the JavaScript harness script that wraps
 // the Copilot CLI with retry logic for transient CAPIError 400 errors.
-func (e *CopilotEngine) GetDriverScriptName() string {
-	return "copilot_driver.cjs"
+func (e *CopilotEngine) GetHarnessScriptName() string {
+	return "copilot_harness.cjs"
 }
 
 // GetExecutionSteps is implemented in copilot_engine_execution.go

@@ -506,14 +506,14 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		detectionEngineConfig = &EngineConfig{ID: engineSetting}
 	} else {
 		detectionEngineConfig = &EngineConfig{
-			ID:           detectionEngineConfig.ID,
-			Model:        detectionEngineConfig.Model,
-			Version:      detectionEngineConfig.Version,
-			Env:          detectionEngineConfig.Env,
-			Config:       detectionEngineConfig.Config,
-			Args:         detectionEngineConfig.Args,
-			APITarget:    detectionEngineConfig.APITarget,
-			DriverScript: detectionEngineConfig.DriverScript,
+			ID:            detectionEngineConfig.ID,
+			Model:         detectionEngineConfig.Model,
+			Version:       detectionEngineConfig.Version,
+			Env:           detectionEngineConfig.Env,
+			Config:        detectionEngineConfig.Config,
+			Args:          detectionEngineConfig.Args,
+			APITarget:     detectionEngineConfig.APITarget,
+			HarnessScript: detectionEngineConfig.HarnessScript,
 		}
 	}
 
@@ -567,13 +567,13 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	// runner where the agent's installed tools are not available, so we must install them here.
 	installSteps := engine.GetInstallationSteps(threatDetectionData)
 
-	// Ensure node is on PATH when the engine's execution wraps the CLI with a driver
-	// script (see engineRequiresNodeDriver). The detection job does not go through
+	// Ensure node is on PATH when the engine's execution wraps the CLI with a harness
+	// script (see engineRequiresNodeHarness). The detection job does not go through
 	// DetectRuntimeRequirements, so the setup must be emitted here explicitly. Guard
 	// against engines whose install steps already bundle Setup Node.js (Claude/Codex
 	// via BuildStandardNpmEngineInstallSteps) — a duplicate would trip
 	// JobManager.ValidateDuplicateSteps and hard-fail the compile.
-	if engineRequiresNodeDriver(engine) && !installStepsContainNodeSetup(installSteps) {
+	if engineRequiresNodeHarness(engine) && !installStepsContainNodeSetup(installSteps) {
 		for _, line := range GenerateNodeJsSetupStep() {
 			steps = append(steps, line+"\n")
 		}

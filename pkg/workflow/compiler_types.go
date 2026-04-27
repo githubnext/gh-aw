@@ -396,7 +396,7 @@ type WorkflowData struct {
 	WorkflowID                   string         // workflow identifier derived from markdown filename (basename without extension)
 	TrialMode                    bool           // whether the workflow is running in trial mode
 	TrialLogicalRepo             string         // target repository slug for trial mode (owner/repo)
-	FrontmatterName              string         // name field from frontmatter (for code scanning alert driver default)
+	FrontmatterName              string         // name field from frontmatter (for code scanning alert harness default)
 	FrontmatterYAML              string         // raw frontmatter YAML content (rendered as comment in lock file for reference)
 	FrontmatterHash              string         // SHA-256 hash of frontmatter (computed before job building, used to derive stable heredoc delimiters)
 	RawMarkdown                  string         // raw markdown body before include expansion, used for frontmatter hash computation without re-reading the file

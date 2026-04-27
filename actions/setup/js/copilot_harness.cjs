@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * Copilot CLI Driver with Retry Logic
+ * Copilot CLI Harness with Retry Logic
  *
  * Wraps the Copilot CLI command with retry logic for failures that occur after the session
  * has been partially executed.  Passes all arguments to the copilot subprocess, transparently
@@ -20,8 +20,8 @@
  *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s).
  *   - Maximum 3 retry attempts after the initial run.
  *
- * Usage: node copilot_driver.cjs <command> [args...]
- * Example: node copilot_driver.cjs copilot --add-dir /tmp/ --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt
+ * Usage: node copilot_harness.cjs <command> [args...]
+ * Example: node copilot_harness.cjs copilot --add-dir /tmp/ --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt
  */
 
 "use strict";
@@ -67,13 +67,13 @@ const NO_AUTH_INFO_PATTERN = /No authentication information found/;
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
- * All driver messages are prefixed with "[copilot-driver]" so they are easy to
+ * All driver messages are prefixed with "[copilot-harness]" so they are easy to
  * grep out of the combined agent-stdio.log.
  * @param {string} message
  */
 function log(message) {
   const ts = new Date().toISOString();
-  process.stderr.write(`[copilot-driver] ${ts} ${message}\n`);
+  process.stderr.write(`[copilot-harness] ${ts} ${message}\n`);
 }
 
 /**
@@ -361,7 +361,7 @@ async function main() {
   const [, , command, ...args] = process.argv;
 
   if (!command) {
-    process.stderr.write("copilot-driver: Usage: node copilot_driver.cjs <command> [args...]\n");
+    process.stderr.write("copilot-harness: Usage: node copilot_harness.cjs <command> [args...]\n");
     process.exit(1);
   }
 

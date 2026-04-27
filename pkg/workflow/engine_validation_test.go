@@ -292,7 +292,7 @@ func TestValidateEngineVersion(t *testing.T) {
 	}
 }
 
-func TestValidateEngineDriverScript(t *testing.T) {
+func TestValidateEngineHarnessScript(t *testing.T) {
 	tests := []struct {
 		name        string
 		workflow    *WorkflowData
@@ -307,45 +307,45 @@ func TestValidateEngineDriverScript(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "no driver configured",
+			name: "no harness configured",
 			workflow: &WorkflowData{
 				EngineConfig: &EngineConfig{ID: "copilot"},
 			},
 			expectError: false,
 		},
 		{
-			name: "valid cjs driver on copilot",
+			name: "valid cjs harness on copilot",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "custom_driver.cjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", HarnessScript: "custom_harness.cjs"},
 			},
 			expectError: false,
 		},
 		{
-			name: "valid mjs driver on copilot",
+			name: "valid mjs harness on copilot",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "custom_driver.mjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", HarnessScript: "custom_harness.mjs"},
 			},
 			expectError: false,
 		},
 		{
 			name: "invalid extension",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "driver.sh"},
+				EngineConfig: &EngineConfig{ID: "copilot", HarnessScript: "harness.sh"},
 			},
 			expectError: true,
 			errorSubstr: "must be a Node.js script",
 		},
 		{
-			name: "driver configured for any engine",
+			name: "harness configured for any engine",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "claude", DriverScript: "driver.cjs"},
+				EngineConfig: &EngineConfig{ID: "claude", HarnessScript: "driver.cjs"},
 			},
 			expectError: false,
 		},
 		{
 			name: "invalid path traversal",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "../driver.cjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", HarnessScript: "../driver.cjs"},
 			},
 			expectError: true,
 			errorSubstr: "safe basename",
@@ -353,7 +353,7 @@ func TestValidateEngineDriverScript(t *testing.T) {
 		{
 			name: "invalid path separator",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "nested/driver.cjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", HarnessScript: "nested/driver.cjs"},
 			},
 			expectError: true,
 			errorSubstr: "safe basename",
@@ -361,7 +361,7 @@ func TestValidateEngineDriverScript(t *testing.T) {
 		{
 			name: "invalid shell metacharacter",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "driver;rm -rf /.cjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", HarnessScript: "driver;rm -rf /.cjs"},
 			},
 			expectError: true,
 			errorSubstr: "safe basename",
@@ -369,7 +369,7 @@ func TestValidateEngineDriverScript(t *testing.T) {
 		{
 			name: "invalid leading whitespace",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: " driver.cjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", HarnessScript: " driver.cjs"},
 			},
 			expectError: true,
 			errorSubstr: "leading/trailing whitespace",
@@ -377,7 +377,7 @@ func TestValidateEngineDriverScript(t *testing.T) {
 		{
 			name: "invalid leading hyphen",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "-driver.cjs"},
+				EngineConfig: &EngineConfig{ID: "copilot", HarnessScript: "-driver.cjs"},
 			},
 			expectError: true,
 			errorSubstr: "safe basename",
@@ -387,7 +387,7 @@ func TestValidateEngineDriverScript(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler()
-			err := compiler.validateEngineDriverScript(tt.workflow)
+			err := compiler.validateEngineHarnessScript(tt.workflow)
 
 			if tt.expectError {
 				require.Error(t, err, "Expected validation error")
@@ -397,7 +397,7 @@ func TestValidateEngineDriverScript(t *testing.T) {
 				return
 			}
 
-			assert.NoError(t, err, "Expected driver validation to pass")
+			assert.NoError(t, err, "Expected harness validation to pass")
 		})
 	}
 }

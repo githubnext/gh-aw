@@ -1683,12 +1683,12 @@ func TestCopilotEngineSetsDummyAPIKeyByDefault(t *testing.T) {
 	}
 }
 
-func TestCopilotEngineDriverScript(t *testing.T) {
+func TestCopilotEngineHarnessScript(t *testing.T) {
 	engine := NewCopilotEngine()
 
-	t.Run("GetDriverScriptName returns copilot_driver.cjs", func(t *testing.T) {
-		if engine.GetDriverScriptName() != "copilot_driver.cjs" {
-			t.Errorf("Expected 'copilot_driver.cjs', got '%s'", engine.GetDriverScriptName())
+	t.Run("GetHarnessScriptName returns copilot_harness.cjs", func(t *testing.T) {
+		if engine.GetHarnessScriptName() != "copilot_harness.cjs" {
+			t.Errorf("Expected 'copilot_harness.cjs', got '%s'", engine.GetHarnessScriptName())
 		}
 	})
 
@@ -1708,21 +1708,21 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 		stepContent := strings.Join([]string(steps[0]), "\n")
 
 		// The driver should be used in the command
-		if !strings.Contains(stepContent, "copilot_driver.cjs") {
-			t.Errorf("Expected copilot_driver.cjs in execution step, got:\n%s", stepContent)
+		if !strings.Contains(stepContent, "copilot_harness.cjs") {
+			t.Errorf("Expected copilot_harness.cjs in execution step, got:\n%s", stepContent)
 		}
 		if !strings.Contains(stepContent, nodeRuntimeResolutionCommand) {
 			t.Errorf("Expected runtime node resolution logic in execution step, got:\n%s", stepContent)
 		}
 
 		// Driver should appear before the copilot args
-		driverIdx := strings.Index(stepContent, "copilot_driver.cjs")
+		driverIdx := strings.Index(stepContent, "copilot_harness.cjs")
 		promptIdx := strings.Index(stepContent, "--prompt")
 		if driverIdx == -1 || promptIdx == -1 {
-			t.Fatal("Could not find both copilot_driver.cjs and --prompt in step")
+			t.Fatal("Could not find both copilot_harness.cjs and --prompt in step")
 		}
 		if driverIdx > promptIdx {
-			t.Error("Expected copilot_driver.cjs to appear before --prompt")
+			t.Error("Expected copilot_harness.cjs to appear before --prompt")
 		}
 	})
 
@@ -1730,8 +1730,8 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
-				ID:           "copilot",
-				DriverScript: "custom_copilot_driver.cjs",
+				ID:            "copilot",
+				HarnessScript: "custom_copilot_harness.cjs",
 			},
 			Tools: make(map[string]any),
 		}
@@ -1743,16 +1743,16 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 
 		stepContent := strings.Join([]string(steps[0]), "\n")
 
-		if !strings.Contains(stepContent, "custom_copilot_driver.cjs") {
+		if !strings.Contains(stepContent, "custom_copilot_harness.cjs") {
 			t.Errorf("Expected custom driver in execution step, got:\n%s", stepContent)
 		}
-		if strings.Contains(stepContent, "actions/copilot_driver.cjs") {
+		if strings.Contains(stepContent, "actions/copilot_harness.cjs") {
 			t.Errorf("Expected built-in driver to be replaced, got:\n%s", stepContent)
 		}
 	})
 
-	t.Run("CopilotEngine implements DriverProvider interface", func(t *testing.T) {
-		var _ DriverProvider = engine
+	t.Run("CopilotEngine implements HarnessProvider interface", func(t *testing.T) {
+		var _ HarnessProvider = engine
 	})
 
 	t.Run("Execution serializes engine.command into shell script", func(t *testing.T) {
@@ -1772,7 +1772,7 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 
 		stepContent := strings.Join([]string(steps[0]), "\n")
 
-		if !strings.Contains(stepContent, "copilot_driver.cjs /tmp/gh-aw/engine-command.sh") {
+		if !strings.Contains(stepContent, "copilot_harness.cjs /tmp/gh-aw/engine-command.sh") {
 			t.Errorf("Expected driver to run serialized engine command script, got:\n%s", stepContent)
 		}
 		if !strings.Contains(stepContent, "cat > /tmp/gh-aw/engine-command.sh <<'GH_AW_ENGINE_COMMAND_EOF'") {

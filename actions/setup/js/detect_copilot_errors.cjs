@@ -37,9 +37,9 @@ const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
 
 // Pattern: Agentic engine process killed by signal (timeout).
 // When GitHub Actions cancels a step due to timeout-minutes, the runner sends
-// SIGINT/SIGTERM/SIGKILL to the process group.  The copilot_driver.cjs (and
+// SIGINT/SIGTERM/SIGKILL to the process group.  The copilot_harness.cjs (and
 // other engine wrappers) log the signal in their close handlers:
-//   [copilot-driver] attempt 1: process closed exitCode=1 signal=SIGTERM ...
+//   [copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM ...
 // The pattern matches any "signal=SIG(TERM|KILL|INT)" occurrence in the log,
 // making it engine-agnostic.
 const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
