@@ -23,6 +23,26 @@ func GenerateNodeJsSetupStep() GitHubActionStep {
 	}
 }
 
+// GenerateEngineHealthCheckStep creates a GitHub Actions step that verifies the Node.js
+// runtime and the engine CLI binary are accessible after installation.
+// This fails fast with a clear diagnostic if the binary is missing from PATH,
+// preventing cryptic "command not found" errors during the agent execution step.
+//
+// Parameters:
+//   - engineName: Display name for the step (e.g., "GitHub Copilot CLI")
+//   - binaryName: The CLI command to check (e.g., "copilot", "codex")
+func GenerateEngineHealthCheckStep(engineName, binaryName string) GitHubActionStep {
+	nodejsLog.Printf("Generating health check step for engine: %s (binary: %s)", engineName, binaryName)
+	return GitHubActionStep{
+		"      - name: Verify " + engineName + " installation",
+		"        run: |",
+		"          echo 'Node.js runtime:'",
+		"          node --version",
+		"          echo '" + engineName + " binary:'",
+		"          " + binaryName + " --version",
+	}
+}
+
 // installStepsContainNodeSetup reports whether any of the provided steps is already
 // a "Setup Node.js" step. Uses the same extractStepName matcher as
 // JobManager.ValidateDuplicateSteps so the guard cannot drift from what the

@@ -79,7 +79,7 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		return []GitHubActionStep{}
 	}
 
-	// Use base installation steps (npm install only; secret validation is in the activation job)
+	// Use base installation steps (Node.js setup + npm install; secret validation is in the activation job)
 	steps := GetBaseInstallationSteps(EngineInstallConfig{
 		Secrets:         []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
 		DocsURL:         "https://github.github.com/gh-aw/reference/engines/#openai-codex",
@@ -89,6 +89,11 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		InstallStepName: "Install Codex CLI",
 		CliName:         "codex",
 	}, workflowData)
+
+	// Add a post-install health check to verify node and codex are accessible.
+	// This fails fast with a clear diagnostic if the binary is missing from PATH,
+	// preventing cryptic "command not found" errors during agent execution.
+	steps = append(steps, GenerateEngineHealthCheckStep("Codex CLI", "codex"))
 
 	// Add AWF installation step if firewall is enabled
 	if isFirewallEnabled(workflowData) {

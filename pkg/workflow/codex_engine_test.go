@@ -34,8 +34,8 @@ func TestCodexEngine(t *testing.T) {
 
 	// Test installation steps
 	steps := engine.GetInstallationSteps(&WorkflowData{})
-	// Secret validation is now in the activation job; installation has Node.js setup + Install Codex = 2 steps
-	expectedStepCount := 2
+	// Steps: 1) Setup Node.js, 2) Install Codex CLI, 3) Verify Codex CLI installation health check
+	expectedStepCount := 3
 	if len(steps) != expectedStepCount {
 		t.Errorf("Expected %d installation steps, got %d", expectedStepCount, len(steps))
 	}
@@ -51,6 +51,20 @@ func TestCodexEngine(t *testing.T) {
 	if len(steps) > 1 && len(steps[1]) > 0 {
 		if !strings.Contains(steps[1][0], "Install Codex CLI") {
 			t.Errorf("Expected second step to contain 'Install Codex CLI', got '%s'", steps[1][0])
+		}
+	}
+
+	// Verify third step is the health check
+	if len(steps) > 2 {
+		stepContent := strings.Join([]string(steps[2]), "\n")
+		if !strings.Contains(stepContent, "Verify Codex CLI installation") {
+			t.Errorf("Expected third step to be health check, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "node --version") {
+			t.Errorf("Expected health check to include 'node --version', got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "codex --version") {
+			t.Errorf("Expected health check to include 'codex --version', got:\n%s", stepContent)
 		}
 	}
 

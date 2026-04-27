@@ -82,9 +82,39 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 	// Test with no version (firewall feature disabled by default)
 	workflowData := &WorkflowData{}
 	steps := engine.GetInstallationSteps(workflowData)
-	// Secret validation is now in the activation job; installation only has the install step = 1 step
-	if len(steps) != 1 {
-		t.Errorf("Expected 1 installation step (install), got %d", len(steps))
+	// Steps: 1) Setup Node.js, 2) Install GitHub Copilot CLI, 3) Verify installation health check
+	if len(steps) != 3 {
+		t.Errorf("Expected 3 installation steps (node setup + install + health check), got %d", len(steps))
+	}
+
+	// Verify first step is Node.js setup (ensures node is in PATH for the Copilot CLI at runtime)
+	if len(steps) > 0 {
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(stepContent, "Setup Node.js") {
+			t.Errorf("Expected first step to be 'Setup Node.js', got:\n%s", stepContent)
+		}
+	}
+
+	// Verify second step is the Copilot CLI install
+	if len(steps) > 1 {
+		stepContent := strings.Join([]string(steps[1]), "\n")
+		if !strings.Contains(stepContent, "Install GitHub Copilot CLI") {
+			t.Errorf("Expected second step to install Copilot CLI, got:\n%s", stepContent)
+		}
+	}
+
+	// Verify third step is the health check
+	if len(steps) > 2 {
+		stepContent := strings.Join([]string(steps[2]), "\n")
+		if !strings.Contains(stepContent, "Verify GitHub Copilot CLI installation") {
+			t.Errorf("Expected third step to be health check, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "node --version") {
+			t.Errorf("Expected health check to include 'node --version', got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "copilot --version") {
+			t.Errorf("Expected health check to include 'copilot --version', got:\n%s", stepContent)
+		}
 	}
 
 	// Test with version (firewall feature disabled by default)
@@ -92,9 +122,9 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 		EngineConfig: &EngineConfig{Version: "1.0.0"},
 	}
 	stepsWithVersion := engine.GetInstallationSteps(workflowDataWithVersion)
-	// Secret validation is now in the activation job; installation only has the install step = 1 step
-	if len(stepsWithVersion) != 1 {
-		t.Errorf("Expected 1 installation step with version (install), got %d", len(stepsWithVersion))
+	// Steps: 1) Setup Node.js, 2) Install GitHub Copilot CLI, 3) Verify installation health check
+	if len(stepsWithVersion) != 3 {
+		t.Errorf("Expected 3 installation steps with version (node setup + install + health check), got %d", len(stepsWithVersion))
 	}
 }
 

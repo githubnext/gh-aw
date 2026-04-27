@@ -81,9 +81,18 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		workflowData.EngineConfig.Version = copilotVersion
 	}
 
-	// Use the installer script for global installation
+	// Use the installer script for global installation.
+	// Prepend the Node.js setup step so that:
+	//   1. actions/setup-node guarantees `node` is in PATH (and in /opt/hostedtoolcache)
+	//      before the copilot binary is invoked — the Copilot CLI is a Node.js application.
+	//   2. BuildNpmEngineInstallStepsWithAWF correctly treats index 0 as the node setup step
+	//      and injects the AWF binary (when enabled) between node setup and the CLI install.
 	copilotInstallLog.Print("Using new installer script for Copilot installation")
-	npmSteps := GenerateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI")
+	nodeSetupStep := GenerateNodeJsSetupStep()
+	copilotInstallStep := GenerateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI")
+	healthCheckStep := GenerateEngineHealthCheckStep("GitHub Copilot CLI", "copilot")
+	npmSteps := append([]GitHubActionStep{nodeSetupStep}, copilotInstallStep...)
+	npmSteps = append(npmSteps, healthCheckStep)
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
 

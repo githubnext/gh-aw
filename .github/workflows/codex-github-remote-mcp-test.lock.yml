@@ -350,6 +350,12 @@ jobs:
           package-manager-cache: false
       - name: Install Codex CLI
         run: npm install --ignore-scripts -g @openai/codex@0.125.0
+      - name: Verify Codex CLI installation
+        run: |
+          echo 'Node.js runtime:'
+          node --version
+          echo 'Codex CLI binary:'
+          codex --version
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.28
       - name: Determine automatic lockdown mode for GitHub MCP Server
