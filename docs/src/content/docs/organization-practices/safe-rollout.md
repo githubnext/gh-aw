@@ -9,8 +9,6 @@ Safe rollout is the practice of increasing workflow autonomy in steps instead of
 
 The main question is not whether a workflow is useful, but whether it is trusted enough to act on the live system. In practice, teams usually move through a ladder: report-only first, then staged behavior, then a more realistic safe-write technique if needed, and finally direct production writes.
 
-This is especially useful for [CorrectionOps](/gh-aw/patterns/correction-ops/), where the goal is to improve the workflow over time using persisted predictions and later human truth.
-
 ## Rollout Ladder
 
 The usual progression is:
@@ -67,11 +65,10 @@ The common repository split is:
 - ops repository: persists predictions, collects corrections, publishes reports, and updates instructions
 - shadow repository: temporary non-production write target during rollout
 
-That shape is often useful, but it is still rollout guidance rather than a primary pattern. The stronger reusable pattern remains [CorrectionOps](/gh-aw/patterns/correction-ops/).
+That shape is often useful, but it is still rollout guidance rather than a primary pattern.
 
 ## Related Documentation
 
-- [CorrectionOps](/gh-aw/patterns/correction-ops/)
 - [SideRepoOps](/gh-aw/patterns/side-repo-ops/)
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)
 - [Staged Mode](/gh-aw/reference/staged-mode/)

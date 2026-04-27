@@ -656,10 +656,6 @@ AI-powered GitHub Projects board management automating issue triage, routing, an
 
 Development pattern where workflows run from a separate "side" repository targeting your main codebase. Keeps AI-generated issues, comments, and workflow runs isolated from the main repository for cleaner separation between automation infrastructure and production code. See [SideRepoOps](/gh-aw/patterns/side-repo-ops/).
 
-### CorrectionOps
-
-Pattern for improving production-adjacent workflows from trusted human corrections without retraining the underlying model. CorrectionOps persists predictions, compares them with later human truth, and uses deterministic correction evidence to update instructions, routing, thresholds, and rollout policy. See [CorrectionOps](/gh-aw/patterns/correction-ops/).
-
 ### Organization Practices
 
 Documentation category covering rollout, sharing, ownership, and governance concerns for workflows across teams and repositories. These topics matter at organization scale, but they are not always best described as standalone design patterns. See [Organization Practices](/gh-aw/organization-practices/).
