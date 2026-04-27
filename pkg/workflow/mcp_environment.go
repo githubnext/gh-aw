@@ -109,7 +109,7 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	// Check for mcp-scripts env vars
 	// Only add env vars if mcp-scripts is actually enabled (has tools configured)
 	// This prevents referencing step outputs that don't exist when mcp-scripts isn't used
-	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		// Add server configuration env vars from step outputs
 		envVars["GH_AW_MCP_SCRIPTS_PORT"] = "${{ steps.mcp-scripts-start.outputs.port }}"
 		envVars["GH_AW_MCP_SCRIPTS_API_KEY"] = "${{ steps.mcp-scripts-start.outputs.api_key }}"

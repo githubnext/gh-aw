@@ -39,7 +39,7 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 	}
 
 	// Check if mcp-scripts is configured and feature flag is enabled (adds mcp-scripts MCP server)
-	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		mcpDetectionLog.Print("MCP server detected via mcp-scripts configuration")
 		return true
 	}

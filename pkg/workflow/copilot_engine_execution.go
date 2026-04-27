@@ -450,7 +450,7 @@ touch %s
 	}
 
 	// Add mcp-scripts secrets to env for passthrough to MCP servers
-	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
 		for varName, secretExpr := range mcpScriptsSecrets {
 			// Only add if not already in env

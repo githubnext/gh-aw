@@ -109,7 +109,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	}
 
 	// Handle mcp_scripts MCP server - allow the server if mcp-scripts are configured and feature flag is enabled
-	if IsMCPScriptsEnabled(mcpScripts, workflowData) {
+	if IsMCPScriptsEnabled(mcpScripts) {
 		args = append(args, "--allow-tool", constants.MCPScriptsMCPServerID.String())
 	}
 

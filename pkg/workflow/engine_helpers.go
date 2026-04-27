@@ -204,7 +204,7 @@ func collectCommonMCPSecrets(workflowData *WorkflowData) []string {
 		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
 	}
 
-	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
 		for varName := range mcpScriptsSecrets {
 			secrets = append(secrets, varName)

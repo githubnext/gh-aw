@@ -110,7 +110,7 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 	if HasSafeOutputsEnabled(data.SafeOutputs) && !slices.Contains(servers, constants.SafeOutputsMCPServerID.String()) {
 		servers = append(servers, constants.SafeOutputsMCPServerID.String())
 	}
-	if IsMCPScriptsEnabled(data.MCPScripts, data) && !slices.Contains(servers, constants.MCPScriptsMCPServerID.String()) {
+	if IsMCPScriptsEnabled(data.MCPScripts) && !slices.Contains(servers, constants.MCPScriptsMCPServerID.String()) {
 		servers = append(servers, constants.MCPScriptsMCPServerID.String())
 	}
 
