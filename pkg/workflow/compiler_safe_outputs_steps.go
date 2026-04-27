@@ -72,10 +72,18 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// targeting.  Then a lot of this gnarly event code will be only on the "front end" (prepping the
 	// coding agent) not the "backend" (applying the safe outputs)
 	const baseBranchFallbackExpr = "${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}"
+	// Cross-repo fallback omits github.ref_name because it refers to the branch in the triggering repository,
+	// which may not exist in the target repository (e.g., when triggered via workflow_dispatch from a feature branch).
+	const crossRepoFallbackExpr = "${{ github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}"
 	var checkoutRef string
 	if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.BaseBranch != "" {
 		checkoutRef = data.SafeOutputs.CreatePullRequests.BaseBranch
 		consolidatedSafeOutputsStepsLog.Printf("Using custom base-branch from create-pull-request for checkout ref: %s", checkoutRef)
+	} else if targetRepoSlug != "" {
+		// Cross-repo checkout: avoid github.ref_name which refers to the triggering branch,
+		// not a branch in the target repository.
+		checkoutRef = crossRepoFallbackExpr
+		consolidatedSafeOutputsStepsLog.Printf("Using cross-repo fallback base branch expression for checkout ref (no github.ref_name)")
 	} else {
 		checkoutRef = baseBranchFallbackExpr
 		consolidatedSafeOutputsStepsLog.Printf("Using fallback base branch expression for checkout ref")

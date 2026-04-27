@@ -32,7 +32,8 @@ jobs:
   apm:
     runs-on: ubuntu-slim
     needs: [activation]
-    permissions: {}
+    permissions:
+      contents: read
     steps:
       - name: Checkout workflow lock files
         uses: actions/checkout@v6.0.2
