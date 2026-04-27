@@ -134,8 +134,6 @@ export default defineConfig({
 		'/patterns/shadowops/': '/gh-aw/organization-practices/safe-rollout/',
 		'/patterns/trialops/': '/gh-aw/patterns/trial-ops/',
 		'/patterns/workqueueops/': '/gh-aw/patterns/workqueue-ops/',
-		'/patterns/shadow-ops/': '/gh-aw/organization-practices/safe-rollout/',
-		'/organization-practices/shadow-evaluation/': '/gh-aw/organization-practices/safe-rollout/',
 	},
 	integrations: [
 		sitemap(),
