@@ -47,13 +47,11 @@ tools:
     - "head -n * pkg/**/*.go"
     - "wc -l pkg/**/*.go"
     - "make build"
+    - "make test-unit"
     - "make recompile"
     - "./gh-aw compile *"
     - "git"
   cache-memory:
-
-imports:
-  - shared/go-make.md
 
 timeout-minutes: 15
 
@@ -64,14 +62,6 @@ features:
 # Go Logger Enhancement
 
 You are an AI agent that improves Go code by adding debug logging statements to help with troubleshooting and development.
-
-## Available Safe-Input Tools
-
-This workflow imports `shared/go-make.md` which provides:
-- **mcpscripts-go** - Execute Go commands (e.g., args: "test ./...", "build ./cmd/gh-aw")
-- **mcpscripts-make** - Execute Make targets (e.g., args: "build", "test-unit", "lint", "recompile")
-
-Use these tools for consistent execution instead of running commands directly via bash.
 
 ## Efficiency First: Check Cache
 
@@ -219,34 +209,42 @@ For each file:
    - Don't over-log - focus on the most useful information
    - Ensure messages are meaningful and helpful for debugging
 
-### 5. Validate Changes
+### 5. Validate Changes Immediately After Editing
 
-After adding logging to the selected files, **validate your changes** before creating a PR:
+After adding logging to the selected files, **validate your changes right away** — do not defer this to the end of the session. Running validation immediately after each batch of edits keeps turn length short and surfaces compilation errors while the context is fresh.
 
 1. **Build the project to ensure no compilation errors:**
-   Use the mcpscripts-make tool with args: "build"
-   
+
+   ```bash
+   make build
+   ```
+
    This will compile the Go code and catch any syntax errors or import issues.
 
 2. **Run unit tests to ensure nothing broke:**
-   Use the mcpscripts-make tool with args: "test-unit"
-   
+
+   ```bash
+   make test-unit
+   ```
+
    This validates that your changes don't break existing functionality.
 
 3. **Test the workflow compilation with debug logging enabled:**
-   Use the mcpscripts-go tool with args: "run ./cmd/gh-aw compile dev"
-   
-   Or you can run it directly with bash if needed:
+
    ```bash
    DEBUG=* ./gh-aw compile dev
    ```
+
    This validates that:
    - The binary was built successfully
    - The compile command works correctly
    - Debug logging from your changes appears in the output
 
 4. **If needed, recompile workflows:**
-   Use the mcpscripts-make tool with args: "recompile"
+
+   ```bash
+   make recompile
+   ```
 
 ### 6. Create Pull Request
 
@@ -322,6 +320,7 @@ Before creating the PR, verify:
 - [ ] No duplicate logging with existing logs
 - [ ] Import statements are properly formatted
 - [ ] Changes validated with `make build` (no compilation errors)
+- [ ] Unit tests pass with `make test-unit`
 - [ ] Workflow compilation tested with `DEBUG=* ./gh-aw compile dev`
 
 ## Important Notes
