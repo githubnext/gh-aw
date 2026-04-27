@@ -104,7 +104,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringP("owner", "o", "", "Project owner: '@me' for current user or organization name (required)")
+	cmd.Flags().String("owner", "", "Project owner: '@me' for current user or organization name (required)")
 	cmd.Flags().StringP("link", "l", "", "Repository to link project to (format: owner/repo)")
 	cmd.Flags().Bool("with-project-setup", false, "Create standard project views and custom fields")
 	_ = cmd.MarkFlagRequired("owner")

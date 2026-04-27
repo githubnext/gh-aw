@@ -53,9 +53,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	if checkoutMgr.HasAppAuth() {
 		compilerYamlLog.Print("Generating checkout app token minting steps in agent job")
 		var checkoutPermissions *Permissions
-		if data.Permissions != "" {
-			parser := NewPermissionsParser(data.Permissions)
-			checkoutPermissions = parser.ToPermissions()
+		if data.CachedPermissions != nil {
+			checkoutPermissions = data.CachedPermissions
+		} else if data.Permissions != "" {
+			checkoutPermissions = NewPermissionsParser(data.Permissions).ToPermissions()
 		} else {
 			checkoutPermissions = NewPermissions()
 		}
@@ -302,19 +303,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// to avoid double-filtering: the gateway uses the same guard policy for the agent phase.
 	c.generateStopDIFCProxyStep(yaml, data)
 
-	// Add MCP setup
-	if err := c.generateMCPSetup(yaml, data.Tools, engine, data); err != nil {
-		return fmt.Errorf("failed to generate MCP setup: %w", err)
-	}
-
-	// Mount MCP servers as CLI tools (runs after gateway is started)
-	c.generateMCPCLIMountStep(yaml, data)
-
 	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
 	// No longer generated in the main job steps
 
 	// Download activation artifact from activation job (contains aw_info.json and prompt.txt).
 	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
+	// This must happen BEFORE pre-agent-steps so the base-branch snapshot
+	// (saved in /tmp/gh-aw/base/ inside the artifact) is available for the restore step below.
 	compilerYamlLog.Print("Adding activation artifact download step")
 	activationArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName
 	yaml.WriteString("      - name: Download activation artifact\n")
@@ -323,11 +318,29 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
 	yaml.WriteString("          path: /tmp/gh-aw\n")
 
+	// Materialize comment-memory safe outputs as editable markdown files for the agent.
+	// This prepares /tmp/gh-aw/comment-memory/*.md and injects prompt guidance so the agent
+	// can edit memory content directly and persist it via comment_memory safe outputs.
+	if data.SafeOutputs != nil && data.SafeOutputs.CommentMemory != nil {
+		yaml.WriteString("      - name: Prepare comment memory files\n")
+		fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+		yaml.WriteString("        with:\n")
+		fmt.Fprintf(yaml, "          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.SafeOutputs.CommentMemory.GitHubToken))
+		yaml.WriteString("          script: |\n")
+		yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+		yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+		yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/setup_comment_memory_files.cjs');\n")
+		yaml.WriteString("            await main();\n")
+	}
+
 	// Restore agent config folders from the base branch snapshot in the activation artifact.
 	// The activation job saved these before the PR checkout ran, so this step overwrites any
 	// PR-branch-injected files (e.g. forked skill/instruction files) with trusted base content.
 	// The .github/mcp.json file is also removed since it may come from the PR branch.
 	// The folder and file lists match those used in the save step (derived from engine registry).
+	//
+	// IMPORTANT: This must run BEFORE pre-agent-steps (below) so that APM-restored skills
+	// placed in .github/skills/ by pre-agent-steps are not clobbered by this restore.
 	if ShouldGeneratePRCheckoutStep(data) {
 		registry := GetGlobalEngineRegistry()
 		generateRestoreBaseGitHubFoldersStep(yaml,
@@ -335,6 +348,21 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			registry.GetAllAgentManifestFiles(),
 		)
 	}
+
+	// Add pre-agent-steps (if any) after base-branch restore but before MCP setup.
+	// Running after base restore ensures APM-restored skills (.github/skills/) are not
+	// overwritten by the restore step above in PR context.
+	// Running before MCP setup ensures pre-agent-steps can install/configure MCP
+	// dependencies that the gateway may reference when it starts.
+	c.generatePreAgentSteps(yaml, data)
+
+	// Add MCP setup
+	if err := c.generateMCPSetup(yaml, data.Tools, engine, data); err != nil {
+		return fmt.Errorf("failed to generate MCP setup: %w", err)
+	}
+
+	// Mount MCP servers as CLI tools (runs after gateway is started)
+	c.generateMCPCLIMountStep(yaml, data)
 
 	// Collect artifact paths for unified upload at the end
 	var artifactPaths []string
@@ -368,9 +396,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// the compiler starts a difc-proxy container on the host that AWF's cli-proxy sidecar
 	// connects to via host.docker.internal:18443.
 	c.generateStartCliProxyStep(yaml, data)
-
-	// Add pre-agent-steps (if any) immediately before AI execution.
-	c.generatePreAgentSteps(yaml, data)
 
 	// Add AI execution step using the agentic engine
 	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())
@@ -521,6 +546,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.SafeOutputsFilename)
 		// Processed agent output JSON produced by collect_ndjson_output.cjs
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.AgentOutputFilename)
+		if data.SafeOutputs.CommentMemory != nil {
+			artifactPaths = append(artifactPaths, "/tmp/gh-aw/comment-memory/")
+		}
 
 		// Write a minimal agent_output.json placeholder when the engine fails before
 		// producing any safe outputs, so downstream safe_outputs and conclusion jobs

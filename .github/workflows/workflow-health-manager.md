@@ -40,7 +40,7 @@ You are a workflow health manager responsible for monitoring and maintaining the
 
 ## Important Note: Shared Include Files
 
-**DO NOT** report `.md` files in the `.github/workflows/shared/` directory as missing lock files. These are reusable workflow components (imports) that are included by other workflows using the `imports:` field or `{{#import ...}}` directive. They are **intentionally not compiled** as standalone workflows.
+**DO NOT** report `.md` files in the `.github/workflows/shared/` directory as missing lock files. These are reusable workflow components (imports) that are included by other workflows using the `imports:` frontmatter field or inline import directives. They are **intentionally not compiled** as standalone workflows.
 
 Only executable workflows in the root `.github/workflows/` directory should have corresponding `.lock.yml` files.
 
@@ -70,7 +70,7 @@ As a meta-orchestrator for workflow health, you oversee the operational health o
 **Check compilation status:**
 - Verify each **executable workflow** has a corresponding `.lock.yml` file
 - **EXCLUDE** shared include files in `.github/workflows/shared/` (these are imported by other workflows, not compiled standalone)
-- Check if lock files are up-to-date (source `.md` modified after `.lock.yml`)
+- Check if lock files are up-to-date using frontmatter hash verification (not file modification timestamps)
 - Identify workflows that failed to compile
 - Flag workflows with compilation warnings
 
@@ -235,7 +235,7 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
 2. **Check compilation status:**
    - For each **executable** `.md` file, verify `.lock.yml` exists
    - **SKIP** files in `.github/workflows/shared/` directory (reusable imports, not standalone workflows)
-   - Compare modification timestamps
+   - Verify lock freshness with frontmatter hash checks (for example, `gh aw compile --validate`) instead of raw file modification timestamps
    - Run `gh aw compile --validate` to check for compilation errors
 
 3. **Build workflow inventory:**

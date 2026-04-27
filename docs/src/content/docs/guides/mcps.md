@@ -139,6 +139,11 @@ mcp-servers:
     allowed: ["search_pages", "get_page"]  # or ["*"] to allow all
 ```
 
+The `allowed:` filter is enforced at the **MCP gateway level** — the gateway only exposes the listed tools to the agent. This enforcement applies regardless of which AI engine or permission mode is in use.
+
+> [!IMPORTANT]
+> For Claude workflows that grant unrestricted bash access (`bash: "*"` or `bash: [":*"]`), Claude runs in `bypassPermissions` mode and its `--allowed-tools` flag is silently ignored. In that case, the `allowed:` gateway filter is the **sole effective tool boundary**. Always specify `allowed:` on each `mcp-servers:` entry when tool restrictions matter. See [Claude Tool Enforcement Security Model](/gh-aw/reference/engines/#claude-tool-enforcement-security-model) for details.
+
 ## Shared MCP Configurations
 
 Pre-configured MCP server specifications are available in [`.github/workflows/shared/mcp/`](https://github.com/github/gh-aw/tree/main/.github/workflows/shared/mcp) and can be copied or imported directly. Examples include:

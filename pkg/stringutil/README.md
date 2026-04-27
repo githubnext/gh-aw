@@ -26,7 +26,7 @@ stringutil.Truncate("hi", 8)          // "hi"
 
 ### `NormalizeWhitespace(content string) string`
 
-Collapses multiple consecutive whitespace characters (spaces, tabs, newlines) into a single space and trims leading/trailing whitespace.
+Normalizes trailing whitespace in multi-line content. Trims trailing spaces and tabs from every line, then ensures the content ends with exactly one newline (or is empty). This reduces spurious diffs caused by trailing-whitespace differences.
 
 ### `ParseVersionValue(version any) string`
 
@@ -40,7 +40,7 @@ stringutil.ParseVersionValue(20.0)    // "20"
 
 ### `IsPositiveInteger(s string) bool`
 
-Returns `true` if `s` is a non-empty string containing only digit characters (`0–9`).
+Returns `true` if and only if `s` is a decimal integer that is strictly greater than zero, has no leading zeros, and contains no non-digit characters. Returns `false` for `""`, `"0"`, negative strings (e.g. `"-5"`), strings with leading zeros (e.g. `"007"`), and non-numeric strings.
 
 ## ANSI Escape Code Stripping (`ansi.go`)
 
@@ -67,10 +67,11 @@ stringutil.NormalizeWorkflowName("weekly-research")          // "weekly-research
 
 ### `NormalizeSafeOutputIdentifier(identifier string) string`
 
-Converts dashes to underscores in safe-output identifiers, normalizing the user-facing `dash-separated` format to the internal `underscore_separated` format.
+Converts dashes **and periods** to underscores in safe-output identifiers, normalizing user-facing `dash-separated` and dot-separated formats to the internal `underscore_separated` format required by MCP tool names (which must match `^[a-zA-Z0-9_-]+$`).
 
 ```go
-stringutil.NormalizeSafeOutputIdentifier("create-issue") // "create_issue"
+stringutil.NormalizeSafeOutputIdentifier("create-issue")           // "create_issue"
+stringutil.NormalizeSafeOutputIdentifier("executor-workflow.agent") // "executor_workflow_agent"
 ```
 
 ### `MarkdownToLockFile(mdPath string) string`
@@ -104,9 +105,13 @@ stringutil.SanitizeErrorMessage("Error: MY_SECRET_TOKEN is invalid")
 // → "Error: [REDACTED] is invalid"
 ```
 
+### `SanitizeIdentifierName(name string, extraAllowed func(rune) bool) string`
+
+Sanitizes a string for use as a programming-language identifier by replacing invalid characters with underscores and prefixing `_` when the identifier starts with a digit. `extraAllowed` can be used to permit additional runes beyond the normal identifier rules; if `extraAllowed` is `nil`, no extra characters are allowed.
+
 ### `SanitizeParameterName(name string) string`
 
-Sanitizes a parameter name for use as a GitHub Actions output or environment variable name. Replaces non-alphanumeric characters with underscores.
+Sanitizes a parameter name for use as a GitHub Actions output or environment variable name. Preserves letters, digits, `$`, and `_`, and replaces all other characters with underscores.
 
 ### `SanitizePythonVariableName(name string) string`
 

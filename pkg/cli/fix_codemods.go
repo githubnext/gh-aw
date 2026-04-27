@@ -52,7 +52,12 @@ func GetAllCodemods() []Codemod {
 		getGitHubAppClientIDCodemod(),                 // Rename deprecated github-app.app-id to github-app.client-id
 		getSafeInputsToMCPScriptsCodemod(),            // Rename safe-inputs to mcp-scripts
 		getPluginsToDependenciesCodemod(),             // Migrate plugins to dependencies (plugins removed in favour of APM)
+		getSerenaToSharedImportCodemod(),              // Migrate removed tools.serena to shared/mcp/serena.md import
+		getWorkflowRunBranchesCodemod(),               // Add default branches to bare on.workflow_run trigger
+		getDependabotPermissionsCodemod(),             // Add vulnerability-alerts: read when dependabot toolset is used
 		getGitHubReposToAllowedReposCodemod(),         // Rename deprecated tools.github.repos to tools.github.allowed-repos
+		getByokCopilotFeatureRemovalCodemod(),         // Remove deprecated features.byok-copilot (Copilot BYOK is default)
+		getCliProxyFeatureToGitHubModeCodemod(),       // Migrate features.cli-proxy: true to tools.github.mode: gh-proxy
 		getDIFCProxyToIntegrityProxyCodemod(),         // Migrate deprecated features.difc-proxy to tools.github.integrity-proxy
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))

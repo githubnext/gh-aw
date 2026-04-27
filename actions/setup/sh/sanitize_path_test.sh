@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Tests for sanitize_path.sh
 # Run: bash sanitize_path_test.sh
 

@@ -355,8 +355,8 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		// The activated output is unconditionally true; the user controls
 		// agent execution through their own if: condition referencing the
 		// on.steps outputs (e.g., needs.pre_activation.outputs.gate_result).
-		if len(data.OnSteps) > 0 {
-			compilerActivationJobsLog.Printf("Pre-activation created with on.steps only (%d steps); activated output is unconditionally true", len(data.OnSteps))
+		if len(data.OnSteps) > 0 || len(data.OnNeeds) > 0 {
+			compilerActivationJobsLog.Printf("Pre-activation created with no checks (on.steps=%d, on.needs=%d); activated output is unconditionally true", len(data.OnSteps), len(data.OnNeeds))
 			activatedNode = BuildStringLiteral("true")
 		} else {
 			// This should never happen - it means pre-activation job was created without any checks
@@ -434,6 +434,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
+		Needs:       dedupeStringSlice(data.OnNeeds),
 	}
 
 	return job, nil
@@ -645,6 +646,68 @@ func extractOnPermissions(frontmatter map[string]any) *Permissions {
 
 	parser := NewPermissionsParserFromValue(permsValue)
 	return parser.ToPermissions()
+}
+
+// extractOnNeeds extracts the 'needs' field from the 'on:' section of frontmatter.
+// These dependencies are added to both pre_activation and activation jobs.
+//
+// Returns nil if on.needs is not configured.
+func extractOnNeeds(frontmatter map[string]any) ([]string, error) {
+	onValue, exists := frontmatter["on"]
+	if !exists || onValue == nil {
+		return nil, nil
+	}
+
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	return parseOnNeedsValues(onMap)
+}
+
+func parseOnNeedsValues(onMap map[string]any) ([]string, error) {
+	if onMap == nil {
+		return nil, nil
+	}
+
+	needsValue, exists := onMap["needs"]
+	if !exists || needsValue == nil {
+		return nil, nil
+	}
+
+	needsList, ok := needsValue.([]any)
+	if !ok {
+		return nil, fmt.Errorf("on.needs must be an array, got %T", needsValue)
+	}
+
+	result := make([]string, 0, len(needsList))
+	for i, need := range needsList {
+		needStr, ok := need.(string)
+		if !ok {
+			return nil, fmt.Errorf("on.needs[%d] must be a string, got %T", i, need)
+		}
+		result = append(result, needStr)
+	}
+
+	return dedupeStringSlice(result), nil
+}
+
+func dedupeStringSlice(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]bool, len(values))
+	result := make([]string, 0, len(values))
+	for _, v := range values {
+		if seen[v] {
+			continue
+		}
+		seen[v] = true
+		result = append(result, v)
+	}
+	return result
 }
 
 // referencesPreActivationOutputs returns true if the condition references the pre_activation job's

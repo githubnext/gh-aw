@@ -33,11 +33,10 @@ tools:
 timeout-minutes: 30
 
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[claude-code-user-docs-review] "
       expires: 1d
-  - shared/reporting.md
 
 features:
   mcp-cli: true

@@ -367,14 +367,14 @@ Test that permission-vulnerability-alerts is emitted in the App token minting st
 	assert.Contains(t, lockContent, "permission-security-events: read", "Should also include security-events read permission in App token")
 	// Verify the token minting step is present
 	assert.Contains(t, lockContent, "id: github-mcp-app-token", "GitHub App token step should be generated")
-	// Verify that vulnerability-alerts does NOT appear in any job-level permissions block.
-	// It is a GitHub App-only permission and not a valid GitHub Actions workflow permission;
-	// GitHub Actions rejects workflows that declare it at the job level.
+	// Verify that vulnerability-alerts DOES appear in job-level permissions block.
+	// It is now a valid GITHUB_TOKEN permission scope.
 	var workflow map[string]any
 	require.NoError(t, goyaml.Unmarshal(content, &workflow), "Lock file should be valid YAML")
 	jobs, ok := workflow["jobs"].(map[string]any)
 	require.True(t, ok, "Should have jobs section")
-	for jobName, jobConfig := range jobs {
+	foundVulnAlerts := false
+	for _, jobConfig := range jobs {
 		jobMap, ok := jobConfig.(map[string]any)
 		if !ok {
 			continue
@@ -388,9 +388,10 @@ Test that permission-vulnerability-alerts is emitted in the App token minting st
 			continue
 		}
 		if _, found := permsMap["vulnerability-alerts"]; found {
-			t.Errorf("Job %q should not have vulnerability-alerts in job-level permissions block (it is a GitHub App-only permission)", jobName)
+			foundVulnAlerts = true
 		}
 	}
+	assert.True(t, foundVulnAlerts, "vulnerability-alerts should appear in at least one job-level permissions block (it is a GITHUB_TOKEN scope)")
 }
 
 // TestGitHubMCPAppTokenWithExtraPermissions tests that extra permissions under
@@ -450,7 +451,7 @@ Test extra org-level permissions in GitHub App token.
 }
 
 // TestGitHubMCPAppTokenExtraPermissionsOverrideJobLevel tests that extra permissions
-// under tools.github.github-app.permissions can suppress a GitHub App-only scope
+// under tools.github.github-app.permissions can suppress a scope
 // that was set at job level by overriding it with 'none' (nested wins).
 func TestGitHubMCPAppTokenExtraPermissionsOverrideJobLevel(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
@@ -474,7 +475,7 @@ tools:
 
 # Test Workflow
 
-Test that nested permissions override job-level GitHub App-only scopes (nested wins).
+Test that nested permissions override job-level scopes (nested wins).
 `
 
 	tmpDir := t.TempDir()

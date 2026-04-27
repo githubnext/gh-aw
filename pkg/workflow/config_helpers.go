@@ -69,6 +69,20 @@ func ParseStringArrayFromConfig(m map[string]any, key string, log *logger.Logger
 	return nil
 }
 
+// extractStringSliceFromConfig retrieves a []string value from a handler config map.
+// It gracefully handles both []string and []any element types. Returns nil when the
+// key is absent or the value cannot be coerced.
+func extractStringSliceFromConfig(config map[string]any, key string) []string {
+	if config == nil {
+		return nil
+	}
+	raw, exists := config[key]
+	if !exists || raw == nil {
+		return nil
+	}
+	return parseStringSliceAny(raw, nil)
+}
+
 // parseLabelsFromConfig extracts and validates labels from a config map
 // Returns a slice of label strings, or nil if labels is not present or invalid
 func parseLabelsFromConfig(configMap map[string]any) []string {

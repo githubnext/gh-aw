@@ -233,6 +233,14 @@ func TestBuildSafeJobs(t *testing.T) {
 		t.Error("Expected main job output to be available as environment variable")
 	}
 
+	if !strings.Contains(stepsContent, "Configure Safe Outputs Job Environment Variables") {
+		t.Error("Expected safe jobs env setup step to use Safe Outputs terminology")
+	}
+
+	if strings.Contains(stepsContent, "Configure Safe Job Environment Variables") {
+		t.Error("Expected legacy Safe Job terminology to be absent from safe jobs env setup step")
+	}
+
 	if strings.Contains(stepsContent, "GLOBAL_VAR=global_value") {
 		t.Error("Safe-jobs should not inherit environment variables from safe-outputs.env (they are now independent)")
 	}

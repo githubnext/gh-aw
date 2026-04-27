@@ -30,14 +30,14 @@ Workflows from different repositories:
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/daily-plan myorg/myrepo/custom-workflow
 
 Repository mode examples:
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo myorg/myrepo         # Use myorg/myrepo as host for trial execution
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo myorg/myrepo     # Use myorg/myrepo as host for trial execution
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --logical-repo myorg/myrepo  # Simulate running against myorg/myrepo
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --clone-repo myorg/myrepo   # Clone myorg/myrepo contents into host
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --clone-repo myorg/myrepo    # Clone myorg/myrepo contents into host
 
 Repeat and cleanup examples:
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --repeat 3                # Run 4 times total (1 initial + 3 repeats)
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --delete-host-repo-after  # Delete repo after completion
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo my-trial       # Custom host repo
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo my-trial      # Custom host repo
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --dry-run                 # Show what would be done without changes
 
 Auto-merge examples:
@@ -46,6 +46,7 @@ Auto-merge examples:
 Advanced examples:
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo . # Use current repo as host
   ` + string(constants.CLIExtensionPrefix) + ` trial ./local-workflow.md --clone-repo upstream/repo --repeat 2
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --trigger-context https://github.com/owner/repo/issues/123 # Provide issue context for issue-triggered workflows
 
 Repository modes:
 - Default mode (no flags): Creates a temporary trial repository and simulates execution as if running against the current repository (github.repository context points to current repo)
@@ -118,7 +119,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 
 	// Add flags
 	cmd.Flags().StringP("logical-repo", "l", "", "Repository to simulate workflow execution against, as if the workflow was installed there (defaults to current repository)")
-	cmd.Flags().String("clone-repo", "", "Alternative to --logical-repo: clone the contents of the specified repo into the host repo instead of using logical repository simulation")
+	cmd.Flags().String("clone-repo", "", "Clone the contents of the specified repository into the host repository before execution (useful for testing against actual repository state)")
 
 	cmd.Flags().String("host-repo", "", "Custom host repository slug (defaults to '<username>/gh-aw-trial'). Use '.' for current repository")
 	cmd.Flags().String("repo", "", "Alias for --host-repo: the repository where workflows are installed and run (note: different semantics from --repo in other commands)")

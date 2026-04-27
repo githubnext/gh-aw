@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Test script for validate_prompt_placeholders.sh
 
 set -e

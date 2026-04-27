@@ -192,7 +192,7 @@ func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("copilot workflow with explicit firewall:false does not include AWF", func(t *testing.T) {
+	t.Run("copilot workflow with sandbox.agent:false does not include AWF", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"on": "workflow_dispatch",
 			"permissions": map[string]any{
@@ -200,8 +200,10 @@ func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 			},
 			"engine": "copilot",
 			"network": map[string]any{
-				"allowed":  []any{"example.com"},
-				"firewall": false,
+				"allowed": []any{"example.com"},
+			},
+			"sandbox": map[string]any{
+				"agent": false,
 			},
 		}
 
@@ -221,28 +223,23 @@ func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 			t.Fatal("Expected network permissions to be extracted")
 		}
 
-		// Verify firewall is explicitly disabled
-		if networkPerms.Firewall == nil {
-			t.Error("Expected firewall config to be present")
+		sandboxConfig := c.extractSandboxConfig(frontmatter)
+		if sandboxConfig == nil || sandboxConfig.Agent == nil {
+			t.Fatal("Expected sandbox.agent configuration to be extracted")
 		}
-
-		if networkPerms.Firewall.Enabled {
-			t.Error("Expected firewall.Enabled to be false")
+		if !sandboxConfig.Agent.Disabled {
+			t.Fatal("Expected sandbox.agent to be explicitly disabled")
 		}
 
 		// Enable firewall by default (should not override explicit config)
-		enableFirewallByDefaultForCopilot(engineConfig.ID, networkPerms, nil)
-
-		// Verify firewall is still disabled
-		if networkPerms.Firewall.Enabled {
-			t.Error("Expected firewall to remain disabled when explicitly set to false")
-		}
+		enableFirewallByDefaultForCopilot(engineConfig.ID, networkPerms, sandboxConfig)
 
 		// Create workflow data
 		workflowData := &WorkflowData{
 			Name:               "test-workflow",
 			EngineConfig:       engineConfig,
 			NetworkPermissions: networkPerms,
+			SandboxConfig:      sandboxConfig,
 		}
 
 		// Get installation steps

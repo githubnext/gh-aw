@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 #
 # bundle-wasm-docs.sh -- Build the WebAssembly compiler and copy
 # artifacts into the Astro docs site's public directory.

@@ -55,7 +55,7 @@ const mockCore = {
         fs.rmSync(tempDir, { recursive: true });
       }
     });
-    it("should skip sub-issue that already has a parent", async () => {
+    it("should fail when sub-issue already has a different parent", async () => {
       const message = { type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 };
       mockGithub.rest.issues.get
         .mockResolvedValueOnce({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } })
@@ -69,6 +69,22 @@ const mockCore = {
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Sub-issue #50 is already a sub-issue of #99 ("Existing Parent Issue"). Skipping.'));
       expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
       expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("parent {"), expect.any(Object));
+    });
+    it("should succeed when sub-issue is already linked to the requested parent", async () => {
+      const message = { type: "link_sub_issue", parent_issue_number: 99, sub_issue_number: 50 };
+      mockGithub.rest.issues.get
+        .mockResolvedValueOnce({ data: { number: 99, title: "Parent Issue", node_id: "I_parent_99", labels: [] } })
+        .mockResolvedValueOnce({ data: { number: 50, title: "Sub Issue", node_id: "I_sub_50", labels: [] } });
+      mockGithub.graphql.mockResolvedValueOnce({ repository: { issue: { parent: { number: 99, title: "Parent Issue" } } } });
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Sub-issue #50 is already a sub-issue of #99 ("Parent Issue"). Skipping.'));
+      expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("parent {"), expect.any(Object));
+      expect(mockGithub.graphql).not.toHaveBeenCalledWith(expect.stringContaining("addSubIssue"), expect.any(Object));
     });
     it("should proceed with linking when sub-issue has no parent", async () => {
       const message = { type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 };

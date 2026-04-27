@@ -168,6 +168,19 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 			onMap := triggerIR.ToYAMLMap()
 			frontmatter["on"] = onMap
 
+			// Propagate any job-level conditions into the frontmatter if: field
+			if len(triggerIR.Conditions) > 0 {
+				condition := strings.Join(triggerIR.Conditions, " && ")
+				schedulePreprocessingLog.Printf("Setting if condition from trigger shorthand: %s", condition)
+				// Merge with any existing if condition, stripping any ${{ }} wrapper first
+				if existing, ok := frontmatter["if"].(string); ok && existing != "" {
+					existing = stripExpressionWrapper(existing)
+					frontmatter["if"] = "(" + existing + ") && (" + condition + ")"
+				} else {
+					frontmatter["if"] = condition
+				}
+			}
+
 			return nil
 		}
 

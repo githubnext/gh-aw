@@ -279,6 +279,32 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		WarningCount:  run.WarningCount,
 	}
 
+	needsFallbackMetrics := metricsData.TokenUsage == 0 || metricsData.Turns == 0
+	needsFallbackEngineConfig := run.LogsPath != "" && findAwInfoPath(run.LogsPath) == ""
+	var fallbackMetrics LogMetrics
+	var inferredEngineID string
+	if run.LogsPath != "" && (needsFallbackMetrics || needsFallbackEngineConfig) {
+		fallbackMetrics, inferredEngineID = inferFallbackLogMetrics(run.LogsPath)
+	}
+
+	// Fallback token usage: when the run-level metric is missing/zero for older
+	// runs, use aggregated input+output tokens from agent_usage/token usage artifacts.
+	if metricsData.TokenUsage == 0 && processedRun.TokenUsage != nil {
+		metricsData.TokenUsage = processedRun.TokenUsage.TotalInputTokens + processedRun.TokenUsage.TotalOutputTokens
+	}
+	if metricsData.TokenUsage == 0 && metrics.TokenUsage > 0 {
+		metricsData.TokenUsage = metrics.TokenUsage
+	}
+	if metricsData.Turns == 0 && metrics.Turns > 0 {
+		metricsData.Turns = metrics.Turns
+	}
+	if metricsData.TokenUsage == 0 && fallbackMetrics.TokenUsage > 0 {
+		metricsData.TokenUsage = fallbackMetrics.TokenUsage
+	}
+	if metricsData.Turns == 0 && fallbackMetrics.Turns > 0 {
+		metricsData.Turns = fallbackMetrics.Turns
+	}
+
 	// Populate effective tokens from the firewall proxy summary when available,
 	// otherwise fall back to the effective tokens stored on the run itself.
 	if processedRun.TokenUsage != nil && processedRun.TokenUsage.TotalEffectiveTokens > 0 {
@@ -347,7 +373,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	performanceMetrics := generatePerformanceMetrics(processedRun, metricsData, toolUsage)
 
 	// Extract expanded audit data
-	engineConfig := extractEngineConfig(run.LogsPath)
+	engineConfig := extractEngineConfigWithInferredEngine(run.LogsPath, inferredEngineID)
 	promptAnalysis := extractPromptAnalysis(run.LogsPath)
 	sessionAnalysis := buildSessionAnalysis(processedRun, metrics)
 	safeOutputSummary := buildSafeOutputSummary(createdItems)

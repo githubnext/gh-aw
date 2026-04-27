@@ -83,7 +83,7 @@ func TestAgenticEngines(t *testing.T) {
 		t.Error("AgenticEngines should not be empty")
 	}
 
-	expectedEngines := []string{"claude", "codex", "copilot", "gemini", "crush"}
+	expectedEngines := []string{"claude", "codex", "copilot", "gemini", "opencode", "crush"}
 	if len(AgenticEngines) != len(expectedEngines) {
 		t.Errorf("AgenticEngines length = %d, want %d", len(AgenticEngines), len(expectedEngines))
 	}
@@ -233,7 +233,14 @@ func TestConstantValues(t *testing.T) {
 		{"AgentJobName", string(AgentJobName), "agent"},
 		{"ActivationJobName", string(ActivationJobName), "activation"},
 		{"PreActivationJobName", string(PreActivationJobName), "pre_activation"},
+		{"PreActivationHyphenJobName", string(PreActivationHyphenJobName), "pre-activation"},
 		{"DetectionJobName", string(DetectionJobName), "detection"},
+		{"SafeOutputsJobName", string(SafeOutputsJobName), "safe_outputs"},
+		{"SafeOutputsHyphenJobName", string(SafeOutputsHyphenJobName), "safe-outputs"},
+		{"UploadAssetsJobName", string(UploadAssetsJobName), "upload_assets"},
+		{"UploadCodeScanningJobName", string(UploadCodeScanningJobName), "upload_code_scanning_sarif"},
+		{"ConclusionJobName", string(ConclusionJobName), "conclusion"},
+		{"UnlockJobName", string(UnlockJobName), "unlock"},
 		{"SafeOutputArtifactName", SafeOutputArtifactName, "safe-output"},
 		{"AgentOutputArtifactName", AgentOutputArtifactName, "agent-output"},
 		{"SafeOutputItemsArtifactName", SafeOutputItemsArtifactName, "safe-outputs-items"},
@@ -259,6 +266,28 @@ func TestConstantValues(t *testing.T) {
 				t.Errorf("%s = %q, want %q", tt.name, tt.value, tt.expected)
 			}
 		})
+	}
+}
+
+func TestKnownBuiltInJobNamesContainsAllKnownJobs(t *testing.T) {
+	knownJobs := []string{
+		string(AgentJobName),
+		string(ActivationJobName),
+		string(PreActivationJobName),
+		string(PreActivationHyphenJobName),
+		string(DetectionJobName),
+		string(SafeOutputsJobName),
+		string(SafeOutputsHyphenJobName),
+		string(UploadAssetsJobName),
+		string(UploadCodeScanningJobName),
+		string(ConclusionJobName),
+		string(UnlockJobName),
+	}
+
+	for _, jobName := range knownJobs {
+		if _, ok := KnownBuiltInJobNames[jobName]; !ok {
+			t.Errorf("KnownBuiltInJobNames missing %q", jobName)
+		}
 	}
 }
 

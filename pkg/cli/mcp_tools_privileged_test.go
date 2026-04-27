@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -255,11 +257,12 @@ func TestAuditToolPassesGithubRepositoryAsRepoFlag(t *testing.T) {
 	}
 }
 
-// TestAuditToolErrorEnvelopeSetsIsErrorTrue verifies that audit command failures
-// returned as JSON envelopes are marked with IsError=true in the MCP response.
-func TestAuditToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
+// TestAuditToolErrorEnvelopeSetsIsErrorFalse verifies that audit command failures
+// returned as JSON envelopes use IsError=false so callers receive graceful JSON
+// rather than a fatal MCP protocol error.
+func TestAuditToolErrorEnvelopeSetsIsErrorFalse(t *testing.T) {
 	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
-		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestAuditToolErrorEnvelopeSetsIsErrorTrueHelperProcess")
+		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestAuditToolErrorEnvelopeHelperProcess")
 		cmd.Env = append(os.Environ(), "GH_AW_AUDIT_HELPER_PROCESS=1")
 		return cmd
 	}
@@ -276,7 +279,7 @@ func TestAuditToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
 	})
 	require.NoError(t, err, "audit tool should return result envelope without protocol error")
 	require.NotNil(t, result, "result should not be nil")
-	assert.True(t, result.IsError, "audit error envelope should set IsError=true")
+	assert.False(t, result.IsError, "audit error envelope should set IsError=false (graceful JSON error)")
 	require.NotEmpty(t, result.Content, "result should contain text content")
 
 	textContent, ok := result.Content[0].(*mcp.TextContent)
@@ -284,13 +287,21 @@ func TestAuditToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
 
 	var envelope map[string]any
 	require.NoError(t, json.Unmarshal([]byte(textContent.Text), &envelope), "error response should be valid JSON")
-	assert.Equal(t, "9999999999", envelope["run_id_or_url"], "error envelope should include original run ID")
+	runIDsRaw, hasRunIDs := envelope["run_ids_or_urls"]
+	require.True(t, hasRunIDs, "error envelope should include run_ids_or_urls field")
+	runIDs, ok := runIDsRaw.([]any)
+	require.True(t, ok, "run_ids_or_urls should be an array")
+	require.Len(t, runIDs, 1, "run_ids_or_urls should contain the single run ID")
+	assert.Equal(t, "9999999999", runIDs[0], "error envelope should include original run ID")
 	errorMessage, ok := envelope["error"].(string)
 	require.True(t, ok, "error envelope should include string error field")
 	assert.Contains(t, errorMessage, "failed to audit workflow run", "error envelope should include contextual prefix")
+	suggestions, hasSuggestions := envelope["suggestions"]
+	assert.True(t, hasSuggestions, "error envelope should include suggestions")
+	assert.NotEmpty(t, suggestions, "suggestions should not be empty")
 }
 
-func TestAuditToolErrorEnvelopeSetsIsErrorTrueHelperProcess(t *testing.T) {
+func TestAuditToolErrorEnvelopeHelperProcess(t *testing.T) {
 	if os.Getenv("GH_AW_AUDIT_HELPER_PROCESS") != "1" {
 		return
 	}
@@ -299,9 +310,99 @@ func TestAuditToolErrorEnvelopeSetsIsErrorTrueHelperProcess(t *testing.T) {
 	os.Exit(1)
 }
 
-func TestAuditDiffToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
+func TestAuditTool_AcceptsDeprecatedMaxTokensParameter(t *testing.T) {
+	const expectedStdout = `{"overview":{"run_id":"1234567890"}}`
+
+	var capturedArgs []string
 	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
-		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestAuditDiffToolErrorEnvelopeSetsIsErrorTrueHelperProcess")
+		capturedArgs = slices.Clone(args)
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", expectedStdout)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditTool should succeed")
+
+	session := connectInMemory(t, server)
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "audit",
+		Arguments: map[string]any{
+			"run_id_or_url": "1234567890",
+			"max_tokens":    5000,
+		},
+	})
+	require.NoError(t, err, "audit tool should accept deprecated max_tokens parameter")
+	require.NotNil(t, result, "result should not be nil")
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	require.True(t, ok, "expected text content in audit response")
+	assert.JSONEq(t, expectedStdout, textContent.Text, "audit tool should return subprocess stdout")
+	assert.NotContains(t, strings.Join(capturedArgs, " "), "max_tokens", "audit command args should ignore max_tokens")
+}
+
+// TestAuditTool_MultiRunDiffMode verifies that when run_ids_or_urls contains
+// multiple entries the audit tool passes all of them as positional arguments
+// to the audit command (which then runs in diff mode).
+func TestAuditTool_MultiRunDiffMode(t *testing.T) {
+	const expectedStdout = `[{"base_run_id":111,"compare_run_id":222}]`
+
+	var capturedArgs []string
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		capturedArgs = slices.Clone(args)
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", expectedStdout)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditTool should succeed")
+
+	session := connectInMemory(t, server)
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "audit",
+		Arguments: map[string]any{
+			"run_ids_or_urls": []string{"111", "222", "333"},
+		},
+	})
+	require.NoError(t, err, "audit tool should succeed with multiple run IDs")
+	require.NotNil(t, result, "result should not be nil")
+	assert.False(t, result.IsError, "result should not be an error")
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	require.True(t, ok, "expected text content in audit response")
+	assert.JSONEq(t, expectedStdout, textContent.Text, "audit tool should return subprocess stdout")
+
+	// All three run IDs must appear as positional args immediately after "audit"
+	require.GreaterOrEqual(t, len(capturedArgs), 4, "captured args should include audit + 3 run IDs: %v", capturedArgs)
+	assert.Equal(t, "audit", capturedArgs[0], "first arg should be 'audit'")
+	assert.Equal(t, "111", capturedArgs[1], "second arg should be first run ID")
+	assert.Equal(t, "222", capturedArgs[2], "third arg should be second run ID")
+	assert.Equal(t, "333", capturedArgs[3], "fourth arg should be third run ID")
+}
+
+// TestAuditTool_FailsWhenNoRunIDProvided verifies that the audit tool
+// returns an error when neither run_id_or_url nor run_ids_or_urls is provided.
+func TestAuditTool_FailsWhenNoRunIDProvided(t *testing.T) {
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "nonexistent-command-for-testing-only")
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditTool should succeed")
+
+	session := connectInMemory(t, server)
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "audit",
+		Arguments: map[string]any{},
+	})
+	// The MCP SDK surfaces InvalidParams as a protocol-level error
+	assert.True(t, err != nil || (result != nil && result.IsError),
+		"audit tool should return an error when no run ID is provided")
+}
+
+func TestAuditDiffToolErrorEnvelopeSetsIsErrorFalse(t *testing.T) {
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestAuditDiffToolErrorEnvelopeHelperProcess")
 		cmd.Env = append(os.Environ(), "GH_AW_AUDIT_DIFF_HELPER_PROCESS=1")
 		return cmd
 	}
@@ -321,7 +422,7 @@ func TestAuditDiffToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
 	})
 	require.NoError(t, err, "audit-diff tool should return result envelope without protocol error")
 	require.NotNil(t, result, "result should not be nil")
-	assert.True(t, result.IsError, "audit-diff error envelope should set IsError=true")
+	assert.False(t, result.IsError, "audit-diff error envelope should set IsError=false (graceful JSON error)")
 	require.NotEmpty(t, result.Content, "result should contain text content")
 
 	textContent, ok := result.Content[0].(*mcp.TextContent)
@@ -333,9 +434,12 @@ func TestAuditDiffToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
 	errorMessage, ok := envelope["error"].(string)
 	require.True(t, ok, "error envelope should include string error field")
 	assert.Contains(t, errorMessage, "failed to diff workflow runs", "error envelope should include contextual prefix")
+	suggestions, hasSuggestions := envelope["suggestions"]
+	assert.True(t, hasSuggestions, "error envelope should include suggestions")
+	assert.NotEmpty(t, suggestions, "suggestions should not be empty")
 }
 
-func TestAuditDiffToolErrorEnvelopeSetsIsErrorTrueHelperProcess(t *testing.T) {
+func TestAuditDiffToolErrorEnvelopeHelperProcess(t *testing.T) {
 	if os.Getenv("GH_AW_AUDIT_DIFF_HELPER_PROCESS") != "1" {
 		return
 	}

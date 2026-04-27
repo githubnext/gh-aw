@@ -107,6 +107,7 @@ function resolveItemContext(payload) {
  *   item_number: string,
  *   comment_id: string,
  *   comment_node_id: string,
+ *   deployment_state: string,
  *   otel_trace_id: string,
  *   otel_parent_span_id: string
  * }}
@@ -122,6 +123,10 @@ function resolveItemContext(payload) {
  *     Only populated for discussion/discussion_comment events. Can be passed
  *     as reply_to_id in add_comment to thread responses under the triggering
  *     comment when a dispatched specialist workflow replies to a discussion.
+ *   - deployment_state: The deployment status state value (e.g. "failure", "error",
+ *     "success") when the workflow was triggered by a deployment_status event.
+ *     Empty string for all other event types. Propagated to child workflows via
+ *     workflow_call so they can identify which state triggered the parent.
  *   - otel_trace_id: OTLP trace ID from the parent workflow's setup span.
  *     Empty string when OTLP is not configured or the parent setup step has
  *     not yet run.  Used by child workflow setup steps to continue the same
@@ -150,6 +155,10 @@ function buildAwContext() {
     item_number,
     comment_id,
     comment_node_id,
+    // deployment_state carries the GitHub deployment_status state value when the
+    // triggering event is deployment_status. Empty string for all other events.
+    // Propagated to called workflows so they can access the deployment state.
+    deployment_state: context.eventName === "deployment_status" ? (context.payload?.deployment_status?.state ?? "") : "",
     // Propagate the current OTLP trace ID to dispatched child workflows so that
     // composite actions share the same trace as their parent.  Empty string when
     // OTLP is not configured or the parent setup step has not run yet.

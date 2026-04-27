@@ -445,7 +445,7 @@ function executeCustomValidation(item, customValidation, lineNum, itemType) {
   // Parse custom validation rule
   if (customValidation.startsWith("requiresOneOf:")) {
     const fields = customValidation.slice("requiresOneOf:".length).split(",");
-    const hasValidField = fields.some(field => item[field] !== undefined);
+    const hasValidField = fields.some(field => item[field] !== undefined && item[field] !== false);
     if (!hasValidField) {
       return {
         isValid: false,

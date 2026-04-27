@@ -18,6 +18,7 @@ const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
+const { parseAllowedExtensionsEnv } = require("./allowed_extensions_helpers.cjs");
 
 /**
  * Create handlers for safe output tools
@@ -127,15 +128,18 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Check file extension - read from environment variable if available
     const ext = path.extname(filePath).toLowerCase();
-    const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
-      ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
+    const parsedAllowedExts = parseAllowedExtensionsEnv(process.env.GH_AW_ASSETS_ALLOWED_EXTS);
+    if (parsedAllowedExts?.hasUnresolvedExpression) {
+      throw new Error(`${ERR_CONFIG}: GH_AW_ASSETS_ALLOWED_EXTS contains unresolved GitHub Actions expression. Ensure expressions resolve before safe outputs validation.`);
+    }
+    const allowedExts = parsedAllowedExts
+      ? parsedAllowedExts.normalizedValues
       : [
           // Default set as specified in problem statement
           ".png",
           ".jpg",
           ".jpeg",
         ];
-
     if (!allowedExts.includes(ext)) {
       throw new Error(`${ERR_VALIDATION}: File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
     }
@@ -482,10 +486,38 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Get base branch for the resolved target repository
     const baseBranch = await getBaseBranch(repoParts);
 
+    // Determine the working directory for git operations.
+    // Look up the checkout path when the target repo is explicitly provided by the agent
+    // or explicitly configured via target-repo in the workflow config — this ensures patch
+    // generation runs from the correct directory when the target repo is checked out in a subdirectory.
+    let repoCwd = null;
+    const itemRepo = repoResult.repo;
+    if ((entry.repo && entry.repo.trim()) || pushConfig["target-repo"]) {
+      server.debug(`Looking for checkout of target repo: ${itemRepo}`);
+      const checkoutResult = findRepoCheckout(itemRepo);
+      if (!checkoutResult.success) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error: `Repository '${itemRepo}' not found in workspace. Check out the target repo with actions/checkout and set its 'path' input so the checkout can be located. If checking out multiple repositories, ensure each actions/checkout step uses the appropriate 'path' input.`,
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+      repoCwd = checkoutResult.path;
+      entry.repo_cwd = repoCwd;
+      server.debug(`Selected checkout folder for ${itemRepo}: ${repoCwd}`);
+    }
+
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
     if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
-      const detectedBranch = getCurrentBranch();
+      const detectedBranch = getCurrentBranch(repoCwd);
 
       if (entry.branch === baseBranch) {
         server.debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
@@ -503,6 +535,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Build common options for both patch and bundle generation
     const pushTransportOptions = { mode: "incremental" };
+    if (repoCwd) {
+      pushTransportOptions.cwd = repoCwd;
+      pushTransportOptions.repoSlug = repoResult.repo;
+    }
     // Pass per-handler token so cross-repo PATs are used for git fetch when configured.
     // Falls back to GITHUB_TOKEN if not set.
     if (pushConfig["github-token"]) {
@@ -593,7 +629,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
 
     // prettier-ignore
-    server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+    server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines, diffSize=${patchResult.diffSize ?? "(n/a)"} bytes)`);
 
     // Store the patch path in the entry so consumers know which file to use
     entry.patch_path = patchResult.patchPath;
@@ -601,6 +637,16 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Store the base commit SHA so the push handler can use it directly
     if (patchResult.baseCommit) {
       entry.base_commit = patchResult.baseCommit;
+    }
+
+    // Store the incremental net diff size so push_to_pull_request_branch can
+    // validate `max_patch_size` against the actual incremental change relative
+    // to the existing PR branch head, not the (potentially much larger) size of
+    // the format-patch transport file. This is critical for the long-running
+    // branch pattern (e.g. autoloop) where the format-patch can include many
+    // commits but each iteration only changes a few KB.
+    if (typeof patchResult.diffSize === "number" && patchResult.diffSize >= 0) {
+      entry.diff_size = patchResult.diffSize;
     }
 
     appendSafeOutput(entry);

@@ -5,6 +5,7 @@ const { randomBytes } = require("crypto");
 const fs = require("fs");
 const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * send_otlp_span.cjs
@@ -491,7 +492,10 @@ async function sendJobSetupSpan(options = {}) {
   const repository = process.env.GITHUB_REPOSITORY || "";
   const eventName = process.env.GITHUB_EVENT_NAME || "";
   const ref = process.env.GITHUB_REF || "";
+  const refName = process.env.GITHUB_REF_NAME || "";
+  const headRef = process.env.GITHUB_HEAD_REF || "";
   const sha = process.env.GITHUB_SHA || "";
+  const workflowRef = process.env.GITHUB_WORKFLOW_REF || "";
 
   const attributes = [
     buildAttr("gh-aw.job.name", jobName),
@@ -508,6 +512,13 @@ async function sendJobSetupSpan(options = {}) {
   if (eventName) {
     attributes.push(buildAttr("gh-aw.event_name", eventName));
   }
+  // Deployment state: prefer the env var (set from github.event.deployment_status.state
+  // in the compiled workflow), fall back to aw_context propagation via awInfo.
+  const deploymentStateSetup =
+    process.env.GH_AW_GITHUB_EVENT_DEPLOYMENT_STATUS_STATE || (typeof awInfo.deployment_state === "string" ? awInfo.deployment_state : "") || (typeof awInfo.context?.deployment_state === "string" ? awInfo.context.deployment_state : "");
+  if (deploymentStateSetup) {
+    attributes.push(buildAttr("gh-aw.deployment.state", deploymentStateSetup));
+  }
   attributes.push(buildAttr("gh-aw.staged", staged));
 
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
@@ -521,8 +532,17 @@ async function sendJobSetupSpan(options = {}) {
   if (ref) {
     resourceAttributes.push(buildAttr("github.ref", ref));
   }
+  if (refName) {
+    resourceAttributes.push(buildAttr("github.ref_name", refName));
+  }
+  if (headRef) {
+    resourceAttributes.push(buildAttr("github.head_ref", headRef));
+  }
   if (sha) {
     resourceAttributes.push(buildAttr("github.sha", sha));
+  }
+  if (workflowRef) {
+    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
 
@@ -693,26 +713,33 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const repository = process.env.GITHUB_REPOSITORY || "";
   const eventName = process.env.GITHUB_EVENT_NAME || "";
   const ref = process.env.GITHUB_REF || "";
+  const refName = process.env.GITHUB_REF_NAME || "";
+  const headRef = process.env.GITHUB_HEAD_REF || "";
   const sha = process.env.GITHUB_SHA || "";
+  const workflowRef = process.env.GITHUB_WORKFLOW_REF || "";
 
   // Agent conclusion is passed to downstream jobs via GH_AW_AGENT_CONCLUSION.
   // Values: "success", "failure", "timed_out", "cancelled", "skipped".
   const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "";
 
-  // Mark the span as an error when the agent job failed or timed out.
+  // Mark the span as an error when the agent job failed, timed out, or was cancelled.
   const isAgentFailure = agentConclusion === "failure" || agentConclusion === "timed_out";
+  const isAgentCancelled = agentConclusion === "cancelled";
+  const isAgentNonOK = isAgentFailure || isAgentCancelled;
   // STATUS_CODE_ERROR = 2, STATUS_CODE_OK = 1
-  const statusCode = isAgentFailure ? 2 : 1;
-  let statusMessage = isAgentFailure ? `agent ${agentConclusion}` : undefined;
+  const statusCode = isAgentNonOK ? 2 : 1;
+  let statusMessage;
+  if (isAgentFailure) {
+    statusMessage = `agent ${agentConclusion}`;
+  } else if (isAgentCancelled) {
+    statusMessage = "agent cancelled";
+  }
 
-  // When the agent failed, read agent_output.json to surface structured error details.
-  // Lazy-read: skip I/O entirely when the job succeeded or was cancelled.
-  const agentOutput = isAgentFailure ? readJSONIfExists("/tmp/gh-aw/agent_output.json") || {} : {};
+  // Always read agent_output.json so output metrics are available on all outcomes.
+  const agentOutput = readJSONIfExists("/tmp/gh-aw/agent_output.json") || {};
   const outputErrors = Array.isArray(agentOutput.errors) ? agentOutput.errors : [];
-  const errorMessages = outputErrors
-    .map(e => (e && typeof e.message === "string" ? e.message : String(e)))
-    .filter(Boolean)
-    .slice(0, 5);
+  const outputItems = Array.isArray(agentOutput.items) ? agentOutput.items : [];
+  const errorMessages = outputErrors.map(getErrorMessage).filter(Boolean).slice(0, 5);
 
   if (isAgentFailure && errorMessages.length > 0) {
     statusMessage = `agent ${agentConclusion}: ${errorMessages[0]}`.slice(0, 256);
@@ -722,37 +749,31 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
   if (engineId) attributes.push(buildAttr("gh-aw.engine.id", engineId));
-  if (model) attributes.push(buildAttr("gh-aw.model", model));
   if (eventName) attributes.push(buildAttr("gh-aw.event_name", eventName));
+  // Deployment state: prefer the env var (set from github.event.deployment_status.state
+  // in the compiled workflow), fall back to aw_info.deployment_state or aw_context propagation.
+  const deploymentStateConclusion =
+    process.env.GH_AW_GITHUB_EVENT_DEPLOYMENT_STATUS_STATE || (typeof awInfo.deployment_state === "string" ? awInfo.deployment_state : "") || (typeof awInfo.context?.deployment_state === "string" ? awInfo.context.deployment_state : "");
+  if (deploymentStateConclusion) {
+    attributes.push(buildAttr("gh-aw.deployment.state", deploymentStateConclusion));
+  }
   attributes.push(buildAttr("gh-aw.staged", staged));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
   }
 
-  // Enrich span with per-type token breakdown from agent_usage.json (written by
-  // parse_token_usage.cjs).  These four attributes enable cache-hit-rate panels,
-  // per-type cost attribution, and fine-grained threshold alerts in Grafana /
-  // Honeycomb / Datadog without requiring the step summary HTML.
-  const agentUsage = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || {};
-  if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
-    attributes.push(buildAttr("gh-aw.tokens.input", agentUsage.input_tokens));
-  }
-  if (typeof agentUsage.output_tokens === "number" && agentUsage.output_tokens > 0) {
-    attributes.push(buildAttr("gh-aw.tokens.output", agentUsage.output_tokens));
-  }
-  if (typeof agentUsage.cache_read_tokens === "number" && agentUsage.cache_read_tokens > 0) {
-    attributes.push(buildAttr("gh-aw.tokens.cache_read", agentUsage.cache_read_tokens));
-  }
-  if (typeof agentUsage.cache_write_tokens === "number" && agentUsage.cache_write_tokens > 0) {
-    attributes.push(buildAttr("gh-aw.tokens.cache_write", agentUsage.cache_write_tokens));
-  }
-
   if (agentConclusion) {
     attributes.push(buildAttr("gh-aw.agent.conclusion", agentConclusion));
   }
-  if (isAgentFailure && errorMessages.length > 0) {
+  if (errorMessages.length > 0) {
     attributes.push(buildAttr("gh-aw.error.count", outputErrors.length));
     attributes.push(buildAttr("gh-aw.error.messages", errorMessages.join(" | ")));
+  }
+  attributes.push(buildAttr("gh-aw.output.item_count", outputItems.length));
+  const rawItemTypes = outputItems.map(i => (i && typeof i.type === "string" ? i.type : "")).filter(Boolean);
+  const itemTypes = [...new Set(rawItemTypes)].sort();
+  if (itemTypes.length > 0) {
+    attributes.push(buildAttr("gh-aw.output.item_types", itemTypes.join(",")));
   }
 
   // Enrich span with the most recent GitHub API rate-limit snapshot for post-run
@@ -789,8 +810,17 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (ref) {
     resourceAttributes.push(buildAttr("github.ref", ref));
   }
+  if (refName) {
+    resourceAttributes.push(buildAttr("github.ref_name", refName));
+  }
+  if (headRef) {
+    resourceAttributes.push(buildAttr("github.head_ref", headRef));
+  }
   if (sha) {
     resourceAttributes.push(buildAttr("github.sha", sha));
+  }
+  if (workflowRef) {
+    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
 
@@ -800,12 +830,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // making individual errors queryable and classifiable in backends like
   // Grafana Tempo, Honeycomb, and Datadog.
   const buildSpanEvents = eventTimeMs => {
-    if (!isAgentFailure) {
+    if (outputErrors.length === 0) {
       return [];
     }
     const errorTimeNano = toNanoString(eventTimeMs);
     return outputErrors
-      .map(e => (e && typeof e.message === "string" ? e.message : String(e)))
+      .map(getErrorMessage)
       .filter(Boolean)
       .map(msg => {
         // Extract colon-prefixed type when available ("push_to_pull_request_branch:...")
@@ -829,13 +859,48 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   try {
     agentEndMs = fs.statSync("/tmp/gh-aw/agent_output.json").mtimeMs;
   } catch {
-    // agent_output.json may not exist for non-agent jobs; skip dedicated span.
+    // agent_output.json may be absent for agent failures and cancellations,
+    // including timed-out or manually-cancelled runs where the process was
+    // killed before writing output. Fall back to nowMs() so we still emit
+    // the dedicated agent span for these cases.
+    if ((isAgentFailure || isAgentCancelled) && jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0) {
+      agentEndMs = nowMs();
+    }
   }
 
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
   const conclusionSpanId = generateSpanId();
   if (jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs) {
     const agentSpanEvents = buildSpanEvents(agentEndMs);
+
+    // Build OTel GenAI semantic convention attributes for the dedicated agent span.
+    // These follow the OpenTelemetry GenAI specification and enable out-of-the-box
+    // LLM dashboards in Grafana, Datadog, and Honeycomb without custom mappings.
+    const agentUsage = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || {};
+    const agentAttributes = [...attributes];
+    // gen_ai.operation.name is Required by the OTel GenAI spec for inference spans.
+    // All gh-aw agent executions are chat-style LLM completions.
+    agentAttributes.push(buildAttr("gen_ai.operation.name", "chat"));
+    if (model) agentAttributes.push(buildAttr("gen_ai.request.model", model));
+    // Emit gen_ai.provider.name when engineId is available; it may be omitted when
+    // engine metadata is unavailable, so this span does not guarantee full GenAI spec compliance.
+    if (engineId) agentAttributes.push(buildAttr("gen_ai.provider.name", engineId));
+    // gen_ai.workflow.name identifies the agentic workflow, matching the OTel spec example
+    // use-cases (e.g. "multi_agent_rag", "customer_support_pipeline").
+    if (workflowName) agentAttributes.push(buildAttr("gen_ai.workflow.name", workflowName));
+    if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
+      agentAttributes.push(buildAttr("gen_ai.usage.input_tokens", agentUsage.input_tokens));
+    }
+    if (typeof agentUsage.output_tokens === "number" && agentUsage.output_tokens > 0) {
+      agentAttributes.push(buildAttr("gen_ai.usage.output_tokens", agentUsage.output_tokens));
+    }
+    if (typeof agentUsage.cache_read_tokens === "number" && agentUsage.cache_read_tokens > 0) {
+      agentAttributes.push(buildAttr("gen_ai.usage.cache_read.input_tokens", agentUsage.cache_read_tokens));
+    }
+    if (typeof agentUsage.cache_write_tokens === "number" && agentUsage.cache_write_tokens > 0) {
+      agentAttributes.push(buildAttr("gen_ai.usage.cache_creation.input_tokens", agentUsage.cache_write_tokens));
+    }
+
     const agentPayload = buildOTLPPayload({
       traceId,
       spanId: generateSpanId(),
@@ -845,11 +910,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       endMs: agentEndMs,
       serviceName,
       scopeVersion: version,
-      attributes,
+      attributes: agentAttributes,
       resourceAttributes,
       statusCode,
       statusMessage,
       events: agentSpanEvents,
+      kind: SPAN_KIND_CLIENT,
     });
     appendToOTLPJSONL(agentPayload);
     if (endpoint) {

@@ -5,6 +5,8 @@ package cli
 import (
 	"context"
 	"os/exec"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -48,4 +50,31 @@ func TestCompileTool_UsesOnlyStdoutOnSuccess(t *testing.T) {
 	output := extractTextResult(t, result)
 	assert.JSONEq(t, expectedStdout, output, "compile tool should return subprocess stdout only")
 	assert.NotContains(t, output, stderrNoise, "compile tool output should not contain stderr noise")
+}
+
+func TestCompileTool_AcceptsDeprecatedMaxTokensParameter(t *testing.T) {
+	const expectedStdout = `[{"workflow":"test.md","valid":true,"errors":[],"warnings":[]}]`
+
+	var capturedArgs []string
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		capturedArgs = slices.Clone(args)
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", expectedStdout)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerCompileTool(server, mockExecCmd, "")
+	require.NoError(t, err, "registerCompileTool should succeed")
+
+	session := connectInMemory(t, server)
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "compile",
+		Arguments: map[string]any{
+			"max_tokens": 5000,
+		},
+	})
+	require.NoError(t, err, "compile tool should accept deprecated max_tokens parameter")
+
+	output := extractTextResult(t, result)
+	assert.JSONEq(t, expectedStdout, output, "compile tool should still return subprocess stdout")
+	assert.NotContains(t, strings.Join(capturedArgs, " "), "max_tokens", "compile command args should ignore max_tokens")
 }

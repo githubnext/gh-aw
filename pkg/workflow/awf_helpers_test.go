@@ -926,7 +926,7 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include deprecated --cli-proxy-policy")
 	})
 
-	t.Run("includes cli-proxy flags when byok-copilot is enabled", func(t *testing.T) {
+	t.Run("does not include cli-proxy flags for copilot by default", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
@@ -937,9 +937,7 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{Enabled: true, Version: "v0.26.0"},
 				},
-				Features: map[string]any{
-					string(constants.ByokCopilotFeatureFlag): true,
-				},
+				Features: map[string]any{},
 			},
 			AllowedDomains: "github.com",
 		}
@@ -947,8 +945,8 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		assert.Contains(t, argsStr, "--difc-proxy-host", "Should include --difc-proxy-host when byok-copilot is enabled")
-		assert.Contains(t, argsStr, "--difc-proxy-ca-cert", "Should include --difc-proxy-ca-cert when byok-copilot is enabled")
+		assert.NotContains(t, argsStr, "--difc-proxy-host", "Should not include --difc-proxy-host for copilot by default")
+		assert.NotContains(t, argsStr, "--difc-proxy-ca-cert", "Should not include --difc-proxy-ca-cert for copilot by default")
 	})
 
 	t.Run("does not include deprecated flags even with guard policy configured", func(t *testing.T) {
@@ -1346,4 +1344,49 @@ func TestGeminiEngineIncludesGeminiAPITarget(t *testing.T) {
 
 	assert.Contains(t, stepContent, "--gemini-api-target", "Should include --gemini-api-target flag")
 	assert.Contains(t, stepContent, "generativelanguage.googleapis.com", "Should include default Gemini API hostname")
+}
+
+func TestBuildAWFImageTagWithDigests(t *testing.T) {
+	t.Run("includes digest metadata for known firewall images", func(t *testing.T) {
+		tag := buildAWFImageTagWithDigests("0.25.28", nil)
+
+		assert.Contains(t, tag, "0.25.28", "should keep original AWF tag")
+		assert.Contains(t, tag, "squid=sha256:", "should include squid digest metadata")
+		assert.Contains(t, tag, "agent=sha256:", "should include agent digest metadata")
+		assert.Contains(t, tag, "api-proxy=sha256:", "should include api-proxy digest metadata")
+		assert.Contains(t, tag, "cli-proxy=sha256:", "should include cli-proxy digest metadata")
+	})
+
+	t.Run("leaves tag unchanged when digests are unavailable", func(t *testing.T) {
+		tag := buildAWFImageTagWithDigests("0.0.1", nil)
+		assert.Equal(t, "0.0.1", tag, "should not append digest metadata when no pins are available")
+	})
+}
+
+func TestBuildAWFArgs_ImageTagIncludesDigests(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:     "copilot",
+		AllowedDomains: "github.com",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		},
+	}
+
+	args := BuildAWFArgs(config)
+
+	imageTagValue := ""
+	for i := range len(args) - 1 {
+		if args[i] == "--image-tag" {
+			imageTagValue = args[i+1]
+			break
+		}
+	}
+
+	assert.NotEmpty(t, imageTagValue, "expected --image-tag argument")
+	assert.Contains(t, imageTagValue, "squid=sha256:", "expected digest metadata in --image-tag")
+	assert.Contains(t, imageTagValue, "agent=sha256:", "expected digest metadata in --image-tag")
+	assert.Contains(t, imageTagValue, "api-proxy=sha256:", "expected digest metadata in --image-tag")
 }

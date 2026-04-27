@@ -367,6 +367,8 @@ After updating the tool description:
 - **Be evidence-based**: Show actual error examples, not assumptions
 - **Be actionable**: Recommend specific description improvements
 
+- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+
 ### Issue Creation Rules
 
 - **Skip if no tool description issues found**: Don't create issue for workflow prompt issues only

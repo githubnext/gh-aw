@@ -83,10 +83,10 @@
       "version": "v5.2.0",
       "sha": "be666c2fcd27ec809703dec50e508c2fdc7f6654"
     },
-    "actions/setup-node@v6.3.0": {
+    "actions/setup-node@v6.4.0": {
       "repo": "actions/setup-node",
-      "version": "v6.3.0",
-      "sha": "53b83947a5a98c8d113130e565377fae1a50d02f"
+      "version": "v6.4.0",
+      "sha": "48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"
     },
     "actions/setup-python@v6.2.0": {
       "repo": "actions/setup-python",
@@ -158,20 +158,20 @@
       "version": "v2.11",
       "sha": "1cb3cd8a008d80c9fa129c0f0823d69584905f5b"
     },
-    "microsoft/apm-action@v1.4.1": {
+    "microsoft/apm-action@v1.4.2": {
       "repo": "microsoft/apm-action",
-      "version": "v1.4.1",
-      "sha": "a190b0b1a91031057144dc136acf9757a59c9e4d"
+      "version": "v1.4.2",
+      "sha": "9fe9337ef58b5e620e0113071ceb47a6a8a232f7"
     },
     "oven-sh/setup-bun@v2.2.0": {
       "repo": "oven-sh/setup-bun",
       "version": "v2.2.0",
       "sha": "0c5077e51419868618aeaa5fe8019c62421857d6"
     },
-    "ruby/setup-ruby@v1.302.0": {
+    "ruby/setup-ruby@v1.305.0": {
       "repo": "ruby/setup-ruby",
-      "version": "v1.302.0",
-      "sha": "7372622e62b60b3cb750dcd2b9e32c247ffec26a"
+      "version": "v1.305.0",
+      "sha": "0cb964fd540e0a24c900370abf38a33466142735"
     },
     "super-linter/super-linter@v8.6.0": {
       "repo": "super-linter/super-linter",
@@ -180,6 +180,11 @@
     }
   },
   "containers": {
+    "alpine:latest": {
+      "image": "alpine:latest",
+      "digest": "sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11",
+      "pinned_image": "alpine:latest@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11"
+    },
     "docker.io/mcp/brave-search": {
       "image": "docker.io/mcp/brave-search",
       "digest": "sha256:ca96b8acb27d8cf601a8faef86a084602cffa41d8cb18caa1e29ba4d16989d22",
@@ -195,6 +200,11 @@
       "digest": "sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/agent:0.25.20@sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682"
     },
+    "ghcr.io/github/gh-aw-firewall/agent:0.25.28": {
+      "image": "ghcr.io/github/gh-aw-firewall/agent:0.25.28",
+      "digest": "sha256:a8834e285807654bf680154faa710d43fe4365a0868142f5c20e48c85e137a7a",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/agent:0.25.28@sha256:a8834e285807654bf680154faa710d43fe4365a0868142f5c20e48c85e137a7a"
+    },
     "ghcr.io/github/gh-aw-firewall/api-proxy:0.25.18": {
       "image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.25.18",
       "digest": "sha256:d16a40a3ca6e989896d0cef9f31b9412bb1fcc8755bafcafb95012ae1078539b",
@@ -204,6 +214,16 @@
       "image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20",
       "digest": "sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20@sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519"
+    },
+    "ghcr.io/github/gh-aw-firewall/api-proxy:0.25.28": {
+      "image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.25.28",
+      "digest": "sha256:93290f2393752252911bd7c39a047f776c0b53063575e7bde4e304962a9a61cb",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.25.28@sha256:93290f2393752252911bd7c39a047f776c0b53063575e7bde4e304962a9a61cb"
+    },
+    "ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.28": {
+      "image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.28",
+      "digest": "sha256:fdf310e4678ce58d248c466b89399e9680a3003038fd19322c388559016aaac7",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.28@sha256:fdf310e4678ce58d248c466b89399e9680a3003038fd19322c388559016aaac7"
     },
     "ghcr.io/github/gh-aw-firewall/squid:0.25.18": {
       "image": "ghcr.io/github/gh-aw-firewall/squid:0.25.18",
@@ -215,15 +235,30 @@
       "digest": "sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/squid:0.25.20@sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236"
     },
+    "ghcr.io/github/gh-aw-firewall/squid:0.25.28": {
+      "image": "ghcr.io/github/gh-aw-firewall/squid:0.25.28",
+      "digest": "sha256:844c18280f82cd1b06345eb2f4e91966b34185bfc51c9f237c3e022e848fb474",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/squid:0.25.28@sha256:844c18280f82cd1b06345eb2f4e91966b34185bfc51c9f237c3e022e848fb474"
+    },
     "ghcr.io/github/gh-aw-mcpg:v0.2.19": {
       "image": "ghcr.io/github/gh-aw-mcpg:v0.2.19",
       "digest": "sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd",
       "pinned_image": "ghcr.io/github/gh-aw-mcpg:v0.2.19@sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd"
     },
+    "ghcr.io/github/gh-aw-mcpg:v0.2.30": {
+      "image": "ghcr.io/github/gh-aw-mcpg:v0.2.30",
+      "digest": "sha256:e950e6d39f003862d33bfb8d4eb93e242d919cf6ca874b90728e5e0ea7434c6f",
+      "pinned_image": "ghcr.io/github/gh-aw-mcpg:v0.2.30@sha256:e950e6d39f003862d33bfb8d4eb93e242d919cf6ca874b90728e5e0ea7434c6f"
+    },
     "ghcr.io/github/github-mcp-server:v0.32.0": {
       "image": "ghcr.io/github/github-mcp-server:v0.32.0",
       "digest": "sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28",
       "pinned_image": "ghcr.io/github/github-mcp-server:v0.32.0@sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28"
+    },
+    "ghcr.io/github/github-mcp-server:v1.0.0": {
+      "image": "ghcr.io/github/github-mcp-server:v1.0.0",
+      "digest": "sha256:d2550953f8050bc5a1c8f80d1678766f66f60bbfbcd953fdeaf661fe4269bd95",
+      "pinned_image": "ghcr.io/github/github-mcp-server:v1.0.0@sha256:d2550953f8050bc5a1c8f80d1678766f66f60bbfbcd953fdeaf661fe4269bd95"
     },
     "ghcr.io/github/serena-mcp-server:latest": {
       "image": "ghcr.io/github/serena-mcp-server:latest",
@@ -267,8 +302,8 @@
     },
     "node:lts-alpine": {
       "image": "node:lts-alpine",
-      "digest": "sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b",
-      "pinned_image": "node:lts-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b"
+      "digest": "sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f",
+      "pinned_image": "node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"
     },
     "python:alpine": {
       "image": "python:alpine",

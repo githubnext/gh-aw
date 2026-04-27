@@ -235,7 +235,7 @@ func TestMapToStep(t *testing.T) {
 		{
 			name: "step with integer and bool env values",
 			stepMap: map[string]any{
-				"name": "Run stale-repos tool",
+				"name": "Run stale-repos",
 				"id":   "stale-repos",
 				"uses": "github/stale-repos@v9.0.6",
 				"env": map[string]any{
@@ -248,7 +248,7 @@ func TestMapToStep(t *testing.T) {
 				},
 			},
 			want: &WorkflowStep{
-				Name: "Run stale-repos tool",
+				Name: "Run stale-repos",
 				ID:   "stale-repos",
 				Uses: "github/stale-repos@v9.0.6",
 				Env: map[string]string{

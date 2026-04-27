@@ -423,21 +423,22 @@ func TestPermissionsMerge(t *testing.T) {
 			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionWrite}),
 			merge: NewPermissionsReadAll(),
 			want: map[PermissionScope]PermissionLevel{
-				PermissionContents:       PermissionWrite, // preserved
-				PermissionActions:        PermissionRead,  // added
-				PermissionAttestations:   PermissionRead,
-				PermissionChecks:         PermissionRead,
-				PermissionDeployments:    PermissionRead,
-				PermissionDiscussions:    PermissionRead,
-				PermissionIssues:         PermissionRead,
-				PermissionMetadata:       PermissionRead,
-				PermissionPackages:       PermissionRead,
-				PermissionPages:          PermissionRead,
-				PermissionPullRequests:   PermissionRead,
-				PermissionRepositoryProj: PermissionRead,
-				PermissionSecurityEvents: PermissionRead,
-				PermissionStatuses:       PermissionRead,
-				PermissionModels:         PermissionRead,
+				PermissionContents:            PermissionWrite, // preserved
+				PermissionActions:             PermissionRead,  // added
+				PermissionAttestations:        PermissionRead,
+				PermissionChecks:              PermissionRead,
+				PermissionDeployments:         PermissionRead,
+				PermissionDiscussions:         PermissionRead,
+				PermissionIssues:              PermissionRead,
+				PermissionMetadata:            PermissionRead,
+				PermissionPackages:            PermissionRead,
+				PermissionPages:               PermissionRead,
+				PermissionPullRequests:        PermissionRead,
+				PermissionRepositoryProj:      PermissionRead,
+				PermissionSecurityEvents:      PermissionRead,
+				PermissionStatuses:            PermissionRead,
+				PermissionModels:              PermissionRead,
+				PermissionVulnerabilityAlerts: PermissionRead,
 				// Note: id-token is NOT included because it doesn't support read level
 				// Note: organization-projects is NOT included because it's a GitHub App-only scope
 			},
@@ -447,22 +448,23 @@ func TestPermissionsMerge(t *testing.T) {
 			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead}),
 			merge: NewPermissionsWriteAll(),
 			want: map[PermissionScope]PermissionLevel{
-				PermissionContents:       PermissionRead, // preserved (not overwritten)
-				PermissionActions:        PermissionWrite,
-				PermissionAttestations:   PermissionWrite,
-				PermissionChecks:         PermissionWrite,
-				PermissionDeployments:    PermissionWrite,
-				PermissionDiscussions:    PermissionWrite,
-				PermissionIdToken:        PermissionWrite, // id-token supports write
-				PermissionIssues:         PermissionWrite,
-				PermissionMetadata:       PermissionWrite,
-				PermissionPackages:       PermissionWrite,
-				PermissionPages:          PermissionWrite,
-				PermissionPullRequests:   PermissionWrite,
-				PermissionRepositoryProj: PermissionWrite,
-				PermissionSecurityEvents: PermissionWrite,
-				PermissionStatuses:       PermissionWrite,
-				PermissionModels:         PermissionWrite,
+				PermissionContents:            PermissionRead, // preserved (not overwritten)
+				PermissionActions:             PermissionWrite,
+				PermissionAttestations:        PermissionWrite,
+				PermissionChecks:              PermissionWrite,
+				PermissionDeployments:         PermissionWrite,
+				PermissionDiscussions:         PermissionWrite,
+				PermissionIdToken:             PermissionWrite, // id-token supports write
+				PermissionIssues:              PermissionWrite,
+				PermissionMetadata:            PermissionWrite,
+				PermissionPackages:            PermissionWrite,
+				PermissionPages:               PermissionWrite,
+				PermissionPullRequests:        PermissionWrite,
+				PermissionRepositoryProj:      PermissionWrite,
+				PermissionSecurityEvents:      PermissionWrite,
+				PermissionStatuses:            PermissionWrite,
+				PermissionModels:              PermissionWrite,
+				PermissionVulnerabilityAlerts: PermissionWrite,
 				// Note: organization-projects is NOT included because it's a GitHub App-only scope
 			},
 		},
@@ -471,21 +473,22 @@ func TestPermissionsMerge(t *testing.T) {
 			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionWrite}),
 			merge: NewPermissionsReadAll(),
 			want: map[PermissionScope]PermissionLevel{
-				PermissionContents:       PermissionWrite,
-				PermissionActions:        PermissionRead,
-				PermissionAttestations:   PermissionRead,
-				PermissionChecks:         PermissionRead,
-				PermissionDeployments:    PermissionRead,
-				PermissionDiscussions:    PermissionRead,
-				PermissionIssues:         PermissionRead,
-				PermissionMetadata:       PermissionRead,
-				PermissionPackages:       PermissionRead,
-				PermissionPages:          PermissionRead,
-				PermissionPullRequests:   PermissionRead,
-				PermissionRepositoryProj: PermissionRead,
-				PermissionSecurityEvents: PermissionRead,
-				PermissionStatuses:       PermissionRead,
-				PermissionModels:         PermissionRead,
+				PermissionContents:            PermissionWrite,
+				PermissionActions:             PermissionRead,
+				PermissionAttestations:        PermissionRead,
+				PermissionChecks:              PermissionRead,
+				PermissionDeployments:         PermissionRead,
+				PermissionDiscussions:         PermissionRead,
+				PermissionIssues:              PermissionRead,
+				PermissionMetadata:            PermissionRead,
+				PermissionPackages:            PermissionRead,
+				PermissionPages:               PermissionRead,
+				PermissionPullRequests:        PermissionRead,
+				PermissionRepositoryProj:      PermissionRead,
+				PermissionSecurityEvents:      PermissionRead,
+				PermissionStatuses:            PermissionRead,
+				PermissionModels:              PermissionRead,
+				PermissionVulnerabilityAlerts: PermissionRead,
 				// Note: id-token is NOT included because it doesn't support read level
 				// Note: organization-projects is NOT included because it's a GitHub App-only scope
 			},
@@ -495,22 +498,23 @@ func TestPermissionsMerge(t *testing.T) {
 			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionIssues: PermissionRead}),
 			merge: NewPermissionsWriteAll(),
 			want: map[PermissionScope]PermissionLevel{
-				PermissionIssues:         PermissionRead,
-				PermissionActions:        PermissionWrite,
-				PermissionAttestations:   PermissionWrite,
-				PermissionChecks:         PermissionWrite,
-				PermissionContents:       PermissionWrite,
-				PermissionDeployments:    PermissionWrite,
-				PermissionDiscussions:    PermissionWrite,
-				PermissionIdToken:        PermissionWrite, // id-token supports write
-				PermissionMetadata:       PermissionWrite,
-				PermissionPackages:       PermissionWrite,
-				PermissionPages:          PermissionWrite,
-				PermissionPullRequests:   PermissionWrite,
-				PermissionRepositoryProj: PermissionWrite,
-				PermissionSecurityEvents: PermissionWrite,
-				PermissionStatuses:       PermissionWrite,
-				PermissionModels:         PermissionWrite,
+				PermissionIssues:              PermissionRead,
+				PermissionActions:             PermissionWrite,
+				PermissionAttestations:        PermissionWrite,
+				PermissionChecks:              PermissionWrite,
+				PermissionContents:            PermissionWrite,
+				PermissionDeployments:         PermissionWrite,
+				PermissionDiscussions:         PermissionWrite,
+				PermissionIdToken:             PermissionWrite, // id-token supports write
+				PermissionMetadata:            PermissionWrite,
+				PermissionPackages:            PermissionWrite,
+				PermissionPages:               PermissionWrite,
+				PermissionPullRequests:        PermissionWrite,
+				PermissionRepositoryProj:      PermissionWrite,
+				PermissionSecurityEvents:      PermissionWrite,
+				PermissionStatuses:            PermissionWrite,
+				PermissionModels:              PermissionWrite,
+				PermissionVulnerabilityAlerts: PermissionWrite,
 			},
 		},
 		{
@@ -702,32 +706,34 @@ func TestFilterJobLevelPermissions(t *testing.T) {
 			excludes: []string{},
 		},
 		{
-			name:  "vulnerability-alerts is filtered out",
+			name:  "vulnerability-alerts is preserved (GITHUB_TOKEN scope)",
 			input: "permissions:\n  contents: read\n  pull-requests: read\n  security-events: read\n  vulnerability-alerts: read",
 			contains: []string{
 				"permissions:",
 				"  contents: read",
 				"  pull-requests: read",
 				"  security-events: read",
+				"  vulnerability-alerts: read",
 			},
-			excludes: []string{"vulnerability-alerts"},
+			excludes: []string{},
 		},
 		{
-			name:  "multiple GitHub App-only scopes are filtered out",
+			name:  "multiple GitHub App-only scopes are filtered out but vulnerability-alerts is preserved",
 			input: "permissions:\n  contents: read\n  issues: write\n  administration: read\n  members: read\n  vulnerability-alerts: read",
 			contains: []string{
 				"permissions:",
 				"  contents: read",
 				"  issues: write",
+				"  vulnerability-alerts: read",
 			},
-			excludes: []string{"administration", "members", "vulnerability-alerts"},
+			excludes: []string{"administration", "members"},
 		},
 		{
 			name:        "only GitHub App-only scopes returns empty string",
-			input:       "permissions:\n  vulnerability-alerts: read\n  members: read",
+			input:       "permissions:\n  members: read",
 			expectEmpty: true,
 			contains:    []string{},
-			excludes:    []string{"vulnerability-alerts", "members"},
+			excludes:    []string{"members"},
 		},
 		{
 			name:     "shorthand read-all is preserved unchanged",
@@ -767,4 +773,185 @@ func TestFilterJobLevelPermissions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPermissions_HasContentsReadAccess(t *testing.T) {
+	tests := []struct {
+		name     string
+		perms    *Permissions
+		expected bool
+	}{
+		{
+			name:     "nil permissions returns false",
+			perms:    nil,
+			expected: false,
+		},
+		{
+			name:     "read-all shorthand grants contents read",
+			perms:    NewPermissionsReadAll(),
+			expected: true,
+		},
+		{
+			name:     "write-all shorthand grants contents read",
+			perms:    NewPermissionsWriteAll(),
+			expected: true,
+		},
+		{
+			name:     "none shorthand denies contents read",
+			perms:    NewPermissionsNone(),
+			expected: false,
+		},
+		{
+			name:     "empty permissions denies contents read",
+			perms:    NewPermissions(),
+			expected: false,
+		},
+		{
+			name:     "contents: read grants access",
+			perms:    NewPermissionsContentsRead(),
+			expected: true,
+		},
+		{
+			name:     "contents: write grants access (write implies read)",
+			perms:    NewPermissionsContentsWrite(),
+			expected: true,
+		},
+		{
+			name: "no contents permission denies access",
+			perms: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionIssues: PermissionWrite,
+			}),
+			expected: false,
+		},
+		{
+			name: "contents: none denies access",
+			perms: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionContents: PermissionNone,
+			}),
+			expected: false,
+		},
+		{
+			name:     "all: read grants contents read",
+			perms:    NewPermissionsAllRead(),
+			expected: true,
+		},
+		{
+			name: "all: write grants contents read (write implies read)",
+			perms: func() *Permissions {
+				p := NewPermissions()
+				p.hasAll = true
+				p.allLevel = PermissionWrite
+				return p
+			}(),
+			expected: true,
+		},
+		{
+			name: "all: read with explicit contents: none denies access",
+			perms: func() *Permissions {
+				p := NewPermissionsAllRead()
+				p.Set(PermissionContents, PermissionNone)
+				return p
+			}(),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.perms.HasContentsReadAccess()
+			if result != tt.expected {
+				t.Errorf("HasContentsReadAccess() = %v, expected %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFilterJobLevelPermissionsWithCache(t *testing.T) {
+	// Verify that passing a pre-parsed *Permissions produces the same result
+	// as parsing from the raw YAML string.
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "standard permissions with cache",
+			input: "permissions:\n  contents: read\n  issues: write",
+		},
+		{
+			name:  "shorthand read-all with cache",
+			input: "permissions: read-all",
+		},
+		{
+			name:  "shorthand none with cache",
+			input: "permissions: none",
+		},
+		{
+			name:  "App-only scopes filtered with cache",
+			input: "permissions:\n  contents: read\n  members: read",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Compute expected result without cache
+			withoutCache := filterJobLevelPermissions(tt.input)
+
+			// Compute result using cached permissions
+			cached := NewPermissionsParser(tt.input).ToPermissions()
+			withCache := filterJobLevelPermissions(tt.input, cached)
+
+			if withoutCache != withCache {
+				t.Errorf("filterJobLevelPermissions() with cache produced different result:\nwithout cache: %q\nwith cache:    %q", withoutCache, withCache)
+			}
+		})
+	}
+}
+
+func TestPermissions_Clone(t *testing.T) {
+	t.Run("clone is independent - mutations do not affect original", func(t *testing.T) {
+		original := NewPermissionsContentsRead()
+		clone := original.Clone()
+
+		// Mutate the clone
+		clone.Set(PermissionIssues, PermissionWrite)
+
+		// Original must be unchanged
+		if _, exists := original.permissions[PermissionIssues]; exists {
+			t.Error("Clone.Set() mutated the original Permissions object")
+		}
+	})
+
+	t.Run("clone of shorthand is independent", func(t *testing.T) {
+		original := NewPermissionsReadAll()
+		clone := original.Clone()
+
+		if clone.shorthand != original.shorthand {
+			t.Errorf("Clone shorthand mismatch: got %q, want %q", clone.shorthand, original.shorthand)
+		}
+
+		// Mutating clone should not affect original
+		clone.shorthand = "none"
+		if original.shorthand != "read-all" {
+			t.Errorf("Clone mutation affected original shorthand: %q", original.shorthand)
+		}
+	})
+
+	t.Run("clone of nil returns empty permissions", func(t *testing.T) {
+		var p *Permissions
+		clone := p.Clone()
+		if clone == nil {
+			t.Fatal("Clone of nil should return non-nil empty Permissions")
+		}
+		if len(clone.permissions) != 0 || clone.shorthand != "" {
+			t.Error("Clone of nil should return empty Permissions")
+		}
+	})
+
+	t.Run("clone of all:read preserves hasAll flag", func(t *testing.T) {
+		original := NewPermissionsAllRead()
+		clone := original.Clone()
+		if !clone.hasAll || clone.allLevel != PermissionRead {
+			t.Errorf("Clone of all:read did not preserve hasAll/allLevel: hasAll=%v allLevel=%q", clone.hasAll, clone.allLevel)
+		}
+	})
 }

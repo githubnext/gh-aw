@@ -67,6 +67,7 @@ These paths are populated by imported setup components:
 
 ## Hard Requirements
 
+0. **Never use direct GitHub CLI API reads** (`gh api`, `gh repo view`, `gh pr list`) in analysis steps. Use MCP `github` tools for GitHub reads.
 1. Process **all available sessions** in the last 14 days (deterministic; no sampling unless data is too large to load in one pass).
 2. Parse session event data from `events.jsonl` when available.
 3. Detect these classes of issues:

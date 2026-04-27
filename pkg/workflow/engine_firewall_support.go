@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -118,7 +120,8 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 // generateFirewallLogParsingStep creates a GitHub Actions step to parse firewall logs and create step summary.
 func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 	// Firewall logs are at a known location in the sandbox folder structure
-	firewallLogsDir := "/tmp/gh-aw/sandbox/firewall/logs"
+	firewallLogsDir := constants.AWFProxyLogsDir
+	firewallDir := path.Dir(firewallLogsDir)
 
 	stepLines := []string{
 		"      - name: Print firewall logs",
@@ -127,9 +130,9 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 		"        env:",
 		"          AWF_LOGS_DIR: " + firewallLogsDir,
 		"        run: |",
-		"          # Fix permissions on firewall logs so they can be uploaded as artifacts",
+		"          # Fix permissions on firewall logs/audit dirs so they can be uploaded as artifacts",
 		"          # AWF runs with sudo, creating files owned by root",
-		fmt.Sprintf("          sudo chmod -R a+r %s 2>/dev/null || true", firewallLogsDir),
+		fmt.Sprintf("          sudo chmod -R a+r %s 2>/dev/null || true", firewallDir),
 		"          # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)",
 		"          if command -v awf &> /dev/null; then",
 		"            awf logs summary | tee -a \"$GITHUB_STEP_SUMMARY\"",

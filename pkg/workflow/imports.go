@@ -361,6 +361,8 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return config.UpdateIssues != nil
 	case "update-pull-request":
 		return config.UpdatePullRequests != nil
+	case "merge-pull-request":
+		return config.MergePullRequest != nil
 	case "push-to-pull-request-branch":
 		return config.PushToPullRequestBranch != nil
 	case "upload-asset":
@@ -506,6 +508,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if result.UpdatePullRequests == nil && importedConfig.UpdatePullRequests != nil {
 		result.UpdatePullRequests = importedConfig.UpdatePullRequests
 	}
+	if result.MergePullRequest == nil && importedConfig.MergePullRequest != nil {
+		result.MergePullRequest = importedConfig.MergePullRequest
+	}
 	if result.PushToPullRequestBranch == nil && importedConfig.PushToPullRequestBranch != nil {
 		result.PushToPullRequestBranch = importedConfig.PushToPullRequestBranch
 	} else if result.PushToPullRequestBranch != nil && importedConfig.PushToPullRequestBranch != nil {
@@ -605,6 +610,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 	if result.RunsOn == "" && importedConfig.RunsOn != "" {
 		result.RunsOn = importedConfig.RunsOn
+	}
+	if len(importedConfig.Needs) > 0 {
+		result.Needs = mergeUnique(result.Needs, importedConfig.Needs...)
 	}
 
 	// Merge Messages configuration at field level (main workflow entries override imported entries)

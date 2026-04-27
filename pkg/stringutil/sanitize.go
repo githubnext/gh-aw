@@ -80,11 +80,20 @@ func SanitizeErrorMessage(message string) string {
 	return sanitized
 }
 
-// sanitizeIdentifierName converts a name to a valid identifier by replacing
-// disallowed characters with underscores. The extraAllowed function determines
-// which additional runes (beyond a-z, A-Z, 0-9, _) are permitted.
-// If the resulting name starts with a digit, an underscore is prepended.
-func sanitizeIdentifierName(name string, extraAllowed func(rune) bool) string {
+// SanitizeIdentifierName sanitizes a name for use as a programming-language identifier
+// by replacing disallowed characters with underscores.
+//
+// Use this function for code identifiers (for example JavaScript and Python variable
+// names). It preserves [a-zA-Z0-9_] plus optional extraAllowed runes and prepends
+// an underscore if the result would otherwise start with a digit.
+//
+// This function enforces only character-level sanitization. In particular, it returns
+// the empty string unchanged for empty input and does not check language-specific
+// constraints such as reserved keywords.
+//
+// For workflow artifact and user-agent identifiers, use workflow.SanitizeArtifactIdentifier
+// instead, which produces hyphen-separated lowercase output.
+func SanitizeIdentifierName(name string, extraAllowed func(rune) bool) string {
 	result := strings.Map(func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
 			return r
@@ -121,7 +130,7 @@ func sanitizeIdentifierName(name string, extraAllowed func(rune) bool) string {
 //	SanitizeParameterName("valid_name")      // returns "valid_name"
 //	SanitizeParameterName("$special")        // returns "$special"
 func SanitizeParameterName(name string) string {
-	return sanitizeIdentifierName(name, func(r rune) bool { return r == '$' })
+	return SanitizeIdentifierName(name, func(r rune) bool { return r == '$' })
 }
 
 // SanitizePythonVariableName converts a parameter name to a valid Python identifier
@@ -142,7 +151,7 @@ func SanitizeParameterName(name string) string {
 //	SanitizePythonVariableName("123param")        // returns "_123param"
 //	SanitizePythonVariableName("valid_name")      // returns "valid_name"
 func SanitizePythonVariableName(name string) string {
-	return sanitizeIdentifierName(name, nil)
+	return SanitizeIdentifierName(name, nil)
 }
 
 // SanitizeToolID removes common MCP prefixes and suffixes from tool IDs.

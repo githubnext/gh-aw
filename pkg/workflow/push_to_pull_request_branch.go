@@ -16,6 +16,7 @@ type PushToPullRequestBranchConfig struct {
 	TitlePrefix                    string   `yaml:"title-prefix,omitempty"`                        // Required title prefix for pull request validation
 	Labels                         []string `yaml:"labels,omitempty"`                              // Required labels for pull request validation
 	IfNoChanges                    string   `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
+	IgnoreMissingBranchFailure     bool     `yaml:"ignore-missing-branch-failure,omitempty"`       // When true, missing/deleted target branches are treated as skipped instead of hard failures.
 	CommitTitleSuffix              string   `yaml:"commit-title-suffix,omitempty"`                 // Optional suffix to append to generated commit titles
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
 	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository push to pull request branch
@@ -25,7 +26,9 @@ type PushToPullRequestBranchConfig struct {
 	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for push. Checked independently of protected-files; both checks must pass.
 	ExcludedFiles                  []string `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
 	PatchFormat                    string   `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "am" (default, uses git format-patch) or "bundle" (uses git bundle, preserves merge topology and per-commit metadata).
+	FallbackAsPullRequest          *bool    `yaml:"fallback-as-pull-request,omitempty"`            // When true (default), creates a fallback pull request if direct push fails due to diverged/non-fast-forward branch. When false, fallback is disabled and pull-requests: write is not requested.
 	AllowWorkflows                 bool     `yaml:"allow-workflows,omitempty"`                     // When true, adds workflows: write to the GitHub App token. Requires safe-outputs.github-app to be configured.
+	CheckBranchProtection          *bool    `yaml:"check-branch-protection,omitempty"`             // When false, skips the branch protection API pre-flight check. Default is true (check enabled). Set to false to avoid needing administration: read permission.
 }
 
 // buildCheckoutRepository generates a checkout step with optional target repository and custom token
@@ -113,6 +116,13 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 				}
 			}
 
+			// Parse ignore-missing-branch-failure (optional, defaults to false)
+			if ignoreMissingBranchFailure, exists := configMap["ignore-missing-branch-failure"]; exists {
+				if ignoreMissingBranchFailureBool, ok := ignoreMissingBranchFailure.(bool); ok {
+					pushToBranchConfig.IgnoreMissingBranchFailure = ignoreMissingBranchFailureBool
+				}
+			}
+
 			// Parse title-prefix using shared helper
 			pushToBranchConfig.TitlePrefix = parseTitlePrefixFromConfig(configMap)
 
@@ -165,10 +175,24 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 				}
 			}
 
+			// Parse fallback-as-pull-request (optional, defaults to true)
+			if fallbackAsPullRequest, exists := configMap["fallback-as-pull-request"]; exists {
+				if fallbackAsPullRequestBool, ok := fallbackAsPullRequest.(bool); ok {
+					pushToBranchConfig.FallbackAsPullRequest = &fallbackAsPullRequestBool
+				}
+			}
+
 			// Parse allow-workflows: when true, adds workflows: write to the GitHub App token
 			if allowWorkflows, exists := configMap["allow-workflows"]; exists {
 				if allowWorkflowsBool, ok := allowWorkflows.(bool); ok {
 					pushToBranchConfig.AllowWorkflows = allowWorkflowsBool
+				}
+			}
+
+			// Parse check-branch-protection: when false, skips the branch protection API pre-flight check
+			if checkBranchProtection, exists := configMap["check-branch-protection"]; exists {
+				if checkBranchProtectionBool, ok := checkBranchProtection.(bool); ok {
+					pushToBranchConfig.CheckBranchProtection = &checkBranchProtectionBool
 				}
 			}
 

@@ -11,6 +11,22 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
+func TestNewTrialCommandCloneRepoFlagDescription(t *testing.T) {
+	cmd := NewTrialCommand(func(string) error { return nil })
+	cloneRepoFlag := cmd.Flags().Lookup("clone-repo")
+	if cloneRepoFlag == nil {
+		t.Fatal("Expected 'clone-repo' flag to be defined")
+	}
+
+	if strings.Contains(cloneRepoFlag.Usage, "Alternative to --logical-repo") {
+		t.Errorf("Expected clone-repo help text to avoid describing itself as an alternative to logical-repo, got: %s", cloneRepoFlag.Usage)
+	}
+
+	if !strings.Contains(cloneRepoFlag.Usage, "Clone the contents of the specified repository") {
+		t.Errorf("Expected clone-repo help text to describe clone behavior, got: %s", cloneRepoFlag.Usage)
+	}
+}
+
 // Test the host repo slug processing logic with dot notation
 func TestHostRepoSlugProcessing(t *testing.T) {
 	testCases := []struct {

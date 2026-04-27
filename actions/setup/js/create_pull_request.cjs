@@ -10,13 +10,14 @@ const { pushSignedCommits } = require("./push_signed_commits.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { replaceTemporaryIdReferences, replaceTemporaryIdReferencesInPatch, getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
-const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
@@ -25,7 +26,7 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
-const { renderTemplateFromFile, buildProtectedFileList, encodePathSegments } = require("./messages_core.cjs");
+const { renderTemplateFromFile, buildProtectedFileList, encodePathSegments, getPromptPath } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL, MAX_ASSIGNEES } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
@@ -134,6 +135,19 @@ function isBaseBranchAllowed(baseBranch, allowedBaseBranches) {
 }
 
 /**
+ * Parse config values that may be arrays or comma-separated strings.
+ * @param {string[]|string|undefined} value
+ * @returns {string[]}
+ */
+function parseStringListConfig(value) {
+  if (!value) {
+    return [];
+  }
+  const raw = Array.isArray(value) ? value : String(value).split(",");
+  return raw.map(item => String(item).trim()).filter(Boolean);
+}
+
+/**
  * Merges the required fallback label with any workflow-configured labels,
  * deduplicating and filtering empty values.
  * @param {string[]} [labels]
@@ -218,28 +232,165 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
  * Maximum limits for pull request parameters to prevent resource exhaustion.
  * These limits align with GitHub's API constraints and security best practices.
  */
-/** @type {number} Maximum number of files allowed per pull request */
+/** @type {number} Default maximum number of unique files allowed per pull request.
+ * Can be overridden via the `max-patch-files` safe-outputs config option. */
 const MAX_FILES = 100;
+
+/**
+ * Parses a single `diff --git` header line and returns the post-image (`b/`)
+ * path, the pre-image (`a/`) path, or `null` if the header could not be
+ * parsed. Handles both unquoted paths and C-style quoted paths emitted by
+ * git when filenames contain unusual characters (e.g. backslash-escaped
+ * quotes, control characters, or non-ASCII bytes when `core.quotepath=true`).
+ *
+ * Examples of supported forms:
+ *   diff --git a/foo.txt b/foo.txt
+ *   diff --git a/dir/with space/x b/dir/with space/x
+ *   diff --git "a/foo\"bar" "b/foo\"bar"
+ *   diff --git "a/foo\\bar" "b/foo\\bar"
+ *
+ * @param {string} headerLine - The full header line (must start with `diff --git `)
+ * @returns {string|null} The extracted file path, or null if parsing failed.
+ */
+function parseDiffGitHeader(headerLine) {
+  // Strip the `diff --git ` prefix.
+  const rest = headerLine.replace(/^diff --git /, "");
+  if (rest === headerLine) {
+    return null;
+  }
+
+  // Walk the string and pull out the two pathspecs. Each is either:
+  //   - A quoted C-style string ("..."), where backslash escapes any character
+  //     including embedded quotes and backslashes.
+  //   - An unquoted run of non-space characters.
+  // We don't actually need to unescape the contents; the raw token is fine
+  // for use as a Set key (uniqueness is preserved). All we need is to
+  // correctly delimit the two path tokens.
+  /** @type {string[]} */
+  const tokens = [];
+  let i = 0;
+  while (i < rest.length && tokens.length < 2) {
+    // Skip leading whitespace between tokens.
+    while (i < rest.length && rest[i] === " ") {
+      i++;
+    }
+    if (i >= rest.length) {
+      break;
+    }
+    let token = "";
+    if (rest[i] === '"') {
+      // Quoted form: consume until the matching unescaped quote.
+      token += rest[i++];
+      while (i < rest.length) {
+        const ch = rest[i++];
+        token += ch;
+        if (ch === "\\" && i < rest.length) {
+          // Escaped char: consume the next character verbatim.
+          token += rest[i++];
+        } else if (ch === '"') {
+          break;
+        }
+      }
+    } else {
+      // Unquoted form: consume up to the next space.
+      while (i < rest.length && rest[i] !== " ") {
+        token += rest[i++];
+      }
+    }
+    tokens.push(token);
+  }
+
+  if (tokens.length < 2) {
+    return null;
+  }
+
+  // Prefer the "b/" (post-image) token, falling back to "a/" if needed.
+  // The leading "a/" or "b/" prefix is preserved in the returned key so
+  // that quoted vs. unquoted forms of the same path don't collide
+  // accidentally with unrelated files; uniqueness is the only invariant
+  // that matters here.
+  const stripPrefix = tok => {
+    if (tok.startsWith('"a/') || tok.startsWith('"b/')) {
+      return tok.slice(3, tok.endsWith('"') ? -1 : undefined);
+    }
+    if (tok.startsWith("a/") || tok.startsWith("b/")) {
+      return tok.slice(2);
+    }
+    return tok;
+  };
+  const bPath = stripPrefix(tokens[1]);
+  if (bPath) {
+    return bPath;
+  }
+  const aPath = stripPrefix(tokens[0]);
+  return aPath || null;
+}
+
+/**
+ * Counts the number of unique file paths touched by a git patch.
+ *
+ * `git format-patch` emits one `diff --git` header per (commit, file), so the
+ * same file modified across multiple commits will appear multiple times. The
+ * file-count safety limit counts unique files (i.e. how many distinct files
+ * this push touches), not raw header occurrences.
+ *
+ * Headers whose paths cannot be parsed contribute one *synthetic* entry each
+ * to the unique-file set, so a malformed or quoted-with-escapes header line
+ * can never silently bypass the limit (we conservatively over-count rather
+ * than under-count when in doubt).
+ *
+ * @param {string} patchContent - Patch content to inspect (may be empty)
+ * @returns {number} Number of unique file paths referenced in the patch
+ */
+function countUniquePatchFiles(patchContent) {
+  if (!patchContent || !patchContent.trim()) {
+    return 0;
+  }
+  const files = new Set();
+  // Find all `diff --git` headers (start of line). Each header corresponds
+  // to one file diff; we try to extract its path and fall back to a unique
+  // synthetic key per unparseable header so the file is still counted in
+  // the limit. This is a conservative choice: it never undercounts, so a
+  // single malformed header cannot bypass the safety limit.
+  const headerRe = /^diff --git .*$/gm;
+  let match;
+  let unparseableIdx = 0;
+  while ((match = headerRe.exec(patchContent)) !== null) {
+    const path = parseDiffGitHeader(match[0]);
+    if (path) {
+      files.add(path);
+    } else {
+      // Use the byte offset of the header to ensure uniqueness across
+      // multiple unparseable headers, so each is counted exactly once.
+      files.add(`__unparseable_header_${match.index}_${unparseableIdx++}`);
+    }
+  }
+  return files.size;
+}
 
 /**
  * Enforces maximum limits on pull request parameters to prevent resource exhaustion attacks.
  * Per Safe Outputs specification requirement SEC-003, limits must be enforced before API calls.
  *
+ * The file-count check measures the number of *unique* files in the patch (not
+ * the number of `diff --git` headers, which can be inflated when the patch
+ * contains multiple commits touching the same file).
+ *
  * @param {string} patchContent - Patch content to validate
+ * @param {number} [maxFiles=MAX_FILES] - Maximum number of unique files allowed
  * @throws {Error} When any limit is exceeded, with error code E003 and details
  */
-function enforcePullRequestLimits(patchContent) {
+function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
   if (!patchContent || !patchContent.trim()) {
     return;
   }
 
-  // Count files in patch by looking for "diff --git" lines
-  const fileMatches = patchContent.match(/^diff --git /gm);
-  const fileCount = fileMatches ? fileMatches.length : 0;
+  const limit = Number.isFinite(maxFiles) && maxFiles > 0 ? maxFiles : MAX_FILES;
+  const fileCount = countUniquePatchFiles(patchContent);
 
   // Check file count - max limit exceeded check
-  if (fileCount > MAX_FILES) {
-    throw new Error(`E003: Cannot create pull request with more than ${MAX_FILES} files (received ${fileCount})`);
+  if (fileCount > limit) {
+    throw new Error(`E003: Cannot create pull request with more than ${limit} files (received ${fileCount})`);
   }
 }
 
@@ -274,6 +425,48 @@ function generatePatchPreview(patchContent) {
 }
 
 /**
+ * Check whether the remote branch already exists and, if so, either fail loudly
+ * (when preserve-branch-name is enabled) or rename the local branch by appending
+ * a random hex suffix.
+ * @param {string} branchName - Current local branch name.
+ * @param {boolean} preserveBranchName - Whether preserve-branch-name is enabled.
+ * @returns {Promise<string>} The (possibly renamed) branch name to use going forward.
+ * @throws {Error} If the remote branch exists and preserve-branch-name is true.
+ */
+async function handleRemoteBranchCollision(branchName, preserveBranchName) {
+  let remoteBranchExists = false;
+  try {
+    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+    if (stdout.trim()) {
+      remoteBranchExists = true;
+    }
+  } catch (checkError) {
+    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+  }
+
+  if (!remoteBranchExists) {
+    return branchName;
+  }
+
+  if (preserveBranchName) {
+    throw new Error(
+      `Remote branch "${branchName}" already exists and preserve-branch-name is enabled. ` +
+        `Refusing to silently rename the branch. Either delete the remote branch, choose a different ` +
+        `branch name, or disable preserve-branch-name to allow a random suffix to be appended.`
+    );
+  }
+
+  core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+  const extraHex = crypto.randomBytes(4).toString("hex");
+  const oldBranch = branchName;
+  const renamedBranch = `${branchName}-${extraHex}`;
+  // Rename local branch
+  await exec.exec(`git branch -m ${oldBranch} ${renamedBranch}`);
+  core.info(`Renamed branch to ${renamedBranch}`);
+  return renamedBranch;
+}
+
+/**
  * Main handler factory for create_pull_request
  * Returns a message handler function that processes individual create_pull_request messages
  * @type {HandlerFactoryFunction}
@@ -281,10 +474,11 @@ function generatePatchPreview(patchContent) {
 async function main(config = {}) {
   // Extract configuration
   const titlePrefix = config.title_prefix || "";
-  const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
-  const configReviewers = config.reviewers ? (Array.isArray(config.reviewers) ? config.reviewers : config.reviewers.split(",")).map(r => String(r).trim()).filter(r => r) : [];
-  const configTeamReviewers = config.team_reviewers ? (Array.isArray(config.team_reviewers) ? config.team_reviewers : config.team_reviewers.split(",")).map(r => String(r).trim()).filter(r => r) : [];
-  const rawAssignees = config.assignees ? (Array.isArray(config.assignees) ? config.assignees : config.assignees.split(",")).map(a => String(a).trim()).filter(a => a) : [];
+  const envLabels = parseStringListConfig(config.labels);
+  const configFallbackLabels = parseStringListConfig(config.fallback_labels);
+  const configReviewers = parseStringListConfig(config.reviewers);
+  const configTeamReviewers = parseStringListConfig(config.team_reviewers);
+  const rawAssignees = parseStringListConfig(config.assignees);
   const hasCopilotInAssignees = rawAssignees.some(a => a.toLowerCase() === "copilot");
   const configAssignees = sanitizeFallbackAssignees(rawAssignees);
   const draftDefault = parseBoolTemplatable(config.draft, true);
@@ -295,6 +489,7 @@ async function main(config = {}) {
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
+  const maxFiles = config.max_patch_files ? parseInt(String(config.max_patch_files), 10) : MAX_FILES;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const allowedBaseBranches = parseAllowedBaseBranches(config.allowed_base_branches);
   const githubClient = await createAuthenticatedGitHubClient(config);
@@ -403,6 +598,9 @@ async function main(config = {}) {
   if (envLabels.length > 0) {
     core.info(`Default labels: ${envLabels.join(", ")}`);
   }
+  if (configFallbackLabels.length > 0) {
+    core.info(`Configured fallback issue labels: ${configFallbackLabels.join(", ")}`);
+  }
   if (configReviewers.length > 0) {
     core.info(`Configured reviewers: ${configReviewers.join(", ")}`);
   }
@@ -424,6 +622,7 @@ async function main(config = {}) {
   }
   core.info(`Max count: ${maxCount}`);
   core.info(`Max patch size: ${maxSizeKb} KB`);
+  core.info(`Max patch files: ${maxFiles}`);
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
@@ -622,7 +821,7 @@ async function main(config = {}) {
 
     // Enforce max limits on patch before processing
     try {
-      enforcePullRequestLimits(patchContent);
+      enforcePullRequestLimits(patchContent, maxFiles);
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.warning(`Pull request limit exceeded: ${errorMessage}`);
@@ -792,6 +991,9 @@ async function main(config = {}) {
     // Remove duplicate title from description if it starts with a header matching the title
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
 
+    // Sanitize body content to neutralize @mentions, URLs, and other security risks
+    processedBody = sanitizeContent(processedBody);
+
     // Auto-add "Fixes #N" closing keyword if triggered from an issue and not already present.
     // This ensures the triggering issue is auto-closed when the PR is merged.
     // Agents are instructed to include this but don't reliably do so.
@@ -856,6 +1058,16 @@ async function main(config = {}) {
     const triggeringPRNumber = context.payload.pull_request?.number;
     const triggeringDiscussionNumber = context.payload.discussion?.number;
 
+    // Prepend threat detection caution alert at the very top of the PR body so it is
+    // immediately visible to reviewers. The caution is omitted from the footer to
+    // avoid duplication (skipDetectionCaution is passed to generateFooterWithMessages).
+    const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+    if (detectionCaution) {
+      // unshift(caution, "", "") places the caution alert at index 0 and two blank
+      // separator lines so the main body content follows after a full empty line.
+      bodyLines.unshift(detectionCaution, "", "");
+    }
+
     // Add fingerprint comment if present
     const trackerIDComment = getTrackerID("markdown");
     if (trackerIDComment) {
@@ -878,7 +1090,9 @@ async function main(config = {}) {
         workflowId,
         serverUrl: context.serverUrl,
       });
-      let footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl).trimEnd();
+      // Pass skipDetectionCaution so the caution alert is not duplicated in the footer
+      // (it was already prepended to the top of the body above).
+      let footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, { skipDetectionCaution: true }).trimEnd();
       footer = addExpirationToFooter(footer, expiresHours, "Pull Request");
       if (expiresHours > 0) {
         footer += "\n\n<!-- gh-aw-expires-type: pull-request -->";
@@ -913,6 +1127,13 @@ async function main(config = {}) {
       .filter(label => !!label)
       .map(label => String(label).trim())
       .filter(label => label);
+    // Add agentic-threat-detected label when threat detection produced a warning
+    if (detectionCaution && !labels.includes("agentic-threat-detected")) {
+      labels.push("agentic-threat-detected");
+    }
+    // Use explicitly configured fallback labels when present; otherwise preserve
+    // existing behavior by reusing pull request labels for fallback issues.
+    const effectiveFallbackLabels = configFallbackLabels.length > 0 ? configFallbackLabels : labels;
 
     // Configuration enforces draft as a policy, not a fallback (consistent with autoMerge/allowEmpty)
     const draft = draftDefault;
@@ -971,26 +1192,7 @@ async function main(config = {}) {
 
       // Push the commits from the bundle to the remote branch
       try {
-        // Check if remote branch already exists (optional precheck)
-        let remoteBranchExists = false;
-        try {
-          const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-          if (stdout.trim()) {
-            remoteBranchExists = true;
-          }
-        } catch (checkError) {
-          core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-        }
-
-        if (remoteBranchExists) {
-          core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-          const extraHex = crypto.randomBytes(4).toString("hex");
-          const oldBranch = branchName;
-          branchName = `${branchName}-${extraHex}`;
-          // Rename local branch
-          await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-          core.info(`Renamed branch to ${branchName}`);
-        }
+        branchName = await handleRemoteBranchCollision(branchName, preserveBranchName);
 
         await pushSignedCommits({
           githubClient,
@@ -1053,7 +1255,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 \`\`\``;
 
         try {
-          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
           await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
@@ -1199,26 +1401,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 
         // Push the applied commits to the branch (with fallback to issue creation on failure)
         try {
-          // Check if remote branch already exists (optional precheck)
-          let remoteBranchExists = false;
-          try {
-            const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-            if (stdout.trim()) {
-              remoteBranchExists = true;
-            }
-          } catch (checkError) {
-            core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-          }
-
-          if (remoteBranchExists) {
-            core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-            const extraHex = crypto.randomBytes(4).toString("hex");
-            const oldBranch = branchName;
-            branchName = `${branchName}-${extraHex}`;
-            // Rename local branch
-            await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-            core.info(`Renamed branch to ${branchName}`);
-          }
+          branchName = await handleRemoteBranchCollision(branchName, preserveBranchName);
 
           await pushSignedCommits({
             githubClient,
@@ -1306,7 +1489,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 ${patchPreview}`;
 
             try {
-              const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+              const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
               core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
               await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
@@ -1362,26 +1545,7 @@ ${patchPreview}`;
             await exec.exec(`git commit --allow-empty -m "Initialize"`);
             core.info("Created empty commit");
 
-            // Check if remote branch already exists (optional precheck)
-            let remoteBranchExists = false;
-            try {
-              const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-              if (stdout.trim()) {
-                remoteBranchExists = true;
-              }
-            } catch (checkError) {
-              core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-            }
-
-            if (remoteBranchExists) {
-              core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-              const extraHex = crypto.randomBytes(4).toString("hex");
-              const oldBranch = branchName;
-              branchName = `${branchName}-${extraHex}`;
-              // Rename local branch
-              await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-              core.info(`Renamed branch to ${branchName}`);
-            }
+            branchName = await handleRemoteBranchCollision(branchName, preserveBranchName);
 
             await pushSignedCommits({
               githubClient,
@@ -1408,6 +1572,7 @@ ${patchPreview}`;
             return {
               success: false,
               error,
+              error_type: "push_failed",
             };
           }
         } else {
@@ -1452,7 +1617,7 @@ ${patchPreview}`;
         // Use the push-failed template with artifact download instructions.
         const runId = context.runId;
         const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
-        const pushFailedTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_push_failed_fallback.md`;
+        const pushFailedTemplatePath = getPromptPath("manifest_protection_push_failed_fallback.md");
         fallbackBody = renderTemplateFromFile(pushFailedTemplatePath, {
           main_body: mainBodyContent,
           footer: footerContent,
@@ -1469,7 +1634,7 @@ ${patchPreview}`;
         const encodedBase = encodePathSegments(baseBranch);
         const encodedHead = encodePathSegments(branchName);
         const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
-        const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/manifest_protection_create_pr_fallback.md`;
+        const templatePath = getPromptPath("manifest_protection_create_pr_fallback.md");
         fallbackBody = renderTemplateFromFile(templatePath, {
           main_body: mainBodyContent,
           footer: footerContent,
@@ -1479,7 +1644,7 @@ ${patchPreview}`;
       }
 
       try {
-        const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+        const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
         core.info(`Created protected-file-protection review issue #${issue.number}: ${issue.html_url}`);
         await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
@@ -1669,7 +1834,7 @@ ${patchPreview}`;
           patchPreview = generatePatchPreview(patchContent);
         }
 
-        const fallbackTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/pr_permission_denied_fallback.md`;
+        const fallbackTemplatePath = getPromptPath("pr_permission_denied_fallback.md");
         const fallbackBody = renderTemplateFromFile(fallbackTemplatePath, {
           body,
           branch_name: branchName,
@@ -1679,7 +1844,7 @@ ${patchPreview}`;
         });
 
         try {
-          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
           await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
@@ -1745,7 +1910,7 @@ gh pr create --title "${title}" --base ${baseBranch} --head ${branchName} --repo
 ${patchPreview}`;
 
       try {
-        const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
+        const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
         core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
         await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
@@ -1776,4 +1941,4 @@ ${patchPreview}`;
   }; // End of handleCreatePullRequest
 } // End of main
 
-module.exports = { main, enforcePullRequestLimits };
+module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles, parseDiffGitHeader };

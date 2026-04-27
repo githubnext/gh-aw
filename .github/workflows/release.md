@@ -30,6 +30,7 @@ network:
     - "github.github.com"
 safe-outputs:
   update-release:
+  threat-detection: false
 imports:
   - shared/community-attribution.md
 jobs:
@@ -44,7 +45,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Compute release configuration
+      - name: Compute Release Config
         id: compute_config
         uses: actions/github-script@v9
         with:
@@ -196,7 +197,7 @@ jobs:
           path: dist/
           retention-days: 1
 
-      - name: Notify - run sync actions and merge PR
+      - name: Run sync actions and merge PR
         env:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
         run: |

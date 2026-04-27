@@ -144,6 +144,12 @@ describe("push_to_pull_request_branch.cjs", () => {
               labels: [],
             },
           }),
+          create: vi.fn().mockResolvedValue({
+            data: {
+              number: 999,
+              html_url: "https://github.com/test-owner/test-repo/pull/999",
+            },
+          }),
         },
         repos: {
           get: vi.fn().mockResolvedValue({
@@ -631,6 +637,33 @@ index 0000000..abc1234
       expect(result.commit_url).toContain("test-owner/test-repo/commit/");
     });
 
+    it("should use pushed commit SHA returned by pushSignedCommits for activation comment commit link", async () => {
+      const patchPath = createPatchFile();
+      const updateActivationCommentModule = require("./update_activation_comment.cjs");
+      const updateCommitSpy = vi.spyOn(updateActivationCommentModule, "updateActivationCommentWithCommit").mockResolvedValue(undefined);
+      const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("remote-head-after");
+
+      try {
+        mockExec.getExecOutput
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "preflight-sha\trefs/heads/feature-branch\n", stderr: "" }) // preflight ls-remote
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "local-head-before\n", stderr: "" }) // rev-parse HEAD before patch
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "1\n", stderr: "" }); // rev-list --count
+
+        const module = await loadModule();
+        const handler = await module.main({});
+        const result = await handler({ patch_path: patchPath }, {});
+
+        expect(result.success).toBe(true);
+        expect(result.commit_sha).toBe("remote-head-after");
+        expect(result.commit_url).toContain("/commit/remote-head-after");
+        expect(updateCommitSpy).toHaveBeenCalledWith(mockGithub, mockContext, mockCore, "remote-head-after", "https://github.com/test-owner/test-repo/commit/remote-head-after", { targetIssueNumber: 123 });
+      } finally {
+        pushSignedSpy.mockRestore();
+        updateCommitSpy.mockRestore();
+      }
+    });
+
     it("should detect deleted branch before fetch", async () => {
       const patchPath = createPatchFile();
 
@@ -642,6 +675,22 @@ index 0000000..abc1234
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("no longer exists on origin");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
+    it("should skip deleted branch failure when ignore_missing_branch_failure is enabled", async () => {
+      const patchPath = createPatchFile();
+
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 2, stdout: "", stderr: "fatal: couldn't find remote ref feature-branch" });
+
+      const module = await loadModule();
+      const handler = await module.main({ ignore_missing_branch_failure: true });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("no longer exists on origin");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("ignore-missing-branch-failure"));
       expect(mockExec.exec).not.toHaveBeenCalled();
     });
 
@@ -689,6 +738,23 @@ index 0000000..abc1234
       expect(result.error).toContain("does not exist on origin");
     });
 
+    it("should skip rev-parse missing branch failure when ignore_missing_branch_failure is enabled", async () => {
+      const patchPath = createPatchFile();
+
+      // git fetch succeeds, but git rev-parse fails
+      mockExec.exec.mockResolvedValueOnce(0); // fetch
+      mockExec.exec.mockRejectedValueOnce(new Error("fatal: Needed a single revision"));
+
+      const module = await loadModule();
+      const handler = await module.main({ ignore_missing_branch_failure: true });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("no longer exists on origin");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("ignore-missing-branch-failure"));
+    });
+
     it("should handle git checkout failure", async () => {
       const patchPath = createPatchFile();
 
@@ -734,7 +800,7 @@ index 0000000..abc1234
       expect(mockCore.info).toHaveBeenCalledWith("Investigating patch failure...");
     });
 
-    it("should handle git push rejection (concurrent changes)", async () => {
+    it("should create fallback pull request on non-fast-forward push rejection by default", async () => {
       const patchPath = createPatchFile();
 
       // Set up successful operations until push
@@ -765,8 +831,40 @@ index 0000000..abc1234
       const handler = await module.main({});
       const result = await handler({ patch_path: patchPath }, {});
 
-      // The error happens during push
+      expect(result.success).toBe(true);
+      expect(result.fallback_used).toBe(true);
+      expect(result.fallback_type).toBe("pull_request");
+      expect(result.pull_request_number).toBe(999);
+      expect(mockGithub.rest.pulls.create).toHaveBeenCalled();
+    });
+
+    it("should not create fallback pull request when fallback-as-pull-request is disabled", async () => {
+      const patchPath = createPatchFile();
+
+      mockExec.exec.mockResolvedValueOnce(0); // fetch
+      mockExec.exec.mockResolvedValueOnce(0); // rev-parse
+      mockExec.exec.mockResolvedValueOnce(0); // checkout
+
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "before-sha\n", stderr: "" }); // git rev-parse HEAD (before patch)
+
+      mockExec.exec.mockResolvedValueOnce(0); // git am
+
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "abc123\n", stderr: "" }); // git rev-list
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "remote-oid\trefs/heads/feature-branch\n", stderr: "" }); // git ls-remote
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "Test commit\n", stderr: "" }); // git log -1
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "", stderr: "" }); // git diff --name-status
+
+      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: branch protection"));
+      mockExec.exec.mockRejectedValueOnce(new Error("! [rejected] feature-branch -> feature-branch (non-fast-forward)"));
+
+      const module = await loadModule();
+      const handler = await module.main({ fallback_as_pull_request: false });
+      const result = await handler({ patch_path: patchPath }, {});
+
       expect(result.success).toBe(false);
+      expect(result.error_type).toBe("push_failed");
+      expect(result.error).toContain("non-fast-forward");
+      expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
     });
 
     it("should diagnose deleted branch when push fails", async () => {
@@ -955,6 +1053,91 @@ index 0000000..abc1234
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
+    });
+
+    it("should prefer message.diff_size (incremental net diff) over patch file size", async () => {
+      // Simulate the long-running branch case: a large format-patch file
+      // (e.g. 2 MB of cumulative commit metadata + per-commit diffs) but a
+      // tiny incremental net diff (e.g. 5 KB of actual changes since
+      // origin/<branch>). The size check must use diff_size and accept the push.
+      const largePatch = "x".repeat(2 * 1024 * 1024); // 2 MB format-patch file
+      const patchPath = createPatchFile(largePatch);
+
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const module = await loadModule();
+      const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
+      const result = await handler({ patch_path: patchPath, diff_size: 5 * 1024 }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
+      // Verify the size check used the incremental (diff_size) value, not the
+      // 2 MB file size.
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Incremental diff size: 5 KB"));
+    });
+
+    it("should reject when message.diff_size exceeds max size even if file size is small", async () => {
+      // Inverse case: small file (defensive — shouldn't happen in practice)
+      // but a recorded large diff_size should still cause rejection. This
+      // proves diff_size is the source of truth for the size check.
+      const patchPath = createPatchFile(); // small valid patch
+
+      const module = await loadModule();
+      const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
+      const result = await handler({ patch_path: patchPath, diff_size: 2 * 1024 * 1024 }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("exceeds maximum");
+    });
+
+    it("should fall back to patch file size when message.diff_size is not provided", async () => {
+      // Backward-compat: older MCP servers (or non-incremental code paths)
+      // do not set diff_size. The check must continue to work using the patch
+      // file size as the measurement.
+      const largePatch = "x".repeat(2 * 1024 * 1024); // 2 MB
+      const patchPath = createPatchFile(largePatch);
+
+      const module = await loadModule();
+      const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("exceeds maximum");
+    });
+
+    it("should enforce max_patch_size against the bundle file size when bundle transport is used", async () => {
+      // Bundle transport does not have a format-patch file. The max_patch_size
+      // limit must still apply — using the on-disk bundle file size — so large
+      // bundles cannot silently bypass the limit.
+      const bundlePath = path.join(tempDir, "test.bundle");
+      // 2 MB dummy bundle file (contents don't matter; only size is checked)
+      fs.writeFileSync(bundlePath, Buffer.alloc(2 * 1024 * 1024));
+
+      const module = await loadModule();
+      const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
+      const result = await handler({ bundle_path: bundlePath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("exceeds maximum");
+      expect(result.error).toMatch(/Bundle size|Incremental diff size/);
+    });
+
+    it("should prefer diff_size over bundle file size for the limit check", async () => {
+      // Bundle is 2 MB on disk, but the incremental net diff is only 5 KB:
+      // the check must accept the push (limit reflects the real change, not the
+      // compressed transport size).
+      const bundlePath = path.join(tempDir, "test.bundle");
+      fs.writeFileSync(bundlePath, Buffer.alloc(2 * 1024 * 1024));
+
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const module = await loadModule();
+      const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
+      const result = await handler({ bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Incremental diff size: 5 KB"));
     });
   });
 
@@ -1481,6 +1664,89 @@ ${diffs}
 
       // No patch → treated as no changes, not an allowlist violation
       expect(result.error || "").not.toContain("outside the allowed-files list");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Cross-Repo Checkout Scenarios
+  // ──────────────────────────────────────────────────────
+
+  describe("cross-repo checkout", () => {
+    it("should return error when target repo differs from workflow repo and is not found in workspace", async () => {
+      // GITHUB_REPOSITORY is set to "test-owner/test-repo" in beforeEach
+      // Targeting "other-owner/other-repo" - different repo, not checked out
+      mockGithub.rest.pulls.get = vi.fn().mockResolvedValue({
+        data: {
+          head: {
+            ref: "feature-branch",
+            repo: { full_name: "other-owner/other-repo", fork: false, owner: { login: "other-owner" } },
+          },
+          base: {
+            repo: { full_name: "other-owner/other-repo", owner: { login: "other-owner" } },
+          },
+          title: "Cross-repo PR",
+          labels: [],
+        },
+      });
+
+      const patchPath = createPatchFile();
+      const module = await loadModule();
+      const handler = await module.main({ "target-repo": "other-owner/other-repo" });
+
+      const result = await handler({ patch_path: patchPath, pull_request_number: 42 }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("other-owner/other-repo");
+      expect(result.error).toContain("not found in workspace");
+    });
+
+    it("should pass cwd to git commands when target repo is checked out in a subdirectory", async () => {
+      // Create a subdirectory checkout with a remote that matches "other-owner/other-repo"
+      const subRepoDir = path.join(tempDir, "other-repo");
+      fs.mkdirSync(subRepoDir, { recursive: true });
+      const { execSync } = await import("child_process");
+      execSync("git init -b main", { cwd: subRepoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@example.com'", { cwd: subRepoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test User'", { cwd: subRepoDir, stdio: "pipe" });
+      execSync("git remote add origin https://github.com/other-owner/other-repo.git", { cwd: subRepoDir, stdio: "pipe" });
+
+      // Set workspace to tempDir so findRepoCheckout scans it
+      process.env.GITHUB_WORKSPACE = tempDir;
+
+      mockGithub.rest.pulls.get = vi.fn().mockResolvedValue({
+        data: {
+          head: {
+            ref: "feature-branch",
+            repo: { full_name: "other-owner/other-repo", fork: false, owner: { login: "other-owner" } },
+          },
+          base: {
+            repo: { full_name: "other-owner/other-repo", owner: { login: "other-owner" } },
+          },
+          title: "Cross-repo PR",
+          labels: [],
+        },
+      });
+      mockGithub.rest.repos.get = vi.fn().mockResolvedValue({ data: { default_branch: "main" } });
+      mockGithub.rest.repos.getBranchProtection = vi.fn().mockRejectedValue(Object.assign(new Error("not protected"), { status: 404 }));
+
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const patchPath = createPatchFile();
+      const module = await loadModule();
+      const handler = await module.main({ "target-repo": "other-owner/other-repo" });
+
+      await handler({ patch_path: patchPath, pull_request_number: 42 }, {});
+
+      // Verify git ls-remote was called with cwd pointing at the subdirectory
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining(`Found checkout for other-owner/other-repo at: ${subRepoDir}`));
+
+      // Verify at least one exec call received cwd pointing at the subdirectory
+      const allExecCalls = [...mockExec.exec.mock.calls, ...mockExec.getExecOutput.mock.calls];
+      const cwdCalls = allExecCalls.filter(call => {
+        const opts = call.find(arg => arg && typeof arg === "object" && !Array.isArray(arg) && "cwd" in arg);
+        return opts && opts.cwd === subRepoDir;
+      });
+      expect(cwdCalls.length).toBeGreaterThan(0);
     });
   });
 });

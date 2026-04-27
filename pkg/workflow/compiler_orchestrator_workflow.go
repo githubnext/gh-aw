@@ -76,6 +76,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
+	// Validate optional custom engine driver script configuration.
+	if err := c.validateEngineDriverScript(workflowData); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
 	// Validate that inlined-imports is not used with agent file imports.
 	// Agent files require runtime access and cannot be resolved without sources.
 	if workflowData.InlinedImports && engineSetup.importsResult.AgentFile != "" {
@@ -271,6 +276,16 @@ func (c *Compiler) extractAdditionalConfigurations(
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
 
+	// Extract comment-memory from tools and attach to safe-outputs configuration.
+	// comment-memory now belongs under tools: next to cache-memory and repo-memory.
+	commentMemoryConfig := c.extractCommentMemoryConfig(toolsConfig)
+	if commentMemoryConfig != nil {
+		if workflowData.SafeOutputs == nil {
+			workflowData.SafeOutputs = &SafeOutputsConfig{}
+		}
+		workflowData.SafeOutputs.CommentMemory = commentMemoryConfig
+	}
+
 	// Extract mcp-scripts configuration
 	workflowData.MCPScripts = c.extractMCPScriptsConfig(frontmatter)
 
@@ -438,6 +453,13 @@ func (c *Compiler) processOnSectionAndFilters(
 
 	// Extract on.permissions for pre-activation job permissions
 	workflowData.OnPermissions = extractOnPermissions(frontmatter)
+
+	// Extract on.needs for pre-activation/activation job dependencies
+	onNeeds, err := extractOnNeeds(frontmatter)
+	if err != nil {
+		return err
+	}
+	workflowData.OnNeeds = onNeeds
 
 	return nil
 }

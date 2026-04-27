@@ -63,18 +63,22 @@ func getEngineEnvSecretsCodemod() Codemod {
 
 func extractEngineIDForCodemod(frontmatter map[string]any, engineMap map[string]any) string {
 	if id, ok := engineMap["id"].(string); ok && id != "" {
+		engineEnvSecretsCodemodLog.Printf("Extracted engine ID from engine.id: %s", id)
 		return id
 	}
 	if runtimeAny, hasRuntime := engineMap["runtime"]; hasRuntime {
 		if runtimeMap, ok := runtimeAny.(map[string]any); ok {
 			if id, ok := runtimeMap["id"].(string); ok && id != "" {
+				engineEnvSecretsCodemodLog.Printf("Extracted engine ID from engine.runtime.id: %s", id)
 				return id
 			}
 		}
 	}
 	if id, ok := frontmatter["engine"].(string); ok && id != "" {
+		engineEnvSecretsCodemodLog.Printf("Extracted engine ID from frontmatter engine field: %s", id)
 		return id
 	}
+	engineEnvSecretsCodemodLog.Print("No engine ID found, using empty string for secret key lookup")
 	return ""
 }
 
@@ -108,6 +112,7 @@ func findUnsafeEngineEnvSecretKeys(envMap map[string]any, allowed map[string]boo
 			unsafe[key] = true
 		}
 	}
+	engineEnvSecretsCodemodLog.Printf("Found %d unsafe engine.env secret keys out of %d total keys", len(unsafe), len(envMap))
 	return unsafe
 }
 

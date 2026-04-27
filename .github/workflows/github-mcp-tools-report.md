@@ -25,12 +25,12 @@ safe-outputs:
     labels: [documentation, automation]
     reviewers: copilot
     draft: false
+    protected-files: fallback-to-issue
 timeout-minutes: 15
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[mcp-tools-report] "
-  - shared/reporting.md
 features:
   mcp-cli: true
 ---

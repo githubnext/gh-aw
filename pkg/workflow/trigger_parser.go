@@ -87,6 +87,11 @@ func ParseTriggerShorthand(input string) (*TriggerIR, error) {
 		return ir, err
 	}
 
+	// 10. Deployment patterns
+	if ir, err := parseDeploymentTrigger(input); ir != nil || err != nil {
+		return ir, err
+	}
+
 	// Not a recognized trigger shorthand
 	return nil, nil
 }
@@ -609,4 +614,81 @@ func parseExternalTrigger(input string) (*TriggerIR, error) {
 	}
 
 	return nil, nil
+}
+
+// parseDeploymentTrigger parses deployment status triggers with optional state filtering.
+// Supported patterns:
+//   - "deployment failed"          → deployment_status filtered to failure
+//   - "deployment error"           → deployment_status filtered to error
+//   - "deployment failed or error" → deployment_status filtered to failure or error
+//   - "deployment_status"          → deployment_status (all states, no filter)
+func parseDeploymentTrigger(input string) (*TriggerIR, error) {
+	tokens := strings.Fields(input)
+	if len(tokens) == 0 {
+		return nil, nil
+	}
+
+	// Only handle "deployment" or "deployment_status" prefix
+	if tokens[0] != "deployment" && tokens[0] != "deployment_status" {
+		return nil, nil
+	}
+
+	// Bare "deployment_status" with no further args - let it fall through as a simple string
+	if len(tokens) == 1 {
+		return nil, nil
+	}
+
+	// Map common words to GitHub deployment_status state values
+	stateAliases := map[string]string{
+		"failed":    "failure",
+		"failure":   "failure",
+		"error":     "error",
+		"errored":   "error",
+		"success":   "success",
+		"succeeded": "success",
+		"pending":   "pending",
+		"inactive":  "inactive",
+	}
+
+	// Parse remaining tokens to collect states, skipping conjunctions
+	var states []string
+	seenStates := make(map[string]bool)
+	conjunctions := map[string]bool{"or": true, "and": true}
+	for _, tok := range tokens[1:] {
+		tok = strings.ToLower(strings.TrimRight(tok, ","))
+		if conjunctions[tok] {
+			continue
+		}
+		if state, ok := stateAliases[tok]; ok {
+			if !seenStates[state] {
+				states = append(states, state)
+				seenStates[state] = true
+			}
+		} else {
+			// Unknown token - not a deployment shorthand we can handle
+			return nil, nil
+		}
+	}
+
+	if len(states) == 0 {
+		return nil, nil
+	}
+
+	// Build the if condition expression
+	parts := make([]string, 0, len(states))
+	for _, s := range states {
+		parts = append(parts, "github.event.deployment_status.state == '"+s+"'")
+	}
+	stateExpr := strings.Join(parts, " || ")
+
+	// Guard with event_name so the condition is transparent when the workflow is
+	// triggered by other events (e.g. workflow_dispatch combined with deployment_status).
+	condition := "github.event_name != 'deployment_status' || (" + stateExpr + ")"
+
+	triggerParserLog.Printf("Parsed deployment trigger with states %v, condition: %s", states, condition)
+
+	return &TriggerIR{
+		Event:      "deployment_status",
+		Conditions: []string{condition},
+	}, nil
 }

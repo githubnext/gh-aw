@@ -219,6 +219,35 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
+			name: "update-pull-request without update-branch requires contents read",
+			safeOutputs: &SafeOutputsConfig{
+				UpdatePullRequests: &UpdatePullRequestsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionRead,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
+			name: "update-pull-request with update-branch requires contents write",
+			safeOutputs: &SafeOutputsConfig{
+				UpdatePullRequests: &UpdatePullRequestsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					},
+					UpdateBranch: boolPtr(true),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionWrite,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
 			name: "create-pull-request with fallback-as-issue (default) - includes issues permission",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
@@ -245,15 +274,56 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "push-to-pull-request-branch - no issues permission",
+			name: "push-to-pull-request-branch default fallback - requires pull-requests write and administration read",
 			safeOutputs: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:       PermissionWrite,
+				PermissionPullRequests:   PermissionWrite,
+				PermissionAdministration: PermissionRead,
+			},
+		},
+		{
+			name: "push-to-pull-request-branch with fallback-as-pull-request false - no pull-requests permission but administration read",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig:  BaseSafeOutputConfig{},
+					FallbackAsPullRequest: boolPtr(false),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:       PermissionWrite,
+				PermissionAdministration: PermissionRead,
+			},
+		},
+		{
+			name: "push-to-pull-request-branch with check-branch-protection false - no administration permission",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig:  BaseSafeOutputConfig{},
+					CheckBranchProtection: boolPtr(false),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
 				PermissionContents:     PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
+			name: "push-to-pull-request-branch with check-branch-protection explicit true - includes administration read",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig:  BaseSafeOutputConfig{},
+					CheckBranchProtection: boolPtr(true),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:       PermissionWrite,
+				PermissionPullRequests:   PermissionWrite,
+				PermissionAdministration: PermissionRead,
 			},
 		},
 		{
@@ -343,7 +413,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "create-project requires organization-projects write",
+			name: "create-project requires organization-projects write and issues read",
 			safeOutputs: &SafeOutputsConfig{
 				CreateProjects: &CreateProjectsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
@@ -352,6 +422,20 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			expected: map[PermissionScope]PermissionLevel{
 				PermissionContents:         PermissionRead,
 				PermissionOrganizationProj: PermissionWrite,
+				PermissionIssues:           PermissionRead,
+			},
+		},
+		{
+			name: "update-project requires organization-projects write and issues read",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateProjects: &UpdateProjectConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:         PermissionRead,
+				PermissionOrganizationProj: PermissionWrite,
+				PermissionIssues:           PermissionRead,
 			},
 		},
 	}

@@ -157,13 +157,6 @@ func (m *Miner) Clusters() []Cluster {
 	return m.store.all()
 }
 
-// ClusterCount returns the number of known clusters.
-func (m *Miner) ClusterCount() int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return len(m.store.clusters)
-}
-
 // extractParams returns the token values at positions where the template has paramToken.
 func extractParams(tokens []string, template []string, paramToken string) []string {
 	params := []string{}

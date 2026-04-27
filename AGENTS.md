@@ -28,6 +28,14 @@ GitHub Agentic Workflows is a Go-based GitHub CLI extension for writing agentic 
 
 Each skill provides focused guidance on specific topics. Reference them only as needed rather than loading everything upfront.
 
+## Skill Optimizer Configuration
+
+The daily skill-optimizer workflow uses the committed config at:
+
+- `.skill-optimizer/skill-optimizer.json`
+
+When tuning optimizer behavior (models, maxTasks, maxIterations, pass-rate target), update this file directly in a PR so changes are reviewable.
+
 ## Critical Requirements
 
 ### ⚠️ MANDATORY: Always Create a Pull Request ⚠️
@@ -165,6 +173,9 @@ network:
 - Use `toolsets: [default]` for common operations, or specify toolsets like `[repos, issues, pull_requests]`
 - **Never use `mode: remote`** — it does not work with the GitHub Actions token (`GITHUB_TOKEN`) and requires a special PAT or GitHub App token
 - Never rely on direct `api.github.com` access in Copilot workflows
+- **Never use direct GitHub CLI API reads in agent prompts** (for example: `gh api`, `gh repo view`, `gh pr list`) — use MCP `github` tools instead
+- **Guard `list_code_scanning_alerts` calls in workflow prompts**: always include `state: open` and `severity: critical,high` to avoid oversized MCP responses
+- **`head_limit` compatibility**: do **not** send `head_limit` to the default GitHub MCP tool; use `head_limit: 20` only with custom wrappers after verifying support in wrapper docs or wrapper-specific tests
 
 See [GitHub MCP Server Documentation](skills/github-mcp-server/SKILL.md) for complete configuration details.
 
@@ -667,6 +678,25 @@ When developing a new command:
 
 ### Go Code Style
 - **ALWAYS use `any` instead of `interface{}`** - Use the modern `any` type alias (Go 1.18+) for consistency across the codebase
+
+### Claude Engine Tool Enforcement Security Model
+
+When adding code to `pkg/workflow/claude_engine.go` or `pkg/workflow/claude_tools.go`, be aware of how Claude's permission mode affects tool enforcement:
+
+**Two permission modes are used at runtime:**
+
+1. **`acceptEdits` (default)** — Claude Code honors `--allowed-tools` as the effective tool boundary. Workflow `tools:` and `mcp-servers: allowed:` restrictions are enforced client-side.
+
+2. **`bypassPermissions`** — Claude Code silently ignores `--allowed-tools`. Every tool exposed by the MCP gateway is reachable regardless of the workflow's declared tool configuration. This mode is only used when the workflow grants unrestricted bash access (e.g., `bash: "*"`, `bash: [":*"]`, or `bash: null`).
+
+**Security boundary in `bypassPermissions` mode:**
+When `bypassPermissions` is active, the **MCP gateway `allowed:` filter is the sole effective tool boundary**. The compiled `tools` field in the gateway configuration (`/tmp/gh-aw/mcp-config/mcp-servers.json`) controls which tools each MCP server exposes. Gateway-side enforcement applies regardless of what the agent requests.
+
+**Implication for code changes:**
+- `hasBashWildcardInTools()` in `claude_tools.go` determines which mode is selected — changes here affect the security boundary
+- `computeAllowedClaudeToolsString()` builds the `--allowed-tools` string — only effective in `acceptEdits` mode
+- `convert_gateway_config_claude.sh` preserves the `tools` field from gateway output — this is what enforces restrictions in `bypassPermissions` mode
+- Do not remove or weaken either enforcement layer; they complement each other for different access scenarios
 
 ### Channel Lifecycle Guidelines
 

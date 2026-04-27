@@ -8,69 +8,6 @@ import (
 
 var consolidatedSafeOutputsStepsLog = logger.New("workflow:compiler_safe_outputs_steps")
 
-// buildConsolidatedSafeOutputStep builds a single step for a safe output operation
-// within the consolidated safe-outputs job. This function handles both inline script
-// mode and file mode (requiring from local filesystem).
-func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config SafeOutputStepConfig) []string {
-	var steps []string
-
-	// Build step condition if provided
-	var conditionStr string
-	if config.Condition != nil {
-		conditionStr = RenderCondition(config.Condition)
-	}
-
-	// Step name and metadata
-	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
-	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
-	if conditionStr != "" {
-		steps = append(steps, fmt.Sprintf("        if: %s\n", conditionStr))
-	}
-	if config.ContinueOnError {
-		steps = append(steps, "        continue-on-error: true\n")
-	}
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
-
-	// Environment variables section
-	steps = append(steps, "        env:\n")
-	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n")
-	steps = append(steps, config.CustomEnvVars...)
-
-	// Add custom safe output env vars
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	// With section for github-token
-	steps = append(steps, "        with:\n")
-	if config.UseCopilotCodingAgentToken {
-		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.Token)
-	} else if config.UseCopilotRequestsToken {
-		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
-	} else {
-		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
-	}
-
-	steps = append(steps, "          script: |\n")
-
-	// Add the formatted JavaScript script
-	// Use require mode if ScriptName is set, otherwise inline the bundled script
-	if config.ScriptName != "" {
-		// Require mode: Use setup_globals helper
-		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
-		steps = append(steps, "            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-		steps = append(steps, fmt.Sprintf("            const { main } = require('"+SetupActionDestination+"/%s.cjs');\n", config.ScriptName))
-		steps = append(steps, "            await main();\n")
-	} else {
-		// Inline JavaScript: Use setup_globals helper
-		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
-		steps = append(steps, "            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-		// Inline mode: embed the bundled script directly
-		formattedScript := FormatJavaScriptForYAML(config.Script)
-		steps = append(steps, formattedScript...)
-	}
-
-	return steps
-}
-
 // buildSharedPRCheckoutSteps builds checkout and git configuration steps that are shared
 // between create-pull-request and push-to-pull-request-branch operations.
 // These steps are added once with a combined condition to avoid duplication.

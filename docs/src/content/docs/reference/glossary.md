@@ -71,6 +71,10 @@ A built-in tool that provides vector similarity search over documentation files.
 
 Capabilities that an AI agent can use during workflow execution. Tools are configured in the frontmatter and include GitHub operations ([`github:`](/gh-aw/reference/github-tools/)), file editing (`edit:`), web access (`web-fetch:`, `web-search:`), shell commands (`bash:`), browser automation ([`playwright:`](/gh-aw/reference/playwright/)), and custom MCP servers.
 
+### GitHub Access Mode (`tools.github.mode`)
+
+A `tools.github` field that controls how the agent accesses GitHub APIs. Three values are supported: `gh-proxy` (recommended — provides pre-authenticated `gh` CLI prompt guidance without mounting a GitHub MCP server, replacing the deprecated `features.cli-proxy: true`), `local` (Docker-based GitHub MCP server, the legacy default), and `remote` (hosted GitHub MCP server at `api.githubcopilot.com`). Use `gh-proxy` for better performance; use `local` or `remote` when MCP-based GitHub toolsets are required. See [GitHub Tools Reference](/gh-aw/reference/github-tools/).
+
 ## Security and Outputs
 
 ### MCP Scripts
@@ -177,6 +181,10 @@ A mechanism for mounting any public GitHub Action as a once-callable MCP tool wi
 
 Lightweight inline JavaScript handlers defined under `safe-outputs.scripts:` that execute inside the consolidated safe-outputs job handler loop. Unlike [Custom Safe Outputs](#custom-safe-outputs) (`safe-outputs.jobs`), which create a separate GitHub Actions job per tool call, scripts run in-process with no job scheduling overhead. Scripts do not have direct access to repository secrets, making them suitable for lightweight processing and logging. Each script declares `description`, `inputs`, and a `script` body; the compiler wraps the body and registers the handler as an MCP tool available to the agent. See [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/#inline-script-handlers-safe-outputsscripts).
 
+### Safe Outputs Dependencies (`safe-outputs.needs:`)
+
+A `safe-outputs` option that extends the consolidated `safe_outputs` job dependencies with custom workflow jobs. `safe-outputs.needs` is merged with built-in dependencies (`agent`, `activation`, optional `detection`, optional `unlock`) and deduplicated. Useful for injecting credential-fetching or secret-provisioning jobs that the safe-outputs job depends on. Values must reference custom jobs from the top-level `jobs:` section; built-in job names are rejected at compile time with an actionable error. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#safe-outputs-dependencies-needs).
+
 ### Unassign from User
 
 A safe output capability for removing user assignments from issues or pull requests. Supports an `allowed` list to restrict which users can be unassigned, and a `blocked` list using glob patterns to prevent unassignment of specific users regardless of the allow list. Configured via `unassign-from-user:` in `safe-outputs`.
@@ -184,6 +192,10 @@ A safe output capability for removing user assignments from issues or pull reque
 ### Temporary ID
 
 A workflow-scoped identifier (format: `aw_` followed by 3–8 alphanumeric characters, e.g. `aw_abc1`) that lets an AI agent reference a resource before it is created. Safe output tools that support temporary IDs — including `create_issue`, `create_discussion`, and `add_comment` — accept a `temporary_id` field. References like `#aw_abc1` in subsequent operations are automatically resolved to actual resource numbers during execution. Useful for creating interlinked resources in a single workflow run. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
+
+### Merge Pull Request (`merge-pull-request:`)
+
+An experimental safe output capability for merging pull requests after policy-driven gate checks pass. Validates status checks, required approvals, resolved review threads, label and branch constraints, and GitHub mergeability before applying the merge. Supports `merge`, `squash`, and `rebase` methods and cross-repository targets. Compiling a workflow with `merge-pull-request` emits an experimental feature warning. See [Safe Outputs Specification](/gh-aw/reference/safe-outputs-specification/#type-merge_pull_request).
 
 ### Close Pull Request (`close-pull-request:`)
 
@@ -195,7 +207,7 @@ A safe output capability (`update-issue:`) for modifying existing issues without
 
 ### Update Pull Request (`update-pull-request:`)
 
-A safe output capability for modifying a pull request's `title` or `body`. Each field must be explicitly enabled (`true` or `false`). The `operation` field controls how body changes are applied: `append` (default), `prepend`, or `replace`. Accepts `target` (`"triggering"`, `"*"`, or a specific number) and cross-repository updates via `target-repo`. When `target: "*"` is used, the agent must supply `pull_request_number` in the tool output. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-updates-update-pull-request).
+A safe output capability for modifying a pull request's `title` or `body`. Each field must be explicitly enabled (`true` or `false`). The `operation` field controls how body changes are applied: `append` (default), `prepend`, or `replace`. Accepts `target` (`"triggering"`, `"*"`, or a specific number) and cross-repository updates via `target-repo`. When `target: "*"` is used, the agent must supply `pull_request_number` in the tool output. The optional `update-branch: true` field synchronizes the PR branch with the latest base branch changes before applying other updates. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-updates-update-pull-request).
 
 ### Protected Files
 
@@ -207,7 +219,11 @@ A field on `create-pull-request` and `push-to-pull-request-branch` safe outputs 
 
 ### Allowed Events (`allowed-events:`)
 
-A field on `submit-pull-request-review:` safe outputs that restricts which PR review event types the agent may submit. Accepts an array of `APPROVE`, `COMMENT`, and `REQUEST_CHANGES`. When set, the safe-outputs handler rejects any review event not in the list, providing infrastructure-level enforcement regardless of what the agent attempts to output. If omitted, all three event types are allowed. Example: `allowed-events: [COMMENT, REQUEST_CHANGES]` prevents the agent from approving PRs. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#submit-pr-review-submit-pull-request-review).
+A field on `submit-pull-request-review:` safe outputs that restricts which PR review event types the agent may submit. Accepts an array of `APPROVE`, `COMMENT`, and `REQUEST_CHANGES`. When set, the safe-outputs handler rejects any review event not in the list, providing infrastructure-level enforcement regardless of what the agent attempts to output. If omitted, all three event types are allowed. Preferred default for bot reviews: `allowed-events: [COMMENT]`. Example: `allowed-events: [COMMENT, REQUEST_CHANGES]` prevents the agent from approving PRs. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#submit-pr-review-submit-pull-request-review).
+
+### Supersede Older Reviews (`supersede-older-reviews:`)
+
+A field on `submit-pull-request-review:` safe outputs that dismisses older `REQUEST_CHANGES` reviews from the same workflow after posting a replacement review. When `supersede-older-reviews: true` is set, the safe-output handler fetches recent reviews, identifies prior `REQUEST_CHANGES` reviews submitted by the same workflow call, and dismisses them before the new review takes effect. This is best-effort behavior — dismissal failures do not block the new review. Useful when a workflow is configured with `allowed-events: [REQUEST_CHANGES]` and repeated runs would otherwise accumulate blocking reviews. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#submit-pr-review-submit-pull-request-review).
 
 ### Allowed Files
 
@@ -253,7 +269,7 @@ Named shorthand references to predefined domain sets used in `network.allowed` a
 
 ### Engine
 
-The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports five engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, and **Crush** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
+The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports six engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, **Crush** (experimental), and **OpenCode** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Enterprise API Endpoint (`api-target`)
 
@@ -291,7 +307,7 @@ See [Engines Reference](/gh-aw/reference/engines/).
 
 ### Feature Flags (`features:`)
 
-A frontmatter section that enables experimental or optional compiler and runtime behaviors as key-value pairs. Feature flags provide controlled access to new capabilities before they become defaults or are fully stabilized. Common flags include `action-mode` (controls how custom action references are compiled), `copilot-requests` (enables GitHub Actions token authentication for Copilot; currently in **private preview** — will not work unless your account has been onboarded), `byok-copilot` (enables Copilot offline BYOK mode with dummy `COPILOT_API_KEY`, API proxy sidecar, implicit `cli-proxy`, and latest Copilot CLI install), `mcp-gateway` (enables the MCP gateway proxy), `integrity-reactions` (enables reaction-based integrity promotion and demotion), `cli-proxy` (enables CLI proxy mode for integrity enforcement at the network boundary), and `awf-diagnostic-logs` (enables AWF Docker operational diagnostics collection on failure). See [Frontmatter Reference](/gh-aw/reference/frontmatter/#feature-flags-features).
+A frontmatter section that enables experimental or optional compiler and runtime behaviors as key-value pairs. Feature flags provide controlled access to new capabilities before they become defaults or are fully stabilized. Common flags include `action-mode` (controls how custom action references are compiled), `copilot-requests` (enables GitHub Actions token authentication for Copilot; currently in **private preview** — will not work unless your account has been onboarded), `mcp-gateway` (enables the MCP gateway proxy), `integrity-reactions` (enables reaction-based integrity promotion and demotion), `cli-proxy` (enables CLI proxy mode for integrity enforcement at the network boundary), and `awf-diagnostic-logs` (enables AWF Docker operational diagnostics collection on failure). `byok-copilot` is deprecated because Copilot BYOK behavior is now the default for `engine: copilot`. See [Frontmatter Reference](/gh-aw/reference/frontmatter/#feature-flags-features).
 
 ### Fuzzy Scheduling
 
@@ -322,6 +338,14 @@ Controls over external domains and services a workflow can access. Configured vi
 ### Observability (`observability.otlp`)
 
 A frontmatter field that enables distributed tracing for workflow runs via OpenTelemetry. Configured under `observability.otlp`, it exports structured spans to any OTLP-compatible backend (such as Honeycomb, Grafana Tempo, or Sentry). Every job emits setup and conclusion spans; cross-job trace correlation is wired automatically using a single trace ID from the activation job. Sensitive values in span attributes are automatically redacted before export. The MCP Gateway also receives OpenTelemetry configuration derived from `observability.otlp`, correlating MCP tool-call traces under the workflow root trace.
+
+### Pre-Steps (`jobs.<job-id>.pre-steps`)
+
+Steps injected at a specific lifecycle position within a custom or built-in job's step sequence: after the compiler-generated setup step and before the first checkout or regular `steps`. Defined under `jobs.<job-id>.pre-steps` in workflow frontmatter. For built-in jobs (`activation`, `pre_activation`), pre-steps are inserted after the `setup` step and before the first `actions/checkout` step. When both a main workflow and an imported workflow define `pre-steps` for the same job, imported pre-steps run first. This is distinct from the top-level `pre-steps` field, which injects steps into the agent job only. See [Custom Jobs](/gh-aw/reference/frontmatter/#custom-jobs-jobs).
+
+### Pre-Activation Dependencies (`on.needs:`)
+
+A frontmatter field that declares custom jobs that both the `pre_activation` and `activation` built-in jobs depend on. Use this when credentials or secrets must be fetched by a custom job before activation runs — for example, when `on.github-app` tokens come from a secrets-manager job. Values must reference custom jobs defined in the top-level `jobs:` section; built-in job names are rejected at compile time. See [Triggers Reference](/gh-aw/reference/triggers/).
 
 ### Stop After
 
@@ -405,9 +429,9 @@ An interactive web-based editor for authoring, compiling, and previewing agentic
 
 A CLI command that downloads workflow run artifacts and logs, analyzes MCP tool usage and network behavior, and generates a structured Markdown or JSON report. The report covers failure analysis, tool usage, MCP server status, firewall activity, token/cost metrics, behavior fingerprint, and safe-output summary. Accepts a numeric run ID or any GitHub Actions run or job URL. See [Audit Commands](/gh-aw/reference/audit/).
 
-### Audit Diff (`gh aw audit diff`)
+### Audit Diff (multi-run mode)
 
-A `gh aw audit` subcommand that compares behavior across two workflow runs across firewall, MCP tool usage, and run metrics dimensions. Reports domain additions and removals, allowed/denied status changes, request volume drift, and anomaly flags. Useful for detecting regressions and behavioral drift between runs. See [Audit Commands](/gh-aw/reference/audit/#gh-aw-audit-diff-base-run-id-comparison-run-id-comparison-run-id).
+Passing two or more run IDs to `gh aw audit` activates diff mode: the first ID is the base and the rest are compared against it. Reports domain additions and removals, allowed/denied status changes, request volume drift, and anomaly flags across firewall, MCP tool usage, and run metrics dimensions. Useful for detecting regressions and behavioral drift between runs. See [Audit Commands](/gh-aw/reference/audit/).
 
 ### Behavior Fingerprint
 
@@ -432,9 +456,13 @@ The elapsed time between consecutive LLM API calls in an agentic workflow run. A
 
 To reduce TBT — and keep prompt caches warm — minimize blocking tool calls, parallelize independent tool invocations, and avoid long-running shell commands in the critical path between turns.
 
+### Ambient Context
+
+The token footprint of the first LLM invocation in a workflow run, used as a proxy for the static context loaded at startup (system prompt, tools list, memory). Because the first invocation fires before the agent has accumulated any conversation history, its input token count primarily reflects the overhead of the configured environment rather than task-specific content. Reported as an optional `ambient_context` object in `gh aw audit` and `gh aw logs` JSON output with three fields: `input_tokens`, `cached_tokens`, and `effective_tokens`. Useful for comparing context overhead across different workflow configurations. See [Audit Commands](/gh-aw/reference/audit/).
+
 ### Firewall Analysis
 
-A section of the `gh aw audit` report that breaks down all network requests made during a workflow run — showing allowed domains, denied domains, request volumes, and policy attribution. Derived from AWF firewall logs. Use `gh aw audit diff` to compare firewall behavior across runs and identify new or removed domain accesses. See [Audit Commands](/gh-aw/reference/audit/) and [Network Permissions](/gh-aw/reference/network/).
+A section of the `gh aw audit` report that breaks down all network requests made during a workflow run — showing allowed domains, denied domains, request volumes, and policy attribution. Derived from AWF firewall logs. Pass multiple run IDs to `gh aw audit` (e.g. `gh aw audit <base> <compare>`) to compare firewall behavior across runs and identify new or removed domain accesses. See [Audit Commands](/gh-aw/reference/audit/) and [Network Permissions](/gh-aw/reference/network/).
 
 ### Frontmatter Hash
 
@@ -477,7 +505,7 @@ A compilation target allowing the gh-aw compiler to run in browser environments 
 
 ### AWF (Agent Workflow Firewall)
 
-The default coding agent sandbox that isolates AI agent execution in a container with network egress control through domain-based access lists. AWF makes the host filesystem and environment variables available inside the container while restricting outbound network access to configured domains. Enabled with `sandbox.agent: awf` (the default when `sandbox` is not specified). See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+The default coding agent sandbox that isolates AI agent execution in a container with network egress control through domain-based access lists. AWF makes the host filesystem and environment variables available inside the container while restricting outbound network access to configured domains. Enabled with `sandbox.agent: awf` (the default when `sandbox` is not specified). Use `sandbox.agent.version` to pin a specific AWF release for reproducible builds. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
 ### Bridge Pattern
 
@@ -486,6 +514,10 @@ A cross-repository event forwarding architecture for [SideRepoOps](#siderepoops)
 ### Cache Memory
 
 Persistent storage for workflows preserving data between runs. Configured via `cache-memory:` in tools section with 7-day retention in GitHub Actions cache. See [Cache Memory](/gh-aw/reference/cache-memory/).
+
+### Comment Memory (`tools.comment-memory`)
+
+Persistent agent memory backed by a managed GitHub issue or PR comment. Before each agent run, content from `<gh-aw-comment-memory>` blocks in the target comment is extracted into markdown files under `/tmp/gh-aw/comment-memory/`. Agents edit these files using standard file tools; the safe-output handler automatically upserts the managed comment after the run. Unlike [Cache Memory](#cache-memory) (7-day GitHub Actions cache retention) and [Repo Memory](#repo-memory) (permanent git branch storage), comment memory uses the triggering issue or PR as its backing store — no separate infrastructure required. Configured via `tools.comment-memory:` in frontmatter.
 
 ### Command Triggers
 

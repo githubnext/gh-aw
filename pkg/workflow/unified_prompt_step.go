@@ -233,10 +233,10 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 
 	// 10. GitHub tool-use guidance: directs the model to the correct mechanism for
 	// GitHub reads (and writes when safe-outputs is also enabled).
-	// When cli-proxy is enabled, the agent uses the pre-authenticated gh CLI for reads
+	// When GitHub mode is gh-proxy, the agent uses the pre-authenticated gh CLI for reads
 	// instead of a GitHub MCP server (which is not registered). Otherwise, the GitHub
 	// MCP server is used for reads.
-	if isFeatureEnabled(constants.CliProxyFeatureFlag, data) {
+	if isGitHubCLIModeEnabled(data) {
 		unifiedPromptLog.Print("Adding cli-proxy tool-use guidance (gh CLI for reads, no GitHub MCP server)")
 		cliProxyFile := cliProxyPromptFile
 		if HasSafeOutputsEnabled(data.SafeOutputs) {
@@ -265,8 +265,12 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	// 11. PR context (if comment-related triggers and checkout is needed)
 	hasCommentTriggers := c.hasCommentRelatedTriggers(data)
 	needsCheckout := c.shouldAddCheckoutStep(data)
-	permParser := NewPermissionsParser(data.Permissions)
-	hasContentsRead := permParser.HasContentsReadAccess()
+	var hasContentsRead bool
+	if data.CachedPermissions != nil {
+		hasContentsRead = data.CachedPermissions.HasContentsReadAccess()
+	} else {
+		hasContentsRead = NewPermissionsParser(data.Permissions).HasContentsReadAccess()
+	}
 
 	if hasCommentTriggers && needsCheckout && hasContentsRead {
 		unifiedPromptLog.Print("Adding PR context section with condition")
@@ -784,6 +788,9 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	}
 	if safeOutputs.PushToPullRequestBranch != nil {
 		sections = append(sections, PromptSection{Content: safeOutputsPushToBranchFile, IsFile: true})
+	}
+	if safeOutputs.CommentMemory != nil {
+		sections = append(sections, PromptSection{Content: safeOutputsCommentMemoryFile, IsFile: true})
 	}
 	if safeOutputs.UploadAssets != nil {
 		sections = append(sections, PromptSection{

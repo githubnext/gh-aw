@@ -2,12 +2,20 @@ package workflow
 
 import (
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var codexMCPLog = logger.New("workflow:codex_mcp")
+
+const (
+	codexOpenAIProxyProviderID   = "openai-proxy"
+	codexOpenAIProxyProviderName = "OpenAI AWF proxy"
+)
 
 // RenderMCPConfig generates MCP server configuration for Codex
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
@@ -37,7 +45,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 
 	// Add shell environment policy to control which environment variables are passed through
 	// This is a security feature to prevent accidental exposure of secrets
-	e.renderShellEnvironmentPolicy(yaml, tools, mcpTools, workflowData)
+	e.renderShellEnvironmentPolicy(yaml, tools, mcpTools)
 
 	// Expand neutral tools (like playwright: null) to include the copilot agent tools
 	expandedTools := e.expandNeutralToolsToCodexToolsFromMap(tools)
@@ -99,11 +107,76 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          # Generate JSON config for MCP gateway\n")
 
 	// Gateway uses JSON format without Copilot-specific fields and multi-line args
-	return renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
+	if err := renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
 		"${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json", false, false,
 		func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderCodexJSONMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
-		}, nil)
+		}, nil); err != nil {
+		return err
+	}
+
+	// start_mcp_gateway.cjs converts the gateway output and writes Codex config to
+	// ${RUNNER_TEMP}/gh-aw/mcp-config/config.toml. Codex reads config from
+	// $CODEX_HOME/config.toml, so copy the converted config into writable CODEX_HOME
+	// and prepend shell policy (converter output does not include this section).
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Sync converter output to writable CODEX_HOME for Codex\n")
+	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
+
+	shellPolicyDelimiter := GenerateHeredocDelimiterFromSeed("CODEX_SHELL_POLICY", workflowData.FrontmatterHash)
+	yaml.WriteString("          cat > \"/tmp/gh-aw/mcp-config/config.toml\" << " + shellPolicyDelimiter + "\n")
+	if isFirewallEnabled(workflowData) {
+		e.renderOpenAIProxyProviderToml(yaml, "          ")
+	}
+	e.renderShellEnvironmentPolicyToml(yaml, tools, mcpTools, "          ")
+	yaml.WriteString("          " + shellPolicyDelimiter + "\n")
+	if isFirewallEnabled(workflowData) {
+		e.renderAppendConvertedConfigWithoutOpenAIProxy(yaml)
+	} else {
+		yaml.WriteString("          cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"\n")
+	}
+	if workflowData.EngineConfig != nil && strings.TrimSpace(workflowData.EngineConfig.Config) != "" {
+		customConfigDelimiter := GenerateHeredocDelimiterFromSeed("CODEX_CUSTOM_CONFIG", workflowData.FrontmatterHash)
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Append engine-level custom Codex config\n")
+		yaml.WriteString("          cat >> \"/tmp/gh-aw/mcp-config/config.toml\" << " + customConfigDelimiter + "\n")
+		yaml.WriteString(workflowData.EngineConfig.Config)
+		if !strings.HasSuffix(workflowData.EngineConfig.Config, "\n") {
+			yaml.WriteString("\n")
+		}
+		yaml.WriteString("          " + customConfigDelimiter + "\n")
+	}
+	yaml.WriteString("          chmod 600 \"/tmp/gh-aw/mcp-config/config.toml\"\n")
+	yaml.WriteString("          mkdir -p \"${CODEX_HOME}\"\n")
+	yaml.WriteString("          if [ \"/tmp/gh-aw/mcp-config/config.toml\" != \"${CODEX_HOME}/config.toml\" ]; then cp \"/tmp/gh-aw/mcp-config/config.toml\" \"${CODEX_HOME}/config.toml\"; fi\n")
+	yaml.WriteString("          chmod 600 \"${CODEX_HOME}/config.toml\"\n")
+
+	return nil
+}
+
+func (e *CodexEngine) renderOpenAIProxyProviderToml(yaml *strings.Builder, indent string) {
+	yaml.WriteString("\n")
+	yaml.WriteString(indent + "model_provider = \"" + codexOpenAIProxyProviderID + "\"\n")
+	yaml.WriteString("\n")
+	yaml.WriteString(indent + "[model_providers." + codexOpenAIProxyProviderID + "]\n")
+	yaml.WriteString(indent + "name = \"" + codexOpenAIProxyProviderName + "\"\n")
+	yaml.WriteString(indent + "base_url = \"" + e.getOpenAIProxyProviderBaseURL() + "\"\n")
+	yaml.WriteString(indent + "env_key = \"OPENAI_API_KEY\"\n")
+	yaml.WriteString(indent + "supports_websockets = false\n")
+}
+
+func (e *CodexEngine) getOpenAIProxyProviderBaseURL() string {
+	return "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.ClaudeLLMGatewayPort))
+}
+
+func (e *CodexEngine) renderAppendConvertedConfigWithoutOpenAIProxy(yaml *strings.Builder) {
+	yaml.WriteString("          awk '\n")
+	yaml.WriteString("            BEGIN { skip_openai_proxy = 0 }\n")
+	yaml.WriteString("            /^[[:space:]]*model_provider[[:space:]]*=/ { next }\n")
+	yaml.WriteString("            /^\\[model_providers\\.openai-proxy\\][[:space:]]*$/ { skip_openai_proxy = 1; next }\n")
+	yaml.WriteString("            /^\\[/ { skip_openai_proxy = 0 }\n")
+	yaml.WriteString("            !skip_openai_proxy { print }\n")
+	yaml.WriteString("          ' \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"\n")
 }
 
 // renderCodexMCPConfigWithContext generates custom MCP server configuration for a single tool in codex workflow config.toml

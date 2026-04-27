@@ -12,6 +12,11 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
+const { sanitizeForFilename, sanitizeBranchNameForPatch, sanitizeRepoSlugForPatch, getPatchPath, getPatchPathForRepo, buildExcludePathspecs, computeIncrementalDiffSize } = require("./git_patch_utils.cjs");
+
+// sanitizeForFilename is re-exported below for backward compatibility with
+// existing callers that imported it from this module.
+void sanitizeForFilename;
 
 /**
  * Debug logging helper - logs to stderr when DEBUG env var matches
@@ -22,63 +27,6 @@ function debugLog(message) {
   if (debug === "*" || debug.includes("generate_git_patch") || debug.includes("patch")) {
     console.error(`[generate_git_patch] ${message}`);
   }
-}
-
-/**
- * Sanitize a string for use as a patch filename component.
- * Replaces path separators and special characters with dashes.
- * @param {string} value - The value to sanitize
- * @param {string} fallback - Fallback value when input is empty or nullish
- * @returns {string} The sanitized string safe for use in a filename
- */
-function sanitizeForFilename(value, fallback) {
-  if (!value) return fallback;
-  return value
-    .replace(/[/\\:*?"<>|]/g, "-")
-    .replace(/-{2,}/g, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
-}
-
-/**
- * Sanitize a branch name for use as a patch filename
- * @param {string} branchName - The branch name to sanitize
- * @returns {string} The sanitized branch name safe for use in a filename
- */
-function sanitizeBranchNameForPatch(branchName) {
-  return sanitizeForFilename(branchName, "unknown");
-}
-
-/**
- * Get the patch file path for a given branch name
- * @param {string} branchName - The branch name
- * @returns {string} The full patch file path
- */
-function getPatchPath(branchName) {
-  const sanitized = sanitizeBranchNameForPatch(branchName);
-  return `/tmp/gh-aw/aw-${sanitized}.patch`;
-}
-
-/**
- * Sanitize a repo slug for use in a filename
- * @param {string} repoSlug - The repo slug (owner/repo)
- * @returns {string} The sanitized slug safe for use in a filename
- */
-function sanitizeRepoSlugForPatch(repoSlug) {
-  return sanitizeForFilename(repoSlug, "");
-}
-
-/**
- * Get the patch file path for a given branch name and repo slug
- * Used for multi-repo scenarios to prevent patch file collisions
- * @param {string} branchName - The branch name
- * @param {string} repoSlug - The repository slug (owner/repo)
- * @returns {string} The full patch file path including repo disambiguation
- */
-function getPatchPathForRepo(branchName, repoSlug) {
-  const sanitizedBranch = sanitizeBranchNameForPatch(branchName);
-  const sanitizedRepo = sanitizeRepoSlugForPatch(repoSlug);
-  return `/tmp/gh-aw/aw-${sanitizedRepo}-${sanitizedBranch}.patch`;
 }
 
 /**
@@ -111,15 +59,14 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
   // These are appended after "--" so git treats them as pathspecs, not revisions.
   // Using git's native pathspec magic keeps the exclusions out of the patch entirely
   // without any post-processing of the generated patch file.
-  const excludePathspecs = Array.isArray(options.excludedFiles) && options.excludedFiles.length > 0 ? options.excludedFiles.map(p => `:(exclude)${p}`) : [];
+  const excludeArgsArr = buildExcludePathspecs(options.excludedFiles);
 
   /**
    * Returns the arguments to append to a format-patch call when excludedFiles is set.
-   * Produces ["--", ":(exclude)pattern1", ":(exclude)pattern2", ...] or [].
    * @returns {string[]}
    */
   function excludeArgs() {
-    return excludePathspecs.length > 0 ? ["--", ...excludePathspecs] : [];
+    return excludeArgsArr;
   }
   const patchPath = options.repoSlug ? getPatchPathForRepo(branchName, options.repoSlug) : getPatchPath(branchName);
 
@@ -294,6 +241,25 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
             patchLines: 0,
           };
         }
+
+        // In incremental mode, the patch must be measured relative to the existing
+        // PR branch head (origin/<branch>), never relative to the default branch.
+        // If Strategy 1 did not produce a patch (e.g. format-patch yielded empty
+        // output for an unusual commit shape — excluded-files filtering away every
+        // change, or binary-only commits with unusual encoding), do NOT fall
+        // through to Strategy 2 or Strategy 3 — those use GITHUB_SHA..HEAD or
+        // merge-base with a remote ref and would produce a checkout-base diff
+        // (which can be many MB on a long-running branch). Returning an explicit
+        // error preserves the "incremental" contract that the patch reflects only
+        // the new commits.
+        if (!patchGenerated && mode === "incremental") {
+          debugLog(`Strategy 1 (incremental): format-patch produced no output for ${baseRef}..${branchName} despite ${commitCount} incremental commit(s), refusing to fall through to checkout-base strategies`);
+          return {
+            success: false,
+            error: `Cannot generate incremental patch: git format-patch produced no output for ${baseRef}..${branchName} despite ${commitCount} incremental commit(s).`,
+            patchPath: patchPath,
+          };
+        }
       } catch (branchError) {
         // Branch does not exist locally
         debugLog(`Strategy 1: Branch '${branchName}' does not exist locally - ${getErrorMessage(branchError)}`);
@@ -450,12 +416,36 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
       };
     }
 
-    debugLog(`Final: SUCCESS - patchSize=${patchSize} bytes, patchLines=${patchLines}, baseCommit=${baseCommitSha || "(unknown)"}`);
+    // In incremental mode, also compute the net diff size between baseRef and the
+    // branch tip. The format-patch file size (patchSize) is the sum of every
+    // commit's individual diff plus per-commit metadata headers, which can be
+    // significantly larger than the actual net change. Consumers (e.g.
+    // push_to_pull_request_branch) should validate `max_patch_size` against the
+    // incremental net diff so the limit reflects how much the branch will
+    // actually change, not the cumulative size of the commit history.
+    //
+    // The measurement itself (stream to temp file via `git diff --output`, stat,
+    // cleanup) is extracted into git_patch_utils.computeIncrementalDiffSize so
+    // it is O(1) memory and independently unit-testable against a real repo.
+    let diffSize = null;
+    if (mode === "incremental" && baseCommitSha && branchName) {
+      diffSize = computeIncrementalDiffSize({
+        baseRef: baseCommitSha,
+        headRef: branchName,
+        cwd,
+        tmpPath: `${patchPath}.diff.tmp`,
+        excludedFiles: options.excludedFiles,
+      });
+      debugLog(`Final: diffSize=${diffSize ?? "(n/a)"} bytes (baseRef=${baseCommitSha}..${branchName})`);
+    }
+
+    debugLog(`Final: SUCCESS - patchSize=${patchSize} bytes, patchLines=${patchLines}, diffSize=${diffSize ?? "(n/a)"} bytes, baseCommit=${baseCommitSha || "(unknown)"}`);
     return {
       success: true,
       patchPath: patchPath,
       patchSize: patchSize,
       patchLines: patchLines,
+      diffSize: diffSize,
       baseCommit: baseCommitSha,
     };
   }

@@ -12,6 +12,7 @@ __CACHE_LIST__
 - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
 - **File Share**: Use these as simple file shares - organize files as you see fit
 - **Allowed File Types**: Only the following file extensions are allowed: `__ALLOWED_EXTENSIONS__`. Files with other extensions will be rejected during validation.
+- **Cache Miss**: If you look for data in the cache and do not find any, call the `missing_data` tool with `data_type: "cache_memory"` and `reason: "cache_memory_miss"` to signal that the cache does not contain the expected information.
 
 Examples of what you can store:
 

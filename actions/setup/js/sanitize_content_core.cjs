@@ -1085,8 +1085,19 @@ function hardenUnicodeText(text) {
   // These include: zero-width space, zero-width non-joiner, zero-width joiner,
   // left-to-right mark (U+200E), right-to-left mark (U+200F),
   // soft hyphen (U+00AD), combining grapheme joiner (U+034F),
-  // word joiner, and byte order mark
-  result = result.replace(/[\u00AD\u034F\u200B\u200C\u200D\u200E\u200F\u2060\uFEFF]/g, "");
+  // word joiner (U+2060), invisible mathematical operators
+  // (U+2061 FUNCTION APPLICATION, U+2062 INVISIBLE TIMES,
+  //  U+2063 INVISIBLE SEPARATOR, U+2064 INVISIBLE PLUS),
+  // and byte order mark
+  result = result.replace(/[\u00AD\u034F\u200B-\u200F\u2060-\u2064\uFEFF]/g, "");
+
+  // Step 3b: Strip Unicode Tag Characters block (U+E0000–U+E007F, Plane 14).
+  // These 128 Cf-category codepoints have exact 1:1 ASCII equivalents
+  // (e.g. U+E0041 = TAG LATIN CAPITAL LETTER A) and are completely invisible
+  // in all standard renderers including GitHub Markdown, enabling fully
+  // invisible prompt-injection payloads that decode 1:1 to ASCII content.
+  // Represented as surrogate pairs \uDB40\uDC00–\uDB40\uDC7F in JavaScript.
+  result = result.replace(/\uDB40[\uDC00-\uDC7F]/g, "");
 
   // Step 4: Remove bidirectional text override controls
   // These can be used to reverse text direction and create visual spoofs

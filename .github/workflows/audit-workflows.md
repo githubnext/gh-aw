@@ -20,7 +20,7 @@ safe-outputs:
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 timeout-minutes: 30
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[audit-workflows] "
       expires: 1d
@@ -29,8 +29,6 @@ imports:
       branch-name: "memory/audit-workflows"
       description: "Historical audit data and patterns"
   - shared/jqschema.md
-  - shared/reporting.md
-  - shared/trending-charts-simple.md
 
 features:
   mcp-cli: true

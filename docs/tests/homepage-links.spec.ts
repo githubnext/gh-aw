@@ -44,4 +44,24 @@ test.describe('Homepage Links', () => {
       'Create workflow on GitHub demo video'
     );
   });
+
+  test('should use descriptive fallback links and captions tracks on homepage videos', async ({ page }) => {
+    const fallbackLinks = page.locator('video.gh-aw-video-element p a');
+    await expect(fallbackLinks).toHaveCount(2);
+
+    await expect(fallbackLinks.nth(0)).toHaveText('Download Install and add workflow in CLI demo video');
+    await expect(fallbackLinks.nth(1)).toHaveText('Download Create workflow on GitHub demo video');
+
+    const captionTracks = page.locator('video.gh-aw-video-element track[kind="captions"]');
+    await expect(captionTracks).toHaveCount(2);
+
+    await expect(captionTracks.nth(0)).toHaveAttribute(
+      'src',
+      '/gh-aw/videos/install-and-add-workflow-in-cli.vtt'
+    );
+    await expect(captionTracks.nth(1)).toHaveAttribute(
+      'src',
+      '/gh-aw/videos/create-workflow-on-github.vtt'
+    );
+  });
 });

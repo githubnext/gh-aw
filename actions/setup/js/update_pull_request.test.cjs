@@ -23,6 +23,7 @@ const mockGithub = {
     pulls: {
       get: vi.fn(),
       update: vi.fn(),
+      updateBranch: vi.fn(),
     },
   },
 };
@@ -79,6 +80,11 @@ describe("update_pull_request.cjs - executePRUpdate function", () => {
         title: "Test PR",
         body: "Updated body",
         html_url: "https://github.com/testowner/testrepo/pull/100",
+      },
+    });
+    mockGithub.rest.pulls.updateBranch.mockResolvedValue({
+      data: {
+        message: "Branch updated",
       },
     });
   });
@@ -736,5 +742,109 @@ describe("update_pull_request.cjs - executePRUpdate function", () => {
       const startMarkerCount = (bodyAfterSecond.match(/<!-- gh-aw-island-start:12345 -->/g) || []).length;
       expect(startMarkerCount).toBe(1);
     });
+  });
+});
+
+describe("update_pull_request.cjs - update_branch behavior", () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.resetModules();
+
+    updatePRModule = await import("./update_pull_request.cjs");
+
+    mockGithub.rest.pulls.get.mockResolvedValue({
+      data: {
+        number: 100,
+        title: "Test PR",
+        body: "Original body content",
+        html_url: "https://github.com/testowner/testrepo/pull/100",
+      },
+    });
+
+    mockGithub.rest.pulls.update.mockResolvedValue({
+      data: {
+        number: 100,
+        title: "Updated PR",
+        body: "Original body content",
+        html_url: "https://github.com/testowner/testrepo/pull/100",
+      },
+    });
+
+    mockGithub.rest.pulls.updateBranch.mockResolvedValue({
+      data: {
+        message: "Branch updated",
+      },
+    });
+  });
+
+  it("should include update_branch when item requests it", () => {
+    const result = updatePRModule.buildPRUpdateData({ update_branch: true }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.data.update_branch).toBe(true);
+  });
+
+  it("should inherit update_branch from config when item does not set it", () => {
+    const result = updatePRModule.buildPRUpdateData({}, { update_branch: true });
+
+    expect(result.success).toBe(true);
+    expect(result.data.update_branch).toBe(true);
+  });
+
+  it("should call updateBranch when update_branch is enabled and no other fields are updated", async () => {
+    const handler = await updatePRModule.main({ update_branch: true });
+
+    const result = await handler({ pull_request_number: 100 });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+    });
+    expect(mockGithub.rest.pulls.get).not.toHaveBeenCalled();
+    expect(mockGithub.rest.pulls.update).not.toHaveBeenCalled();
+  });
+
+  it("should call updateBranch before pulls.update when update_branch and title update are both requested", async () => {
+    const handler = await updatePRModule.main({});
+
+    await handler({
+      pull_request_number: 100,
+      title: "Updated PR",
+      update_branch: true,
+    });
+
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalled();
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+      title: "Updated PR",
+    });
+  });
+
+  it("should retry updateBranch on transient failures", async () => {
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(new Error("timeout contacting github")).mockResolvedValueOnce({
+      data: { message: "Branch updated after retry" },
+    });
+
+    const handler = await updatePRModule.main({ update_branch: true });
+    const result = await handler({ pull_request_number: 100 });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(2);
+  });
+
+  it("should log update-branch operation failure when updateBranch fails", async () => {
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(new Error("branch update forbidden"));
+
+    const handler = await updatePRModule.main({ update_branch: true });
+    const result = await handler({ pull_request_number: 100 });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("update pull request #100 branch from base failed");
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to update pull request #100 branch from base"));
   });
 });

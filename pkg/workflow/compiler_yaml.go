@@ -118,7 +118,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// Embed the gh-aw-manifest immediately after gh-aw-metadata for easy machine parsing.
 	// The manifest records all secrets, external actions, and container images detected at
 	// compile time so that subsequent compilations can perform safe update enforcement.
-	manifest := NewGHAWManifest(secrets, actions, data.DockerImagePins, data.Redirect)
+	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect)
 	if manifestJSON, err := manifest.ToJSON(); err == nil {
 		fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON)
 	} else {
@@ -305,7 +305,17 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	if markdownPath != "" {
 		baseDir := filepath.Dir(markdownPath)
 		cache := parser.NewImportCache(baseDir)
-		hash, err := parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, data.RawFrontmatter, cache, parser.DefaultFileReader)
+		var hash string
+		var err error
+		if data.RawMarkdown != "" {
+			// Fast path: use pre-parsed content from WorkflowData to avoid re-reading the file.
+			hash, err = parser.ComputeFrontmatterHashFromParsedContent(data.FrontmatterYAML, data.RawMarkdown, data.RawFrontmatter, baseDir, cache, parser.DefaultFileReader)
+		} else {
+			// Fallback: read file from disk (used when WorkflowData was constructed without RawMarkdown,
+			// e.g. via CompileWorkflowData called directly with externally constructed WorkflowData).
+			compilerYamlLog.Printf("RawMarkdown not set; falling back to reading file from disk: %s", markdownPath)
+			hash, err = parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, data.RawFrontmatter, cache, parser.DefaultFileReader)
+		}
 		if err != nil {
 			compilerYamlLog.Printf("Warning: failed to compute frontmatter hash: %v", err)
 			// Continue without hash - non-fatal error
@@ -324,9 +334,10 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	}
 
 	// Pre-allocate builder capacity based on estimated workflow size.
-	// Most workflows are in the 32–160 KB range; 64 KB avoids the first reallocation
-	// in the common case while keeping memory waste low for small workflows.
-	const initialBuilderCapacity = 64 * 1024
+	// Copilot / Claude workflows with safe-outputs typically compile to ~70–90 KB.
+	// 96 KB avoids the first reallocation for the common case while keeping memory
+	// waste acceptable for small workflows (only ~32 KB extra for a 64 KB output).
+	const initialBuilderCapacity = 96 * 1024
 	var yaml strings.Builder
 	yaml.Grow(initialBuilderCapacity)
 
@@ -691,6 +702,8 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			modelEnvVar = constants.EnvVarModelAgentClaude
 		case "codex":
 			modelEnvVar = constants.EnvVarModelAgentCodex
+		case "opencode":
+			modelEnvVar = constants.EnvVarModelAgentOpenCode
 		case "custom":
 			modelEnvVar = constants.EnvVarModelAgentCustom
 		default:
@@ -720,12 +733,12 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	firewallVersion := ""
 	if data.NetworkPermissions != nil {
 		allowedDomains = data.NetworkPermissions.Allowed
-		if data.NetworkPermissions.Firewall != nil {
-			firewallEnabled = data.NetworkPermissions.Firewall.Enabled
-			firewallVersion = data.NetworkPermissions.Firewall.Version
-			if firewallEnabled && firewallVersion == "" {
-				firewallVersion = string(constants.DefaultFirewallVersion)
-			}
+	}
+	if firewallConfig := getFirewallConfig(data); firewallConfig != nil {
+		firewallEnabled = firewallConfig.Enabled
+		firewallVersion = firewallConfig.Version
+		if firewallEnabled && firewallVersion == "" {
+			firewallVersion = string(constants.DefaultFirewallVersion)
 		}
 	}
 

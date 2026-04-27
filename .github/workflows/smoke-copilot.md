@@ -34,6 +34,7 @@ network:
 tools:
   agentic-workflows:
   cache-memory: true
+  comment-memory: true
   edit:
   bash:
     - "*"
@@ -166,6 +167,7 @@ These are **not** MCP protocol tools — they are bash executables. Call them wi
 11. **Discussion Creation Testing**: Use the `create_discussion` safe-output tool to create a discussion in the announcements category titled "copilot was here" with the label "ai-generated"
 12. **Workflow Dispatch Testing**: Use the `dispatch_workflow` safe output tool to trigger the `haiku-printer` workflow with a haiku as the message input. Create an original, creative haiku about software testing or automation.
 13. **PR Review Testing**: Review the diff of the current pull request. Leave 1-2 inline `create_pull_request_review_comment` comments on specific lines, then call `submit_pull_request_review` with a brief body summarizing your review and event `COMMENT`. To test `reply_to_pull_request_review_comment`: use the `pull_request_read` tool (with `method: "get_review_comments"` and `pullNumber: ${{ github.event.pull_request.number }}`) to fetch the PR's existing review comments, then reply to the most recent one using `reply_to_pull_request_review_comment` with its actual numeric `id` as the `comment_id`. Note: `create_pull_request_review_comment` does not return a `comment_id` — you must fetch existing comment IDs from the GitHub API. If the PR has no existing review comments, skip the reply sub-test.
+14. **Comment Memory Testing**: Append an original 3-line haiku to the comment-memory markdown file(s) in `/tmp/gh-aw/comment-memory/*.md` without removing existing content.
 
 ## Output
 

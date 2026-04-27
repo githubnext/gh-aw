@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Convert MCP Gateway Configuration to Crush Format
 # This script converts the gateway's standard HTTP-based MCP configuration
 # to the JSON format expected by Crush (.crush.json)

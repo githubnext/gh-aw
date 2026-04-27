@@ -342,13 +342,13 @@ describe("create_pull_request - max limit enforcement", () => {
   });
 
   it("should enforce max file limit on patch content", () => {
-    // Create a patch with more than MAX_FILES (100) files
+    // Create a patch with more than MAX_FILES (100) unique files
     const patchLines = [];
     for (let i = 0; i < 101; i++) {
       patchLines.push(`diff --git a/file${i}.txt b/file${i}.txt`);
       patchLines.push("index 1234567..abcdefg 100644");
-      patchLines.push("--- a/file${i}.txt");
-      patchLines.push("+++ b/file${i}.txt");
+      patchLines.push(`--- a/file${i}.txt`);
+      patchLines.push(`+++ b/file${i}.txt`);
       patchLines.push("@@ -1,1 +1,1 @@");
       patchLines.push("-old content");
       patchLines.push("+new content");
@@ -370,8 +370,8 @@ describe("create_pull_request - max limit enforcement", () => {
     for (let i = 0; i < 100; i++) {
       patchLines.push(`diff --git a/file${i}.txt b/file${i}.txt`);
       patchLines.push("index 1234567..abcdefg 100644");
-      patchLines.push("--- a/file${i}.txt");
-      patchLines.push("+++ b/file${i}.txt");
+      patchLines.push(`--- a/file${i}.txt`);
+      patchLines.push(`+++ b/file${i}.txt`);
       patchLines.push("@@ -1,1 +1,1 @@");
       patchLines.push("-old content");
       patchLines.push("+new content");
@@ -382,6 +382,121 @@ describe("create_pull_request - max limit enforcement", () => {
 
     // Should not throw
     expect(() => enforcePullRequestLimits(patchContent)).not.toThrow();
+  });
+
+  it("should count unique files across multi-commit patches (regression: github/gh-aw issue tsessebe autoloop)", () => {
+    // Simulate `git format-patch` output where the same files are modified across
+    // multiple commits. Previously the limit check counted every `diff --git`
+    // header (3 commits * 2 files = 6) instead of the 2 unique files actually
+    // touched. After the fix it should count 2.
+    const { countUniquePatchFiles, enforcePullRequestLimits } = require("./create_pull_request.cjs");
+
+    const patchLines = [];
+    for (let commit = 0; commit < 3; commit++) {
+      for (const file of ["src/a.ts", "src/b.ts"]) {
+        patchLines.push(`diff --git a/${file} b/${file}`);
+        patchLines.push("index 1234567..abcdefg 100644");
+        patchLines.push(`--- a/${file}`);
+        patchLines.push(`+++ b/${file}`);
+        patchLines.push("@@ -1,1 +1,1 @@");
+        patchLines.push(`-old ${commit}`);
+        patchLines.push(`+new ${commit}`);
+      }
+    }
+    const patchContent = patchLines.join("\n");
+
+    expect(countUniquePatchFiles(patchContent)).toBe(2);
+    expect(() => enforcePullRequestLimits(patchContent, 5)).not.toThrow();
+  });
+
+  it("should accept a configurable max-files override", () => {
+    const { enforcePullRequestLimits } = require("./create_pull_request.cjs");
+
+    const patchLines = [];
+    for (let i = 0; i < 150; i++) {
+      patchLines.push(`diff --git a/file${i}.txt b/file${i}.txt`);
+      patchLines.push("index 1234567..abcdefg 100644");
+      patchLines.push(`--- a/file${i}.txt`);
+      patchLines.push(`+++ b/file${i}.txt`);
+      patchLines.push("@@ -1,1 +1,1 @@");
+      patchLines.push("-old content");
+      patchLines.push("+new content");
+    }
+    const patchContent = patchLines.join("\n");
+
+    // With default limit (100) it should fail
+    expect(() => enforcePullRequestLimits(patchContent)).toThrow("E003");
+    // With raised limit it should pass
+    expect(() => enforcePullRequestLimits(patchContent, 200)).not.toThrow();
+    // With smaller limit, error message reflects override
+    expect(() => enforcePullRequestLimits(patchContent, 50)).toThrow("more than 50 files");
+    expect(() => enforcePullRequestLimits(patchContent, 50)).toThrow("received 150");
+  });
+
+  it("should return 0 for empty patches", () => {
+    const { countUniquePatchFiles, enforcePullRequestLimits } = require("./create_pull_request.cjs");
+    expect(countUniquePatchFiles("")).toBe(0);
+    expect(countUniquePatchFiles("   \n\n")).toBe(0);
+    expect(() => enforcePullRequestLimits("")).not.toThrow();
+  });
+
+  it("should handle quoted paths with C-style escapes", () => {
+    // git emits quoted, escaped headers when filenames contain special chars
+    // (e.g. embedded quotes or backslashes). The parser must treat these as
+    // distinct unique files and never undercount.
+    const { countUniquePatchFiles, parseDiffGitHeader } = require("./create_pull_request.cjs");
+
+    // Embedded escaped quote: "a/foo\"bar" "b/foo\"bar"
+    expect(parseDiffGitHeader('diff --git "a/foo\\"bar" "b/foo\\"bar"')).toBe('foo\\"bar');
+    // Embedded backslash: "a/foo\\bar" "b/foo\\bar"
+    expect(parseDiffGitHeader('diff --git "a/foo\\\\bar" "b/foo\\\\bar"')).toBe("foo\\\\bar");
+    // Plain unquoted form
+    expect(parseDiffGitHeader("diff --git a/foo.txt b/foo.txt")).toBe("foo.txt");
+    // Path with spaces (git always emits quoted form when path contains spaces)
+    expect(parseDiffGitHeader('diff --git "a/dir/with space/x" "b/dir/with space/x"')).toBe("dir/with space/x");
+
+    // A patch with three different quoted/escaped files should count as 3.
+    const patch = [
+      'diff --git "a/foo\\"bar" "b/foo\\"bar"',
+      "index 1234567..abcdefg 100644",
+      "--- a/x",
+      "+++ b/x",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+      'diff --git "a/foo\\\\bar" "b/foo\\\\bar"',
+      "index 1234567..abcdefg 100644",
+      "--- a/x",
+      "+++ b/x",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+      "diff --git a/normal.txt b/normal.txt",
+      "index 1234567..abcdefg 100644",
+      "--- a/x",
+      "+++ b/x",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+    ].join("\n");
+    expect(countUniquePatchFiles(patch)).toBe(3);
+  });
+
+  it("should count unparseable headers conservatively (never undercount)", () => {
+    // Each `diff --git` header that cannot be parsed contributes one entry
+    // to the unique-file set, so a malformed header can never silently
+    // bypass the limit.
+    const { countUniquePatchFiles, enforcePullRequestLimits } = require("./create_pull_request.cjs");
+    const patchContent = "diff --git \ndiff --git \ndiff --git \n";
+    expect(countUniquePatchFiles(patchContent)).toBe(3);
+
+    // Mixed: 2 parseable + 2 unparseable = 4 unique entries.
+    const mixed = ["diff --git a/a.txt b/a.txt", "diff --git ", "diff --git b/b.txt c/b.txt", "diff --git "].join("\n");
+    expect(countUniquePatchFiles(mixed)).toBe(4);
+
+    // 200 unparseable headers must still trigger the default 100-file limit.
+    const lots = Array.from({ length: 200 }, () => "diff --git ").join("\n");
+    expect(() => enforcePullRequestLimits(lots)).toThrow("E003");
   });
 });
 
@@ -1574,6 +1689,63 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     expect(result.error).toBe("Failed to apply patch");
     expect(global.core.warning).toHaveBeenCalledWith("No base_commit recorded in safe output entry - fallback not possible");
   });
+
+  it("should fail loudly when preserve-branch-name is true and remote branch already exists", async () => {
+    // Simulate the remote branch existing (ls-remote returns content)
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        if (cmdStr.includes("ls-remote --heads origin")) {
+          return Promise.resolve({ exitCode: 0, stdout: "abc123\trefs/heads/preserve-me\n", stderr: "" });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ preserve_branch_name: true, fallback_as_issue: false });
+
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error_type).toBe("push_failed");
+    expect(result.error).toContain('Remote branch "preserve-me" already exists');
+    expect(result.error).toContain("preserve-branch-name is enabled");
+    // Critical: should NOT have warned about appending random suffix (silent bypass)
+    const warningCalls = global.core.warning.mock.calls.map(call => String(call[0]));
+    expect(warningCalls.some(msg => msg.includes("appending random suffix"))).toBe(false);
+  });
+
+  it("should append random suffix when preserve-branch-name is false and remote branch already exists", async () => {
+    let renameCalled = false;
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        if (cmdStr.includes("git branch -m")) {
+          renameCalled = true;
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        if (cmdStr.includes("ls-remote --heads origin")) {
+          return Promise.resolve({ exitCode: 0, stdout: "abc123\trefs/heads/some-branch\n", stderr: "" });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "some-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(true);
+    expect(renameCalled).toBe(true);
+    const warningCalls = global.core.warning.mock.calls.map(call => String(call[0]));
+    expect(warningCalls.some(msg => msg.includes("appending random suffix"))).toBe(true);
+  });
 });
 
 describe("create_pull_request - copilot assignee on fallback issues", () => {
@@ -1719,20 +1891,148 @@ describe("create_pull_request - copilot assignee on fallback issues", () => {
     expect(global.github.graphql).toHaveBeenCalledTimes(3);
   });
 
-  it("should warn but not fail when copilot agent is not available for fallback issue", async () => {
-    process.env.GH_AW_ASSIGN_COPILOT = "true";
+  it("should use configured fallback_labels for fallback issues instead of PR labels", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, fallback_labels: ["failure", "automated"] });
+    await handler({ title: "Test PR", body: "Test body", labels: ["pr-label"] }, {});
 
-    // findAgent returns no agent
-    global.github.graphql.mockResolvedValueOnce({
-      repository: { suggestedActors: { nodes: [] } },
-    });
+    const issueCall = global.github.rest.issues.create.mock.calls[0][0];
+    expect(issueCall.labels).toEqual(["agentic-workflows", "failure", "automated"]);
+  });
+});
+
+describe("create_pull_request - threat detection caution", () => {
+  let tempDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-threat-test-"));
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockResolvedValue({ data: { number: 42, html_url: "https://github.com/test/pull/42", node_id: "PR_42" } }),
+          requestReviewers: vi.fn().mockResolvedValue({}),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+        issues: {
+          addLabels: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  it("should prepend caution alert at top of PR body when GH_AW_DETECTION_CONCLUSION is warning", async () => {
+    process.env.GH_AW_DETECTION_CONCLUSION = "warning";
 
     const { main } = require("./create_pull_request.cjs");
-    const handler = await main({ assignees: ["copilot"], allow_empty: true });
-    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+    const handler = await main({ allow_empty: true });
+    await handler({ title: "Test PR", body: "Agent body content" }, {});
 
-    // Issue creation should still succeed
-    expect(result.success).toBe(true);
-    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("copilot coding agent is not available"));
+    const prBody = global.github.rest.pulls.create.mock.calls[0][0].body;
+    // Caution alert should appear before the agent body content
+    const cautionIndex = prBody.indexOf("[!CAUTION]");
+    const bodyIndex = prBody.indexOf("Agent body content");
+    expect(cautionIndex).toBeGreaterThanOrEqual(0);
+    expect(bodyIndex).toBeGreaterThan(cautionIndex);
+  });
+
+  it("should not include caution alert in PR body when GH_AW_DETECTION_CONCLUSION is not warning", async () => {
+    delete process.env.GH_AW_DETECTION_CONCLUSION;
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+    await handler({ title: "Test PR", body: "Agent body content" }, {});
+
+    const prBody = global.github.rest.pulls.create.mock.calls[0][0].body;
+    expect(prBody).not.toContain("[!CAUTION]");
+  });
+
+  it("should add agentic-threat-detected label when GH_AW_DETECTION_CONCLUSION is warning", async () => {
+    process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+    await handler({ title: "Test PR", body: "Agent body content" }, {});
+
+    const labelsCall = global.github.rest.issues.addLabels.mock.calls[0][0];
+    expect(labelsCall.labels).toContain("agentic-threat-detected");
+  });
+
+  it("should not add agentic-threat-detected label when GH_AW_DETECTION_CONCLUSION is not warning", async () => {
+    delete process.env.GH_AW_DETECTION_CONCLUSION;
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+    await handler({ title: "Test PR", body: "Agent body content", labels: ["automation"] }, {});
+
+    const labelsCall = global.github.rest.issues.addLabels.mock.calls[0][0];
+    expect(labelsCall.labels).not.toContain("agentic-threat-detected");
+  });
+
+  it("should separate caution alert from body content with blank lines", async () => {
+    process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+    await handler({ title: "Test PR", body: "Agent body content" }, {});
+
+    const prBody = global.github.rest.pulls.create.mock.calls[0][0].body;
+    const cautionIndex = prBody.indexOf("[!CAUTION]");
+    const bodyIndex = prBody.indexOf("Agent body content");
+    // There must be at least two newlines between the end of the caution block and the body content
+    const between = prBody.slice(cautionIndex, bodyIndex);
+    expect((between.match(/\n/g) || []).length).toBeGreaterThanOrEqual(2);
   });
 });

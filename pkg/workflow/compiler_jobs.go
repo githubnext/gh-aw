@@ -267,10 +267,11 @@ func (c *Compiler) buildPreActivationAndActivationJobs(data *WorkflowData, front
 	hasCommandTrigger := len(data.Command) > 0
 	hasRateLimit := data.RateLimit != nil
 	hasOnSteps := len(data.OnSteps) > 0
-	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasSkipIfNoMatch=%v, hasSkipRoles=%v, hasSkipBots=%v, hasCommand=%v, hasRateLimit=%v, hasOnSteps=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, hasSkipIfNoMatch, hasSkipRoles, hasSkipBots, hasCommandTrigger, hasRateLimit, hasOnSteps)
+	hasOnNeeds := len(data.OnNeeds) > 0
+	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasSkipIfNoMatch=%v, hasSkipRoles=%v, hasSkipBots=%v, hasCommand=%v, hasRateLimit=%v, hasOnSteps=%v, hasOnNeeds=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, hasSkipIfNoMatch, hasSkipRoles, hasSkipBots, hasCommandTrigger, hasRateLimit, hasOnSteps, hasOnNeeds)
 
 	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, skip-if-no-match check, skip-roles check, skip-bots check, rate limit check, command position check, and on.steps injection)
-	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasSkipRoles || hasSkipBots || hasCommandTrigger || hasRateLimit || hasOnSteps {
+	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasSkipRoles || hasSkipBots || hasCommandTrigger || hasRateLimit || hasOnSteps || hasOnNeeds {
 		compilerJobsLog.Print("Building pre-activation job")
 		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
 		if err != nil {
@@ -490,6 +491,10 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 	for _, j := range promptReferencedJobsSlice {
 		promptReferencedJobs[j] = true
 	}
+	onNeedsJobs := make(map[string]bool, len(data.OnNeeds))
+	for _, j := range data.OnNeeds {
+		onNeedsJobs[j] = true
+	}
 
 	for jobName, jobConfig := range data.Jobs {
 		// Skip jobs.pre-activation (or pre_activation) as it's handled specially in buildPreActivationJob
@@ -531,11 +536,14 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			// Exception: jobs whose outputs are referenced in the markdown body run before activation
 			// (so the activation job can include their outputs in the prompt).
 			isReferencedInMarkdown := promptReferencedJobs[jobName]
-			if !hasExplicitNeeds && activationJobCreated && !isReferencedInMarkdown {
+			isOnNeedsDependency := onNeedsJobs[jobName]
+			if !hasExplicitNeeds && activationJobCreated && !isReferencedInMarkdown && !isOnNeedsDependency {
 				job.Needs = append(job.Needs, string(constants.ActivationJobName))
 				compilerJobsLog.Printf("Added automatic dependency: custom job '%s' now depends on '%s'", jobName, string(constants.ActivationJobName))
 			} else if !hasExplicitNeeds && isReferencedInMarkdown {
 				compilerJobsLog.Printf("Custom job '%s' referenced in markdown body runs before activation (no auto-added dependency)", jobName)
+			} else if !hasExplicitNeeds && isOnNeedsDependency {
+				compilerJobsLog.Printf("Custom job '%s' listed in on.needs runs before activation (no auto-added dependency)", jobName)
 			}
 
 			// Extract other job properties
@@ -873,6 +881,16 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 	for i, step := range steps {
 		if firstCheckoutIdx == -1 && strings.Contains(step, "uses: actions/checkout@") {
 			firstCheckoutIdx = i
+			// Walk backward to the checkout step's list-item boundary ("- ").
+			// If no boundary is found, keep the current index so insertion still
+			// occurs before the checkout uses-line.
+			for j := i; j >= 0; j-- {
+				trimmed := strings.TrimLeft(steps[j], " ")
+				if strings.HasPrefix(trimmed, "- ") {
+					firstCheckoutIdx = j
+					break
+				}
+			}
 		}
 		if exactSetupStepIDPattern.MatchString(step) {
 			lastSetupIdx = i
@@ -881,7 +899,22 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 
 	insertIdx := len(steps)
 	if lastSetupIdx >= 0 {
-		insertIdx = lastSetupIdx + 1
+		// Setup step may be emitted as multiple []string entries (one line per entry).
+		// Insert after the full setup step by finding the next step boundary.
+		// A step boundary is identified by the YAML list-item prefix ("- ") after
+		// indentation trimming, which marks the beginning of the next step block.
+		// If no boundary is found (e.g. setup is the final step), insertIdx stays len(steps)
+		// and pre-steps are appended by the slice insertion logic below.
+		for i := lastSetupIdx + 1; i < len(steps); i++ {
+			trimmed := strings.TrimLeft(steps[i], " ")
+			if strings.HasPrefix(trimmed, "- ") {
+				insertIdx = i
+				break
+			}
+		}
+		if insertIdx == len(steps) {
+			compilerJobsLog.Print("No step boundary found after setup step; appending pre-steps at end")
+		}
 	} else if firstCheckoutIdx >= 0 {
 		insertIdx = firstCheckoutIdx
 	}

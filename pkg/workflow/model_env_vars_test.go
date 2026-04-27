@@ -225,22 +225,13 @@ func TestCopilotFallbackModelMapsToNativeEnvVar(t *testing.T) {
 			name:           "Agent job maps GH_AW_MODEL_AGENT_COPILOT to COPILOT_MODEL",
 			safeOutputs:    &SafeOutputsConfig{},
 			expectedOrgVar: constants.EnvVarModelAgentCopilot,
-			expectedTail:   "''",
-		},
-		{
-			name:        "Agent job with byok-copilot uses non-empty COPILOT_MODEL fallback",
-			safeOutputs: &SafeOutputsConfig{},
-			features: map[string]any{
-				string(constants.ByokCopilotFeatureFlag): true,
-			},
-			expectedOrgVar: constants.EnvVarModelAgentCopilot,
 			expectedTail:   "'" + constants.CopilotBYOKDefaultModel + "'",
 		},
 		{
 			name:           "Detection job maps GH_AW_MODEL_DETECTION_COPILOT to COPILOT_MODEL",
 			safeOutputs:    nil,
 			expectedOrgVar: constants.EnvVarModelDetectionCopilot,
-			expectedTail:   "''",
+			expectedTail:   "'" + constants.CopilotBYOKDefaultModel + "'",
 		},
 	}
 
@@ -445,7 +436,9 @@ func TestGetModelEnvVarName(t *testing.T) {
 		{"copilot", constants.CopilotCLIModelEnvVar}, // "COPILOT_MODEL"
 		{"claude", constants.ClaudeCLIModelEnvVar},   // "ANTHROPIC_MODEL"
 		{"codex", ""}, // no native model env var
-		{"gemini", constants.GeminiCLIModelEnvVar}, // "GEMINI_MODEL"
+		{"gemini", constants.GeminiCLIModelEnvVar},     // "GEMINI_MODEL"
+		{"opencode", constants.OpenCodeCLIModelEnvVar}, // "OPENCODE_MODEL"
+		{"crush", constants.CrushCLIModelEnvVar},       // "CRUSH_MODEL"
 	}
 
 	for _, tt := range tests {

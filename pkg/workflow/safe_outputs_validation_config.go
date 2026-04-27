@@ -71,6 +71,15 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"repo":        {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
+	"comment_memory": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"body":        {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"memory_id":   {Type: "string", Sanitize: true, MaxLength: 128, Pattern: "^[a-zA-Z0-9_-]+$", PatternError: "must contain only alphanumeric characters, hyphens, and underscores"},
+			"item_number": {IssueOrPRNumber: true},
+			"repo":        {Type: "string", MaxLength: 256},
+		},
+	},
 	"create_pull_request": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
@@ -154,13 +163,24 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	},
 	"update_pull_request": {
 		DefaultMax:       1,
-		CustomValidation: "requiresOneOf:title,body",
+		CustomValidation: "requiresOneOf:title,body,update_branch",
 		Fields: map[string]FieldValidation{
 			"title":               {Type: "string", Sanitize: true, MaxLength: 256},
 			"body":                {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"operation":           {Type: "string", Enum: []string{"replace", "append", "prepend"}},
+			"update_branch":       {Type: "boolean"},
 			"draft":               {Type: "boolean"},
 			"pull_request_number": {IssueOrPRNumber: true},
+			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+		},
+	},
+	"merge_pull_request": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"pull_request_number": {IssueOrPRNumber: true},
+			"merge_method":        {Type: "string", Enum: []string{"merge", "squash", "rebase"}},
+			"commit_title":        {Type: "string", Sanitize: true, MaxLength: 256},
+			"commit_message":      {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
@@ -353,7 +373,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		DefaultMax: 5,
 		Fields: map[string]FieldValidation{
 			"comment_id": {Required: true, Type: "string", MaxLength: 256},
-			"reason":     {Type: "string", Enum: []string{"SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"}},
+			"reason":     {Type: "string", Enum: []string{"SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED", "LOW_QUALITY"}},
 			"repo":       {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},

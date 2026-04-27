@@ -18,6 +18,7 @@ type CompileConfig struct {
 	ForceOverwrite         bool     // Force overwrite of existing files (dependabot.yml)
 	RefreshStopTime        bool     // Force regeneration of stop-after times instead of preserving existing ones
 	ForceRefreshActionPins bool     // Force refresh of action pins by clearing cache and resolving from GitHub API
+	AllowActionRefs        bool     // Allow unresolved action refs as warnings instead of errors
 	Zizmor                 bool     // Run zizmor security scanner on generated .lock.yml files
 	Poutine                bool     // Run poutine security scanner on generated .lock.yml files
 	Actionlint             bool     // Run actionlint linter on generated .lock.yml files
@@ -32,22 +33,6 @@ type CompileConfig struct {
 	Approve                bool     // Approve all safe update changes, skipping safe update enforcement regardless of strict mode setting.
 	ValidateImages         bool     // Require Docker to be available for container image validation (fail instead of skipping when Docker is unavailable)
 	PriorManifestFile      string   // Path to a JSON file containing pre-cached manifests (map[lockFile]*GHAWManifest) collected at MCP server startup; takes precedence over git HEAD / filesystem reads for safe update enforcement
-}
-
-// WorkflowFailure represents a failed workflow with its error count
-type WorkflowFailure struct {
-	Path          string   // File path of the workflow
-	ErrorCount    int      // Number of errors in this workflow
-	ErrorMessages []string // Actual error messages to display to the user
-}
-
-// CompilationStats tracks the results of workflow compilation
-type CompilationStats struct {
-	Total           int
-	Errors          int
-	Warnings        int
-	FailedWorkflows []string          // Names of workflows that failed compilation (deprecated, use FailedWorkflowDetails)
-	FailureDetails  []WorkflowFailure // Detailed information about failed workflows
 }
 
 // CompileValidationError represents a single validation error or warning

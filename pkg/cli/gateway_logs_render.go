@@ -22,6 +22,8 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 		return ""
 	}
 
+	gatewayLogsLog.Printf("Rendering gateway metrics table: servers=%d, totalRequests=%d, totalToolCalls=%d", len(metrics.Servers), metrics.TotalRequests, metrics.TotalToolCalls)
+
 	var output strings.Builder
 
 	output.WriteString("\n")
@@ -193,6 +195,8 @@ func getSortedServerNames(metrics *GatewayMetrics) []string {
 
 // displayAggregatedGatewayMetrics aggregates and displays gateway metrics across all processed runs
 func displayAggregatedGatewayMetrics(processedRuns []ProcessedRun, outputDir string, verbose bool) {
+	gatewayLogsLog.Printf("Aggregating gateway metrics from %d processed runs", len(processedRuns))
+
 	// Aggregate gateway metrics from all runs
 	aggregated := &GatewayMetrics{
 		Servers: make(map[string]*GatewayServerMetrics),
@@ -264,8 +268,11 @@ func displayAggregatedGatewayMetrics(processedRuns []ProcessedRun, outputDir str
 
 	// Only display if we found gateway metrics
 	if runCount == 0 || len(aggregated.Servers) == 0 {
+		gatewayLogsLog.Printf("No gateway metrics to display: runsWithData=%d, servers=%d", runCount, len(aggregated.Servers))
 		return
 	}
+
+	gatewayLogsLog.Printf("Aggregation complete: %d runs with gateway data, %d servers, %d total requests", runCount, len(aggregated.Servers), aggregated.TotalRequests)
 
 	// Recalculate averages for aggregated data
 	calculateGatewayAggregates(aggregated)

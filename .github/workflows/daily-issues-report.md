@@ -35,6 +35,8 @@ features:
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 
+{{#runtime-import .github/shared/editorial.md}}
+
 # Daily Issues Report Generator
 
 You are an expert analyst that generates comprehensive daily reports about repository issues, using Python for clustering and visualization.

@@ -48,6 +48,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/goccy/go-yaml"
@@ -154,6 +155,25 @@ func (c *Compiler) validateMaxContinuationsSupport(frontmatter map[string]any, e
 	return nil
 }
 
+// validateUniversalLLMConsumerModel validates that universal consumer engines
+// (OpenCode/Crush) declare a provider-qualified engine.model.
+func (c *Compiler) validateUniversalLLMConsumerModel(frontmatter map[string]any, engine CodingAgentEngine) error {
+	if engine.GetID() != "opencode" && engine.GetID() != "crush" {
+		return nil
+	}
+
+	_, engineConfig := c.ExtractEngineConfig(frontmatter)
+	if engineConfig == nil || strings.TrimSpace(engineConfig.Model) == "" {
+		return fmt.Errorf("engine.model is required for engine '%s' and must use provider/model format (for example: copilot/gpt-5, anthropic/claude-sonnet-4, openai/gpt-4.1)", engine.GetID())
+	}
+
+	if _, err := resolveUniversalLLMBackendFromModel(engineConfig.Model); err != nil {
+		return fmt.Errorf("invalid engine.model for engine '%s': %w", engine.GetID(), err)
+	}
+
+	return nil
+}
+
 // validateWebSearchSupport validates that web-search tool is only used with engines that support this feature
 func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingAgentEngine) {
 	// Check if web-search tool is requested
@@ -196,7 +216,10 @@ func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine Co
 // validateWorkflowRunBranches validates that workflow_run triggers include branch restrictions
 // This is a security best practice to avoid running on all branches
 func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markdownPath string) error {
-	if workflowData.On == "" {
+	// Fast path: skip expensive YAML parsing when the On field cannot possibly contain
+	// a workflow_run trigger (including when it is empty). This avoids yaml.Unmarshal
+	// on every validateWorkflowData call for the common case of non-workflow_run workflows.
+	if !strings.Contains(workflowData.On, "workflow_run") {
 		return nil
 	}
 

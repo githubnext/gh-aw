@@ -1,15 +1,15 @@
 ---
-title: Consuming Audit Reports with Agents
+title: Consuming Audit Reports with Agentic Workflows
 description: How to feed structured audit output into agentic workflows for automated triage, trend analysis, and remediation.
 ---
 
 When running locally, all three audit commands accept `--json` to write structured output to stdout. Pipe through `jq` to extract the fields a model needs.
 
 | Command | Use case |
-|---------|----------|
+| --------- | ---------- |
 | `gh aw audit <run-id> --json` | Single run — `key_findings`, `recommendations`, `metrics` |
 | `gh aw logs [workflow] --last 10 --json` | Trend analysis — `per_run_breakdown`, `domain_inventory` |
-| `gh aw audit diff <id1> <id2> --json` | Before/after — `run_metrics_diff`, `firewall_diff` |
+| `gh aw audit <id1> <id2> --json` | Before/after — `run_metrics_diff`, `firewall_diff` |
 
 Inside GitHub Actions workflows, agents access these commands through the `agentic-workflows` MCP tool rather than calling the CLI directly.
 
@@ -65,7 +65,7 @@ permissions:
 
 # Regression Detection
 
-Use the `agentic-workflows` MCP tool `audit diff` with base run ID ${{ inputs.base_run_id }} and current run ID ${{ inputs.current_run_id }}. Check for new blocked domains, increased MCP error rates, cost increase > 20%, or token usage increase > 50%. If regressions are found, open a GitHub issue with a table from `run_metrics_diff`, affected domains from `firewall_diff`, and affected MCP tools from `mcp_tools_diff`.
+Use the `agentic-workflows` MCP tool `audit` with run IDs ${{ inputs.base_run_id }} and ${{ inputs.current_run_id }} to compare the two runs. Check for new blocked domains, increased MCP error rates, cost increase > 20%, or token usage increase > 50%. If regressions are found, open a GitHub issue with a table from `run_metrics_diff`, affected domains from `firewall_diff`, and affected MCP tools from `mcp_tools_diff`.
 ```
 
 ## Filing issues from audit findings

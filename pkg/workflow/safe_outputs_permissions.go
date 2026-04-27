@@ -51,6 +51,22 @@ func isHandlerStaged(globalStaged, handlerStaged bool) bool {
 	return globalStaged || handlerStaged
 }
 
+// getPushFallbackAsPullRequest returns the effective fallback-as-pull-request setting (defaults to true).
+func getPushFallbackAsPullRequest(config *PushToPullRequestBranchConfig) bool {
+	if config == nil || config.FallbackAsPullRequest == nil {
+		return true // Default
+	}
+	return *config.FallbackAsPullRequest
+}
+
+// getCheckBranchProtection returns the effective check-branch-protection setting (defaults to true).
+func getCheckBranchProtection(config *PushToPullRequestBranchConfig) bool {
+	if config == nil || config.CheckBranchProtection == nil {
+		return true // Default: check is enabled
+	}
+	return *config.CheckBranchProtection
+}
+
 // ComputePermissionsForSafeOutputs computes the minimal required permissions
 // based on the configured safe-outputs. This function is used by both the
 // consolidated safe outputs job and the conclusion job to ensure they only
@@ -81,6 +97,10 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	if safeOutputs.AddComments != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.AddComments.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for add-comment")
 		permissions.Merge(buildAddCommentPermissions(safeOutputs.AddComments))
+	}
+	if safeOutputs.CommentMemory != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CommentMemory.Staged) {
+		safeOutputsPermissionsLog.Print("Adding permissions for comment-memory")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 	}
 	if safeOutputs.CloseIssues != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CloseIssues.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for close-issue")
@@ -137,17 +157,38 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 		}
 	}
 	if safeOutputs.PushToPullRequestBranch != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.PushToPullRequestBranch.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for push-to-pull-request-branch")
-		permissions.Merge(NewPermissionsContentsWritePRWrite())
+		if getPushFallbackAsPullRequest(safeOutputs.PushToPullRequestBranch) {
+			safeOutputsPermissionsLog.Print("Adding permissions for push-to-pull-request-branch with fallback-as-pull-request")
+			permissions.Merge(NewPermissionsContentsWritePRWrite())
+		} else {
+			safeOutputsPermissionsLog.Print("Adding permissions for push-to-pull-request-branch without fallback-as-pull-request")
+			permissions.Merge(NewPermissionsContentsWrite())
+		}
 		// Add workflows: write when allow-workflows is true (GitHub App-only permission)
 		if safeOutputs.PushToPullRequestBranch.AllowWorkflows {
 			safeOutputsPermissionsLog.Print("Adding workflows: write for push-to-pull-request-branch (allow-workflows: true)")
 			permissions.Set(PermissionWorkflows, PermissionWrite)
 		}
+		// Add administration: read when check-branch-protection is enabled (GitHub App-only permission)
+		// The branch protection API requires administration: read for GitHub App tokens.
+		// Standard GITHUB_TOKEN lacks this scope; set it so the minted app token includes it.
+		if getCheckBranchProtection(safeOutputs.PushToPullRequestBranch) {
+			safeOutputsPermissionsLog.Print("Adding administration: read for push-to-pull-request-branch (check-branch-protection enabled)")
+			permissions.Set(PermissionAdministration, PermissionRead)
+		}
 	}
 	if safeOutputs.UpdatePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UpdatePullRequests.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for update-pull-request")
-		permissions.Merge(NewPermissionsContentsReadPRWrite())
+		if safeOutputs.UpdatePullRequests.UpdateBranch != nil && *safeOutputs.UpdatePullRequests.UpdateBranch {
+			safeOutputsPermissionsLog.Print("update-pull-request has update-branch enabled; requiring contents: write")
+			permissions.Merge(NewPermissionsContentsWritePRWrite())
+		} else {
+			permissions.Merge(NewPermissionsContentsReadPRWrite())
+		}
+	}
+	if safeOutputs.MergePullRequest != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.MergePullRequest.Staged) {
+		safeOutputsPermissionsLog.Print("Adding permissions for merge-pull-request")
+		permissions.Merge(NewPermissionsContentsWritePRWrite())
 	}
 	if safeOutputs.ClosePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.ClosePullRequests.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for close-pull-request")
@@ -176,10 +217,12 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	if safeOutputs.CreateProjects != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreateProjects.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for create-project")
 		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+		permissions.Set(PermissionIssues, PermissionRead)
 	}
 	if safeOutputs.UpdateProjects != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UpdateProjects.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for update-project")
 		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+		permissions.Set(PermissionIssues, PermissionRead)
 	}
 	if safeOutputs.CreateProjectStatusUpdates != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreateProjectStatusUpdates.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for create-project-status-update")
@@ -275,6 +318,8 @@ func SafeOutputsConfigFromKeys(keys []string) *SafeOutputsConfig {
 			config.CloseDiscussions = &CloseDiscussionsConfig{}
 		case "add-comment":
 			config.AddComments = &AddCommentsConfig{}
+		case "comment-memory":
+			config.CommentMemory = &CommentMemoryConfig{}
 		case "close-issue":
 			config.CloseIssues = &CloseIssuesConfig{}
 		case "close-pull-request":
@@ -311,6 +356,8 @@ func SafeOutputsConfigFromKeys(keys []string) *SafeOutputsConfig {
 			config.UpdateIssues = &UpdateIssuesConfig{}
 		case "update-pull-request":
 			config.UpdatePullRequests = &UpdatePullRequestsConfig{}
+		case "merge-pull-request":
+			config.MergePullRequest = &MergePullRequestConfig{}
 		case "push-to-pull-request-branch":
 			config.PushToPullRequestBranch = &PushToPullRequestBranchConfig{}
 		case "upload-asset":

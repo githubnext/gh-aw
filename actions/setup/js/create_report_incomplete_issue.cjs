@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { buildMissingIssueHandler } = require("./missing_issue_helpers.cjs");
+const { getPromptPath } = require("./messages_core.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -22,7 +23,7 @@ const main = buildMissingIssueHandler({
   defaultTitlePrefix: "[incomplete]",
   defaultLabels: ["agentic-workflows"],
   itemsField: "incomplete_signals",
-  templatePath: `${process.env.RUNNER_TEMP}/gh-aw/prompts/missing_tool_issue.md`,
+  templatePath: getPromptPath("missing_tool_issue.md"),
   templateListKey: "incomplete_signals_list",
   buildCommentHeader: runUrl => [`## Incomplete Run Reported`, ``, `The agent reported that the task could not be completed during [workflow run](${runUrl}):`, ``],
   renderCommentItem: (item, index) => {

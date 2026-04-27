@@ -18,12 +18,13 @@ engine: copilot
 network:
   allowed:
     - defaults
+    - github
     - node
 
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[prompt-analysis] "
       expires: 1d
@@ -32,7 +33,6 @@ imports:
       branch-name: "memory/prompt-analysis"
       description: "Historical prompt pattern analysis"
   - shared/copilot-pr-analysis-base.md
-  - shared/reporting.md
 
 timeout-minutes: 15
 

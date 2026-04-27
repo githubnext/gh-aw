@@ -36,6 +36,8 @@ features:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
+{{#runtime-import .github/shared/editorial.md}}
+
 # Daily Team Status
 
 Create an upbeat daily status report for the team as a GitHub issue.

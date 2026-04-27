@@ -128,7 +128,7 @@ async function readBlobAsBase64(blobHash, cwd) {
  * @param {string} opts.baseRef - Git ref of the remote head before commits were applied (used for rev-list)
  * @param {string} opts.cwd - Working directory of the local git checkout
  * @param {object} [opts.gitAuthEnv] - Environment variables for git push fallback auth
- * @returns {Promise<void>}
+ * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
 async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv }) {
   // Collect the commits introduced (oldest-first) using topological order to ensure
@@ -141,7 +141,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
 
   if (shas.length === 0) {
     core.info("pushSignedCommits: no new commits to push via GraphQL");
-    return;
+    return undefined;
   }
 
   core.info(`pushSignedCommits: replaying ${shas.length} commit(s) via GraphQL createCommitOnBranch (branch: ${branch}, repo: ${owner}/${repo})`);
@@ -362,12 +362,16 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       core.info(`pushSignedCommits: signed commit created: ${lastOid}`);
     }
     core.info(`pushSignedCommits: all ${shas.length} commit(s) pushed as signed commits`);
+    return lastOid ?? shas[shas.length - 1];
   } catch (graphqlError) {
     core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${graphqlError instanceof Error ? graphqlError.message : String(graphqlError)}`);
     await exec.exec("git", ["push", "origin", branch], {
       cwd,
       env: { ...process.env, ...(gitAuthEnv || {}) },
     });
+    const fallbackSha = shas[shas.length - 1];
+    core.info(`pushSignedCommits: git push fallback completed, using pushed SHA ${fallbackSha}`);
+    return fallbackSha;
   }
 }
 

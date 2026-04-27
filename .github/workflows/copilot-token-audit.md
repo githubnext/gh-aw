@@ -48,7 +48,7 @@ steps:
       fi
 timeout-minutes: 25
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[copilot-token-audit] "
   - uses: shared/repo-memory-standard.md
@@ -58,7 +58,6 @@ imports:
       max-patch-size: 51200
   - copilot-setup-steps.yml
   - uses: shared/mcp/gh-aw.md
-  - shared/reporting.md
   - shared/python-dataviz.md
 features:
   mcp-cli: true
@@ -105,7 +104,7 @@ Each element of `.runs` is a `RunData` object with (among others):
 | `turns` | int | Number of agent turns |
 | `duration` | string | Human-readable duration |
 | `created_at` | ISO 8601 | Run creation time |
-| `database_id` | int64 | Unique run ID |
+| `run_id` | int64 | Unique run ID |
 | `url` | string | Link to the run |
 | `status` | string | `completed`, `in_progress`, etc. |
 | `conclusion` | string | `success`, `failure`, etc. |

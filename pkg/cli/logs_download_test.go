@@ -130,9 +130,9 @@ func TestIsNonZipArtifactError(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "error extracting zip archive",
+			name:     "generic extraction error without zip signature",
 			output:   "error downloading some-artifact: error extracting zip archive: unexpected EOF",
-			expected: true,
+			expected: false,
 		},
 		{
 			name:     "both patterns present",
@@ -161,6 +161,39 @@ func TestIsNonZipArtifactError(t *testing.T) {
 			result := isNonZipArtifactError([]byte(tt.output))
 			if result != tt.expected {
 				t.Errorf("isNonZipArtifactError(%q) = %v, want %v", tt.output, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsCaseCollisionArtifactError(t *testing.T) {
+	tests := []struct {
+		name     string
+		output   string
+		expected bool
+	}{
+		{
+			name:     "case-collision file exists error",
+			output:   "error downloading repo-memory-default: error extracting zip archive: error extracting \"memory.md\": open /tmp/artifacts/repo-memory-default/memory.md: file exists",
+			expected: true,
+		},
+		{
+			name:     "generic extraction error without file exists",
+			output:   "error downloading some-artifact: error extracting zip archive: unexpected EOF",
+			expected: false,
+		},
+		{
+			name:     "file exists without extraction context",
+			output:   "open /tmp/out/file.txt: file exists",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isCaseCollisionArtifactError([]byte(tt.output))
+			if result != tt.expected {
+				t.Errorf("isCaseCollisionArtifactError(%q) = %v, want %v", tt.output, result, tt.expected)
 			}
 		})
 	}

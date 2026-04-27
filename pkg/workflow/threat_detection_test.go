@@ -706,6 +706,48 @@ func TestBuildDetectionEngineExecutionStepWithThreatDetectionEngine(t *testing.T
 	}
 }
 
+func TestBuildDetectionEngineExecutionStepCodexIncludesMCPSetup(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	if len(steps) == 0 {
+		t.Fatal("Expected non-empty detection engine steps")
+	}
+
+	stepsString := strings.Join(steps, "")
+	if !strings.Contains(stepsString, "Start MCP Gateway") {
+		t.Errorf("Expected Codex detection steps to include MCP setup, got:\n%s", stepsString)
+	}
+	if !strings.Contains(stepsString, "model_provider = \"openai-proxy\"") {
+		t.Errorf("Expected Codex detection MCP config to include openai-proxy model provider, got:\n%s", stepsString)
+	}
+}
+
+func TestBuildDetectionJobStepsCodexAvoidsDuplicateContainerPullStep(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionJobSteps(data)
+	stepsString := strings.Join(steps, "")
+
+	if count := strings.Count(stepsString, "name: Download container images"); count != 1 {
+		t.Errorf("Expected exactly one 'Download container images' step for Codex detection, got %d.\n%s", count, stepsString)
+	}
+}
+
 func TestBuildUploadDetectionLogStep(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -1045,7 +1087,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 			shouldContainModel: true,
 			// Detection uses env var fallback (same pattern as main agent), allowing
 			// the Copilot CLI to pick its native default (currently claude-sonnet-4.6)
-			expectedModel: "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '' }}",
+			expectedModel: "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '" + constants.CopilotBYOKDefaultModel + "' }}",
 		},
 		{
 			name: "copilot engine with custom model uses specified model",
@@ -1091,7 +1133,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				},
 			},
 			shouldContainModel: true,
-			expectedModel:      "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '' }}",
+			expectedModel:      "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '" + constants.CopilotBYOKDefaultModel + "' }}",
 		},
 		{
 			name: "claude engine does not add model parameter",
@@ -1574,4 +1616,162 @@ func TestBuildPullAWFContainersStepPropagatesFeatures(t *testing.T) {
 			t.Error("Expected no cli-proxy image in pull step when cli-proxy feature flag is not set")
 		}
 	})
+}
+
+func TestBuildDetectionEngineExecutionStepEmitsNodeSetupForCopilot(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name                string
+		data                *WorkflowData
+		expectedInstallStep string
+	}{
+		{
+			name: "copilot main engine emits Setup Node.js once before install",
+			data: &WorkflowData{
+				AI: "copilot",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			expectedInstallStep: "Install GitHub Copilot CLI",
+		},
+		{
+			name: "copilot via threat-detection engine override emits Setup Node.js once",
+			data: &WorkflowData{
+				AI: "claude",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{
+						EngineConfig: &EngineConfig{
+							ID: "copilot",
+						},
+					},
+				},
+			},
+			expectedInstallStep: "Install GitHub Copilot CLI",
+		},
+		{
+			name: "claude main engine already bundles Setup Node.js — no duplicate",
+			data: &WorkflowData{
+				AI: "claude",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			expectedInstallStep: "Install Claude Code CLI",
+		},
+		{
+			name: "codex main engine already bundles Setup Node.js — no duplicate",
+			data: &WorkflowData{
+				AI: "codex",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			expectedInstallStep: "Install Codex CLI",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			steps := compiler.buildDetectionEngineExecutionStep(tt.data)
+			if len(steps) == 0 {
+				t.Fatal("expected non-empty steps")
+			}
+			s := strings.Join(steps, "")
+
+			if c := strings.Count(s, "- name: Setup Node.js"); c != 1 {
+				t.Errorf("want exactly one Setup Node.js, got %d.\n%s", c, s)
+			}
+
+			nodeIdx := strings.Index(s, "- name: Setup Node.js")
+			installIdx := strings.Index(s, "- name: "+tt.expectedInstallStep)
+			if installIdx == -1 {
+				t.Fatalf("missing %q step in:\n%s", tt.expectedInstallStep, s)
+			}
+			if nodeIdx > installIdx {
+				t.Errorf("Setup Node.js (at %d) must precede %q (at %d)", nodeIdx, tt.expectedInstallStep, installIdx)
+			}
+		})
+	}
+}
+
+func TestInstallStepsContainNodeSetup(t *testing.T) {
+	tests := []struct {
+		name     string
+		steps    []GitHubActionStep
+		expected bool
+	}{
+		{
+			name:     "empty input",
+			steps:    nil,
+			expected: false,
+		},
+		{
+			name:     "canonical setup-node step from GenerateNodeJsSetupStep",
+			steps:    []GitHubActionStep{GenerateNodeJsSetupStep()},
+			expected: true,
+		},
+		{
+			name: "install-only step without node setup",
+			steps: []GitHubActionStep{
+				{"      - name: Install Some CLI", "        run: npm install -g some-cli"},
+			},
+			expected: false,
+		},
+		{
+			name: "setup-node preceded by unrelated step",
+			steps: []GitHubActionStep{
+				{"      - name: Checkout", "        uses: actions/checkout@v4"},
+				GenerateNodeJsSetupStep(),
+			},
+			expected: true,
+		},
+		{
+			name: "differently indented setup-node (extractStepName whitespace tolerance)",
+			steps: []GitHubActionStep{
+				{"    - name: Setup Node.js", "      uses: actions/setup-node@v4"},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := installStepsContainNodeSetup(tt.steps)
+			if got != tt.expected {
+				t.Errorf("installStepsContainNodeSetup() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestBuildDetectionEngineExecutionStepPropagatesDriverScriptOverride(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "copilot",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{
+					ID:           "copilot",
+					DriverScript: "custom_copilot_driver.cjs",
+				},
+			},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	if len(steps) == 0 {
+		t.Fatal("expected non-empty steps")
+	}
+
+	s := strings.Join(steps, "")
+
+	if !strings.Contains(s, "custom_copilot_driver.cjs") {
+		t.Errorf("expected custom driver script in detection steps, got:\n%s", s)
+	}
+	if strings.Contains(s, "actions/copilot_driver.cjs") {
+		t.Errorf("expected default driver to be replaced by custom override, got:\n%s", s)
+	}
 }

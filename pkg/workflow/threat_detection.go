@@ -205,7 +205,12 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 
 	// Step 1: Pull AWF container images - the detection engine runs inside AWF (firewall),
 	// so pre-pulling the containers speeds up execution and avoids on-demand pulls.
-	steps = append(steps, c.buildPullAWFContainersStep(data)...)
+	//
+	// For Codex detection, MCP setup generation already emits this step, so skip here
+	// to avoid duplicate step IDs/names in the detection job.
+	if c.getThreatDetectionEngineID(data) != "codex" {
+		steps = append(steps, c.buildPullAWFContainersStep(data)...)
+	}
 
 	// Step 2: Detection guard - determines whether detection should run
 	steps = append(steps, c.buildDetectionGuardStep()...)
@@ -313,7 +318,7 @@ func (c *Compiler) buildDetectionGuardStep() []string {
 // This ensures the detection engine runs without any MCP servers.
 func (c *Compiler) buildClearMCPConfigStep() []string {
 	return []string{
-		"      - name: Clear MCP configuration for detection\n",
+		"      - name: Clear MCP Config for detection\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        run: |\n",
 		"          rm -f \"${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json\"\n",
@@ -501,13 +506,14 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		detectionEngineConfig = &EngineConfig{ID: engineSetting}
 	} else {
 		detectionEngineConfig = &EngineConfig{
-			ID:        detectionEngineConfig.ID,
-			Model:     detectionEngineConfig.Model,
-			Version:   detectionEngineConfig.Version,
-			Env:       detectionEngineConfig.Env,
-			Config:    detectionEngineConfig.Config,
-			Args:      detectionEngineConfig.Args,
-			APITarget: detectionEngineConfig.APITarget,
+			ID:           detectionEngineConfig.ID,
+			Model:        detectionEngineConfig.Model,
+			Version:      detectionEngineConfig.Version,
+			Env:          detectionEngineConfig.Env,
+			Config:       detectionEngineConfig.Config,
+			Args:         detectionEngineConfig.Args,
+			APITarget:    detectionEngineConfig.APITarget,
+			DriverScript: detectionEngineConfig.DriverScript,
 		}
 	}
 
@@ -560,9 +566,37 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	// Install the engine in the detection job. The detection job runs on a separate fresh
 	// runner where the agent's installed tools are not available, so we must install them here.
 	installSteps := engine.GetInstallationSteps(threatDetectionData)
+
+	// Ensure node is on PATH when the engine's execution wraps the CLI with a driver
+	// script (see engineRequiresNodeDriver). The detection job does not go through
+	// DetectRuntimeRequirements, so the setup must be emitted here explicitly. Guard
+	// against engines whose install steps already bundle Setup Node.js (Claude/Codex
+	// via BuildStandardNpmEngineInstallSteps) — a duplicate would trip
+	// JobManager.ValidateDuplicateSteps and hard-fail the compile.
+	if engineRequiresNodeDriver(engine) && !installStepsContainNodeSetup(installSteps) {
+		for _, line := range GenerateNodeJsSetupStep() {
+			steps = append(steps, line+"\n")
+		}
+	}
+
 	for _, step := range installSteps {
 		for _, line := range step {
 			steps = append(steps, line+"\n")
+		}
+	}
+
+	// Codex detection runs with no MCP tools, but still needs MCP gateway/config bootstrap
+	// so config.toml includes the OpenAI proxy provider used by AWF API proxy mode.
+	if engine.GetID() == "codex" {
+		var mcpSetup strings.Builder
+		if err := c.generateMCPSetup(&mcpSetup, threatDetectionData.Tools, engine, threatDetectionData); err == nil {
+			for line := range strings.SplitSeq(mcpSetup.String(), "\n") {
+				if line != "" {
+					steps = append(steps, line+"\n")
+				}
+			}
+		} else {
+			threatLog.Printf("Failed to generate MCP setup for Codex detection; OpenAI proxy configuration may be incomplete: %v", err)
 		}
 	}
 
@@ -582,6 +616,24 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	}
 
 	return steps
+}
+
+// getThreatDetectionEngineID returns the effective engine ID for the detection job.
+// It mirrors threat-detection engine resolution: threat-detection.engine overrides main engine.
+func (c *Compiler) getThreatDetectionEngineID(data *WorkflowData) string {
+	engineID := data.AI
+	if engineID == "" && data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		engineID = data.EngineConfig.ID
+	}
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
+		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
+		data.SafeOutputs.ThreatDetection.EngineConfig.ID != "" {
+		engineID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
+	}
+	if engineID == "" {
+		engineID = "claude"
+	}
+	return engineID
 }
 
 // buildWorkflowContextEnvVars creates environment variables for workflow context

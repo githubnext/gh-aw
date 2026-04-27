@@ -145,6 +145,33 @@ describe("mcp_cli_bridge.cjs", () => {
     });
   });
 
+  it("falls back to numeric coercion when schema properties are unavailable", () => {
+    const { args } = parseToolArgs(["--count", "3", "--max_tokens", "3000"], {});
+
+    expect(args).toEqual({
+      count: 3,
+      max_tokens: 3000,
+    });
+  });
+
+  it("coerces scientific notation when schema properties are unavailable", () => {
+    const { args } = parseToolArgs(["--max_tokens", "1e3", "--threshold", "-2E-4"], {});
+
+    expect(args).toEqual({
+      max_tokens: 1000,
+      threshold: -0.0002,
+    });
+  });
+
+  it("preserves non-numeric values when schema properties are unavailable", () => {
+    const { args } = parseToolArgs(["--start_date", "-1d", "--workflow_name", "daily-issues-report"], {});
+
+    expect(args).toEqual({
+      start_date: "-1d",
+      workflow_name: "daily-issues-report",
+    });
+  });
+
   it("treats MCP result envelopes with isError=true as errors", () => {
     formatResponse(
       {
@@ -159,5 +186,29 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(stdoutChunks.join("")).toBe("");
     expect(stderrChunks.join("")).toContain("failed to audit workflow run");
     expect(process.exitCode).toBe(1);
+  });
+
+  it("prints progress notifications to stderr and final text result to stdout for SSE responses", () => {
+    const sseBody = [
+      'data: {"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"abc","progress":1,"total":3,"message":"Step 1/3"}}',
+      'data: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"done"}]}}',
+      "",
+    ].join("\n");
+
+    formatResponse(sseBody, "agenticworkflows");
+
+    expect(stderrChunks.join("")).toContain("Step 1/3");
+    expect(stdoutChunks.join("")).toBe("done\n");
+    expect(process.exitCode).toBe(0);
+  });
+
+  it("prints numeric progress to stderr when progress notification has no message", () => {
+    const sseBody = ['data: {"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"abc","progress":2,"total":5}}', 'data: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"ok"}]}}', ""].join("\n");
+
+    formatResponse(sseBody, "agenticworkflows");
+
+    expect(stderrChunks.join("")).toContain("Progress: 2/5");
+    expect(stdoutChunks.join("")).toBe("ok\n");
+    expect(process.exitCode).toBe(0);
   });
 });

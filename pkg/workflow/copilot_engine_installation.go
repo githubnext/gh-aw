@@ -64,14 +64,21 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		return []GitHubActionStep{}
 	}
 
-	// Determine Copilot version
+	// Copilot CLI is pinned to the default version constant.
 	copilotVersion := string(constants.DefaultCopilotVersion)
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		copilotVersion = workflowData.EngineConfig.Version
-	}
-	if isFeatureEnabled(constants.ByokCopilotFeatureFlag, workflowData) {
-		copilotVersion = "latest"
-		copilotInstallLog.Print("byok-copilot enabled: forcing Copilot CLI install version to latest")
+	if workflowData.EngineConfig != nil {
+		if workflowData.EngineConfig.Version != "" {
+			copilotInstallLog.Printf("Ignoring pinned engine.version (%s): Copilot CLI install version is pinned to %s", workflowData.EngineConfig.Version, copilotVersion)
+		}
+		// Normalize engine config version to effective installed version so
+		// downstream checks that consult EngineConfig.Version stay consistent.
+		// This applies even when the original version was empty (unset), so all
+		// downstream consumers observe the effective installed value.
+		// This mutates workflowData by design because subsequent generation steps
+		// in the same compile flow should observe the effective installed version.
+		// Callers that reuse the same WorkflowData instance should expect this
+		// field to be rewritten after installation-step generation.
+		workflowData.EngineConfig.Version = copilotVersion
 	}
 
 	// Use the installer script for global installation

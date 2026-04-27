@@ -71,7 +71,7 @@
       ]
     },
     "imports": {
-      "description": "Workflow specifications to import. Supports array form (list of paths) or object form with 'aw' (agentic workflow paths) and 'apm-packages' (APM packages) subfields. Path resolution: (1) relative paths (e.g., 'shared/file.md') are resolved relative to the workflow's directory; (2) paths starting with '.github/' or '/' are resolved from the repository root (repo-root-relative); (3) paths matching 'owner/repo/path@ref' are fetched from GitHub at compile time (cross-repo).",
+      "description": "Workflow specifications to import. Supports array form (list of paths) or object form with 'aw' (agentic workflow paths) subfield. Path resolution: (1) relative paths (e.g., 'shared/file.md') are resolved relative to the workflow's directory; (2) paths starting with '.github/' or '/' are resolved from the repository root (repo-root-relative); (3) paths matching 'owner/repo/path@ref' are fetched from GitHub at compile time (cross-repo).",
       "oneOf": [
         {
           "type": "array",
@@ -201,7 +201,7 @@
         },
         {
           "type": "object",
-          "description": "Object form of imports with 'aw' subfield for shared agentic workflow paths and 'apm-packages' subfield for APM packages.",
+          "description": "Object form of imports with 'aw' subfield for shared agentic workflow paths.",
           "additionalProperties": false,
           "properties": {
             "aw": {
@@ -329,57 +329,6 @@
                   }
                 ]
               }
-            },
-            "apm-packages": {
-              "description": "APM package references to install. Supports array format (list of package slugs) or object format with packages and configuration fields. Replaces the top-level 'dependencies' field.",
-              "oneOf": [
-                {
-                  "type": "array",
-                  "description": "Simple array of APM package references.",
-                  "items": {
-                    "type": "string",
-                    "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
-                    "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
-                  }
-                },
-                {
-                  "type": "object",
-                  "description": "Object format with packages and optional configuration.",
-                  "properties": {
-                    "packages": {
-                      "type": "array",
-                      "description": "List of APM package references to install.",
-                      "items": {
-                        "type": "string",
-                        "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
-                        "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
-                      }
-                    },
-                    "isolated": {
-                      "type": "boolean",
-                      "description": "If true, agent restore step clears primitive dirs before unpacking."
-                    },
-                    "github-app": {
-                      "$ref": "#/$defs/github_app",
-                      "description": "GitHub App credentials for minting installation access tokens used by APM to access cross-org private repositories."
-                    },
-                    "env": {
-                      "type": "object",
-                      "description": "Environment variables to set on the APM pack step.",
-                      "additionalProperties": {
-                        "type": "string"
-                      }
-                    },
-                    "github-token": {
-                      "type": "string",
-                      "description": "GitHub token expression to authenticate APM with private package repositories.",
-                      "examples": ["${{ secrets.MY_TOKEN }}", "${{ secrets.GH_AW_GITHUB_TOKEN }}"]
-                    }
-                  },
-                  "required": ["packages"],
-                  "additionalProperties": false
-                }
-              ]
             }
           }
         }
@@ -398,17 +347,7 @@
           }
         ],
         {
-          "aw": ["shared/common-tools.md", "shared/mcp/tavily.md"],
-          "apm-packages": ["microsoft/apm-sample-package"]
-        },
-        {
-          "apm-packages": {
-            "packages": ["microsoft/apm-sample-package"],
-            "github-app": {
-              "client-id": "${{ vars.APP_ID }}",
-              "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
-            }
-          }
+          "aw": ["shared/common-tools.md", "shared/mcp/tavily.md"]
         }
       ]
     },
@@ -1316,7 +1255,26 @@
                 },
                 {
                   "type": "object",
-                  "additionalProperties": false
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "description": "Filter to specific deployment states (compiled into if condition). Use a string for one state or an array for multiple states.",
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": ["error", "failure", "pending", "success", "inactive", "in_progress", "queued", "waiting"]
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["error", "failure", "pending", "success", "inactive", "in_progress", "queued", "waiting"]
+                          },
+                          "minItems": 1
+                        }
+                      ]
+                    }
+                  }
                 }
               ]
             },
@@ -1963,6 +1921,18 @@
                   "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
                 }
               ]
+            },
+            "needs": {
+              "type": "array",
+              "description": "Explicit additional custom workflow jobs that pre_activation and activation should depend on.",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$"
+              },
+              "additionalItems": false,
+              "uniqueItems": true,
+              "default": [],
+              "examples": [["secrets_fetcher"]]
             },
             "steps": {
               "type": "array",
@@ -2938,13 +2908,6 @@
         },
         {
           "allowed": ["defaults", "python", "node", "*.example.com"]
-        },
-        {
-          "allowed": ["api.openai.com", "*.github.com"],
-          "firewall": {
-            "version": "v1.0.0",
-            "log-level": "debug"
-          }
         }
       ],
       "oneOf": [
@@ -2974,65 +2937,6 @@
                 "description": "Domain name or ecosystem identifier to block. Supports wildcards like '*.example.com' (matches sub.example.com, deep.nested.example.com, and example.com itself) and ecosystem names like 'python', 'node'."
               },
               "$comment": "Blocked domains are subtracted from the allowed list. Useful for blocking specific domains or ecosystems within broader allowed categories."
-            },
-            "firewall": {
-              "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Supported for copilot, claude, codex, gemini, and crush engines.",
-              "deprecated": true,
-              "x-deprecation-message": "The firewall is now always enabled. Use 'sandbox.agent' to configure the sandbox type.",
-              "oneOf": [
-                {
-                  "type": "null",
-                  "description": "Enable AWF with default settings (equivalent to empty object)"
-                },
-                {
-                  "type": "boolean",
-                  "description": "Enable (true) or explicitly disable (false) AWF firewall"
-                },
-                {
-                  "type": "string",
-                  "enum": ["disable"],
-                  "description": "Disable AWF firewall (triggers warning if allowed != *, error in strict mode if allowed is not * or engine does not support firewall)"
-                },
-                {
-                  "type": "object",
-                  "description": "Custom AWF configuration with version and arguments",
-                  "properties": {
-                    "args": {
-                      "type": "array",
-                      "description": "Optional additional arguments to pass to AWF wrapper",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "version": {
-                      "type": ["string", "number"],
-                      "description": "AWF version to use (empty = latest release). Can be a string (e.g., 'v1.0.0', 'latest') or number (e.g., 20, 3.11). Numeric values are automatically converted to strings at runtime.",
-                      "examples": ["v1.0.0", "latest", 20, 3.11]
-                    },
-                    "log-level": {
-                      "type": "string",
-                      "description": "AWF log level (default: info). Valid values: debug, info, warn, error",
-                      "enum": ["debug", "info", "warn", "error"]
-                    },
-                    "ssl-bump": {
-                      "type": "boolean",
-                      "description": "Enable SSL Bump for HTTPS content inspection. When enabled, AWF can filter HTTPS traffic by URL patterns instead of just domain names. This feature is specific to AWF. Default: false",
-                      "default": false
-                    },
-                    "allow-urls": {
-                      "type": "array",
-                      "description": "URL patterns to allow for HTTPS traffic (requires ssl-bump: true). Supports wildcards for flexible path matching. Must include https:// scheme. This feature is specific to AWF.",
-                      "items": {
-                        "type": "string",
-                        "pattern": "^https://.*",
-                        "description": "HTTPS URL pattern with optional wildcards (e.g., 'https://github.com/githubnext/*')"
-                      },
-                      "examples": [["https://github.com/githubnext/*", "https://api.github.com/repos/*"]]
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              ]
             }
           },
           "additionalProperties": false
@@ -3083,6 +2987,10 @@
                       "type": "string",
                       "enum": ["awf"],
                       "description": "Legacy: Sandbox type to use (use 'id' instead)"
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "AWF version override used to install and run the matching firewall version."
                     },
                     "command": {
                       "type": "string",
@@ -3554,12 +3462,12 @@
         },
         {
           "github": {
-            "mode": "remote"
+            "mode": "local"
           }
         },
         {
           "github": {
-            "mode": "local",
+            "type": "local",
             "version": "latest"
           }
         },
@@ -3596,8 +3504,13 @@
                 },
                 "mode": {
                   "type": "string",
+                  "enum": ["gh-proxy", "local", "remote"],
+                  "description": "GitHub access mode. Prefer 'gh-proxy' for better performance (uses pre-authenticated gh CLI prompt guidance). Legacy MCP transport values 'local' and 'remote' are accepted for backward compatibility and use GitHub MCP server prompt guidance."
+                },
+                "type": {
+                  "type": "string",
                   "enum": ["local", "remote"],
-                  "description": "MCP server mode: 'local' (Docker-based, default) or 'remote' (hosted at api.githubcopilot.com)"
+                  "description": "GitHub MCP transport type: 'local' (Docker-based, default) or 'remote' (hosted at api.githubcopilot.com)"
                 },
                 "version": {
                   "type": ["string", "number"],
@@ -4112,6 +4025,75 @@
             ]
           ]
         },
+        "comment-memory": {
+          "description": "Comment memory configuration for managed comment persistence",
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for persisting memory in a managed issue/PR comment. Memory is materialized to files for agent editing and synchronized back after execution.",
+              "properties": {
+                "max": {
+                  "description": "Maximum number of comment_memory updates to process (default: 1). Supports integer or GitHub Actions expression.",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for comment memory: 'triggering' (default), '*' (current issue/PR), or explicit issue/PR number"
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository memory storage."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "description": "Additional repositories in format 'owner/repo' allowed for comment memory operations.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "memory-id": {
+                  "type": "string",
+                  "description": "Default memory identifier when output items omit memory_id.",
+                  "pattern": "^[a-zA-Z0-9_-]+$",
+                  "maxLength": 128
+                },
+                "footer": {
+                  "type": "boolean",
+                  "description": "Controls whether AI-generated footer is added to the managed comment. Defaults to true."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for comment-memory operations. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "boolean",
+              "description": "Enable (true) or disable (false) comment-memory."
+            },
+            {
+              "type": "null",
+              "description": "Explicitly disable comment-memory"
+            }
+          ]
+        },
         "timeout": {
           "description": "Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP servers if supported by the engine. Default: 60 seconds (for both Claude and Codex). Supports GitHub Actions expressions for reusable workflow_call workflows.",
           "oneOf": [
@@ -4515,7 +4497,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, assign-to-user, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-code-scanning-alert, create-discussion, create-issue, create-project, create-project-status-update, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-data, missing-tool, noop, push-to-pull-request-branch, remove-labels, reply-to-pull-request-review-comment, resolve-pull-request-review-thread, set-issue-type, submit-pull-request-review, threat-detection, unassign-from-user, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-artifact, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, assign-to-user, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-code-scanning-alert, create-discussion, create-issue, create-project, create-project-status-update, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, merge-pull-request, missing-data, missing-tool, noop, push-to-pull-request-branch, remove-labels, reply-to-pull-request-review-comment, resolve-pull-request-review-thread, set-issue-type, submit-pull-request-review, threat-detection, unassign-from-user, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-artifact, upload-asset. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -5468,6 +5450,12 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "state-reason": {
+                  "type": "string",
+                  "enum": ["completed", "not_planned", "duplicate"],
+                  "default": "completed",
+                  "description": "Reason for closing the issue (default: completed)"
                 }
               },
               "additionalProperties": false,
@@ -5666,10 +5654,10 @@
                 },
                 "allowed-reasons": {
                   "type": "array",
-                  "description": "List of allowed reasons for hiding older comments when hide-older-comments is enabled. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved).",
+                  "description": "List of allowed reasons for hiding older comments when hide-older-comments is enabled. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved, low_quality).",
                   "items": {
                     "type": "string",
-                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved"]
+                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved", "low_quality"]
                   }
                 },
                 "discussions": {
@@ -5804,6 +5792,13 @@
                     }
                   ],
                   "description": "Optional assignee(s) for a fallback issue created when pull request creation cannot proceed, including protected-files fallback-to-issue and pull request creation or push failures. Accepts either a single string or an array of usernames."
+                },
+                "fallback-labels": {
+                  "type": "array",
+                  "description": "Optional labels to apply to fallback issues created when pull request creation cannot proceed. When omitted, fallback issues reuse pull request labels. A managed label is always added for triage.",
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 "draft": {
                   "allOf": [
@@ -6099,6 +6094,10 @@
                   },
                   "description": "Optional list of allowed review event types. If omitted, all event types (APPROVE, COMMENT, REQUEST_CHANGES) are allowed. Use this to restrict the agent to specific event types, e.g. [COMMENT, REQUEST_CHANGES] to prevent approvals.",
                   "minItems": 1
+                },
+                "supersede-older-reviews": {
+                  "type": "boolean",
+                  "description": "When true, after posting a replacement review this workflow dismisses older REQUEST_CHANGES reviews previously posted by the same workflow on the same pull request. This is best-effort and requires workflow markers in prior review bodies."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -6976,6 +6975,10 @@
                   "type": "boolean",
                   "description": "Allow updating pull request body - defaults to true, set to false to disable"
                 },
+                "update-branch": {
+                  "type": "boolean",
+                  "description": "When true, update the pull request branch with the latest base branch changes before applying other updates. Defaults to false."
+                },
                 "operation": {
                   "type": "string",
                   "description": "Default operation for body updates: 'append' (add to end), 'prepend' (add to start), or 'replace' (overwrite completely). Defaults to 'replace' if not specified.",
@@ -7023,6 +7026,68 @@
             }
           ],
           "description": "Enable AI agents to edit and update existing pull request content, titles, labels, reviewers, and metadata."
+        },
+        "merge-pull-request": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable pull request merge with default policy configuration"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for controlled pull request merges. The merge is blocked unless all configured gates pass.",
+              "properties": {
+                "max": {
+                  "description": "Maximum number of pull request merges to perform per run (default: 1). Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10,
+                      "default": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of labels that must all be present on the pull request before merge is allowed."
+                },
+                "allowed-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Exact pull request label names. At least one existing PR label must exactly match one of these values when configured."
+                },
+                "allowed-branches": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Glob patterns for allowed source branch names (pull request head ref)."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, evaluate merge gates and emit preview results without executing the merge API call.",
+                  "examples": [true, false]
+                }
+              },
+              "additionalProperties": false
+            }
+          ],
+          "description": "Enable AI agents to merge pull requests under configured policy gates."
         },
         "push-to-pull-request-branch": {
           "oneOf": [
@@ -7074,6 +7139,11 @@
                   "enum": ["warn", "error", "ignore"],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
                 },
+                "ignore-missing-branch-failure": {
+                  "type": "boolean",
+                  "description": "When true, treat deleted/missing pull request branch errors as a skipped push instead of a hard failure. Useful when the PR branch may be deleted before safe outputs run.",
+                  "default": false
+                },
                 "commit-title-suffix": {
                   "type": "string",
                   "description": "Optional suffix to append to generated commit titles (e.g., ' [skip ci]' to prevent triggering CI on the commit)"
@@ -7090,6 +7160,11 @@
                 "github-token-for-extra-empty-commit": {
                   "type": "string",
                   "description": "Token used to push an empty commit after pushing changes to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Defaults to the magic secret GH_AW_CI_TRIGGER_TOKEN if set in the repository. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}') for a custom token, or 'app' for GitHub App auth."
+                },
+                "fallback-as-pull-request": {
+                  "type": "boolean",
+                  "description": "When true (default), if pushing to the PR branch fails due to a non-fast-forward/diverged branch, create a fallback pull request that targets the original PR branch. Set to false to disable this behavior and avoid requiring pull-requests: write permission.",
+                  "default": true
                 },
                 "target-repo": {
                   "type": "string",
@@ -7157,6 +7232,11 @@
                   "description": "When true, adds workflows: write to the GitHub App token permissions. Required when allowed-files targets .github/workflows/ paths. Requires safe-outputs.github-app to be configured because the workflows permission is a GitHub App-only permission and cannot be granted via GITHUB_TOKEN.",
                   "default": false,
                   "examples": [true, false]
+                },
+                "check-branch-protection": {
+                  "type": "boolean",
+                  "description": "When false, skips the branch protection API pre-flight check before pushing. Set to false to avoid requiring administration: read permission. The GitHub platform will still enforce branch protection at push time. Default is true (check enabled).",
+                  "default": true
                 }
               },
               "additionalProperties": false
@@ -7195,10 +7275,10 @@
                 },
                 "allowed-reasons": {
                   "type": "array",
-                  "description": "List of allowed reasons for hiding comments. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved).",
+                  "description": "List of allowed reasons for hiding comments. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved, low_quality).",
                   "items": {
                     "type": "string",
-                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved"]
+                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved", "low_quality"]
                   }
                 },
                 "discussions": {
@@ -7918,6 +7998,12 @@
           "maximum": 10240,
           "default": 1024
         },
+        "max-patch-files": {
+          "type": "integer",
+          "description": "Maximum allowed number of unique files in a create-pull-request patch. Defaults to 100. The check counts unique file paths (deduplicated across multi-commit patches), so it reflects how many distinct files the agent is pushing in this iteration.",
+          "minimum": 1,
+          "default": 100
+        },
         "threat-detection": {
           "oneOf": [
             {
@@ -8391,6 +8477,18 @@
           "description": "Concurrency group for the safe-outputs job. When set, the safe-outputs job will use this concurrency group with cancel-in-progress: false. Supports GitHub Actions expressions.",
           "examples": ["my-workflow-safe-outputs", "safe-outputs-${{ github.repository }}"]
         },
+        "needs": {
+          "type": "array",
+          "description": "Explicit additional custom workflow jobs that the consolidated safe_outputs job should depend on.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$"
+          },
+          "additionalItems": false,
+          "uniqueItems": true,
+          "default": [],
+          "examples": [["secrets_fetcher"]]
+        },
         "environment": {
           "description": "Override the GitHub deployment environment for the safe-outputs job. When set, this environment is used instead of the top-level environment: field. When not set, the top-level environment: field is propagated automatically so that environment-scoped secrets are accessible in the safe-outputs job.",
           "oneOf": [
@@ -8596,8 +8694,19 @@
               "description": "OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static URL is provided, its hostname is automatically added to the network firewall allowlist."
             },
             "headers": {
-              "type": "string",
-              "description": "Comma-separated list of key=value HTTP headers to include with every OTLP export request (e.g. 'Authorization=Bearer <token>'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_HEADERS }}. Injected as the OTEL_EXPORTER_OTLP_HEADERS environment variable."
+              "oneOf": [
+                {
+                  "type": "object",
+                  "description": "Map of HTTP header names to values to include with every OTLP export request. Values support GitHub Actions expressions such as ${{ secrets.TOKEN }}. Injected as the OTEL_EXPORTER_OTLP_HEADERS environment variable.",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "string",
+                  "description": "Deprecated: use the map form instead. Comma-separated list of key=value HTTP headers to include with every OTLP export request (e.g. 'Authorization=Bearer <token>'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_HEADERS }}. Injected as the OTEL_EXPORTER_OTLP_HEADERS environment variable."
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -9414,6 +9523,11 @@
             "command": {
               "type": "string",
               "description": "Custom executable path for the AI engine CLI. When specified, the workflow will skip the standard installation steps and use this command instead. The command should be the full path to the executable or a command available in PATH."
+            },
+            "driver": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_][A-Za-z0-9._-]*\\.(?:js|cjs|mjs)$",
+              "description": "Custom Node.js driver script filename for an agentic engine. This replaces the engine's built-in driver wrapper (when the engine supports one) and must end with .js, .cjs, or .mjs."
             },
             "env": {
               "type": "object",
@@ -10335,7 +10449,7 @@
         "vulnerability-alerts": {
           "type": "string",
           "enum": ["read", "write", "none"],
-          "description": "Permission level for Dependabot vulnerability alerts (read/write/none). GitHub App-only permission: required to access Dependabot alerts via the GitHub MCP server. The GITHUB_TOKEN does not have this permission \u2014 a GitHub App must be configured."
+          "description": "Permission level for Dependabot vulnerability alerts (read/write/none). Allows workflows to access the Dependabot alerts API via GITHUB_TOKEN instead of requiring a PAT or GitHub App."
         },
         "all": {
           "type": "string",
@@ -10491,8 +10605,8 @@
         },
         "vulnerability-alerts": {
           "type": "string",
-          "enum": ["read", "none", "write"],
-          "description": "Permission level for Dependabot vulnerability alerts (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
+          "enum": ["read", "none"],
+          "description": "Permission level for Dependabot vulnerability alerts (read/none; \"write\" is rejected by the compiler). Also available as a GITHUB_TOKEN scope. When used with a GitHub App, forwarded as permission-vulnerability-alerts input."
         },
         "workflows": {
           "type": "string",

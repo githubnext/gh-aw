@@ -32,29 +32,32 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.112"
+const DefaultClaudeCodeVersion Version = "2.1.119"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.21"
+const DefaultCopilotVersion Version = "1.0.36"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.121.0"
+const DefaultCodexVersion Version = "0.125.0"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
-const DefaultGeminiVersion Version = "0.37.2"
+const DefaultGeminiVersion Version = "0.39.1"
 
 // DefaultCrushVersion is the default version of the Crush CLI
 const DefaultCrushVersion Version = "0.59.0"
 
+// DefaultOpenCodeVersion is the default version of the OpenCode CLI
+const DefaultOpenCodeVersion Version = "1.2.14"
+
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v1.0.0"
+const DefaultGitHubMCPServerVersion Version = "v1.0.3"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.25.25"
+const DefaultFirewallVersion Version = "v0.25.28"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -76,7 +79,7 @@ const AWFAllowHostPortsMinVersion Version = "v0.25.24"
 const CopilotNoAskUserMinVersion Version = "1.0.19"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.25"
+const DefaultMCPGatewayVersion Version = "v0.3.0"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.

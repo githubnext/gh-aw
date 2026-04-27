@@ -51,19 +51,35 @@ An imported workflow can only be imported once per workflow.
   New 'with':      {"languages":["typescript"]}
 ```
 
-In markdown, use the special `{{#import ...}}` directive:
+In markdown, use `{{#runtime-import filepath}}` to inject the content of another file directly into the body at that position. This is useful for sharing reusable prompt snippets, tone instructions, or reference material across workflows.
 
 ```aw wrap
 ---
-...
+on: schedule
+engine: copilot
 ---
 
-# Your Workflow
+{{#runtime-import .github/shared/editorial.md}}
 
-Workflow instructions here...
+# Daily Report
 
-{{#import shared/common-tools.md}}
+Generate the daily report.
 ```
+
+Use `{{#runtime-import? filepath}}` to silently skip a missing file instead of failing:
+
+```aw wrap
+{{#runtime-import .github/shared/editorial.md}}    # required — fails if missing
+{{#runtime-import? .github/shared/optional.md}}    # optional — skipped if missing
+```
+
+Paths are resolved within the `.github` folder. You can specify paths with or without the `.github/` prefix — both `.github/shared/editorial.md` and `shared/editorial.md` refer to the same file. See [Runtime Imports](/gh-aw/reference/templating/#runtime-imports) for URLs, line ranges, and security details.
+
+> [!NOTE]
+> `{{#runtime-import}}` injects **content** (markdown text) at the insertion point. It does not merge frontmatter configuration. To share tools, permissions, or MCP servers across workflows, use the `imports:` frontmatter field instead.
+
+> [!WARNING]
+> The `{{#import filepath}}` body-level directive is **deprecated**. Replace it with `{{#runtime-import filepath}}`. The old syntax still works at runtime (it normalizes to `{{#runtime-import}}` automatically) but emits deprecation warnings at both compile time and runtime.
 
 ## Shared Workflow Components
 
@@ -187,7 +203,7 @@ imports:
 ```
 
 > [!NOTE]
-> This is the existing, backward-compatible behaviour. Workflows that already use relative paths continue to work without any changes.
+> This is the existing, backward-compatible behavior. Workflows that already use relative paths continue to work without any changes.
 
 ### Repo-root-relative paths
 
@@ -251,7 +267,18 @@ imports:
   - shared/tools.md#WebSearch
 ```
 
-Use the `{{#import? ...}}` syntax to mark an import as optional, which skips missing files silently instead of failing compilation.
+Use `?` after `import` to mark an import as optional — missing files are skipped silently instead of failing compilation. This applies to both frontmatter imports and body-level directives:
+
+```yaml
+# Frontmatter — optional
+imports:
+  - shared/optional-tools.md?
+```
+
+```aw wrap
+# Body — optional content injection
+{{#runtime-import? .github/shared/optional.md}}
+```
 
 ## Remote Repository Imports
 

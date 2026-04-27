@@ -1,7 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseRepoSlug: parseSharedRepoSlug } = require("./repo_helpers.cjs");
+const { parseRepoSlug: parseSharedRepoSlug, parseAllowedRepos, validateTargetRepo } = require("./repo_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * @typedef {{ owner: string, repo: string }} RepoRef
@@ -107,6 +108,22 @@ function parseJSONPayload(value) {
 }
 
 /**
+ * Validate workflow_dispatch target repository against allowlist configuration.
+ * Enforces SEC-005 by rejecting disallowed cross-repository target overrides.
+ * @param {RepoRef} workflowRepo
+ * @param {RepoRef} targetRepo
+ */
+function checkAllowedRepo(workflowRepo, targetRepo) {
+  const defaultRepo = `${workflowRepo.owner}/${workflowRepo.repo}`;
+  const targetRepoSlug = `${targetRepo.owner}/${targetRepo.repo}`;
+  const allowedRepos = parseAllowedRepos(process.env.GH_AW_ALLOWED_REPOS);
+  const validation = validateTargetRepo(targetRepoSlug, defaultRepo, allowedRepos);
+  if (!validation.valid) {
+    throw new Error(`${ERR_VALIDATION}: ${validation.error}`);
+  }
+}
+
+/**
  * Resolve workflow repo and effective event context across invocation styles:
  * - native events
  * - workflow_dispatch (optional explicit overrides in inputs)
@@ -145,13 +162,17 @@ function resolveInvocationContext(rawContext) {
     if (inputs && typeof inputs === "object") {
       const inputsEventName = typeof inputs.event_name === "string" ? inputs.event_name : typeof inputs.eventName === "string" ? inputs.eventName : "";
       const parsedPayload = parseJSONPayload(inputs.event_payload) || parseJSONPayload(inputs.eventPayload);
+      const targetRepo = parseRepoSlug(inputs.target_repo) || parseRepoSlug(inputs.targetRepo);
+      if (targetRepo) {
+        checkAllowedRepo(workflowRepo, targetRepo);
+      }
       if (inputsEventName) {
         eventName = inputsEventName;
       }
       if (parsedPayload) {
         eventPayload = parsedPayload;
       }
-      eventRepo = eventRepo || parseRepoSlug(inputs.event_repo) || parseRepoSlug(inputs.eventRepo) || parseRepoSlug(inputs.target_repo) || parseRepoSlug(inputs.targetRepo);
+      eventRepo = eventRepo || parseRepoSlug(inputs.event_repo) || parseRepoSlug(inputs.eventRepo) || targetRepo;
     }
   }
 

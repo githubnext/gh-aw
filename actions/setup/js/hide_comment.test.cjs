@@ -89,6 +89,15 @@ describe("hide_comment.cjs", () => {
       expect(mockGithub.graphql).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ classifier: "ABUSE" }));
     });
 
+    it("should pass through LOW_QUALITY reason", async () => {
+      const { main } = await loadModule();
+      const handler = await main();
+
+      await handler({ comment_id: "IC_kwDOABCD123456", reason: "low_quality" }, {});
+
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ classifier: "LOW_QUALITY" }));
+    });
+
     it("should fail when comment_id is missing", async () => {
       const { main } = await loadModule();
       const handler = await main();

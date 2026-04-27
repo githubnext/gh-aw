@@ -14,6 +14,7 @@ permissions:
   issues: read
   pull-requests: read
   security-events: read
+  vulnerability-alerts: read
 
 network:
   allowed:

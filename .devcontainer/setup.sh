@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 
 # install project dependencies
 make deps

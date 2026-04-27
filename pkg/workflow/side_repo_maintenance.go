@@ -216,6 +216,7 @@ on:
           - ''
           - 'safe_outputs'
           - 'create_labels'
+          - 'activity_report'
           - 'validate'
       run_url:
         description: 'Run URL or run ID to replay safe outputs from (e.g. https://github.com/owner/repo/actions/runs/12345 or 12345). Required when operation is safe_outputs.'
@@ -225,7 +226,7 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: 'Optional maintenance operation to run (safe_outputs, create_labels, validate)'
+        description: 'Optional maintenance operation to run (safe_outputs, create_labels, activity_report, validate)'
         required: false
         type: string
         default: ''
@@ -422,6 +423,119 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/create_labels.cjs');
             await main();
+`)
+
+	// Add activity_report job for workflow_dispatch/workflow_call with operation == 'activity_report'
+	yaml.WriteString(`
+  activity_report:
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("activity_report")) + ` }}
+    runs-on: ` + runsOnValue + `
+    timeout-minutes: 120
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: ` + getActionPin("actions/checkout") + `
+        with:
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+`)
+
+	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+	yaml.WriteString(`      - name: Restore activity report logs cache
+        id: activity_report_logs_cache
+        uses: ` + getActionPin("actions/cache/restore") + `
+        with:
+          path: ./.cache/gh-aw/activity-report-logs
+          key: ${{ runner.os }}-activity-report-logs-` + repoSlug + `-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-activity-report-logs-` + repoSlug + `-
+            ${{ runner.os }}-activity-report-logs-
+`)
+	yaml.WriteString(`      - name: Download activity report logs in target repository
+        timeout-minutes: 20
+        shell: bash
+        env:
+          GH_TOKEN: ` + token + `
+          GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
+          GH_AW_TARGET_REPO_SLUG: "` + repoSlug + `"
+        run: |
+          ${GH_AW_CMD_PREFIX} logs \
+            --repo "${GH_AW_TARGET_REPO_SLUG}" \
+            --start-date -1w \
+            --count 100 \
+            --output ./.cache/gh-aw/activity-report-logs \
+            --format markdown \
+            > ./.cache/gh-aw/activity-report-logs/report.md
+
+      - name: Save activity report logs cache
+        if: ${{ always() }}
+        uses: ` + getActionPin("actions/cache/save") + `
+        with:
+          path: ./.cache/gh-aw/activity-report-logs
+          key: ${{ steps.activity_report_logs_cache.outputs.cache-primary-key }}
+
+      - name: Generate activity report issue in target repository
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ` + token + `
+          script: |
+            const fs = require('node:fs');
+            const reportPath = './.cache/gh-aw/activity-report-logs/report.md';
+            if (!fs.existsSync(reportPath)) {
+              core.warning('Activity report markdown not found at ' + reportPath + '; skipping issue creation.');
+              return;
+            }
+            let reportBody = '';
+            try {
+              reportBody = fs.readFileSync(reportPath, 'utf8').trim();
+            } catch (error) {
+              core.warning('Failed to read activity report markdown at ' + reportPath + ': ' + error.message);
+              return;
+            }
+            if (!reportBody) {
+              core.warning('Activity report markdown is empty at ' + reportPath + '; skipping issue creation.');
+              return;
+            }
+            const repoSlug = process.env.GH_AW_TARGET_REPO_SLUG || '';
+            const [owner, repo] = repoSlug.split('/');
+            if (!owner || !repo) {
+              core.setFailed('Invalid GH_AW_TARGET_REPO_SLUG: ' + repoSlug);
+              return;
+            }
+            const body = [
+              '### Agentic workflow activity report',
+              '',
+              'Repository: ' + repoSlug,
+              'Generated at: ' + new Date().toISOString(),
+              '',
+              reportBody,
+            ].join('\n');
+            const createdIssue = await github.rest.issues.create({
+              owner,
+              repo,
+              title: '[aw] agentic status report',
+              body,
+              labels: ['agentic-workflows'],
+            });
+            core.info('Created issue #' + createdIssue.data.number + ': ' + createdIssue.data.html_url);
 `)
 
 	// Add validate_workflows job for workflow_dispatch/workflow_call with operation == 'validate'

@@ -51,7 +51,6 @@ network:
   allowed:
     - defaults
     - github.com
-  firewall: true
 imports:
   - shared-network.md
 ---

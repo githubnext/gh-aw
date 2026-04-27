@@ -1662,15 +1662,12 @@ func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
 	})
 }
 
-func TestCopilotEngineByokFeatureSetsDummyAPIKey(t *testing.T) {
+func TestCopilotEngineSetsDummyAPIKeyByDefault(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
 			ID: "copilot",
-		},
-		Features: map[string]any{
-			string(constants.ByokCopilotFeatureFlag): true,
 		},
 	}
 
@@ -1682,7 +1679,7 @@ func TestCopilotEngineByokFeatureSetsDummyAPIKey(t *testing.T) {
 	stepContent := strings.Join([]string(steps[0]), "\n")
 	expected := "COPILOT_API_KEY: " + constants.CopilotBYOKDummyAPIKey
 	if !strings.Contains(stepContent, expected) {
-		t.Errorf("Expected byok-copilot to inject dummy COPILOT_API_KEY, got:\n%s", stepContent)
+		t.Errorf("Expected copilot to inject dummy COPILOT_API_KEY by default, got:\n%s", stepContent)
 	}
 }
 
@@ -1726,6 +1723,31 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 		}
 		if driverIdx > promptIdx {
 			t.Error("Expected copilot_driver.cjs to appear before --prompt")
+		}
+	})
+
+	t.Run("Execution step uses configured custom driver instead of built-in", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID:           "copilot",
+				DriverScript: "custom_copilot_driver.cjs",
+			},
+			Tools: make(map[string]any),
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one step")
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if !strings.Contains(stepContent, "custom_copilot_driver.cjs") {
+			t.Errorf("Expected custom driver in execution step, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "actions/copilot_driver.cjs") {
+			t.Errorf("Expected built-in driver to be replaced, got:\n%s", stepContent)
 		}
 	})
 

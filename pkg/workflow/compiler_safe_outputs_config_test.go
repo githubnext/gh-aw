@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"math"
 	"strings"
 	"testing"
 
@@ -757,6 +758,39 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			checkJSON:    true,
 			expectedKeys: []string{"report_incomplete"},
 		},
+		{
+			name: "merge_pull_request config",
+			safeOutputs: &SafeOutputsConfig{
+				MergePullRequest: &MergePullRequestConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+					RequiredLabels:  []string{"automerge"},
+					AllowedBranches: []string{"feature/*", "fix/*"},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"merge_pull_request"},
+		},
+		{
+			name: "comment_memory config",
+			safeOutputs: &SafeOutputsConfig{
+				CommentMemory: &CommentMemoryConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+					MemoryID: "test-memory",
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"comment_memory"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1203,6 +1237,69 @@ func TestHandlerConfigUpdateFields(t *testing.T) {
 	}
 }
 
+func TestUpdatePullRequestUpdateBranchHandlerConfig(t *testing.T) {
+	tests := []struct {
+		name         string
+		updateBranch *bool
+		expected     bool
+	}{
+		{
+			name:         "defaults update_branch to false",
+			updateBranch: nil,
+			expected:     false,
+		},
+		{
+			name:         "sets update_branch true when configured",
+			updateBranch: testBoolPtr(true),
+			expected:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			workflowData := &WorkflowData{
+				Name: "Test Workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					UpdatePullRequests: &UpdatePullRequestsConfig{
+						UpdateBranch: tt.updateBranch,
+					},
+				},
+			}
+
+			var steps []string
+			compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+			foundHandlerConfig := false
+
+			for _, step := range steps {
+				if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+					foundHandlerConfig = true
+					parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+					if len(parts) == 2 {
+						jsonStr := strings.TrimSpace(parts[1])
+						jsonStr = strings.Trim(jsonStr, "\"")
+						jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+						var config map[string]map[string]any
+						err := json.Unmarshal([]byte(jsonStr), &config)
+						require.NoError(t, err)
+
+						updatePRConfig, ok := config["update_pull_request"]
+						require.True(t, ok, "Expected update_pull_request config")
+
+						updateBranchValue, ok := updatePRConfig["update_branch"]
+						require.True(t, ok, "Expected update_branch key in update_pull_request config")
+						assert.Equal(t, tt.expected, updateBranchValue)
+					}
+				}
+			}
+
+			require.True(t, foundHandlerConfig, "Expected GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG in generated steps")
+		})
+	}
+}
+
 // TestEmptySafeOutputsConfig tests behavior with no safe outputs
 func TestEmptySafeOutputsConfig(t *testing.T) {
 	compiler := NewCompiler()
@@ -1317,6 +1414,110 @@ func TestHandlerConfigPatchSize(t *testing.T) {
 					}
 				}
 			}
+		})
+	}
+}
+
+// TestHandlerConfigPatchFiles tests that the max-patch-files configuration is
+// propagated into the create_pull_request handler config (regression for the
+// hardcoded 100-file limit reported in the tsessebe autoloop scenario).
+func TestHandlerConfigPatchFiles(t *testing.T) {
+	tests := []struct {
+		name              string
+		maxPatchFiles     int
+		expectedFileLimit int
+	}{
+		{
+			name:              "default file limit",
+			maxPatchFiles:     0,
+			expectedFileLimit: 100,
+		},
+		{
+			name:              "custom file limit",
+			maxPatchFiles:     500,
+			expectedFileLimit: 500,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			workflowData := &WorkflowData{
+				Name: "Test Workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					MaximumPatchFiles: tt.maxPatchFiles,
+					CreatePullRequests: &CreatePullRequestsConfig{
+						TitlePrefix: "[PR] ",
+					},
+				},
+			}
+
+			var steps []string
+			compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+			found := false
+			for _, step := range steps {
+				if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+					parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+					if len(parts) == 2 {
+						jsonStr := strings.TrimSpace(parts[1])
+						jsonStr = strings.Trim(jsonStr, "\"")
+						jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+						var config map[string]map[string]any
+						err := json.Unmarshal([]byte(jsonStr), &config)
+						require.NoError(t, err)
+
+						prConfig, ok := config["create_pull_request"]
+						require.True(t, ok, "create_pull_request handler config should exist")
+
+						maxFiles, ok := prConfig["max_patch_files"]
+						require.True(t, ok, "max_patch_files should be present in handler config")
+						assert.InDelta(t, float64(tt.expectedFileLimit), maxFiles, 0.0001, "max_patch_files should match expected value")
+						found = true
+					}
+				}
+			}
+			assert.True(t, found, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG step should be present")
+		})
+	}
+}
+
+// TestParseSafeOutputsMaxPatchFiles tests that the top-level safe-outputs
+// `max-patch-files` config option is parsed into MaximumPatchFiles.
+func TestParseSafeOutputsMaxPatchFiles(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    any
+		expected int
+	}{
+		{name: "int value", value: 250, expected: 250},
+		{name: "uint64 value", value: uint64(300), expected: 300},
+		{name: "float value", value: 150.0, expected: 150},
+		{name: "zero falls back to default", value: 0, expected: 100},
+		{name: "negative falls back to default", value: -5, expected: 100},
+		// Overflow / out-of-range guards: values that would wrap or produce
+		// undefined results when narrowed to int must be clamped or rejected,
+		// not silently treated as 0 (which would fall back to the default).
+		{name: "uint64 max clamps to MaxInt", value: uint64(math.MaxUint64), expected: math.MaxInt},
+		{name: "huge float ignored (out of int range)", value: 1e30, expected: 100},
+		{name: "negative huge float ignored", value: -1e30, expected: 100},
+		{name: "NaN ignored", value: math.NaN(), expected: 100},
+		{name: "+Inf ignored", value: math.Inf(1), expected: 100},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			frontmatter := map[string]any{
+				"safe-outputs": map[string]any{
+					"max-patch-files":     tt.value,
+					"create-pull-request": map[string]any{},
+				},
+			}
+			cfg := compiler.extractSafeOutputsConfig(frontmatter)
+			require.NotNil(t, cfg, "safe outputs config should be parsed")
+			assert.Equal(t, tt.expected, cfg.MaximumPatchFiles, "MaximumPatchFiles should match expected value")
 		})
 	}
 }
@@ -1537,6 +1738,60 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreatePullRequestFallbackLabels(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("1"),
+				},
+				FallbackLabels: []string{"failure", "automated"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "Steps should be generated")
+	validated := false
+
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) != 2 {
+				continue
+			}
+
+			jsonStr := strings.TrimSpace(parts[1])
+			jsonStr = strings.Trim(jsonStr, "\"")
+			jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+			var config map[string]map[string]any
+			err := json.Unmarshal([]byte(jsonStr), &config)
+			require.NoError(t, err, "Config JSON should be valid")
+
+			prConfig, ok := config["create_pull_request"]
+			require.True(t, ok, "create_pull_request config should exist")
+
+			fallbackLabelsRaw, ok := prConfig["fallback_labels"]
+			require.True(t, ok, "fallback_labels should be in config")
+
+			fallbackLabels, ok := fallbackLabelsRaw.([]any)
+			require.True(t, ok, "fallback_labels should be an array")
+			require.Len(t, fallbackLabels, 2, "fallback_labels should have expected length")
+			assert.Equal(t, "failure", fallbackLabels[0], "first fallback label should match")
+			assert.Equal(t, "automated", fallbackLabels[1], "second fallback label should match")
+			validated = true
+			break
+		}
+	}
+
+	require.True(t, validated, "fallback_labels validation should run when handler config env var is present")
 }
 
 // TestHandlerConfigAssignToUser tests assign_to_user configuration
@@ -2105,7 +2360,7 @@ func TestProtectedFilesExclude(t *testing.T) {
 			name:               "exclude AGENTS.md from create-pull-request",
 			excludeFiles:       []string{"AGENTS.md"},
 			wantExcludedFromPF: []string{"AGENTS.md"},
-			wantPresentInPF:    []string{"package.json", "go.mod", "CODEOWNERS"},
+			wantPresentInPF:    []string{"package.json", "go.mod", "CODEOWNERS", "DESIGN.md"},
 		},
 		{
 			name:               "exclude multiple files",
@@ -2238,4 +2493,199 @@ func TestProtectedFilesExcludePushToPRBranch(t *testing.T) {
 	}
 	assert.NotContains(t, pfStrings, "AGENTS.md", "AGENTS.md should be excluded from protected_files")
 	assert.Contains(t, pfStrings, "package.json", "package.json should still be in protected_files")
+
+	// Dot-folder prefixes are no longer in protected_path_prefixes — they are
+	// covered by the general protect_top_level_dot_folders rule.
+	_, hasProtectedPathPrefixes := pushConfig["protected_path_prefixes"]
+	assert.False(t, hasProtectedPathPrefixes, "protected_path_prefixes should be absent: dot-folders are covered by protect_top_level_dot_folders")
+}
+
+// TestGetDotFolderExcludes verifies that getDotFolderExcludes correctly identifies
+// top-level dot-folder path prefixes from an exclusion list.
+func TestGetDotFolderExcludes(t *testing.T) {
+	tests := []struct {
+		name         string
+		excludeFiles []string
+		want         []string
+	}{
+		{
+			name:         "empty input returns nil",
+			excludeFiles: nil,
+			want:         nil,
+		},
+		{
+			name:         "no dot-folder entries",
+			excludeFiles: []string{"AGENTS.md", "CLAUDE.md", "go.mod"},
+			want:         nil,
+		},
+		{
+			name:         "single dot-folder prefix",
+			excludeFiles: []string{".agents/"},
+			want:         []string{".agents/"},
+		},
+		{
+			name:         "mixed files and dot-folder prefixes",
+			excludeFiles: []string{"AGENTS.md", ".agents/", "go.mod", ".cursor/"},
+			want:         []string{".agents/", ".cursor/"},
+		},
+		{
+			name:         "dot-file without trailing slash is not a dot-folder",
+			excludeFiles: []string{".env"},
+			want:         nil,
+		},
+		{
+			name:         "dot alone is not a valid dot-folder",
+			excludeFiles: []string{"./"},
+			want:         nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getDotFolderExcludes(tt.excludeFiles)
+			if len(tt.want) == 0 {
+				assert.Empty(t, got, "expected no dot-folder excludes")
+			} else {
+				assert.Equal(t, tt.want, got, "dot-folder excludes should match expected list")
+			}
+		})
+	}
+}
+
+// TestProtectTopLevelDotFolders verifies that protect_top_level_dot_folders is always
+// set to true in both create_pull_request and push_to_pull_request_branch handler configs.
+func TestProtectTopLevelDotFolders(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			},
+			PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "should produce config steps")
+
+	var configJSON string
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			require.Len(t, parts, 2, "should split env var line")
+			configJSON = strings.TrimSpace(parts[1])
+			configJSON = strings.Trim(configJSON, "\"")
+			configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+		}
+	}
+	require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+	var config map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+	for _, handlerName := range []string{"create_pull_request", "push_to_pull_request_branch"} {
+		handlerCfg, ok := config[handlerName]
+		require.True(t, ok, "%s handler should be present", handlerName)
+		val, exists := handlerCfg["protect_top_level_dot_folders"]
+		assert.True(t, exists, "%s: protect_top_level_dot_folders should be present", handlerName)
+		assert.Equal(t, true, val, "%s: protect_top_level_dot_folders should be true", handlerName)
+	}
+}
+
+// TestProtectedDotFolderExcludes verifies that when a dot-folder prefix is excluded via
+// ProtectedFilesExclude, the runtime config receives a protected_dot_folder_excludes list.
+func TestProtectedDotFolderExcludes(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig:  BaseSafeOutputConfig{Max: strPtr("1")},
+				ProtectedFilesExclude: []string{"AGENTS.md", ".agents/", ".cursor/"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "should produce config steps")
+
+	var configJSON string
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			require.Len(t, parts, 2, "should split env var line")
+			configJSON = strings.TrimSpace(parts[1])
+			configJSON = strings.Trim(configJSON, "\"")
+			configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+		}
+	}
+	require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+	var config map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+	prConfig, ok := config["create_pull_request"]
+	require.True(t, ok, "should have create_pull_request config")
+
+	// Sentinel key must not leak into runtime config
+	_, hasSentinel := prConfig["_protected_files_exclude"]
+	assert.False(t, hasSentinel, "_protected_files_exclude sentinel must not appear in runtime config")
+
+	// Non-dot-folder excludes must not be in protected_dot_folder_excludes
+	raw, exists := prConfig["protected_dot_folder_excludes"]
+	require.True(t, exists, "protected_dot_folder_excludes should be present")
+	excludesAny, ok := raw.([]any)
+	require.True(t, ok, "protected_dot_folder_excludes should be a slice")
+	excludes := make([]string, 0, len(excludesAny))
+	for _, v := range excludesAny {
+		if s, ok := v.(string); ok {
+			excludes = append(excludes, s)
+		}
+	}
+	assert.Contains(t, excludes, ".agents/", ".agents/ should be in protected_dot_folder_excludes")
+	assert.Contains(t, excludes, ".cursor/", ".cursor/ should be in protected_dot_folder_excludes")
+	assert.NotContains(t, excludes, "AGENTS.md", "non-dot-folder files must not be in protected_dot_folder_excludes")
+}
+
+// TestNoProtectedDotFolderExcludesWhenNoneDotFolderExcluded verifies that
+// protected_dot_folder_excludes is absent when the exclusion list has no dot-folder prefixes.
+func TestNoProtectedDotFolderExcludesWhenNoneDotFolderExcluded(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig:  BaseSafeOutputConfig{Max: strPtr("1")},
+				ProtectedFilesExclude: []string{"AGENTS.md", "CLAUDE.md"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "should produce config steps")
+
+	var configJSON string
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			require.Len(t, parts, 2, "should split env var line")
+			configJSON = strings.TrimSpace(parts[1])
+			configJSON = strings.Trim(configJSON, "\"")
+			configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+		}
+	}
+	require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+	var config map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+	prConfig, ok := config["create_pull_request"]
+	require.True(t, ok, "should have create_pull_request config")
+
+	_, exists := prConfig["protected_dot_folder_excludes"]
+	assert.False(t, exists, "protected_dot_folder_excludes should be absent when no dot-folders excluded")
 }

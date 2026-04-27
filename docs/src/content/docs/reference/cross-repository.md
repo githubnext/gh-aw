@@ -109,6 +109,12 @@ When `allowed-repos` is specified:
 - Target repository (from `target-repo` or current repo) is always implicitly allowed
 - Creates a union of allowed destinations
 
+### Checkout Requirement for `push-to-pull-request-branch`
+
+Unlike other safe output types, `push-to-pull-request-branch` with `target-repo` requires the target repository to be **checked out into the workflow workspace** using the `checkout:` frontmatter field with a `path:` specified. Without a checkout, the agent has no local git history to create and push a patch from.
+
+See the [Scheduled Push to Pull-Request Branch](#example-scheduled-push-to-pull-request-branch) example and the [Push to PR Branch cross-repo usage](/gh-aw/reference/safe-outputs-pull-requests/#cross-repo-usage) documentation for a complete setup.
+
 ## Examples
 
 ### Example: Monorepo Development

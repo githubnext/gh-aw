@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestNewEngineCatalog_BuiltIns checks that all five built-in engines are registered
+// TestNewEngineCatalog_BuiltIns checks that all built-in engines are registered
 // and resolve to the expected runtime adapters.
 func TestNewEngineCatalog_BuiltIns(t *testing.T) {
 	registry := NewEngineRegistry()
@@ -25,6 +25,7 @@ func TestNewEngineCatalog_BuiltIns(t *testing.T) {
 		{"codex", "Codex", "openai"},
 		{"copilot", "GitHub Copilot CLI", "github"},
 		{"gemini", "Google Gemini CLI", "google"},
+		{"opencode", "OpenCode", "opencode"},
 		{"crush", "Crush", "crush"},
 	}
 

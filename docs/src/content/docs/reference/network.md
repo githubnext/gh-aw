@@ -100,13 +100,37 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `default-safe-outputs` | Compound: `defaults` + `dev-tools` + `github` + `local` — recommended baseline for `safe-outputs.allowed-domains` |
 | `containers` | Docker Hub, GitHub Container Registry, Quay |
 | `linux-distros` | Debian, Alpine, and other Linux package repositories |
-| `dotnet`, `dart`, `go`, `haskell`, `java`, `julia`, `lean`, `node`, `perl`, `php`, `python`, `ruby`, `rust`, `swift` | Language-specific package managers and registries |
+| `dotnet`, `dart`, `go`, `haskell`, `java`, `julia`, `latex`, `lean`, `node`, `perl`, `php`, `python`, `ruby`, `rust`, `swift` | Language-specific package managers and registries |
 | `deno` | Deno runtime (`deno.land`, `jsr.io`, `*.jsr.io`, `googleapis.deno.dev`, `fresh.deno.dev`) |
 | `terraform` | HashiCorp and Terraform domains |
 | `playwright` | Playwright testing framework domains (see [Playwright Reference](/gh-aw/reference/playwright/)) |
 | `chrome` | Headless Chrome/Puppeteer browser testing (`*.google.com`, `*.googleapis.com`, `*.gvt1.com`) |
 
-Common identifiers: `python` (PyPI/pip), `node` (npm/yarn/pnpm), `containers` (Docker Hub/GHCR), `go` (proxy.golang.org). See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete domain lists, or the [Supported Languages](/gh-aw/reference/supported-languages/) page for a language-first overview.
+Common identifiers: `python` (PyPI/pip), `node` (npm/yarn/pnpm), `containers` (Docker Hub/GHCR), `go` (proxy.golang.org). See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete domain lists.
+
+### Ecosystem Identifier Validation
+
+Single-word entries in `network.allowed` that match the ecosystem identifier pattern (`[a-z][a-z0-9-]*`) are validated against the known ecosystem list at compile time. An unrecognized identifier produces a compilation error with the full list of valid options:
+
+```yaml wrap
+# ❌ Compilation error: 'rustxxxx' is not a valid ecosystem identifier
+network:
+  allowed:
+    - defaults
+    - rustxxxx
+
+# ✅ Use the correct identifier
+network:
+  allowed:
+    - defaults
+    - rust
+
+# ✅ Dotted domain names are validated as domains, not ecosystem identifiers
+network:
+  allowed:
+    - defaults
+    - crates.io
+```
 
 ## Strict Mode Validation
 
@@ -280,14 +304,14 @@ If you encounter network access blocked errors, verify that required domains or 
 
 Use `gh aw logs --run-id <run-id>` to view firewall activity and identify blocked domains. See the [Network Configuration Guide](/gh-aw/guides/network-configuration/#troubleshooting-firewall-blocking) for detailed troubleshooting steps and common solutions.
 
-To understand domain allow/block behavior in detail, use `gh aw audit <run-id>` — the **Firewall Analysis** section of the report lists every domain request, its allowed or denied status, request volume, and policy attribution. To compare firewall behavior between two runs and spot new or removed domain accesses, use `gh aw audit diff`:
+To understand domain allow/block behavior in detail, use `gh aw audit <run-id>` — the **Firewall Analysis** section of the report lists every domain request, its allowed or denied status, request volume, and policy attribution. To compare firewall behavior between two runs and spot new or removed domain accesses, pass both run IDs to `audit`:
 
 ```bash
 # Inspect firewall activity for a single run
 gh aw audit 12345678
 
 # Compare firewall behavior between two runs
-gh aw audit diff 12345678 12345679
+gh aw audit 12345678 12345679
 ```
 
 See [Audit Commands](/gh-aw/reference/audit/) for full documentation.

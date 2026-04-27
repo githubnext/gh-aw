@@ -3,21 +3,19 @@
 package workflow
 
 import (
-	"strings"
 	"testing"
 )
 
 func TestFirewallDisableIntegration(t *testing.T) {
-	t.Run("firewall disable with allowed domains warns", func(t *testing.T) {
+	t.Run("sandbox agent false with allowed domains does not warn", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"on":     "workflow_dispatch",
 			"engine": "copilot",
 			"network": map[string]any{
-				"allowed":  []any{"example.com"},
-				"firewall": "disable",
+				"allowed": []any{"example.com"},
 			},
-			"tools": map[string]any{
-				"web-fetch": nil,
+			"sandbox": map[string]any{
+				"agent": false,
 			},
 		}
 
@@ -31,33 +29,28 @@ func TestFirewallDisableIntegration(t *testing.T) {
 			t.Fatal("Expected network permissions to be extracted")
 		}
 
-		// Check firewall config
-		if networkPerms.Firewall == nil {
-			t.Fatal("Expected firewall config to be extracted")
-		}
-		if networkPerms.Firewall.Enabled {
-			t.Error("Firewall should be disabled when set to 'disable'")
-		}
-
-		// Check validation triggers warning
+		// sandbox.agent: false replaces deprecated network.firewall: "disable" and should
+		// not trigger warnings from deprecated network.firewall validation paths.
 		initialWarnings := compiler.warningCount
 		err := compiler.checkFirewallDisable(networkPerms)
 		if err != nil {
-			t.Errorf("Expected no error in non-strict mode, got: %v", err)
+			t.Errorf("Expected no error when using sandbox.agent: false, got: %v", err)
 		}
-		if compiler.warningCount != initialWarnings+1 {
-			t.Error("Should emit warning when firewall is disabled with allowed domains")
+		if compiler.warningCount != initialWarnings {
+			t.Error("Should not emit warning when deprecated network.firewall is not used")
 		}
 	})
 
-	t.Run("firewall disable in strict mode errors", func(t *testing.T) {
+	t.Run("sandbox agent false in strict mode does not error", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"on":     "workflow_dispatch",
 			"engine": "copilot",
 			"strict": true,
 			"network": map[string]any{
-				"allowed":  []any{"example.com"},
-				"firewall": "disable",
+				"allowed": []any{"example.com"},
+			},
+			"sandbox": map[string]any{
+				"agent": false,
 			},
 		}
 
@@ -71,11 +64,8 @@ func TestFirewallDisableIntegration(t *testing.T) {
 		}
 
 		err := compiler.checkFirewallDisable(networkPerms)
-		if err == nil {
-			t.Error("Expected error in strict mode when firewall is disabled with allowed domains")
-		}
-		if !strings.Contains(err.Error(), "strict mode") {
-			t.Errorf("Error should mention strict mode, got: %v", err)
+		if err != nil {
+			t.Errorf("Expected no error in strict mode when using sandbox.agent: false, got: %v", err)
 		}
 	})
 }

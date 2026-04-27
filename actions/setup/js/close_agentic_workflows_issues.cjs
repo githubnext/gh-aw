@@ -2,8 +2,11 @@
 /// <reference types="@actions/github-script" />
 
 const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 const TARGET_LABEL = "agentic-workflows";
+// Keep a conservative, explicit upper bound for comment sanitization.
+const MAX_COMMENT_BODY_LENGTH = 65536;
 const NO_REPRO_MESSAGE = `Closing as no repro.
 
 If this is still reproducible, please open a new issue with clear reproduction steps.`;
@@ -29,6 +32,23 @@ async function closeIssueAsNotPlanned(issueId) {
     issueId,
     stateReason: "NOT_PLANNED",
   });
+}
+
+/**
+ * Build the close-comment body with SEC-004 sanitization guarantees.
+ *
+ * @param {(content: string, options?: { maxLength?: number }) => string} [sanitize=sanitizeContent]
+ * @returns {string}
+ */
+function getNoReproCommentBody(sanitize = sanitizeContent) {
+  const body = sanitize(NO_REPRO_MESSAGE, { maxLength: MAX_COMMENT_BODY_LENGTH });
+  if (typeof body !== "string") {
+    throw new Error("Close comment body sanitization must return a string");
+  }
+  if (body.trim().length === 0) {
+    throw new Error("Close comment body is empty after sanitization");
+  }
+  return body;
 }
 
 /**
@@ -63,11 +83,11 @@ async function main() {
       owner,
       repo,
       issue_number: issue.number,
-      body: NO_REPRO_MESSAGE,
+      body: getNoReproCommentBody(),
     });
 
     await closeIssueAsNotPlanned(issue.node_id);
   }
 }
 
-module.exports = { main, closeIssueAsNotPlanned, CLOSE_ISSUE_MUTATION, NO_REPRO_MESSAGE };
+module.exports = { main, closeIssueAsNotPlanned, CLOSE_ISSUE_MUTATION, NO_REPRO_MESSAGE, MAX_COMMENT_BODY_LENGTH, getNoReproCommentBody };

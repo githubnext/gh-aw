@@ -91,7 +91,7 @@ func TestApplyDefaultGitCommandsForSafeOutputs(t *testing.T) {
 
 			// Extract cache-memory config
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tools)
-			result := engine.computeAllowedClaudeToolsString(tools, tt.safeOutputs, cacheMemoryConfig)
+			result := engine.computeAllowedClaudeToolsString(tools, tt.safeOutputs, cacheMemoryConfig, nil)
 
 			// Parse the result string into individual tools
 			resultTools := []string{}
@@ -197,7 +197,7 @@ func TestAdditionalClaudeToolsForSafeOutputs(t *testing.T) {
 
 			// Extract cache-memory config
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tools)
-			result := engine.computeAllowedClaudeToolsString(tools, tt.safeOutputs, cacheMemoryConfig)
+			result := engine.computeAllowedClaudeToolsString(tools, tt.safeOutputs, cacheMemoryConfig, nil)
 
 			// Parse the result string into individual tools
 			resultTools := []string{}

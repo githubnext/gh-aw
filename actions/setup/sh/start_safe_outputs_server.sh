@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Start Safe Outputs MCP HTTP Server
 # This script starts the safe-outputs MCP server and waits for it to become ready
 
@@ -103,7 +105,6 @@ for i in {1..60}; do
     echo "Safe Outputs MCP server is ready (attempt $i/60)"
     
     # Print the startup log for debugging
-    echo "::notice::Safe Outputs MCP Server Startup Log"
     echo "::group::Server Log Contents"
     cat /tmp/gh-aw/mcp-logs/safeoutputs/server.log
     echo "::endgroup::"

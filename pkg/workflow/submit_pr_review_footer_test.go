@@ -279,6 +279,20 @@ func TestSubmitPRReviewFooterConfig(t *testing.T) {
 		assert.Empty(t, config.AllowedEvents, "AllowedEvents should be empty when not configured")
 	})
 
+	t.Run("parses supersede-older-reviews field", func(t *testing.T) {
+		compiler := NewCompiler()
+		outputMap := map[string]any{
+			"submit-pull-request-review": map[string]any{
+				"max":                     1,
+				"supersede-older-reviews": true,
+			},
+		}
+
+		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
+		require.NotNil(t, config, "Config should be parsed")
+		assert.True(t, config.SupersedeOlderReviews, "SupersedeOlderReviews should be parsed")
+	})
+
 	t.Run("parses all three valid event types in allowed-events", func(t *testing.T) {
 		compiler := NewCompiler()
 		outputMap := map[string]any{
@@ -563,6 +577,46 @@ func TestSubmitPRReviewFooterInHandlerConfig(t *testing.T) {
 					require.True(t, ok, "submit_pull_request_review config should exist")
 					_, hasAllowedEvents := submitConfig["allowed_events"]
 					assert.False(t, hasAllowedEvents, "allowed_events should not be in handler config when not set")
+				}
+			}
+		}
+	})
+
+	t.Run("supersede_older_reviews included in submit_pull_request_review handler config when true", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test",
+			SafeOutputs: &SafeOutputsConfig{
+				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+					BaseSafeOutputConfig:  BaseSafeOutputConfig{Max: strPtr("1")},
+					SupersedeOlderReviews: true,
+				},
+			},
+		}
+
+		var steps []string
+		compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+		require.NotEmpty(t, steps, "Steps should not be empty")
+
+		stepsContent := strings.Join(steps, "")
+		require.Contains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG")
+
+		for _, step := range steps {
+			if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+				parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+				if len(parts) == 2 {
+					jsonStr := strings.TrimSpace(parts[1])
+					jsonStr = strings.Trim(jsonStr, "\"")
+					jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+					var handlerConfig map[string]any
+					err := json.Unmarshal([]byte(jsonStr), &handlerConfig)
+					require.NoError(t, err, "Should unmarshal handler config")
+
+					submitConfig, ok := handlerConfig["submit_pull_request_review"].(map[string]any)
+					require.True(t, ok, "submit_pull_request_review config should exist")
+					supersedeOlderReviews, hasSupersedeOlderReviews := submitConfig["supersede_older_reviews"].(bool)
+					require.True(t, hasSupersedeOlderReviews, "supersede_older_reviews should be in handler config when true")
+					assert.True(t, supersedeOlderReviews, "supersede_older_reviews should be true")
 				}
 			}
 		}

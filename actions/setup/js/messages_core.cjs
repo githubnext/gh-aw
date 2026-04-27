@@ -85,6 +85,22 @@ function renderTemplate(template, context) {
 }
 
 /**
+ * Resolve the absolute path to a prompt template file.
+ * Prefers GH_AW_PROMPTS_DIR when set, otherwise falls back to
+ * ${RUNNER_TEMP}/gh-aw/prompts (the runtime location used in production).
+ * Throws if neither GH_AW_PROMPTS_DIR nor RUNNER_TEMP is set.
+ * @param {string} name - Template filename (e.g. "agent_timeout.md")
+ * @returns {string} Absolute path to the prompt template file
+ */
+function getPromptPath(name) {
+  const promptsDir = process.env.GH_AW_PROMPTS_DIR || (process.env.RUNNER_TEMP ? `${process.env.RUNNER_TEMP}/gh-aw/prompts` : null);
+  if (!promptsDir) {
+    throw new Error("Cannot resolve prompt path: neither GH_AW_PROMPTS_DIR nor RUNNER_TEMP is set");
+  }
+  return `${promptsDir}/${name}`;
+}
+
+/**
  * Read a template file and render it with the given context.
  * Combines file loading and template rendering into a single helper.
  * @param {string} templatePath - Absolute path to the template file
@@ -169,6 +185,7 @@ function buildProtectedFileList(files, githubServer, owner, repo, branch) {
 
 module.exports = {
   getMessages,
+  getPromptPath,
   renderTemplate,
   renderTemplateFromFile,
   toSnakeCase,

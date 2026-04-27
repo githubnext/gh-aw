@@ -13,6 +13,11 @@ import (
 
 var compilerMainJobLog = logger.New("workflow:compiler_main_job")
 
+func isBuiltinJobName(jobName string) bool {
+	_, isBuiltIn := constants.KnownBuiltInJobNames[jobName]
+	return isBuiltIn
+}
+
 // buildMainJob creates the main agent job that runs the AI agent with the configured engine and tools.
 // This job depends on the activation job if it exists, and handles the main workflow logic.
 func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (*Job, error) {
@@ -92,8 +97,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// Custom jobs that depend on agent should run AFTER the agent job, not before it
 	if data.Jobs != nil {
 		for _, jobName := range slices.Sorted(maps.Keys(data.Jobs)) {
-			// Skip jobs.pre-activation (or pre_activation) as it's handled specially
-			if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {
+			// Skip built-in jobs as they are handled separately and should not become custom dependencies.
+			if isBuiltinJobName(jobName) {
 				continue
 			}
 
@@ -121,8 +126,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	}
 	referencedJobs := c.getReferencedCustomJobs(contentBuilder.String(), data.Jobs)
 	for _, jobName := range referencedJobs {
-		// Skip jobs.pre-activation (or pre_activation) as it's handled specially
-		if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {
+		// Skip built-in jobs as they are handled separately and should not become custom dependencies.
+		if isBuiltinJobName(jobName) {
 			continue
 		}
 
@@ -247,17 +252,19 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// In dev/script mode, automatically add contents: read if the actions folder checkout is needed
 	// In release mode, use the permissions as specified by the user (no automatic augmentation)
 	//
-	// GitHub App-only permissions (e.g., vulnerability-alerts) must be filtered out before
+	// GitHub App-only permissions (e.g., members, administration) must be filtered out before
 	// rendering to the job-level permissions block. These scopes are not valid GitHub Actions
 	// workflow permissions and cause a parse error when queued. They are handled separately
 	// when minting GitHub App installation access tokens (as permission-* inputs).
-	permissions := filterJobLevelPermissions(data.Permissions)
+	permissions := filterJobLevelPermissions(data.Permissions, data.CachedPermissions)
 	needsContentsRead := (c.actionMode.IsDev() || c.actionMode.IsScript()) && len(c.generateCheckoutActionsFolder(data)) > 0
 	if needsContentsRead {
 		if permissions == "" {
 			perms := NewPermissionsContentsRead()
 			permissions = perms.RenderToYAML()
 		} else {
+			// Parse the already-filtered permissions string (not the raw data.Permissions)
+			// since filterJobLevelPermissions may have adjusted the indentation/format.
 			parser := NewPermissionsParser(permissions)
 			perms := parser.ToPermissions()
 			if level, exists := perms.Get(PermissionContents); !exists || level == PermissionNone {

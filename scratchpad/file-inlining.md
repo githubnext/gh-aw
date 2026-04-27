@@ -21,7 +21,7 @@ The feature reuses and extends the existing `runtime_import.cjs` infrastructure:
    - Supports `.github/` prefix trimming (both `file.md` and `.github/file.md` work)
    - Supports line range extraction (1-indexed, inclusive)
    - Applies content sanitization (front matter removal, XML comment stripping, macro detection)
-   - Smart email address filtering to avoid processing `user@example.com`
+   - Email address detection to avoid processing `user@example.com`
    - **Security:** Validates all paths stay within `.github` folder
 
 2. **URL Processing** (`processUrlImport`)

@@ -23,6 +23,7 @@ type CreatePullRequestsConfig struct {
 	Reviewers                      []string `yaml:"reviewers,omitempty"`                           // List of users/bots to assign as reviewers to the pull request
 	TeamReviewers                  []string `yaml:"team-reviewers,omitempty"`                      // List of team slugs to assign as team reviewers to the pull request
 	Assignees                      []string `yaml:"assignees,omitempty"`                           // List of users to assign to any fallback issue created by create-pull-request
+	FallbackLabels                 []string `yaml:"fallback-labels,omitempty"`                     // List of labels to apply to fallback issues created when PR creation cannot proceed. If omitted, fallback issues reuse PR labels.
 	Draft                          *string  `yaml:"draft,omitempty"`                               // Pointer to distinguish between unset (nil), literal bool, and expression values
 	IfNoChanges                    string   `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn" (default), "error", or "ignore"
 	AllowEmpty                     *string  `yaml:"allow-empty,omitempty"`                         // Allow creating PR without patch file or with empty patch (useful for preparing feature branches)

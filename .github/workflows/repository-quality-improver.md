@@ -11,11 +11,10 @@ permissions:
   pull-requests: read
 engine: copilot
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[repository-quality] "
       expires: 1d
-  - shared/reporting.md
   - shared/mcp/serena-go.md
 tools:
   mount-as-clis: true
@@ -45,19 +44,19 @@ Daily or on-demand, select a focus area for repository improvement, conduct anal
 
 - **Repository**: ${{ github.repository }}
 - **Run Date**: $(date +%Y-%m-%d)
-- **Cache Location**: `/tmp/gh-aw/cache-memory/focus-areas/`
+- **Cache Location**: `/tmp/gh-aw/cache-memory-focus-areas/`
 - **Strategy Distribution**: ~60% custom areas, ~30% standard categories, ~10% reuse for consistency
 
 ## Phase 0: Setup and Focus Area Selection
 
 ### 0.1 Load Focus Area History
 
-Check the cache memory folder `/tmp/gh-aw/cache-memory/focus-areas/` for previous focus area selections:
+Check the cache memory folder `/tmp/gh-aw/cache-memory-focus-areas/` for previous focus area selections:
 
 ```bash
 # Check if history file exists
-if [ -f /tmp/gh-aw/cache-memory/focus-areas/history.json ]; then
-  cat /tmp/gh-aw/cache-memory/focus-areas/history.json
+if [ -f /tmp/gh-aw/cache-memory-focus-areas/history.json ]; then
+  cat /tmp/gh-aw/cache-memory-focus-areas/history.json
 fi
 ```
 
@@ -465,7 +464,7 @@ After generating the report, update the focus area history:
 
 ```bash
 # Create or update history.json
-cat > /tmp/gh-aw/cache-memory/focus-areas/history.json << 'EOF'
+cat > /tmp/gh-aw/cache-memory-focus-areas/history.json << 'EOF'
 {
   "runs": [...previous runs, {
     "date": "$(date +%Y-%m-%d)",

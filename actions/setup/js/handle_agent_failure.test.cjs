@@ -6,6 +6,7 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
 describe("handle_agent_failure", () => {
+  let main;
   let buildCodePushFailureContext;
   let buildPushRepoMemoryFailureContext;
   let getActionFailureIssueExpiresHours;
@@ -25,7 +26,7 @@ describe("handle_agent_failure", () => {
 
     // Reset module registry so each test gets a fresh require
     vi.resetModules();
-    ({ buildCodePushFailureContext, buildPushRepoMemoryFailureContext, getActionFailureIssueExpiresHours } = require("./handle_agent_failure.cjs"));
+    ({ main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, getActionFailureIssueExpiresHours } = require("./handle_agent_failure.cjs"));
   });
 
   afterEach(() => {
@@ -51,6 +52,128 @@ describe("handle_agent_failure", () => {
       expect(getActionFailureIssueExpiresHours()).toBe(168);
       process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = "invalid";
       expect(getActionFailureIssueExpiresHours()).toBe(168);
+    });
+  });
+
+  describe("detection caution placement in main()", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+    /** @type {string} */
+    let promptsDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-handle-agent-failure-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+
+      // Minimal templates used by main()
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_comment.md"), "COMMENT TEMPLATE CONTENT");
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), "ISSUE TEMPLATE CONTENT");
+
+      process.env.RUNNER_TEMP = tmpDir;
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123456";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      process.env.GH_AW_DETECTION_REASON = "threat_detected";
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      delete process.env.GH_AW_WORKFLOW_NAME;
+      delete process.env.GH_AW_WORKFLOW_ID;
+      delete process.env.GH_AW_RUN_URL;
+      delete process.env.GH_AW_AGENT_CONCLUSION;
+      delete process.env.GH_AW_DETECTION_CONCLUSION;
+      delete process.env.GH_AW_DETECTION_REASON;
+
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("prepends caution callout to existing-issue comment body and includes it only once", async () => {
+      /** @type {string} */
+      let capturedCommentBody = "";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return {
+                data: {
+                  total_count: 1,
+                  items: [{ number: 42, html_url: "https://github.com/owner/repo/issues/42" }],
+                },
+              };
+            }),
+          },
+          issues: {
+            createComment: vi.fn(async ({ body }) => {
+              capturedCommentBody = body;
+              return { data: { id: 1001 } };
+            }),
+          },
+          pulls: {
+            get: vi.fn(),
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(capturedCommentBody).toBeTruthy();
+      expect(capturedCommentBody.startsWith("> [!CAUTION]")).toBe(true);
+      expect(capturedCommentBody.indexOf("> [!CAUTION]")).toBeLessThan(capturedCommentBody.indexOf("COMMENT TEMPLATE CONTENT"));
+      expect((capturedCommentBody.match(/> \[!CAUTION\]/g) || []).length).toBe(1);
+      expect(capturedCommentBody).toContain("> Generated from [Test Workflow]");
+    });
+
+    it("prepends caution callout to new issue body and includes it only once", async () => {
+      /** @type {string} */
+      let capturedIssueBody = "";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return { data: { total_count: 0, items: [] } };
+            }),
+          },
+          issues: {
+            create: vi.fn(async ({ body }) => {
+              capturedIssueBody = body;
+              return {
+                data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
+              };
+            }),
+          },
+          pulls: {
+            get: vi.fn(),
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(capturedIssueBody).toBeTruthy();
+      expect(capturedIssueBody.startsWith("> [!CAUTION]")).toBe(true);
+      expect(capturedIssueBody.indexOf("> [!CAUTION]")).toBeLessThan(capturedIssueBody.indexOf("ISSUE TEMPLATE CONTENT"));
+      expect((capturedIssueBody.match(/> \[!CAUTION\]/g) || []).length).toBe(1);
+      expect(capturedIssueBody).toContain("> Generated from [Test Workflow]");
     });
   });
 
@@ -382,6 +505,7 @@ describe("handle_agent_failure", () => {
 
     beforeEach(() => {
       vi.resetModules();
+      process.env.RUNNER_TEMP = "/nonexistent";
       // Stub readFileSync so the runtime path resolves to the source-tree template
       fs.readFileSync = (filePath, encoding) => {
         if (typeof filePath === "string" && filePath.includes("lockdown_check_failed.md")) {
@@ -394,6 +518,7 @@ describe("handle_agent_failure", () => {
 
     afterEach(() => {
       fs.readFileSync = originalReadFileSync;
+      delete process.env.RUNNER_TEMP;
     });
 
     it("returns empty string when no failure", () => {
@@ -430,6 +555,7 @@ describe("handle_agent_failure", () => {
 
     beforeEach(() => {
       vi.resetModules();
+      process.env.RUNNER_TEMP = "/nonexistent";
       fs.readFileSync = (filePath, encoding) => {
         if (typeof filePath === "string" && filePath.includes("stale_lock_file_failed.md")) {
           return templateContent;
@@ -441,6 +567,7 @@ describe("handle_agent_failure", () => {
 
     afterEach(() => {
       fs.readFileSync = originalReadFileSync;
+      delete process.env.RUNNER_TEMP;
     });
 
     it("returns empty string when check did not fail", () => {
@@ -482,6 +609,7 @@ describe("handle_agent_failure", () => {
 
     beforeEach(() => {
       vi.resetModules();
+      process.env.RUNNER_TEMP = "/nonexistent";
       // Stub readFileSync so the runtime path resolves to the source-tree template
       fs.readFileSync = (filePath, encoding) => {
         if (typeof filePath === "string" && filePath.includes("agent_timeout.md")) {
@@ -494,6 +622,7 @@ describe("handle_agent_failure", () => {
 
     afterEach(() => {
       fs.readFileSync = originalReadFileSync;
+      delete process.env.RUNNER_TEMP;
     });
 
     it("returns empty string when not timed out", () => {
@@ -947,6 +1076,129 @@ describe("handle_agent_failure", () => {
       const result = buildModelNotSupportedErrorContext(true);
       expect(result).toContain("Model Not Supported");
       expect(result).toContain("gpt-5-mini");
+    });
+  });
+
+  // buildMissingDataContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildMissingDataContext", () => {
+    let buildMissingDataContext;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+
+    /** @type {string} */
+    let promptsDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-missing-data-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      process.env.RUNNER_TEMP = tmpDir;
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty string when agent output file does not exist", () => {
+      expect(buildMissingDataContext(false)).toBe("");
+      expect(buildMissingDataContext(true)).toBe("");
+    });
+
+    it("returns empty string when agent output has no missing_data items", () => {
+      fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [{ type: "noop", reason: "done" }] }));
+      vi.resetModules();
+      ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
+      expect(buildMissingDataContext(false)).toBe("");
+      expect(buildMissingDataContext(true)).toBe("");
+    });
+
+    it("returns missing data context without cache warning when cacheMemoryEnabled is false", () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "missing_data", data_type: "cache_memory", reason: "cache_memory_miss" }],
+        })
+      );
+      vi.resetModules();
+      ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
+      const result = buildMissingDataContext(false);
+      expect(result).toContain("Missing Data Reported");
+      expect(result).toContain("cache\\_memory"); // data_type after markdown escaping
+      expect(result).not.toContain("Cache Configuration Problem");
+    });
+
+    it("appends cache configuration warning when cacheMemoryEnabled is true and cache_memory_miss item present", () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "missing_data", data_type: "cache_memory", reason: "cache_memory_miss" }],
+        })
+      );
+      const templateContent =
+        "> [!WARNING]\n" +
+        "> <details>\n" +
+        "> <summary>Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>\n>\n" +
+        "> Review the [cache-memory configuration](https://github.github.com/gh-aw/reference/cache-memory/) and ensure the agent prompt correctly references files inside the cache directory.\n>\n" +
+        "> **File naming convention:** Cache files are stored at `/tmp/gh-aw/cache-memory/`.\n>\n" +
+        "> </details>";
+      fs.writeFileSync(path.join(promptsDir, "cache_memory_miss.md"), templateContent);
+      vi.resetModules();
+      ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
+      const result = buildMissingDataContext(true);
+      expect(result).toContain("Missing Data Reported");
+      expect(result).toContain("Cache Configuration Problem");
+      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("<summary>");
+      expect(result).toContain("<details>");
+      expect(result).toContain("/gh-aw/reference/cache-memory/");
+      expect(result).toContain("File naming convention");
+    });
+
+    it("captures reason-only missing_data items (no data_type) and detects cache miss", () => {
+      // Agents may emit missing_data with only reason (no data_type) — ensure it is still captured
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "missing_data", reason: "cache_memory_miss" }],
+        })
+      );
+      const templateContent = "> [!WARNING]\n" + "> <details>\n" + "> <summary>Cache Configuration Problem: cache miss detected despite cache-memory being configured.</summary>\n>\n" + "> Details here.\n>\n" + "> </details>";
+      fs.writeFileSync(path.join(promptsDir, "cache_memory_miss.md"), templateContent);
+      vi.resetModules();
+      ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
+      const result = buildMissingDataContext(true);
+      expect(result).toContain("Missing Data Reported");
+      expect(result).toContain("Cache Configuration Problem");
+      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("<summary>");
+      expect(result).toContain("<details>");
+    });
+
+    it("does not append cache warning for unrelated missing_data reasons when cacheMemoryEnabled is true", () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "missing_data", data_type: "user_data", reason: "not_provided" }],
+        })
+      );
+      vi.resetModules();
+      ({ buildMissingDataContext } = require("./handle_agent_failure.cjs"));
+      const result = buildMissingDataContext(true);
+      expect(result).toContain("Missing Data Reported");
+      expect(result).not.toContain("Cache Configuration Problem");
     });
   });
 });

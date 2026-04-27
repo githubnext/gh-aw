@@ -131,10 +131,10 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 
 #### `init`
 
-Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher agent file (`.github/agents/agentic-workflows.agent.md`). Enables MCP server integration by default (use `--no-mcp` to skip). Without arguments, enters interactive mode for engine selection and secret configuration.
+Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher agent file (`.github/agents/agentic-workflows.agent.md`), and performs non-interactive setup. Enables MCP server integration by default (use `--no-mcp` to skip).
 
 ```bash wrap
-gh aw init                              # Interactive mode: select engine and configure secrets
+gh aw init                              # Initialize repository with defaults (non-interactive)
 gh aw init --no-mcp                     # Skip MCP server integration
 gh aw init --codespaces                 # Configure devcontainer for current repo
 gh aw init --codespaces repo1,repo2     # Configure devcontainer for additional repos
@@ -163,8 +163,8 @@ Add workflows from The Agentics collection or other repositories to `.github/wor
 ```bash wrap
 gh aw add githubnext/agentics/ci-doctor           # Add single workflow
 gh aw add githubnext/agentics/ci-doctor@v1.0.0   # Add specific version
-gh aw add ci-doctor --dir shared                  # Organize in subdirectory
-gh aw add ci-doctor --create-pull-request        # Create PR instead of commit
+gh aw add githubnext/agentics/ci-doctor --dir shared                  # Organize in subdirectory
+gh aw add githubnext/agentics/ci-doctor --create-pull-request        # Create PR instead of commit
 ```
 
 **Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--disable-security-scanner`, `--engine/-e`, `--force/-f`, `--name/-n`, `--no-stop-after`, `--stop-after`
@@ -237,7 +237,7 @@ gh aw fix my-workflow --write          # Fix specific workflow
 gh aw fix --list-codemods              # List available codemods
 ```
 
-**Options:** `--write`, `--list-codemods`
+**Options:** `--dir/-d`, `--list-codemods`, `--write`
 
 Available codemods include:
 
@@ -263,7 +263,7 @@ gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --purge                      # Remove orphaned .lock.yml files
 ```
 
-**Options:** `--validate`, `--strict`, `--fix`, `--zizmor`, `--dependabot`, `--json`, `--no-emit`, `--watch`, `--purge`, `--stats`, `--approve`
+**Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve`, `--dependabot`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--fix`, `--force`, `--force-refresh-action-pins`, `--json/-j`, `--logical-repo`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--runner-guard`, `--schedule-seed`, `--stats`, `--strict`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--zizmor`
 
 **`--approve` flag:** When compiling a workflow that already has a lock file, the compiler enforces *safe update mode* — any newly added secrets or custom actions not present in the previous manifest require explicit approval. Pass `--approve` to accept these changes and regenerate the manifest baseline. On first compile (no existing lock file), enforcement is skipped automatically and `--approve` is not needed.
 
@@ -292,7 +292,7 @@ gh aw validate --dir custom/workflows       # Validate from custom directory
 gh aw validate --engine copilot             # Override AI engine
 ```
 
-**Options:** `--engine/-e`, `--dir/-d`, `--strict`, `--json/-j`, `--fail-fast`, `--stats`, `--no-check-update`
+**Options:** `--allow-action-refs`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--json/-j`, `--no-check-update`, `--stats`, `--strict`, `--validate-images`
 
 All linters (`zizmor`, `actionlint`, `poutine`), `--validate`, and `--no-emit` are always-on defaults and cannot be disabled. Accepts the same workflow ID format as `compile`.
 
@@ -320,7 +320,7 @@ Execute workflows immediately in GitHub Actions. Displays workflow URL for track
 ```bash wrap
 gh aw run workflow                          # Run workflow
 gh aw run workflow1 workflow2               # Run multiple workflows
-gh aw run workflow --repeat 3               # Repeat 3 times
+gh aw run workflow --repeat 3               # Run 4 times total (1 initial + 3 repeats)
 gh aw run workflow --push                   # Auto-commit, push, and dispatch workflow
 gh aw run workflow --push --ref main        # Push to specific branch
 gh aw run workflow --json                   # Output triggered workflow results as JSON
@@ -400,7 +400,7 @@ gh aw logs --train                    # Train on last 10 runs
 gh aw logs my-workflow --train -c 50  # Train on up to 50 runs of a specific workflow
 ```
 
-**Options:** `-c`, `--count`, `-e`, `--engine`, `--start-date`, `--end-date`, `--ref`, `--parse`, `--json`, `--train`, `--repo`, `--firewall`, `--no-firewall`, `--safe-output`, `--filtered-integrity`, `--after-run-id`, `--before-run-id`, `--no-staged`, `--tool-graph`, `--timeout`
+**Options:** `--after-run-id`, `--artifacts`, `--before-run-id`, `--count/-c`, `--end-date`, `--engine/-e`, `--filtered-integrity`, `--firewall`, `--format`, `--json/-j`, `--last`, `--no-firewall`, `--no-staged`, `--output/-o`, `--parse`, `--ref`, `--repo/-r`, `--safe-output`, `--start-date`, `--summary-file`, `--timeout`, `--tool-graph`, `--train`
 
 #### `audit`
 
@@ -441,18 +441,19 @@ Logs are saved to `logs/run-{id}/` with filenames indicating the extraction leve
 | **Jobs** | Status of each GitHub Actions job in the run |
 | **Artifacts** | Downloaded artifacts and their contents |
 
-##### `audit diff`
+##### Multi-run diff mode
 
-Compare behavior between two workflow runs to detect policy regressions, new unauthorized domains, behavioral drift, and changes in MCP tool usage or run metrics.
+Compare behavior between two or more workflow runs to detect policy regressions, new unauthorized domains, behavioral drift, and changes in MCP tool usage or run metrics. Pass multiple run IDs directly to `audit` — the first is the base, the rest are comparisons:
 
 ```bash wrap
-gh aw audit diff 12345 12346                     # Compare two runs
-gh aw audit diff 12345 12346 --format markdown   # Markdown output for PR comments
-gh aw audit diff 12345 12346 --json              # JSON for CI integration
-gh aw audit diff 12345 12346 --repo owner/repo   # Specify repository
+gh aw audit 12345 12346                     # Compare two runs
+gh aw audit 12345 12346 12347 12348         # Compare base against 3 runs
+gh aw audit 12345 12346 --format markdown   # Markdown output for PR comments
+gh aw audit 12345 12346 --json              # JSON for CI integration
+gh aw audit 12345 12346 --repo owner/repo   # Specify repository
 ```
 
-The diff output shows: new or removed network domains, status changes (allowed ↔ denied), volume changes (>100% threshold), MCP tool invocation changes, and run metric comparisons (token usage, duration, turns).
+The diff output shows: new or removed network domains, status changes (allowed ↔ denied), volume changes (>100% threshold), MCP tool invocation changes, run metric comparisons (token usage, duration, turns), tokens-per-turn changes, and per-tool and per-bash-command call breakdowns.
 
 **Options:** `--format` (pretty, markdown; default: pretty), `--json`, `--repo/-r`
 
@@ -539,7 +540,7 @@ gh aw remove test-                       # Remove all workflows starting with 't
 gh aw remove my-workflow --keep-orphans  # Remove but keep orphaned include files
 ```
 
-**Options:** `--keep-orphans`
+**Options:** `--dir/-d`, `--keep-orphans`
 
 #### `update`
 

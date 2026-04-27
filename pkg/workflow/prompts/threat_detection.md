@@ -51,6 +51,7 @@ Analyze the above content for the following security threats, using the workflow
 2. **Secret Leak**: Look for exposed secrets, API keys, passwords, tokens, or other sensitive information that should not be disclosed. Specifically check for:
    - **Encoded Representations**: Base64, hex, ROT13, or other encoded strings that appear to hide secrets or sensitive values — regardless of whether a code patch is present (this applies equally to issue bodies, PR descriptions, comments, and any other output)
    - **Homoglyph Substitution**: Sensitive content where Latin characters have been replaced with visually identical Cyrillic, Greek, or other Unicode lookalikes to bypass keyword detection
+   - **Invisible Operator Fragmentation**: Secrets or payloads where invisible Unicode format characters (U+2061 FUNCTION APPLICATION, U+2062 INVISIBLE TIMES, U+2063 INVISIBLE SEPARATOR, U+2064 INVISIBLE PLUS) have been inserted between characters to fragment patterns and defeat static regex-based detection while remaining visually identical to the original
 
 3. **Malicious Patch**: Look for code changes that could introduce security vulnerabilities, backdoors, or malicious functionality. Specifically check for:
    - **Suspicious Web Service Calls**: HTTP requests to unusual domains, data exfiltration attempts, or connections to suspicious endpoints

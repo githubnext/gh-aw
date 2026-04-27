@@ -251,6 +251,22 @@ type DriverProvider interface {
 	GetDriverScriptName() string
 }
 
+// engineRequiresNodeDriver reports whether the engine's execution command wraps
+// the CLI with a driver script launched via node (see nodeRuntimeResolutionCommand
+// in copilot_engine_execution.go). Used by call sites that must ensure node is on
+// PATH before the driver runs — notably the detection job, which does not go
+// through DetectRuntimeRequirements.
+func engineRequiresNodeDriver(engine CodingAgentEngine) bool {
+	if engine == nil {
+		return false
+	}
+	dp, ok := engine.(DriverProvider)
+	if !ok {
+		return false
+	}
+	return dp.GetDriverScriptName() != ""
+}
+
 // CodingAgentEngine is a composite interface that combines all focused interfaces
 // This maintains backward compatibility with existing code while allowing more flexibility
 // Implementations can choose to implement only the interfaces they need by embedding BaseEngine
@@ -277,7 +293,7 @@ type BaseEngine struct {
 	supportsWebSearch        bool
 	supportsNativeAgentFile  bool
 	supportsBareMode         bool
-	llmGatewayPort           int
+	dedicatedLLMGatewayPort  int
 }
 
 func (e *BaseEngine) GetID() string {
@@ -320,8 +336,8 @@ func (e *BaseEngine) SupportsBareMode() bool {
 	return e.supportsBareMode
 }
 
-func (e *BaseEngine) getLLMGatewayPort() int {
-	return e.llmGatewayPort
+func (e *BaseEngine) getDedicatedLLMGatewayPort() int {
+	return e.dedicatedLLMGatewayPort
 }
 
 // GetDeclaredOutputFiles returns an empty list by default (engines can override)
@@ -440,6 +456,7 @@ func NewEngineRegistry() *EngineRegistry {
 	registry.Register(NewCodexEngine())
 	registry.Register(NewCopilotEngine())
 	registry.Register(NewGeminiEngine())
+	registry.Register(NewOpenCodeEngine())
 	registry.Register(NewCrushEngine())
 
 	agenticEngineLog.Printf("Registered %d engines", len(registry.engines))
@@ -456,9 +473,9 @@ func GetGlobalEngineRegistry() *EngineRegistry {
 
 // Register adds an engine to the registry
 func (r *EngineRegistry) Register(engine CodingAgentEngine) {
-	type portProvider interface{ getLLMGatewayPort() int }
-	if p, ok := engine.(portProvider); ok && p.getLLMGatewayPort() < 0 {
-		panic(fmt.Sprintf("engine '%s': llmGatewayPort must be >= 0, got %d", engine.GetID(), p.getLLMGatewayPort()))
+	type portProvider interface{ getDedicatedLLMGatewayPort() int }
+	if p, ok := engine.(portProvider); ok && p.getDedicatedLLMGatewayPort() < 0 {
+		panic(fmt.Sprintf("engine '%s': dedicatedLLMGatewayPort must be >= 0, got %d", engine.GetID(), p.getDedicatedLLMGatewayPort()))
 	}
 	agenticEngineLog.Printf("Registering engine: id=%s, name=%s", engine.GetID(), engine.GetDisplayName())
 	r.engines[engine.GetID()] = engine

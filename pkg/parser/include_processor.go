@@ -16,11 +16,21 @@ import (
 
 var includeLog = logger.New("parser:include_processor")
 
-// ProcessIncludes processes @include, @import (deprecated), and {{#import: directives in markdown content
-// This matches the bash process_includes function behavior
-
 // processIncludesWithVisited processes import directives with cycle detection
 func processIncludesWithVisited(content, baseDir string, extractTools bool, visited map[string]bool) (string, error) {
+	// Fast path: skip scanner allocation when no include/import directives are present.
+	// ParseImportDirective only matches lines starting with '@' or '{{#import'.
+	// For content mode, preserve the scanner's trailing-newline normalization behavior.
+	if !hasIncludeDirectives(content) {
+		if extractTools {
+			return "", nil
+		}
+		if !strings.HasSuffix(content, "\n") {
+			return content + "\n", nil
+		}
+		return content, nil
+	}
+
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
 
@@ -38,10 +48,23 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 				if directive.IsOptional {
 					optionalMarker = "?"
 				}
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: %q. Use {{#import%s %s}} instead.",
+				// Choose the recommended replacement based on which deprecated form was used.
+				// {{#import}} directives → recommend {{#runtime-import}} or imports: frontmatter.
+				// @include / @import directives → recommend {{#import}} (already deprecated itself,
+				// but still a closer equivalent than jumping straight to runtime-import).
+				var suggestion string
+				if strings.HasPrefix(strings.TrimSpace(directive.Original), "{{") {
+					suggestion = fmt.Sprintf("Use {{#runtime-import%s %s}} for content injection or the 'imports:' frontmatter field for configuration merging.",
+						optionalMarker,
+						directive.Path)
+				} else {
+					suggestion = fmt.Sprintf("Use {{#runtime-import%s %s}} instead.",
+						optionalMarker,
+						directive.Path)
+				}
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: %q. %s",
 					directive.Original,
-					optionalMarker,
-					directive.Path)))
+					suggestion)))
 			}
 
 			isOptional := directive.IsOptional
@@ -138,9 +161,10 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 	// Custom agent files use GitHub Copilot's format where 'tools' is an array, not an object
 	isAgentFile := isCustomAgentFile(filePath)
 
-	// Always try strict validation first (but skip for agent files which have a different schema)
+	// Always try strict validation first (but skip for agent files which have a different schema,
+	// and skip for builtin virtual files which are immutable trusted assets validated at development time).
 	var validationErr error
-	if !isAgentFile {
+	if !isAgentFile && !strings.HasPrefix(filePath, BuiltinPathPrefix) {
 		validationErr = ValidateIncludedFileFrontmatterWithSchemaAndLocation(result.Frontmatter, filePath)
 	}
 
@@ -238,8 +262,9 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 
 		// Extract tools from frontmatter, using filtered frontmatter for non-workflow files with validation errors
 		if validationErr == nil || isWorkflowFile {
-			// If validation passed or it's a workflow file (which must have valid frontmatter), use original extraction
-			return extractToolsFromContent(string(content))
+			// If validation passed or it's a workflow file (which must have valid frontmatter),
+			// use the already-parsed frontmatter to avoid a redundant YAML re-parse.
+			return extractToolsFromFrontmatter(result.Frontmatter)
 		} else {
 			// For non-workflow files with validation errors, only extract tools section
 			if tools, hasTools := result.Frontmatter["tools"]; hasTools {

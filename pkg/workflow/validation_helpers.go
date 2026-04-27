@@ -15,7 +15,6 @@
 //
 //   - parseStringSliceAny() - Canonical coercion of []string/[]any to []string; skips non-strings
 //   - toStringSlice() - Strict variant: returns error on non-string elements; also accepts bare string
-//   - extractStringSliceField() - Accepts string/[]string/[]any; skips empty strings; wraps bare string
 //
 // # Design Rationale
 //
@@ -217,43 +216,6 @@ func toStringSlice(val any) ([]string, error) {
 	default:
 		return nil, fmt.Errorf("unsupported type %T", val)
 	}
-}
-
-// extractStringSliceField extracts a string slice from various input formats.
-// Handles: string, []string, []any (with string elements).
-// Returns nil if the input is empty or invalid.
-func extractStringSliceField(value any, fieldName string) []string {
-	switch v := value.(type) {
-	case string:
-		// Single string
-		if v == "" {
-			return nil
-		}
-		validationHelpersLog.Printf("Extracted single %s: %s", fieldName, v)
-		return []string{v}
-	case []string:
-		// Already a string slice
-		if len(v) == 0 {
-			return nil
-		}
-		validationHelpersLog.Printf("Extracted %d %s: %v", len(v), fieldName, v)
-		return v
-	case []any:
-		// Array of any - extract strings
-		var result []string
-		for _, item := range v {
-			if str, ok := item.(string); ok && str != "" {
-				result = append(result, str)
-			}
-		}
-		if len(result) == 0 {
-			return nil
-		}
-		validationHelpersLog.Printf("Extracted %d %s from array: %v", len(result), fieldName, result)
-		return result
-	}
-	validationHelpersLog.Printf("No valid %s found or unsupported type: %T", fieldName, value)
-	return nil
 }
 
 // validateNoDuplicateIDs checks that all items have unique IDs extracted by idFunc.

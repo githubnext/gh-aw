@@ -12,6 +12,9 @@ var prLog = logger.New("workflow:pr")
 // ShouldGeneratePRCheckoutStep returns true if the checkout-pr step should be generated
 // based on the workflow permissions. The step requires contents read access.
 func ShouldGeneratePRCheckoutStep(data *WorkflowData) bool {
+	if data.CachedPermissions != nil {
+		return data.CachedPermissions.HasContentsReadAccess()
+	}
 	permParser := NewPermissionsParser(data.Permissions)
 	return permParser.HasContentsReadAccess()
 }

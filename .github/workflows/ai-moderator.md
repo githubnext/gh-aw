@@ -160,7 +160,7 @@ Use the cache memory at `/tmp/gh-aw/cache-memory/` to track spam activity across
 
 ### Reading the Spam Log
 
-At the start of your analysis, read the spam log file at `/tmp/gh-aw/cache-memory/spam-log.json` (it may not exist on the first run). The file contains an array of spam events:
+At the start of your analysis, try to read the spam log file at `/tmp/gh-aw/cache-memory/spam-log.json`. This file may not exist (it is absent on the first run or whenever the 24-hour cache has expired) — if it is missing, proceed with an empty array and **do not** call `missing_data`. The file contains an array of spam events:
 
 ```json
 [

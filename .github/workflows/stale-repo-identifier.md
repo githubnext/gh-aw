@@ -26,9 +26,10 @@ timeout-minutes: 45
 
 imports:
   - shared/github-guard-policy.md
+  - uses: shared/daily-audit-charts.md
+    with:
+      title-prefix: "[stale-repo-identifier] "
   - shared/jqschema.md
-  - shared/trending-charts-simple.md
-  - shared/reporting.md
 
 network:
   allowed:
@@ -65,7 +66,7 @@ tools:
       - issues
       - pull_requests
   cache-memory:
-    key: stale-repos-analysis-${{ github.workflow }}-${{ github.run_id }}
+    key: stale-repos-analysis-${{ github.workflow }}
   bash:
     - "*"
   edit:
@@ -75,7 +76,7 @@ env:
   ORGANIZATION: ${{ github.event.inputs.organization || 'github' }}
 
 steps:
-  - name: Run stale-repos tool
+  - name: Run stale-repos
     id: stale-repos
     uses: github/stale-repos@v9.0.8
     env:

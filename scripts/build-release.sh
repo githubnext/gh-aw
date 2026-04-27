@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Custom build script for gh-extension-precompile to set version correctly
 # This script is called during the release process to build binaries with proper version info
 set -e

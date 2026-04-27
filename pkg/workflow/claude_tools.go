@@ -12,6 +12,35 @@ import (
 
 var claudeToolsLog = logger.New("workflow:claude_tools")
 
+// hasBashWildcardInTools returns true when the neutral tools map grants unrestricted
+// bash access — either because bash is not a list (e.g. bash: true) or because the
+// list contains a "*" or ":*" wildcard entry.
+//
+// When bash is unrestricted the agent can already reach any tool via the shell, so
+// --permission-mode bypassPermissions is safe and produces a smoother headless
+// experience than acceptEdits (which can stall on some non-file-edit permission
+// requests that do not match the acceptEdits auto-approval pattern).
+func hasBashWildcardInTools(tools map[string]any) bool {
+	if tools == nil {
+		return false
+	}
+	bashVal, hasBash := tools["bash"]
+	if !hasBash {
+		return false
+	}
+	// bash: true (non-list value) means unrestricted bash
+	bashCommands, ok := bashVal.([]any)
+	if !ok {
+		return true
+	}
+	for _, cmd := range bashCommands {
+		if cmdStr, ok := cmd.(string); ok && (cmdStr == "*" || cmdStr == ":*") {
+			return true
+		}
+	}
+	return false
+}
+
 // expandNeutralToolsToClaudeTools converts neutral tool names to Claude-specific tool configurations
 func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map[string]any {
 	claudeToolsLog.Printf("Starting neutral tools expansion: input_tools=%d", len(tools))
@@ -128,7 +157,12 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 // 2. converts neutral tools to Claude-specific tools format
 // 3. adds default Claude tools and git commands based on safe outputs configuration
 // 4. generates the allowed tools string for Claude
-func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, safeOutputs *SafeOutputsConfig, cacheMemoryConfig *CacheMemoryConfig) string {
+//
+// System MCP servers (safeoutputs, mcpscripts, agenticworkflows) are not present in the
+// user-visible tools map but must be explicitly added to --allowed-tools when
+// --permission-mode acceptEdits is in use, because acceptEdits actually enforces the
+// allowlist (unlike bypassPermissions which silently ignores it).
+func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, safeOutputs *SafeOutputsConfig, cacheMemoryConfig *CacheMemoryConfig, mcpScripts *MCPScriptsConfig) string {
 	claudeToolsLog.Print("Computing allowed Claude tools string")
 
 	// Initialize tools map if nil
@@ -266,17 +300,11 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 		} else {
 			// Handle cache-memory as a special case - it provides file system access but no MCP tool
 			if toolName == "cache-memory" {
-				// Cache-memory provides file share access
-				// Default cache uses /tmp/gh-aw/cache-memory/, others use /tmp/gh-aw/cache-memory-{id}/
-				// Add path-specific Read and Write tools for each cache directory
+				// Add path-specific Read/Write/Edit/MultiEdit tools for each cache directory.
+				// Pattern: {cacheDir}/* grants access to all files within the directory.
 				if cacheMemoryConfig != nil {
 					for _, cache := range cacheMemoryConfig.Caches {
-						var cacheDirPattern string
-						if cache.ID == "default" {
-							cacheDirPattern = "/tmp/gh-aw/cache-memory/*"
-						} else {
-							cacheDirPattern = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s/*", cache.ID)
-						}
+						cacheDirPattern := cacheMemoryDirFor(cache.ID) + "/*"
 
 						// Add path-specific tools for cache directory access
 						if !slices.Contains(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern)) {
@@ -293,6 +321,13 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 						}
 					}
 				}
+				continue
+			}
+
+			// agentic-workflows is a known system MCP server whose tool value is a bool (enabled flag),
+			// not a map. Handle it before the generic map check so it does not fall through silently.
+			if toolName == "agentic-workflows" {
+				allowedTools = append(allowedTools, "mcp__"+string(constants.AgenticWorkflowsMCPServerID))
 				continue
 			}
 
@@ -365,14 +400,24 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 								}
 							}
 						}
+					} else {
+						// No explicit allowed list: default to granting access to all tools from this
+						// MCP server. The user explicitly added the server in their workflow, so they
+						// intend to use its tools. Server-side restrictions still apply.
+						allowedTools = append(allowedTools, "mcp__"+toolName)
 					}
 				}
 			}
 		}
 	}
 
-	// Handle SafeOutputs requirement for file write access
+	// Handle SafeOutputs: grant access to all safe-outputs MCP tools and Write permission.
+	// The safeoutputs MCP server is started whenever safe-outputs is configured; with
+	// --permission-mode acceptEdits its tools must be explicitly listed in --allowed-tools
+	// (unlike bypassPermissions which silently ignores the allowlist).
 	if safeOutputs != nil {
+		allowedTools = append(allowedTools, "mcp__"+string(constants.SafeOutputsMCPServerID))
+
 		// Check if a general "Write" permission is already granted
 		hasGeneralWrite := slices.Contains(allowedTools, "Write")
 
@@ -384,6 +429,13 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 			// to be working with Claude. See https://github.com/github/gh-aw/issues/244#issuecomment-3240319103
 			//allowedTools = append(allowedTools, "Write(${{ env.GH_AW_SAFE_OUTPUTS }})")
 		}
+	}
+
+	// Handle MCPScripts: grant access to all mcpscripts MCP tools.
+	// The mcpscripts server is started when mcp-scripts tools are configured; with
+	// --permission-mode acceptEdits its tools must be explicitly listed in --allowed-tools.
+	if HasMCPScripts(mcpScripts) {
+		allowedTools = append(allowedTools, "mcp__"+string(constants.MCPScriptsMCPServerID))
 	}
 
 	// Sort the allowed tools alphabetically for consistent output
@@ -405,10 +457,27 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 		return ""
 	}
 
+	// Pre-size the builder using the exact output size:
+	//   - header line:  indent + "# Allowed tools (sorted):\n"
+	//   - per tool:     indent + "# - " + toolName + "\n"
+	// allowedToolsStr is comma-separated, so subtracting (len(tools)-1) gives the
+	// total bytes contributed by tool names alone.
+	toolNameBytes := len(allowedToolsStr) - (len(tools) - 1)
 	var comment strings.Builder
-	comment.WriteString(indent + "# Allowed tools (sorted):\n")
+	comment.Grow(
+		len(indent) +
+			len("# Allowed tools (sorted):\n") +
+			len(tools)*len(indent) +
+			len(tools)*len("# - \n") +
+			toolNameBytes,
+	)
+	comment.WriteString(indent)
+	comment.WriteString("# Allowed tools (sorted):\n")
 	for _, tool := range tools {
-		fmt.Fprintf(&comment, "%s# - %s\n", indent, tool)
+		comment.WriteString(indent)
+		comment.WriteString("# - ")
+		comment.WriteString(tool)
+		comment.WriteByte('\n')
 	}
 
 	return comment.String()

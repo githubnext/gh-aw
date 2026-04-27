@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +24,6 @@ func TestCrushEngine(t *testing.T) {
 		assert.False(t, engine.SupportsToolsAllowlist(), "Should not support tools allowlist")
 		assert.False(t, engine.SupportsMaxTurns(), "Should not support max turns")
 		assert.False(t, engine.SupportsWebSearch(), "Should not support built-in web search")
-		assert.Equal(t, constants.CrushLLMGatewayPort, engine.SupportsLLMGateway(), "Should support LLM gateway on port 10004")
 	})
 
 	t.Run("model env var name", func(t *testing.T) {
@@ -40,6 +38,34 @@ func TestCrushEngine(t *testing.T) {
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
 		assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN", "Should require COPILOT_GITHUB_TOKEN for Copilot routing")
+	})
+
+	t.Run("required secrets with anthropic model", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test",
+			EngineConfig: &EngineConfig{
+				Model: "anthropic/claude-sonnet-4-20250514",
+			},
+			ParsedTools: &ToolsConfig{},
+			Tools:       map[string]any{},
+		}
+		secrets := engine.GetRequiredSecretNames(workflowData)
+		assert.Contains(t, secrets, "ANTHROPIC_API_KEY", "Should require ANTHROPIC_API_KEY for anthropic/* models")
+		assert.NotContains(t, secrets, "COPILOT_GITHUB_TOKEN", "Should not require COPILOT_GITHUB_TOKEN for anthropic/* models")
+	})
+
+	t.Run("required secrets with openai model", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test",
+			EngineConfig: &EngineConfig{
+				Model: "openai/gpt-4.1",
+			},
+			ParsedTools: &ToolsConfig{},
+			Tools:       map[string]any{},
+		}
+		secrets := engine.GetRequiredSecretNames(workflowData)
+		assert.Contains(t, secrets, "CODEX_API_KEY", "Should require CODEX_API_KEY for openai/* models")
+		assert.Contains(t, secrets, "OPENAI_API_KEY", "Should require OPENAI_API_KEY for openai/* models")
 	})
 
 	t.Run("required secrets with copilot-requests feature", func(t *testing.T) {
@@ -332,7 +358,9 @@ func TestCrushEngineExecution(t *testing.T) {
 
 		assert.Contains(t, configContent, "Write Crush Config", "First step should be Write Crush Config")
 		assert.Contains(t, configContent, ".crush.json", "Config step should reference .crush.json")
-		assert.Contains(t, configContent, "permissions", "Config step should set permissions")
+		assert.Contains(t, configContent, `"permission"`, "Config step should use 'permission' (singular, not 'permissions')")
+		assert.Contains(t, configContent, `"external_directory":"allow"`, "Config step should allow external_directory for non-interactive CI")
+		assert.NotContains(t, configContent, `"permissions"`, "Config step must NOT use 'permissions' (plural) — silently ignored by OpenCode)")
 		assert.Contains(t, execContent, "Execute Crush CLI", "Second step should be Execute Crush CLI")
 	})
 }
@@ -360,7 +388,7 @@ func TestCrushEngineFirewallIntegration(t *testing.T) {
 		assert.Contains(t, stepContent, "awf", "Should use AWF when firewall is enabled")
 		assert.Contains(t, stepContent, "--allow-domains", "Should include allow-domains flag")
 		assert.Contains(t, stepContent, "--enable-api-proxy", "Should include --enable-api-proxy flag")
-		assert.Contains(t, stepContent, "OPENAI_BASE_URL: http://host.docker.internal:10004", "Should set OPENAI_BASE_URL to LLM gateway URL")
+		assert.Contains(t, stepContent, "GITHUB_COPILOT_BASE_URL: http://host.docker.internal:10002", "Should route copilot/* fallback through Copilot LLM gateway URL")
 	})
 
 	t.Run("firewall enabled adds mounted MCP CLI path setup", func(t *testing.T) {

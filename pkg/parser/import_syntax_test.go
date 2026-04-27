@@ -16,71 +16,71 @@ func TestParseImportDirective(t *testing.T) {
 		wantOptional bool
 		wantLegacy   bool
 	}{
-		// New syntax tests
+		// Deprecated {{#import}} syntax tests (all forms are now legacy)
 		{
-			name:         "new syntax - basic import",
+			name:         "deprecated - basic import",
 			input:        "{{#import: shared/tools.md}}",
 			wantMatch:    true,
 			wantPath:     "shared/tools.md",
 			wantOptional: false,
-			wantLegacy:   false,
+			wantLegacy:   true,
 		},
 		{
-			name:         "new syntax - optional import",
+			name:         "deprecated - optional import",
 			input:        "{{#import?: shared/tools.md}}",
 			wantMatch:    true,
 			wantPath:     "shared/tools.md",
 			wantOptional: true,
-			wantLegacy:   false,
+			wantLegacy:   true,
 		},
 		{
-			name:         "new syntax - with extra spaces",
+			name:         "deprecated - with extra spaces",
 			input:        "{{#import:   shared/tools.md  }}",
 			wantMatch:    true,
 			wantPath:     "shared/tools.md",
 			wantOptional: false,
-			wantLegacy:   false,
+			wantLegacy:   true,
 		},
 		{
-			name:         "new syntax - with section",
+			name:         "deprecated - with section",
 			input:        "{{#import: shared/tools.md#Security}}",
 			wantMatch:    true,
 			wantPath:     "shared/tools.md#Security",
 			wantOptional: false,
-			wantLegacy:   false,
+			wantLegacy:   true,
 		},
 		{
-			name:         "new syntax - optional with section",
+			name:         "deprecated - optional with section",
 			input:        "{{#import?: shared/tools.md#Security}}",
 			wantMatch:    true,
 			wantPath:     "shared/tools.md#Security",
 			wantOptional: true,
-			wantLegacy:   false,
+			wantLegacy:   true,
 		},
-		// New syntax without colon tests
+		// Deprecated {{#import}} syntax without colon tests
 		{
-			name:         "new syntax - basic import without colon",
+			name:         "deprecated - basic import without colon",
 			input:        "{{#import shared/tools.md}}",
 			wantMatch:    true,
 			wantPath:     "shared/tools.md",
 			wantOptional: false,
-			wantLegacy:   false,
+			wantLegacy:   true,
 		},
 		{
-			name:         "new syntax - optional import without colon",
+			name:         "deprecated - optional import without colon",
 			input:        "{{#import? shared/tools.md}}",
 			wantMatch:    true,
 			wantPath:     "shared/tools.md",
 			wantOptional: true,
-			wantLegacy:   false,
+			wantLegacy:   true,
 		},
 		{
-			name:         "new syntax - with section without colon",
+			name:         "deprecated - with section without colon",
 			input:        "{{#import shared/tools.md#Security}}",
 			wantMatch:    true,
 			wantPath:     "shared/tools.md#Security",
 			wantOptional: false,
-			wantLegacy:   false,
+			wantLegacy:   true,
 		},
 		// Legacy syntax tests
 		{

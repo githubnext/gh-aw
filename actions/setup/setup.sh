@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Setup Action
 # Copies activation job files to the agent environment
 #
@@ -280,6 +282,7 @@ SAFE_OUTPUTS_FILES=(
   "safe_outputs_tools_loader.cjs"
   "safe_outputs_config.cjs"
   "safe_outputs_handlers.cjs"
+  "allowed_extensions_helpers.cjs"
   "safe_outputs_append.cjs"
   "mcp_server_core.cjs"
   "mcp_logger.cjs"
@@ -301,6 +304,7 @@ SAFE_OUTPUTS_FILES=(
   "estimate_tokens.cjs"
   "generate_git_patch.cjs"
   "generate_git_bundle.cjs"
+  "git_patch_utils.cjs"
   "get_base_branch.cjs"
   "get_current_branch.cjs"
   "normalize_branch_name.cjs"
@@ -322,6 +326,8 @@ SAFE_OUTPUTS_FILES=(
   "handler_auth.cjs"
   "missing_messages_helper.cjs"
   "firewall_blocked_domains.cjs"
+  "render_template.cjs"
+  "is_truthy.cjs"
   "gateway_difc_filtered.cjs"
   "missing_info_formatter.cjs"
   "sanitize_content_core.cjs"

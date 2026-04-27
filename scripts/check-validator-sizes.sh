@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # check-validator-sizes.sh - Enforce the 512-line hard limit on validator files
 #
 # This script finds any *_validation.go file that exceeds the limit and reports it.

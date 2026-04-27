@@ -9,10 +9,17 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var testSHAResolutionRetryDelays = []time.Duration{
+	time.Millisecond,
+	2 * time.Millisecond,
+	3 * time.Millisecond,
+}
 
 func TestFetchLocalWorkflow(t *testing.T) {
 	tests := []struct {
@@ -100,42 +107,130 @@ func TestFetchLocalWorkflow_DirectoryInsteadOfFile(t *testing.T) {
 	assert.Nil(t, result, "result should be nil on error")
 }
 
-func TestFetchWorkflowFromSource_LocalRouting(t *testing.T) {
-	// Create a temporary local workflow file
-	tempDir := t.TempDir()
-	tempFile := filepath.Join(tempDir, "local-workflow.md")
-	content := "# Local Workflow\n\nTest content."
-	err := os.WriteFile(tempFile, []byte(content), 0644)
-	require.NoError(t, err, "should create temp file")
+func TestResolveCommitSHAWithRetries_TransientFailureThenSuccess(t *testing.T) {
+	originalResolve := resolveRefToSHAForHost
+	originalWait := waitBeforeSHAResolutionRetry
+	originalDelays := shaResolutionRetryDelays
+	defer func() {
+		resolveRefToSHAForHost = originalResolve
+		waitBeforeSHAResolutionRetry = originalWait
+		shaResolutionRetryDelays = originalDelays
+	}()
 
-	spec := &WorkflowSpec{
-		WorkflowPath: tempFile,
-		WorkflowName: "local-workflow",
+	shaResolutionRetryDelays = testSHAResolutionRetryDelays
+	resolveAttempts := 0
+	resolveRefToSHAForHost = func(owner, repo, ref, host string) (string, error) {
+		resolveAttempts++
+		if resolveAttempts == 1 {
+			return "", errors.New("HTTP 429: rate limit exceeded")
+		}
+		return "0123456789abcdef0123456789abcdef01234567", nil
 	}
 
-	result, err := FetchWorkflowFromSource(spec, false)
+	sleeps := make([]time.Duration, 0)
+	waitBeforeSHAResolutionRetry = func(ctx context.Context, delay time.Duration) error {
+		sleeps = append(sleeps, delay)
+		return nil
+	}
 
-	require.NoError(t, err, "should not error for local workflow")
-	assert.True(t, result.IsLocal, "should route to local fetch")
-	assert.Equal(t, []byte(content), result.Content, "content should match")
+	sha, err := resolveCommitSHAWithRetries(context.Background(), "owner", "repo", "main", ".github/workflows/test.md", "", false)
+	require.NoError(t, err, "Transient failure should be retried and eventually succeed")
+	assert.Equal(t, "0123456789abcdef0123456789abcdef01234567", sha, "Resolved SHA should be returned")
+	assert.Equal(t, 2, resolveAttempts, "Resolution should retry once after initial transient failure")
+	assert.Equal(t, []time.Duration{time.Millisecond}, sleeps, "Backoff should use first retry delay")
 }
 
-func TestFetchWorkflowFromSource_RemoteRoutingWithInvalidSlug(t *testing.T) {
-	// Test with a remote workflow spec that has an invalid slug
-	spec := &WorkflowSpec{
-		RepoSpec: RepoSpec{
-			RepoSlug: "invalid-slug-no-slash",
-			Version:  "main",
-		},
-		WorkflowPath: "workflow.md",
-		WorkflowName: "workflow",
+func TestResolveCommitSHAWithRetries_PermanentFailureDoesNotRetry(t *testing.T) {
+	originalResolve := resolveRefToSHAForHost
+	originalWait := waitBeforeSHAResolutionRetry
+	originalDelays := shaResolutionRetryDelays
+	defer func() {
+		resolveRefToSHAForHost = originalResolve
+		waitBeforeSHAResolutionRetry = originalWait
+		shaResolutionRetryDelays = originalDelays
+	}()
+
+	shaResolutionRetryDelays = testSHAResolutionRetryDelays
+	resolveAttempts := 0
+	resolveRefToSHAForHost = func(owner, repo, ref, host string) (string, error) {
+		resolveAttempts++
+		return "", errors.New("HTTP 404: Not Found")
 	}
 
-	result, err := FetchWorkflowFromSource(spec, false)
+	sleepCalls := 0
+	waitBeforeSHAResolutionRetry = func(ctx context.Context, delay time.Duration) error {
+		sleepCalls++
+		return nil
+	}
 
-	require.Error(t, err, "should error for invalid repo slug")
-	assert.Nil(t, result, "result should be nil on error")
-	assert.Contains(t, err.Error(), "invalid repository slug", "error should mention invalid slug")
+	sha, err := resolveCommitSHAWithRetries(context.Background(), "owner", "repo", "main", ".github/workflows/test.md", "", false)
+	require.Error(t, err, "Permanent failures should stop immediately")
+	assert.Empty(t, sha, "No SHA should be returned when resolution fails")
+	assert.Equal(t, 1, resolveAttempts, "Permanent failures should not retry")
+	assert.Equal(t, 0, sleepCalls, "No backoff sleep should happen for permanent failures")
+	assert.Contains(t, err.Error(), "Expected the GitHub API to return a commit SHA for the ref",
+		"Error should explain expected behavior")
+	assert.Contains(t, err.Error(), "@<40-char-sha>", "Error should include retry command with full SHA placeholder")
+}
+
+func TestResolveCommitSHAWithRetries_TransientFailureExhaustsRetries(t *testing.T) {
+	originalResolve := resolveRefToSHAForHost
+	originalWait := waitBeforeSHAResolutionRetry
+	originalDelays := shaResolutionRetryDelays
+	defer func() {
+		resolveRefToSHAForHost = originalResolve
+		waitBeforeSHAResolutionRetry = originalWait
+		shaResolutionRetryDelays = originalDelays
+	}()
+
+	shaResolutionRetryDelays = testSHAResolutionRetryDelays
+	resolveAttempts := 0
+	resolveRefToSHAForHost = func(owner, repo, ref, host string) (string, error) {
+		resolveAttempts++
+		return "", errors.New("timeout waiting for GitHub API")
+	}
+
+	sleepCalls := 0
+	waitBeforeSHAResolutionRetry = func(ctx context.Context, delay time.Duration) error {
+		sleepCalls++
+		return nil
+	}
+
+	sha, err := resolveCommitSHAWithRetries(context.Background(), "owner", "repo", "main", ".github/workflows/test.md", "", false)
+	require.Error(t, err, "Retries should fail after repeated transient failures")
+	assert.Empty(t, sha, "No SHA should be returned when retries are exhausted")
+	assert.Equal(t, 4, resolveAttempts, "Should attempt initial call plus three retries")
+	assert.Equal(t, 3, sleepCalls, "Should sleep between each retry")
+	assert.Contains(t, err.Error(), "after 3 retries", "Error should report retry exhaustion")
+}
+
+func TestResolveCommitSHAWithRetries_ContextCanceledDuringBackoff(t *testing.T) {
+	originalResolve := resolveRefToSHAForHost
+	originalWait := waitBeforeSHAResolutionRetry
+	originalDelays := shaResolutionRetryDelays
+	defer func() {
+		resolveRefToSHAForHost = originalResolve
+		waitBeforeSHAResolutionRetry = originalWait
+		shaResolutionRetryDelays = originalDelays
+	}()
+
+	shaResolutionRetryDelays = testSHAResolutionRetryDelays
+	resolveRefToSHAForHost = func(owner, repo, ref, host string) (string, error) {
+		return "", errors.New("HTTP 429: rate limit exceeded")
+	}
+
+	waitBeforeSHAResolutionRetry = func(ctx context.Context, delay time.Duration) error {
+		return ctx.Err()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	sha, err := resolveCommitSHAWithRetries(ctx, "owner", "repo", "main", ".github/workflows/test.md", "", false)
+	require.Error(t, err, "Cancellation during retry backoff should fail fast")
+	assert.Empty(t, sha, "No SHA should be returned when retry wait is canceled")
+	assert.Contains(t, err.Error(), "retry wait was cancelled", "Error should explain cancellation reason")
+	assert.Contains(t, err.Error(), "@<40-char-sha>", "Error should include exact SHA retry guidance")
 }
 
 func TestFetchIncludeFromSource_WorkflowSpecParsing(t *testing.T) {

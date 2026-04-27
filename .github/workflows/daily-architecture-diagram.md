@@ -53,13 +53,13 @@ Before doing any work, check cache-memory for a file named `architecture-state.j
 
 1. Read `architecture-state.json` from cache-memory. It contains:
    - `last_commit`: the last analyzed commit SHA
-   - `last_diagram`: the previously generated ASCII diagram
    - `package_map`: a JSON object mapping each package path to its description and layer
 2. Run `git log --oneline <last_commit>..HEAD --name-only` to get the list of files changed since the last run.
-3. If **no Go files** (`.go`) changed AND no new directories were added under `pkg/` or `cmd/`:
+3. Check whether `scratchpad/architecture.md` exists and contains diagram content (look for a code block with ASCII art).
+4. If **no Go files** (`.go`) changed AND no new directories were added under `pkg/` or `cmd/` AND `scratchpad/architecture.md` exists with diagram content:
    - Call the `noop` safe output with message: "No structural changes since last run (last commit: `<last_commit>`). Architecture diagram is still current."
    - **Stop here.**
-4. Otherwise, focus your analysis **only on the changed packages** — re-analyze those and merge the updates into the cached `package_map`.
+5. Otherwise, focus your analysis **only on the changed packages** — re-analyze those and merge the updates into the cached `package_map`.
 
 ### If the cache file does NOT exist:
 
@@ -145,7 +145,6 @@ After generating the diagram, write an updated `architecture-state.json` to cach
 ```json
 {
   "last_commit": "<current HEAD SHA>",
-  "last_diagram": "<the full ASCII diagram text>",
   "package_map": {
     "cli": { "description": "Command implementations", "layer": "core" },
     "workflow": { "description": "Workflow compilation", "layer": "core" }

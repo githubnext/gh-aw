@@ -40,6 +40,7 @@ The `on:` section uses standard GitHub Actions syntax to define workflow trigger
 - `skip-if-no-match:` - Skip execution when a search query has no matches (supports `scope: none`; use top-level `on.github-token` / `on.github-app` for custom auth)
 - `steps:` - Inject custom deterministic steps into the pre-activation job (saves one workflow job vs. multi-job pattern)
 - `permissions:` - Grant additional GitHub token scopes to the pre-activation job (for use with `on.steps:` API calls)
+- `needs:` - Add custom job dependencies that both `pre_activation` and `activation` must wait for
 - `github-token:` - Custom token for activation job reactions, status comments, and skip-if search queries
 - `github-app:` - GitHub App for minting a short-lived token used by the activation job and all skip-if search steps
 
@@ -438,25 +439,26 @@ Debug workflow using script mode for custom actions.
 
 **Note:** The `action-mode` can also be overridden via the CLI flag `--action-mode` or the environment variable `GH_AW_ACTION_MODE`. The precedence is: CLI flag > feature flag > environment variable > auto-detection.
 
-#### Copilot BYOK Mode (`features.byok-copilot`)
+#### Copilot BYOK Mode (Default for `engine: copilot`)
 
-Enables Copilot offline Bring Your Own Key (BYOK) mode with a single flag, bundling three required behaviors: injecting a dummy `COPILOT_API_KEY` to trigger the AWF BYOK runtime path, implicitly enabling `cli-proxy`, and forcing the Copilot CLI to install at `latest` (ignoring any pinned `engine.version`).
+Copilot offline Bring Your Own Key (BYOK) behavior is now the default for `engine: copilot`, bundling four behaviors:
 
-```yaml wrap
-engine: copilot
-features:
-  byok-copilot: true
-```
+1. Injecting a dummy `COPILOT_API_KEY` to trigger the AWF BYOK runtime path.
+2. Implicitly enabling `cli-proxy`.
+3. Forcing the Copilot CLI to install at `latest` (ignoring any pinned `engine.version`).
+4. Setting `COPILOT_MODEL` to `${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}` — Copilot BYOK providers require a non-empty model, so the compiler provides `claude-sonnet-4.6` as the fallback when `GH_AW_MODEL_AGENT_COPILOT` is not set.
 
-Without this flag, BYOK mode requires manual composition of all three behaviors. With `byok-copilot: true`, the compiler handles the wiring automatically.
+No feature flag is required.
+
+To use a different model, set the `GH_AW_MODEL_AGENT_COPILOT` repository variable. The compiled workflow uses `${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}` for `COPILOT_MODEL`.
 
 > [!IMPORTANT]
-> `byok-copilot` is a gh-aw convenience extension point, not an enforcement boundary. gh-aw does not enforce Copilot BYOK usage.
+> `features.byok-copilot` is deprecated and no longer needed. Existing workflows may still include it, but it has no effect.
 >
 > For Copilot BYOK setup and policy details, see [Using your LLM provider API keys with Copilot](https://docs.github.com/en/copilot/how-tos/administer-copilot/manage-for-enterprise/use-your-own-api-keys).
  
 > [!NOTE]
-> `byok-copilot` applies only to `engine: copilot` workflows. The implicit `cli-proxy` enablement does not apply to other engines.
+> Copilot BYOK defaults apply only to `engine: copilot` workflows. Other engines are unchanged.
 
 #### AWF Failure Diagnostics (`features.awf-diagnostic-logs`)
 
@@ -686,7 +688,7 @@ Custom steps run outside the firewall sandbox. These steps execute with standard
 
 ## Pre-Agent Steps (`pre-agent-steps:`)
 
-Add custom steps immediately before the agent execution step, after all initialization/setup logic in the agent job.
+Add custom steps before MCP gateway startup in the agent job so prerequisite MCP installation/configuration can happen first.
 
 ```yaml wrap
 pre-agent-steps:
@@ -829,6 +831,71 @@ cache:
   restore-keys: |
     node-modules-
 ```
+
+## Observability (`observability:`)
+
+The `observability.otlp` field exports distributed traces from workflow runs to any [OpenTelemetry](https://opentelemetry.io/) Protocol (OTLP) compatible backend such as Honeycomb, Grafana Tempo, or Sentry.
+
+```yaml wrap
+observability:
+  otlp:
+    endpoint: ${{ secrets.OTLP_ENDPOINT }}
+    headers:
+      Authorization: ${{ secrets.OTLP_TOKEN }}
+      X-Tenant: my-org
+```
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `observability.otlp.endpoint` | string | OTLP/HTTP collector endpoint URL (e.g. `https://traces.example.com:4318`). Supports GitHub Actions expressions. When a static URL is provided, its hostname is automatically added to the network firewall allowlist. |
+| `observability.otlp.headers` | map or string | HTTP headers sent with every OTLP export request. |
+
+### `observability.otlp.headers`
+
+The `headers` field accepts two forms:
+
+**Map form (preferred)** — define each header as a key/value pair:
+
+```yaml wrap
+observability:
+  otlp:
+    endpoint: ${{ secrets.OTLP_ENDPOINT }}
+    headers:
+      Authorization: ${{ secrets.OTLP_TOKEN }}
+      X-Tenant: acme
+```
+
+**String form (deprecated)** — comma-separated `key=value` pairs. Use the map form instead:
+
+```yaml wrap
+observability:
+  otlp:
+    endpoint: ${{ secrets.OTLP_ENDPOINT }}
+    headers: "Authorization=${{ secrets.OTLP_TOKEN }},X-Tenant=acme"
+```
+
+> [!NOTE]
+> Using the string form emits a deprecation warning. Migrate to the map form to suppress it.
+
+### Agent span attributes
+
+The agent span (`gh-aw.agent.agent`) uses [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) and is emitted as a `SPAN_KIND_CLIENT` span. The following attributes are set on the agent span:
+
+| Attribute | Description |
+|-----------|-------------|
+| `gen_ai.request.model` | Model name used for inference |
+| `gen_ai.operation.name` | Always `"chat"` |
+| `gen_ai.provider.name` | Engine identifier (e.g. `copilot`, `claude`) |
+| `gen_ai.workflow.name` | Workflow name |
+| `gen_ai.usage.input_tokens` | Total input tokens consumed |
+| `gen_ai.usage.output_tokens` | Total output tokens produced |
+| `gen_ai.usage.cache_read.input_tokens` | Cache-read tokens reused |
+| `gen_ai.usage.cache_creation.input_tokens` | Cache-creation tokens written |
+
+> [!NOTE]
+> Prior to v0.70, the agent span used private `gh-aw.*` attribute names (`gh-aw.model`, `gh-aw.tokens.input`, etc.) and `SPAN_KIND_INTERNAL`. These attributes were removed and replaced with the `gen_ai.*` convention above. Update any dashboards or alert rules that reference the old attribute names.
 
 ## Related Documentation
 

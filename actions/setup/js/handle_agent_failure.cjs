@@ -3,8 +3,8 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
-const { getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
-const { renderTemplate, renderTemplateFromFile } = require("./messages_core.cjs");
+const { getDetectionCautionAlert, getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
+const { renderTemplate, renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
@@ -571,10 +571,10 @@ function loadMissingDataMessages() {
     const missingDataMessages = [];
     for (const item of agentOutputResult.items) {
       if (item.type === "missing_data") {
-        // Extract the fields we need
-        if (item.data_type && item.reason) {
+        // Accept items with at least a reason; data_type may be absent for cache-miss signals
+        if (item.reason) {
           missingDataMessages.push({
-            data_type: item.data_type,
+            data_type: item.data_type || "",
             reason: item.reason,
             context: item.context || null,
             alternatives: item.alternatives || null,
@@ -591,10 +591,13 @@ function loadMissingDataMessages() {
 }
 
 /**
- * Build missing_data context string for display in failure issues/comments
+ * Build missing_data context string for display in failure issues/comments.
+ * When cache-memory is enabled and a cache_miss is detected, appends a
+ * configuration-problem warning to the context.
+ * @param {boolean} cacheMemoryEnabled - Whether cache-memory is configured for this workflow
  * @returns {string} Formatted missing data context
  */
-function buildMissingDataContext() {
+function buildMissingDataContext(cacheMemoryEnabled) {
   const missingDataMessages = loadMissingDataMessages();
 
   if (missingDataMessages.length === 0) {
@@ -609,6 +612,15 @@ function buildMissingDataContext() {
   let context = "\n**⚠️ Missing Data Reported**: The agent reported missing data during execution.\n\n**Missing Data:**\n";
   context += formattedList;
   context += "\n\n";
+
+  // Detect cache_miss: if cache-memory is available and the agent reported a cache miss,
+  // this indicates the prompt is referencing an incorrect file path within the cache directory.
+  const hasCacheMiss = missingDataMessages.some(m => m.reason === "cache_memory_miss");
+  if (cacheMemoryEnabled && hasCacheMiss) {
+    core.info("Cache-miss detected despite cache-memory being available — likely a configuration problem");
+    const templatePath = getPromptPath("cache_memory_miss.md");
+    context += "\n" + renderTemplateFromFile(templatePath, {}) + "\n";
+  }
 
   return context;
 }
@@ -685,7 +697,7 @@ function buildTimeoutContext(isTimedOut, timeoutMinutes) {
   const currentMinutes = parseInt(timeoutMinutes || "20", 10);
   const suggestedMinutes = currentMinutes + 10;
 
-  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/agent_timeout.md`;
+  const templatePath = getPromptPath("agent_timeout.md");
   return "\n" + renderTemplateFromFile(templatePath, { current_minutes: currentMinutes, suggested_minutes: suggestedMinutes });
 }
 
@@ -699,7 +711,7 @@ function buildInferenceAccessErrorContext(hasInferenceAccessError) {
     return "";
   }
 
-  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/inference_access_error.md`;
+  const templatePath = getPromptPath("inference_access_error.md");
   const template = fs.readFileSync(templatePath, "utf8");
   return "\n" + template;
 }
@@ -715,7 +727,7 @@ function buildMCPPolicyErrorContext(hasMCPPolicyError) {
     return "";
   }
 
-  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/mcp_policy_error.md`;
+  const templatePath = getPromptPath("mcp_policy_error.md");
   try {
     const template = fs.readFileSync(templatePath, "utf8");
     return "\n" + template;
@@ -740,7 +752,7 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
     return "";
   }
 
-  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/model_not_supported_error.md`;
+  const templatePath = getPromptPath("model_not_supported_error.md");
   try {
     const template = fs.readFileSync(templatePath, "utf8");
     return "\n" + template;
@@ -778,7 +790,7 @@ function buildLockdownCheckFailedContext(hasLockdownCheckFailed) {
     return "";
   }
 
-  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/lockdown_check_failed.md`;
+  const templatePath = getPromptPath("lockdown_check_failed.md");
   const template = fs.readFileSync(templatePath, "utf8");
   return "\n" + template;
 }
@@ -795,7 +807,7 @@ function buildStaleLockFileFailedContext(hasStaleLockFileFailed) {
     return "";
   }
 
-  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/stale_lock_file_failed.md`;
+  const templatePath = getPromptPath("stale_lock_file_failed.md");
   const template = fs.readFileSync(templatePath, "utf8");
   return "\n" + template;
 }
@@ -825,7 +837,7 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
     }
   }
 
-  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/assign_copilot_to_created_issues_failure.md`;
+  const templatePath = getPromptPath("assign_copilot_to_created_issues_failure.md");
   return "\n" + renderTemplateFromFile(templatePath, { issues: issueList });
 }
 
@@ -903,7 +915,7 @@ function buildEngineFailureContext() {
       const hasCyberPolicyViolation = Array.from(errorMessages).some(msg => msg.includes("cyber_policy_violation"));
       if (hasCyberPolicyViolation) {
         core.info("Detected cyber_policy_violation error — using dedicated context message");
-        const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/cyber_policy_violation.md`;
+        const templatePath = getPromptPath("cyber_policy_violation.md");
         try {
           return "\n" + renderTemplateFromFile(templatePath, {});
         } catch {
@@ -1010,6 +1022,9 @@ async function main() {
     // stored in the compiled .lock.yml no longer matches the source .md file.
     // The agent is skipped in this case; the conclusion job runs to surface remediation guidance.
     const hasStaleLockFileFailed = process.env.GH_AW_STALE_LOCK_FILE_FAILED === "true";
+    // Cache-memory availability flag — set when cache-memory is configured for the workflow.
+    // Used to detect cache-miss misconfigurations reported by the agent.
+    const cacheMemoryEnabled = process.env.GH_AW_CACHE_MEMORY_ENABLED === "true";
 
     // Collect repo-memory validation errors from all memory configurations
     const repoMemoryValidationErrors = [];
@@ -1049,6 +1064,7 @@ async function main() {
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
     core.info(`Stale lock file check failed: ${hasStaleLockFileFailed}`);
+    core.info(`Cache memory enabled: ${cacheMemoryEnabled}`);
 
     // Check if the agent timed out.
     // A job-level timeout sets agentConclusion to "timed_out".
@@ -1121,10 +1137,25 @@ async function main() {
       }
     }
 
+    // Detect cache-miss misconfiguration: the agent reported a missing_data with reason
+    // "cache_memory_miss" while cache-memory was configured and available.  This indicates the
+    // prompt is referencing an incorrect path inside the cache directory.
+    // Check for items regardless of agentOutputResult.success so that cache-miss signals
+    // emitted alongside other output are not missed when the agent job also fails.
+    let hasCacheMissMisconfiguration = false;
+    if (cacheMemoryEnabled && agentOutputResult.items) {
+      const cacheMissItems = agentOutputResult.items.filter(item => item.type === "missing_data" && item.reason === "cache_memory_miss");
+      if (cacheMissItems.length > 0) {
+        hasCacheMissMisconfiguration = true;
+        core.info(`Cache-miss misconfiguration detected: ${cacheMissItems.length} missing_data item(s) with reason "cache_memory_miss" despite cache-memory being available`);
+      }
+    }
+
     // Only proceed if the agent job actually failed OR timed out OR there are assignment errors OR
     // create_discussion errors OR code-push failures OR push_repo_memory failed OR missing safe outputs
     // OR a GitHub App token minting step failed OR the lockdown check failed OR copilot assignment failed
-    // OR the stale lock file check failed OR the agent reported task incompletion via report_incomplete.
+    // OR the stale lock file check failed OR the agent reported task incompletion via report_incomplete
+    // OR a cache-miss was detected despite cache-memory being available (configuration problem).
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
     if (
       agentConclusion !== "failure" &&
@@ -1138,14 +1169,17 @@ async function main() {
       !hasAppTokenMintingFailed &&
       !hasLockdownCheckFailed &&
       !hasStaleLockFileFailed &&
-      !hasReportIncomplete
+      !hasReportIncomplete &&
+      !hasCacheMissMisconfiguration
     ) {
-      core.info(`Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/report-incomplete errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
+      core.info(
+        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/report-incomplete/cache-miss errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
+      );
       return;
     }
 
-    // If we only have noop outputs (and no report_incomplete), skip failure handling - this is a successful no-action scenario
-    if (hasOnlyNoopOutputs && !hasReportIncomplete) {
+    // If we only have noop outputs (and no report_incomplete or cache-miss), skip failure handling
+    if (hasOnlyNoopOutputs && !hasReportIncomplete && !hasCacheMissMisconfiguration) {
       core.info("Agent completed with only noop outputs - skipping failure handling");
       return;
     }
@@ -1229,7 +1263,7 @@ async function main() {
         core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
 
         // Read comment template
-        const commentTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/agent_failure_comment.md`;
+        const commentTemplatePath = getPromptPath("agent_failure_comment.md");
         const commentTemplate = fs.readFileSync(commentTemplatePath, "utf8");
 
         // Extract run ID from URL (e.g., https://github.com/owner/repo/actions/runs/123 -> "123")
@@ -1281,7 +1315,7 @@ async function main() {
         const pushRepoMemoryFailureContext = buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryPatchSizeExceededIDs, runUrl);
 
         // Build missing_data context
-        const missingDataContext = buildMissingDataContext();
+        const missingDataContext = buildMissingDataContext(cacheMemoryEnabled);
 
         // Build report_incomplete context
         const reportIncompleteContext = buildReportIncompleteContext();
@@ -1374,8 +1408,12 @@ async function main() {
         };
         const footer = getFooterAgentFailureCommentMessage(ctx);
 
+        // Prepend detection caution alert (when present) so it appears first in the comment body
+        const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+        const fullCommentBodyRaw = detectionCaution ? `${detectionCaution}\n\n${commentBody}\n\n${footer}` : `${commentBody}\n\n${footer}`;
+
         // Combine comment body with footer
-        const fullCommentBody = sanitizeContent(commentBody + "\n\n" + footer, { maxLength: 65000 });
+        const fullCommentBody = sanitizeContent(fullCommentBodyRaw, { maxLength: 65000 });
 
         await github.rest.issues.createComment({
           owner,
@@ -1390,7 +1428,7 @@ async function main() {
         core.info("No existing issue found, creating a new one");
 
         // Read issue template
-        const issueTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/agent_failure_issue.md`;
+        const issueTemplatePath = getPromptPath("agent_failure_issue.md");
         const issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
 
         // Get current branch information
@@ -1438,7 +1476,7 @@ async function main() {
         const pushRepoMemoryFailureContext = buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryPatchSizeExceededIDs, runUrl);
 
         // Build missing_data context
-        const missingDataContext = buildMissingDataContext();
+        const missingDataContext = buildMissingDataContext(cacheMemoryEnabled);
 
         // Build report_incomplete context
         const reportIncompleteContext = buildReportIncompleteContext();
@@ -1539,8 +1577,11 @@ async function main() {
           suffix: `\n\n${generateXMLMarker(workflowName, runUrl)}`,
         });
 
+        // Prepend detection caution alert (when present) so it appears first in the issue body
+        const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+
         // Combine issue body with footer
-        const bodyLines = [issueBodyContent, "", footerWithExpires];
+        const bodyLines = detectionCaution ? [detectionCaution, "", issueBodyContent, "", footerWithExpires] : [issueBodyContent, "", footerWithExpires];
         const issueBody = bodyLines.join("\n");
 
         const newIssue = await github.rest.issues.create({
@@ -1586,5 +1627,6 @@ module.exports = {
   buildReportIncompleteContext,
   buildMCPPolicyErrorContext,
   buildModelNotSupportedErrorContext,
+  buildMissingDataContext,
   getActionFailureIssueExpiresHours,
 };

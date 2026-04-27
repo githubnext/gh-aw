@@ -7,7 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.0.6
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.3
-	github.com/charmbracelet/x/exp/golden v0.0.0-20260413165052-6921c759c913
+	github.com/charmbracelet/x/exp/golden v0.0.0-20260422141420-a6cbdff8a7e2
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.9.0
@@ -24,7 +24,7 @@ require (
 	golang.org/x/crypto v0.50.0
 	golang.org/x/mod v0.35.0
 	golang.org/x/term v0.42.0
-	golang.org/x/vuln v1.2.0
+	golang.org/x/vuln v1.3.0
 )
 
 require (
@@ -93,9 +93,9 @@ require (
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 // indirect
-	go.opentelemetry.io/otel v1.39.0 // indirect
-	go.opentelemetry.io/otel/metric v1.39.0 // indirect
-	go.opentelemetry.io/otel/trace v1.39.0 // indirect
+	go.opentelemetry.io/otel v1.41.0 // indirect
+	go.opentelemetry.io/otel/metric v1.41.0 // indirect
+	go.opentelemetry.io/otel/trace v1.41.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.4 // indirect
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0 // indirect
@@ -103,7 +103,7 @@ require (
 	golang.org/x/oauth2 v0.35.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
-	golang.org/x/telemetry v0.0.0-20260409153401-be6f6cb8b1fa // indirect
+	golang.org/x/telemetry v0.0.0-20260421165255-392afab6f40e // indirect
 	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/tools v0.44.0 // indirect
 	google.golang.org/genai v1.50.0 // indirect

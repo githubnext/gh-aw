@@ -248,7 +248,7 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	containerImage := resolveProxyContainerImage(data.SandboxConfig.MCP)
 
 	var sb strings.Builder
-	sb.WriteString("      - name: Start DIFC proxy for pre-agent gh calls\n")
+	sb.WriteString("      - name: Start DIFC Proxy for pre-agent gh calls\n")
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_TOKEN: %s\n", effectiveToken)
 	sb.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
@@ -397,9 +397,9 @@ func (c *Compiler) generateStopDIFCProxyStep(yaml *strings.Builder, data *Workfl
 		return
 	}
 
-	difcProxyLog.Print("Generating Stop DIFC proxy step")
+	difcProxyLog.Print("Generating Stop DIFC Proxy step")
 
-	yaml.WriteString("      - name: Stop DIFC proxy\n")
+	yaml.WriteString("      - name: Stop DIFC Proxy\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
 	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh\"\n")
@@ -408,14 +408,14 @@ func (c *Compiler) generateStopDIFCProxyStep(yaml *strings.Builder, data *Workfl
 // isCliProxyNeeded returns true if the CLI proxy should be started on the host.
 //
 // The CLI proxy is needed when:
-//  1. The cli-proxy feature flag is enabled (explicitly or implicitly), and
+//  1. tools.github.mode is set to gh-proxy (or legacy cli-proxy behavior is enabled), and
 //  2. The AWF sandbox (firewall) is enabled, and
 //  3. The AWF version supports CLI proxy flags
 //
 // The cli-proxy feature is implicitly enabled when integrity-reactions is enabled,
 // because reaction-based integrity decisions require the proxy to identify reaction authors.
 func isCliProxyNeeded(data *WorkflowData) bool {
-	cliProxyEnabled := isFeatureEnabled(constants.CliProxyFeatureFlag, data)
+	cliProxyEnabled := isGitHubCLIModeEnabled(data)
 	integrityReactionsEnabled := isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, data)
 
 	if !cliProxyEnabled && !integrityReactionsEnabled {
@@ -485,7 +485,7 @@ func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
 	containerImage := resolveProxyContainerImage(data.SandboxConfig.MCP)
 
 	var sb strings.Builder
-	sb.WriteString("      - name: Start CLI proxy\n")
+	sb.WriteString("      - name: Start CLI Proxy\n")
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_TOKEN: %s\n", effectiveToken)
 	sb.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
@@ -508,9 +508,9 @@ func (c *Compiler) generateStopCliProxyStep(yaml *strings.Builder, data *Workflo
 		return
 	}
 
-	difcProxyLog.Print("Generating Stop CLI proxy step")
+	difcProxyLog.Print("Generating Stop CLI Proxy step")
 
-	yaml.WriteString("      - name: Stop CLI proxy\n")
+	yaml.WriteString("      - name: Stop CLI Proxy\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
 	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/stop_cli_proxy.sh\"\n")

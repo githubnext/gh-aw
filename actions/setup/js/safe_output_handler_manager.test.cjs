@@ -1,7 +1,8 @@
 // @ts-check
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { loadConfig, loadHandlers, processMessages } from "./safe_output_handler_manager.cjs";
+import fs from "fs";
+import { loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles } from "./safe_output_handler_manager.cjs";
 
 describe("Safe Output Handler Manager", () => {
   beforeEach(() => {
@@ -22,6 +23,7 @@ describe("Safe Output Handler Manager", () => {
     delete process.env.GH_AW_TRACKER_LABEL;
     delete process.env.GH_AW_SAFE_OUTPUT_JOBS;
     delete process.env.GH_AW_SAFE_OUTPUT_SCRIPTS;
+    fs.rmSync("/tmp/gh-aw/comment-memory", { recursive: true, force: true });
   });
 
   describe("loadConfig", () => {
@@ -459,6 +461,32 @@ describe("Safe Output Handler Manager", () => {
       expect(result.outputsWithUnresolvedIds.length).toBe(1);
       expect(result.outputsWithUnresolvedIds[0].type).toBe("create_issue");
       expect(result.outputsWithUnresolvedIds[0].result.number).toBe(100);
+    });
+
+    it("tracks comment_memory outputs using managed body for temporary ID resolution", async () => {
+      const messages = [
+        {
+          type: "comment_memory",
+          body: "raw body without ids",
+          memory_id: "default",
+        },
+      ];
+
+      const mockCommentMemoryHandler = vi.fn().mockResolvedValue({
+        repo: "owner/repo",
+        number: 55,
+        commentId: 12345,
+        managedBody: '<gh-aw-comment-memory id="default">\nSee #aw_abc123 for details\n</gh-aw-comment-memory>',
+      });
+
+      const handlers = new Map([["comment_memory", mockCommentMemoryHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.outputsWithUnresolvedIds.length).toBe(1);
+      expect(result.outputsWithUnresolvedIds[0].type).toBe("comment_memory");
+      expect(result.outputsWithUnresolvedIds[0].result.commentId).toBe(12345);
     });
 
     it("should track outputs needing synthetic updates when temporary ID is resolved", async () => {
@@ -1333,6 +1361,34 @@ describe("Safe Output Handler Manager", () => {
       expect(calledMessage.body).toContain("#7");
     });
 
+    it("should prepend fallback note to add_comment body when push_to_pull_request_branch falls back to pull request", async () => {
+      const messages = [
+        { type: "push_to_pull_request_branch", branch: "fix-branch" },
+        { type: "add_comment", body: "Changes pushed." },
+      ];
+
+      const pushHandler = vi.fn().mockResolvedValue({
+        success: true,
+        fallback_used: true,
+        fallback_type: "pull_request",
+        pull_request_number: 71,
+        pull_request_url: "https://github.com/owner/repo/pull/71",
+      });
+      const commentHandler = vi.fn().mockResolvedValue([{ _tracking: null }]);
+
+      const handlers = new Map([
+        ["push_to_pull_request_branch", pushHandler],
+        ["add_comment", commentHandler],
+      ]);
+
+      await processMessages(handlers, messages);
+
+      const calledMessage = commentHandler.mock.calls[0][0];
+      expect(calledMessage.body).toContain("Direct push to the original pull request branch was not possible");
+      expect(calledMessage.body).toContain("#71");
+      expect(calledMessage.body).toContain("https://github.com/owner/repo/pull/71");
+    });
+
     it("should NOT prepend fallback note when create_pull_request succeeds normally", async () => {
       const messages = [
         { type: "create_pull_request", title: "My Fix PR" },
@@ -1482,6 +1538,41 @@ describe("Safe Output Handler Manager", () => {
       expect(result.results).toHaveLength(1);
       expect(result.results[0].success).toBe(false);
       expect(result.results[0].error).toContain("No handler loaded for type 'call_workflow'");
+    });
+  });
+
+  describe("buildCommentMemoryMessagesFromFiles", () => {
+    it("loads comment-memory messages from markdown files when configured", () => {
+      fs.mkdirSync("/tmp/gh-aw/comment-memory", { recursive: true });
+      fs.writeFileSync("/tmp/gh-aw/comment-memory/default.md", "saved memory");
+
+      const messages = buildCommentMemoryMessagesFromFiles([], { comment_memory: { max: "1" } });
+
+      expect(messages).toEqual([
+        {
+          type: "comment_memory",
+          memory_id: "default",
+          body: "saved memory",
+        },
+      ]);
+    });
+
+    it("skips file-based comment memory when a message already exists for the same memory_id", () => {
+      fs.mkdirSync("/tmp/gh-aw/comment-memory", { recursive: true });
+      fs.writeFileSync("/tmp/gh-aw/comment-memory/default.md", "saved memory");
+
+      const messages = buildCommentMemoryMessagesFromFiles([{ type: "comment_memory", memory_id: "default", body: "from output" }], { comment_memory: { max: "1" } });
+
+      expect(messages).toEqual([]);
+    });
+
+    it("treats comment_memory messages without memory_id as default memory when checking precedence", () => {
+      fs.mkdirSync("/tmp/gh-aw/comment-memory", { recursive: true });
+      fs.writeFileSync("/tmp/gh-aw/comment-memory/default.md", "saved memory");
+
+      const messages = buildCommentMemoryMessagesFromFiles([{ type: "comment_memory", body: "from output" }], { comment_memory: { max: "1", memory_id: "default" } });
+
+      expect(messages).toEqual([]);
     });
   });
 });

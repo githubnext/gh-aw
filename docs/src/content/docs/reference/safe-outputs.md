@@ -39,7 +39,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Reply to PR Review Comment**](/gh-aw/reference/safe-outputs-pull-requests/#reply-to-pr-review-comment-reply-to-pull-request-review-comment) (`reply-to-pull-request-review-comment`) - Reply to existing review comments (max: 10)
 - [**Resolve PR Review Thread**](/gh-aw/reference/safe-outputs-pull-requests/#resolve-pr-review-thread-resolve-pull-request-review-thread) (`resolve-pull-request-review-thread`) - Resolve review threads after addressing feedback (max: 10)
 - [**Add Reviewer**](/gh-aw/reference/safe-outputs-pull-requests/#add-reviewer-add-reviewer) (`add-reviewer`) - Add reviewers to pull requests (max: 3)
-- [**Push to PR Branch**](/gh-aw/reference/safe-outputs-pull-requests/#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (default max: 1, configurable, same-repo only)
+- [**Push to PR Branch**](/gh-aw/reference/safe-outputs-pull-requests/#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (default max: 1, configurable; cross-repo supported via `target-repo` when the target repository is checked out)
 
 ### Labels, Assignments & Reviews
 
@@ -243,7 +243,7 @@ The author of the parent issue, PR, or discussion receiving the comment is autom
 
 #### Hide Older Comments
 
-Set `hide-older-comments: true` to minimize previous comments from the same workflow (identified by `GITHUB_WORKFLOW`) before posting new ones. Useful for status updates. Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated` (default), `resolved`.
+Set `hide-older-comments: true` to minimize previous comments from the same workflow (identified by `GITHUB_WORKFLOW`) before posting new ones. Useful for status updates. Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated` (default), `resolved`, `low_quality`.
 
 #### Append-Only Status Comments
 
@@ -261,7 +261,7 @@ When enabled, the workflow completion notifier creates a new comment instead of 
 
 ### Hide Comment (`hide-comment:`)
 
-Collapses comments in GitHub UI with reason. Requires GraphQL node IDs (e.g., `IC_kwDOABCD123456`), not REST numeric IDs. Reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`.
+Collapses comments in GitHub UI with reason. Requires GraphQL node IDs (e.g., `IC_kwDOABCD123456`), not REST numeric IDs. Reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`, `low_quality`.
 
 ```yaml wrap
 safe-outputs:
@@ -476,6 +476,8 @@ Optionally include `item_url` (GitHub issue URL) to add the issue as the first p
 
 Manages GitHub Projects boards. Requires a write-capable PAT or GitHub App token ([project token authentication](/gh-aw/patterns/project-ops/#project-token-authentication)); default `GITHUB_TOKEN` lacks Projects v2 access. Update-only by default; set `create_if_missing: true` to create boards (requires appropriate token permissions).
 
+When using `github-app`, issue-backed project item resolution also requires `issues: read` on the minted token (in addition to `organization-projects: write`). This applies to `update-project`, and also to `create-project` when `item_url` is used to resolve an issue into a project item.
+
 ```yaml wrap
 safe-outputs:
   update-project:
@@ -668,11 +670,16 @@ safe-outputs:
     target: "triggering"  # or "*", or e.g. ${{ github.event.inputs.pr_number }} when not in pull_request trigger
     target-repo: "owner/repo"  # cross-repository: submit review on PR in another repo
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
-    allowed-events: [COMMENT, REQUEST_CHANGES]  # restrict allowed review event types (default: all allowed)
+    allowed-events: [COMMENT, REQUEST_CHANGES]  # include REQUEST_CHANGES when using supersede mode for blocking reviews
+    supersede-older-reviews: true  # dismiss older same-workflow REQUEST_CHANGES reviews after posting a replacement review
     footer: false     # omit AI-generated footer from review body (default: true)
 ```
 
 Use `allowed-events` to restrict which review event types the agent can submit. This provides infrastructure-level enforcement — for example, `allowed-events: [COMMENT, REQUEST_CHANGES]` prevents the agent from submitting APPROVE reviews regardless of what the agent attempts to output. If omitted, all event types (APPROVE, COMMENT, REQUEST_CHANGES) are allowed.
+
+**Recommendation:** prefer `allowed-events: [COMMENT]` as the default for automated review workflows. This keeps AI feedback visible without creating a persistent merge-blocking state.
+
+Set `supersede-older-reviews: true` only when your workflow intentionally uses `REQUEST_CHANGES` and you want newer runs to dismiss older blocking reviews from the same workflow. Superseding is best-effort and happens after the replacement review is posted.
 
 ### Resolve PR Review Thread (`resolve-pull-request-review-thread:`)
 
@@ -1234,6 +1241,38 @@ safe-outputs:
 ```
 
 Accepts a plain string or an object with `name` and optional `url`, consistent with the top-level `environment:` syntax.
+
+### Safe Outputs Dependencies (`needs:`)
+
+Extend the consolidated `safe_outputs` job dependencies with custom workflow jobs (for example, credential fetchers). `safe-outputs.needs` is merged with built-in dependencies (`agent`, `activation`, optional `detection`, optional `unlock`) and deduplicated.
+
+```yaml wrap
+jobs:
+  secrets_fetcher:
+    runs-on: ubuntu-latest
+    outputs:
+      app_id: ${{ steps.fetch.outputs.app_id }}
+      app_private_key: ${{ steps.fetch.outputs.app_private_key }}
+    steps:
+      - id: fetch
+        run: |
+          echo "app_id=123" >> "$GITHUB_OUTPUT"
+          echo "app_private_key=***" >> "$GITHUB_OUTPUT"
+
+safe-outputs:
+  needs: [secrets_fetcher]
+  github-app:
+    app-id: ${{ needs.secrets_fetcher.outputs.app_id }}
+    private-key: ${{ needs.secrets_fetcher.outputs.app_private_key }}
+```
+
+Use the single `safe-outputs.needs` field for all explicit custom dependencies.
+
+Validation rules:
+
+- Values must reference workflow custom jobs from top-level `jobs:`
+- Built-in jobs are rejected (`agent`, `activation`, `pre_activation`/`pre-activation`, `conclusion`, `safe_outputs`, `detection`, `unlock`, `push_repo_memory`, `update_cache_memory`)
+- Unknown jobs fail compilation with an actionable error
 
 ### Text Sanitization (`allowed-domains:`, `allowed-github-references:`)
 

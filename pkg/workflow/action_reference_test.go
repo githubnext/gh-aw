@@ -131,12 +131,12 @@ func TestResolveActionReference(t *testing.T) {
 			description: "Dev mode should return local path",
 		},
 		{
-			name:        "release mode with version tag",
-			actionMode:  ActionModeRelease,
-			localPath:   "./actions/create-issue",
-			version:     "v1.0.0",
-			expectedRef: "github/gh-aw/actions/create-issue@v1.0.0",
-			description: "Release mode should return version-based reference",
+			name:          "release mode with version tag and unresolved pin",
+			actionMode:    ActionModeRelease,
+			localPath:     "./actions/create-issue",
+			version:       "v1.0.0",
+			shouldBeEmpty: true,
+			description:   "Release mode should fail closed when action cannot be pinned",
 		},
 		{
 			name:          "release mode with dev version",

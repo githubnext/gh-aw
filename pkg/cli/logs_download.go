@@ -477,7 +477,16 @@ func listArtifacts(outputDir string) ([]string, error) {
 // failing the entire download.
 func isNonZipArtifactError(output []byte) bool {
 	s := string(output)
-	return strings.Contains(s, "zip: not a valid zip file") || strings.Contains(s, "error extracting zip archive")
+	return strings.Contains(s, "zip: not a valid zip file")
+}
+
+// isCaseCollisionArtifactError reports whether gh run download failed because
+// a zip extraction attempted to write a file that already exists. This can
+// happen on case-insensitive filesystems (e.g. macOS) when an artifact
+// contains files whose names differ only by case.
+func isCaseCollisionArtifactError(output []byte) bool {
+	s := string(output)
+	return strings.Contains(s, "error extracting zip archive") && strings.Contains(s, "file exists")
 }
 
 // isDockerBuildArtifact reports whether an artifact name represents a .dockerbuild artifact.
@@ -754,6 +763,9 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 		// skippedNonZipArtifacts is set when gh run download fails due to non-zip artifacts
 		// that were not detected during the listing phase (e.g., listing failed).
 		var skippedNonZipArtifacts bool
+		// skippedCaseCollisionArtifacts is set when gh run download fails because a single
+		// artifact contains case-colliding paths on case-insensitive filesystems.
+		var skippedCaseCollisionArtifacts bool
 
 		if err != nil {
 			// Stop spinner on error
@@ -799,6 +811,9 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 				}
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Some artifacts could not be extracted (not a valid zip archive) and were skipped: "+msg))
 				skippedNonZipArtifacts = true
+			} else if isCaseCollisionArtifactError(output) {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Some artifacts could not be fully extracted due to case-colliding file paths. Retrying artifacts individually and continuing."))
+				skippedCaseCollisionArtifacts = true
 			} else {
 				return fmt.Errorf("failed to download artifacts for run %d: %w (output: %s)", runID, err, string(output))
 			}
@@ -809,6 +824,33 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 		// that are missing, so flattening and audit analysis can proceed.
 		if skippedNonZipArtifacts {
 			retryCriticalArtifacts(ctx, runID, outputDir, verbose, owner, repo, hostname, artifactFilter)
+		}
+
+		// When bulk download fails on case-colliding entries, gh CLI aborts and may skip
+		// artifacts that appear later in the run. Retry artifacts individually so one bad
+		// artifact does not block the rest.
+		if skippedCaseCollisionArtifacts {
+			retryNames := downloadableNames
+			if len(retryNames) == 0 {
+				// Initial artifact listing was unavailable, so fetch names now for targeted retry.
+				artifactNamesRetry, retryListErr := listRunArtifactNames(ctx, runID, owner, repo, hostname, verbose)
+				if retryListErr != nil {
+					return fmt.Errorf("bulk artifact download hit case-colliding entries and could not list artifacts for individual retry: %w", retryListErr)
+				}
+				for _, name := range artifactNamesRetry {
+					if isDockerBuildArtifact(name) {
+						continue
+					}
+					if artifactMatchesFilter(name, artifactFilter) {
+						retryNames = append(retryNames, name)
+					}
+				}
+			}
+			if len(retryNames) > 0 {
+				if err := downloadArtifactsByName(ctx, runID, outputDir, retryNames, verbose, owner, repo, hostname); err != nil {
+					return err
+				}
+			}
 		}
 
 		if skippedNonZipArtifacts && fileutil.IsDirEmpty(outputDir) {

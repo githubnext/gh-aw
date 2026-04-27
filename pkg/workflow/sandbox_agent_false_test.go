@@ -157,8 +157,8 @@ Test workflow to verify default sandbox.agent behavior (awf).
 	})
 }
 
-func TestNetworkFirewallDeprecationWarning(t *testing.T) {
-	t.Run("network.firewall compiles successfully (deprecated)", func(t *testing.T) {
+func TestNetworkFirewallFrontmatterRejected(t *testing.T) {
+	t.Run("network.firewall is rejected by schema", func(t *testing.T) {
 		// Create temp directory for test workflows
 		workflowsDir := t.TempDir()
 
@@ -172,7 +172,7 @@ strict: false
 on: workflow_dispatch
 ---
 
-Test workflow to verify network.firewall still works (deprecated).
+		Test workflow to verify network.firewall is rejected.
 `
 
 		workflowPath := filepath.Join(workflowsDir, "test-firewall-deprecated.md")
@@ -181,13 +181,14 @@ Test workflow to verify network.firewall still works (deprecated).
 			t.Fatalf("Failed to write workflow file: %v", err)
 		}
 
-		// Compile the workflow
 		compiler := NewCompiler()
-		compiler.SetSkipValidation(true)
 
-		// The compilation should succeed (deprecated fields should still work)
-		if err := compiler.CompileWorkflow(workflowPath); err != nil {
-			t.Fatalf("Compilation failed: %v", err)
+		err = compiler.CompileWorkflow(workflowPath)
+		if err == nil {
+			t.Fatal("Expected compilation to fail for deprecated network.firewall frontmatter, but got nil error")
+		}
+		if !strings.Contains(err.Error(), "firewall") {
+			t.Fatalf("Expected error to reference firewall field, got: %v", err)
 		}
 	})
 }

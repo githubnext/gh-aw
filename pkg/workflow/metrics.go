@@ -230,6 +230,9 @@ func FinalizeToolMetrics(opts FinalizeToolMetricsOptions) {
 	sort.Slice(opts.Metrics.ToolCalls, func(i, j int) bool {
 		return opts.Metrics.ToolCalls[i].Name < opts.Metrics.ToolCalls[j].Name
 	})
+
+	metricsLog.Printf("FinalizeToolMetrics: turns=%d, tokenUsage=%d, toolCalls=%d, sequences=%d",
+		opts.Metrics.Turns, opts.Metrics.TokenUsage, len(opts.Metrics.ToolCalls), len(opts.Metrics.ToolSequences))
 }
 
 // FinalizeToolCallsAndSequence completes the tool call and sequence finalization.
@@ -255,4 +258,6 @@ func FinalizeToolCallsAndSequence(
 	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
 		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
 	})
+
+	metricsLog.Printf("FinalizeToolCallsAndSequence: toolCalls=%d, sequences=%d", len(metrics.ToolCalls), len(metrics.ToolSequences))
 }

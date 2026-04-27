@@ -16,7 +16,10 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 |---------|-------------|-------------|
 | `gh aw add` | `NewAddCommand` | Add remote or local workflows to the repository |
 | `gh aw add-wizard` | `NewAddWizardCommand` | Interactive wizard for adding workflows |
+| `gh aw new` | `newCmd` (main.go) | Create a new workflow file (supports `--force`, `--interactive`, `--engine`) |
 | `gh aw compile` | (compile_command.go) | Compile `.md` workflow files into GitHub Actions `.lock.yml` |
+| `gh aw enable` | `enableCmd` (main.go) | Enable a workflow |
+| `gh aw disable` | `disableCmd` (main.go) | Disable a workflow |
 | `gh aw run` | `RunWorkflowOnGitHub` (main.go) | Dispatch and monitor workflow runs |
 | `gh aw audit` | `NewAuditCommand` | Audit a specific workflow run by run ID |
 | `gh aw audit diff` | `NewAuditDiffSubcommand` | Diff audit data between multiple runs |
@@ -47,7 +50,8 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw secrets set` | (secret_set_command.go) | Create or update a repository secret |
 | `gh aw secrets bootstrap` | (secret_set_command.go) | Validate and configure all required secrets for workflows |
 | `gh aw trial` | `NewTrialCommand` | Run trial workflow executions |
-| `gh aw deps` | (deps_*.go) | Dependency inspection and security advisories |
+| _No `gh aw deps` command_ | `deps_*.go` (internal utilities) | Dependency reporting/advisory helpers used by other commands |
+| `gh aw version` | `versionCmd` (main.go) | Show version information |
 | `gh aw completion` | `NewCompletionCommand` | Generate shell completion scripts |
 
 ## Public API
@@ -112,6 +116,19 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `CreateWorkflowMarkdownFile` | `func(string, bool, bool, string) error` | Creates a new workflow markdown file |
 | `IsRunnable` | `func(string) (bool, error)` | Checks whether a workflow file is runnable |
 | `RunWorkflowInteractively` | `func(ctx, ...) error` | Interactive workflow selection and dispatch |
+| `RunSpecificWorkflowInteractively` | `func(ctx, string, ...) error` | Interactive dispatch for a named workflow |
+| `RunAddInteractive` | `func(ctx, []string, ...) error` | Interactive wizard for adding workflows |
+| `RunWorkflowTrials` | `func(ctx, []string, TrialOptions) error` | Runs trial workflow executions |
+| `RunUpdateWorkflows` | `func(ctx, []string, ...) error` | Updates workflows from upstream sources |
+| `RunChecks` | `func(ChecksConfig) error` | Fetches and renders CI check results for a PR |
+| `RunProjectNew` | `func(ctx, ProjectConfig) error` | Creates a new GitHub Project V2 board |
+| `RunListDomains` | `func(bool) error` | Lists all domains used across workflows |
+| `RunWorkflowDomains` | `func(string, bool) error` | Lists domains for a specific workflow |
+| `RunHashFrontmatter` | `func(string) error` | Prints the frontmatter hash for a workflow file |
+| `RunActionlintOnFiles` | `func([]string, bool, bool) error` | Runs actionlint linter on compiled lock files |
+| `RunZizmorOnFiles` | `func([]string, bool, bool) error` | Runs zizmor linter on compiled lock files |
+| `RunPoutineOnDirectory` | `func(string, bool, bool) error` | Runs poutine supply-chain scanner on workflow directory |
+| `RunRunnerGuardOnDirectory` | `func(string, bool, bool) error` | Runs runner-guard scanner on workflow directory |
 | `AddMCPTool` | `func(string, string, ...) error` | Adds an MCP server to a workflow file |
 | `InspectWorkflowMCP` | `func(string, ...) error` | Inspects MCP server configurations |
 | `ListWorkflowMCP` | `func(string, bool) error` | Lists MCP server info for a workflow |

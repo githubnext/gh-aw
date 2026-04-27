@@ -82,6 +82,10 @@ type WorkflowRun struct {
 // This is now an alias to the shared type in workflow package
 type LogMetrics = workflow.LogMetrics
 
+// ToolCallInfo represents statistics for a single tool invocation type
+// This is an alias to the shared type in workflow package
+type ToolCallInfo = workflow.ToolCallInfo
+
 // ProcessedRun represents a workflow run with its associated analysis
 type ProcessedRun struct {
 	Run                     WorkflowRun

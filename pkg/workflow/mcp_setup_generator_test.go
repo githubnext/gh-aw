@@ -203,6 +203,11 @@ func TestMCPGatewayVersionFromFrontmatter(t *testing.T) {
 			// Test 1: Verify docker image collection uses the correct version
 			dockerImages := collectDockerImages(workflowData.Tools, workflowData, ActionModeRelease)
 			expectedImage := constants.DefaultMCPGatewayContainer + ":" + tt.expectedVersion
+			// collectDockerImages applies embedded container pins when available, so resolve
+			// the pinned reference for the expected image if one exists.
+			if pin, ok := lookupContainerPin(expectedImage, nil); ok && pin.PinnedImage != "" {
+				expectedImage = pin.PinnedImage
+			}
 
 			found := false
 			for _, img := range dockerImages {

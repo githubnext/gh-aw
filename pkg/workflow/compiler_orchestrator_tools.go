@@ -90,14 +90,14 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	}
 
 	// Combine imported tools with included tools
-	var allIncludedTools string
-	if importsResult.MergedTools != "" && includedTools != "" {
-		allIncludedTools = importsResult.MergedTools + "\n" + includedTools
-	} else if importsResult.MergedTools != "" {
-		allIncludedTools = importsResult.MergedTools
-	} else {
-		allIncludedTools = includedTools
+	var toolsParts []string
+	if importsResult.MergedTools != "" {
+		toolsParts = append(toolsParts, importsResult.MergedTools)
 	}
+	if includedTools != "" {
+		toolsParts = append(toolsParts, includedTools)
+	}
+	allIncludedTools := strings.Join(toolsParts, "\n")
 
 	// Combine imported mcp-servers with top-level mcp-servers
 	// Imported mcp-servers are in JSON format (newline-separated), need to merge them
@@ -122,19 +122,13 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	}
 
 	// Check if GitHub tool was explicitly configured in the original frontmatter
-	// This is needed to determine if permissions validation should be skipped
-	hasExplicitGitHubTool := false
-	if tools != nil {
-		if _, exists := tools["github"]; exists {
-			// GitHub tool exists in merged tools - check if it was explicitly configured
-			// by looking at the original frontmatter before any merging
-			if topTools != nil {
-				if _, existsInTop := topTools["github"]; existsInTop {
-					hasExplicitGitHubTool = true
-					orchestratorToolsLog.Print("GitHub tool was explicitly configured in frontmatter")
-				}
-			}
-		}
+	// This is needed to determine if permissions validation should be skipped.
+	// In Go, reading from a nil map returns zero-value, so these are nil-safe.
+	_, inMergedTools := tools["github"]
+	_, inTopTools := topTools["github"]
+	hasExplicitGitHubTool := inMergedTools && inTopTools
+	if hasExplicitGitHubTool {
+		orchestratorToolsLog.Print("GitHub tool was explicitly configured in frontmatter")
 	}
 	orchestratorToolsLog.Printf("hasExplicitGitHubTool: %v", hasExplicitGitHubTool)
 
@@ -212,6 +206,11 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		return nil, err
 	}
 
+	// Validate universal consumer model requirements (OpenCode/Crush)
+	if err := c.validateUniversalLLMConsumerModel(result.Frontmatter, agenticEngine); err != nil {
+		return nil, err
+	}
+
 	// Validate web-search support for the current engine (warning only)
 	c.validateWebSearchSupport(tools, agenticEngine)
 
@@ -233,6 +232,20 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	if len(importsResult.ImportPaths) > 0 {
 		importPaths = importsResult.ImportPaths
 		orchestratorToolsLog.Printf("Found %d import paths for runtime-import macros", len(importPaths))
+	}
+
+	// Extract body-level {{#runtime-import}} directives and append them to importPaths so they
+	// appear as explicit macros in the compiled lock file (before the main workflow-file macro).
+	// This makes imported files visible in the lock file at a glance and ensures they are
+	// fetched before the main workflow body is processed.
+	// At runtime, runtime_import.cjs deduplicates via an importedFiles Set, so files listed
+	// here won't be imported a second time when the main workflow file body is processed.
+	bodyImports := parser.ExtractBodyLevelImportPaths(result.Markdown, markdownDir)
+	if len(bodyImports) > 0 {
+		orchestratorToolsLog.Printf("Found %d body-level {{#runtime-import}} directive(s) to promote to lock-file macros", len(bodyImports))
+		for _, bi := range bodyImports {
+			importPaths = append(importPaths, bi.Path)
+		}
 	}
 
 	// Handle imported markdown from frontmatter imports field

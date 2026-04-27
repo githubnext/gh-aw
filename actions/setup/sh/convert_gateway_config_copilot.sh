@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Convert MCP Gateway Configuration to Copilot Format
 # This script converts the gateway's standard HTTP-based MCP configuration
 # to the format expected by GitHub Copilot CLI

@@ -452,6 +452,58 @@ Run `gh aw fix` to automatically update your workflow files to use the new termi
 
 **Note:** The external `gh agent-task` CLI command name remains unchanged as it is maintained separately.
 
+#### Replace removed `app:` with `github-app:`
+
+The deprecated `app:` workflow frontmatter field was removed and replaced with
+`github-app:`. Workflows still using `app:` will now fail validation.
+
+**Migration:**
+- Replace `app:` with `github-app:`
+- Run `gh aw fix` to apply the codemod automatically
+
+#### Replace `supportsLLMGateway` flag with `llmGatewayPort`
+
+Engine configuration now requires an explicit `llmGatewayPort` value instead of
+the old `supportsLLMGateway: true` flag. The `SupportsLLMGateway` interface
+hooks were also removed.
+
+**Migration:**
+- Replace `supportsLLMGateway: true` with `llmGatewayPort: <port>`
+- Update custom engine implementations that relied on `SupportsLLMGateway`
+
+#### Decouple status comment from AI reaction defaults
+
+Status comments are no longer enabled implicitly. Workflows that relied on the
+default started/completed status comment must now enable it explicitly.
+
+**Migration:**
+- Add `status-comment: true` to workflow frontmatter when status comments are needed
+
+#### Remove top-level `sandbox: false`
+
+The deprecated top-level `sandbox: false` flag was removed. Workflows using it
+will fail validation.
+
+**Migration:**
+- Replace `sandbox: false` with:
+  ```yaml
+  sandbox:
+    agent: false
+  ```
+- Run `gh aw fix` to apply the codemod automatically
+
+#### MCP Gateway v0.1.5 validation tightening
+
+MCP Gateway v0.1.5 introduces stricter MCP server validation:
+- stdio servers must use Docker-based TOML configuration (non-Docker stdio
+  definitions are no longer supported)
+- mounts must include explicit mount modes
+- HTTP servers cannot define mounts
+
+**Migration:**
+- Review and update MCP server definitions for the new requirements
+- Run `gh aw compile` to detect and fix invalid configurations before upgrading
+
 ## v0.35.1 - 2026-01-06
 
 Maintenance release with dependency updates and minor improvements.
@@ -2966,4 +3018,3 @@ Updated the Codex engine's remote GitHub MCP server configuration to use the new
 
 - Convert TypeScript safe output files to CommonJS and remove TypeScript compilation
 - Update Claude Code CLI to version 2.0.10
-

@@ -4,11 +4,20 @@ package workflow
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type testFormattedErrorChainType struct {
+	message string
+}
+
+func (e *testFormattedErrorChainType) Error() string {
+	return e.message
+}
 
 func TestNewErrorCollector(t *testing.T) {
 	tests := []struct {
@@ -270,4 +279,22 @@ func TestErrorCollectorFormattedError(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestErrorCollectorFormattedError_PreservesErrorChain(t *testing.T) {
+	collector := NewErrorCollector(false)
+	sentinelErr := errors.New("sentinel")
+	typedErr := &testFormattedErrorChainType{message: "typed"}
+
+	require.NoError(t, collector.Add(fmt.Errorf("wrapped sentinel: %w", sentinelErr)), "Should collect wrapped sentinel error")
+	require.NoError(t, collector.Add(fmt.Errorf("wrapped typed: %w", typedErr)), "Should collect wrapped typed error")
+
+	result := collector.FormattedError("validation")
+	require.Error(t, result, "Should return formatted error")
+
+	require.ErrorIs(t, result, sentinelErr, "FormattedError should preserve errors.Is chain")
+
+	var extractedTypedErr *testFormattedErrorChainType
+	require.ErrorAs(t, result, &extractedTypedErr, "FormattedError should preserve errors.As chain")
+	assert.Equal(t, typedErr, extractedTypedErr, "errors.As should extract the wrapped typed error")
 }

@@ -170,7 +170,7 @@ See [Conditional Execution](/gh-aw/reference/frontmatter/#conditional-execution-
 
 ### Agentic workflows run in GitHub Actions. Can they access my repository secrets?
 
-Repository secrets are not available to the agentic step by default. The AI agent runs with read-only permissions and cannot directly access your repository secrets unless explicitly configured. You should review workflows carefully, follow [GitHub Actions security guidelines](https://docs.github.com/en/actions/reference/security/secure-use), use least-privilege permissions, and inspect the compiled `.lock.yml` file. See the [Security Architectur](/gh-aw/introduction/architecture/) for details.
+Repository secrets are not available to the agentic step by default. The AI agent runs with read-only permissions and cannot directly access your repository secrets unless explicitly configured. You should review workflows carefully, follow [GitHub Actions security guidelines](https://docs.github.com/en/actions/reference/security/secure-use), use least-privilege permissions, and inspect the compiled `.lock.yml` file. See the [Security Architecture](/gh-aw/introduction/architecture/) for details.
 
 Some MCP tools may be configured using secrets, but these are only accessible to the specific tool steps, not the AI agent itself. Minimize the use of tools equipped with highly privileged secrets.
 
@@ -260,6 +260,22 @@ tools:
 See [Integrity Filtering](/gh-aw/reference/integrity/) for available levels, user blocking, and approval labels.
 
 ## Configuration & Setup
+
+### Why do slash-command workflows show many "started then skipped" runs on comments?
+
+This is expected behavior. A `slash_command` is compiled into multiple GitHub event listeners (issue/PR bodies, issue comments, PR comments, and review comments, depending on `events:`). GitHub first dispatches the event, then the activation logic checks whether the comment starts with a matching command (for example `/refresh`). If it does not match, the run exits early and appears as a quick skipped/no-op run in Actions.
+
+To reduce this noise, narrow the trigger scope with `events:` so the workflow only listens where you actually use commands, and use [LabelOps](/gh-aw/patterns/label-ops/) for command-style operations that should not activate on every comment. LabelOps (`label_command`) triggers only when a specific label is applied, which produces fewer incidental runs than broad comment listeners.
+
+```yaml wrap
+on:
+  slash_command:
+    name: refresh
+    events: [pull_request_comment]   # only listen to PR comments
+  label_command:
+    name: refresh
+    events: [pull_request]           # optional low-noise label trigger
+```
 
 ### What is a workflow lock file?
 
@@ -521,4 +537,3 @@ engine: claude
 ```
 
 See [AI Engines](/gh-aw/reference/engines/) for all configuration options.
-

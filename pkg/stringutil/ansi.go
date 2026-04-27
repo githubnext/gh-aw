@@ -3,7 +3,11 @@ package stringutil
 
 import (
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var ansiLog = logger.New("stringutil:ansi")
 
 // StripANSI removes ANSI escape codes from a string using a comprehensive byte scanner.
 // It handles CSI sequences (\x1b[), OSC sequences (\x1b]), G0/G1 character set selections,
@@ -15,6 +19,8 @@ func StripANSI(s string) string {
 	if s == "" {
 		return s
 	}
+
+	ansiLog.Printf("StripANSI: input length=%d", len(s))
 
 	var result strings.Builder
 	result.Grow(len(s)) // Pre-allocate capacity for efficiency

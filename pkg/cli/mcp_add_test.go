@@ -157,11 +157,15 @@ This is a test workflow.
 	}
 }
 
-func TestMCPAddTransportFlagDescriptionUsesDockerCapitalization(t *testing.T) {
+func TestMCPAddTransportFlagDescriptionIncludesCapitalizedHTTPAndDocker(t *testing.T) {
 	cmd := NewMCPAddSubcommand()
 	transportFlag := cmd.Flags().Lookup("transport")
 	if transportFlag == nil {
 		t.Fatal("expected --transport flag to exist")
+	}
+
+	if !strings.Contains(transportFlag.Usage, "HTTP") {
+		t.Fatalf("expected --transport usage to include HTTP, got: %s", transportFlag.Usage)
 	}
 
 	if !strings.Contains(transportFlag.Usage, "Docker") {

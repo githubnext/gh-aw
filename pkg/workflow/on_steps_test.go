@@ -10,6 +10,8 @@ import (
 
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestOnSteps tests that on.steps are injected into the pre-activation job and their
@@ -399,6 +401,73 @@ func TestExtractOnPermissions(t *testing.T) {
 					t.Errorf("Expected scope %s = %s, got %s", scope, wantLevel, gotLevel)
 				}
 			}
+		})
+	}
+}
+
+// TestExtractOnNeeds tests the extractOnNeeds function directly.
+func TestExtractOnNeeds(t *testing.T) {
+	tests := []struct {
+		name          string
+		frontmatter   map[string]any
+		expected      []string
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name:        "no_on_section",
+			frontmatter: map[string]any{},
+			expected:    nil,
+		},
+		{
+			name: "on_section_string",
+			frontmatter: map[string]any{
+				"on": "push",
+			},
+			expected: nil,
+		},
+		{
+			name: "on_section_without_needs",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_dispatch": nil,
+				},
+			},
+			expected: nil,
+		},
+		{
+			name: "on_needs_valid",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_dispatch": nil,
+					"needs":             []any{"secrets_fetcher", "config_loader"},
+				},
+			},
+			expected: []string{"secrets_fetcher", "config_loader"},
+		},
+		{
+			name: "on_needs_wrong_type",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"needs": "secrets_fetcher",
+				},
+			},
+			expectError:   true,
+			errorContains: "on.needs must be an array",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			needs, err := extractOnNeeds(tt.frontmatter)
+			if tt.expectError {
+				require.Error(t, err, "expected extraction error")
+				assert.Contains(t, err.Error(), tt.errorContains, "error should contain expected text")
+				return
+			}
+
+			require.NoError(t, err, "expected extraction to succeed")
+			assert.Equal(t, tt.expected, needs, "unexpected on.needs result")
 		})
 	}
 }

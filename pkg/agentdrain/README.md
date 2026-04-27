@@ -105,15 +105,17 @@ The single-stage Drain miner. Processes one pipeline stage at a time.
 cfg := agentdrain.DefaultConfig()
 miner, err := agentdrain.NewMiner(cfg)
 
-// Training phase — call for known-good events
+// Process a raw log line (training + matching in one step)
+result, err := miner.Train(rawLogLine)
+
+// Training phase — call for structured events from known-good runs
 result, err := miner.TrainEvent(evt)
 
-// Analysis phase — call for events to check
+// Analysis phase — call for events to check for anomalies
 result, report, err := miner.AnalyzeEvent(evt)
 
 // Inspect clusters
 clusters := miner.Clusters()
-count := miner.ClusterCount()
 ```
 
 #### Persistence
@@ -136,6 +138,9 @@ coord, err := agentdrain.NewCoordinator(cfg, stages)
 
 // Load default trained weights
 err = coord.LoadDefaultWeights()
+
+// Training phase — route events from known-good runs to stage miners
+result, err := coord.TrainEvent(evt)
 
 // Analyze an event
 result, report, err := coord.AnalyzeEvent(evt)

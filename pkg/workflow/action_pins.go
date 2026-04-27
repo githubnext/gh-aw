@@ -28,7 +28,7 @@ type ActionPinsData = actionpins.ActionPinsData
 
 // formatActionReference formats an action reference with repo, SHA, and version.
 func formatActionReference(repo, sha, version string) string {
-	return actionpins.FormatReference(repo, sha, version)
+	return actionpins.FormatPinnedActionReference(repo, sha, version)
 }
 
 // formatActionCacheKey generates a cache key for action resolution.
@@ -54,13 +54,7 @@ func getActionPin(repo string) string {
 		actionPinsLog.Printf("No embedded pins found for repo: %s", repo)
 		return ""
 	}
-	return actionpins.FormatReference(repo, pins[0].SHA, pins[0].Version)
-}
-
-// getActionPins returns all loaded action pins (sorted by version descending).
-// Package-private wrapper used by tests in this package.
-func getActionPins() []ActionPin {
-	return actionpins.GetActionPins()
+	return actionpins.FormatPinnedActionReference(repo, pins[0].SHA, pins[0].Version)
 }
 
 // getCachedActionPinFromResolver returns the pinned action reference for repo,
@@ -81,6 +75,25 @@ func getCachedActionPinFromResolver(repo string, resolver ActionSHAResolver) str
 // getActionPinByRepo returns the latest ActionPin for a given repository, if any.
 func getActionPinByRepo(repo string) (ActionPin, bool) {
 	return actionpins.GetActionPinByRepo(repo)
+}
+
+// getEmbeddedContainerPin returns the pinned container image for a given image reference.
+func getEmbeddedContainerPin(image string) (actionpins.ContainerPin, bool) {
+	return actionpins.GetContainerPin(image)
+}
+
+// lookupContainerPin returns the ContainerPin for the given image, checking cache first
+// then falling back to embedded pins. Returns false if the image is not pinned.
+func lookupContainerPin(image string, cache *ActionCache) (ContainerPin, bool) {
+	if cache != nil {
+		if pin, ok := cache.GetContainerPin(image); ok {
+			return pin, true
+		}
+	}
+	if pin, ok := getEmbeddedContainerPin(image); ok {
+		return ContainerPin(pin), true
+	}
+	return ContainerPin{}, false
 }
 
 // getActionPinWithData returns the pinned action reference for a given action@version,

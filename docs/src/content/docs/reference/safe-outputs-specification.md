@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.16.0  
+**Version**: 1.18.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-04-06  
+**Publication Date**: 2026-04-21  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -990,6 +990,19 @@ for (const op of issueOps) {
 }
 ```
 
+**Phase 8: Comment Memory Round-Trip** (Optional, when `comment-memory` is configured)
+
+When `tools.comment-memory` is enabled, implementations MUST support this additional data-flow path:
+
+1. **GitHub comment → local files (pre-agent setup)**: A setup step reads the managed comment body from the target issue or pull request, extracts content between `<gh-aw-comment-memory id="...">` and `</gh-aw-comment-memory>`, and writes one file per memory entry under `/tmp/gh-aw/comment-memory/<memory_id>.md`.
+2. **Local files → agent**: The prompt MUST include instructions that memory files are edited directly in `/tmp/gh-aw/comment-memory/`.
+3. **Agent → artifact**: The unified agent artifact MUST include `/tmp/gh-aw/comment-memory/` when comment memory is enabled.
+4. **Artifact → threat detection**: Threat-detection prompt setup MUST include discovered comment-memory files in analysis context.
+5. **Artifact/files → safe output processor**: The processor MUST load edited `*.md` files, synthesize `comment_memory` operations, and execute them through the `comment_memory` handler.
+6. **Safe output processor → GitHub comment**: The handler MUST upsert the managed comment using the `gh-aw-comment-memory` marker and preserve only user content within the managed XML block.
+
+This round-trip path ensures memory edits remain file-based for the agent while keeping GitHub as the authoritative persistent store.
+
 ### 4.3 Configuration Propagation
 
 Configuration flows from author intent to runtime enforcement:
@@ -1552,6 +1565,8 @@ submit-pull-request-review:
   target: "triggering" | "*" | <PR number>   # Required when not in pull_request trigger
   target-repo: owner/repo        # Cross-repository target
   allowed-repos: [...]           # Additional allowed repositories
+  allowed-events: [COMMENT]      # Preferred default for non-blocking bot reviews
+  supersede-older-reviews: true  # Best-effort dismissal of older same-workflow REQUEST_CHANGES reviews (including legacy blockers)
   footer: "always" | "none" | "if-body"     # Footer on review body
 ```
 
@@ -2284,6 +2299,71 @@ safe-outputs:
 
 This section provides complete definitions for all remaining safe output types. Each follows the same format as Section 7.1 with full schemas, operational semantics, and permission requirements.
 
+#### Type: comment_memory
+
+**Purpose**: Persist structured memory in a managed issue or pull request comment using file-based editing and automatic synchronization.
+
+**Default Max**: 1  
+**Cross-Repository Support**: Yes  
+**Mandatory**: No
+
+**Tool Exposure Model**:
+
+- `comment_memory` is a safe output processor type.
+- It MUST NOT be exposed as an agent-editable MCP tool when file-based comment-memory synchronization is active.
+- The agent edits `/tmp/gh-aw/comment-memory/*.md` files directly; the processor synthesizes `comment_memory` operations from those files.
+
+**Logical Operation Schema**:
+
+```json
+{
+  "type": "comment_memory",
+  "memory_id": "default",
+  "body": "Markdown content loaded from /tmp/gh-aw/comment-memory/default.md"
+}
+```
+
+**Operational Semantics**:
+
+1. **Managed Marker**: Persisted comments use `<gh-aw-comment-memory id="<memory_id>">...</gh-aw-comment-memory>` markers.
+2. **Setup Extraction**: Pre-agent setup extracts marker content from GitHub comments into `/tmp/gh-aw/comment-memory/<memory_id>.md`.
+3. **File-Based Editing**: Agent updates memory by editing files only; no direct `comment_memory` tool call is required.
+4. **Automatic Sync**: Processor reads `*.md` files and upserts corresponding managed comments after agent execution.
+5. **Temporary ID Rewrite**: If temporary IDs (workflow-run-scoped placeholders prefixed with `aw_`, such as `aw_abc123`) are resolved during processing, comment-memory content MUST be rewritten using the resolved IDs before final upsert.
+6. **Precedence Rule**: If both an explicit `comment_memory` operation and a file-backed entry exist for the same `memory_id`, the explicit operation takes precedence.
+
+**Configuration Parameters**:
+
+- `max`: Operation limit (default: 1)
+- `memory-id`: Default memory identifier when omitted in synthesized operations
+- `target`: Target issue/PR selector (`triggering`, `*`, or explicit number)
+- `target-repo`: Cross-repository target
+- `allowed-repos`: Cross-repo allowlist
+- `footer`: Footer override
+- `staged`: Staged mode override
+
+**Security Requirements**:
+
+- `memory_id` MUST be validated as `[A-Za-z0-9_-]+` with path traversal patterns rejected.
+- Managed comment scan MUST be bounded by a maximum page limit.
+- Body content MUST undergo sanitization and comment size/mention/link limit validation before upsert.
+- Cross-repository targets MUST be validated against `allowed-repos`.
+- Only content within managed marker tags is treated as editable memory; footer/provenance text MUST NOT be imported into editable files. For example, in `<gh-aw-comment-memory id="default">MEMORY</gh-aw-comment-memory>\n\n<!-- provenance footer -->`, only `MEMORY` is editable/imported.
+
+**Required Permissions**:
+
+*GitHub Actions Token*:
+
+- `contents: read` - Repository metadata and context
+- `issues: write` - Managed comment create/update operations on issues and pull requests
+
+*GitHub App*:
+
+- `issues: write` - Managed comment create/update operations
+- `metadata: read` - Repository metadata (automatically granted)
+
+---
+
 #### Type: update_issue
 
 **Purpose**: Modify existing issue properties (title, body, state, labels, assignees, milestone).
@@ -2757,6 +2837,84 @@ This section provides complete definitions for all remaining safe output types. 
 
 - Higher default max (10) enables bulk PR cleanup operations
 - Does NOT merge changes - use GitHub's merge functionality for that
+
+---
+
+#### Type: merge_pull_request
+
+**Purpose**: Merge pull requests only when configured policy gates pass.
+
+**Default Max**: 1  
+**Cross-Repository Support**: Yes  
+**Mandatory**: No
+
+**MCP Tool Schema**:
+
+```json
+{
+  "name": "merge_pull_request",
+  "description": "Merge an existing pull request only after policy checks pass (status checks, approvals, resolved review threads, label/branch constraints, and mergeability gates).",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "pull_request_number": {
+        "type": ["number", "string"],
+        "description": "Pull request number to merge. Supports numeric values or temporary IDs from prior safe-output operations. If omitted, uses triggering pull request context."
+      },
+      "merge_method": {
+        "type": "string",
+        "enum": ["merge", "squash", "rebase"]
+      },
+      "commit_title": {"type": "string"},
+      "commit_message": {"type": "string"},
+      "repo": {
+        "type": "string",
+        "description": "Target repository in owner/repo format."
+      }
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+**Operational Semantics**:
+
+1. **Repository/PR Resolution**: Resolves target repository and pull request from context or explicit input.
+2. **Mergeability Check**: Validates pull request is mergeable and not draft/conflicted.
+3. **Policy Gates**: Enforces required checks, review decision, unresolved review thread gating, label constraints, and source branch constraints.
+4. **Base Branch Protection**: Refuses merges when the target base branch is protected or is the repository default branch.
+5. **Idempotency**: Returns success when the pull request is already merged.
+
+**Configuration Parameters**:
+
+- `max`: Operation limit (default: 1)
+- `required-labels`: Labels that must exist on the pull request
+- `allowed-labels`: Exact label names; at least one pull request label must exactly match when configured
+- `allowed-branches`: Source branch glob patterns
+- `target-repo`: Cross-repository target
+- `allowed-repos`: Cross-repository allowlist
+- `staged`: Staged mode override
+
+**Required Permissions**:
+
+*GitHub Actions Token*:
+
+- `contents: write` - Merge operation execution
+- `pull-requests: write` - Pull request metadata and merge operations
+
+*GitHub App*:
+
+- `contents: write` - Merge operation execution
+- `pull-requests: write` - Pull request metadata and merge operations
+- `metadata: read` - Repository metadata (automatically granted)
+
+**Notes**:
+
+- Merge execution is blocked unless all configured gates pass.
+- Merge to the repository default branch is always refused by this safe output type.
+- `pull_request_number` may be a temporary ID that resolves to a pull request number from earlier safe-output operations.
+- GraphQL mergeability and review-summary queries are retried with transient-error retry logic.
+- Compiling a workflow with `merge-pull-request` emits: `Using experimental feature: merge-pull-request`.
 
 ---
 
@@ -4714,6 +4872,18 @@ safe-outputs:
 ---
 
 ## Appendix F: Document History
+
+**Version 1.18.0** (2026-04-21):
+
+- **Added**: `comment_memory` safe output type definition in Section 7.3, including file-based synchronization model and required permissions
+- **Added**: Phase 8 "Comment Memory Round-Trip" in Section 4.2 defining end-to-end flow across GitHub comment, local files, agent, artifacts, threat detection, and comment upsert
+- **Updated**: Publication metadata to 1.18.0
+
+**Version 1.17.0** (2026-04-19):
+
+- **Added**: `merge_pull_request` safe output type definition in Section 7.3, including schema, policy gate semantics, and required permissions
+- **Documented**: Merge policy gates for checks, reviews, labels, branch constraints, file constraints, and base-branch restrictions
+- **Updated**: Publication metadata to 1.17.0
 
 **Version 1.15.0** (2026-03-29):
 

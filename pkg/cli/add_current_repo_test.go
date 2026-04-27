@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"strings"
@@ -69,7 +70,7 @@ func TestAddWorkflowsFromCurrentRepository(t *testing.T) {
 			ClearCurrentRepoSlugCache()
 
 			opts := AddOptions{}
-			_, err := AddWorkflows(tt.workflowSpecs, opts)
+			_, err := AddWorkflows(context.Background(), tt.workflowSpecs, opts)
 
 			if tt.expectError {
 				if err == nil {
@@ -153,7 +154,7 @@ func TestAddWorkflowsFromCurrentRepositoryMultiple(t *testing.T) {
 			ClearCurrentRepoSlugCache()
 
 			opts := AddOptions{}
-			_, err := AddWorkflows(tt.workflowSpecs, opts)
+			_, err := AddWorkflows(context.Background(), tt.workflowSpecs, opts)
 
 			if tt.expectError {
 				if err == nil {
@@ -195,7 +196,7 @@ func TestAddWorkflowsFromCurrentRepositoryNotInGitRepo(t *testing.T) {
 	// When not in a git repo, the check should be skipped (can't determine current repo)
 	// The function should proceed and fail for other reasons (e.g., workflow not found)
 	opts := AddOptions{}
-	_, err = AddWorkflows([]string{"some-owner/some-repo/workflow"}, opts)
+	_, err = AddWorkflows(context.Background(), []string{"some-owner/some-repo/workflow"}, opts)
 
 	// Should NOT get the "cannot add workflows from the current repository" error
 	if err != nil && strings.Contains(err.Error(), "cannot add workflows from the current repository") {

@@ -17,6 +17,7 @@ const path = require("path");
 const { checkFileExists } = require("./file_helpers.cjs");
 const { AGENT_OUTPUT_FILENAME } = require("./constants.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { getPromptPath } = require("./messages_core.cjs");
 
 /**
  * Main entry point for setting up threat detection
@@ -24,8 +25,7 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
  */
 async function main() {
   // Read the threat detection template from file
-  // At runtime, markdown files are copied to ${RUNNER_TEMP}/gh-aw/prompts/ by the setup action
-  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/threat_detection.md`;
+  const templatePath = getPromptPath("threat_detection.md");
   if (!fs.existsSync(templatePath)) {
     core.setFailed(`${ERR_VALIDATION}: Threat detection template not found at: ${templatePath}`);
     return;
@@ -75,6 +75,20 @@ async function main() {
   // Get file info for template replacement
   const promptFileInfo = promptPath + " (" + fs.statSync(promptPath).size + " bytes)";
   const agentOutputFileInfo = agentOutputPath + " (" + fs.statSync(agentOutputPath).size + " bytes)";
+  const commentMemoryDir = path.join(threatDetectionDir, "comment-memory");
+  let commentMemoryFileInfo = "No comment-memory files found";
+  if (fs.existsSync(commentMemoryDir)) {
+    const commentMemoryFiles = fs
+      .readdirSync(commentMemoryDir)
+      .filter(file => file.endsWith(".md"))
+      .map(file => {
+        const fullPath = path.join(commentMemoryDir, file);
+        return `${fullPath} (${fs.statSync(fullPath).size} bytes)`;
+      });
+    if (commentMemoryFiles.length > 0) {
+      commentMemoryFileInfo = commentMemoryFiles.join("\n");
+    }
+  }
 
   // Build patch/bundle file info for template replacement
   let patchFileInfo = "No patch or bundle file found";
@@ -94,6 +108,7 @@ async function main() {
     .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || "No description provided")
     .replace(/{WORKFLOW_PROMPT_FILE}/g, promptFileInfo)
     .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
+    .replace(/{COMMENT_MEMORY_FILES}/g, commentMemoryFileInfo)
     .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
 
   // Append custom prompt instructions if provided

@@ -90,6 +90,17 @@ This runs the complete cycle: learn from commits, import any `MEMORY.md` files,
 consolidate by applying decay, merge near-duplicates, and promote high-value lessons
 to the global store.
 
+## Step 2.5 — Refresh embeddings
+
+Keep the vector index current so semantic recall stays sharp. Run after every sleep
+cycle to embed any memories that were added or updated since the last embed pass:
+
+```
+mcpscripts-hippo args: "embed"
+```
+
+This is fast for incremental updates (only unembedded memories are processed).
+
 ## Step 3 — Recall top insights
 
 Recall memories across these four lenses (run each separately):

@@ -74,6 +74,9 @@ const ExpressionBreakThreshold LineLength = 100
 // for MCP servers, gateway services, and validation ranges.
 
 const (
+	// AWFAPIProxyContainerIP is the fixed api-proxy sidecar address inside the AWF sandbox network.
+	AWFAPIProxyContainerIP = "172.30.0.30"
+
 	// DefaultMCPGatewayPort is the default port for the MCP gateway HTTP service
 	DefaultMCPGatewayPort = 8080
 
@@ -100,9 +103,6 @@ const (
 
 	// GeminiLLMGatewayPort is the port for the Gemini LLM gateway
 	GeminiLLMGatewayPort = 10003
-
-	// CrushLLMGatewayPort is the port for the Crush LLM gateway
-	CrushLLMGatewayPort = 10004
 )
 
 // DefaultGitHubLockdown is the default value for the GitHub MCP server lockdown setting.

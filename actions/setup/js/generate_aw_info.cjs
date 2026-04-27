@@ -86,6 +86,14 @@ async function main(core, ctx) {
     awInfo.cli_version = cliVersion;
   }
 
+  // Include deployment_state when triggered by a deployment_status event.
+  // This makes the deployment state available to the agent without requiring it to
+  // read the raw event payload, and is propagated to child workflows via aw_context.
+  const deploymentState = ctx.payload?.deployment_status?.state;
+  if (deploymentState && typeof deploymentState === "string") {
+    awInfo.deployment_state = deploymentState;
+  }
+
   // Include custom token weights when set (engine.token-weights in workflow frontmatter).
   // Deep structure validation is intentionally minimal here: the JSON schema and Go parser
   // already validate the structure at compile time. We only verify the top-level type to
@@ -150,8 +158,9 @@ async function main(core, ctx) {
   core.info("Generated aw_info.json at: " + tmpPath);
   core.info(JSON.stringify(awInfo, null, 2));
 
-  // Set model as output for reuse in other steps/jobs
+  // Set model and engine_id as outputs for reuse in other steps/jobs
   core.setOutput("model", awInfo.model);
+  core.setOutput("engine_id", awInfo.engine_id);
 
   // Generate workflow overview and write to step summary
   await generateWorkflowOverview(core);

@@ -60,8 +60,21 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 		}
 	}
 
+	// Parse typed on.needs field if on exists
+	if len(config.On) > 0 {
+		onNeeds, err := parseOnNeedsConfig(config.On)
+		if err == nil {
+			config.OnNeeds = onNeeds
+			frontmatterTypesLog.Printf("Parsed typed on.needs config with %d entries", len(onNeeds))
+		}
+	}
+
 	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%v", config.Name, config.Engine)
 	return &config, nil
+}
+
+func parseOnNeedsConfig(on map[string]any) ([]string, error) {
+	return parseOnNeedsValues(on)
 }
 
 // parseRuntimesConfig converts a map[string]any to RuntimesConfig
@@ -204,6 +217,8 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 				config.SecurityEvents = levelStr
 			case "statuses":
 				config.Statuses = levelStr
+			case "vulnerability-alerts":
+				config.VulnerabilityAlerts = levelStr
 			case "organization-projects":
 				config.OrganizationProjects = levelStr
 			// GitHub App-only permission scopes
@@ -213,8 +228,6 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 				config.Environments = levelStr
 			case "git-signing":
 				config.GitSigning = levelStr
-			case "vulnerability-alerts":
-				config.VulnerabilityAlerts = levelStr
 			case "workflows":
 				config.Workflows = levelStr
 			case "repository-hooks":

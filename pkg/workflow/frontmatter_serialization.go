@@ -336,6 +336,9 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 	if config.Statuses != "" {
 		result["statuses"] = config.Statuses
 	}
+	if config.VulnerabilityAlerts != "" {
+		result["vulnerability-alerts"] = config.VulnerabilityAlerts
+	}
 	if config.OrganizationProjects != "" {
 		result["organization-projects"] = config.OrganizationProjects
 	}
@@ -349,9 +352,6 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 	}
 	if config.GitSigning != "" {
 		result["git-signing"] = config.GitSigning
-	}
-	if config.VulnerabilityAlerts != "" {
-		result["vulnerability-alerts"] = config.VulnerabilityAlerts
 	}
 	if config.Workflows != "" {
 		result["workflows"] = config.Workflows

@@ -8,7 +8,7 @@
 //
 // These helper functions are grouped here because they:
 //   - Are used by 3+ engine implementations (shared utilities)
-//   - Provide common patterns for agent installation and npm setup
+//   - Provide common patterns for agent installation and secret validation
 //   - Have a clear domain focus (engine workflow generation)
 //   - Are stable and change infrequently
 //
@@ -16,15 +16,16 @@
 //
 // # Key Functions
 //
-// Agent Installation:
-//   - GenerateAgentInstallSteps() - Generate agent installation workflow steps
+// Base Installation:
+//   - GetBaseInstallationSteps() - Generate base installation steps for an engine
 //
-// NPM Installation:
-//   - GenerateNpmInstallStep() - Generate npm package installation step
-//   - GenerateEngineDependenciesInstallStep() - Generate engine dependencies install step
+// Secret Validation:
+//   - GenerateMultiSecretValidationStep() - Validate at least one of multiple secrets
+//   - BuildDefaultSecretValidationStep() - Build secret validation step for an engine
 //
 // Configuration:
-//   - GetClaudeSystemPrompt() - Get system prompt for Claude engine
+//   - FormatStepWithCommandAndEnv() - Format a step with command and environment variables
+//   - FilterEnvForSecrets() - Filter environment variables to only include allowed secrets
 //
 // These functions encapsulate shared logic that would otherwise be duplicated across
 // engine files, maintaining DRY principles while keeping engine-specific code separate.
@@ -110,91 +111,6 @@ func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *Workflow
 		workflowData,
 	)
 	steps = append(steps, npmSteps...)
-
-	return steps
-}
-
-// BuildStandardNpmEngineInstallSteps creates standard npm installation steps for engines
-// This helper extracts the common pattern shared by Copilot, Codex, and Claude engines.
-//
-// Parameters:
-//   - packageName: The npm package name (e.g., "@github/copilot")
-//   - defaultVersion: The default version constant (e.g., constants.DefaultCopilotVersion)
-//   - stepName: The display name for the install step (e.g., "Install GitHub Copilot CLI")
-//   - cacheKeyPrefix: The cache key prefix (e.g., "copilot")
-//   - workflowData: The workflow data containing engine configuration
-//
-// Returns:
-//   - []GitHubActionStep: The installation steps including Node.js setup
-func BuildStandardNpmEngineInstallSteps(
-	packageName string,
-	defaultVersion string,
-	stepName string,
-	cacheKeyPrefix string,
-	workflowData *WorkflowData,
-) []GitHubActionStep {
-	engineHelpersLog.Printf("Building npm engine install steps: package=%s, version=%s", packageName, defaultVersion)
-
-	// Use version from engine config if provided, otherwise default to pinned version
-	version := defaultVersion
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		version = workflowData.EngineConfig.Version
-		engineHelpersLog.Printf("Using engine config version: %s", version)
-	}
-
-	// Add npm package installation steps (includes Node.js setup)
-	// Always pass false for runInstallScripts: engine CLI installs must never run
-	// pre/post install scripts regardless of the workflow's run-install-scripts setting.
-	// This is a supply chain security requirement for the engine binary itself.
-	return GenerateNpmInstallSteps(
-		packageName,
-		version,
-		stepName,
-		cacheKeyPrefix,
-		true,  // Include Node.js setup
-		false, // Always disable scripts for engine CLI installs
-	)
-}
-
-// BuildNpmEngineInstallStepsWithAWF injects an AWF installation step between the Node.js
-// setup step and the CLI install steps when the firewall is enabled. This eliminates the
-// duplicated AWF-injection pattern shared by Claude, Gemini, and Copilot engines.
-//
-// The expected layout of npmSteps is:
-//   - npmSteps[0]  – Node.js setup step
-//   - npmSteps[1:] – CLI installation step(s)
-//
-// Parameters:
-//   - npmSteps: Pre-computed npm installation steps (from BuildStandardNpmEngineInstallSteps
-//     or GenerateCopilotInstallerSteps)
-//   - workflowData: The workflow data (used to determine firewall configuration)
-//
-// Returns:
-//   - []GitHubActionStep: Steps in order: Node.js setup, AWF (if enabled), CLI install
-func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData *WorkflowData) []GitHubActionStep {
-	var steps []GitHubActionStep
-
-	if len(npmSteps) > 0 {
-		steps = append(steps, npmSteps[0]) // Node.js setup step
-	}
-
-	// Inject AWF installation after Node.js setup but before the CLI install steps
-	if isFirewallEnabled(workflowData) {
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfVersion string
-		if firewallConfig != nil {
-			awfVersion = firewallConfig.Version
-		}
-		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
-		if len(awfInstall) > 0 {
-			steps = append(steps, awfInstall)
-		}
-	}
-
-	if len(npmSteps) > 1 {
-		steps = append(steps, npmSteps[1:]...) // CLI installation and subsequent steps
-	}
 
 	return steps
 }
@@ -408,28 +324,6 @@ func FilterEnvForSecrets(env map[string]string, allowedNamesAndKeys []string) ma
 
 	engineHelpersLog.Printf("Filtered environment variables: kept=%d, removed=%d", len(filtered), secretsRemoved)
 	return filtered
-}
-
-// GetNpmBinPathSetup returns a simple shell command that adds hostedtoolcache bin directories
-// to PATH. This is specifically for npm-installed CLIs (like Claude and Codex) that need
-// to find their binaries installed via `npm install -g`.
-//
-// Unlike GetHostedToolcachePathSetup(), this does NOT use GH_AW_TOOL_BINS because AWF's
-// native chroot mode already handles tool-specific paths (GOROOT, JAVA_HOME, etc.) via
-// AWF_HOST_PATH and the entrypoint.sh script. This function only adds the generic
-// hostedtoolcache bin directories for npm packages.
-//
-// Returns:
-//   - string: A shell command that exports PATH with hostedtoolcache bin directories prepended
-func GetNpmBinPathSetup() string {
-	// Find all bin directories in hostedtoolcache (Node.js, Python, etc.)
-	// This finds paths like /opt/hostedtoolcache/node/22.13.0/x64/bin
-	//
-	// After the find, re-prepend GOROOT/bin if set. The find returns directories
-	// alphabetically, so go/1.23.12 shadows go/1.25.0. Re-prepending GOROOT/bin
-	// ensures the Go version set by actions/setup-go takes precedence.
-	// AWF's entrypoint.sh exports GOROOT before the user command runs.
-	return `export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true`
 }
 
 // EngineHasValidateSecretStep checks if the engine provides a validate-secret step.

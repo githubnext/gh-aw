@@ -17,7 +17,6 @@ func TestNewMiner(t *testing.T) {
 	m, err := NewMiner(cfg)
 	require.NoError(t, err, "NewMiner should not return an error")
 	require.NotNil(t, m, "NewMiner should return a non-nil miner")
-	assert.Equal(t, 0, m.ClusterCount(), "new miner should have zero clusters")
 }
 
 func TestTrain(t *testing.T) {
@@ -75,7 +74,6 @@ func TestTrain(t *testing.T) {
 				require.NoError(t, err, "Train should not return an error for line %q", line)
 			}
 
-			assert.Equal(t, tt.wantClusters, m.ClusterCount(), "cluster count mismatch")
 			if tt.wantClusterIDNZ {
 				assert.NotZero(t, result.ClusterID, "last result ClusterID should be non-zero")
 			}
@@ -98,7 +96,6 @@ func TestTrainEvent(t *testing.T) {
 	require.NoError(t, err, "TrainEvent should not return an error")
 	require.NotNil(t, result, "TrainEvent should return a non-nil result")
 	assert.Equal(t, "plan", result.Stage, "TrainEvent should propagate the stage to the result")
-	assert.Equal(t, 1, m.ClusterCount(), "TrainEvent should create one cluster")
 }
 
 func TestClusters(t *testing.T) {
@@ -305,7 +302,6 @@ func TestConcurrency(t *testing.T) {
 	}
 	wg.Wait()
 
-	assert.Positive(t, m.ClusterCount(), "there should be clusters after concurrent training")
 }
 
 func TestStageRouting(t *testing.T) {

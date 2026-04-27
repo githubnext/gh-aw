@@ -5,23 +5,16 @@ sidebar:
   order: 5
 ---
 
-This guide covers using [Serena](https://github.com/oraios/serena), a powerful coding agent toolkit that provides semantic code retrieval and editing capabilities to agentic workflows.
+[Serena](https://github.com/oraios/serena) is an MCP server that enhances AI agents with IDE-like tools for semantic code analysis and manipulation. It supports **30+ programming languages** through Language Server Protocol (LSP) integration, enabling agents to find symbols, navigate code relationships, and edit at the symbol level — ideal for navigating and editing large, well-structured codebases.
 
 > [!CAUTION]
 > `tools.serena` has been removed. Use the `shared/mcp/serena.md` shared workflow instead (see [Migration](#migration-from-toolsserena) below). Workflows that still use `tools.serena` will fail to compile.
-
-## What is Serena?
-
-Serena is an MCP server that enhances AI agents with IDE-like tools for semantic code analysis and manipulation. It supports **30+ programming languages** through Language Server Protocol (LSP) integration, enabling agents to find symbols, navigate relationships, edit at symbol level, and analyze code structure - all without reading entire files or performing text-based searches.
-
-> [!TIP]
-> Serena excels at navigating and manipulating complex codebases, especially for large, well-structured projects where precise code navigation and editing are essential.
 
 ## Quick Start
 
 ### Recommended: Import shared workflow
 
-The preferred way to add Serena is to import the shared workflow, which configures the complete MCP server automatically:
+The preferred way to add Serena is to copy the file [`shared/mcp/serena.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena.md) into your repo and import it into your workflow, which configures the complete MCP server automatically:
 
 ```aw wrap
 ---
@@ -29,6 +22,7 @@ on: issues
 engine: copilot
 permissions:
   contents: read
+# NOTE: first copy `shared/mcp/serena.md` into your repository before importing it
 imports:
   - uses: shared/mcp/serena.md
     with:
@@ -36,7 +30,7 @@ imports:
 ---
 ```
 
-For Go-only workflows, use the convenience wrapper:
+For Go-only workflows, use the convenience wrapper (copy [`shared/mcp/serena-go.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena-go.md) into your repository before importing it):
 
 ```aw wrap
 ---
@@ -44,6 +38,7 @@ on: issues
 engine: copilot
 permissions:
   contents: read
+# NOTE: first copy `shared/mcp/serena-go.md` into your repository before importing it
 imports:
   - shared/mcp/serena-go.md
 ---
@@ -88,29 +83,14 @@ imports:
       languages: ["go", "typescript"]
 ```
 
-For Go-only workflows there is a shorthand:
-
-```aw wrap
-imports:
-  - shared/mcp/serena-go.md
-```
-
-The shared workflow configures the full Serena MCP server (container image, entrypoint, workspace mount) explicitly. Compiling a workflow that still uses `tools.serena` now fails with an error:
-
-```
-✖ 'tools.serena' has been removed. Use the shared/mcp/serena.md workflow instead:
-  imports:
-    - uses: shared/mcp/serena.md
-      with:
-        languages: ["go", "typescript"]
-```
+The shared workflow configures the full Serena MCP server (container image, entrypoint, workspace mount) explicitly.
 
 ## Language Support
 
 Serena supports **30+ programming languages** through Language Server Protocol (LSP):
 
 | Category | Languages |
-|----------|-----------|
+| ---------- | ----------- |
 | **Systems** | C, C++, Rust, Go, Zig |
 | **JVM** | Java, Kotlin, Scala, Groovy (partial) |
 | **Web** | JavaScript, TypeScript, Dart, Elm |
@@ -128,27 +108,12 @@ Serena supports **30+ programming languages** through Language Server Protocol (
 Serena provides semantic code tools organized into three categories:
 
 | Category | Tools |
-|----------|-------|
+| ---------- | ------- |
 | **Symbol Navigation** | `find_symbol`, `find_referencing_symbols`, `get_symbol_definition`, `list_symbols_in_file` |
 | **Code Editing** | `replace_symbol_body`, `insert_after_symbol`, `insert_before_symbol`, `delete_symbol` |
 | **Project Analysis** | `find_files`, `get_project_structure`, `analyze_imports` |
 
 These tools enable agents to work at the **symbol level** rather than the file level, making code operations more precise and context-aware.
-
-## Memory Configuration
-
-Serena caches language server indexes for faster operations. Create the cache directory in your workflow:
-
-```bash
-mkdir -p /tmp/gh-aw/cache-memory/serena
-```
-
-Optionally configure cache-memory in frontmatter:
-```yaml wrap
-tools:
-  cache-memory:
-    key: serena-analysis
-```
 
 ## Usage Examples
 
@@ -171,29 +136,9 @@ tools:
 3. Report findings
 ```
 
-### Automated Refactoring
-
-```aw wrap
----
-engine: claude
-imports:
-  - uses: shared/mcp/serena.md
-    with:
-      languages: ["python"]
-tools:
-  edit:
----
-
-# Add Type Hints
-
-1. Find functions without type hints
-2. Add annotations using `replace_symbol_body`
-3. Verify correctness
-```
-
 ## Best Practices
 
-Configure cache directory early (`mkdir -p /tmp/gh-aw/cache-memory/serena`) for faster operations. Prefer symbol-level operations (`replace_symbol_body`) over file-level edits. Combine Serena with other tools like `github`, `edit`, and `bash` for complete workflows. For large codebases, start with targeted analysis of specific packages before expanding scope.
+Pre-create the cache directory (`mkdir -p /tmp/gh-aw/cache-memory/serena`) for faster operations — Serena reuses language server indexes across runs. Pin the key with `tools.cache-memory.key: serena-analysis` in frontmatter to persist it. Prefer symbol-level operations (`replace_symbol_body`) over file-level edits. Combine Serena with other tools like `github`, `edit`, and `bash` for complete workflows. For large codebases, start with targeted analysis of specific packages before expanding scope.
 
 ## Troubleshooting
 
@@ -209,10 +154,6 @@ Configure cache directory early (`mkdir -p /tmp/gh-aw/cache-memory/serena`) for 
 - [Using MCPs](/gh-aw/guides/mcps/) - General MCP server configuration
 - [Tools Reference](/gh-aw/reference/tools/) - Complete tools configuration
 - [Getting Started with MCPs](/gh-aw/guides/getting-started-mcp/) - MCP introduction
-
-## External Resources
-
-- [Serena GitHub Repository](https://github.com/oraios/serena) - Official repository
-- [Serena Documentation](https://oraios.github.io/serena/) - Comprehensive user guide
+- [Serena GitHub Repository](https://github.com/oraios/serena) — official repo and [documentation](https://oraios.github.io/serena/)
 - [Language Support](https://oraios.github.io/serena/01-about/020_programming-languages.html) - Supported languages and dependencies
 - [Serena Tools Reference](https://oraios.github.io/serena/01-about/035_tools.html) - Complete tool documentation

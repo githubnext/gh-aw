@@ -120,6 +120,27 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("parses on.needs config", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on": map[string]any{
+				"workflow_dispatch": map[string]any{},
+				"needs":             []any{"secrets_fetcher", "config_loader"},
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(config.OnNeeds) != 2 {
+			t.Fatalf("expected 2 on.needs entries, got %d", len(config.OnNeeds))
+		}
+		if config.OnNeeds[0] != "secrets_fetcher" || config.OnNeeds[1] != "config_loader" {
+			t.Fatalf("unexpected on.needs entries: %#v", config.OnNeeds)
+		}
+	})
+
 	t.Run("handles timeout-minutes as int", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"timeout-minutes": 60,

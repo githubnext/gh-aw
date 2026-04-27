@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { main, getIssuesToAssignCopilot, resetIssuesToAssignCopilot } = require("./create_issue.cjs");
+const { main } = require("./create_issue.cjs");
 
 describe("create_issue", () => {
   let mockGithub;
@@ -14,9 +14,6 @@ describe("create_issue", () => {
   beforeEach(() => {
     // Save original environment
     originalEnv = { ...process.env };
-
-    // Reset copilot assignment tracking
-    resetIssuesToAssignCopilot();
 
     // Mock GitHub API
     mockGithub = {
@@ -257,33 +254,6 @@ describe("create_issue", () => {
 
       // Verify graphql was called three times (findAgent, getIssueDetails, assignAgentToIssue)
       expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
-      // Global queue should remain empty (assignment done directly, not queued)
-      expect(getIssuesToAssignCopilot()).toHaveLength(0);
-    });
-  });
-
-  describe("global state safety", () => {
-    it("getIssuesToAssignCopilot returns a copy, not the live reference", () => {
-      const snapshot = getIssuesToAssignCopilot();
-      const lengthBefore = snapshot.length;
-
-      // Mutating the returned copy must NOT affect internal state
-      snapshot.push("external:999");
-      expect(getIssuesToAssignCopilot().length).toBe(lengthBefore);
-    });
-
-    it("resetIssuesToAssignCopilot clears internal state but does not affect held snapshots", () => {
-      const snapshot = getIssuesToAssignCopilot();
-
-      // Make the held copy observably different from internal state
-      snapshot.push("external:999");
-
-      resetIssuesToAssignCopilot();
-
-      // Fresh reads reflect cleared internal state
-      expect(getIssuesToAssignCopilot()).toHaveLength(0);
-      // Previously returned snapshots remain unchanged because getter returns a copy
-      expect(snapshot).toEqual(expect.arrayContaining(["external:999"]));
     });
   });
 
@@ -299,6 +269,24 @@ describe("create_issue", () => {
       expect(result2.success).toBe(true);
       expect(result3.success).toBe(false);
       expect(result3.error).toContain("Max count of 2 reached");
+    });
+
+    it("should respect max count limit under concurrent calls with group-by-day pre-check", async () => {
+      const handler = await main({
+        max: 1,
+        group_by_day: true,
+        close_older_key: "concurrency-key",
+      });
+
+      const [result1, result2] = await Promise.all([handler({ title: "Issue 1" }), handler({ title: "Issue 2" })]);
+      const results = [result1, result2];
+      const successes = results.filter(result => result.success);
+      const failures = results.filter(result => !result.success);
+
+      expect(successes).toHaveLength(1);
+      expect(failures).toHaveLength(1);
+      expect(failures[0].error).toContain("Max count of 1 reached");
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
     });
   });
 

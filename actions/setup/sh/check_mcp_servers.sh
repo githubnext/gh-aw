@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set +o histexpand
+
 # Check MCP Server Functionality
 # This script performs basic functionality checks on MCP servers configured by the MCP gateway
 # It sends an MCP ping + initialize + tools/list request to each server to verify backend connectivity

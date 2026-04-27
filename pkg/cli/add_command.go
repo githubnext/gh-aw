@@ -73,7 +73,7 @@ Workflow specifications:
   - Local wildcard: "./*.md" or "./dir/*.md" (adds all .md files matching pattern)
   - Version can be tag, branch, or SHA (for remote workflows)
 
-The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
+The -n flag allows you to specify a custom name for the workflow file (not allowed when adding multiple workflows at once).
 The --dir flag allows you to specify the workflow directory (default: .github/workflows).
 The --create-pull-request flag creates a pull request with the workflow changes.
 The --force flag overwrites existing workflow files.
@@ -101,6 +101,11 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
 			disableSecurityScanner, _ := cmd.Flags().GetBool("disable-security-scanner")
+
+			if nameFlag != "" && len(workflows) > 1 {
+				return errors.New("--name flag cannot be used when adding multiple workflows at once")
+			}
+
 			if err := validateEngine(engineOverride); err != nil {
 				return err
 			}
@@ -118,7 +123,7 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 				StopAfter:              stopAfter,
 				DisableSecurityScanner: disableSecurityScanner,
 			}
-			_, err := AddWorkflows(workflows, opts)
+			_, err := AddWorkflows(cmd.Context(), workflows, opts)
 			return err
 		},
 	}
@@ -172,9 +177,9 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 // AddWorkflows adds one or more workflows from components to .github/workflows
 // with optional repository installation and PR creation.
 // Returns AddWorkflowsResult containing PR number (if created) and other metadata.
-func AddWorkflows(workflows []string, opts AddOptions) (*AddWorkflowsResult, error) {
+func AddWorkflows(ctx context.Context, workflows []string, opts AddOptions) (*AddWorkflowsResult, error) {
 	// Resolve workflows first - fetches content directly from GitHub
-	resolved, err := ResolveWorkflows(workflows, opts.Verbose)
+	resolved, err := ResolveWorkflows(ctx, workflows, opts.Verbose)
 	if err != nil {
 		return nil, err
 	}
@@ -412,6 +417,15 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 	if sourceInfo != nil {
 		commitSHA = sourceInfo.CommitSHA
 	}
+	// When the fetch used a fallback path (e.g. .github/workflows/my-workflow.md instead
+	// of the short-form my-workflow.md), SourcePath holds the actual repo-root-relative
+	// path. Propagate it to workflowSpec so all downstream processing (source field,
+	// include/import resolution) uses the canonical path.
+	if sourceInfo != nil && !sourceInfo.IsLocal && sourceInfo.SourcePath != "" && sourceInfo.SourcePath != workflowSpec.WorkflowPath {
+		specCopy := *workflowSpec
+		specCopy.WorkflowPath = sourceInfo.SourcePath
+		workflowSpec = &specCopy
+	}
 	sourceString := buildSourceStringWithCommitSHA(workflowSpec, commitSHA)
 	if sourceString != "" {
 		updatedContent, err := addSourceToWorkflow(content, sourceString)
@@ -494,12 +508,18 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 	if err := os.WriteFile(destFile, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write destination file '%s': %w", destFile, err)
 	}
+	// Read back the just-written file to ensure downstream processing (including
+	// frontmatter hash computation) uses the exact bytes on disk and avoids parity drift.
+	writtenContent, err := os.ReadFile(destFile)
+	if err != nil {
+		return fmt.Errorf("failed to read back destination file '%s': %w", destFile, err)
+	}
 
 	// Show output
 	if !opts.Quiet {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added workflow: "+destFile))
 
-		if description := ExtractWorkflowDescription(content); description != "" {
+		if description := ExtractWorkflowDescription(string(writtenContent)); description != "" {
 			fmt.Fprintln(os.Stderr, "")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
 			fmt.Fprintln(os.Stderr, "")

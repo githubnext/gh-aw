@@ -34,17 +34,26 @@ type GHAWManifestContainer struct {
 	PinnedImage string `json:"pinned_image,omitempty"` // Full ref, e.g. "node:lts-alpine@sha256:abc123..."
 }
 
+// GHAWManifestResolutionFailure represents an action-ref pinning failure captured
+// during compilation. These failures are embedded for lock-file auditing.
+type GHAWManifestResolutionFailure struct {
+	Repo      string `json:"repo"`
+	Ref       string `json:"ref"`
+	ErrorType string `json:"error_type"`
+}
+
 // GHAWManifest is the single-line JSON payload embedded as a "# gh-aw-manifest: ..."
 // comment in generated lock files. It records the secrets, external actions, and
 // container images that were detected at the time the lock file was last compiled
 // so that subsequent compilations can detect newly introduced secrets when safe
 // update mode is enabled.
 type GHAWManifest struct {
-	Version    int                     `json:"version"`
-	Secrets    []string                `json:"secrets"`
-	Actions    []GHAWManifestAction    `json:"actions"`
-	Containers []GHAWManifestContainer `json:"containers,omitempty"` // container images used, with digest when available
-	Redirect   string                  `json:"redirect,omitempty"`   // frontmatter redirect target for moved workflows
+	Version            int                             `json:"version"`
+	Secrets            []string                        `json:"secrets"`
+	Actions            []GHAWManifestAction            `json:"actions"`
+	ResolutionFailures []GHAWManifestResolutionFailure `json:"resolution_failures,omitempty"` // unresolved action-ref pinning failures
+	Containers         []GHAWManifestContainer         `json:"containers,omitempty"`          // container images used, with digest when available
+	Redirect           string                          `json:"redirect,omitempty"`            // frontmatter redirect target for moved workflows
 }
 
 // NewGHAWManifest builds a GHAWManifest from the raw secret names, action reference
@@ -57,7 +66,7 @@ type GHAWManifest struct {
 //	"actions/checkout@abc1234 # v4"
 //
 // containers is the list of container image entries with full digest info (when available).
-func NewGHAWManifest(secretNames []string, actionRefs []string, containers []GHAWManifestContainer, redirect string) *GHAWManifest {
+func NewGHAWManifest(secretNames []string, actionRefs []string, failures []GHAWManifestResolutionFailure, containers []GHAWManifestContainer, redirect string) *GHAWManifest {
 	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d, containers=%d", len(secretNames), len(actionRefs), len(containers))
 
 	// Normalize secret names to full "secrets.NAME" form and deduplicate.
@@ -73,6 +82,7 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, containers []GHA
 	sort.Strings(secrets)
 
 	actions := parseActionRefs(actionRefs)
+	resolutionFailures := normalizeResolutionFailures(failures)
 
 	// Deduplicate container entries by image name and sort for deterministic output.
 	seenContainers := make(map[string]bool, len(containers))
@@ -91,11 +101,12 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, containers []GHA
 		currentGHAWManifestVersion, len(secrets), len(actions), len(sortedContainers))
 
 	return &GHAWManifest{
-		Version:    currentGHAWManifestVersion,
-		Secrets:    secrets,
-		Actions:    actions,
-		Containers: sortedContainers,
-		Redirect:   strings.TrimSpace(redirect),
+		Version:            currentGHAWManifestVersion,
+		Secrets:            secrets,
+		Actions:            actions,
+		ResolutionFailures: resolutionFailures,
+		Containers:         sortedContainers,
+		Redirect:           strings.TrimSpace(redirect),
 	}
 }
 
@@ -162,6 +173,44 @@ func parseActionRefs(refs []string) []GHAWManifestAction {
 	})
 
 	return actions
+}
+
+func normalizeResolutionFailures(failures []GHAWManifestResolutionFailure) []GHAWManifestResolutionFailure {
+	type failureKey struct {
+		Repo      string
+		Ref       string
+		ErrorType string
+	}
+	seen := make(map[failureKey]bool)
+	normalized := make([]GHAWManifestResolutionFailure, 0, len(failures))
+	for _, f := range failures {
+		repo := strings.TrimSpace(f.Repo)
+		ref := strings.TrimSpace(f.Ref)
+		errorType := strings.TrimSpace(f.ErrorType)
+		if repo == "" || ref == "" || errorType == "" {
+			continue
+		}
+		key := failureKey{Repo: repo, Ref: ref, ErrorType: errorType}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		normalized = append(normalized, GHAWManifestResolutionFailure{
+			Repo:      repo,
+			Ref:       ref,
+			ErrorType: errorType,
+		})
+	}
+	sort.Slice(normalized, func(i, j int) bool {
+		if normalized[i].Repo != normalized[j].Repo {
+			return normalized[i].Repo < normalized[j].Repo
+		}
+		if normalized[i].Ref != normalized[j].Ref {
+			return normalized[i].Ref < normalized[j].Ref
+		}
+		return normalized[i].ErrorType < normalized[j].ErrorType
+	})
+	return normalized
 }
 
 // ToJSON serialises the manifest to a compact, single-line JSON string suitable

@@ -182,9 +182,12 @@ Runtime imports are processed before other substitutions:
 
 - **`.github` folder only:** File paths are restricted to `.github` folder for security
 - **No authentication:** URL fetching doesn't support private URLs with tokens
-- **No recursion:** Imported content cannot contain additional runtime imports
 - **Per-run cache:** URL cache doesn't persist across workflow runs
 - **Line numbers:** Refer to raw file content before front matter removal
+
+### Deprecated `{{#import}}`
+
+`{{#import filepath}}` (without `runtime-`) is a **deprecated** body-level shorthand. It normalizes to `{{#runtime-import filepath}}` at runtime for backward compatibility, but emits deprecation warnings at both compile time and runtime. Use `{{#runtime-import}}` directly for all new workflows. See [Imports](/gh-aw/reference/imports/) for details.
 
 ### Error Handling
 

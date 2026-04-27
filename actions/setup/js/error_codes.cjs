@@ -42,6 +42,12 @@ const ERR_PARSE = "ERR_PARSE";
 /** @type {string} System and I/O errors */
 const ERR_SYSTEM = "ERR_SYSTEM";
 
+/** @type {string} Safe output validation/input errors (legacy numeric taxonomy) */
+const SAFE_OUTPUT_E001 = "E001";
+
+/** @type {string} Safe output operation/runtime failures (legacy numeric taxonomy) */
+const SAFE_OUTPUT_E099 = "E099";
+
 module.exports = {
   ERR_VALIDATION,
   ERR_PERMISSION,
@@ -50,4 +56,6 @@ module.exports = {
   ERR_NOT_FOUND,
   ERR_PARSE,
   ERR_SYSTEM,
+  SAFE_OUTPUT_E001,
+  SAFE_OUTPUT_E099,
 };

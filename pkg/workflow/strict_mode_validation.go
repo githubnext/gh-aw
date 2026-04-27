@@ -30,6 +30,7 @@ var strictModeValidationLog = newValidationLogger("strict_mode")
 //  3. validateStrictMCPNetwork() - Requires top-level network config for container-based MCP servers
 //  4. validateStrictTools() - Validates tools configuration (e.g., serena local mode)
 //  5. validateStrictDeprecatedFields() - Refuses deprecated fields
+//  6. validateStrictDisableXPIA() - Refuses disable-xpia-prompt feature flag
 //
 // Note: Env secrets validation (validateEnvSecrets) is called separately outside of strict mode
 // to emit warnings in non-strict mode and errors in strict mode.
@@ -78,6 +79,13 @@ func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermiss
 
 	// 5. Refuse deprecated fields
 	if err := c.validateStrictDeprecatedFields(frontmatter); err != nil {
+		if returnErr := collector.Add(err); returnErr != nil {
+			return returnErr // Fail-fast mode
+		}
+	}
+
+	// 6. Refuse disable-xpia-prompt feature flag
+	if err := c.validateStrictDisableXPIA(frontmatter); err != nil {
 		if returnErr := collector.Add(err); returnErr != nil {
 			return returnErr // Fail-fast mode
 		}

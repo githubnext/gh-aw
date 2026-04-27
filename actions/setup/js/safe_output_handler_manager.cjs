@@ -16,7 +16,6 @@ const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, replaceArtifact
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
 const { writeSafeOutputSummaries } = require("./safe_output_summary.cjs");
-const { getIssuesToAssignCopilot } = require("./create_issue.cjs");
 const { getAssignToAgentAssigned, getAssignToAgentErrors, getAssignToAgentErrorCount, writeAssignToAgentSummary } = require("./assign_to_agent.cjs");
 const { getCreateAgentSessionNumber, getCreateAgentSessionUrl, writeCreateAgentSessionSummary } = require("./create_agent_session.cjs");
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
@@ -24,7 +23,9 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile } = require("./safe_output_manifest.cjs");
 const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers, isStagedMode } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
+const { listCommentMemoryFiles, COMMENT_MEMORY_DIR } = require("./comment_memory_helpers.cjs");
 const nodePath = require("path");
+const fs = require("fs");
 
 /**
  * Handler map configuration
@@ -33,6 +34,7 @@ const nodePath = require("path");
 const HANDLER_MAP = {
   create_issue: "./create_issue.cjs",
   add_comment: "./add_comment.cjs",
+  comment_memory: "./comment_memory.cjs",
   create_discussion: "./create_discussion.cjs",
   close_issue: "./close_issue.cjs",
   close_discussion: "./close_discussion.cjs",
@@ -49,6 +51,7 @@ const HANDLER_MAP = {
   create_pull_request: "./create_pull_request.cjs",
   push_to_pull_request_branch: "./push_to_pull_request_branch.cjs",
   update_pull_request: "./update_pull_request.cjs",
+  merge_pull_request: "./merge_pull_request.cjs",
   close_pull_request: "./close_pull_request.cjs",
   mark_pull_request_as_ready_for_review: "./mark_pull_request_as_ready_for_review.cjs",
   hide_comment: "./hide_comment.cjs",
@@ -91,6 +94,57 @@ const STANDALONE_STEP_TYPES = new Set(["upload_asset", "noop"]);
  * If any of these fail, the remaining non-code-push messages are cancelled with a clear reason.
  */
 const CODE_PUSH_TYPES = new Set(["push_to_pull_request_branch", "create_pull_request"]);
+
+function buildCommentMemoryMessagesFromFiles(existingMessages, config) {
+  if (!config.comment_memory) {
+    return [];
+  }
+
+  const fallbackMemoryId = normalizeCommentMemoryId(config?.comment_memory?.memory_id, "default");
+  const existingMemoryIds = new Set(existingMessages.filter(isCommentMemoryMessage).map(message => normalizeCommentMemoryId(message.memory_id, fallbackMemoryId)));
+
+  const fileEntries = listCommentMemoryFiles(COMMENT_MEMORY_DIR);
+  if (fileEntries.length === 0) {
+    return [];
+  }
+
+  const messages = [];
+  for (const entry of fileEntries) {
+    if (existingMemoryIds.has(entry.memoryId)) {
+      continue;
+    }
+    let body = "";
+    try {
+      body = fs.readFileSync(entry.filePath, "utf8").replace(/\n+$/, "");
+    } catch (error) {
+      core.warning(`Failed to read comment-memory file '${entry.filePath}': ${getErrorMessage(error)}`);
+      continue;
+    }
+    messages.push({
+      type: "comment_memory",
+      memory_id: entry.memoryId,
+      body,
+    });
+  }
+
+  if (messages.length > 0) {
+    core.info(`Loaded ${messages.length} comment_memory message(s) from ${COMMENT_MEMORY_DIR}`);
+  }
+  return messages;
+}
+
+function isCommentMemoryMessage(message) {
+  // memory_id normalization/validation is handled separately in normalizeCommentMemoryId.
+  return message?.type === "comment_memory";
+}
+
+function normalizeCommentMemoryId(memoryId, fallback = "default") {
+  if (typeof memoryId !== "string") {
+    return fallback;
+  }
+  const normalized = memoryId.trim();
+  return normalized.length > 0 ? normalized : fallback;
+}
 
 /**
  * Load configuration for safe outputs
@@ -360,10 +414,10 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
   /** @type {Array<{type: string, error: string}>} */
   const codePushFailures = [];
 
-  // Track when a code-push operation falls back to creating a review issue instead.
+  // Track when a code-push operation falls back to creating an issue or pull request instead.
   // When set, subsequent add_comment messages will receive a correction note prepended
-  // to their body so the posted comment accurately reflects the actual outcome.
-  /** @type {{type: string, issueNumber: number, issueUrl: string}|null} */
+  // to their body so the posted comment accurately reflects the actual fallback target.
+  /** @type {{type: string, fallbackTargetType: "issue" | "pull_request", number: number, url: string}|null} */
   let codePushFallbackInfo = null;
 
   // Load custom safe output job types (from GH_AW_SAFE_OUTPUT_JOBS env var)
@@ -481,9 +535,12 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         // If a previous code-push operation fell back to a review issue, prepend a correction note
         // so the posted comment accurately reflects the outcome.
         if (codePushFallbackInfo) {
-          const fallbackNote = `\n\n---\n> [!NOTE]\n> The pull request was not created — a fallback review issue was created instead due to protected file changes: [#${codePushFallbackInfo.issueNumber}](${codePushFallbackInfo.issueUrl})\n\n`;
+          const fallbackNote =
+            codePushFallbackInfo.fallbackTargetType === "pull_request"
+              ? `\n\n---\n> [!NOTE]\n> Direct push to the original pull request branch was not possible (diverged/non-fast-forward). A fallback pull request was created instead: [#${codePushFallbackInfo.number}](${codePushFallbackInfo.url})\n\n`
+              : `\n\n---\n> [!NOTE]\n> The pull request was not created — a fallback review issue was created instead due to protected file changes: [#${codePushFallbackInfo.number}](${codePushFallbackInfo.url})\n\n`;
           effectiveMessage = { ...effectiveMessage, body: fallbackNote + (effectiveMessage.body || "") };
-          core.info(`Prepending fallback correction note to add_comment body (fallback issue: #${codePushFallbackInfo.issueNumber})`);
+          core.info(`Prepending fallback correction note to add_comment body (fallback ${codePushFallbackInfo.fallbackTargetType}: #${codePushFallbackInfo.number})`);
         }
         // If a previous code-push operation failed outright (e.g. patch application error),
         // prepend a failure warning so the status comment accurately reflects that the
@@ -585,11 +642,26 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         }
       }
 
-      // Track when a code-push operation falls back to a review issue so subsequent
+      // Track when a code-push operation falls back to an issue or pull request so subsequent
       // add_comment messages can include a correction note.
-      if (CODE_PUSH_TYPES.has(messageType) && result && result.fallback_used === true && result.issue_number != null && result.issue_url) {
-        codePushFallbackInfo = { type: messageType, issueNumber: result.issue_number, issueUrl: result.issue_url };
-        core.info(`Code push '${messageType}' fell back to review issue #${result.issue_number} — add_comment messages will be annotated`);
+      if (CODE_PUSH_TYPES.has(messageType) && result && result.fallback_used === true) {
+        if (result.issue_number != null && result.issue_url) {
+          codePushFallbackInfo = {
+            type: messageType,
+            fallbackTargetType: "issue",
+            number: result.issue_number,
+            url: result.issue_url,
+          };
+          core.info(`Code push '${messageType}' fell back to review issue #${result.issue_number} — add_comment messages will be annotated`);
+        } else if (result.pull_request_number != null && result.pull_request_url) {
+          codePushFallbackInfo = {
+            type: messageType,
+            fallbackTargetType: "pull_request",
+            number: result.pull_request_number,
+            url: result.pull_request_url,
+          };
+          core.info(`Code push '${messageType}' fell back to pull request #${result.pull_request_number} — add_comment messages will be annotated`);
+        }
       }
 
       // Check if this output was created with unresolved temporary IDs
@@ -597,7 +669,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
       // Handle add_comment which returns an array of comments
       if (messageType === "add_comment" && Array.isArray(result)) {
-        const contentToCheck = getContentToCheck(messageType, message);
+        const contentToCheck = getContentToCheck(messageType, message, result);
         if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
           // Track each comment that was created with unresolved temp IDs
           for (const comment of result) {
@@ -619,7 +691,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         }
       } else if (result && result.number && result.repo) {
         // Handle create_issue, create_discussion
-        const contentToCheck = getContentToCheck(messageType, message);
+        const contentToCheck = getContentToCheck(messageType, message, result);
         if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
           core.info(`Output ${result.repo}#${result.number} was created with unresolved temporary IDs - tracking for update`);
           outputsWithUnresolvedIds.push({
@@ -736,7 +808,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           // For create_issue, create_discussion - check if body has unresolved IDs
           // This enables synthetic updates to resolve references after all items are created
           if (result && result.number && result.repo) {
-            const contentToCheck = getContentToCheck(deferred.type, deferred.message);
+            const contentToCheck = getContentToCheck(deferred.type, deferred.message, result);
             if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
               core.info(`Output ${result.repo}#${result.number} was created with unresolved temporary IDs - tracking for update`);
               outputsWithUnresolvedIds.push({
@@ -795,9 +867,12 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
  * Get the content field to check for unresolved temporary IDs based on message type
  * @param {string} messageType - Type of the message
  * @param {any} message - The message object
+ * @param {any} [result] - Handler result (used for transformed/managed bodies)
+ * For comment_memory, handlers return a managedBody that includes XML wrapper/footer;
+ * this differs from message.body and must be used for temporary ID detection.
  * @returns {string|null} Content to check for temporary IDs
  */
-function getContentToCheck(messageType, message) {
+function getContentToCheck(messageType, message, result) {
   switch (messageType) {
     case "create_issue":
       return message.body || "";
@@ -805,6 +880,8 @@ function getContentToCheck(messageType, message) {
       return message.body || "";
     case "add_comment":
       return message.body || "";
+    case "comment_memory":
+      return result?.managedBody || message.body || "";
     default:
       return null;
   }
@@ -956,7 +1033,7 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
     // since artifact IDs embedded in the body need to be replaced with their real URLs.
     const resolvedArtifacts = artifactUrlMap && artifactUrlMap.size > 0;
     if (temporaryIdMap.size > tracked.originalTempIdMapSize || resolvedArtifacts) {
-      const contentToCheck = getContentToCheck(tracked.type, tracked.message);
+      const contentToCheck = getContentToCheck(tracked.type, tracked.message, tracked.result);
 
       // Only process if we have content to check
       if (contentToCheck !== null && contentToCheck !== "") {
@@ -991,6 +1068,14 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
                   updateCount++;
                 } else {
                   core.debug(`Skipping synthetic update for comment - comment ID not tracked`);
+                }
+                break;
+              case "comment_memory":
+                if (tracked.result.commentId) {
+                  await updateCommentBody(github, context, tracked.result.repo, tracked.result.commentId, updatedContent, false);
+                  updateCount++;
+                } else {
+                  core.debug(`Skipping synthetic update for comment_memory - comment ID not tracked`);
                 }
                 break;
               default:
@@ -1029,28 +1114,28 @@ async function main() {
   try {
     core.info("Safe Output Handler Manager starting...");
 
-    // Reset create_issue handler's global state to ensure clean state for this run
-    // This prevents stale data accumulation if the module is reused
-    const { resetIssuesToAssignCopilot } = require("./create_issue.cjs");
-    resetIssuesToAssignCopilot();
-
     // Load configuration
     const config = loadConfig();
     core.debug(`Configuration: ${JSON.stringify(Object.keys(config))}`);
 
     // Load agent output
     const agentOutput = loadAgentOutput();
+    const agentOutputItems = agentOutput.success ? agentOutput.items : [];
     if (!agentOutput.success) {
-      core.info("No agent output available - nothing to process");
-      // Ensure manifest file exists even when there is no agent output (skip in staged mode)
+      core.info("No agent output available from tool calls");
+    } else {
+      core.info(`Found ${agentOutput.items.length} message(s) in agent output`);
+    }
+
+    const fileBackedCommentMemoryMessages = buildCommentMemoryMessagesFromFiles(agentOutputItems, config);
+    const allMessages = [...agentOutputItems, ...fileBackedCommentMemoryMessages];
+    if (allMessages.length === 0) {
+      core.info("No safe-output messages available - nothing to process");
       if (!isStaged) ensureManifestExists();
-      // Set empty outputs for downstream steps
       core.setOutput("temporary_id_map", "{}");
       core.setOutput("processed_count", 0);
       return;
     }
-
-    core.info(`Found ${agentOutput.items.length} message(s) in agent output`);
 
     // Create the shared PR review buffer instance (no global state)
     const prReviewBuffer = createReviewBuffer();
@@ -1087,7 +1172,7 @@ async function main() {
     const logCreatedItem = isStaged ? null : createManifestLogger();
 
     // Process all messages in order of appearance
-    const processingResult = await processMessages(messageHandlers, agentOutput.items, logCreatedItem);
+    const processingResult = await processMessages(messageHandlers, allMessages, logCreatedItem);
 
     // Finalize buffered PR review — submit when comments or metadata exist
     if (prReviewBuffer.hasBufferedComments() || prReviewBuffer.hasReviewMetadata()) {
@@ -1129,7 +1214,7 @@ async function main() {
     }
 
     // Write step summaries for all processed safe-outputs
-    await writeSafeOutputSummaries(processingResult.results, agentOutput.items);
+    await writeSafeOutputSummaries(processingResult.results, allMessages);
 
     // Log summary
     const successCount = processingResult.results.filter(r => r.success).length;
@@ -1205,16 +1290,6 @@ async function main() {
     // Export processed count for consistency with project handler
     core.setOutput("processed_count", successCount);
 
-    // Export issues that need copilot assignment (if any)
-    const issuesToAssignCopilot = getIssuesToAssignCopilot();
-    if (issuesToAssignCopilot.length > 0) {
-      const issuesToAssignStr = issuesToAssignCopilot.join(",");
-      core.setOutput("issues_to_assign_copilot", issuesToAssignStr);
-      core.info(`Exported ${issuesToAssignCopilot.length} issue(s) for copilot assignment: ${issuesToAssignStr}`);
-    } else {
-      core.setOutput("issues_to_assign_copilot", "");
-    }
-
     // Export assign_to_agent outputs when the handler was loaded
     if (messageHandlers.has("assign_to_agent")) {
       const assignToAgentAssigned = getAssignToAgentAssigned();
@@ -1241,18 +1316,20 @@ async function main() {
     }
 
     // Export create_discussion errors for conclusion job
+    // Exclude cancelled results (cancelled == the discussion was skipped because a code-push
+    // operation failed earlier in the same run; that failure is already reported separately).
     const createDiscussionErrors = processingResult.results
-      .filter(r => r.type === "create_discussion" && !r.success && !r.deferred && !r.skipped)
+      .filter(r => r.type === "create_discussion" && !r.success && !r.deferred && !r.skipped && !r.cancelled)
       .map((r, index) => {
-        const message = agentOutput.items[r.messageIndex];
+        const message = allMessages[r.messageIndex];
         const title = message?.title || "Discussion";
-        const repo = message?.repo || "unknown";
-        const errorMsg = r.error || "Unknown error";
+        const repo = message?.repo || process.env.GITHUB_REPOSITORY || "unknown";
+        const errorMsg = r.error || r.reason || "Unknown error";
         return `discussion:${index}:${repo}:${title}:${errorMsg}`;
       })
       .join("\n");
 
-    const createDiscussionErrorCount = processingResult.results.filter(r => r.type === "create_discussion" && !r.success && !r.deferred && !r.skipped).length;
+    const createDiscussionErrorCount = processingResult.results.filter(r => r.type === "create_discussion" && !r.success && !r.deferred && !r.skipped && !r.cancelled).length;
 
     core.setOutput("create_discussion_errors", createDiscussionErrors);
     core.setOutput("create_discussion_error_count", createDiscussionErrorCount.toString());
@@ -1298,4 +1375,4 @@ async function main() {
   }
 }
 
-module.exports = { main, loadConfig, loadHandlers, processMessages };
+module.exports = { main, loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles };

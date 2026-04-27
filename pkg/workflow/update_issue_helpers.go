@@ -21,6 +21,7 @@ type UpdateIssuesConfig struct {
 
 // parseUpdateIssuesConfig handles update-issue configuration
 func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssuesConfig {
+	updateIssueLog.Print("Parsing update-issue config")
 	return parseUpdateEntityConfigTyped(c, outputMap,
 		UpdateEntityIssue, "update-issue", updateIssueLog,
 		func(cfg *UpdateIssuesConfig) []UpdateEntityFieldSpec {

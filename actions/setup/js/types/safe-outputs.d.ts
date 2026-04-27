@@ -124,6 +124,21 @@ interface AddCommentItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for persisting memory in a managed issue/PR comment
+ */
+interface CommentMemoryItem extends BaseSafeOutputItem {
+  type: "comment_memory";
+  /** Markdown body content to persist */
+  body: string;
+  /** Optional memory identifier (defaults to "default") */
+  memory_id?: string;
+  /** Optional target issue/PR number */
+  item_number?: number | string;
+  /** Optional target repository */
+  repo?: string;
+}
+
+/**
  * JSONL item for creating a pull request
  */
 interface CreatePullRequestItem extends BaseSafeOutputItem {
@@ -235,6 +250,8 @@ interface UpdatePullRequestItem extends BaseSafeOutputItem {
   body?: string;
   /** Update operation for body: 'replace' (default), 'append', or 'prepend' */
   operation?: "replace" | "append" | "prepend";
+  /** When true, updates the pull request branch with the latest base branch changes before other updates */
+  update_branch?: boolean;
   /** Optional pull request number for target "*" */
   pull_request_number?: number | string;
   /** Whether the PR should be a draft (true) or ready for review (false) */
@@ -350,7 +367,7 @@ interface HideCommentItem extends BaseSafeOutputItem {
   /** GraphQL node ID of the comment to hide (e.g., 'IC_kwDOABCD123456') */
   comment_id: string;
   /** Optional reason for hiding the comment (default: SPAM) */
-  reason?: "SPAM" | "ABUSE" | "OFF_TOPIC" | "OUTDATED" | "RESOLVED";
+  reason?: "SPAM" | "ABUSE" | "OFF_TOPIC" | "OUTDATED" | "RESOLVED" | "LOW_QUALITY";
 }
 
 /**
@@ -415,6 +432,7 @@ type SafeOutputItem =
   | ClosePullRequestItem
   | MarkPullRequestAsReadyForReviewItem
   | AddCommentItem
+  | CommentMemoryItem
   | CreatePullRequestItem
   | CreatePullRequestReviewCommentItem
   | CreateCodeScanningAlertItem
@@ -457,6 +475,7 @@ export {
   ClosePullRequestItem,
   MarkPullRequestAsReadyForReviewItem,
   AddCommentItem,
+  CommentMemoryItem,
   CreatePullRequestItem,
   CreatePullRequestReviewCommentItem,
   CreateCodeScanningAlertItem,

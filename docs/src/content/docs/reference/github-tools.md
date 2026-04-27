@@ -40,7 +40,7 @@ Some key toolsets are:
 - `labels` (labels management)
 
 :::note
-`toolsets: [all]` does **not** include the `dependabot` toolset. Because `dependabot` requires the `vulnerability-alerts` GitHub App-only permission (not grantable via `GITHUB_TOKEN`), it must be opted into explicitly:
+`toolsets: [all]` does **not** include the `dependabot` toolset. The `dependabot` toolset must be opted into explicitly:
 
 ```yaml wrap
 tools:
@@ -94,15 +94,31 @@ The `repos` field was renamed to `allowed-repos` to better reflect its purpose. 
 
 By default, the GitHub Tools can read from the current repository and all public repositories (if permitted by the network firewall). To read from other private repositories, you must configure additional authentication. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for details and examples.
 
-## GitHub Tools Remote Mode
+## GitHub Tools Access Modes
 
-By default the GitHub Tools run in "local mode", where the GitHub MCP Server runs within the GitHub Actions VM hosting your agentic workflow. You can switch to "remote mode", which uses a hosted MCP server managed by GitHub. Remote mode requires [additional authentication](#additional-authentication-for-github-tools) and enables additional filtering and capabilities.
+The `tools.github.mode` field controls how the agent accesses GitHub. Three values are supported:
+
+| Mode | Transport | Notes |
+|------|-----------|-------|
+| `local` (default) | Docker-based GitHub MCP Server inside the Actions VM | No extra authentication required |
+| `remote` | Hosted GitHub MCP Server managed by GitHub | Requires [additional authentication](#additional-authentication-for-github-tools) |
+| `gh-proxy` | Pre-authenticated `gh` CLI directly (no MCP server) | Preferred for performance; required for [integrity reactions](/gh-aw/reference/integrity/) |
+
+**`remote` mode** — uses a hosted MCP server managed by GitHub. Requires a GitHub token with appropriate permissions:
 
 ```yaml wrap
 tools:
   github:
-    mode: remote  # Default: "local" (Docker)
+    mode: remote
     github-token: ${{ secrets.CUSTOM_PAT }}  # Required for remote mode
+```
+
+**`gh-proxy` mode** — uses the pre-authenticated `gh` CLI directly instead of an MCP server. This offers lower latency because there is no MCP server startup overhead, and it is required for workflows that use [integrity reactions](/gh-aw/reference/integrity/). The legacy `features: {cli-proxy: true}` feature flag is equivalent and is still accepted for backward compatibility.
+
+```yaml wrap
+tools:
+  github:
+    mode: gh-proxy
 ```
 
 ## Additional Authentication for GitHub Tools
@@ -116,7 +132,7 @@ This is required when your workflow requires any of the following:
 - Read access to GitHub org or user information
 - Read access to other private repos
 - Read access to projects
-- GitHub tools [Remote Mode](#github-tools-remote-mode)
+- GitHub tools [Remote Mode](#github-tools-access-modes)
 
 ### Using a Personal Access Token (PAT)
 
@@ -167,7 +183,15 @@ gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "<your-pat-token>"
 
 ### Using the `dependabot` toolset
 
-The `dependabot` toolset can only be used if authenticating with a PAT or GitHub App and also requires the `vulnerability-alerts` GitHub App permission. If you are using a GitHub App (rather than a PAT), add `vulnerability-alerts: read` to your workflow's `permissions:` field and ensure the GitHub App is configured with this permission. See [GitHub App-Only Permissions](/gh-aw/reference/permissions/#github-app-only-permissions).
+The `dependabot` toolset requires the `vulnerability-alerts: read` and `security-events: read` permissions. These are now supported natively by `GITHUB_TOKEN`. Add them to your workflow's `permissions:` field:
+
+```yaml
+permissions:
+  vulnerability-alerts: read
+  security-events: read
+```
+
+Alternatively, you can authenticate with a PAT or GitHub App. If using a GitHub App, add `vulnerability-alerts: read` to your workflow's `permissions:` field and ensure the GitHub App is configured with this permission.
 
 ## Related Documentation
 

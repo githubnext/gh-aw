@@ -171,6 +171,12 @@ func TestMCPServer_ErrorCodes_InternalError(t *testing.T) {
 			return
 		}
 
+		// The tool must not set IsError=true – that would cause the bridge to exit with code 1.
+		if result.IsError {
+			t.Errorf("Expected IsError=false from audit tool (graceful JSON error), got IsError=true; content: %v", result.Content)
+			return
+		}
+
 		// The tool must return text content that is valid JSON containing an "error" field.
 		if len(result.Content) == 0 {
 			t.Fatal("Expected non-empty content from audit tool")
@@ -188,9 +194,12 @@ func TestMCPServer_ErrorCodes_InternalError(t *testing.T) {
 		if _, hasError := envelope["error"]; !hasError {
 			t.Errorf("Expected 'error' field in audit JSON response, got: %s", textContent.Text)
 		}
-		if _, hasRunID := envelope["run_id_or_url"]; !hasRunID {
-			t.Errorf("Expected 'run_id_or_url' field in audit JSON response, got: %s", textContent.Text)
+		if _, hasRunID := envelope["run_ids_or_urls"]; !hasRunID {
+			t.Errorf("Expected 'run_ids_or_urls' field in audit JSON response, got: %s", textContent.Text)
 		}
-		t.Logf("✓ audit returned JSON error envelope: %s", textContent.Text)
+		if _, hasSuggestions := envelope["suggestions"]; !hasSuggestions {
+			t.Errorf("Expected 'suggestions' field in audit JSON response, got: %s", textContent.Text)
+		}
+		t.Logf("✓ audit returned graceful JSON error envelope (IsError=false): %s", textContent.Text)
 	})
 }

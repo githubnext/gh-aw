@@ -71,9 +71,12 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output missing-tool     # Filter logs with missing-tool messages
   ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output missing-data     # Filter logs with missing-data messages
   ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output create-issue     # Filter logs with create-issue messages
+  ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output noop             # Filter logs with noop messages
+  ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output report-incomplete # Filter logs with report-incomplete messages
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref main                # Filter logs by branch or tag
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref feature-xyz         # Filter logs by feature branch
-  ` + string(constants.CLIExtensionPrefix) + ` logs --filtered-integrity      # Filter logs with DIFC (data integrity flow control) integrity-filtered items in the gateway logs
+  ` + string(constants.CLIExtensionPrefix) + ` logs --filtered-integrity      # Filter logs containing items that were filtered by gateway integrity checks
+  ` + string(constants.CLIExtensionPrefix) + ` logs --no-staged               # Exclude staged workflow runs from results
 
   # Run ID range filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000       # Filter runs after run ID 1000
@@ -89,6 +92,8 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --format markdown         # Generate cross-run security audit report in Markdown
   ` + string(constants.CLIExtensionPrefix) + ` logs --format pretty           # Generate cross-run security audit report in console format
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --format markdown --last 10  # Cross-run report for last 10 runs
+  ` + string(constants.CLIExtensionPrefix) + ` logs --train                   # Train log pattern weights from last 10 runs
+  ` + string(constants.CLIExtensionPrefix) + ` logs my-workflow --train -c 50 # Train log pattern weights from up to 50 runs of a specific workflow
 
   # Cross-repository
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
@@ -202,8 +207,8 @@ Examples:
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs")
 	logsCmd.Flags().Bool("firewall", false, "Filter to only runs with firewall enabled")
 	logsCmd.Flags().Bool("no-firewall", false, "Filter to only runs without firewall enabled")
-	logsCmd.Flags().String("safe-output", "", "Filter to runs containing a specific safe output type (e.g., create-issue, missing-tool, missing-data)")
-	logsCmd.Flags().Bool("filtered-integrity", false, "Filter to runs with DIFC (data integrity flow control) integrity-filtered items in the gateway logs")
+	logsCmd.Flags().String("safe-output", "", "Filter to runs containing a specific safe output type (e.g., create-issue, missing-tool, missing-data, noop, report-incomplete)")
+	logsCmd.Flags().Bool("filtered-integrity", false, "Filter to runs containing items that were filtered by gateway integrity checks")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	addJSONFlag(logsCmd)
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in minutes (0 = no timeout)")

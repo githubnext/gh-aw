@@ -75,6 +75,7 @@ type ToolsConfig struct {
 	Playwright       *PlaywrightToolConfig       `yaml:"playwright,omitempty"`
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
+	CommentMemory    *CommentMemoryToolConfig    `yaml:"comment-memory,omitempty"`
 	RepoMemory       *RepoMemoryToolConfig       `yaml:"repo-memory,omitempty"`
 	Timeout          *TemplatableInt32           `yaml:"timeout,omitempty"`
 	StartupTimeout   *TemplatableInt32           `yaml:"startup-timeout,omitempty"`
@@ -215,6 +216,9 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	if t.CacheMemory != nil {
 		result["cache-memory"] = t.CacheMemory.Raw
 	}
+	if t.CommentMemory != nil {
+		result["comment-memory"] = t.CommentMemory.Raw
+	}
 	if t.RepoMemory != nil {
 		result["repo-memory"] = t.RepoMemory.Raw
 	}
@@ -287,6 +291,7 @@ type GitHubReposScope any // string or []any (YAML-parsed arrays are []any)
 type GitHubToolConfig struct {
 	Allowed     GitHubAllowedTools `yaml:"allowed,omitempty"`
 	Mode        string             `yaml:"mode,omitempty"`
+	Type        string             `yaml:"type,omitempty"`
 	Version     string             `yaml:"version,omitempty"`
 	Args        []string           `yaml:"args,omitempty"`
 	ReadOnly    bool               `yaml:"read-only,omitempty"`
@@ -388,6 +393,13 @@ type CacheMemoryToolConfig struct {
 	Raw any `yaml:"-"`
 }
 
+// CommentMemoryToolConfig represents the configuration for comment-memory.
+// This is handled separately by comment_memory.go.
+type CommentMemoryToolConfig struct {
+	// Can be boolean, object, or null - handled by comment_memory.go
+	Raw any `yaml:"-"`
+}
+
 // MCPServerConfig represents the configuration for a custom MCP server.
 // It embeds BaseMCPServerConfig for common fields and adds workflow-specific fields.
 // This provides partial type safety for common MCP configuration fields
@@ -458,6 +470,8 @@ func (t *Tools) HasTool(name string) bool {
 		return t.AgenticWorkflows != nil
 	case "cache-memory":
 		return t.CacheMemory != nil
+	case "comment-memory":
+		return t.CommentMemory != nil
 	case "repo-memory":
 		return t.RepoMemory != nil
 	case "timeout":
@@ -502,6 +516,9 @@ func (t *Tools) GetToolNames() []string {
 	}
 	if t.CacheMemory != nil {
 		names = append(names, "cache-memory")
+	}
+	if t.CommentMemory != nil {
+		names = append(names, "comment-memory")
 	}
 	if t.RepoMemory != nil {
 		names = append(names, "repo-memory")

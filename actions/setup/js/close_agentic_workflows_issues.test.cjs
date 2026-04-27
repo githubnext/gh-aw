@@ -56,7 +56,7 @@ describe("close_agentic_workflows_issues", () => {
       owner: "testowner",
       repo: "testrepo",
       issue_number: 101,
-      body: module.NO_REPRO_MESSAGE,
+      body: module.getNoReproCommentBody(),
     });
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
@@ -74,5 +74,19 @@ describe("close_agentic_workflows_issues", () => {
 
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
     expect(mockGithub.graphql).not.toHaveBeenCalled();
+  });
+
+  it("sanitizes and validates the close comment body", async () => {
+    const module = await import("./close_agentic_workflows_issues.cjs");
+    const { sanitizeContent } = await import("./sanitize_content.cjs");
+    const sanitize = vi.fn().mockReturnValue(module.NO_REPRO_MESSAGE);
+
+    expect(module.getNoReproCommentBody()).toBe(sanitizeContent(module.NO_REPRO_MESSAGE, { maxLength: module.MAX_COMMENT_BODY_LENGTH }));
+    expect(module.getNoReproCommentBody(sanitize)).toBe(module.NO_REPRO_MESSAGE);
+    expect(sanitize).toHaveBeenCalledWith(module.NO_REPRO_MESSAGE, { maxLength: module.MAX_COMMENT_BODY_LENGTH });
+    expect(() => module.getNoReproCommentBody(() => "")).toThrow("Close comment body is empty after sanitization");
+    expect(() => module.getNoReproCommentBody(() => "   ")).toThrow("Close comment body is empty after sanitization");
+    expect(() => module.getNoReproCommentBody(() => " \n\t ")).toThrow("Close comment body is empty after sanitization");
+    expect(() => module.getNoReproCommentBody(() => 42)).toThrow("Close comment body sanitization must return a string");
   });
 });

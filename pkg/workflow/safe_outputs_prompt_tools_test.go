@@ -244,6 +244,28 @@ func TestBuildSafeOutputsSectionsMaxExpressionExtraction(t *testing.T) {
 	assert.True(t, foundExpr, "EnvVars must contain the original ${{ inputs.review-comment-max }} expression")
 }
 
+func TestBuildSafeOutputsSections_IncludesCommentMemoryPromptFile(t *testing.T) {
+	sections := buildSafeOutputsSections(&SafeOutputsConfig{
+		CommentMemory: &CommentMemoryConfig{},
+		NoOp:          &NoOpConfig{},
+	})
+
+	require.NotNil(t, sections, "Expected non-nil sections")
+
+	found := false
+	for _, section := range sections {
+		if section.IsFile && section.Content == safeOutputsCommentMemoryFile {
+			found = true
+			break
+		}
+	}
+
+	assert.True(t, found, "Expected comment-memory guidance file to be included when comment_memory is enabled")
+
+	actualToolNames := extractToolNamesFromSections(t, sections)
+	assert.NotContains(t, actualToolNames, "comment_memory", "comment_memory should not be exposed as an agent tool when file-based sync is enabled")
+}
+
 // the list of tool names in the order they appear, stripping any max-budget annotations
 // (e.g. "noop(max:5)" → "noop").
 func extractToolNamesFromSections(t *testing.T, sections []PromptSection) []string {

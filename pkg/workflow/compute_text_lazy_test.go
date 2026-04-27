@@ -414,6 +414,122 @@ func TestHasContentContext(t *testing.T) {
 	}
 }
 
+func TestComputeTextStepIncludesAllowedDomainsEnv(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "compute-text-allowed-domains-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	workflowContent := `---
+on:
+  issues:
+    types: [opened]
+  bots: ["dependabot[bot]"]
+engine: copilot
+strict: false
+network:
+  allowed:
+    - cnn.com
+safe-outputs:
+  create-issue:
+  allowed-domains:
+    - bbc.com
+---
+
+# Test Workflow
+
+Use the incoming text: "${{ steps.sanitized.outputs.text }}"
+`
+
+	workflowPath := filepath.Join(tempDir, "compute-text-allowed-domains.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	lockStr := string(lockContent)
+	lines := strings.Split(lockStr, "\n")
+	sanitizedIndex := -1
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "id: sanitized" {
+			sanitizedIndex = i
+			break
+		}
+	}
+	if sanitizedIndex == -1 {
+		t.Fatal("Expected compiled workflow to contain sanitized step")
+	}
+
+	withIndex := -1
+	for i := sanitizedIndex + 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "with:" {
+			withIndex = i
+			break
+		}
+	}
+	if withIndex == -1 {
+		t.Fatal("Expected sanitized step to contain a with section")
+	}
+
+	sanitizedLines := lines[sanitizedIndex+1 : withIndex]
+	envIndex := -1
+	envIndent := 0
+	for i, line := range sanitizedLines {
+		if strings.TrimSpace(line) == "env:" {
+			envIndex = i
+			envIndent = len(line) - len(strings.TrimLeft(line, " "))
+			break
+		}
+	}
+	if envIndex == -1 {
+		t.Fatalf("Expected sanitized step to contain an env block, got:\n%s", strings.Join(sanitizedLines, "\n"))
+	}
+
+	envLines := make([]string, 0, 2)
+	for i := envIndex + 1; i < len(sanitizedLines); i++ {
+		line := sanitizedLines[i]
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		indent := len(line) - len(strings.TrimLeft(line, " "))
+		if indent <= envIndent {
+			break
+		}
+		envLines = append(envLines, strings.TrimSpace(line))
+	}
+	if len(envLines) == 0 {
+		t.Fatalf("Expected sanitized step env block to contain variables, got:\n%s", strings.Join(sanitizedLines, "\n"))
+	}
+	envBlock := strings.Join(envLines, "\n")
+
+	if !strings.Contains(envBlock, "GH_AW_ALLOWED_BOTS:") {
+		t.Errorf("Expected sanitized step env to contain GH_AW_ALLOWED_BOTS, got:\n%s", strings.Join(sanitizedLines, "\n"))
+	}
+	if !strings.Contains(envBlock, "dependabot[bot]") {
+		t.Errorf("Expected sanitized step GH_AW_ALLOWED_BOTS value to include dependabot[bot], got:\n%s", strings.Join(sanitizedLines, "\n"))
+	}
+	if !strings.Contains(envBlock, "GH_AW_ALLOWED_DOMAINS:") {
+		t.Errorf("Expected sanitized step env to contain GH_AW_ALLOWED_DOMAINS, got:\n%s", strings.Join(sanitizedLines, "\n"))
+	}
+	if !strings.Contains(envBlock, "cnn.com") {
+		t.Errorf("Expected sanitized step GH_AW_ALLOWED_DOMAINS to include network.allowed domain cnn.com, got:\n%s", strings.Join(sanitizedLines, "\n"))
+	}
+	if !strings.Contains(envBlock, "bbc.com") {
+		t.Errorf("Expected sanitized step GH_AW_ALLOWED_DOMAINS to include safe-outputs.allowed-domains domain bbc.com, got:\n%s", strings.Join(sanitizedLines, "\n"))
+	}
+}
+
 func TestComputeTextContextBasedInsertion(t *testing.T) {
 	// Create a temporary directory for the test
 	tempDir, err := os.MkdirTemp("", "compute-text-context-test")

@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { buildMissingIssueHandler } = require("./missing_issue_helpers.cjs");
+const { getPromptPath } = require("./messages_core.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -20,7 +21,7 @@ const main = buildMissingIssueHandler({
   defaultTitlePrefix: "[missing tool]",
   defaultLabels: ["agentic-workflows"],
   itemsField: "missing_tools",
-  templatePath: `${process.env.RUNNER_TEMP}/gh-aw/prompts/missing_tool_issue.md`,
+  templatePath: getPromptPath("missing_tool_issue.md"),
   templateListKey: "missing_tools_list",
   buildCommentHeader: runUrl => [`## Missing Tools Reported`, ``, `The following tools were reported as missing during [workflow run](${runUrl}):`, ``],
   renderCommentItem: (tool, index) => {

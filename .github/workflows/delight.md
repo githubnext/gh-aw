@@ -48,14 +48,13 @@ tools:
 timeout-minutes: 30
 
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[delight] "
   - uses: shared/repo-memory-standard.md
     with:
       branch-name: "memory/delight"
       description: "Track delight findings and historical patterns"
-  - shared/reporting.md
   - shared/jqschema.md
 
 features:

@@ -25,7 +25,7 @@ func TestRenderLogsConsoleUnified(t *testing.T) {
 		},
 		Runs: []RunData{
 			{
-				DatabaseID:       12345,
+				RunID:            12345,
 				WorkflowName:     "test-workflow",
 				Agent:            "claude",
 				Status:           "completed",
@@ -948,7 +948,7 @@ func TestBuildLogsDataEngineCountsFromAwInfo(t *testing.T) {
 	// Verify individual RunData.Agent fields also reflect the engine from aw_info.json
 	agentsByID := make(map[int64]string)
 	for _, run := range data.Runs {
-		agentsByID[run.DatabaseID] = run.Agent
+		agentsByID[run.RunID] = run.Agent
 	}
 	if agentsByID[1] != "claude" {
 		t.Errorf("Run 1: expected agent=claude, got %q", agentsByID[1])

@@ -167,9 +167,8 @@ function generateTokenUsageSummary(summary) {
 }
 
 /**
- * Appends the token usage section to the step summary if data is present, then writes it.
- * Also exports GH_AW_EFFECTIVE_TOKENS as a GitHub Actions environment variable so
- * subsequent steps can display the ET value in generated footers.
+ * Writes the step summary and exports GH_AW_EFFECTIVE_TOKENS when token usage data exists.
+ * Token Usage rendering is handled by parse_token_usage.cjs to avoid duplicate sections.
  * This is the final call in each main() exit path — it consolidates the summary write
  * so callers don't need to chain addRaw() + write() themselves.
  * @param {typeof import('@actions/core')} coreObj - The GitHub Actions core object
@@ -182,10 +181,6 @@ function writeStepSummaryWithTokenUsage(coreObj) {
     if (content?.trim()) {
       coreObj.info(`Found token-usage.jsonl (${content.length} bytes)`);
       const parsedSummary = parseTokenUsageJsonl(content);
-      const markdown = generateTokenUsageSummary(parsedSummary);
-      if (markdown.length > 0) {
-        coreObj.summary.addDetails("Token Usage", "\n\n" + markdown);
-      }
       // Export total effective tokens as a GitHub Actions env var for use in
       // generated footers (GH_AW_EFFECTIVE_TOKENS is read by messages_footer.cjs)
       if (parsedSummary && parsedSummary.totalEffectiveTokens > 0) {

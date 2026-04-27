@@ -13,6 +13,7 @@ tracker-id: copilot-token-optimizer
 engine: copilot
 tools:
   github:
+    mode: gh-proxy
     toolsets: [issues]
   bash:
     - "*"
@@ -22,6 +23,7 @@ safe-outputs:
     title-prefix: "[copilot-token-optimizer] "
     close-older-issues: true
     max: 1
+  threat-detection: false
 timeout-minutes: 30
 imports:
   - uses: shared/repo-memory-standard.md
@@ -33,7 +35,6 @@ imports:
   - shared/reporting.md
 features:
   mcp-cli: true
-  cli-proxy: true
 steps:
   - name: Download recent Copilot workflow logs
     env:
@@ -113,6 +114,7 @@ steps:
         echo "ℹ️ No previous optimization history found."
       fi
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Copilot Token Usage Optimizer

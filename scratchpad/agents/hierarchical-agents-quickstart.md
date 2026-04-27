@@ -1,6 +1,6 @@
 # Quick Start: Hierarchical Agents
 
-This guide helps you quickly understand and use the new meta-orchestrator agents.
+This guide explains the new meta-orchestrator agents and their operational usage.
 
 ## What Are Meta-Orchestrators?
 
@@ -207,7 +207,7 @@ Issues are tagged with priority:
 - **P0 (Critical):** Fix immediately - system broken
 - **P1 (High):** Fix within 1-2 days - significant impact
 - **P2 (Medium):** Fix within 1-2 weeks - quality improvement
-- **P3 (Low):** Fix when convenient - nice to have
+- **P3 (Low):** Fix when capacity allows — non-blocking
 
 ### Common Labels
 

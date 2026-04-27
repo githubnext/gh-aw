@@ -22,7 +22,7 @@ network:
     - github
 
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[copilot-agent-analysis] "
       expires: 1d
@@ -31,7 +31,6 @@ imports:
       branch-name: "memory/copilot-agent-analysis"
       description: "Historical agent performance metrics"
   - shared/copilot-pr-analysis-base.md
-  - shared/reporting.md
 
 timeout-minutes: 15
 

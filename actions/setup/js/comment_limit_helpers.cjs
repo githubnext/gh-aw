@@ -38,19 +38,19 @@ const MAX_LINKS = 50;
 function enforceCommentLimits(body) {
   // Check body length - max limit exceeded check
   if (body.length > MAX_COMMENT_LENGTH) {
-    throw new Error(`E006: Comment body exceeds maximum length of ${MAX_COMMENT_LENGTH} characters (got ${body.length})`);
+    throw new Error(`E006: Comment body exceeds maximum length of ${MAX_COMMENT_LENGTH} characters (got ${body.length}). Reduce the comment body to ${MAX_COMMENT_LENGTH} characters or fewer.`);
   }
 
   // Count mentions (@username pattern) - max limit exceeded check
   const mentions = (body.match(/@\w+/g) || []).length;
   if (mentions > MAX_MENTIONS) {
-    throw new Error(`E007: Comment contains ${mentions} mentions, maximum is ${MAX_MENTIONS}`);
+    throw new Error(`E007: Comment contains ${mentions} mentions, maximum is ${MAX_MENTIONS}. Reduce the number of @mentions to ${MAX_MENTIONS} or fewer.`);
   }
 
   // Count links (http:// and https:// URLs) - max limit exceeded check
   const links = (body.match(/https?:\/\/[^\s]+/g) || []).length;
   if (links > MAX_LINKS) {
-    throw new Error(`E008: Comment contains ${links} links, maximum is ${MAX_LINKS}`);
+    throw new Error(`E008: Comment contains ${links} links, maximum is ${MAX_LINKS}. Reduce the number of URLs to ${MAX_LINKS} or fewer.`);
   }
 }
 

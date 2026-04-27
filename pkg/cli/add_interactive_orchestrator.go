@@ -167,7 +167,7 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 func (c *AddInteractiveConfig) resolveWorkflows() error {
 	addInteractiveLog.Print("Resolving workflows early for description display")
 
-	resolved, err := ResolveWorkflows(c.WorkflowSpecs, c.Verbose)
+	resolved, err := ResolveWorkflows(c.Ctx, c.WorkflowSpecs, c.Verbose)
 	if err != nil {
 		return fmt.Errorf("failed to resolve workflows: %w", err)
 	}

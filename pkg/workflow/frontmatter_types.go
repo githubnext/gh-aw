@@ -35,19 +35,20 @@ type RuntimesConfig struct {
 // These scopes can be declared in the workflow's top-level permissions block and are enforced
 // natively by GitHub Actions.
 type GitHubActionsPermissionsConfig struct {
-	Actions            string `json:"actions,omitempty"`
-	Checks             string `json:"checks,omitempty"`
-	Contents           string `json:"contents,omitempty"`
-	Deployments        string `json:"deployments,omitempty"`
-	IDToken            string `json:"id-token,omitempty"`
-	Issues             string `json:"issues,omitempty"`
-	Discussions        string `json:"discussions,omitempty"`
-	Packages           string `json:"packages,omitempty"`
-	Pages              string `json:"pages,omitempty"`
-	PullRequests       string `json:"pull-requests,omitempty"`
-	RepositoryProjects string `json:"repository-projects,omitempty"`
-	SecurityEvents     string `json:"security-events,omitempty"`
-	Statuses           string `json:"statuses,omitempty"`
+	Actions             string `json:"actions,omitempty"`
+	Checks              string `json:"checks,omitempty"`
+	Contents            string `json:"contents,omitempty"`
+	Deployments         string `json:"deployments,omitempty"`
+	IDToken             string `json:"id-token,omitempty"`
+	Issues              string `json:"issues,omitempty"`
+	Discussions         string `json:"discussions,omitempty"`
+	Packages            string `json:"packages,omitempty"`
+	Pages               string `json:"pages,omitempty"`
+	PullRequests        string `json:"pull-requests,omitempty"`
+	RepositoryProjects  string `json:"repository-projects,omitempty"`
+	SecurityEvents      string `json:"security-events,omitempty"`
+	Statuses            string `json:"statuses,omitempty"`
+	VulnerabilityAlerts string `json:"vulnerability-alerts,omitempty"`
 }
 
 // GitHubAppPermissionsConfig holds permission scopes that are exclusive to GitHub App
@@ -78,7 +79,6 @@ type GitHubAppPermissionsConfig struct {
 	Administration             string `json:"administration,omitempty"`
 	Environments               string `json:"environments,omitempty"`
 	GitSigning                 string `json:"git-signing,omitempty"`
-	VulnerabilityAlerts        string `json:"vulnerability-alerts,omitempty"`
 	Workflows                  string `json:"workflows,omitempty"`
 	RepositoryHooks            string `json:"repository-hooks,omitempty"`
 	SingleFile                 string `json:"single-file,omitempty"`
@@ -122,11 +122,12 @@ type OTLPConfig struct {
 	// network firewall allowlist.
 	Endpoint string `json:"endpoint,omitempty"`
 
-	// Headers is a comma-separated list of key=value HTTP headers to include with
-	// every OTLP export request (e.g. "Authorization=Bearer <token>").
-	// Supports GitHub Actions expressions such as ${{ secrets.OTLP_HEADERS }}.
-	// Injected as the standard OTEL_EXPORTER_OTLP_HEADERS environment variable.
-	Headers string `json:"headers,omitempty"`
+	// Headers holds HTTP headers to include with every OTLP export request.
+	// Preferred form: a map of header name to value (e.g. {"Authorization": "Bearer ${{ secrets.TOKEN }}"}).
+	// Deprecated string form: a comma-separated list of key=value pairs
+	// (e.g. "Authorization=Bearer <token>"). Use the map form instead.
+	// Both forms are injected as the standard OTEL_EXPORTER_OTLP_HEADERS environment variable.
+	Headers any `json:"headers,omitempty"`
 }
 
 // ObservabilityConfig represents workflow observability options.
@@ -167,6 +168,7 @@ type FrontmatterConfig struct {
 
 	// Event and trigger configuration
 	On          map[string]any `json:"on,omitempty"`          // Complex trigger config with many variants (too dynamic to type)
+	OnNeeds     []string       `json:"-"`                     // New typed field extracted from on.needs (not in JSON to avoid conflict)
 	Permissions map[string]any `json:"permissions,omitempty"` // Deprecated: use PermissionsTyped (can be string or map)
 	Concurrency map[string]any `json:"concurrency,omitempty"`
 	If          string         `json:"if,omitempty"`

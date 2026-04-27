@@ -21,10 +21,17 @@ func TestApplyContainerPins(t *testing.T) {
 	}{
 		{
 			name:            "no pins - images returned unchanged",
-			images:          []string{"node:lts-alpine", "alpine:latest"},
+			images:          []string{"example.com/custom:1.0.0", "alpine:3.20"},
 			pins:            nil,
-			expectedRefs:    []string{"node:lts-alpine", "alpine:latest"},
+			expectedRefs:    []string{"example.com/custom:1.0.0", "alpine:3.20"},
 			expectedDigests: []string{"", ""},
+		},
+		{
+			name:            "embedded pin used when cache is absent",
+			images:          []string{"node:lts-alpine"},
+			pins:            nil,
+			expectedRefs:    []string{"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"},
+			expectedDigests: []string{"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"},
 		},
 		{
 			name:   "pinned image replaced with digest reference",
@@ -41,7 +48,7 @@ func TestApplyContainerPins(t *testing.T) {
 		},
 		{
 			name:   "only matching image is pinned",
-			images: []string{"node:lts-alpine", "alpine:latest"},
+			images: []string{"node:lts-alpine", "busybox:latest"},
 			pins: map[string]ContainerPin{
 				"node:lts-alpine": {
 					Image:       "node:lts-alpine",
@@ -49,7 +56,7 @@ func TestApplyContainerPins(t *testing.T) {
 					PinnedImage: "node:lts-alpine@sha256:abc123",
 				},
 			},
-			expectedRefs:    []string{"node:lts-alpine@sha256:abc123", "alpine:latest"},
+			expectedRefs:    []string{"node:lts-alpine@sha256:abc123", "busybox:latest"},
 			expectedDigests: []string{"sha256:abc123", ""},
 		},
 		{

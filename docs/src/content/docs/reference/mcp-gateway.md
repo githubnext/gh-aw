@@ -373,7 +373,7 @@ payload_size_threshold = 262144   # 256KB - more aggressive disk storage
 
 #### 4.1.3.4 Trusted Bot Identity Configuration
 
-The optional `trustedBots` field in the gateway configuration passes an additional list of GitHub bot identity strings to the gateway. The gateway merges this list with its own built-in trusted identity list to form the effective set of identities it recognises.
+The optional `trustedBots` field in the gateway configuration passes an additional list of GitHub bot identity strings to the gateway. The gateway merges this list with its own built-in trusted identity list to form the effective set of identities it recognizes.
 
 > **Important**: `trustedBots` is **additive**. The gateway maintains its own internal list of trusted bot identities. The `trustedBots` field extends that internal list with additional identities; it cannot remove or override the gateway's built-in trusted identities.
 
@@ -1272,7 +1272,7 @@ The gateway SHOULD:
 5. Update readiness based on critical server status
 
 > [!TIP]
-> To inspect MCP server health for a specific workflow run at runtime, use `gh aw audit <run-id>`. The **MCP Server Health** section of the audit report shows connection failures, timeout errors, tool call counts, and error rates per server — providing a post-run view of gateway behavior. For recurring MCP failures, `gh aw audit diff` compares MCP tool usage between two runs to identify regressions. See [Audit Commands](/gh-aw/reference/audit/).
+> To inspect MCP server health for a specific workflow run at runtime, use `gh aw audit <run-id>`. The **MCP Server Health** section of the audit report shows connection failures, timeout errors, tool call counts, and error rates per server — providing a post-run view of gateway behavior. For recurring MCP failures, pass two run IDs to `gh aw audit` (e.g. `gh aw audit <base-id> <compare-id>`) to compare MCP tool usage between runs and identify regressions. See [Audit Commands](/gh-aw/reference/audit/).
 
 ---
 

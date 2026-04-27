@@ -23,7 +23,7 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 			return nil
 		}
 
-		// Handle object format: { allowed: [...], firewall: ... } or {}
+		// Handle object format: { allowed: [...], blocked: [...] } or {}
 		if networkObj, ok := network.(map[string]any); ok {
 			frontmatterExtractionSecurityLog.Printf("Network permissions object format with %d fields", len(networkObj))
 			permissions := &NetworkPermissions{
@@ -54,99 +54,11 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 				}
 			}
 
-			// Extract firewall configuration if present
-			if firewall, hasFirewall := networkObj["firewall"]; hasFirewall {
-				frontmatterExtractionSecurityLog.Print("Extracting firewall configuration")
-				permissions.Firewall = c.extractFirewallConfig(firewall)
-			}
-
 			// Empty object {} means no network access (empty allowed list)
 			return permissions
 		}
 	}
 	frontmatterExtractionSecurityLog.Print("No network permissions found in frontmatter")
-	return nil
-}
-
-// extractFirewallConfig extracts firewall configuration from various formats
-func (c *Compiler) extractFirewallConfig(firewall any) *FirewallConfig {
-	// Handle null/empty object format: firewall: or firewall: {}
-	if firewall == nil {
-		return &FirewallConfig{
-			Enabled: true,
-		}
-	}
-
-	// Handle boolean format: firewall: true or firewall: false
-	if firewallBool, ok := firewall.(bool); ok {
-		return &FirewallConfig{
-			Enabled: firewallBool,
-		}
-	}
-
-	// Handle string format: firewall: "disable"
-	if firewallStr, ok := firewall.(string); ok {
-		if firewallStr == "disable" {
-			return &FirewallConfig{
-				Enabled: false,
-			}
-		}
-		// Unknown string format, return nil
-		return nil
-	}
-
-	// Handle object format: firewall: { args: [...], version: "..." }
-	if firewallObj, ok := firewall.(map[string]any); ok {
-		config := &FirewallConfig{
-			Enabled: true, // Default to enabled when object is specified
-		}
-
-		// Extract args if present
-		if args, hasArgs := firewallObj["args"]; hasArgs {
-			if argsSlice, ok := args.([]any); ok {
-				for _, arg := range argsSlice {
-					if argStr, ok := arg.(string); ok {
-						config.Args = append(config.Args, argStr)
-					}
-				}
-			}
-		}
-
-		// Extract version if present
-		if version, hasVersion := firewallObj["version"]; hasVersion {
-			if versionStr, ok := version.(string); ok {
-				config.Version = versionStr
-			}
-		}
-
-		// Extract log-level if present
-		if logLevel, hasLogLevel := firewallObj["log-level"]; hasLogLevel {
-			if logLevelStr, ok := logLevel.(string); ok {
-				config.LogLevel = logLevelStr
-			}
-		}
-
-		// Extract ssl-bump if present
-		if sslBump, hasSslBump := firewallObj["ssl-bump"]; hasSslBump {
-			if sslBumpBool, ok := sslBump.(bool); ok {
-				config.SSLBump = sslBumpBool
-			}
-		}
-
-		// Extract allow-urls if present
-		if allowUrls, hasAllowUrls := firewallObj["allow-urls"]; hasAllowUrls {
-			if urlsSlice, ok := allowUrls.([]any); ok {
-				for _, url := range urlsSlice {
-					if urlStr, ok := url.(string); ok {
-						config.AllowURLs = append(config.AllowURLs, urlStr)
-					}
-				}
-			}
-		}
-
-		return config
-	}
-
 	return nil
 }
 
@@ -269,6 +181,13 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 	if typeVal, hasType := agentObj["type"]; hasType {
 		if typeStr, ok := typeVal.(string); ok {
 			agentConfig.Type = SandboxType(typeStr)
+		}
+	}
+
+	// Extract version (AWF version override)
+	if versionVal, hasVersion := agentObj["version"]; hasVersion {
+		if versionStr, ok := versionVal.(string); ok {
+			agentConfig.Version = versionStr
 		}
 	}
 

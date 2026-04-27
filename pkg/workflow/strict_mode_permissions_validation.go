@@ -73,6 +73,37 @@ func (c *Compiler) validateStrictDeprecatedFields(frontmatter map[string]any) er
 	return nil
 }
 
+// validateStrictDisableXPIA refuses use of the disable-xpia-prompt feature flag in strict mode.
+// Disabling XPIA (Cross-Prompt Injection Attack) protection removes the primary defense against
+// prompt-injection attacks in production workflows.
+func (c *Compiler) validateStrictDisableXPIA(frontmatter map[string]any) error {
+	featuresValue, exists := frontmatter["features"]
+	if !exists {
+		return nil
+	}
+	featuresMap, ok := featuresValue.(map[string]any)
+	if !ok {
+		return nil
+	}
+	flagVal, exists := featuresMap["disable-xpia-prompt"]
+	if !exists {
+		return nil
+	}
+	// Only reject when the flag is explicitly enabled (true / non-empty string)
+	enabled := false
+	switch v := flagVal.(type) {
+	case bool:
+		enabled = v
+	case string:
+		enabled = v != ""
+	}
+	if !enabled {
+		return nil
+	}
+	strictModeValidationLog.Printf("disable-xpia-prompt validation failed: feature flag enabled in strict mode")
+	return errors.New("strict mode: 'disable-xpia-prompt: true' is not allowed because it removes XPIA (Cross-Prompt Injection Attack) protection from the workflow. This eliminates the primary defense against prompt-injection attacks. Remove the disable-xpia-prompt feature flag or set 'strict: false' to disable strict mode")
+}
+
 // validateStrictFirewall requires firewall to be enabled in strict mode for copilot and codex engines
 // when network domains are provided (non-wildcard).
 // In strict mode, ALL engines (regardless of LLM gateway support) disallow sandbox.agent: false.
@@ -182,7 +213,7 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 	// In strict mode, firewall MUST be enabled
 	if networkPermissions.Firewall == nil || !networkPermissions.Firewall.Enabled {
 		strictModeValidationLog.Printf("Firewall validation failed: firewall not enabled in strict mode")
-		return fmt.Errorf("strict mode: firewall must be enabled for %s engine with network restrictions. The firewall should be enabled by default, but if you've explicitly disabled it with 'network.firewall: false' or 'sandbox.agent: false', this is not allowed in strict mode for security reasons. See: https://github.github.com/gh-aw/reference/network/", engineID)
+		return fmt.Errorf("strict mode: firewall must be enabled for %s engine with network restrictions. The firewall should be enabled by default, but if you've explicitly disabled it with 'sandbox.agent: false', this is not allowed in strict mode for security reasons. See: https://github.github.com/gh-aw/reference/network/", engineID)
 	}
 
 	strictModeValidationLog.Printf("Firewall validation passed")

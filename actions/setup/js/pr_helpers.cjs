@@ -1,5 +1,7 @@
 // @ts-check
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Detect if a pull request is from a fork repository.
  *
@@ -110,4 +112,70 @@ function buildBranchInstruction(effectiveBaseBranch, resolvedDefaultBranch) {
   return `IMPORTANT: Create your branch from the '${effectiveBaseBranch}' branch${notClause}.`;
 }
 
-module.exports = { detectForkPR, getPullRequestNumber, resolvePullRequestRepo, buildBranchInstruction };
+/**
+ * Check whether a branch is safe to push to.
+ *
+ * Performs two security checks:
+ * 1. Ensures the branch is not the repository's default branch.
+ * 2. When `checkBranchProtection` is true, queries the branch protection API to
+ *    verify the branch has no protection rules.
+ *
+ * Returns null when the push is safe to proceed, or a string error message that
+ * should be surfaced as a hard failure when the push must be blocked.
+ *
+ * @param {any} githubClient - Octokit REST client
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string} branchName - Target branch to validate
+ * @param {boolean} checkBranchProtection - Whether to call the branch protection API
+ * @returns {Promise<string|null>} Error message if push is blocked, null if safe
+ */
+async function checkBranchPushable(githubClient, owner, repo, branchName, checkBranchProtection) {
+  // Check whether the branch is the repository default branch
+  let defaultBranch = null;
+  try {
+    const { data: repoData } = await githubClient.rest.repos.get({ owner, repo });
+    defaultBranch = repoData.default_branch;
+  } catch (repoError) {
+    core.warning(`Could not check repository default branch: ${getErrorMessage(repoError)}`);
+  }
+
+  if (defaultBranch && branchName === defaultBranch) {
+    return `Cannot push to branch "${branchName}": this is the repository's default branch. Agents must not push directly to the default branch.`;
+  }
+
+  // Check whether the branch has protection rules
+  if (checkBranchProtection) {
+    let isBranchProtected = false;
+    try {
+      await githubClient.rest.repos.getBranchProtection({ owner, repo, branch: branchName });
+      // Successful response means branch protection rules exist
+      isBranchProtected = true;
+    } catch (protectionError) {
+      const protectionStatus = protectionError && typeof protectionError === "object" && "status" in protectionError ? protectionError.status : undefined;
+      if (protectionStatus === 404) {
+        // 404 means no protection rules – safe to proceed
+        core.info(`Branch "${branchName}" has no protection rules`);
+      } else if (protectionStatus === 403) {
+        // 403 means the token lacks permission to read branch protection rules.
+        // The GitHub platform will still enforce branch protection at push time,
+        // so warn and allow the push to proceed.
+        core.warning(`Could not check branch protection rules for "${branchName}" (insufficient permissions): ${getErrorMessage(protectionError)}`);
+      } else {
+        // Unexpected errors (5xx, network failures, etc.) – fail closed to
+        // avoid bypassing branch protection due to transient API issues.
+        return `Cannot verify branch protection rules for "${branchName}": ${getErrorMessage(protectionError)}. Push blocked to prevent accidental writes to protected branches.`;
+      }
+    }
+
+    if (isBranchProtected) {
+      return `Cannot push to branch "${branchName}": this branch has protection rules. Agents must not push directly to protected branches.`;
+    }
+  } else {
+    core.info(`Branch protection check skipped (check-branch-protection: false)`);
+  }
+
+  return null;
+}
+
+module.exports = { detectForkPR, getPullRequestNumber, resolvePullRequestRepo, buildBranchInstruction, checkBranchPushable };

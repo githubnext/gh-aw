@@ -1,4 +1,6 @@
 #!/bin/bash
+set +o histexpand
+
 # Validate that all expression placeholders have been properly substituted
 # This script checks that the prompt file doesn't contain any unreplaced placeholders
 

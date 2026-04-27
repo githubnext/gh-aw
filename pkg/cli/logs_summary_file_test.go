@@ -30,7 +30,7 @@ func TestWriteSummaryFile(t *testing.T) {
 		},
 		Runs: []RunData{
 			{
-				DatabaseID:       12345,
+				RunID:            12345,
 				Number:           1,
 				WorkflowName:     "Test Workflow",
 				Agent:            "copilot",
@@ -85,8 +85,8 @@ func TestWriteSummaryFile(t *testing.T) {
 		t.Errorf("Expected %d runs, got %d", len(logsData.Runs), len(parsedData.Runs))
 	}
 	if len(parsedData.Runs) > 0 {
-		if parsedData.Runs[0].DatabaseID != logsData.Runs[0].DatabaseID {
-			t.Errorf("Expected DatabaseID %d, got %d", logsData.Runs[0].DatabaseID, parsedData.Runs[0].DatabaseID)
+		if parsedData.Runs[0].RunID != logsData.Runs[0].RunID {
+			t.Errorf("Expected RunID %d, got %d", logsData.Runs[0].RunID, parsedData.Runs[0].RunID)
 		}
 	}
 }

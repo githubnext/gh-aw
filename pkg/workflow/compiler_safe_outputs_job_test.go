@@ -3,11 +3,15 @@
 package workflow
 
 import (
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -213,6 +217,105 @@ func TestBuildConsolidatedSafeOutputsJobConcurrencyGroup(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildConsolidatedSafeOutputsJobNeedsIncludesConfiguredDependencies(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	workflowData := &WorkflowData{
+		Name:         "Test Workflow",
+		LockForAgent: true,
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				TitlePrefix: "[Test] ",
+			},
+			ThreatDetection: &ThreatDetectionConfig{},
+			Needs:           []string{"secrets_fetcher", "vault_bootstrap"},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test-workflow.md")
+	require.NoError(t, err, "Should build job without error")
+	require.NotNil(t, job, "Job should not be nil")
+
+	assert.Contains(t, job.Needs, string(constants.AgentJobName), "safe_outputs should depend on agent job")
+	assert.Contains(t, job.Needs, string(constants.ActivationJobName), "safe_outputs should depend on activation job")
+	assert.Contains(t, job.Needs, string(constants.DetectionJobName), "safe_outputs should depend on detection job when enabled")
+	assert.Contains(t, job.Needs, "unlock", "safe_outputs should depend on unlock when lock-for-agent is enabled")
+	assert.Contains(t, job.Needs, "secrets_fetcher", "safe_outputs should include explicit custom dependency")
+	assert.Contains(t, job.Needs, "vault_bootstrap", "safe_outputs should include extra custom dependency")
+
+	secretsFetcherCount := 0
+	for _, need := range job.Needs {
+		if need == "secrets_fetcher" {
+			secretsFetcherCount++
+		}
+	}
+	assert.Equal(t, 1, secretsFetcherCount, "duplicate configured dependencies should be deduplicated")
+}
+
+func TestCompileSafeOutputsNeedsForCustomCredentialJob(t *testing.T) {
+	tempDir := t.TempDir()
+	workflowPath := filepath.Join(tempDir, "safe-needs.md")
+	workflowContent := `---
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+safe-outputs:
+  needs: [secrets_fetcher]
+  github-app:
+    app-id: ${{ needs.secrets_fetcher.outputs.app_id }}
+    private-key: ${{ needs.secrets_fetcher.outputs.app_private_key }}
+  noop:
+    report-as-issue: false
+jobs:
+  secrets_fetcher:
+    runs-on: ubuntu-latest
+    outputs:
+      app_id: ${{ steps.fetch.outputs.app_id }}
+      app_private_key: ${{ steps.fetch.outputs.app_private_key }}
+    steps:
+      - id: fetch
+        run: |
+          echo "app_id=placeholder" >> "$GITHUB_OUTPUT"
+          echo "app_private_key=placeholder" >> "$GITHUB_OUTPUT"
+---
+
+# Safe outputs needs test
+`
+	require.NoError(t, os.WriteFile(workflowPath, []byte(workflowContent), 0644), "workflow should be written")
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowPath), "workflow should compile")
+
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "compiled lock file should exist")
+
+	var workflow map[string]any
+	require.NoError(t, yaml.Unmarshal(lockContent, &workflow), "lock YAML should parse")
+
+	jobs, ok := workflow["jobs"].(map[string]any)
+	require.True(t, ok, "jobs should be present")
+	safeOutputsJob, ok := jobs["safe_outputs"].(map[string]any)
+	require.True(t, ok, "safe_outputs job should be present")
+
+	needs, ok := safeOutputsJob["needs"].([]any)
+	require.True(t, ok, "safe_outputs job should include needs list")
+
+	needsValues := make([]string, 0, len(needs))
+	for _, need := range needs {
+		if needStr, ok := need.(string); ok {
+			needsValues = append(needsValues, needStr)
+		}
+	}
+
+	assert.Contains(t, needsValues, string(constants.AgentJobName), "safe_outputs should keep built-in dependency on agent")
+	assert.Contains(t, needsValues, string(constants.ActivationJobName), "safe_outputs should keep built-in dependency on activation")
+	assert.Contains(t, needsValues, "secrets_fetcher", "safe_outputs should include custom credential supplier job")
+	assert.Contains(t, string(lockContent), "needs.secrets_fetcher.outputs.app_id", "compiled workflow should retain custom needs output references")
 }
 
 func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {

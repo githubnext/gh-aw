@@ -246,7 +246,7 @@
         },
         "reply_to_id": {
           "type": "string",
-          "description": "Node ID of the discussion comment to reply to, enabling threaded discussion comments. When provided, the new comment is posted as a reply to the specified top-level discussion comment. If the given node ID belongs to a nested reply, the handler automatically resolves it to the top-level parent. Only applicable for discussion comments — ignored for issue and pull request comments."
+          "description": "Node ID of the discussion comment to reply to, enabling threaded discussion comments. When provided, the new comment is posted as a reply to the specified top-level discussion comment. If the given node ID belongs to a nested reply, the handler automatically resolves it to the top-level parent. Only applicable for discussion comments \u2014 ignored for issue and pull request comments."
         },
         "secrecy": {
           "type": "string",
@@ -360,7 +360,7 @@
   },
   {
     "name": "submit_pull_request_review",
-    "description": "Submit a pull request review with a status decision. All create_pull_request_review_comment outputs are automatically collected and included as inline comments in this review. Use APPROVE to approve the PR, REQUEST_CHANGES to request changes, or COMMENT for general feedback without a decision. If you don't call this tool, review comments are still submitted as a COMMENT review.",
+    "description": "Submit a pull request review with a status decision. All create_pull_request_review_comment outputs are automatically collected and included as inline comments in this review. Preferred default: use COMMENT for informative, non-blocking bot feedback. Use REQUEST_CHANGES only when merge-blocking is intentionally required. If you don't call this tool, review comments are still submitted as a COMMENT review.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -783,6 +783,10 @@
           "enum": ["replace", "append", "prepend"],
           "description": "How to update the PR body: 'replace' (default - completely overwrite), 'append' (add to end with separator), or 'prepend' (add to start with separator). Title is always replaced."
         },
+        "update_branch": {
+          "type": "boolean",
+          "description": "When true, update the pull request branch with the latest base branch changes before applying other updates. Defaults to false."
+        },
         "pull_request_number": {
           "type": ["number", "string"],
           "description": "Pull request number to update. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/pull/234). Required when the workflow target is '*' (any PR)."
@@ -790,6 +794,45 @@
         "draft": {
           "type": "boolean",
           "description": "Whether the PR should be a draft (true) or ready for review (false). Use to convert between draft and ready states."
+        },
+        "secrecy": {
+          "type": "string",
+          "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
+        },
+        "integrity": {
+          "type": "string",
+          "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "merge_pull_request",
+    "description": "Merge an existing pull request only after policy checks pass (status checks, approvals, resolved review threads, label/branch constraints, and mergeability gates). Use this when workflows require controlled merges instead of direct merge operations.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "pull_request_number": {
+          "type": ["number", "string"],
+          "description": "Pull request number to merge. This is the numeric ID from the GitHub URL (e.g., 321 in github.com/owner/repo/pull/321). If omitted, uses the triggering pull request context."
+        },
+        "merge_method": {
+          "type": "string",
+          "enum": ["merge", "squash", "rebase"],
+          "description": "Merge strategy to use: 'merge', 'squash', or 'rebase'. Defaults to 'merge'."
+        },
+        "commit_title": {
+          "type": "string",
+          "description": "Optional custom commit title to use for the merge commit/squash commit."
+        },
+        "commit_message": {
+          "type": "string",
+          "description": "Optional custom commit message body for the merge."
+        },
+        "repo": {
+          "type": "string",
+          "description": "Target repository in 'owner/repo' format for cross-repository merge operations. If omitted, uses the configured default target repository."
         },
         "secrecy": {
           "type": "string",
@@ -891,7 +934,7 @@
         "temporary_id": {
           "type": "string",
           "pattern": "^aw_[A-Za-z0-9_]{3,12}$",
-          "description": "Optional temporary identifier for this artifact upload. Format: 'aw_' followed by 3 to 12 alphanumeric or underscore characters (e.g., 'aw_chart1', 'aw_img_out'). Declare this ID here if you plan to embed the artifact URL in a subsequent message body using '#aw_ID' — for example '![chart](#aw_chart1)' in a create_discussion body. The safe-outputs processor replaces '#aw_ID' references with the actual artifact download URL after upload. When skip-archive is true the URL points directly to the file and is suitable for inline images."
+          "description": "Optional temporary identifier for this artifact upload. Format: 'aw_' followed by 3 to 12 alphanumeric or underscore characters (e.g., 'aw_chart1', 'aw_img_out'). Declare this ID here if you plan to embed the artifact URL in a subsequent message body using '#aw_ID' \u2014 for example '![chart](#aw_chart1)' in a create_discussion body. The safe-outputs processor replaces '#aw_ID' references with the actual artifact download URL after upload. When skip-archive is true the URL points directly to the file and is suitable for inline images."
         },
         "secrecy": {
           "type": "string",
@@ -1020,7 +1063,7 @@
   },
   {
     "name": "hide_comment",
-    "description": "Hide a comment on a GitHub issue, pull request, or discussion. This collapses the comment and marks it as spam, abuse, off-topic, outdated, or resolved. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID.",
+    "description": "Hide a comment on a GitHub issue, pull request, or discussion. This collapses the comment and marks it as spam, abuse, off-topic, outdated, resolved, or low-quality. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID.",
     "inputSchema": {
       "type": "object",
       "required": ["comment_id"],
@@ -1031,8 +1074,8 @@
         },
         "reason": {
           "type": "string",
-          "enum": ["SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"],
-          "description": "Optional reason for hiding the comment. Defaults to SPAM if not provided. Valid values: SPAM (spam content), ABUSE (abusive/harassment content), OFF_TOPIC (not relevant to discussion), OUTDATED (no longer applicable), RESOLVED (issue/question has been resolved)."
+          "enum": ["SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED", "LOW_QUALITY"],
+          "description": "Optional reason for hiding the comment. Defaults to SPAM if not provided. Valid values: SPAM (spam content), ABUSE (abusive/harassment content), OFF_TOPIC (not relevant to discussion), OUTDATED (no longer applicable), RESOLVED (issue/question has been resolved), LOW_QUALITY (low-quality content)."
         },
         "secrecy": {
           "type": "string",

@@ -43,6 +43,22 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfTrue("staged", c.Staged).
 			Build()
 	},
+	"comment_memory": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CommentMemory == nil {
+			return nil
+		}
+		c := cfg.CommentMemory
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfNotEmpty("memory_id", c.MemoryID).
+			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("staged", c.Staged).
+			Build()
+	},
 	"create_discussion": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.CreateDiscussions == nil {
 			return nil
@@ -321,6 +337,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddStringSlice("allowed_events", c.AllowedEvents).
+			AddIfTrue("supersede_older_reviews", c.SupersedeOlderReviews).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddStringPtr("footer", getEffectiveFooterString(c.Footer, cfg.Footer)).
 			AddIfTrue("staged", c.Staged).
@@ -364,10 +381,15 @@ var handlerRegistry = map[string]handlerBuilder{
 		if cfg.MaximumPatchSize > 0 {
 			maxPatchSize = cfg.MaximumPatchSize
 		}
+		maxPatchFiles := 100 // default 100 unique files
+		if cfg.MaximumPatchFiles > 0 {
+			maxPatchFiles = cfg.MaximumPatchFiles
+		}
 		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
 			AddStringSlice("labels", c.Labels).
+			AddStringSlice("fallback_labels", c.FallbackLabels).
 			AddStringSlice("reviewers", c.Reviewers).
 			AddStringSlice("team_reviewers", c.TeamReviewers).
 			AddStringSlice("assignees", c.Assignees).
@@ -380,6 +402,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddStringSlice("allowed_base_branches", c.AllowedBaseBranches).
 			AddDefault("max_patch_size", maxPatchSize).
+			AddDefault("max_patch_files", maxPatchFiles).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
@@ -388,6 +411,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
 			AddStringSlice("protected_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
+			AddDefault("protect_top_level_dot_folders", true).
 			AddStringSlice("_protected_files_exclude", c.ProtectedFilesExclude).
 			AddStringSlice("allowed_files", c.AllowedFiles).
 			AddStringSlice("excluded_files", c.ExcludedFiles).
@@ -411,6 +435,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
 			AddStringSlice("labels", c.Labels).
 			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
+			AddIfTrue("ignore_missing_branch_failure", c.IgnoreMissingBranchFailure).
 			AddIfNotEmpty("commit_title_suffix", c.CommitTitleSuffix).
 			AddDefault("max_patch_size", maxPatchSize).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
@@ -420,10 +445,13 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
 			AddStringSlice("protected_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
+			AddDefault("protect_top_level_dot_folders", true).
 			AddStringSlice("_protected_files_exclude", c.ProtectedFilesExclude).
 			AddStringSlice("allowed_files", c.AllowedFiles).
 			AddStringSlice("excluded_files", c.ExcludedFiles).
 			AddIfNotEmpty("patch_format", c.PatchFormat).
+			AddBoolPtr("fallback_as_pull_request", c.FallbackAsPullRequest).
+			AddBoolPtr("check_branch_protection", c.CheckBranchProtection).
 			Build()
 	},
 	"update_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
@@ -436,10 +464,25 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target", c.Target).
 			AddBoolPtrOrDefault("allow_title", c.Title, true).
 			AddBoolPtrOrDefault("allow_body", c.Body, true).
+			AddBoolPtrOrDefault("update_branch", c.UpdateBranch, false).
 			AddStringPtr("default_operation", c.Operation).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("staged", c.Staged).
+			Build()
+	},
+	"merge_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.MergePullRequest == nil {
+			return nil
+		}
+		c := cfg.MergePullRequest
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddStringSlice("allowed_labels", c.AllowedLabels).
+			AddStringSlice("allowed_branches", c.AllowedBranches).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
 			Build()

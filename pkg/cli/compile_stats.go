@@ -9,12 +9,29 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
 	"github.com/goccy/go-yaml"
 )
 
 var compileStatsLog = logger.New("cli:compile_stats")
+
+// WorkflowFailure represents a failed workflow with its error count
+type WorkflowFailure struct {
+	Path          string   // File path of the workflow
+	ErrorCount    int      // Number of errors in this workflow
+	ErrorMessages []string // Actual error messages to display to the user
+}
+
+// CompilationStats tracks the results of workflow compilation
+type CompilationStats struct {
+	Total           int
+	Errors          int
+	Warnings        int
+	FailedWorkflows []string          // Names of workflows that failed compilation (deprecated, use FailedWorkflowDetails)
+	FailureDetails  []WorkflowFailure // Detailed information about failed workflows
+}
 
 // WorkflowStats holds statistics about a compiled workflow
 type WorkflowStats struct {
@@ -89,6 +106,83 @@ func collectWorkflowStats(lockFilePath string) (*WorkflowStats, error) {
 	compileStatsLog.Printf("Stats collected: jobs=%d, steps=%d, scripts=%d, size=%d bytes",
 		stats.Jobs, stats.Steps, stats.ScriptCount, stats.FileSize)
 	return stats, nil
+}
+
+// trackWorkflowFailure adds a workflow failure to the compilation statistics
+func trackWorkflowFailure(stats *CompilationStats, workflowPath string, errorCount int, errorMessages []string) {
+	// Add to FailedWorkflows for backward compatibility
+	stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(workflowPath))
+
+	// Add detailed failure information
+	stats.FailureDetails = append(stats.FailureDetails, WorkflowFailure{
+		Path:          workflowPath,
+		ErrorCount:    errorCount,
+		ErrorMessages: errorMessages,
+	})
+}
+
+// printCompilationSummary prints a summary of the compilation results
+func printCompilationSummary(stats *CompilationStats) {
+	if stats.Total == 0 {
+		return
+	}
+
+	summary := fmt.Sprintf("Compiled %d workflow(s): %d error(s), %d warning(s)",
+		stats.Total, stats.Errors, stats.Warnings)
+
+	// Use different formatting based on whether there were errors
+	if stats.Errors > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(summary))
+
+		// Show agent-friendly list of failed workflow IDs first
+		if len(stats.FailureDetails) > 0 {
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Failed workflows:"))
+			for _, failure := range stats.FailureDetails {
+				fmt.Fprintf(os.Stderr, "  ✗ %s\n", filepath.Base(failure.Path))
+			}
+			fmt.Fprintln(os.Stderr)
+
+			// Display the actual error messages for each failed workflow
+			for _, failure := range stats.FailureDetails {
+				for _, errMsg := range failure.ErrorMessages {
+					fmt.Fprintln(os.Stderr, errMsg)
+				}
+			}
+		} else if len(stats.FailedWorkflows) > 0 {
+			// Fallback for backward compatibility if FailureDetails is not populated
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Failed workflows:"))
+			for _, workflow := range stats.FailedWorkflows {
+				fmt.Fprintf(os.Stderr, "  ✗ %s\n", workflow)
+			}
+			fmt.Fprintln(os.Stderr)
+		}
+	} else if stats.Warnings > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(summary))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(summary))
+	}
+}
+
+// collectWorkflowStatisticsWrapper collects and returns workflow statistics
+func collectWorkflowStatisticsWrapper(markdownFiles []string) []*WorkflowStats {
+	compileStatsLog.Printf("Collecting workflow statistics for %d files", len(markdownFiles))
+
+	var statsList []*WorkflowStats
+	for _, file := range markdownFiles {
+		resolvedFile, err := resolveWorkflowFile(file, false)
+		if err != nil {
+			continue // Skip files that couldn't be resolved
+		}
+		lockFile := stringutil.MarkdownToLockFile(resolvedFile)
+		if workflowStats, err := collectWorkflowStats(lockFile); err == nil {
+			statsList = append(statsList, workflowStats)
+		}
+	}
+
+	compileStatsLog.Printf("Collected statistics for %d workflows", len(statsList))
+	return statsList
 }
 
 // displayStatsTable displays workflow statistics in a sorted table
