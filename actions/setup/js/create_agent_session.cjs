@@ -19,6 +19,14 @@ const path = require("path");
 let _allResults = [];
 
 /**
+ * Monotonically increasing counter used to generate unique temp file names.
+ * Incremented synchronously before any `await`, so concurrent async calls never
+ * derive the same value (Node.js is single-threaded; no locks needed).
+ * @type {number}
+ */
+let _taskCounter = 0;
+
+/**
  * Handler factory for create-agent-session safe output.
  *
  * Replaces the standalone create_agent_session step. This function is called once by the
@@ -31,6 +39,7 @@ let _allResults = [];
 async function main(config = {}) {
   // Reset module-level state for this run
   _allResults = [];
+  _taskCounter = 0;
 
   // Parse configuration
   const configuredBaseBranch = config.base ? String(config.base).trim() : null;
@@ -93,7 +102,9 @@ async function main(config = {}) {
         fs.mkdirSync(tmpDir, { recursive: true });
       }
 
-      const taskIndex = _allResults.length + 1;
+      // Increment the counter synchronously (before any await) to guarantee a unique
+      // task index even when multiple handleMessage calls are interleaved concurrently.
+      const taskIndex = ++_taskCounter;
       const taskFile = path.join(tmpDir, `agent-task-description-${taskIndex}.md`);
       fs.writeFileSync(taskFile, taskDescription, "utf8");
       core.info(`Task ${taskIndex}: Task description written to ${taskFile}`);
