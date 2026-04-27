@@ -372,7 +372,8 @@ func TestHandlerManagerStepIncludesActionsEnvVar(t *testing.T) {
 		},
 	}
 
-	steps := compiler.buildHandlerManagerStep(workflowData)
+	steps, err := compiler.buildHandlerManagerStep(workflowData)
+	require.NoError(t, err)
 	fullYAML := strings.Join(steps, "")
 
 	assert.Contains(t, fullYAML, "GH_AW_SAFE_OUTPUT_ACTIONS", "Should include GH_AW_SAFE_OUTPUT_ACTIONS env var")
@@ -388,7 +389,8 @@ func TestHandlerManagerStepNoActionsEnvVar(t *testing.T) {
 		},
 	}
 
-	steps := compiler.buildHandlerManagerStep(workflowData)
+	steps, err := compiler.buildHandlerManagerStep(workflowData)
+	require.NoError(t, err)
 	fullYAML := strings.Join(steps, "")
 
 	assert.NotContains(t, fullYAML, "GH_AW_SAFE_OUTPUT_ACTIONS", "Should not include GH_AW_SAFE_OUTPUT_ACTIONS when no actions")

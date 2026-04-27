@@ -134,7 +134,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 // buildHandlerManagerStep builds a single step that uses the safe output handler manager
 // to dispatch messages to appropriate handlers. This replaces multiple individual steps
 // with a single dispatcher step that processes all safe output types.
-func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
+func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error) {
 	consolidatedSafeOutputsStepsLog.Print("Building handler manager step")
 
 	var steps []string
@@ -154,9 +154,17 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	var domainsStr string
 	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
 		// allowed-domains: additional domains unioned with engine/network base set; supports ecosystem identifiers
-		domainsStr = c.computeExpandedAllowedDomainsForSanitization(data)
+		expanded, err := c.computeExpandedAllowedDomainsForSanitization(data)
+		if err != nil {
+			return nil, err
+		}
+		domainsStr = expanded
 	} else {
-		domainsStr = c.computeAllowedDomainsForSanitization(data)
+		computed, err := c.computeAllowedDomainsForSanitization(data)
+		if err != nil {
+			return nil, err
+		}
+		domainsStr = computed
 	}
 	if domainsStr != "" {
 		steps = append(steps, fmt.Sprintf("          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr))
@@ -324,5 +332,5 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/safe_output_handler_manager.cjs');\n")
 	steps = append(steps, "            await main();\n")
 
-	return steps
+	return steps, nil
 }

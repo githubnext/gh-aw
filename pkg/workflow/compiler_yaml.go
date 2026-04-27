@@ -830,7 +830,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("            await main(core, context);\n")
 }
 
-func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
+func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) error {
 	// Copy the raw safe-output NDJSON to a /tmp/gh-aw/ path so it can be included in the
 	// unified agent artifact together with all other /tmp/gh-aw/ outputs.
 	yaml.WriteString("      - name: Copy Safe Outputs\n")
@@ -857,10 +857,18 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	var domainsStr string
 	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
 		// allowed-domains: additional domains unioned with engine/network base set; supports ecosystem identifiers
-		domainsStr = c.computeExpandedAllowedDomainsForSanitization(data)
+		expanded, err := c.computeExpandedAllowedDomainsForSanitization(data)
+		if err != nil {
+			return err
+		}
+		domainsStr = expanded
 	} else {
 		// Fall back to computing from network configuration (same as firewall)
-		domainsStr = c.computeAllowedDomainsForSanitization(data)
+		computed, err := c.computeAllowedDomainsForSanitization(data)
+		if err != nil {
+			return err
+		}
+		domainsStr = computed
 	}
 	if domainsStr != "" {
 		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
@@ -892,6 +900,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/collect_ndjson_output.cjs');\n")
 	yaml.WriteString("            await main();\n")
 
+	return nil
 }
 
 // processMarkdownBody applies the standard post-processing pipeline to a markdown body:

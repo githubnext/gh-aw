@@ -489,7 +489,8 @@ func TestHandlerManagerStepPerOutputTokenInHandlerConfig(t *testing.T) {
 				SafeOutputs: tt.safeOutputs,
 			}
 
-			steps := compiler.buildHandlerManagerStep(workflowData)
+			steps, err := compiler.buildHandlerManagerStep(workflowData)
+			require.NoError(t, err)
 			stepsContent := strings.Join(steps, "")
 
 			// Verify tokens appear somewhere in the step content (handler config JSON)

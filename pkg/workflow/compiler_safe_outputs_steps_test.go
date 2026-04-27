@@ -434,7 +434,8 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				ParsedFrontmatter: tt.parsedFrontmatter,
 			}
 
-			steps := compiler.buildHandlerManagerStep(workflowData)
+			steps, err := compiler.buildHandlerManagerStep(workflowData)
+			require.NoError(t, err)
 
 			require.NotEmpty(t, steps)
 

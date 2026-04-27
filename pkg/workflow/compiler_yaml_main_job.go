@@ -461,7 +461,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add output collection step only if safe-outputs feature is used (GH_AW_SAFE_OUTPUTS functionality)
 	if data.SafeOutputs != nil {
-		c.generateOutputCollectionStep(yaml, data)
+		if err := c.generateOutputCollectionStep(yaml, data); err != nil {
+			return err
+		}
 	}
 
 	// Merge engine-declared output files into the unified artifact instead of creating a

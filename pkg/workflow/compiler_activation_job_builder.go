@@ -238,9 +238,17 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 		ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 		var domainsStr string
 		if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
-			domainsStr = c.computeExpandedAllowedDomainsForSanitization(data)
+			expanded, err := c.computeExpandedAllowedDomainsForSanitization(data)
+			if err != nil {
+				return err
+			}
+			domainsStr = expanded
 		} else {
-			domainsStr = c.computeAllowedDomainsForSanitization(data)
+			computed, err := c.computeAllowedDomainsForSanitization(data)
+			if err != nil {
+				return err
+			}
+			domainsStr = computed
 		}
 		var envLines []string
 		if len(data.Bots) > 0 {
