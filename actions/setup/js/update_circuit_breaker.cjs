@@ -61,6 +61,9 @@ async function main() {
   } else {
     // Failure or cancellation — increment the failure counter
     const newCount = (previousState.consecutive_failures ?? 0) + 1;
+    // Preserve the original circuit_opened_at timestamp from when the circuit first opened.
+    // Using ?? ensures we only record the timestamp on the first opening (newCount === maxFailures),
+    // and keep that value on all subsequent failures without overwriting it.
     const circuitOpenedAt = newCount >= maxFailures ? (previousState.circuit_opened_at ?? nowISO) : null;
 
     newState = {

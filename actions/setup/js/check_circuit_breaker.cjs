@@ -95,7 +95,7 @@ async function main() {
 
   await writeDenialSummary(
     `Circuit breaker OPEN for workflow '${workflowName}': ${consecutiveFailures} consecutive failures detected within the ${timeWindowMinutes}-minute window.`,
-    `The circuit breaker will allow a retry after the cooldown period (≈${minutesUntilRetry} min remaining). ` + `Fix the underlying issue and wait, or delete the \`circuit-breaker-state\` artifact to reset manually.`
+    `The circuit breaker will allow a retry after the cooldown period (≈${minutesUntilRetry} min remaining). Fix the underlying issue and wait, or delete the \`circuit-breaker-state\` artifact to reset manually.`
   );
 }
 
