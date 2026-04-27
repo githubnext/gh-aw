@@ -158,7 +158,9 @@ tools:
 			shouldHaveIf: true,
 		},
 		{
-			name: "pull_request_target without labels has no if condition from label filter",
+			// Negative test: no on.labels specified → the label-filter condition should not appear.
+			// expectedIf is set to a substring of the filter expression to confirm its absence.
+			name: "pull_request_target without labels has no label-filter if condition",
 			frontmatter: `---
 on:
   pull_request_target:
