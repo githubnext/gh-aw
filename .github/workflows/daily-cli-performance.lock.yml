@@ -429,6 +429,10 @@ jobs:
           MEMORY_DIR: /tmp/gh-aw/repo-memory/default
           CREATE_ORPHAN: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
+      - name: Scan repo-memory for prompt injection (default)
+        env:
+          GH_AW_SCAN_DIR: /tmp/gh-aw/repo-memory/default
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/sanitize_memory.sh"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}

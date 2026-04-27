@@ -81,8 +81,3 @@ fi
 # Ensure memory directory exists
 mkdir -p "$MEMORY_DIR"
 echo "Repo memory directory ready at $MEMORY_DIR"
-
-# Scan cloned files for prompt injection patterns (ASI-06: Memory & Context Poisoning).
-# This runs after the clone so that any injected content is caught before the agent sees it.
-GH_AW_SCAN_DIR="$MEMORY_DIR" \
-  bash "${RUNNER_TEMP}/gh-aw/actions/sanitize_memory.sh"

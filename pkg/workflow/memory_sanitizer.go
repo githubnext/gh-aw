@@ -27,5 +27,5 @@ func generateRepoMemorySanitizationStep(builder *strings.Builder, memory RepoMem
 	}
 	builder.WriteString("        env:\n")
 	fmt.Fprintf(builder, "          GH_AW_SCAN_DIR: %s\n", memoryDir)
-	builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/sanitize_memory.sh\"\n")
+	fmt.Fprintf(builder, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/%s\"\n", sanitizeMemoryScriptName)
 }
