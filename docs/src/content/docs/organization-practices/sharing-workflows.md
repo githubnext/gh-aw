@@ -5,62 +5,136 @@ sidebar:
   badge: { text: 'Platform', variant: 'tip' }
 ---
 
-Sharing workflows across repositories is an organization practice, not a single design pattern.
+> [!NOTE]
+> The enterprise sharing model described here reflects the current state of GitHub Agentic Workflows. The recommended patterns, commands, and configuration options may change in future releases as the platform evolves.
 
-Some teams want a central repository that publishes common workflows. Others want reusable imports, shared components, or starter repositories that teams can adopt and customize. The right choice depends on how tightly the organization wants to synchronize behavior across repositories.
+Sharing workflows across an organization involves several independent layers. Each layer can be adopted independently; teams do not need all of them at once.
 
-## Common Sharing Models
+The recommended enterprise pattern is to maintain one central `agentic-workflows` repository with versioned workflow templates and shared components. Consuming repositories then use `gh aw add` to install full workflows and `imports:` to pull in common modules.
 
-### Shared source repository
+## Sharing Layers
 
-One repository publishes workflow sources and other repositories add them with `gh aw add` or track them via `source:` metadata. This is a good fit when a platform team owns the workflow and downstream repositories should receive updates over time.
+### 1. Copy and install whole workflows
 
-### Reusable imports and shared components
+A repository can pull in a complete workflow from another repository:
 
-Shared imports are useful when the organization wants common building blocks rather than one complete workflow. This works well for common MCP configuration, shared prompts, safety policy, or reusable workflow fragments.
+```bash
+gh aw add acme-org/agentic-workflows/ci-doctor@v1.2.0
+```
 
-### Starter repositories and templates
+The `source:` field is automatically added to the installed workflow's frontmatter so the origin and version are tracked. Use `gh aw add-wizard` for interactive installation with guided prompts. Use `gh aw add` for scripted or CI-driven installation.
 
-Starter repositories and workflow templates are useful when teams need a strong starting point but are expected to diverge. This model favors local ownership over synchronized updates.
+See [Reusing Workflows](/gh-aw/guides/packaging-imports/) for the full command reference and options.
 
-### Central ops repositories
+### 2. Reusable workflow components
 
-A central operations repository is useful when workflows need durable memory, reporting, review, or organization-wide coordination. In that model, individual product repositories often emit signals while the ops repository owns the long-lived automation loop.
+Shared building blocks — tool configurations, MCP server definitions, safety policies, and prompt snippets — can be imported into any workflow:
 
-## Choosing Between Them
+```yaml
+imports:
+  - acme-org/shared-workflows/shared/security-setup.md@v2.1.0
+  - acme-org/shared-workflows/shared/mcp/tavily.md@v1.0.0
+```
 
-Use a shared source repository when consistency matters more than local autonomy.
+Remote imports are cached under `.github/aw/imports/` by commit SHA after the first fetch. This enables reproducible offline compilation and avoids redundant downloads when multiple refs point to the same commit.
 
-Use imports when the common unit is a capability or policy fragment.
+See [Imports Reference](/gh-aw/reference/imports/) for path formats, merge semantics, and field-specific behavior.
 
-Use templates when the organization wants fast adoption but expects teams to customize independently.
+### 3. Parameterized templates
 
-Use a central ops repository when workflows need shared history, review queues, reporting, or cross-repository orchestration.
+Shared workflows that declare an `import-schema` accept runtime parameters via `uses`/`with`:
+
+```yaml
+imports:
+  - uses: acme-org/shared-workflows/shared/reviewer.md@v1
+    with:
+      languages: ["go", "typescript"]
+      severity: "high"
+```
+
+This lets a single shared component serve multiple consuming workflows with different configurations without requiring separate copies.
+
+See [Imports Reference](/gh-aw/reference/imports/#parameterized-imports-useswith) for schema declaration and validation details.
+
+### 4. Versioning and update flow
+
+Enterprise workflow sharing needs a clear versioning model:
+
+- **Semantic versions** (`@v1.2.0`) pin to a stable release and update to the latest compatible patch or minor within the same major via `gh aw update`.
+- **Branch refs** (`@develop`) track the latest commit on a branch — useful for development integration.
+- **SHA pins** (`@abc123def`) provide strict reproducibility and never move without an explicit change.
+
+To pull upstream changes into an already-installed workflow:
+
+```bash
+gh aw update ci-doctor          # update one workflow
+gh aw update                    # update all tracked workflows
+```
+
+Updates use a 3-way merge by default to preserve local edits. Use `--no-merge` to replace the local copy with the upstream version without merging. Semantic version updates stay within the same major version unless `--major` is passed.
+
+### 5. Private and internal sharing controls
+
+Not all workflows are safe to share across organizations. GitHub Agentic Workflows provides controls at multiple levels:
+
+- **`private: true`** in frontmatter blocks a workflow from being installed into other repositories via `gh aw add`. Attempting to add a private workflow from another repository fails with an error.
+- **Repository visibility** controls which workflows are discoverable. Private repositories require access before any workflow can be fetched.
+- **Org-internal catalogs** can be implemented by placing workflows in a private or internal organization repository, ensuring only organization members can install them.
+
+See [Private Workflows](/gh-aw/reference/frontmatter/#private-workflows-private) for configuration details.
+
+### 6. Import caching and lock behavior
+
+When a workflow is compiled, remote imports are resolved and locked. The compiled `.lock.yml` file records the exact commit SHA for every remote import, making runs reproducible regardless of upstream branch movement.
+
+Imports are cached locally under `.github/aw/imports/` by commit SHA. Cached imports are used for all subsequent compilations until you explicitly update them. This means the lock file and the import cache together form the reproducibility guarantee for shared workflows.
+
+### 7. Cross-repository execution model
+
+Separate from sharing workflow definitions, workflows can operate across repositories at runtime:
+
+- Read files and metadata from other repositories during execution.
+- Check out code from target repositories for analysis or modification.
+- Write safe outputs to target repositories with explicit authentication and allowlists.
+
+```yaml
+safe-outputs:
+  create-issue:
+    target-repo: "acme-org/target-repo"
+    allowed-repos: ["acme-org/repo1", "acme-org/repo2"]
+```
+
+Cross-repository operations require appropriate GitHub token permissions and explicit `allowed-repos` declarations. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for authentication, permissions, and safe output configuration.
+
+## Recommended Enterprise Pattern
+
+The recommended pattern for organizations sharing workflows at scale:
+
+1. **One central `agentic-workflows` repository** holds versioned workflow templates and shared components under `workflows/` and `shared/`.
+2. **Consuming repositories** use `gh aw add acme-org/agentic-workflows/<workflow>@<version>` to install complete workflows.
+3. **Common modules** (MCP configurations, safety policies, shared prompts) live in `shared/` and are imported via `imports:` in consuming workflows.
+4. **Version tags** on the central repository provide stable anchors for production consumers while branches support development integration.
+5. **`private: true`** marks internal-only workflows that should not be exported outside the organization.
+
+This model gives platform teams centralized ownership and update control while giving consuming teams reproducibility through version pins and the ability to preserve local customizations through 3-way merge.
 
 ## Governance Questions
 
-When workflows are shared across an organization, the important questions are usually operational rather than technical:
+When workflows are shared across an organization, the important decisions are usually operational rather than technical:
 
-- who owns the source workflow
-- how updates are reviewed and promoted
-- which repositories may consume or dispatch to shared workflows
-- how secrets, permissions, and safe outputs are standardized
-- when teams may fork a workflow rather than stay on the shared source
+- Who owns the source workflow and reviews proposed changes.
+- How updates are tested, tagged, and promoted to consuming repositories.
+- Which repositories may consume or dispatch to shared workflows.
+- How secrets, permissions, and safe outputs are standardized across consumers.
+- When a consuming team may fork a workflow rather than stay on the shared version.
 
 Those decisions affect reliability more than the file format does.
-
-## Practical Guidance
-
-For synchronized reuse, start with [Reusing Workflows](/gh-aw/guides/packaging-imports/), `gh aw add`, and imports.
-
-For cross-repository control-plane designs, combine this guidance with [SideRepoOps](/gh-aw/patterns/side-repo-ops/) and [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/).
-
-For organizations introducing workflow sharing gradually, it is common to start with templates or starter repositories, then move stable concerns into imports or a shared source repository once conventions have settled.
 
 ## Related Documentation
 
 - [Reusing Workflows](/gh-aw/guides/packaging-imports/)
 - [Imports Reference](/gh-aw/reference/imports/)
+- [Cross-Repository Operations](/gh-aw/reference/cross-repository/)
+- [Private Workflows](/gh-aw/reference/frontmatter/#private-workflows-private)
 - [SideRepoOps](/gh-aw/patterns/side-repo-ops/)
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)
-- [Workflow Structure](/gh-aw/reference/workflow-structure/)
