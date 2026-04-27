@@ -13,11 +13,12 @@ import (
 // TestBuildSharedPRCheckoutSteps tests shared PR checkout step generation
 func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 	tests := []struct {
-		name          string
-		safeOutputs   *SafeOutputsConfig
-		trialMode     bool
-		trialRepo     string
-		checkContains []string
+		name             string
+		safeOutputs      *SafeOutputsConfig
+		trialMode        bool
+		trialRepo        string
+		checkContains    []string
+		checkNotContains []string
 	}{
 		{
 			name: "create pull request only",
@@ -120,6 +121,46 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
 				"GIT_TOKEN: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
 				`REPO_NAME: "org/target-repo"`,
+				// Cross-repo checkout must not use github.ref_name
+				"ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
+			},
+		},
+		{
+			name: "cross-repo without base-branch uses safe ref omitting github.ref_name",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					TargetRepoSlug: "org/other-repo",
+				},
+			},
+			checkContains: []string{
+				"ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
+			},
+			checkNotContains: []string{
+				"github.ref_name",
+			},
+		},
+		{
+			name:      "trial mode cross-repo omits github.ref_name from checkout ref",
+			trialMode: true,
+			trialRepo: "org/trial-repo",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			checkContains: []string{
+				"repository: org/trial-repo",
+				"ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
+			},
+		},
+		{
+			name: "cross-repo with explicit base-branch uses base-branch not cross-repo fallback",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					TargetRepoSlug: "org/other-repo",
+					BaseBranch:     "develop",
+				},
+			},
+			checkContains: []string{
+				"ref: develop",
 			},
 		},
 		{
@@ -211,6 +252,10 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 
 			for _, expected := range tt.checkContains {
 				assert.Contains(t, stepsContent, expected, "Expected to find: "+expected)
+			}
+
+			for _, notExpected := range tt.checkNotContains {
+				assert.NotContains(t, stepsContent, notExpected, "Expected NOT to find: "+notExpected)
 			}
 		})
 	}

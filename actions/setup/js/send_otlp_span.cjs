@@ -749,6 +749,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
   if (engineId) attributes.push(buildAttr("gh-aw.engine.id", engineId));
+  if (model) attributes.push(buildAttr("gen_ai.request.model", model));
   if (eventName) attributes.push(buildAttr("gh-aw.event_name", eventName));
   // Deployment state: prefer the env var (set from github.event.deployment_status.state
   // in the compiled workflow), fall back to aw_info.deployment_state or aw_context propagation.

@@ -90,11 +90,8 @@ type CloseEntityJobParams struct {
 func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params CloseEntityJobParams, logger *logger.Logger) *CloseEntityConfig {
 	// Check if the key exists
 	if _, exists := outputMap[params.ConfigKey]; !exists {
-		logger.Printf("No configuration found for %s", params.ConfigKey)
 		return nil
 	}
-
-	logger.Printf("Parsing %s configuration", params.ConfigKey)
 
 	// Get config data for pre-processing before YAML unmarshaling
 	configData, _ := outputMap[params.ConfigKey].(map[string]any)
@@ -105,12 +102,13 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 		return nil
 	}
 
-	// Unmarshal into typed config struct
-	var config CloseEntityConfig
-	if err := unmarshalConfig(outputMap, params.ConfigKey, &config, logger); err != nil {
+	config := parseConfigScaffold(outputMap, params.ConfigKey, logger, func(err error) *CloseEntityConfig {
 		logger.Printf("Failed to unmarshal config: %v", err)
 		// For backward compatibility, handle nil/empty config
-		config = CloseEntityConfig{}
+		return &CloseEntityConfig{}
+	})
+	if config == nil {
+		return nil
 	}
 
 	// Set default max if not specified
@@ -121,7 +119,7 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 
 	logger.Printf("Parsed %s configuration: max=%s, target=%s", params.ConfigKey, *config.Max, config.Target)
 
-	return &config
+	return config
 }
 
 // closeEntityDefinition holds all parameters for a close entity type

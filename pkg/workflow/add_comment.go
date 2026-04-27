@@ -32,8 +32,6 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 		return nil
 	}
 
-	addCommentLog.Print("Parsing add-comment configuration")
-
 	// Get config data for pre-processing before YAML unmarshaling
 	configData, _ := outputMap["add-comment"].(map[string]any)
 
@@ -53,12 +51,13 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 		return nil
 	}
 
-	// Unmarshal into typed config struct
-	var config AddCommentsConfig
-	if err := unmarshalConfig(outputMap, "add-comment", &config, addCommentLog); err != nil {
+	config := parseConfigScaffold(outputMap, "add-comment", addCommentLog, func(err error) *AddCommentsConfig {
 		addCommentLog.Printf("Failed to unmarshal config: %v", err)
 		// For backward compatibility, handle nil/empty config
-		config = AddCommentsConfig{}
+		return &AddCommentsConfig{}
+	})
+	if config == nil {
+		return nil
 	}
 
 	// Set default max if not specified
@@ -66,7 +65,7 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 		config.Max = defaultIntStr(1)
 	}
 
-	return &config
+	return config
 }
 
 // buildAddCommentPermissions computes the permissions for the add_comment job based on config.

@@ -339,8 +339,21 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 }
 
 const scaffoldedSerenaSharedWorkflow = `---
+import-schema:
+  languages:
+    type: array
+    items:
+      type: string
+    required: true
+    description: >
+      List of programming language identifiers to enable for Serena LSP analysis.
+      Supported values include: go, typescript, javascript, python, rust, java,
+      ruby, csharp, cpp, c, kotlin, scala, swift, php, and more.
+
 imports:
   - uses: github/gh-aw/.github/workflows/shared/mcp/serena.md@main
+    with:
+      languages: ${{ github.aw.import-inputs.languages }}
 ---
 `
 
