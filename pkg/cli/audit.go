@@ -27,7 +27,7 @@ var auditLog = logger.New("cli:audit")
 // NewAuditCommand creates the audit command
 func NewAuditCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "audit <run-id-or-url> [run-id-or-url...]",
+		Use:   "audit <run-id-or-url> [run-id-or-url]...",
 		Short: "Audit a workflow run and generate a detailed report",
 		Long: `Audit one or more workflow runs by downloading artifacts and logs, detecting errors,
 analyzing MCP tool usage, and generating a concise report suitable for AI agents.
