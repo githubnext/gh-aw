@@ -4,7 +4,7 @@ description: Smoke CI workflow that exercises pull request safe outputs through 
 on:
   push:
     branches: [main]
-    paths: ['cmd/**', 'pkg/**', '*.go', 'go.mod']
+    paths: ['cmd/**', 'pkg/**', '*.go', 'go.mod', 'actions/setup/js/**']
   schedule: daily
   pull_request:
     types: [opened, synchronize, reopened]
