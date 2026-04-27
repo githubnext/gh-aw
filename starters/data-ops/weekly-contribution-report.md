@@ -8,14 +8,9 @@ on:
 permissions:
   contents: read
   pull-requests: read
-steps:
-  - name: Collect merged PRs
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      gh api "repos/${{ github.repository }}/pulls?state=closed&sort=updated&direction=desc&per_page=50" \
-        --jq '[.[] | select(.merged_at != null and (.merged_at > (now - 604800 | todate))) | {number, title, user: .user.login, merged_at}]' \
-        > /tmp/gh-aw/merged-prs.json
+tools:
+  github:
+    toolsets: [pull_requests]
 safe-outputs:
   create-discussion:
     title-prefix: "[weekly-report] "
@@ -24,6 +19,6 @@ safe-outputs:
     max: 1
 ---
 
-Read `/tmp/gh-aw/merged-prs.json` and create a weekly contribution summary listing the merged pull requests and their authors.
-Group contributions by author and call out the top contributor by number of merges.
-Format the report as a markdown table with columns for PR number, title, and author.
+Calculate the date 7 days ago and use `search_pull_requests` with query `is:pr is:merged repo:${{ github.repository }} merged:>COMPUTED-DATE` to fetch this week's merged pull requests.
+Group results by author and identify the top contributor by merge count.
+Create a Discussion with a markdown table listing PR number, title, author, and a "Top Contributor" callout at the top.

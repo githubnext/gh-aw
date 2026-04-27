@@ -15,6 +15,6 @@ safe-outputs:
     max: 5
 ---
 
-Search for open, non-draft pull requests with no review activity in the last 7 days using `search_pull_requests` with query `is:pr is:open is:unreviewed updated:<7-days-ago -is:draft`.
+Calculate the date 7 days ago and search for open, non-draft pull requests with no recent activity using `search_pull_requests` with query `is:pr is:open is:unreviewed updated:<COMPUTED-DATE -is:draft`.
 For each result (up to 5), post a polite nudge comment tagging the assignee or author asking for a status update.
 Skip pull requests that already have the `on-hold` label.

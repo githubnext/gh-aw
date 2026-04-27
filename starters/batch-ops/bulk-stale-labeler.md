@@ -18,6 +18,6 @@ safe-outputs:
     max: 1
 ---
 
-Search for open issues with no activity in the last 30 days using `search_issues` with query `is:issue is:open -label:stale updated:<30-days-ago`.
+Calculate the date 30 days ago and search for open issues with no recent activity using `search_issues` with query `is:issue is:open -label:stale updated:<COMPUTED-DATE`.
 For up to 20 results, apply the `stale` label and note that the issue will be closed in 14 days if there is no further activity.
 Create a summary comment on this run's log issue listing how many issues were marked stale.
