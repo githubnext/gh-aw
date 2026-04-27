@@ -421,6 +421,22 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		jobIfCondition = data.If
 	}
 
+	// When label-names is specified, add a job-level if: condition to the pre-activation job.
+	// This causes the entire job to be skipped (gray ⊘) rather than failed (red ❌) when
+	// the triggering label does not match, keeping CI dashboards noise-free.
+	// workflow_dispatch is always allowed so manual runs are not blocked.
+	if len(data.LabelNames) > 0 {
+		labelIfCondition := buildLabelNamesCondition(data.LabelNames)
+		if jobIfCondition != "" {
+			jobIfCondition = RenderCondition(BuildAnd(
+				&ExpressionNode{Expression: labelIfCondition},
+				&ExpressionNode{Expression: jobIfCondition},
+			))
+		} else {
+			jobIfCondition = labelIfCondition
+		}
+	}
+
 	// In script mode, explicitly add a cleanup step (mirrors post.js in dev/release/action mode).
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
@@ -438,6 +454,38 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	}
 
 	return job, nil
+}
+
+// buildLabelNamesCondition constructs the GitHub Actions if: expression for label-names filtering.
+// The generated condition passes when:
+//   - the triggering label name matches any of the specified names, OR
+//   - the event is workflow_dispatch (so manual runs are never blocked).
+func buildLabelNamesCondition(labelNames []string) string {
+	var labelChecks []ConditionNode
+	for _, name := range labelNames {
+		labelChecks = append(labelChecks, BuildEquals(
+			BuildPropertyAccess("github.event.label.name"),
+			BuildStringLiteral(name),
+		))
+	}
+
+	var labelMatch ConditionNode
+	if len(labelChecks) == 1 {
+		labelMatch = labelChecks[0]
+	} else {
+		labelMatch = labelChecks[0]
+		for i := 1; i < len(labelChecks); i++ {
+			labelMatch = BuildOr(labelMatch, labelChecks[i])
+		}
+	}
+
+	// Always allow workflow_dispatch so manual runs are not blocked by the label filter.
+	workflowDispatch := BuildEquals(
+		BuildPropertyAccess("github.event_name"),
+		BuildStringLiteral("workflow_dispatch"),
+	)
+
+	return BuildOr(labelMatch, workflowDispatch).Render()
 }
 
 // generateReportSkipStep generates the "Report skip reason" step for the pre-activation job.
