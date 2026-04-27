@@ -13,7 +13,10 @@ permissions:
 tracker-id: daily-team-status
 network: defaults
 imports:
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[team-status] "
+      expires: 1d
 safe-outputs:
   create-issue:
     expires: 1d

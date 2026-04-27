@@ -23,7 +23,10 @@ safe-outputs:
 timeout-minutes: 60
 imports:
   - shared/security-analysis-base.md
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[security-red-team] "
+      expires: 3d
 features:
   mcp-cli: true
 ---

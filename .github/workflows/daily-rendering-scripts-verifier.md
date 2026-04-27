@@ -47,7 +47,10 @@ timeout-minutes: 30
 
 imports:
   - shared/activation-app.md
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[rendering-scripts] "
+      expires: 3d
 features:
   mcp-cli: true
 ---

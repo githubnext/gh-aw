@@ -23,7 +23,10 @@ safe-outputs:
 timeout-minutes: 60
 strict: true
 imports:
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[cli-tools-test] "
+      expires: 3d
 features:
   mcp-cli: true
 ---

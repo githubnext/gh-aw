@@ -32,7 +32,10 @@ safe-outputs:
   noop:
 
 imports:
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[architecture-diagram] "
+      expires: 3d
 
 timeout-minutes: 20
 strict: true

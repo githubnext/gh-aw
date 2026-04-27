@@ -40,7 +40,10 @@ safe-outputs:
     title-prefix: "📰 "
     close-older-discussions: true
 imports:
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[repo-chronicle] "
+      expires: 3d
   - shared/trends.md
 features:
   mcp-cli: true
