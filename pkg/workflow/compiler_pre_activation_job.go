@@ -458,21 +458,22 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 // buildLabelNamesCondition constructs the GitHub Actions if: expression for labels filtering.
 // The generated condition passes when:
-//   - the event has no label data (github.event.label.name is empty, which covers
-//     workflow_dispatch, push, schedule, and any other non-labeled events), OR
+//   - the event has no label object (github.event.label == null), which covers
+//     workflow_dispatch, push, schedule, and any other non-labeled events, OR
 //   - the triggering label name matches any of the specified names.
 //
-// This ensures the filter only acts on events that actually carry label information,
-// leaving all other events (e.g. workflow_dispatch, push) unaffected.
+// Using github.event.label == null (rather than checking the name) is semantically
+// clearer and handles cases where GitHub Actions evaluates missing nested properties
+// as null before coercing to empty string.
 func buildLabelNamesCondition(labelNames []string) string {
-	// Pass through events without label data: github.event.label.name is empty
-	// for workflow_dispatch, push, and any event that does not carry a label payload.
-	noLabelEvent := BuildEquals(
-		BuildPropertyAccess("github.event.label.name"),
-		BuildStringLiteral(""),
-	)
+	// Pass through events without a label payload.
+	// github.event.label is null for workflow_dispatch, push, schedule, etc.
+	noLabelEvent := ConditionNode(BuildEquals(
+		BuildPropertyAccess("github.event.label"),
+		BuildNullLiteral(),
+	))
 
-	result := ConditionNode(noLabelEvent)
+	result := noLabelEvent
 	for _, name := range labelNames {
 		result = BuildOr(result, BuildEquals(
 			BuildPropertyAccess("github.event.label.name"),

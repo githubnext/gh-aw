@@ -819,7 +819,7 @@ on:
   # Filter workflows triggered by pull_request_target (or other labeled events) to
   # only fire when the triggering label matches one of these names. Generates a
   # job-level if: condition on the pre-activation job so unmatched label events show
-  # as Skipped (⦸) rather than Failed (❌).
+  # as Skipped (⊘) rather than Failed (❌).
   # (optional)
   # This field supports multiple formats (oneOf):
 

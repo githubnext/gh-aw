@@ -273,6 +273,16 @@ func TestStringLiteralNode_Render(t *testing.T) {
 			value:    "issue-123",
 			expected: "'issue-123'",
 		},
+		{
+			name:     "string with single quote",
+			value:    "can't-repro",
+			expected: "'can''t-repro'",
+		},
+		{
+			name:     "string with multiple single quotes",
+			value:    "it's a bug (it's real)",
+			expected: "'it''s a bug (it''s real)'",
+		},
 	}
 
 	for _, tt := range tests {

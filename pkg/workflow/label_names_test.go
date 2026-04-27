@@ -80,12 +80,17 @@ func TestBuildLabelNamesCondition(t *testing.T) {
 		{
 			name:       "single label name",
 			labelNames: []string{"panel-review"},
-			expected:   "github.event.label.name == '' || github.event.label.name == 'panel-review'",
+			expected:   "github.event.label == null || github.event.label.name == 'panel-review'",
 		},
 		{
 			name:       "multiple label names",
 			labelNames: []string{"panel-review", "needs-triage"},
-			expected:   "github.event.label.name == '' || github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage'",
+			expected:   "github.event.label == null || github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage'",
+		},
+		{
+			name:       "label name with single quote",
+			labelNames: []string{"can't-repro"},
+			expected:   "github.event.label == null || github.event.label.name == 'can''t-repro'",
 		},
 	}
 
@@ -128,7 +133,7 @@ tools:
   github:
     allowed: [get_pull_request]
 ---`,
-			expectedIf:   "github.event.label.name == '' || github.event.label.name == 'panel-review'",
+			expectedIf:   "github.event.label == null || github.event.label.name == 'panel-review'",
 			shouldHaveIf: true,
 		},
 		{
@@ -149,7 +154,7 @@ tools:
   github:
     allowed: [get_pull_request]
 ---`,
-			expectedIf:   "github.event.label.name == '' || github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage'",
+			expectedIf:   "github.event.label == null || github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage'",
 			shouldHaveIf: true,
 		},
 		{
@@ -169,7 +174,7 @@ tools:
   github:
     allowed: [get_pull_request]
 ---`,
-			expectedIf:   "github.event.label.name",
+			expectedIf:   "github.event.label == null",
 			shouldHaveIf: false,
 		},
 		{
@@ -190,7 +195,7 @@ tools:
   github:
     allowed: [issue_read]
 ---`,
-			expectedIf:   "github.event.label.name == '' || github.event.label.name == 'bug' || github.event.label.name == 'enhancement'",
+			expectedIf:   "github.event.label == null || github.event.label.name == 'bug' || github.event.label.name == 'enhancement'",
 			shouldHaveIf: true,
 		},
 	}
