@@ -44,8 +44,9 @@ async function run() {
 
   const { sendJobSetupSpan, isValidTraceId, isValidSpanId } = require(path.join(__dirname, "send_otlp_span.cjs"));
 
-  const rawMs = Number(process.env.SETUP_START_MS);
-  const startMs = Number.isFinite(rawMs) ? rawMs : 0;
+  const rawStartMs = process.env.SETUP_START_MS;
+  const parsedMs = /^\d+$/.test(rawStartMs ?? "") ? Number(rawStartMs) : NaN;
+  const startMs = Number.isSafeInteger(parsedMs) ? parsedMs : 0;
 
   // Explicitly read INPUT_TRACE_ID and pass it as options.traceId so the
   // activation job's trace ID is used even when process.env propagation
