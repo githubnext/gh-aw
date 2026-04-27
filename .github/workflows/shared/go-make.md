@@ -5,6 +5,7 @@ network:
 mcp-scripts:
   go:
     description: "Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
+    timeout: 300
     inputs:
       args:
         type: string
@@ -16,6 +17,7 @@ mcp-scripts:
 
   make:
     description: "Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
+    timeout: 300
     inputs:
       args:
         type: string

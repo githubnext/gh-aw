@@ -43,7 +43,7 @@ const AUDIT_LOG_DIR = "/tmp/gh-aw/mcp-cli-audit";
 const DEFAULT_HTTP_TIMEOUT_MS = 15000;
 
 /** Timeout (ms) for tool invocation calls (may be long-running) */
-const TOOL_CALL_TIMEOUT_MS = 120000;
+const TOOL_CALL_TIMEOUT_MS = 360000;
 
 /** Timeout (ms) for the notifications/initialized handshake step */
 const NOTIFY_TIMEOUT_MS = 10000;
