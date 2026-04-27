@@ -1,88 +1,89 @@
 # Architecture Diagram
 
-> Last updated: 2026-04-26 · Source: [Issue #🏗️ Architecture Diagram: gh-aw Package Architecture Diagram (2026-04-26)](https://github.com/github/gh-aw/issues)
+> Last updated: 2026-04-27 · Source: [🏗️ Architecture Diagram: Full rebuild — gh-aw package architecture (2026-04-27)](https://github.com/github/gh-aw/issues)
 
 ## Overview
 
 This diagram shows the package structure and dependencies of the `gh-aw` codebase.
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                        ENTRY POINTS                                              │
-│                                                                                                  │
-│            ┌──────────────────────┐               ┌──────────────────────────┐                 │
-│            │     cmd/gh-aw        │               │    cmd/gh-aw-wasm        │                 │
-│            │  Main CLI binary     │               │  WebAssembly target      │                 │
-│            └──────────┬───────────┘               └────────────┬─────────────┘                 │
-│                       │ cli,console,constants,                  │ parser,workflow                │
-│                       │ parser,workflow                         │                               │
-└───────────────────────┼─────────────────────────────────────────┼───────────────────────────────┘
-                        │                                         │
-┌───────────────────────▼─────────────────────────────────────────▼───────────────────────────────┐
-│                                       CORE PACKAGES                                              │
-│                                                                                                  │
-│  ┌───────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │  cli  ·  Command implementations: compile, run, mcp, logs, audit, campaigns, validate…    │  │
-│  └──────┬───────────────────────────────────────────────────────────────────────┬────────────┘  │
-│         │                                                                        │               │
-│         ▼                                                                        ▼               │
-│  ┌──────────────────────────────────────────┐  ┌────────────────────────────────────────────┐  │
-│  │  workflow  ·  Workflow compilation engine │  │  parser  ·  Markdown frontmatter parsing   │  │
-│  │  (MD → GitHub Actions YAML, MCP config)  │  │  and content/expression extraction         │  │
-│  └──────┬───────────┬──────────────────────┘  └────────────────────────────────┬───────────┘  │
-│         │           │                                                            │               │
-│         ▼           ▼                                                            ▼               │
-│  ┌─────────────┐  ┌─────────────────────────┐  ┌──────────────────────────────────────────┐   │
-│  │ actionpins  │  │      agentdrain          │  │  console  ·  Terminal UI, formatting,    │   │
-│  │ Action pin  │  │  Agent output streaming  │  │  struct-tag rendering, message types     │   │
-│  │ resolution  │  │  and draining            │  └──────────────────────────────────────────┘   │
-│  └─────────────┘  └─────────────────────────┘                                                  │
-│                                                                                                  │
-│  ┌────────────────────────────────────────────────┐                                             │
-│  │  stats  ·  Numerical statistics for metrics    │                                             │
-│  └────────────────────────────────────────────────┘                                             │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                       UTILITY PACKAGES                                           │
-│                                                                                                  │
-│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐    │
-│  │ constants │  │  fileutil │  │  gitutil  │  │  logger   │  │ stringutil│  │  styles   │    │
-│  └───────────┘  └───────────┘  └───────────┘  └───────────┘  └───────────┘  └───────────┘    │
-│                                                                                                  │
-│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐    │
-│  │  envutil  │  │ repoutil  │  │ semverutil│  │ sliceutil │  │ timeutil  │  │   types   │    │
-│  └───────────┘  └───────────┘  └───────────┘  └───────────┘  └───────────┘  └───────────┘    │
-│                                                                                                  │
-│  ┌───────────┐  ┌───────────┐  ┌───────────┐                                                   │
-│  │ typeutil  │  │    tty    │  │  testutil │                                                    │
-│  └───────────┘  └───────────┘  └───────────┘                                                   │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                         ENTRY POINTS                                                 │
+│                                                                                                      │
+│               ┌────────────────────────────┐          ┌──────────────────┐                          │
+│               │        cmd/gh-aw           │          │  cmd/gh-aw-wasm  │                          │
+│               │  Main CLI binary / cobra   │          │  WebAssembly target                         │
+│               └──────┬─────────────────────┘          └──────────────────┘                          │
+│                      │ imports: cli, workflow, parser, console, constants                            │
+└──────────────────────┼───────────────────────────────────────────────────────────────────────────────┘
+                       │
+┌──────────────────────▼───────────────────────────────────────────────────────────────────────────────┐
+│                                        CORE PACKAGES                                                 │
+│                                                                                                      │
+│  ┌──────────────────────────────┐    ┌────────────────────────────────┐                             │
+│  │           pkg/cli            │    │         pkg/workflow            │                             │
+│  │  Command implementations     │───▶│  Markdown → GH Actions YAML   │                             │
+│  │  compile, run, audit, mcp,   │    │  compiler, engine config,      │                             │
+│  │  logs, stats                 │    │  MCP, tools, expressions       │                             │
+│  └──────────────┬───────────────┘    └────────────────┬───────────────┘                             │
+│                 │                                      │                                             │
+│                 │         ┌───────────────────────────▼───────────────────────┐                     │
+│                 │         │                  pkg/parser                        │                     │
+│                 └────────▶│  Markdown frontmatter parsing, YAML schema valid. │                     │
+│                           └───────────────────────────┬───────────────────────┘                     │
+│                                                       │                                              │
+│                 ┌─────────────────────────────────────▼──────────────┐                              │
+│                 │                 pkg/console                          │                              │
+│                 │  Terminal UI formatting: success/error/info/warning │                              │
+│                 └────────────────────────────────────────────────────┘                              │
+│                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────┘
+                       │ (all core packages import utilities below)
+┌──────────────────────▼───────────────────────────────────────────────────────────────────────────────┐
+│                                      UTILITY PACKAGES                                                │
+│                                                                                                      │
+│  ┌─────────┐ ┌──────────┐ ┌────────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌──────────┐      │
+│  │ logger  │ │constants │ │ stringutil │ │ sliceutil│ │  gitutil │ │fileutil │ │  types   │      │
+│  │ (debug) │ │(typed K) │ │  (string)  │ │ (slices) │ │  (git)   │ │ (files) │ │ (shared) │      │
+│  └─────────┘ └──────────┘ └────────────┘ └──────────┘ └──────────┘ └─────────┘ └──────────┘      │
+│                                                                                                      │
+│  ┌─────────┐ ┌──────────┐ ┌────────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌──────────┐      │
+│  │ styles  │ │ typeutil │ │   timeutil │ │   tty    │ │semverutil│ │  stats  │ │ repoutil │      │
+│  │(colors) │ │ (cast)   │ │  (timing)  │ │ (detect) │ │ (semver) │ │(metrics)│ │ (repos)  │      │
+│  └─────────┘ └──────────┘ └────────────┘ └──────────┘ └──────────┘ └─────────┘ └──────────┘      │
+│                                                                                                      │
+│  ┌───────────────┐  ┌─────────────┐  ┌──────────┐  ┌──────────┐                                   │
+│  │  actionpins   │  │  agentdrain │  │  envutil │  │ testutil │                                   │
+│  │ (pin resolve) │  │ (agent I/O) │  │  (env)   │  │ (testing)│                                   │
+│  └───────────────┘  └─────────────┘  └──────────┘  └──────────┘                                   │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Package Reference
 
 | Package | Layer | Description |
 |---------|-------|-------------|
-| cli | Core | Command implementations: compile, run, mcp, logs, audit, campaigns, validate |
-| workflow | Core | Workflow compilation engine (MD → GitHub Actions YAML, MCP config) |
-| parser | Core | Markdown frontmatter parsing and content/expression extraction |
-| console | Core | Terminal UI, formatting, struct-tag rendering, message types |
-| actionpins | Core | GitHub Actions pin resolution |
-| agentdrain | Core | Agent output streaming and draining |
-| stats | Core | Numerical statistics for metric collection |
-| constants | Utility | Shared constants and semantic type aliases |
-| envutil | Utility | Environment variable reading and validation utilities |
-| fileutil | Utility | File path and file operation utilities |
-| gitutil | Utility | Git repository utilities |
-| logger | Utility | Namespace-based debug logging with zero overhead |
-| repoutil | Utility | GitHub repository slug and URL utilities |
-| semverutil | Utility | Semantic versioning primitives |
-| sliceutil | Utility | Slice utility functions |
-| stringutil | Utility | String utility functions including ANSI stripping |
-| styles | Utility | Centralized style and color definitions for terminal output |
-| testutil | Utility | Test helper utilities |
-| timeutil | Utility | Time utility functions |
-| tty | Utility | TTY detection utilities |
-| types | Utility | Shared type definitions used across gh-aw packages |
-| typeutil | Utility | General-purpose type conversion utilities |
+| `cmd/gh-aw` | Entry | Main CLI binary (cobra root command) |
+| `cmd/gh-aw-wasm` | Entry | WebAssembly compilation target |
+| `pkg/cli` | Core | Command implementations: compile, run, audit, mcp, logs, stats |
+| `pkg/workflow` | Core | Markdown → GitHub Actions YAML compilation engine |
+| `pkg/parser` | Core | Markdown frontmatter parsing and YAML schema validation |
+| `pkg/console` | Core | Terminal UI formatting (success/error/info/warning/progress) |
+| `pkg/logger` | Utility | Namespace-based debug logging with zero overhead (531 imports) |
+| `pkg/constants` | Utility | Shared typed constants: engines, versions, feature flags (221) |
+| `pkg/stringutil` | Utility | String manipulation utilities (193 imports) |
+| `pkg/sliceutil` | Utility | Slice manipulation utilities (37 imports) |
+| `pkg/gitutil` | Utility | Git operation utilities (33 imports) |
+| `pkg/fileutil` | Utility | File path and file operation utilities (21 imports) |
+| `pkg/types` | Utility | Shared type definitions (20 imports) |
+| `pkg/styles` | Utility | Centralized style and color definitions (18 imports) |
+| `pkg/timeutil` | Utility | Time utilities (17 imports) |
+| `pkg/typeutil` | Utility | General-purpose type conversion utilities (14 imports) |
+| `pkg/tty` | Utility | TTY terminal detection utilities (13 imports) |
+| `pkg/semverutil` | Utility | Semantic versioning primitives (11 imports) |
+| `pkg/stats` | Utility | Numerical statistics utilities (3 imports) |
+| `pkg/repoutil` | Utility | GitHub repository slug and URL utilities (3 imports) |
+| `pkg/agentdrain` | Utility | Agent drain I/O utilities (3 imports) |
+| `pkg/actionpins` | Utility | GitHub Actions pin resolution (3 imports) |
+| `pkg/envutil` | Utility | Environment variable reading and validation (1 import) |
+| `pkg/testutil` | Utility | Test helper utilities (test-only) |
