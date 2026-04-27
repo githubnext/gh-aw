@@ -89,6 +89,7 @@ Output is saved to: /tmp/gh-aw/aw-mcp/logs
 **Security**: Never execute untrusted code, validate data, sanitize paths
 **Quality**: Be thorough, specific, actionable, accurate  
 **Efficiency**: Use repo memory, batch operations, respect timeouts
+**Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
 
 Memory structure: `/tmp/gh-aw/repo-memory/default/{audits,patterns,metrics}/*.json`
 
