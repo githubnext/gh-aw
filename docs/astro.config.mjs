@@ -129,8 +129,11 @@ export default defineConfig({
 		'/patterns/researchplanassignops/': '/gh-aw/patterns/research-plan-assign-ops/',
 		'/patterns/batchops/': '/gh-aw/patterns/batch-ops/',
 		'/patterns/taskops/': '/gh-aw/patterns/task-ops/',
+		'/patterns/shadowops/': '/gh-aw/organization-practices/safe-rollout/',
 		'/patterns/trialops/': '/gh-aw/patterns/trial-ops/',
 		'/patterns/workqueueops/': '/gh-aw/patterns/workqueue-ops/',
+		'/patterns/shadow-ops/': '/gh-aw/organization-practices/safe-rollout/',
+		'/organization-practices/shadow-evaluation/': '/gh-aw/organization-practices/safe-rollout/',
 	},
 	integrations: [
 		sitemap(),
@@ -271,11 +274,20 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Organization Practices',
+					items: [
+						{ label: 'Overview', link: '/organization-practices/' },
+						{ label: 'Safe Rollout', link: '/organization-practices/safe-rollout/' },
+						{ label: 'Sharing Workflows', link: '/organization-practices/sharing-workflows/' },
+					],
+				},
+				{
 					label: 'Design Patterns',
 					items: [
 						{ label: 'BatchOps', link: '/patterns/batch-ops/' },
 						{ label: 'CentralRepoOps', link: '/patterns/central-repo-ops/' },
 						{ label: 'ChatOps', link: '/patterns/chat-ops/' },
+						{ label: 'CorrectionOps', link: '/patterns/correction-ops/' },
 						{ label: 'DailyOps', link: '/patterns/daily-ops/' },
 						{ label: 'DataOps', link: '/patterns/data-ops/' },
 						{ label: 'DispatchOps', link: '/patterns/dispatch-ops/' },

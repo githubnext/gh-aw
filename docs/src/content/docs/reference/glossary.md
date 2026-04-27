@@ -624,6 +624,22 @@ AI-powered GitHub Projects board management automating issue triage, routing, an
 
 Development pattern where workflows run from a separate "side" repository targeting your main codebase. Keeps AI-generated issues, comments, and workflow runs isolated from the main repository for cleaner separation between automation infrastructure and production code. See [SideRepoOps](/gh-aw/patterns/side-repo-ops/).
 
+### CorrectionOps
+
+Pattern for improving production-adjacent workflows from trusted human corrections without retraining the underlying model. CorrectionOps persists predictions, compares them with later human truth, and uses deterministic correction evidence to update instructions, routing, thresholds, and rollout policy. See [CorrectionOps](/gh-aw/patterns/correction-ops/).
+
+### Organization Practices
+
+Documentation category covering rollout, sharing, ownership, and governance concerns for workflows across teams and repositories. These topics matter at organization scale, but they are not always best described as standalone design patterns. See [Organization Practices](/gh-aw/organization-practices/).
+
+### Safe Rollout
+
+Rollout practice for moving from report-only or staged behavior to direct production writes with evidence and control. Safe rollout can include techniques such as shadow evaluation, where a workflow runs on live production signals but writes to a non-production target while trust is being built. See [Safe Rollout](/gh-aw/organization-practices/safe-rollout/).
+
+### Shadow Evaluation
+
+One safe-rollout technique where a workflow runs on live production signals without writing directly to the production system. Shadow evaluation usually keeps production as the source of truth, uses an ops repository to measure prediction-versus-truth deltas, and may introduce a temporary mirror surface during trust-building. See [Safe Rollout](/gh-aw/organization-practices/safe-rollout/).
+
 ### SpecOps
 
 Maintaining and propagating W3C-style specifications using the `w3c-specification-writer` agent. Creates formal specifications with RFC 2119 keywords and automatically synchronizes changes to consuming implementations. See [SpecOps](/gh-aw/patterns/spec-ops/).
