@@ -149,7 +149,7 @@ tools:
   github:
     allowed: [get_pull_request]
 ---`,
-			expectedIf:   "github.event.label.name == 'panel-review'",
+			expectedIf:   "github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage' || github.event_name == 'workflow_dispatch'",
 			shouldHaveIf: true,
 		},
 		{
