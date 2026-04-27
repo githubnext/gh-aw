@@ -263,8 +263,10 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 				return formatCompilerError(markdownPath, "error", "workflow-level concurrency validation failed: "+workflowData.CachedConcurrencyGroupExprErr.Error(), workflowData.CachedConcurrencyGroupExprErr)
 			}
 		} else {
-			// Fallback: cache not populated (e.g. WorkflowData created without ParseWorkflowFile).
-			groupExpr := workflowData.ConcurrencyGroupExpr
+			// Fallback: cache not populated (e.g. WorkflowData created without applyDefaults).
+			// Extract the group expression directly from Concurrency YAML so validation is not
+			// skipped for WorkflowData constructed outside of ParseWorkflowFile.
+			groupExpr := extractConcurrencyGroupFromYAML(workflowData.Concurrency)
 			if groupExpr != "" {
 				if err := validateConcurrencyGroupExpression(groupExpr); err != nil {
 					return formatCompilerError(markdownPath, "error", "workflow-level concurrency validation failed: "+err.Error(), err)

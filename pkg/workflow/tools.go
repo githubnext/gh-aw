@@ -31,14 +31,17 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 		data.ConcurrencyGroupExpr = extractConcurrencyGroupFromYAML(data.Concurrency)
 		// Pre-validate and cache the concurrency group expression so validateWorkflowData
 		// can short-circuit without re-running the expensive ExpressionParser on every call.
+		// CachedConcurrencyGroupExprSet is always true after applyDefaults regardless of whether
+		// a group expression exists, so callers can distinguish "already computed" from "not yet computed".
 		if data.ConcurrencyGroupExpr != "" {
 			data.CachedConcurrencyGroupExprErr = validateConcurrencyGroupExpression(data.ConcurrencyGroupExpr)
-			data.CachedConcurrencyGroupExprSet = true
 		}
+		data.CachedConcurrencyGroupExprSet = true
 		// Cache the expanded + parsed toolsets for the GitHub tool so both
 		// ValidatePermissions and validateToolConfiguration reuse one result.
+		// Use GetToolsets() to stay aligned with the runtime normalization done by GitHubToolConfig.
 		if data.ParsedTools != nil && data.ParsedTools.GitHub != nil {
-			data.CachedParsedToolsets = ParseGitHubToolsets(strings.Join(data.ParsedTools.GitHub.Toolset.ToStringSlice(), ","))
+			data.CachedParsedToolsets = ParseGitHubToolsets(data.ParsedTools.GitHub.GetToolsets())
 		}
 	}()
 

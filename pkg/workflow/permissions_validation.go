@@ -35,16 +35,6 @@ type PermissionsValidationResult struct {
 //
 // Use ValidatePermissions (this function) for general permission validation against GitHub MCP toolsets.
 // Use ValidateIncludedPermissions (in imports.go) when validating permissions from included/imported workflow files.
-//   - githubTool: The GitHub tool configuration implementing ValidatableTool interface
-//   - parsedToolsets: optional pre-parsed toolsets slice; when provided it is used directly
-//     instead of calling ParseGitHubToolsets(githubTool.GetToolsets()). Pass nil or omit to
-//     let ValidatePermissions derive the toolsets from the tool configuration.
-//
-// Returns:
-//   - A validation result indicating any missing permissions and which toolsets require them
-//
-// Use ValidatePermissions (this function) for general permission validation against GitHub MCP toolsets.
-// Use ValidateIncludedPermissions (in imports.go) when validating permissions from included/imported workflow files.
 func ValidatePermissions(permissions *Permissions, githubTool ValidatableTool, parsedToolsets ...[]string) *PermissionsValidationResult {
 	permissionsValidationLog.Print("Starting permissions validation")
 
