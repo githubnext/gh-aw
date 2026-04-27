@@ -164,6 +164,14 @@ describe("action_setup_otlp.cjs", () => {
 
       expect(mockSendJobSetupSpan).toHaveBeenCalledWith(expect.objectContaining({ startMs: 0 }));
     });
+
+    it("should pass startMs=0 when SETUP_START_MS is a partial number string like '123abc'", async () => {
+      process.env.SETUP_START_MS = "123abc";
+
+      await run();
+
+      expect(mockSendJobSetupSpan).toHaveBeenCalledWith(expect.objectContaining({ startMs: 0 }));
+    });
   });
 
   describe("INPUT_TRACE_ID handling", () => {
