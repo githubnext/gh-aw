@@ -771,7 +771,9 @@ function neutralizeTemplateDelimiters(s) {
     if (/\{\{/.test(result)) {
       if (!detectedTypes.has("jinja2")) {
         detectedTypes.add("jinja2");
-        core.info("Template syntax detected: Jinja2/Liquid double braces {{");
+        if (typeof core !== "undefined" && core.info) {
+          core.info("Template syntax detected: Jinja2/Liquid double braces {{");
+        }
       }
       result = result.replace(/\{\{/g, "\\{\\{");
     }
@@ -781,7 +783,9 @@ function neutralizeTemplateDelimiters(s) {
     if (/<%=/.test(result)) {
       if (!detectedTypes.has("erb")) {
         detectedTypes.add("erb");
-        core.info("Template syntax detected: ERB delimiter <%=");
+        if (typeof core !== "undefined" && core.info) {
+          core.info("Template syntax detected: ERB delimiter <%=");
+        }
       }
       result = result.replace(/<%=/g, "\\<%=");
     }
@@ -791,7 +795,9 @@ function neutralizeTemplateDelimiters(s) {
     if (/\$\{/.test(result)) {
       if (!detectedTypes.has("js")) {
         detectedTypes.add("js");
-        core.info("Template syntax detected: JavaScript template literal ${");
+        if (typeof core !== "undefined" && core.info) {
+          core.info("Template syntax detected: JavaScript template literal ${");
+        }
       }
       result = result.replace(/\$\{/g, "\\$\\{");
     }
@@ -801,7 +807,9 @@ function neutralizeTemplateDelimiters(s) {
     if (/\{#/.test(result)) {
       if (!detectedTypes.has("jinja2comment")) {
         detectedTypes.add("jinja2comment");
-        core.info("Template syntax detected: Jinja2 comment {#");
+        if (typeof core !== "undefined" && core.info) {
+          core.info("Template syntax detected: Jinja2 comment {#");
+        }
       }
       result = result.replace(/\{#/g, "\\{\\#");
     }
@@ -811,7 +819,9 @@ function neutralizeTemplateDelimiters(s) {
     if (/\{%/.test(result)) {
       if (!detectedTypes.has("jekyll")) {
         detectedTypes.add("jekyll");
-        core.info("Template syntax detected: Jekyll/Liquid directive {%");
+        if (typeof core !== "undefined" && core.info) {
+          core.info("Template syntax detected: Jekyll/Liquid directive {%");
+        }
       }
       result = result.replace(/\{%/g, "\\{\\%");
     }
@@ -824,7 +834,7 @@ function neutralizeTemplateDelimiters(s) {
   const result = applyToNonCodeRegions(s, escapeInText);
 
   // Log a summary warning if any template patterns were detected
-  if (detectedTypes.size > 0) {
+  if (detectedTypes.size > 0 && typeof core !== "undefined" && core.warning) {
     core.warning(
       "Template-like syntax detected and escaped. " +
         "This is a defense-in-depth measure to prevent potential template injection " +

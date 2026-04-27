@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 /**
  * Unit + fuzz tests for the core markdown parser helpers:
@@ -36,26 +36,14 @@ describe("sanitize_content_core.cjs – parser internals", () => {
     applyToNonCodeRegions = mod.applyToNonCodeRegions;
   });
 
+  afterEach(() => {
+    delete global.core;
+  });
+
   // ---------------------------------------------------------------------------
   // getFencedCodeRanges – only if exported directly
   // ---------------------------------------------------------------------------
   describe("getFencedCodeRanges (via applyToNonCodeRegions contract)", () => {
-    /**
-     * Helper: verify that a transform fn is NOT called on regions inside a
-     * fenced block and IS called on regions outside it.
-     */
-    function verifyFences(input, expectedOutside, expectedInsideRaw) {
-      const calls = [];
-      applyToNonCodeRegions(input, chunk => {
-        calls.push(chunk);
-        return chunk;
-      });
-
-      // The raw fence text should appear verbatim in the result
-      const result = applyToNonCodeRegions(input, chunk => chunk.toUpperCase());
-      return { result, calls };
-    }
-
     it("empty string returns empty string", () => {
       expect(applyToNonCodeRegions("", x => x + "X")).toBe("");
     });
@@ -598,8 +586,10 @@ describe("sanitize_content_core.cjs – parser internals", () => {
       expect(result).toContain(" Y");
     });
 
-    it("multi-line inline code (inline code spans do not cross line boundaries in CommonMark)", () => {
-      // In CommonMark, inline code CAN span lines. Verify no crash and sensible output.
+    it("multi-line inline code span is handled without crashing", () => {
+      // CommonMark spec §6.11: inline code spans CAN span line endings –
+      // a newline is treated as a space. The parser here does not strip the
+      // newline, but must not crash or hang on such input.
       const result = applyToNonCodeRegions("`line1\nline2`", s => s.toUpperCase());
       expect(typeof result).toBe("string");
     });
