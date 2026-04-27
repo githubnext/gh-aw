@@ -188,6 +188,10 @@ const CheckSkipIfCheckFailingStepID StepID = "check_skip_if_check_failing"
 // CheckCircuitBreakerStepID is the step ID for the circuit breaker check in the pre-activation job.
 const CheckCircuitBreakerStepID StepID = "check_circuit_breaker"
 
+// FindCircuitBreakerArtifactStepID is the step ID for the step that finds the previous
+// circuit-breaker-state artifact run ID in the pre-activation job.
+const FindCircuitBreakerArtifactStepID StepID = "find_circuit_breaker_artifact"
+
 // UpdateCircuitBreakerStepID is the step ID for the circuit breaker state update in the agent job.
 const UpdateCircuitBreakerStepID StepID = "update_circuit_breaker"
 

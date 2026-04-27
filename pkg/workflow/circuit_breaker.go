@@ -129,8 +129,11 @@ func circuitBreakerDurationToMinutes(d string) (int, error) {
 	return int(dur.Minutes()), nil
 }
 
-// generateCircuitBreakerCheckSteps generates the pre-activation step that checks whether
-// the circuit breaker is open. The step outputs constants.CircuitBreakerOkOutput ("circuit_breaker_ok").
+// generateCircuitBreakerCheckSteps generates the pre-activation steps that check whether
+// the circuit breaker is open. Three steps are generated:
+//  1. Find the previous run with a circuit-breaker-state artifact (GitHub Script).
+//  2. Download the artifact if found (actions/download-artifact@v4).
+//  3. Read the JSON file and evaluate the circuit state, outputting circuit_breaker_ok.
 func (c *Compiler) generateCircuitBreakerCheckSteps(data *WorkflowData, steps []string) []string {
 	cfg := data.CircuitBreaker
 	if cfg == nil {
@@ -153,6 +156,25 @@ func (c *Compiler) generateCircuitBreakerCheckSteps(data *WorkflowData, steps []
 		notify = "false"
 	}
 
+	// Step 1: Find the previous run with the circuit-breaker-state artifact.
+	steps = append(steps, "      - name: Find previous circuit breaker state\n")
+	steps = append(steps, fmt.Sprintf("        id: %s\n", constants.FindCircuitBreakerArtifactStepID))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+	steps = append(steps, generateGitHubScriptWithRequire("find_circuit_breaker_artifact.cjs"))
+
+	// Step 2: Download the artifact (actions/download-artifact handles ZIP extraction natively).
+	steps = append(steps, "      - name: Download previous circuit breaker state\n")
+	steps = append(steps, fmt.Sprintf("        if: steps.%s.outputs.previous_run_id != ''\n", constants.FindCircuitBreakerArtifactStepID))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/download-artifact")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          name: %s\n", constants.CircuitBreakerArtifactName))
+	steps = append(steps, fmt.Sprintf("          run-id: ${{ steps.%s.outputs.previous_run_id }}\n", constants.FindCircuitBreakerArtifactStepID))
+	steps = append(steps, "          path: /tmp/gh-aw\n")
+	steps = append(steps, "          github-token: ${{ secrets.GITHUB_TOKEN }}\n")
+
+	// Step 3: Read the JSON and evaluate the circuit breaker state.
 	steps = append(steps, "      - name: Check circuit breaker\n")
 	steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckCircuitBreakerStepID))
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
@@ -166,7 +188,7 @@ func (c *Compiler) generateCircuitBreakerCheckSteps(data *WorkflowData, steps []
 	steps = append(steps, "          script: |\n")
 	steps = append(steps, generateGitHubScriptWithRequire("check_circuit_breaker.cjs"))
 
-	circuitBreakerLog.Printf("Added circuit breaker check step: max=%d, window=%dm, cooldown=%dm",
+	circuitBreakerLog.Printf("Added circuit breaker check steps: max=%d, window=%dm, cooldown=%dm",
 		cfg.MaxConsecutiveFailures, timeWindowMinutes, cooldownMinutes)
 	return steps
 }

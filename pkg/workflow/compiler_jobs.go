@@ -269,7 +269,10 @@ func (c *Compiler) buildPreActivationAndActivationJobs(data *WorkflowData, front
 	hasCircuitBreaker := data.CircuitBreaker != nil
 	hasOnSteps := len(data.OnSteps) > 0
 	hasOnNeeds := len(data.OnNeeds) > 0
-	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasSkipIfNoMatch=%v, hasSkipRoles=%v, hasSkipBots=%v, hasCommand=%v, hasRateLimit=%v, hasCircuitBreaker=%v, hasOnSteps=%v, hasOnNeeds=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, hasSkipIfNoMatch, hasSkipRoles, hasSkipBots, hasCommandTrigger, hasRateLimit, hasCircuitBreaker, hasOnSteps, hasOnNeeds)
+	// Log pre-activation gate configuration in grouped sections for readability.
+	compilerJobsLog.Printf("Job configuration — permission/time: needsPermissionCheck=%v, hasStopTime=%v", needsPermissionCheck, hasStopTime)
+	compilerJobsLog.Printf("Job configuration — skip checks: hasSkipIfMatch=%v, hasSkipIfNoMatch=%v, hasSkipRoles=%v, hasSkipBots=%v", hasSkipIfMatch, hasSkipIfNoMatch, hasSkipRoles, hasSkipBots)
+	compilerJobsLog.Printf("Job configuration — features: hasCommand=%v, hasRateLimit=%v, hasCircuitBreaker=%v, hasOnSteps=%v, hasOnNeeds=%v", hasCommandTrigger, hasRateLimit, hasCircuitBreaker, hasOnSteps, hasOnNeeds)
 
 	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, skip-if-no-match check, skip-roles check, skip-bots check, rate limit check, circuit breaker check, command position check, and on.steps injection)
 	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasSkipRoles || hasSkipBots || hasCommandTrigger || hasRateLimit || hasCircuitBreaker || hasOnSteps || hasOnNeeds {

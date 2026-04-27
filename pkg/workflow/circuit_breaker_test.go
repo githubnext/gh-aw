@@ -268,7 +268,18 @@ func TestGenerateCircuitBreakerCheckSteps(t *testing.T) {
 	require.NotEmpty(t, steps, "should generate steps")
 
 	combined := strings.Join(steps, "")
-	assert.Contains(t, combined, "check_circuit_breaker", "step ID should be present")
+
+	// Step 1: find artifact
+	assert.Contains(t, combined, "find_circuit_breaker_artifact", "find-artifact step ID should be present")
+	assert.Contains(t, combined, "find_circuit_breaker_artifact.cjs", "find-artifact script should be referenced")
+
+	// Step 2: download artifact
+	assert.Contains(t, combined, "Download previous circuit breaker state", "download step name should be present")
+	assert.Contains(t, combined, "circuit-breaker-state", "artifact name should be present")
+	assert.Contains(t, combined, "previous_run_id", "run-id reference should be present")
+
+	// Step 3: evaluate state
+	assert.Contains(t, combined, "check_circuit_breaker", "check step ID should be present")
 	assert.Contains(t, combined, "GH_AW_CB_MAX_FAILURES", "max failures env var should be present")
 	assert.Contains(t, combined, "GH_AW_CB_TIME_WINDOW_MINUTES", "time window env var should be present")
 	assert.Contains(t, combined, "GH_AW_CB_COOLDOWN_MINUTES", "cooldown env var should be present")
