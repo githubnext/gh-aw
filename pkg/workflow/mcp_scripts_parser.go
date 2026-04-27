@@ -183,7 +183,7 @@ func parseMCPScriptsMap(mcpScriptsMap map[string]any) (*MCPScriptsConfig, bool) 
 				if n, err := strconv.Atoi(t); err == nil {
 					toolConfig.Timeout = n
 				} else {
-					mcpScriptsLog.Printf("Warning: invalid timeout value %q for tool %q, using default 60s", t, toolName)
+					mcpScriptsLog.Printf("Warning: invalid timeout value %q for tool %q, keeping default timeout (60s)", t, toolName)
 				}
 			}
 		}
@@ -357,7 +357,7 @@ func (c *Compiler) mergeMCPScripts(main *MCPScriptsConfig, importedConfigs []str
 					if n, err := strconv.Atoi(t); err == nil {
 						toolConfig.Timeout = n
 					} else {
-						mcpScriptsLog.Printf("Warning: invalid timeout value %q for tool %q, using default 60s", t, toolName)
+						mcpScriptsLog.Printf("Warning: invalid timeout value %q for tool %q, keeping default timeout (60s)", t, toolName)
 					}
 				}
 			}
