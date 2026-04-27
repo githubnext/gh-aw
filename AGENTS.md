@@ -1109,6 +1109,42 @@ When writing workflows that use `cache-memory` to persist data across runs, be a
 
 ## Key Features
 
+### MCP Connection Inactivity Timeout — Use Bash for End-of-Session Validation
+
+**⚠️ CRITICAL WORKFLOW AUTHORING RULE: Use bash, not MCP tools, for build/test validation at the end of a session.**
+
+MCP connections (HTTP/WebSocket transports) time out after approximately **5 minutes of inactivity**. Workflows with long file-exploration or analysis phases routinely exceed this threshold. When the agent finally attempts an end-of-session validation call via an MCP tool (e.g., `mcpscripts-make build`, `mcpscripts-go test ./...`), the MCP transport has been torn down, resulting in:
+
+```
+MCP error -32003: context canceled
+```
+
+This causes the entire workflow session to fail at the last step, wasting all preceding work.
+
+**Rule**: Always use direct `bash` commands for build, test, and validation steps — especially for any step that runs *after* a file-exploration or analysis phase:
+
+```bash
+# ✅ CORRECT — use bash for validation
+make build
+make test-unit
+make recompile
+make agent-finish
+go test ./...
+```
+
+```text
+# ❌ INCORRECT — MCP tools fail after long inactivity
+Use the mcpscripts-make tool with args: "build"     ← may fail with context canceled
+Use the mcpscripts-go tool with args: "test ./..."  ← may fail with context canceled
+```
+
+**Additional rule**: Add an **intermediate validation checkpoint** using bash after the first major code edit (e.g., `make build`), not just at the very end of the session. This surfaces compile errors early, before the agent spends more context on subsequent edits.
+
+**When `mcpscripts-*` tools are safe to use:**
+- Early in a session, before any long exploration phase
+- For short-lived workflows with no significant idle time between tool calls
+- For non-validation operations that are inherently early in the session (e.g., fetching PRs with `mcpscripts-gh`)
+
 ### MCP Server Management
 ```bash
 gh aw mcp list                    # List workflows with MCP servers
