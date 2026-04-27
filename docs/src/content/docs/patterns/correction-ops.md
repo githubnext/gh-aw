@@ -127,47 +127,156 @@ Many teams add a separate correction-collector workflow because the truth-ingest
 
 The repository-specific work is usually limited to how to fetch and normalize the production object, which human actions count as trusted truth, what grouped correction patterns are meaningful, and which instruction or policy files are allowed to change. That is what keeps the pattern portable across different business domains.
 
-## Concrete Example: Discussion Labelling
+## Reproducible Starter Setup
 
-Discussion labelling is one concrete CorrectionOps implementation.
+This page intentionally uses generic repository and workflow names so the pattern can be reproduced without depending on any partner repository.
 
-- Production hosts the real discussions and later human truth.
-- Ops runs the long-lived workflows.
-- Shadow, when used, receives safe evaluation writes before production writes are enabled.
+The simplest teachable setup uses two repositories and an optional third:
 
-In that example, the shape is:
+- `prod-repo`: the authoritative system where the original object and later human truth live
+- `ops-repo`: the long-lived control plane for prediction, correction review, reporting, and instruction updates
+- `shadow-repo`: an optional safe write target used only during rollout
 
-- production or shadow surface: thin relay workflows only
-- ops repo: the real control loop
+The workflow layout is:
 
-The concrete workflow layout looks like this.
+| Repository | Workflow | Role |
+| --- | --- | --- |
+| `prod-repo` | `relay-correction-signals.yml` | Thin deterministic relay |
+| `ops-repo` | `predict-items.md` | Predict and persist snapshots |
+| `ops-repo` | `review-corrections.md` | Compare, report, and decide |
+| `ops-repo` | `collect-corrections.yml` | Optional deterministic truth intake |
+| `shadow-repo` | `mirror-items.yml` | Optional safe-write support |
 
-### Production or Shadow Surface
+If the source event stream already contains everything needed for later comparison, skip `collect-corrections.yml`. If direct writes are too risky during rollout, add `mirror-items.yml` and point safe outputs at `shadow-repo` until the evidence is strong enough.
 
-- `community-discussion-mirror.yml`: copies production discussions into the shadow surface when a live-like write target is needed
-- `label-feedback-dispatch.yml`: forwards stable discussion facts and later trusted label truth into ops
+### 1. Thin Relay In The Source Repo
 
-### Central Ops Repo
+The relay only forwards stable facts and provenance into ops. It should not compute diffs, infer human intent, or decide whether the workflow was correct.
 
-- `auto-labelling.md`: prediction workflow that reads prepared discussion inputs, applies safe outputs, and persists prediction snapshots
-- `labelling-correction-collector.yml`: deterministic correction-intake workflow that resolves current source-of-truth state and stores correction evidence
-- `discussion-labelling-ops.md`: combined compare, report, and decide workflow that either publishes health summaries or opens a draft PR updating instructions
+```yaml title="prod-repo/.github/workflows/relay-correction-signals.yml"
+name: Relay Correction Signals
 
-So the simple reusable pattern is still three workflow classes, but a real multi-repo example often has five workflow files once the thin mirror and relay workflows are counted.
+on:
+  issues:
+    types: [opened, labeled, unlabeled]
 
-### Example Workflow Roles
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Forward stable facts to ops
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.OPS_DISPATCH_TOKEN }}
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: 'org',
+              repo: 'ops-repo',
+              event_type: context.payload.action === 'opened' ? 'item-created' : 'truth-feedback',
+              client_payload: {
+                data: {
+                  source_repository: `${context.repo.owner}/${context.repo.repo}`,
+                  source_type: 'issue',
+                  item_number: context.payload.issue.number,
+                  item_title: context.payload.issue.title,
+                  item_url: context.payload.issue.html_url,
+                  event_type: context.payload.action,
+                  label: context.payload.label?.name || null,
+                  actor: context.actor,
+                  actor_type: context.actor.endsWith('[bot]') ? 'bot' : 'human',
+                  occurred_at: new Date().toISOString(),
+                },
+              },
+            });
+```
 
-| Workflow | Role |
-| --- | --- |
-| `community-discussion-mirror.yml` | Optional shadow support |
-| `label-feedback-dispatch.yml` | Thin truth relay |
-| `auto-labelling.md` | Predict and persist |
-| `labelling-correction-collector.yml` | Deterministic truth intake |
-| `discussion-labelling-ops.md` | Compare, report, and decide |
+### 2. Prediction Workflow In Ops
 
-This example is already close to the elegant target: one thin relay workflow in the source or shadow surface, one prediction workflow in ops, and one compare/report/decide workflow in ops. The part that still tends to feel mechanical is the deterministic helper layer behind those workflows, not the repo split itself.
+The prediction workflow consumes normalized inputs, applies the current instructions, writes through safe outputs, and persists a durable snapshot that can be compared later.
 
-This general shape also applies to routing, moderation, prioritization, approvals, summaries, and other decisions where later human actions provide trustworthy operational truth.
+```aw wrap title="ops-repo/.github/workflows/predict-items.md"
+---
+name: Predict Items
+
+on:
+  schedule: daily
+  workflow_dispatch:
+  repository_dispatch:
+    types: [item-created]
+
+tools:
+  github:
+    toolsets: [issues, repos]
+
+safe-outputs:
+  create-issue:
+  update-issue:
+    target-repo: ${{ inputs.target-repo || 'shadow-repo' }}
+---
+
+# Predict Items
+
+Read prepared items from `/tmp/gh-aw/agent/item-scan`, apply the current instructions, write the proposed changes through safe outputs, and append a prediction snapshot containing the source identifier, predicted action, instruction version, and timestamp.
+```
+
+### 3. Compare, Report, And Decide In Ops
+
+The review workflow reads persisted predictions and later human truth, builds deterministic diffs first, and only then asks the agent to summarize patterns or propose instruction updates.
+
+```aw wrap title="ops-repo/.github/workflows/review-corrections.md"
+---
+name: Review Corrections
+
+on:
+  schedule: weekly
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: report or adaptation
+        required: false
+        default: report
+        type: choice
+        options: [report, adaptation]
+
+safe-outputs:
+  create-issue:
+  create-pull-request:
+---
+
+# Review Corrections
+
+Read `correction-diffs.json` from `/tmp/gh-aw/agent/correction-review`. In `report` mode, publish a health summary. In `adaptation` mode, open a draft PR updating the instruction file only when the grouped evidence is strong enough.
+```
+
+### 4. Optional Deterministic Collector
+
+Add a separate collector only when the later-truth boundary deserves its own trigger, permissions, or serialized write path.
+
+```yaml title="ops-repo/.github/workflows/collect-corrections.yml"
+name: Collect Corrections
+
+on:
+  repository_dispatch:
+    types: [truth-feedback]
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve authoritative truth and store correction evidence
+        run: ./scripts/store-correction-evidence.sh
+```
+
+### 5. Stable Contracts To Define First
+
+Before adding rollout logic or adaptation prompts, define four small deterministic contracts:
+
+1. relay payload: the minimal source identity, object identity, event type, actor facts, and timestamps forwarded into ops
+2. prediction snapshot: the durable record of what the workflow predicted and under which instruction version
+3. correction review input: the deterministic diff artifact used by reporting and adaptation
+4. write target contract: which repository receives evaluation writes before direct production writes are enabled
+
+Discussion labelling, routing, moderation, prioritization, approvals, and summaries can all reuse this shape. The production object changes, but the CorrectionOps setup does not.
 
 ## Relationship To Other Patterns
 
