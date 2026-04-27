@@ -2,7 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
-	"fmt"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/typeutil"
@@ -180,8 +180,11 @@ func parseMCPScriptsMap(mcpScriptsMap map[string]any) (*MCPScriptsConfig, bool) 
 			case float64:
 				toolConfig.Timeout = int(t)
 			case string:
-				// Try to parse string as integer
-				_, _ = fmt.Sscanf(t, "%d", &toolConfig.Timeout)
+				if n, err := strconv.Atoi(t); err == nil {
+					toolConfig.Timeout = n
+				} else {
+					mcpScriptsLog.Printf("Warning: invalid timeout value %q for tool %q, using default 60s", t, toolName)
+				}
 			}
 		}
 
@@ -351,8 +354,11 @@ func (c *Compiler) mergeMCPScripts(main *MCPScriptsConfig, importedConfigs []str
 				case float64:
 					toolConfig.Timeout = int(t)
 				case string:
-					// Try to parse string as integer
-					_, _ = fmt.Sscanf(t, "%d", &toolConfig.Timeout)
+					if n, err := strconv.Atoi(t); err == nil {
+						toolConfig.Timeout = n
+					} else {
+						mcpScriptsLog.Printf("Warning: invalid timeout value %q for tool %q, using default 60s", t, toolName)
+					}
 				}
 			}
 

@@ -98,6 +98,34 @@ func TestMCPScriptsTimeoutParsing(t *testing.T) {
 			toolName:        "go-tool",
 			expectedTimeout: 90,
 		},
+		{
+			name: "timeout as valid numeric string",
+			frontmatter: map[string]any{
+				"mcp-scripts": map[string]any{
+					"string-tool": map[string]any{
+						"description": "String timeout tool",
+						"script":      "return 'ok';",
+						"timeout":     "120",
+					},
+				},
+			},
+			toolName:        "string-tool",
+			expectedTimeout: 120,
+		},
+		{
+			name: "invalid string timeout falls back to default",
+			frontmatter: map[string]any{
+				"mcp-scripts": map[string]any{
+					"bad-timeout-tool": map[string]any{
+						"description": "Bad timeout tool",
+						"script":      "return 'ok';",
+						"timeout":     "not-a-number",
+					},
+				},
+			},
+			toolName:        "bad-timeout-tool",
+			expectedTimeout: 60, // Default timeout
+		},
 	}
 
 	for _, tt := range tests {
@@ -242,5 +270,46 @@ func TestMCPScriptsDefaultTimeoutWhenMerging(t *testing.T) {
 	// Verify default timeout is used
 	if merged.Tools["imported-tool"].Timeout != 60 {
 		t.Errorf("Expected default timeout 60, got %d", merged.Tools["imported-tool"].Timeout)
+	}
+}
+
+// TestMCPScriptsMergeStringTimeout tests that string timeouts are parsed correctly when merging
+func TestMCPScriptsMergeStringTimeout(t *testing.T) {
+	compiler := &Compiler{}
+
+	main := &MCPScriptsConfig{
+		Tools: make(map[string]*MCPScriptToolConfig),
+	}
+
+	// Imported config with valid numeric string timeout
+	validImportedJSON := `{
+		"valid-string-timeout": {
+			"description": "Tool with numeric string timeout",
+			"script": "return 'ok';",
+			"timeout": "120"
+		}
+	}`
+
+	merged := compiler.mergeMCPScripts(main, []string{validImportedJSON})
+
+	// Verify valid numeric string timeout is parsed correctly
+	if merged.Tools["valid-string-timeout"].Timeout != 120 {
+		t.Errorf("Expected timeout 120, got %d", merged.Tools["valid-string-timeout"].Timeout)
+	}
+
+	// Imported config with invalid string timeout
+	invalidImportedJSON := `{
+		"invalid-string-timeout": {
+			"description": "Tool with invalid string timeout",
+			"script": "return 'ok';",
+			"timeout": "not-a-number"
+		}
+	}`
+
+	merged2 := compiler.mergeMCPScripts(main, []string{invalidImportedJSON})
+
+	// Verify invalid string timeout falls back to default (60s)
+	if merged2.Tools["invalid-string-timeout"].Timeout != 60 {
+		t.Errorf("Expected default timeout 60, got %d", merged2.Tools["invalid-string-timeout"].Timeout)
 	}
 }
