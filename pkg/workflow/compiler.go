@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/yamlpostcheck"
 	"github.com/goccy/go-yaml"
 )
 
@@ -122,6 +123,41 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	yamlContent, bodySecrets, bodyActions, err := c.generateYAML(workflowData, markdownPath)
 	if err != nil {
 		return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("failed to generate YAML: %v", err), err)
+	}
+
+	// Run the built-in post-generation YAML safety suite.
+	//
+	// This suite always executes regardless of validation flags.  It walks the
+	// compiled YAML tree, detects unsafe generated code patterns, and applies
+	// automatic fixes when possible (e.g. moving ${{ secrets.* }} expressions
+	// from run: blocks into the step's env: map — RGS-008).
+	//
+	// When the suite applies a fix the YAML is re-serialised and subsequent
+	// validators (expression size, template injection, schema) operate on the
+	// improved content.  Non-fatal errors from the suite are logged as warnings
+	// so they never block compilation.
+	log.Print("Running post-generation YAML safety checks")
+	postCheckSuite := yamlpostcheck.New()
+	fixedYAML, yamlChanged, postFixes, postWarnings, postErr := postCheckSuite.RunOnYAML(yamlContent)
+	if postErr != nil {
+		// Surface as a warning: the suite failing should not block compilation.
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			fmt.Sprintf("post-generation YAML check warning: %v", postErr)))
+		c.IncrementWarningCount()
+	} else {
+		for _, w := range postWarnings {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+			c.IncrementWarningCount()
+		}
+		if yamlChanged {
+			log.Printf("Post-generation YAML check applied %d fix(es)", len(postFixes))
+			for _, fix := range postFixes {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Post-generation fix: "+fix))
+			}
+			yamlContent = fixedYAML
+		} else {
+			log.Print("Post-generation YAML check: no changes needed")
+		}
 	}
 
 	// Always validate expression sizes - this is a hard limit from GitHub Actions (21KB)
