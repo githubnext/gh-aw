@@ -2104,6 +2104,16 @@ describe("sanitize_content.cjs", () => {
         expect(sanitizeContent("\u0456ssue")).toBe("issue");
       });
 
+      it("should map uppercase Cyrillic Dze Ѕ (U+0405) to Latin S", () => {
+        // Regression for missing uppercase counterpart of U+0455 (ѕ → s)
+        expect(sanitizeContent("PENTE\u0405T-\u0405ECRET-MARKER")).toBe("PENTEST-SECRET-MARKER");
+      });
+
+      it("should map uppercase Cyrillic І (U+0406) to Latin I", () => {
+        // Regression for missing uppercase counterpart of U+0456 (і → i)
+        expect(sanitizeContent("\u0406SSUE")).toBe("ISSUE");
+      });
+
       it("should handle Greek Ζ (U+0396) mapped to Latin Z", () => {
         expect(sanitizeContent("\u0396ero")).toBe("Zero");
       });

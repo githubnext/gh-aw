@@ -1017,6 +1017,8 @@ const HOMOGLYPH_MAP = {
   "\u0421": "C", // С → C
   "\u0422": "T", // Т → T
   "\u0425": "X", // Х → X
+  "\u0405": "S", // Ѕ → S (Cyrillic Dze)
+  "\u0406": "I", // І → I (Cyrillic Byelorussian-Ukrainian I)
   // --- Cyrillic lowercase → Latin ---
   "\u0430": "a", // а → a
   "\u0435": "e", // е → e
