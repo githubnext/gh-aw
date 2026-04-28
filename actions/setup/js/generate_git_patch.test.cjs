@@ -485,3 +485,115 @@ describe("generateGitPatch – excludedFiles option", () => {
     expect(result.success).toBe(false);
   });
 });
+
+// ──────────────────────────────────────────────────────────────────────────
+// Full mode base ref selection — must use merge-base, never stale origin/<branch>
+// Regression test for: create_pull_request patch uses stale origin/branchName
+// instead of merge-base with default branch.
+// ──────────────────────────────────────────────────────────────────────────
+
+describe("generateGitPatch – full mode base ref (merge-base, not stale origin)", () => {
+  let repoDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE, GITHUB_SHA: process.env.GITHUB_SHA };
+
+    global.core = { debug: () => {}, info: () => {}, warning: () => {}, error: () => {} };
+
+    repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-fullmode-"));
+    execSync("git init -b main", { cwd: repoDir });
+    execSync('git config user.email "test@example.com"', { cwd: repoDir });
+    execSync('git config user.name "Test"', { cwd: repoDir });
+
+    // Initial commit on main
+    fs.writeFileSync(path.join(repoDir, "README.md"), "# Repo\n");
+    execSync("git add .", { cwd: repoDir });
+    execSync('git commit -m "init"', { cwd: repoDir });
+
+    delete process.env.GITHUB_WORKSPACE;
+    delete process.env.GITHUB_SHA;
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+  });
+
+  afterEach(() => {
+    Object.entries(originalEnv).forEach(([k, v]) => {
+      if (v !== undefined) process.env[k] = v;
+      else delete process.env[k];
+    });
+    if (repoDir && fs.existsSync(repoDir)) {
+      fs.rmSync(repoDir, { recursive: true, force: true });
+    }
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+    delete global.core;
+  });
+
+  it("should NOT include phantom commits when stale origin/<branch> exists (regression test)", async () => {
+    // Reproduce the stale-remote-tracking-ref bug scenario:
+    //   1. A feature branch was pushed in the past at some old commit
+    //      (origin/feature-branch points there — this is the "stale" remote-tracking ref)
+    //   2. main has since advanced with many "phantom" commits the agent never made
+    //   3. The agent fast-forwards the local branch to main, then makes one new commit
+    //   4. Full-mode patch (create_pull_request) must contain ONLY the agent's commit,
+    //      NOT the phantom commits between the old branch tip and main.
+
+    // Set up a "remote" repo to act as origin
+    const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-fullmode-remote-"));
+    try {
+      execSync("git init --bare -b main", { cwd: remoteDir });
+      execSync(`git remote add origin ${remoteDir}`, { cwd: repoDir });
+      execSync("git push origin main", { cwd: repoDir });
+
+      // Step 1: Create the feature branch at the initial commit and push it.
+      // This becomes the "old" position of origin/feature-branch.
+      execSync("git checkout -b feature-branch", { cwd: repoDir });
+      execSync("git push origin feature-branch", { cwd: repoDir });
+      // Explicitly fetch to ensure refs/remotes/origin/feature-branch exists in the
+      // local repo. `git push` typically updates this automatically, but in repos
+      // created via `git init` + `git remote add` (no clone) the remote-tracking
+      // ref population can be inconsistent across git versions, so be explicit.
+      execSync("git fetch origin feature-branch:refs/remotes/origin/feature-branch", { cwd: repoDir });
+      const oldBranchSha = execSync("git rev-parse HEAD", { cwd: repoDir }).toString().trim();
+
+      // Step 2: main advances with phantom commits the agent will not make
+      execSync("git checkout main", { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, "phantom1.md"), "# phantom 1\n");
+      execSync("git add phantom1.md", { cwd: repoDir });
+      execSync('git commit -m "phantom commit 1"', { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, "phantom2.md"), "# phantom 2\n");
+      execSync("git add phantom2.md", { cwd: repoDir });
+      execSync('git commit -m "phantom commit 2"', { cwd: repoDir });
+      execSync("git push origin main", { cwd: repoDir });
+
+      // Step 3: Simulate the agent run — fast-forward the local feature branch to
+      // main, then make one new commit. Note that origin/feature-branch is still
+      // pointing at oldBranchSha (we deliberately do NOT push the branch update).
+      execSync("git checkout feature-branch", { cwd: repoDir });
+      execSync("git reset --hard main", { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, "agent-change.txt"), "the only real change\n");
+      execSync("git add agent-change.txt", { cwd: repoDir });
+      execSync('git commit -m "agent change"', { cwd: repoDir });
+
+      // Sanity check: origin/feature-branch is still stale (points to oldBranchSha)
+      const remoteBranchSha = execSync("git rev-parse origin/feature-branch", { cwd: repoDir }).toString().trim();
+      expect(remoteBranchSha).toBe(oldBranchSha);
+
+      // Step 4: Generate the full-mode patch
+      const { generateGitPatch } = require("./generate_git_patch.cjs");
+      const result = await generateGitPatch("feature-branch", "main", { cwd: repoDir, mode: "full" });
+
+      expect(result.success).toBe(true);
+      const patch = fs.readFileSync(result.patchPath, "utf8");
+
+      // The patch MUST contain the agent's commit
+      expect(patch).toContain("agent-change.txt");
+      // The patch MUST NOT contain the phantom commits from main
+      expect(patch).not.toContain("phantom1.md");
+      expect(patch).not.toContain("phantom2.md");
+    } finally {
+      if (fs.existsSync(remoteDir)) {
+        fs.rmSync(remoteDir, { recursive: true, force: true });
+      }
+    }
+  });
+});
