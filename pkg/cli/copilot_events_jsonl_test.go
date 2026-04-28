@@ -267,6 +267,43 @@ func TestExtractLogMetrics_EventsJSONLPriority(t *testing.T) {
 		assert.Equal(t, 120, metrics.TokenUsage, "token usage should come from modelMetrics in events.jsonl")
 	})
 
+	t.Run("recovers cost from log files even when events.jsonl is present", func(t *testing.T) {
+		dir := t.TempDir()
+
+		// Write aw_info.json so the engine is detected
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "aw_info.json"),
+			[]byte(`{"engine_id":"copilot"}`), 0644))
+
+		// Create events.jsonl in the canonical location (no cost data in it)
+		sessionDir := filepath.Join(dir, "sandbox", "agent", "logs",
+			"copilot-session-state", "session-uuid-456")
+		require.NoError(t, os.MkdirAll(sessionDir, 0755))
+		eventsContent :=
+			realFormatEventsLine("session.start", `{"sessionId":"s2","copilotVersion":"1.0.0"}`) + "\n" +
+				realFormatEventsLine("user.message", `{"content":"Do something"}`) + "\n" +
+				realFormatEventsLine("session.shutdown", `{"shutdownType":"routine","totalPremiumRequests":1,"modelMetrics":{"m":{"usage":{"inputTokens":50,"outputTokens":10}}}}`) + "\n"
+		require.NoError(t, os.WriteFile(filepath.Join(sessionDir, "events.jsonl"),
+			[]byte(eventsContent), 0644))
+
+		// Also create a .log file that contains USD cost information
+		logContent := "2025-09-26T11:13:11.798Z [DEBUG] data:\n" +
+			"2025-09-26T11:13:12.575Z [DEBUG] {\n" +
+			"2025-09-26T11:13:12.575Z [DEBUG]   \"total_cost_usd\": 0.042,\n" +
+			"2025-09-26T11:13:12.575Z [DEBUG]   \"usage\": {\"prompt_tokens\": 1000, \"completion_tokens\": 50}\n" +
+			"2025-09-26T11:13:12.575Z [DEBUG] }\n"
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "process-123.log"),
+			[]byte(logContent), 0644))
+
+		metrics, err := extractLogMetrics(dir, false)
+		require.NoError(t, err, "extractLogMetrics should not error")
+
+		// Turns and tokens should come from events.jsonl
+		assert.Equal(t, 1, metrics.Turns, "turns should come from events.jsonl")
+		assert.Equal(t, 60, metrics.TokenUsage, "token usage should come from events.jsonl modelMetrics (50+10)")
+		// Cost should be recovered from the log file
+		assert.Greater(t, metrics.EstimatedCost, 0.0, "cost should be recovered from log files when events.jsonl has no cost")
+	})
+
 	t.Run("falls back to log file walk when events.jsonl absent", func(t *testing.T) {
 		dir := t.TempDir()
 

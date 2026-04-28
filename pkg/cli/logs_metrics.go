@@ -162,7 +162,38 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		}
 	}
 
-	// Walk through all .log files when events.jsonl was not available or failed to parse
+	// walkLogFilesForCost walks .log files in logDir and accumulates only the estimated cost.
+	// This is used when events.jsonl provided turns/tokens but no cost data.
+	walkLogFilesForCost := func() {
+		_ = filepath.Walk(logDir, func(path string, info os.FileInfo, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if info.IsDir() {
+				if info.Name() == "workflow-logs" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			fileName := strings.ToLower(info.Name())
+			if (strings.HasSuffix(fileName, ".log") ||
+				(strings.HasSuffix(fileName, ".txt") && strings.Contains(fileName, "log"))) &&
+				!strings.Contains(fileName, "aw_output") &&
+				fileName != constants.AgentOutputFilename {
+				fileMetrics, fileErr := parseLogFileWithEngine(path, detectedEngine, isGitHubCopilotCodingAgent, verbose)
+				if fileErr != nil && verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log file %s for cost: %v", path, fileErr)))
+					return nil
+				}
+				metrics.EstimatedCost += fileMetrics.EstimatedCost
+			}
+			return nil
+		})
+	}
+
+	// Walk through all .log files when events.jsonl was not available or failed to parse.
+	// When events.jsonl was used for turns/tokens, still walk log files to extract cost,
+	// since events.jsonl does not carry USD cost information.
 	if !eventsJSONLParsed {
 		err = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -211,6 +242,11 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 
 			return nil
 		})
+	} else if metrics.EstimatedCost == 0 {
+		// events.jsonl provided turns/tokens/tool calls but does not carry USD cost data.
+		// Walk log files solely to recover cost so the summary total_cost is non-zero.
+		logsMetricsLog.Print("events.jsonl parsed but EstimatedCost is 0; walking log files to recover cost")
+		walkLogFilesForCost()
 	}
 
 	// Try to parse gateway.jsonl if it exists
