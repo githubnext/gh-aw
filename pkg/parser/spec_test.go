@@ -545,7 +545,7 @@ func TestSpec_PublicAPI_NewFormattedParserError(t *testing.T) {
 	t.Run("empty message is preserved", func(t *testing.T) {
 		err := NewFormattedParserError("")
 		require.NotNil(t, err, "NewFormattedParserError should return non-nil for empty message")
-		assert.Equal(t, "", err.Error(),
+		assert.Empty(t, err.Error(),
 			"NewFormattedParserError should preserve empty message")
 	})
 }
