@@ -812,6 +812,119 @@ function buildStaleLockFileFailedContext(hasStaleLockFileFailed) {
   return "\n" + template;
 }
 
+// Known AI provider API hostnames and their associated credential names.
+// The host patterns are matched against the "host" field in audit.jsonl entries.
+const FIREWALL_AUTH_PROVIDER_HOSTS = /** @type {Array<{provider: string, pattern: RegExp, credential: string}>} */ [
+  { provider: "Copilot", pattern: /\.githubcopilot\.com/i, credential: "`COPILOT_GITHUB_TOKEN`" },
+  { provider: "OpenAI", pattern: /^api\.openai\.com/i, credential: "`OPENAI_API_KEY`" },
+  { provider: "Anthropic", pattern: /^api\.anthropic\.com/i, credential: "`ANTHROPIC_API_KEY`" },
+  { provider: "Gemini", pattern: /^generativelanguage\.googleapis\.com/i, credential: "`GEMINI_API_KEY`" },
+];
+
+/**
+ * Parse the firewall audit.jsonl for authentication rejection entries.
+ *
+ * Uses a two-pass approach for performance on large JSONL files:
+ *   1. Quick regex pre-scan: bail early if no 401/403 status codes appear at all.
+ *   2. Full JSONL parse: extract entries with status 401/403 targeting known provider endpoints.
+ *
+ * @param {string} auditJsonlPath - Path to audit.jsonl
+ * @returns {Array<{provider: string, credential: string}>} Unique providers with auth rejections
+ */
+function parseFirewallAuthErrors(auditJsonlPath) {
+  try {
+    if (!fs.existsSync(auditJsonlPath)) {
+      return [];
+    }
+
+    const content = fs.readFileSync(auditJsonlPath, "utf8");
+    if (!content.trim()) {
+      return [];
+    }
+
+    // Selective pre-scan: check for any 401 or 403 status codes before full JSON parse.
+    // The audit.jsonl format uses `"status":401` or `"status": 401` (compact or spaced).
+    // This avoids iterating all lines when there are no authentication failures.
+    if (!/"status"\s*:\s*40[13]/.test(content)) {
+      return [];
+    }
+
+    // Full JSONL parse: find 401/403 entries targeting known provider endpoints.
+    const seenProviders = new Set();
+    const results = [];
+
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed[0] !== "{") continue;
+
+      let entry;
+      try {
+        entry = JSON.parse(trimmed);
+      } catch {
+        continue;
+      }
+
+      const status = entry.status;
+      if (status !== 401 && status !== 403) continue;
+
+      const host = typeof entry.host === "string" ? entry.host : "";
+      // Strip port from host for matching (e.g. "api.openai.com:443" → "api.openai.com")
+      const hostWithoutPort = host.replace(/:\d+$/, "");
+
+      for (const { provider, pattern, credential } of FIREWALL_AUTH_PROVIDER_HOSTS) {
+        if (!seenProviders.has(provider) && pattern.test(hostWithoutPort)) {
+          seenProviders.add(provider);
+          results.push({ provider, credential });
+          break;
+        }
+      }
+    }
+
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Build a context string when the firewall audit log shows authentication rejections
+ * from AI provider endpoints (expired or missing API credentials).
+ *
+ * Reads audit.jsonl from the known path relative to GH_AW_AGENT_OUTPUT and surfaces
+ * a remediation hint for each affected provider in the failure issue/comment.
+ *
+ * @param {string} [auditJsonlPathOverride] - Path override for testing
+ * @returns {string} Formatted context string, or empty string if no auth errors
+ */
+function buildCredentialAuthErrorContext(auditJsonlPathOverride) {
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+  const auditJsonlPath = auditJsonlPathOverride || (agentOutputFile ? path.join(path.dirname(agentOutputFile), "sandbox", "firewall", "audit", "audit.jsonl") : "/tmp/gh-aw/sandbox/firewall/audit/audit.jsonl");
+
+  const authErrors = parseFirewallAuthErrors(auditJsonlPath);
+
+  if (authErrors.length === 0) {
+    return "";
+  }
+
+  core.info(`Firewall audit log: detected ${authErrors.length} credential auth rejection(s) for: ${authErrors.map(e => e.provider).join(", ")}`);
+
+  const providersList = authErrors.map(e => `- ${e.provider} (${e.credential})`).join("\n");
+
+  const templatePath = getPromptPath("credential_auth_error.md");
+  try {
+    return "\n" + renderTemplateFromFile(templatePath, { providers: providersList });
+  } catch {
+    // Template not available — return inline message
+    return (
+      "\n**🔑 Credential Authentication Failed**: The firewall audit log detected authentication rejections (HTTP 401/403) from AI provider APIs. " +
+      "The following provider credentials appear to be missing, expired, or invalid:\n\n" +
+      providersList +
+      "\n\nVerify that the required API keys are configured as repository secrets and have not expired. " +
+      "See: [Engine Reference](https://github.github.com/gh-aw/reference/engines/)\n"
+    );
+  }
+}
+
 /**
  * Build a context string when assigning the Copilot coding agent to created issues failed.
  * @param {boolean} hasAssignCopilotFailures - Whether any copilot assignments failed
@@ -1430,6 +1543,9 @@ async function main() {
         // Build copilot assignment failure context for created issues
         const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
 
+        // Build credential auth error context (firewall audit.jsonl 401/403 from provider endpoints)
+        const credentialAuthErrorContext = buildCredentialAuthErrorContext();
+
         // Create template context
         const templateContext = {
           run_url: runUrl,
@@ -1442,6 +1558,7 @@ async function main() {
             secretVerificationResult === "failed"
               ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
               : "",
+          credential_auth_error_context: credentialAuthErrorContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
@@ -1591,6 +1708,9 @@ async function main() {
         // Build copilot assignment failure context for created issues
         const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
 
+        // Build credential auth error context (firewall audit.jsonl 401/403 from provider endpoints)
+        const credentialAuthErrorContext = buildCredentialAuthErrorContext();
+
         // Create template context with sanitized workflow name
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
@@ -1604,6 +1724,7 @@ async function main() {
             secretVerificationResult === "failed"
               ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
               : "",
+          credential_auth_error_context: credentialAuthErrorContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
@@ -1695,6 +1816,8 @@ module.exports = {
   buildMCPPolicyErrorContext,
   buildModelNotSupportedErrorContext,
   buildMissingDataContext,
+  buildCredentialAuthErrorContext,
+  parseFirewallAuthErrors,
   getActionFailureIssueExpiresHours,
   hasAgentTerminalReasonCompleted,
 };
