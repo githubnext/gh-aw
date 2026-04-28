@@ -831,7 +831,7 @@ header::after {
     text-align: right;
     position: relative;
     padding-left: 50%;
-    min-height: 1.5rem;
+    min-height: 2.75rem;
   }
 
   .sl-markdown-content td:first-child {

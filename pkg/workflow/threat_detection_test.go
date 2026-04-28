@@ -1746,7 +1746,7 @@ func TestInstallStepsContainNodeSetup(t *testing.T) {
 	}
 }
 
-func TestBuildDetectionEngineExecutionStepPropagatesDriverScriptOverride(t *testing.T) {
+func TestBuildDetectionEngineExecutionStepPropagatesHarnessScriptOverride(t *testing.T) {
 	compiler := NewCompiler()
 
 	data := &WorkflowData{
@@ -1754,8 +1754,8 @@ func TestBuildDetectionEngineExecutionStepPropagatesDriverScriptOverride(t *test
 		SafeOutputs: &SafeOutputsConfig{
 			ThreatDetection: &ThreatDetectionConfig{
 				EngineConfig: &EngineConfig{
-					ID:           "copilot",
-					DriverScript: "custom_copilot_driver.cjs",
+					ID:            "copilot",
+					HarnessScript: "custom_copilot_harness.cjs",
 				},
 			},
 		},
@@ -1768,10 +1768,10 @@ func TestBuildDetectionEngineExecutionStepPropagatesDriverScriptOverride(t *test
 
 	s := strings.Join(steps, "")
 
-	if !strings.Contains(s, "custom_copilot_driver.cjs") {
-		t.Errorf("expected custom driver script in detection steps, got:\n%s", s)
+	if !strings.Contains(s, "custom_copilot_harness.cjs") {
+		t.Errorf("expected custom harness script in detection steps, got:\n%s", s)
 	}
-	if strings.Contains(s, "actions/copilot_driver.cjs") {
-		t.Errorf("expected default driver to be replaced by custom override, got:\n%s", s)
+	if strings.Contains(s, "actions/copilot_harness.cjs") {
+		t.Errorf("expected default harness to be replaced by custom override, got:\n%s", s)
 	}
 }

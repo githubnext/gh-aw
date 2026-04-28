@@ -44,13 +44,13 @@ describe("detect_copilot_errors.cjs", () => {
   });
 
   describe("AGENTIC_ENGINE_TIMEOUT_PATTERN", () => {
-    it("matches copilot-driver process closed with SIGTERM", () => {
-      const log = "[copilot-driver] 2026-04-12T04:56:28.000Z attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 12s stdout=1234B stderr=567B hasOutput=true";
+    it("matches copilot-harness process closed with SIGTERM", () => {
+      const log = "[copilot-harness] 2026-04-12T04:56:28.000Z attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 12s stdout=1234B stderr=567B hasOutput=true";
       expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test(log)).toBe(true);
     });
 
-    it("matches copilot-driver process exit with SIGTERM", () => {
-      const log = "[copilot-driver] 2026-04-12T04:56:28.000Z attempt 1: process exit event exitCode=null signal=SIGTERM";
+    it("matches copilot-harness process exit with SIGTERM", () => {
+      const log = "[copilot-harness] 2026-04-12T04:56:28.000Z attempt 1: process exit event exitCode=null signal=SIGTERM";
       expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test(log)).toBe(true);
     });
 
@@ -65,7 +65,7 @@ describe("detect_copilot_errors.cjs", () => {
     });
 
     it("matches when embedded in larger log output", () => {
-      const log = "Some agent output\n✓ All tests pass\n[copilot-driver] 2026-04-12T04:56:28.000Z attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 12s\nMore output";
+      const log = "Some agent output\n✓ All tests pass\n[copilot-harness] 2026-04-12T04:56:28.000Z attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 12s\nMore output";
       expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test(log)).toBe(true);
     });
 
@@ -75,7 +75,7 @@ describe("detect_copilot_errors.cjs", () => {
     });
 
     it("does not match regular exit without signal", () => {
-      const log = "[copilot-driver] 2026-04-12T04:56:28.000Z attempt 1: process closed exitCode=1 duration=5m 3s stdout=1234B stderr=567B hasOutput=true";
+      const log = "[copilot-harness] 2026-04-12T04:56:28.000Z attempt 1: process closed exitCode=1 duration=5m 3s stdout=1234B stderr=567B hasOutput=true";
       expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test(log)).toBe(false);
     });
 
@@ -135,7 +135,7 @@ describe("detect_copilot_errors.cjs", () => {
     });
 
     it("detects engine timeout only", () => {
-      const result = detectErrors("[copilot-driver] 2026-04-12T04:56:28.000Z attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 12s");
+      const result = detectErrors("[copilot-harness] 2026-04-12T04:56:28.000Z attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 12s");
       expect(result.inferenceAccessError).toBe(false);
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(true);
@@ -160,7 +160,7 @@ describe("detect_copilot_errors.cjs", () => {
     });
 
     it("detects timeout alongside other errors", () => {
-      const log = "Access denied by policy settings\n[copilot-driver] 2026-04-12T04:56:28.000Z attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 0s";
+      const log = "Access denied by policy settings\n[copilot-harness] 2026-04-12T04:56:28.000Z attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 0s";
       const result = detectErrors(log);
       expect(result.inferenceAccessError).toBe(true);
       expect(result.mcpPolicyError).toBe(false);

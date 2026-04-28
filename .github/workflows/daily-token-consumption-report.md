@@ -23,7 +23,10 @@ safe-outputs:
 timeout-minutes: 30
 imports:
   - shared/mcp/sentry.md
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[token-consumption] "
+      expires: 1d
 features:
   mcp-cli: true
 ---

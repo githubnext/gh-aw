@@ -23,7 +23,10 @@ safe-outputs:
     max: 10
 timeout-minutes: 20
 imports:
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[safe-outputs-conformance] "
+      expires: 1d
 
 features:
   mcp-cli: true

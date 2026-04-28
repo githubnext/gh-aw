@@ -23,31 +23,118 @@ network:
     - defaults
     - github
 
+pre-agent-steps:
+  - name: Collect package analysis data
+    run: |
+      set -e
+      PACKAGES=(agentdrain cli console constants envutil fileutil gitutil logger parser repoutil semverutil sliceutil stringutil styles testutil timeutil tty types typeutil workflow)
+      TOTAL=${#PACKAGES[@]}
+      CACHE_DIR=/tmp/gh-aw/cache-memory/spec-extractor
+      CONTEXT=/tmp/pkg-context.md
+
+      # Initialize or load rotation state
+      mkdir -p "$CACHE_DIR/extractions"
+      if [ -f "$CACHE_DIR/rotation.json" ]; then
+        LAST_INDEX=$(python3 -c "import json; d=json.load(open('$CACHE_DIR/rotation.json')); print(d.get('last_index', 0))" 2>/dev/null || echo 0)
+      else
+        printf '{"last_index":0,"last_packages":[],"last_run":"","total_packages":%d}\n' "$TOTAL" > "$CACHE_DIR/rotation.json"
+        LAST_INDEX=0
+      fi
+
+      # Select next 4 packages using round-robin
+      PKG0="${PACKAGES[$((LAST_INDEX % TOTAL))]}"
+      PKG1="${PACKAGES[$(((LAST_INDEX + 1) % TOTAL))]}"
+      PKG2="${PACKAGES[$(((LAST_INDEX + 2) % TOTAL))]}"
+      PKG3="${PACKAGES[$(((LAST_INDEX + 3) % TOTAL))]}"
+      NEXT_INDEX=$(((LAST_INDEX + 4) % TOTAL))
+      SELECTED=("$PKG0" "$PKG1" "$PKG2" "$PKG3")
+
+      echo "Selected packages: ${SELECTED[*]} (last_index=$LAST_INDEX, next=$NEXT_INDEX)"
+
+      # Collect analysis data for each package into the context file
+      {
+        echo "# Package Analysis Context"
+        echo ""
+        echo "**Run date**: $(date -u +%Y-%m-%d)"
+        echo "**Rotation last_index (current)**: $LAST_INDEX"
+        echo "**Selected packages**: ${SELECTED[*]}"
+        echo "**Next last_index (save this after run)**: $NEXT_INDEX"
+        echo ""
+
+        for PKG in "${SELECTED[@]}"; do
+          echo "---"
+          echo ""
+          echo "## Package: \`$PKG\`"
+          echo ""
+
+          echo "### Source Files"
+          echo '```'
+          find "pkg/$PKG" -name '*.go' ! -name '*_test.go' -type f 2>/dev/null | sort || true
+          echo '```'
+
+          echo "### Line Counts"
+          echo '```'
+          wc -l pkg/"$PKG"/*.go 2>/dev/null || true
+          echo '```'
+
+          echo "### Exported Functions"
+          echo '```'
+          grep -rn "^func [A-Z]" "pkg/$PKG" --include='*.go' 2>/dev/null || true
+          echo '```'
+
+          echo "### Exported Types"
+          echo '```'
+          grep -rn "^type [A-Z]" "pkg/$PKG" --include='*.go' 2>/dev/null || true
+          echo '```'
+
+          echo "### Exported Constants"
+          echo '```'
+          grep -rn "^const [A-Z]" "pkg/$PKG" --include='*.go' 2>/dev/null || true
+          echo '```'
+
+          echo "### Exported Variables"
+          echo '```'
+          grep -rn "^var [A-Z]" "pkg/$PKG" --include='*.go' 2>/dev/null || true
+          echo '```'
+
+          echo "### Package Doc Comments (first 30 lines per file)"
+          for f in pkg/"$PKG"/*.go; do
+            [ -f "$f" ] || continue
+            echo "#### $f"
+            echo '```go'
+            head -n 30 "$f" 2>/dev/null || true
+            echo '```'
+          done
+
+          echo "### Imports"
+          echo '```'
+          find "pkg/$PKG" -name '*.go' ! -name '*_test.go' -type f | xargs grep -h "import" 2>/dev/null | sort -u || true
+          echo '```'
+
+          echo "### Existing README.md"
+          echo '```markdown'
+          cat "pkg/$PKG/README.md" 2>/dev/null || echo "No existing README.md"
+          echo '```'
+
+          echo "### Recent Git History (30 days)"
+          echo '```'
+          git log --oneline --since='30 days ago' -- "pkg/$PKG" 2>/dev/null || true
+          echo '```'
+          echo ""
+        done
+      } > "$CONTEXT"
+      echo "Context file written to $CONTEXT ($(wc -l < "$CONTEXT") lines)"
+
 tools:
   mount-as-clis: true
   github:
-    toolsets: [default]
+    toolsets: [pull_requests]
   cache-memory: true
   edit:
   bash:
-    - "mkdir"
-    - "find pkg -type f -name '*.go' ! -name '*_test.go'"
-    - "find pkg -maxdepth 1 -type d"
-    - "find pkg/* -maxdepth 0 -type d"
-    - "cat pkg/*/README.md"
-    - "cat pkg/*/*.go"
-    - "head -n * pkg/*/*.go"
-    - "wc -l pkg/*/*.go"
-    - "grep -r 'func ' pkg --include='*.go'"
-    - "grep -rn 'type ' pkg --include='*.go'"
-    - "grep -rn 'const ' pkg --include='*.go'"
-    - "grep -rn 'var ' pkg --include='*.go'"
-    - "grep -rn 'package ' pkg --include='*.go'"
-    - "grep -rn 'import ' pkg --include='*.go'"
-    - "git log --oneline --since='30 days ago' -- pkg/*"
+    - "cat /tmp/pkg-context.md"
     - "git diff HEAD -- pkg/*/README.md"
     - "git status"
-    - "ls pkg/*/"
 
 safe-outputs:
   create-pull-request:
@@ -72,171 +159,20 @@ You are the Package Specification Extractor — an expert technical writer agent
 - **Run ID**: ${{ github.run_id }}
 - **Cache Memory**: `/tmp/gh-aw/cache-memory/`
 
-## Target Packages
+## Phase 1: Load Pre-Collected Analysis Data
 
-The following Go packages under `pkg/` each require a README.md specification:
-
-| Package | Description |
-|---------|-------------|
-| `agentdrain` | Anomaly detection, clustering, state coordination |
-| `cli` | CLI command implementations |
-| `console` | Terminal UI/UX — prompts, forms, spinners, progress bars |
-| `constants` | Engine, feature, job, tool, URL, version constants |
-| `envutil` | Environment variable utilities |
-| `fileutil` | File operations, tar archive handling |
-| `gitutil` | Git operations and utilities |
-| `logger` | Structured logging with namespace patterns |
-| `parser` | Markdown frontmatter parsing, YAML processing |
-| `repoutil` | Repository utilities |
-| `semverutil` | Semantic versioning utilities |
-| `sliceutil` | Slice/array utilities |
-| `stringutil` | String operations, ANSI colors, URL handling |
-| `styles` | Terminal styling and themes |
-| `testutil` | Test utilities, temporary directories |
-| `timeutil` | Time formatting utilities |
-| `tty` | Terminal/TTY operations |
-| `types` | MCP types, token weight definitions |
-| `typeutil` | Type conversion utilities |
-| `workflow` | Workflow compilation, validation, engines, safe-outputs |
-
-## Phase 0: Initialize Cache Memory
-
-### Cache Structure
-
-```
-/tmp/gh-aw/cache-memory/
-└── spec-extractor/
-    ├── rotation.json           # Round-robin state
-    ├── package-hashes.json     # Git hashes per package
-    └── extractions/
-        ├── console.json
-        ├── logger.json
-        └── ...
-```
-
-### Initialize or Load
-
-1. Check if cache exists and initialize rotation state:
-   ```bash
-   mkdir -p /tmp/gh-aw/cache-memory/spec-extractor/extractions
-   if [ -f /tmp/gh-aw/cache-memory/spec-extractor/rotation.json ]; then
-     echo "Cache found, loading rotation state"
-     cat /tmp/gh-aw/cache-memory/spec-extractor/rotation.json
-   else
-     echo "Initializing default rotation state"
-     cat > /tmp/gh-aw/cache-memory/spec-extractor/rotation.json <<EOF
-{
-  "last_index": 0,
-  "last_packages": [],
-  "last_run": "",
-  "total_packages": 20
-}
-EOF
-   fi
-   ```
-
-2. Load `rotation.json` to determine which packages to process next.
-   Example state **after processing** `envutil,fileutil,gitutil,logger`:
-   ```json
-    {
-      "last_index": 4,
-      "last_packages": ["envutil", "fileutil", "gitutil", "logger"],
-      "last_run": "2026-04-12",
-      "total_packages": 20
-    }
-   ```
-
-3. Load `package-hashes.json` to detect changes:
-   ```json
-   {
-     "console": "abc123",
-     "logger": "def456"
-   }
-   ```
-
-## Phase 1: Select Packages (Round Robin)
-
-Select **exactly 4 packages** for this run using deterministic round-robin:
-
-1. **Use the fixed package order** listed in the table above (20 total packages).
-
-2. **Read** `last_index` from `rotation.json` (default `0`).
-   - `last_index` means the **next package index to process**, not the previously processed index.
-
-3. **Select the next 4 packages** using modular arithmetic:
-   - Package 1 index: `last_index`
-   - Package 2 index: `(last_index + 1) % 20`
-   - Package 3 index: `(last_index + 2) % 20`
-   - Package 4 index: `(last_index + 3) % 20`
-
-4. **Update rotation state** after processing:
-   - `last_index = (last_index + 4) % 20`
-   - `last_packages = [pkg1, pkg2, pkg3, pkg4]`
-
-5. **Worked examples**:
-   - If `last_index = 0`, process indices `0,1,2,3`, then set `last_index = 4`
-   - If `last_index = 16`, process indices `16,17,18,19`, then set `last_index = 0`
-   - If `last_index = 18`, process indices `18,19,0,1`, then set `last_index = 2`
-
-## Phase 2: Extract Package Specification
-
-For each selected package, perform deep analysis to extract the specification.
-
-### Step 1: Inventory Source Files
+All source analysis has been pre-collected by the setup step. Read the context file:
 
 ```bash
-find pkg/<package> -name '*.go' ! -name '*_test.go' -type f | sort
-wc -l pkg/<package>/*.go 2>/dev/null
+cat /tmp/pkg-context.md
 ```
 
-### Step 2: Extract Public API
+The file contains:
+- **Selected packages**: the 4 packages to process this run (round-robin selected)
+- **Rotation state**: the current `last_index` and the `Next last_index` to save after this run
+- **Per-package data**: source files, exported symbols, package doc comments, imports, existing README.md, git history
 
-Identify all exported symbols:
-
-```bash
-# Exported functions
-grep -n "^func [A-Z]" pkg/<package>/*.go
-
-# Exported types
-grep -n "^type [A-Z]" pkg/<package>/*.go
-
-# Exported constants
-grep -n "^const [A-Z]\|^\t[A-Z]" pkg/<package>/*.go
-
-# Exported variables
-grep -n "^var [A-Z]" pkg/<package>/*.go
-```
-
-### Step 3: Analyze Package Purpose
-
-Read the package doc comment (usually in the main .go file or doc.go):
-
-```bash
-head -n 30 pkg/<package>/*.go
-```
-
-Look for:
-- Package-level doc comments
-- Design patterns used
-- Key interfaces and their implementations
-- Error handling conventions
-- Thread-safety guarantees
-
-### Step 4: Identify Dependencies
-
-```bash
-grep -h "import" pkg/<package>/*.go | grep -v "_test.go"
-```
-
-### Step 5: Review Existing README.md
-
-If a README.md already exists, read it to preserve any manually-written content:
-
-```bash
-cat pkg/<package>/README.md 2>/dev/null || echo "No existing README.md"
-```
-
-## Phase 3: Write the Specification
+## Phase 2: Write the Specification
 
 Write each README.md following W3C specification writing principles:
 
@@ -300,31 +236,14 @@ Write each README.md following W3C specification writing principles:
 4. **Normative language**: Use "MUST", "SHOULD", "MAY" for behavioral contracts
 5. **Preserve manual content**: If a README.md already exists, merge your extraction with existing content — do not overwrite manually-written sections
 
-## Phase 4: Save to Cache and Create PR
+## Phase 3: Save State and Create PR
 
-### Save Extraction Data
+### Update Rotation State
 
-For each processed package, save the extraction metadata:
+After writing all README.md files, update the cache using the rotation values from `/tmp/pkg-context.md`:
 
-```bash
-cat > /tmp/gh-aw/cache-memory/spec-extractor/extractions/<package>.json <<EOF
-{
-  "package": "<package>",
-  "extraction_date": "$(date -u +%Y-%m-%d)",
-  "git_hash": "<hash>",
-  "files_analyzed": <count>,
-  "exported_functions": <count>,
-  "exported_types": <count>,
-  "readme_status": "created|updated|unchanged"
-}
-EOF
-```
-
-### Update Package Hashes
-
-```bash
-# Update package-hashes.json with new hashes for processed packages
-```
+- Write `/tmp/gh-aw/cache-memory/spec-extractor/rotation.json` with the `next last_index` and processed packages
+- Write per-package extraction metadata to `/tmp/gh-aw/cache-memory/spec-extractor/extractions/<package>.json`
 
 ### Create Pull Request
 

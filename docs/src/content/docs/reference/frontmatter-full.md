@@ -1602,11 +1602,11 @@ engine:
   # (optional)
   command: "example-value"
 
-  # Custom Node.js driver script filename for an agentic engine. This replaces the
-  # engine's built-in driver wrapper (when the engine supports one) and must end
+  # Custom Node.js harness script filename for an agentic engine. This replaces the
+  # engine's built-in harness wrapper (when the engine supports one) and must end
   # with .js, .cjs, or .mjs.
   # (optional)
-  driver: "example-value"
+  harness: "example-value"
 
   # Custom environment variables to pass to the AI engine, including secret
   # overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})

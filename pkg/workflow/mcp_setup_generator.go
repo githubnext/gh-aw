@@ -152,7 +152,7 @@ func collectMCPTools(workflowData *WorkflowData) []string {
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		mcpTools = append(mcpTools, "safe-outputs")
 	}
-	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		mcpTools = append(mcpTools, "mcp-scripts")
 	}
 	return mcpTools
@@ -352,7 +352,7 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 }
 
 func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) error {
-	if !IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+	if !IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		return nil
 	}
 	yaml.WriteString("      - name: Write MCP Scripts Config\n")
@@ -685,7 +685,7 @@ func appendMCPGatewayConditionalEnvFlags(containerCmd *strings.Builder, workflow
 	if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
 		containerCmd.WriteString(" -e GITHUB_PERSONAL_ACCESS_TOKEN")
 	}
-	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		containerCmd.WriteString(" -e GH_AW_MCP_SCRIPTS_PORT")
 		containerCmd.WriteString(" -e GH_AW_MCP_SCRIPTS_API_KEY")
 	}
@@ -751,7 +751,7 @@ func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGa
 	if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
 		addedEnvVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = true
 	}
-	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		addedEnvVars["GH_AW_MCP_SCRIPTS_PORT"] = true
 		addedEnvVars["GH_AW_MCP_SCRIPTS_API_KEY"] = true
 	}

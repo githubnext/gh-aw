@@ -53,6 +53,52 @@ test.describe('Mobile and Responsive Layout', () => {
     await context.close();
   });
 
+  test('should wrap ALL markdown tables in a scroll wrapper on the engines reference page', async ({ browser }) => {
+    const context = await browser.newContext({
+      javaScriptEnabled: false,
+      viewport: { width: 768, height: 1024 },
+    });
+    const page = await context.newPage();
+
+    await page.goto('/gh-aw/reference/engines/');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Count all tables in markdown content area
+    const tableCount = await page.locator('.sl-markdown-content table').count();
+    expect(tableCount).toBeGreaterThan(0);
+
+    // Count tables that are direct children of .table-scroll-wrapper
+    const wrappedTableCount = await page.locator('.sl-markdown-content .table-scroll-wrapper > table').count();
+
+    // Every table must have a scroll wrapper for consistent horizontal scrolling on all viewports
+    expect(wrappedTableCount).toBe(tableCount);
+
+    await context.close();
+  });
+
+  test('should have WCAG 2.5.5-compliant touch target size for mobile table cells', async ({ browser }) => {
+    const context = await browser.newContext({
+      javaScriptEnabled: true,
+      viewport: { width: 390, height: 844 },
+    });
+    const page = await context.newPage();
+
+    await page.goto('/gh-aw/reference/engines/');
+    await page.waitForLoadState('networkidle');
+
+    // On mobile (<=640px), table cells are rendered as stacked cards.
+    // Each cell must meet the WCAG 2.5.5 AAA minimum touch target of 44 px (2.75 rem).
+    const tdMinHeight = await page.evaluate(() => {
+      const td = document.querySelector('.sl-markdown-content table tbody td');
+      if (!td) return 0;
+      return parseFloat(getComputedStyle(td).minHeight);
+    });
+
+    expect(tdMinHeight).toBeGreaterThanOrEqual(44);
+
+    await context.close();
+  });
+
   for (const formFactor of formFactors) {
     test.describe(`${formFactor.name}`, () => {
       test.beforeEach(async ({ page }) => {

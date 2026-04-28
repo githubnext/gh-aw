@@ -4,11 +4,13 @@ description: Smoke CI workflow that exercises pull request safe outputs through 
 on:
   push:
     branches: [main]
+    paths: ['cmd/**', 'pkg/**', '*.go', 'go.mod', 'actions/setup/js/**']
   schedule: daily
   pull_request:
     types: [opened, synchronize, reopened]
-  reaction: "eyes"
-  status-comment: true
+concurrency:
+  group: smoke-ci-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
   issues: read

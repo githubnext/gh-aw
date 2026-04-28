@@ -240,31 +240,31 @@ type ConfigRenderer interface {
 	RenderConfig(target *ResolvedEngineTarget) ([]map[string]any, error)
 }
 
-// DriverProvider is an optional interface implemented by engines that provide a
-// JavaScript driver script to wrap CLI execution with retry and recovery logic.
-// The driver is placed in the setup actions directory and executed via Node.js
+// HarnessProvider is an optional interface implemented by engines that provide a
+// JavaScript harness script to wrap CLI execution with retry and recovery logic.
+// The harness is placed in the setup actions directory and executed via Node.js
 // as a transparent subprocess wrapper around the engine CLI.
-type DriverProvider interface {
-	// GetDriverScriptName returns the filename of the JavaScript driver script
+type HarnessProvider interface {
+	// GetHarnessScriptName returns the filename of the JavaScript harness script
 	// (located in the setup actions directory) used to wrap CLI execution.
-	// Returns an empty string if no driver is needed.
-	GetDriverScriptName() string
+	// Returns an empty string if no harness is needed.
+	GetHarnessScriptName() string
 }
 
-// engineRequiresNodeDriver reports whether the engine's execution command wraps
-// the CLI with a driver script launched via node (see nodeRuntimeResolutionCommand
+// engineRequiresNodeHarness reports whether the engine's execution command wraps
+// the CLI with a harness script launched via node (see nodeRuntimeResolutionCommand
 // in copilot_engine_execution.go). Used by call sites that must ensure node is on
-// PATH before the driver runs — notably the detection job, which does not go
+// PATH before the harness runs — notably the detection job, which does not go
 // through DetectRuntimeRequirements.
-func engineRequiresNodeDriver(engine CodingAgentEngine) bool {
+func engineRequiresNodeHarness(engine CodingAgentEngine) bool {
 	if engine == nil {
 		return false
 	}
-	dp, ok := engine.(DriverProvider)
+	hp, ok := engine.(HarnessProvider)
 	if !ok {
 		return false
 	}
-	return dp.GetDriverScriptName() != ""
+	return hp.GetHarnessScriptName() != ""
 }
 
 // CodingAgentEngine is a composite interface that combines all focused interfaces

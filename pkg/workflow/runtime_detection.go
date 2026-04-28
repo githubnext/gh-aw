@@ -39,10 +39,10 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		}
 	}
 
-	// When a custom driver script is configured for an engine that currently supports
-	// driver wrappers, require Node.js runtime setup with the default version so workflows
-	// consistently execute the driver with Node 24.
-	if requiresNodeForEngineDriver(workflowData) {
+	// When a custom harness script is configured for an engine that currently supports
+	// harness wrappers, require Node.js runtime setup with the default version so workflows
+	// consistently execute the harness with Node 24.
+	if requiresNodeForEngineHarness(workflowData) {
 		nodeRuntime := findRuntimeByID("node")
 		if nodeRuntime != nil {
 			updateRequiredRuntime(nodeRuntime, string(constants.DefaultNodeVersion), requirements)
@@ -88,10 +88,10 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 	return result
 }
 
-// requiresNodeForEngineDriver returns true when workflow runtime setup must ensure Node.js
-// for engine.driver execution based on current engine wrapper support.
-func requiresNodeForEngineDriver(workflowData *WorkflowData) bool {
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.DriverScript == "" {
+// requiresNodeForEngineHarness returns true when workflow runtime setup must ensure Node.js
+// for engine.harness execution based on current engine wrapper support.
+func requiresNodeForEngineHarness(workflowData *WorkflowData) bool {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.HarnessScript == "" {
 		return false
 	}
 
@@ -103,9 +103,9 @@ func requiresNodeForEngineDriver(workflowData *WorkflowData) bool {
 		engineID = string(constants.DefaultEngine)
 	}
 
-	// Today only Copilot consumes engine.driver in execution command generation.
+	// Today only Copilot consumes engine.harness in execution command generation.
 	// Keep runtime setup scoped to Copilot until additional engines implement
-	// driver wrapper execution paths.
+	// harness wrapper execution paths.
 	return strings.EqualFold(engineID, string(constants.CopilotEngine))
 }
 

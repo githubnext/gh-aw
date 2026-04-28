@@ -17,7 +17,10 @@ timeout-minutes: 15
 strict: true
 imports:
   - shared/security-analysis-base.md
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[malicious-code-scan] "
+      expires: 3d
 
 tools:
   mount-as-clis: true

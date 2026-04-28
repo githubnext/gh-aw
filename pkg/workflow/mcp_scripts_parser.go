@@ -52,8 +52,7 @@ func HasMCPScripts(mcpScripts *MCPScriptsConfig) bool {
 
 // IsMCPScriptsEnabled checks if mcp-scripts are configured.
 // MCP Scripts are enabled by default when configured in the workflow.
-// The workflowData parameter is kept for backward compatibility but is not used.
-func IsMCPScriptsEnabled(mcpScripts *MCPScriptsConfig, workflowData *WorkflowData) bool {
+func IsMCPScriptsEnabled(mcpScripts *MCPScriptsConfig) bool {
 	return HasMCPScripts(mcpScripts)
 }
 

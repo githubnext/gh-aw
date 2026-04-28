@@ -42,7 +42,10 @@ steps:
       fi
       gh aw --version
 imports:
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[syntax-error-quality] "
+      expires: 3d
 features:
   mcp-cli: true
   copilot-requests: true

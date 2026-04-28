@@ -23,6 +23,7 @@ describe("add_comment", () => {
 
     // Setup mock core
     mockCore = {
+      debug: () => {},
       info: () => {},
       warning: () => {},
       error: () => {},

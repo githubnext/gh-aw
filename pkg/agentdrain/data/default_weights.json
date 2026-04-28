@@ -1058,7 +1058,7 @@
           "reviewed:**",
           "-",
           "New",
-          "`copilot_driver.cjs`:",
+          "`copilot_harness.cjs`:",
           "Legitimate",
           "retry",
           "wrapper",

@@ -164,6 +164,16 @@ Use this compact analysis matrix:
 | Reliability | Repeated errors, warnings, retries, missing tools | Token waste from failures |
 | Prompt efficiency | Redundant instructions, overlong sections, avoidable iteration | Prompt reduction opportunities |
 
+### Tool-Usage Efficiency Patterns
+
+When auditing runs, check for these common anti-patterns that waste tokens:
+
+- **Batch independent reads**: look for sequential file reads or API calls that could be requested in a single tool-use block — each extra turn repeats the full context
+- **Chain bash commands**: look for separate bash tool calls that could be combined with `&&` — each call adds a full context echo
+- **Prefer typed tools**: look for `bash cat`, `bash grep`, `bash find -name` when `view`, `grep`, `glob` would return more concise output
+- **Consolidate GitHub API sequences**: look for multiple sequential `gh api` calls that could be combined into fewer round-trips with `jq` filtering
+- **Don't retry without diagnosing**: look for blind retries of the same failing operation without error analysis — each retry wastes a full turn
+
 Rules:
 
 - Audit at least 5 runs when available before removal recommendations.

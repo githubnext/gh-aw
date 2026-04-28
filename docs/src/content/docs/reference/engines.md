@@ -38,7 +38,7 @@ Not all features are available across all engines. The table below summarizes pe
 | `tools.web-search` | via MCP | via MCP | ✅ (opt-in) | via MCP | via MCP | via MCP |
 | `engine.agent` (custom agent file) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `engine.api-target` (custom endpoint) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `engine.driver` (custom driver script) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `engine.harness` (custom harness script) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Tools allowlist | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
 
 **Notes:**
@@ -46,7 +46,7 @@ Not all features are available across all engines. The table below summarizes pe
 - `max-continuations` enables autopilot mode with multiple consecutive runs (Copilot only).
 - `web-search` for Codex is disabled by default; add `tools: web-search:` to enable it. Other engines use a third-party MCP server — see [Using Web Search](/gh-aw/guides/web-search/).
 - `engine.agent` references a `.github/agents/` file for custom Copilot agent behavior. See [Copilot Custom Configuration](#copilot-custom-configuration).
-- `engine.driver` allows replacing the built-in Copilot driver script. See [Custom Driver Script](#custom-driver-script-driver) below.
+- `engine.harness` allows replacing the built-in Copilot harness script. See [Custom Harness Script](#custom-harness-script-harness) below.
 
 ## Extended Coding Agent Configuration
 
@@ -214,29 +214,29 @@ engine:
   args: ["--verbose"]
 ```
 
-### Custom Driver Script (`driver`)
+### Custom Harness Script (`harness`)
 
-The `driver` field lets you replace the built-in Node.js driver wrapper that the Copilot engine uses to launch the CLI. Use this when you need to customize startup behavior, inject pre/post hooks, or test an alternative driver implementation.
+The `harness` field lets you replace the built-in Node.js harness wrapper that the Copilot engine uses to launch the CLI. Use this when you need to customize startup behavior, inject pre/post hooks, or test an alternative harness implementation.
 
 ```yaml wrap
 engine:
   id: copilot
-  driver: custom_copilot_driver.cjs
+  harness: custom_copilot_harness.cjs
 ```
 
-The value must be a bare filename — no directory separators, no `..`, and no shell metacharacters. It must end with `.js`, `.cjs`, or `.mjs`. When `driver` is set, AWF automatically ensures Node 24 is available in the runner environment.
+The value must be a bare filename — no directory separators, no `..`, and no shell metacharacters. It must end with `.js`, `.cjs`, or `.mjs`. When `harness` is set, AWF automatically ensures Node 24 is available in the runner environment.
 
 > [!NOTE]
-> `engine.driver` is currently only applied during Copilot engine execution. Setting it on other engines has no effect.
+> `engine.harness` is currently only applied during Copilot engine execution. Setting it on other engines has no effect.
 
 **Validation rules:**
 
 | Rule | Valid example | Invalid example |
 |------|--------------|-----------------|
-| Bare filename only | `my_driver.cjs` | `subdir/driver.cjs` |
-| No path traversal | `driver.mjs` | `../driver.cjs` |
-| Must start with `[A-Za-z0-9_]` | `driver.js` | `-driver.cjs` |
-| Must end with `.js`, `.cjs`, or `.mjs` | `wrapper.cjs` | `driver.sh` |
+| Bare filename only | `my_harness.cjs` | `subdir/harness.cjs` |
+| No path traversal | `harness.mjs` | `../harness.cjs` |
+| Must start with `[A-Za-z0-9_]` | `harness.js` | `-harness.cjs` |
+| Must end with `.js`, `.cjs`, or `.mjs` | `wrapper.cjs` | `harness.sh` |
 
 ### Custom Token Weights (`token-weights`)
 

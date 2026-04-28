@@ -76,8 +76,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
-	// Validate optional custom engine driver script configuration.
-	if err := c.validateEngineDriverScript(workflowData); err != nil {
+	// Validate optional custom engine harness script configuration.
+	if err := c.validateEngineHarnessScript(workflowData); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 

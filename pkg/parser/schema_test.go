@@ -289,46 +289,46 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_WorkflowDispatchNu
 	}
 }
 
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineDriverPattern(t *testing.T) {
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineHarnessPattern(t *testing.T) {
 	t.Parallel()
 
 	validFrontmatter := map[string]any{
 		"on": "push",
 		"engine": map[string]any{
-			"id":     "claude",
-			"driver": "custom_driver.cjs",
+			"id":      "claude",
+			"harness": "custom_harness.cjs",
 		},
 	}
 
-	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/engine-driver-valid-pattern-test.md")
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/engine-harness-valid-pattern-test.md")
 	if err != nil {
-		t.Fatalf("expected valid engine.driver pattern to pass schema validation, got: %v", err)
+		t.Fatalf("expected valid engine.harness pattern to pass schema validation, got: %v", err)
 	}
 
 	invalidFrontmatter := map[string]any{
 		"on": "push",
 		"engine": map[string]any{
-			"id":     "claude",
-			"driver": "../driver.cjs",
+			"id":      "claude",
+			"harness": "../driver.cjs",
 		},
 	}
 
-	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/engine-driver-invalid-pattern-test.md")
+	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/engine-harness-invalid-pattern-test.md")
 	if err == nil {
-		t.Fatal("expected invalid engine.driver pattern to fail schema validation")
+		t.Fatal("expected invalid engine.harness pattern to fail schema validation")
 	}
 
 	invalidFlagLikeFrontmatter := map[string]any{
 		"on": "push",
 		"engine": map[string]any{
-			"id":     "claude",
-			"driver": "-driver.cjs",
+			"id":      "claude",
+			"harness": "-driver.cjs",
 		},
 	}
 
-	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFlagLikeFrontmatter, "/tmp/gh-aw/engine-driver-invalid-flaglike-pattern-test.md")
+	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFlagLikeFrontmatter, "/tmp/gh-aw/engine-harness-invalid-flaglike-pattern-test.md")
 	if err == nil {
-		t.Fatal("expected flag-like engine.driver pattern to fail schema validation")
+		t.Fatal("expected flag-like engine.harness pattern to fail schema validation")
 	}
 }
 

@@ -5,9 +5,9 @@ import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { appendSafeOutputLine, buildInfrastructureIncompletePayload, buildPromptFileFallbackInstruction, emitInfrastructureIncomplete, PROMPT_FILE_INLINE_THRESHOLD_BYTES, resolvePromptFileArgs } = require("./copilot_driver.cjs");
+const { appendSafeOutputLine, buildInfrastructureIncompletePayload, buildPromptFileFallbackInstruction, emitInfrastructureIncomplete, PROMPT_FILE_INLINE_THRESHOLD_BYTES, resolvePromptFileArgs } = require("./copilot_harness.cjs");
 
-describe("copilot_driver.cjs", () => {
+describe("copilot_harness.cjs", () => {
   // Test the core logic patterns used by the driver without importing the module
   // (importing the module would invoke main() which calls process.exit).
 
@@ -357,7 +357,7 @@ describe("copilot_driver.cjs", () => {
 
   describe("retry configuration", () => {
     it("has sensible default values", () => {
-      // These match the constants in copilot_driver.cjs
+      // These match the constants in copilot_harness.cjs
       const MAX_RETRIES = 3;
       const INITIAL_DELAY_MS = 5000;
       const BACKOFF_MULTIPLIER = 2;
@@ -438,11 +438,11 @@ describe("copilot_driver.cjs", () => {
   });
 
   describe("log format", () => {
-    it("log lines include [copilot-driver] prefix and ISO timestamp", () => {
+    it("log lines include [copilot-harness] prefix and ISO timestamp", () => {
       // Verify the format matches what we expect in agent-stdio.log
       const ts = new Date().toISOString();
-      const logLine = `[copilot-driver] ${ts} test message`;
-      expect(logLine).toMatch(/^\[copilot-driver\] \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      const logLine = `[copilot-harness] ${ts} test message`;
+      expect(logLine).toMatch(/^\[copilot-harness\] \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
     });
   });
 
