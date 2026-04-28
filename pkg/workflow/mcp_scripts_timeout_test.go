@@ -127,9 +127,7 @@ func TestMCPScriptsTimeoutParsing(t *testing.T) {
 			expectedTimeout: 60, // Default timeout
 		},
 		{
-			// "5m" looks like a duration string; strconv.Atoi rejects it entirely
-			// (old fmt.Sscanf would have silently parsed it as 5s, which is wrong)
-			name: "duration-style string timeout falls back to default",
+			name: "duration minutes string timeout is parsed",
 			frontmatter: map[string]any{
 				"mcp-scripts": map[string]any{
 					"duration-tool": map[string]any{
@@ -140,7 +138,49 @@ func TestMCPScriptsTimeoutParsing(t *testing.T) {
 				},
 			},
 			toolName:        "duration-tool",
-			expectedTimeout: 60, // Default timeout
+			expectedTimeout: 300, // 5 * 60
+		},
+		{
+			name: "duration hours string timeout is parsed",
+			frontmatter: map[string]any{
+				"mcp-scripts": map[string]any{
+					"hour-tool": map[string]any{
+						"description": "Hour timeout tool",
+						"script":      "return 'ok';",
+						"timeout":     "1h",
+					},
+				},
+			},
+			toolName:        "hour-tool",
+			expectedTimeout: 3600, // 1 * 3600
+		},
+		{
+			name: "duration seconds string timeout is parsed",
+			frontmatter: map[string]any{
+				"mcp-scripts": map[string]any{
+					"sec-tool": map[string]any{
+						"description": "Seconds timeout tool",
+						"script":      "return 'ok';",
+						"timeout":     "30s",
+					},
+				},
+			},
+			toolName:        "sec-tool",
+			expectedTimeout: 30,
+		},
+		{
+			name: "compound duration string timeout is parsed",
+			frontmatter: map[string]any{
+				"mcp-scripts": map[string]any{
+					"compound-tool": map[string]any{
+						"description": "Compound duration timeout tool",
+						"script":      "return 'ok';",
+						"timeout":     "1h30m",
+					},
+				},
+			},
+			toolName:        "compound-tool",
+			expectedTimeout: 5400, // 90 * 60
 		},
 		{
 			name: "empty string timeout falls back to default",
@@ -155,6 +195,20 @@ func TestMCPScriptsTimeoutParsing(t *testing.T) {
 			},
 			toolName:        "empty-timeout-tool",
 			expectedTimeout: 60, // Default timeout
+		},
+		{
+			name: "string timeout with whitespace is parsed",
+			frontmatter: map[string]any{
+				"mcp-scripts": map[string]any{
+					"ws-tool": map[string]any{
+						"description": "Whitespace timeout tool",
+						"script":      "return 'ok';",
+						"timeout":     " 120 ",
+					},
+				},
+			},
+			toolName:        "ws-tool",
+			expectedTimeout: 120,
 		},
 	}
 
@@ -344,8 +398,7 @@ func TestMCPScriptsMergeStringTimeout(t *testing.T) {
 	}
 
 	// Imported config with duration-style string timeout ("5m").
-	// The old fmt.Sscanf code would have silently parsed this as 5s (wrong).
-	// The new strconv.Atoi code correctly rejects it and falls back to 60s.
+	// time.ParseDuration now converts this to 300s.
 	durationImportedJSON := `{
 		"duration-string-timeout": {
 			"description": "Tool with duration-style string timeout",
@@ -356,8 +409,47 @@ func TestMCPScriptsMergeStringTimeout(t *testing.T) {
 
 	merged3 := compiler.mergeMCPScripts(main, []string{durationImportedJSON})
 
-	// Verify duration-style string timeout falls back to default (60s)
-	if merged3.Tools["duration-string-timeout"].Timeout != 60 {
-		t.Errorf("Expected default timeout 60 for duration-style string, got %d", merged3.Tools["duration-string-timeout"].Timeout)
+	// Verify "5m" is correctly parsed as 300 seconds
+	if merged3.Tools["duration-string-timeout"].Timeout != 300 {
+		t.Errorf("Expected timeout 300 for \"5m\", got %d", merged3.Tools["duration-string-timeout"].Timeout)
+	}
+}
+
+// TestParseTimeoutString is a unit test for the parseTimeoutString helper.
+func TestParseTimeoutString(t *testing.T) {
+	tests := []struct {
+		input    string
+		wantSecs int
+		wantOk   bool
+	}{
+		// Plain integers
+		{"120", 120, true},
+		{"0", 0, true},
+		{" 120 ", 120, true}, // leading/trailing whitespace
+
+		// Go duration strings
+		{"30s", 30, true},
+		{"6m", 360, true},
+		{"1h", 3600, true},
+		{"1h30m", 5400, true},
+		{"2h30m10s", 9010, true},
+
+		// Invalid
+		{"", 0, false},
+		{"   ", 0, false},
+		{"not-a-number", 0, false},
+		{"5 m", 0, false}, // space inside duration is not valid
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			gotSecs, gotOk := parseTimeoutString(tt.input)
+			if gotOk != tt.wantOk {
+				t.Errorf("parseTimeoutString(%q) ok = %v, want %v", tt.input, gotOk, tt.wantOk)
+			}
+			if gotOk && gotSecs != tt.wantSecs {
+				t.Errorf("parseTimeoutString(%q) = %d, want %d", tt.input, gotSecs, tt.wantSecs)
+			}
+		})
 	}
 }
