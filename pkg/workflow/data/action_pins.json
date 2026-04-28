@@ -158,6 +158,11 @@
       "version": "v2.11",
       "sha": "1cb3cd8a008d80c9fa129c0f0823d69584905f5b"
     },
+    "microsoft/apm-action@v1.4.2": {
+      "repo": "microsoft/apm-action",
+      "version": "v1.4.2",
+      "sha": "677ddbfb986cdf36d99d26e167aff29b3e80486d"
+    },
     "microsoft/apm-action@v1.5.0": {
       "repo": "microsoft/apm-action",
       "version": "v1.5.0",
