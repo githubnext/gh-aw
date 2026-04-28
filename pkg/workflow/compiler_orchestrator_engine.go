@@ -134,8 +134,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// the engine catalog (populated at startup by loadBuiltinEngineDefinitions).
 	// In this common case we skip the import injection entirely — avoiding a full
 	// ProcessImportsFromFrontmatterWithSource round-trip — and record the engine ID
-	// in builtinInjectedEngineID so the fast path below can restore it without
-	// JSON re-parsing.
+	// in builtinEngineID so the fast path below can restore it without JSON re-parsing.
 	//
 	// When the workflow DOES have user-specified imports we still inject the builtin
 	// so that the engine definition is part of the import chain (for correctness,
@@ -144,13 +143,12 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// builtinSkippedInjection is true when the optimisation fired and the builtin
 	// was NOT added to the imports list. It is used later to represent the engine
 	// in duplicate-engine conflict detection even though it is absent from allEngines.
-	var builtinInjectedEngineID string
+	var builtinEngineID string
 	var builtinSkippedInjection bool
 	if c.engineOverride == "" && isStringFormEngine(result.Frontmatter) && engineSetting != "" {
 		builtinPath := builtinEnginePath(engineSetting)
 		if parser.BuiltinVirtualFileExists(builtinPath) {
-			_, hadUserImports := result.Frontmatter["imports"]
-			if hadUserImports {
+			if frontmatterHasUserImports(result.Frontmatter) {
 				// User already specified imports: inject normally so the engine
 				// definition participates in the full import processing chain.
 				orchestratorEngineLog.Printf("Injecting builtin engine import: %s", builtinPath)
@@ -163,7 +161,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 				builtinSkippedInjection = true
 			}
 			delete(result.Frontmatter, "engine")
-			builtinInjectedEngineID = engineSetting
+			builtinEngineID = engineSetting
 			engineSetting = ""
 			engineConfig = nil
 		}
@@ -250,7 +248,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 
 	// Resolve engine setting and config from the available engine specifications.
 	//
-	// Fast path: when we know the engine ID (builtinInjectedEngineID) and there are
+	// Fast path: when we know the engine ID (builtinEngineID) and there are
 	// no engine specs from @include directives or conflicting user imports, skip the
 	// JSON parsing overhead of validateSingleEngineSpecification and
 	// extractEngineConfigFromJSON (saves ~15µs per ParseWorkflowFile call for the
@@ -268,13 +266,13 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// detect and report duplicate engine specifications with a helpful error message.
 	// When the builtin injection was skipped (builtinSkippedInjection), pass the
 	// known engine ID as mainEngineSetting so the validator counts it correctly.
-	if builtinInjectedEngineID != "" && len(includedEngines) == 0 && len(importsResult.MergedEngines) <= 1 {
+	if builtinEngineID != "" && len(includedEngines) == 0 && len(importsResult.MergedEngines) <= 1 {
 		// Common case: single builtin engine, no @include engines, no conflicting imports.
 		// EngineConfig only needs the ID here; downstream code (engineCatalog.Resolve)
 		// retrieves the full engine definition (runtime, auth, etc.) from the catalog
 		// that was populated at startup by loadBuiltinEngineDefinitions.
-		engineSetting = builtinInjectedEngineID
-		engineConfig = &EngineConfig{ID: builtinInjectedEngineID}
+		engineSetting = builtinEngineID
+		engineConfig = &EngineConfig{ID: builtinEngineID}
 		orchestratorEngineLog.Printf("Fast path: reusing pre-known builtin engine setting %s", engineSetting)
 	} else {
 		// General path: validate that only one engine field exists across all files.
@@ -282,7 +280,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		// the "main engine" so the duplicate check accounts for it correctly.
 		mainEngineForValidation := engineSetting
 		if builtinSkippedInjection {
-			mainEngineForValidation = builtinInjectedEngineID
+			mainEngineForValidation = builtinEngineID
 		}
 		orchestratorEngineLog.Printf("Validating single engine specification")
 		finalEngineSetting, err := c.validateSingleEngineSpecification(mainEngineForValidation, allEngines)
@@ -449,7 +447,42 @@ func isStringFormEngine(frontmatter map[string]any) bool {
 	return isString
 }
 
-// addImportToFrontmatter appends importPath to the "imports" slice in frontmatter.
+// frontmatterHasUserImports reports whether the "imports" field in frontmatter
+// contains at least one user-specified import path. It returns false for a missing
+// "imports" key, an empty slice/array (`imports: []`), and empty object forms
+// (`imports: {}` or `imports: {aw: []}`), which all produce zero import specs.
+// This mirrors the early-exit logic in processImportsFromFrontmatterWithManifestAndSource
+// so the optimisation fires whenever that function would return an empty result.
+func frontmatterHasUserImports(frontmatter map[string]any) bool {
+	raw, exists := frontmatter["imports"]
+	if !exists {
+		return false
+	}
+	switch v := raw.(type) {
+	case []any:
+		return len(v) > 0
+	case []string:
+		return len(v) > 0
+	case string:
+		return v != ""
+	case map[string]any:
+		// Object form {aw: [...]}
+		if awAny, hasAW := v["aw"]; hasAW {
+			switch aw := awAny.(type) {
+			case []any:
+				return len(aw) > 0
+			case []string:
+				return len(aw) > 0
+			}
+		}
+		return false
+	default:
+		// Unknown type — treat conservatively as "has imports" so the builtin
+		// injection still fires and the downstream parser can validate it.
+		return true
+	}
+}
+
 // It handles the case where "imports" may be absent, a []any, a []string, or a
 // single string (which is converted to a two-element slice preserving the original value).
 // When "imports" is an object (map) with an "aw" subfield, the path is appended to "aw".
