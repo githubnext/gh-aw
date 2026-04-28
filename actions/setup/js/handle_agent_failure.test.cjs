@@ -1487,6 +1487,8 @@ describe("handle_agent_failure", () => {
       delete global.core;
       delete global.github;
       delete global.context;
+      delete process.env.GH_AW_ENGINE_API_HOSTS;
+      delete process.env.GH_AW_ENGINE_ID;
       if (tmpDir && fs.existsSync(tmpDir)) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
@@ -1509,39 +1511,39 @@ describe("handle_agent_failure", () => {
       expect(parseFirewallAuthErrors(jsonlPath)).toEqual([]);
     });
 
-    it("detects Copilot 401 auth rejection", () => {
+    it("detects Copilot 401 auth rejection via hardcoded fallback", () => {
       const jsonlPath = path.join(tmpDir, "audit.jsonl");
       fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "api.enterprise.githubcopilot.com:443", status: 401 }));
       const result = parseFirewallAuthErrors(jsonlPath);
       expect(result).toHaveLength(1);
-      expect(result[0].provider).toBe("Copilot");
+      expect(result[0].provider).toBe("GitHub Copilot");
       expect(result[0].credential).toContain("COPILOT_GITHUB_TOKEN");
     });
 
-    it("detects OpenAI 401 auth rejection", () => {
+    it("detects OpenAI 401 auth rejection via hardcoded fallback", () => {
       const jsonlPath = path.join(tmpDir, "audit.jsonl");
       fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "api.openai.com:443", status: 401 }));
       const result = parseFirewallAuthErrors(jsonlPath);
       expect(result).toHaveLength(1);
-      expect(result[0].provider).toBe("OpenAI");
+      expect(result[0].provider).toBe("OpenAI Codex");
       expect(result[0].credential).toContain("OPENAI_API_KEY");
     });
 
-    it("detects Anthropic 403 auth rejection", () => {
+    it("detects Anthropic 403 auth rejection via hardcoded fallback", () => {
       const jsonlPath = path.join(tmpDir, "audit.jsonl");
       fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "api.anthropic.com:443", status: 403 }));
       const result = parseFirewallAuthErrors(jsonlPath);
       expect(result).toHaveLength(1);
-      expect(result[0].provider).toBe("Anthropic");
+      expect(result[0].provider).toBe("Anthropic Claude");
       expect(result[0].credential).toContain("ANTHROPIC_API_KEY");
     });
 
-    it("detects Gemini 403 auth rejection", () => {
+    it("detects Gemini 403 auth rejection via hardcoded fallback", () => {
       const jsonlPath = path.join(tmpDir, "audit.jsonl");
       fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "generativelanguage.googleapis.com:443", status: 403 }));
       const result = parseFirewallAuthErrors(jsonlPath);
       expect(result).toHaveLength(1);
-      expect(result[0].provider).toBe("Gemini");
+      expect(result[0].provider).toBe("Google Gemini");
       expect(result[0].credential).toContain("GEMINI_API_KEY");
     });
 
@@ -1550,7 +1552,7 @@ describe("handle_agent_failure", () => {
       fs.writeFileSync(jsonlPath, [JSON.stringify({ ts: 1000, host: "api.enterprise.githubcopilot.com:443", status: 401 }), JSON.stringify({ ts: 1001, host: "api.githubcopilot.com:443", status: 401 })].join("\n"));
       const result = parseFirewallAuthErrors(jsonlPath);
       expect(result).toHaveLength(1);
-      expect(result[0].provider).toBe("Copilot");
+      expect(result[0].provider).toBe("GitHub Copilot");
     });
 
     it("reports multiple different providers", () => {
@@ -1559,8 +1561,8 @@ describe("handle_agent_failure", () => {
       const result = parseFirewallAuthErrors(jsonlPath);
       expect(result).toHaveLength(2);
       const providers = result.map(r => r.provider);
-      expect(providers).toContain("OpenAI");
-      expect(providers).toContain("Anthropic");
+      expect(providers).toContain("OpenAI Codex");
+      expect(providers).toContain("Anthropic Claude");
     });
 
     it("skips non-JSON lines without throwing", () => {
@@ -1568,7 +1570,48 @@ describe("handle_agent_failure", () => {
       fs.writeFileSync(jsonlPath, ["# comment line", "not json", JSON.stringify({ ts: 1000, host: "api.openai.com:443", status: 401 }), ""].join("\n"));
       const result = parseFirewallAuthErrors(jsonlPath);
       expect(result).toHaveLength(1);
-      expect(result[0].provider).toBe("OpenAI");
+      expect(result[0].provider).toBe("OpenAI Codex");
+    });
+
+    it("uses GH_AW_ENGINE_API_HOSTS env var when set", () => {
+      process.env.GH_AW_ENGINE_API_HOSTS = "api.enterprise.githubcopilot.com,api.githubcopilot.com";
+      process.env.GH_AW_ENGINE_ID = "copilot";
+      vi.resetModules();
+      ({ parseFirewallAuthErrors } = require("./handle_agent_failure.cjs"));
+
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "api.enterprise.githubcopilot.com:443", status: 401 }));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(1);
+      expect(result[0].provider).toBe("GitHub Copilot");
+      expect(result[0].credential).toContain("COPILOT_GITHUB_TOKEN");
+    });
+
+    it("uses engine label from ENGINE_ID_TO_LABEL when env var host matches", () => {
+      process.env.GH_AW_ENGINE_API_HOSTS = "api.anthropic.com";
+      process.env.GH_AW_ENGINE_ID = "claude";
+      vi.resetModules();
+      ({ parseFirewallAuthErrors } = require("./handle_agent_failure.cjs"));
+
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "api.anthropic.com:443", status: 401 }));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(1);
+      expect(result[0].provider).toBe("Anthropic Claude");
+      expect(result[0].credential).toContain("ANTHROPIC_API_KEY");
+    });
+
+    it("uses engine ID as provider label when not in lookup table", () => {
+      process.env.GH_AW_ENGINE_API_HOSTS = "custom-llm.internal.example.com";
+      process.env.GH_AW_ENGINE_ID = "custom";
+      vi.resetModules();
+      ({ parseFirewallAuthErrors } = require("./handle_agent_failure.cjs"));
+
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "custom-llm.internal.example.com:443", status: 401 }));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(1);
+      expect(result[0].provider).toBe("custom");
     });
 
     it("selective pre-scan: skips full parse when no 4xx entries in large file", () => {
@@ -1642,8 +1685,8 @@ describe("handle_agent_failure", () => {
       const jsonlPath = path.join(tmpDir, "audit.jsonl");
       fs.writeFileSync(jsonlPath, [JSON.stringify({ ts: 1000, host: "api.enterprise.githubcopilot.com:443", status: 401 }), JSON.stringify({ ts: 1001, host: "api.anthropic.com:443", status: 403 })].join("\n"));
       const result = buildCredentialAuthErrorContext(jsonlPath);
-      expect(result).toContain("Copilot");
-      expect(result).toContain("Anthropic");
+      expect(result).toContain("GitHub Copilot");
+      expect(result).toContain("Anthropic Claude");
     });
 
     it("derives audit.jsonl path from GH_AW_AGENT_OUTPUT when no override provided", () => {

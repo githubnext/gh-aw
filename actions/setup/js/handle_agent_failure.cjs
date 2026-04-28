@@ -812,21 +812,74 @@ function buildStaleLockFileFailedContext(hasStaleLockFileFailed) {
   return "\n" + template;
 }
 
-// Known AI provider API hostnames and their associated credential names.
+// Maps engine ID (GH_AW_ENGINE_ID) to credential name for use with GH_AW_ENGINE_API_HOSTS.
+const ENGINE_ID_TO_CREDENTIAL = /** @type {Record<string, string>} */ {
+  copilot: "`COPILOT_GITHUB_TOKEN`",
+  claude: "`ANTHROPIC_API_KEY`",
+  codex: "`CODEX_API_KEY` / `OPENAI_API_KEY`",
+  gemini: "`GEMINI_API_KEY`",
+};
+
+// Maps engine ID to a human-readable provider label.
+const ENGINE_ID_TO_LABEL = /** @type {Record<string, string>} */ {
+  copilot: "GitHub Copilot",
+  claude: "Anthropic Claude",
+  codex: "OpenAI Codex",
+  gemini: "Google Gemini",
+};
+
+// Hardcoded fallback provider hosts for when GH_AW_ENGINE_API_HOSTS is not set.
 // The host patterns are matched against the "host" field in audit.jsonl entries.
 const FIREWALL_AUTH_PROVIDER_HOSTS = /** @type {Array<{provider: string, pattern: RegExp, credential: string}>} */ [
-  { provider: "Copilot", pattern: /\.githubcopilot\.com/i, credential: "`COPILOT_GITHUB_TOKEN`" },
-  { provider: "OpenAI", pattern: /^api\.openai\.com/i, credential: "`OPENAI_API_KEY`" },
-  { provider: "Anthropic", pattern: /^api\.anthropic\.com/i, credential: "`ANTHROPIC_API_KEY`" },
-  { provider: "Gemini", pattern: /^generativelanguage\.googleapis\.com/i, credential: "`GEMINI_API_KEY`" },
+  { provider: "GitHub Copilot", pattern: /\.githubcopilot\.com/i, credential: "`COPILOT_GITHUB_TOKEN`" },
+  { provider: "OpenAI Codex", pattern: /^api\.openai\.com/i, credential: "`CODEX_API_KEY` / `OPENAI_API_KEY`" },
+  { provider: "Anthropic Claude", pattern: /^api\.anthropic\.com/i, credential: "`ANTHROPIC_API_KEY`" },
+  { provider: "Google Gemini", pattern: /^generativelanguage\.googleapis\.com/i, credential: "`GEMINI_API_KEY`" },
 ];
+
+/**
+ * Build the list of registered provider entries from the GH_AW_ENGINE_API_HOSTS and
+ * GH_AW_ENGINE_ID environment variables. Falls back to the hardcoded
+ * FIREWALL_AUTH_PROVIDER_HOSTS list when the env var is not set.
+ *
+ * @returns {Array<{provider: string, credential: string, hosts?: string[], pattern?: RegExp}>} Provider entries
+ */
+function buildRegisteredProviderEntries() {
+  const engineApiHosts = process.env.GH_AW_ENGINE_API_HOSTS;
+  const engineId = (process.env.GH_AW_ENGINE_ID || "").toLowerCase();
+
+  if (engineApiHosts) {
+    const hosts = engineApiHosts
+      .split(",")
+      .map(h => h.trim().toLowerCase())
+      .filter(Boolean);
+    if (hosts.length > 0) {
+      const provider = ENGINE_ID_TO_LABEL[engineId] || engineId || "Engine";
+      const credential = ENGINE_ID_TO_CREDENTIAL[engineId] || "`API_KEY`";
+      return [{ provider, credential, hosts }];
+    }
+  }
+
+  // Fallback: use hardcoded patterns, converting to the same shape.
+  return FIREWALL_AUTH_PROVIDER_HOSTS.map(({ provider, pattern, credential }) => ({
+    provider,
+    credential,
+    hosts: /** @type {string[]} */ [],
+    pattern,
+  }));
+}
 
 /**
  * Parse the firewall audit.jsonl for authentication rejection entries.
  *
- * Uses a two-pass approach for performance on large JSONL files:
- *   1. Quick regex pre-scan: bail early if no 401/403 status codes appear at all.
- *   2. Full JSONL parse: extract entries with status 401/403 targeting known provider endpoints.
+ * Performance strategy for large JSONL files (three-pass approach):
+ *   1. Quick file-level regex pre-scan: bail early if no 401/403 status codes appear at all.
+ *   2. Per-line regex pre-filter: skip lines without a 401/403 status pattern before JSON.parse.
+ *   3. Full JSON parse: only for lines that pass both pre-filters.
+ *
+ * Providers are resolved dynamically from GH_AW_ENGINE_API_HOSTS / GH_AW_ENGINE_ID env vars
+ * (set by the workflow compiler for the current engine). Falls back to a hardcoded list of
+ * known public provider API hosts when the env var is not available.
  *
  * @param {string} auditJsonlPath - Path to audit.jsonl
  * @returns {Array<{provider: string, credential: string}>} Unique providers with auth rejections
@@ -842,21 +895,25 @@ function parseFirewallAuthErrors(auditJsonlPath) {
       return [];
     }
 
-    // Selective pre-scan: check for any 401 or 403 status codes before full JSON parse.
+    // Pass 1 — file-level pre-scan: bail early when no 401 or 403 appears anywhere.
     // The audit.jsonl format uses `"status":401` or `"status": 401` (compact or spaced).
     // `40[13]` matches digits 1 and 3 only, covering status codes 401 and 403.
-    // This avoids iterating all lines when there are no authentication failures.
     if (!/"status"\s*:\s*40[13]/.test(content)) {
       return [];
     }
 
-    // Full JSONL parse: find 401/403 entries targeting known provider endpoints.
+    // Build the provider list from env vars (or fallback to hardcoded patterns).
+    const providerEntries = buildRegisteredProviderEntries();
     const seenProviders = new Set();
     const results = [];
 
     for (const line of content.split("\n")) {
       const trimmed = line.trim();
       if (!trimmed || trimmed[0] !== "{") continue;
+
+      // Pass 2 — per-line regex pre-filter: skip lines that cannot have a 401/403 status.
+      // This avoids the JSON.parse overhead on the majority of non-auth-failure lines.
+      if (!/"status"\s*:\s*40[13]/.test(trimmed)) continue;
 
       let entry;
       try {
@@ -871,10 +928,22 @@ function parseFirewallAuthErrors(auditJsonlPath) {
       const host = typeof entry.host === "string" ? entry.host : "";
       if (!host) continue;
       // Strip port from host for matching (e.g. "api.openai.com:443" → "api.openai.com")
-      const hostWithoutPort = host.replace(/:\d+$/, "");
+      const hostWithoutPort = host.replace(/:\d+$/, "").toLowerCase();
 
-      for (const { provider, pattern, credential } of FIREWALL_AUTH_PROVIDER_HOSTS) {
-        if (!seenProviders.has(provider) && pattern.test(hostWithoutPort)) {
+      for (const providerEntry of providerEntries) {
+        const { provider, credential } = providerEntry;
+        if (seenProviders.has(provider)) continue;
+
+        // Dynamic matching: check if the host is in the registered hosts list.
+        let matched = false;
+        if (providerEntry.hosts && providerEntry.hosts.length > 0) {
+          matched = providerEntry.hosts.some(h => hostWithoutPort === h || hostWithoutPort.endsWith("." + h));
+        } else if (providerEntry.pattern) {
+          // Fallback: use the pattern from the hardcoded list.
+          matched = providerEntry.pattern.test(hostWithoutPort);
+        }
+
+        if (matched) {
           seenProviders.add(provider);
           results.push({ provider, credential });
           break;
@@ -914,20 +983,8 @@ function buildCredentialAuthErrorContext(auditJsonlPathOverride) {
   const providersList = authErrors.map(e => `- ${e.provider} (${e.credential})`).join("\n");
 
   const templatePath = getPromptPath("credential_auth_error.md");
-  try {
-    return "\n" + renderTemplateFromFile(templatePath, { providers: providersList });
-  } catch {
-    // Template not available — return inline message
-    return (
-      "\n**🔑 Credential Authentication Failed**: The firewall audit log detected authentication rejections (HTTP 401/403) from AI provider APIs. " +
-      "The following provider credentials appear to be missing, expired, or invalid:\n\n" +
-      providersList +
-      "\n\nVerify that the required API keys are configured as repository secrets and have not expired. " +
-      "See: [Engine Reference](https://github.github.com/gh-aw/reference/engines/)\n"
-    );
-  }
+  return "\n" + renderTemplateFromFile(templatePath, { providers: providersList });
 }
-
 /**
  * Build a context string when assigning the Copilot coding agent to created issues failed.
  * @param {boolean} hasAssignCopilotFailures - Whether any copilot assignments failed

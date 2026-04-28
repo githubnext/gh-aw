@@ -1058,6 +1058,7 @@ jobs:
           GH_AW_MCP_POLICY_ERROR: ${{ needs.agent.outputs.mcp_policy_error }}
           GH_AW_AGENTIC_ENGINE_TIMEOUT: ${{ needs.agent.outputs.agentic_engine_timeout }}
           GH_AW_MODEL_NOT_SUPPORTED_ERROR: ${{ needs.agent.outputs.model_not_supported_error }}
+          GH_AW_ENGINE_API_HOSTS: "api.enterprise.githubcopilot.com,api.githubcopilot.com,api.business.githubcopilot.com,api.individual.githubcopilot.com"
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
           GH_AW_STALE_LOCK_FILE_FAILED: ${{ needs.activation.outputs.stale_lock_file_failed }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"footerWorkflowRecompile\":\"\\u003e 🔄 *Maintenance report by [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"🔍 [{workflow_name}]({run_url}) is searching the web on this {event_type}.\",\"runSuccess\":\"✅ Research complete. [{workflow_name}]({run_url}) has returned with results.\",\"runFailure\":\"❌ Search failed. [{workflow_name}]({run_url}) {status}. Unable to retrieve web sources.\"}"
