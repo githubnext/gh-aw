@@ -525,7 +525,9 @@ This workflow tests that agentic-workflows uses the correct container in dev mod
 
 // TestNpxCommandAutoContainerization verifies that `command: "npx"` with args is auto-converted to a
 // containerized stdio server without duplicating the command in entrypointArgs.
-// Regression test for https://github.com/github/gh-aw/issues/NNN — "npx npx" double-command bug.
+// Regression test: the auto-containerization previously prepended the command (e.g. "npx") to
+// entrypointArgs, which caused Docker to run "npx npx @sentry/mcp-server" instead of the correct
+// "npx @sentry/mcp-server", resulting in the MCP server exposing 0 tools.
 func TestNpxCommandAutoContainerization(t *testing.T) {
 	tests := []struct {
 		name         string
