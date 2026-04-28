@@ -105,7 +105,7 @@ func NewSecretsInRunChecker() *SecretsInRunChecker {
 
 // Name implements Checker.
 func (c *SecretsInRunChecker) Name() string {
-	return "rgs008-secrets-in-run"
+	return "secrets-in-run"
 }
 
 // Check implements Checker.

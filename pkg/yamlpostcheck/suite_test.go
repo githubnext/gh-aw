@@ -49,7 +49,7 @@ func TestNew_RegistersDefaultCheckers(t *testing.T) {
 	for i, c := range s.checkers {
 		names[i] = c.Name()
 	}
-	assert.Contains(t, names, "rgs008-secrets-in-run", "default suite should include rgs008-secrets-in-run")
+	assert.Contains(t, names, "secrets-in-run", "default suite should include secrets-in-run")
 }
 
 func TestSuite_Register_PanicsOnNil(t *testing.T) {

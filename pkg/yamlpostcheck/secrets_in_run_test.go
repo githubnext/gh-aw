@@ -41,7 +41,7 @@ func buildStep(kvs ...any) map[string]any {
 
 func TestSecretsInRunChecker_Name(t *testing.T) {
 	c := NewSecretsInRunChecker()
-	assert.Equal(t, "rgs008-secrets-in-run", c.Name(), "checker name should match")
+	assert.Equal(t, "secrets-in-run", c.Name(), "checker name should match")
 }
 
 func TestSecretsInRunChecker_NoJobs(t *testing.T) {
@@ -304,4 +304,208 @@ func TestSecretsInRunChecker_IdempotentOnAlreadyMapped(t *testing.T) {
 	require.NoError(t, err, "second run should not error")
 	assert.False(t, result2.Changed, "second run should be a no-op")
 	assert.Empty(t, result2.Fixes, "second run should produce no fixes")
+}
+
+// ---------------------------------------------------------------------------
+// Additional tests
+// ---------------------------------------------------------------------------
+
+func TestSecretsInRunChecker_AnonymousStep(t *testing.T) {
+	// Step without a "name" field — fix label should fall back to job/index form.
+	c := NewSecretsInRunChecker()
+	step := buildStep(
+		"run", `echo "${{ secrets.ANON_SECRET }}"`,
+	)
+	tree := buildTree([]any{step})
+
+	result, err := c.Check(tree)
+	require.NoError(t, err, "should not error on anonymous step")
+	assert.True(t, result.Changed, "anonymous step should be fixed")
+	require.Len(t, result.Fixes, 1, "should have one fix")
+	// Fix label should reference job and index, not a step name.
+	assert.Contains(t, result.Fixes[0], "agent", "fix label should mention the job name")
+}
+
+func TestSecretsInRunChecker_JobsNotAMap(t *testing.T) {
+	// jobs: is present but has unexpected type — checker should skip gracefully.
+	c := NewSecretsInRunChecker()
+	tree := map[string]any{
+		"jobs": "not-a-map",
+	}
+	result, err := c.Check(tree)
+	require.NoError(t, err, "should not error when jobs: is not a map")
+	assert.False(t, result.Changed, "should not be changed when jobs: is not a map")
+}
+
+func TestSecretsInRunChecker_StepsNotASlice(t *testing.T) {
+	// steps: present but not a slice — checker should skip the job gracefully.
+	c := NewSecretsInRunChecker()
+	tree := map[string]any{
+		"jobs": map[string]any{
+			"agent": map[string]any{
+				"steps": "not-a-slice",
+			},
+		},
+	}
+	result, err := c.Check(tree)
+	require.NoError(t, err, "should not error when steps: is not a slice")
+	assert.False(t, result.Changed, "should not be changed when steps: is not a slice")
+}
+
+func TestSecretsInRunChecker_StepNotAMap(t *testing.T) {
+	// A step value that is not a map — checker should skip gracefully.
+	c := NewSecretsInRunChecker()
+	tree := map[string]any{
+		"jobs": map[string]any{
+			"agent": map[string]any{
+				"steps": []any{"string-step", 42},
+			},
+		},
+	}
+	result, err := c.Check(tree)
+	require.NoError(t, err, "should not error on non-map step")
+	assert.False(t, result.Changed, "non-map steps should not be changed")
+}
+
+func TestSecretsInRunChecker_WhitespaceVariations(t *testing.T) {
+	// ${{ secrets.TOKEN }} with extra whitespace inside the expression.
+	c := NewSecretsInRunChecker()
+	step := buildStep(
+		"name", "Whitespace",
+		"run", `echo "${{  secrets.TOKEN  }}"`,
+	)
+	tree := buildTree([]any{step})
+
+	result, err := c.Check(tree)
+	require.NoError(t, err, "should not error on whitespace variant")
+	assert.True(t, result.Changed, "whitespace variant should still be fixed")
+
+	updatedStep := tree["jobs"].(map[string]any)["agent"].(map[string]any)["steps"].([]any)[0].(map[string]any)
+	assert.NotContains(t, updatedStep["run"].(string), "${{", "run: should have no expression syntax")
+	envMap := updatedStep["env"].(map[string]any)
+	assert.Equal(t, "${{  secrets.TOKEN  }}", envMap["TOKEN"],
+		"env: should preserve the original expression verbatim")
+}
+
+func TestSecretsInRunChecker_MixedSecretsAndGithubToken(t *testing.T) {
+	// A single run: block containing both ${{ secrets.* }} and ${{ github.token }}.
+	c := NewSecretsInRunChecker()
+	step := buildStep(
+		"name", "Mixed",
+		"run", `
+gh auth login --with-token <<< "${{ github.token }}"
+curl -H "Authorization: Bearer ${{ secrets.API_KEY }}" https://api.example.com`,
+	)
+	tree := buildTree([]any{step})
+
+	result, err := c.Check(tree)
+	require.NoError(t, err, "should not error on mixed expressions")
+	assert.True(t, result.Changed, "tree should be changed")
+	assert.Len(t, result.Fixes, 2, "should have two fixes (github.token + API_KEY)")
+
+	updatedStep := tree["jobs"].(map[string]any)["agent"].(map[string]any)["steps"].([]any)[0].(map[string]any)
+	envMap, ok := updatedStep["env"].(map[string]any)
+	require.True(t, ok, "env: map should be present")
+	assert.Equal(t, "${{ github.token }}", envMap["GITHUB_TOKEN"], "GITHUB_TOKEN should be set")
+	assert.Equal(t, "${{ secrets.API_KEY }}", envMap["API_KEY"], "API_KEY should be set")
+	assert.NotContains(t, updatedStep["run"].(string), "${{", "run: should have no expression syntax")
+}
+
+func TestSecretsInRunChecker_EnvMapUnexpectedType(t *testing.T) {
+	// env: key is present but has an unexpected (non-map) type — should be
+	// replaced with a fresh map containing the fix.
+	c := NewSecretsInRunChecker()
+	step := buildStep(
+		"name", "Bad env type",
+		"env", "not-a-map",
+		"run", `echo "${{ secrets.MY_SECRET }}"`,
+	)
+	tree := buildTree([]any{step})
+
+	result, err := c.Check(tree)
+	require.NoError(t, err, "should not error when env: has unexpected type")
+	assert.True(t, result.Changed, "tree should be changed even with bad env: type")
+
+	updatedStep := tree["jobs"].(map[string]any)["agent"].(map[string]any)["steps"].([]any)[0].(map[string]any)
+	envMap, ok := updatedStep["env"].(map[string]any)
+	require.True(t, ok, "env: should be replaced with a map")
+	assert.Equal(t, "${{ secrets.MY_SECRET }}", envMap["MY_SECRET"], "new env var should be present")
+}
+
+func TestSecretsInRunChecker_MultipleStepsInSameJob(t *testing.T) {
+	// Multiple steps in the same job that each need fixing.
+	c := NewSecretsInRunChecker()
+	tree := buildTree([]any{
+		buildStep("name", "Step 1", "run", `echo "${{ secrets.SECRET_ONE }}"`),
+		buildStep("name", "Step 2", "uses", "actions/checkout@v4"),
+		buildStep("name", "Step 3", "run", `echo "${{ secrets.SECRET_TWO }}"`),
+	})
+
+	result, err := c.Check(tree)
+	require.NoError(t, err, "should not error")
+	assert.True(t, result.Changed, "tree should be changed")
+	assert.Len(t, result.Fixes, 2, "should fix both run: steps")
+
+	steps := tree["jobs"].(map[string]any)["agent"].(map[string]any)["steps"].([]any)
+	step1 := steps[0].(map[string]any)
+	step3 := steps[2].(map[string]any)
+
+	assert.Contains(t, step1["env"].(map[string]any), "SECRET_ONE", "step1 should have SECRET_ONE in env:")
+	assert.Contains(t, step3["env"].(map[string]any), "SECRET_TWO", "step3 should have SECRET_TWO in env:")
+}
+
+func TestSecretsInRunChecker_GithubTokenAndEnvGithubTokenCollision(t *testing.T) {
+	// Both ${{ github.token }} and ${{ env.GITHUB_TOKEN }} appear in the same
+	// run: block.  Both map to GITHUB_TOKEN; one gets the canonical name and
+	// the other gets TOKEN_1 (collision resolution).
+	c := NewSecretsInRunChecker()
+	step := buildStep(
+		"name", "Double token",
+		"run", `echo "${{ github.token }}" && echo "${{ env.GITHUB_TOKEN }}"`,
+	)
+	tree := buildTree([]any{step})
+
+	result, err := c.Check(tree)
+	require.NoError(t, err, "should not error")
+	assert.True(t, result.Changed, "tree should be changed")
+
+	updatedStep := tree["jobs"].(map[string]any)["agent"].(map[string]any)["steps"].([]any)[0].(map[string]any)
+	envMap, ok := updatedStep["env"].(map[string]any)
+	require.True(t, ok, "env: map should be present")
+
+	// First GITHUB_TOKEN wins; second resolves to GITHUB_TOKEN_1.
+	assert.Contains(t, envMap, "GITHUB_TOKEN", "GITHUB_TOKEN should be set for the first token expression")
+	assert.Contains(t, envMap, "GITHUB_TOKEN_1", "GITHUB_TOKEN_1 should be set for the second token expression")
+	assert.NotContains(t, updatedStep["run"].(string), "${{", "run: should have no expression syntax")
+}
+
+func TestSecretsInRunChecker_SecretNamePreservesCase(t *testing.T) {
+	// env var name is derived from the secret name uppercased.
+	c := NewSecretsInRunChecker()
+	step := buildStep(
+		"name", "Mixed case",
+		"run", `echo "${{ secrets.mySecret }}"`,
+	)
+	tree := buildTree([]any{step})
+
+	result, err := c.Check(tree)
+	require.NoError(t, err)
+	assert.True(t, result.Changed)
+
+	updatedStep := tree["jobs"].(map[string]any)["agent"].(map[string]any)["steps"].([]any)[0].(map[string]any)
+	envMap := updatedStep["env"].(map[string]any)
+	// Secret name "mySecret" should become "MYSECRET" (uppercased).
+	assert.Contains(t, envMap, "MYSECRET", "env var name should be uppercased from secret name")
+}
+
+func TestBuildStep_PanicsOnOddArgCount(t *testing.T) {
+	assert.Panics(t, func() {
+		buildStep("key") //nolint:staticcheck // intentional odd-arg call to test panic
+	}, "buildStep should panic on odd argument count")
+}
+
+func TestBuildStep_PanicsOnNonStringKey(t *testing.T) {
+	assert.Panics(t, func() {
+		buildStep(42, "value") // non-string key
+	}, "buildStep should panic on non-string key")
 }
