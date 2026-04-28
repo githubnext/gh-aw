@@ -1181,7 +1181,7 @@ describe("create_pull_request - configured reviewers", () => {
 
   it("should retry addLabels on race condition and warn after all retries exhausted", async () => {
     // GitHub API transiently fails to resolve the PR node ID immediately after creation.
-    // withRetry retries 3 times (4 total calls); after exhaustion it should warn but NOT fall back to an issue.
+    // withRetry retries 5 times (6 total calls); after exhaustion it should warn but NOT fall back to an issue.
     vi.useFakeTimers();
     try {
       global.github.rest.issues.addLabels.mockRejectedValue(new Error("Validation Failed: Could not resolve to a node with the global id of 'PR_kwDOPc1QR87OOJzM'."));
@@ -1191,15 +1191,15 @@ describe("create_pull_request - configured reviewers", () => {
 
       const resultPromise = handler({ title: "Test PR", body: "Test body", labels: ["automation"] }, {});
 
-      // Advance all fake timers to skip the retry delays (3s, 6s, 12s)
+      // Advance all fake timers to skip the retry delays (6s, 12s, 24s, 30s, 30s)
       await vi.runAllTimersAsync();
 
       const result = await resultPromise;
 
       expect(result.success).toBe(true);
       expect(result.fallback_used).toBeUndefined();
-      // addLabels called once initially + 3 retries = 4 total
-      expect(global.github.rest.issues.addLabels).toHaveBeenCalledTimes(4);
+      // addLabels called once initially + 5 retries = 6 total
+      expect(global.github.rest.issues.addLabels).toHaveBeenCalledTimes(6);
       expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add labels to PR #42"));
     } finally {
       vi.useRealTimers();
