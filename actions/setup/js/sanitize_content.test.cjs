@@ -323,6 +323,39 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("<!-- <!-- <!-- --> --> PAYLOAD -->");
       expect(result).toBe("");
     });
+
+    it("should remove multiple independent comments leaving surrounding text", () => {
+      const result = sanitizeContent("<!-- a --> text <!-- b --> more");
+      expect(result).toBe("text  more");
+    });
+
+    it("should remove empty comment <!---->", () => {
+      const result = sanitizeContent("before <!----> after");
+      expect(result).toBe("before  after");
+    });
+
+    it("should strip all content after unclosed comment opener", () => {
+      // An opener with no matching closer should consume everything to EOF
+      const result = sanitizeContent("before <!-- no closer");
+      expect(result).toBe("before");
+    });
+
+    it("should remove adjacent comments with no text between them", () => {
+      const result = sanitizeContent("<!--a--><!--b-->text");
+      expect(result).toBe("text");
+    });
+
+    it("should remove nested comment with malformed --!> outer closer", () => {
+      // Outer closer uses --!> form; inner comment has normal --> closer
+      const result = sanitizeContent("<!-- <!-- --> PAYLOAD --!>");
+      expect(result).toBe("");
+    });
+
+    it("should preserve a stray closer --> with no matching opener", () => {
+      // A --> without a preceding <!-- is literal text, not a comment closer
+      const result = sanitizeContent("no opener --> text");
+      expect(result).toBe("no opener --> text");
+    });
   });
 
   describe("markdown link title neutralization", () => {
