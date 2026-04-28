@@ -19,7 +19,7 @@
   "dependencies": {
     "@astrojs/rss": "^4.0.18",
     "@astrojs/sitemap": "^3.7.2",
-    "@astrojs/starlight": "^0.38.3",
+    "@astrojs/starlight": "^0.38.4",
     "@primer/octicons": "^19.24.1",
     "astro": "^6.1.8",
     "astro-mermaid": "^2.0.1",
