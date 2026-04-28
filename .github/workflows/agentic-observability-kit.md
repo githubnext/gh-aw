@@ -1,7 +1,7 @@
 ---
 description: Drop-in observability and portfolio review
 on:
-  schedule: weekly on monday around 08:00
+  schedule: weekly on tuesday around 08:00
   workflow_dispatch:
 permissions:
   contents: read

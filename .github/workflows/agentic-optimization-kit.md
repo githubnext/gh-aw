@@ -28,9 +28,12 @@ safe-outputs:
     labels: [agentics, warning, observability]
     close-older-issues: true
     max: 1
+  upload-asset:
+    max: 5
+    allowed-exts: [.png]
   noop:
     report-as-issue: false
-timeout-minutes: 35
+timeout-minutes: 50
 imports:
   - uses: shared/daily-audit-charts.md
     with:
@@ -158,6 +161,10 @@ Follow these three layers in order, each feeding the next:
 
 Source-of-truth precedence: Episodes override workflow-level aggregates. Optimization action recommendations override generic observations. Baseline numbers are canonical for cost and token counts.
 
+## Phase Timing Checkpoints
+
+At the start of every phase, log a timestamp with `echo "⏱️ Phase N start: $(date -u +%H:%M:%SZ)"`. At the end of each phase, log elapsed time with `echo "✅ Phase N complete: $(date -u +%H:%M:%SZ)"`. This helps identify which phases consume the most wall-clock time so future timeouts can be sized accurately.
+
 ## Data Inputs
 
 - `/tmp/gh-aw/token-audit/all-runs.json` — full 7-day run data (`gh aw logs --json`)
@@ -216,6 +223,13 @@ Rules:
 
 Use `gh` CLI via cli-proxy to read the target workflow `.md` source. Validate configured tools, feature flags, imported shared components, prompt structure, and network constraints.
 
+To fetch a workflow file, run (replacing `WORKFLOW_NAME` with the actual filename without extension):
+
+```bash
+gh api repos/{owner}/{repo}/contents/.github/workflows/WORKFLOW_NAME.md \
+  --jq '.content' | base64 -d
+```
+
 ### Build Optimization Recommendations
 
 Produce a ranked list of ≤5 recommendations, each with:
@@ -227,17 +241,17 @@ Produce a ranked list of ≤5 recommendations, each with:
 ### Update Optimization Log
 
 Append one entry to `/tmp/gh-aw/repo-memory/default/optimization-log.json`:
-`{"date":"2026-04-28","workflow_name":"daily-observability-report","total_tokens_analyzed":950000,"runs_audited":7,"recommendations_count":3,"estimated_savings_per_run":12000}`
+`{"date":"<TODAY>","workflow_name":"<WORKFLOW_NAME>","total_tokens_analyzed":<TOTAL_TOKENS>,"runs_audited":<RUNS_AUDITED>,"recommendations_count":<RECS_COUNT>,"estimated_savings_per_run":<SAVINGS_PER_RUN>}`
 
-Replace the example date, workflow name, and numbers with actual values from this run.
+Replace every placeholder with actual values from this run.
 
-Load existing array if present, append, keep only last 30 entries, and save.
+Load existing array if present, append, keep only entries from the last 30 days (drop entries whose `date` is older than 30 days), and save.
 
 ## Phase 3 — Episode and Observability Analysis
 
 Use the `agentic-workflows` MCP `logs` tool to get the full 30-day run set with episodes:
 - Leave `workflow_name` empty (analyze full repository).
-- Use `count` of 400 to cover the repository.
+- Use `count` of 1000 to cover the repository.
 - Extract `episodes[]`, `edges[]`, `agentic_assessments[]`, `behavior_fingerprint`, `task_domain`, and `comparison` fields.
 
 Build three DataFrames for charting (Phase 4):
@@ -272,7 +286,7 @@ Identify:
 - Overlap pairs: workflows with similar task domain + schedule + behavioral fingerprint.
 
 Compute `workflow_overlap_score(a,b)` = `0.30 * same_task_domain + 0.25 * same_schedule_family + 0.20 * same_behavior_cluster + 0.15 * name_similarity + 0.10 * assessment_similarity`.
-- `same_task_domain`, `same_schedule_family`, `same_behavior_cluster` are boolean (0 or 1); `name_similarity` and `assessment_similarity` are continuous in [0, 1] (Jaccard or cosine similarity). Result is in [0, 1]; values ≥0.55 are strong consolidation candidates.
+- `same_task_domain`, `same_schedule_family`, `same_behavior_cluster` are boolean (0 or 1); `name_similarity` and `assessment_similarity` are continuous in [0, 1] (Jaccard similarity on token sets). Result is in [0, 1]; values ≥0.55 are strong consolidation candidates.
 
 ## Phase 4 — Generate 5 Charts
 

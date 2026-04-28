@@ -48,7 +48,7 @@ steps:
         --engine copilot \
         --start-date -7d \
         --json \
-        -c 50 \
+        -c 200 \
         > /tmp/gh-aw/token-audit/all-runs.json || LOGS_EXIT=$?
 
       if [ -s /tmp/gh-aw/token-audit/all-runs.json ]; then
@@ -85,11 +85,11 @@ steps:
           | map({
               workflow_name: .[0].workflow_name,
               run_count: length,
-              total_tokens: (map(.tokens) | add),
-              avg_tokens: ((map(.tokens) | add) / length),
-              total_cost: (map(.cost) | add),
-              total_turns: (map(.turns) | add),
-              total_action_minutes: (map(.action_minutes) | add)
+              total_tokens: (map(.tokens) | add // 0),
+              avg_tokens: ((map(.tokens) | add // 0) / length),
+              total_cost: (map(.cost) | add // 0),
+              total_turns: (map(.turns) | add // 0),
+              total_action_minutes: (map(.action_minutes) | add // 0)
             })
           | sort_by(.total_tokens)
           | reverse
@@ -209,7 +209,7 @@ Append one entry to `/tmp/gh-aw/repo-memory/default/optimization-log.json`:
 
 `{"date":"YYYY-MM-DD","workflow_name":"...","total_tokens_analyzed":N,"runs_audited":N,"recommendations_count":N,"estimated_savings_per_run":N}`
 
-Load existing array if present, append, keep only last 30 entries, and save.
+Load existing array if present, append, keep only entries from the last 30 days (drop entries whose `date` is older than 30 days), and save.
 
 ## Guardrails
 
