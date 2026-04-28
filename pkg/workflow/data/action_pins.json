@@ -168,10 +168,10 @@
       "version": "v2.2.0",
       "sha": "0c5077e51419868618aeaa5fe8019c62421857d6"
     },
-    "ruby/setup-ruby@v1.305.0": {
+    "ruby/setup-ruby@v1.306.0": {
       "repo": "ruby/setup-ruby",
-      "version": "v1.305.0",
-      "sha": "0cb964fd540e0a24c900370abf38a33466142735"
+      "version": "v1.306.0",
+      "sha": "c4e5b1316158f92e3d49443a9d58b31d25ac0f8f"
     },
     "super-linter/super-linter@v8.6.0": {
       "repo": "super-linter/super-linter",
