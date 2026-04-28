@@ -39,8 +39,6 @@ imports:
   - shared/copilot-session-data-fetch.md
   - shared/copilot-pr-data-fetch.md
   - shared/reporting.md
-features:
-  mcp-cli: true
 timeout-minutes: 30
 ---
 {{#runtime-import? .github/shared-instructions.md}}

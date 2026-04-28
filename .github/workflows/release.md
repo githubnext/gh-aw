@@ -464,10 +464,8 @@ steps:
       echo "    closing_refs_by_issue.json, pull_requests.json)"
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
 
-features:
-  mcp-cli: true
 ---
 
 # Release Highlights Generator

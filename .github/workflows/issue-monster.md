@@ -399,7 +399,7 @@ imports:
 timeout-minutes: 30
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     min-integrity: approved
     toolsets: [issues]
@@ -429,8 +429,6 @@ safe-outputs:
     run-success: "🍪 YUMMY! [{workflow_name}]({run_url}) ate the issues! That was DELICIOUS! Me want MORE! 😋"
     run-failure: "🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢"
 
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

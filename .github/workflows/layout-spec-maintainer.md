@@ -41,7 +41,7 @@ safe-outputs:
     draft: false
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [default]
   edit:
@@ -56,8 +56,6 @@ tools:
 
 timeout-minutes: 20
 
-features:
-  mcp-cli: true
 ---
 
 # Layout Specification Maintainer

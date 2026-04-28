@@ -31,7 +31,7 @@ safe-outputs:
     max: 1
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [default]
   edit:
@@ -41,7 +41,6 @@ tools:
 timeout-minutes: 20
 strict: true
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

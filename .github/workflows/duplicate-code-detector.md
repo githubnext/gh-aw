@@ -23,10 +23,8 @@ timeout-minutes: 15
 strict: true
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
 
-features:
-  mcp-cli: true
 ---
 
 # Duplicate Code Detection

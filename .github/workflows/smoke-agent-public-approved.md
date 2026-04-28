@@ -17,7 +17,7 @@ imports:
   - shared/github-guard-policy.md
   - shared/observability-otlp.md
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     mode: local
     allowed-repos: "public"
@@ -42,8 +42,6 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent."
     run-failure: "❌ [{workflow_name}]({run_url}) {status}. Check the logs for details."
 timeout-minutes: 10
-features:
-  mcp-cli: true
 ---
 
 # Smoke Agent: assign-to-agent with agentic-workflows

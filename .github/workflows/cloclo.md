@@ -21,7 +21,7 @@ imports:
   - shared/mcp/serena-go.md
   - shared/reporting.md
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   edit:
   playwright:
@@ -45,8 +45,6 @@ safe-outputs:
     run-failure: "🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!"
 timeout-minutes: 20
 
-features:
-  mcp-cli: true
 ---
 
 # /cloclo

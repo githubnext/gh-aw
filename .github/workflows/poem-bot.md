@@ -39,7 +39,7 @@ network: {}
 
 # Tools configuration
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [default]
   edit:
@@ -148,8 +148,6 @@ safe-outputs:
 timeout-minutes: 10
 strict: true
 
-features:
-  mcp-cli: true
 ---
 
 # Poem Bot - A Creative Agentic Workflow

@@ -12,7 +12,7 @@ engine: copilot
 strict: true
 tracker-id: daily-secrets-analysis
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [default, discussions]
   bash: true
@@ -22,7 +22,6 @@ imports:
     with:
       title-prefix: "[daily secrets] "
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}

@@ -18,7 +18,7 @@ network:
     - defaults
     - node
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   edit:
   bash:
     - "date"
@@ -44,8 +44,6 @@ safe-outputs:
 timeout-minutes: 10
 imports:
   - shared/observability-otlp.md
-features:
-  mcp-cli: true
 ---
 
 # Smoke Test: Multiple Pull Request Creation

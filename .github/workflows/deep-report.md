@@ -40,7 +40,7 @@ safe-outputs:
     group: true
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   repo-memory:
     branch-name: memory/deep-report
@@ -60,8 +60,6 @@ imports:
   - shared/weekly-issues-data-fetch.md
   - shared/reporting.md
 
-features:
-  mcp-cli: true
 ---
 
 # DeepReport - Intelligence Gathering Agent

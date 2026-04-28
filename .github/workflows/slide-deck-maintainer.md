@@ -23,7 +23,7 @@ imports:
   - shared/activation-app.md
 timeout-minutes: 45
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   cache-memory: true
   playwright:
     version: "v1.56.1"
@@ -65,8 +65,6 @@ steps:
     run: |
       cd docs
       npm ci
-features:
-  mcp-cli: true
 ---
 
 # Slide Deck Maintenance Agent

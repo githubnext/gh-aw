@@ -44,7 +44,7 @@ steps:
       fi
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   bash:
     - "*"
@@ -57,8 +57,6 @@ imports:
       title-prefix: "[integrity] "
   - shared/python-dataviz.md
 
-features:
-  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

@@ -18,12 +18,10 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   web-fetch:
 
 timeout-minutes: 5
-features:
-  mcp-cli: true
 ---
 
 # Firewall Test Agent

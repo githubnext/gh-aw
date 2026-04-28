@@ -23,7 +23,7 @@ network:
     - github
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   cache-memory: true
   github:
     toolsets: [default, discussions]
@@ -39,7 +39,6 @@ imports:
       expires: 1d
 
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 # Claude Code User Documentation Review

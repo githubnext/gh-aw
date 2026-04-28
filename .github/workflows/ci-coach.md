@@ -12,7 +12,7 @@ permissions:
 tracker-id: ci-coach-daily
 engine: copilot
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [issues, pull_requests]
@@ -28,7 +28,6 @@ imports:
   - shared/ci-optimization-strategies.md
   - shared/reporting.md
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

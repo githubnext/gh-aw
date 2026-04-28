@@ -281,7 +281,7 @@ The YAML frontmatter supports these fields:
     - `difc-proxy: true` - Enable DIFC (Data Integrity and Flow Control) proxy injection. When set alongside `tools.github.min-integrity`, injects proxy steps around the agent for full network-boundary integrity enforcement.
     - `cli-proxy: true` - Enable AWF CLI proxy sidecar for secure gh CLI access and reaction-based integrity decisions. Required for `integrity-reactions`.
     - `integrity-reactions: true` - Enable reaction-based integrity promotion/demotion. Maintainers can use 👍/❤️ reactions to promote content to `approved` and 👎/😕 to demote it to `none`. Compiler automatically enables `cli-proxy`. Requires `tools.github.min-integrity` to be set and MCPG >= v0.2.18. Defaults: endorsement reactions THUMBS_UP/HEART, disapproval reactions THUMBS_DOWN/CONFUSED, endorser-min-integrity: approved, disapproval-integrity: none.
-    - `mcp-cli: true` - Enable MCP CLI mounting feature. When enabled, MCP servers can be mounted as local CLI tools on `PATH`. Requires `tools.mount-as-clis: true` to mount standard MCP servers as CLIs; `safeoutputs` and `mcpscripts` are always mounted as CLIs when this feature is active.
+    - `mcp-cli: true` - Deprecated. This flag has been removed; MCP CLI mounting is now always enabled when `tools.cli-proxy: true` is set.
 
 - **`imports:`** - Array of workflow specifications to import (array)
   - Format: `owner/repo/path@ref` or local paths like `shared/common.md`
@@ -588,7 +588,7 @@ The YAML frontmatter supports these fields:
   - Custom tool names for MCP servers
   - `timeout:` - Per-operation timeout in seconds for all tool and MCP server calls (integer or GitHub Actions expression). Defaults vary by engine (Claude: 60 s, Codex: 120 s).
   - `startup-timeout:` - Timeout in seconds for MCP server initialization (integer or GitHub Actions expression, default: 120). Useful in `workflow_call` reusable workflows: `startup-timeout: ${{ inputs.startup-timeout }}`
-  - `mount-as-clis:` - Mount each user-facing MCP server as a standalone CLI tool on `PATH` (boolean, default: `false`). Requires `features.mcp-cli: true`. When enabled, the agent can call MCP servers via shell commands (e.g. `github issue_read --method get ...`). CLI-mounted servers remain in the MCP gateway so their containers start normally.
+  - `cli-proxy:` - Mount each user-facing MCP server as a standalone CLI tool on `PATH` (boolean, default: `false`). When enabled, the agent can call MCP servers via shell commands (e.g. `github issue_read --method get ...`). CLI-mounted servers remain in the MCP gateway so their containers start normally.
 
 - **`safe-outputs:`** - Safe output processing configuration (preferred way to handle GitHub API write operations)
   - `create-issue:` - Safe GitHub issue creation (bugs, features)

@@ -18,10 +18,8 @@ safe-outputs:
     driver: "Semgrep Security Scanner"
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
 
-features:
-  mcp-cli: true
 ---
 
 Scan the repository for SQL injection vulnerabilities using Semgrep.

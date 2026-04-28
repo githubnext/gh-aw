@@ -72,18 +72,4 @@ const (
 	//	features:
 	//	  integrity-reactions: true
 	IntegrityReactionsFeatureFlag FeatureFlag = "integrity-reactions"
-	// MCPCLIFeatureFlag gates the MCP CLI mounting feature. When enabled together
-	// with tools.mount-as-clis: true, MCP servers are exposed as standalone CLI
-	// tools on PATH. Without this feature flag, the mount-as-clis setting is
-	// ignored and code generation remains unchanged.
-	//
-	// safeoutputs and mcpscripts CLI mounting is also gated behind this flag —
-	// they are only CLI-mounted when both the feature flag is enabled and the
-	// respective tool is configured.
-	//
-	// Workflow frontmatter usage:
-	//
-	//	features:
-	//	  mcp-cli: true
-	MCPCLIFeatureFlag FeatureFlag = "mcp-cli"
 )

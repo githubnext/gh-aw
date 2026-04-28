@@ -17,7 +17,7 @@ engine: claude
 strict: true
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   cache-memory: true
   bash:
@@ -51,8 +51,6 @@ imports:
     with:
       title-prefix: "[rendering-scripts] "
       expires: 3d
-features:
-  mcp-cli: true
 ---
 
 # Daily Rendering Scripts Verifier

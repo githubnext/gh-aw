@@ -12,7 +12,7 @@ permissions:
 tracker-id: refactoring-cadence
 engine: copilot
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [repos, issues]
   bash: true
@@ -31,7 +31,6 @@ safe-outputs:
     run-failure: "🔧 Code health check failed! [{workflow_name}]({run_url}) {status}. Code health status unknown..."
 timeout-minutes: 20
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 # Refactoring Cadence

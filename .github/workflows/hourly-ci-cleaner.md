@@ -23,7 +23,7 @@ network:
     - defaults
     - go
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [default]
   bash: ["*"]
@@ -115,8 +115,6 @@ timeout-minutes: 45
 imports:
   - ../agents/ci-cleaner.agent.md
 
-features:
-  mcp-cli: true
 ---
 
 # CI Cleaner

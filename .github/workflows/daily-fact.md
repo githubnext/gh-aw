@@ -24,7 +24,7 @@ network:
     - defaults
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets:
       - default
@@ -40,8 +40,6 @@ safe-outputs:
 imports:
   - shared/observability-otlp.md
   - shared/mcp/mempalace.md
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

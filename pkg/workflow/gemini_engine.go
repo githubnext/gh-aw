@@ -208,7 +208,7 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 		npmPathSetup := GetNpmBinPathSetup()
 		geminiCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, geminiCommand)
-		// Add MCP CLI bin directory to PATH when mount-as-clis is enabled
+		// Add MCP CLI bin directory to PATH when cli-proxy is enabled
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			geminiCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, geminiCommandWithPath)
 		}

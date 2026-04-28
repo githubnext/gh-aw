@@ -26,7 +26,7 @@ network:
   allowed:
     - defaults
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   bash:
     - "echo *"
     - "date"
@@ -34,8 +34,6 @@ safe-outputs:
   allowed-domains: [default-safe-outputs]
   noop:
 timeout-minutes: 5
-features:
-  mcp-cli: true
 ---
 
 # Smoke Test: Workflow Call with Inputs

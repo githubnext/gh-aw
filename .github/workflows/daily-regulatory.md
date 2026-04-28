@@ -12,7 +12,7 @@ permissions:
 strict: true
 tracker-id: daily-regulatory
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [default, discussions]
   bash:
@@ -25,8 +25,6 @@ imports:
       title-prefix: "[daily regulatory] "
   - shared/github-queries-mcp-script.md
 
-features:
-  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

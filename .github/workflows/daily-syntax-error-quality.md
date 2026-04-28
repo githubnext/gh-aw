@@ -11,7 +11,7 @@ permissions:
 tracker-id: daily-syntax-error-quality
 engine: copilot
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   bash:
     - "find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md'"
     - "gh aw compile *"
@@ -47,7 +47,6 @@ imports:
       title-prefix: "[syntax-error-quality] "
       expires: 3d
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

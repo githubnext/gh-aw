@@ -14,7 +14,7 @@ permissions:
   issues: read
   pull-requests: read
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [default]
   web-fetch:
@@ -33,8 +33,6 @@ imports:
     with:
       title-prefix: "[repo-audit] "
       expires: 1d
-features:
-  mcp-cli: true
 ---
 # Repository Audit & Agentic Workflow Opportunity Analyzer
 

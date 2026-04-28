@@ -42,11 +42,8 @@ safe-outputs:
 timeout-minutes: 10
 imports:
   - shared/observability-otlp.md
-features:
-  mcp-cli: true
-
 tools:
-  mount-as-clis: true
+  cli-proxy: true
 ---
 
 # Smoke Test: Temporary ID Functionality

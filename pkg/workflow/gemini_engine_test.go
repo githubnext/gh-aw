@@ -555,9 +555,9 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			Tools: map[string]any{
-				"bash":          []any{"echo"},
-				"mount-as-clis": true,
-				"playwright":    true,
+				"bash":       []any{"echo"},
+				"cli-proxy":  true,
+				"playwright": true,
 				"mymcp": map[string]any{
 					"command": "npx",
 					"args":    []any{"-y", "@acme/mcp-server"},

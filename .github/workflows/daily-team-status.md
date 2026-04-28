@@ -30,11 +30,9 @@ description: |
   moderate emoji usage to boost team morale.
 source: githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github: null
 
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

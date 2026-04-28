@@ -32,7 +32,7 @@ safe-outputs:
     protected-files: fallback-to-issue
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   cache-memory: true
   github:
     toolsets: [default]
@@ -53,8 +53,6 @@ imports:
   - shared/github-guard-policy.md
   - shared/observability-otlp.md
 
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

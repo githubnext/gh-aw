@@ -13,7 +13,7 @@ engine: copilot
 strict: true
 tracker-id: agentic-observability-kit
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   github:
     toolsets: [default, discussions]
@@ -37,8 +37,6 @@ imports:
     with:
       title-prefix: "[observability] "
       expires: 7d
-features:
-  mcp-cli: true
 ---
 # Agentic Observability Kit
 

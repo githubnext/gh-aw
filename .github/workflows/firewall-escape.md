@@ -40,7 +40,7 @@ safe-outputs:
     max: 1
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets:
       - default
@@ -83,7 +83,6 @@ jobs:
               labels: ['bug', 'firewall', 'automated']
             });
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

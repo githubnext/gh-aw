@@ -9,7 +9,7 @@ permissions:
   actions: read
 engine: copilot
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   github:
     toolsets: [default]
@@ -17,8 +17,6 @@ tools:
     branch-name: memory/meta-orchestrators
     file-glob: "metrics/**"
 timeout-minutes: 15
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

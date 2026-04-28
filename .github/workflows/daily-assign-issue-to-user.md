@@ -10,7 +10,7 @@ permissions:
   contents: read
 engine: copilot
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [issues, pull_requests, repos]
 safe-outputs:
@@ -19,7 +19,6 @@ safe-outputs:
   add-comment:
     target: "*"
 features:
-  mcp-cli: true
   copilot-requests: true
 imports:
   - shared/observability-otlp.md

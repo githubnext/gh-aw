@@ -22,7 +22,7 @@ safe-outputs:
     max: 3
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   github:
     toolsets:
@@ -35,8 +35,6 @@ imports:
     with:
       title-prefix: "[daily-firewall-report] "
 
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

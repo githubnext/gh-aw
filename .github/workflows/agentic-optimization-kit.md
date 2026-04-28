@@ -13,7 +13,7 @@ tracker-id: agentic-optimization-kit
 engine: copilot
 strict: true
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   github:
     toolsets: [default, discussions]
@@ -44,7 +44,6 @@ imports:
   - copilot-setup-steps.yml
   - uses: shared/mcp/gh-aw.md
 features:
-  mcp-cli: true
   copilot-requests: true
 steps:
   - name: Download Copilot workflow logs
