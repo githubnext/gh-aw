@@ -31,6 +31,12 @@ safe-outputs:
 timeout-minutes: 20
 strict: true
 steps:
+  - name: Find candidate workflows
+    run: |
+      mkdir -p /tmp/gh-aw/agent
+      find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md' \
+        > /tmp/gh-aw/agent/candidates.txt
+      echo "Found $(wc -l < /tmp/gh-aw/agent/candidates.txt) candidate workflows"
   - name: Install gh-aw CLI
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -68,7 +74,7 @@ Test the quality of compiler error messages by:
 
 ## Token Budget Guidelines
 
-**Target**: Complete the full analysis in ≤ 40 turns.
+**Target**: Complete the full analysis in ≤ 30 turns.
 
 - Test **2 workflows** (not 3) — one simple, one complex.
 - One error category per workflow (Category A for workflow 1, Category B for workflow 2).
@@ -86,11 +92,11 @@ Test the quality of compiler error messages by:
 
 ## Phase 1: Select Test Workflows
 
-Select 2 diverse workflows for testing (avoid daily-* and test workflows):
+Select 2 diverse workflows for testing from the pre-computed candidate list:
 
 ```bash
-# Find candidate workflows
-find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md' | head -10
+# Candidate workflows have already been discovered by the pre-step
+cat /tmp/gh-aw/agent/candidates.txt
 ```
 
 **Selection Criteria**:

@@ -90,13 +90,13 @@ This workflow imports `shared/go-make.md` which provides:
 - **mcpscripts-go** - Execute Go commands (e.g., args: "test ./...", "build ./cmd/gh-aw")
 - **mcpscripts-make** - Execute Make targets (e.g., args: "build", "test-unit", "bench")
 
-**IMPORTANT**: Always use these mcp-script tools for Go and Make commands instead of running them directly via bash.
+**IMPORTANT**: Use **bash** for all benchmark and validation commands in this workflow. MCP connections time out after ~5 minutes of inactivity; the analysis phases in this workflow may exceed that threshold, causing end-of-phase MCP calls to fail with `MCP error -32003: context canceled`. Always prefer `make <target>` or `go <args>` in bash over `mcpscripts-*` tools in this workflow.
 
 ## Phase 1: Run Performance Benchmarks
 
 ### 1.1 Run Compilation Benchmarks
 
-Run the benchmark suite and capture results using the **mcpscripts-make** tool:
+Run the benchmark suite and capture results using **bash** (not mcpscripts — the MCP connection may time out during the analysis phases that follow):
 
 **Step 1**: Create directory for results
 
@@ -104,11 +104,13 @@ Run the benchmark suite and capture results using the **mcpscripts-make** tool:
 mkdir -p /tmp/gh-aw/benchmarks
 ```
 
-**Step 2**: Run benchmarks using mcpscripts-make
+**Step 2**: Run benchmarks using bash
 
-Use the **mcpscripts-make** tool with args: "bench-performance" to run the critical performance benchmark suite.
+```bash
+make bench-performance
+```
 
-This will execute `make bench-performance` which runs targeted performance benchmarks and saves results to `bench_performance.txt`.
+This runs targeted performance benchmarks and saves results to `bench_performance.txt`.
 
 The targeted benchmarks include:
 - **Workflow compilation**: CompileSimpleWorkflow, CompileComplexWorkflow, CompileMCPWorkflow, CompileMemoryUsage

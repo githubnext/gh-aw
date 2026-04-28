@@ -36,7 +36,7 @@ features:
 
 # Schema Feature Coverage Checker
 
-You are responsible for ensuring **100% coverage** of schema features across the existing agentic workflows in this repository. Every top-level property defined in the main JSON schema should appear in at least one workflow file under `.github/workflows/` (including `shared/` subdirectories).
+You are responsible for ensuring **100% coverage** of schema features across the existing agentic workflows in this repository. Every top-level property defined in the main JSON schema should appear in at least one workflow file under `.github/workflows/` (including `shared/` subdirectories) or in the `schema-demos/` directory.
 
 ## Step 1: Extract All Schema Fields (Deterministic)
 
@@ -50,11 +50,11 @@ Save the output as your canonical field list.
 
 ## Step 2: Check Coverage Across All Workflows
 
-For each field in the list, check whether it appears as a top-level YAML key in any `.md` workflow file:
+For each field in the list, check whether it appears as a top-level YAML key in any `.md` workflow file under `.github/workflows/` or `schema-demos/`:
 
 ```bash
 for field in $(jq -r '.properties | keys[]' pkg/parser/schemas/main_workflow_schema.json | sort); do
-    count=$(grep -rl "^${field}:" .github/workflows/ --include="*.md" 2>/dev/null | wc -l | tr -d ' ')
+    count=$(grep -rl "^${field}:" .github/workflows/ schema-demos/ --include="*.md" 2>/dev/null | wc -l | tr -d ' ')
     if [ "$count" = "0" ]; then
         echo "UNCOVERED: $field"
     else
@@ -70,7 +70,7 @@ Collect the full list of **UNCOVERED** fields.
 **If all fields are covered**: Call `noop` immediately with a brief summary and exit.
 
 ```json
-{"noop": {"message": "All schema fields are covered across .github/workflows/**/*.md — no action needed."}}
+{"noop": {"message": "All schema fields are covered across .github/workflows/**/*.md and schema-demos/**/*.md — no action needed."}}
 ```
 
 **If there are uncovered fields**: Proceed to Step 4.
@@ -79,7 +79,7 @@ Collect the full list of **UNCOVERED** fields.
 
 For each uncovered field (process up to 10 per run; subsequent weekly runs will handle any remaining ones):
 
-1. **Create a new minimal demo workflow file** at `.github/workflows/schema-demo-<field-name>.md`  
+1. **Create a new minimal demo workflow file** at `schema-demos/schema-demo-<field-name>.md`  
    (use the field name with any special characters replaced by hyphens, e.g., `disable-model-invocation` → `schema-demo-disable-model-invocation.md`)
 2. **Include only the required minimum frontmatter** needed to compile (`description`, `on`, `permissions`, `engine`, `timeout-minutes`), plus the target field with a valid value
 3. **Extract the field's description from the schema** using:
@@ -158,7 +158,7 @@ After creating (or editing) the demo file for a field, call:
 {
   "create_pull_request": {
     "title": "feat: Add schema coverage demo for `<FIELD>` field",
-    "body": "## Schema Coverage Demo\n\nThis PR adds a minimal demo workflow that demonstrates usage of the `<FIELD>` field in the gh-aw frontmatter schema.\n\n**Why**: The schema feature coverage checker found that `<FIELD>` was not used in any existing workflow.\n\n**What**: Adds `.github/workflows/schema-demo-<FIELD>.md` with a valid, minimal demonstration of this field.\n\n### Field Description\n\n<description extracted from schema using jq>"
+    "body": "## Schema Coverage Demo\n\nThis PR adds a minimal demo workflow that demonstrates usage of the `<FIELD>` field in the gh-aw frontmatter schema.\n\n**Why**: The schema feature coverage checker found that `<FIELD>` was not used in any existing workflow.\n\n**What**: Adds `schema-demos/schema-demo-<FIELD>.md` with a valid, minimal demonstration of this field.\n\n### Field Description\n\n<description extracted from schema using jq>"
   }
 }
 ```
@@ -167,7 +167,7 @@ After creating (or editing) the demo file for a field, call:
 
 - **One PR per uncovered field** — make each PR distinct and focused
 - **Keep demo workflows minimal and valid** — only include the required `on`, `permissions`, `engine`, `timeout-minutes` fields plus the target field
-- **Do not modify existing workflow files** — only create new `schema-demo-*.md` files
+- **Do not modify existing workflow files** — only create new `schema-demos/schema-demo-*.md` files
 - **Validate field values** against the schema description before creating the file
 - **If a field requires complex external setup** (e.g., `github-app`, `environment` with a specific name), note this clearly in the PR body and use a placeholder value
 - **Up to 10 PRs per run** — if more than 10 fields are uncovered, handle the first 10 alphabetically; subsequent weekly runs will pick up the rest
@@ -176,7 +176,7 @@ After creating (or editing) the demo file for a field, call:
 
 A successful run will:
 - ✅ Extract all schema fields using `jq` deterministically
-- ✅ Check all `.github/workflows/**/*.md` files for field usage using `grep`
+- ✅ Check all `.github/workflows/**/*.md` and `schema-demos/**/*.md` files for field usage using `grep`
 - ✅ Either confirm full coverage (call `noop`) OR create PRs for uncovered fields
 - ✅ Each PR adds exactly one new demo workflow demonstrating one uncovered field
 - ✅ All created demo workflows have valid frontmatter
