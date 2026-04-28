@@ -1435,6 +1435,7 @@ jobs:
         run: npm install --ignore-scripts -g @google/gemini-cli@0.39.1
       - name: Write Gemini Config
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        continue-on-error: true
         run: |
           mkdir -p "$GITHUB_WORKSPACE/.gemini"
           SETTINGS="$GITHUB_WORKSPACE/.gemini/settings.json"
@@ -1449,6 +1450,7 @@ jobs:
           GH_AW_GEMINI_BASE_CONFIG: '{"context":{"includeDirectories":["/tmp/"]},"tools":{"core":["glob","grep_search","list_directory","read_file","read_many_files","run_shell_command"]}}'
       - name: Execute Gemini CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        continue-on-error: true
         id: detection_agentic_execution
         run: |
           set -o pipefail

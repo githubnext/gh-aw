@@ -1313,6 +1313,7 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code@2.1.119
       - name: Execute Claude Code CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        continue-on-error: true
         id: detection_agentic_execution
         # Allowed tools (sorted):
         # - Bash

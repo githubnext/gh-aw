@@ -1247,6 +1247,7 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.29
       - name: Execute GitHub Copilot CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        continue-on-error: true
         id: detection_agentic_execution
         # Copilot CLI tool arguments (sorted):
         timeout-minutes: 20

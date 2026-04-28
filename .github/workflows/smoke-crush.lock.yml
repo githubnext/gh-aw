@@ -1336,6 +1336,7 @@ jobs:
         run: npm install --ignore-scripts -g @charmland/crush@0.59.0
       - name: Write Crush Config
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        continue-on-error: true
         run: |
           umask 077
           mkdir -p "$GITHUB_WORKSPACE"
@@ -1350,6 +1351,7 @@ jobs:
           chmod 600 "$CONFIG"
       - name: Execute Crush CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        continue-on-error: true
         id: detection_agentic_execution
         run: |
           set -o pipefail
