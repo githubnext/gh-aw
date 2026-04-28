@@ -14,6 +14,11 @@ import (
 
 var logsEpisodeLog = logger.New("cli:logs_episode")
 
+// firewallBlockedRequestCap is the maximum blocked-request count the Squid firewall
+// proxy reports before truncating. A BlockedRequestCount equal to this value may
+// represent any number of requests >= 50 and should not be treated as an exact figure.
+const firewallBlockedRequestCap = 50
+
 // EpisodeEdge represents a deterministic lineage edge between two workflow runs.
 type EpisodeEdge struct {
 	SourceRunID int64    `json:"source_run_id"`
@@ -61,6 +66,7 @@ type EpisodeData struct {
 	LatestSuccessFallbackCount     int               `json:"latest_success_fallback_count"`
 	NewMCPFailureRunCount          int               `json:"new_mcp_failure_run_count"`
 	BlockedRequestIncreaseRunCount int               `json:"blocked_request_increase_run_count"`
+	BlockedRequestAtCap            bool              `json:"blocked_request_at_cap,omitempty"`
 	ResourceHeavyNodeCount         int               `json:"resource_heavy_node_count"`
 	PoorControlNodeCount           int               `json:"poor_control_node_count"`
 	RiskDistribution               string            `json:"risk_distribution"`
@@ -187,6 +193,9 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 			acc.metadata.MCPFailureCount += len(pr.MCPFailures)
 			if pr.FirewallAnalysis != nil {
 				acc.metadata.BlockedRequestCount += pr.FirewallAnalysis.BlockedRequests
+				if pr.FirewallAnalysis.BlockedRequests >= firewallBlockedRequestCap {
+					acc.metadata.BlockedRequestAtCap = true
+				}
 			}
 			// Collect per-tool-call metrics for this run.
 			if pr.MCPToolUsage != nil {

@@ -79,6 +79,68 @@ func TestBuildEpisodeDataIncludesToolCalls(t *testing.T) {
 	assert.Empty(t, tc1.Error, "no error expected")
 }
 
+func TestBuildEpisodeDataSetsBlockedAtCapWhenFirewallCountHitsCap(t *testing.T) {
+	runs := []RunData{
+		{
+			RunID:        401,
+			WorkflowName: "firewall-heavy",
+			Status:       "completed",
+			CreatedAt:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+		},
+	}
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				DatabaseID:   401,
+				WorkflowName: "firewall-heavy",
+			},
+			FirewallAnalysis: &FirewallAnalysis{
+				TotalRequests:   100,
+				BlockedRequests: firewallBlockedRequestCap, // exactly at the proxy cap
+				AllowedRequests: 50,
+			},
+		},
+	}
+
+	episodes, _ := buildEpisodeData(runs, processedRuns)
+	require.Len(t, episodes, 1, "expected one episode")
+
+	ep := episodes[0]
+	assert.Equal(t, firewallBlockedRequestCap, ep.BlockedRequestCount, "blocked count should be accumulated")
+	assert.True(t, ep.BlockedRequestAtCap, "BlockedRequestAtCap should be true when count == cap")
+}
+
+func TestBuildEpisodeDataDoesNotSetBlockedAtCapBelowThreshold(t *testing.T) {
+	runs := []RunData{
+		{
+			RunID:        402,
+			WorkflowName: "low-block",
+			Status:       "completed",
+			CreatedAt:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+		},
+	}
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				DatabaseID:   402,
+				WorkflowName: "low-block",
+			},
+			FirewallAnalysis: &FirewallAnalysis{
+				TotalRequests:   100,
+				BlockedRequests: 8,
+				AllowedRequests: 92,
+			},
+		},
+	}
+
+	episodes, _ := buildEpisodeData(runs, processedRuns)
+	require.Len(t, episodes, 1, "expected one episode")
+
+	ep := episodes[0]
+	assert.Equal(t, 8, ep.BlockedRequestCount, "blocked count should be accumulated")
+	assert.False(t, ep.BlockedRequestAtCap, "BlockedRequestAtCap should be false when count is below cap")
+}
+
 func TestBuildEpisodeDataNoToolCallsWhenMCPUsageAbsent(t *testing.T) {
 	runs := []RunData{
 		{

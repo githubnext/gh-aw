@@ -32,6 +32,7 @@ type workflowObservabilityStats struct {
 	maxTurns     int
 	blocked      int
 	totalNet     int
+	blockedAtCap bool
 }
 
 func buildAuditObservabilityInsights(processedRun ProcessedRun, metrics MetricsData, toolUsage []ToolUsageInfo, createdItems []CreatedItemReport) []ObservabilityInsight {
@@ -109,7 +110,8 @@ func buildAuditObservabilityInsights(processedRun ProcessedRun, metrics MetricsD
 		if processedRun.FirewallAnalysis.BlockedRequests > 0 {
 			title = "Network friction detected"
 			severity = "medium"
-			if blockedRate >= 0.5 || processedRun.FirewallAnalysis.BlockedRequests >= 10 {
+			blockedAtCap := processedRun.FirewallAnalysis.BlockedRequests >= firewallBlockedRequestCap
+			if blockedRate >= 0.5 || (processedRun.FirewallAnalysis.BlockedRequests >= 10 && !blockedAtCap) {
 				severity = "high"
 			}
 		}
@@ -184,6 +186,9 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 		if pr.FirewallAnalysis != nil {
 			stats.blocked += pr.FirewallAnalysis.BlockedRequests
 			stats.totalNet += pr.FirewallAnalysis.TotalRequests
+			if pr.FirewallAnalysis.BlockedRequests >= firewallBlockedRequestCap {
+				stats.blockedAtCap = true
+			}
 		}
 	}
 
@@ -275,7 +280,7 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 	}
 	if networkHotspot != nil {
 		severity := "medium"
-		if networkRate >= 0.5 || networkHotspot.blocked >= 10 {
+		if networkRate >= 0.5 || (networkHotspot.blocked >= 10 && !networkHotspot.blockedAtCap) {
 			severity = "high"
 		}
 		insights = append(insights, ObservabilityInsight{

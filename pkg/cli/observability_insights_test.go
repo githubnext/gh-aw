@@ -92,6 +92,82 @@ func TestBuildLogsObservabilityInsights(t *testing.T) {
 	assert.Contains(t, text, "Tool concentration observed")
 }
 
+func TestBuildAuditObservabilityInsightsSuppressesHighSeverityAtFirewallCap(t *testing.T) {
+	// blocked == firewallBlockedRequestCap: the absolute-count trigger (>=10) should
+	// not elevate to "high" because the proxy may have truncated the real count.
+	processedRun := ProcessedRun{
+		Run: WorkflowRun{Turns: 3},
+		FirewallAnalysis: &FirewallAnalysis{
+			TotalRequests:   200,
+			BlockedRequests: firewallBlockedRequestCap, // 50 — at cap
+			AllowedRequests: 150,
+		},
+	}
+
+	insights := buildAuditObservabilityInsights(processedRun, MetricsData{Turns: 3}, nil, nil)
+
+	var networkInsight *ObservabilityInsight
+	for i := range insights {
+		if insights[i].Category == "network" {
+			networkInsight = &insights[i]
+			break
+		}
+	}
+	require.NotNil(t, networkInsight, "a network insight should be emitted")
+	assert.Equal(t, "medium", networkInsight.Severity, "severity should stay medium when blocked count is at proxy cap (<=50% block rate)")
+}
+
+func TestBuildAuditObservabilityInsightsHighSeverityWhenHighBlockRate(t *testing.T) {
+	// Even at cap, a >=50% block rate should still produce high severity.
+	processedRun := ProcessedRun{
+		Run: WorkflowRun{Turns: 3},
+		FirewallAnalysis: &FirewallAnalysis{
+			TotalRequests:   60,
+			BlockedRequests: firewallBlockedRequestCap, // 50 out of 60 → 83% block rate
+			AllowedRequests: 10,
+		},
+	}
+
+	insights := buildAuditObservabilityInsights(processedRun, MetricsData{Turns: 3}, nil, nil)
+
+	var networkInsight *ObservabilityInsight
+	for i := range insights {
+		if insights[i].Category == "network" {
+			networkInsight = &insights[i]
+			break
+		}
+	}
+	require.NotNil(t, networkInsight, "a network insight should be emitted")
+	assert.Equal(t, "high", networkInsight.Severity, "severity should be high when block rate >= 50%% even at cap")
+}
+
+func TestBuildLogsObservabilityInsightsSuppressesHighSeverityAtFirewallCap(t *testing.T) {
+	// A workflow with blocked == firewallBlockedRequestCap and a low block rate
+	// should produce a "medium" network hotspot, not "high".
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{WorkflowName: "w1", Conclusion: "success", Turns: 5},
+			FirewallAnalysis: &FirewallAnalysis{
+				TotalRequests:   500,
+				BlockedRequests: firewallBlockedRequestCap, // 50/500 = 10% → low rate but >=10
+				AllowedRequests: 450,
+			},
+		},
+	}
+
+	insights := buildLogsObservabilityInsights(processedRuns, nil)
+
+	var networkInsight *ObservabilityInsight
+	for i := range insights {
+		if insights[i].Category == "network" {
+			networkInsight = &insights[i]
+			break
+		}
+	}
+	require.NotNil(t, networkInsight, "a network insight should be emitted")
+	assert.Equal(t, "medium", networkInsight.Severity, "severity should stay medium when blocked count is at proxy cap with low block rate")
+}
+
 func TestBuildAuditDataIncludesObservabilityInsights(t *testing.T) {
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
