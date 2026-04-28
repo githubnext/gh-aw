@@ -419,3 +419,218 @@ func TestSpec_PublicAPI_NewImportCache(t *testing.T) {
 			"NewImportCache should create separate cache instances for concurrent compilations")
 	})
 }
+
+// TestSpec_PublicAPI_ParseSchedule validates the documented behavior of ParseSchedule
+// as described in the package README.md.
+//
+// Specification: Parses natural-language or cron schedule to a cron expression.
+// Example: parser.ParseSchedule("every day at 9am") → cron = "0 9 * * *"
+func TestSpec_PublicAPI_ParseSchedule(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		expectedCron string
+		wantErr      bool
+	}{
+		{
+			name:         "documented example: every day at 9am",
+			input:        "every day at 9am",
+			expectedCron: "0 9 * * *",
+		},
+		{
+			name:         "already a cron expression is returned as-is",
+			input:        "0 9 * * *",
+			expectedCron: "0 9 * * *",
+		},
+		{
+			name:    "empty input returns error",
+			input:   "",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cron, _, err := ParseSchedule(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err, "ParseSchedule(%q) should return error", tt.input)
+				return
+			}
+			require.NoError(t, err, "ParseSchedule(%q) unexpected error", tt.input)
+			assert.Equal(t, tt.expectedCron, cron,
+				"ParseSchedule(%q) should return documented cron expression", tt.input)
+		})
+	}
+}
+
+// TestSpec_ScheduleDetection_IsFuzzyCron validates the documented behavior of
+// IsFuzzyCron as described in the package README.md.
+//
+// Specification: Detects whether a cron is a fuzzy wildcard.
+func TestSpec_ScheduleDetection_IsFuzzyCron(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "FUZZY-prefixed value returns true",
+			input:    "FUZZY:daily",
+			expected: true,
+		},
+		{
+			name:     "standard cron expression returns false",
+			input:    "0 9 * * *",
+			expected: false,
+		},
+		{
+			name:     "empty string returns false",
+			input:    "",
+			expected: false,
+		},
+		{
+			name:     "natural language schedule returns false",
+			input:    "every day at 9am",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsFuzzyCron(tt.input)
+			assert.Equal(t, tt.expected, result,
+				"IsFuzzyCron(%q) should detect fuzzy wildcard correctly", tt.input)
+		})
+	}
+}
+
+// TestSpec_PublicAPI_ExtractWorkflowNameFromMarkdownBody validates the documented
+// behavior of ExtractWorkflowNameFromMarkdownBody as described in the package README.md.
+//
+// Specification: Derives the workflow name from the first # heading in the markdown body.
+func TestSpec_PublicAPI_ExtractWorkflowNameFromMarkdownBody(t *testing.T) {
+	t.Run("extracts name from first H1 heading", func(t *testing.T) {
+		body := "# My Workflow\n\nSome prompt text."
+		name, err := ExtractWorkflowNameFromMarkdownBody(body, "my-workflow.md")
+		require.NoError(t, err,
+			"ExtractWorkflowNameFromMarkdownBody should not error on content with H1")
+		assert.NotEmpty(t, name,
+			"ExtractWorkflowNameFromMarkdownBody should return a non-empty name from H1 heading")
+	})
+
+	t.Run("falls back to virtual path when no H1 heading", func(t *testing.T) {
+		body := "Just some text without a heading."
+		name, err := ExtractWorkflowNameFromMarkdownBody(body, "my-workflow.md")
+		require.NoError(t, err,
+			"ExtractWorkflowNameFromMarkdownBody should not error when no H1 is present")
+		assert.NotEmpty(t, name,
+			"ExtractWorkflowNameFromMarkdownBody should return a non-empty fallback name")
+	})
+}
+
+// TestSpec_PublicAPI_NewFormattedParserError validates the documented behavior of
+// NewFormattedParserError as described in the package README.md.
+//
+// Specification: Creates a pre-formatted parser error.
+func TestSpec_PublicAPI_NewFormattedParserError(t *testing.T) {
+	t.Run("returns non-nil FormattedParserError implementing error", func(t *testing.T) {
+		msg := "error: bad import at line 5"
+		err := NewFormattedParserError(msg)
+		require.NotNil(t, err, "NewFormattedParserError should return a non-nil error")
+		var _ error = err
+		assert.Equal(t, msg, err.Error(),
+			"NewFormattedParserError.Error() should return the formatted message")
+	})
+
+	t.Run("empty message is preserved", func(t *testing.T) {
+		err := NewFormattedParserError("")
+		require.NotNil(t, err, "NewFormattedParserError should return non-nil for empty message")
+		assert.Equal(t, "", err.Error(),
+			"NewFormattedParserError should preserve empty message")
+	})
+}
+
+// TestSpec_PublicAPI_EnsureToolsSection validates the documented behavior of
+// EnsureToolsSection as described in the package README.md.
+//
+// Specification: Ensures `tools` exists and is a map in frontmatter.
+func TestSpec_PublicAPI_EnsureToolsSection(t *testing.T) {
+	t.Run("creates tools map when absent from frontmatter", func(t *testing.T) {
+		fm := map[string]any{}
+		tools := EnsureToolsSection(fm)
+		require.NotNil(t, tools,
+			"EnsureToolsSection should return a non-nil tools map")
+		_, ok := fm["tools"]
+		assert.True(t, ok, "EnsureToolsSection should set 'tools' key in frontmatter")
+	})
+
+	t.Run("returns existing tools map when already present", func(t *testing.T) {
+		existing := map[string]any{"gh": map[string]any{}}
+		fm := map[string]any{"tools": existing}
+		tools := EnsureToolsSection(fm)
+		require.NotNil(t, tools,
+			"EnsureToolsSection should return the existing tools map")
+		assert.Equal(t, existing, tools,
+			"EnsureToolsSection should return the same map that was already present")
+	})
+}
+
+// TestSpec_VirtualFilesystem_RegisterBuiltinVirtualFile validates the documented
+// behavior of RegisterBuiltinVirtualFile and BuiltinVirtualFileExists as described
+// in the package README.md.
+//
+// Specification:
+//   - RegisterBuiltinVirtualFile registers embedded virtual file content under an @builtin: path.
+//   - BuiltinVirtualFileExists returns whether a built-in virtual file path has been registered.
+func TestSpec_VirtualFilesystem_RegisterBuiltinVirtualFile(t *testing.T) {
+	t.Run("registered path is detectable via BuiltinVirtualFileExists", func(t *testing.T) {
+		path := "@builtin:spec-test-" + t.Name()
+		content := []byte("spec test content")
+
+		before := BuiltinVirtualFileExists(path)
+		assert.False(t, before,
+			"BuiltinVirtualFileExists should return false before registration")
+
+		RegisterBuiltinVirtualFile(path, content)
+
+		after := BuiltinVirtualFileExists(path)
+		assert.True(t, after,
+			"BuiltinVirtualFileExists should return true after RegisterBuiltinVirtualFile")
+	})
+
+	t.Run("unregistered path returns false", func(t *testing.T) {
+		path := "@builtin:spec-test-never-registered-" + t.Name()
+		assert.False(t, BuiltinVirtualFileExists(path),
+			"BuiltinVirtualFileExists should return false for paths that were never registered")
+	})
+}
+
+// TestSpec_PublicAPI_FindClosestMatches validates the documented behavior of
+// FindClosestMatches as described in the package README.md.
+//
+// Specification: Finds the closest string matches (for typo suggestions).
+// Returns up to maxResults matches sorted by distance.
+func TestSpec_PublicAPI_FindClosestMatches(t *testing.T) {
+	t.Run("returns close matches for a typo", func(t *testing.T) {
+		candidates := []string{"on", "runs-on", "steps", "name", "jobs"}
+		matches := FindClosestMatches("naem", candidates, 3)
+		assert.NotEmpty(t, matches,
+			"FindClosestMatches should return at least one match for a close typo")
+		assert.LessOrEqual(t, len(matches), 3,
+			"FindClosestMatches should return at most maxResults matches")
+	})
+
+	t.Run("returns empty when no candidate is close enough", func(t *testing.T) {
+		candidates := []string{"alpha", "beta", "gamma"}
+		matches := FindClosestMatches("xyzzy", candidates, 5)
+		assert.Empty(t, matches,
+			"FindClosestMatches should return empty when no candidate is within edit distance")
+	})
+
+	t.Run("respects maxResults limit", func(t *testing.T) {
+		candidates := []string{"abc", "abd", "abe", "abf", "abg"}
+		matches := FindClosestMatches("abx", candidates, 2)
+		assert.LessOrEqual(t, len(matches), 2,
+			"FindClosestMatches should return no more than maxResults results")
+	})
+}
