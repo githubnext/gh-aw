@@ -2,9 +2,11 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
@@ -100,7 +102,19 @@ func unquoteUsesWithComments(yamlStr string) string {
 }
 
 // renderStepFromMap renders a GitHub Actions step from a map to YAML
-func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any, data *WorkflowData, indent string) {
+func (c *Compiler) renderStepFromMap(yamlBuilder *strings.Builder, step map[string]any, data *WorkflowData, indent string) {
+	// Before rendering, extract any ${{ ... }} expressions from the run: field into
+	// env: variables to prevent shell injection attacks.  A compiler warning is emitted
+	// for every expression that is moved so that authors know their script was changed.
+	if sanitized, warnings, changed := sanitizeRunStepExpressions(step); changed {
+		for _, w := range warnings {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+			c.IncrementWarningCount()
+		}
+		step = sanitized
+	}
+
+	yaml := yamlBuilder // use the original variable name in the rest of the function
 	stepName, _ := step["name"].(string)
 	stepConversionLog.Printf("Rendering step from map: name=%q, fields=%d", stepName, len(step))
 	// Start the step with a dash
