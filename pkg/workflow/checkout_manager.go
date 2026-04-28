@@ -122,7 +122,7 @@ type resolvedCheckout struct {
 	lfs            bool
 	current        bool     // true if this checkout is the logical current repository
 	fetchRefs      []string // merged fetch ref patterns (see CheckoutConfig.Fetch)
-	wiki           bool     // true if the wiki git should be cloned instead of the regular git
+	// wiki is intentionally not stored here; use entry.key.wiki instead.
 }
 
 // CheckoutManager collects checkout requests and merges them to minimize
@@ -215,8 +215,14 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 	if normalizedPath == "." {
 		normalizedPath = ""
 	}
+	// Normalize repository for wiki checkouts: strip a trailing ".wiki" suffix so that
+	// "owner/repo" and "owner/repo.wiki" with Wiki:true resolve to the same deduplication key.
+	normalizedRepo := cfg.Repository
+	if cfg.Wiki && strings.HasSuffix(normalizedRepo, ".wiki") {
+		normalizedRepo = strings.TrimSuffix(normalizedRepo, ".wiki")
+	}
 	key := checkoutKey{
-		repository: cfg.Repository,
+		repository: normalizedRepo,
 		path:       normalizedPath,
 		wiki:       cfg.Wiki,
 	}
@@ -262,7 +268,6 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 			submodules: cfg.Submodules,
 			lfs:        cfg.LFS,
 			current:    cfg.Current,
-			wiki:       cfg.Wiki,
 		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(nil, cfg.SparseCheckout)

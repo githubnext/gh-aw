@@ -1129,7 +1129,7 @@ func TestWikiCheckout(t *testing.T) {
 		assert.Contains(t, combined, "repository: ${{ github.repository }}.wiki", "default wiki checkout must use github.repository.wiki")
 	})
 
-	t.Run("default checkout step uses explicit .wiki repository when repo set", func(t *testing.T) {
+	t.Run("additional checkout step uses explicit .wiki repository when repo set", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
 			{Repository: "owner/docs", Path: "./docs-wiki", Wiki: true},
 		})
@@ -1146,5 +1146,27 @@ func TestWikiCheckout(t *testing.T) {
 		combined := strings.Join(lines, "")
 		assert.Contains(t, combined, "repository: owner/repo\n", "non-wiki checkout must not have .wiki suffix")
 		assert.NotContains(t, combined, "owner/repo.wiki", "non-wiki checkout must not have .wiki suffix")
+	})
+
+	t.Run("wiki checkout with explicit .wiki suffix merges with wiki checkout without suffix", func(t *testing.T) {
+		depth0 := 0
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/repo", Path: "./wiki", Wiki: true},
+			{Repository: "owner/repo.wiki", Path: "./wiki", Wiki: true, FetchDepth: &depth0},
+		})
+		assert.Len(t, cm.ordered, 1, "explicit .wiki suffix should be normalized and merged with the non-suffix wiki checkout")
+		require.NotNil(t, cm.ordered[0].fetchDepth, "fetch depth should be merged from second config")
+		assert.Equal(t, 0, *cm.ordered[0].fetchDepth, "deeper fetch depth should win")
+		// The stored key should use the normalized (no-suffix) repo name
+		assert.Equal(t, "owner/repo", cm.ordered[0].key.repository, "key should store normalized repo without .wiki suffix")
+		assert.True(t, cm.ordered[0].key.wiki, "key should have wiki=true")
+	})
+
+	t.Run("wiki prompt content includes .wiki suffix annotation", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/docs", Path: "./wiki", Wiki: true},
+		})
+		assert.Contains(t, content, "owner/docs.wiki", "prompt must show .wiki suffix for wiki checkout")
+		assert.Contains(t, content, "(wiki)", "prompt must annotate wiki checkout")
 	})
 }

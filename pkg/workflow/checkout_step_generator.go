@@ -176,7 +176,7 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 
 	// Apply user overrides (only when NOT in trial mode to avoid conflicts)
 	if !trialMode && override != nil {
-		if override.wiki {
+		if override.key.wiki {
 			// Wiki checkout: use "{repository}.wiki" as the effective repository.
 			fmt.Fprintf(&sb, "          repository: %s\n", wikiRepository(override.key.repository))
 		} else if override.key.repository != "" {
@@ -188,10 +188,14 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		// Determine effective token: github-app-minted token takes precedence
 		effectiveOverrideToken := override.token
 		if override.githubApp != nil {
-			// The default checkout is always at index 0 in the ordered list.
-			// The token is minted in the agent job itself (same-job step reference).
+			// Determine the actual index of the default checkout to reference the correct
+			// app-token step ID. Do not assume it is always at index 0.
+			defaultIdx := 0
+			if idx, ok := cm.index[override.key]; ok {
+				defaultIdx = idx
+			}
 			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-			effectiveOverrideToken = "${{ steps.checkout-app-token-0.outputs.token }}"
+			effectiveOverrideToken = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", defaultIdx)
 		}
 		if effectiveOverrideToken != "" {
 			fmt.Fprintf(&sb, "          token: %s\n", effectiveOverrideToken)
@@ -219,9 +223,8 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	// In trial mode the fetch step is still emitted so the behaviour
 	// mirrors production as closely as possible.
 	if override != nil && len(override.fetchRefs) > 0 {
-		// Default checkout is at index 0 in the ordered list
 		defaultIdx := 0
-		if idx, ok := cm.index[checkoutKey{}]; ok {
+		if idx, ok := cm.index[override.key]; ok {
 			defaultIdx = idx
 		}
 		if fetchStep := generateFetchStepLines(override, defaultIdx); fetchStep != "" {
@@ -247,7 +250,7 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	// Security: always disable credential persistence
 	sb.WriteString("          persist-credentials: false\n")
 
-	if entry.wiki {
+	if entry.key.wiki {
 		// Wiki checkout: use "{repository}.wiki" as the effective repository.
 		fmt.Fprintf(&sb, "          repository: %s\n", wikiRepository(entry.key.repository))
 	} else if entry.key.repository != "" {
