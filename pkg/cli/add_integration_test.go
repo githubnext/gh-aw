@@ -1059,3 +1059,76 @@ func TestAddWorkflowWithDispatchWorkflowFromSharedImport(t *testing.T) {
 	assert.Contains(t, string(lockContent), "haiku-printer",
 		"lock file should reference the haiku-printer dispatch-workflow target")
 }
+
+// TestAddWorkflowWithRecursiveSharedImports verifies that `gh aw add` recursively
+// downloads all transitively-imported shared markdown files.
+//
+// daily-compiler-quality.md (at commit 8d26856) has this two-level import tree:
+//
+//	daily-compiler-quality.md
+//	├── shared/daily-audit-base.md (direct)
+//	│   ├── shared/daily-audit-discussion.md (nested level 2)
+//	│   ├── shared/reporting.md              (nested level 2)
+//	│   └── shared/observability-otlp.md     (nested level 2)
+//	└── shared/go-source-analysis.md (direct)
+//	    ├── shared/mcp/serena-go.md          (nested level 2)
+//	    │   └── shared/mcp/serena.md         (nested level 3, via "./serena.md")
+//	    └── shared/reporting.md              (nested level 2, shared with above)
+//
+// This test would fail without the fix to fetchFrontmatterImportsRecursive that
+// resolves non-explicit relative paths (e.g. "shared/foo.md") against originalBaseDir
+// rather than currentBaseDir.
+//
+// This test requires GitHub authentication.
+func TestAddWorkflowWithRecursiveSharedImports(t *testing.T) {
+	authCmd := exec.Command("gh", "auth", "status")
+	if err := authCmd.Run(); err != nil {
+		t.Skip("Skipping test: GitHub authentication not available (gh auth status failed)")
+	}
+
+	setup := setupAddIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Pin to commit 8d26856 so the import tree is stable and reproducible.
+	workflowSpec := "github/gh-aw/.github/workflows/daily-compiler-quality.md@8d26856"
+
+	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--verbose")
+	cmd.Dir = setup.tempDir
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+	t.Logf("Command output:\n%s", outputStr)
+
+	require.NoError(t, err, "add command should succeed: %s", outputStr)
+
+	workflowsDir := filepath.Join(setup.tempDir, ".github", "workflows")
+
+	// 1. Main workflow must be present.
+	require.FileExists(t, filepath.Join(workflowsDir, "daily-compiler-quality.md"),
+		"main workflow daily-compiler-quality.md should exist")
+
+	// 2. Direct imports must be present.
+	assert.FileExists(t, filepath.Join(workflowsDir, "shared", "daily-audit-base.md"),
+		"direct import shared/daily-audit-base.md should be fetched")
+	assert.FileExists(t, filepath.Join(workflowsDir, "shared", "go-source-analysis.md"),
+		"direct import shared/go-source-analysis.md should be fetched")
+
+	// 3. Transitive imports via shared/daily-audit-base.md must be present.
+	assert.FileExists(t, filepath.Join(workflowsDir, "shared", "daily-audit-discussion.md"),
+		"transitive import shared/daily-audit-discussion.md (via daily-audit-base) should be fetched")
+	assert.FileExists(t, filepath.Join(workflowsDir, "shared", "reporting.md"),
+		"transitive import shared/reporting.md (via daily-audit-base) should be fetched")
+	assert.FileExists(t, filepath.Join(workflowsDir, "shared", "observability-otlp.md"),
+		"transitive import shared/observability-otlp.md (via daily-audit-base) should be fetched")
+
+	// 4. Transitive imports via shared/go-source-analysis.md must be present.
+	assert.FileExists(t, filepath.Join(workflowsDir, "shared", "mcp", "serena-go.md"),
+		"transitive import shared/mcp/serena-go.md (via go-source-analysis) should be fetched")
+	// serena-go.md imports ./serena.md (explicitly-relative), which should resolve to
+	// shared/mcp/serena.md and be fetched correctly.
+	assert.FileExists(t, filepath.Join(workflowsDir, "shared", "mcp", "serena.md"),
+		"deep transitive import shared/mcp/serena.md (via go-source-analysis → serena-go.md) should be fetched")
+
+	// 5. Compilation must have succeeded (lock file present).
+	assert.FileExists(t, filepath.Join(workflowsDir, "daily-compiler-quality.lock.yml"),
+		"compiled lock file daily-compiler-quality.lock.yml should exist")
+}

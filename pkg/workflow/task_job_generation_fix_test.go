@@ -164,8 +164,8 @@ Do conditional work.`
 			t.Error("Expected activation job for workflow with if condition")
 		}
 
-		// Verify activation job has the if condition
-		if !strings.Contains(lockContentStr, "if: ${{ github.ref == 'refs/heads/main' }}") {
+		// Verify activation job has the if condition (without ${{ }} wrapper, as per lock file format)
+		if !strings.Contains(lockContentStr, "if: github.ref == 'refs/heads/main'") {
 			t.Error("Expected activation job to have the if condition")
 		}
 

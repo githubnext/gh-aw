@@ -26,9 +26,19 @@ mcp-scripts:
       make $INPUT_ARGS
 ---
 
-**IMPORTANT**: Always use the `mcpscripts-go` and `mcpscripts-make` tools for Go and Make commands instead of running them directly via bash. These mcp-script tools provide consistent execution and proper logging.
+**IMPORTANT — bash vs. MCP for validation:**
 
-**Correct**:
+- **Use `mcpscripts-go` / `mcpscripts-make` early in a session** (within the first few minutes) for consistent, logged execution of Go and Make commands.
+- **Use direct bash commands for end-of-session validation** (i.e., after any file-exploration or analysis phase that may have taken more than ~5 minutes). MCP connections time out after ~5 minutes of inactivity; calling `mcpscripts-*` at the end of a long session fails with `MCP error -32003: context canceled`.
+
+**Validation via bash (preferred at end of session or after long exploration):**
+```bash
+make build
+make test-unit
+make recompile
+```
+
+**MCP tools (use early in session, before long exploration phases):**
 ```
 Use the mcpscripts-go tool with args: "test ./..."
 Use the mcpscripts-make tool with args: "build"
@@ -39,8 +49,7 @@ Use the mcpscripts-make tool with args: "test-unit"
 **Incorrect**:
 ```
 Use the go mcp-script tool with args: "test ./..."  ❌ (Wrong tool name - use mcpscripts-go)
-Run: go test ./...  ❌ (Use mcpscripts-go instead)
-Execute bash: make build  ❌ (Use mcpscripts-make instead)
+Use the mcpscripts-make tool with args: "build"     ❌ (after a long exploration phase — use bash instead)
 ```
 
 <!--
