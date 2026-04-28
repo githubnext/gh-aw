@@ -128,6 +128,8 @@ func CopyFile(src, dst string) error {
 	defer func() { _ = out.Close() }()
 
 	if _, err = io.Copy(out, in); err != nil {
+		_ = out.Close()
+		_ = os.Remove(dst)
 		return err
 	}
 	log.Printf("File copied successfully: src=%s, dst=%s", src, dst)
