@@ -1,0 +1,11 @@
+name: Dependabot Repair
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  dependabot-repair:
+    if: github.actor == 'dependabot[bot]'
+    uses: githubnext/dependabot-campaign/.github/workflows/dependabot-repair-reusable.lock.yml@ff91842c074b23270d3a0e26a7206a251232a374 # v0.2.0
+    secrets: inherit

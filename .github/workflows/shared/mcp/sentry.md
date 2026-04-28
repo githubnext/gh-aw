@@ -2,7 +2,7 @@
 mcp-servers:
   sentry:
     command: "npx"
-    args: ["@sentry/mcp-server@0.32.0"]
+    args: ["@sentry/mcp-server@0.33.0"]
     allowed:
       - whoami
       - find_organizations
@@ -16,7 +16,7 @@ mcp-servers:
       - search_issues
       - find_dsns
       - analyze_issue_with_seer
-      - search_docs requires SENTRY_OPENAI_API_KEY
+      - search_docs # requires SENTRY_OPENAI_API_KEY
       - get_doc
     env:
       SENTRY_ACCESS_TOKEN: ${{ secrets.SENTRY_ACCESS_TOKEN }}
