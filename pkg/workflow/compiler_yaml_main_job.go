@@ -397,6 +397,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// connects to via host.docker.internal:18443.
 	c.generateStartCliProxyStep(yaml, data)
 
+	// Write structured-output schema to disk before engine execution so the agent can
+	// discover the schema file via GH_AW_STRUCTURED_OUTPUT_SCHEMA and produce a conforming response.
+	if schemaStep := generateStructuredOutputSchemaStep(data); schemaStep != "" {
+		yaml.WriteString(schemaStep)
+	}
+
 	// Add AI execution step using the agentic engine
 	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
@@ -458,6 +464,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// /tmp/gh-aw/ that is reachable in both AWF sandbox and non-sandbox modes).
 	// secret redaction already scanned this file, so it is safe to append.
 	c.generateAgentStepSummaryAppend(yaml)
+
+	// Validate structured output (if configured): reads the agent's structured output file,
+	// confirms it is well-formed JSON, and exposes it as the validate_structured_output step output.
+	if validationStep := generateStructuredOutputValidationStep(data, getCachedActionPin); validationStep != "" {
+		yaml.WriteString(validationStep)
+		// Include the structured output file in the agent artifact for traceability.
+		artifactPaths = append(artifactPaths, StructuredOutputFilePath)
+	}
 
 	// Add output collection step only if safe-outputs feature is used (GH_AW_SAFE_OUTPUTS functionality)
 	if data.SafeOutputs != nil {

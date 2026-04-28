@@ -288,6 +288,9 @@ touch %s
 	// Add safe outputs env
 	applySafeOutputEnvToMap(env, workflowData)
 
+	// Add GH_AW_STRUCTURED_OUTPUT_SCHEMA / GH_AW_STRUCTURED_OUTPUT_FILE if structured output is configured
+	applyStructuredOutputEnvToMap(env, workflowData)
+
 	// Set the model environment variable only when explicitly configured.
 	// When model is configured, use the native GEMINI_MODEL env var - the Gemini CLI reads it
 	// directly, avoiding the need to embed the value in the shell command (which would fail

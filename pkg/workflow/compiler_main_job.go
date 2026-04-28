@@ -171,6 +171,13 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		outputs["has_patch"] = "${{ steps.collect_output.outputs.has_patch }}"
 	}
 
+	// Add structured_output job output when structured-output mode is configured.
+	// The value is the validated, compact JSON string produced by the validate_structured_output step.
+	if HasStructuredOutput(data) {
+		outputs["structured_output"] = "${{ steps.validate_structured_output.outputs.structured_output }}"
+		compilerMainJobLog.Print("Added structured_output output (structured-output mode enabled)")
+	}
+
 	// Add checkout_pr_success output to track PR checkout status only if the checkout-pr step will be generated
 	// This is used by the conclusion job to skip failure handling when checkout fails
 	// (e.g., when PR is merged and branch is deleted)

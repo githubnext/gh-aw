@@ -357,6 +357,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
 
+	// Add GH_AW_STRUCTURED_OUTPUT_SCHEMA / GH_AW_STRUCTURED_OUTPUT_FILE if structured output is configured
+	applyStructuredOutputEnvToMap(env, workflowData)
+
 	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
 	// Supports both literal integers and GitHub Actions expressions (e.g. "${{ inputs.startup-timeout }}")
 	if workflowData.ToolsStartupTimeout != "" {

@@ -295,6 +295,13 @@ func (c *Compiler) extractAdditionalConfigurations(
 		workflowData.MCPScripts = c.mergeMCPScripts(workflowData.MCPScripts, importsResult.MergedMCPScripts)
 	}
 
+	// Extract structured-output configuration (compile-time schema validation included)
+	structuredOutputConfig, err := extractStructuredOutputConfig(frontmatter, markdownDir)
+	if err != nil {
+		return fmt.Errorf("structured-output: %w", err)
+	}
+	workflowData.StructuredOutputConfig = structuredOutputConfig
+
 	// Extract safe-jobs from safe-outputs.jobs location
 	topSafeJobs := extractSafeJobsFromFrontmatter(frontmatter)
 

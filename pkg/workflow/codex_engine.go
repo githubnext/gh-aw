@@ -302,6 +302,9 @@ mkdir -p "$CODEX_HOME/logs"
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
 
+	// Add GH_AW_STRUCTURED_OUTPUT_SCHEMA / GH_AW_STRUCTURED_OUTPUT_FILE if structured output is configured
+	applyStructuredOutputEnvToMap(env, workflowData)
+
 	// In sandbox (AWF) mode, set git identity environment variables so the first git commit
 	// succeeds inside the container. AWF's --env-all forwards these to the container, ensuring
 	// git does not rely on the host-side ~/.gitconfig which is not visible in the sandbox.

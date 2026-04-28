@@ -516,6 +516,10 @@ type WorkflowData struct {
 	CachedParsedToolsets          []string                        // cached result of ParseGitHubToolsets for the GitHub tool (for performance optimization); populated by applyDefaults
 	CachedAllowedDomainsStr       string                          // cached allowed-domains string for sanitization (for performance optimization); computed once and reused across multiple compilation steps
 	CachedAllowedDomainsComputed  bool                            // true once CachedAllowedDomainsStr has been set; distinguishes "computed empty" from "not yet computed"
+
+	// StructuredOutputConfig holds the resolved structured-output configuration.
+	// Set when the frontmatter declares a structured-output section.
+	StructuredOutputConfig *StructuredOutputConfig
 }
 
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.

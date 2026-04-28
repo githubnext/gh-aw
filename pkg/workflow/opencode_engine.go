@@ -163,6 +163,9 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 
 	applySafeOutputEnvToMap(env, workflowData)
 
+	// Add GH_AW_STRUCTURED_OUTPUT_SCHEMA / GH_AW_STRUCTURED_OUTPUT_FILE if structured output is configured
+	applyStructuredOutputEnvToMap(env, workflowData)
+
 	if modelConfigured {
 		openCodeLog.Printf("Setting %s env var for model: %s",
 			constants.OpenCodeCLIModelEnvVar, workflowData.EngineConfig.Model)

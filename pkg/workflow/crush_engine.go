@@ -186,6 +186,9 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	// Safe outputs env
 	applySafeOutputEnvToMap(env, workflowData)
 
+	// Add GH_AW_STRUCTURED_OUTPUT_SCHEMA / GH_AW_STRUCTURED_OUTPUT_FILE if structured output is configured
+	applyStructuredOutputEnvToMap(env, workflowData)
+
 	// Model env var (only when explicitly configured)
 	if modelConfigured {
 		crushLog.Printf("Setting %s env var for model: %s",

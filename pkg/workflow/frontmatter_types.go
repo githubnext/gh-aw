@@ -207,6 +207,10 @@ type FrontmatterConfig struct {
 	SecretMasking *SecretMaskingConfig `json:"secret-masking,omitempty"`
 	Observability *ObservabilityConfig `json:"observability,omitempty"`
 
+	// Structured output configuration — declares a JSON Schema that the agent's primary
+	// response must conform to.  Either 'schema' (inline) or 'schema-file' (file path) is required.
+	StructuredOutput *StructuredOutputConfig `json:"structured-output,omitempty"`
+
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`
 
