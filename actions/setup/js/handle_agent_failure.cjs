@@ -846,13 +846,11 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
  * indicating the agent finished its task successfully despite a non-zero job exit code.
  * Log lines may be prefixed with a timestamp (e.g. "2026-04-27T21:45:00.080Z  {JSON}").
  *
- * Uses two complementary strategies for robustness:
- * 1. String scan: checks whether the raw line contains the literal substring
- *    `"terminal_reason":"completed"` (accounting for 0 or 1 space around `:`).
- *    This is fast and resilient to truncated or multi-line JSON.
- * 2. JSON parse: for lines that contain a JSON object, parses and checks
- *    `parsed.terminal_reason === "completed"` to avoid false positives from unrelated
- *    content that happens to include the literal string.
+ * Lazy strategy: tests a single regex against the entire file content in one pass and
+ * returns immediately on the first match, avoiding line splitting and JSON parsing.
+ * The pattern is specific enough (`"terminal_reason"` key with `"completed"` value,
+ * 0 or 1 space around the colon) that false positives from unrelated content are
+ * negligible in practice.
  *
  * @returns {boolean} true if terminal_reason: "completed" was found in the log
  */
@@ -864,29 +862,11 @@ function hasAgentTerminalReasonCompleted() {
       return false;
     }
     const logContent = fs.readFileSync(stdioLogPath, "utf8");
-    // Fast string scan pattern: "terminal_reason" followed by 0 or 1 space,
-    // colon, 0 or 1 space, then "completed" (quoted). JSON uses either no space
-    // or exactly one space around the colon separator.
-    const TERMINAL_REASON_COMPLETED_RE = /"terminal_reason"\s?:\s?"completed"/;
-    for (const line of logContent.split("\n")) {
-      // Strategy 1: string scan — catches the pattern even when JSON parse fails
-      if (TERMINAL_REASON_COMPLETED_RE.test(line)) {
-        return true;
-      }
-      // Strategy 2: JSON parse — validate that the field actually belongs to a result
-      // entry (avoids very unlikely false positives from content that contains the
-      // literal substring inside a string value of a different field)
-      const jsonStart = line.indexOf("{");
-      if (jsonStart === -1) continue;
-      try {
-        const parsed = JSON.parse(line.slice(jsonStart));
-        if (parsed && parsed.terminal_reason === "completed") {
-          return true;
-        }
-      } catch {
-        // Not valid JSON at this position — string scan above is the guard
-      }
-    }
+    // Single-pass scan: "terminal_reason" key with 0 or 1 space around the colon
+    // and "completed" value. JSON uses either compact ("key":"val") or spaced
+    // ("key" : "val") formatting. Returns on first match without splitting lines
+    // or parsing JSON.
+    return /"terminal_reason"\s?:\s?"completed"/.test(logContent);
   } catch {
     // IO error — assume not completed
   }
