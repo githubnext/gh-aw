@@ -34,6 +34,7 @@ safe-outputs:
     max: 3
     labels: [copilot-opt, optimization, cookie]
     title-prefix: "[copilot-opt] "
+    close-older-issues: true
 imports:
   - shared/jqschema.md
   - shared/copilot-session-data-fetch.md
@@ -57,7 +58,7 @@ Pre-fetched data is available from shared imports:
 
 - `/tmp/gh-aw/session-data/sessions-list.json`
 - `/tmp/gh-aw/session-data/logs/` (conversation logs and/or fallback logs)
-- `/tmp/gh-aw/pr-data/copilot-prs.json` (optional cross-analysis source)
+- `/tmp/gh-aw/pr-data/copilot-prs.json` (cross-analysis source — always present)
 
 These paths are populated by imported setup components:
 - `shared/copilot-session-data-fetch.md` writes the session files under `/tmp/gh-aw/session-data/`
@@ -75,12 +76,13 @@ These paths are populated by imported setup components:
    - large initial instruction/context payload
    - inefficient orchestration/model-loading patterns
    - prompt drift / instruction adherence degradation
-4. Optionally correlate findings with Copilot PR patterns from `/tmp/gh-aw/pr-data/copilot-prs.json` when useful.
-5. Generate **exactly three** recommendations:
+4. **Always** correlate findings with Copilot PR patterns from `/tmp/gh-aw/pr-data/copilot-prs.json`.
+5. **Always** perform duplicate PR pattern detection (see Phase 3) and surface retry-blocked topics.
+6. Generate **exactly three** recommendations:
    - each recommendation must target a distinct root cause
    - each recommendation must be concrete and actionable
    - each recommendation must include expected impact
-6. Create **exactly three GitHub issues** (one per recommendation).
+7. Create **exactly three GitHub issues** (one per recommendation).
 
 If data is incomplete, proceed with available evidence and clearly state data quality limitations.
 
@@ -125,15 +127,53 @@ For each session summary:
 
 Aggregate across all sessions to identify recurring systemic patterns.
 
-## Phase 3 — Optional PR Cross-Analysis
+## Phase 3 — PR Cross-Analysis and Duplicate Pattern Detection
 
-If `/tmp/gh-aw/pr-data/copilot-prs.json` is present and non-empty:
+This phase is **mandatory**. `/tmp/gh-aw/pr-data/copilot-prs.json` is always present from the imported `shared/copilot-pr-data-fetch.md` step.
+
+### 3a — General PR Failure Signals
 
 1. Extract recurring failure/friction signals from recent Copilot PRs.
-2. Correlate with session-derived patterns.
+2. Correlate with session-derived patterns from Phase 2.
 3. Increase priority for overlapping problem areas.
 
-If PR data is unavailable, continue without this phase and note that in evidence.
+### 3b — Duplicate PR Pattern Detection
+
+Identify topics where Copilot PRs were closed without merging and then re-attempted. This is the costliest waste pattern because each retry consumes a full agent session.
+
+**Detection procedure:**
+
+```bash
+# Find closed (not merged) PRs grouped by normalized title
+jq '[.[] | select(.state == "CLOSED" and .mergedAt == null)]
+    | group_by(.title)
+    | map({title: .[0].title, count: length, prs: [.[] | {number, url, closedAt}]})
+    | map(select(.count >= 2))
+    | sort_by(-.count)' /tmp/gh-aw/pr-data/copilot-prs.json
+```
+
+For each topic with **two or more** closed-without-merge PRs (retry-blocked topics):
+
+1. Record the PR numbers, titles, and close dates.
+2. Use the GitHub MCP `get_pull_request` or `search_pull_requests` tool to read the most recent closed PR and identify the close reason (review comments, CI failures, or reviewer request).
+3. Classify the close reason into one of:
+   - `ci-failure` — tests or lint failed
+   - `reviewer-rejected` — maintainer closed without merging and left a reason
+   - `scope-mismatch` — implementation did not match what was requested
+   - `duplicate` — a separate fix was merged that covers the same change
+   - `unknown` — no clear close reason found
+4. Build a **retry-blocked topics table**:
+
+   | Topic (PR title keywords) | Closed PRs | Close reason | Retry count |
+   |---------------------------|------------|--------------|-------------|
+   | …                         | #N, #M     | ci-failure   | 2           |
+
+### 3c — Retry Count Threshold
+
+- Topics with **exactly two** closed PRs: flag as **high-risk retry**. Include in recommendations if the close reason is actionable.
+- Topics with **three or more** closed PRs: flag as **retry-blocked**. These must produce a recommendation that explicitly calls for human review before any further agent attempt.
+
+If PR data is unexpectedly unavailable (file missing or empty), skip Phase 3 and note that in all three issue bodies.
 
 ## Phase 4 — Recommendation Selection
 
@@ -143,6 +183,7 @@ Selection rules:
 
 - cover distinct root causes (no overlap)
 - prioritize high-frequency and high-severity patterns
+- **retry-blocked topics (≥2 closed PRs) are automatically elevated to high priority** — if any exist, at least one recommendation must address them unless all three slots are taken by higher-impact findings from Phase 2
 - include evidence (counts, rates, or representative examples)
 - include expected impact and a concrete change proposal
 
@@ -153,6 +194,7 @@ Possible recommendation domains:
 - tool payload/latency optimization
 - earlier/stronger validation strategy
 - prompt design corrections to reduce drift
+- **duplicate-PR / retry waste reduction** (use when Phase 3b finds retry-blocked topics)
 
 ## Phase 5 — Issue Creation (Exactly Three)
 
@@ -190,6 +232,28 @@ Use this template:
 - Data quality caveats (if any)
 ```
 
+### Retry-Blocked Topic Addendum
+
+When an issue covers a retry-blocked topic (from Phase 3b), **append** the following section to the body:
+
+```markdown
+### Prior Failed Attempts
+
+The following Copilot PRs on this topic were closed without merging before this issue was created:
+
+| PR | Closed (YYYY-MM-DD) | Close reason |
+|----|---------------------|--------------|
+| #N | YYYY-MM-DD | [reason] |
+| #M | YYYY-MM-DD | [reason] |
+
+**Retry count: [N] — human review required before a new implementation attempt.**
+Any agent attempting to implement this recommendation MUST read this section and the linked PRs, address all close reasons, and post a plan comment on this issue before opening a new PR.
+```
+
+### Labels for Retry-Blocked Issues
+
+When creating an issue that covers a retry-blocked topic, add `copilot-retry-blocked` to the labels list in the `create_issue` safe-output call alongside the standard labels.
+
 ## Items That Should Not Be Addressed
 
 The following items are out of scope because they are not actionable by repository users:
@@ -213,8 +277,12 @@ Before creating issues, verify:
 - [ ] last-14-day filtering was applied
 - [ ] `events.jsonl` parsing was attempted across all in-scope sessions
 - [ ] tool latency/payload, validation timing, context size, orchestration, and prompt drift were analyzed
+- [ ] Phase 3 PR cross-analysis was performed (not skipped)
+- [ ] duplicate PR pattern detection was run and retry-blocked topics table was built
+- [ ] retry-blocked topics (≥2 closed PRs) are reflected in at least one recommendation when present
 - [ ] exactly three recommendations selected
 - [ ] each recommendation has evidence + proposed change + expected impact
+- [ ] retry-blocked issues include the "Prior Failed Attempts" addendum and `copilot-retry-blocked` label
 - [ ] exactly three issue outputs will be created
 
 ## Usage

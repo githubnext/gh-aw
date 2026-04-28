@@ -22,6 +22,7 @@ This document consolidates development guidelines, architectural patterns, and i
 - [Hierarchical Agent Management](#hierarchical-agent-management)
 - [Release Management](#release-management)
 - [Scope Hints for Complex Workflows](#scope-hints-for-complex-workflows)
+- [PR Deduplication Protocol](#pr-deduplication-protocol)
 - [Quick Reference](#quick-reference)
 
 ---
@@ -700,7 +701,63 @@ Before submitting a complex workflow request, confirm you have specified:
 
 ---
 
-## Quick Reference
+## PR Deduplication Protocol
+
+Repeated closed PR attempts on the same topic waste CI resources and agent context. Follow this protocol every time you are about to create a pull request.
+
+### Pre-flight Duplicate PR Check
+
+Before opening a PR, search for existing closed PRs with a similar topic using the GitHub MCP `search_pull_requests` tool:
+
+1. Extract 2–4 keywords from the feature/fix title.
+2. Run a search such as:
+   - `is:pr is:closed head:copilot/ <keywords>`
+   - `is:pr is:closed <keywords>`
+3. If **no** closed PR is found, proceed normally.
+4. If **one or more** closed PRs are found, move to the [Prior Failure Analysis](#prior-failure-analysis) step before writing any code.
+
+### Prior Failure Analysis
+
+When a closed PR exists on the same topic, perform this analysis at the start of the session — before any code exploration or implementation:
+
+1. Read the closed PR description, review comments, and timeline.
+2. Identify the **root cause of closure**:
+   - Reviewer requested changes → list them explicitly
+   - CI/test failures → identify failing checks and root cause
+   - Scope mismatch → clarify what was actually requested
+   - Duplicate of another fix → link to that fix
+3. Verify that the root cause will be addressed in the new implementation.
+4. Include a "## Prior Attempts" section in the new PR description that summarizes:
+   - Link(s) to prior closed PR(s)
+   - Why each was closed
+   - What is different this time
+
+**Example PR description section:**
+
+```markdown
+## Prior Attempts
+
+- #1234 (closed): CI failed on `TestFoo` due to missing nil check — fixed in this PR
+- #1189 (closed): Reviewer requested scope reduction — this PR limits change to X only
+```
+
+### Retry Limit Circuit Breaker
+
+If **two or more** closed PRs already exist on the same topic:
+
+1. **Do not open a third PR** without explicit human review.
+2. Post a comment on the originating issue that:
+   - Lists all prior closed PRs and their close reasons
+   - Explains what changed (if anything) in the new approach
+   - Requests explicit maintainer approval to proceed
+3. Label the issue `copilot-retry-blocked` to signal that human review is required.
+4. Wait for a maintainer to remove the label or leave an approving comment before creating the new PR.
+
+**Rationale:** Two consecutive failed PR attempts indicate a systemic problem (unclear requirements, missing context, fundamental design issue) that code changes alone cannot resolve.
+
+---
+
+
 
 ### File Locations
 
@@ -792,4 +849,4 @@ For detailed specifications, see individual files in `scratchpad/`:
 
 ---
 
-**Last Updated**: 2026-01-31
+**Last Updated**: 2026-04-28
