@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"78eecd44b9e7de4feb8895b3ac7f4431dd7176bde2b9e7dc291fb2ca127ea192","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"059ab6ec82199369fa23ae6d33a5251bfd171ab7f51874d5564c5ced92e42cf3","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.28","digest":"sha256:a8834e285807654bf680154faa710d43fe4365a0868142f5c20e48c85e137a7a","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.28@sha256:a8834e285807654bf680154faa710d43fe4365a0868142f5c20e48c85e137a7a"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.28","digest":"sha256:93290f2393752252911bd7c39a047f776c0b53063575e7bde4e304962a9a61cb","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.28@sha256:93290f2393752252911bd7c39a047f776c0b53063575e7bde4e304962a9a61cb"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.28","digest":"sha256:844c18280f82cd1b06345eb2f4e91966b34185bfc51c9f237c3e022e848fb474","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.28@sha256:844c18280f82cd1b06345eb2f4e91966b34185bfc51c9f237c3e022e848fb474"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.0","digest":"sha256:9c2228324fb1f26f39dc9471612e530ae3efc3156dac05efb2e8d212878d454d","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.0@sha256:9c2228324fb1f26f39dc9471612e530ae3efc3156dac05efb2e8d212878d454d"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -201,25 +201,25 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_26934c9c8c3389de_EOF'
+          cat << 'GH_AW_PROMPT_06e3e19b06693820_EOF'
           <system>
-          GH_AW_PROMPT_26934c9c8c3389de_EOF
+          GH_AW_PROMPT_06e3e19b06693820_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_26934c9c8c3389de_EOF'
+          cat << 'GH_AW_PROMPT_06e3e19b06693820_EOF'
           <safe-output-tools>
           Tools: add_comment, create_issue, update_issue, update_pull_request, add_labels, remove_labels, missing_tool, missing_data, noop
-          GH_AW_PROMPT_26934c9c8c3389de_EOF
+          GH_AW_PROMPT_06e3e19b06693820_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_comment_memory.md"
-          cat << 'GH_AW_PROMPT_26934c9c8c3389de_EOF'
+          cat << 'GH_AW_PROMPT_06e3e19b06693820_EOF'
           </safe-output-tools>
-          GH_AW_PROMPT_26934c9c8c3389de_EOF
+          GH_AW_PROMPT_06e3e19b06693820_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_26934c9c8c3389de_EOF'
+          cat << 'GH_AW_PROMPT_06e3e19b06693820_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -248,12 +248,12 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_26934c9c8c3389de_EOF
+          GH_AW_PROMPT_06e3e19b06693820_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_26934c9c8c3389de_EOF'
+          cat << 'GH_AW_PROMPT_06e3e19b06693820_EOF'
           </system>
           {{#runtime-import .github/workflows/smoke-ci.md}}
-          GH_AW_PROMPT_26934c9c8c3389de_EOF
+          GH_AW_PROMPT_06e3e19b06693820_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
@@ -494,9 +494,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_c8b5d475e858e75e_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_8f2ed44de76e9ffd_EOF'
           {"add_comment":{"hide_older_comments":true,"max":1},"add_labels":{"allowed":["ai-generated"],"max":1},"comment_memory":{"max":1,"memory_id":"default"},"create_issue":{"close_older_issues":true,"close_older_key":"smoke-ci-memory-safe-outputs","labels":["ai-generated"],"max":1,"title_prefix":"[smoke-ci] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":10240,"max_patch_size":10240}]},"remove_labels":{"allowed":["ai-generated"],"max":1},"report_incomplete":{},"update_issue":{"allow_body":true,"max":1,"target":"*"},"update_pull_request":{"allow_body":true,"allow_title":true,"max":1,"target":"*","update_branch":false}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_c8b5d475e858e75e_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_8f2ed44de76e9ffd_EOF
       - name: Write Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -876,7 +876,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_0ee84cdd519dca6a_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_b496b026de2d0742_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -917,7 +917,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_0ee84cdd519dca6a_EOF
+          GH_AW_MCP_CONFIG_b496b026de2d0742_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -946,7 +946,7 @@ jobs:
           cat > /tmp/gh-aw/engine-command.sh <<'GH_AW_ENGINE_COMMAND_EOF'
           #!/usr/bin/env bash
           set -eo pipefail
-          bash -lc 'mkdir -p /tmp/gh-aw/cache-memory /tmp/gh-aw/repo-memory/default; printf "%s\n" "${GITHUB_RUN_ID}" >> /tmp/gh-aw/cache-memory/runs.txt; printf "%s\n" "${GITHUB_RUN_ID}" >> /tmp/gh-aw/repo-memory/default/runs.txt; if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then safeoutputs add_comment --body "✅ smoke-ci: safeoutputs CLI comment + comment-memory run (${GITHUB_RUN_ID})"; mkdir -p /tmp/gh-aw/comment-memory; HAIKU="CI lights the path\nGreen checks bloom at dawn\nQuiet bots still sing"; if compgen -G "/tmp/gh-aw/comment-memory/*.md" > /dev/null; then for memory_file in /tmp/gh-aw/comment-memory/*.md; do printf "\n%s\n" "$HAIKU" >> "$memory_file"; done; else printf "%s\n" "$HAIKU" > /tmp/gh-aw/comment-memory/default.md; fi; else safeoutputs noop --message "smoke-ci: push event - no PR context, no action needed"; fi' "$@"
+          bash -lc 'mkdir -p /tmp/gh-aw/cache-memory /tmp/gh-aw/repo-memory/default; printf "%s\n" "${GITHUB_RUN_ID}" >> /tmp/gh-aw/cache-memory/runs.txt; printf "%s\n" "${GITHUB_RUN_ID}" >> /tmp/gh-aw/repo-memory/default/runs.txt; if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then safeoutputs add_comment --body "✅ smoke-ci: safeoutputs CLI comment + comment-memory run (${GITHUB_RUN_ID})"; mkdir -p /tmp/gh-aw/comment-memory; HAIKU="CI lights the path\nGreen checks bloom at dawn\nQuiet bots still sing"; if compgen -G "/tmp/gh-aw/comment-memory/*.md" > /dev/null; then for memory_file in /tmp/gh-aw/comment-memory/*.md; do printf "\n%b\n" "$HAIKU" >> "$memory_file"; done; else printf "%b\n" "$HAIKU" > /tmp/gh-aw/comment-memory/default.md; fi; else safeoutputs noop --message "smoke-ci: push event - no PR context, no action needed"; fi' "$@"
 
           GH_AW_ENGINE_COMMAND_EOF
           chmod 700 /tmp/gh-aw/engine-command.sh
