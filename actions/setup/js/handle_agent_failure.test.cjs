@@ -1266,6 +1266,17 @@ describe("handle_agent_failure", () => {
       fs.writeFileSync(stdioLogPath, lines.join("\n") + "\n");
       expect(hasAgentTerminalReasonCompleted()).toBe(true);
     });
+
+    it("returns true via string scan when JSON is truncated but substring is present", () => {
+      // A truncated line that can't be fully parsed as JSON but contains the literal substring
+      fs.writeFileSync(stdioLogPath, '"terminal_reason":"completed","num_turns":53 (truncated\n');
+      expect(hasAgentTerminalReasonCompleted()).toBe(true);
+    });
+
+    it("returns true via string scan when spaces around colon", () => {
+      fs.writeFileSync(stdioLogPath, '{"terminal_reason" : "completed"}\n');
+      expect(hasAgentTerminalReasonCompleted()).toBe(true);
+    });
   });
 
   // ──────────────────────────────────────────────────────

@@ -845,6 +845,15 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
  * Check whether agent-stdio.log contains a terminal_reason: "completed" result entry,
  * indicating the agent finished its task successfully despite a non-zero job exit code.
  * Log lines may be prefixed with a timestamp (e.g. "2026-04-27T21:45:00.080Z  {JSON}").
+ *
+ * Uses two complementary strategies for robustness:
+ * 1. String scan: checks whether the raw line contains the literal substring
+ *    `"terminal_reason":"completed"` (accounting for optional whitespace around `:`).
+ *    This is fast and resilient to truncated or multi-line JSON.
+ * 2. JSON parse: for lines that contain a JSON object, parses and checks
+ *    `parsed.terminal_reason === "completed"` to avoid false positives from unrelated
+ *    content that happens to include the literal string.
+ *
  * @returns {boolean} true if terminal_reason: "completed" was found in the log
  */
 function hasAgentTerminalReasonCompleted() {
@@ -855,9 +864,17 @@ function hasAgentTerminalReasonCompleted() {
       return false;
     }
     const logContent = fs.readFileSync(stdioLogPath, "utf8");
+    // Fast string scan pattern: "terminal_reason" followed by optional whitespace,
+    // colon, optional whitespace, then "completed" (quoted).
+    const TERMINAL_REASON_COMPLETED_RE = /"terminal_reason"\s*:\s*"completed"/;
     for (const line of logContent.split("\n")) {
-      // Lines may be timestamped: "2026-04-27T21:45:00.080Z  {JSON}"
-      // Locate the first '{' to extract the JSON portion
+      // Strategy 1: string scan — catches the pattern even when JSON parse fails
+      if (TERMINAL_REASON_COMPLETED_RE.test(line)) {
+        return true;
+      }
+      // Strategy 2: JSON parse — validate that the field actually belongs to a result
+      // entry (avoids very unlikely false positives from content that contains the
+      // literal substring inside a string value of a different field)
       const jsonStart = line.indexOf("{");
       if (jsonStart === -1) continue;
       try {
@@ -866,7 +883,7 @@ function hasAgentTerminalReasonCompleted() {
           return true;
         }
       } catch {
-        // Not valid JSON at this position
+        // Not valid JSON at this position — string scan above is the guard
       }
     }
   } catch {
@@ -908,18 +925,9 @@ function buildEngineFailureContext() {
     // Guard: if the agent completed successfully (terminal_reason: "completed"), the job
     // failure was caused by something other than the agent itself (e.g., post-processing
     // or infrastructure). Suppress the engine failure context to avoid false positive labels.
-    for (const line of lines) {
-      const jsonStart = line.indexOf("{");
-      if (jsonStart === -1) continue;
-      try {
-        const parsed = JSON.parse(line.slice(jsonStart));
-        if (parsed && parsed.terminal_reason === "completed") {
-          core.info("Agent completed successfully (terminal_reason: completed) — suppressing engine failure context");
-          return "";
-        }
-      } catch {
-        // Not valid JSON at this position
-      }
+    if (hasAgentTerminalReasonCompleted()) {
+      core.info("Agent completed successfully (terminal_reason: completed) — suppressing engine failure context");
+      return "";
     }
 
     const errorMessages = new Set();
