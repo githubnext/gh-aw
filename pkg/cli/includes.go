@@ -227,16 +227,39 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 			continue
 		}
 
-		// Resolve the remote file path relative to the current file's directory.
+		// Resolve the remote file path to an absolute repo path.
 		// Use path (not filepath) because this is always a forward-slash URL/API path.
 		var remoteFilePath string
 		if rest, ok := strings.CutPrefix(filePath, "/"); ok {
 			// Absolute path from repo root (e.g. "/scripts/helper.md")
 			remoteFilePath = rest
-		} else if currentBaseDir != "" {
-			remoteFilePath = path.Join(currentBaseDir, filePath)
+		} else if strings.HasPrefix(filePath, "./") || strings.HasPrefix(filePath, "../") {
+			// Explicitly-relative path (e.g. "./serena.md"): resolve relative to the
+			// current importing file's directory so that sibling-file references work
+			// correctly regardless of nesting depth.
+			if currentBaseDir != "" {
+				remoteFilePath = path.Join(currentBaseDir, filePath)
+			} else {
+				remoteFilePath = filePath
+			}
 		} else {
-			remoteFilePath = filePath
+			// Non-explicit relative path (e.g. "shared/foo.md"): resolve relative to the
+			// original base directory (the top-level workflow's directory). Workflows in
+			// this repository write shared import paths relative to the workflow root
+			// (e.g. ".github/workflows"), not relative to the importing file's own
+			// directory. Resolving against originalBaseDir instead of currentBaseDir
+			// ensures that a file at ".github/workflows/shared/base.md" can import
+			// "shared/helper.md" and have it resolve to ".github/workflows/shared/helper.md"
+			// rather than the incorrect ".github/workflows/shared/shared/helper.md".
+			baseDir := originalBaseDir
+			if baseDir == "" {
+				baseDir = currentBaseDir
+			}
+			if baseDir != "" {
+				remoteFilePath = path.Join(baseDir, filePath)
+			} else {
+				remoteFilePath = filePath
+			}
 		}
 		remoteFilePath = path.Clean(remoteFilePath)
 
