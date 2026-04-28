@@ -127,39 +127,84 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	// runner host until the secret-redaction step runs.
 	preCreateLog := fmt.Sprintf("(umask 177 && touch %s)", shellEscapeArg(config.LogFile))
 
+	// Build the AWF invocation body used inside the retry-wrapper function.
+	// The # shellcheck disable=SC1003 comment suppresses the "backslash+space is literal"
+	// warning for the `\` line continuation.
+	awfInvocationBody := fmt.Sprintf(`# shellcheck disable=SC1003
+  %s %s %s \
+    -- %s 2>&1 | tee -a %s`,
+		awfCommand,
+		expandableArgs,
+		shellJoinArgs(awfArgs),
+		shellWrappedCommand,
+		shellEscapeArg(config.LogFile))
+
+	// Wrap the AWF invocation in a retry loop that tolerates intermittent
+	// awf-api-proxy health check failures (e.g. slow cold starts on busy runners).
+	// On failure, container logs are captured for diagnostics. If the failure looks
+	// like a health check issue, the stale containers are removed and the invocation
+	// is retried once.
+	retryWrappedInvocation := buildAWFRetryWrapper(awfInvocationBody, shellEscapeArg(config.LogFile))
+
 	// Build the complete command with proper formatting
 	var command string
 	if config.PathSetup != "" {
 		// Include path setup before AWF command (runs on host before AWF)
-		command = fmt.Sprintf(`set -o pipefail
-%s
-%s
-# shellcheck disable=SC1003
-%s %s %s \
-  -- %s 2>&1 | tee -a %s`,
+		command = fmt.Sprintf("set -o pipefail\n%s\n%s\n%s",
 			config.PathSetup,
 			preCreateLog,
-			awfCommand,
-			expandableArgs,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
+			retryWrappedInvocation)
 	} else {
-		command = fmt.Sprintf(`set -o pipefail
-%s
-# shellcheck disable=SC1003
-%s %s %s \
-  -- %s 2>&1 | tee -a %s`,
+		command = fmt.Sprintf("set -o pipefail\n%s\n%s",
 			preCreateLog,
-			awfCommand,
-			expandableArgs,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
+			retryWrappedInvocation)
 	}
 
 	awfHelpersLog.Print("Successfully built AWF command")
 	return command
+}
+
+// buildAWFRetryWrapper wraps an AWF invocation shell snippet in a retry loop that
+// handles intermittent awf-api-proxy Docker health check failures.
+//
+// When AWF exits non-zero and the log contains "is unhealthy" (the signature of a
+// Docker health check failure), the wrapper:
+//  1. Captures docker logs from awf-api-proxy and awf-squid for diagnostics.
+//  2. Force-removes any stale AWF containers left behind by the failed compose startup.
+//  3. Retries the AWF invocation once.
+//
+// On the second failure (or any failure that is not a health check issue), container
+// diagnostics are still captured and the wrapper exits with status 1 so the GitHub
+// Actions step is marked as failed.
+//
+// The function-based approach (`_gh_aw_run_awf`) prevents bash's `set -e` from
+// terminating the script before the retry logic runs, since bash does not apply
+// `set -e` to commands used as `if` conditions.
+func buildAWFRetryWrapper(awfInvocationBody, escapedLogFile string) string {
+	return fmt.Sprintf(`_gh_aw_run_awf() {
+  %s
+}
+_gh_aw_attempt=0
+_gh_aw_success=false
+while [ "$_gh_aw_attempt" -lt 2 ]; do
+  _gh_aw_attempt=$((_gh_aw_attempt + 1))
+  if _gh_aw_run_awf; then
+    _gh_aw_success=true
+    break
+  fi
+  echo '[ERROR] AWF failed on attempt '"$_gh_aw_attempt"', capturing container diagnostics...' >&2
+  docker logs awf-api-proxy 2>&1 | tail -50 || true
+  docker logs awf-squid 2>&1 | tail -20 || true
+  if [ "$_gh_aw_attempt" -lt 2 ] && grep -q 'is unhealthy' %s 2>/dev/null; then
+    echo '[WARN] awf-api-proxy health check failure detected, cleaning up and retrying...' >&2
+    docker rm -f awf-api-proxy awf-squid awf-agent awf-cli-proxy 2>/dev/null || true
+  else
+    break
+  fi
+done
+if [ "$_gh_aw_success" != 'true' ]; then
+  exit 1
+fi`, awfInvocationBody, escapedLogFile)
 }
 
 // BuildAWFArgs constructs common AWF arguments from configuration.
