@@ -384,7 +384,7 @@ describe("create_pull_request - max limit enforcement", () => {
     expect(() => enforcePullRequestLimits(patchContent)).not.toThrow();
   });
 
-  it("should count unique files across multi-commit patches (regression: github/gh-aw issue tsessebe autoloop)", () => {
+  it("should count unique files across multi-commit patches (regression: long-running branch with multi-commit patches)", () => {
     // Simulate `git format-patch` output where the same files are modified across
     // multiple commits. Previously the limit check counted every `diff --git`
     // header (3 commits * 2 files = 6) instead of the 2 unique files actually
