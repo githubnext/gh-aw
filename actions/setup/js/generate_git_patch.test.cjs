@@ -529,7 +529,7 @@ describe("generateGitPatch – full mode base ref (merge-base, not stale origin)
   });
 
   it("should NOT include phantom commits when stale origin/<branch> exists (regression test)", async () => {
-    // Reproduce the autoloop bug scenario:
+    // Reproduce the stale-remote-tracking-ref bug scenario:
     //   1. A feature branch was pushed in the past at some old commit
     //      (origin/feature-branch points there — this is the "stale" remote-tracking ref)
     //   2. main has since advanced with many "phantom" commits the agent never made
@@ -548,6 +548,11 @@ describe("generateGitPatch – full mode base ref (merge-base, not stale origin)
       // This becomes the "old" position of origin/feature-branch.
       execSync("git checkout -b feature-branch", { cwd: repoDir });
       execSync("git push origin feature-branch", { cwd: repoDir });
+      // Explicitly fetch to ensure refs/remotes/origin/feature-branch exists in the
+      // local repo. `git push` typically updates this automatically, but in repos
+      // created via `git init` + `git remote add` (no clone) the remote-tracking
+      // ref population can be inconsistent across git versions, so be explicit.
+      execSync("git fetch origin feature-branch:refs/remotes/origin/feature-branch", { cwd: repoDir });
       const oldBranchSha = execSync("git rev-parse HEAD", { cwd: repoDir }).toString().trim();
 
       // Step 2: main advances with phantom commits the agent will not make

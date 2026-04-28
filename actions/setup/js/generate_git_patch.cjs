@@ -173,8 +173,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           // using the stale `origin/${branchName}` would cause the patch to include all
           // commits from the default branch since the old branch tip — commits the agent
           // never made. Always compute the merge-base with the default branch so the patch
-          // contains exactly the agent's changes. See issue githubnext/tsessebe autoloop
-          // failures for context.
+          // contains exactly the agent's changes.
           debugLog(`Strategy 1 (full): Computing merge-base with ${defaultBranch} (ignoring any stale origin/${branchName})`);
           // Check if origin/<defaultBranch> already exists locally (e.g., from checkout with fetch-depth: 0)
           // This is important for cross-repo checkouts where persist-credentials: false prevents fetching

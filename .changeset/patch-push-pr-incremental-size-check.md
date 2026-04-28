@@ -2,7 +2,7 @@
 "gh-aw": patch
 ---
 
-Fixed `push_to_pull_request_branch` `max_patch_size` check incorrectly measuring the patch from the default branch (checkout base) instead of from the existing PR branch head, causing every push to fail on long-running branches that accumulate iterations (e.g. autoloop's accumulating iteration branches).
+Fixed `push_to_pull_request_branch` `max_patch_size` check incorrectly measuring the patch from the default branch (checkout base) instead of from the existing PR branch head, causing every push to fail on long-running branches that accumulate iterations.
 
 The `max_patch_size` check now uses the **incremental net diff** between `origin/<branch>` and the new working state, not the size of the format-patch transport file or the cumulative diff from the default branch. This means the limit reflects how much the branch will actually change in the push, not the cumulative divergence of the long-running branch from `main`.
 

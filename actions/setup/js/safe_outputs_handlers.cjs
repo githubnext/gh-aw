@@ -643,7 +643,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // validate `max_patch_size` against the actual incremental change relative
     // to the existing PR branch head, not the (potentially much larger) size of
     // the format-patch transport file. This is critical for the long-running
-    // branch pattern (e.g. autoloop) where the format-patch can include many
+    // branch pattern where the format-patch can include many
     // commits but each iteration only changes a few KB.
     if (typeof patchResult.diffSize === "number" && patchResult.diffSize >= 0) {
       entry.diff_size = patchResult.diffSize;
