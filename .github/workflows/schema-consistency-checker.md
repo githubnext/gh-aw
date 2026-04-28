@@ -319,7 +319,16 @@ fi
 Using the pre-computed `field_gaps` from Step 0 plus the strategy cache from Step 1:
 - If `field_gaps` show promising leads, start there (they are likely high-signal)
 - If cache has strategies, use a proven strategy 70% of the time; try a new approach 30% of the time
-- Use the day of year modulo 10 (`date +%j` mod 10): values 0-6 → proven strategy, 7-9 → new approach
+
+```bash
+# Determine selection mode (0-6 = proven strategy, 7-9 = new approach)
+day_mod=$(( $(date +%j) % 10 ))
+if [ "$day_mod" -le 6 ]; then
+  echo "Use proven strategy from cache"
+else
+  echo "Try new approach"
+fi
+```
 
 ### Step 3: Execute Targeted Analysis
 

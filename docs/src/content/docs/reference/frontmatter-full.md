@@ -825,11 +825,12 @@ on:
 
   # Option 1: Single label name that must match the triggering label (e.g.,
   # 'panel-review')
+  labels: "example-value"
 
   # Option 2: List of label names; the workflow fires when the triggering label
   # matches any entry.
   labels: []
-    # Array items: undefined
+    # Array items: Label name (e.g., 'panel-review', 'needs-triage')
 
   # Environment name that requires manual approval before the workflow can run. Must
   # match a valid environment configured in the repository settings.
