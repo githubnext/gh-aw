@@ -14,7 +14,7 @@ strict: false
 network:
   allowed: [defaults, node, "api.github.com", "proxy.golang.org", "sum.golang.org"]
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   edit:
   web-fetch:
   bash:
@@ -27,7 +27,6 @@ safe-outputs:
     max: 1
 timeout-minutes: 20
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

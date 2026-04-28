@@ -15,7 +15,7 @@ engine: copilot
 strict: true
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [default]
   bash:
@@ -50,7 +50,6 @@ imports:
       expires: 3d
 
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

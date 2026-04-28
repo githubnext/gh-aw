@@ -36,7 +36,7 @@ steps:
     working-directory: ./actions/setup/js
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [default]
   edit:
@@ -57,8 +57,6 @@ imports:
 
 timeout-minutes: 15
 
-features:
-  mcp-cli: true
 ---
 
 # Go Logger Enhancement

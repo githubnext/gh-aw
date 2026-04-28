@@ -33,8 +33,6 @@ imports:
       max-patch-size: 51200
   - copilot-setup-steps.yml
   - shared/reporting.md
-features:
-  mcp-cli: true
 steps:
   - name: Download recent Copilot workflow logs
     env:

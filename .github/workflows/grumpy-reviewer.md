@@ -14,7 +14,7 @@ imports:
   - shared/github-guard-policy.md
   - shared/pr-code-review-config.md
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     min-integrity: approved
 safe-outputs:
@@ -27,8 +27,6 @@ safe-outputs:
     run-failure: "😤 Great. [{workflow_name}]({run_url}) {status}. As if my day couldn't get any worse..."
 timeout-minutes: 10
 
-features:
-  mcp-cli: true
 ---
 
 # Grumpy Code Reviewer 🔥

@@ -85,13 +85,11 @@ steps:
       name: super-linter-log
       path: /tmp/gh-aw/
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   cache-memory: true
   edit:
   bash:
     - "*"
-features:
-  mcp-cli: true
 ---
 
 # Super Linter Analysis Report

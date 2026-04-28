@@ -34,7 +34,7 @@ safe-outputs:
   noop:
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   cache-memory: true
   github:
     toolsets: [default]
@@ -55,8 +55,6 @@ imports:
       title-prefix: "[doc-healer] "
       expires: 3d
 
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

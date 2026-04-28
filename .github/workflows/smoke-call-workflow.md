@@ -25,11 +25,8 @@ safe-outputs:
 timeout-minutes: 20
 imports:
   - shared/observability-otlp.md
-features:
-  mcp-cli: true
-
 tools:
-  mount-as-clis: true
+  cli-proxy: true
 ---
 
 # Smoke Test: Call Workflow Orchestrator

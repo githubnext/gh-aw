@@ -19,7 +19,7 @@ network:
     - "anthropic.com"
     - "api.anthropic.com"
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     mode: local
     toolsets: [repos, issues, pull_requests, discussions]
@@ -29,8 +29,6 @@ imports:
     with:
       title-prefix: "[daily-team-evolution] "
       expires: 1d
-features:
-  mcp-cli: true
 ---
 # Daily Team Evolution Insights
 

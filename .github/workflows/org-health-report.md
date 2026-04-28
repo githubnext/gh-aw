@@ -11,7 +11,7 @@ permissions:
   discussions: read
 engine: copilot
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     min-integrity: approved
     toolsets:
@@ -44,8 +44,6 @@ imports:
   - shared/jqschema.md
   - shared/reporting.md
 
-features:
-  mcp-cli: true
 ---
 
 # Organization Health Report

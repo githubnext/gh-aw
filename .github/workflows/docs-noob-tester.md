@@ -14,7 +14,7 @@ runtimes:
   node:
     version: "22"
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   timeout: 120  # Playwright navigation on Astro dev server can take >60s; increase to 120s
   playwright:
   edit:
@@ -77,7 +77,6 @@ pre-agent-steps:
       echo "http://${SERVER_IP}:4321/gh-aw/" > /tmp/gh-aw/agent/server-url.txt
       echo "Playwright server URL: http://${SERVER_IP}:4321/gh-aw/"
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

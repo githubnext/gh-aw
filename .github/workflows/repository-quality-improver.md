@@ -17,7 +17,7 @@ imports:
       expires: 1d
   - shared/mcp/serena-go.md
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   edit:
   bash: ["*"]
   cache-memory:
@@ -29,8 +29,6 @@ tools:
 timeout-minutes: 20
 strict: true
 
-features:
-  mcp-cli: true
 ---
 # Repository Quality Improvement Agent
 

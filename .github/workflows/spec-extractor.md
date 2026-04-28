@@ -126,7 +126,7 @@ pre-agent-steps:
       echo "Context file written to $CONTEXT ($(wc -l < "$CONTEXT") lines)"
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [pull_requests]
   cache-memory: true
@@ -145,7 +145,6 @@ safe-outputs:
 
 timeout-minutes: 30
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

@@ -23,11 +23,10 @@ safe-outputs:
     run-failure: "❌ Search failed. [{workflow_name}]({run_url}) {status}. Unable to retrieve web sources."
 timeout-minutes: 10
 features:
-  mcp-cli: true
   copilot-requests: true
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
 ---
 
 # Brave Web Search Agent

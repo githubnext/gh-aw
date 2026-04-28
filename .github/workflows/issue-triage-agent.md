@@ -7,7 +7,7 @@ on:
 permissions:
   issues: read
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     min-integrity: approved
     toolsets: [issues, labels]
@@ -18,8 +18,6 @@ safe-outputs:
 imports:
   - shared/github-guard-policy.md
   - shared/reporting.md
-features:
-  mcp-cli: true
 ---
 
 # Issue Triage Agent

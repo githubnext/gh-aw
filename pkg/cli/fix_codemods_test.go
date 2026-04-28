@@ -43,7 +43,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 	codemods := GetAllCodemods()
 
 	// Verify we have the expected number of codemods
-	expectedCount := 37
+	expectedCount := 38
 	assert.Len(t, codemods, expectedCount, "Should return all %d codemods", expectedCount)
 
 	// Verify all codemods have required fields
@@ -87,6 +87,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"workflow-run-branches-default",
 		"dependabot-toolset-permissions",
 		"features-byok-copilot-removal",
+		"mount-as-clis-to-cli-proxy",
 	}
 
 	for _, expectedID := range expectedIDs {
@@ -148,6 +149,7 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"features-byok-copilot-removal",
 		"features-cli-proxy-to-tools-github-mode",
 		"features-difc-proxy-to-tools-github",
+		"mount-as-clis-to-cli-proxy",
 	}
 
 	require.Len(t, codemods, len(expectedOrder), "Should have expected number of codemods")

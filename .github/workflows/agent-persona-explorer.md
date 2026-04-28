@@ -14,7 +14,7 @@ permissions:
 # - Target: 30-50% token reduction while maintaining quality
 # Note: max-turns not available for default Copilot engine (Claude only)
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   cache-memory: true
 safe-outputs:
@@ -27,8 +27,6 @@ timeout-minutes: 180
 imports:
   - shared/reporting.md
 
-features:
-  mcp-cli: true
 ---
 
 # Agent Persona Explorer

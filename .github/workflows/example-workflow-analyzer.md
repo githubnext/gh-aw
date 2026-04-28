@@ -10,7 +10,7 @@ permissions:
   actions: read
 engine: claude
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   github:
     toolsets: [default, actions]
@@ -21,8 +21,6 @@ imports:
       title-prefix: "[workflow-analysis] "
       expires: 1d
 
-features:
-  mcp-cli: true
 ---
 # Weekly Workflow Analysis
 

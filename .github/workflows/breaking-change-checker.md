@@ -10,7 +10,7 @@ permissions:
 engine: copilot
 tracker-id: breaking-change-checker
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [repos]
   bash:
@@ -38,7 +38,6 @@ imports:
   - shared/activation-app.md
   - shared/reporting.md
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

@@ -11,7 +11,7 @@ permissions:
   actions: read
 engine: copilot
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   bash:
     - "git fetch"
     - "git checkout"
@@ -53,8 +53,6 @@ steps:
       .github/workflows/*.yml
       EOF
 
-features:
-  mcp-cli: true
 ---
 
 # Mergefest - Merge Main into Pull Request Branch

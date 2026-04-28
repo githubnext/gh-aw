@@ -14,7 +14,7 @@ tracker-id: daily-cache-strategy-analyzer
 engine: codex
 strict: true
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   cache-memory: true
   github:
@@ -36,8 +36,6 @@ timeout-minutes: 60
 imports:
   - shared/reporting.md
   - shared/noop-reminder.md
-features:
-  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

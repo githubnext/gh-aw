@@ -59,6 +59,7 @@ func GetAllCodemods() []Codemod {
 		getByokCopilotFeatureRemovalCodemod(),         // Remove deprecated features.byok-copilot (Copilot BYOK is default)
 		getCliProxyFeatureToGitHubModeCodemod(),       // Migrate features.cli-proxy: true to tools.github.mode: gh-proxy
 		getDIFCProxyToIntegrityProxyCodemod(),         // Migrate deprecated features.difc-proxy to tools.github.integrity-proxy
+		getMountAsCLIsToCLIProxyCodemod(),             // Rename tools.mount-as-clis to tools.cli-proxy and remove features.mcp-cli
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
 	return codemods

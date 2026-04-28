@@ -29,7 +29,7 @@ sandbox:
   agent: awf
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   bash:
     - "*"
 
@@ -42,7 +42,6 @@ imports:
   - shared/hippo-memory.md
 
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

@@ -12,7 +12,7 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [default, discussions]
     allowed-repos: all
@@ -28,8 +28,6 @@ safe-outputs:
     required-category: "Ideas"
 timeout-minutes: 10
 
-features:
-  mcp-cli: true
 ---
 
 # Planning Assistant

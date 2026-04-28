@@ -532,7 +532,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			expected: []string{"--allow-tool", "shell(git:*)"},
 		},
 		{
-			name: "mount-as-clis with restricted bash allows safeoutputs cli",
+			name: "cli-proxy with restricted bash allows safeoutputs cli",
 			tools: map[string]any{
 				"bash": []any{"echo"},
 			},
@@ -544,16 +544,13 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					NoOp: &NoOpConfig{},
 				},
 				ParsedTools: &Tools{
-					MountAsCLIs: true,
-				},
-				Features: map[string]any{
-					string(constants.MCPCLIFeatureFlag): true,
+					CLIProxy: true,
 				},
 			},
 			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "shell(echo)", "--allow-tool", "shell(safeoutputs:*)"},
 		},
 		{
-			name: "mount-as-clis with restricted bash allows mcpscripts cli",
+			name: "cli-proxy with restricted bash allows mcpscripts cli",
 			tools: map[string]any{
 				"bash": []any{"python3 *"},
 			},
@@ -569,16 +566,13 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					},
 				},
 				ParsedTools: &Tools{
-					MountAsCLIs: true,
-				},
-				Features: map[string]any{
-					string(constants.MCPCLIFeatureFlag): true,
+					CLIProxy: true,
 				},
 			},
 			expected: []string{"--allow-tool", "mcpscripts", "--allow-tool", "shell(mcpscripts:*)", "--allow-tool", "shell(python3 *)"},
 		},
 		{
-			name: "mount-as-clis with restricted bash allows all mounted mcp clis",
+			name: "cli-proxy with restricted bash allows all mounted mcp clis",
 			tools: map[string]any{
 				"bash":       []any{"echo"},
 				"playwright": true,
@@ -597,10 +591,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			},
 			workflowData: &WorkflowData{
 				ParsedTools: &Tools{
-					MountAsCLIs: true,
-				},
-				Features: map[string]any{
-					string(constants.MCPCLIFeatureFlag): true,
+					CLIProxy: true,
 				},
 			},
 			expected: []string{
@@ -615,10 +606,10 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			},
 		},
 		{
-			name: "mount-as-clis with nil workflow data still allows mounted mcp clis",
+			name: "cli-proxy with nil workflow data still allows mounted mcp clis",
 			tools: map[string]any{
 				"bash":           []any{"echo"},
-				"mount-as-clis":  true,
+				"cli-proxy":      true,
 				"playwright":     true,
 				"custom-mcp-cli": map[string]any{"command": "npx", "args": []any{"-y", "@acme/custom-mcp"}},
 			},

@@ -23,10 +23,8 @@ imports:
       expires: 3d
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
 
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

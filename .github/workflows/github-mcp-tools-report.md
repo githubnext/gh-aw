@@ -12,7 +12,7 @@ permissions:
   security-events: read
 engine: claude
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     mode: "remote"
     toolsets: [all]
@@ -31,8 +31,6 @@ imports:
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[mcp-tools-report] "
-features:
-  mcp-cli: true
 ---
 # GitHub MCP Remote Server Tools Report Generator
 

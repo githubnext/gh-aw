@@ -29,7 +29,7 @@ safe-outputs:
     max: 1
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   cache-memory: true
   github:
     toolsets: [default]
@@ -65,8 +65,6 @@ steps:
         PACKAGE_COUNT=$(jq '.sbom.packages | length' /tmp/sbom.json 2>/dev/null || echo "unknown")
         echo "📊 SBOM contains ${PACKAGE_COUNT} packages"
       fi
-features:
-  mcp-cli: true
 ---
 
 # GPL Dependency Cleaner (gpclean)

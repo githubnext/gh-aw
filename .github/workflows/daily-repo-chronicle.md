@@ -22,7 +22,7 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   edit:
   bash:
     - "*"
@@ -46,7 +46,6 @@ imports:
       expires: 3d
   - shared/trends.md
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

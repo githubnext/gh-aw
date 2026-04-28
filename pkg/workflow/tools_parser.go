@@ -147,11 +147,11 @@ func NewTools(toolsMap map[string]any) *Tools {
 		tools.StartupTimeout = parseStartupTimeoutTool(val)
 	}
 
-	if val, exists := toolsMap["mount-as-clis"]; exists {
+	if val, exists := toolsMap["cli-proxy"]; exists {
 		if b, ok := val.(bool); ok {
-			tools.MountAsCLIs = b
+			tools.CLIProxy = b
 		} else {
-			toolsParserLog.Printf("Warning: mount-as-clis must be a boolean (true/false), ignoring value: %v", val)
+			toolsParserLog.Printf("Warning: cli-proxy must be a boolean (true/false), ignoring value: %v", val)
 		}
 	}
 
@@ -170,7 +170,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"safety-prompt":     true,
 		"timeout":           true,
 		"startup-timeout":   true,
-		"mount-as-clis":     true,
+		"cli-proxy":         true,
 	}
 
 	customCount := 0

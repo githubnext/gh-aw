@@ -34,7 +34,7 @@ safe-outputs:
     run-failure: "⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs..."
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [default, discussions]
   edit:
@@ -58,7 +58,6 @@ imports:
   - shared/jqschema.md
 
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}

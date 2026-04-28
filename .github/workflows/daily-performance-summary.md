@@ -13,7 +13,7 @@ engine: copilot
 strict: true
 tracker-id: daily-performance-summary
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [default, discussions]
 safe-outputs:
@@ -27,8 +27,6 @@ imports:
       title-prefix: "[daily performance] "
   - shared/github-queries-mcp-script.md
 
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
