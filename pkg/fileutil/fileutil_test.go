@@ -340,7 +340,7 @@ func TestCopyFile(t *testing.T) {
 
 		err := CopyFile(src, dst)
 		require.Error(t, err, "CopyFile should return an error when the write fails")
-		assert.False(t, FileExists(dst), "Destination symlink should be removed after io.Copy failure")
+		require.False(t, FileExists(dst), "Destination symlink should be removed after io.Copy failure")
 	})
 }
 
