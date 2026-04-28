@@ -292,12 +292,16 @@ func TestShellEscapeSingleQuote(t *testing.T) {
 		input    string
 		expected string
 	}{
+		{"", ""},
 		{"hello", "hello"},
 		{"no quotes", "no quotes"},
 		{"it's a test", `it'\''s a test`},
 		{"a'b'c", `a'\''b'\''c`},
+		{"'''", `'\'''\'''\''`},
 		{`{"key": "value"}`, `{"key": "value"}`},
 		{`{"key": "it's here"}`, `{"key": "it'\''s here"}`},
+		// very long string with no single quotes
+		{strings.Repeat("a", 10000), strings.Repeat("a", 10000)},
 	}
 
 	for _, tt := range tests {

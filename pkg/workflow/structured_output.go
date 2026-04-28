@@ -248,7 +248,7 @@ func generateStructuredOutputValidationStep(data *WorkflowData, actionPinFunc fu
 
 // shellEscapeSingleQuote escapes a string for use inside single quotes in a shell command.
 // In single-quoted strings the only character that requires special handling is the
-// single quote itself, which is represented as: '\”
+// single quote itself, which is represented as: '\” (close-quote, escaped-quote, open-quote)
 func shellEscapeSingleQuote(s string) string {
 	return strings.ReplaceAll(s, "'", `'\''`)
 }
