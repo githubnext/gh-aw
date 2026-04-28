@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-> Last updated: 2026-04-27 · Source: [🏗️ Architecture Diagram: Full rebuild — gh-aw package architecture (2026-04-27)](https://github.com/github/gh-aw/issues)
+> Last updated: 2026-04-28 · Source: [🏗️ Architecture Diagram: Full rebuild — gh-aw package architecture (2026-04-28)](https://github.com/github/gh-aw/issues)
 
 ## Overview
 
