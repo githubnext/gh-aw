@@ -179,15 +179,37 @@ fi
 # Try gh extension install if requested (and gh is available)
 if [ "$TRY_GH_INSTALL" = true ] && command -v gh &> /dev/null; then
     print_info "Attempting to install gh-aw using 'gh extension install'..."
-    
+
+    # On Windows, `gh extension install` has been observed to hang for the full
+    # job timeout (~10 min) without producing any output.  Root-cause hypothesis:
+    # the gh CLI executes the newly downloaded gh-aw.exe for verification, and
+    # Windows Defender Real-Time Protection blocks that execution while scanning
+    # the new binary.  Apply a generous-but-bounded timeout so we fall through to
+    # the direct-download path when this happens instead of hanging indefinitely.
+    GH_INSTALL_CMD_TIMEOUT=""
+    if [[ "$OS_NAME" == "windows" ]] && command -v timeout &>/dev/null; then
+        GH_INSTALL_CMD_TIMEOUT="timeout 90"
+        print_info "Windows detected: wrapping gh extension install with a 90s timeout"
+    fi
+
     # Call gh extension install directly to avoid command injection
     install_result=0
     if [ -n "$VERSION" ] && [ "$VERSION" != "latest" ]; then
-        gh extension install "$REPO" --force --pin "$VERSION" 2>&1 | tee /tmp/gh-install.log
+        # shellcheck disable=SC2086  # GH_INSTALL_CMD_TIMEOUT is intentionally unquoted
+        $GH_INSTALL_CMD_TIMEOUT gh extension install "$REPO" --force --pin "$VERSION" 2>&1 | tee /tmp/gh-install.log
         install_result=${PIPESTATUS[0]}
     else
-        gh extension install "$REPO" --force 2>&1 | tee /tmp/gh-install.log
+        # shellcheck disable=SC2086  # GH_INSTALL_CMD_TIMEOUT is intentionally unquoted
+        $GH_INSTALL_CMD_TIMEOUT gh extension install "$REPO" --force 2>&1 | tee /tmp/gh-install.log
         install_result=${PIPESTATUS[0]}
+    fi
+
+    # Exit code 124 means the timeout command fired; treat it the same as a
+    # failed install so we fall through to the direct-download path below.
+    if [ $install_result -eq 124 ]; then
+        print_warning "gh extension install timed out (90s) — falling back to manual installation."
+        print_warning "This is a known issue on Windows where Defender scans the new binary."
+        install_result=1
     fi
     
     if [ $install_result -eq 0 ]; then

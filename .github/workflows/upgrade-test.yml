@@ -8,6 +8,7 @@ on:
     paths:
       - 'pkg/cli/update_extension_check.go'
       - '.github/workflows/upgrade-test.yml'
+      - 'install-gh-aw.sh'
 
 permissions: {}
 
@@ -60,11 +61,88 @@ jobs:
           echo "Target release:   $TARGET"
           echo "Previous release: $PREVIOUS"
 
+      # ──────────────────────────────────────────────────────────────────────────
+      # INVESTIGATION: Windows hangs for ~10 min during `gh extension install`.
+      #
+      # Evidence from failed runs (e.g. job/73303392593):
+      #  1. `gh extension install github/gh-aw --pin ... --force` hangs silently
+      #     for exactly the job timeout (10 min) with zero output.
+      #  2. At cleanup time the runner always finds an orphan `gh-aw` process,
+      #     which strongly suggests the `gh` CLI is *executing* the freshly
+      #     downloaded binary as part of its installation (e.g. as a
+      #     verification/metadata step that was added in a later gh release).
+      #  3. When that `gh-aw.exe` subprocess is launched, Windows Defender
+      #     Real-Time Protection intercepts the new executable before it can
+      #     run, causing a prolonged scan that blocks the process indefinitely.
+      #
+      # Fix strategy (this PR):
+      #  A. Disable Windows Defender real-time scanning for the gh CLI data
+      #     directory *before* the install so the scan cannot block execution.
+      #  B. Add a per-step timeout of 3 min so failures are caught fast rather
+      #     than hitting the 10-min job ceiling.
+      #  C. Capture `GH_DEBUG=api` on Windows to trace exactly which API call
+      #     or binary invocation causes the stall if Defender is not the cause.
+      # ──────────────────────────────────────────────────────────────────────────
+
+      - name: Diagnose Windows environment before install
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Write-Host "=== gh CLI version ==="
+          gh --version
+
+          Write-Host "=== Windows Defender real-time protection status ==="
+          try {
+            $status = Get-MpComputerStatus
+            Write-Host "RealTimeProtectionEnabled : $($status.RealTimeProtectionEnabled)"
+            Write-Host "AntivirusEnabled          : $($status.AntivirusEnabled)"
+          } catch {
+            Write-Host "Could not query Windows Defender status: $_"
+          }
+
+          Write-Host "=== Existing gh extension directory ==="
+          $extDir = Join-Path $env:LOCALAPPDATA "GitHub CLI"
+          if (Test-Path $extDir) {
+            Get-ChildItem $extDir -Recurse -ErrorAction SilentlyContinue |
+              Select-Object FullName, Length | Format-Table -AutoSize
+          } else {
+            Write-Host "$extDir does not exist yet"
+          }
+
+          Write-Host "=== Running gh* processes before install ==="
+          Get-Process -Name 'gh*' -ErrorAction SilentlyContinue |
+            Select-Object Name, Id, StartTime | Format-Table -AutoSize
+
+      # Disable Windows Defender real-time protection for the gh CLI extensions
+      # directory.  This is the most likely cause of the hang: Defender intercepts
+      # the newly downloaded gh-aw.exe before it can execute, blocking the process
+      # indefinitely.  Excluding the gh data directory removes that barrier.
+      - name: Exclude gh CLI directory from Windows Defender scanning
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ghDataDir = Join-Path $env:LOCALAPPDATA "GitHub CLI"
+          Write-Host "Adding Windows Defender exclusion path: $ghDataDir"
+          Add-MpPreference -ExclusionPath $ghDataDir
+          Write-Host "Exclusion added.  Current exclusions:"
+          (Get-MpPreference).ExclusionPath
+
       - name: Install previous version (n-1)
+        # Per-step timeout: the Windows hang hit the 10-min *job* ceiling every
+        # time.  A shorter step timeout lets us fail fast with a clear error and
+        # collect the diagnostic steps that follow.
+        timeout-minutes: 4
         shell: bash
         env:
           PREVIOUS: ${{ steps.releases.outputs.previous }}
         run: |
+          # Enable gh API tracing on Windows to pinpoint exactly which network
+          # or subprocess call stalls (only on Windows to avoid noise elsewhere).
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            export GH_DEBUG=api
+            echo "GH_DEBUG=api enabled for Windows debugging"
+          fi
+
           echo "Installing gh-aw $PREVIOUS ..."
           gh extension install github/gh-aw --pin "$PREVIOUS" --force
 
@@ -73,6 +151,14 @@ jobs:
           echo "Installed: $INSTALLED"
           [ "$INSTALLED" = "$PREVIOUS" ] || { echo "❌ Expected $PREVIOUS, got $INSTALLED"; exit 1; }
           echo "✅ n-1 installed: $INSTALLED"
+
+      - name: Capture orphan processes after install (Windows)
+        if: runner.os == 'Windows' && always()
+        shell: pwsh
+        run: |
+          Write-Host "=== Processes still running after install step ==="
+          Get-Process -Name 'gh*' -ErrorAction SilentlyContinue |
+            Select-Object Name, Id, StartTime, CPU | Format-Table -AutoSize
 
       - name: Run gh aw upgrade (exercises the self-upgrade code path)
         shell: bash

@@ -167,7 +167,8 @@ done
 
 A **misconfigured cache** occurs when a workflow declares `cache-memory: true` but:
 
-- Uses a volatile or run-specific cache key (e.g., includes `${{ github.run_id }}`), making each run start cold
+- Uses a volatile or run-specific cache key (e.g., includes `${{ github.run_id }}`) **without any restore-key fallbacks**, making each run start cold with no way to retrieve prior state
+  > **Note — "last one wins" pattern**: A cache key of `<prefix>-${{ github.run_id }}` combined with a restore key of `<prefix>-` is a **valid and intentional** design. Each run saves its state under a unique key to avoid collisions, while the restore key falls back to the most recent previous entry — achieving "last write wins" without stale data. Only flag `run_id` keys as misconfigured when there are **no restore-key fallbacks**.
 - Never actually writes to `/tmp/gh-aw/cache-memory/` (writes nothing useful to persist)
 - Reads stale data (cache was last updated more than N days ago based on timestamps in the JSON files)
 - Overwrites its own history on every run (no incremental append, just full replace of the same small payload)
@@ -224,7 +225,7 @@ Rank all findings by severity. **Only workflows that use `cache-memory` are eval
 
 | Severity | Criteria |
 |----------|----------|
-| 🔴 **Critical** | Cache key includes `run_id` (guaranteed cold start every run) |
+| 🔴 **Critical** | Cache key includes `run_id` **and** no restore-keys are configured (guaranteed cold start every run) |
 | 🟠 **High** | Miss streak ≥ 5 days, OR miss rate ≥ 70% over 14 days |
 | 🟡 **Medium** | Miss streak 3–4 days, OR miss rate 50–69% over 14 days |
 
@@ -268,7 +269,7 @@ For each finding that meets the threshold AND for which no open issue already ex
 
 <Specific, actionable recommendation. For example:>
 
-1. **Remove volatile cache key** — The workflow uses `${{ github.run_id }}` in the cache key. Replace with a stable key such as the workflow name or a hash of the relevant input files.
+1. **Add restore-key fallback or use a stable key** — The workflow uses `${{ github.run_id }}` in the cache key without restore-keys, so every run starts cold. Either add a restore-key (e.g., `<prefix>-`) so the most recent prior state is always retrieved, or replace the key with a stable identifier such as the workflow name or a hash of relevant input files.
 2. **Persist meaningful state** — Ensure the workflow writes structured data to `/tmp/gh-aw/cache-memory/<workflow>/` that the next run can actually reuse.
 3. **Add hash-based invalidation** — Compare git commit hashes or file modification timestamps before re-running expensive operations.
 
@@ -382,7 +383,7 @@ These workflows use cache-memory correctly and had consistent cache hits:
 
 When evaluating workflows, check for these common mistakes:
 
-1. **Volatile keys**: Cache key contains `run_id`, `run_number`, or current timestamp → guaranteed cold start
+1. **Volatile keys without restore-keys**: Cache key contains `run_id`, `run_number`, or current timestamp **and** no restore-keys are configured → guaranteed cold start every run. (A `run_id` key paired with a restore-key is the valid "last one wins" pattern and should not be flagged.)
 2. **No writes**: `cache-memory: true` declared but the agent never writes to `/tmp/gh-aw/cache-memory/` → tool does nothing useful
 3. **No reads**: Cache is written but the agent never reads previous data → cache is write-only, no benefit
 4. **Full overwrites**: Agent always writes a complete fresh file instead of merging with existing data → loses history
