@@ -8,9 +8,13 @@ import (
 // wikiRepository returns the effective repository string for a wiki checkout.
 // GitHub wiki repositories are accessible as "{owner}/{repo}.wiki".
 // When the repository is empty (default current repo), returns "${{ github.repository }}.wiki".
+// If the repository already ends with ".wiki" it is returned unchanged to prevent double-suffixing.
 func wikiRepository(repository string) string {
 	if repository == "" {
 		return "${{ github.repository }}.wiki"
+	}
+	if strings.HasSuffix(repository, ".wiki") {
+		return repository
 	}
 	return repository + ".wiki"
 }
