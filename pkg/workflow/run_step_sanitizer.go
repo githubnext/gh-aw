@@ -50,8 +50,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
+
+var runStepSanitizerLog = logger.New("workflow:run_step_sanitizer")
 
 // sanitizedExpression holds the details of one expression extracted from a run: step.
 type sanitizedExpression struct {
@@ -135,10 +138,14 @@ func sanitizeRunStepExpressions(step map[string]any) (map[string]any, []string, 
 		newEnv[s.EnvVar] = s.Original
 	}
 
-	// Replace every occurrence of each expression in the full run: string
-	// (including inside heredoc blocks — those are safe to substitute because
-	// the runner evaluates the env: block assignment server-side before the
-	// shell ever sees the heredoc content).
+	// Replace every occurrence of each expression in the full run: string.
+	// This includes content inside heredoc blocks: the runner evaluates the
+	// env: block assignment before passing heredoc content to the shell, so
+	// the variable reference is resolved correctly even inside a heredoc.
+	// Note: only expressions detected in the non-heredoc portion of the run:
+	// script trigger extraction (see the scanContent check above); any
+	// expression that appears *exclusively* inside a heredoc will never reach
+	// this point because it won't have been added to `ordered`.
 	newRun := runVal
 	for _, s := range ordered {
 		newRun = strings.ReplaceAll(newRun, s.Original, "$"+s.EnvVar)
@@ -192,6 +199,7 @@ func sanitizeCustomStepsYAML(customSteps string) (string, []string, error) {
 	if err := yaml.Unmarshal([]byte(customSteps), &stepsDoc); err != nil {
 		// If we can't parse the YAML return it as-is; the compiler will surface any
 		// YAML errors later during schema validation.
+		runStepSanitizerLog.Printf("skipping run-step sanitization: failed to parse custom steps YAML: %v", err)
 		return customSteps, nil, nil
 	}
 

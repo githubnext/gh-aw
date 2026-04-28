@@ -85,15 +85,16 @@ func TestSanitizeRunStepExpressions(t *testing.T) {
 			expectWarnings: 1,
 		},
 		{
-			name: "expression in heredoc not extracted from scan but still replaced in output",
+			name: "expression in heredoc not extracted",
 			step: map[string]any{
 				"name": "Heredoc step",
 				"run": `cat > /tmp/out.txt << 'EOF'
 ${{ github.event.issue.title }}
 EOF`,
 			},
-			// The run: script only has ${{ }} inside a heredoc, so scanContent
-			// won't detect it and nothing will be extracted.
+			// The run: script only has ${{ }} inside a heredoc; removeHeredocContent
+			// strips that section before scanning, so no expressions are found and
+			// nothing is extracted.
 			expectChanged: false,
 		},
 		{
