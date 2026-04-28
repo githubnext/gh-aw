@@ -179,7 +179,12 @@ func parseMCPScriptToolConfig(toolName string, toolMap map[string]any) *MCPScrip
 		case uint64:
 			toolConfig.Timeout = typeutil.SafeUint64ToInt(t) // Safe conversion to prevent overflow (alert #413, #414)
 		case float64:
-			toolConfig.Timeout = int(t)
+			maxInt := int(^uint(0) >> 1)
+			if t != t || t < 0 || t > float64(maxInt) {
+				mcpScriptsLog.Printf("Warning: invalid timeout value %v for tool %q, keeping default timeout (60s)", t, toolName)
+			} else {
+				toolConfig.Timeout = int(t)
+			}
 		case string:
 			if n, ok := parseTimeoutString(t); ok {
 				toolConfig.Timeout = n
@@ -193,7 +198,7 @@ func parseMCPScriptToolConfig(toolName string, toolMap map[string]any) *MCPScrip
 }
 
 // parseMCPScriptsMap parses mcp-scripts configuration from a map.
-// This is the shared implementation used by both ParseMCPScripts and extractMCPScriptsConfig.
+// It is used by extractMCPScriptsConfig to convert frontmatter into an MCPScriptsConfig.
 // Returns the config and a boolean indicating whether any tools were found.
 func parseMCPScriptsMap(mcpScriptsMap map[string]any) (*MCPScriptsConfig, bool) {
 	config := &MCPScriptsConfig{
