@@ -87,7 +87,7 @@ function isLabelTransientError(error) {
 
 /** @type {number} Number of retry attempts for label operations */
 const LABEL_MAX_RETRIES = 5;
-/** @type {number} Initial delay in ms before the first label retry (3 seconds) */
+/** @type {number} Base delay in ms used to calculate label retry backoff (3 seconds) */
 const LABEL_INITIAL_DELAY_MS = 3000;
 /** @type {number} Maximum delay in ms between label retries (30 seconds) */
 const LABEL_MAX_DELAY_MS = 30000;
