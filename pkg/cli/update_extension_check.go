@@ -146,11 +146,38 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		}
 	}
 
-	retryCmd := exec.Command("gh", extensionUpgradeArgs()...)
+	// Retry path: remove + reinstall at the exact target version.
+	//
+	// Using "gh extension upgrade --force" again would call fetchLatestRelease
+	// (/releases/latest) internally, which returns 404 for prerelease-only repos
+	// and causes "unable to retrieve latest version for extension" errors.
+	// Using "gh extension install --pin VERSION" instead calls fetchReleaseFromTag,
+	// which accepts any tag (stable or prerelease).
+	//
+	// We must remove the extension first because "gh extension install" checks
+	// whether the extension is already present via its manifest.yml.  With the
+	// manifest in place the install command takes the "already installed" code
+	// path and does nothing; removing the extension clears that guard.
+	//
+	// Note: the backup file lives inside the extension directory, so if the
+	// remove step succeeds the backup is also gone; we clear backupPath to
+	// avoid a misleading restore attempt on subsequent failures.
+	removeCmd := exec.Command("gh", "extension", "remove", extensionRepo)
+	removeCmd.Stdout = os.Stderr
+	removeCmd.Stderr = os.Stderr
+	if removeErr := removeCmd.Run(); removeErr == nil {
+		// Extension directory (and the backup inside it) has been deleted.
+		backupPath = ""
+	} else {
+		updateExtensionCheckLog.Printf("Could not remove extension before reinstall (will attempt install anyway): %v", removeErr)
+	}
+
+	retryCmd := exec.Command("gh", "extension", "install", extensionRepo, "--pin", latestVersion)
 	retryCmd.Stdout = os.Stderr
 	retryCmd.Stderr = os.Stderr
 	if retryErr := retryCmd.Run(); retryErr != nil {
-		// Retry also failed. Restore the backup so the user still has gh-aw.
+		// Retry also failed. Restore the backup so the user still has gh-aw
+		// (only possible when the remove step above did not succeed).
 		if backupPath != "" {
 			restoreExecutableBackup(installPath, backupPath)
 		}
@@ -162,12 +189,13 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 			fmt.Fprintln(os.Stderr, "  gh extension upgrade gh-aw")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("If that does not work, try reinstalling:"))
 			fmt.Fprintln(os.Stderr, "  gh extension remove gh-aw")
-			fmt.Fprintln(os.Stderr, "  gh extension install github/gh-aw")
+			fmt.Fprintln(os.Stderr, "  gh extension install "+extensionRepo)
 		}
 		return false, "", fmt.Errorf("failed to upgrade gh-aw extension: %w", retryErr)
 	}
 
-	// Retry succeeded. Clean up the backup.
+	// Retry succeeded. Clean up the backup if it still exists
+	// (it will be gone when the remove step above succeeded).
 	if backupPath != "" {
 		cleanupExecutableBackup(backupPath)
 	}
@@ -262,5 +290,8 @@ func isWindowsLockError(output string, err error) bool {
 // --force is required so pinned installs (e.g. `gh extension install ... --pin`)
 // can be upgraded in-place.
 func extensionUpgradeArgs() []string {
-	return []string{"extension", "upgrade", "github/gh-aw", "--force"}
+	return []string{"extension", "upgrade", extensionRepo, "--force"}
 }
+
+// extensionRepo is the GitHub repo slug used in all gh-extension CLI invocations.
+const extensionRepo = "github/gh-aw"
