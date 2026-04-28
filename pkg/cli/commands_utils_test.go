@@ -328,6 +328,48 @@ More content.
 			content:  "",
 			expected: []string{},
 		},
+		// @import (deprecated synonym for @include)
+		{
+			name:     "@import basic",
+			content:  "@import shared/tools.md",
+			expected: []string{"shared/tools.md"},
+		},
+		{
+			name:     "@import optional marker",
+			content:  "@import? shared/tools.md",
+			expected: []string{"shared/tools.md"},
+		},
+		{
+			name:     "@import with section reference",
+			content:  "@import shared/tools.md#Section",
+			expected: []string{"shared/tools.md"},
+		},
+		// {{#import}} deprecated syntax
+		{
+			name:     "{{#import}} with colon",
+			content:  "{{#import: shared/tools.md}}",
+			expected: []string{"shared/tools.md"},
+		},
+		{
+			name:     "{{#import}} without colon",
+			content:  "{{#import shared/tools.md}}",
+			expected: []string{"shared/tools.md"},
+		},
+		{
+			name:     "{{#import}} optional marker with colon",
+			content:  "{{#import?: shared/tools.md}}",
+			expected: []string{"shared/tools.md"},
+		},
+		{
+			name:     "{{#import}} with section reference",
+			content:  "{{#import: shared/tools.md#Section}}",
+			expected: []string{"shared/tools.md"},
+		},
+		{
+			name:     "{{#import}} with trailing content is not a directive",
+			content:  "{{#import shared/tools.md}} trailing",
+			expected: []string{},
+		},
 	}
 
 	for _, tt := range tests {

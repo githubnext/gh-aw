@@ -75,7 +75,6 @@ jobs:
       actions: read
       contents: read
       issues: write
-      pull-requests: write
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ${{ steps.add-comment.outputs.comment-id }}

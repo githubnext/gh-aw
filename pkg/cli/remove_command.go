@@ -431,9 +431,9 @@ func parseIncludePath(line string) string {
 		if len(rest) > 0 && rest[0] == ':' {
 			rest = strings.TrimSpace(rest[1:])
 		}
-		// Extract path up to closing "}}"
-		before, _, ok := strings.Cut(rest, "}}")
-		if !ok {
+		// Extract path up to closing "}}" and require only whitespace after it.
+		before, after, ok := strings.Cut(rest, "}}")
+		if !ok || strings.TrimSpace(after) != "" {
 			return ""
 		}
 		path := strings.TrimSpace(before)
