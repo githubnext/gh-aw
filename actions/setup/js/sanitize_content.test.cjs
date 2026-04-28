@@ -306,6 +306,23 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("before <!-- @exploituser payload --> after");
       expect(result).toBe("before  after");
     });
+
+    it("should remove nested comment opener bypass <!-- <!-- --> PAYLOAD -->", () => {
+      // Regression: lazy regex only strips the inner <!-- --> pair, leaving PAYLOAD visible.
+      // Depth-tracking scan must consume all content up to the matching outer -->.
+      const result = sanitizeContent("<!-- <!-- --> PAYLOAD -->");
+      expect(result).toBe("");
+    });
+
+    it("should remove nested comment bypass with surrounding text", () => {
+      const result = sanitizeContent("before <!-- <!-- --> PAYLOAD --> after");
+      expect(result).toBe("before  after");
+    });
+
+    it("should remove deeply nested comment openers", () => {
+      const result = sanitizeContent("<!-- <!-- <!-- --> --> PAYLOAD -->");
+      expect(result).toBe("");
+    });
   });
 
   describe("markdown link title neutralization", () => {
