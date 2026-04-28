@@ -1282,7 +1282,7 @@ jobs:
       - detection
     if: >
       always() && (!cancelled()) && (needs.detection.result == 'success' || needs.detection.result == 'skipped') &&
-      needs.agent.result != 'skipped'
+      needs.agent.result == 'success'
     runs-on: ubuntu-slim
     permissions:
       contents: write

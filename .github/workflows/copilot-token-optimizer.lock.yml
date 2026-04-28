@@ -1070,7 +1070,7 @@ jobs:
     needs:
       - activation
       - agent
-    if: always() && (!cancelled()) && needs.agent.result != 'skipped'
+    if: always() && (!cancelled()) && needs.agent.result == 'success'
     runs-on: ubuntu-slim
     permissions:
       contents: write
