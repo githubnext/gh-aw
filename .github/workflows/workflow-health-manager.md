@@ -38,7 +38,7 @@ steps:
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
       # Run compilation validation and capture output
-      gh aw compile --validate 2>&1 > /tmp/gh-aw/agent/compile-validate.txt || true
+      gh aw compile --validate > /tmp/gh-aw/agent/compile-validate.txt 2>&1 || true
       # List executable workflow files (exclude shared/ subdirectory)
       ls .github/workflows/*.md 2>/dev/null > /tmp/gh-aw/agent/workflow-list.txt || true
       echo "Inventory complete: $(wc -l < /tmp/gh-aw/agent/workflow-list.txt | tr -d ' ') workflows found"
