@@ -3,6 +3,7 @@
 package yamlpostcheck
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,9 +25,16 @@ func buildTree(steps []any) map[string]any {
 // buildStep builds a step map from the provided key-value pairs (alternating
 // string keys and any values) for use in table-driven tests.
 func buildStep(kvs ...any) map[string]any {
+	if len(kvs)%2 != 0 {
+		panic("buildStep requires an even number of arguments (key-value pairs)")
+	}
 	step := make(map[string]any)
 	for i := 0; i+1 < len(kvs); i += 2 {
-		step[kvs[i].(string)] = kvs[i+1]
+		key, ok := kvs[i].(string)
+		if !ok {
+			panic(fmt.Sprintf("buildStep: key at position %d must be a string, got %T", i, kvs[i]))
+		}
+		step[key] = kvs[i+1]
 	}
 	return step
 }

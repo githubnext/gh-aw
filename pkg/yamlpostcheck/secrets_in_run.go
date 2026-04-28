@@ -256,6 +256,12 @@ func (c *SecretsInRunChecker) fixStep(jobName string, stepIdx int, step map[stri
 	return changed, fixes
 }
 
+// deriveEnvVarNameMaxRetries is the maximum number of disambiguation attempts
+// before deriveEnvVarName gives up and returns the last candidate as-is.
+// In practice, env maps contain at most a handful of entries, so this limit
+// will never be reached under normal operating conditions.
+const deriveEnvVarNameMaxRetries = 100
+
 // deriveEnvVarName returns the environment variable name to use for expr.
 //
 // Priority:
@@ -264,7 +270,8 @@ func (c *SecretsInRunChecker) fixStep(jobName string, stepIdx int, step map[stri
 //
 // When the derived name collides with an existing entry in envMap that holds a
 // different value, a disambiguating suffix (_1, _2, …) is appended until a
-// free slot is found.
+// free slot is found.  If no free slot is found within deriveEnvVarNameMaxRetries
+// attempts, the last candidate is returned (guaranteed unique within that run).
 func (c *SecretsInRunChecker) deriveEnvVarName(pat secretsInRunPattern, expr string, envMap map[string]any) string {
 	base := pat.fixedEnvVar
 
@@ -280,8 +287,9 @@ func (c *SecretsInRunChecker) deriveEnvVarName(pat secretsInRunPattern, expr str
 
 	// Resolve collisions: if envMap[candidate] already exists with a different
 	// value, try candidate_1, candidate_2, … until we find a free slot or a
-	// matching slot.
-	for i := 1; ; i++ {
+	// matching slot.  A safety limit prevents unbounded iteration in pathological
+	// cases (e.g., an env map pre-populated with TOKEN, TOKEN_1, TOKEN_2, …).
+	for i := 1; i <= deriveEnvVarNameMaxRetries; i++ {
 		existing, exists := envMap[candidate]
 		if !exists {
 			// Free slot — use it.
@@ -325,7 +333,8 @@ func getOrCreateEnvMap(step map[string]any) map[string]any {
 			return envMap
 		}
 		// env: exists but has an unexpected type — replace it with a fresh map.
-		secretsInRunLog.Printf("step has env: of unexpected type %T – replacing with empty map", step["env"])
+		// Use the package-level suite logger to avoid coupling to the checker logger.
+		suiteLog.Printf("step has env: of unexpected type %T – replacing with empty map", step["env"])
 	}
 	envMap := make(map[string]any)
 	step["env"] = envMap

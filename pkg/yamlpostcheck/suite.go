@@ -123,9 +123,11 @@ func (s *Suite) RunOnYAML(yamlContent string) (result string, changed bool, fixe
 	// Parse the body into a mutable tree.
 	var tree map[string]any
 	if parseErr := yaml.Unmarshal([]byte(body), &tree); parseErr != nil {
-		suiteLog.Printf("Failed to parse YAML body for post-generation checks: %v", parseErr)
-		// Non-fatal: skip the suite rather than blocking compilation.
-		return yamlContent, false, nil, nil, nil
+		// Non-fatal: skip the suite rather than blocking compilation, but surface
+		// the skip as a warning so callers are aware the check was not applied.
+		skipMsg := fmt.Sprintf("post-generation checks skipped: failed to parse YAML body (%v)", parseErr)
+		suiteLog.Printf("post-generation checks skipped: failed to parse YAML body: %v", parseErr)
+		return yamlContent, false, nil, []string{skipMsg}, nil
 	}
 	if tree == nil {
 		suiteLog.Print("Parsed YAML body is nil – skipping post-generation checks")
@@ -147,8 +149,13 @@ func (s *Suite) RunOnYAML(yamlContent string) (result string, changed bool, fixe
 	suiteLog.Print("Re-serialising YAML body after post-generation fixes")
 	marshalledBody, marshalErr := yaml.Marshal(tree)
 	if marshalErr != nil {
-		// Non-fatal: return the original content so compilation can continue.
-		suiteLog.Printf("Failed to re-serialise fixed YAML body: %v – returning original", marshalErr)
+		// Re-serialisation failed: surface as a warning and return the original
+		// content.  changed=true here would be misleading since the on-disk YAML
+		// was not updated, so we return false but include a warning explaining
+		// that the in-memory tree was mutated but could not be serialised.
+		marshalWarning := fmt.Sprintf("post-generation fixes applied in memory but could not be serialised (%v); original YAML unchanged", marshalErr)
+		suiteLog.Printf("post-generation fixes applied in memory but could not be serialised: %v; original YAML unchanged", marshalErr)
+		warnings = append(warnings, marshalWarning)
 		return yamlContent, false, fixes, warnings, nil
 	}
 
