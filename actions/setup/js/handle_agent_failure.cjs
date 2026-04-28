@@ -842,6 +842,39 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
 }
 
 /**
+ * Check whether agent-stdio.log contains a terminal_reason: "completed" result entry,
+ * indicating the agent finished its task successfully despite a non-zero job exit code.
+ * Log lines may be prefixed with a timestamp (e.g. "2026-04-27T21:45:00.080Z  {JSON}").
+ *
+ * Lazy strategy: tests a single regex against the entire file content in one pass and
+ * returns immediately on the first match, avoiding line splitting and JSON parsing.
+ * The pattern is specific enough (`"terminal_reason"` key with `"completed"` value,
+ * 0 or 1 literal space around the colon) that false positives from unrelated content
+ * are negligible in practice.
+ *
+ * @returns {boolean} true if terminal_reason: "completed" was found in the log
+ */
+function hasAgentTerminalReasonCompleted() {
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+  const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
+  try {
+    if (!fs.existsSync(stdioLogPath)) {
+      return false;
+    }
+    const logContent = fs.readFileSync(stdioLogPath, "utf8");
+    // Single-pass scan: "terminal_reason" key with 0 or 1 literal space around
+    // the colon and "completed" value. JSON uses either compact ("key":"val") or
+    // single-spaced ("key" : "val") formatting. `[ ]?` matches only a space
+    // character (not tabs or newlines). Returns on first match without splitting
+    // lines or parsing JSON.
+    return /"terminal_reason"[ ]?:[ ]?"completed"/.test(logContent);
+  } catch {
+    // IO error — assume not completed
+  }
+  return false;
+}
+
+/**
  * Extract terminal error messages from agent-stdio.log to surface engine failures.
  * First tries to match known error patterns (ERROR:, Error:, Fatal:, panic:, Reconnecting...).
  * Falls back to the last non-empty lines of the log when no patterns match, so that
@@ -870,6 +903,16 @@ function buildEngineFailureContext() {
     }
 
     const lines = logContent.split("\n");
+
+    // Guard: if the agent completed successfully (terminal_reason: "completed"), the job
+    // failure was caused by something other than the agent itself (e.g., post-processing
+    // or infrastructure). Suppress the engine failure context to avoid false positive labels.
+    // Use the already-loaded logContent directly to avoid a redundant file read.
+    if (/"terminal_reason"[ ]?:[ ]?"completed"/.test(logContent)) {
+      core.info("Agent completed successfully (terminal_reason: completed) — suppressing engine failure context");
+      return "";
+    }
+
     const errorMessages = new Set();
 
     for (const line of lines) {
@@ -1092,6 +1135,11 @@ async function main() {
     let hasMissingSafeOutputs = false;
     let hasOnlyNoopOutputs = false;
     let hasReportIncomplete = false;
+    // Tracks the case where agentConclusion is "failure" but the agent completed its work
+    // successfully (terminal_reason: completed) and produced valid non-noop safe outputs.
+    // This is a false-positive failure caused by a transient error after the agent's task
+    // was done (e.g., post-processing step or AI model server returning a spurious error).
+    let hasCompletedDespiteJobFailure = false;
     const { loadAgentOutput } = require("./load_agent_output.cjs");
     const agentOutputResult = loadAgentOutput();
 
@@ -1117,6 +1165,15 @@ async function main() {
         if (nonNoopItems.length === 0) {
           hasOnlyNoopOutputs = true;
           core.info("Agent failed with exit code 1 but produced only noop outputs - treating as successful no-action (transient AI model error)");
+        } else if (!nonNoopItems.some(item => item.type === "report_incomplete")) {
+          // The agent produced valid non-noop safe outputs (e.g. create_discussion) but the
+          // job exit code is non-zero. If terminal_reason: completed is present in the log,
+          // the failure was a transient error after the agent finished its task — do not report
+          // a failure issue.
+          if (hasAgentTerminalReasonCompleted()) {
+            hasCompletedDespiteJobFailure = true;
+            core.info("Agent failed with exit code 1 but completed successfully (terminal_reason: completed) with valid safe outputs — treating as completed (transient AI model error)");
+          }
         }
       }
     }
@@ -1181,6 +1238,16 @@ async function main() {
     // If we only have noop outputs (and no report_incomplete or cache-miss), skip failure handling
     if (hasOnlyNoopOutputs && !hasReportIncomplete && !hasCacheMissMisconfiguration) {
       core.info("Agent completed with only noop outputs - skipping failure handling");
+      return;
+    }
+
+    // If the agent completed its work successfully (terminal_reason: completed) and produced
+    // valid non-noop safe outputs despite the job's non-zero exit code, skip failure handling.
+    // This prevents false-positive failure issues when a transient AI model error occurs
+    // after the agent has already finished its task (e.g., create_discussion produced but
+    // the server returned a spurious error on teardown).
+    if (hasCompletedDespiteJobFailure && !hasReportIncomplete && !hasCacheMissMisconfiguration) {
+      core.info("Agent completed with valid safe outputs despite job failure (terminal_reason: completed) — skipping failure handling");
       return;
     }
 
@@ -1629,4 +1696,5 @@ module.exports = {
   buildModelNotSupportedErrorContext,
   buildMissingDataContext,
   getActionFailureIssueExpiresHours,
+  hasAgentTerminalReasonCompleted,
 };

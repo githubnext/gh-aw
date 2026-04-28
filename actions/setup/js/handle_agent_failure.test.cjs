@@ -1201,4 +1201,268 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Cache Configuration Problem");
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // hasAgentTerminalReasonCompleted
+  // ──────────────────────────────────────────────────────
+
+  describe("hasAgentTerminalReasonCompleted", () => {
+    let hasAgentTerminalReasonCompleted;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+    /** @type {string} */
+    let stdioLogPath;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-terminal-reason-"));
+      stdioLogPath = path.join(tmpDir, "agent-stdio.log");
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      ({ hasAgentTerminalReasonCompleted } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns false when log file does not exist", () => {
+      expect(hasAgentTerminalReasonCompleted()).toBe(false);
+    });
+
+    it("returns false when log file is empty", () => {
+      fs.writeFileSync(stdioLogPath, "");
+      expect(hasAgentTerminalReasonCompleted()).toBe(false);
+    });
+
+    it("returns true for plain JSON result line with terminal_reason: completed", () => {
+      fs.writeFileSync(stdioLogPath, '{"type":"result","subtype":"success","terminal_reason":"completed","num_turns":53,"total_cost_usd":1.91}\n');
+      expect(hasAgentTerminalReasonCompleted()).toBe(true);
+    });
+
+    it("returns true for timestamp-prefixed result line", () => {
+      fs.writeFileSync(stdioLogPath, '2026-04-27T21:45:00.080Z  {"type":"result","subtype":"success","terminal_reason":"completed","num_turns":53}\n');
+      expect(hasAgentTerminalReasonCompleted()).toBe(true);
+    });
+
+    it("returns false when terminal_reason is not completed", () => {
+      fs.writeFileSync(stdioLogPath, '{"type":"result","subtype":"error_max_turns","terminal_reason":"max_turns","num_turns":50}\n');
+      expect(hasAgentTerminalReasonCompleted()).toBe(false);
+    });
+
+    it("returns false when log contains only non-JSON lines", () => {
+      fs.writeFileSync(stdioLogPath, "Starting agent...\nRunning tool: list_files\nAgent interrupted\n");
+      expect(hasAgentTerminalReasonCompleted()).toBe(false);
+    });
+
+    it("returns true when terminal_reason: completed appears among other log lines", () => {
+      const lines = ["Starting agent...", '{"type":"system","subtype":"init","model":"claude-sonnet-4"}', '{"type":"result","subtype":"success","terminal_reason":"completed","num_turns":10}', "Process exiting with code: 0"];
+      fs.writeFileSync(stdioLogPath, lines.join("\n") + "\n");
+      expect(hasAgentTerminalReasonCompleted()).toBe(true);
+    });
+
+    it("returns true when JSON is truncated but substring is present in content", () => {
+      // A truncated line that can't be fully parsed as JSON but contains the literal substring
+      fs.writeFileSync(stdioLogPath, '"terminal_reason":"completed","num_turns":53 (truncated\n');
+      expect(hasAgentTerminalReasonCompleted()).toBe(true);
+    });
+
+    it("returns true with no spaces around colon (compact JSON)", () => {
+      fs.writeFileSync(stdioLogPath, '{"terminal_reason":"completed"}\n');
+      expect(hasAgentTerminalReasonCompleted()).toBe(true);
+    });
+
+    it("returns true with one space on each side of colon", () => {
+      fs.writeFileSync(stdioLogPath, '{"terminal_reason" : "completed"}\n');
+      expect(hasAgentTerminalReasonCompleted()).toBe(true);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // buildEngineFailureContext — terminal_reason guard
+  // ──────────────────────────────────────────────────────
+
+  describe("buildEngineFailureContext with terminal_reason guard", () => {
+    let buildEngineFailureContext;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+    /** @type {string} */
+    let stdioLogPath;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-engine-fail-guard-"));
+      stdioLogPath = path.join(tmpDir, "agent-stdio.log");
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      process.env.RUNNER_TEMP = tmpDir;
+      ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      delete process.env.GH_AW_ENGINE_ID;
+      delete process.env.RUNNER_TEMP;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty string when log contains terminal_reason: completed (plain JSON)", () => {
+      fs.writeFileSync(stdioLogPath, '{"type":"result","subtype":"success","terminal_reason":"completed","num_turns":53,"total_cost_usd":1.91}\n');
+      expect(buildEngineFailureContext()).toBe("");
+    });
+
+    it("returns empty string when log contains terminal_reason: completed with timestamp prefix", () => {
+      const lines = [
+        "Starting claude workflow...",
+        "2026-04-27T21:44:49.870Z  safeoutputs.create_discussion: completed successfully in 76ms",
+        '2026-04-27T21:45:00.080Z  {"type":"result","subtype":"success","terminal_reason":"completed","num_turns":53,"total_cost_usd":1.91}',
+        "[WARN] Command completed with exit code: 1",
+        "Process exiting with code: 1",
+      ];
+      fs.writeFileSync(stdioLogPath, lines.join("\n") + "\n");
+      expect(buildEngineFailureContext()).toBe("");
+    });
+
+    it("still surfaces errors when terminal_reason is not completed", () => {
+      fs.writeFileSync(stdioLogPath, 'ERROR: quota exceeded\n{"type":"result","terminal_reason":"max_turns"}\n');
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("quota exceeded");
+    });
+
+    it("still uses fallback tail when no terminal_reason and no error patterns", () => {
+      fs.writeFileSync(stdioLogPath, "Starting agent...\nAgent interrupted unexpectedly\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("Agent interrupted unexpectedly");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // main() — hasCompletedDespiteJobFailure early-return
+  // ──────────────────────────────────────────────────────
+
+  describe("main() hasCompletedDespiteJobFailure early-return", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+    /** @type {string} */
+    let promptsDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-completed-despite-failure-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+
+      // Minimal templates required by main()
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_comment.md"), "COMMENT TEMPLATE");
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), "ISSUE TEMPLATE");
+
+      process.env.RUNNER_TEMP = tmpDir;
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123456";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      delete process.env.GH_AW_WORKFLOW_NAME;
+      delete process.env.GH_AW_WORKFLOW_ID;
+      delete process.env.GH_AW_RUN_URL;
+      delete process.env.GH_AW_AGENT_CONCLUSION;
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("skips failure issue creation when terminal_reason: completed and non-noop safe outputs present", async () => {
+      // Agent produced a valid non-noop safe output
+      fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [{ type: "create_discussion", title: "Done", body: "All set." }] }));
+      // stdio log contains terminal_reason: completed
+      fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), '{"type":"result","subtype":"success","terminal_reason":"completed","num_turns":10}\n');
+
+      const createIssueMock = vi.fn();
+      const createCommentMock = vi.fn();
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      vi.resetModules();
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(createCommentMock).not.toHaveBeenCalled();
+    });
+
+    it("still creates failure issue when terminal_reason: completed but report_incomplete is also present", async () => {
+      // Agent produced both a non-noop item and a report_incomplete signal
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [
+            { type: "create_discussion", title: "Done", body: "All set." },
+            { type: "report_incomplete", reason: "mcp_crash" },
+          ],
+        })
+      );
+      fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), '{"type":"result","subtype":"success","terminal_reason":"completed","num_turns":10}\n');
+
+      const createIssueMock = vi.fn(async () => ({ data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" } }));
+      const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) return { data: { total_count: 0, items: [] } };
+              return { data: { total_count: 0, items: [] } };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      vi.resetModules();
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+
+      // report_incomplete overrides the hasCompletedDespiteJobFailure exemption
+      expect(createIssueMock).toHaveBeenCalled();
+    });
+  });
 });
