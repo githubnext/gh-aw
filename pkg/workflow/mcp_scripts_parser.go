@@ -2,13 +2,35 @@ package workflow
 
 import (
 	"encoding/json"
-	"fmt"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var mcpScriptsLog = logger.New("workflow:mcp_scripts")
+
+// parseTimeoutString converts a string timeout value to seconds.
+// It accepts plain integers ("120"), Go duration strings ("6m", "1h", "30s", "2h30m"),
+// and trims surrounding whitespace. Returns (seconds, true) on success,
+// or (0, false) if the value cannot be parsed.
+func parseTimeoutString(s string) (int, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, false
+	}
+	// Plain integer – e.g. "120"
+	if n, err := strconv.Atoi(s); err == nil {
+		return n, true
+	}
+	// Go duration – e.g. "6m", "1h", "30s", "2h30m"
+	if d, err := time.ParseDuration(s); err == nil {
+		return int(d.Seconds()), true
+	}
+	return 0, false
+}
 
 // MCPScriptsConfig holds the configuration for mcp-scripts custom tools
 type MCPScriptsConfig struct {
@@ -179,8 +201,11 @@ func parseMCPScriptsMap(mcpScriptsMap map[string]any) (*MCPScriptsConfig, bool) 
 			case float64:
 				toolConfig.Timeout = int(t)
 			case string:
-				// Try to parse string as integer
-				_, _ = fmt.Sscanf(t, "%d", &toolConfig.Timeout)
+				if n, ok := parseTimeoutString(t); ok {
+					toolConfig.Timeout = n
+				} else {
+					mcpScriptsLog.Printf("Warning: invalid timeout value %q for tool %q, keeping default timeout (60s)", t, toolName)
+				}
 			}
 		}
 
@@ -350,8 +375,11 @@ func (c *Compiler) mergeMCPScripts(main *MCPScriptsConfig, importedConfigs []str
 				case float64:
 					toolConfig.Timeout = int(t)
 				case string:
-					// Try to parse string as integer
-					_, _ = fmt.Sscanf(t, "%d", &toolConfig.Timeout)
+					if n, ok := parseTimeoutString(t); ok {
+						toolConfig.Timeout = n
+					} else {
+						mcpScriptsLog.Printf("Warning: invalid timeout value %q for tool %q, keeping default timeout (60s)", t, toolName)
+					}
 				}
 			}
 
