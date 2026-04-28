@@ -248,8 +248,9 @@ func FuzzSanitizeCustomStepsYAML(f *testing.F) {
 		// Should never panic.
 		out, warnings, err := sanitizeCustomStepsYAML(input)
 
-		// err is only non-nil for YAML re-serialisation failures; the function
-		// always returns a non-empty string (either original or sanitized).
+		// err is non-nil only for YAML re-serialisation failures; when that
+		// happens the original string is returned unchanged.
+		// Note: out may be an empty string when the input is empty.
 		if err != nil {
 			// On error the original must be returned unchanged.
 			if out != input {

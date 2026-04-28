@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -147,10 +148,10 @@ func (c *Compiler) renderStepFromMap(out *strings.Builder, step map[string]any, 
 					fmt.Fprintf(out, "%s: %s\n", field, v)
 				}
 			case map[string]any:
-				// For complex fields like "with" or "env"
+				// For complex fields like "with" or "env" — sort keys for stable output.
 				fmt.Fprintf(out, "%s:\n", field)
-				for key, val := range v {
-					fmt.Fprintf(out, "%s    %s: %v\n", indent, key, val)
+				for _, key := range slices.Sorted(maps.Keys(v)) {
+					fmt.Fprintf(out, "%s    %s: %v\n", indent, key, v[key])
 				}
 			default:
 				fmt.Fprintf(out, "%s: %v\n", field, v)
@@ -184,9 +185,10 @@ func (c *Compiler) renderStepFromMap(out *strings.Builder, step map[string]any, 
 				fmt.Fprintf(out, "%s: %s\n", field, v)
 			}
 		case map[string]any:
+			// Sort keys for stable output.
 			fmt.Fprintf(out, "%s:\n", field)
-			for key, val := range v {
-				fmt.Fprintf(out, "%s    %s: %v\n", indent, key, val)
+			for _, key := range slices.Sorted(maps.Keys(v)) {
+				fmt.Fprintf(out, "%s    %s: %v\n", indent, key, v[key])
 			}
 		default:
 			fmt.Fprintf(out, "%s: %v\n", field, v)

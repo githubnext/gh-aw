@@ -623,3 +623,145 @@ func TestSanitizeCustomStepsYAML_WarningsDescribeExtraction(t *testing.T) {
 	assert.Contains(t, w, "shell injection", "warning should mention shell injection")
 	assert.Contains(t, w, "My Step", "warning should include step name")
 }
+
+// ---------------------------------------------------------------------------
+// Collision handling tests
+// ---------------------------------------------------------------------------
+
+// TestSanitizeRunStepExpressions_CollisionReusesSameValue verifies that when the
+// existing env: block already binds the generated key to the same expression,
+// the sanitizer reuses it without emitting a new env var entry.
+func TestSanitizeRunStepExpressions_CollisionReusesSameValue(t *testing.T) {
+	step := map[string]any{
+		"run": `echo "${{ github.event.issue.title }}"`,
+		"env": map[string]any{
+			// Pre-populated with the same expression the sanitizer would generate.
+			"GH_AW_GITHUB_EVENT_ISSUE_TITLE": "${{ github.event.issue.title }}",
+		},
+	}
+	result, warnings, changed := sanitizeRunStepExpressions(step)
+
+	require.True(t, changed, "expected change (run: still had the expression)")
+	envMap, ok := result["env"].(map[string]any)
+	require.True(t, ok)
+
+	// Exactly one key — the pre-existing one — should be in the env block.
+	assert.Len(t, envMap, 1, "no extra env key should be added when same value already present")
+	assert.Equal(t, "${{ github.event.issue.title }}", envMap["GH_AW_GITHUB_EVENT_ISSUE_TITLE"])
+	// One warning is still emitted because the run: script was modified.
+	assert.Len(t, warnings, 1)
+}
+
+// TestSanitizeRunStepExpressions_CollisionDifferentValueGetsAlternateName verifies that
+// when the existing env: block already binds the generated key name to a *different* value,
+// the sanitizer picks an alternate name (GH_AW_..._2) rather than silently overwriting.
+func TestSanitizeRunStepExpressions_CollisionDifferentValueGetsAlternateName(t *testing.T) {
+	step := map[string]any{
+		"run": `echo "${{ github.event.issue.title }}"`,
+		"env": map[string]any{
+			// Pre-populated with the SAME key but a completely different value.
+			"GH_AW_GITHUB_EVENT_ISSUE_TITLE": "something-else",
+		},
+	}
+	result, warnings, changed := sanitizeRunStepExpressions(step)
+
+	require.True(t, changed, "expected change")
+	envMap, ok := result["env"].(map[string]any)
+	require.True(t, ok)
+
+	// The original value must not be overwritten.
+	assert.Equal(t, "something-else", envMap["GH_AW_GITHUB_EVENT_ISSUE_TITLE"],
+		"existing env var value must not be overwritten")
+
+	// An alternate name must have been allocated.
+	assert.Equal(t, "${{ github.event.issue.title }}", envMap["GH_AW_GITHUB_EVENT_ISSUE_TITLE_2"],
+		"collision must be resolved with _2 suffix")
+
+	// The run: script must reference the alternate name.
+	runVal := result["run"].(string)
+	assert.Contains(t, runVal, "$GH_AW_GITHUB_EVENT_ISSUE_TITLE_2",
+		"run field must reference the alternate env var name")
+	assert.NotContains(t, runVal, "${{",
+		"run field must not contain inline expressions after sanitization")
+
+	assert.Len(t, warnings, 1)
+}
+
+// ---------------------------------------------------------------------------
+// Quoted-heredoc replacement tests
+// ---------------------------------------------------------------------------
+
+// TestSanitizeRunStepExpressions_ExpressionInQuotedHeredocNotReplaced verifies that
+// when the same expression appears both outside a quoted heredoc (trigger extraction)
+// and inside a quoted heredoc, the replacement inside the heredoc is skipped.
+// The expression outside is replaced; the heredoc body is preserved verbatim.
+func TestSanitizeRunStepExpressions_ExpressionInQuotedHeredocNotReplaced(t *testing.T) {
+	// Title appears BOTH outside (echo line) AND inside the quoted heredoc.
+	script := strings.Join([]string{
+		`echo "${{ github.event.issue.title }}"`,
+		`cat > /tmp/cfg.json << 'EOF'`,
+		`{"title": "${{ github.event.issue.title }}"}`,
+		`EOF`,
+	}, "\n")
+
+	step := map[string]any{"run": script}
+	result, warnings, changed := sanitizeRunStepExpressions(step)
+
+	require.True(t, changed, "expression outside heredoc should trigger extraction")
+	runVal := result["run"].(string)
+
+	// The non-heredoc echo line should use the env var reference.
+	assert.Contains(t, runVal, "$GH_AW_GITHUB_EVENT_ISSUE_TITLE",
+		"echo line should reference env var")
+
+	// The quoted heredoc body should still contain the original expression
+	// (the Actions runner expands it before the shell runs; quoted heredoc
+	// prevents variable expansion so we must not replace it there).
+	assert.Contains(t, runVal, `${{ github.event.issue.title }}`,
+		"expression inside quoted heredoc must be preserved verbatim")
+
+	assert.Len(t, warnings, 1)
+}
+
+// TestReplaceOutsideQuotedHeredocs_NoHeredoc verifies that without heredocs the
+// function behaves identically to strings.ReplaceAll.
+func TestReplaceOutsideQuotedHeredocs_NoHeredoc(t *testing.T) {
+	s := `echo "${{ github.event.issue.title }}" && echo "${{ github.event.issue.title }}"`
+	result := replaceOutsideQuotedHeredocs(s, "${{ github.event.issue.title }}", "$TITLE")
+	assert.Equal(t, `echo "$TITLE" && echo "$TITLE"`, result)
+}
+
+// TestReplaceOutsideQuotedHeredocs_QuotedHeredocPreserved verifies that quoted
+// heredoc content is left unchanged.
+func TestReplaceOutsideQuotedHeredocs_QuotedHeredocPreserved(t *testing.T) {
+	s := strings.Join([]string{
+		`echo "${{ github.event.issue.title }}"`,
+		`cat > /tmp/f << 'EOF'`,
+		`{"t": "${{ github.event.issue.title }}"}`,
+		`EOF`,
+		`echo done`,
+	}, "\n")
+	result := replaceOutsideQuotedHeredocs(s, "${{ github.event.issue.title }}", "$TITLE")
+
+	// Replacement must happen in echo lines.
+	assert.Contains(t, result, `echo "$TITLE"`)
+	// Replacement must NOT happen inside the quoted heredoc.
+	assert.Contains(t, result, `${{ github.event.issue.title }}`)
+	// Closing EOF line and trailing echo must be intact.
+	assert.Contains(t, result, "echo done")
+}
+
+// TestReplaceOutsideQuotedHeredocs_UnquotedHeredocIsReplaced verifies that
+// unquoted heredoc content (where the shell expands variables) is replaced.
+func TestReplaceOutsideQuotedHeredocs_UnquotedHeredocIsReplaced(t *testing.T) {
+	s := strings.Join([]string{
+		`cat > /tmp/f << EOF`,
+		`{"t": "${{ github.event.issue.title }}"}`,
+		`EOF`,
+	}, "\n")
+	result := replaceOutsideQuotedHeredocs(s, "${{ github.event.issue.title }}", "$TITLE")
+
+	// Unquoted heredoc — replacement is safe because the shell expands $TITLE.
+	assert.NotContains(t, result, "${{ github.event.issue.title }}")
+	assert.Contains(t, result, "$TITLE")
+}

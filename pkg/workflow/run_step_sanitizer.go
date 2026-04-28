@@ -131,24 +131,59 @@ func sanitizeRunStepExpressions(step map[string]any) (map[string]any, []string, 
 	})
 
 	// Merge extracted env vars into a copy of the existing env: map.
+	// Collision handling:
+	//   - If the generated key already exists with the same value → reuse as-is.
+	//   - If it exists with a different value → pick an alternate name by appending
+	//     a numeric suffix (_2, _3, …) so the original user-defined value is preserved.
 	existingEnv, _ := step["env"].(map[string]any)
 	newEnv := make(map[string]any, len(existingEnv)+len(ordered))
 	maps.Copy(newEnv, existingEnv)
-	for _, s := range ordered {
+
+	for i := range ordered {
+		s := &ordered[i]
+		if existingVal, exists := newEnv[s.EnvVar]; exists {
+			if existingVal == s.Original {
+				// Same expression already bound to this name — nothing to do.
+				continue
+			}
+			// Collision with a different value: find the next available name.
+			// Bound to 100 iterations to avoid any pathological infinite loop;
+			// in practice a workflow will never have more than a handful of
+			// GH_AW_ variables.
+			const maxSuffixes = 100
+			base := s.EnvVar
+			resolved := false
+			for suffix := 2; suffix <= maxSuffixes; suffix++ {
+				candidate := fmt.Sprintf("%s_%d", base, suffix)
+				if _, taken := newEnv[candidate]; !taken {
+					s.EnvVar = candidate
+					resolved = true
+					break
+				}
+			}
+			if !resolved {
+				// Extremely unlikely: all 100 numeric suffixes are taken.
+				// Log and skip this expression to avoid corrupting the env block.
+				runStepSanitizerLog.Printf(
+					"skipping extraction of %q: too many name collisions for %s",
+					s.Original, base,
+				)
+				continue
+			}
+		}
 		newEnv[s.EnvVar] = s.Original
 	}
 
-	// Replace every occurrence of each expression in the full run: string.
-	// This includes content inside heredoc blocks: the runner evaluates the
-	// env: block assignment before passing heredoc content to the shell, so
-	// the variable reference is resolved correctly even inside a heredoc.
-	// Note: only expressions detected in the non-heredoc portion of the run:
-	// script trigger extraction (see the scanContent check above); any
-	// expression that appears *exclusively* inside a heredoc will never reach
-	// this point because it won't have been added to `ordered`.
+	// Replace every occurrence of each expression in the run: script.
+	// Replacements are limited to non-quoted-heredoc regions: quoted heredocs
+	// (e.g. << 'EOF') suppress shell variable expansion, so replacing
+	// ${{ expr }} with $GH_AW_VAR inside them would write the literal variable
+	// name to the output file instead of the expression value.  Expressions
+	// that appear exclusively inside heredocs are never added to `ordered` (see
+	// the scanContent check above), so they are left intact regardless.
 	newRun := runVal
 	for _, s := range ordered {
-		newRun = strings.ReplaceAll(newRun, s.Original, "$"+s.EnvVar)
+		newRun = replaceOutsideQuotedHeredocs(newRun, s.Original, "$"+s.EnvVar)
 	}
 
 	// Build the sanitized step as a shallow copy.
@@ -185,10 +220,16 @@ func sanitizeRunStepExpressions(step map[string]any) (map[string]any, []string, 
 //
 // The returned string is a replacement for the input customSteps that is safe to
 // write to the generated workflow YAML.  The returned warnings slice contains one
-// entry per unique expression that was extracted across all steps.
+// entry per unique expression extracted within each step (i.e. warnings are
+// collected per step and appended; no global deduplication is performed across
+// steps).
 //
 // When no expressions are found the original customSteps string is returned
 // unchanged and the warnings slice will be empty.
+// When the input cannot be parsed as YAML it is returned unchanged with a nil
+// warnings slice and a nil error (the compiler will surface YAML errors later).
+// When re-serialisation of the modified steps fails, the original string is
+// returned unchanged and a non-nil error is returned.
 func sanitizeCustomStepsYAML(customSteps string) (string, []string, error) {
 	if !hasExpressionMarker(customSteps) {
 		return customSteps, nil, nil
