@@ -12,7 +12,7 @@ permissions:
 tracker-id: copilot-token-audit
 engine: copilot
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   bash:
     - "*"
@@ -60,7 +60,6 @@ imports:
   - uses: shared/mcp/gh-aw.md
   - shared/python-dataviz.md
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}

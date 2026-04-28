@@ -231,7 +231,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// the compiler prepends the agent file content to prompt.txt so no special
 		// shell variable juggling is needed here.
 		codexCommandWithSetup := fmt.Sprintf(`%s && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && %s`, npmPathSetup, codexCommand)
-		// Add MCP CLI bin directory to PATH when mount-as-clis is enabled
+		// Add MCP CLI bin directory to PATH when cli-proxy is enabled
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			codexCommandWithSetup = fmt.Sprintf("%s && %s", mcpCLIPath, codexCommandWithSetup)
 		}

@@ -12,7 +12,7 @@ permissions:
 engine: copilot
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   edit:
   bash:
     - "*"
@@ -28,8 +28,6 @@ timeout-minutes: 5
 imports:
   - shared/reporting.md
 
-features:
-  mcp-cli: true
 ---
 
 # Repository Tree Map Generator

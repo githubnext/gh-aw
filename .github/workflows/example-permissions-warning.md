@@ -8,12 +8,10 @@ permissions:
   issues: read
   pull-requests: read
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [repos, issues, pull_requests]
 strict: false
-features:
-  mcp-cli: true
 ---
 
 # Example: Properly Provisioned Permissions

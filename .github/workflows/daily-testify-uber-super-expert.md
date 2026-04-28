@@ -28,7 +28,7 @@ safe-outputs:
     max: 1
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   repo-memory:
     branch-name: memory/testify-expert
     description: "Tracks processed test files to avoid duplicates"
@@ -46,7 +46,6 @@ tools:
 timeout-minutes: 20
 strict: true
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

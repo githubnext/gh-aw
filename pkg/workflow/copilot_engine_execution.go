@@ -250,7 +250,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		npmPathSetup := GetNpmBinPathSetup()
 		engineCommand := fmt.Sprintf("%s && %s", npmPathSetup, copilotCommand)
 
-		// MCP CLI bin directory: when mount-as-clis is enabled, the CLI wrapper scripts
+		// MCP CLI bin directory: when cli-proxy is enabled, the CLI wrapper scripts
 		// live under ${RUNNER_TEMP}/gh-aw/mcp-cli/bin. core.addPath() adds this to
 		// $GITHUB_PATH for subsequent steps, but sudo's secure_path may strip it.
 		// Prepending it to the engine command ensures the agent can find them.

@@ -12,7 +12,7 @@ permissions:
 tracker-id: api-consumption-report-daily
 engine: claude
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   timeout: 300
 safe-outputs:
@@ -27,8 +27,6 @@ imports:
       expires: 3d
   - shared/jqschema.md
 
-features:
-  mcp-cli: true
 ---
 
 # GitHub API Consumption Report Agent

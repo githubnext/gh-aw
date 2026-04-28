@@ -16,7 +16,7 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   github:
     toolsets: [pull_requests, actions, repos]
@@ -36,7 +36,6 @@ strict: true
 imports:
   - shared/reporting.md
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

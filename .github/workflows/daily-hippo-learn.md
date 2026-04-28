@@ -32,7 +32,7 @@ sandbox:
   agent: awf
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   bash:
     - "*"
   github:
@@ -51,7 +51,6 @@ imports:
   - shared/reporting.md
 
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

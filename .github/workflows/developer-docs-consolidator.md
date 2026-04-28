@@ -29,7 +29,7 @@ safe-outputs:
     draft: false
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   cache-memory:
     key: developer-docs-cache
   repo-memory:
@@ -53,8 +53,6 @@ imports:
     with:
       title-prefix: "[developer-docs] "
   - shared/mcp/serena-go.md
-features:
-  mcp-cli: true
 ---
 # Developer Documentation Consolidator
 

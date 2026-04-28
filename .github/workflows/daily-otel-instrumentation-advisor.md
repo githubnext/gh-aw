@@ -16,7 +16,7 @@ mcp-servers:
     headers:
       Authorization: "Bearer ${{ secrets.SENTRY_API_KEY }}"
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   bash: true
   github:
     toolsets: [default, issues]
@@ -34,8 +34,6 @@ imports:
     with:
       title-prefix: "[otel-advisor] "
       expires: 3d
-features:
-  mcp-cli: true
 ---
 
 # Daily OTel Instrumentation Advisor

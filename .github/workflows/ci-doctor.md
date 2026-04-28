@@ -34,7 +34,7 @@ safe-outputs:
     run-failure: "🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance..."
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   cache-memory: true
   web-fetch:
   web-search:
@@ -198,8 +198,6 @@ steps:
       echo "✅ PR pre-analysis complete. Agent should start with $SUMMARY_FILE"
 
 source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
-features:
-  mcp-cli: true
 ---
 # CI Failure Doctor
 

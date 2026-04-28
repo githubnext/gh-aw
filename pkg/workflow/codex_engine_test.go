@@ -410,11 +410,8 @@ func TestCodexEngineExecutionAddsMountedMCPCLIPathSetup(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		Features: map[string]any{
-			"mcp-cli": true,
-		},
 		ParsedTools: &ToolsConfig{
-			MountAsCLIs: true,
+			CLIProxy: true,
 		},
 		Tools: map[string]any{
 			"bash": []any{"echo"},

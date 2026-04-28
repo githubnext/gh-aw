@@ -16,7 +16,7 @@ network:
     - githubnext.com
     - www.githubnext.com
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   playwright:
   bash:
     - "date *"
@@ -33,8 +33,6 @@ imports:
     with:
       title-prefix: "[audit] "
       expires: 1d
-features:
-  mcp-cli: true
 ---
 # Blog Auditor
 

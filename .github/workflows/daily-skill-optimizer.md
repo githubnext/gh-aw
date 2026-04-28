@@ -148,12 +148,10 @@ steps:
       path: /tmp/gh-aw/skill-optimizer-results
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   bash:
     - "*"
   edit:
-features:
-  mcp-cli: true
 ---
 
 # Daily Skill Optimizer Improvements

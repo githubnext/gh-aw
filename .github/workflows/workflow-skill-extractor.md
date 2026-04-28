@@ -17,7 +17,7 @@ engine:
 timeout-minutes: 30
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   bash:
     - "find .github/workflows -name '*.md'"
     - "grep -r '*' .github/workflows"
@@ -101,8 +101,6 @@ steps:
         fs.mkdirSync('/tmp/gh-aw/agent', { recursive: true });
         fs.writeFileSync('/tmp/gh-aw/agent/workflow-index.json', JSON.stringify(index, null, 2) + '\n', 'utf8');
         core.info(`Indexed ${index.length} workflows`);
-features:
-  mcp-cli: true
 ---
 
 # Workflow Skill Extractor

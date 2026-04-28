@@ -23,7 +23,7 @@ runtimes:
   node:
     version: "24"
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   timeout: 120  # Playwright navigation on Astro dev server can take >60s; increase to 120s
   playwright:
     version: "v1.56.1"
@@ -59,8 +59,6 @@ imports:
     with:
       title-prefix: "[multi-device-docs] "
       expires: 3d
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

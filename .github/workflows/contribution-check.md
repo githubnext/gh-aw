@@ -17,7 +17,7 @@ engine:
   agent: contribution-checker
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [pull_requests, repos, issues]
     allowed-repos: all
@@ -94,8 +94,6 @@ steps:
         echo "ℹ No CONTRIBUTING.md found in $TARGET_REPOSITORY (checked root, .github/, docs/)"
       fi
 
-features:
-  mcp-cli: true
 ---
 
 ## Target Repository

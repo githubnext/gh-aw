@@ -21,7 +21,7 @@ network:
     - mossaka.github.io
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   playwright:
   web-fetch:
   bash:
@@ -38,8 +38,6 @@ safe-outputs:
     labels: [documentation, automation]
     reviewers: [copilot]
     expires: 7d
-features:
-  mcp-cli: true
 ---
 
 # Weekly Editors Health Check

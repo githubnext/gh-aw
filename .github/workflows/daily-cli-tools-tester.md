@@ -9,7 +9,7 @@ permissions:
   pull-requests: read
   actions: read
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   bash: ["*"]
   edit:
@@ -27,8 +27,6 @@ imports:
     with:
       title-prefix: "[cli-tools-test] "
       expires: 3d
-features:
-  mcp-cli: true
 ---
 
 # Daily CLI Tools Exploratory Tester

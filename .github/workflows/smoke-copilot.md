@@ -44,9 +44,7 @@ tools:
       - pelikhan
   playwright:
   web-fetch:
-  mount-as-clis: true
-features:
-  mcp-cli: true
+  cli-proxy: true
 runtimes:
   go:
     version: "1.25"
@@ -133,7 +131,7 @@ strict: false
 
 ## Tool Access Overview
 
-This workflow uses `mount-as-clis: true`. The following MCP servers are **NOT available as MCP tools** — they are mounted exclusively as **shell CLI commands** (see `<mcp-clis>` section above). You **must** use them via the `bash` tool:
+This workflow uses `cli-proxy: true`. The following MCP servers are **NOT available as MCP tools** — they are mounted exclusively as **shell CLI commands** (see `<mcp-clis>` section above). You **must** use them via the `bash` tool:
 
 - **`playwright`** — use `playwright <tool> [--param value...]` in bash (e.g. `playwright browser_navigate --url ...`)
 - **`serena`** — use `serena <tool> [--param value...]` in bash (e.g. `serena activate_project --path ...`)

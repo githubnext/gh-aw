@@ -394,11 +394,8 @@ func TestCrushEngineFirewallIntegration(t *testing.T) {
 	t.Run("firewall enabled adds mounted MCP CLI path setup", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
-			Features: map[string]any{
-				"mcp-cli": true,
-			},
 			ParsedTools: &ToolsConfig{
-				MountAsCLIs: true,
+				CLIProxy: true,
 			},
 			Tools: map[string]any{
 				"bash": []any{"echo"},

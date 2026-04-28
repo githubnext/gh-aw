@@ -19,10 +19,8 @@ safe-outputs:
     labels: [test]
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   cache-memory: true
-features:
-  mcp-cli: true
 ---
 
 # Test Create PR Error Handling

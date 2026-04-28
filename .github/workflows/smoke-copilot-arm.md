@@ -28,7 +28,7 @@ network:
     - github
     - playwright
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   cache-memory: true
   edit:
@@ -107,8 +107,6 @@ safe-outputs:
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 timeout-minutes: 15
 strict: false
-features:
-  mcp-cli: true
 ---
 
 # Smoke Test: Copilot Engine Validation (ARM64)

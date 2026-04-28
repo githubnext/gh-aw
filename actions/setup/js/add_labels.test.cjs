@@ -681,5 +681,69 @@ describe("add_labels", () => {
       expect(mockCore.infos.some(msg => msg.includes("Blocked patterns:"))).toBe(false);
       expect(mockCore.infos.some(msg => msg.includes("max=5"))).toBe(true);
     });
+
+    it("should succeed with empty labelsAdded when all labels are blocked by patterns", async () => {
+      const handler = await main({
+        max: 10,
+        blocked: ["*"],
+      });
+
+      const addLabelsCalls = [];
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: 100,
+          labels: ["bug", "enhancement"],
+        },
+        {}
+      );
+
+      // All labels blocked → treated as "no valid labels"
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual([]);
+      expect(result.message).toContain("No valid labels");
+      expect(addLabelsCalls.length).toBe(0);
+    });
+
+    it("should reject labels starting with '-' (removal attempt)", async () => {
+      const handler = await main({ max: 10 });
+
+      const result = await handler(
+        {
+          item_number: 100,
+          labels: ["-bug"],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Label removal is not permitted");
+    });
+
+    it("should truncate labels longer than 64 characters", async () => {
+      const handler = await main({ max: 10 });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const longLabel = "a".repeat(80);
+      const result = await handler(
+        {
+          item_number: 100,
+          labels: [longLabel],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded[0].length).toBe(64);
+    });
   });
 });

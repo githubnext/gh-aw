@@ -29,7 +29,7 @@ safe-outputs:
     protected-files: allowed
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   cache-memory: true
   github:
     toolsets: [default]
@@ -40,8 +40,6 @@ tools:
     - "git log --since='*' --pretty=format:'%h %s' -- docs/"
 
 timeout-minutes: 15
-features:
-  mcp-cli: true
 ---
 
 # Instructions Janitor

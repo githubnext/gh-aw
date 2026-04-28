@@ -42,14 +42,12 @@ imports:
   - shared/mcp/tavily.md
   - shared/mcp/serena-go.md
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   edit:
   bash: true
   cache-memory: true
 
-features:
-  mcp-cli: true
 ---
 # MCP Inspector Agent
 

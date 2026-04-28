@@ -13,7 +13,7 @@ imports:
   - shared/security-analysis-base.md
   - shared/activation-app.md
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [context, pull_requests]
@@ -35,8 +35,6 @@ safe-outputs:
     reviewers: [copilot]
 timeout-minutes: 20
 
-features:
-  mcp-cli: true
 ---
 
 # Code Scanning Alert Fixer Agent

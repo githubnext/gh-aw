@@ -255,12 +255,10 @@ steps:
       path: /tmp/gh-aw/spellcheck
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   bash: true
   edit:
 
-features:
-  mcp-cli: true
 ---
 
 # Daily AstroStyleLite Markdown Spellcheck

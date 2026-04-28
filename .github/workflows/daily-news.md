@@ -45,7 +45,7 @@ safe-outputs:
     close-older-discussions: true
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   edit:
   bash:
     - "*"
@@ -298,7 +298,6 @@ imports:
       expires: 3d
   - shared/trends.md
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 

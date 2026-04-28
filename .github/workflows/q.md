@@ -17,7 +17,7 @@ engine: copilot
 imports:
   - shared/mcp/serena-go.md
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   github:
     min-integrity: none
@@ -49,8 +49,6 @@ safe-outputs:
 timeout-minutes: 30
 strict: true
 
-features:
-  mcp-cli: true
 ---
 
 # Q - Agentic Workflow Optimizer

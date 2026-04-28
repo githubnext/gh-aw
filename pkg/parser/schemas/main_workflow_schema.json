@@ -4142,7 +4142,7 @@
             }
           ]
         },
-        "mount-as-clis": {
+        "cli-proxy": {
           "type": "boolean",
           "description": "When true, each user-facing MCP server is mounted as a standalone CLI tool on PATH. The agent can then call MCP servers via shell commands (e.g. 'github issue_read --method get ...'). CLI-mounted servers remain in the MCP gateway config so their containers can start, and are removed only from the agent's final config during convert_gateway_config_*.sh processing. Default: false.",
           "examples": [true]

@@ -10,7 +10,7 @@ permissions:
   issues: read
   actions: read
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     mode: local
     read-only: true
@@ -827,8 +827,6 @@ safe-outputs:
 timeout-minutes: 10
 strict: true
 
-features:
-  mcp-cli: true
 ---
 
 # Bot Detection

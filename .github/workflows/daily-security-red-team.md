@@ -11,7 +11,7 @@ tracker-id: security-red-team
 engine: claude
 strict: true
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [issues]
   edit:
@@ -27,8 +27,6 @@ imports:
     with:
       title-prefix: "[security-red-team] "
       expires: 3d
-features:
-  mcp-cli: true
 ---
 
 # Daily Security Red Team Agent

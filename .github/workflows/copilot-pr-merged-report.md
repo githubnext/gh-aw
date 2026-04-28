@@ -17,7 +17,7 @@ engine: copilot
 strict: false
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github: false
 
 network:
@@ -36,7 +36,6 @@ imports:
 
 timeout-minutes: 10
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 # Daily Copilot PR Merged Report

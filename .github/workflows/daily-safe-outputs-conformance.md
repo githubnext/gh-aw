@@ -10,7 +10,7 @@ tracker-id: safe-outputs-conformance
 engine: claude
 strict: true
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets: [repos, issues]
   bash: true
@@ -28,8 +28,6 @@ imports:
       title-prefix: "[safe-outputs-conformance] "
       expires: 1d
 
-features:
-  mcp-cli: true
 ---
 
 # Daily Safe Outputs Conformance Checker

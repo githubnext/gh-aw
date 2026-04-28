@@ -18,7 +18,7 @@ imports:
       expires: 1d
   - shared/go-source-analysis.md
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     toolsets:
       - discussions
@@ -31,7 +31,6 @@ tools:
 timeout-minutes: 30
 strict: true
 features:
-  mcp-cli: true
   copilot-requests: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}

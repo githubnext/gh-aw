@@ -18,7 +18,7 @@ engine:
 imports:
   - shared/github-guard-policy.md
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
     min-integrity: approved
     toolsets: [default]
@@ -31,8 +31,6 @@ safe-outputs:
     target: "triggering"  # Auto-resolves from github.event.issue.number
     allowed: [copilot]    # Only allow copilot agent
 timeout-minutes: 5
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

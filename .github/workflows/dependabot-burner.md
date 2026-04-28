@@ -5,7 +5,7 @@ permissions:
   issues: read
   pull-requests: read
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   github:
 safe-outputs:
   create-issue:
@@ -13,8 +13,6 @@ safe-outputs:
 imports:
   - shared/reporting.md
 
-features:
-  mcp-cli: true
 ---
 # Dependabot Burner
 

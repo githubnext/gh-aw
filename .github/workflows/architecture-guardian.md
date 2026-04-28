@@ -11,7 +11,7 @@ permissions:
 engine: copilot
 tracker-id: architecture-guardian
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   bash:
     - "cat:*"
 safe-outputs:
@@ -30,7 +30,6 @@ safe-outputs:
     run-failure: "🏛️ Architecture scan failed! [{workflow_name}]({run_url}) {status}. Structure status unknown..."
 timeout-minutes: 20
 features:
-  mcp-cli: true
   copilot-requests: true
 steps:
   - name: Collect architecture metrics

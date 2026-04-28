@@ -26,48 +26,34 @@ var mcpCLIMountLog = logger.New("workflow:mcp_cli_mount")
 
 // internalMCPServerNames lists the MCP servers that are internal infrastructure and
 // should not be exposed as user-facing CLI tools.
-// Note: safeoutputs and mcpscripts are NOT excluded — they are always CLI-mounted
-// (regardless of mount-as-clis setting), as they provide safe-output and script tools
-// that the agent should invoke via CLI wrappers.
 var internalMCPServerNames = map[string]bool{
 	"github": true, // GitHub MCP server is handled differently and should not be CLI-mounted
 }
 
-// alwaysCLIMountedServers lists MCP servers that are always CLI-mounted when enabled,
-// regardless of the mount-as-clis setting. These servers remain available as MCP tools
-// too (dual access), but the prompt instructs the agent to prefer the CLI wrappers.
-var alwaysCLIMountedServers = map[string]bool{
-	"safeoutputs": true,
-	"mcpscripts":  true,
-}
-
 // getMCPCLIServerNames returns the sorted list of MCP server names that will be
-// mounted as CLI tools. It includes:
-//   - safeoutputs and mcpscripts ALWAYS (when enabled), regardless of mount-as-clis
-//   - standard MCP tools (playwright, etc.) and custom MCP servers when mount-as-clis is true
+// mounted as CLI tools.
 //
-// The entire feature is gated behind the mcp-cli feature flag. Without the flag,
-// this function returns nil and code generation remains unchanged.
+// Infrastructure servers (safeoutputs, mcpscripts) are always CLI-mounted when
+// configured, regardless of whether cli-proxy is enabled. This ensures that
+// workflows using engine.command can call safeoutputs/mcpscripts as shell
+// commands inside the AWF chroot without needing cli-proxy: true.
+//
+// User-facing MCP servers (playwright, custom, etc.) are only mounted as CLIs
+// when tools.cli-proxy is true.
+//
+// Returns nil when no servers are eligible for mounting.
 // The GitHub MCP server is excluded (handled differently).
 func getMCPCLIServerNames(data *WorkflowData) []string {
 	if data == nil {
 		return nil
 	}
 
-	// The entire MCP CLI mounting feature is gated behind the mcp-cli feature flag.
-	// Without the feature flag, code generation remains unchanged regardless of
-	// the mount-as-clis setting.
-	if !isFeatureEnabled(constants.MCPCLIFeatureFlag, data) {
-		mcpCLIMountLog.Print("mcp-cli feature flag not enabled, skipping CLI mount generation")
-		return nil
-	}
-	mcpCLIMountLog.Print("mcp-cli feature flag enabled, collecting CLI server names")
-
 	var servers []string
 
-	// When mount-as-clis is enabled, include all user-facing standard MCP tools
-	// and custom MCP servers.
-	if data.ParsedTools != nil && data.ParsedTools.MountAsCLIs {
+	// User-facing MCP servers require cli-proxy: true.
+	if data.ParsedTools != nil && data.ParsedTools.CLIProxy {
+		mcpCLIMountLog.Print("cli-proxy enabled, collecting user-facing CLI server names")
+
 		// Collect user-facing standard MCP tools from the raw Tools map
 		for toolName, toolValue := range data.Tools {
 			if toolValue == false {
@@ -95,18 +81,18 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 		}
 
 		// Also check ParsedTools.Custom for custom MCP servers
-		if data.ParsedTools != nil {
-			for name := range data.ParsedTools.Custom {
-				if !internalMCPServerNames[name] && !slices.Contains(servers, name) {
-					servers = append(servers, name)
-				}
+		for name := range data.ParsedTools.Custom {
+			if !internalMCPServerNames[name] && !slices.Contains(servers, name) {
+				servers = append(servers, name)
 			}
 		}
 	}
 
-	// Always include safeoutputs and mcpscripts when they are enabled,
-	// regardless of mount-as-clis setting. These servers use their gateway
-	// server-ID form (no hyphens) so the CLI wrapper names match the manifest entries.
+	// Infrastructure servers (safeoutputs, mcpscripts) are always CLI-mounted when
+	// configured. This allows workflows with engine.command to call safeoutputs or
+	// mcpscripts as shell commands inside the AWF/Copilot chroot without requiring
+	// cli-proxy: true. The PATH setup in GetMCPCLIPathSetup ensures the bin directory
+	// is reachable inside the sandbox.
 	if HasSafeOutputsEnabled(data.SafeOutputs) && !slices.Contains(servers, constants.SafeOutputsMCPServerID.String()) {
 		servers = append(servers, constants.SafeOutputsMCPServerID.String())
 	}
@@ -141,14 +127,6 @@ func buildCLIWorkflowDataForMounts(workflowData *WorkflowData, tools map[string]
 	}
 	if copied.ParsedTools == nil && copied.Tools != nil {
 		copied.ParsedTools = NewTools(copied.Tools)
-	}
-	// Some call paths may not provide WorkflowData.Features (e.g. direct unit calls).
-	// When mount-as-clis is explicitly enabled in tools config, synthesize the feature
-	// flag so mounted MCP CLI server names can still be derived consistently.
-	if copied.Features == nil && copied.ParsedTools != nil && copied.ParsedTools.MountAsCLIs {
-		copied.Features = map[string]any{
-			string(constants.MCPCLIFeatureFlag): true,
-		}
 	}
 
 	return &copied
@@ -218,28 +196,17 @@ func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) map
 
 // getMCPCLIExcludeFromAgentConfig returns the sorted list of MCP server names that
 // should be excluded from the agent's MCP config (because they are CLI-only).
-// safeoutputs and mcpscripts are NOT excluded — they remain available as both
-// MCP tools and CLI commands (dual access). The prompt instructs the agent to
-// prefer the CLI wrappers for these servers.
+//
+// Only excludes servers when tools.cli-proxy is explicitly enabled. Infrastructure
+// servers (safeoutputs, mcpscripts) are CLI-mounted even without cli-proxy (so the
+// agent can call them as shell commands), but they remain in the agent's MCP config
+// unless cli-proxy is explicitly enabled. This preserves existing agent behaviour
+// for workflows that use safeoutputs via MCP rather than via the CLI wrapper.
 func getMCPCLIExcludeFromAgentConfig(data *WorkflowData) []string {
-	allCLI := getMCPCLIServerNames(data)
-	if len(allCLI) == 0 {
+	if data == nil || data.ParsedTools == nil || !data.ParsedTools.CLIProxy {
 		return nil
 	}
-
-	var exclude []string
-	for _, name := range allCLI {
-		if !alwaysCLIMountedServers[name] {
-			exclude = append(exclude, name)
-		}
-	}
-
-	if len(exclude) == 0 {
-		return nil
-	}
-
-	sort.Strings(exclude)
-	return exclude
+	return getMCPCLIServerNames(data)
 }
 
 // generateMCPCLIMountStep generates the "Mount MCP servers as CLIs" workflow step.

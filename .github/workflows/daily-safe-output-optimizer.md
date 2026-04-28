@@ -31,11 +31,8 @@ imports:
     with:
       title-prefix: "[safe-output-optimizer] "
       expires: 3d
-features:
-  mcp-cli: true
-
 tools:
-  mount-as-clis: true
+  cli-proxy: true
 ---
 
 # Safe Output Tool Optimizer

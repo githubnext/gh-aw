@@ -12,7 +12,7 @@ permissions:
 tracker-id: aw-failure-investigator
 engine: claude
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   agentic-workflows:
   github:
     toolsets: [default, actions]
@@ -33,8 +33,6 @@ safe-outputs:
 timeout-minutes: 60
 imports:
   - shared/reporting.md
-features:
-  mcp-cli: true
 ---
 
 # [aw] Failure Investigator (6h)

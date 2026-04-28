@@ -27,8 +27,6 @@ imports:
     with:
       title-prefix: "[token-consumption] "
       expires: 1d
-features:
-  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

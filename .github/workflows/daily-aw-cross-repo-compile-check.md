@@ -40,8 +40,6 @@ network:
     - go
 imports:
   - shared/reporting.md
-features:
-  mcp-cli: true
 ---
 
 # Daily AW Cross-Repo Compilation Agent

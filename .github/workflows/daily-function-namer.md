@@ -30,7 +30,7 @@ safe-outputs:
     close-older-issues: true
 
 tools:
-  mount-as-clis: true
+  cli-proxy: true
   cache-memory: true
   github:
     toolsets: [default, issues]
@@ -38,8 +38,6 @@ tools:
 
 timeout-minutes: 30
 strict: true
-features:
-  mcp-cli: true
 ---
 
 # Daily Go Function Namer
