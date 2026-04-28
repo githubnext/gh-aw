@@ -848,7 +848,7 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
  *
  * Uses two complementary strategies for robustness:
  * 1. String scan: checks whether the raw line contains the literal substring
- *    `"terminal_reason":"completed"` (accounting for optional whitespace around `:`).
+ *    `"terminal_reason":"completed"` (accounting for 0 or 1 space around `:`).
  *    This is fast and resilient to truncated or multi-line JSON.
  * 2. JSON parse: for lines that contain a JSON object, parses and checks
  *    `parsed.terminal_reason === "completed"` to avoid false positives from unrelated
@@ -864,9 +864,10 @@ function hasAgentTerminalReasonCompleted() {
       return false;
     }
     const logContent = fs.readFileSync(stdioLogPath, "utf8");
-    // Fast string scan pattern: "terminal_reason" followed by optional whitespace,
-    // colon, optional whitespace, then "completed" (quoted).
-    const TERMINAL_REASON_COMPLETED_RE = /"terminal_reason"\s*:\s*"completed"/;
+    // Fast string scan pattern: "terminal_reason" followed by 0 or 1 space,
+    // colon, 0 or 1 space, then "completed" (quoted). JSON uses either no space
+    // or exactly one space around the colon separator.
+    const TERMINAL_REASON_COMPLETED_RE = /"terminal_reason"\s?:\s?"completed"/;
     for (const line of logContent.split("\n")) {
       // Strategy 1: string scan — catches the pattern even when JSON parse fails
       if (TERMINAL_REASON_COMPLETED_RE.test(line)) {
