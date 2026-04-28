@@ -5,6 +5,16 @@ import (
 	"strings"
 )
 
+// wikiRepository returns the effective repository string for a wiki checkout.
+// GitHub wiki repositories are accessible as "{owner}/{repo}.wiki".
+// When the repository is empty (default current repo), returns "${{ github.repository }}.wiki".
+func wikiRepository(repository string) string {
+	if repository == "" {
+		return "${{ github.repository }}.wiki"
+	}
+	return repository + ".wiki"
+}
+
 // GenerateCheckoutAppTokenSteps generates GitHub App token minting steps for all
 // checkout entries that use app authentication. Each app-authenticated checkout
 // gets its own minting step with a unique step ID, so the minted token can be
@@ -162,7 +172,10 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 
 	// Apply user overrides (only when NOT in trial mode to avoid conflicts)
 	if !trialMode && override != nil {
-		if override.key.repository != "" {
+		if override.wiki {
+			// Wiki checkout: use "{repository}.wiki" as the effective repository.
+			fmt.Fprintf(&sb, "          repository: %s\n", wikiRepository(override.key.repository))
+		} else if override.key.repository != "" {
 			fmt.Fprintf(&sb, "          repository: %s\n", override.key.repository)
 		}
 		if override.ref != "" {
@@ -230,7 +243,10 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	// Security: always disable credential persistence
 	sb.WriteString("          persist-credentials: false\n")
 
-	if entry.key.repository != "" {
+	if entry.wiki {
+		// Wiki checkout: use "{repository}.wiki" as the effective repository.
+		fmt.Fprintf(&sb, "          repository: %s\n", wikiRepository(entry.key.repository))
+	} else if entry.key.repository != "" {
 		fmt.Fprintf(&sb, "          repository: %s\n", entry.key.repository)
 	}
 	if entry.ref != "" {

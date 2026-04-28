@@ -223,6 +223,14 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		}
 	}
 
+	if v, ok := m["wiki"]; ok {
+		b, ok := v.(bool)
+		if !ok {
+			return nil, errors.New("checkout.wiki must be a boolean")
+		}
+		cfg.Wiki = b
+	}
+
 	return cfg, nil
 }
 
