@@ -225,20 +225,17 @@ The safe outputs architecture already enforces permission separation: the agent 
 For a fail-closed **external admission gate** before sensitive operations like deployments or credential use, apply **[GitHub Environment protection rules](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-deployments/managing-environments-for-deployment#required-reviewers)** to a [custom safe output job](/gh-aw/reference/custom-safe-outputs/). The job pauses until a designated reviewer outside the workflow system explicitly approves. No approval means no execution.
 
 ```yaml wrap
+jobs:
+  approval-gate:
+    runs-on: ubuntu-latest
+    needs: detection          # waits for automated threat scanning to complete
+    environment: production-deploy   # configure required reviewers in Settings → Environments
+    steps:
+      - name: Approved
+        run: echo "Execution approved by reviewer"
+
 safe-outputs:
-  jobs:
-    deploy-gate:
-      description: "Human approval required before deployment"
-      runs-on: ubuntu-latest
-      environment: production-deploy   # configure required reviewers in Settings → Environments
-      inputs:
-        intent:
-          description: "Deployment intent summary from the agent"
-          required: true
-          type: string
-      steps:
-        - name: Execute approved deployment
-          run: echo "Proceeding with: ${{ inputs.intent }}"
+  needs: [approval-gate]      # built-in safe_outputs job waits for manual approval
 ```
 
 This approval is enforced by GitHub's infrastructure, not by workflow logic the agent could influence. Threat detection still runs before the gate, so the reviewer sees output that has already passed automated scanning.
