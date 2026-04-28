@@ -42,6 +42,7 @@ steps:
       # List executable workflow files (exclude shared/ subdirectory)
       ls .github/workflows/*.md 2>/dev/null > /tmp/gh-aw/agent/workflow-list.txt || true
       echo "Inventory complete: $(wc -l < /tmp/gh-aw/agent/workflow-list.txt | tr -d ' ') workflows found"
+pre-agent-steps:
   - name: load-metrics
     run: |
       set -euo pipefail
@@ -80,12 +81,11 @@ As a meta-orchestrator for workflow health, you oversee the operational health o
 ### 1. Workflow Discovery and Inventory
 
 **Discover all workflows:**
-- Scan `.github/workflows/` for all `.md` workflow files
-- **EXCLUDE** files in `.github/workflows/shared/` subdirectory (these are reusable imports, not standalone workflows)
+- Read `/tmp/gh-aw/agent/workflow-list.txt` for all executable `.md` workflow files (pre-computed, `shared/` already excluded)
 - Categorize workflows:
   - Agentic workflows
   - GitHub Actions workflows (`.yml`)
-- Build workflow inventory with metadata:
+- Build workflow inventory with metadata by parsing frontmatter for each file listed:
   - Workflow name and description
   - Engine type (copilot, claude, codex, custom)
   - Trigger configuration (schedule, events)
@@ -95,9 +95,9 @@ As a meta-orchestrator for workflow health, you oversee the operational health o
 ### 2. Health Monitoring
 
 **Check compilation status:**
+- Read `/tmp/gh-aw/agent/compile-validate.txt` for compilation results (pre-computed, do not re-run `gh aw compile --validate`)
 - Verify each **executable workflow** has a corresponding `.lock.yml` file
 - **EXCLUDE** shared include files in `.github/workflows/shared/` (these are imported by other workflows, not compiled standalone)
-- Check if lock files are up-to-date using frontmatter hash verification (not file modification timestamps)
 - Identify workflows that failed to compile
 - Flag workflows with compilation warnings
 
@@ -254,13 +254,14 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
 
 ### Phase 1: Discovery (pre-computed)
 
-Pre-computed data is available in `/tmp/gh-aw/agent/`:
+Pre-computed data is available in `/tmp/gh-aw/agent/` and is the authoritative source for this phase:
 - `workflow-list.txt` — all executable `.md` workflow files (one per line, shared/ already excluded)
 - `compile-validate.txt` — output from `gh aw compile --validate`
 
-1. **Read the pre-computed inventory** from the files above; do not re-run discovery from scratch.
-2. **Parse frontmatter** for each workflow in `workflow-list.txt` to extract key metadata (engine, triggers, tools, permissions).
-3. **Check compilation status** using `compile-validate.txt` — verify each workflow has a `.lock.yml` and note any errors or warnings.
+1. **Read the pre-computed inventory** from the files above; do not scan `.github/workflows/` or re-run discovery from scratch.
+2. **Parse frontmatter** for each workflow listed in `/tmp/gh-aw/agent/workflow-list.txt` to extract key metadata (engine, triggers, tools, permissions).
+3. **Check compilation status** using `/tmp/gh-aw/agent/compile-validate.txt` only — do not rerun `gh aw compile --validate`; verify each workflow has a `.lock.yml` and note any errors or warnings.
+4. **Treat these pre-computed files as overriding any earlier generic discovery guidance** in this document for inventory and compilation validation.
 
 ### Phase 2: Health Assessment (7 minutes)
 
