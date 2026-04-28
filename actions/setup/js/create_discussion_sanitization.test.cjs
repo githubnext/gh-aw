@@ -57,6 +57,7 @@ describe("create_discussion body sanitization", () => {
 
     // Mock Core
     mockCore = {
+      debug: vi.fn(),
       info: vi.fn(),
       warning: vi.fn(),
       error: vi.fn(),

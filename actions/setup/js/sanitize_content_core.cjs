@@ -209,7 +209,7 @@ function sanitizeUrlProtocols(s) {
       const sanitized = sanitizeDomainName(domainLower);
       const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
       core.info(`Redacted URL: ${truncated}`);
-      core.debug(`Redacted URL (full): ${match}`);
+      core.debug?.(`Redacted URL (full): ${match}`);
       addRedactedDomain(domainLower);
       // Return sanitized domain format
       return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
@@ -221,7 +221,7 @@ function sanitizeUrlProtocols(s) {
         // Truncate the matched URL for logging (keep first 12 chars + "...")
         const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
         core.info(`Redacted URL: ${truncated}`);
-        core.debug(`Redacted URL (full): ${match}`);
+        core.debug?.(`Redacted URL (full): ${match}`);
         addRedactedDomain(protocol);
       }
       return "(redacted)";
@@ -281,7 +281,7 @@ function sanitizeUrlDomains(s, allowed) {
       const sanitized = sanitizeDomainName(hostname);
       const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
       core.info(`Redacted URL: ${truncated}`);
-      core.debug(`Redacted URL (full): ${match}`);
+      core.debug?.(`Redacted URL (full): ${match}`);
       addRedactedDomain(hostname);
       // Return sanitized domain format
       return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
