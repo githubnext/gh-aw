@@ -11,7 +11,6 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/parser"
 )
 
 var removeLog = logger.New("cli:remove_command")
@@ -394,22 +393,77 @@ func findIncludesInContent(content, baseDir string, verbose bool) ([]string, err
 	var includes []string
 
 	for line := range strings.Lines(content) {
-		directive := parser.ParseImportDirective(line)
-		if directive != nil {
-			includePath := directive.Path
-
-			// Handle section references (file.md#Section)
-			var filePath string
-			if strings.Contains(includePath, "#") {
-				parts := strings.SplitN(includePath, "#", 2)
-				filePath = parts[0]
-			} else {
-				filePath = includePath
-			}
-
-			includes = append(includes, filePath)
+		path := parseIncludePath(line)
+		if path != "" {
+			includes = append(includes, path)
 		}
 	}
 
 	return includes, nil // strings.Lines iterates over an in-memory string; no I/O errors can occur.
+}
+
+// parseIncludePath extracts the file path from @include/@import/{{#import}} directive lines
+// without allocating a regex submatch slice or a directive struct.
+// Returns an empty string if the line is not a recognised directive.
+// Section references (e.g. file.md#Section) are stripped from the returned path.
+func parseIncludePath(line string) string {
+	trimmed := strings.TrimSpace(line)
+	if len(trimmed) == 0 {
+		return ""
+	}
+
+	var rest string
+
+	switch {
+	case strings.HasPrefix(trimmed, "@include"):
+		rest = trimmed[len("@include"):]
+	case strings.HasPrefix(trimmed, "@import"):
+		rest = trimmed[len("@import"):]
+	case strings.HasPrefix(trimmed, "{{#import"):
+		rest = trimmed[len("{{#import"):]
+		// Skip optional marker '?'
+		if len(rest) > 0 && rest[0] == '?' {
+			rest = rest[1:]
+		}
+		// Skip optional whitespace, then an optional single colon, then optional whitespace
+		// (mirrors the regex \s*:?\s* in IncludeDirectivePattern)
+		rest = strings.TrimSpace(rest)
+		if len(rest) > 0 && rest[0] == ':' {
+			rest = strings.TrimSpace(rest[1:])
+		}
+		// Extract path up to closing "}}"
+		before, _, ok := strings.Cut(rest, "}}")
+		if !ok {
+			return ""
+		}
+		path := strings.TrimSpace(before)
+		if path == "" {
+			return ""
+		}
+		// Strip section reference (file.md#Section → file.md)
+		if filePath, _, ok := strings.Cut(path, "#"); ok {
+			return filePath
+		}
+		return path
+	default:
+		return ""
+	}
+
+	// Handle @include and @import: skip optional marker '?'
+	if len(rest) > 0 && rest[0] == '?' {
+		rest = rest[1:]
+	}
+	// Require at least one whitespace character after the directive keyword
+	if len(rest) == 0 || (rest[0] != ' ' && rest[0] != '\t') {
+		return ""
+	}
+	path := strings.TrimSpace(rest)
+	if path == "" {
+		return ""
+	}
+	// Strip section reference (file.md#Section → file.md)
+	if filePath, _, ok := strings.Cut(path, "#"); ok {
+		return filePath
+	}
+	return path
 }
