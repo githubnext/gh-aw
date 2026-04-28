@@ -147,7 +147,7 @@ Identify topics where Copilot PRs were closed without merging and then re-attemp
 
 ```bash
 # Find closed (not merged) PRs grouped by normalized title
-jq '[.[] | select(.state == "CLOSED" and (.mergedAt == null or .mergedAt == ""))]
+jq '[.[] | select(.state == "CLOSED" and .mergedAt == null)]
     | group_by(.title)
     | map({title: .[0].title, count: length, prs: [.[] | {number, url, closedAt}]})
     | map(select(.count >= 2))
@@ -243,8 +243,8 @@ When an issue covers a retry-blocked topic (from Phase 3b), **append** the follo
 
 The following Copilot PRs on this topic were closed without merging before this issue was created:
 
-| PR | Closed | Close reason |
-|----|--------|--------------|
+| PR | Closed (YYYY-MM-DD) | Close reason |
+|----|---------------------|--------------|
 | #N | YYYY-MM-DD | [reason] |
 | #M | YYYY-MM-DD | [reason] |
 

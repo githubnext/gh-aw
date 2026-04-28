@@ -727,7 +727,7 @@ When a closed PR exists on the same topic, perform this analysis at the start of
    - Scope mismatch → clarify what was actually requested
    - Duplicate of another fix → link to that fix
 3. Verify that the root cause will be addressed in the new implementation.
-4. Include a "## Prior Attempts" section in the new PR description that summarises:
+4. Include a "## Prior Attempts" section in the new PR description that summarizes:
    - Link(s) to prior closed PR(s)
    - Why each was closed
    - What is different this time
