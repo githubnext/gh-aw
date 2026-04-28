@@ -347,7 +347,9 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
+			// safeoutputs is always CLI-mounted when safe-outputs is configured, so
+			// shell(safeoutputs:*) is also added to the restricted bash allowlist.
+			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "shell(safeoutputs:*)", "--allow-tool", "write"},
 		},
 		{
 			name:  "safe outputs with safe_outputs config",

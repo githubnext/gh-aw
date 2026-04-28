@@ -31,53 +31,56 @@ var internalMCPServerNames = map[string]bool{
 }
 
 // getMCPCLIServerNames returns the sorted list of MCP server names that will be
-// mounted as CLI tools. It includes all user-facing MCP servers (playwright, etc.),
-// custom MCP servers, safeoutputs, and mcpscripts when tools.cli-proxy is true.
+// mounted as CLI tools.
 //
-// Returns nil when cli-proxy is not enabled.
+// Infrastructure servers (safeoutputs, mcpscripts) are always CLI-mounted when
+// configured, regardless of whether cli-proxy is enabled. This ensures that
+// workflows using engine.command can call safeoutputs/mcpscripts as shell
+// commands inside the AWF chroot without needing cli-proxy: true.
+//
+// User-facing MCP servers (playwright, custom, etc.) are only mounted as CLIs
+// when tools.cli-proxy is true.
+//
+// Returns nil when no servers are eligible for mounting.
 // The GitHub MCP server is excluded (handled differently).
 func getMCPCLIServerNames(data *WorkflowData) []string {
 	if data == nil {
 		return nil
 	}
 
-	// CLI mounting requires tools.cli-proxy: true.
-	if data.ParsedTools == nil || !data.ParsedTools.CLIProxy {
-		mcpCLIMountLog.Print("cli-proxy not enabled, skipping CLI mount generation")
-		return nil
-	}
-	mcpCLIMountLog.Print("cli-proxy enabled, collecting CLI server names")
-
 	var servers []string
 
-	// Collect user-facing standard MCP tools from the raw Tools map
-	for toolName, toolValue := range data.Tools {
-		if toolValue == false {
-			continue
-		}
-		// Only include tools that have MCP servers (skip bash, web-fetch, web-search, edit, cache-memory, etc.)
-		// Note: "github" is excluded — it is handled differently and should not be CLI-mounted.
-		switch toolName {
-		case "playwright", "qmd":
-			servers = append(servers, toolName)
-		case "agentic-workflows":
-			// The gateway and manifest use "agenticworkflows" (no hyphen) as the server ID.
-			// Using the gateway ID here ensures GH_AW_MCP_CLI_SERVERS matches the manifest entries.
-			servers = append(servers, constants.AgenticWorkflowsMCPServerID.String())
-		default:
-			// Include custom MCP servers (not in the internal list)
-			if !internalMCPServerNames[toolName] {
-				if mcpConfig, ok := toolValue.(map[string]any); ok {
-					if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
-						servers = append(servers, toolName)
+	// User-facing MCP servers require cli-proxy: true.
+	if data.ParsedTools != nil && data.ParsedTools.CLIProxy {
+		mcpCLIMountLog.Print("cli-proxy enabled, collecting user-facing CLI server names")
+
+		// Collect user-facing standard MCP tools from the raw Tools map
+		for toolName, toolValue := range data.Tools {
+			if toolValue == false {
+				continue
+			}
+			// Only include tools that have MCP servers (skip bash, web-fetch, web-search, edit, cache-memory, etc.)
+			// Note: "github" is excluded — it is handled differently and should not be CLI-mounted.
+			switch toolName {
+			case "playwright", "qmd":
+				servers = append(servers, toolName)
+			case "agentic-workflows":
+				// The gateway and manifest use "agenticworkflows" (no hyphen) as the server ID.
+				// Using the gateway ID here ensures GH_AW_MCP_CLI_SERVERS matches the manifest entries.
+				servers = append(servers, constants.AgenticWorkflowsMCPServerID.String())
+			default:
+				// Include custom MCP servers (not in the internal list)
+				if !internalMCPServerNames[toolName] {
+					if mcpConfig, ok := toolValue.(map[string]any); ok {
+						if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+							servers = append(servers, toolName)
+						}
 					}
 				}
 			}
 		}
-	}
 
-	// Also check ParsedTools.Custom for custom MCP servers
-	if data.ParsedTools != nil {
+		// Also check ParsedTools.Custom for custom MCP servers
 		for name := range data.ParsedTools.Custom {
 			if !internalMCPServerNames[name] && !slices.Contains(servers, name) {
 				servers = append(servers, name)
@@ -85,7 +88,11 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 		}
 	}
 
-	// Include safeoutputs and mcpscripts when they are enabled.
+	// Infrastructure servers (safeoutputs, mcpscripts) are always CLI-mounted when
+	// configured. This allows workflows with engine.command to call safeoutputs or
+	// mcpscripts as shell commands inside the AWF/Copilot chroot without requiring
+	// cli-proxy: true. The PATH setup in GetMCPCLIPathSetup ensures the bin directory
+	// is reachable inside the sandbox.
 	if HasSafeOutputsEnabled(data.SafeOutputs) && !slices.Contains(servers, constants.SafeOutputsMCPServerID.String()) {
 		servers = append(servers, constants.SafeOutputsMCPServerID.String())
 	}
@@ -189,7 +196,16 @@ func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) map
 
 // getMCPCLIExcludeFromAgentConfig returns the sorted list of MCP server names that
 // should be excluded from the agent's MCP config (because they are CLI-only).
+//
+// Only excludes servers when tools.cli-proxy is explicitly enabled. Infrastructure
+// servers (safeoutputs, mcpscripts) are CLI-mounted even without cli-proxy (so the
+// agent can call them as shell commands), but they remain in the agent's MCP config
+// unless cli-proxy is explicitly enabled. This preserves existing agent behaviour
+// for workflows that use safeoutputs via MCP rather than via the CLI wrapper.
 func getMCPCLIExcludeFromAgentConfig(data *WorkflowData) []string {
+	if data == nil || data.ParsedTools == nil || !data.ParsedTools.CLIProxy {
+		return nil
+	}
 	return getMCPCLIServerNames(data)
 }
 
