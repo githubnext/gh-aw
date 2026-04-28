@@ -158,10 +158,10 @@
       "version": "v2.11",
       "sha": "1cb3cd8a008d80c9fa129c0f0823d69584905f5b"
     },
-    "microsoft/apm-action@v1.4.2": {
+    "microsoft/apm-action@v1.5.0": {
       "repo": "microsoft/apm-action",
-      "version": "v1.4.2",
-      "sha": "9fe9337ef58b5e620e0113071ceb47a6a8a232f7"
+      "version": "v1.5.0",
+      "sha": "454b8a1d279376a47df8bb8d525ec076ca0fcef7"
     },
     "oven-sh/setup-bun@v2.2.0": {
       "repo": "oven-sh/setup-bun",
