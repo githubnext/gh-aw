@@ -1348,4 +1348,121 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("Agent interrupted unexpectedly");
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // main() — hasCompletedDespiteJobFailure early-return
+  // ──────────────────────────────────────────────────────
+
+  describe("main() hasCompletedDespiteJobFailure early-return", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+    /** @type {string} */
+    let promptsDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-completed-despite-failure-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+
+      // Minimal templates required by main()
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_comment.md"), "COMMENT TEMPLATE");
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), "ISSUE TEMPLATE");
+
+      process.env.RUNNER_TEMP = tmpDir;
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123456";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      delete process.env.GH_AW_WORKFLOW_NAME;
+      delete process.env.GH_AW_WORKFLOW_ID;
+      delete process.env.GH_AW_RUN_URL;
+      delete process.env.GH_AW_AGENT_CONCLUSION;
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("skips failure issue creation when terminal_reason: completed and non-noop safe outputs present", async () => {
+      // Agent produced a valid non-noop safe output
+      fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [{ type: "create_discussion", title: "Done", body: "All set." }] }));
+      // stdio log contains terminal_reason: completed
+      fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), '{"type":"result","subtype":"success","terminal_reason":"completed","num_turns":10}\n');
+
+      const createIssueMock = vi.fn();
+      const createCommentMock = vi.fn();
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      vi.resetModules();
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(createCommentMock).not.toHaveBeenCalled();
+    });
+
+    it("still creates failure issue when terminal_reason: completed but report_incomplete is also present", async () => {
+      // Agent produced both a non-noop item and a report_incomplete signal
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [
+            { type: "create_discussion", title: "Done", body: "All set." },
+            { type: "report_incomplete", reason: "mcp_crash" },
+          ],
+        })
+      );
+      fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), '{"type":"result","subtype":"success","terminal_reason":"completed","num_turns":10}\n');
+
+      const createIssueMock = vi.fn(async () => ({ data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" } }));
+      const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) return { data: { total_count: 0, items: [] } };
+              return { data: { total_count: 0, items: [] } };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      vi.resetModules();
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+
+      // report_incomplete overrides the hasCompletedDespiteJobFailure exemption
+      expect(createIssueMock).toHaveBeenCalled();
+    });
+  });
 });

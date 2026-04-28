@@ -849,8 +849,8 @@ function buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilo
  * Lazy strategy: tests a single regex against the entire file content in one pass and
  * returns immediately on the first match, avoiding line splitting and JSON parsing.
  * The pattern is specific enough (`"terminal_reason"` key with `"completed"` value,
- * 0 or 1 space around the colon) that false positives from unrelated content are
- * negligible in practice.
+ * 0 or 1 literal space around the colon) that false positives from unrelated content
+ * are negligible in practice.
  *
  * @returns {boolean} true if terminal_reason: "completed" was found in the log
  */
@@ -862,11 +862,12 @@ function hasAgentTerminalReasonCompleted() {
       return false;
     }
     const logContent = fs.readFileSync(stdioLogPath, "utf8");
-    // Single-pass scan: "terminal_reason" key with 0 or 1 space around the colon
-    // and "completed" value. JSON uses either compact ("key":"val") or spaced
-    // ("key" : "val") formatting. Returns on first match without splitting lines
-    // or parsing JSON.
-    return /"terminal_reason"\s?:\s?"completed"/.test(logContent);
+    // Single-pass scan: "terminal_reason" key with 0 or 1 literal space around
+    // the colon and "completed" value. JSON uses either compact ("key":"val") or
+    // single-spaced ("key" : "val") formatting. `[ ]?` matches only a space
+    // character (not tabs or newlines). Returns on first match without splitting
+    // lines or parsing JSON.
+    return /"terminal_reason"[ ]?:[ ]?"completed"/.test(logContent);
   } catch {
     // IO error — assume not completed
   }
@@ -906,7 +907,8 @@ function buildEngineFailureContext() {
     // Guard: if the agent completed successfully (terminal_reason: "completed"), the job
     // failure was caused by something other than the agent itself (e.g., post-processing
     // or infrastructure). Suppress the engine failure context to avoid false positive labels.
-    if (hasAgentTerminalReasonCompleted()) {
+    // Use the already-loaded logContent directly to avoid a redundant file read.
+    if (/"terminal_reason"[ ]?:[ ]?"completed"/.test(logContent)) {
       core.info("Agent completed successfully (terminal_reason: completed) — suppressing engine failure context");
       return "";
     }
