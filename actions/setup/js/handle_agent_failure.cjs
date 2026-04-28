@@ -949,6 +949,9 @@ function parseFirewallAuthErrors(auditJsonlPath) {
           break;
         }
       }
+
+      // Early exit: all providers have been matched, no need to scan remaining lines.
+      if (seenProviders.size === providerEntries.length) break;
     }
 
     return results;
