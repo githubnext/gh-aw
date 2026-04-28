@@ -192,6 +192,17 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		customArgsParam += customArgsParamSb.String()
 	}
 
+	// Build output-schema parameter for structured output mode.
+	// When structured-output is configured, pass --output-schema to Codex so the model
+	// is constrained at the token-sampling level to produce schema-conformant JSON.
+	// The schema file is written by the "Set up structured output schema" pre-agent step.
+	// See: https://openai.github.io/codex/cli/exec#param-output-schema
+	var outputSchemaParam string
+	if HasStructuredOutput(workflowData) && !workflowData.IsDetectionRun {
+		outputSchemaParam = fmt.Sprintf("--output-schema %s ", StructuredOutputSchemaPath)
+		codexEngineLog.Printf("Adding --output-schema flag for structured output mode: %s", StructuredOutputSchemaPath)
+	}
+
 	// Build the Codex command
 	// Determine which command to use
 	var commandName string
@@ -203,8 +214,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		commandName = "codex"
 	}
 
-	codexCommand := fmt.Sprintf("%s %sexec%s%s%s%s\"$INSTRUCTION\"",
-		commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
+	codexCommand := fmt.Sprintf("%s %sexec%s%s%s%s%s\"$INSTRUCTION\"",
+		commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, outputSchemaParam, customArgsParam)
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
 	var command string

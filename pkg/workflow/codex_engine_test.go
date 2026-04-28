@@ -1007,3 +1007,75 @@ func TestCodexEngineWithExpressionVersion(t *testing.T) {
 		t.Errorf("Expression should NOT be embedded directly in npm install command, got:\n%s", installStep)
 	}
 }
+
+// TestCodexEngineStructuredOutputParam verifies that --output-schema is added to the codex
+// exec command when structured-output is configured, and absent otherwise.
+func TestCodexEngineStructuredOutputParam(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("no --output-schema without structured output config", func(t *testing.T) {
+		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow"}, "/tmp/gh-aw/test.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if strings.Contains(stepContent, "--output-schema") {
+			t.Errorf("Expected no --output-schema flag when structured output is not configured, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("--output-schema added with structured output config", func(t *testing.T) {
+		schema := map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"decision": map[string]any{"type": "string"},
+			},
+		}
+		soConfig, err := extractStructuredOutputConfig(
+			map[string]any{"structured-output": map[string]any{"schema": schema}},
+			"/tmp",
+		)
+		if err != nil {
+			t.Fatalf("extractStructuredOutputConfig returned unexpected error: %v", err)
+		}
+
+		data := &WorkflowData{
+			Name:                   "test-workflow",
+			StructuredOutputConfig: soConfig,
+		}
+		steps := engine.GetExecutionSteps(data, "/tmp/gh-aw/test.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		expectedFlag := "--output-schema " + StructuredOutputSchemaPath
+		if !strings.Contains(stepContent, expectedFlag) {
+			t.Errorf("Expected %q in codex exec command for structured output, got:\n%s", expectedFlag, stepContent)
+		}
+	})
+
+	t.Run("no --output-schema for detection run", func(t *testing.T) {
+		schema := map[string]any{"type": "object"}
+		soConfig, err := extractStructuredOutputConfig(
+			map[string]any{"structured-output": map[string]any{"schema": schema}},
+			"/tmp",
+		)
+		if err != nil {
+			t.Fatalf("extractStructuredOutputConfig returned unexpected error: %v", err)
+		}
+
+		data := &WorkflowData{
+			Name:                   "test-workflow",
+			StructuredOutputConfig: soConfig,
+			IsDetectionRun:         true,
+		}
+		steps := engine.GetExecutionSteps(data, "/tmp/gh-aw/test.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if strings.Contains(stepContent, "--output-schema") {
+			t.Errorf("Expected no --output-schema flag for detection run, got:\n%s", stepContent)
+		}
+	})
+}
