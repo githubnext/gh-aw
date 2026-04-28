@@ -26,6 +26,8 @@ safe-outputs:
     expires: 7d
     labels: [automation, schema-coverage]
     max: 10
+    allowed-files:
+      - ".github/workflows/schema-demo-*.md"
 timeout-minutes: 30
 checkout:
   - fetch-depth: 1
