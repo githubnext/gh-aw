@@ -736,29 +736,26 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		steps = append(steps, c.generateRestoreActionsSetupStep())
 	}
 
-	// Job condition: only run when the agent actually executed (not skipped) and
-	// the workflow was not cancelled. Using always() so the job still runs even
-	// when upstream jobs are skipped (e.g. detection is skipped when agent produces
-	// no outputs). We check != 'skipped' rather than == 'success' so that
-	// repo-memory is pushed even when the agent fails — partial memory data is
-	// still valuable. Adding !cancelled() prevents the job from running after
-	// workflow cancellation (similar to compiler_safe_outputs_job.go).
-	// Crucially, the != 'skipped' check prevents the job from running on no-op
-	// workflow invocations (e.g. bot comments) where pre_activation is skipped
-	// and the skip cascades through activation → agent → detection.
-	agentNotSkipped := BuildNotEquals(
+	// Job condition: only run when the agent succeeded and the workflow was not
+	// cancelled. Using always() so the job still runs even when upstream jobs are
+	// skipped (e.g. detection is skipped when agent produces no outputs).
+	// We check == 'success' so that repo-memory is only pushed on a successful
+	// agent run — pushing memory from a timed-out or failed agent would pollute
+	// the stored memory with incomplete state. Adding !cancelled() prevents the
+	// job from running after workflow cancellation.
+	agentSucceeded := BuildEquals(
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
-		BuildStringLiteral("skipped"),
+		BuildStringLiteral("success"),
 	)
 	notCancelled := &NotNode{Child: BuildFunctionCall("cancelled")}
 	jobNeeds := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
 	var jobCondition string
 	if threatDetectionEnabled {
 		// When threat detection is enabled, also require detection passed (succeeded or skipped).
-		jobCondition = RenderCondition(BuildAnd(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), buildDetectionPassedCondition()), agentNotSkipped))
+		jobCondition = RenderCondition(BuildAnd(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), buildDetectionPassedCondition()), agentSucceeded))
 		jobNeeds = append(jobNeeds, string(constants.DetectionJobName))
 	} else {
-		jobCondition = RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), agentNotSkipped))
+		jobCondition = RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), agentSucceeded))
 	}
 
 	// Build outputs map for validation failures from all memory steps

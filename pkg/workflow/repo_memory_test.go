@@ -1303,9 +1303,9 @@ func TestPushRepoMemoryJobConditionGatesOnAgentNotSkipped(t *testing.T) {
 		require.NotNil(t, pushJob, "Should produce a push job")
 
 		assert.Equal(t,
-			"always() && (!cancelled()) && needs.agent.result != 'skipped'",
+			"always() && (!cancelled()) && needs.agent.result == 'success'",
 			pushJob.If,
-			"Condition should use always() && (!cancelled()) && agent != skipped",
+			"Condition should use always() && (!cancelled()) && agent == 'success'",
 		)
 	})
 
@@ -1318,11 +1318,11 @@ func TestPushRepoMemoryJobConditionGatesOnAgentNotSkipped(t *testing.T) {
 			"Condition should contain always()")
 		assert.Contains(t, pushJob.If, "!cancelled()",
 			"Condition should contain !cancelled() to prevent running after cancellation")
-		assert.Contains(t, pushJob.If, "needs.agent.result != 'skipped'",
-			"Condition should check agent result != 'skipped'")
+		assert.Contains(t, pushJob.If, "needs.agent.result == 'success'",
+			"Condition should check agent result == 'success'")
 		assert.Contains(t, pushJob.If, "needs.detection.result",
 			"Condition should still check detection result when threat detection is enabled")
-		assert.NotContains(t, pushJob.If, "needs.agent.result == 'success'",
-			"Condition should NOT use == 'success' for agent check")
+		assert.NotContains(t, pushJob.If, "needs.agent.result != 'skipped'",
+			"Condition should NOT use != 'skipped' for agent check")
 	})
 }
