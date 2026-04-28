@@ -126,6 +126,36 @@ func TestMCPScriptsTimeoutParsing(t *testing.T) {
 			toolName:        "bad-timeout-tool",
 			expectedTimeout: 60, // Default timeout
 		},
+		{
+			// "5m" looks like a duration string; strconv.Atoi rejects it entirely
+			// (old fmt.Sscanf would have silently parsed it as 5s, which is wrong)
+			name: "duration-style string timeout falls back to default",
+			frontmatter: map[string]any{
+				"mcp-scripts": map[string]any{
+					"duration-tool": map[string]any{
+						"description": "Duration string timeout tool",
+						"script":      "return 'ok';",
+						"timeout":     "5m",
+					},
+				},
+			},
+			toolName:        "duration-tool",
+			expectedTimeout: 60, // Default timeout
+		},
+		{
+			name: "empty string timeout falls back to default",
+			frontmatter: map[string]any{
+				"mcp-scripts": map[string]any{
+					"empty-timeout-tool": map[string]any{
+						"description": "Empty string timeout tool",
+						"script":      "return 'ok';",
+						"timeout":     "",
+					},
+				},
+			},
+			toolName:        "empty-timeout-tool",
+			expectedTimeout: 60, // Default timeout
+		},
 	}
 
 	for _, tt := range tests {
@@ -311,5 +341,23 @@ func TestMCPScriptsMergeStringTimeout(t *testing.T) {
 	// Verify invalid string timeout falls back to default (60s)
 	if merged2.Tools["invalid-string-timeout"].Timeout != 60 {
 		t.Errorf("Expected default timeout 60, got %d", merged2.Tools["invalid-string-timeout"].Timeout)
+	}
+
+	// Imported config with duration-style string timeout ("5m").
+	// The old fmt.Sscanf code would have silently parsed this as 5s (wrong).
+	// The new strconv.Atoi code correctly rejects it and falls back to 60s.
+	durationImportedJSON := `{
+		"duration-string-timeout": {
+			"description": "Tool with duration-style string timeout",
+			"script": "return 'ok';",
+			"timeout": "5m"
+		}
+	}`
+
+	merged3 := compiler.mergeMCPScripts(main, []string{durationImportedJSON})
+
+	// Verify duration-style string timeout falls back to default (60s)
+	if merged3.Tools["duration-string-timeout"].Timeout != 60 {
+		t.Errorf("Expected default timeout 60 for duration-style string, got %d", merged3.Tools["duration-string-timeout"].Timeout)
 	}
 }
