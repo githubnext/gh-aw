@@ -165,9 +165,9 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 	// walkLogFilesForCost walks .log files in logDir and accumulates only the estimated cost.
 	// This is used when events.jsonl provided turns/tokens but no cost data.
 	walkLogFilesForCost := func() {
-		_ = filepath.Walk(logDir, func(path string, info os.FileInfo, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
+		if walkErr := filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
 			}
 			if info.IsDir() {
 				if info.Name() == "workflow-logs" {
@@ -188,7 +188,12 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 				metrics.EstimatedCost += fileMetrics.EstimatedCost
 			}
 			return nil
-		})
+		}); walkErr != nil {
+			logsMetricsLog.Printf("Cost recovery walk failed: %v", walkErr)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to walk log files for cost recovery: %v", walkErr)))
+			}
+		}
 	}
 
 	// Walk through all .log files when events.jsonl was not available or failed to parse.
