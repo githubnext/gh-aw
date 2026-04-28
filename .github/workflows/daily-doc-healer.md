@@ -50,7 +50,10 @@ tools:
 timeout-minutes: 45
 
 imports:
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[doc-healer] "
+      expires: 3d
 
 features:
   mcp-cli: true

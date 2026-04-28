@@ -27,7 +27,10 @@ imports:
   - shared/aw-logs-24h-fetch.md
   - shared/activation-app.md
   - shared/jqschema.md
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[safe-output-optimizer] "
+      expires: 3d
 features:
   mcp-cli: true
 

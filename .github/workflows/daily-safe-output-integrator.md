@@ -44,7 +44,10 @@ safe-outputs:
 timeout-minutes: 20
 
 imports:
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[safe-output-integrator] "
+      expires: 3d
 
 features:
   mcp-cli: true

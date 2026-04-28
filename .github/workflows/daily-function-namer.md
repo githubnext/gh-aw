@@ -15,7 +15,10 @@ tracker-id: daily-function-namer
 engine: claude
 
 imports:
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[function-namer] "
+      expires: 3d
   - shared/mcp/serena-go.md
 
 safe-outputs:

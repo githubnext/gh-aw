@@ -15,7 +15,10 @@ tracker-id: mcp-concurrency-analysis
 engine: copilot
 
 imports:
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[mcp-concurrency] "
+      expires: 3d
   - shared/safe-output-app.md
   - uses: shared/mcp/serena.md
     with:

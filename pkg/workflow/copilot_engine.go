@@ -87,7 +87,7 @@ func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []str
 	}
 
 	// Add mcp-scripts secret names
-	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
 		for varName := range mcpScriptsSecrets {
 			secrets = append(secrets, varName)

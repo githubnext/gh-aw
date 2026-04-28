@@ -55,7 +55,10 @@ network:
 
 imports:
   - shared/docs-server-lifecycle.md
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[multi-device-docs] "
+      expires: 3d
 features:
   mcp-cli: true
 ---

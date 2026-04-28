@@ -55,7 +55,10 @@ safe-outputs:
 timeout-minutes: 20
 strict: true
 imports:
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[daily-cli-performance] "
+      expires: 3d
   - shared/go-make.md
 features:
   mcp-cli: true

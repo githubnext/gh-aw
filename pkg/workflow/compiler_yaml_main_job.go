@@ -485,7 +485,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	artifactPaths = append(artifactPaths, difcProxyLogPaths(data)...)
 
 	// Collect MCPScripts logs path if mcp-scripts is enabled
-	if IsMCPScriptsEnabled(data.MCPScripts, data) {
+	if IsMCPScriptsEnabled(data.MCPScripts) {
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/mcp-scripts/logs/")
 	}
 
@@ -493,7 +493,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateLogParsing(yaml, data, engine)
 
 	// parse mcp-scripts logs for GITHUB_STEP_SUMMARY (if mcp-scripts is enabled)
-	if IsMCPScriptsEnabled(data.MCPScripts, data) {
+	if IsMCPScriptsEnabled(data.MCPScripts) {
 		c.generateMCPScriptsLogParsing(yaml, data)
 	}
 

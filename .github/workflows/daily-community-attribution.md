@@ -46,10 +46,17 @@ safe-outputs:
     labels: [community, automation]
     reviewers: []
     draft: true
+  create-issue:
+    title-prefix: "[community-attribution] "
+    labels: [community, automation]
+    close-older-issues: true
+    group-by-day: true
+    expires: 7d
 
 imports:
   - shared/community-attribution.md
   - shared/observability-otlp.md
+  - shared/issue-dedup.md
 
 steps:
   - name: Fetch PR data for attribution index
@@ -377,4 +384,12 @@ and the Community Contributors wiki page.
 
 ```json
 {"noop": {"message": "No action needed: [brief explanation]"}}
+```
+
+### 6. Report Failures
+
+If you encounter a genuine error that prevents completion (e.g., data fetch failure, unexpected error), report it using the `create_issue` safe-output tool — **never use the GitHub MCP `create_issue` tool directly**. The safe-output tool has built-in deduplication (`group-by-day` and `close-older-issues`) that prevents duplicate failure issues from accumulating.
+
+```json
+{"create_issue": {"title": "Brief description of the failure", "body": "### What failed\n\nDescribe the specific step or data source that failed.\n\n### Error details\n\n(Include the error message or unexpected output here)\n\n### Steps to investigate\n\n1. Check the workflow run logs for the full error message\n2. Verify that community_issues.json and pull_requests.json were fetched successfully\n3. Re-run the workflow manually via workflow_dispatch to see if the failure is transient"}}
 ```

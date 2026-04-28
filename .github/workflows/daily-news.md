@@ -292,7 +292,10 @@ imports:
       description: "Historical news digest data"
   - shared/mcp/tavily.md
   - shared/jqschema.md
-  - shared/reporting-otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[daily-news] "
+      expires: 3d
   - shared/trends.md
 features:
   mcp-cli: true

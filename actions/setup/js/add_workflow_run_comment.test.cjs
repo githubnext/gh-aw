@@ -4,6 +4,7 @@ const { ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
+  debug: vi.fn(),
   info: vi.fn(),
   warning: vi.fn(),
   error: vi.fn(),
