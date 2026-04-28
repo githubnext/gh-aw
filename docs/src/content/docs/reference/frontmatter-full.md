@@ -2303,7 +2303,7 @@ tools:
   # config so their containers can start, and are removed only from the agent's
   # final config during convert_gateway_config_*.sh processing. Default: false.
   # (optional)
-  mount-as-clis: true
+  cli-proxy: true
 
   # Repo memory configuration for git-based persistent storage
   # (optional)
