@@ -1,7 +1,8 @@
 ---
-description: Daily analysis of DIFC integrity-filtered events with statistical charts and actionable tuning recommendations
+description: Daily unified security observability report combining firewall traffic analysis and DIFC integrity-filtered event analysis
 on:
   schedule:
+    # Every day at 10am UTC
     - cron: daily
   workflow_dispatch:
 
@@ -11,8 +12,9 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
+  security-events: read
 
-tracker-id: daily-integrity-analysis
+tracker-id: daily-security-observability
 engine: copilot
 
 steps:
@@ -46,15 +48,24 @@ steps:
 tools:
   mount-as-clis: true
   agentic-workflows:
+  github:
+    toolsets:
+      - all
   bash:
     - "*"
+  edit:
 
-timeout-minutes: 30
+safe-outputs:
+  upload-asset:
+    max: 5
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
+
+timeout-minutes: 60
 
 imports:
-  - uses: shared/daily-audit-base.md
+  - uses: shared/daily-audit-charts.md
     with:
-      title-prefix: "[integrity] "
+      title-prefix: "[security-observability] "
   - shared/python-dataviz.md
 
 features:
@@ -62,28 +73,105 @@ features:
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily DIFC Integrity-Filtered Events Analyzer
+# Daily Security Observability Report
 
-You are an integrity-system analyst. Your job is to analyze DIFC (Data Integrity and Flow Control) filtered events collected from agentic workflow runs, produce statistical charts that reveal patterns, and provide actionable tuning recommendations.
+You are a security observability analyst. Your job is to produce a unified daily security intelligence report that combines two signals:
+
+1. **Firewall traffic analysis** — which domains and requests were allowed or blocked across all agentic workflow runs
+2. **DIFC integrity-filtered event analysis** — which tool calls were blocked by the Data Integrity and Flow Control system, with statistical charts and actionable tuning recommendations
+
+Both datasets cover the **last 7 days** and share the cache-memory path `/tmp/gh-aw/cache-memory/security-observability/`.
 
 ## Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
-- **Data file**: `/tmp/gh-aw/integrity/filtered-logs.json` (pre-downloaded runs with DIFC integrity-filtered events)
 - **Analysis window**: Last 7 days
 
-## Step 0: Check for Data
+---
 
-Read `/tmp/gh-aw/integrity/filtered-logs.json`. If the array is empty (no runs found in the last 7 days), call `noop` with the message "No DIFC integrity-filtered events found in the last 7 days." and stop.
+## Phase 1: Collect Firewall-Enabled Workflow Runs
 
-## Step 1: Parse and Bucketize Events
+### Step 1.1: Collect Recent Firewall-Enabled Workflow Runs
 
-The JSON file is an array of workflow run objects. Each run object contains `databaseId` (the numeric run ID) and `workflowName`. Use the `audit` tool from the agentic-workflows MCP server to get the detailed gateway data for each run. Then write a Python script to bucketize events.
+**ALWAYS PERFORM FRESH ANALYSIS**: This report must always use fresh data from the audit tool. Do NOT skip analysis based on cached results or reuse aggregated statistics from previous runs.
 
-### 1.1 Fetch Detailed Gateway Data
+Use the `logs` tool from the agentic-workflows MCP server to collect workflow runs that have firewall enabled:
 
-1. Read `/tmp/gh-aw/integrity/filtered-logs.json` and extract all run IDs by iterating over the array and collecting each entry's `databaseId` field.
+**Tool call:**
+```json
+{
+  "firewall": true,
+  "start_date": "-7d",
+  "count": 100
+}
+```
+
+### Step 1.2: Early Exit if No Firewall Data
+
+If Step 1.1 returns zero workflow runs, note this in the final report as "No firewall-enabled workflow runs found in the past 7 days." and proceed directly to Phase 3 (DIFC analysis). Do not skip the final report.
+
+---
+
+## Phase 2: Analyze Firewall Logs
+
+### Step 2.1: Fetch Firewall Audit Data
+
+For each run collected in Phase 1, call the `audit` tool with the run_id to get detailed firewall information:
+
+```json
+{
+  "run_id": 12345678
+}
+```
+
+The audit tool returns:
+- `firewall_analysis.blocked_domains` — blocked domain names
+- `firewall_analysis.allowed_domains` — allowed domain names
+- `firewall_analysis.total_requests` / `blocked_requests` / `allowed_requests`
+- `firewall_analysis.requests_by_domain` — per-domain statistics
+- `policy_analysis` (when present) — rule-level attribution with `rule_hits`, `denied_requests`, `policy_summary`
+
+**Important:** Do NOT manually download and parse firewall log files. Always use the `audit` tool.
+
+### Step 2.2: Aggregate Firewall Results
+
+Combine data from all runs:
+1. Build a master list of all blocked domains with frequency counts and which workflows blocked them
+2. Calculate overall statistics:
+   - Total workflows analyzed (`workflow_runs_analyzed`)
+   - Total blocked domains (`firewall_domains_blocked`) — unique count
+   - Total blocked requests (`firewall_requests_blocked`)
+   - Total allowed requests (`firewall_requests_allowed`)
+3. If `policy_analysis` is present, aggregate rule hit counts and denied requests with rule attribution across all runs
+
+### Step 2.3: Generate Firewall Trend Charts
+
+Create CSV files in `/tmp/gh-aw/python/data/` and generate exactly **2 firewall charts**:
+
+**Chart 1: Firewall Request Trends**
+- Stacked area or multi-line chart: allowed requests (green) vs blocked requests (red) over the last 30 days
+- Save as: `/tmp/gh-aw/python/charts/firewall_requests_trends.png`
+
+**Chart 2: Top Blocked Domains Frequency**
+- Horizontal bar chart: top 10–15 most frequently blocked domains with block counts
+- Save as: `/tmp/gh-aw/python/charts/blocked_domains_frequency.png`
+
+**Chart quality**: DPI 300 minimum, 12×7 inches, seaborn styling, clear labels.
+
+Upload both charts using `upload_asset` and record the returned URLs.
+
+---
+
+## Phase 3: Collect DIFC Integrity-Filtered Events
+
+### Step 3.1: Check for DIFC Data
+
+Read `/tmp/gh-aw/integrity/filtered-logs.json`. If the array is empty (no runs found in the last 7 days), note "No DIFC integrity-filtered events found in the last 7 days." and proceed directly to Phase 5 (combined report).
+
+### Step 3.2: Fetch Detailed DIFC Gateway Data
+
+1. Read `/tmp/gh-aw/integrity/filtered-logs.json` and extract all run IDs from each entry's `databaseId` field.
 2. For each run ID, call the `audit` tool to get its detailed DIFC filtered events:
 
 ```json
@@ -102,10 +190,10 @@ The audit result contains `gateway_analysis.filtered_events[]` with fields:
 - `author_association` — contributor association of the triggering actor
 - `author_login` — login of the triggering actor
 
-3. For each event returned, annotate it with two additional fields from the corresponding run entry in `filtered-logs.json`: `workflow_name` (from `workflowName`) and `run_id` (from `databaseId`). This allows the Python analysis to group events by workflow.
-4. Collect all annotated filtered events across all runs and save them to `/tmp/gh-aw/integrity/all-events.json`.
+3. Annotate each event with `workflow_name` (from `workflowName`) and `run_id` (from `databaseId`).
+4. Save all annotated events to `/tmp/gh-aw/integrity/all-events.json`.
 
-### 1.2 Python Bucketization Script
+### Step 3.3: Bucketize DIFC Events
 
 Create and run `/tmp/gh-aw/integrity/bucketize.py`:
 
@@ -120,7 +208,6 @@ from datetime import datetime, timedelta
 DATA_DIR = "/tmp/gh-aw/integrity"
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# Load all events
 with open(f"{DATA_DIR}/all-events.json") as f:
     events = json.load(f)
 
@@ -131,21 +218,18 @@ if not events:
         json.dump(summary, f, indent=2)
     exit(0)
 
-# Parse timestamps
 for e in events:
     try:
         e["_dt"] = datetime.fromisoformat(e["timestamp"].replace("Z", "+00:00"))
     except Exception:
         e["_dt"] = None
 
-# Buckets
 by_tool      = Counter(e["tool_name"]   for e in events if e.get("tool_name"))
 by_server    = Counter(e["server_id"]   for e in events if e.get("server_id"))
 by_reason    = Counter(e["reason"]      for e in events if e.get("reason"))
 by_workflow  = Counter(e.get("workflow_name", "unknown") for e in events)
 by_user      = Counter(e.get("author_login", "unknown") for e in events)
 
-# Time-based buckets
 by_hour = Counter()
 by_day  = Counter()
 for e in events:
@@ -153,7 +237,6 @@ for e in events:
         by_hour[e["_dt"].strftime("%Y-%m-%dT%H:00")] += 1
         by_day[e["_dt"].strftime("%Y-%m-%d")] += 1
 
-# Integrity tag breakdown
 all_integrity_tags = Counter()
 all_secrecy_tags   = Counter()
 for e in events:
@@ -184,7 +267,9 @@ print(json.dumps(summary, indent=2))
 
 Run the script: `python3 /tmp/gh-aw/integrity/bucketize.py`
 
-## Step 2: Generate Statistical Charts
+---
+
+## Phase 4: Generate DIFC Statistical Charts
 
 Create and run chart scripts using matplotlib/seaborn. Save all charts to `/tmp/gh-aw/integrity/charts/`.
 
@@ -192,13 +277,13 @@ Create and run chart scripts using matplotlib/seaborn. Save all charts to `/tmp/
 mkdir -p /tmp/gh-aw/integrity/charts
 ```
 
-### Chart 1: Events Over Time (Daily)
+### Chart 3: DIFC Events Over Time (Daily)
 
 Create `/tmp/gh-aw/integrity/chart_timeline.py`:
 
 ```python
 #!/usr/bin/env python3
-"""Chart 1: DIFC filtered events per day."""
+"""Chart 3: DIFC filtered events per day."""
 import json, os
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -214,7 +299,7 @@ with open(f"{DATA_DIR}/summary.json") as f:
 
 by_day = summary.get("by_day", {})
 if not by_day:
-    print("No daily data; skipping chart 1.")
+    print("No daily data; skipping chart 3.")
     exit(0)
 
 dates  = [datetime.strptime(d, "%Y-%m-%d") for d in sorted(by_day)]
@@ -232,18 +317,18 @@ ax.set_ylabel("Event Count", fontsize=13)
 ax.grid(True, axis="y", alpha=0.4)
 plt.tight_layout()
 plt.savefig(f"{CHARTS_DIR}/events_timeline.png", dpi=300, bbox_inches="tight", facecolor="white")
-print("Chart 1 saved.")
+print("Chart 3 saved.")
 ```
 
 Run: `python3 /tmp/gh-aw/integrity/chart_timeline.py`
 
-### Chart 2: Top Filtered Tools (Horizontal Bar)
+### Chart 4: Top Filtered Tools (Horizontal Bar)
 
 Create `/tmp/gh-aw/integrity/chart_tools.py`:
 
 ```python
 #!/usr/bin/env python3
-"""Chart 2: Top tools that trigger DIFC filtering."""
+"""Chart 4: Top tools that trigger DIFC filtering."""
 import json, os
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -257,7 +342,7 @@ with open(f"{DATA_DIR}/summary.json") as f:
 
 by_tool = summary.get("by_tool", {})
 if not by_tool:
-    print("No tool data; skipping chart 2.")
+    print("No tool data; skipping chart 4.")
     exit(0)
 
 items   = sorted(by_tool.items(), key=lambda x: x[1], reverse=True)[:15]
@@ -276,18 +361,18 @@ ax.set_ylabel("Tool Name", fontsize=13)
 ax.grid(True, axis="x", alpha=0.4)
 plt.tight_layout()
 plt.savefig(f"{CHARTS_DIR}/top_tools.png", dpi=300, bbox_inches="tight", facecolor="white")
-print("Chart 2 saved.")
+print("Chart 4 saved.")
 ```
 
 Run: `python3 /tmp/gh-aw/integrity/chart_tools.py`
 
-### Chart 3: Filter Reason Breakdown (Pie / Donut)
+### Chart 5: Filter Reason Breakdown (Pie / Donut)
 
 Create `/tmp/gh-aw/integrity/chart_reasons.py`:
 
 ```python
 #!/usr/bin/env python3
-"""Chart 3: Breakdown of filter reasons and integrity/secrecy tags."""
+"""Chart 5: Breakdown of filter reasons and integrity/secrecy tags."""
 import json, os
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -306,7 +391,6 @@ secrecy_tags   = summary.get("secrecy_tags", {})
 sns.set_style("whitegrid")
 fig, axes = plt.subplots(1, 2, figsize=(14, 6), dpi=300)
 
-# Left: filter reasons pie
 if by_reason:
     labels = list(by_reason.keys())
     values = list(by_reason.values())
@@ -319,7 +403,6 @@ else:
     axes[0].text(0.5, 0.5, "No reason data", ha="center", va="center")
     axes[0].set_title("Filter Reason Distribution", fontsize=14, fontweight="bold")
 
-# Right: top integrity/secrecy tags bar
 all_tags = {**{f"[I] {k}": v for k, v in integrity_tags.items()},
             **{f"[S] {k}": v for k, v in secrecy_tags.items()}}
 if all_tags:
@@ -338,88 +421,98 @@ else:
 fig.suptitle("DIFC Filter Analysis — Reason & Tag Breakdown", fontsize=16, fontweight="bold", y=1.01)
 plt.tight_layout()
 plt.savefig(f"{CHARTS_DIR}/reasons_tags.png", dpi=300, bbox_inches="tight", facecolor="white")
-print("Chart 3 saved.")
+print("Chart 5 saved.")
 ```
 
 Run: `python3 /tmp/gh-aw/integrity/chart_reasons.py`
 
-### Chart 4: Per-User Filtered Events (Horizontal Bar)
+### Upload DIFC Charts
 
-Create `/tmp/gh-aw/integrity/chart_users.py`:
-
-```python
-#!/usr/bin/env python3
-"""Chart 4: Top users that trigger DIFC filtering."""
-import json, os
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-DATA_DIR   = "/tmp/gh-aw/integrity"
-CHARTS_DIR = f"{DATA_DIR}/charts"
-BAR_COLOR  = "#4CAF50"
-os.makedirs(CHARTS_DIR, exist_ok=True)
-
-with open(f"{DATA_DIR}/summary.json") as f:
-    summary = json.load(f)
-
-by_user = summary.get("by_user", {})
-if not by_user:
-    print("No user data; skipping chart 4.")
-    exit(0)
-
-items   = sorted(by_user.items(), key=lambda x: x[1], reverse=True)[:20]
-users   = [i[0] for i in items]
-counts  = [i[1] for i in items]
-
-sns.set_style("whitegrid")
-fig, ax = plt.subplots(figsize=(12, max(5, len(users) * 0.55)), dpi=300)
-bars = ax.barh(users[::-1], counts[::-1], color=BAR_COLOR, edgecolor="white", linewidth=0.8)
-for bar, val in zip(bars, counts[::-1]):
-    ax.text(bar.get_width() + 0.1, bar.get_y() + bar.get_height() / 2,
-            str(val), va="center", fontsize=11, fontweight="bold")
-ax.set_title("Top Users Triggering DIFC Filtering (Top 20)", fontsize=16, fontweight="bold", pad=14)
-ax.set_xlabel("Event Count", fontsize=13)
-ax.set_ylabel("Author Login", fontsize=13)
-ax.grid(True, axis="x", alpha=0.4)
-plt.tight_layout()
-plt.savefig(f"{CHARTS_DIR}/top_users.png", dpi=300, bbox_inches="tight", facecolor="white")
-print("Chart 4 saved.")
-```
-
-Run: `python3 /tmp/gh-aw/integrity/chart_users.py`
-
-## Step 3: Upload Charts
-
-Upload each generated chart using the `upload asset` tool and collect the returned URLs:
+Upload each generated DIFC chart using the `upload asset` tool and collect the returned URLs:
 1. Upload `/tmp/gh-aw/integrity/charts/events_timeline.png`
 2. Upload `/tmp/gh-aw/integrity/charts/top_tools.png`
 3. Upload `/tmp/gh-aw/integrity/charts/reasons_tags.png`
-4. Upload `/tmp/gh-aw/integrity/charts/top_users.png`
 
-## Step 4: Generate Tuning Recommendations
+---
 
-Based on the summary data, derive actionable recommendations. For each top filtered tool or server:
-- Is the tool legitimately called on untrusted data? If yes, recommend applying integrity tags.
-- Are secrecy-tagged artifacts being passed to tools that don't need them? Recommend narrowing tool access.
-- Is the filter rate increasing? Recommend reviewing recent prompt changes.
-- Are there bursts (many events in one hour)? Investigate the workflow(s) involved.
+## Phase 5: Generate Combined Security Observability Report
 
-## Step 5: Create Discussion Report
+Create a single GitHub discussion combining both signals.
 
-Create a GitHub discussion with the full analysis.
-
-**Title**: `[integrity] DIFC Integrity-Filtered Events Report — YYYY-MM-DD`
+**Title**: `[security-observability] Daily Security Observability Report — YYYY-MM-DD`
 
 **Body** (use h3 and lower for all headers per reporting guidelines):
 
 ```markdown
 ### Executive Summary
 
-In the last 7 days, **[N]** DIFC integrity-filtered events were detected across **[W]** workflow runs. The most frequently filtered tool was **[tool_name]** ([X] events), and the dominant filter reason was **[reason]**. [Describe the overall trend: stable/increasing/decreasing. Highlight any notable spike or pattern that warrants attention.]
+[2–3 paragraph overview combining both signals: firewall traffic patterns and DIFC integrity filtering activity for the last 7 days. Highlight the most significant findings from each domain and any cross-cutting themes (e.g., the same workflow appearing in both firewall blocks and DIFC filtering).]
 
-[Describe which workflows or MCP servers contributed the most events and what that suggests about how the integrity system is being exercised. If the filtering rate is high for a particular server, explain whether this is expected or a sign of misconfiguration.]
+---
 
-### Key Metrics
+## 🔥 Firewall Analysis
+
+### Key Firewall Metrics
+
+| Metric | Value |
+|--------|-------|
+| Workflows analyzed (firewall-enabled) | [N] |
+| Total network requests monitored | [N] |
+| ✅ Allowed requests | [N] |
+| 🚫 Blocked requests | [N] |
+| Block rate | [N]% |
+| Total unique blocked domains | [N] |
+
+### 📈 Firewall Request Trends
+
+![Firewall Request Trends](URL_CHART_1)
+
+[2–3 sentence analysis of firewall activity trends, noting increases in blocked traffic or changes in patterns]
+
+### Top Blocked Domains
+
+![Blocked Domains Frequency](URL_CHART_2)
+
+[Brief 2–3 sentence analysis of frequently blocked domains, identifying potential security concerns or overly restrictive rules]
+
+#### Most Frequently Blocked Domains
+
+| Domain | Times Blocked | Workflows | Category |
+|--------|--------------|-----------|----------|
+[Top 20 domains sorted by block count descending]
+
+[When policy_analysis is available:]
+#### Policy Rule Attribution
+
+📋 Policy: [policy_summary from most recent run]
+
+| Rule | Action | Description | Total Hits |
+|------|--------|-------------|------------|
+[Rules sorted by hits descending, 🟢 for allow / 🔴 for deny]
+
+<details>
+<summary>View Detailed Request Patterns by Workflow</summary>
+
+[Per-workflow firewall breakdown]
+
+</details>
+
+<details>
+<summary>View Complete Blocked Domains List</summary>
+
+[Alphabetical full list of unique blocked domains]
+
+</details>
+
+### 🔒 Firewall Security Recommendations
+
+[Actionable recommendations: domains to allowlist, suspicious domains, policy rule improvements, workflows needing network permission updates]
+
+---
+
+## 🔒 DIFC Integrity Analysis
+
+### Key DIFC Metrics
 
 | Metric | Value |
 |--------|-------|
@@ -429,26 +522,26 @@ In the last 7 days, **[N]** DIFC integrity-filtered events were detected across 
 | Most common filter reason | [reason] |
 | Busiest day | [YYYY-MM-DD] ([N] events) |
 
-### 📈 Events Over Time
+### 📈 DIFC Events Over Time
 
-![DIFC Events Timeline](URL_CHART_1)
+![DIFC Events Timeline](URL_CHART_3)
 
 [2–3 sentence analysis: is there a trend? any spikes?]
 
 ### 🔧 Top Filtered Tools
 
-![Top Filtered Tools](URL_CHART_2)
+![Top Filtered Tools](URL_CHART_4)
 
 [Brief analysis: which tools trigger the most filtering and why]
 
 ### 🏷️ Filter Reasons and Tags
 
-![Filter Reasons and Tags](URL_CHART_3)
+![Filter Reasons and Tags](URL_CHART_5)
 
 [Analysis of integrity vs. secrecy filtering and top tags]
 
 <details>
-<summary>📋 Per-Workflow Breakdown</summary>
+<summary>📋 Per-Workflow DIFC Breakdown</summary>
 
 | Workflow | Filtered Events |
 |----------|----------------|
@@ -457,7 +550,7 @@ In the last 7 days, **[N]** DIFC integrity-filtered events were detected across 
 </details>
 
 <details>
-<summary>📋 Per-Server Breakdown</summary>
+<summary>📋 Per-Server DIFC Breakdown</summary>
 
 | MCP Server | Filtered Events |
 |------------|----------------|
@@ -466,7 +559,7 @@ In the last 7 days, **[N]** DIFC integrity-filtered events were detected across 
 </details>
 
 <details>
-<summary>👤 Per-User Breakdown</summary>
+<summary>👤 Per-User DIFC Breakdown</summary>
 
 | Author Login | Filtered Events |
 |--------------|----------------|
@@ -474,30 +567,23 @@ In the last 7 days, **[N]** DIFC integrity-filtered events were detected across 
 
 </details>
 
-### 🔍 Per-User Analysis
+### 💡 DIFC Tuning Recommendations
 
-![Per-User Filtered Events](URL_CHART_4)
-
-[Analysis of per-user filtering: identify whether spikes are driven by automated actors (e.g., `github-actions[bot]`, Copilot agents) or human contributors. Highlight any single user or bot account responsible for a disproportionate share of filtered events and suggest whether this indicates expected automation behaviour or warrants investigation.]
-
-### 💡 Tuning Recommendations
-
-[Numbered list of specific, actionable recommendations derived from the analysis. Examples:
-- Tools appearing in top filtered: consider whether they need access to integrity-tagged data
-- High secrecy filter rate: review which workflows pass secrets to tools
-- Increasing trend: monitor and review recent prompt or tool permission changes
-- Workflow-specific spikes: examine the triggering events for that workflow]
+[Numbered list of specific, actionable recommendations derived from DIFC analysis.]
 
 ---
-*Generated by the Daily Integrity Analysis workflow*
+
+*Generated by the Daily Security Observability workflow (consolidated from Daily Firewall Reporter + Daily DIFC Analyzer)*
 *Analysis window: Last 7 days | Repository: ${{ github.repository }}*
 *Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}*
 ```
 
 ## Important
 
-**Always** call a safe-output tool at the end of your run. If no events were found, call `noop`:
+**Always** call a safe-output tool at the end of your run. If both datasets are empty, call `noop`:
 
 ```json
-{"noop": {"message": "No DIFC integrity-filtered events found in the last 7 days; no report generated."}}
+{"noop": {"message": "No firewall-enabled runs and no DIFC integrity-filtered events found in the last 7 days; no report generated."}}
 ```
+
+{{#runtime-import shared/noop-reminder.md}}

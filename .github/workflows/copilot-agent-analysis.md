@@ -336,14 +336,12 @@ Create a **concise** discussion with your findings using the safe-outputs create
 
 **Concise Discussion Template**:
 ```markdown
-# 🤖 Copilot Agent PR Analysis - [DATE]
-
-## Summary
+### 🤖 Copilot Agent PR Analysis - [DATE]
 
 **Analysis Period**: Last 24 hours
 **Total PRs** (`agent_prs_total`): [count] | **Merged** (`agent_prs_merged`): [count] ([percentage]%) | **Avg Duration**: [time]
 
-## Performance Metrics
+#### Performance Metrics
 
 | Date | PRs | Merged | Success Rate | Avg Duration | Avg Comments |
 |------|-----|--------|--------------|--------------|--------------|
@@ -353,7 +351,8 @@ Create a **concise** discussion with your findings using the safe-outputs create
 
 **Trend**: [Only mention if significant change >10%]
 
-## Agent Task Texts
+<details>
+<summary><b>Agent Task Texts</b></summary>
 
 [Show this table for all PRs created in the last 24 hours - extract task text from PR body]
 
@@ -361,18 +360,23 @@ Create a **concise** discussion with your findings using the safe-outputs create
 |------|--------|----------------------------|
 | [#number]([url]) | [status] | [First 100 characters of PR body/task description...] |
 
-## Notable PRs
+</details>
+
+<details>
+<summary><b>Notable PRs</b></summary>
 
 [Only list if there are failures, closures, or issues - otherwise omit this section]
 
-### Issues ⚠️
+#### Issues ⚠️
 - **PR #[number]**: [title] - [brief reason for failure/closure]
 
-### Open PRs ⏳
+#### Open PRs ⏳
 [Only list if open for >24 hours]
 - **PR #[number]**: [title] - [age]
 
-## Key Insights
+</details>
+
+#### Key Insights
 
 [1-2 bullet points only, focus on actionable items or notable observations]
 

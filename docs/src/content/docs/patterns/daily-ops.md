@@ -73,7 +73,7 @@ This repository implements several DailyOps workflows demonstrating different us
 - **daily-doc-updater.md** - Keeps documentation synchronized with merged code changes
 - **daily-team-status** (from [agentics](https://github.com/githubnext/agentics)) - Creates daily team status reports with activity summaries
 - **daily-repo-chronicle.md** - Produces newspaper-style repository updates
-- **daily-firewall-report.md** - Analyzes and reports on firewall activity
+- **daily-security-observability.md** - Unified security observability report combining firewall traffic analysis and DIFC integrity-filtered event analysis
 
 All follow the phased approach with discussions for tracking and draft pull requests for review.
 
