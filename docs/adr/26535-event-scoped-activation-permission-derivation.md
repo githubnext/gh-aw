@@ -14,7 +14,7 @@ The `gh aw compile` command generates a lock file that includes an activation jo
 
 ### Decision
 
-We will derive activation job permissions by parsing the `on:` section YAML at compile time, filtering out known metadata trigger fields, and granting only the write scopes required by the real GitHub event types that are configured. `issues: write` is granted only when `issues`, `issue_comment`, or `pull_request` events are present (since reactions and status comments on issues/PRs use the Issues REST API). `pull-requests: write` is granted only when `pull_request_review_comment` events are present. `discussions: write` is granted only when `discussion` or `discussion_comment` events are present. A fallback to the previous broad-grant behavior is preserved for synthetic or test `WorkflowData` instances where the `on:` section is empty.
+We will derive activation job permissions by parsing the `on:` section YAML at compile time, filtering out known metadata trigger fields, and granting only the write scopes required by the real GitHub event types that are configured. `issues: write` is granted only when `issues`, `issue_comment`, or `pull_request` events are present (since reactions and status comments on issues/PRs use the Issues REST API). `pull-requests: write` is granted when `pull_request` or `pull_request_review_comment` events are present, or when `issue_comment` is present with PR reactions enabled (because `issue_comment` fires for PR comments and GitHub requires `pull-requests: write` to react to PR comments). `discussions: write` is granted only when `discussion` or `discussion_comment` events are present. A fallback to the previous broad-grant behavior is preserved for synthetic or test `WorkflowData` instances where the `on:` section is empty.
 
 ### Alternatives Considered
 
@@ -55,7 +55,7 @@ Request a minimal token at activation time and escalate permissions lazily when 
 ### Activation Permission Derivation
 
 1. Implementations **MUST** derive activation job write permissions from the set of real GitHub event types present in the `on:` section, not from the presence of `reaction` or `status-comment` configuration alone.
-2. Implementations **MUST NOT** grant `pull-requests: write` in the activation job unless `pull_request_review_comment` is among the configured trigger events.
+2. Implementations **MUST NOT** grant `pull-requests: write` in the activation job unless `pull_request`, `pull_request_review_comment`, or `issue_comment` is among the configured trigger events and the reaction/status-comment configuration includes pull requests. (`issue_comment` events fire for both issue comments and PR comments; since PR comments require `pull-requests: write` for reactions, the presence of `issue_comment` with PR reactions enabled mandates this permission.)
 3. Implementations **MUST NOT** grant `discussions: write` in the activation job unless `discussion` or `discussion_comment` is among the configured trigger events.
 4. Implementations **MUST NOT** grant `issues: write` solely for reaction/status-comment purposes unless `issues`, `issue_comment`, or `pull_request` is among the configured trigger events.
 5. Implementations **MUST** apply the same permission derivation logic to both the activation job `permissions` block and the GitHub App token minting permissions.

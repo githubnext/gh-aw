@@ -165,7 +165,9 @@ func addActivationInteractionPermissionsMap(
 			permsMap[PermissionIssues] = PermissionWrite
 		}
 		// Reactions on pull requests and PR review comments require pull-requests:write.
-		if reactionIncludesPullRequests && (hasPullRequestEvent || hasPullRequestReviewCommentEvent) {
+		// issue_comment events also fire for PR comments (slash_command with events:[pull_request_comment]
+		// compiles to issue_comment), so pull-requests:write is also needed when issue_comment is present.
+		if reactionIncludesPullRequests && (hasPullRequestEvent || hasPullRequestReviewCommentEvent || hasIssueCommentEvent) {
 			permsMap[PermissionPullRequests] = PermissionWrite
 		}
 		// Reactions on discussions use GraphQL discussion APIs.

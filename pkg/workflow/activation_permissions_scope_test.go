@@ -362,3 +362,64 @@ func TestAddActivationInteractionPermissionsMapFallbackRespectsStatusCommentPull
 	assert.False(t, hasPullRequests, "fallback should omit pull-requests:write when reactions are disabled")
 	assert.Equal(t, PermissionWrite, permsMap[PermissionDiscussions], "fallback should include discussions:write when status-comment.discussions is true")
 }
+
+// TestActivationPermissionsIssueCommentReactionRequiresPullRequestsWrite verifies that
+// issue_comment triggers with PR reactions grant pull-requests:write. This covers the
+// slash_command case (events:[pull_request_comment] compiles to issue_comment) where
+// reactions on PR comments require pull-requests:write even though the API uses /issues/comments.
+func TestActivationPermissionsIssueCommentReactionRequiresPullRequestsWrite(t *testing.T) {
+	permsMap := map[PermissionScope]PermissionLevel{}
+
+	onSection := "on:\n  issue_comment:\n    types: [created]\n"
+	addActivationInteractionPermissionsMap(permsMap, onSection,
+		/* hasReaction */ true,
+		/* reactionIncludesIssues */ true,
+		/* reactionIncludesPullRequests */ true,
+		/* reactionIncludesDiscussions */ false,
+		/* hasStatusComment */ false,
+		/* statusCommentIncludesIssues */ false,
+		/* statusCommentIncludesPullRequests */ false,
+		/* statusCommentIncludesDiscussions */ false,
+	)
+
+	assert.Equal(t, PermissionWrite, permsMap[PermissionIssues], "issue_comment reaction should include issues:write")
+	assert.Equal(t, PermissionWrite, permsMap[PermissionPullRequests], "issue_comment reaction should include pull-requests:write because PR comments use issue_comment event")
+	_, hasDiscussions := permsMap[PermissionDiscussions]
+	assert.False(t, hasDiscussions, "issue_comment reaction should not include discussions:write")
+}
+
+// TestActivationPermissionsSlashCommandPRCommentReactionRequiresPullRequestsWrite verifies
+// end-to-end that a slash_command workflow with events:[pull_request_comment] produces an
+// activation job with pull-requests:write. slash_command compiles to issue_comment, and
+// GitHub requires pull-requests:write to react to PR comments (#26720 follow-up).
+func TestActivationPermissionsSlashCommandPRCommentReactionRequiresPullRequestsWrite(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-slash-command-pr-comment")
+	testFile := filepath.Join(tmpDir, "slash-command-pr-comment.md")
+	testContent := `---
+on:
+  slash_command:
+    name: review
+    events: [pull_request_comment]
+  reaction: eyes
+  status-comment: false
+engine: copilot
+---
+
+# Slash command PR comment reaction permissions
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.Contains(t, activationJobSection, "issues: write", "activation job should include issues:write for PR comment reactions via issue_comment event")
+	assert.Contains(t, activationJobSection, "pull-requests: write", "activation job should include pull-requests:write for slash_command PR comment reactions")
+	assert.NotContains(t, activationJobSection, "discussions: write", "activation job should not include discussions:write for slash_command PR comment reactions")
+}
