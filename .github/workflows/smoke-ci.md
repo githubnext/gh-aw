@@ -31,6 +31,7 @@ engine:
     /tmp/gh-aw/comment-memory/default.md; fi; else safeoutputs noop --message "smoke-ci:
     push event - no PR context, no action needed"; fi'
 tools:
+  cli-proxy: true
   cache-memory: true
   comment-memory: true
   repo-memory:

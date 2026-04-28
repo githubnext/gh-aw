@@ -257,9 +257,23 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			engineCommand = fmt.Sprintf("%s && %s", mcpCLIPath, engineCommand)
 		}
-		pathSetup := "touch " + AgentStepSummaryPath + "\n" +
+		pathSetupBuilder := strings.Builder{}
+		pathSetupBuilder.WriteString("touch " + AgentStepSummaryPath + "\n" +
 			"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
-			"export GH_AW_NODE_BIN"
+			"export GH_AW_NODE_BIN")
+		// When CLI-proxied MCP servers are configured, pre-install their wrappers to
+		// /usr/local/bin/ before AWF starts. This guarantees discoverability inside the
+		// AWF chroot even when (a) the chroot entrypoint fails to transfer ownership of
+		// ${RUNNER_TEMP}/gh-aw/mcp-cli/bin files, or (b) a login shell (bash -lc) inside
+		// the engine command resets PATH via /etc/profile, discarding the custom
+		// ${RUNNER_TEMP}/gh-aw/mcp-cli/bin prefix. /usr/local/bin is always present on
+		// the standard Linux PATH and survives login-shell profile overrides.
+		for _, serverName := range getMCPCLIServerNames(workflowData) {
+			pathSetupBuilder.WriteString("\n" + fmt.Sprintf(
+				`if [ -f "${RUNNER_TEMP}/gh-aw/mcp-cli/bin/%s" ]; then sudo cp "${RUNNER_TEMP}/gh-aw/mcp-cli/bin/%s" /usr/local/bin/%s || true; fi`,
+				serverName, serverName, serverName))
+		}
+		pathSetup := pathSetupBuilder.String()
 		if customCommandScriptSetup != "" {
 			pathSetup = customCommandScriptSetup + "\n" + pathSetup
 		}
