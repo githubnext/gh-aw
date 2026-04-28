@@ -844,6 +844,7 @@ function parseFirewallAuthErrors(auditJsonlPath) {
 
     // Selective pre-scan: check for any 401 or 403 status codes before full JSON parse.
     // The audit.jsonl format uses `"status":401` or `"status": 401` (compact or spaced).
+    // `40[13]` matches digits 1 and 3 only, covering status codes 401 and 403.
     // This avoids iterating all lines when there are no authentication failures.
     if (!/"status"\s*:\s*40[13]/.test(content)) {
       return [];
@@ -868,6 +869,7 @@ function parseFirewallAuthErrors(auditJsonlPath) {
       if (status !== 401 && status !== 403) continue;
 
       const host = typeof entry.host === "string" ? entry.host : "";
+      if (!host) continue;
       // Strip port from host for matching (e.g. "api.openai.com:443" → "api.openai.com")
       const hostWithoutPort = host.replace(/:\d+$/, "");
 
@@ -898,7 +900,8 @@ function parseFirewallAuthErrors(auditJsonlPath) {
  */
 function buildCredentialAuthErrorContext(auditJsonlPathOverride) {
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  const auditJsonlPath = auditJsonlPathOverride || (agentOutputFile ? path.join(path.dirname(agentOutputFile), "sandbox", "firewall", "audit", "audit.jsonl") : "/tmp/gh-aw/sandbox/firewall/audit/audit.jsonl");
+  const defaultAuditPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "sandbox", "firewall", "audit", "audit.jsonl") : "/tmp/gh-aw/sandbox/firewall/audit/audit.jsonl";
+  const auditJsonlPath = auditJsonlPathOverride || defaultAuditPath;
 
   const authErrors = parseFirewallAuthErrors(auditJsonlPath);
 
