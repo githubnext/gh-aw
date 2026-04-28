@@ -160,6 +160,112 @@ EOF`,
 			expectChanged:  true,
 			expectWarnings: 1,
 		},
+		{
+			name: "pull request body expression extracted",
+			step: map[string]any{
+				"name": "PR body",
+				"run":  `echo "${{ github.event.pull_request.body }}"`,
+			},
+			expectChanged:   true,
+			expectRunNotHas: []string{"${{"},
+			expectEnvKeys:   []string{"GH_AW_GITHUB_EVENT_PULL_REQUEST_BODY"},
+			expectEnvVals: map[string]string{
+				"GH_AW_GITHUB_EVENT_PULL_REQUEST_BODY": "${{ github.event.pull_request.body }}",
+			},
+			expectWarnings: 1,
+		},
+		{
+			name: "comment body expression extracted",
+			step: map[string]any{
+				"run": `echo "${{ github.event.comment.body }}"`,
+			},
+			expectChanged:   true,
+			expectRunNotHas: []string{"${{"},
+			expectEnvKeys:   []string{"GH_AW_GITHUB_EVENT_COMMENT_BODY"},
+			expectWarnings:  1,
+		},
+		{
+			name: "expression with extra whitespace in expression",
+			step: map[string]any{
+				"run": `echo "${{   github.event.issue.title   }}"`,
+			},
+			expectChanged:   true,
+			expectRunNotHas: []string{"${{"},
+			expectWarnings:  1,
+		},
+		{
+			name: "complex expression uses hash-based env var name",
+			step: map[string]any{
+				"run": `echo "${{ github.event.issue.title || 'default' }}"`,
+			},
+			// Complex expressions (with operators) fall back to SHA256-hash-based names.
+			expectChanged:   true,
+			expectRunNotHas: []string{"${{"},
+			expectWarnings:  1,
+		},
+		{
+			name: "mixed heredoc and non-heredoc expressions",
+			step: map[string]any{
+				"run": strings.Join([]string{
+					// Non-heredoc: should be extracted
+					`echo "${{ github.event.issue.title }}"`,
+					// Heredoc: should NOT be extracted
+					`cat > /tmp/cfg.json << 'EOF'`,
+					`{"body": "${{ github.event.issue.body }}"}`,
+					`EOF`,
+					// Another non-heredoc after the heredoc: should be extracted
+					`echo "${{ github.event.issue.number }}"`,
+				}, "\n"),
+			},
+			expectChanged:   true,
+			expectRunNotHas: []string{"${{ github.event.issue.title }}", "${{ github.event.issue.number }}"},
+			// Body appears only inside heredoc so is NOT extracted.
+			// Title and number appear outside heredoc so ARE extracted.
+			expectEnvKeys:  []string{"GH_AW_GITHUB_EVENT_ISSUE_TITLE", "GH_AW_GITHUB_EVENT_ISSUE_NUMBER"},
+			expectWarnings: 2,
+		},
+		{
+			name: "injection attempt pattern is still extracted safely",
+			step: map[string]any{
+				// Attacker-controlled title that could break out of quotes
+				"name": "Process",
+				"run":  `echo "Processing: ${{ github.event.issue.title }}"`,
+			},
+			// The expression is extracted to env, so the attacker value never
+			// reaches the shell interpreter directly.
+			expectChanged:   true,
+			expectRunNotHas: []string{"${{"},
+			expectEnvKeys:   []string{"GH_AW_GITHUB_EVENT_ISSUE_TITLE"},
+			expectWarnings:  1,
+		},
+		{
+			name: "empty run string - not changed",
+			step: map[string]any{
+				"run": "",
+			},
+			expectChanged: false,
+		},
+		{
+			name: "run string with no expression marker - not changed",
+			step: map[string]any{
+				"run": "echo ${MY_VAR}",
+			},
+			expectChanged: false,
+		},
+		{
+			name: "three expressions in single command",
+			step: map[string]any{
+				"run": `curl -d '{"title":"${{ github.event.issue.title }}","body":"${{ github.event.issue.body }}","num":${{ github.event.issue.number }}}' https://example.com`,
+			},
+			expectChanged:   true,
+			expectRunNotHas: []string{"${{"},
+			expectEnvKeys: []string{
+				"GH_AW_GITHUB_EVENT_ISSUE_TITLE",
+				"GH_AW_GITHUB_EVENT_ISSUE_BODY",
+				"GH_AW_GITHUB_EVENT_ISSUE_NUMBER",
+			},
+			expectWarnings: 3,
+		},
 	}
 
 	for _, tt := range tests {
@@ -232,6 +338,23 @@ func TestSanitizeRunStepExpressionsOriginalNotMutated(t *testing.T) {
 	assert.False(t, hasEnv, "input map must not gain an env field")
 }
 
+// TestSanitizeRunStepExpressionsExistingEnvNotMutated verifies that the caller's existing
+// env: map is not modified when expressions are extracted.
+func TestSanitizeRunStepExpressionsExistingEnvNotMutated(t *testing.T) {
+	existingEnv := map[string]any{"MY_KEY": "my_value"}
+	original := map[string]any{
+		"run": `echo "${{ github.event.issue.title }}"`,
+		"env": existingEnv,
+	}
+
+	_, _, changed := sanitizeRunStepExpressions(original)
+	require.True(t, changed, "expected change")
+
+	// The original env map must not have been modified.
+	assert.Len(t, existingEnv, 1, "original env map must not gain extra keys")
+	assert.Equal(t, "my_value", existingEnv["MY_KEY"], "original env map must not be modified")
+}
+
 // TestSanitizeRunStepExpressionsEnvVarNameGeneration checks env var name generation for
 // known expression patterns.
 func TestSanitizeRunStepExpressionsEnvVarNameGeneration(t *testing.T) {
@@ -261,6 +384,35 @@ func TestSanitizeRunStepExpressionsEnvVarNameGeneration(t *testing.T) {
 	}
 }
 
+// TestSanitizeRunStepExpressions_ComplexExpressionHashName verifies that complex
+// expressions (containing operators or function calls) fall back to a hash-based
+// GH_AW_EXPR_... variable name instead of a pretty dot-separated name.
+func TestSanitizeRunStepExpressions_ComplexExpressionHashName(t *testing.T) {
+	step := map[string]any{
+		"run": `echo "${{ github.event.issue.title || 'no title' }}"`,
+	}
+	result, warnings, changed := sanitizeRunStepExpressions(step)
+
+	require.True(t, changed)
+	runVal := result["run"].(string)
+	assert.NotContains(t, runVal, "${{", "run field should have no inline expressions")
+	assert.Len(t, warnings, 1)
+
+	envMap, ok := result["env"].(map[string]any)
+	require.True(t, ok)
+
+	// Hash-based names start with GH_AW_EXPR_
+	foundHashVar := false
+	for key := range envMap {
+		if strings.HasPrefix(key, "GH_AW_EXPR_") {
+			foundHashVar = true
+			// The env var's value should be the original expression.
+			assert.Equal(t, "${{ github.event.issue.title || 'no title' }}", envMap[key])
+		}
+	}
+	assert.True(t, foundHashVar, "expected hash-based env var name for complex expression")
+}
+
 // TestSanitizeRunStepExpressions_MultilineRun verifies multiline run scripts are handled.
 func TestSanitizeRunStepExpressions_MultilineRun(t *testing.T) {
 	step := map[string]any{
@@ -284,4 +436,190 @@ func TestSanitizeRunStepExpressions_MultilineRun(t *testing.T) {
 	envMap := result["env"].(map[string]any)
 	assert.Equal(t, "${{ github.event.issue.title }}", envMap["GH_AW_GITHUB_EVENT_ISSUE_TITLE"])
 	assert.Equal(t, "${{ github.event.issue.body }}", envMap["GH_AW_GITHUB_EVENT_ISSUE_BODY"])
+}
+
+// TestSanitizeRunStepExpressions_SanitizedRunHasNoInlineExpressions is a broad
+// property test: after sanitization the non-heredoc portion of the run: field must
+// contain no ${{ }} markers.  (Expressions inside heredoc blocks are intentionally
+// left in place because they are written to files, not executed by the shell.)
+func TestSanitizeRunStepExpressions_SanitizedRunHasNoInlineExpressions(t *testing.T) {
+	scripts := []string{
+		`echo "${{ github.event.issue.title }}"`,
+		`curl -d "${{ github.event.issue.body }}" https://example.com`,
+		`gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }} -f title="${{ github.event.issue.title }}"`,
+		`bash -c "echo ${{ steps.build.outputs.version }} && echo ${{ inputs.env }}"`,
+	}
+
+	for _, script := range scripts {
+		t.Run(script[:min(40, len(script))], func(t *testing.T) {
+			step := map[string]any{"run": script}
+			result, _, changed := sanitizeRunStepExpressions(step)
+
+			require.True(t, changed, "expected change for script containing expressions")
+			// Only check the non-heredoc portion; heredoc content is intentionally left.
+			sanitizedRun := result["run"].(string)
+			assert.NotContains(t, removeHeredocContent(sanitizedRun), "${{",
+				"non-heredoc portion of sanitized run field must not contain any ${{ }} markers")
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Tests for sanitizeCustomStepsYAML
+// ---------------------------------------------------------------------------
+
+func TestSanitizeCustomStepsYAML(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		expectChanged  bool
+		expectWarnings int
+		checkOutput    func(t *testing.T, out string)
+		expectErrNil   bool
+	}{
+		{
+			name: "no expressions - returned unchanged",
+			input: `steps:
+  - name: Safe
+    run: echo hello`,
+			expectChanged:  false,
+			expectWarnings: 0,
+			expectErrNil:   true,
+		},
+		{
+			name: "single step with expression sanitized",
+			input: `steps:
+  - name: Print title
+    run: echo "${{ github.event.issue.title }}"`,
+			expectChanged:  true,
+			expectWarnings: 1,
+			expectErrNil:   true,
+			checkOutput: func(t *testing.T, out string) {
+				t.Helper()
+				// The env var key should appear in the output YAML (in the env: block).
+				assert.Contains(t, out, "GH_AW_GITHUB_EVENT_ISSUE_TITLE", "env var key should appear in output")
+				// The run: line should reference the env var, not the raw expression.
+				assert.Contains(t, out, "$GH_AW_GITHUB_EVENT_ISSUE_TITLE", "run field should reference env var")
+			},
+		},
+		{
+			name: "multiple steps - only unsafe ones are modified",
+			input: `steps:
+  - name: Safe
+    run: echo hello
+  - name: Unsafe
+    run: echo "${{ github.event.issue.title }}"
+  - name: Also safe
+    uses: actions/checkout@v4`,
+			expectChanged:  true,
+			expectWarnings: 1,
+			expectErrNil:   true,
+			checkOutput: func(t *testing.T, out string) {
+				t.Helper()
+				assert.Contains(t, out, "GH_AW_GITHUB_EVENT_ISSUE_TITLE", "env var key should appear for unsafe step")
+				assert.Contains(t, out, "$GH_AW_GITHUB_EVENT_ISSUE_TITLE", "run field should reference env var")
+				assert.Contains(t, out, "echo hello", "safe step should be unchanged")
+				assert.Contains(t, out, "actions/checkout", "uses step should be unchanged")
+			},
+		},
+		{
+			name: "multiple expressions across multiple steps",
+			input: `steps:
+  - name: Step A
+    run: echo "${{ github.event.issue.title }}"
+  - name: Step B
+    run: bash script.sh "${{ github.event.pull_request.body }}"`,
+			expectChanged:  true,
+			expectWarnings: 2,
+			expectErrNil:   true,
+			checkOutput: func(t *testing.T, out string) {
+				t.Helper()
+				assert.Contains(t, out, "GH_AW_GITHUB_EVENT_ISSUE_TITLE", "issue title env var should appear")
+				assert.Contains(t, out, "GH_AW_GITHUB_EVENT_PULL_REQUEST_BODY", "PR body env var should appear")
+				assert.Contains(t, out, "$GH_AW_GITHUB_EVENT_ISSUE_TITLE", "run should reference issue title env var")
+				assert.Contains(t, out, "$GH_AW_GITHUB_EVENT_PULL_REQUEST_BODY", "run should reference PR body env var")
+			},
+		},
+		{
+			name:           "empty string - returned unchanged",
+			input:          "",
+			expectChanged:  false,
+			expectWarnings: 0,
+			expectErrNil:   true,
+		},
+		{
+			name:           "malformed YAML - returned unchanged without error",
+			input:          "steps:\n  - run: ${{ unclosed",
+			expectChanged:  false,
+			expectWarnings: 0,
+			expectErrNil:   true,
+		},
+		{
+			name: "steps with no run field - not changed",
+			input: `steps:
+  - name: Checkout
+    uses: actions/checkout@v4
+  - name: Setup Node
+    uses: actions/setup-node@v4
+    with:
+      node-version: '20'`,
+			expectChanged:  false,
+			expectWarnings: 0,
+			expectErrNil:   true,
+		},
+		{
+			name: "expression already in env not double-extracted",
+			input: `steps:
+  - name: Safe already
+    env:
+      TITLE: ${{ github.event.issue.title }}
+    run: echo "$TITLE"`,
+			// No ${{ }} in the run: field, so nothing to extract.
+			expectChanged:  false,
+			expectWarnings: 0,
+			expectErrNil:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out, warnings, err := sanitizeCustomStepsYAML(tt.input)
+
+			if tt.expectErrNil {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+
+			assert.Len(t, warnings, tt.expectWarnings, "warning count mismatch")
+
+			if !tt.expectChanged {
+				assert.Equal(t, tt.input, out, "output should equal input when no change expected")
+			} else {
+				assert.NotEqual(t, tt.input, out, "output should differ from input when changed")
+			}
+
+			if tt.checkOutput != nil && out != tt.input {
+				tt.checkOutput(t, out)
+			}
+		})
+	}
+}
+
+// TestSanitizeCustomStepsYAML_WarningsDescribeExtraction checks that warning messages
+// identify the expression and env var.
+func TestSanitizeCustomStepsYAML_WarningsDescribeExtraction(t *testing.T) {
+	input := `steps:
+  - name: My Step
+    run: echo "${{ github.event.issue.title }}"`
+
+	_, warnings, err := sanitizeCustomStepsYAML(input)
+	require.NoError(t, err)
+	require.Len(t, warnings, 1)
+
+	w := warnings[0]
+	assert.Contains(t, w, "github.event.issue.title", "warning should name the expression")
+	assert.Contains(t, w, "GH_AW_GITHUB_EVENT_ISSUE_TITLE", "warning should name the env var")
+	assert.Contains(t, w, "shell injection", "warning should mention shell injection")
+	assert.Contains(t, w, "My Step", "warning should include step name")
 }
