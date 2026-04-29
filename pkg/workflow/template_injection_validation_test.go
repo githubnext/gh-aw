@@ -6,9 +6,23 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// validateNoTemplateInjection is a test helper that parses YAML and validates
+// it for template injection vulnerabilities using validateNoTemplateInjectionFromParsed.
+func validateNoTemplateInjection(yamlContent string) error {
+	if !unsafeContextRegex.MatchString(yamlContent) {
+		return nil
+	}
+	var workflow map[string]any
+	if err := yaml.Unmarshal([]byte(yamlContent), &workflow); err != nil {
+		return nil
+	}
+	return validateNoTemplateInjectionFromParsed(workflow)
+}
 
 func TestValidateNoTemplateInjection(t *testing.T) {
 	tests := []struct {

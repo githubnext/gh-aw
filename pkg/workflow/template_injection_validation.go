@@ -8,7 +8,7 @@
 //
 // # Validation Functions
 //
-//   - validateNoTemplateInjection() - Validates compiled YAML for template injection risks
+//   - validateNoTemplateInjectionFromParsed() - Validates parsed YAML for template injection risks
 //
 // # Validation Pattern: Security Detection
 //
@@ -50,8 +50,6 @@ package workflow
 import (
 	"regexp"
 	"strings"
-
-	"github.com/goccy/go-yaml"
 )
 
 var templateInjectionValidationLog = newValidationLogger("template_injection")
@@ -144,38 +142,9 @@ func hasUnsafeExpressionInRunContent(yamlContent string) bool {
 	return false
 }
 
-// validateNoTemplateInjection checks compiled YAML for template injection vulnerabilities
-// It detects cases where GitHub Actions expressions are used directly in shell commands
-// instead of being passed through environment variables
-func validateNoTemplateInjection(yamlContent string) error {
-	templateInjectionValidationLog.Print("Validating compiled YAML for template injection risks")
-
-	// Fast-path: if the YAML contains no unsafe context expressions at all, skip the
-	// expensive full YAML parse.  The unsafe patterns we detect are:
-	//   ${{ github.event.* }}, ${{ steps.*.outputs.* }}, ${{ inputs.* }}
-	// If none of those strings appear anywhere in the compiled YAML, there can be
-	// no violations.
-	if !unsafeContextRegex.MatchString(yamlContent) {
-		templateInjectionValidationLog.Print("No unsafe context expressions found – skipping template injection check")
-		return nil
-	}
-
-	// Parse YAML to walk the tree and extract run fields
-	var workflow map[string]any
-	if err := yaml.Unmarshal([]byte(yamlContent), &workflow); err != nil {
-		templateInjectionValidationLog.Printf("Failed to parse YAML: %v", err)
-		// Fall back to skipping validation if YAML is malformed
-		// (compilation would have already failed if YAML is invalid)
-		return nil
-	}
-
-	return validateNoTemplateInjectionFromParsed(workflow)
-}
-
 // validateNoTemplateInjectionFromParsed checks a pre-parsed workflow map for template
-// injection vulnerabilities.  It is called by validateNoTemplateInjection (which
-// handles the YAML parse) and may also be called directly when the caller already
-// holds a parsed representation of the compiled YAML, avoiding a redundant parse.
+// injection vulnerabilities. It is called when the caller already holds a parsed
+// representation of the compiled YAML, avoiding a redundant parse.
 func validateNoTemplateInjectionFromParsed(workflow map[string]any) error {
 	// Extract all run blocks from the workflow
 	runBlocks := extractRunBlocks(workflow)
