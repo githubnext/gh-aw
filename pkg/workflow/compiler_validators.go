@@ -195,10 +195,16 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
-	// Validate safe-outputs steps for dangerous shell expansion patterns
+	// Validate safe-outputs steps for dangerous shell expansion patterns.
+	// In strict mode this is a hard error; in non-strict mode it is a warning
+	// so that existing workflows continue to compile while authors migrate them.
 	log.Printf("Validating safe-outputs steps for shell expansion patterns")
 	if err := validateSafeOutputsStepsShellExpansion(workflowData.SafeOutputs); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		if c.strictMode {
+			return formatCompilerError(markdownPath, "error", err.Error(), err)
+		}
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", err.Error()))
+		c.IncrementWarningCount()
 	}
 
 	// Validate safe-outputs allowed-domains configuration
