@@ -63,7 +63,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891         # Diff two runs (base vs comparison)
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 1234567892  # Diff base against multiple runs
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 --format markdown  # Markdown diff output for PR comments`,
-		Args: cobra.MinimumNArgs(1),
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputDir, _ := cmd.Flags().GetString("output")
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -71,6 +71,36 @@ Examples:
 			parse, _ := cmd.Flags().GetBool("parse")
 			repoFlag, _ := cmd.Flags().GetString("repo")
 			artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
+			stdin, _ := cmd.Flags().GetBool("stdin")
+
+			// When --stdin is provided, read run IDs/URLs from stdin instead of positional args.
+			if stdin {
+				if len(args) > 0 {
+					return errors.New(console.FormatErrorWithSuggestions(
+						"positional arguments are not allowed with --stdin",
+						[]string{"Remove the run ID arguments, or omit --stdin to use positional arguments"},
+					))
+				}
+				stdinURLs, err := readRunIDsFromStdin(os.Stdin)
+				if err != nil {
+					return fmt.Errorf("failed to read run IDs from stdin: %w", err)
+				}
+				if len(stdinURLs) == 0 {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No run IDs or URLs provided on stdin"))
+					return nil
+				}
+				args = stdinURLs
+			}
+
+			if len(args) == 0 {
+				return errors.New(console.FormatErrorWithSuggestions(
+					"at least one run ID or URL is required",
+					[]string{
+						"Provide a run ID or URL as a positional argument",
+						"Use --stdin to read run IDs from stdin (one per line)",
+					},
+				))
+			}
 
 			if len(args) == 1 {
 				// Single run: existing audit behavior
@@ -122,6 +152,7 @@ Examples:
 	cmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	cmd.Flags().String("format", "pretty", "Diff output format for multi-run mode: pretty, markdown")
 	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
+	cmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of positional arguments")
 
 	// Register completions for audit command
 	RegisterDirFlagCompletion(cmd, "output")
