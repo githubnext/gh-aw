@@ -1420,7 +1420,7 @@ func TestHandlerConfigPatchSize(t *testing.T) {
 
 // TestHandlerConfigPatchFiles tests that the max-patch-files configuration is
 // propagated into the create_pull_request handler config (regression for the
-// hardcoded 100-file limit reported in the tsessebe autoloop scenario).
+// hardcoded 100-file limit for long-running branches with multi-commit patches).
 func TestHandlerConfigPatchFiles(t *testing.T) {
 	tests := []struct {
 		name              string

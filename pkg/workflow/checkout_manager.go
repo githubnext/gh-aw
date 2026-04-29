@@ -92,14 +92,22 @@ type CheckoutConfig struct {
 	//   fetch: ["refs/pulls/open/*"]
 	//   fetch: ["main", "feature/my-branch"]
 	Fetch []string `json:"fetch,omitempty"`
+
+	// Wiki clones the repository's wiki git instead of the regular repository.
+	// When true, the effective repository becomes "{repository}.wiki" (e.g. "owner/repo.wiki").
+	// Defaults to false.
+	Wiki bool `json:"wiki,omitempty"`
 }
 
 // checkoutKey uniquely identifies a checkout target used for grouping/deduplication.
-// Only repository and path are used as key fields — ref and token are settings
-// that can be merged across configs targeting the same (repository, path).
+// Repository, path, and wiki are used as key fields — ref and token are settings
+// that can be merged across configs targeting the same (repository, path, wiki) tuple.
+// Wiki is included because a wiki checkout and a regular checkout of the same repository
+// at the same path must remain as separate steps.
 type checkoutKey struct {
 	repository string
 	path       string
+	wiki       bool
 }
 
 // resolvedCheckout is an internal merged checkout entry used by CheckoutManager.
@@ -114,6 +122,7 @@ type resolvedCheckout struct {
 	lfs            bool
 	current        bool     // true if this checkout is the logical current repository
 	fetchRefs      []string // merged fetch ref patterns (see CheckoutConfig.Fetch)
+	// wiki is intentionally not stored here; use entry.key.wiki instead.
 }
 
 // CheckoutManager collects checkout requests and merges them to minimize
@@ -206,9 +215,16 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 	if normalizedPath == "." {
 		normalizedPath = ""
 	}
+	// Normalize repository for wiki checkouts: strip a trailing ".wiki" suffix so that
+	// "owner/repo" and "owner/repo.wiki" with Wiki:true resolve to the same deduplication key.
+	normalizedRepo := cfg.Repository
+	if cfg.Wiki && strings.HasSuffix(normalizedRepo, ".wiki") {
+		normalizedRepo = strings.TrimSuffix(normalizedRepo, ".wiki")
+	}
 	key := checkoutKey{
-		repository: cfg.Repository,
+		repository: normalizedRepo,
 		path:       normalizedPath,
+		wiki:       cfg.Wiki,
 	}
 
 	if idx, exists := cm.index[key]; exists {
@@ -267,9 +283,17 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 
 // GetDefaultCheckoutOverride returns the resolved checkout for the default workspace
 // (empty path, empty repository). Returns nil if the user did not configure one.
+// Checks both wiki=false and wiki=true variants so that a wiki default checkout
+// is also returned when the user sets wiki: true at the root.
 func (cm *CheckoutManager) GetDefaultCheckoutOverride() *resolvedCheckout {
+	// Non-wiki default checkout takes precedence.
 	key := checkoutKey{}
 	if idx, ok := cm.index[key]; ok {
+		return cm.ordered[idx]
+	}
+	// Fall back to wiki=true default checkout (empty path and empty repository).
+	wikiKey := checkoutKey{wiki: true}
+	if idx, ok := cm.index[wikiKey]; ok {
 		return cm.ordered[idx]
 	}
 	return nil

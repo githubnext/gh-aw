@@ -1023,10 +1023,12 @@ func TestAddWorkflowWithDispatchWorkflowFromSharedImport(t *testing.T) {
 	// workflow and the dispatch-workflow dependency are written to disk.
 	//
 	// Note: pinned to a specific commit SHA that includes strict: false in smoke-copilot.md
-	// (required since sandbox.mcp.container is now blocked in strict mode) and
+	// (required since sandbox.mcp.container is now blocked in strict mode),
 	// serena-go.md uses ./serena.md (explicitly-relative) so the fetcher correctly
-	// resolves it against shared/mcp/ rather than the top-level .github/workflows/.
-	workflowSpec := "github/gh-aw/.github/workflows/smoke-copilot.md@a4237ca"
+	// resolves it against shared/mcp/ rather than the top-level .github/workflows/,
+	// and tools.cli-proxy: true (not the deprecated mount-as-clis which was removed from
+	// the schema when the mount-as-clis-to-cli-proxy codemod was added).
+	workflowSpec := "github/gh-aw/.github/workflows/smoke-copilot.md@d555622"
 
 	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--verbose")
 	cmd.Dir = setup.tempDir

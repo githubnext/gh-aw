@@ -1519,7 +1519,7 @@ The YAML frontmatter supports these fields:
     - Patches exceeding this size are rejected to prevent accidental large changes
   - `max-patch-files:` - Maximum allowed number of unique files in a create-pull-request patch (integer, default: 100)
     - Counts unique file paths deduplicated across multi-commit patches; reflects how many distinct files the agent is pushing per iteration
-    - Increase this limit for long-running autoloop branches that touch many files
+    - Increase this limit for long-running branches that touch many files
   - `group-reports:` - Group workflow failure reports as sub-issues (boolean, default: `false`)
     - When `true`, creates a parent `[aw] Failed runs` issue that tracks all workflow failures as sub-issues; useful for larger repositories
   - `report-failure-as-issue:` - Control whether workflow failures are reported as GitHub issues (boolean, default: `true`)

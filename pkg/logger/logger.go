@@ -202,9 +202,10 @@ func matchPattern(namespace, pattern string) bool {
 		// Middle wildcard: split and check both parts
 		parts := strings.SplitN(pattern, "*", 2)
 		if len(parts) == 2 {
-			prefix := parts[0]
-			suffix := parts[1]
-			return strings.HasPrefix(namespace, prefix) && strings.HasSuffix(namespace, suffix)
+			prefix, suffix := parts[0], parts[1]
+			return len(namespace) >= len(prefix)+len(suffix) &&
+				strings.HasPrefix(namespace, prefix) &&
+				strings.HasSuffix(namespace, suffix)
 		}
 	}
 
