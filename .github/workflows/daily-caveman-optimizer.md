@@ -116,7 +116,7 @@ Expected format:
 
 - If the file does not exist, start at index 0.
 - If the queue in cache differs from the current file list (files added/removed), rebuild the queue from the current sorted list and reset index to 0.
-- Pick the **next 2 files** starting from `last_processed_index + 1` (wrapping around if needed). This is your **batch** for this run.
+- Pick the **next 5 files** starting from `last_processed_index + 1` (wrapping around if needed). This is your **batch** for this run.
 
 ## Step 3: Analyze and Optimize Each File
 
@@ -213,7 +213,7 @@ Processed files X–Y of Z total files in the queue.
 
 - **Prefer no change**: When in doubt, leave it alone. The goal is genuine improvement, not churn.
 - **One PR per run**: Bundle all changes from the batch into a single PR.
-- **Small batches**: Processing 2 files per run keeps each run focused and reviewable.
+- **Small batches**: Processing 5 files per run keeps each run focused and reviewable.
 - **Respect excluded files**: Never touch the excluded list above.
 
 {{#runtime-import shared/noop-reminder.md}}
