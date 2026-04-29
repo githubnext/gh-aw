@@ -3574,7 +3574,26 @@
                         "$ref": "#/$defs/github_toolset_name"
                       },
                       "minItems": 1,
-                      "$comment": "At least one toolset is required when toolsets array is specified. Use null or omit the field to use all toolsets.",
+                      "$comment": "At least one toolset is required when toolsets array is specified. Omit the field to use all toolsets.",
+                      "maxItems": 20
+                    }
+                  ]
+                },
+                "toolset": {
+                  "description": "Deprecated. Use 'toolsets' instead.",
+                  "deprecated": true,
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/github_toolset_name",
+                      "description": "A single GitHub MCP server toolset name (shorthand for a one-element array)"
+                    },
+                    {
+                      "type": "array",
+                      "description": "Array of GitHub MCP server toolset names",
+                      "items": {
+                        "$ref": "#/$defs/github_toolset_name"
+                      },
+                      "minItems": 1,
                       "maxItems": 20
                     }
                   ]

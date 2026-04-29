@@ -265,7 +265,6 @@ func TestGitHubConfigParsing(t *testing.T) {
 			},
 		}
 
-		configMap := toolsMap["github"].(map[string]any)
 		tools := NewTools(toolsMap)
 		config := tools.GitHub
 
@@ -280,12 +279,17 @@ func TestGitHubConfigParsing(t *testing.T) {
 			t.Errorf("expected toolset 'default', got %q", config.Toolset[0])
 		}
 
-		// Verify raw map is normalized to an array for JSON rendering
-		normalized, ok := configMap["toolsets"].([]any)
+		// Verify ToMap() emits an array so compiled YAML always renders an array
+		resultMap := tools.ToMap()
+		githubMap, ok := resultMap["github"].(map[string]any)
 		if !ok {
-			t.Errorf("expected raw configMap[toolsets] to be []any after coercion, got %T", configMap["toolsets"])
+			t.Fatalf("expected ToMap()[github] to be map[string]any, got %T", resultMap["github"])
+		}
+		normalized, ok := githubMap["toolsets"].([]any)
+		if !ok {
+			t.Errorf("expected ToMap()[github][toolsets] to be []any after coercion, got %T", githubMap["toolsets"])
 		} else if len(normalized) != 1 || normalized[0] != "default" {
-			t.Errorf("expected normalized raw toolsets to be [default], got %v", normalized)
+			t.Errorf("expected normalized toolsets to be [default], got %v", normalized)
 		}
 	})
 
@@ -296,7 +300,6 @@ func TestGitHubConfigParsing(t *testing.T) {
 			},
 		}
 
-		configMap := toolsMap["github"].(map[string]any)
 		tools := NewTools(toolsMap)
 		config := tools.GitHub
 
@@ -311,12 +314,17 @@ func TestGitHubConfigParsing(t *testing.T) {
 			t.Errorf("expected toolset 'repos', got %q", config.Toolset[0])
 		}
 
-		// Verify raw map is normalized to an array for JSON rendering
-		normalized, ok := configMap["toolset"].([]any)
+		// Verify ToMap() emits an array so compiled YAML always renders an array
+		resultMap := tools.ToMap()
+		githubMap, ok := resultMap["github"].(map[string]any)
 		if !ok {
-			t.Errorf("expected raw configMap[toolset] to be []any after coercion, got %T", configMap["toolset"])
+			t.Fatalf("expected ToMap()[github] to be map[string]any, got %T", resultMap["github"])
+		}
+		normalized, ok := githubMap["toolset"].([]any)
+		if !ok {
+			t.Errorf("expected ToMap()[github][toolset] to be []any after coercion, got %T", githubMap["toolset"])
 		} else if len(normalized) != 1 || normalized[0] != "repos" {
-			t.Errorf("expected normalized raw toolset to be [repos], got %v", normalized)
+			t.Errorf("expected normalized toolset to be [repos], got %v", normalized)
 		}
 	})
 }

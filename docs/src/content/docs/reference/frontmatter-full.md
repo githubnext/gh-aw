@@ -1958,7 +1958,7 @@ tools:
 
     # Option 2: Array of GitHub MCP server toolset names to enable specific groups of
     # GitHub API functionalities
-    toolsets: []
+    toolsets: [default]
       # Array items: Toolset name
 
     # Volume mounts for the containerized GitHub MCP server (format:
