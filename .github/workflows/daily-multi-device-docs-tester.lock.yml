@@ -1389,6 +1389,7 @@ jobs:
       - name: Parse and conclude threat detection
         id: detection_conclusion
         if: always()
+        continue-on-error: true
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}

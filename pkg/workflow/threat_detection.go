@@ -384,13 +384,25 @@ func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
 		"      - name: Parse and conclude threat detection\n",
 		"        id: detection_conclusion\n",
 		"        if: always()\n",
+	}
+	// In warn mode (continue-on-error: true), add continue-on-error to the parse step so that
+	// an unexpected exception in the parse script never causes the detection job to fail. The
+	// script already handles all expected error cases via setDetectionFailure(), but adding
+	// continue-on-error here as a defence-in-depth measure prevents the detection job from
+	// blocking safe_outputs due to an unanticipated runtime error in the parse step.
+	// In strict mode (continue-on-error: false), we intentionally leave this off so that
+	// a parse failure in strict mode keeps the detection job result as failure.
+	if continueOnError {
+		steps = append(steps, "        continue-on-error: true\n")
+	}
+	steps = append(steps, []string{
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 		"          RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}\n",
 		fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %q\n", strconv.FormatBool(continueOnError)),
 		"        with:\n",
 		"          script: |\n",
-	}
+	}...)
 
 	script := c.buildResultsParsingScriptRequire()
 	formattedScript := FormatJavaScriptForYAML(script)
