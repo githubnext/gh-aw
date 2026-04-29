@@ -144,6 +144,44 @@ func TestReplaceSecretsWithEnvVars(t *testing.T) {
 	}
 }
 
+func TestReplaceSecretsWithBashVars(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected string
+	}{
+		{
+			name:     "Replace single secret",
+			value:    "${{ secrets.SENTRY_ACCESS_TOKEN }}",
+			expected: "${SENTRY_ACCESS_TOKEN}",
+		},
+		{
+			name:     "Replace secret with default",
+			value:    "${{ secrets.DD_SITE || 'datadoghq.com' }}",
+			expected: "${DD_SITE}",
+		},
+		{
+			name:     "Replace in Bearer token",
+			value:    "Bearer ${{ secrets.TOKEN }}",
+			expected: "Bearer ${TOKEN}",
+		},
+		{
+			name:     "No replacement needed",
+			value:    "static-value",
+			expected: "static-value",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ReplaceSecretsWithBashVars(tt.value)
+			if result != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
 func TestRenderSharedMCPConfig_HTTPWithHeaderSecrets(t *testing.T) {
 	toolConfig := map[string]any{
 		"type": "http",
