@@ -19,7 +19,7 @@ engine:
   bare: true
 
 timeout-minutes: 30  # Reduced from 45 since pre-fetching data is faster
-runs-on: aw-gpu-runner-T4
+runs-on: ubuntu-latest
 
 runtimes:
   node:
