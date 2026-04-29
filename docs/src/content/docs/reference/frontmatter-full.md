@@ -3678,6 +3678,15 @@ safe-outputs:
     # (optional)
     preserve-branch-name: true
 
+    # When true (and preserve-branch-name is true), allows the handler to force-delete
+    # an existing remote branch ref and recreate it from the agent's local HEAD. When
+    # false (default), if the agent-specified branch already exists on the remote with
+    # preserve-branch-name enabled, the handler falls back (e.g. opens an issue)
+    # rather than overwriting the remote ref. Useful for long-lived reusable branches
+    # whose previous PR was merged.
+    # (optional)
+    recreate-ref: true
+
     # List of glob patterns for files to exclude from the patch. Each pattern is
     # passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec, so
     # matching files are stripped by git at generation time and will not appear in the
