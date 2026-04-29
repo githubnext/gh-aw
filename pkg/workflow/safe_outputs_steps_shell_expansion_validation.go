@@ -47,8 +47,8 @@ var safeOutputsStepsShellExpansionLog = newValidationLogger("safe_outputs_steps_
 //
 // After matching, callers must exclude false-positives:
 //   - "commandSubst" matches starting with "$((" (arithmetic expansion) are ignored.
-//   - "commandSubst" matches starting with "$({" or "$({{" that form "${{" are ignored
-//     because "${{" is not a valid shell construct (GitHub Actions uses "${{ }}").
+//   - GitHub Actions expressions use "${{ ... }}", which starts with "{" not "(",
+//     so they do not match the "commandSubst" pattern (\$\() at all.
 //
 // Note: Go's regexp/RE2 does not support lookaheads, so post-match filtering is used
 // instead of inline negative lookaheads.
@@ -180,10 +180,11 @@ func validateRunScriptForShellExpansion(stepIndex int, script string) error {
 			"safe-outputs.steps[%d]: run script contains %s, which is blocked by the "+
 				"safe-outputs security harness at runtime\n\n"+
 				"  Offending snippet: %s\n\n"+
-				"Avoid shell variable expansion in safe-outputs run scripts. "+
-				"Write URL values and other dynamic content to files in /tmp/gh-aw/agent/ "+
-				"during the agent turn, then read the file contents in the safe-outputs step "+
-				"without using shell expansion (e.g. with 'cat' or a script argument)",
+				"Avoid command substitution, backticks, indirect expansion, and parameter "+
+				"transformation in safe-outputs run scripts. Write URL values and other "+
+				"dynamic content to files in /tmp/gh-aw/agent/ during the agent turn, then "+
+				"read the file contents in the safe-outputs step (e.g. with 'cat' or by "+
+				"passing a script argument)",
 			stepIndex,
 			patternDescription,
 			snippet,

@@ -224,24 +224,34 @@ For each generated chart:
 
 ### Phase 6: Create Analysis Discussion
 
-Build the discussion body by reading the URL files saved in Phase 5, then post a comprehensive discussion.
+Build the discussion body by reading the URL files saved in Phase 5 using Python, then post a comprehensive discussion.
 
-**Before constructing the body**, read the uploaded chart URLs:
-```bash
-SENTIMENT_DIST_URL=$(cat /tmp/gh-aw/agent/url-sentiment-distribution.txt 2>/dev/null || echo "")
-SENTIMENT_TIME_URL=$(cat /tmp/gh-aw/agent/url-sentiment-timeline.txt 2>/dev/null || echo "")
-TOPIC_FREQ_URL=$(cat /tmp/gh-aw/agent/url-topic-frequencies.txt 2>/dev/null || echo "")
-TOPICS_CLOUD_URL=$(cat /tmp/gh-aw/agent/url-topics-wordcloud.txt 2>/dev/null || echo "")
-KEYWORD_TRENDS_URL=$(cat /tmp/gh-aw/agent/url-keyword-trends.txt 2>/dev/null || echo "")
+**Before constructing the body**, use a Python script to read the uploaded chart URLs directly from the files (do not use shell variables or command substitution — read the files entirely within Python and treat missing files as empty strings):
+
+```python
+import os
+
+def read_url(path):
+    try:
+        with open(path) as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return ""
+
+sentiment_dist_url = read_url("/tmp/gh-aw/agent/url-sentiment-distribution.txt")
+sentiment_time_url = read_url("/tmp/gh-aw/agent/url-sentiment-timeline.txt")
+topic_freq_url     = read_url("/tmp/gh-aw/agent/url-topic-frequencies.txt")
+topics_cloud_url   = read_url("/tmp/gh-aw/agent/url-topics-wordcloud.txt")
+keyword_trends_url = read_url("/tmp/gh-aw/agent/url-keyword-trends.txt")
 ```
 
-Use a Python script to write the fully-substituted discussion body to `/tmp/gh-aw/agent/discussion_body.md`, inserting the literal URL strings directly (no shell variable expansion in the final body). Then pass the body to the `create_discussion` safe-output tool.
+Use this same Python script to write the fully-substituted discussion body to `/tmp/gh-aw/agent/discussion_body.md`, inserting the literal URL strings directly. Then pass the body to the `create_discussion` safe-output tool.
 
 Post a comprehensive discussion with the following structure:
 
 **Title**: `Copilot PR Conversation NLP Analysis - [DATE]`
 
-**Content Template** (substitute `[SENTIMENT_DIST_URL]`, `[SENTIMENT_TIME_URL]`, `[TOPIC_FREQ_URL]`, `[TOPICS_CLOUD_URL]`, and `[KEYWORD_TRENDS_URL]` with the literal URL strings read from the files above):
+**Content Template** (substitute `[SENTIMENT_DIST_URL]`, `[SENTIMENT_TIME_URL]`, `[TOPIC_FREQ_URL]`, `[TOPICS_CLOUD_URL]`, and `[KEYWORD_TRENDS_URL]` with the literal URL strings read by Python from the files above):
 ````markdown
 # 🤖 Copilot PR Conversation NLP Analysis - [DATE]
 

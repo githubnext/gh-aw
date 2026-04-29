@@ -173,6 +173,11 @@ func TestValidateRunScriptForShellExpansion(t *testing.T) {
 		assert.NoError(t, err, "empty script should pass")
 	})
 
+	t.Run("arithmetic expansion $(( )) passes", func(t *testing.T) {
+		err := validateRunScriptForShellExpansion(0, "echo $((1+1))")
+		assert.NoError(t, err, "arithmetic expansion $(( )) should be allowed")
+	})
+
 	t.Run("error includes step index", func(t *testing.T) {
 		err := validateRunScriptForShellExpansion(3, "$(echo bad)")
 		require.Error(t, err, "command substitution should be rejected")
