@@ -14,7 +14,8 @@
 // # Type Conversion Helpers (any → []string)
 //
 //   - parseStringSliceAny() - Canonical coercion of []string/[]any to []string; skips non-string items.
-//     For contexts where a bare string scalar should wrap in a single-element slice, handle it at the call site.
+//     For GitHub Actions fields where a bare string is valid shorthand for a single-element list
+//     (e.g. `needs: job-name`, `state: failure`), handle the string case explicitly at the call site.
 //
 // # Design Rationale
 //
@@ -169,8 +170,16 @@ func preprocessProtectedFilesField(configData map[string]any, log *logger.Logger
 // or nil (returns nil). Non-string elements inside a []any are skipped.
 // The log parameter is optional; pass nil to suppress debug output about skipped items.
 //
-// For contexts where a bare string scalar should be treated as a single-element list,
-// wrap the call: if s, ok := raw.(string); ok { return []string{s} }; return parseStringSliceAny(raw, log)
+// Bare string scalars are intentionally NOT wrapped — this preserves the existing
+// contract for callers (e.g. ParseStringArrayFromConfig) that treat a scalar string
+// as a type error rather than a single-element list.
+//
+// When GitHub Actions syntax allows a scalar as shorthand for a single-element list
+// (e.g. `needs: "job-name"`, `state: "failure"`), handle the string case explicitly
+// before calling this function:
+//
+//	if s, ok := raw.(string); ok { return []string{s} }
+//	return parseStringSliceAny(raw, log)
 func parseStringSliceAny(raw any, log *logger.Logger) []string {
 	if raw == nil {
 		return nil
