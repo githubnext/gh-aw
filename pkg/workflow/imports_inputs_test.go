@@ -277,3 +277,88 @@ This workflow tests that string imports still work.
 		t.Error("Expected shared content to NOT be inlined (should use runtime-import)")
 	}
 }
+
+// TestImportWithArrayInputs tests that array-typed import-inputs are serialized as
+// JSON (e.g. ["a","b"]) rather than the Go default slice format ("[a b]").
+// This is the regression test for the bug where goccy/go-yaml returns []string
+// instead of []any, causing the Go fmt.Sprintf fallback to produce "[a b]".
+func TestImportWithArrayInputs(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-import-array-inputs-*")
+
+	sharedDir := filepath.Join(tempDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatalf("Failed to create shared directory: %v", err)
+	}
+
+	// Shared workflow that accepts an array input and references it in a run: step
+	sharedContent := `---
+import-schema:
+  packages:
+    type: array
+    items:
+      type: string
+    required: true
+    description: "List of packages"
+on: workflow_call
+jobs:
+  show:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          PKGS: ${{ github.aw.import-inputs.packages }}
+        run: echo "$PKGS"
+---
+
+Process packages ${{ github.aw.import-inputs.packages }}.
+`
+	sharedPath := filepath.Join(sharedDir, "pkgs.md")
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Caller workflow that provides a YAML array for the 'packages' input
+	callerContent := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+imports:
+  - uses: shared/pkgs.md
+    with:
+      packages:
+        - microsoft/apm#main
+        - github/awesome-copilot/skills/foo
+---
+
+Caller workflow.
+`
+	callerPath := filepath.Join(tempDir, "caller.md")
+	if err := os.WriteFile(callerPath, []byte(callerContent), 0644); err != nil {
+		t.Fatalf("Failed to write caller file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(callerPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(callerPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContent := string(lockFileContent)
+
+	// The substituted value must be valid JSON, not the Go slice format "[a b]"
+	if strings.Contains(lockContent, "[microsoft/apm#main github/awesome-copilot/skills/foo]") {
+		t.Error("Array input was serialized as Go slice format '[a b]'; expected JSON array")
+	}
+	if !strings.Contains(lockContent, `["microsoft/apm#main","github/awesome-copilot/skills/foo"]`) {
+		t.Errorf("Expected JSON array in lock file, got:\n%s", lockContent)
+	}
+
+	// No unresolved expressions should remain
+	if strings.Contains(lockContent, "github.aw.import-inputs.packages") {
+		t.Error("Unresolved import-inputs expression remained in lock file")
+	}
+}

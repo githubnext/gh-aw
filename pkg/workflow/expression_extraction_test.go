@@ -478,3 +478,65 @@ func TestApplyWorkflowDispatchFallbacks(t *testing.T) {
 		})
 	}
 }
+
+// TestMarshalImportInputValue tests the marshalImportInputValue helper for correct
+// JSON serialization of array and map types, including typed slices produced by
+// goccy/go-yaml (e.g. []string instead of []any).
+func TestMarshalImportInputValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+		want  string
+	}{
+		{
+			name:  "string scalar",
+			value: "hello",
+			want:  "hello",
+		},
+		{
+			name:  "int scalar",
+			value: 42,
+			want:  "42",
+		},
+		{
+			name:  "bool scalar",
+			value: true,
+			want:  "true",
+		},
+		{
+			name:  "[]any slice",
+			value: []any{"a", "b", "c"},
+			want:  `["a","b","c"]`,
+		},
+		{
+			// goccy/go-yaml produces []string instead of []any for string arrays
+			name:  "[]string typed slice (goccy/go-yaml output)",
+			value: []string{"microsoft/apm#main", "github/awesome-copilot/skills/foo"},
+			want:  `["microsoft/apm#main","github/awesome-copilot/skills/foo"]`,
+		},
+		{
+			name:  "[]int typed slice",
+			value: []int{1, 2, 3},
+			want:  `[1,2,3]`,
+		},
+		{
+			name:  "map[string]any",
+			value: map[string]any{"key": "val"},
+			want:  `{"key":"val"}`,
+		},
+		{
+			name:  "empty []string",
+			value: []string{},
+			want:  `[]`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := marshalImportInputValue(tt.value)
+			if got != tt.want {
+				t.Errorf("marshalImportInputValue(%v) = %q, want %q", tt.value, got, tt.want)
+			}
+		})
+	}
+}

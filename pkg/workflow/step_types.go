@@ -1,9 +1,11 @@
 package workflow
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
+	"reflect"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -114,8 +116,11 @@ func MapToStep(stepMap map[string]any) (*WorkflowStep, error) {
 			if strVal, ok := v.(string); ok {
 				step.Env[k] = strVal
 			} else if v != nil {
-				// Convert non-string values (int, float, bool, etc.) to their string representation
-				step.Env[k] = fmt.Sprint(v)
+				// Arrays and maps are serialized as JSON so that shell consumers
+				// (e.g. jq --argjson) receive valid JSON. This handles both the
+				// []any / map[string]any case returned by encoding/json and the
+				// typed-slice case (e.g. []string) returned by goccy/go-yaml.
+				step.Env[k] = marshalEnvValue(v)
 			}
 		}
 	}
@@ -208,4 +213,45 @@ func StepsToSlice(steps []*WorkflowStep) []any {
 
 	stepTypesLog.Printf("Successfully converted %d typed steps to slice", len(result))
 	return result
+}
+
+// marshalEnvValue serializes a non-string env var value to a string suitable
+// for use in a GitHub Actions step env block.
+// Arrays and maps are serialized as JSON (e.g. ["a","b"]) so that shell
+// consumers such as `jq --argjson` receive valid JSON.
+// Typed slices produced by goccy/go-yaml (e.g. []string instead of []any)
+// are normalized via reflection before marshaling.
+// Scalar values (int, bool, float64, etc.) fall back to fmt.Sprint.
+func marshalEnvValue(v any) string {
+	switch val := v.(type) {
+	case []any:
+		if b, err := json.Marshal(val); err == nil {
+			return string(b)
+		}
+	case map[string]any:
+		if b, err := json.Marshal(val); err == nil {
+			return string(b)
+		}
+	default:
+		rv := reflect.ValueOf(v)
+		switch rv.Kind() {
+		case reflect.Slice:
+			normalized := make([]any, rv.Len())
+			for i := range rv.Len() {
+				normalized[i] = rv.Index(i).Interface()
+			}
+			if b, err := json.Marshal(normalized); err == nil {
+				return string(b)
+			}
+		case reflect.Map:
+			normalized := make(map[string]any, rv.Len())
+			for _, key := range rv.MapKeys() {
+				normalized[key.String()] = rv.MapIndex(key).Interface()
+			}
+			if b, err := json.Marshal(normalized); err == nil {
+				return string(b)
+			}
+		}
+	}
+	return fmt.Sprint(v)
 }

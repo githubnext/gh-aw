@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 )
@@ -795,6 +796,8 @@ func substituteImportInputsInContent(content string, inputs map[string]any) stri
 		}
 		// Serialize the value: arrays and maps as JSON (valid YAML inline syntax),
 		// scalars with fmt.Sprintf.
+		// goccy/go-yaml may produce typed slices (e.g. []string) instead of []any,
+		// so a reflection fallback handles those cases.
 		switch v := value.(type) {
 		case []any:
 			if b, err := json.Marshal(v); err == nil {
@@ -803,6 +806,26 @@ func substituteImportInputsInContent(content string, inputs map[string]any) stri
 		case map[string]any:
 			if b, err := json.Marshal(v); err == nil {
 				return string(b), true
+			}
+		default:
+			rv := reflect.ValueOf(v)
+			switch rv.Kind() {
+			case reflect.Slice:
+				normalized := make([]any, rv.Len())
+				for i := range rv.Len() {
+					normalized[i] = rv.Index(i).Interface()
+				}
+				if b, err := json.Marshal(normalized); err == nil {
+					return string(b), true
+				}
+			case reflect.Map:
+				normalized := make(map[string]any, rv.Len())
+				for _, key := range rv.MapKeys() {
+					normalized[key.String()] = rv.MapIndex(key).Interface()
+				}
+				if b, err := json.Marshal(normalized); err == nil {
+					return string(b), true
+				}
 			}
 		}
 		return fmt.Sprintf("%v", value), true

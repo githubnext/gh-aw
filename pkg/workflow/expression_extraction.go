@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -327,6 +328,9 @@ func SubstituteImportInputs(content string, importInputs map[string]any) string 
 // substitution into both YAML frontmatter and markdown prose.
 // Arrays and maps are serialized as JSON (which is valid YAML inline syntax).
 // Scalar values use Go's default string formatting.
+//
+// goccy/go-yaml may produce typed slices (e.g. []string) instead of []any, so
+// a reflection fallback converts any slice kind to []any before JSON marshaling.
 func marshalImportInputValue(value any) string {
 	switch v := value.(type) {
 	case []any:
@@ -336,6 +340,28 @@ func marshalImportInputValue(value any) string {
 	case map[string]any:
 		if b, err := json.Marshal(v); err == nil {
 			return string(b)
+		}
+	default:
+		// Handle typed slices (e.g. []string) that goccy/go-yaml may produce
+		// instead of []any, and typed maps.
+		rv := reflect.ValueOf(v)
+		switch rv.Kind() {
+		case reflect.Slice:
+			normalized := make([]any, rv.Len())
+			for i := range rv.Len() {
+				normalized[i] = rv.Index(i).Interface()
+			}
+			if b, err := json.Marshal(normalized); err == nil {
+				return string(b)
+			}
+		case reflect.Map:
+			normalized := make(map[string]any, rv.Len())
+			for _, key := range rv.MapKeys() {
+				normalized[key.String()] = rv.MapIndex(key).Interface()
+			}
+			if b, err := json.Marshal(normalized); err == nil {
+				return string(b)
+			}
 		}
 	}
 	return fmt.Sprintf("%v", value)

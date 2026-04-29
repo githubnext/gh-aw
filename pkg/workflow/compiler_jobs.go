@@ -670,8 +670,10 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 					for key, val := range envMap {
 						if valStr, ok := val.(string); ok {
 							job.Env[key] = valStr
-						} else {
-							compilerJobsLog.Printf("Warning: env '%s' in job '%s' has non-string value (type: %T), ignoring", key, jobName, val)
+						} else if val != nil {
+							// Arrays and maps are serialized as JSON so that shell consumers
+							// (e.g. jq --argjson) receive valid JSON.
+							job.Env[key] = marshalEnvValue(val)
 						}
 					}
 				}
