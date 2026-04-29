@@ -80,6 +80,59 @@ gh aw logs --start-date -30d --json | \
   jq '.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, cost: .total_estimated_cost, risky_nodes: .risky_node_count}'
 ```
 
+### Interpret Episode-Level Cost
+
+`gh aw logs --json` always computes deterministic episodes. Users do not need to decide whether a run "is an episode". The system already groups related runs and emits both views:
+
+- `.runs[]` for individual workflow runs
+- `.episodes[]` for the grouped logical execution
+- `.edges[]` for the inferred lineage between related runs
+
+Per-run cost is often the right reporting unit for simple workflows, but it can understate the real footprint of orchestrated systems. A single logical job may span multiple workflow runs:
+
+- an orchestrator run
+- one or more dispatched worker runs
+- one or more `workflow_call` follow-ups
+- a later `workflow_run` analysis or reporting pass
+
+When that happens, `.runs[]` shows the cost of each individual execution, while `.episodes[]` shows the aggregate cost of the whole logical execution chain. If you are trying to answer "what did this job really cost end-to-end?", read the episode view. If you are trying to identify which specific run was expensive, read the run view.
+
+Use `.edges[]` when you need to inspect why runs were grouped together. Each edge records the inferred parent-child relationship and the confidence of that relationship.
+
+Practical guidance:
+
+- Use `.runs[]` to find expensive individual runs.
+- Use `.episodes[]` to find expensive logical jobs that fan out across multiple runs.
+- Use `.edges[]` to debug unexpected lineage or confirm that the grouping reflects the orchestration you intended.
+
+Useful episode fields for cost analysis:
+
+- `total_runs` — how many workflow runs were part of the same logical execution
+- `total_tokens` — aggregate raw tokens across the episode
+- `total_estimated_cost` — aggregate estimated inference cost across the episode
+- `total_duration` — wall-clock duration across the grouped runs
+- `primary_workflow` — the main workflow label for the episode
+- `resource_heavy_node_count` — how many runs in the episode were flagged as resource-heavy
+- `blocked_request_count` — aggregate blocked-network pressure across the episode
+
+```bash
+# Top 10 most expensive logical executions over the past 30 days
+gh aw logs --start-date -30d --json | \
+  jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, cost: (.total_estimated_cost // 0), tokens: (.total_tokens // 0)}]
+      | sort_by(.cost)
+      | reverse
+      | .[:10]'
+```
+
+```bash
+# Inspect lineage edges for one expensive episode
+gh aw logs --start-date -30d --json | \
+  jq '(.episodes[] | select(.total_estimated_cost > 1.0) | .episode_id) as $id
+      | {episode: $id, edges: [.edges[] | select(.episode_id == $id)]}'
+```
+
+If your workflow is not orchestrated, the automatically computed episode usually collapses to a single run. In that case, episode-level cost is effectively the same as the regular per-run cost, so `.episodes[]` and `.runs[]` are just two views of the same underlying execution. If your workflow dispatches workers or chains follow-up runs, episode-level cost is usually the more accurate optimization target.
+
 ### Use inside a workflow agent
 
 The `agentic-workflows` MCP tool exposes the same `logs` operation so that a workflow agent can collect cost data programmatically. Add `tools: agentic-workflows:` to any workflow that needs to read run metrics:

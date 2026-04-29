@@ -306,3 +306,243 @@ func TestMCPToolCallToEpisodeToolCall(t *testing.T) {
 		})
 	}
 }
+
+func TestCompareEpisodeSeedsPrefersKindThenConfidence(t *testing.T) {
+	tests := []struct {
+		name     string
+		left     episodeSeed
+		right    episodeSeed
+		expected int
+	}{
+		{
+			name: "workflow call beats dispatch",
+			left: episodeSeed{
+				EpisodeID:  "workflow_call:123",
+				Kind:       "workflow_call",
+				Confidence: "medium",
+			},
+			right: episodeSeed{
+				EpisodeID:  "dispatch:123",
+				Kind:       "dispatch_workflow",
+				Confidence: "high",
+			},
+			expected: 1,
+		},
+		{
+			name: "higher confidence wins within same kind",
+			left: episodeSeed{
+				EpisodeID:  "dispatch:high",
+				Kind:       "dispatch_workflow",
+				Confidence: "high",
+			},
+			right: episodeSeed{
+				EpisodeID:  "dispatch:low",
+				Kind:       "dispatch_workflow",
+				Confidence: "low",
+			},
+			expected: 1,
+		},
+		{
+			name: "episode id breaks ties deterministically",
+			left: episodeSeed{
+				EpisodeID:  "standalone:200",
+				Kind:       "standalone",
+				Confidence: "high",
+			},
+			right: episodeSeed{
+				EpisodeID:  "standalone:100",
+				Kind:       "standalone",
+				Confidence: "high",
+			},
+			expected: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, compareEpisodeSeeds(tt.left, tt.right), "seed precedence should be deterministic")
+		})
+	}
+}
+
+func TestFilterLineageCandidatesPrefersSingleNonNestedCandidate(t *testing.T) {
+	child := RunData{
+		RunID:     30,
+		Event:     "workflow_run",
+		CreatedAt: time.Date(2024, 1, 1, 12, 10, 0, 0, time.UTC),
+	}
+	runs := []RunData{
+		{
+			RunID:      10,
+			Event:      "push",
+			Repository: "github/gh-aw",
+			HeadSHA:    "abc123",
+			Branch:     "main",
+			CreatedAt:  time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+		},
+		{
+			RunID:      20,
+			Event:      "workflow_run",
+			Repository: "github/gh-aw",
+			HeadSHA:    "abc123",
+			Branch:     "main",
+			CreatedAt:  time.Date(2024, 1, 1, 12, 5, 0, 0, time.UTC),
+		},
+	}
+
+	candidates := filterLineageCandidates(runs, child, func(candidate RunData) bool {
+		return candidate.Repository == "github/gh-aw" && candidate.HeadSHA == "abc123" && candidate.Branch == "main"
+	})
+
+	require.Len(t, candidates, 1, "one non-nested candidate should be preferred")
+	assert.Equal(t, int64(10), candidates[0].RunID, "the non-workflow_run parent should be selected")
+}
+
+func TestBuildWorkflowRunEpisodeEdgeReturnsNoEdgeForAmbiguousCandidates(t *testing.T) {
+	child := RunData{
+		RunID:      300,
+		Event:      "workflow_run",
+		Repository: "github/gh-aw",
+		HeadSHA:    "abc123",
+		Branch:     "main",
+		CreatedAt:  time.Date(2024, 1, 1, 12, 10, 0, 0, time.UTC),
+	}
+	runs := []RunData{
+		{
+			RunID:      100,
+			Event:      "push",
+			Repository: "github/gh-aw",
+			HeadSHA:    "abc123",
+			Branch:     "main",
+			CreatedAt:  time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+		},
+		{
+			RunID:      200,
+			Event:      "pull_request",
+			Repository: "github/gh-aw",
+			HeadSHA:    "abc123",
+			Branch:     "main",
+			CreatedAt:  time.Date(2024, 1, 1, 12, 5, 0, 0, time.UTC),
+		},
+		child,
+	}
+
+	_, ok := buildWorkflowRunEpisodeEdge(child, runs)
+	assert.False(t, ok, "an edge should not be created when multiple upstream candidates match")
+}
+
+func TestBuildDispatchEpisodeEdgeReturnsNoEdgeForInvalidRunID(t *testing.T) {
+	run := RunData{
+		RunID: 500,
+		AwContext: &AwContext{
+			RunID:          "not-a-number",
+			WorkflowCallID: "500-1",
+		},
+	}
+	runsByID := map[int64]RunData{
+		500: run,
+	}
+
+	_, ok := buildDispatchEpisodeEdge(run, runsByID)
+	assert.False(t, ok, "dispatch edge should not be created when context.run_id is invalid")
+}
+
+func TestBuildDispatchEpisodeEdgeReturnsNoEdgeWhenSourceRunMissing(t *testing.T) {
+	run := RunData{
+		RunID: 501,
+		AwContext: &AwContext{
+			RunID:          "999",
+			WorkflowCallID: "501-1",
+		},
+	}
+	runsByID := map[int64]RunData{
+		501: run,
+	}
+
+	_, ok := buildDispatchEpisodeEdge(run, runsByID)
+	assert.False(t, ok, "dispatch edge should not be created when the parent run is not present")
+}
+
+func TestClassifyEpisodeEscalationThresholds(t *testing.T) {
+	tests := []struct {
+		name           string
+		episode        EpisodeData
+		expectedOK     bool
+		expectedReason string
+	}{
+		{
+			name:           "repeated risky runs escalate",
+			episode:        EpisodeData{RiskyNodeCount: 2},
+			expectedOK:     true,
+			expectedReason: "repeated_risky_runs",
+		},
+		{
+			name:           "repeated new mcp failures escalate",
+			episode:        EpisodeData{NewMCPFailureRunCount: 2},
+			expectedOK:     true,
+			expectedReason: "repeated_new_mcp_failures",
+		},
+		{
+			name:           "repeated blocked request increases escalate",
+			episode:        EpisodeData{BlockedRequestIncreaseRunCount: 2},
+			expectedOK:     true,
+			expectedReason: "repeated_blocked_request_increase",
+		},
+		{
+			name:           "repeated resource heavy runs escalate",
+			episode:        EpisodeData{ResourceHeavyNodeCount: 2},
+			expectedOK:     true,
+			expectedReason: "repeated_resource_heavy_for_domain",
+		},
+		{
+			name:           "repeated poor control escalates",
+			episode:        EpisodeData{PoorControlNodeCount: 2},
+			expectedOK:     true,
+			expectedReason: "repeated_poor_agentic_control",
+		},
+		{
+			name:           "single signals do not escalate",
+			episode:        EpisodeData{RiskyNodeCount: 1, ResourceHeavyNodeCount: 1, PoorControlNodeCount: 1},
+			expectedOK:     false,
+			expectedReason: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ok, reason := classifyEpisodeEscalation(tt.episode)
+			assert.Equal(t, tt.expectedOK, ok, "escalation eligibility should match threshold behavior")
+			assert.Equal(t, tt.expectedReason, reason, "escalation reason should match threshold behavior")
+		})
+	}
+}
+
+func TestBuildSuggestedRoutePreferenceOrder(t *testing.T) {
+	tests := []struct {
+		name     string
+		episode  EpisodeData
+		expected string
+	}{
+		{
+			name:     "primary workflow wins",
+			episode:  EpisodeData{PrimaryWorkflow: "orchestrator", WorkflowNames: []string{"worker-a", "worker-b"}},
+			expected: "workflow:orchestrator",
+		},
+		{
+			name:     "first workflow name is fallback",
+			episode:  EpisodeData{WorkflowNames: []string{"worker-a", "worker-b"}},
+			expected: "workflow:worker-a",
+		},
+		{
+			name:     "repo owners fallback when no workflows known",
+			episode:  EpisodeData{},
+			expected: "repo:owners",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, buildSuggestedRoute(tt.episode), "suggested route should follow the documented preference order")
+		})
+	}
+}
