@@ -108,6 +108,7 @@ function resolveItemContext(payload) {
  *   comment_id: string,
  *   comment_node_id: string,
  *   deployment_state: string,
+ *   workflow_run_conclusion: string,
  *   otel_trace_id: string,
  *   otel_parent_span_id: string,
  *   trigger_label: string
@@ -128,6 +129,10 @@ function resolveItemContext(payload) {
  *     "success") when the workflow was triggered by a deployment_status event.
  *     Empty string for all other event types. Propagated to child workflows via
  *     workflow_call so they can identify which state triggered the parent.
+ *   - workflow_run_conclusion: The conclusion of the triggering workflow_run
+ *     (e.g. "failure", "success", "cancelled", "timed_out") when the workflow was
+ *     triggered by a workflow_run event. Empty string for all other event types.
+ *     Propagated to child workflows via workflow_call.
  *   - otel_trace_id: OTLP trace ID from the parent workflow's setup span.
  *     Empty string when OTLP is not configured or the parent setup step has
  *     not yet run.  Used by child workflow setup steps to continue the same
@@ -163,6 +168,10 @@ function buildAwContext() {
     // triggering event is deployment_status. Empty string for all other events.
     // Propagated to called workflows so they can access the deployment state.
     deployment_state: context.eventName === "deployment_status" ? (context.payload?.deployment_status?.state ?? "") : "",
+    // workflow_run_conclusion carries the conclusion of the triggering workflow_run
+    // when the event is workflow_run. Empty string for all other events.
+    // Propagated to called workflows so they can access the workflow run conclusion.
+    workflow_run_conclusion: context.eventName === "workflow_run" ? (context.payload?.workflow_run?.conclusion ?? "") : "",
     // Propagate the current OTLP trace ID to dispatched child workflows so that
     // composite actions share the same trace as their parent.  Empty string when
     // OTLP is not configured or the parent setup step has not run yet.

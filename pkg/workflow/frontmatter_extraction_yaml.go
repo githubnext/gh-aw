@@ -132,6 +132,8 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	inDiscussion := false
 	inIssueComment := false
 	inDeploymentStatus := false
+	inWorkflowRun := false
+	inWorkflowRunConclusionArray := false
 	inForksArray := false
 	inSkipIfMatch := false
 	inSkipIfNoMatch := false
@@ -194,6 +196,18 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 			if strings.Contains(line, "deployment_status:") {
 				inDeploymentStatus = true
+				inWorkflowRun = false
+				inPullRequest = false
+				inIssues = false
+				inDiscussion = false
+				inIssueComment = false
+				currentSection = ""
+				result = append(result, line)
+				continue
+			}
+			if strings.Contains(line, "workflow_run:") {
+				inWorkflowRun = true
+				inDeploymentStatus = false
 				inPullRequest = false
 				inIssues = false
 				inDiscussion = false
@@ -220,6 +234,12 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		// Check if we're leaving the deployment_status section
 		if inDeploymentStatus && strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
 			inDeploymentStatus = false
+		}
+
+		// Check if we're leaving the workflow_run section
+		if inWorkflowRun && strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
+			inWorkflowRun = false
+			inWorkflowRunConclusionArray = false
 		}
 
 		trimmedLine := strings.TrimSpace(line)
@@ -544,6 +564,17 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			// Comment out array items inside deployment_status.state
 			shouldComment = true
 			commentReason = " # State filtering compiled into if condition"
+		} else if inWorkflowRun && strings.HasPrefix(trimmedLine, "conclusion:") {
+			shouldComment = true
+			commentReason = " # Conclusion filtering compiled into if condition"
+			inWorkflowRunConclusionArray = true
+		} else if inWorkflowRunConclusionArray && strings.HasPrefix(trimmedLine, "-") {
+			// Comment out array items inside workflow_run.conclusion
+			shouldComment = true
+			commentReason = " # Conclusion filtering compiled into if condition"
+		} else if inWorkflowRun && !strings.HasPrefix(trimmedLine, "-") && strings.Contains(trimmedLine, ":") {
+			// Any new field inside workflow_run resets the conclusion array tracker
+			inWorkflowRunConclusionArray = false
 		} else if (inPullRequest || inIssues || inDiscussion || inIssueComment) && strings.HasPrefix(trimmedLine, "lock-for-agent:") {
 			shouldComment = true
 			commentReason = " # Lock-for-agent processed as issue locking in activation job"
@@ -703,7 +734,8 @@ func (c *Compiler) extractPermissions(frontmatter map[string]any) string {
 }
 
 // extractIfCondition extracts the if condition from frontmatter, returning just the expression
-// without the "if: " prefix. Also merges any condition derived from on.deployment_status.state.
+// without the "if: " prefix. Also merges any condition derived from on.deployment_status.state
+// and on.workflow_run.conclusion.
 func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
 	var ifExpr string
 	if value, exists := frontmatter["if"]; exists {
@@ -722,6 +754,17 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
 			ifExpr = "(" + ifExpr + ") && (" + stateCondition + ")"
 		} else {
 			ifExpr = stateCondition
+		}
+	}
+
+	// Merge any condition generated from on.workflow_run.conclusion
+	conclusionCondition := extractWorkflowRunConclusionCondition(frontmatter)
+	if conclusionCondition != "" {
+		frontmatterLog.Printf("Merging workflow_run conclusion condition: %s", conclusionCondition)
+		if ifExpr != "" {
+			ifExpr = "(" + ifExpr + ") && (" + conclusionCondition + ")"
+		} else {
+			ifExpr = conclusionCondition
 		}
 	}
 
@@ -779,6 +822,59 @@ func extractDeploymentStatusStateCondition(frontmatter map[string]any) string {
 	// Without the guard, a non-deployment_status event would see the state as
 	// empty/undefined and the entire activation condition would evaluate to false.
 	return "github.event_name != 'deployment_status' || (" + stateExpr + ")"
+}
+
+// extractWorkflowRunConclusionCondition reads on.workflow_run.conclusion and converts it
+// into a GitHub Actions expression string (without ${{ }} wrappers). Returns "" if not set.
+func extractWorkflowRunConclusionCondition(frontmatter map[string]any) string {
+	onValue, ok := frontmatter["on"]
+	if !ok {
+		return ""
+	}
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return ""
+	}
+	wrValue, ok := onMap["workflow_run"]
+	if !ok {
+		return ""
+	}
+	wrMap, ok := wrValue.(map[string]any)
+	if !ok {
+		return ""
+	}
+	conclusionValue, ok := wrMap["conclusion"]
+	if !ok {
+		return ""
+	}
+
+	var conclusions []string
+	switch v := conclusionValue.(type) {
+	case string:
+		conclusions = []string{v}
+	case []any:
+		for _, s := range v {
+			if str, ok := s.(string); ok {
+				conclusions = append(conclusions, str)
+			}
+		}
+	}
+
+	if len(conclusions) == 0 {
+		return ""
+	}
+
+	parts := make([]string, 0, len(conclusions))
+	for _, c := range conclusions {
+		parts = append(parts, "github.event.workflow_run.conclusion == '"+c+"'")
+	}
+	conclusionExpr := strings.Join(parts, " || ")
+
+	// Guard the conclusion check with an event_name test so the condition remains true
+	// when the workflow is triggered by other events (e.g. workflow_dispatch).
+	// Without the guard, a non-workflow_run event would see conclusion as
+	// empty/undefined and the entire activation condition would evaluate to false.
+	return "github.event_name != 'workflow_run' || (" + conclusionExpr + ")"
 }
 
 // extractExpressionFromIfString extracts the expression part from a string that might

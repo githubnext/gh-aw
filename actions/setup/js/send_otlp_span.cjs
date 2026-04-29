@@ -525,6 +525,11 @@ async function sendJobSetupSpan(options = {}) {
   if (deploymentStateSetup) {
     attributes.push(buildAttr("gh-aw.deployment.state", deploymentStateSetup));
   }
+  // Workflow run conclusion: from aw_info or aw_context propagation.
+  const workflowRunConclusionSetup = (typeof awInfo.workflow_run_conclusion === "string" ? awInfo.workflow_run_conclusion : "") || (typeof awInfo.context?.workflow_run_conclusion === "string" ? awInfo.context.workflow_run_conclusion : "");
+  if (workflowRunConclusionSetup) {
+    attributes.push(buildAttr("gh-aw.workflow_run.conclusion", workflowRunConclusionSetup));
+  }
   attributes.push(buildAttr("gh-aw.staged", staged));
   if (itemType) attributes.push(buildAttr("gh-aw.trigger.item_type", itemType));
   if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
@@ -774,6 +779,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     process.env.GH_AW_GITHUB_EVENT_DEPLOYMENT_STATUS_STATE || (typeof awInfo.deployment_state === "string" ? awInfo.deployment_state : "") || (typeof awInfo.context?.deployment_state === "string" ? awInfo.context.deployment_state : "");
   if (deploymentStateConclusion) {
     attributes.push(buildAttr("gh-aw.deployment.state", deploymentStateConclusion));
+  }
+  // Workflow run conclusion: from aw_info or aw_context propagation.
+  const workflowRunConclusionConclusion =
+    (typeof awInfo.workflow_run_conclusion === "string" ? awInfo.workflow_run_conclusion : "") || (typeof awInfo.context?.workflow_run_conclusion === "string" ? awInfo.context.workflow_run_conclusion : "");
+  if (workflowRunConclusionConclusion) {
+    attributes.push(buildAttr("gh-aw.workflow_run.conclusion", workflowRunConclusionConclusion));
   }
   attributes.push(buildAttr("gh-aw.staged", staged));
   if (itemType) attributes.push(buildAttr("gh-aw.trigger.item_type", itemType));

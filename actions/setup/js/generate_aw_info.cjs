@@ -94,6 +94,14 @@ async function main(core, ctx) {
     awInfo.deployment_state = deploymentState;
   }
 
+  // Include workflow_run_conclusion when triggered by a workflow_run event.
+  // This makes the triggering run conclusion available to the agent without requiring it
+  // to read the raw event payload, and is propagated to child workflows via aw_context.
+  const workflowRunConclusion = ctx.payload?.workflow_run?.conclusion;
+  if (workflowRunConclusion && typeof workflowRunConclusion === "string") {
+    awInfo.workflow_run_conclusion = workflowRunConclusion;
+  }
+
   // Include custom token weights when set (engine.token-weights in workflow frontmatter).
   // Deep structure validation is intentionally minimal here: the JSON schema and Go parser
   // already validate the structure at compile time. We only verify the top-level type to
