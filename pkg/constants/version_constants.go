@@ -86,7 +86,7 @@ const DefaultMCPGatewayVersion Version = "v0.3.1"
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.70"
+const DefaultPlaywrightMCPVersion Version = "0.0.71"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.59.1"
