@@ -39,10 +39,7 @@ tools:
     toolsets: [default]
   edit:
   bash:
-    - "find .github/aw .github/agents -type f -name '*.md' | sort"
-    - "wc -l .github/aw/*.md .github/agents/*.md"
-    - "cat .github/aw/*.md"
-    - "cat .github/agents/*.md"
+    - "*"
 
 timeout-minutes: 30
 ---
