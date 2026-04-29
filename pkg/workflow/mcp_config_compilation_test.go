@@ -522,3 +522,108 @@ This workflow tests that agentic-workflows uses the correct container in dev mod
 		})
 	}
 }
+
+// TestNpxCommandAutoContainerization verifies that `command: "npx"` with args is auto-converted to a
+// containerized stdio server without duplicating the command in entrypointArgs.
+// Regression test: the auto-containerization previously prepended the command (e.g. "npx") to
+// entrypointArgs, which caused Docker to run "npx npx @sentry/mcp-server" instead of the correct
+// "npx @sentry/mcp-server", resulting in the MCP server exposing 0 tools.
+func TestNpxCommandAutoContainerization(t *testing.T) {
+	tests := []struct {
+		name         string
+		command      string
+		args         string
+		wantImage    string
+		wantEntry    string
+		wantFirstArg string
+	}{
+		{
+			name:         "npx command with package arg",
+			command:      "npx",
+			args:         `["@sentry/mcp-server@0.33.0"]`,
+			wantImage:    "node:lts-alpine",
+			wantEntry:    "npx",
+			wantFirstArg: "@sentry/mcp-server@0.33.0",
+		},
+		{
+			name:         "npx command with -y flag and package",
+			command:      "npx",
+			args:         `["-y", "@modelcontextprotocol/server-memory"]`,
+			wantImage:    "node:lts-alpine",
+			wantEntry:    "npx",
+			wantFirstArg: "-y",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowContent := `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  my-server:
+    command: "` + tt.command + `"
+    args: ` + tt.args + `
+---
+
+# Test workflow
+`
+			tmpFile, err := os.CreateTemp("", "test-npx-container-*.md")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpFile.Name())
+
+			if _, err := tmpFile.WriteString(workflowContent); err != nil {
+				t.Fatalf("Failed to write workflow content: %v", err)
+			}
+			tmpFile.Close()
+
+			compiler := NewCompiler()
+			compiler.SetSkipValidation(true)
+
+			workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to parse workflow file: %v", err)
+			}
+
+			yamlContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to generate YAML: %v", err)
+			}
+
+			serverIdx := strings.Index(yamlContent, `"my-server"`)
+			if serverIdx == -1 {
+				t.Fatal("Could not find my-server block in generated YAML")
+			}
+			endIdx := min(serverIdx+800, len(yamlContent))
+			serverBlock := yamlContent[serverIdx:endIdx]
+
+			// container must be auto-assigned
+			if !strings.Contains(serverBlock, `"container": "`+tt.wantImage+`"`) {
+				t.Errorf("Expected container=%q in server block; got:\n%s", tt.wantImage, serverBlock)
+			}
+
+			// entrypoint must be the command
+			if !strings.Contains(serverBlock, `"entrypoint": "`+tt.wantEntry+`"`) {
+				t.Errorf("Expected entrypoint=%q in server block; got:\n%s", tt.wantEntry, serverBlock)
+			}
+
+			// entrypointArgs must NOT start with the command itself (no double "npx"/"uvx")
+			badPattern := `"entrypointArgs":\s*\[\s*"` + tt.command + `"`
+			if matched, _ := regexp.MatchString(badPattern, serverBlock); matched {
+				t.Errorf("entrypointArgs must NOT begin with %q (the command is already the entrypoint and must not be duplicated); got:\n%s",
+					tt.command, serverBlock)
+			}
+
+			// entrypointArgs must start with the first actual arg
+			if !strings.Contains(serverBlock, `"`+tt.wantFirstArg+`"`) {
+				t.Errorf("Expected first entrypointArg %q in server block; got:\n%s", tt.wantFirstArg, serverBlock)
+			}
+		})
+	}
+}

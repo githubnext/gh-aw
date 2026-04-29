@@ -26,8 +26,8 @@ engine:
     mkdir -p /tmp/gh-aw/comment-memory;
     HAIKU="CI lights the path\nGreen checks bloom at dawn\nQuiet bots still sing";
     if compgen -G "/tmp/gh-aw/comment-memory/*.md" > /dev/null; then
-    for memory_file in /tmp/gh-aw/comment-memory/*.md; do printf "\n%s\n" "$HAIKU" >>
-    "$memory_file"; done; else printf "%s\n" "$HAIKU" >
+    for memory_file in /tmp/gh-aw/comment-memory/*.md; do printf "\n%b\n" "$HAIKU" >>
+    "$memory_file"; done; else printf "%b\n" "$HAIKU" >
     /tmp/gh-aw/comment-memory/default.md; fi; else safeoutputs noop --message "smoke-ci:
     push event - no PR context, no action needed"; fi'
 tools:

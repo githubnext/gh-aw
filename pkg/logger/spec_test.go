@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -209,6 +210,29 @@ func TestSpec_SlogIntegration_NewSlogLoggerWithHandler(t *testing.T) {
 			slogLogger.Debug("debug message")
 		}, "slog.Logger methods should not panic")
 	})
+}
+
+// TestSpec_ThreadSafety_ConcurrentUse validates the documented thread-safety guarantee.
+// Spec section: "## Features — Thread-safe: Safe for concurrent use"
+func TestSpec_ThreadSafety_ConcurrentUse(t *testing.T) {
+	// Spec: "Thread-safe: Safe for concurrent use"
+	// Spec implementation note: "Thread-safe using sync.Mutex for time tracking"
+	// Running with -race will detect data races if this contract is violated.
+	log := logger.New("spec:concurrent")
+
+	const goroutines = 20
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			log.Printf("concurrent message")
+			log.Print("concurrent print")
+			_ = log.Enabled()
+		}()
+	}
+	wg.Wait()
 }
 
 // TestSpec_DesignDecision_OutputDestination validates that all log output goes to stderr.

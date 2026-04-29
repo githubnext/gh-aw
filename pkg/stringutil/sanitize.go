@@ -166,7 +166,7 @@ func SanitizePythonVariableName(name string) string {
 //
 //	SanitizeToolID("notion-mcp")        // returns "notion"
 //	SanitizeToolID("mcp-notion")        // returns "notion"
-//	SanitizeToolID("some-mcp-server")   // returns "some-server"
+//	SanitizeToolID("some-mcp-server")   // returns "some-mcp-server" (middle occurrence unchanged)
 //	SanitizeToolID("github")            // returns "github" (unchanged)
 //	SanitizeToolID("mcp")               // returns "mcp" (prevents empty result)
 func SanitizeToolID(toolID string) string {

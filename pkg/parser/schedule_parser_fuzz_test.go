@@ -126,6 +126,12 @@ func FuzzScheduleParser(f *testing.F) {
 	f.Add("hourly on weekdays")
 	f.Add("every 2h on weekdays")
 	f.Add("every 2 hours on weekdays")
+	f.Add("every day")
+	f.Add("every day on weekdays")
+	f.Add("every day at 9am")
+	f.Add("every day at 14:30")
+	f.Add("every day at midnight")
+	f.Add("every day at noon")
 
 	// UTC offset schedules
 	f.Add("daily at 02:00 utc+9")
