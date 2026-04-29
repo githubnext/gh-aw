@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var logsCacheLog = logger.New("cli:logs_cache")
@@ -61,6 +64,99 @@ func loadRunSummary(outputDir string, verbose bool) (*RunSummary, bool) {
 	}
 
 	return &summary, true
+}
+
+// parseCleanupCutoff resolves a date string (absolute or relative delta) to a
+// time.Time that can be used as a cutoff for the cache cleanup. Accepts the
+// same formats as --start-date / --end-date (e.g. "-1w", "-30d", "2024-01-01").
+func parseCleanupCutoff(after string) (time.Time, error) {
+	cutoffStr, err := workflow.ResolveRelativeDate(after, time.Now())
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid --after value '%s': %w", after, err)
+	}
+
+	// ResolveRelativeDate returns an RFC3339 timestamp for relative inputs and
+	// the original string for absolute dates.
+	if t, parseErr := time.Parse(time.RFC3339, cutoffStr); parseErr == nil {
+		return t, nil
+	}
+	if t, parseErr := time.Parse("2006-01-02", cutoffStr); parseErr == nil {
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("invalid --after value '%s': could not parse resolved date '%s'", after, cutoffStr)
+}
+
+// cleanupOldRunFolders removes cached run folders from outputDir whose run creation
+// date is before the given cutoff time. Only directories matching the "run-{ID}"
+// naming pattern are considered. The creation date is read from run_summary.json
+// inside each folder; if that file is absent the directory modification time is
+// used as a fallback. Returns the number of folders removed.
+func cleanupOldRunFolders(outputDir string, cutoff time.Time, verbose bool) (int, error) {
+	logsCacheLog.Printf("Cleaning up run folders older than %s in %s", cutoff.Format(time.RFC3339), outputDir)
+
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to read output directory: %w", err)
+	}
+
+	removed := 0
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if !strings.HasPrefix(entry.Name(), "run-") {
+			continue
+		}
+		// Only consider directories whose name is exactly "run-{integer}" to avoid
+		// accidentally deleting unrelated directories like "run-backup" or "run-temp".
+		if _, parseErr := strconv.ParseInt(strings.TrimPrefix(entry.Name(), "run-"), 10, 64); parseErr != nil {
+			logsCacheLog.Printf("Skipping non-run directory: %s", entry.Name())
+			continue
+		}
+
+		runDir := filepath.Join(outputDir, entry.Name())
+
+		// Determine the run date: prefer the GitHub run creation timestamp from
+		// run_summary.json so the cutoff is relative to when the workflow actually
+		// ran, not when we downloaded or processed it.
+		var runDate time.Time
+		summaryPath := filepath.Join(runDir, runSummaryFileName)
+		if data, readErr := os.ReadFile(summaryPath); readErr == nil {
+			var summary RunSummary
+			if jsonErr := json.Unmarshal(data, &summary); jsonErr == nil && !summary.Run.CreatedAt.IsZero() {
+				runDate = summary.Run.CreatedAt
+			}
+		}
+
+		// Fall back to directory modification time when the summary is unavailable.
+		if runDate.IsZero() {
+			info, statErr := entry.Info()
+			if statErr != nil {
+				logsCacheLog.Printf("Failed to stat run directory %s: %v", entry.Name(), statErr)
+				continue
+			}
+			runDate = info.ModTime()
+		}
+
+		if runDate.Before(cutoff) {
+			logsCacheLog.Printf("Removing old run folder: %s (run date: %s, cutoff: %s)", entry.Name(), runDate.Format(time.RFC3339), cutoff.Format(time.RFC3339))
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removing old run folder: %s (run date: %s)", entry.Name(), runDate.Format("2006-01-02"))))
+			}
+			if removeErr := os.RemoveAll(runDir); removeErr != nil {
+				logsCacheLog.Printf("Failed to remove run folder %s: %v", entry.Name(), removeErr)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove old run folder %s: %v", entry.Name(), removeErr)))
+				continue
+			}
+			removed++
+		}
+	}
+
+	logsCacheLog.Printf("Removed %d old run folders (cutoff: %s)", removed, cutoff.Format(time.RFC3339))
+	return removed, nil
 }
 
 // saveRunSummary saves a run summary to disk
