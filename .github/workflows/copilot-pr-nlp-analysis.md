@@ -206,16 +206,42 @@ For each generated chart:
    find /tmp/gh-aw/python/charts/ -maxdepth 1 -ls
    ```
 
-2. **Upload each chart** using the `upload asset` tool
-3. **Collect returned URLs** for embedding in the discussion
+2. **Upload each chart** using the `upload asset` MCP tool (call it directly — do NOT wrap in a shell command or use `$()` to capture the URL)
+
+3. **Record the returned URL** from each upload by writing it to a plain text file in `/tmp/gh-aw/agent/` immediately after the MCP tool returns:
+   - `sentiment_distribution.png` → write URL to `/tmp/gh-aw/agent/url-sentiment-distribution.txt`
+   - `sentiment_timeline.png` → write URL to `/tmp/gh-aw/agent/url-sentiment-timeline.txt`
+   - `topic_frequencies.png` → write URL to `/tmp/gh-aw/agent/url-topic-frequencies.txt`
+   - `topics_wordcloud.png` → write URL to `/tmp/gh-aw/agent/url-topics-wordcloud.txt`
+   - `keyword_trends.png` → write URL to `/tmp/gh-aw/agent/url-keyword-trends.txt`
+
+   For example, after the `upload asset` tool returns `https://github.com/.../chart.png`, write it with:
+   ```bash
+   echo -n "https://github.com/.../chart.png" > /tmp/gh-aw/agent/url-sentiment-distribution.txt
+   ```
+
+   **Do NOT** store URLs in shell variables or use command substitution (`$(...)`) — this triggers the security harness.
 
 ### Phase 6: Create Analysis Discussion
+
+Build the discussion body by reading the URL files saved in Phase 5, then post a comprehensive discussion.
+
+**Before constructing the body**, read the uploaded chart URLs:
+```bash
+SENTIMENT_DIST_URL=$(cat /tmp/gh-aw/agent/url-sentiment-distribution.txt 2>/dev/null || echo "")
+SENTIMENT_TIME_URL=$(cat /tmp/gh-aw/agent/url-sentiment-timeline.txt 2>/dev/null || echo "")
+TOPIC_FREQ_URL=$(cat /tmp/gh-aw/agent/url-topic-frequencies.txt 2>/dev/null || echo "")
+TOPICS_CLOUD_URL=$(cat /tmp/gh-aw/agent/url-topics-wordcloud.txt 2>/dev/null || echo "")
+KEYWORD_TRENDS_URL=$(cat /tmp/gh-aw/agent/url-keyword-trends.txt 2>/dev/null || echo "")
+```
+
+Use a Python script to write the fully-substituted discussion body to `/tmp/gh-aw/agent/discussion_body.md`, inserting the literal URL strings directly (no shell variable expansion in the final body). Then pass the body to the `create_discussion` safe-output tool.
 
 Post a comprehensive discussion with the following structure:
 
 **Title**: `Copilot PR Conversation NLP Analysis - [DATE]`
 
-**Content Template**:
+**Content Template** (substitute `[SENTIMENT_DIST_URL]`, `[SENTIMENT_TIME_URL]`, `[TOPIC_FREQ_URL]`, `[TOPICS_CLOUD_URL]`, and `[KEYWORD_TRENDS_URL]` with the literal URL strings read from the files above):
 ````markdown
 # 🤖 Copilot PR Conversation NLP Analysis - [DATE]
 
@@ -230,7 +256,7 @@ Post a comprehensive discussion with the following structure:
 ## Sentiment Analysis
 
 ### Overall Sentiment Distribution
-![Sentiment Distribution](URL_FROM_UPLOAD_ASSET_sentiment_distribution)
+![Sentiment Distribution]([SENTIMENT_DIST_URL])
 
 **Key Findings**:
 - **Positive messages**: [count] ([percentage]%)
@@ -239,7 +265,7 @@ Post a comprehensive discussion with the following structure:
 - **Average polarity**: [score] on scale of -1 (very negative) to +1 (very positive)
 
 ### Sentiment Over Conversation Timeline
-![Sentiment Timeline](URL_FROM_UPLOAD_ASSET_sentiment_timeline)
+![Sentiment Timeline]([SENTIMENT_TIME_URL])
 
 **Observations**:
 - [e.g., "Conversations typically start neutral and become more positive as issues are resolved"]
@@ -248,7 +274,7 @@ Post a comprehensive discussion with the following structure:
 ## Topic Analysis
 
 ### Identified Discussion Topics
-![Topic Frequencies](URL_FROM_UPLOAD_ASSET_topic_frequencies)
+![Topic Frequencies]([TOPIC_FREQ_URL])
 
 **Major Topics Detected**:
 1. **[Topic 1 Name]** ([count] messages, [percentage]%): [brief description]
@@ -257,12 +283,12 @@ Post a comprehensive discussion with the following structure:
 4. **[Topic 4 Name]** ([count] messages, [percentage]%): [brief description]
 
 ### Topic Word Cloud
-![Topics Word Cloud](URL_FROM_UPLOAD_ASSET_topics_wordcloud)
+![Topics Word Cloud]([TOPICS_CLOUD_URL])
 
 ## Keyword Trends
 
 ### Most Common Keywords and Phrases
-![Keyword Trends](URL_FROM_UPLOAD_ASSET_keyword_trends)
+![Keyword Trends]([KEYWORD_TRENDS_URL])
 
 **Top Recurring Terms**:
 - **Technical**: [list top 5 technical terms]
