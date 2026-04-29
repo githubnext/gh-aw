@@ -27,11 +27,7 @@ func validateMCPMountsSyntax(toolName string, mountsRaw any) error {
 
 	switch v := mountsRaw.(type) {
 	case []any:
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				mounts = append(mounts, s)
-			}
-		}
+		mounts = parseStringSliceAny(v, mcpMountValidationLog)
 	case []string:
 		mounts = v
 	default:

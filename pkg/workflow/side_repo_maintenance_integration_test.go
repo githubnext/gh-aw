@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -306,7 +307,7 @@ safe-outputs:
 			wdl, tmpDir := compileSideRepoWorkflow(t, makeContent(tc.repo))
 			require.NoError(t, GenerateMaintenanceWorkflow(wdl, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, ""))
 
-			slug := sanitizeRepoForFilename(tc.repo)
+			slug := stringutil.SanitizeForFilename(tc.repo)
 			sideFile := filepath.Join(tmpDir, "agentics-maintenance-"+slug+".yml")
 			fileContent, err := os.ReadFile(sideFile)
 			require.NoError(t, err, "side-repo file should exist for %s", tc.repo)

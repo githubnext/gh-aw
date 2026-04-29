@@ -752,16 +752,12 @@ func extractDeploymentStatusStateCondition(frontmatter map[string]any) string {
 		return ""
 	}
 
+	// GitHub Actions allows state as a single string or an array
 	var states []string
-	switch v := stateValue.(type) {
-	case string:
-		states = []string{v}
-	case []any:
-		for _, s := range v {
-			if str, ok := s.(string); ok {
-				states = append(states, str)
-			}
-		}
+	if s, ok := stateValue.(string); ok {
+		states = []string{s}
+	} else {
+		states = parseStringSliceAny(stateValue, nil)
 	}
 
 	if len(states) == 0 {

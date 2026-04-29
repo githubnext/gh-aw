@@ -143,12 +143,7 @@ func parseRolesValue(rolesValue any, fieldName string) []string {
 		return []string{v}
 	case []any:
 		// Array of permission levels
-		var permissions []string
-		for _, item := range v {
-			if str, ok := item.(string); ok {
-				permissions = append(permissions, str)
-			}
-		}
+		permissions := parseStringSliceAny(v, roleLog)
 		roleLog.Printf("Extracted %d roles from '%s' array: %v", len(permissions), fieldName, permissions)
 		return permissions
 	case []string:
@@ -253,11 +248,7 @@ func (c *Compiler) extractRateLimitConfig(frontmatter map[string]any) *RateLimit
 			if eventsValue, ok := v["events"]; ok {
 				switch events := eventsValue.(type) {
 				case []any:
-					for _, item := range events {
-						if str, ok := item.(string); ok {
-							config.Events = append(config.Events, str)
-						}
-					}
+					config.Events = parseStringSliceAny(events, nil)
 				case []string:
 					config.Events = events
 				case string:
@@ -275,11 +266,7 @@ func (c *Compiler) extractRateLimitConfig(frontmatter map[string]any) *RateLimit
 			if ignoredRolesValue, ok := v["ignored-roles"]; ok {
 				switch ignoredRoles := ignoredRolesValue.(type) {
 				case []any:
-					for _, item := range ignoredRoles {
-						if str, ok := item.(string); ok {
-							config.IgnoredRoles = append(config.IgnoredRoles, str)
-						}
-					}
+					config.IgnoredRoles = parseStringSliceAny(ignoredRoles, nil)
 				case []string:
 					config.IgnoredRoles = ignoredRoles
 				case string:

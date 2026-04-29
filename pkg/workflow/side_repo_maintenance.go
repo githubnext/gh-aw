@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 // SideRepoTarget represents a target repository inferred from a checkout block
@@ -65,21 +67,6 @@ func collectSideRepoTargets(workflowDataList []*WorkflowData) []SideRepoTarget {
 	return targets
 }
 
-// sanitizeRepoForFilename converts an "owner/repo" slug into a string safe for
-// use as part of a filename, replacing "/" with "-" and any remaining
-// non-alphanumeric characters (except "-", "_", ".") with "-".
-func sanitizeRepoForFilename(repo string) string {
-	var sb strings.Builder
-	for _, r := range strings.ReplaceAll(repo, "/", "-") {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
-			sb.WriteRune(r)
-		} else {
-			sb.WriteRune('-')
-		}
-	}
-	return sb.String()
-}
-
 // effectiveSideRepoToken returns the GitHub token expression to use for the
 // side-repo maintenance workflow. It prefers the token from the checkout config;
 // when none is set it falls back to a conventional secret name.
@@ -110,7 +97,7 @@ func generateAllSideRepoMaintenanceWorkflows(
 	generatedFiles := make(map[string]bool)
 
 	for _, target := range targets {
-		slug := sanitizeRepoForFilename(target.Repository)
+		slug := stringutil.SanitizeForFilename(target.Repository)
 		filename := "agentics-maintenance-" + slug + ".yml"
 		generatedFiles[filename] = true
 		outPath := filepath.Join(workflowDir, filename)

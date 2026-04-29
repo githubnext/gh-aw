@@ -635,6 +635,21 @@ func TestSanitizeForFilename(t *testing.T) {
 			slug:     "a/b",
 			expected: "a-b",
 		},
+		{
+			name:     "slug with dot and underscore preserved",
+			slug:     "my.org/my_repo",
+			expected: "my.org-my_repo",
+		},
+		{
+			name:     "slug with special characters replaced",
+			slug:     "owner/repo!name",
+			expected: "owner-repo-name",
+		},
+		{
+			name:     "slug with space replaced",
+			slug:     "owner/repo name",
+			expected: "owner-repo-name",
+		},
 	}
 
 	for _, tt := range tests {
