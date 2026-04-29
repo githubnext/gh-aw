@@ -1705,7 +1705,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     expect(global.core.warning).toHaveBeenCalledWith("No base_commit recorded in safe output entry - fallback not possible");
   });
 
-  it("should reuse existing remote branch when preserve-branch-name and reuse-existing-ref are true (force-delete then recreate)", async () => {
+  it("should reuse existing remote branch when preserve-branch-name and recreate-ref are true (force-delete then recreate)", async () => {
     // Simulate the remote branch existing (ls-remote returns content)
     let renameCalled = false;
     global.exec = {
@@ -1726,7 +1726,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     };
 
     const { main } = require("./create_pull_request.cjs");
-    const handler = await main({ preserve_branch_name: true, reuse_existing_ref: true });
+    const handler = await main({ preserve_branch_name: true, recreate_ref: true });
 
     const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
@@ -1743,10 +1743,10 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const warningCalls = global.core.warning.mock.calls.map(call => String(call[0]));
     expect(warningCalls.some(msg => msg.includes("appending random suffix"))).toBe(false);
     // Should have warned about reusing the branch
-    expect(warningCalls.some(msg => msg.includes("reusing it") && msg.includes("reuse-existing-ref"))).toBe(true);
+    expect(warningCalls.some(msg => msg.includes("reusing it") && msg.includes("recreate-ref"))).toBe(true);
   });
 
-  it("should fall back when preserve-branch-name is true but reuse-existing-ref is false and remote branch exists", async () => {
+  it("should fall back when preserve-branch-name is true but recreate-ref is false and remote branch exists", async () => {
     global.exec = {
       exec: vi.fn().mockResolvedValue(0),
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
@@ -1766,12 +1766,12 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     expect(result.success).toBe(false);
     expect(result.error_type).toBe("push_failed");
     expect(result.error).toContain("already exists and preserve-branch-name is enabled");
-    expect(result.error).toContain("reuse-existing-ref");
-    // Should NOT have called deleteRef when reuse-existing-ref is not enabled
+    expect(result.error).toContain("recreate-ref");
+    // Should NOT have called deleteRef when recreate-ref is not enabled
     expect(global.github.rest.git.deleteRef).not.toHaveBeenCalled();
   });
 
-  it("should fall back to issue when deleteRef fails for reuse-existing-ref reuse", async () => {
+  it("should fall back to issue when deleteRef fails for recreate-ref reuse", async () => {
     global.exec = {
       exec: vi.fn().mockResolvedValue(0),
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
@@ -1786,7 +1786,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     global.github.rest.git.deleteRef = vi.fn().mockRejectedValue(Object.assign(new Error("Forbidden"), { status: 403 }));
 
     const { main } = require("./create_pull_request.cjs");
-    const handler = await main({ preserve_branch_name: true, reuse_existing_ref: true, fallback_as_issue: false });
+    const handler = await main({ preserve_branch_name: true, recreate_ref: true, fallback_as_issue: false });
 
     const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 

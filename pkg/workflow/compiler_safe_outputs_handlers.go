@@ -416,7 +416,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_files", c.AllowedFiles).
 			AddStringSlice("excluded_files", c.ExcludedFiles).
 			AddIfTrue("preserve_branch_name", c.PreserveBranchName).
-			AddIfTrue("reuse_existing_ref", c.ReuseExistingRef).
+			AddIfTrue("recreate_ref", c.RecreateRef).
 			AddIfNotEmpty("patch_format", c.PatchFormat).
 			AddIfTrue("staged", c.Staged)
 		return builder.Build()
