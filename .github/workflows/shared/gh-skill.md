@@ -66,6 +66,9 @@ pre-agent-steps:
       GH_AW_SKILL_UPSTREAM: ${{ github.aw.import-inputs.upstream }}
     run: |
       set -euo pipefail
+      echo "::group::gh skill prerequisites"
+      gh --version
+      echo "::endgroup::"
       skills_json="${GH_AW_SKILLS}"
       count=$(echo "$skills_json" | jq 'length')
       if [ "$count" = "0" ]; then
