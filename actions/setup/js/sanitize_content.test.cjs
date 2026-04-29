@@ -306,6 +306,56 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("before <!-- @exploituser payload --> after");
       expect(result).toBe("before  after");
     });
+
+    it("should remove nested comment opener bypass <!-- <!-- --> PAYLOAD -->", () => {
+      // Regression: lazy regex only strips the inner <!-- --> pair, leaving PAYLOAD visible.
+      // Depth-tracking scan must consume all content up to the matching outer -->.
+      const result = sanitizeContent("<!-- <!-- --> PAYLOAD -->");
+      expect(result).toBe("");
+    });
+
+    it("should remove nested comment bypass with surrounding text", () => {
+      const result = sanitizeContent("before <!-- <!-- --> PAYLOAD --> after");
+      expect(result).toBe("before  after");
+    });
+
+    it("should remove deeply nested comment openers", () => {
+      const result = sanitizeContent("<!-- <!-- <!-- --> --> PAYLOAD -->");
+      expect(result).toBe("");
+    });
+
+    it("should remove multiple independent comments leaving surrounding text", () => {
+      const result = sanitizeContent("<!-- a --> text <!-- b --> more");
+      expect(result).toBe("text  more");
+    });
+
+    it("should remove empty comment <!---->", () => {
+      const result = sanitizeContent("before <!----> after");
+      expect(result).toBe("before  after");
+    });
+
+    it("should strip all content after unclosed comment opener", () => {
+      // An opener with no matching closer should consume everything to EOF
+      const result = sanitizeContent("before <!-- no closer");
+      expect(result).toBe("before");
+    });
+
+    it("should remove adjacent comments with no text between them", () => {
+      const result = sanitizeContent("<!--a--><!--b-->text");
+      expect(result).toBe("text");
+    });
+
+    it("should remove nested comment with malformed --!> outer closer", () => {
+      // Outer closer uses --!> form; inner comment has normal --> closer
+      const result = sanitizeContent("<!-- <!-- --> PAYLOAD --!>");
+      expect(result).toBe("");
+    });
+
+    it("should preserve a stray closer --> with no matching opener", () => {
+      // A --> without a preceding <!-- is literal text, not a comment closer
+      const result = sanitizeContent("no opener --> text");
+      expect(result).toBe("no opener --> text");
+    });
   });
 
   describe("markdown link title neutralization", () => {
@@ -2102,6 +2152,16 @@ describe("sanitize_content.cjs", () => {
 
       it("should handle Ukrainian і (U+0456) mapped to Latin i", () => {
         expect(sanitizeContent("\u0456ssue")).toBe("issue");
+      });
+
+      it("should map uppercase Cyrillic Dze Ѕ (U+0405) to Latin S", () => {
+        // Regression for missing uppercase counterpart of U+0455 (ѕ → s)
+        expect(sanitizeContent("PENTE\u0405T-\u0405ECRET-MARKER")).toBe("PENTEST-SECRET-MARKER");
+      });
+
+      it("should map uppercase Cyrillic І (U+0406) to Latin I", () => {
+        // Regression for missing uppercase counterpart of U+0456 (і → i)
+        expect(sanitizeContent("\u0406SSUE")).toBe("ISSUE");
       });
 
       it("should handle Greek Ζ (U+0396) mapped to Latin Z", () => {

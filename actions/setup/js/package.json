@@ -1,7 +1,7 @@
 {
   "devDependencies": {
     "@actions/artifact": "^6.0.0",
-    "@actions/core": "^3.0.0",
+    "@actions/core": "^3.0.1",
     "@actions/exec": "^3.0.0",
     "@actions/github": "^9.1.0",
     "@actions/github-script": "github:actions/github-script#v9.0.0",

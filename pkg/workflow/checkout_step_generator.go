@@ -5,6 +5,20 @@ import (
 	"strings"
 )
 
+// wikiRepository returns the effective repository string for a wiki checkout.
+// GitHub wiki repositories are accessible as "{owner}/{repo}.wiki".
+// When the repository is empty (default current repo), returns "${{ github.repository }}.wiki".
+// If the repository already ends with ".wiki" it is returned unchanged to prevent double-suffixing.
+func wikiRepository(repository string) string {
+	if repository == "" {
+		return "${{ github.repository }}.wiki"
+	}
+	if strings.HasSuffix(repository, ".wiki") {
+		return repository
+	}
+	return repository + ".wiki"
+}
+
 // GenerateCheckoutAppTokenSteps generates GitHub App token minting steps for all
 // checkout entries that use app authentication. Each app-authenticated checkout
 // gets its own minting step with a unique step ID, so the minted token can be
@@ -162,7 +176,10 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 
 	// Apply user overrides (only when NOT in trial mode to avoid conflicts)
 	if !trialMode && override != nil {
-		if override.key.repository != "" {
+		if override.key.wiki {
+			// Wiki checkout: use "{repository}.wiki" as the effective repository.
+			fmt.Fprintf(&sb, "          repository: %s\n", wikiRepository(override.key.repository))
+		} else if override.key.repository != "" {
 			fmt.Fprintf(&sb, "          repository: %s\n", override.key.repository)
 		}
 		if override.ref != "" {
@@ -171,10 +188,14 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		// Determine effective token: github-app-minted token takes precedence
 		effectiveOverrideToken := override.token
 		if override.githubApp != nil {
-			// The default checkout is always at index 0 in the ordered list.
-			// The token is minted in the agent job itself (same-job step reference).
+			// Determine the actual index of the default checkout to reference the correct
+			// app-token step ID. Do not assume it is always at index 0.
+			defaultIdx := 0
+			if idx, ok := cm.index[override.key]; ok {
+				defaultIdx = idx
+			}
 			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-			effectiveOverrideToken = "${{ steps.checkout-app-token-0.outputs.token }}"
+			effectiveOverrideToken = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", defaultIdx)
 		}
 		if effectiveOverrideToken != "" {
 			fmt.Fprintf(&sb, "          token: %s\n", effectiveOverrideToken)
@@ -202,9 +223,8 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	// In trial mode the fetch step is still emitted so the behaviour
 	// mirrors production as closely as possible.
 	if override != nil && len(override.fetchRefs) > 0 {
-		// Default checkout is at index 0 in the ordered list
 		defaultIdx := 0
-		if idx, ok := cm.index[checkoutKey{}]; ok {
+		if idx, ok := cm.index[override.key]; ok {
 			defaultIdx = idx
 		}
 		if fetchStep := generateFetchStepLines(override, defaultIdx); fetchStep != "" {
@@ -230,7 +250,10 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	// Security: always disable credential persistence
 	sb.WriteString("          persist-credentials: false\n")
 
-	if entry.key.repository != "" {
+	if entry.key.wiki {
+		// Wiki checkout: use "{repository}.wiki" as the effective repository.
+		fmt.Fprintf(&sb, "          repository: %s\n", wikiRepository(entry.key.repository))
+	} else if entry.key.repository != "" {
 		fmt.Fprintf(&sb, "          repository: %s\n", entry.key.repository)
 	}
 	if entry.ref != "" {
