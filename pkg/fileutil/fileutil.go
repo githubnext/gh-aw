@@ -128,6 +128,12 @@ func CopyFile(src, dst string) error {
 	defer func() { _ = out.Close() }()
 
 	if _, err = io.Copy(out, in); err != nil {
+		if closeErr := out.Close(); closeErr != nil {
+			log.Printf("Failed to close destination file during cleanup: %s", closeErr)
+		}
+		if removeErr := os.Remove(dst); removeErr != nil {
+			log.Printf("Failed to remove partial destination file during cleanup: %s", removeErr)
+		}
 		return err
 	}
 	log.Printf("File copied successfully: src=%s, dst=%s", src, dst)

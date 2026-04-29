@@ -188,6 +188,31 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 		}
 	}
 
+	// Handle "every day [at HH:MM]" as an alias for a daily schedule.
+	// Examples: "every day" (2 tokens), "every day on weekdays" (4 tokens),
+	// or "every day at 9am" (4+ tokens with "at" at index 2).
+	if p.tokens[1] == "day" || p.tokens[1] == "days" {
+		// len == 2: "every day"; len == 4 with weekdays suffix: "every day on weekdays"
+		if len(p.tokens) == 2 || (len(p.tokens) == 4 && hasWeekdaysSuffix) {
+			// "every day" or "every day on weekdays" — fuzzy daily schedule
+			if hasWeekdaysSuffix {
+				return "FUZZY:DAILY_WEEKDAYS * * *", nil
+			}
+			return "FUZZY:DAILY * * *", nil
+		}
+		// tokens[2] == "at": "every day at HH:MM" — token layout is [every, day, at, time...]
+		if len(p.tokens) > 2 && p.tokens[2] == "at" {
+			// extractTime handles the "at" keyword at index 2 and reads the time token(s) after it
+			timeStr, err := p.extractTime(2)
+			if err != nil {
+				return "", err
+			}
+			min, hr := parseTime(timeStr)
+			return fmt.Sprintf("%s %s * * *", min, hr), nil
+		}
+		return "", errors.New("invalid 'every day' format, use 'every day' or 'every day at HH:MM'")
+	}
+
 	// Fall back to original parsing for "every N minutes" format
 	minTokens := 3
 	if hasWeekdaysSuffix {
