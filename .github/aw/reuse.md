@@ -1,107 +1,39 @@
 ---
-description: Reusability patterns for GitHub Agentic Workflows — shared components, imports, import-schema, and the gh aw add/update lifecycle
+description: Imports, shared components, import-schema, and gh aw add/update for GitHub Agentic Workflows
 ---
 
-# Imports & Reusability Patterns
+# Imports & Reusability
 
-This guide covers how to build modular, reusable agentic workflows using the `imports:` system. Use it when you need to share tool configurations, prompt instructions, MCP servers, or safe-output jobs across multiple workflows.
-
-## Why Reuse?
-
-Duplicating frontmatter across workflows creates maintenance burdens: a change to a shared MCP server config, a common safe-output job, or a standard prompt fragment must be replicated everywhere. Instead, extract the shared piece into a **shared component** (a markdown file under `.github/workflows/shared/`) and `import:` it.
-
-Benefits:
-- **Single source of truth** for tool configs, prompts, and safe-output jobs
-- **Consistent behaviour** — all consumers get the same update when the shared file changes
-- **Smaller individual workflows** — each workflow declares only what makes it unique
-- **Composable** — mix multiple imports to assemble complex behaviour from simple building blocks
+Shared components eliminate duplication of tool configs, prompt instructions, MCP servers, and safe-output jobs across multiple workflows. Each consumer gets updates automatically when the shared file changes.
 
 ---
 
-## Shared Component File Structure
+## Merged Fields
 
-Shared components live in `.github/workflows/shared/` and follow the same markdown-with-frontmatter format as regular workflows. Only certain frontmatter fields are merged when imported:
+Only these frontmatter fields are merged when a file is imported:
 
-| Imported field | Merge behaviour |
+| Field | Merge behaviour |
 |---|---|
-| `tools:` | Deep-merged with importing workflow |
-| `mcp-servers:` | Deep-merged |
-| `safe-outputs:` | Deep-merged |
-| `env:` | Merged; duplicate keys are a compile error |
-| `network:`, `permissions:`, `runtimes:`, `services:`, `cache:`, `features:` | Deep-merged |
+| `tools:`, `mcp-servers:`, `safe-outputs:`, `network:`, `permissions:`, `runtimes:`, `services:`, `cache:`, `features:` | Deep-merged |
+| `env:` | Merged; duplicate keys → compile error |
 | `github-app:`, `on.github-app:` | First-wins across imports |
 | `steps:`, `pre-steps:`, `pre-agent-steps:`, `post-steps:` | Appended in import order |
-| Markdown body | Appended as additional prompt instructions |
+| Markdown body | Appended as prompt instructions |
 
-Fields not in this list (e.g. `on:`, `engine:`, `timeout-minutes:`) are **ignored** in imported files — only the importing workflow controls those.
-
-### Minimal shared component
-
-```markdown
----
-tools:
-  web-fetch:
----
-
-Always cite your sources with a link when using web search results.
-```
-
-### Mixed frontmatter + instructions
-
-```markdown
----
-mcp-servers:
-  tavily:
-    url: "https://mcp.tavily.com/mcp/"
-    env:
-      TAVILY_API_KEY: "${{ secrets.TAVILY_API_KEY }}"
-    allowed:
-      - search
-      - extract
----
-
-<!--
-Tavily Search MCP — provides real-time web search.
-Required secrets: TAVILY_API_KEY
-Usage: imports: [shared/mcp/tavily.md]
--->
-
-When searching the web, prefer Tavily for up-to-date results.
-Summarise sources and include links.
-```
+All other fields (`on:`, `engine:`, `timeout-minutes:`, …) are ignored in imported files.
 
 ---
 
-## The `imports:` Field
-
-Add `imports:` to any workflow's frontmatter to pull in shared components:
+## `imports:` Field
 
 ```yaml
----
-on:
-  issues:
-    types: [opened]
+# String form
 imports:
   - shared/reporting.md
-  - shared/gh.md
   - shared/mcp/tavily.md
----
-```
+  - copilot-setup-steps.yml   # merges copilot-setup-steps job steps
 
-### String form (simple)
-
-```yaml
-imports:
-  - shared/common-tools.md
-  - shared/security-notice.md
-  - copilot-setup-steps.yml    # Special: merges copilot-setup-steps job steps
-```
-
-### Object form with inputs
-
-When a shared component defines an `import-schema:`, pass values with `with:` (or `inputs:`):
-
-```yaml
+# Object form — pass values to import-schema:
 imports:
   - uses: shared/repo-memory-standard.md
     with:
@@ -111,17 +43,17 @@ imports:
     with:
       environment: staging
     env:
-      MY_OVERRIDE: "value"        # Optional: env vars for the import's context
-    checkout: main                # Optional: ref to check out for this import
+      MY_OVERRIDE: "value"   # env vars for the import's context
+    checkout: main            # ref to check out for this import
 ```
 
-`with:` / `inputs:` values are accessible inside the shared file via `${{ github.aw.import-inputs.<name> }}`.
+`with:` values are accessed inside the shared file as `${{ github.aw.import-inputs.<name> }}`.
 
 ---
 
-## The `import-schema:` Field
+## `import-schema:` Field
 
-Define typed parameters that consuming workflows must (or may) provide. Use this when a shared component is parameterised — for example, a repo-memory component where the branch name varies per workflow.
+Declare typed parameters consumers must (or may) supply:
 
 ```yaml
 ---
@@ -138,7 +70,6 @@ import-schema:
     type: choice
     options: [dev, staging, prod]
     required: true
-    description: "Target deployment environment"
 
 tools:
   repo-memory:
@@ -146,53 +77,24 @@ tools:
 ---
 ```
 
-### Supported input types
+### Input types
 
 | Type | Notes |
 |---|---|
 | `string` | Free-form text |
 | `number` | Integer or float |
 | `boolean` | `true` / `false` |
-| `choice` | Enumerated values; must supply `options:` |
+| `choice` | Enumerated; must supply `options:` |
 | `array` | List of values |
-| `object` | One-level sub-fields: `${{ github.aw.import-inputs.<name>.<subkey> }}` |
-
-### Accessing inputs inside the shared file
-
-```yaml
----
-import-schema:
-  model-name:
-    type: string
-    default: "gpt-4o"
-env:
-  SELECTED_MODEL: ${{ github.aw.import-inputs.model-name }}
----
-
-Use the model specified by the importing workflow.
-```
+| `object` | Sub-fields via `${{ github.aw.import-inputs.<name>.<subkey> }}` |
 
 ---
 
 ## Refactoring Patterns
 
-### Pattern 1 — Extract shared tool config
+### 1 — Extract shared MCP server / tool config
 
-**Before** (duplicated in three workflows):
-
-```yaml
-# workflow-a.md, workflow-b.md, workflow-c.md — all repeat:
-tools:
-  web-fetch:
-mcp-servers:
-  tavily:
-    url: "https://mcp.tavily.com/mcp/"
-    env:
-      TAVILY_API_KEY: "${{ secrets.TAVILY_API_KEY }}"
-    allowed: [search, extract]
-```
-
-**After** — extract to `shared/mcp/tavily.md`:
+Create `.github/workflows/shared/mcp/tavily.md`:
 
 ```markdown
 ---
@@ -205,16 +107,14 @@ mcp-servers:
 ---
 ```
 
-Each workflow imports it with a single line:
+Each workflow imports it with one line:
 
 ```yaml
 imports:
   - shared/mcp/tavily.md
 ```
 
-### Pattern 2 — Extract shared prompt instructions
-
-Move boilerplate prompt sections (security notices, output formatting, citation guidelines) into shared instruction files:
+### 2 — Extract shared prompt instructions
 
 ```markdown
 <!-- shared/keep-it-short.md -->
@@ -225,18 +125,7 @@ Keep all output concise. Use bullet points, not paragraphs.
 Never repeat information already visible in the GitHub UI.
 ```
 
-Import alongside other shared files:
-
-```yaml
-imports:
-  - shared/mcp/tavily.md
-  - shared/keep-it-short.md
-  - shared/reporting.md
-```
-
-### Pattern 3 — Parameterise with `import-schema:`
-
-When multiple workflows need the same component but with different values, add `import-schema:` instead of hardcoding:
+### 3 — Parameterise with `import-schema:`
 
 ```markdown
 <!-- shared/jira-mcp.md -->
@@ -256,11 +145,7 @@ mcp-servers:
       JIRA_PROJECT: ${{ github.aw.import-inputs.project-key }}
     allowed: [search_issues, get_issue, list_sprints]
 ---
-
-When referencing Jira issues, always include the issue key and a link.
 ```
-
-Consume it with different project keys per workflow:
 
 ```yaml
 imports:
@@ -269,20 +154,16 @@ imports:
       project-key: "ENG"
 ```
 
-### Pattern 4 — Compose multiple imports
-
-Build complex workflows from focused, single-purpose shared components:
+### 4 — Compose multiple imports
 
 ```yaml
 ---
 on:
-  schedule:
-    - cron: "0 9 * * 1"   # weekly Monday 9am
+  schedule: weekly on monday
 imports:
-  - shared/mcp/tavily.md          # web search
-  - shared/gh.md                  # gh CLI tool
-  - shared/reporting.md           # output formatting rules
-  - shared/repo-memory-standard.md  # (with: branch-name, description)
+  - shared/mcp/tavily.md
+  - shared/gh.md
+  - shared/reporting.md
   - uses: shared/repo-memory-standard.md
     with:
       branch-name: "memory/weekly-research"
@@ -292,9 +173,7 @@ imports:
 Conduct weekly research on ${{ github.repository }} dependencies...
 ```
 
-### Pattern 5 — Shared safe-output jobs
-
-Extract common safe-output job definitions (e.g. a Slack notification job used by multiple workflows) into a shared file:
+### 5 — Shared safe-output job
 
 ```markdown
 <!-- shared/slack-notify.md -->
@@ -303,7 +182,6 @@ import-schema:
   channel:
     type: string
     required: true
-    description: "Slack channel name"
 
 safe-outputs:
   jobs:
@@ -326,11 +204,9 @@ safe-outputs:
             CHANNEL: ${{ github.aw.import-inputs.channel }}
           with:
             script: |
-              // Read and process agent output...
+              // post message to channel
 ---
 ```
-
-Importing workflow:
 
 ```yaml
 imports:
@@ -341,32 +217,17 @@ imports:
 
 ---
 
-## External Imports with `gh aw add` and `gh aw update`
+## External Imports
 
-Shared components can be published and consumed across repositories. The `gh aw add` / `gh aw update` commands manage this lifecycle.
-
-### `gh aw add` — Install a shared component
+### `gh aw add` — Install a remote shared component
 
 ```bash
-gh aw add <workflow-url>
-```
-
-Fetches a remote shared component and stores it under `.github/aw/imports/`. The `source:` field in the downloaded file records the origin for future updates:
-
-```bash
-# Install from a GitHub URL
 gh aw add https://github.com/org/agentics/blob/main/workflows/shared/reporting.md
-
-# MCP equivalent (restricted environments)
-Use the add tool with url: "https://github.com/org/agentics/blob/main/workflows/shared/reporting.md"
 ```
 
-After adding, reference the installed component via its local path in `imports:`:
+Downloaded files are stored under `.github/aw/imports/org/agentics/<sha>/`. Reference them in `imports:` by that local path. The `source:` field in the file tracks the origin for future updates.
 
-```yaml
-imports:
-  - .github/aw/imports/org/agentics/<sha>/workflows_shared_reporting.md
-```
+MCP equivalent: `Use the add tool with url: "<url>"`
 
 ### `gh aw update` — Refresh all external imports
 
@@ -374,47 +235,44 @@ imports:
 gh aw update
 ```
 
-Checks the `source:` field of every file under `.github/aw/imports/` and downloads updates. If a file defines a `redirect:` field, `gh aw update` follows the new location and rewrites `source:` automatically.
+Re-fetches every file under `.github/aw/imports/` using its `source:` field. Follows `redirect:` and rewrites `source:` automatically.
 
-```bash
-# MCP equivalent
-Use the update tool
-```
+MCP equivalent: `Use the update tool`
 
-### Supporting fields for publishable shared components
-
-When creating a shared component that others will import via `gh aw add`:
+### Fields for publishable shared components
 
 ```yaml
 ---
-source: "org/agentics/workflows/shared/my-component.md@main"  # origin tracking
-redirect: "org/agentics/workflows/shared/my-component-v2.md@main"  # forward to new location on update
+source: "org/agentics/workflows/shared/my-component.md@main"
+redirect: "org/agentics/workflows/shared/my-component-v2.md@main"
 resources:
-  - shared/mcp/dependency.md   # co-located files fetched alongside this one
-private: false                 # set true to prevent gh aw add from sharing this file
+  - shared/mcp/dependency.md   # fetched alongside this file
+private: false                 # true → prevent gh aw add from sharing
 import-schema:
   # ...
 ---
 ```
 
-### Recommended directory layout for shared components
+---
+
+## Recommended Directory Layout
 
 ```
 .github/
 └── workflows/
-    ├── my-workflow.md              # Your workflow
-    ├── my-workflow.lock.yml        # Compiled output (auto-generated)
+    ├── my-workflow.md
+    ├── my-workflow.lock.yml        # auto-generated
     └── shared/
-        ├── mcp/                    # MCP server wrappers
+        ├── mcp/
         │   ├── tavily.md
         │   ├── notion.md
         │   └── github-mcp-app.md
-        ├── reporting.md            # Output formatting instructions
-        ├── gh.md                   # gh CLI mcp-script tool
-        ├── keep-it-short.md        # Brevity instructions
-        └── repo-memory-standard.md # Parameterised repo-memory setup
+        ├── reporting.md
+        ├── gh.md
+        ├── keep-it-short.md
+        └── repo-memory-standard.md
 .github/aw/
-└── imports/                        # External imports installed via gh aw add
+└── imports/                        # installed via gh aw add
     └── org/repo/<sha>/
         └── workflows_shared_component.md
 ```
@@ -423,41 +281,18 @@ import-schema:
 
 ## Compile-Time Behaviour
 
-All imports are resolved at **compile time** by default. The compiled `.lock.yml` contains macros that load import content at **runtime** from the checked-out repository files (so edits to shared `.md` files take effect on the next run without recompilation).
-
-### Inlined imports
-
-For workflows that act as **required status checks in repository rulesets**, use `inlined-imports: true` to bundle all imported content at compile time:
-
-```yaml
----
-inlined-imports: true
-imports:
-  - shared/security-notice.md
----
-```
-
-> ⚠️ `inlined-imports: true` cannot be combined with `.github/agents/` file imports.
-
-### Recompile after adding or changing imports
-
-Any change to the `imports:` list in the frontmatter requires recompilation:
-
-```bash
-gh aw compile <workflow-name>
-```
-
-Editing only the *body* of a shared `.md` file (not its frontmatter) takes effect at runtime without recompilation.
+- Imports are resolved at **compile time**; the `.lock.yml` loads shared `.md` bodies at **runtime** — edits to shared files take effect on the next run without recompilation.
+- **`inlined-imports: true`** — bundles all imported content at compile time (required for workflows used as repository ruleset status checks). Cannot be combined with `.github/agents/` file imports.
+- Any change to the `imports:` list in frontmatter requires recompilation: `gh aw compile <workflow-name>`.
+- Editing only the *body* of a shared `.md` file (not its frontmatter) does **not** require recompilation.
 
 ---
 
 ## Quick Checklist: Extracting a Shared Component
 
-Use this when you spot duplication across two or more workflow files:
-
-1. **Identify** the repeated frontmatter block or prompt section
-2. **Create** `.github/workflows/shared/<name>.md` with the extracted content
-3. **Parameterise** with `import-schema:` if values differ per workflow
-4. **Replace** the duplicated block in each workflow with an `imports:` entry
-5. **Recompile** affected workflows: `gh aw compile` (or `gh aw compile <name>`)
-6. **Verify** with `gh aw compile --strict`
+1. Identify the repeated frontmatter block or prompt section
+2. Create `.github/workflows/shared/<name>.md` with the extracted content
+3. Add `import-schema:` if values differ per consuming workflow
+4. Replace the duplicated block in each workflow with an `imports:` entry
+5. Recompile: `gh aw compile` (or `gh aw compile <name>`)
+6. Verify: `gh aw compile --strict`
