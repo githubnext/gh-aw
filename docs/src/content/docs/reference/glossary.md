@@ -157,6 +157,14 @@ Configuration field in the `create-pull-request` safe output specifying which br
 
 A safe output capability for hiding or minimizing GitHub comments without requiring write permissions. When minimized, comments are classified as SPAM. Requires GraphQL node IDs to identify comments. Useful for content moderation workflows.
 
+### Add Labels (`add-labels:`)
+
+A safe output capability for adding labels to issues or pull requests. Supports an `allowed` list to restrict which labels can be applied, and a `blocked` list using glob patterns to reject specific labels regardless of the allow list — providing protection against prompt injection via label manipulation. Accepts `target` (`"triggering"`, `"*"`, or a specific number), a `max` limit (default: 3), and cross-repository configuration via `target-repo`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#add-labels-add-labels).
+
+### Remove Labels (`remove-labels:`)
+
+A safe output capability for removing labels from issues or pull requests. Supports `allowed` to restrict which labels can be removed and `blocked` to prevent removal of labels matching glob patterns. Silently skips labels not present on the target. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#remove-labels-remove-labels).
+
 ### Assign to Agent
 
 A safe output capability (`assign-to-agent:`) that programmatically assigns the GitHub Copilot coding agent to existing issues or pull requests. Automates the standard GitHub workflow for delegating implementation tasks to Copilot. Supports cross-repository PR creation via `pull-request-repo` and agent model selection via `model`. See [Assign to Copilot](/gh-aw/reference/assign-to-copilot/).

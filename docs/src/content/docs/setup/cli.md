@@ -393,6 +393,17 @@ gh aw logs "CI Failure Doctor"             # Display name
 gh aw logs "ci failure doctor"             # Case-insensitive display name
 ```
 
+**`--after` flag (cache cleanup):** Deletes cached run folders in the output directory whose run creation date is older than the specified cutoff. Accepts the same date/time delta formats as `--start-date` and `--end-date` (e.g. `-1d`, `-1w`, `-1mo`) as well as absolute dates (`YYYY-MM-DD`). Cleanup runs before the download step to free disk space first; failures are non-fatal and logged as warnings.
+
+```bash wrap
+gh aw logs --after -1w                        # Clean folders older than 1 week, then download latest runs
+gh aw logs --after -30d                       # Clean folders older than 30 days
+gh aw logs --after 2024-01-01                 # Clean folders from before a specific date
+gh aw logs my-workflow --after -1mo -c 20     # Clean up, then download 20 runs of a specific workflow
+```
+
+Only directories matching the `run-{ID}` naming pattern inside the output directory are considered. The run's creation timestamp is read from `run_summary.json` inside each folder; if that file is absent (e.g., incomplete download), the directory's modification time is used as a fallback.
+
 **`--train` flag:** Trains log template weights from the downloaded runs and writes `drain3_weights.json` to the logs output directory. The trained weights improve anomaly detection accuracy in subsequent `gh aw audit` and `gh aw logs` runs. To embed weights into the binary as defaults, copy the file to `pkg/agentdrain/data/default_weights.json` and rebuild.
 
 ```bash wrap
@@ -400,7 +411,7 @@ gh aw logs --train                    # Train on last 10 runs
 gh aw logs my-workflow --train -c 50  # Train on up to 50 runs of a specific workflow
 ```
 
-**Options:** `--after-run-id`, `--artifacts`, `--before-run-id`, `--count/-c`, `--end-date`, `--engine/-e`, `--filtered-integrity`, `--firewall`, `--format`, `--json/-j`, `--last`, `--no-firewall`, `--no-staged`, `--output/-o`, `--parse`, `--ref`, `--repo/-r`, `--safe-output`, `--start-date`, `--summary-file`, `--timeout`, `--tool-graph`, `--train`
+**Options:** `--after`, `--after-run-id`, `--artifacts`, `--before-run-id`, `--count/-c`, `--end-date`, `--engine/-e`, `--filtered-integrity`, `--firewall`, `--format`, `--json/-j`, `--last`, `--no-firewall`, `--no-staged`, `--output/-o`, `--parse`, `--ref`, `--repo/-r`, `--safe-output`, `--start-date`, `--summary-file`, `--timeout`, `--tool-graph`, `--train`
 
 #### `audit`
 

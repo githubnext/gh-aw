@@ -801,6 +801,26 @@ Based on the parsed requirements, determine:
 2. **Triggers**: Infer appropriate triggers from the description. **Always use `on:` as the YAML key** — never use `triggers:` (that is not a valid frontmatter key and will cause a compile error):
    - Issue automation → `on: issues: types: [opened, edited]` (add `workflow_dispatch:` manually if manual runs needed)
    - PR automation → `on: pull_request: types: [opened, synchronize]` (add `workflow_dispatch:` manually if manual runs needed)
+   - PR automation scoped to specific files → add `paths:` under `pull_request:` to trigger only when matching files change (ideal for backend/QA scenarios such as DB migration review or API contract checks):
+     ```yaml
+     on:
+       pull_request:
+         types: [opened, synchronize]
+         paths:
+           - 'db/migrations/*.sql'
+           - 'schema/**'
+           - 'src/api/**'
+     ```
+     Use `paths-ignore:` instead when you want to trigger on *everything except* certain files (e.g., docs-only changes):
+     ```yaml
+     on:
+       pull_request:
+         types: [opened, synchronize]
+         paths-ignore:
+           - 'docs/**'
+           - '*.md'
+     ```
+     **When to use path filters**: Use `paths:` when the workflow only makes sense for a specific subsystem (e.g., a DB schema reviewer that has no value on frontend-only changes). Use `paths-ignore:` when you want broad coverage but want to skip noise (e.g., documentation-only PRs). Omit both when the workflow should run on every PR regardless of which files changed.
    - Scheduled tasks → `on: schedule: daily on weekdays` (prefer weekdays to avoid Monday backlog - workflow_dispatch auto-added for fuzzy schedules only)
    - **On-demand commands** → use `slash_command` or `label_command` (see [Creating Command Workflows](#creating-command-workflows)):
      - `slash_command` → user types `/command-name` in a comment or body; flexible, works across issues/PRs/discussions
