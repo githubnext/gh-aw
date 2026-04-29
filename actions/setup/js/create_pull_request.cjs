@@ -488,7 +488,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
       const message = err && typeof err === "object" ? String(err.message || "") : "";
       // 422 "Reference does not exist" can happen if the branch was deleted concurrently;
       // treat that as success and continue.
-      if (status === 422 && /reference.*does not exist/i.test(message)) {
+      if (status === 422 && /Reference does not exist/i.test(message)) {
         core.info(`Remote branch ${branchName} was already deleted concurrently; continuing`);
       } else {
         throw new Error(`Failed to delete existing remote branch "${branchName}" for reuse with preserve-branch-name: ${message || String(err)}`);
