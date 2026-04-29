@@ -191,7 +191,7 @@ func TestBuildLogsDataLeavesTemporaryIDMapStatusEmptyWithoutSafeOutputArtifacts(
 	logsData := buildLogsData(processedRuns, tmpDir, nil)
 	require.Len(t, logsData.Runs, 1, "should produce one run")
 
-	assert.Equal(t, "", logsData.Runs[0].TemporaryIDMapStatus, "run should leave temp map status empty when no safe-output artifacts exist")
+	assert.Empty(t, logsData.Runs[0].TemporaryIDMapStatus, "run should leave temp map status empty when no safe-output artifacts exist")
 	assert.Equal(t, 0, logsData.Summary.RunsWithMissingTemporaryIDMap, "summary should not count missing temp maps when no safe-output artifacts exist")
 	assert.Equal(t, 0, logsData.Summary.RunsWithInvalidTemporaryIDMap, "summary should not count invalid temp maps when no safe-output artifacts exist")
 	assert.Equal(t, 0, logsData.Summary.TotalTemporaryIDMappings, "summary should not count temp mappings when no safe-output artifacts exist")
