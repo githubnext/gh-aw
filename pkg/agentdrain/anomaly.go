@@ -16,6 +16,7 @@ type AnomalyDetector struct {
 
 // NewAnomalyDetector creates an AnomalyDetector with the given thresholds.
 func NewAnomalyDetector(simThreshold float64, rareClusterThreshold int) *AnomalyDetector {
+	anomalyLog.Printf("Creating AnomalyDetector: simThreshold=%.2f, rareClusterThreshold=%d", simThreshold, rareClusterThreshold)
 	return &AnomalyDetector{
 		threshold:     simThreshold,
 		rareThreshold: rareClusterThreshold,

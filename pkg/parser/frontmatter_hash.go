@@ -189,6 +189,8 @@ func ComputeFrontmatterHashFromFileWithReader(filePath string, cache *ImportCach
 // computeFrontmatterHashFromContent is the shared core that computes the hash given the
 // already-read file content and pre-parsed frontmatter map (may be nil).
 func computeFrontmatterHashFromContent(content string, parsedFrontmatter map[string]any, filePath string, cache *ImportCache, fileReader FileReader) (string, error) {
+	frontmatterHashLog.Printf("Computing hash from content: filePath=%s, content_size=%d bytes", filePath, len(content))
+
 	// Extract frontmatter and markdown as text (no YAML parsing)
 	frontmatterText, markdown, err := extractFrontmatterAndBodyText(content)
 	if err != nil {
@@ -201,6 +203,7 @@ func computeFrontmatterHashFromContent(content string, parsedFrontmatter map[str
 	// Detect inlined-imports from the pre-parsed frontmatter map.
 	// If nil (parsing failed or not provided), inlined-imports is treated as false.
 	inlinedImports := parseBoolFromFrontmatter(parsedFrontmatter, "inlined-imports")
+	frontmatterHashLog.Printf("Hash strategy: inlined_imports=%v, markdown_size=%d bytes", inlinedImports, len(markdown))
 
 	// When inlined-imports is enabled, the entire markdown body is compiled into the lock
 	// file, so any change to the body must invalidate the hash. Include the full body text.
@@ -220,6 +223,7 @@ func computeFrontmatterHashFromContent(content string, parsedFrontmatter map[str
 // extractRelevantTemplateExpressions extracts template expressions from markdown
 // that reference env. or vars. contexts
 func extractRelevantTemplateExpressions(markdown string) []string {
+	frontmatterHashLog.Printf("Extracting relevant template expressions from markdown: size=%d bytes", len(markdown))
 	var expressions []string
 	seen := make(map[string]bool)
 
@@ -247,6 +251,7 @@ func extractRelevantTemplateExpressions(markdown string) []string {
 
 	// Sort for deterministic output
 	sort.Strings(expressions)
+	frontmatterHashLog.Printf("Found %d relevant template expression(s) referencing env./vars.", len(expressions))
 	return expressions
 }
 
@@ -393,6 +398,8 @@ func processImportsTextBased(frontmatterText, baseDir string, visited map[string
 		return importedFiles, importedFrontmatterTexts, nil
 	}
 
+	frontmatterHashLog.Printf("Processing %d import(s) text-based from baseDir=%s", len(imports), baseDir)
+
 	// Sort imports for deterministic processing
 	sort.Strings(imports)
 
@@ -402,6 +409,7 @@ func processImportsTextBased(frontmatterText, baseDir string, visited map[string
 
 		// Skip if already visited (cycle detection)
 		if visited[fullPath] {
+			frontmatterHashLog.Printf("Skipping already-visited import (cycle detection): %s", fullPath)
 			continue
 		}
 		visited[fullPath] = true
@@ -437,6 +445,7 @@ func processImportsTextBased(frontmatterText, baseDir string, visited map[string
 		importedFrontmatterTexts = append(importedFrontmatterTexts, nestedTexts...)
 	}
 
+	frontmatterHashLog.Printf("Processed imports: found %d imported file(s) from baseDir=%s", len(importedFiles), baseDir)
 	return importedFiles, importedFrontmatterTexts, nil
 }
 
