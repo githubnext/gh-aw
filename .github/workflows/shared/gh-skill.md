@@ -13,7 +13,7 @@
 #     - uses: shared/gh-skill.md
 #       with:
 #         engine: copilot            # optional: copilot (default), claude, codex, gemini, opencode
-#         token: ${{ secrets.MY_TOKEN }}  # optional: defaults to GITHUB_TOKEN
+#         github-token: ${{ secrets.MY_TOKEN }}  # optional: defaults to GITHUB_TOKEN
 #         upstream: false            # optional: pass false to skip --upstream (default: true)
 #         skills:
 #           - github/awesome-copilot/documentation-writer
@@ -36,7 +36,7 @@ import-schema:
       Examples: "github/awesome-copilot", "github/awesome-copilot/documentation-writer",
       "github/awesome-copilot/code-review@v1.2.0"
 
-  token:
+  github-token:
     type: string
     required: false
     description: >
@@ -68,7 +68,7 @@ import-schema:
 pre-agent-steps:
   - name: Install agent skills
     env:
-      GH_TOKEN: ${{ github.aw.import-inputs.token || secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ github.aw.import-inputs.github-token || secrets.GITHUB_TOKEN }}
       GH_AW_SKILLS: ${{ github.aw.import-inputs.skills }}
       GH_AW_SKILL_ENGINE: ${{ github.aw.import-inputs.engine }}
       GH_AW_SKILL_UPSTREAM: ${{ github.aw.import-inputs.upstream }}
@@ -169,7 +169,7 @@ imports:
 |-------|----------|-------------|
 | `skills` | ✅ | List of skills to install (see formats below) |
 | `engine` | No | gh-aw engine name — determines the `--agent` target (default: `copilot`) |
-| `token` | No | GitHub token for downloading skills (default: built-in `GITHUB_TOKEN`) |
+| `github-token` | No | GitHub token for downloading skills (default: built-in `GITHUB_TOKEN`) |
 | `upstream` | No | Pass `false` to skip `--upstream` and use the cached version (default: `true`) |
 
 ### Skill format
@@ -204,7 +204,7 @@ Uses the token provided via the `token` input, falling back to the built-in
 imports:
   - uses: shared/gh-skill.md
     with:
-      token: ${{ secrets.MY_SKILLS_TOKEN }}
+      github-token: ${{ secrets.MY_SKILLS_TOKEN }}
       skills:
         - my-org/private-skills/my-skill
 ```
