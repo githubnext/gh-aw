@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -848,12 +849,7 @@ var validWorkflowRunConclusions = []string{
 
 // isValidWorkflowRunConclusion reports whether v is a recognised conclusion value.
 func isValidWorkflowRunConclusion(v string) bool {
-	for _, valid := range validWorkflowRunConclusions {
-		if v == valid {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(validWorkflowRunConclusions, v)
 }
 
 // extractWorkflowRunConclusionCondition reads on.workflow_run.conclusion and converts it
