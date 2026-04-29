@@ -36,6 +36,7 @@ timeout-minutes: 60
 imports:
   - shared/reporting.md
   - shared/noop-reminder.md
+  - shared/otel.md
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

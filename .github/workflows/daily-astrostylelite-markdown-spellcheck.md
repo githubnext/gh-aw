@@ -259,6 +259,9 @@ tools:
   bash: true
   edit:
 
+imports:
+  - shared/otel.md
+
 ---
 
 # Daily AstroStyleLite Markdown Spellcheck

@@ -241,7 +241,7 @@ Analyze issue and break down into implementation tasks
 - **Claude Code**
 - **OpenAI Codex**
 - **Google Gemini CLI**
-- **Crush** / **OpenCode** — multi-provider AI coding agents (BYOK)
+- **Crush** / **OpenCode** — experimental multi-provider AI coding agents
 
 ```yaml
 engine: copilot  # sensible defaults
@@ -258,7 +258,7 @@ engine: copilot  # sensible defaults
 # GitHub MCP (recommended: use toolsets)
 tools:
   github:
-    toolsets: [default]  # context, repos, issues, pull_requests
+    toolsets: [default]  # context, repos, issues, pull_requests, users
 
 # Custom MCP servers
 mcp-servers:
