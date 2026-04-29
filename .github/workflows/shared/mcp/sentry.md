@@ -20,7 +20,7 @@ mcp-servers:
       - get_doc
     env:
       SENTRY_ACCESS_TOKEN: ${{ secrets.SENTRY_ACCESS_TOKEN }}
-      SENTRY_HOST: ${{ env.SENTRY_HOST || 'https://sentry.io' }} # Optional
+      SENTRY_HOST: ${{ env.SENTRY_HOST || 'sentry.io' }} # Optional - hostname only, not a full URL
       OPENAI_API_KEY: ${{ secrets.SENTRY_OPENAI_API_KEY }} # Optional
 ---
 
