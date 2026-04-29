@@ -435,7 +435,8 @@ async function main(config = {}) {
 
     // Check if item_number or issue_number was explicitly provided in the message.
     // item_number takes precedence over issue_number when both are present.
-    const explicitItemNumber = message.item_number != null ? message.item_number : message.issue_number != null ? message.issue_number : undefined;
+    // pr-number is accepted as an alias for item_number for robustness.
+    const explicitItemNumber = message.item_number ?? message.issue_number ?? message["pr-number"] ?? undefined;
 
     if (explicitItemNumber !== undefined) {
       // Resolve temporary IDs if present

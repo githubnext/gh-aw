@@ -185,6 +185,36 @@ describe("add_comment", () => {
       expect(result.itemNumber).toBe(999);
     });
 
+    it("should accept pr-number as alias for item_number when target is '*'", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let capturedIssueNumber = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedIssueNumber = params.issue_number;
+        return {
+          data: {
+            id: 12345,
+            html_url: `https://github.com/owner/repo/issues/${params.issue_number}#issuecomment-12345`,
+          },
+        };
+      };
+
+      // Execute the handler factory with target: "*"
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: '*' }); })()`);
+
+      const message = {
+        type: "add_comment",
+        "pr-number": 28912,
+        body: "Thanks for the automated bump...",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedIssueNumber).toBe(28912);
+      expect(result.itemNumber).toBe(28912);
+    });
+
     it("should fail when target is '*' but no item_number provided", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 

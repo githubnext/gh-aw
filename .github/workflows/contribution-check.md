@@ -157,7 +157,16 @@ Gather all returned JSON objects. If a subagent call fails, record the PR with v
 
 ### Posting comments
 
-For each PR where the subagent returned a non-empty `comment` field and the quality is NOT `lgtm`, call the `add_comment` safe output tool to post the comment to the PR in the target repository. Pass the PR number and the comment body from the subagent result. The `add_comment` tool is pre-configured with `target-repo` pointing to the target repository — you do NOT need to specify the repo yourself.
+For each PR where the subagent returned a non-empty `comment` field and the quality is NOT `lgtm`, call the `add_comment` safe output tool to post the comment to the PR.
+
+- Use `issue_number` (not `pr-number`) for the PR number field — GitHub treats PRs and issues interchangeably by number.
+- You do NOT need to specify the repo — the `add_comment` tool is pre-configured with `target-repo` pointing to the target repository.
+
+Example:
+
+```json
+{"type":"add_comment","issue_number":18744,"body":"Thanks for the PR! ..."}
+```
 
 Do NOT post comments to PRs with `lgtm` quality — those are ready for maintainer review and don't need additional feedback.
 
