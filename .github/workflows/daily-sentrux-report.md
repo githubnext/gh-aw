@@ -12,6 +12,10 @@ imports:
       title-prefix: "[daily-sentrux] "
       expires: "3d"
   - shared/mcp/sentrux.md
+network:
+  allowed:
+    - defaults
+    - github
 tools:
   bash: true
   cli-proxy: true

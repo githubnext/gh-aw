@@ -1954,12 +1954,11 @@ tools:
 
     # Option 1: A single GitHub MCP server toolset name (shorthand for a one-element
     # array)
-    toolsets: "all"
 
     # Option 2: Array of GitHub MCP server toolset names to enable specific groups of
     # GitHub API functionalities
-    toolsets: [default]
-      # Array items: Toolset name
+    toolsets: []
+      # Array items: undefined
 
     # Volume mounts for the containerized GitHub MCP server (format:
     # 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write).
