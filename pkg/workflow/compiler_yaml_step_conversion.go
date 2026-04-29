@@ -2,9 +2,12 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
+	"os"
 	"slices"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
@@ -100,11 +103,22 @@ func unquoteUsesWithComments(yamlStr string) string {
 }
 
 // renderStepFromMap renders a GitHub Actions step from a map to YAML
-func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any, data *WorkflowData, indent string) {
+func (c *Compiler) renderStepFromMap(out *strings.Builder, step map[string]any, data *WorkflowData, indent string) {
+	// Before rendering, extract any ${{ ... }} expressions from the run: field into
+	// env: variables to prevent shell injection attacks.  A compiler warning is emitted
+	// for every expression that is moved so that authors know their script was changed.
+	if sanitized, warnings, changed := sanitizeRunStepExpressions(step); changed {
+		for _, w := range warnings {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+			c.IncrementWarningCount()
+		}
+		step = sanitized
+	}
+
 	stepName, _ := step["name"].(string)
 	stepConversionLog.Printf("Rendering step from map: name=%q, fields=%d", stepName, len(step))
 	// Start the step with a dash
-	yaml.WriteString(indent + "- ")
+	out.WriteString(indent + "- ")
 
 	// Track if we've written the first line
 	firstField := true
@@ -116,7 +130,7 @@ func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any,
 		if value, exists := step[field]; exists {
 			// Add proper indentation for non-first fields
 			if !firstField {
-				yaml.WriteString(indent + "  ")
+				out.WriteString(indent + "  ")
 			}
 			firstField = false
 
@@ -125,22 +139,22 @@ func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any,
 			case string:
 				// Handle multi-line strings (especially for 'run' field)
 				if field == "run" && strings.Contains(v, "\n") {
-					fmt.Fprintf(yaml, "%s: |\n", field)
+					fmt.Fprintf(out, "%s: |\n", field)
 					lines := strings.SplitSeq(v, "\n")
 					for line := range lines {
-						fmt.Fprintf(yaml, "%s    %s\n", indent, line)
+						fmt.Fprintf(out, "%s    %s\n", indent, line)
 					}
 				} else {
-					fmt.Fprintf(yaml, "%s: %s\n", field, v)
+					fmt.Fprintf(out, "%s: %s\n", field, v)
 				}
 			case map[string]any:
-				// For complex fields like "with" or "env"
-				fmt.Fprintf(yaml, "%s:\n", field)
-				for key, val := range v {
-					fmt.Fprintf(yaml, "%s    %s: %v\n", indent, key, val)
+				// For complex fields like "with" or "env" — sort keys for stable output.
+				fmt.Fprintf(out, "%s:\n", field)
+				for _, key := range slices.Sorted(maps.Keys(v)) {
+					fmt.Fprintf(out, "%s    %s: %v\n", indent, key, v[key])
 				}
 			default:
-				fmt.Fprintf(yaml, "%s: %v\n", field, v)
+				fmt.Fprintf(out, "%s: %v\n", field, v)
 			}
 		}
 	}
@@ -154,7 +168,7 @@ func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any,
 		}
 
 		if !firstField {
-			yaml.WriteString(indent + "  ")
+			out.WriteString(indent + "  ")
 		}
 		firstField = false
 
@@ -162,21 +176,22 @@ func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any,
 		case string:
 			// Handle multi-line strings
 			if strings.Contains(v, "\n") {
-				fmt.Fprintf(yaml, "%s: |\n", field)
+				fmt.Fprintf(out, "%s: |\n", field)
 				lines := strings.SplitSeq(v, "\n")
 				for line := range lines {
-					fmt.Fprintf(yaml, "%s    %s\n", indent, line)
+					fmt.Fprintf(out, "%s    %s\n", indent, line)
 				}
 			} else {
-				fmt.Fprintf(yaml, "%s: %s\n", field, v)
+				fmt.Fprintf(out, "%s: %s\n", field, v)
 			}
 		case map[string]any:
-			fmt.Fprintf(yaml, "%s:\n", field)
-			for key, val := range v {
-				fmt.Fprintf(yaml, "%s    %s: %v\n", indent, key, val)
+			// Sort keys for stable output.
+			fmt.Fprintf(out, "%s:\n", field)
+			for _, key := range slices.Sorted(maps.Keys(v)) {
+				fmt.Fprintf(out, "%s    %s: %v\n", indent, key, v[key])
 			}
 		default:
-			fmt.Fprintf(yaml, "%s: %v\n", field, v)
+			fmt.Fprintf(out, "%s: %v\n", field, v)
 		}
 	}
 }

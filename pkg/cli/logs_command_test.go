@@ -73,6 +73,10 @@ func TestNewLogsCommand(t *testing.T) {
 	// Check repo flag
 	repoFlag := flags.Lookup("repo")
 	assert.NotNil(t, repoFlag, "Should have 'repo' flag")
+
+	// Check after flag (cache maintenance)
+	afterFlag := flags.Lookup("after")
+	assert.NotNil(t, afterFlag, "Should have 'after' flag")
 }
 
 func TestLogsCommandFlagDefaults(t *testing.T) {

@@ -626,6 +626,10 @@ Pattern for processing large volumes of work items efficiently using chunked pag
 
 A [MultiRepoOps](#multirepoops) deployment variant where a single private repository acts as a control plane for coordinating large-scale operations across many repositories. Enables consistent rollouts, policy updates, and centralized tracking using cross-repository safe outputs and secure authentication. See [CentralRepoOps](/gh-aw/patterns/central-repo-ops/).
 
+### CorrectionOps
+
+Pattern for improving workflows from trusted human corrections without retraining the underlying model. CorrectionOps stores predictions, compares them with later authoritative human decisions, and uses grouped diffs to update instructions, routing, thresholds, or rollout policy. See [CorrectionOps](/gh-aw/patterns/correction-ops/).
+
 ### ChatOps
 
 Interactive automation triggered by slash commands (`/review`, `/deploy`) in issues and pull requests, enabling human-in-the-loop automation where developers invoke AI assistance on demand. See [ChatOps](/gh-aw/patterns/chat-ops/).

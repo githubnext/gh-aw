@@ -284,6 +284,7 @@ export default defineConfig({
 					items: [
 						{ label: 'BatchOps', link: '/patterns/batch-ops/' },
 						{ label: 'CentralRepoOps', link: '/patterns/central-repo-ops/' },
+						{ label: 'CorrectionOps', link: '/patterns/correction-ops/' },
 						{ label: 'ChatOps', link: '/patterns/chat-ops/' },
 						{ label: 'DailyOps', link: '/patterns/daily-ops/' },
 						{ label: 'DataOps', link: '/patterns/data-ops/' },
