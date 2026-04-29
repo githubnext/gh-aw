@@ -35,8 +35,8 @@ func getMaxConcurrentDownloads() int {
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool, train bool, format string, artifactSets []string) error {
-	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, train=%v, format=%s, artifactSets=%v", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, train, format, artifactSets)
+func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool, train bool, format string, artifactSets []string, after string) error {
+	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, train=%v, format=%s, artifactSets=%v, after=%s", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, train, format, artifactSets, after)
 
 	// Validate and resolve artifact sets into a concrete filter (list of artifact base names).
 	if err := ValidateArtifactSets(artifactSets); err != nil {
@@ -65,6 +65,30 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
 		return ctx.Err()
 	default:
+	}
+
+	// Clean up cached run folders older than the --after cutoff, if specified.
+	// Runs after the context check so a cancelled context never triggers disk scanning.
+	if after != "" {
+		cutoff, parseErr := parseCleanupCutoff(after)
+		if parseErr != nil {
+			return parseErr
+		}
+		logsOrchestratorLog.Printf("Cleaning up run folders older than %s (cutoff: %s)", after, cutoff.Format(time.RFC3339))
+		removed, cleanErr := cleanupOldRunFolders(outputDir, cutoff, verbose)
+		if cleanErr != nil {
+			// Non-fatal: log but continue with download
+			logsOrchestratorLog.Printf("Failed to clean up old run folders: %v", cleanErr)
+			if !jsonOutput {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up old run folders: %v", cleanErr)))
+			}
+		} else if removed > 0 {
+			if !jsonOutput {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed %d cached run folder(s) older than %s", removed, after)))
+			}
+		} else if verbose && !jsonOutput {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No cached run folders older than %s found", after)))
+		}
 	}
 
 	if verbose {

@@ -96,7 +96,13 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs my-workflow --train -c 50 # Train log pattern weights from up to 50 runs of a specific workflow
 
   # Cross-repository
-  ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
+  ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --repo owner/repo  # Download logs from specific repository
+
+  # Cache maintenance
+  ` + string(constants.CLIExtensionPrefix) + ` logs --after -1w                # Delete cached run folders older than 1 week
+  ` + string(constants.CLIExtensionPrefix) + ` logs --after -30d               # Delete cached run folders older than 30 days
+  ` + string(constants.CLIExtensionPrefix) + ` logs --after -1mo               # Delete cached run folders older than 1 month
+  ` + string(constants.CLIExtensionPrefix) + ` logs --after 2024-01-01         # Delete cached run folders from before 2024-01-01`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logsCommandLog.Printf("Starting logs command: args=%d", len(args))
 
@@ -155,6 +161,7 @@ Examples:
 			train, _ := cmd.Flags().GetBool("train")
 			format, _ := cmd.Flags().GetString("format")
 			artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
+			after, _ := cmd.Flags().GetString("after")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -187,9 +194,9 @@ Examples:
 				}
 			}
 
-			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v", workflowName, count, engine, train)
+			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v, after=%s", workflowName, count, engine, train, after)
 
-			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, summaryFile, safeOutputType, filteredIntegrity, train, format, artifacts)
+			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, summaryFile, safeOutputType, filteredIntegrity, train, format, artifacts, after)
 		},
 	}
 
@@ -217,6 +224,7 @@ Examples:
 	logsCmd.Flags().String("format", "", "Output format for cross-run audit report: pretty, markdown (generates security audit report instead of default metrics table)")
 	logsCmd.Flags().Int("last", 0, "Alias for --count: number of recent runs to download")
 	logsCmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
+	logsCmd.Flags().String("after", "", "Delete cached run folders older than this date (YYYY-MM-DD or delta like -1d, -1w, -1mo). Runs are compared by their creation date.")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 
 	// Register completions for logs command

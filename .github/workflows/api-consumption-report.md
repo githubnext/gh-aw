@@ -12,6 +12,7 @@ permissions:
 tracker-id: api-consumption-report-daily
 engine: claude
 tools:
+  cache-memory: true
   cli-proxy: true
   agentic-workflows:
   timeout: 300

@@ -189,15 +189,14 @@ func RenderJSONMCPConfig(
 			fmt.Fprintf(&configBuilder, ",\n              \"keepaliveInterval\": %d", options.GatewayConfig.KeepaliveInterval)
 		}
 		// When OTLP tracing is configured, add the opentelemetry section directly to the
-		// gateway config. The endpoint is written as a literal value (including GitHub Actions
-		// expressions such as ${{ secrets.X }} which GH Actions expands at runtime).
-		// Headers are emitted as a JSON string via ${OTEL_EXPORTER_OTLP_HEADERS}, which bash
-		// expands at runtime from the job-level env var injected by injectOTLPConfig.
-		// traceId and spanId use ${VARIABLE_NAME} expressions expanded by bash from GITHUB_ENV.
+		// gateway config. The endpoint is passed via the OTEL_EXPORTER_OTLP_ENDPOINT env var
+		// (injected by injectOTLPConfig) so that secrets are never interpolated directly into
+		// the run block (RGS-008 compliance). All four fields use ${VARIABLE_NAME} expressions
+		// expanded by bash from workflow-level env vars.
 		// Per MCP Gateway Specification §4.1.3.6 and the opentelemetryConfig schema.
 		if options.GatewayConfig.OTLPEndpoint != "" {
 			configBuilder.WriteString(",\n              \"opentelemetry\": {\n")
-			fmt.Fprintf(&configBuilder, "                \"endpoint\": %q,\n", options.GatewayConfig.OTLPEndpoint)
+			configBuilder.WriteString("                \"endpoint\": \"${OTEL_EXPORTER_OTLP_ENDPOINT}\",\n")
 			if options.GatewayConfig.OTLPHeaders != "" {
 				// Pass the headers string through as-is; the gateway schema requires a string value.
 				configBuilder.WriteString("                \"headers\": \"${OTEL_EXPORTER_OTLP_HEADERS}\",\n")
