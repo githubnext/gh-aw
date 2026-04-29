@@ -671,13 +671,33 @@ func (c *Compiler) buildWorkflowContextEnvVars(data *WorkflowData) []string {
 	}
 }
 
-// buildResultsParsingScriptRequire creates the parsing script that requires the .cjs module
+// buildResultsParsingScriptRequire creates the parsing script that requires the .cjs module.
+// The generated code wraps the require() and main() calls in a try/catch so that module load
+// failures (e.g. parse_threat_detection_results.cjs not found, setup_globals.cjs missing) still
+// set the detection_* outputs to a safe "warning" state instead of leaving them unset.  Unset
+// outputs would cause downstream conditions that reference steps.detection_conclusion.outputs.*
+// to evaluate to empty strings and could silently bypass the detection gate.
 func (c *Compiler) buildResultsParsingScriptRequire() string {
-	// Build a simple require statement that calls the main function
-	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
-setupGlobals(core, github, context, exec, io, getOctokit);
-const { main } = require('` + SetupActionDestination + `/parse_threat_detection_results.cjs');
-await main();`
+	script := `try {
+  const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
+  setupGlobals(core, github, context, exec, io, getOctokit);
+  const { main } = require('` + SetupActionDestination + `/parse_threat_detection_results.cjs');
+  await main();
+} catch (loadErr) {
+  const continueOnError = process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR !== 'false';
+  const msg = 'ERR_SYSTEM: \u274C Unexpected error loading threat detection module: ' + (loadErr && loadErr.message ? loadErr.message : String(loadErr));
+  core.error(msg);
+  core.setOutput('reason', 'parse_error');
+  if (continueOnError) {
+    core.warning('\u26A0\uFE0F ' + msg);
+    core.setOutput('conclusion', 'warning');
+    core.setOutput('success', 'false');
+  } else {
+    core.setOutput('conclusion', 'failure');
+    core.setOutput('success', 'false');
+    core.setFailed(msg);
+  }
+}`
 
 	return script
 }

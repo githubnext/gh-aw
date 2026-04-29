@@ -286,16 +286,17 @@ async function main() {
   }
 
   // Top-level try/catch ensures outputs are always set and the step never throws
-  // unexpectedly. Any unanticipated runtime error (e.g. missing module, I/O error
-  // outside the guarded paths) is caught here and surfaced as a parse_error warning
-  // (in warn mode) or failure (in strict mode). This is a defence-in-depth measure
-  // complementing the continue-on-error: true that is set on the parse step in warn mode.
+  // unexpectedly. Any unanticipated runtime error (e.g. I/O error outside the guarded
+  // paths) is caught here and surfaced as a parse_error warning (in warn mode) or
+  // failure (in strict mode). This is a defence-in-depth measure complementing the
+  // continue-on-error: true that is set on the parse step in warn mode, and the
+  // try/catch wrapper in the generated github-script that handles module load failures.
   try {
     await runMain();
   } catch (/** @type {any} */ unexpectedError) {
     const errorMsg = getErrorMessage(unexpectedError);
     core.error(`❌ Unexpected error in threat detection parse: ${errorMsg}`);
-    setDetectionFailure("unexpected_error", `${ERR_SYSTEM}: ❌ Unexpected error in threat detection parse: ${errorMsg}`);
+    setDetectionFailure("parse_error", `${ERR_SYSTEM}: ❌ Unexpected error in threat detection parse: ${errorMsg}`);
   }
 
   /**
