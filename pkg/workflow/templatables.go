@@ -253,6 +253,38 @@ func preprocessIntFieldAsString(configData map[string]any, fieldName string, log
 	return nil
 }
 
+// preprocessStringArrayFieldAsTemplatable handles a string-array config field that also
+// accepts a GitHub Actions expression string (e.g. "${{ inputs.labels }}").
+//
+// When the field value is an expression string it is wrapped in a single-element []string
+// so that existing YAML struct-unmarshal code (which expects []string) continues to work
+// unchanged.  The handler config builder then detects this single-element expression slice
+// and stores it as a JSON string rather than a JSON array, allowing GitHub Actions to
+// evaluate the expression at runtime before the config.json file is written.
+//
+// Free-form strings that are not GitHub Actions expressions are rejected with an error.
+// Array values ([]string, []any) are left untouched for the normal YAML unmarshal path.
+func preprocessStringArrayFieldAsTemplatable(configData map[string]any, fieldName string, log *logger.Logger) error {
+	if configData == nil {
+		return nil
+	}
+	if val, exists := configData[fieldName]; exists {
+		if s, ok := val.(string); ok {
+			if !isExpression(s) {
+				return fmt.Errorf("field %q must be an array of strings or a GitHub Actions expression (e.g. '${{ inputs.%s }}'), got string %q", fieldName, fieldName, s)
+			}
+			// Wrap the expression in a single-element slice so the []string struct field
+			// can receive it after YAML marshaling/unmarshaling.
+			configData[fieldName] = []string{s}
+			if log != nil {
+				log.Printf("Wrapped %s expression string in single-element array before unmarshaling", fieldName)
+			}
+		}
+		// Arrays ([]string, []any) are left unchanged for YAML unmarshal to handle.
+	}
+	return nil
+}
+
 // buildTemplatableIntEnvVar returns a YAML environment variable entry for a
 // templatable integer field. If value is a GitHub Actions expression it is
 // embedded unquoted so that GitHub Actions can evaluate it at runtime;

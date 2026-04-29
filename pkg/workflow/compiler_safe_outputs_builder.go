@@ -40,6 +40,29 @@ func (b *handlerConfigBuilder) AddStringSlice(key string, value []string) *handl
 	return b
 }
 
+// AddTemplatableStringSlice adds a string slice field that may contain a GitHub Actions
+// expression.  When the slice has exactly one element and that element is a GitHub Actions
+// expression (as produced by preprocessStringArrayFieldAsTemplatable or
+// ParseStringArrayOrExprFromConfig), the expression string is stored as a plain JSON string
+// rather than a JSON array.  This allows GitHub Actions to evaluate the expression at
+// runtime when the config.json file is written via heredoc expansion.
+//
+// For all other non-empty slices the field is stored as a JSON array, matching the
+// behaviour of AddStringSlice.
+func (b *handlerConfigBuilder) AddTemplatableStringSlice(key string, value []string) *handlerConfigBuilder {
+	if len(value) == 0 {
+		return b
+	}
+	// A single-element expression slice is the canonical representation produced by
+	// preprocessing – store as a string so GitHub Actions evaluates it at runtime.
+	if len(value) == 1 && isExpression(value[0]) {
+		b.config[key] = value[0]
+		return b
+	}
+	b.config[key] = value
+	return b
+}
+
 // AddBoolPtr adds a boolean pointer field only if the pointer is not nil
 func (b *handlerConfigBuilder) AddBoolPtr(key string, value *bool) *handlerConfigBuilder {
 	if value != nil {

@@ -500,11 +500,33 @@ func TestMainWorkflowSchema_CreatePullRequestAllowedBaseBranches(t *testing.T) {
 		t.Fatal("'allowed-base-branches' not found under safe-outputs.create-pull-request")
 	}
 
-	if gotType, _ := allowedBaseBranches["type"].(string); gotType != "array" {
-		t.Fatalf("'allowed-base-branches' should be type array, got: %v", allowedBaseBranches["type"])
+	// The field accepts either a literal array or an expression string (oneOf).
+	// Validate that the array variant is present and has the right structure.
+	var arraySchema map[string]any
+	if oneOf, hasOneOf := allowedBaseBranches["oneOf"].([]any); hasOneOf {
+		// New schema: oneOf[array, string-expression]
+		for _, candidate := range oneOf {
+			candidateMap, ok := candidate.(map[string]any)
+			if !ok {
+				continue
+			}
+			if t2, _ := candidateMap["type"].(string); t2 == "array" {
+				arraySchema = candidateMap
+				break
+			}
+		}
+		if arraySchema == nil {
+			t.Fatal("'allowed-base-branches' oneOf does not include an array variant")
+		}
+	} else {
+		// Legacy schema: direct type:array
+		if gotType, _ := allowedBaseBranches["type"].(string); gotType != "array" {
+			t.Fatalf("'allowed-base-branches' should be type array (or oneOf with array), got: %v", allowedBaseBranches["type"])
+		}
+		arraySchema = allowedBaseBranches
 	}
 
-	items, ok := allowedBaseBranches["items"].(map[string]any)
+	items, ok := arraySchema["items"].(map[string]any)
 	if !ok {
 		t.Fatal("'allowed-base-branches.items' not found in schema")
 	}

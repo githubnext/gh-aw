@@ -553,7 +553,7 @@
                         {
                           "type": "array",
                           "minItems": 1,
-                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
+                          "description": "Array of label names — any of these labels will trigger the workflow.",
                           "items": {
                             "type": "string",
                             "minLength": 1,
@@ -574,7 +574,7 @@
                         {
                           "type": "array",
                           "minItems": 1,
-                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
+                          "description": "Array of label names — any of these labels will trigger the workflow.",
                           "items": {
                             "type": "string",
                             "minLength": 1,
@@ -1725,7 +1725,7 @@
               "oneOf": [
                 {
                   "type": "null",
-                  "description": "Bare key with no value \u2014 equivalent to true. Skips workflow execution if any CI checks on the target branch are currently failing."
+                  "description": "Bare key with no value — equivalent to true. Skips workflow execution if any CI checks on the target branch are currently failing."
                 },
                 {
                   "type": "boolean",
@@ -1799,12 +1799,12 @@
               "description": "Skip workflow execution for specific GitHub users. Useful for preventing workflows from running for specific accounts (e.g., bots, specific team members)."
             },
             "roles": {
-              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
+              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
               "oneOf": [
                 {
                   "type": "string",
                   "enum": ["admin", "maintainer", "maintain", "write", "triage", "read", "all"],
-                  "description": "Single repository permission level that can trigger the workflow. Use 'all' to allow any authenticated user (\u26a0\ufe0f disables permission checking entirely - use with caution)"
+                  "description": "Single repository permission level that can trigger the workflow. Use 'all' to allow any authenticated user (⚠️ disables permission checking entirely - use with caution)"
                 },
                 {
                   "type": "array",
@@ -1829,7 +1829,7 @@
               }
             },
             "labels": {
-              "description": "Filter workflows triggered by pull_request_target (or other labeled events) to only fire when the triggering label matches one of these names. Generates a job-level if: condition on the pre-activation job so unmatched label events show as Skipped (\u2298) rather than Failed (\u274c).",
+              "description": "Filter workflows triggered by pull_request_target (or other labeled events) to only fire when the triggering label matches one of these names. Generates a job-level if: condition on the pre-activation job so unmatched label events show as Skipped (⊘) rather than Failed (❌).",
               "oneOf": [
                 {
                   "$ref": "#/$defs/non_empty_string",
@@ -1896,7 +1896,22 @@
               ],
               "default": "eyes",
               "description": "AI reaction to add/remove on triggering item. Scalar form accepts one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none. Object form implies enabled reactions and supports optional `issues`, `pull-requests`, and `discussions` fields to control trigger groups independently; use `type` to choose the reaction emoji (defaults to `eyes` when omitted). Use 'none' to disable reactions.",
-              "examples": ["eyes", "rocket", "+1", 1, -1, "none", { "type": "rocket", "pull-requests": false }, { "issues": false, "discussions": true }]
+              "examples": [
+                "eyes",
+                "rocket",
+                "+1",
+                1,
+                -1,
+                "none",
+                {
+                  "type": "rocket",
+                  "pull-requests": false
+                },
+                {
+                  "issues": false,
+                  "discussions": true
+                }
+              ]
             },
             "status-comment": {
               "oneOf": [
@@ -1923,7 +1938,24 @@
                 }
               ],
               "description": "Whether to post status comments (started/completed) on the triggering item. Boolean form enables/disables status comments globally. Object form implies enabled status comments and supports optional `issues`, `pull-requests`, and `discussions` fields to control trigger groups independently. Automatically enabled for slash_command and label_command triggers when not explicitly configured.",
-              "examples": [true, false, { "issues": false }, { "pull-requests": false }, { "discussions": false }, { "issues": false, "pull-requests": true, "discussions": true }]
+              "examples": [
+                true,
+                false,
+                {
+                  "issues": false
+                },
+                {
+                  "pull-requests": false
+                },
+                {
+                  "discussions": false
+                },
+                {
+                  "issues": false,
+                  "pull-requests": true,
+                  "discussions": true
+                }
+              ]
             },
             "github-token": {
               "type": "string",
@@ -2918,7 +2950,7 @@
     },
     "network": {
       "$comment": "Strict mode requirements: When strict=true, the 'network' field must be present (not null/undefined) and cannot contain standalone wildcard '*' in allowed domains (but patterns like '*.example.com' ARE allowed). This is validated in Go code (pkg/workflow/strict_mode_validation.go) via validateStrictNetwork().",
-      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' \u2014 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
+      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' — 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
       "examples": [
         "defaults",
         {
@@ -3400,7 +3432,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -5663,11 +5695,20 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository comments. Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "List of additional repositories in format 'owner/repo' that comments can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the comment in. The target repository (current or target-repo) is always implicitly allowed."
+                  "description": "List of additional repositories in format 'owner/repo' that comments can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the comment in. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs.allowed-repos }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of repository slugs in 'owner/repo' format",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "description": "Comma-separated list of repository slugs or a GitHub Actions expression resolving to such a list (e.g. '${{ inputs.allowed-repos }}')"
+                    }
+                  ]
                 },
                 "hide-older-comments": {
                   "type": "boolean",
@@ -5753,11 +5794,20 @@
                   "description": "Optional prefix for the pull request title"
                 },
                 "labels": {
-                  "type": "array",
-                  "description": "Optional list of labels to attach to the pull request",
-                  "items": {
-                    "type": "string"
-                  }
+                  "description": "Optional list of labels to attach to the pull request. Accepts an array of label names or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs.labels }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of label names",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "description": "Comma-separated list of label names or a GitHub Actions expression resolving to such a list (e.g. '${{ inputs.labels }}')"
+                    }
+                  ]
                 },
                 "allowed-labels": {
                   "type": "array",
@@ -5844,11 +5894,20 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository pull request creation. Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "List of additional repositories in format 'owner/repo' that pull requests can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the pull request in. The target repository (current or target-repo) is always implicitly allowed."
+                  "description": "List of additional repositories in format 'owner/repo' that pull requests can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the pull request in. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs.allowed-repos }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of repository slugs in 'owner/repo' format",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "description": "Comma-separated list of repository slugs or a GitHub Actions expression resolving to such a list (e.g. '${{ inputs.allowed-repos }}')"
+                    }
+                  ]
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -5879,11 +5938,20 @@
                   "description": "Base branch for the pull request. Defaults to the workflow's branch (github.ref_name) if not specified. Useful for cross-repository PRs targeting non-default branches (e.g., 'vnext', 'release/v1.0')."
                 },
                 "allowed-base-branches": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "Optional list of allowed base branch patterns (glob syntax, e.g. 'main', 'release/*'). When configured, the agent may provide a `base` field in create_pull_request output to override base-branch for a single run, but only if it matches one of these patterns."
+                  "description": "Optional list of allowed base branch patterns (glob syntax, e.g. 'main', 'release/*'). When configured, the agent may provide a `base` field in create_pull_request output to override base-branch for a single run, but only if it matches one of these patterns. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs.allowed-base-branches }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of base branch patterns (glob syntax supported)",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "description": "Comma-separated list of base branch patterns or a GitHub Actions expression resolving to such a list (e.g. '${{ inputs.allowed-base-branches }}')"
+                    }
+                  ]
                 },
                 "footer": {
                   "type": "boolean",
@@ -5927,7 +5995,9 @@
                         },
                         "exclude": {
                           "type": "array",
-                          "items": { "type": "string" },
+                          "items": {
+                            "type": "string"
+                          },
                           "description": "List of filenames or path prefixes to remove from the default protected-file set. Items are matched by basename (e.g. \"AGENTS.md\") or path prefix (e.g. \".agents/\"). Use this to allow the agent to modify specific files that are otherwise blocked by default.",
                           "examples": [["AGENTS.md"], ["AGENTS.md", ".agents/"]]
                         }
@@ -5943,7 +6013,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern \u2014 files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "preserve-branch-name": {
                   "type": "boolean",
@@ -6208,7 +6278,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for resolving review threads on pull requests. Resolution is scoped to the triggering PR only \u2014 threads on other PRs cannot be resolved.",
+              "description": "Configuration for resolving review threads on pull requests. Resolution is scoped to the triggering PR only — threads on other PRs cannot be resolved.",
               "properties": {
                 "max": {
                   "description": "Maximum number of review threads to resolve (default: 10) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
@@ -7154,11 +7224,20 @@
                   "description": "Required prefix for pull request title. Only pull requests with this prefix will be accepted."
                 },
                 "labels": {
-                  "type": "array",
-                  "description": "Required labels for pull request validation. Only pull requests with all these labels will be accepted.",
-                  "items": {
-                    "type": "string"
-                  }
+                  "description": "Required labels for pull request validation. Only pull requests with all these labels will be accepted. Accepts an array of label names or a GitHub Actions expression resolving to a comma-separated list of labels (e.g. '${{ inputs.required-labels }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of label names",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "description": "Comma-separated list of label names or a GitHub Actions expression resolving to such a list (e.g. '${{ inputs.required-labels }}')"
+                    }
+                  ]
                 },
                 "if-no-changes": {
                   "type": "string",
@@ -7197,11 +7276,20 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository push to pull request branch. Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed."
+                  "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs.allowed-repos }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of repository slugs in 'owner/repo' format",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "description": "Comma-separated list of repository slugs or a GitHub Actions expression resolving to such a list (e.g. '${{ inputs.allowed-repos }}')"
+                    }
+                  ]
                 },
                 "protected-files": {
                   "oneOf": [
@@ -7222,7 +7310,9 @@
                         },
                         "exclude": {
                           "type": "array",
-                          "items": { "type": "string" },
+                          "items": {
+                            "type": "string"
+                          },
                           "description": "List of filenames or path prefixes to remove from the default protected-file set. Items are matched by basename (e.g. \"AGENTS.md\") or path prefix (e.g. \".agents/\"). Use this to allow the agent to modify specific files that are otherwise blocked by default.",
                           "examples": [["AGENTS.md"], ["AGENTS.md", ".agents/"]]
                         }
@@ -7238,7 +7328,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern \u2014 files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "excluded-files": {
                   "type": "array",
@@ -8244,7 +8334,7 @@
         },
         "scripts": {
           "type": "object",
-          "description": "Inline JavaScript script handlers that run inside the consolidated safe-outputs job handler loop. Unlike 'jobs' (which create separate GitHub Actions jobs), scripts execute in-process alongside the built-in handlers. Users write only the body of the main function \u2014 the compiler wraps it with 'async function main(config = {}) { ... }' and 'module.exports = { main };' automatically. Script names containing dashes will be automatically normalized to underscores (e.g., 'post-slack-message' becomes 'post_slack_message').",
+          "description": "Inline JavaScript script handlers that run inside the consolidated safe-outputs job handler loop. Unlike 'jobs' (which create separate GitHub Actions jobs), scripts execute in-process alongside the built-in handlers. Users write only the body of the main function — the compiler wraps it with 'async function main(config = {}) { ... }' and 'module.exports = { main };' automatically. Script names containing dashes will be automatically normalized to underscores (e.g., 'post-slack-message' becomes 'post_slack_message').",
           "patternProperties": {
             "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
               "type": "object",
@@ -8302,7 +8392,7 @@
                 },
                 "script": {
                   "type": "string",
-                  "description": "JavaScript handler body. Write only the code that runs inside the handler for each item \u2014 the compiler generates the full outer wrapper including config input destructuring (`const { channel, message } = config;`) and the handler function (`return async function handleX(item, resolvedTemporaryIds) { ... }`). The body has access to `item` (runtime message with input values), `resolvedTemporaryIds` (map of temporary IDs), and config-destructured local variables for each declared input."
+                  "description": "JavaScript handler body. Write only the code that runs inside the handler for each item — the compiler generates the full outer wrapper including config input destructuring (`const { channel, message } = config;`) and the handler function (`return async function handleX(item, resolvedTemporaryIds) { ... }`). The body has access to `item` (runtime message with input values), `resolvedTemporaryIds` (map of temporary IDs), and config-destructured local variables for each declared input."
                 }
               },
               "required": ["script"],
@@ -8337,8 +8427,8 @@
             },
             "staged-title": {
               "type": "string",
-              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
-              "examples": ["\ud83c\udfad Preview: {operation}", "## Staged Mode: {operation}"]
+              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '🎭 Preview: {operation}'",
+              "examples": ["🎭 Preview: {operation}", "## Staged Mode: {operation}"]
             },
             "staged-description": {
               "type": "string",
@@ -8352,18 +8442,18 @@
             },
             "run-success": {
               "type": "string",
-              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
-              "examples": ["\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.", "\u2705 [{workflow_name}]({run_url}) finished."]
+              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic [{workflow_name}]({run_url}) completed successfully.'",
+              "examples": ["✅ Agentic [{workflow_name}]({run_url}) completed successfully.", "✅ [{workflow_name}]({run_url}) finished."]
             },
             "run-failure": {
               "type": "string",
-              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
-              "examples": ["\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "\u274c [{workflow_name}]({run_url}) {status}."]
+              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
+              "examples": ["❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "❌ [{workflow_name}]({run_url}) {status}."]
             },
             "detection-failure": {
               "type": "string",
-              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
-              "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
+              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
+              "examples": ["⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "⚠️ Detection job failed in [{workflow_name}]({run_url})."]
             },
             "agent-failure-issue": {
               "type": "string",
@@ -9135,7 +9225,7 @@
             },
             "github-token": {
               "type": "string",
-              "description": "GitHub token expression to authenticate APM with private package repositories. Uses cascading fallback (GH_AW_PLUGINS_TOKEN \u2192 GH_AW_GITHUB_TOKEN \u2192 GITHUB_TOKEN) when not specified. Takes effect unless github-app is also configured (which takes precedence).",
+              "description": "GitHub token expression to authenticate APM with private package repositories. Uses cascading fallback (GH_AW_PLUGINS_TOKEN → GH_AW_GITHUB_TOKEN → GITHUB_TOKEN) when not specified. Takes effect unless github-app is also configured (which takes precedence).",
               "examples": ["${{ secrets.MY_TOKEN }}", "${{ secrets.GH_AW_GITHUB_TOKEN }}"]
             }
           },
@@ -9915,7 +10005,7 @@
             },
             "auth": {
               "type": "array",
-              "description": "Authentication bindings \u2014 maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
+              "description": "Authentication bindings — maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
               "items": {
                 "type": "object",
                 "properties": {
