@@ -43,7 +43,7 @@ steps:
       ls .github/workflows/*.md 2>/dev/null > /tmp/gh-aw/agent/workflow-list.txt || true
       echo "Inventory complete: $(wc -l < /tmp/gh-aw/agent/workflow-list.txt | tr -d ' ') workflows found"
 pre-agent-steps:
-  - name: load-metrics
+  - name: Load Metrics
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
