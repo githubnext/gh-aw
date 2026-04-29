@@ -597,7 +597,7 @@ The Copilot coding agent will:
 For each issue you assign, use the `add_comment` tool from the `safeoutputs` MCP server to add a comment:
 
 ```
-safeoutputs/add_comment(item_number=<issue_number>, body="🍪 **Issue Monster selected this for Copilot!**\n\nI've identified this issue as a good candidate for automated resolution and requested assignment to the Copilot coding agent.\n\nIf assignment succeeds, the Copilot coding agent will analyze the issue and create a pull request with the fix.\n\nOm nom nom! 🍪")
+safeoutputs/add_comment(item_number=<issue_number>, body="🍪 **Issue Monster selected this for Copilot**\n\nI've identified this issue as a good candidate for automated resolution and requested assignment to the Copilot coding agent.\n\nIf assignment succeeds, the Copilot coding agent will analyze the issue and create a pull request with the fix.\n\nOm nom nom! 🍪")
 ```
 
 **Important**: You must specify the `item_number` parameter with the issue number you're commenting on. This workflow runs on a schedule without a triggering issue, so the target must be explicitly specified.
