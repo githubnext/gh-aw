@@ -113,17 +113,29 @@ Review code on demand.
 			}
 
 			oldStderr := os.Stderr
-			r, w, _ := os.Pipe()
+			r, w, pipeErr := os.Pipe()
+			if pipeErr != nil {
+				t.Fatal(pipeErr)
+			}
 			os.Stderr = w
+			t.Cleanup(func() {
+				os.Stderr = oldStderr
+				_ = w.Close()
+				_ = r.Close()
+			})
 
 			compiler := NewCompiler()
 			compiler.SetStrictMode(false)
 			err := compiler.CompileWorkflow(testFile)
 
-			w.Close()
+			if err := w.Close(); err != nil {
+				t.Fatal(err)
+			}
 			os.Stderr = oldStderr
 			var buf bytes.Buffer
-			io.Copy(&buf, r)
+			if _, err := io.Copy(&buf, r); err != nil {
+				t.Fatal(err)
+			}
 			stderrOutput := buf.String()
 
 			if err != nil {
