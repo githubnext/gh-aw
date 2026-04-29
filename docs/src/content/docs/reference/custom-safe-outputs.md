@@ -333,6 +333,50 @@ steps:
 
 The `inputs:` schema serves as both the MCP tool definition visible to the agent and validation for the output fields written to `GH_AW_AGENT_OUTPUT`.
 
+#### Handling Large Content Fields
+
+When a field value exceeds approximately **16,000 tokens** (roughly 64,000 characters), the framework automatically saves the content to a temporary file instead of inlining it. The field in `GH_AW_AGENT_OUTPUT` is replaced with a file reference marker:
+
+```
+[Content too large, saved to file: <sha256hash>.json]
+```
+
+The file is written to `/tmp/gh-aw/safeoutputs/<sha256hash>.json`. Custom safe-output jobs that accept large text fields (such as wiki pages, changelogs, or generated reports) must handle this pattern:
+
+```javascript title="actions/github-script step"
+const fs = require('fs');
+const path = require('path');
+
+const outputFile = process.env.GH_AW_AGENT_OUTPUT;
+const agentOutput = JSON.parse(fs.readFileSync(outputFile, 'utf8'));
+const items = agentOutput.items.filter(item => item.type === 'publish_wiki');
+
+for (const item of items) {
+  let body = item.body;
+
+  // Resolve large-content file references written by the safe-outputs framework
+  const LARGE_CONTENT_PREFIX = '[Content too large, saved to file: ';
+  if (typeof body === 'string' && body.startsWith(LARGE_CONTENT_PREFIX) && body.endsWith(']')) {
+    const filename = body.slice(LARGE_CONTENT_PREFIX.length, -1);
+    const contentPath = path.join('/tmp/gh-aw/safeoutputs', filename);
+    if (!fs.existsSync(contentPath)) {
+      core.setFailed(`Large-content file not found: ${contentPath}`);
+      return;
+    }
+    body = fs.readFileSync(contentPath, 'utf8');
+    core.info(`Resolved body from large-content file (${body.length} bytes)`);
+  }
+
+  // Use body for your downstream operation ...
+}
+```
+
+> [!NOTE]
+> The large-content file uses the SHA-256 hash of the original content as its filename, so identical content always resolves to the same file within the same workflow run.
+
+> [!TIP]
+> To avoid triggering the large-content threshold entirely, consider having the agent write the content to a file path first (for example `/tmp/gh-aw/agent/output.md`) and passing only the file path as the safe-output field value. The custom job then reads the file directly. This keeps all intermediate content in the agent workspace rather than in the safe-outputs pipeline.
+
 ## Inline Script Handlers (`safe-outputs.scripts`)
 
 Use `safe-outputs.scripts` to define lightweight inline JavaScript handlers that execute inside the consolidated safe-outputs job handler loop. Unlike `jobs` (which create a separate GitHub Actions job for each tool call), scripts run in-process alongside the built-in safe-output handlers — there is no extra job allocation or startup overhead.
@@ -512,6 +556,7 @@ When `GH_AW_SAFE_OUTPUTS_STAGED === 'true'`, skip the real operation and display
 | Secrets not available | Check secret exists in repository settings and name matches exactly (case-sensitive) |
 | Job fails silently | Add `core.info()` logging and ensure `core.setFailed()` is called on errors |
 | Agent calls wrong tool | Make `description` specific and unique; explicitly mention job name in prompt |
+| Field value is `[Content too large, saved to file: ...]` instead of the expected text | The content exceeded the inline size limit and was saved to `/tmp/gh-aw/safeoutputs/<hash>.json`. See [Handling Large Content Fields](#handling-large-content-fields) for the resolution pattern. |
 
 ## Related Documentation
 
