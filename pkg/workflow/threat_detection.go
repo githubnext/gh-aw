@@ -384,13 +384,25 @@ func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
 		"      - name: Parse and conclude threat detection\n",
 		"        id: detection_conclusion\n",
 		"        if: always()\n",
+	}
+	// In warn mode (continue-on-error: true), add continue-on-error to the parse step so that
+	// an unexpected exception in the parse script never causes the detection job to fail. The
+	// script already handles all expected error cases via setDetectionFailure(), but adding
+	// continue-on-error here as a defence-in-depth measure prevents the detection job from
+	// blocking safe_outputs due to an unanticipated runtime error in the parse step.
+	// In strict mode (continue-on-error: false), we intentionally leave this off so that
+	// a parse failure in strict mode keeps the detection job result as failure.
+	if continueOnError {
+		steps = append(steps, "        continue-on-error: true\n")
+	}
+	steps = append(steps, []string{
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 		"          RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}\n",
 		fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %q\n", strconv.FormatBool(continueOnError)),
 		"        with:\n",
 		"          script: |\n",
-	}
+	}...)
 
 	script := c.buildResultsParsingScriptRequire()
 	formattedScript := FormatJavaScriptForYAML(script)
@@ -659,13 +671,33 @@ func (c *Compiler) buildWorkflowContextEnvVars(data *WorkflowData) []string {
 	}
 }
 
-// buildResultsParsingScriptRequire creates the parsing script that requires the .cjs module
+// buildResultsParsingScriptRequire creates the parsing script that requires the .cjs module.
+// The generated code wraps the require() and main() calls in a try/catch so that module load
+// failures (e.g. parse_threat_detection_results.cjs not found, setup_globals.cjs missing) still
+// set the detection_* outputs to a safe "warning" state instead of leaving them unset.  Unset
+// outputs would cause downstream conditions that reference steps.detection_conclusion.outputs.*
+// to evaluate to empty strings and could silently bypass the detection gate.
 func (c *Compiler) buildResultsParsingScriptRequire() string {
-	// Build a simple require statement that calls the main function
-	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
-setupGlobals(core, github, context, exec, io, getOctokit);
-const { main } = require('` + SetupActionDestination + `/parse_threat_detection_results.cjs');
-await main();`
+	script := `try {
+  const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
+  setupGlobals(core, github, context, exec, io, getOctokit);
+  const { main } = require('` + SetupActionDestination + `/parse_threat_detection_results.cjs');
+  await main();
+} catch (loadErr) {
+  const continueOnError = process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR !== 'false';
+  const msg = 'ERR_SYSTEM: \u274C Unexpected error loading threat detection module: ' + (loadErr && loadErr.message ? loadErr.message : String(loadErr));
+  core.error(msg);
+  core.setOutput('reason', 'parse_error');
+  if (continueOnError) {
+    core.warning('\u26A0\uFE0F ' + msg);
+    core.setOutput('conclusion', 'warning');
+    core.setOutput('success', 'false');
+  } else {
+    core.setOutput('conclusion', 'failure');
+    core.setOutput('success', 'false');
+    core.setFailed(msg);
+  }
+}`
 
 	return script
 }

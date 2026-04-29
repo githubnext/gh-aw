@@ -1293,16 +1293,33 @@ jobs:
       - name: Parse and conclude threat detection
         id: detection_conclusion
         if: always()
+        continue-on-error: true
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_threat_detection_results.cjs');
-            await main();
+            try {
+              const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+              setupGlobals(core, github, context, exec, io, getOctokit);
+              const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_threat_detection_results.cjs');
+              await main();
+            } catch (loadErr) {
+              const continueOnError = process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR !== 'false';
+              const msg = 'ERR_SYSTEM: \u274C Unexpected error loading threat detection module: ' + (loadErr && loadErr.message ? loadErr.message : String(loadErr));
+              core.error(msg);
+              core.setOutput('reason', 'parse_error');
+              if (continueOnError) {
+                core.warning('\u26A0\uFE0F ' + msg);
+                core.setOutput('conclusion', 'warning');
+                core.setOutput('success', 'false');
+              } else {
+                core.setOutput('conclusion', 'failure');
+                core.setOutput('success', 'false');
+                core.setFailed(msg);
+              }
+            }
 
   safe_outputs:
     needs:

@@ -422,6 +422,11 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 						if renderer.RequiresCopilotFields {
 							// For Copilot, replace all template expressions with \${VAR} syntax
 							envValue = ReplaceTemplateExpressionsWithEnvVars(envValue)
+						} else {
+							// For non-Copilot engines, replace secrets with ${VAR} bash expansion
+							// so they are never directly interpolated in the run block (RGS-008).
+							// The env vars are injected into the step env block by collectMCPEnvironmentVariables.
+							envValue = ReplaceSecretsWithBashVars(envValue)
 						}
 						fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, envKey, envValue, envComma)
 					}
