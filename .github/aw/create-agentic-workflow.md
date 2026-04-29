@@ -666,28 +666,7 @@ This gives users the choice of triggering via comment (`/deploy`) or via label, 
 
 ## Creating Monitoring Workflows
 
-Monitoring workflows react automatically to pipeline events. The primary trigger for **GitHub Actions-internal** monitoring is `workflow_run`. Use it when you want to detect failures in another workflow in the same repository and take action — for example, posting a comment, opening an issue, or sending a notification. This is the recommended pattern for **DevOps monitoring** scenarios such as CI/CD failure detection.
-
-> **`deployment_status` vs `workflow_run`**: Use `deployment_status` for **external deployment services** (Heroku, Vercel, Railway, Fly.io, etc.) that post status back to GitHub via the Deployments API. Use `workflow_run` for **GitHub Actions-internal** pipelines. See reference: @.github/aw/deployment-status.md for the `deployment_status` pattern.
-
-### workflow_run: React to CI/CD pipeline results
-
-`workflow_run` fires whenever a named workflow completes (or starts). Use `on.workflow_run.conclusion` in the frontmatter to filter by result — the compiler automatically converts it into a job `if` condition so the agent only runs when the conclusion matches.
-
-**Key context variables available in the prompt:**
-
-| Expression | Description |
-|---|---|
-| `${{ github.event.workflow_run.conclusion }}` | Final result: `success`, `failure`, `cancelled`, `skipped`, `timed_out` |
-| `${{ github.event.workflow_run.name }}` | Name of the workflow that ran |
-| `${{ github.event.workflow_run.id }}` | Run ID (use with `gh run view`) |
-| `${{ github.event.workflow_run.html_url }}` | Direct link to the run |
-| `${{ github.event.workflow_run.head_branch }}` | Branch the run was triggered on |
-| `${{ github.event.workflow_run.head_commit.message }}` | Commit message of the triggering commit |
-
-**Example 1 — Notify on CI failure (minimal, no pre-steps):**
-
-This is the simplest monitoring workflow. It activates whenever the "CI" workflow completes with a failure and posts a comment on the triggering PR. The `conclusion: failure` filter is compiled into a job `if` condition automatically — no need to write it yourself.
+Use `workflow_run` to react to CI/CD pipelines in the same repository. Set `on.workflow_run.conclusion` to filter by result — the compiler converts it into a job `if` condition automatically.
 
 ```aw wrap
 ---
@@ -695,7 +674,7 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
-    conclusion: failure
+    conclusion: failure          # or: [failure, timed_out]
 permissions:
   contents: read
 tools:
@@ -708,104 +687,12 @@ safe-outputs:
 
 The CI workflow failed for branch `${{ github.event.workflow_run.head_branch }}`.
 
-Run details:
-- **Run ID**: ${{ github.event.workflow_run.id }}
-- **Conclusion**: ${{ github.event.workflow_run.conclusion }}
-- **Link**: ${{ github.event.workflow_run.html_url }}
-
 Use the GitHub MCP tools to find the open pull request for branch `${{ github.event.workflow_run.head_branch }}`. Post a concise comment on that PR summarising the failure and suggesting next steps for the author.
-```
-
-**Example 2 — Fetch CI logs, diagnose root cause, and notify (with pre-steps):**
-
-This pattern fetches the workflow logs before the agent runs, keeping the agent focused on analysis rather than API calls. Suitable for DevOps teams that need actionable failure summaries with root-cause analysis.
-
-```aw wrap
----
-on:
-  workflow_run:
-    workflows: ["CI", "Deploy"]
-    types: [completed]
-    conclusion: failure
-permissions:
-  contents: read
-  actions: read        # required to download workflow run logs
-tools:
-  github:
-    toolsets: [default]
-  cache-memory: true   # deduplication: skip already-diagnosed run IDs
-steps:
-  - name: Fetch failed run logs
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      RUN_ID: ${{ github.event.workflow_run.id }}
-    run: |
-      mkdir -p /tmp/gh-aw/agent
-      gh run view "$RUN_ID" --log-failed > /tmp/gh-aw/agent/ci-logs.txt 2>&1 || true
-      tail -500 /tmp/gh-aw/agent/ci-logs.txt > /tmp/gh-aw/agent/ci-logs-trimmed.txt
-safe-outputs:
-  add-comment:
-    max: 1
----
-
-The `${{ github.event.workflow_run.name }}` workflow failed on branch `${{ github.event.workflow_run.head_branch }}`.
-
-**Run details:**
-- Run ID: ${{ github.event.workflow_run.id }}
-- Link: ${{ github.event.workflow_run.html_url }}
-- Commit: ${{ github.event.workflow_run.head_commit.message }}
-
-**Instructions:**
-
-1. Check `/tmp/gh-aw/cache-memory/seen-runs.json` (a JSON array of run ID strings, e.g. `["12345","67890"]`). If `${{ github.event.workflow_run.id }}` is already listed, stop — this run was already processed.
-
-2. Read `/tmp/gh-aw/agent/ci-logs-trimmed.txt` and identify the root cause of the failure.
-
-3. Use GitHub MCP tools to find the open pull request for branch `${{ github.event.workflow_run.head_branch }}`.
-
-4. Post a comment on that PR with:
-   - A one-sentence summary of what failed
-   - The likely root cause
-   - Suggested next steps for the author
-   - A link to the failed run: ${{ github.event.workflow_run.html_url }}
-
-5. Append `${{ github.event.workflow_run.id }}` to `/tmp/gh-aw/cache-memory/seen-runs.json` so this run is not re-processed on retries.
-```
-
-**`on.workflow_run.conclusion` filter:**
-
-The `conclusion` field accepts a single value or a list. It is compiled into a job `if` condition automatically (no manual `if:` needed):
-
-```yaml
-# Single conclusion
-on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    conclusion: failure
-
-# Multiple conclusions
-on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    conclusion: [failure, timed_out]
 ```
 
 Valid conclusion values: `success`, `failure`, `cancelled`, `skipped`, `timed_out`, `action_required`, `neutral`, `stale`.
 
-**When to use `workflow_run` for monitoring:**
-
-- ✅ Monitoring GitHub Actions CI pipelines (test, lint, build workflows)
-- ✅ Monitoring deploy workflows that run inside GitHub Actions
-- ✅ Alerting on `timed_out` or `cancelled` runs in addition to `failure`
-- ✅ Creating issues or posting comments automatically on pipeline failure
-- ⚠️ Only works for workflows in the **same repository**
-- ❌ Not suitable for external deployment services — use `deployment_status` instead
-
-**Guiding the user when they ask for DevOps monitoring:**
-
-When a user asks for "notify me when my pipeline fails", "alert on CI failures", "deployment failure notification", or similar — default to this `workflow_run` pattern. Ask which workflow(s) to monitor (the `workflows:` list) and whether they want log-based root-cause analysis (Example 2) or a lightweight notification (Example 1).
+> ⚠️ `workflow_run` only works for workflows in the **same repository**. Use `deployment_status` for external deployment services.
 
 ## Best Practices
 
