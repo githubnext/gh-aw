@@ -128,6 +128,21 @@ func ReplaceSecretsWithEnvVars(value string, secrets map[string]string) string {
 	return result
 }
 
+// ReplaceSecretsWithBashVars replaces secret expressions in a value with bash env var references.
+// Example: "${{ secrets.DD_API_KEY }}" -> "${DD_API_KEY}"
+// Unlike ReplaceSecretsWithEnvVars, this does NOT add a backslash prefix, so bash expands
+// the variable at runtime. Used for non-Copilot MCP server env blocks where the step env block
+// already holds the corresponding env vars (injected by collectMCPEnvironmentVariables),
+// preventing direct secret interpolation in run blocks (RGS-008 compliance).
+func ReplaceSecretsWithBashVars(value string) string {
+	result := value
+	secrets := ExtractSecretsFromValue(value)
+	for varName, secretExpr := range secrets {
+		result = strings.ReplaceAll(result, secretExpr, "${"+varName+"}")
+	}
+	return result
+}
+
 // ExtractEnvExpressionsFromValue extracts all GitHub Actions env expressions from a string value
 // Returns a map of environment variable names to their full env expressions
 // Examples:

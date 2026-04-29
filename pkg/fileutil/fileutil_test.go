@@ -314,6 +314,34 @@ func TestCopyFile(t *testing.T) {
 		err := CopyFile(src, dst)
 		require.Error(t, err, "CopyFile should return error when destination directory does not exist")
 	})
+
+	t.Run("destination file is removed on io.Copy write failure", func(t *testing.T) {
+		// /dev/full is a Linux special device that always returns ENOSPC on
+		// writes, making it the most reliable way to inject an io.Copy error
+		// without modifying CopyFile's signature.
+		if runtime.GOOS != "linux" {
+			t.Skip("requires /dev/full (Linux only)")
+		}
+		if _, err := os.Stat("/dev/full"); err != nil {
+			t.Skip("/dev/full not available")
+		}
+
+		dir := t.TempDir()
+		src := filepath.Join(dir, "src.txt")
+		dst := filepath.Join(dir, "dst.txt")
+
+		require.NoError(t, os.WriteFile(src, []byte("hello"), 0600), "Should create source file")
+
+		// Point dst at /dev/full via a symlink so that:
+		//   - os.Create(dst) succeeds (opens /dev/full for writing)
+		//   - io.Copy fails with ENOSPC (every write to /dev/full fails)
+		//   - os.Remove(dst) removes the local symlink, not /dev/full itself
+		require.NoError(t, os.Symlink("/dev/full", dst), "Should create symlink to /dev/full")
+
+		err := CopyFile(src, dst)
+		require.Error(t, err, "CopyFile should return an error when the write fails")
+		require.False(t, FileExists(dst), "Destination symlink should be removed after io.Copy failure")
+	})
 }
 
 func TestMustBeWithin(t *testing.T) {

@@ -10376,6 +10376,11 @@
           ],
           "description": "Additional Git refs to fetch after the checkout. Supported values: \"*\" (all branches), \"refs/pulls/open/*\" (all open pull-request refs), branch names (e.g. \"main\"), or glob patterns (e.g. \"feature/*\").",
           "examples": [["*"], ["refs/pulls/open/*"], ["main", "feature/my-branch"], ["feature/*"]]
+        },
+        "wiki": {
+          "type": "boolean",
+          "description": "When true, clones the repository's wiki git instead of the regular repository. The effective repository becomes \"{repository}.wiki\" (e.g. \"owner/repo.wiki\"). Defaults to false.",
+          "examples": [true, false]
         }
       }
     },

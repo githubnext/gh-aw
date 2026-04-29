@@ -545,7 +545,8 @@ These resources contain workflow patterns, best practices, safe outputs, and per
      - 📋 **DO NOT include other fields with good defaults** - Let the compiler use sensible defaults unless customization is needed.
    - Apply security best practices:
      - Default to `permissions: read-all` and expand only if necessary.
-     - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue` for editing, `close-issue` for closing, `dispatch-workflow`) over granting write perms.
+     - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue` for editing, `close-issue` for closing, `add-labels` for labeling, `dispatch-workflow`) over granting write perms.
+     - ❌ **Anti-pattern**: Do NOT use `gh issue edit --add-label` or `gh label` CLI commands directly in bash — these bypass safe-output controls (rate limiting, audit trails, allow-lists). Use `safe-outputs: add-labels:` instead.
      - For custom write operations to external services (email, Slack, webhooks), use `safe-outputs.jobs:` to create custom safe output jobs.
      - Constrain `network:` to the minimum required ecosystems/domains.
      - Use sanitized expressions (`${{ steps.sanitized.outputs.text }}`) instead of raw event text.
@@ -825,6 +826,14 @@ Based on the parsed requirements, determine:
    - Creating issues → `safe-outputs: create-issue:`
    - Commenting → `safe-outputs: add-comment:`
    - Creating PRs → `safe-outputs: create-pull-request:`
+   - **Applying labels** → `safe-outputs: add-labels:` — use a dedicated `add-labels` safe output, **not** `update-issue` with a `labels` array and **not** `gh issue edit --add-label` in bash (both bypass allow-list enforcement and audit trails). Example:
+     ```yaml
+     safe-outputs:
+       add-labels:
+         allowed: [bug, enhancement, needs-triage]  # restrict to safe labels
+         max: 3
+     ```
+     The agent calls `add_labels` with a `labels` array; the safe-output job applies them with `issues: write` / `pull-requests: write` permissions. ❌ Anti-pattern: `gh issue edit --add-label <label>` in bash — this bypasses safe-output controls.
    - **No action needed** → `safe-outputs: noop:` - **IMPORTANT**: When the agent successfully completes but determines nothing needs to be done, use `noop` to signal completion. This is critical for transparency—it shows the agent worked AND that no output was necessary.
    - **Daily reporting workflows** (creates issues/discussions): Add `close-older-issues: true` or `close-older-discussions: true` to prevent clutter
    - **Daily improver workflows** (creates PRs): Add `skip-if-match:` with a filter to avoid opening duplicate PRs (e.g., `'is:pr is:open in:title "[workflow-name]"'`)

@@ -422,6 +422,11 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 						if renderer.RequiresCopilotFields {
 							// For Copilot, replace all template expressions with \${VAR} syntax
 							envValue = ReplaceTemplateExpressionsWithEnvVars(envValue)
+						} else {
+							// For non-Copilot engines, replace secrets with ${VAR} bash expansion
+							// so they are never directly interpolated in the run block (RGS-008).
+							// The env vars are injected into the step env block by collectMCPEnvironmentVariables.
+							envValue = ReplaceSecretsWithBashVars(envValue)
 						}
 						fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, envKey, envValue, envComma)
 					}
@@ -759,11 +764,11 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryM
 			mcpCustomLog.Printf("Auto-assigning container for command '%s': %s", result.Command, containerConfig.Image)
 			result.Container = containerConfig.Image
 			result.Entrypoint = containerConfig.Entrypoint
-			// Move command to entrypointArgs and preserve existing args after it
-			if result.Command != "" {
-				result.EntrypointArgs = append([]string{result.Command}, result.Args...)
-				result.Args = nil // Clear args since they're now in entrypointArgs
-			}
+			// The command becomes the container entrypoint; original args become entrypointArgs.
+			// Do NOT prepend the command to entrypointArgs — the entrypoint field already carries it,
+			// and prepending would cause it to appear twice (e.g. "npx npx @sentry/mcp-server").
+			result.EntrypointArgs = result.Args
+			result.Args = nil   // Clear args since they're now in entrypointArgs
 			result.Command = "" // Clear command since it's now the entrypoint
 		}
 	}

@@ -46,7 +46,7 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 	// Validate that at most one logical checkout target has current: true.
 	// Multiple current checkouts are not allowed since only one repo/path pair can be
 	// the primary target for the agent at a time. Multiple configs that merge into the
-	// same (repository, path) pair are treated as a single logical checkout.
+	// same (repository, path, wiki) tuple are treated as a single logical checkout.
 	currentTargets := make(map[string]struct{})
 	for _, cfg := range configs {
 		if !cfg.Current {
@@ -55,7 +55,11 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 
 		repo := strings.TrimSpace(cfg.Repository)
 		path := strings.TrimSpace(cfg.Path)
-		key := repo + "\x00" + path
+		wiki := "false"
+		if cfg.Wiki {
+			wiki = "true"
+		}
+		key := repo + "\x00" + path + "\x00" + wiki
 
 		currentTargets[key] = struct{}{}
 	}
@@ -223,6 +227,14 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		}
 	}
 
+	if v, ok := m["wiki"]; ok {
+		b, ok := v.(bool)
+		if !ok {
+			return nil, errors.New("checkout.wiki must be a boolean")
+		}
+		cfg.Wiki = b
+	}
+
 	return cfg, nil
 }
 
@@ -262,15 +274,24 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 			absPath += "/" + relPath
 		}
 
-		// Determine repo: use configured value or fall back to the triggering repository expression
+		// Determine repo: use configured value or fall back to the triggering repository expression.
+		// For wiki checkouts, append the ".wiki" suffix so the prompt accurately reflects what was checked out.
 		repo := cfg.Repository
 		if repo == "" {
 			repo = "${{ github.repository }}"
+		}
+		if cfg.Wiki {
+			if !strings.HasSuffix(repo, ".wiki") {
+				repo += ".wiki"
+			}
 		}
 
 		line := fmt.Sprintf("  - `%s` → `%s`", absPath, repo)
 		if isRoot {
 			line += " (cwd)"
+		}
+		if cfg.Wiki {
+			line += " (wiki)"
 		}
 		if cfg.Current {
 			line += " (**current** - this is the repository you are working on; use this as the target for all GitHub operations unless otherwise specified)"

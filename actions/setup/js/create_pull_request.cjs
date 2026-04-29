@@ -86,9 +86,11 @@ function isLabelTransientError(error) {
 }
 
 /** @type {number} Number of retry attempts for label operations */
-const LABEL_MAX_RETRIES = 3;
-/** @type {number} Initial delay in ms before the first label retry (3 seconds) */
+const LABEL_MAX_RETRIES = 5;
+/** @type {number} Base delay in ms used to calculate label retry backoff (3 seconds) */
 const LABEL_INITIAL_DELAY_MS = 3000;
+/** @type {number} Maximum delay in ms between label retries (30 seconds) */
+const LABEL_MAX_DELAY_MS = 30000;
 
 /**
  * Parse allowed base branch patterns from config value (array or comma-separated string)
@@ -1694,6 +1696,7 @@ ${patchPreview}`;
             {
               maxRetries: LABEL_MAX_RETRIES,
               initialDelayMs: LABEL_INITIAL_DELAY_MS,
+              maxDelayMs: LABEL_MAX_DELAY_MS,
               backoffMultiplier: 2,
               shouldRetry: isLabelTransientError,
             },
@@ -1704,6 +1707,8 @@ ${patchPreview}`;
           // Label addition is non-critical - warn but don't fail the PR creation.
           // GitHub's API may transiently fail to resolve the PR node ID immediately
           // after creation, which causes label operations to fail with an unprocessable error.
+          // If this warning appears, repository checks that require labels on the opened event
+          // may fail transiently; consider triggering required-label checks on the labeled event instead.
           core.warning(`Failed to add labels to PR #${pullRequest.number}: ${labelError instanceof Error ? labelError.message : String(labelError)}`);
         }
       }

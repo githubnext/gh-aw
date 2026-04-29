@@ -1558,6 +1558,81 @@ describe("sendJobSetupSpan", () => {
       expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
     });
   });
+
+  describe("trigger item context from aw_info.json", () => {
+    let readFileSpy;
+
+    beforeEach(() => {
+      readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+    });
+
+    afterEach(() => {
+      readFileSpy.mockRestore();
+    });
+
+    it("emits gh-aw.trigger.item_type and gh-aw.trigger.item_number from aw_info.context", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ context: { item_type: "issue", item_number: "42", trigger_label: "" } });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_type", value: { stringValue: "issue" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_number", value: { stringValue: "42" } });
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.trigger.label");
+    });
+
+    it("emits gh-aw.trigger.label when trigger_label is non-empty", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ context: { item_type: "pull_request", item_number: "99", trigger_label: "copilot" } });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_type", value: { stringValue: "pull_request" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_number", value: { stringValue: "99" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.label", value: { stringValue: "copilot" } });
+    });
+
+    it("omits trigger attributes when aw_info.json is absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.trigger.item_type");
+      expect(keys).not.toContain("gh-aw.trigger.item_number");
+      expect(keys).not.toContain("gh-aw.trigger.label");
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -3181,6 +3256,81 @@ describe("sendJobConclusionSpan", () => {
 
       const resourceAttrs = body.resourceSpans[0].resource.attributes;
       expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
+    });
+  });
+
+  describe("trigger item context from aw_info.json", () => {
+    let readFileSpy;
+
+    beforeEach(() => {
+      readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+    });
+
+    afterEach(() => {
+      readFileSpy.mockRestore();
+    });
+
+    it("emits gh-aw.trigger.item_type and gh-aw.trigger.item_number from aw_info.context", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ context: { item_type: "issue", item_number: "7", trigger_label: "" } });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_type", value: { stringValue: "issue" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_number", value: { stringValue: "7" } });
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.trigger.label");
+    });
+
+    it("emits gh-aw.trigger.label when trigger_label is non-empty", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ context: { item_type: "pull_request", item_number: "456", trigger_label: "bug" } });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_type", value: { stringValue: "pull_request" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_number", value: { stringValue: "456" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.label", value: { stringValue: "bug" } });
+    });
+
+    it("omits trigger attributes when aw_info.json is absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.trigger.item_type");
+      expect(keys).not.toContain("gh-aw.trigger.item_number");
+      expect(keys).not.toContain("gh-aw.trigger.label");
     });
   });
 });
