@@ -10,5 +10,7 @@ When no action is needed, call noop like this:
 ```
 
 temporary_id: optional cross-reference field (e.g. use #aw_abc1 in a body). Format: aw_ + 3–8 alphanumeric chars (/^aw_[A-Za-z0-9]{3,8}$/). Omit when not needed.
+
+**Note**: safeoutputs tools do NOT support `@filename` file name expansion. Always provide content inline — do not use `@<filename>` references in tool arguments.
 </instructions>
 </safe-outputs>
