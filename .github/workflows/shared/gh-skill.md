@@ -14,14 +14,15 @@
 #       with:
 #         engine: copilot            # optional: copilot (default), claude, codex, gemini, opencode
 #         token: ${{ secrets.MY_TOKEN }}  # optional: defaults to GITHUB_TOKEN
+#         upstream: false            # optional: pass false to skip --upstream (default: true)
 #         skills:
 #           - github/awesome-copilot/documentation-writer
-#           - github/awesome-copilot/code-review
+#           - github/awesome-copilot/code-review@v1.2.0
 #
 # Skill format:
 #   - owner/repo                     — install all skills from the repository
-#   - owner/repo/skill-name          — install a specific skill (latest)
-#   - owner/repo/skill-name@version  — install a pinned version
+#   - owner/repo/skill-name          — install a specific skill (latest, with --upstream)
+#   - owner/repo/skill-name@ref      — install a pinned version (passes --pin ref)
 
 import-schema:
   skills:
@@ -31,7 +32,7 @@ import-schema:
     required: true
     description: >
       List of skills to install. Each entry is in the format owner/repo,
-      owner/repo/skill-name, or owner/repo/skill-name@version.
+      owner/repo/skill-name, or owner/repo/skill-name@ref.
       Examples: "github/awesome-copilot", "github/awesome-copilot/documentation-writer",
       "github/awesome-copilot/code-review@v1.2.0"
 
@@ -56,12 +57,21 @@ import-schema:
         gemini   → gemini-cli
         opencode → opencode
 
+  upstream:
+    type: boolean
+    required: false
+    description: >
+      When true (default), passes --upstream to gh skill install so skills are
+      updated from their upstream source. Set to false to skip the upstream
+      update and use the locally cached version.
+
 pre-agent-steps:
   - name: Install agent skills
     env:
       GH_TOKEN: ${{ github.aw.import-inputs.token || secrets.GITHUB_TOKEN }}
       GH_AW_SKILLS: ${{ github.aw.import-inputs.skills }}
       GH_AW_SKILL_ENGINE: ${{ github.aw.import-inputs.engine }}
+      GH_AW_SKILL_UPSTREAM: ${{ github.aw.import-inputs.upstream }}
     run: |
       set -euo pipefail
       skills_json="${GH_AW_SKILLS}"
@@ -77,16 +87,29 @@ pre-agent-steps:
         opencode) agent="opencode" ;;
         *)        agent="github-copilot" ;;
       esac
+      # --upstream is enabled by default; set upstream: false in the with: block to disable
+      upstream_flag="--upstream"
+      if [ "${GH_AW_SKILL_UPSTREAM:-true}" = "false" ]; then
+        upstream_flag=""
+      fi
       printf "::notice::Installing %d skill(s) for agent: %s\n" "$count" "$agent"
       while IFS= read -r skill_entry; do
         repo=$(echo "$skill_entry" | cut -d'/' -f1,2)
         skill_part=$(echo "$skill_entry" | cut -d'/' -f3-)
         if [ -n "$skill_part" ]; then
-          echo "Installing skill: $repo $skill_part"
-          gh skill install "$repo" "$skill_part" --agent "$agent"
+          # Split skill_name and optional @ref pin
+          if [[ "$skill_part" == *@* ]]; then
+            skill_name="${skill_part%%@*}"
+            pin_ref="${skill_part#*@}"
+            echo "Installing skill: $repo $skill_name (pinned to $pin_ref)"
+            gh skill install "$repo" "$skill_name" --agent "$agent" --pin "$pin_ref" $upstream_flag
+          else
+            echo "Installing skill: $repo $skill_part"
+            gh skill install "$repo" "$skill_part" --agent "$agent" $upstream_flag
+          fi
         else
           echo "Installing all skills from: $repo"
-          gh skill install "$repo" --agent "$agent"
+          gh skill install "$repo" --agent "$agent" $upstream_flag
         fi
       done < <(echo "$skills_json" | jq -r '.[]')
 ---
@@ -129,6 +152,17 @@ imports:
         - github/awesome-copilot/documentation-writer
 ```
 
+To opt out of the upstream update:
+
+```yaml
+imports:
+  - uses: shared/gh-skill.md
+    with:
+      upstream: false
+      skills:
+        - github/awesome-copilot/documentation-writer
+```
+
 ### Inputs
 
 | Input | Required | Description |
@@ -136,6 +170,7 @@ imports:
 | `skills` | ✅ | List of skills to install (see formats below) |
 | `engine` | No | gh-aw engine name — determines the `--agent` target (default: `copilot`) |
 | `token` | No | GitHub token for downloading skills (default: built-in `GITHUB_TOKEN`) |
+| `upstream` | No | Pass `false` to skip `--upstream` and use the cached version (default: `true`) |
 
 ### Skill format
 
@@ -144,8 +179,11 @@ Each entry in `skills:` is one of:
 | Format | Example | Effect |
 |--------|---------|--------|
 | `owner/repo` | `github/awesome-copilot` | Installs all skills from the repo |
-| `owner/repo/skill-name` | `github/awesome-copilot/documentation-writer` | Installs a specific skill (latest) |
-| `owner/repo/skill-name@version` | `github/awesome-copilot/code-review@v1.2.0` | Installs a pinned version |
+| `owner/repo/skill-name` | `github/awesome-copilot/documentation-writer` | Installs a specific skill (latest, with `--upstream`) |
+| `owner/repo/skill-name@ref` | `github/awesome-copilot/code-review@v1.2.0` | Installs with `--pin ref` |
+
+The `@ref` part is extracted from the skill path and passed as `--pin ref` to
+`gh skill install`. Any git ref is accepted (tag, branch, SHA).
 
 ### Engine → agent mapping
 
