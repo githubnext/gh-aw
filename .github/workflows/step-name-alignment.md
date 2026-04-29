@@ -37,6 +37,10 @@ tools:
     - "find .github/workflows -name '*.lock.yml' -type f"
     - "cat docs/src/content/docs/reference/glossary.md"
     - "git log --since='24 hours ago' --oneline --name-only -- '.github/workflows/*.lock.yml'"
+    - "mkdir -p /tmp/gh-aw/cache-memory/step-name-alignment"
+    - "cat /tmp/gh-aw/cache-memory/"
+    - "cat > /tmp/gh-aw/cache-memory/"
+    - "mv /tmp/gh-aw/cache-memory/"
 
 timeout-minutes: 30
 
