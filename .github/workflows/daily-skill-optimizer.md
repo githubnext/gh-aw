@@ -152,6 +152,9 @@ tools:
   bash:
     - "*"
   edit:
+
+imports:
+  - shared/otel.md
 ---
 
 # Daily Skill Optimizer Improvements

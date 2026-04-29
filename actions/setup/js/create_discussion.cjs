@@ -222,14 +222,15 @@ async function applyLabelsToDiscussion(githubClient, discussionId, labelIds) {
  * @returns {boolean} True if the error is permissions-related
  */
 function isPermissionsError(errorMessage) {
+  const msg = errorMessage.toLowerCase();
   return (
-    errorMessage.includes("Resource not accessible") ||
-    errorMessage.includes("Insufficient permissions") ||
-    errorMessage.includes("Bad credentials") ||
-    errorMessage.includes("Not Authenticated") ||
-    errorMessage.includes("requires authentication") ||
-    errorMessage.includes("Discussions not enabled") ||
-    errorMessage.includes("Failed to fetch repository information")
+    msg.includes("resource not accessible") ||
+    msg.includes("insufficient permissions") ||
+    msg.includes("bad credentials") ||
+    msg.includes("not authenticated") ||
+    msg.includes("requires authentication") ||
+    msg.includes("discussions not enabled") ||
+    msg.includes("failed to fetch repository information")
   );
 }
 
