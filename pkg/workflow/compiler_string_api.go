@@ -166,7 +166,9 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	workflowData.ActionPinWarnings = c.actionPinWarnings
 
 	// Extract YAML configuration sections
-	c.extractYAMLSections(parseResult.frontmatterResult.Frontmatter, workflowData)
+	if err := c.extractYAMLSections(parseResult.frontmatterResult.Frontmatter, workflowData); err != nil {
+		return nil, fmt.Errorf("failed to extract YAML sections: %w", err)
+	}
 
 	// Merge features from imports
 	if len(engineSetup.importsResult.MergedFeatures) > 0 {

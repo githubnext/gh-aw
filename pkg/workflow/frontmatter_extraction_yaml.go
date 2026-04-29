@@ -160,6 +160,8 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inDiscussion = false
 				inIssueComment = false
 				inDeploymentStatus = false
+				inWorkflowRun = false
+				inWorkflowRunConclusionArray = false
 				currentSection = "pull_request"
 				result = append(result, line)
 				continue
@@ -170,6 +172,8 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inDiscussion = false
 				inIssueComment = false
 				inDeploymentStatus = false
+				inWorkflowRun = false
+				inWorkflowRunConclusionArray = false
 				currentSection = "issues"
 				result = append(result, line)
 				continue
@@ -180,6 +184,8 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inIssues = false
 				inIssueComment = false
 				inDeploymentStatus = false
+				inWorkflowRun = false
+				inWorkflowRunConclusionArray = false
 				currentSection = "discussion"
 				result = append(result, line)
 				continue
@@ -190,6 +196,8 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inIssues = false
 				inDiscussion = false
 				inDeploymentStatus = false
+				inWorkflowRun = false
+				inWorkflowRunConclusionArray = false
 				currentSection = "issue_comment"
 				result = append(result, line)
 				continue
@@ -736,7 +744,7 @@ func (c *Compiler) extractPermissions(frontmatter map[string]any) string {
 // extractIfCondition extracts the if condition from frontmatter, returning just the expression
 // without the "if: " prefix. Also merges any condition derived from on.deployment_status.state
 // and on.workflow_run.conclusion.
-func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
+func (c *Compiler) extractIfCondition(frontmatter map[string]any) (string, error) {
 	var ifExpr string
 	if value, exists := frontmatter["if"]; exists {
 		if strValue, ok := value.(string); ok {
@@ -758,7 +766,10 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
 	}
 
 	// Merge any condition generated from on.workflow_run.conclusion
-	conclusionCondition := extractWorkflowRunConclusionCondition(frontmatter)
+	conclusionCondition, err := extractWorkflowRunConclusionCondition(frontmatter)
+	if err != nil {
+		return "", err
+	}
 	if conclusionCondition != "" {
 		frontmatterLog.Printf("Merging workflow_run conclusion condition: %s", conclusionCondition)
 		if ifExpr != "" {
@@ -768,7 +779,7 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
 		}
 	}
 
-	return ifExpr
+	return ifExpr, nil
 }
 
 // extractDeploymentStatusStateCondition reads on.deployment_status.state and converts it
@@ -824,28 +835,53 @@ func extractDeploymentStatusStateCondition(frontmatter map[string]any) string {
 	return "github.event_name != 'deployment_status' || (" + stateExpr + ")"
 }
 
+// validWorkflowRunConclusions is the exhaustive list of conclusion values that GitHub
+// Actions emits for workflow_run events.  Values outside this set are rejected at
+// compile time to prevent expression injection (a raw value is interpolated directly
+// into a GitHub Actions expression string).
+var validWorkflowRunConclusions = []string{
+	"success",
+	"failure",
+	"neutral",
+	"cancelled",
+	"skipped",
+	"timed_out",
+	"action_required",
+	"stale",
+}
+
+// isValidWorkflowRunConclusion reports whether v is a recognised conclusion value.
+func isValidWorkflowRunConclusion(v string) bool {
+	for _, valid := range validWorkflowRunConclusions {
+		if v == valid {
+			return true
+		}
+	}
+	return false
+}
+
 // extractWorkflowRunConclusionCondition reads on.workflow_run.conclusion and converts it
 // into a GitHub Actions expression string (without ${{ }} wrappers). Returns "" if not set.
-func extractWorkflowRunConclusionCondition(frontmatter map[string]any) string {
+func extractWorkflowRunConclusionCondition(frontmatter map[string]any) (string, error) {
 	onValue, ok := frontmatter["on"]
 	if !ok {
-		return ""
+		return "", nil
 	}
 	onMap, ok := onValue.(map[string]any)
 	if !ok {
-		return ""
+		return "", nil
 	}
 	wrValue, ok := onMap["workflow_run"]
 	if !ok {
-		return ""
+		return "", nil
 	}
 	wrMap, ok := wrValue.(map[string]any)
 	if !ok {
-		return ""
+		return "", nil
 	}
 	conclusionValue, ok := wrMap["conclusion"]
 	if !ok {
-		return ""
+		return "", nil
 	}
 
 	var conclusions []string
@@ -861,7 +897,14 @@ func extractWorkflowRunConclusionCondition(frontmatter map[string]any) string {
 	}
 
 	if len(conclusions) == 0 {
-		return ""
+		return "", nil
+	}
+
+	for _, c := range conclusions {
+		if !isValidWorkflowRunConclusion(c) {
+			return "", fmt.Errorf("invalid on.workflow_run.conclusion value %q: must be one of %s",
+				c, strings.Join(validWorkflowRunConclusions, ", "))
+		}
 	}
 
 	parts := make([]string, 0, len(conclusions))
@@ -874,7 +917,7 @@ func extractWorkflowRunConclusionCondition(frontmatter map[string]any) string {
 	// when the workflow is triggered by other events (e.g. workflow_dispatch).
 	// Without the guard, a non-workflow_run event would see conclusion as
 	// empty/undefined and the entire activation condition would evaluate to false.
-	return "github.event_name != 'workflow_run' || (" + conclusionExpr + ")"
+	return "github.event_name != 'workflow_run' || (" + conclusionExpr + ")", nil
 }
 
 // extractExpressionFromIfString extracts the expression part from a string that might

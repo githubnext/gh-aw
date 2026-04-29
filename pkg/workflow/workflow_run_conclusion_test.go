@@ -16,6 +16,7 @@ func TestExtractWorkflowRunConclusionCondition(t *testing.T) {
 		name        string
 		frontmatter map[string]any
 		want        string
+		wantErr     bool
 	}{
 		{
 			name:        "no on field",
@@ -104,11 +105,42 @@ func TestExtractWorkflowRunConclusionCondition(t *testing.T) {
 			},
 			want: "",
 		},
+		{
+			name: "invalid conclusion value is rejected",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_run": map[string]any{
+						"workflows":  []any{"CI"},
+						"types":      []any{"completed"},
+						"conclusion": "invalid_value",
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "conclusion with single quote injection is rejected",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_run": map[string]any{
+						"workflows":  []any{"CI"},
+						"types":      []any{"completed"},
+						"conclusion": "failure' || true || '",
+					},
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractWorkflowRunConclusionCondition(tt.frontmatter)
+			got, err := extractWorkflowRunConclusionCondition(tt.frontmatter)
+			if tt.wantErr {
+				assert.Error(t, err, "should return error for invalid conclusion value")
+				return
+			}
+			require.NoError(t, err, "should not error for valid conclusion values")
 			assert.Equal(t, tt.want, got, "condition should match expected expression")
 		})
 	}
@@ -121,6 +153,7 @@ func TestExtractIfConditionMergesWorkflowRunConclusion(t *testing.T) {
 		name        string
 		frontmatter map[string]any
 		want        string
+		wantErr     bool
 	}{
 		{
 			name: "conclusion only - no existing if",
@@ -190,12 +223,30 @@ func TestExtractIfConditionMergesWorkflowRunConclusion(t *testing.T) {
 			},
 			want: "github.event.workflow_run.conclusion == 'failure'",
 		},
+		{
+			name: "invalid conclusion propagates error",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_run": map[string]any{
+						"workflows":  []any{"CI"},
+						"types":      []any{"completed"},
+						"conclusion": "not_a_real_conclusion",
+					},
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler()
-			got := compiler.extractIfCondition(tt.frontmatter)
+			got, err := compiler.extractIfCondition(tt.frontmatter)
+			if tt.wantErr {
+				assert.Error(t, err, "should propagate error for invalid conclusion value")
+				return
+			}
+			require.NoError(t, err, "should not error for valid conclusion values")
 			assert.Equal(t, tt.want, got, "merged if condition should match expected expression")
 		})
 	}

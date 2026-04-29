@@ -143,7 +143,7 @@ func resolveInlinedImports(rawFrontmatter map[string]any) bool {
 }
 
 // extractYAMLSections extracts YAML configuration sections from frontmatter
-func (c *Compiler) extractYAMLSections(frontmatter map[string]any, workflowData *WorkflowData) {
+func (c *Compiler) extractYAMLSections(frontmatter map[string]any, workflowData *WorkflowData) error {
 	workflowBuilderLog.Print("Extracting YAML sections from frontmatter")
 
 	workflowData.On = c.extractTopLevelYAMLSection(frontmatter, "on")
@@ -155,7 +155,12 @@ func (c *Compiler) extractYAMLSections(frontmatter map[string]any, workflowData 
 	workflowData.RunName = c.extractTopLevelYAMLSection(frontmatter, "run-name")
 	workflowData.Env = c.extractTopLevelYAMLSection(frontmatter, "env")
 	workflowData.Features = c.extractFeatures(frontmatter)
-	workflowData.If = c.extractIfCondition(frontmatter)
+
+	ifCondition, err := c.extractIfCondition(frontmatter)
+	if err != nil {
+		return err
+	}
+	workflowData.If = ifCondition
 
 	// Extract timeout-minutes (canonical form)
 	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(frontmatter, "timeout-minutes")
@@ -170,6 +175,7 @@ func (c *Compiler) extractYAMLSections(frontmatter map[string]any, workflowData 
 	workflowData.Environment = c.extractTopLevelYAMLSection(frontmatter, "environment")
 	workflowData.Container = c.extractTopLevelYAMLSection(frontmatter, "container")
 	workflowData.Cache = c.extractTopLevelYAMLSection(frontmatter, "cache")
+	return nil
 }
 
 // extractConcurrencyJobDiscriminator reads the job-discriminator value from the
