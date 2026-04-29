@@ -367,6 +367,20 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		c.IncrementWarningCount()
 	}
 
+	// Warn when slash_command and bots are both configured: the workflow may be triggered
+	// by bot activity (e.g. copilot[bot] opening a PR) before the user issues the slash
+	// command, causing the manual invocation to be ignored while the bot-triggered run is
+	// still in progress.
+	if len(workflowData.Command) > 0 && len(workflowData.Bots) > 0 {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+			"Both slash_command and bots triggers are configured. Bot activity "+
+				"(e.g., copilot[bot]) matching slash_command events will start the workflow "+
+				"automatically, preventing manual slash command invocations while that run is "+
+				"in progress. To ensure the workflow only runs on explicit slash commands, "+
+				"remove the 'bots:' field."))
+		c.IncrementWarningCount()
+	}
+
 	// Inform users when this workflow is a redirect stub for updates.
 	if workflowData.Redirect != "" {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "info",
