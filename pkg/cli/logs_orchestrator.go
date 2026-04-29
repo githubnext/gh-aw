@@ -35,8 +35,8 @@ func getMaxConcurrentDownloads() int {
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool, train bool, format string, artifactSets []string) error {
-	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, train=%v, format=%s, artifactSets=%v", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, train, format, artifactSets)
+func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool, train bool, format string, artifactSets []string, after string) error {
+	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, train=%v, format=%s, artifactSets=%v, after=%s", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, train, format, artifactSets, after)
 
 	// Validate and resolve artifact sets into a concrete filter (list of artifact base names).
 	if err := ValidateArtifactSets(artifactSets); err != nil {
@@ -56,6 +56,33 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		logsOrchestratorLog.Printf("Failed to ensure logs .gitignore: %v", err)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to ensure .github/aw/logs/.gitignore: %v", err)))
+		}
+	}
+
+	// Clean up cached run folders older than the --after cutoff, if specified.
+	if after != "" {
+		cutoffStr, parseErr := workflow.ResolveRelativeDate(after, time.Now())
+		if parseErr != nil {
+			return fmt.Errorf("invalid --after value '%s': %w", after, parseErr)
+		}
+		cutoff, parseErr := time.Parse(time.RFC3339, cutoffStr)
+		if parseErr != nil {
+			// Try plain date format as well
+			cutoff, parseErr = time.Parse("2006-01-02", cutoffStr)
+			if parseErr != nil {
+				return fmt.Errorf("invalid --after value '%s': could not parse resolved date '%s'", after, cutoffStr)
+			}
+		}
+		logsOrchestratorLog.Printf("Cleaning up run folders older than %s (cutoff: %s)", after, cutoff.Format(time.RFC3339))
+		removed, cleanErr := cleanupOldRunFolders(outputDir, cutoff, verbose)
+		if cleanErr != nil {
+			// Non-fatal: log but continue with download
+			logsOrchestratorLog.Printf("Failed to clean up old run folders: %v", cleanErr)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up old run folders: %v", cleanErr)))
+		} else if removed > 0 {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed %d cached run folder(s) older than %s", removed, after)))
+		} else if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No cached run folders older than %s found", after)))
 		}
 	}
 

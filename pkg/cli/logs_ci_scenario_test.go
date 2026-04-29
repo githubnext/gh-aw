@@ -55,6 +55,7 @@ func TestLogsJSONOutputWithNoRuns(t *testing.T) {
 		false,                        // train
 		"",                           // format
 		nil,                          // artifactSets
+		"",                           // after
 	)
 
 	// Restore stdout and read output
