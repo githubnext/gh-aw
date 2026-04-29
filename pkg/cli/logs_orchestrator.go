@@ -61,17 +61,9 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 
 	// Clean up cached run folders older than the --after cutoff, if specified.
 	if after != "" {
-		cutoffStr, parseErr := workflow.ResolveRelativeDate(after, time.Now())
+		cutoff, parseErr := parseCleanupCutoff(after)
 		if parseErr != nil {
-			return fmt.Errorf("invalid --after value '%s': %w", after, parseErr)
-		}
-		cutoff, parseErr := time.Parse(time.RFC3339, cutoffStr)
-		if parseErr != nil {
-			// Try plain date format as well
-			cutoff, parseErr = time.Parse("2006-01-02", cutoffStr)
-			if parseErr != nil {
-				return fmt.Errorf("invalid --after value '%s': could not parse resolved date '%s'", after, cutoffStr)
-			}
+			return parseErr
 		}
 		logsOrchestratorLog.Printf("Cleaning up run folders older than %s (cutoff: %s)", after, cutoff.Format(time.RFC3339))
 		removed, cleanErr := cleanupOldRunFolders(outputDir, cutoff, verbose)

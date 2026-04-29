@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 // makeRunDir creates a run-{id} directory with an optional run_summary.json.
 func makeRunDir(t *testing.T, parent string, id int64, createdAt time.Time, writeSummary bool) string {
 	t.Helper()
-	dir := filepath.Join(parent, "run-"+itoa(id))
+	dir := filepath.Join(parent, "run-"+strconv.FormatInt(id, 10))
 	require.NoError(t, os.MkdirAll(dir, 0755), "create run dir")
 
 	if writeSummary {
@@ -35,26 +36,6 @@ func makeRunDir(t *testing.T, parent string, id int64, createdAt time.Time, writ
 	}
 
 	return dir
-}
-
-// itoa converts an int64 to its decimal string representation.
-func itoa(n int64) string {
-	if n == 0 {
-		return "0"
-	}
-	neg := n < 0
-	if neg {
-		n = -n
-	}
-	buf := make([]byte, 0, 20)
-	for n > 0 {
-		buf = append([]byte{byte('0' + n%10)}, buf...)
-		n /= 10
-	}
-	if neg {
-		buf = append([]byte{'-'}, buf...)
-	}
-	return string(buf)
 }
 
 func TestCleanupOldRunFolders(t *testing.T) {

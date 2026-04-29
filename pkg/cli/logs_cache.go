@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var logsCacheLog = logger.New("cli:logs_cache")
@@ -62,6 +63,26 @@ func loadRunSummary(outputDir string, verbose bool) (*RunSummary, bool) {
 	}
 
 	return &summary, true
+}
+
+// parseCleanupCutoff resolves a date string (absolute or relative delta) to a
+// time.Time that can be used as a cutoff for the cache cleanup. Accepts the
+// same formats as --start-date / --end-date (e.g. "-1w", "-30d", "2024-01-01").
+func parseCleanupCutoff(after string) (time.Time, error) {
+	cutoffStr, err := workflow.ResolveRelativeDate(after, time.Now())
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid --after value '%s': %w", after, err)
+	}
+
+	// ResolveRelativeDate returns an RFC3339 timestamp for relative inputs and
+	// the original string for absolute dates.
+	if t, parseErr := time.Parse(time.RFC3339, cutoffStr); parseErr == nil {
+		return t, nil
+	}
+	if t, parseErr := time.Parse("2006-01-02", cutoffStr); parseErr == nil {
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("invalid --after value '%s': could not parse resolved date '%s'", after, cutoffStr)
 }
 
 // cleanupOldRunFolders removes cached run folders from outputDir whose run creation
