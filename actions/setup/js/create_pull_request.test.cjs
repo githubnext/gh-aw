@@ -1548,6 +1548,9 @@ describe("create_pull_request - patch apply fallback to original base commit", (
         issues: {
           addLabels: vi.fn().mockResolvedValue({}),
         },
+        git: {
+          deleteRef: vi.fn().mockResolvedValue({}),
+        },
       },
       graphql: vi.fn(),
     };
@@ -1702,10 +1705,17 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     expect(global.core.warning).toHaveBeenCalledWith("No base_commit recorded in safe output entry - fallback not possible");
   });
 
-  it("should fail loudly when preserve-branch-name is true and remote branch already exists", async () => {
+  it("should reuse existing remote branch when preserve-branch-name is true (force-delete then recreate)", async () => {
     // Simulate the remote branch existing (ls-remote returns content)
+    let renameCalled = false;
     global.exec = {
-      exec: vi.fn().mockResolvedValue(0),
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        if (cmdStr.includes("git branch -m")) {
+          renameCalled = true;
+        }
+        return Promise.resolve(0);
+      }),
       getExecOutput: vi.fn().mockImplementation((cmd, args) => {
         const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
         if (cmdStr.includes("ls-remote --heads origin")) {
@@ -1716,17 +1726,48 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     };
 
     const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ preserve_branch_name: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(true);
+    // Should have called deleteRef to force-delete the existing remote branch
+    expect(global.github.rest.git.deleteRef).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      ref: "heads/preserve-me",
+    });
+    // Should NOT have renamed the local branch (preserve-branch-name keeps the name)
+    expect(renameCalled).toBe(false);
+    // Should NOT have warned about appending random suffix
+    const warningCalls = global.core.warning.mock.calls.map(call => String(call[0]));
+    expect(warningCalls.some(msg => msg.includes("appending random suffix"))).toBe(false);
+    // Should have warned about reusing the branch
+    expect(warningCalls.some(msg => msg.includes("reusing it") && msg.includes("preserve-branch-name"))).toBe(true);
+  });
+
+  it("should fall back to issue when deleteRef fails for preserve-branch-name reuse", async () => {
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        if (cmdStr.includes("ls-remote --heads origin")) {
+          return Promise.resolve({ exitCode: 0, stdout: "abc123\trefs/heads/preserve-me\n", stderr: "" });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+    // Simulate deleteRef failing with a non-recoverable error
+    global.github.rest.git.deleteRef = vi.fn().mockRejectedValue(Object.assign(new Error("Forbidden"), { status: 403 }));
+
+    const { main } = require("./create_pull_request.cjs");
     const handler = await main({ preserve_branch_name: true, fallback_as_issue: false });
 
     const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(false);
     expect(result.error_type).toBe("push_failed");
-    expect(result.error).toContain('Remote branch "preserve-me" already exists');
-    expect(result.error).toContain("preserve-branch-name is enabled");
-    // Critical: should NOT have warned about appending random suffix (silent bypass)
-    const warningCalls = global.core.warning.mock.calls.map(call => String(call[0]));
-    expect(warningCalls.some(msg => msg.includes("appending random suffix"))).toBe(false);
+    expect(result.error).toContain('Failed to delete existing remote branch "preserve-me"');
   });
 
   it("should append random suffix when preserve-branch-name is false and remote branch already exists", async () => {
