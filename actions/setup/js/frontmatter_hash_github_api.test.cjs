@@ -402,10 +402,24 @@ describe("frontmatter_hash with GitHub API", () => {
 
       console.log(`\n🔍 Fetching live data from GitHub API: ${owner}/${repo}/${workflowPath}@${ref}`);
 
-      // Compute hash using live API data
-      const hash = await computeFrontmatterHash(workflowPath, {
-        fileReader,
-      });
+      let hash;
+      try {
+        // Compute hash using live API data
+        hash = await computeFrontmatterHash(workflowPath, {
+          fileReader,
+        });
+      } catch (error) {
+        // Skip gracefully when the GitHub API installation rate limit is exceeded.
+        // This is a transient infrastructure condition — not a code defect — and
+        // retrying within the same CI run will not help once the quota is exhausted.
+        const errorMsg = (error.message || String(error)).toLowerCase();
+        if (errorMsg.includes("rate limit")) {
+          console.log("⚠️ Skipping live API test - GitHub API rate limit exceeded (transient infrastructure issue)");
+          console.log("  The rate limit will reset automatically; no code change is required.");
+          return;
+        }
+        throw error;
+      }
 
       // Verify hash format
       expect(hash).toMatch(/^[a-f0-9]{64}$/);
@@ -413,10 +427,21 @@ describe("frontmatter_hash with GitHub API", () => {
 
       console.log(`✓ Live API hash for audit-workflows.md: ${hash}`);
 
-      // Verify determinism with second call to live API
-      const hash2 = await computeFrontmatterHash(workflowPath, {
-        fileReader,
-      });
+      let hash2;
+      try {
+        // Verify determinism with second call to live API
+        hash2 = await computeFrontmatterHash(workflowPath, {
+          fileReader,
+        });
+      } catch (error) {
+        const errorMsg = (error.message || String(error)).toLowerCase();
+        if (errorMsg.includes("rate limit")) {
+          console.log("⚠️ Skipping determinism check - GitHub API rate limit exceeded");
+          return;
+        }
+        throw error;
+      }
+
       expect(hash2).toBe(hash);
 
       console.log("✓ Live API test passed - hash computation is deterministic");
