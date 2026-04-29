@@ -395,6 +395,8 @@ func TestMatchPattern(t *testing.T) {
 		{"middle wildcard", "test:middle:logger", "test:*:logger", true},
 		{"middle wildcard no match prefix", "other:middle:logger", "test:*:logger", false},
 		{"middle wildcard no match suffix", "test:middle:other", "test:*:logger", false},
+		{"middle wildcard overlapping prefix suffix", "aba", "ab*ba", false},
+		{"middle wildcard exact boundary", "abba", "ab*ba", true},
 	}
 
 	for _, tt := range tests {

@@ -546,6 +546,38 @@ Costs vary depending on workflow complexity, AI model, and execution time. GitHu
 
 Reduce costs by optimizing prompts, using smaller models, limiting tool calls, reducing run frequency, and caching results.
 
+### Are GitHub Actions minutes charged in addition to AI costs?
+
+Yes. Every agentic workflow run is a GitHub Actions workflow run, so it consumes Actions minutes alongside AI inference. These are billed separately:
+
+- **Actions minutes**: Standard GitHub Actions billing applies — free for public repos, metered for private repos based on your plan. Set a [spending limit](https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-actions/managing-your-spending-limit-for-github-actions) at the org level to cap Actions spend.
+- **AI inference**: Billed through your AI engine account (see [Who pays for the use of AI?](#who-pays-for-the-use-of-ai)).
+
+### How do retries and agent loops affect costs?
+
+gh-aw has no automatic retry mechanism — each workflow trigger produces exactly one run. However, you can control reasoning depth and autopilot continuation, which directly affects how many tokens and how much wall-clock time (Actions minutes) a run consumes:
+
+- `max-turns` (Claude only) — limits the number of AI chat iterations per run
+- `max-continuations` (Copilot only) — enables autopilot mode with multiple consecutive triggered runs
+
+```yaml
+engine:
+  id: claude
+max-turns: 5   # limit reasoning depth per run
+```
+
+Keep these values low for cost-sensitive workflows. For scheduled workflows, run frequency is the primary cost lever — an hourly schedule at 1–2 premium requests per run adds up quickly across many repositories.
+
+### How do I control spend and set budgets?
+
+Spend controls live at the provider level, not inside gh-aw:
+
+- **Actions minutes**: Set an org spending limit in GitHub Billing settings.
+- **Claude / Codex / Gemini**: Configure spend limits in the Anthropic Console or OpenAI platform. These apply at the API key or project level.
+- **Copilot**: Usage is quota-based (premium requests per month) rather than dollar-metered, so the natural cap is the plan's monthly request quota.
+
+For per-repository cost tracking, use a dedicated API key per repository so provider dashboards show usage broken down by key. You can also use `gh aw audit <run-id>` for per-run token and cost detail, and `gh aw logs` for run history and aggregate metrics.
+
 ### Can I change the model being used, e.g., use a cheaper or more advanced one?
 
 Yes! You can configure the model in your workflow frontmatter:

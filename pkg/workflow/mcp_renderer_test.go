@@ -588,7 +588,7 @@ func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
 			}
 
 			// Verify endpoint is present iff configured
-			if tt.wantEndpoint && !strings.Contains(result, `"endpoint": "https://otel.example.com:4318"`) {
+			if tt.wantEndpoint && !strings.Contains(result, `"endpoint": "${OTEL_EXPORTER_OTLP_ENDPOINT}"`) {
 				t.Errorf("expected endpoint in output\noutput:\n%s", result)
 			}
 			if !tt.wantEndpoint && strings.Contains(result, `"opentelemetry"`) {

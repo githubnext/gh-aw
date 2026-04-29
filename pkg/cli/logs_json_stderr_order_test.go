@@ -62,6 +62,7 @@ func TestLogsJSONOutputBeforeStderr(t *testing.T) {
 		false,                             // train
 		"",                                // format
 		nil,                               // artifactSets
+		"",                                // after
 	)
 
 	// Close writers first
@@ -187,6 +188,7 @@ func TestLogsJSONAndStderrRedirected(t *testing.T) {
 		false, // train
 		"",    // format
 		nil,   // artifactSets
+		"",    // after
 	)
 
 	// Close the writer

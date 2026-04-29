@@ -367,6 +367,20 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		c.IncrementWarningCount()
 	}
 
+	// Warn when slash_command and bots are both configured: if a bot listed in bots: posts
+	// a comment that starts with the slash command text (e.g. /command-name), the
+	// check_command_position check will pass and the bot will trigger the workflow —
+	// occupying the concurrency slot and potentially blocking a simultaneous manual invocation.
+	if len(workflowData.Command) > 0 && len(workflowData.Bots) > 0 {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+			"Both slash_command and bots triggers are configured. If a bot listed in bots: "+
+				"posts a comment that starts with the slash command text (e.g., /command-name), "+
+				"it will trigger the workflow and occupy the concurrency slot, potentially "+
+				"blocking simultaneous manual invocations. To ensure the workflow only runs on "+
+				"explicit user commands, remove the 'bots:' field."))
+		c.IncrementWarningCount()
+	}
+
 	// Inform users when this workflow is a redirect stub for updates.
 	if workflowData.Redirect != "" {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "info",

@@ -11,6 +11,22 @@ APM is configured by importing the `shared/apm.md` workflow, which creates a ded
 
 > [!NOTE]
 > The `dependencies:` frontmatter field is deprecated and no longer supported. Migrate to the import-based approach shown below.
+>
+> The `dependencies:` input on the underlying `microsoft/apm-action` (used inside `shared/apm.md`) is also deprecated in favour of the `packages:` and `apps:` inputs — do not reach for `dependencies:` when hand-editing a vendored copy of the file.
+
+## Where `shared/apm.md` comes from
+
+`shared/apm.md` is a **local workflow file** that gh-aw resolves at `.github/workflows/shared/apm.md` in your repository — it is not a remote import (the `uses:` syntax inside `imports:` is gh-aw's local-import shape, not GitHub Actions' `uses: owner/repo@ref`).
+
+You must vendor the file into your own repository. The canonical, current source is maintained in [microsoft/apm](https://github.com/microsoft/apm/blob/main/.github/workflows/shared/apm.md):
+
+```bash
+mkdir -p .github/workflows/shared
+curl -sSL https://raw.githubusercontent.com/microsoft/apm/main/.github/workflows/shared/apm.md \
+  > .github/workflows/shared/apm.md
+```
+
+The canonical version pins `microsoft/apm-action@v1.5.0` and supports multi-org GitHub App authentication (`apps:[]`) and multi-bundle restore. To check whether your vendored copy is current, compare the `Source of truth:` and `apm-action pin:` lines near the top of the file with the canonical copy linked above.
 
 ## Usage
 
@@ -77,3 +93,4 @@ To reproduce or debug the pack/unpack flow locally, run `apm pack` and `apm unpa
 | gh-aw integration (APM docs) | https://microsoft.github.io/apm/integrations/gh-aw/ |
 | apm-action (GitHub) | https://github.com/microsoft/apm-action |
 | microsoft/apm (GitHub) | https://github.com/microsoft/apm |
+| shared/apm.md (canonical) | https://github.com/microsoft/apm/blob/main/.github/workflows/shared/apm.md |

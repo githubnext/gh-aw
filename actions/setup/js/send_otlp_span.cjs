@@ -434,9 +434,12 @@ function isValidSpanId(id) {
  *
  * Runtime files read (optional):
  * - `/tmp/gh-aw/aw_info.json` – when present, `context.otel_trace_id` is used as a fallback
- *   trace ID so that dispatched child workflows share the parent's OTLP trace; and
+ *   trace ID so that dispatched child workflows share the parent's OTLP trace;
  *   `context.otel_parent_span_id` is used as the parent span ID so the child's setup span
- *   is properly nested under the parent's setup span in the trace hierarchy
+ *   is properly nested under the parent's setup span in the trace hierarchy; and
+ *   `context.item_type`, `context.item_number`, and `context.trigger_label` are emitted as
+ *   `gh-aw.trigger.item_type`, `gh-aw.trigger.item_number`, and `gh-aw.trigger.label`
+ *   attributes so every span can be linked back to the GitHub item that triggered the workflow
  *
  * @param {SendJobSetupSpanOptions} [options]
  * @returns {Promise<{ traceId: string, spanId: string }>} The trace and span IDs used.
@@ -469,6 +472,9 @@ async function sendJobSetupSpan(options = {}) {
   const rawContextParentSpanId = typeof awInfo.context?.otel_parent_span_id === "string" ? awInfo.context.otel_parent_span_id.trim().toLowerCase() : "";
   const contextParentSpanId = isValidSpanId(rawContextParentSpanId) ? rawContextParentSpanId : "";
   const staged = awInfo.staged === true || process.env.GH_AW_INFO_STAGED === "true";
+  const itemType = typeof awInfo.context?.item_type === "string" ? awInfo.context.item_type : "";
+  const itemNumber = typeof awInfo.context?.item_number === "string" ? awInfo.context.item_number : "";
+  const triggerLabel = typeof awInfo.context?.trigger_label === "string" ? awInfo.context.trigger_label : "";
 
   const traceId = optionsTraceId || inputTraceId || contextTraceId || generateTraceId();
 
@@ -520,6 +526,9 @@ async function sendJobSetupSpan(options = {}) {
     attributes.push(buildAttr("gh-aw.deployment.state", deploymentStateSetup));
   }
   attributes.push(buildAttr("gh-aw.staged", staged));
+  if (itemType) attributes.push(buildAttr("gh-aw.trigger.item_type", itemType));
+  if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
+  if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
 
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
   if (repository && runId) {
@@ -662,7 +671,12 @@ function readLastRateLimitEntry() {
  * - `GITHUB_REPOSITORY`             – `owner/repo` string
  *
  * Runtime files read:
- * - `/tmp/gh-aw/aw_info.json`    – workflow/engine metadata written by the agent job
+ * - `/tmp/gh-aw/aw_info.json`    – workflow/engine metadata written by the agent job;
+ *                                   `context.item_type`, `context.item_number`, and
+ *                                   `context.trigger_label` are emitted as
+ *                                   `gh-aw.trigger.item_type`, `gh-aw.trigger.item_number`,
+ *                                   and `gh-aw.trigger.label` attributes so every span can
+ *                                   be linked back to the GitHub item that triggered the workflow
  * - `/tmp/gh-aw/agent_usage.json` – per-type token breakdown written by parse_token_usage.cjs;
  *                                    provides `input_tokens`, `output_tokens`,
  *                                    `cache_read_tokens`, and `cache_write_tokens` counters
@@ -706,6 +720,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const engineId = awInfo.engine_id || "";
   const model = awInfo.model || "";
   const staged = awInfo.staged === true;
+  const itemType = typeof awInfo.context?.item_type === "string" ? awInfo.context.item_type : "";
+  const itemNumber = typeof awInfo.context?.item_number === "string" ? awInfo.context.item_number : "";
+  const triggerLabel = typeof awInfo.context?.trigger_label === "string" ? awInfo.context.trigger_label : "";
   const jobName = process.env.INPUT_JOB_NAME || "";
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = awInfo.run_attempt || process.env.GITHUB_RUN_ATTEMPT || "1";
@@ -759,6 +776,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     attributes.push(buildAttr("gh-aw.deployment.state", deploymentStateConclusion));
   }
   attributes.push(buildAttr("gh-aw.staged", staged));
+  if (itemType) attributes.push(buildAttr("gh-aw.trigger.item_type", itemType));
+  if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
+  if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
   }

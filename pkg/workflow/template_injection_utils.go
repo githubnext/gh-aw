@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -68,6 +69,60 @@ func removeHeredocContent(content string) string {
 		result = p.unquoted.ReplaceAllString(result, "# heredoc removed")
 	}
 	return result
+}
+
+// replaceOutsideQuotedHeredocs replaces all occurrences of old with new in s,
+// skipping content inside quoted heredoc blocks (e.g. << 'EOF' ... EOF).
+//
+// Quoted heredocs suppress variable expansion in the shell, so a replacement
+// like "$GH_AW_VAR" would be written literally to the output file rather than
+// being expanded.  Unquoted heredoc content and regular script lines are
+// processed normally.
+//
+// Assumption: heredoc regions do not overlap.  Shell syntax does not allow
+// nested or overlapping heredocs, so this is always true for valid scripts.
+// Malformed scripts with overlapping heredoc delimiters may not be handled
+// correctly, but the compiler will surface any such errors during later YAML
+// schema validation.
+//
+// When there are no quoted heredocs the function is equivalent to
+// strings.ReplaceAll(s, old, new).
+func replaceOutsideQuotedHeredocs(s, old, new string) string {
+	type region struct{ start, end int }
+
+	// Collect all quoted-heredoc intervals.
+	var quotedRegions []region
+	for _, p := range heredocPatterns {
+		for _, loc := range p.quoted.FindAllStringIndex(s, -1) {
+			quotedRegions = append(quotedRegions, region{loc[0], loc[1]})
+		}
+	}
+
+	if len(quotedRegions) == 0 {
+		return strings.ReplaceAll(s, old, new)
+	}
+
+	// Sort regions by start position so we can walk left-to-right.
+	sort.Slice(quotedRegions, func(i, j int) bool {
+		return quotedRegions[i].start < quotedRegions[j].start
+	})
+
+	var result strings.Builder
+	pos := 0
+	for _, r := range quotedRegions {
+		// Replace in the non-heredoc segment before this region.
+		if pos < r.start {
+			result.WriteString(strings.ReplaceAll(s[pos:r.start], old, new))
+		}
+		// Write the quoted-heredoc region verbatim.
+		result.WriteString(s[r.start:r.end])
+		pos = r.end
+	}
+	// Replace in the trailing non-heredoc segment.
+	if pos < len(s) {
+		result.WriteString(strings.ReplaceAll(s[pos:], old, new))
+	}
+	return result.String()
 }
 
 // TemplateInjectionViolation represents a detected template injection risk
