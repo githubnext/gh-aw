@@ -316,6 +316,7 @@ func TestBuildSafeOutputSummary(t *testing.T) {
 	tests := []struct {
 		name          string
 		items         []CreatedItemReport
+		chainMetrics  SafeOutputChainMetrics
 		expectNil     bool
 		expectedTotal int
 		expectedTypes int
@@ -329,6 +330,16 @@ func TestBuildSafeOutputSummary(t *testing.T) {
 			name:      "empty items",
 			items:     []CreatedItemReport{},
 			expectNil: true,
+		},
+		{
+			name:          "chain metrics only",
+			items:         nil,
+			expectNil:     false,
+			expectedTotal: 0,
+			expectedTypes: 0,
+			chainMetrics: SafeOutputChainMetrics{
+				TemporaryIDMapStatus: temporaryIDMapStatusMissing,
+			},
 		},
 		{
 			name: "single item",
@@ -348,6 +359,14 @@ func TestBuildSafeOutputSummary(t *testing.T) {
 			},
 			expectedTotal: 4,
 			expectedTypes: 3,
+			chainMetrics: SafeOutputChainMetrics{
+				TemporaryIDMapStatus:       temporaryIDMapStatusLoaded,
+				TemporaryIDMappings:        2,
+				ChainedTargetCount:         1,
+				ChainedFollowupActionCount: 2,
+				DelegatedTempTargetCount:   1,
+				ClosedTempTargetCount:      1,
+			},
 		},
 		{
 			name: "items with unknown types",
@@ -362,7 +381,7 @@ func TestBuildSafeOutputSummary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildSafeOutputSummary(tt.items)
+			result := buildSafeOutputSummary(tt.items, tt.chainMetrics)
 			if tt.expectNil {
 				assert.Nil(t, result, "Should return nil for empty items")
 				return
@@ -371,8 +390,15 @@ func TestBuildSafeOutputSummary(t *testing.T) {
 			require.NotNil(t, result, "Summary should not be nil")
 			assert.Equal(t, tt.expectedTotal, result.TotalItems, "Total items should match")
 			assert.Len(t, result.ItemsByType, tt.expectedTypes, "Type count should match")
-			assert.NotEmpty(t, result.Summary, "Summary string should not be empty")
+			if tt.expectedTypes > 0 {
+				assert.NotEmpty(t, result.Summary, "Summary string should not be empty")
+			} else {
+				assert.Equal(t, "No items", result.Summary, "Summary string should preserve the no-items fallback when only chain metrics are present")
+			}
 			assert.Len(t, result.TypeDetails, tt.expectedTypes, "Type details should match type count")
+			assert.Equal(t, tt.chainMetrics.TemporaryIDMapStatus, result.TemporaryIDMapStatus, "temp map status should match")
+			assert.Equal(t, tt.chainMetrics.TemporaryIDMappings, result.TemporaryIDMappings, "temp mapping count should match")
+			assert.Equal(t, tt.chainMetrics.ClosedTempTargetCount, result.ClosedTempTargetCount, "closed temp target count should match")
 		})
 	}
 }

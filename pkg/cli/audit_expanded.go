@@ -52,10 +52,16 @@ type SessionAnalysis struct {
 
 // SafeOutputSummary provides a summary of safe output items by type
 type SafeOutputSummary struct {
-	TotalItems  int                    `json:"total_items" console:"header:Total Items"`
-	ItemsByType map[string]int         `json:"items_by_type"`
-	Summary     string                 `json:"summary" console:"header:Summary"`
-	TypeDetails []SafeOutputTypeDetail `json:"type_details,omitempty"`
+	TotalItems                 int                    `json:"total_items" console:"header:Total Items"`
+	ItemsByType                map[string]int         `json:"items_by_type"`
+	Summary                    string                 `json:"summary" console:"header:Summary"`
+	TemporaryIDMapStatus       string                 `json:"temporary_id_map_status,omitempty"`
+	TemporaryIDMappings        int                    `json:"temporary_id_mappings,omitempty"`
+	ChainedTargetCount         int                    `json:"chained_target_count,omitempty"`
+	ChainedFollowupActionCount int                    `json:"chained_followup_action_count,omitempty"`
+	DelegatedTempTargetCount   int                    `json:"delegated_temp_target_count,omitempty"`
+	ClosedTempTargetCount      int                    `json:"closed_temp_target_count,omitempty"`
+	TypeDetails                []SafeOutputTypeDetail `json:"type_details,omitempty"`
 }
 
 // SafeOutputTypeDetail contains counts for a specific safe output type
@@ -364,14 +370,20 @@ func buildSessionAnalysis(processedRun ProcessedRun, metrics LogMetrics) *Sessio
 }
 
 // buildSafeOutputSummary creates a summary of safe output items by type
-func buildSafeOutputSummary(items []CreatedItemReport) *SafeOutputSummary {
-	if len(items) == 0 {
+func buildSafeOutputSummary(items []CreatedItemReport, chainMetrics SafeOutputChainMetrics) *SafeOutputSummary {
+	if len(items) == 0 && chainMetrics.TemporaryIDMapStatus == "" {
 		return nil
 	}
 
 	summary := &SafeOutputSummary{
-		TotalItems:  len(items),
-		ItemsByType: make(map[string]int),
+		TotalItems:                 len(items),
+		ItemsByType:                make(map[string]int),
+		TemporaryIDMapStatus:       chainMetrics.TemporaryIDMapStatus,
+		TemporaryIDMappings:        chainMetrics.TemporaryIDMappings,
+		ChainedTargetCount:         chainMetrics.ChainedTargetCount,
+		ChainedFollowupActionCount: chainMetrics.ChainedFollowupActionCount,
+		DelegatedTempTargetCount:   chainMetrics.DelegatedTempTargetCount,
+		ClosedTempTargetCount:      chainMetrics.ClosedTempTargetCount,
 	}
 
 	// Count items by type
@@ -400,8 +412,8 @@ func buildSafeOutputSummary(items []CreatedItemReport) *SafeOutputSummary {
 	// Build human-readable summary string
 	summary.Summary = buildSafeOutputSummaryString(summary.TypeDetails)
 
-	auditExpandedLog.Printf("Built safe output summary: %d items across %d types",
-		summary.TotalItems, len(summary.ItemsByType))
+	auditExpandedLog.Printf("Built safe output summary: %d items across %d types (temp_map_status=%s)",
+		summary.TotalItems, len(summary.ItemsByType), summary.TemporaryIDMapStatus)
 	return summary
 }
 

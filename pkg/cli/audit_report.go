@@ -371,12 +371,13 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 
 	// Generate performance metrics
 	performanceMetrics := generatePerformanceMetrics(processedRun, metricsData, toolUsage)
+	chainMetrics := buildSafeOutputChainMetrics(run.LogsPath)
 
 	// Extract expanded audit data
 	engineConfig := extractEngineConfigWithInferredEngine(run.LogsPath, inferredEngineID)
 	promptAnalysis := extractPromptAnalysis(run.LogsPath)
 	sessionAnalysis := buildSessionAnalysis(processedRun, metrics)
-	safeOutputSummary := buildSafeOutputSummary(createdItems)
+	safeOutputSummary := buildSafeOutputSummary(createdItems, chainMetrics)
 	mcpServerHealth := buildMCPServerHealth(mcpToolUsage, processedRun.MCPFailures)
 
 	if auditReportLog.Enabled() {

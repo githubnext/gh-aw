@@ -75,6 +75,12 @@ type EpisodeData struct {
 	SuggestedRoute                 string            `json:"suggested_route,omitempty"`
 	Repository                     string            `json:"repository,omitempty"`
 	Organization                   string            `json:"organization,omitempty"`
+	ManifestEntryCount             int               `json:"manifest_entry_count,omitempty"`
+	TemporaryIDMappings            int               `json:"temporary_id_mappings,omitempty"`
+	ChainedTargetCount             int               `json:"chained_target_count,omitempty"`
+	ChainedFollowupActionCount     int               `json:"chained_followup_action_count,omitempty"`
+	DelegatedTempTargetCount       int               `json:"delegated_temp_target_count,omitempty"`
+	ClosedTempTargetCount          int               `json:"closed_temp_target_count,omitempty"`
 	ToolCalls                      []EpisodeToolCall `json:"tool_calls,omitempty"`
 }
 
@@ -164,6 +170,12 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 		acc.metadata.TotalRuns++
 		acc.metadata.TotalTokens += run.TokenUsage
 		acc.metadata.TotalEstimatedCost += run.EstimatedCost
+		acc.metadata.ManifestEntryCount += run.ManifestEntryCount
+		acc.metadata.TemporaryIDMappings += run.TemporaryIDMappings
+		acc.metadata.ChainedTargetCount += run.ChainedTargetCount
+		acc.metadata.ChainedFollowupActionCount += run.ChainedFollowupActionCount
+		acc.metadata.DelegatedTempTargetCount += run.DelegatedTempTargetCount
+		acc.metadata.ClosedTempTargetCount += run.ClosedTempTargetCount
 		if run.Comparison != nil && run.Comparison.Classification != nil && run.Comparison.Classification.Label == "risky" {
 			acc.metadata.RiskyNodeCount++
 		}

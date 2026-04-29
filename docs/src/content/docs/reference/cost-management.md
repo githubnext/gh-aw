@@ -115,6 +115,34 @@ Useful episode fields for cost analysis:
 - `resource_heavy_node_count` — how many runs in the episode were flagged as resource-heavy
 - `blocked_request_count` — aggregate blocked-network pressure across the episode
 
+Safe-output actuation is also available as a first-class signal in both `gh aw logs --json` and `gh aw audit <run-id>`. This is useful when a workflow creates an issue or PR and then immediately follows up with comments, delegation, or closure actions against the same temporary-ID target.
+
+Useful run-level fields in `gh aw logs --json`:
+
+- `temporary_id_map_status` — whether `temporary-id-map.json` was `loaded`, `missing`, or `invalid`
+- `temporary_id_mappings` — how many temporary IDs were resolved to concrete GitHub targets
+- `chained_target_count` — how many resolved temp-ID targets received more than one safe-output action
+- `chained_followup_action_count` — how many safe-output actions happened after the first action on those targets
+- `delegated_temp_target_count` — how many temp-ID targets were later delegated with `assign_to_agent` or `create_agent_session`
+- `closed_temp_target_count` — how many temp-ID targets were later closed or merged
+
+Useful repo-level summary fields in `gh aw logs --json`:
+
+- `runs_with_temporary_id_chains`
+- `runs_with_delegated_temp_targets`
+- `runs_with_missing_temporary_id_map`
+- `runs_with_invalid_temporary_id_map`
+- `total_temporary_id_mappings`
+- `total_chained_targets`
+- `total_chained_followup_actions`
+- `total_closed_temp_targets`
+
+The episode view also rolls these metrics up onto `.episodes[]`, so you can inspect chain intensity per logical execution rather than only per raw run.
+
+In `gh aw audit <run-id>`, the same metrics appear under `safe_output_summary`, alongside the per-type safe-output counts.
+
+When `temporary_id_map_status` is `missing` or `invalid`, gh-aw deliberately suppresses temp-ID-derived chain counts. That means `chained_target_count`, `chained_followup_action_count`, delegated-target counts, and closed-target counts fall back to `0` rather than guessing from incomplete data.
+
 ```bash
 # Top 10 most expensive logical executions over the past 30 days
 gh aw logs --start-date -30d --json | \

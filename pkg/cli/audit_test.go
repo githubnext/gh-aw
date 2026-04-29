@@ -131,6 +131,8 @@ func TestBuildAuditData(t *testing.T) {
 		MissingTools: missingTools,
 		MCPFailures:  mcpFailures,
 	}
+	require.NoError(t, os.WriteFile(filepath.Join(run.LogsPath, safeOutputItemsManifestFilename), []byte("{\"type\":\"create_issue\",\"repo\":\"github/gh-aw\",\"number\":17,\"temporaryId\":\"aw_alpha\",\"timestamp\":\"2024-01-01T10:00:00Z\"}\n{\"type\":\"add_comment\",\"repo\":\"github/gh-aw\",\"number\":17,\"timestamp\":\"2024-01-01T10:01:00Z\"}\n"), 0o600), "should write safe output manifest")
+	require.NoError(t, os.WriteFile(filepath.Join(run.LogsPath, temporaryIDMapFilename), []byte("{\"aw_alpha\":{\"repo\":\"github/gh-aw\",\"number\":17}}"), 0o600), "should write temporary ID map")
 
 	// Build audit data
 	auditData := buildAuditData(processedRun, metrics, nil)
@@ -166,6 +168,18 @@ func TestBuildAuditData(t *testing.T) {
 	}
 	if auditData.Metrics.WarningCount != 1 {
 		t.Errorf("Expected warning count 1, got %d", auditData.Metrics.WarningCount)
+	}
+	if auditData.SafeOutputSummary == nil {
+		t.Fatal("Expected safe output summary to be set")
+	}
+	if auditData.SafeOutputSummary.TemporaryIDMapStatus != temporaryIDMapStatusLoaded {
+		t.Errorf("Expected temp map status %q, got %q", temporaryIDMapStatusLoaded, auditData.SafeOutputSummary.TemporaryIDMapStatus)
+	}
+	if auditData.SafeOutputSummary.TemporaryIDMappings != 1 {
+		t.Errorf("Expected temp ID mappings 1, got %d", auditData.SafeOutputSummary.TemporaryIDMappings)
+	}
+	if auditData.SafeOutputSummary.ChainedTargetCount != 1 {
+		t.Errorf("Expected chained target count 1, got %d", auditData.SafeOutputSummary.ChainedTargetCount)
 	}
 
 	if auditData.Comparison == nil {
