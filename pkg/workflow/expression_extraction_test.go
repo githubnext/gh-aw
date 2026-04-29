@@ -529,6 +529,11 @@ func TestMarshalImportInputValue(t *testing.T) {
 			value: []string{},
 			want:  `[]`,
 		},
+		{
+			name:  "nil value",
+			value: nil,
+			want:  "",
+		},
 	}
 
 	for _, tt := range tests {

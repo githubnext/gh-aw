@@ -808,6 +808,9 @@ func substituteImportInputsInContent(content string, inputs map[string]any) stri
 			if b, err := json.Marshal(v); err == nil {
 				return string(b), true
 			}
+		case nil:
+			// Null import input — skip substitution to avoid panicking on reflect.ValueOf(nil).
+			return "", false
 		default:
 			rv := reflect.ValueOf(v)
 			switch rv.Kind() {

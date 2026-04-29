@@ -341,6 +341,9 @@ func marshalImportInputValue(value any) string {
 		if b, err := json.Marshal(v); err == nil {
 			return string(b)
 		}
+	case nil:
+		// Null import input — return empty string rather than panicking.
+		return ""
 	default:
 		// Handle typed slices (e.g. []string) that goccy/go-yaml may produce
 		// instead of []any, and typed maps.

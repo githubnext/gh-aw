@@ -233,6 +233,8 @@ func marshalEnvValue(v any) string {
 		if b, err := json.Marshal(val); err == nil {
 			return string(b)
 		}
+	case nil:
+		return ""
 	default:
 		rv := reflect.ValueOf(v)
 		switch rv.Kind() {
