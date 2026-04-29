@@ -267,6 +267,13 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MODEL_NOT_SUPPORTED_ERROR: ${{ needs.%s.outputs.model_not_supported_error }}\n", mainJobName))
 	}
 
+	// Pass the engine's primary AI inference API hosts so the failure handler can detect
+	// credential authentication rejections in the firewall audit log without relying solely
+	// on hardcoded patterns. The list is comma-separated (e.g. "api.enterprise.githubcopilot.com,api.githubcopilot.com").
+	if apiHosts := getEngineAPIHosts(data, engine); len(apiHosts) > 0 {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_ENGINE_API_HOSTS: %q\n", strings.Join(apiHosts, ",")))
+	}
+
 	// Pass assignment error outputs from safe_outputs job if assign-to-agent is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.AssignToAgent != nil {
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_ASSIGNMENT_ERRORS: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_errors }}\n")
@@ -668,4 +675,45 @@ func toEnvVarCase(s string) string {
 		}
 	}
 	return result.String()
+}
+
+// getEngineAPIHosts returns the primary AI inference API hostnames for the given engine and
+// workflow data. These are the hosts that appear in the firewall audit log when the engine
+// makes authenticated API calls. The returned slice is used to populate GH_AW_ENGINE_API_HOSTS
+// so the failure handler can detect credential authentication rejections without relying solely
+// on hardcoded host patterns.
+//
+// Resolution order (per engine):
+//   - engine.api-target (explicit GHES / enterprise override) takes precedence
+//   - Default public API hostname(s) for the engine
+func getEngineAPIHosts(data *WorkflowData, engine CodingAgentEngine) []string {
+	if engine == nil {
+		return nil
+	}
+
+	// Explicit api-target overrides the engine-specific default for all engine types.
+	if data != nil && data.EngineConfig != nil && data.EngineConfig.APITarget != "" {
+		return []string{data.EngineConfig.APITarget}
+	}
+
+	switch engine.(type) {
+	case *CopilotEngine:
+		// Return the full set of known Copilot inference endpoints so that any variant
+		// (enterprise, business, individual, or the routing hub) is covered.
+		return []string{
+			"api.enterprise.githubcopilot.com",
+			"api.githubcopilot.com",
+			"api.business.githubcopilot.com",
+			"api.individual.githubcopilot.com",
+		}
+	case *ClaudeEngine:
+		return []string{"api.anthropic.com"}
+	case *CodexEngine:
+		return []string{"api.openai.com"}
+	case *GeminiEngine:
+		return []string{DefaultGeminiAPITarget}
+	default:
+		// Custom or unknown engine — no known API hosts without explicit api-target.
+		return nil
+	}
 }

@@ -536,15 +536,35 @@ function applyToNonCodeRegions(s, fn) {
  */
 function removeXmlComments(s) {
   // Remove <!-- comment --> and malformed <!--! comment --!>
-  // Consolidated into single atomic regex to prevent intermediate state vulnerabilities
-  // The pattern <!--[\s\S]*?--!?> matches both <!-- ... --> and <!-- ... --!>
-  // Apply repeatedly to handle nested/overlapping patterns that could reintroduce comment markers
-  let previous;
-  do {
-    previous = s;
-    s = s.replace(/<!--[\s\S]*?--!?>/g, "");
-  } while (s !== previous);
-  return s;
+  // Uses a depth-tracking scan to correctly handle nested comment openers such as
+  // <!-- <!-- --> PAYLOAD --> where a lazy regex would only consume the innermost
+  // <!-- --> pair, leaving PAYLOAD visible in the output.
+  let result = "";
+  let commentDepth = 0;
+  let position = 0;
+  while (position < s.length) {
+    const ch = s[position];
+    if (ch === "<" && s.startsWith("<!--", position)) {
+      // Comment opener — increase nesting depth regardless of current depth
+      commentDepth++;
+      position += 4;
+    } else if (commentDepth > 0 && ch === "-" && s.startsWith("--!>", position)) {
+      // Malformed comment closer --!> (only meaningful inside an open comment)
+      commentDepth--;
+      position += 4;
+    } else if (commentDepth > 0 && ch === "-" && s.startsWith("-->", position)) {
+      // Normal comment closer --> (only meaningful inside an open comment)
+      commentDepth--;
+      position += 3;
+    } else {
+      // Include character in output only when outside all comment regions
+      if (commentDepth === 0) {
+        result += ch;
+      }
+      position++;
+    }
+  }
+  return result;
 }
 
 /**
@@ -1017,6 +1037,8 @@ const HOMOGLYPH_MAP = {
   "\u0421": "C", // С → C
   "\u0422": "T", // Т → T
   "\u0425": "X", // Х → X
+  "\u0405": "S", // Ѕ → S (Cyrillic Dze)
+  "\u0406": "I", // І → I (Cyrillic Byelorussian-Ukrainian I)
   // --- Cyrillic lowercase → Latin ---
   "\u0430": "a", // а → a
   "\u0435": "e", // е → e

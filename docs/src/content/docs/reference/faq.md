@@ -216,6 +216,32 @@ See [Text Sanitization](/gh-aw/reference/safe-outputs/#text-sanitization-allowed
 
 Guardrails are foundational to the design. Agentic workflows implement defense-in-depth through compilation-time validation (schema checks, expression safety, action SHA pinning), runtime isolation (sandboxed containers with network controls), permission separation (read-only defaults with [safe outputs](/gh-aw/reference/safe-outputs/) for writes), tool allowlisting, and output sanitization. See the [Security Architecture](/gh-aw/introduction/architecture/).
 
+### Can I require external human approval before safe outputs are applied?
+
+Yes. The distinction here is between *guardrail validation* (does the agent output look acceptable?) and *external admission* (is this execution intent authorized to proceed?). gh-aw addresses both.
+
+The safe outputs architecture already enforces permission separation: the agent job runs read-only and never holds write credentials; it only produces a structured artifact. Separate jobs, with scoped write tokens, apply the changes. This boundary is real — a compromised agent cannot directly write to GitHub.
+
+For a fail-closed **external admission gate** before sensitive operations like deployments or credential use, apply **[GitHub Environment protection rules](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-deployments/managing-environments-for-deployment#required-reviewers)** to a [custom safe output job](/gh-aw/reference/custom-safe-outputs/). The job pauses until a designated reviewer outside the workflow system explicitly approves. No approval means no execution.
+
+```yaml wrap
+jobs:
+  approval-gate:
+    runs-on: ubuntu-latest
+    needs: detection          # waits for automated threat scanning to complete
+    environment: production-deploy   # configure required reviewers in Settings → Environments
+    steps:
+      - name: Approved
+        run: echo "Execution approved by reviewer"
+
+safe-outputs:
+  needs: [approval-gate]      # built-in safe_outputs job waits for manual approval
+```
+
+This approval is enforced by GitHub's infrastructure, not by workflow logic the agent could influence. Threat detection still runs before the gate, so the reviewer sees output that has already passed automated scanning.
+
+Note that the *policy* — which environments require approval, what safe outputs are configured — is defined by whoever controls the repository. The admission decision for each run can be external; the admission policy itself is internal to repository owners.
+
 ### How is my code and data processed?
 
 By default, your workflow is run on GitHub Actions, like any other GitHub Actions workflow, and as one if its jobs it invokes your nominated [AI Engine (coding agent)](/gh-aw/reference/engines/), run in a container. This engine may in turn make tool calls and MCP calls. When using the default **GitHub Copilot CLI**, the workflow is processed by the `copilot` CLI tool which uses GitHub Copilot's services and related AI models. The specifics depend on your engine choice:

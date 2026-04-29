@@ -1055,3 +1055,118 @@ func TestHasExternalRootCheckout(t *testing.T) {
 		assert.True(t, cm.HasExternalRootCheckout(), "should be true when any checkout targets external root")
 	})
 }
+
+// TestWikiCheckout verifies wiki: true support across parsing, deduplication, and step generation.
+func TestWikiCheckout(t *testing.T) {
+	getPin := func(action string) string { return action + "@v4" }
+
+	t.Run("parse wiki true", func(t *testing.T) {
+		raw := map[string]any{
+			"repository": "owner/repo",
+			"wiki":       true,
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "should parse wiki: true without error")
+		require.Len(t, configs, 1, "should produce one config")
+		assert.True(t, configs[0].Wiki, "wiki field should be true")
+	})
+
+	t.Run("parse wiki false", func(t *testing.T) {
+		raw := map[string]any{
+			"repository": "owner/repo",
+			"wiki":       false,
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "should parse wiki: false without error")
+		require.Len(t, configs, 1, "should produce one config")
+		assert.False(t, configs[0].Wiki, "wiki field should be false")
+	})
+
+	t.Run("wiki must be boolean", func(t *testing.T) {
+		raw := map[string]any{
+			"wiki": "yes",
+		}
+		_, err := ParseCheckoutConfigs(raw)
+		require.Error(t, err, "non-boolean wiki should return error")
+		assert.Contains(t, err.Error(), "checkout.wiki must be a boolean", "error message should mention wiki")
+	})
+
+	t.Run("wiki and non-wiki checkouts of same repo and path are not merged", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/repo", Path: "./wiki", Wiki: true},
+			{Repository: "owner/repo", Path: "./wiki", Wiki: false},
+		})
+		assert.Len(t, cm.ordered, 2, "wiki and non-wiki checkouts must remain separate even with same repo and path")
+	})
+
+	t.Run("two wiki checkouts of same repo and path are merged", func(t *testing.T) {
+		depth0 := 0
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/repo", Path: "./wiki", Wiki: true},
+			{Repository: "owner/repo", Path: "./wiki", Wiki: true, FetchDepth: &depth0},
+		})
+		assert.Len(t, cm.ordered, 1, "two wiki checkouts with same key should be merged")
+		require.NotNil(t, cm.ordered[0].fetchDepth, "fetch depth should be merged")
+		assert.Equal(t, 0, *cm.ordered[0].fetchDepth, "deeper fetch depth should win")
+	})
+
+	t.Run("additional checkout step uses .wiki repository", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/repo", Path: "./wiki-content", Wiki: true},
+		})
+		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "repository: owner/repo.wiki", "wiki checkout must use .wiki repository suffix")
+		assert.NotContains(t, combined, "repository: owner/repo\n", "must not emit plain repo name")
+	})
+
+	t.Run("default checkout step uses .wiki repository when wiki true", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Wiki: true},
+		})
+		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "repository: ${{ github.repository }}.wiki", "default wiki checkout must use github.repository.wiki")
+	})
+
+	t.Run("additional checkout step uses explicit .wiki repository when repo set", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/docs", Path: "./docs-wiki", Wiki: true},
+		})
+		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "repository: owner/docs.wiki", "wiki checkout must append .wiki to explicit repo")
+	})
+
+	t.Run("wiki false does not affect repository name", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/repo", Path: "./other"},
+		})
+		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "repository: owner/repo\n", "non-wiki checkout must not have .wiki suffix")
+		assert.NotContains(t, combined, "owner/repo.wiki", "non-wiki checkout must not have .wiki suffix")
+	})
+
+	t.Run("wiki checkout with explicit .wiki suffix merges with wiki checkout without suffix", func(t *testing.T) {
+		depth0 := 0
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/repo", Path: "./wiki", Wiki: true},
+			{Repository: "owner/repo.wiki", Path: "./wiki", Wiki: true, FetchDepth: &depth0},
+		})
+		assert.Len(t, cm.ordered, 1, "explicit .wiki suffix should be normalized and merged with the non-suffix wiki checkout")
+		require.NotNil(t, cm.ordered[0].fetchDepth, "fetch depth should be merged from second config")
+		assert.Equal(t, 0, *cm.ordered[0].fetchDepth, "deeper fetch depth should win")
+		// The stored key should use the normalized (no-suffix) repo name
+		assert.Equal(t, "owner/repo", cm.ordered[0].key.repository, "key should store normalized repo without .wiki suffix")
+		assert.True(t, cm.ordered[0].key.wiki, "key should have wiki=true")
+	})
+
+	t.Run("wiki prompt content includes .wiki suffix annotation", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/docs", Path: "./wiki", Wiki: true},
+		})
+		assert.Contains(t, content, "owner/docs.wiki", "prompt must show .wiki suffix for wiki checkout")
+		assert.Contains(t, content, "(wiki)", "prompt must annotate wiki checkout")
+	})
+}
