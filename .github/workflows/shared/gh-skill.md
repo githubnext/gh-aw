@@ -12,6 +12,8 @@
 #   imports:
 #     - uses: shared/gh-skill.md
 #       with:
+#         engine: copilot            # optional: copilot (default), claude, codex, gemini, opencode
+#         token: ${{ secrets.MY_TOKEN }}  # optional: defaults to GITHUB_TOKEN
 #         skills:
 #           - github/awesome-copilot/documentation-writer
 #           - github/awesome-copilot/code-review
@@ -33,11 +35,33 @@ import-schema:
       Examples: "github/awesome-copilot", "github/awesome-copilot/documentation-writer",
       "github/awesome-copilot/code-review@v1.2.0"
 
+  token:
+    type: string
+    required: false
+    description: >
+      GitHub token used to authenticate skill downloads. Pass via a secret
+      expression, e.g. ${{ secrets.GH_TOKEN }}. Defaults to the built-in
+      GITHUB_TOKEN when omitted (sufficient for public skill repositories).
+
+  engine:
+    type: string
+    required: false
+    description: >
+      The gh-aw engine name. Determines which agent host receives the skills.
+      Accepted values: copilot (default), claude, codex, gemini, opencode.
+      Maps to the corresponding gh skill --agent value:
+        copilot  → github-copilot
+        claude   → claude-code
+        codex    → codex
+        gemini   → gemini-cli
+        opencode → opencode
+
 pre-agent-steps:
   - name: Install agent skills
     env:
-      GH_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ github.aw.import-inputs.token || secrets.GITHUB_TOKEN }}
       GH_AW_SKILLS: ${{ github.aw.import-inputs.skills }}
+      GH_AW_SKILL_ENGINE: ${{ github.aw.import-inputs.engine }}
     run: |
       set -euo pipefail
       skills_json="${GH_AW_SKILLS}"
@@ -46,7 +70,13 @@ pre-agent-steps:
         echo "::error::shared/gh-skill.md import provided no skills. Add skills: <list> in the with: block."
         exit 1
       fi
-      agent="${AI_AGENT:-github-copilot}"
+      case "${GH_AW_SKILL_ENGINE:-copilot}" in
+        claude)   agent="claude-code" ;;
+        codex)    agent="codex" ;;
+        gemini)   agent="gemini-cli" ;;
+        opencode) agent="opencode" ;;
+        *)        agent="github-copilot" ;;
+      esac
       printf "::notice::Installing %d skill(s) for agent: %s\n" "$count" "$agent"
       while IFS= read -r skill_entry; do
         repo=$(echo "$skill_entry" | cut -d'/' -f1,2)
@@ -74,20 +104,10 @@ Each skill in the `skills:` list is installed into the repository's
 `.github/skills/` directory via `gh skill install`, making the skills available
 to the AI agent during its session.
 
-The target agent host is determined from the `AI_AGENT` environment variable if
-set (for example, Claude Code automatically sets `AI_AGENT=claude-code` for its
-subprocesses), otherwise defaults to `github-copilot`. Set `AI_AGENT` in your
-workflow's `agent.env` block to override:
-
-```yaml
-agent:
-  env:
-    AI_AGENT: claude-code
-```
-
 ### Usage
 
 ```yaml
+engine: copilot
 imports:
   - uses: shared/gh-skill.md
     with:
@@ -95,6 +115,27 @@ imports:
         - github/awesome-copilot/documentation-writer
         - github/awesome-copilot/code-review@v1.2.0
 ```
+
+For other engines, set `engine:` in the `with:` block to match your workflow
+engine so skills are installed for the correct agent host:
+
+```yaml
+engine: claude
+imports:
+  - uses: shared/gh-skill.md
+    with:
+      engine: claude
+      skills:
+        - github/awesome-copilot/documentation-writer
+```
+
+### Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| `skills` | ✅ | List of skills to install (see formats below) |
+| `engine` | No | gh-aw engine name — determines the `--agent` target (default: `copilot`) |
+| `token` | No | GitHub token for downloading skills (default: built-in `GITHUB_TOKEN`) |
 
 ### Skill format
 
@@ -106,37 +147,28 @@ Each entry in `skills:` is one of:
 | `owner/repo/skill-name` | `github/awesome-copilot/documentation-writer` | Installs a specific skill (latest) |
 | `owner/repo/skill-name@version` | `github/awesome-copilot/code-review@v1.2.0` | Installs a pinned version |
 
+### Engine → agent mapping
+
+| `engine` input | `gh skill --agent` value |
+|---------------|--------------------------|
+| `copilot` (default) | `github-copilot` |
+| `claude` | `claude-code` |
+| `codex` | `codex` |
+| `gemini` | `gemini-cli` |
+| `opencode` | `opencode` |
+
 ### Authentication
 
-Uses a token from the standard precedence chain:
-`GH_AW_PLUGINS_TOKEN` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`.
-
-For private skill repositories, configure `GH_AW_PLUGINS_TOKEN` or
-`GH_AW_GITHUB_TOKEN` with appropriate access.
-
-### Agent targeting
-
-The `AI_AGENT` environment variable controls which agent host receives the
-installed skills:
-
-- `AI_AGENT=github-copilot` — GitHub Copilot (default when unset)
-- `AI_AGENT=claude-code` — Claude Code
-- `AI_AGENT=cursor` — Cursor
-- `AI_AGENT=codex` — OpenAI Codex
-- `AI_AGENT=gemini-cli` — Gemini CLI
-
-Set `AI_AGENT` in `agent.env` to match the engine used by the workflow:
+Uses the token provided via the `token` input, falling back to the built-in
+`GITHUB_TOKEN`. For private skill repositories, pass a token with read access:
 
 ```yaml
-engine: claude
-agent:
-  env:
-    AI_AGENT: claude-code
 imports:
   - uses: shared/gh-skill.md
     with:
+      token: ${{ secrets.MY_SKILLS_TOKEN }}
       skills:
-        - github/awesome-copilot/documentation-writer
+        - my-org/private-skills/my-skill
 ```
 
 ### Network access
