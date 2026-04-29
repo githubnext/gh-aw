@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestBotsFieldExtraction tests the extraction of the bots field from frontmatter
@@ -234,25 +235,14 @@ func TestMergeBots(t *testing.T) {
 			name:     "both nil",
 			top:      nil,
 			imported: nil,
-			expected: nil,
+			expected: []string{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := compiler.mergeBots(tt.top, tt.imported)
-			if len(tt.expected) == 0 && len(result) == 0 {
-				return
-			}
-			if len(result) != len(tt.expected) {
-				t.Errorf("Expected %d bots, got %d: %v", len(tt.expected), len(result), result)
-				return
-			}
-			for i, expected := range tt.expected {
-				if result[i] != expected {
-					t.Errorf("Expected bot '%s' at index %d, got '%s'", expected, i, result[i])
-				}
-			}
+			assert.Equal(t, tt.expected, result, "mergeBots result mismatch")
 		})
 	}
 }
