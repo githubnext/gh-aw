@@ -42,6 +42,9 @@ tools:
     - "*"
 
 timeout-minutes: 30
+
+imports:
+  - shared/otel.md
 ---
 
 # Daily Caveman Optimizer 🪨
