@@ -164,53 +164,53 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           // FULL MODE (for create_pull_request):
           // Include all commits since merge-base with default branch.
           // This is appropriate for creating new PRs where we want all changes.
-
-          debugLog(`Strategy 1 (full): Checking if origin/${branchName} exists`);
+          //
+          // IMPORTANT: We deliberately do NOT short-circuit to `origin/${branchName}` even
+          // when that remote-tracking ref exists locally. That ref is fetched at workflow
+          // startup and represents the *remote* branch state at that moment, not the
+          // branch state before the agent made changes. If the local branch was
+          // fast-forwarded to the default branch during the agent run (a common pattern),
+          // using the stale `origin/${branchName}` would cause the patch to include all
+          // commits from the default branch since the old branch tip — commits the agent
+          // never made. Always compute the merge-base with the default branch so the patch
+          // contains exactly the agent's changes.
+          debugLog(`Strategy 1 (full): Computing merge-base with ${defaultBranch} (ignoring any stale origin/${branchName})`);
+          // Check if origin/<defaultBranch> already exists locally (e.g., from checkout with fetch-depth: 0)
+          // This is important for cross-repo checkouts where persist-credentials: false prevents fetching
+          let hasLocalDefaultBranch = false;
           try {
-            // Check if origin/branchName exists
-            execGitSync(["show-ref", "--verify", "--quiet", `refs/remotes/origin/${branchName}`], { cwd });
-            baseRef = `origin/${branchName}`;
-            debugLog(`Strategy 1 (full): Using existing origin/${branchName} as baseRef`);
+            execGitSync(["show-ref", "--verify", "--quiet", `refs/remotes/origin/${defaultBranch}`], { cwd });
+            hasLocalDefaultBranch = true;
+            debugLog(`Strategy 1 (full): origin/${defaultBranch} exists locally`);
           } catch {
-            // origin/branchName doesn't exist - use merge-base with default branch
-            debugLog(`Strategy 1 (full): origin/${branchName} not found, trying merge-base with ${defaultBranch}`);
-            // First check if origin/<defaultBranch> already exists locally (e.g., from checkout with fetch-depth: 0)
-            // This is important for cross-repo checkouts where persist-credentials: false prevents fetching
-            let hasLocalDefaultBranch = false;
+            // origin/<defaultBranch> doesn't exist locally, try to fetch it
+            debugLog(`Strategy 1 (full): origin/${defaultBranch} not found locally, attempting fetch`);
             try {
-              execGitSync(["show-ref", "--verify", "--quiet", `refs/remotes/origin/${defaultBranch}`], { cwd });
+              // Configure git authentication via GIT_CONFIG_* environment variables.
+              // This ensures the fetch works when .git/config credentials are unavailable
+              // (e.g. after clean_git_credentials.sh) and on GitHub Enterprise Server (GHES).
+              // Use options.token when provided (cross-repo PAT), falling back to GITHUB_TOKEN.
+              // SECURITY: The auth header is passed via env vars so it is never written to
+              // .git/config on disk, preventing file-monitoring attacks.
+              const fullFetchEnv = { ...process.env, ...getGitAuthEnv(options.token) };
+              // Use "--" to prevent branch names starting with "-" from being interpreted as options
+              execGitSync(["fetch", "origin", "--", defaultBranch], { cwd, env: fullFetchEnv });
               hasLocalDefaultBranch = true;
-              debugLog(`Strategy 1 (full): origin/${defaultBranch} exists locally`);
-            } catch {
-              // origin/<defaultBranch> doesn't exist locally, try to fetch it
-              debugLog(`Strategy 1 (full): origin/${defaultBranch} not found locally, attempting fetch`);
-              try {
-                // Configure git authentication via GIT_CONFIG_* environment variables.
-                // This ensures the fetch works when .git/config credentials are unavailable
-                // (e.g. after clean_git_credentials.sh) and on GitHub Enterprise Server (GHES).
-                // Use options.token when provided (cross-repo PAT), falling back to GITHUB_TOKEN.
-                // SECURITY: The auth header is passed via env vars so it is never written to
-                // .git/config on disk, preventing file-monitoring attacks.
-                const fullFetchEnv = { ...process.env, ...getGitAuthEnv(options.token) };
-                // Use "--" to prevent branch names starting with "-" from being interpreted as options
-                execGitSync(["fetch", "origin", "--", defaultBranch], { cwd, env: fullFetchEnv });
-                hasLocalDefaultBranch = true;
-                debugLog(`Strategy 1 (full): Successfully fetched origin/${defaultBranch}`);
-              } catch (fetchErr) {
-                // Fetch failed (likely due to persist-credentials: false in cross-repo checkout)
-                // We'll try other strategies below
-                debugLog(`Strategy 1 (full): Fetch failed - ${getErrorMessage(fetchErr)} (will try other strategies)`);
-              }
+              debugLog(`Strategy 1 (full): Successfully fetched origin/${defaultBranch}`);
+            } catch (fetchErr) {
+              // Fetch failed (likely due to persist-credentials: false in cross-repo checkout)
+              // We'll try other strategies below
+              debugLog(`Strategy 1 (full): Fetch failed - ${getErrorMessage(fetchErr)} (will try other strategies)`);
             }
+          }
 
-            if (hasLocalDefaultBranch) {
-              baseRef = execGitSync(["merge-base", "--", `origin/${defaultBranch}`, branchName], { cwd }).trim();
-              debugLog(`Strategy 1 (full): Computed merge-base: ${baseRef}`);
-            } else {
-              // No remote refs available - fall through to Strategy 2
-              debugLog(`Strategy 1 (full): No remote refs available, falling through to Strategy 2`);
-              throw new Error(`${ERR_SYSTEM}: No remote refs available for merge-base calculation`);
-            }
+          if (hasLocalDefaultBranch) {
+            baseRef = execGitSync(["merge-base", "--", `origin/${defaultBranch}`, branchName], { cwd }).trim();
+            debugLog(`Strategy 1 (full): Computed merge-base: ${baseRef}`);
+          } else {
+            // No remote refs available - fall through to Strategy 2
+            debugLog(`Strategy 1 (full): No remote refs available, falling through to Strategy 2`);
+            throw new Error(`${ERR_SYSTEM}: No remote refs available for merge-base calculation`);
           }
         }
 

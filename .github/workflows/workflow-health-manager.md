@@ -30,6 +30,34 @@ safe-outputs:
 timeout-minutes: 30
 imports:
   - shared/reporting.md
+steps:
+  - name: build-inventory
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/agent
+      # Run compilation validation and capture output
+      gh aw compile --validate > /tmp/gh-aw/agent/compile-validate.txt 2>&1 || true
+      # List executable workflow files (exclude shared/ subdirectory)
+      ls .github/workflows/*.md 2>/dev/null > /tmp/gh-aw/agent/workflow-list.txt || true
+      echo "Inventory complete: $(wc -l < /tmp/gh-aw/agent/workflow-list.txt | tr -d ' ') workflows found"
+pre-agent-steps:
+  - name: load-metrics
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/agent
+      METRICS_FILE="/tmp/gh-aw/repo-memory/default/metrics/latest.json"
+      if [ -f "$METRICS_FILE" ]; then
+        jq '[.workflow_runs | to_entries[]
+             | select(.value.success_rate < 0.8)]
+            | sort_by(.value.success_rate) | .[0:20]' \
+          "$METRICS_FILE" > /tmp/gh-aw/agent/failing-workflows.json 2>/dev/null \
+          || echo '[]' > /tmp/gh-aw/agent/failing-workflows.json
+      else
+        echo '[]' > /tmp/gh-aw/agent/failing-workflows.json
+      fi
+      echo "Metrics loaded: $(jq 'length' /tmp/gh-aw/agent/failing-workflows.json) failing workflows (<80% success)"
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -53,12 +81,11 @@ As a meta-orchestrator for workflow health, you oversee the operational health o
 ### 1. Workflow Discovery and Inventory
 
 **Discover all workflows:**
-- Scan `.github/workflows/` for all `.md` workflow files
-- **EXCLUDE** files in `.github/workflows/shared/` subdirectory (these are reusable imports, not standalone workflows)
+- Read `/tmp/gh-aw/agent/workflow-list.txt` for all executable `.md` workflow files (pre-computed, `shared/` already excluded)
 - Categorize workflows:
   - Agentic workflows
   - GitHub Actions workflows (`.yml`)
-- Build workflow inventory with metadata:
+- Build workflow inventory with metadata by parsing frontmatter for each file listed:
   - Workflow name and description
   - Engine type (copilot, claude, codex, custom)
   - Trigger configuration (schedule, events)
@@ -68,9 +95,9 @@ As a meta-orchestrator for workflow health, you oversee the operational health o
 ### 2. Health Monitoring
 
 **Check compilation status:**
+- Read `/tmp/gh-aw/agent/compile-validate.txt` for compilation results (pre-computed, do not re-run `gh aw compile --validate`)
 - Verify each **executable workflow** has a corresponding `.lock.yml` file
 - **EXCLUDE** shared include files in `.github/workflows/shared/` (these are imported by other workflows, not compiled standalone)
-- Check if lock files are up-to-date using frontmatter hash verification (not file modification timestamps)
 - Identify workflows that failed to compile
 - Flag workflows with compilation warnings
 
@@ -225,35 +252,27 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
 - Use clear headers and bullet points
 - Include issue/PR/workflow numbers for reference
 
-### Phase 1: Discovery (5 minutes)
+### Phase 1: Discovery (pre-computed)
 
-1. **Scan workflow directory:**
-   - List all `.md` files in `.github/workflows/` (excluding `shared/` subdirectory)
-   - Parse frontmatter for each workflow
-   - Extract key metadata (engine, triggers, tools, permissions)
+Pre-computed data is available in `/tmp/gh-aw/agent/` and is the authoritative source for this phase:
+- `workflow-list.txt` — all executable `.md` workflow files (one per line, shared/ already excluded)
+- `compile-validate.txt` — output from `gh aw compile --validate`
 
-2. **Check compilation status:**
-   - For each **executable** `.md` file, verify `.lock.yml` exists
-   - **SKIP** files in `.github/workflows/shared/` directory (reusable imports, not standalone workflows)
-   - Verify lock freshness with frontmatter hash checks (for example, `gh aw compile --validate`) instead of raw file modification timestamps
-   - Run `gh aw compile --validate` to check for compilation errors
-
-3. **Build workflow inventory:**
-   - Create structured data for each workflow
-   - Categorize by type, engine, and purpose
-   - Map relationships and dependencies
+1. **Read the pre-computed inventory** from the files above; do not scan `.github/workflows/` or re-run discovery from scratch.
+2. **Parse frontmatter** for each workflow listed in `/tmp/gh-aw/agent/workflow-list.txt` to extract key metadata (engine, triggers, tools, permissions).
+3. **Check compilation status** using `/tmp/gh-aw/agent/compile-validate.txt` only — do not rerun `gh aw compile --validate`; verify each workflow has a `.lock.yml` and note any errors or warnings.
+4. **Treat these pre-computed files as overriding any earlier generic discovery guidance** in this document for inventory and compilation validation.
 
 ### Phase 2: Health Assessment (7 minutes)
 
-4. **Query workflow runs:**
-   - For each workflow, get last 10 runs (or 7 days)
-   - Extract run status, duration, errors
-   - Calculate success rate
+4. **Use pre-loaded metrics:**
+   - `/tmp/gh-aw/agent/failing-workflows.json` contains the top-20 workflows with <80% success rate (pre-filtered from `metrics/latest.json`). Use this as your starting point.
+   - For trend analysis, load daily metrics directly: `/tmp/gh-aw/repo-memory/default/metrics/daily/*.json`
 
-5. **Analyze errors:**
-   - Group errors by type and pattern
-   - Identify workflows with recurring issues
-   - Detect systemic problems affecting multiple workflows
+5. **Query workflow runs:**
+   - For workflows flagged in `failing-workflows.json`, get last 10 runs (or 7 days) for detailed error analysis
+   - Batch queries where possible (fetch multiple workflows in one `list_workflow_runs` call filtered by date)
+   - Calculate success rate, track timeout issues, permission errors, tool failures
 
 6. **Calculate health scores:**
    - For each workflow, compute reliability score
@@ -321,135 +340,30 @@ Create or update a pinned issue with this structure:
 # Workflow Health Dashboard - [DATE]
 
 ## Overview
-- Total workflows: XXX
-- Healthy: XXX (XX%)
-- Warning: XXX (XX%)
-- Critical: XXX (XX%)
-- Inactive: XXX (XX%)
+Total: X | Healthy: X (X%) | Warning: X (X%) | Critical: X (X%) | Inactive: X
 
 ## Critical Issues 🚨
-
-### Workflow Name 1 (Score: XX/100)
-- **Status:** Failing consistently (X/10 recent runs failed)
-- **Error:** Permission denied when accessing GitHub API
-- **Impact:** Unable to create issues for campaign tracking
-- **Action:** Issue #XXX created for investigation
-- **Priority:** P0
-
-### Workflow Name 2 (Score: XX/100)
-- **Status:** Timeout on every run
-- **Error:** Operation exceeds 10 minute timeout
-- **Impact:** Campaign metrics not being updated
-- **Action:** Issue #XXX created with optimization suggestions
-- **Priority:** P1
+### [Workflow Name] (Score: X/100) — P[0|1]
+- **Status/Error:** [brief description]  **Impact:** [brief]  **Action:** Issue #XXX
 
 ## Warnings ⚠️
-
-### Workflow Name 3 (Score: XX/100)
-- **Issue:** Compilation warnings about deprecated syntax
-- **Recommendation:** Update to use new safe-outputs format
-- **Action:** Issue #XXX created with migration guide
-
-### Workflow Name 4 (Score: XX/100)
-- **Issue:** High resource usage (15 min average run time)
-- **Recommendation:** Consider splitting into smaller workflows
-- **Action:** Tracked for future optimization
-
-## Healthy Workflows ✅
-
-XXX workflows operating normally with no issues detected.
+### [Workflow Name] (Score: X/100)
+- [Issue summary and action taken]
 
 ## Systemic Issues
-
-### Issue: API Rate Limiting
-- **Affected workflows:** XX workflows
-- **Pattern:** Workflows running simultaneously hitting rate limits
-- **Recommendation:** Stagger schedule times across workflows
-- **Action:** Issue #XXX created with scheduling optimization plan
-
-### Issue: Deprecated Tool Versions
-- **Affected workflows:** XX workflows
-- **Pattern:** Using MCP tools with outdated versions
-- **Recommendation:** Update to latest MCP server versions
-- **Action:** Issue #XXX created with upgrade plan
+- [Pattern] — X workflows affected — [Recommendation] — Issue #XXX
 
 ## Recommendations
-
-### High Priority
-1. Fix workflow X (P0 - completely broken)
-2. Optimize workflow Y scheduling (P1 - causing rate limits)
-3. Update workflow Z to use safe outputs (P1 - security concern)
-
-### Medium Priority
-1. Consolidate workflows A and B (similar functionality)
-2. Add timeout configs to XX workflows
-3. Update documentation for YY workflows
-
-### Low Priority
-1. Modernize workflow syntax in legacy workflows
-2. Add better error handling to XX workflows
+**High:** [P0/P1 items]  **Medium:** [P2 items]  **Low:** [P3 items]
 
 ## Trends
+Health score: X/100 (↑/↓/→) | New failures: X | Fixed: X | Avg success: X%
 
-- Overall health score: XX/100 (↑/↓/→ from last week)
-- New failures this week: X
-- Fixed issues this week: X
-- Average workflow success rate: XX%
-- Workflows needing recompilation: X
+## Actions Taken
+Created X issues | Updated X | Closed X
 
-## Actions Taken This Run
-
-- Created X new issues for critical workflows
-- Updated X existing issues with status
-- Closed X resolved issues
-- Recommended X optimizations
-
----
 > Last updated: [TIMESTAMP]
-> Next check: [TIMESTAMP]
 ```
-
-## Important Guidelines
-
-**Systematic monitoring:**
-- Check ALL workflows, not just obviously failing ones
-- Track trends over time to catch degradation early
-- Be proactive about maintenance before workflows break
-- Consider workflow interdependencies when assessing health
-
-**Evidence-based assessment:**
-- Base health scores on concrete metrics (run success rate, error patterns)
-- Cite specific workflow runs when reporting issues
-- Include error messages and logs in issue reports
-- Compare current state with historical data
-
-**Actionable recommendations:**
-- Provide specific, implementable fixes for each issue
-- Include code examples or configuration changes when possible
-- Link to relevant documentation or migration guides
-- Estimate effort/complexity for recommended fixes
-
-**Prioritization:**
-- Focus on workflows critical to campaign operations
-- Consider blast radius when prioritizing fixes
-- Address systemic issues affecting multiple workflows first
-- Balance urgent fixes with long-term improvements
-
-**Issue hygiene:**
-- Don't create duplicate issues for the same workflow
-- Update existing issues rather than creating new ones
-- Close issues when workflows are fixed
-- Use consistent labels for tracking and filtering
-
-## Success Metrics
-
-Your effectiveness is measured by:
-- Overall workflow health score improving over time
-- Reduction in workflow failure rates
-- Faster detection and resolution of issues
-- Fewer cascading failures
-- Improved resource utilization
-- Higher workflow reliability scores
 
 Execute all phases systematically and maintain a proactive approach to workflow health management.
 

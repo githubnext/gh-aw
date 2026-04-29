@@ -608,9 +608,14 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 			// (e.g., "agentic_execution" is already used by the main engine execution step)
 			prefixed := strings.Replace(line, "id: agentic_execution", "id: detection_agentic_execution", 1)
 			steps = append(steps, prefixed+"\n")
-			// Inject the if condition after the first line (- name:)
+			// Inject the if condition and continue-on-error after the first line (- name:).
+			// continue-on-error: true ensures that infrastructure failures (e.g. unhealthy
+			// AWF container, Claude API errors) do not mark the detection job as failed.
+			// The "Parse and conclude" step always runs (if: always()) and handles the
+			// missing/incomplete detection log as parse_error in warn mode (exit 0).
 			if i == 0 {
 				steps = append(steps, fmt.Sprintf("        if: %s\n", detectionStepCondition))
+				steps = append(steps, "        continue-on-error: true\n")
 			}
 		}
 	}

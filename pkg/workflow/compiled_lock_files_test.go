@@ -290,6 +290,32 @@ func TestCompiledLockFiles_SmokeWorkflowsHaveDetectionJobWithAgenticRunCall(t *t
 					"detection job should have an agentic execution step with id: detection_agentic_execution")
 			})
 
+			t.Run("AgenticExecutionStepHasContinueOnError", func(t *testing.T) {
+				// The detection_agentic_execution step must have continue-on-error: true so that
+				// infrastructure failures (e.g. unhealthy AWF container, CLI errors) do not mark
+				// the detection job as failed. The "Parse and conclude" step always runs and
+				// handles missing/incomplete detection logs as parse_error in warn mode (exit 0).
+				stepName := "- name: Execute"
+				stepID := "id: detection_agentic_execution"
+
+				startIdx := strings.Index(detectionJob, stepName)
+				require.NotEqual(t, -1, startIdx, "detection job must contain an Execute step")
+
+				// Find the last occurrence of the Execute step before detection_agentic_execution.
+				idIdx := strings.Index(detectionJob, stepID)
+				require.NotEqual(t, -1, idIdx, "detection job must contain %q", stepID)
+
+				// Extract the step block from the Execute step name to the id line.
+				stepBlock := detectionJob[strings.LastIndex(detectionJob[:idIdx], stepName):]
+				nextStep := strings.Index(stepBlock, "\n      - ")
+				if nextStep != -1 {
+					stepBlock = stepBlock[:nextStep]
+				}
+
+				assert.Contains(t, stepBlock, "continue-on-error: true",
+					"detection_agentic_execution step must have continue-on-error: true to prevent infrastructure failures from failing the detection job")
+			})
+
 			t.Run("AgenticExecutionStepUsesAWF", func(t *testing.T) {
 				// Narrow the check to the detection_agentic_execution step block.
 				stepID := "id: detection_agentic_execution"
