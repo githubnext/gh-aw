@@ -508,11 +508,11 @@ The causal graph of edges between workflow runs computed by `gh aw logs --json`.
 
 ### Episode
 
-A deterministic rollup of related workflow runs that belong to a single logical execution. When an orchestrator dispatches workers, all participating runs are grouped into one episode with aggregate metrics including `total_runs`, `total_tokens`, `total_estimated_cost`, and `risky_node_count`. Available under `.episodes[]` in `gh aw logs --json` output. Episodes are more useful than per-run metrics when one logical job spans multiple workflow runs.
+A deterministic rollup of related workflow runs that belong to a single logical execution. When an orchestrator dispatches workers, all participating runs are grouped into one episode with aggregate metrics including `total_runs`, `total_tokens`, `total_effective_tokens`, `total_estimated_cost`, and `risky_node_count`. Available under `.episodes[]` in `gh aw logs --json` output. Episodes are more useful than per-run metrics when one logical job spans multiple workflow runs. For Copilot cost analysis, prefer `total_effective_tokens`; `total_estimated_cost` is only a heuristic and is not reliable billing data.
 
 ```bash
 gh aw logs --start-date -30d --json | \
-  jq '.episodes[] | {id: .episode_id, workflow: .primary_workflow, cost: .total_estimated_cost}'
+  jq '.episodes[] | {id: .episode_id, workflow: .primary_workflow, effective_tokens: .total_effective_tokens}'
 ```
 
 ### WebAssembly (Wasm)

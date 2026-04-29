@@ -167,6 +167,37 @@ func TestBuildEpisodeDataNoToolCallsWhenMCPUsageAbsent(t *testing.T) {
 	assert.Empty(t, ep.ToolCalls, "tool_calls should be absent when no MCP usage data")
 }
 
+func TestBuildEpisodeDataAggregatesEffectiveTokens(t *testing.T) {
+	runs := []RunData{
+		{
+			RunID:           501,
+			WorkflowName:    "effective-a",
+			Status:          "completed",
+			EffectiveTokens: 1200,
+			CreatedAt:       time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+		},
+		{
+			RunID:           502,
+			WorkflowName:    "effective-b",
+			Status:          "completed",
+			EffectiveTokens: 345,
+			CreatedAt:       time.Date(2024, 1, 1, 12, 1, 0, 0, time.UTC),
+		},
+	}
+
+	episodes, _ := buildEpisodeData(runs, nil)
+	require.Len(t, episodes, 2, "expected one episode per unrelated run")
+
+	byRunID := make(map[int64]EpisodeData, len(episodes))
+	for _, episode := range episodes {
+		require.Len(t, episode.RunIDs, 1, "each unrelated run should produce its own episode")
+		byRunID[episode.RunIDs[0]] = episode
+	}
+
+	assert.Equal(t, 1200, byRunID[501].TotalEffectiveTokens, "episode should preserve effective tokens from run 501")
+	assert.Equal(t, 345, byRunID[502].TotalEffectiveTokens, "episode should preserve effective tokens from run 502")
+}
+
 func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
 	// Two runs belonging to the same episode (via dispatch)
 	workflowCallID := "dispatch:wc-42"

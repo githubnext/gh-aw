@@ -72,12 +72,12 @@ gh aw logs --start-date -30d --json | \
 
 The JSON output includes `duration`, `token_usage`, `estimated_cost`, `workflow_name`, and `agent` (the engine ID) for each run under `.runs[]`.
 
-For orchestrated workflows, the same JSON also includes deterministic lineage under `.episodes[]` and `.edges[]`. The episode rollups expose aggregate fields such as `total_runs`, `total_tokens`, `total_estimated_cost`, `risky_node_count`, and `suggested_route`, which are more useful than raw per-run metrics when one logical job spans multiple workflow runs.
+For orchestrated workflows, the same JSON also includes deterministic lineage under `.episodes[]` and `.edges[]`. The episode rollups expose aggregate fields such as `total_runs`, `total_tokens`, `total_effective_tokens`, `total_estimated_cost`, `risky_node_count`, and `suggested_route`, which are more useful than raw per-run metrics when one logical job spans multiple workflow runs.
 
 ```bash
-# List episode-level cost and risk data over the past 30 days
+# List episode-level usage and risk data over the past 30 days
 gh aw logs --start-date -30d --json | \
-  jq '.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, cost: .total_estimated_cost, risky_nodes: .risky_node_count}'
+  jq '.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, effective_tokens: .total_effective_tokens, risky_nodes: .risky_node_count}'
 ```
 
 ### Interpret Episode-Level Cost
@@ -109,11 +109,13 @@ Useful episode fields for cost analysis:
 
 - `total_runs` — how many workflow runs were part of the same logical execution
 - `total_tokens` — aggregate raw tokens across the episode
-- `total_estimated_cost` — aggregate estimated inference cost across the episode
+- `total_effective_tokens` — aggregate effective tokens across the episode; use this as the primary cost proxy for Copilot runs
 - `total_duration` — wall-clock duration across the grouped runs
 - `primary_workflow` — the main workflow label for the episode
 - `resource_heavy_node_count` — how many runs in the episode were flagged as resource-heavy
 - `blocked_request_count` — aggregate blocked-network pressure across the episode
+
+For Copilot runs, prefer `total_effective_tokens` over `total_estimated_cost`. Copilot does not expose reliable billing-grade cost data to gh-aw, so `total_estimated_cost` should be treated as a heuristic rather than authoritative spend.
 
 Safe-output actuation is also available as a first-class signal in both `gh aw logs --json` and `gh aw audit <run-id>`. This is useful when a workflow creates an issue or PR and then immediately follows up with comments, delegation, or closure actions against the same temporary-ID target.
 
@@ -144,18 +146,18 @@ In `gh aw audit <run-id>`, the same metrics appear under `safe_output_summary`, 
 When `temporary_id_map_status` is `missing` or `invalid`, gh-aw deliberately suppresses temp-ID-derived chain counts. That means `chained_target_count`, `chained_followup_action_count`, delegated-target counts, and closed-target counts fall back to `0` rather than guessing from incomplete data.
 
 ```bash
-# Top 10 most expensive logical executions over the past 30 days
+# Top 10 heaviest logical executions over the past 30 days by effective tokens
 gh aw logs --start-date -30d --json | \
-  jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, cost: (.total_estimated_cost // 0), tokens: (.total_tokens // 0)}]
-      | sort_by(.cost)
+  jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, effective_tokens: (.total_effective_tokens // 0), tokens: (.total_tokens // 0)}]
+      | sort_by(.effective_tokens)
       | reverse
       | .[:10]'
 ```
 
 ```bash
-# Inspect lineage edges for one expensive episode
+# Inspect lineage edges for one heavy episode
 gh aw logs --start-date -30d --json | \
-  jq '(.episodes[] | select(.total_estimated_cost > 1.0) | .episode_id) as $id
+  jq '(.episodes[] | select((.total_effective_tokens // 0) > 100000) | .episode_id) as $id
       | {episode: $id, edges: [.edges[] | select(.episode_id == $id)]}'
 ```
 
