@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"73852758b4c9ebbe20cd11ec0b8a836e9eb787a7eba4b2534ba1b89a2b382c7e","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"35aa310dd16fc18f5687521dd9bf239aa9c385cc8d61af2081edd1db6dcf6a0f","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"anchore/sbom-action","sha":"e22c389904149dbc22b58101806040fa8d37a610","version":"v0.24.0"},{"repo":"docker/build-push-action","sha":"bcafcacb16a39f128d818304e6c9c0c18556b85f","version":"v7.1.0"},{"repo":"docker/login-action","sha":"4907a6ddec9925e35a0a9e82d7399ccc52663121","version":"v4.1.0"},{"repo":"docker/metadata-action","sha":"030e881283bb7a6894de51c315a6bfe6a94e05cf","version":"v6"},{"repo":"docker/setup-buildx-action","sha":"4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd","version":"v4"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.29","digest":"sha256:e68f37e36962dcb3f3d1de680a49bc2302cefd001b941a7dc377155ec7ce42f4","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.29@sha256:e68f37e36962dcb3f3d1de680a49bc2302cefd001b941a7dc377155ec7ce42f4"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.29","digest":"sha256:d1219e4110684402aabbeb5a43858f26790c9d0be210581cf3f7a521bd2c87b6","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.29@sha256:d1219e4110684402aabbeb5a43858f26790c9d0be210581cf3f7a521bd2c87b6"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.29","digest":"sha256:8a71ad9e40454051672312917e51567abfb8251d7c294d086c48f63d84e4cb53","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.29@sha256:8a71ad9e40454051672312917e51567abfb8251d7c294d086c48f63d84e4cb53"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.1","digest":"sha256:287fad0236959f3b3d9936ea1ef8d5b4f135ef2a5f5789713495cbbef191e60c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.1@sha256:287fad0236959f3b3d9936ea1ef8d5b4f135ef2a5f5789713495cbbef191e60c"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -27,8 +27,6 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/community-attribution.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -196,20 +194,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_0dd11fa308855c2a_EOF'
+          cat << 'GH_AW_PROMPT_79342ddfec0e424b_EOF'
           <system>
-          GH_AW_PROMPT_0dd11fa308855c2a_EOF
+          GH_AW_PROMPT_79342ddfec0e424b_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_0dd11fa308855c2a_EOF'
+          cat << 'GH_AW_PROMPT_79342ddfec0e424b_EOF'
           <safe-output-tools>
           Tools: update_release, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_0dd11fa308855c2a_EOF
+          GH_AW_PROMPT_79342ddfec0e424b_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_0dd11fa308855c2a_EOF'
+          cat << 'GH_AW_PROMPT_79342ddfec0e424b_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -238,13 +236,14 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_0dd11fa308855c2a_EOF
+          GH_AW_PROMPT_79342ddfec0e424b_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_0dd11fa308855c2a_EOF'
+          cat << 'GH_AW_PROMPT_79342ddfec0e424b_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/community-attribution.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/release.md}}
-          GH_AW_PROMPT_0dd11fa308855c2a_EOF
+          GH_AW_PROMPT_79342ddfec0e424b_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
@@ -389,7 +388,7 @@ jobs:
           RELEASE_ID: ${{ needs.release.outputs.release_id }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
         name: Setup release environment
-        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\n\n# Use the release ID and tag from the release job\necho \"Release ID from release job: $RELEASE_ID\"\necho \"Release tag from release job: $RELEASE_TAG\"\n\necho \"Processing release: $RELEASE_TAG\"\necho \"RELEASE_TAG=$RELEASE_TAG\" >> \"$GITHUB_ENV\"\n\n# Get the current release information\n# Use release ID to fetch release data\ngh api \"/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID\" > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> \"$GITHUB_ENV\"\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> \"$GITHUB_ENV\"\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases (include closingIssuesReferences for attribution)\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body,closingIssuesReferences \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length \"/tmp/gh-aw/release-data/pull_requests.json\")\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Build closing references index from GitHub-native closingIssuesReferences\n# Maps each closed issue number -> list of PR numbers that directly close it\necho \"Building closing references index from GitHub-native PR links...\"\n# Use a nested reduce so the outer body always returns the accumulator,\n# even when closingIssuesReferences is empty (avoids jq setting acc to null).\njq '\n  reduce .[] as $pr (\n    {};\n    reduce ($pr.closingIssuesReferences // [])[] as $issue (\n      .;\n      ($issue.number | tostring) as $key |\n      .[$key] = (.[$key] // []) + [$pr.number]\n    )\n  )\n' /tmp/gh-aw/release-data/pull_requests.json \\\n  > /tmp/gh-aw/release-data/closing_refs_by_issue.json 2>/dev/null \\\n  || echo \"{}\" > /tmp/gh-aw/release-data/closing_refs_by_issue.json\n# Also expose to community-data dir so shared attribution strategy can reference it\ncp /tmp/gh-aw/release-data/closing_refs_by_issue.json /tmp/gh-aw/community-data/closing_refs_by_issue.json\ncp /tmp/gh-aw/release-data/pull_requests.json /tmp/gh-aw/community-data/pull_requests.json\n\nDIRECT_CLOSE_COUNT=$(jq 'keys | length' /tmp/gh-aw/release-data/closing_refs_by_issue.json)\necho \"✓ Found $DIRECT_CLOSE_COUNT issues with GitHub-native closing PR references\"\n\n# Find community issues closed during this release window (candidates for attribution review)\nif [ -n \"$PREV_PUBLISHED_AT\" ]; then\n  jq --arg prev \"$PREV_PUBLISHED_AT\" --arg curr \"$CURR_PUBLISHED_AT\" \\\n    '[.[] | select(.closedAt != null and .closedAt >= $prev and .closedAt <= $curr)]' \\\n    /tmp/gh-aw/community-data/community_issues.json \\\n    > /tmp/gh-aw/release-data/community_issues_closed_in_window.json 2>/dev/null \\\n    || echo \"[]\" > /tmp/gh-aw/release-data/community_issues_closed_in_window.json\n  \n  CLOSED_IN_WINDOW=$(jq length /tmp/gh-aw/release-data/community_issues_closed_in_window.json)\n  echo \"✓ Found $CLOSED_IN_WINDOW community issues closed in this release window\"\nelse\n  echo \"[]\" > /tmp/gh-aw/release-data/community_issues_closed_in_window.json\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete.\"\necho \"  Release data: /tmp/gh-aw/release-data/ (current_release.json, pull_requests.json,\"\necho \"    closing_refs_by_issue.json, community_issues_closed_in_window.json,\"\necho \"    CHANGELOG.md (if exists), docs_files.txt)\"\necho \"  Community data: /tmp/gh-aw/community-data/ (community_issues.json,\"\necho \"    closing_refs_by_issue.json, pull_requests.json)\"\n"
+        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\nmkdir -p /tmp/gh-aw/community-data\n# Copy community issues from the agent/community-data path (written by community-attribution import step)\ncp /tmp/gh-aw/agent/community-data/community_issues.json /tmp/gh-aw/community-data/community_issues.json 2>/dev/null || echo \"[]\" > /tmp/gh-aw/community-data/community_issues.json\n\n# Use the release ID and tag from the release job\necho \"Release ID from release job: $RELEASE_ID\"\necho \"Release tag from release job: $RELEASE_TAG\"\n\necho \"Processing release: $RELEASE_TAG\"\necho \"RELEASE_TAG=$RELEASE_TAG\" >> \"$GITHUB_ENV\"\n\n# Get the current release information\n# Use release ID to fetch release data\ngh api \"/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID\" > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> \"$GITHUB_ENV\"\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> \"$GITHUB_ENV\"\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases (include closingIssuesReferences for attribution)\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body,closingIssuesReferences \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length \"/tmp/gh-aw/release-data/pull_requests.json\")\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Build closing references index from GitHub-native closingIssuesReferences\n# Maps each closed issue number -> list of PR numbers that directly close it\necho \"Building closing references index from GitHub-native PR links...\"\n# Use a nested reduce so the outer body always returns the accumulator,\n# even when closingIssuesReferences is empty (avoids jq setting acc to null).\njq '\n  reduce .[] as $pr (\n    {};\n    reduce ($pr.closingIssuesReferences // [])[] as $issue (\n      .;\n      ($issue.number | tostring) as $key |\n      .[$key] = (.[$key] // []) + [$pr.number]\n    )\n  )\n' /tmp/gh-aw/release-data/pull_requests.json \\\n  > /tmp/gh-aw/release-data/closing_refs_by_issue.json 2>/dev/null \\\n  || echo \"{}\" > /tmp/gh-aw/release-data/closing_refs_by_issue.json\n# Also expose to community-data dir so shared attribution strategy can reference it\ncp /tmp/gh-aw/release-data/closing_refs_by_issue.json /tmp/gh-aw/community-data/closing_refs_by_issue.json\ncp /tmp/gh-aw/release-data/pull_requests.json /tmp/gh-aw/community-data/pull_requests.json\n\nDIRECT_CLOSE_COUNT=$(jq 'keys | length' /tmp/gh-aw/release-data/closing_refs_by_issue.json)\necho \"✓ Found $DIRECT_CLOSE_COUNT issues with GitHub-native closing PR references\"\n\n# Find community issues closed during this release window (candidates for attribution review)\nif [ -n \"$PREV_PUBLISHED_AT\" ]; then\n  jq --arg prev \"$PREV_PUBLISHED_AT\" --arg curr \"$CURR_PUBLISHED_AT\" \\\n    '[.[] | select(.closedAt != null and .closedAt >= $prev and .closedAt <= $curr)]' \\\n    /tmp/gh-aw/community-data/community_issues.json \\\n    > /tmp/gh-aw/release-data/community_issues_closed_in_window.json 2>/dev/null \\\n    || echo \"[]\" > /tmp/gh-aw/release-data/community_issues_closed_in_window.json\n  \n  CLOSED_IN_WINDOW=$(jq length /tmp/gh-aw/release-data/community_issues_closed_in_window.json)\n  echo \"✓ Found $CLOSED_IN_WINDOW community issues closed in this release window\"\nelse\n  echo \"[]\" > /tmp/gh-aw/release-data/community_issues_closed_in_window.json\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete.\"\necho \"  Release data: /tmp/gh-aw/release-data/ (current_release.json, pull_requests.json,\"\necho \"    closing_refs_by_issue.json, community_issues_closed_in_window.json,\"\necho \"    CHANGELOG.md (if exists), docs_files.txt)\"\necho \"  Community data: /tmp/gh-aw/community-data/ (community_issues.json,\"\necho \"    closing_refs_by_issue.json, pull_requests.json)\"\n"
 
       - name: Configure Git credentials
         env:
@@ -452,9 +451,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_b0c54af844ea623c_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_4cb048cc14929287_EOF'
           {"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"update_release":{"max":1}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_b0c54af844ea623c_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_4cb048cc14929287_EOF
       - name: Write Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -647,7 +646,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_9f2e394dba403923_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_d4310d322d409dc8_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -688,7 +687,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_9f2e394dba403923_EOF
+          GH_AW_MCP_CONFIG_d4310d322d409dc8_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

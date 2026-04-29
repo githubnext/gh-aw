@@ -365,6 +365,9 @@ steps:
     run: |
       set -e
       mkdir -p /tmp/gh-aw/release-data
+      mkdir -p /tmp/gh-aw/community-data
+      # Copy community issues from the agent/community-data path (written by community-attribution import step)
+      cp /tmp/gh-aw/agent/community-data/community_issues.json /tmp/gh-aw/community-data/community_issues.json 2>/dev/null || echo "[]" > /tmp/gh-aw/community-data/community_issues.json
       
       # Use the release ID and tag from the release job
       echo "Release ID from release job: $RELEASE_ID"
@@ -646,4 +649,4 @@ safeoutputs/update_release(
 
 Verify paths exist in `docs_files.txt` before linking.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}
