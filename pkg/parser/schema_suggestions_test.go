@@ -4,9 +4,10 @@ package parser
 
 import (
 	"encoding/json"
-	"slices"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateSchemaBasedSuggestions(t *testing.T) {
@@ -105,16 +106,12 @@ func TestGenerateSchemaBasedSuggestions(t *testing.T) {
 			result := generateSchemaBasedSuggestions(schemaJSON, tt.errorMessage, tt.jsonPath, tt.frontmatterContent)
 
 			if tt.wantEmpty {
-				if result != "" {
-					t.Errorf("Expected empty result, got: %s", result)
-				}
+				assert.Empty(t, result, "Expected empty suggestion result")
 				return
 			}
 
 			for _, want := range tt.wantContains {
-				if !strings.Contains(result, want) {
-					t.Errorf("Expected result to contain '%s', got: %s", want, result)
-				}
+				assert.Contains(t, result, want, "Suggestion result should contain %q", want)
 			}
 		})
 	}
@@ -137,9 +134,7 @@ func TestExtractAcceptedFieldsFromSchema(t *testing.T) {
 	}`
 
 	var schemaDoc any
-	if err := json.Unmarshal([]byte(schemaJSON), &schemaDoc); err != nil {
-		t.Fatalf("Failed to unmarshal schema: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(schemaJSON), &schemaDoc), "Failed to unmarshal schema")
 
 	tests := []struct {
 		name     string
@@ -167,16 +162,7 @@ func TestExtractAcceptedFieldsFromSchema(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractAcceptedFieldsFromSchema(schemaDoc, tt.jsonPath)
 
-			if len(result) != len(tt.want) {
-				t.Errorf("Expected %d fields, got %d: %v", len(tt.want), len(result), result)
-				return
-			}
-
-			for i, field := range tt.want {
-				if i >= len(result) || result[i] != field {
-					t.Errorf("Expected field[%d] = %s, got %v", i, field, result)
-				}
-			}
+			assert.Equal(t, tt.want, result, "Accepted fields should match expected list for path %q", tt.jsonPath)
 		})
 	}
 }
@@ -213,16 +199,12 @@ func TestGenerateFieldSuggestions(t *testing.T) {
 			result := generateFieldSuggestions(tt.invalidProps, tt.acceptedFields)
 
 			if len(tt.wantContains) == 0 {
-				if result != "" {
-					t.Errorf("Expected empty result, got: %s", result)
-				}
+				assert.Empty(t, result, "Expected empty suggestion result when no accepted fields")
 				return
 			}
 
 			for _, want := range tt.wantContains {
-				if !strings.Contains(result, want) {
-					t.Errorf("Expected result to contain '%s', got: %s", want, result)
-				}
+				assert.Contains(t, result, want, "Field suggestion result should contain %q", want)
 			}
 		})
 	}
@@ -261,18 +243,9 @@ func TestFindClosestMatches(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := FindClosestMatches(tt.target, candidates, tt.maxResults)
 
-			if len(result) == 0 {
-				t.Errorf("Expected at least one match, got none")
-				return
-			}
-
-			if len(result) > tt.maxResults {
-				t.Errorf("Expected at most %d results, got %d", tt.maxResults, len(result))
-			}
-
-			if result[0] != tt.wantFirst {
-				t.Errorf("Expected first result to be '%s', got '%s'", tt.wantFirst, result[0])
-			}
+			require.NotEmpty(t, result, "FindClosestMatches should return at least one match for %q", tt.target)
+			assert.LessOrEqual(t, len(result), tt.maxResults, "FindClosestMatches should return at most %d results", tt.maxResults)
+			assert.Equal(t, tt.wantFirst, result[0], "First closest match for %q should be %q", tt.target, tt.wantFirst)
 		})
 	}
 }
@@ -299,9 +272,7 @@ func TestGenerateExampleJSONForPath(t *testing.T) {
 	}`
 
 	var schemaDoc any
-	if err := json.Unmarshal([]byte(schemaJSON), &schemaDoc); err != nil {
-		t.Fatalf("Failed to unmarshal schema: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(schemaJSON), &schemaDoc), "Failed to unmarshal schema")
 
 	tests := []struct {
 		name         string
@@ -339,15 +310,10 @@ func TestGenerateExampleJSONForPath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := generateExampleJSONForPath(schemaDoc, tt.jsonPath)
 
-			if result == "" {
-				t.Errorf("Expected non-empty result for path %s", tt.jsonPath)
-				return
-			}
+			require.NotEmpty(t, result, "Expected non-empty example JSON for path %q", tt.jsonPath)
 
 			for _, want := range tt.wantContains {
-				if !strings.Contains(result, want) {
-					t.Errorf("Expected result to contain '%s', got: %s", want, result)
-				}
+				assert.Contains(t, result, want, "Example JSON for path %q should contain %q", tt.jsonPath, want)
 			}
 		})
 	}
@@ -379,15 +345,7 @@ func TestExtractEnumValuesFromError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractEnumValuesFromError(tt.input)
-			if len(result) != len(tt.want) {
-				t.Errorf("Expected %v, got %v", tt.want, result)
-				return
-			}
-			for i, v := range tt.want {
-				if result[i] != v {
-					t.Errorf("Expected result[%d]=%q, got %q", i, v, result[i])
-				}
-			}
+			assert.Equal(t, tt.want, result, "Extracted enum values should match expected for input %q", tt.input)
 		})
 	}
 }
@@ -491,9 +449,7 @@ func TestExtractYAMLValueAtPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractYAMLValueAtPath(tt.yaml, tt.path)
-			if result != tt.wantValue {
-				t.Errorf("extractYAMLValueAtPath(%q, %q) = %q, want %q", tt.yaml, tt.path, result, tt.wantValue)
-			}
+			assert.Equal(t, tt.wantValue, result, "extractYAMLValueAtPath(%q, %q)", tt.yaml, tt.path)
 		})
 	}
 }
@@ -536,9 +492,7 @@ func TestExtractEnumConstraintPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractEnumConstraintPath(tt.errorMessage, tt.fallbackPath)
-			if result != tt.wantPath {
-				t.Errorf("extractEnumConstraintPath() = %q, want %q", result, tt.wantPath)
-			}
+			assert.Equal(t, tt.wantPath, result, "extractEnumConstraintPath() should return expected path")
 		})
 	}
 }
@@ -578,17 +532,10 @@ func TestGenerateExampleFromSchemaWithExamples(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := generateExampleFromSchema(tt.schema)
-			if result == nil {
-				t.Errorf("Expected non-nil result")
-				return
-			}
+			require.NotNil(t, result, "generateExampleFromSchema should return non-nil result")
 			exampleJSON, err := json.Marshal(result)
-			if err != nil {
-				t.Fatalf("Failed to marshal result: %v", err)
-			}
-			if !strings.Contains(string(exampleJSON), tt.wantContains) {
-				t.Errorf("Expected result to contain %q, got %s", tt.wantContains, string(exampleJSON))
-			}
+			require.NoError(t, err, "Failed to marshal example result to JSON")
+			assert.Contains(t, string(exampleJSON), tt.wantContains, "Example JSON should contain %q", tt.wantContains)
 		})
 	}
 }
@@ -628,9 +575,7 @@ var schemaWithNestedFields = `{
 
 func TestCollectSchemaPropertyPaths(t *testing.T) {
 	var schemaDoc any
-	if err := json.Unmarshal([]byte(schemaWithNestedFields), &schemaDoc); err != nil {
-		t.Fatalf("Failed to unmarshal schema: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(schemaWithNestedFields), &schemaDoc), "Failed to unmarshal schema")
 
 	locations := collectSchemaPropertyPaths(schemaDoc, "", 0)
 
@@ -658,22 +603,15 @@ func TestCollectSchemaPropertyPaths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.fieldName, func(t *testing.T) {
 			paths, ok := fieldPaths[tt.fieldName]
-			if !ok {
-				t.Errorf("Field %q not found in collected paths", tt.fieldName)
-				return
-			}
-			if !slices.Contains(paths, tt.wantParentPath) {
-				t.Errorf("Field %q: expected parent path %q, got paths: %v", tt.fieldName, tt.wantParentPath, paths)
-			}
+			require.True(t, ok, "Field %q should be found in collected schema property paths", tt.fieldName)
+			assert.Contains(t, paths, tt.wantParentPath, "Field %q should have parent path %q", tt.fieldName, tt.wantParentPath)
 		})
 	}
 }
 
 func TestFindFieldLocationsInSchema(t *testing.T) {
 	var schemaDoc any
-	if err := json.Unmarshal([]byte(schemaWithNestedFields), &schemaDoc); err != nil {
-		t.Fatalf("Failed to unmarshal schema: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(schemaWithNestedFields), &schemaDoc), "Failed to unmarshal schema")
 
 	tests := []struct {
 		name        string
@@ -725,31 +663,20 @@ func TestFindFieldLocationsInSchema(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			results := findFieldLocationsInSchema(schemaDoc, tt.targetField, tt.currentPath)
-			if len(results) != tt.wantLen {
-				t.Errorf("Expected %d results, got %d: %+v", tt.wantLen, len(results), results)
-				return
-			}
+			require.Len(t, results, tt.wantLen, "findFieldLocationsInSchema(%q, %q) should return %d results", tt.targetField, tt.currentPath, tt.wantLen)
 			if tt.wantLen == 0 {
 				return
 			}
-			if results[0].SchemaPath != tt.wantPath {
-				t.Errorf("Expected SchemaPath %q, got %q", tt.wantPath, results[0].SchemaPath)
-			}
-			if results[0].FieldName != tt.wantField {
-				t.Errorf("Expected FieldName %q, got %q", tt.wantField, results[0].FieldName)
-			}
-			if results[0].Distance != tt.wantDist {
-				t.Errorf("Expected Distance %d, got %d", tt.wantDist, results[0].Distance)
-			}
+			assert.Equal(t, tt.wantPath, results[0].SchemaPath, "First result SchemaPath should match expected")
+			assert.Equal(t, tt.wantField, results[0].FieldName, "First result FieldName should match expected")
+			assert.Equal(t, tt.wantDist, results[0].Distance, "First result Distance should match expected")
 		})
 	}
 }
 
 func TestGeneratePathLocationSuggestion(t *testing.T) {
 	var schemaDoc any
-	if err := json.Unmarshal([]byte(schemaWithNestedFields), &schemaDoc); err != nil {
-		t.Fatalf("Failed to unmarshal schema: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(schemaWithNestedFields), &schemaDoc), "Failed to unmarshal schema")
 
 	tests := []struct {
 		name         string
@@ -794,15 +721,11 @@ func TestGeneratePathLocationSuggestion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := generatePathLocationSuggestion(tt.invalidProps, schemaDoc, tt.currentPath)
 			if tt.wantEmpty {
-				if result != "" {
-					t.Errorf("Expected empty result, got: %q", result)
-				}
+				assert.Empty(t, result, "Expected empty path location suggestion")
 				return
 			}
 			for _, want := range tt.wantContains {
-				if !strings.Contains(result, want) {
-					t.Errorf("Expected result to contain %q, got: %q", want, result)
-				}
+				assert.Contains(t, result, want, "Path location suggestion should contain %q", want)
 			}
 		})
 	}
@@ -841,15 +764,11 @@ func TestGenerateSchemaBasedSuggestionsWithPathHeuristic(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := generateSchemaBasedSuggestions(schemaWithNestedFields, tt.errorMessage, tt.jsonPath, "")
 			if tt.wantEmpty {
-				if result != "" {
-					t.Errorf("Expected empty result, got: %q", result)
-				}
+				assert.Empty(t, result, "Expected empty schema suggestion result")
 				return
 			}
 			for _, want := range tt.wantContains {
-				if !strings.Contains(result, want) {
-					t.Errorf("Expected result to contain %q, got: %q", want, result)
-				}
+				assert.Contains(t, result, want, "Schema suggestion result should contain %q", want)
 			}
 		})
 	}
@@ -875,9 +794,7 @@ func TestExtractSchemaExamples(t *testing.T) {
 		}
 	}`
 	var schemaDoc any
-	if err := json.Unmarshal([]byte(schemaJSON), &schemaDoc); err != nil {
-		t.Fatalf("Failed to parse schema JSON: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(schemaJSON), &schemaDoc), "Failed to parse schema JSON")
 
 	tests := []struct {
 		name     string
@@ -909,15 +826,7 @@ func TestExtractSchemaExamples(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := extractSchemaExamples(schemaDoc, tt.jsonPath)
-			if len(got) != len(tt.want) {
-				t.Errorf("extractSchemaExamples(%q) returned %v, want %v", tt.jsonPath, got, tt.want)
-				return
-			}
-			for i := range tt.want {
-				if got[i] != tt.want[i] {
-					t.Errorf("extractSchemaExamples(%q)[%d] = %q, want %q", tt.jsonPath, i, got[i], tt.want[i])
-				}
-			}
+			assert.Equal(t, tt.want, got, "extractSchemaExamples(%q) should return expected examples", tt.jsonPath)
 		})
 	}
 }
@@ -983,17 +892,15 @@ func TestGenerateSchemaBasedSuggestions_RangeConstraintExamples(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := generateSchemaBasedSuggestions(schemaJSON, tt.errorMessage, tt.jsonPath, "")
 			if tt.wantEmpty {
-				if result != "" {
-					t.Errorf("Expected empty result, got: %q", result)
-				}
+				assert.Empty(t, result, "Expected empty suggestion result")
 				return
 			}
-			if tt.wantContains != "" && !strings.Contains(result, tt.wantContains) {
-				t.Errorf("Expected result to contain %q, got: %q", tt.wantContains, result)
+			if tt.wantContains != "" {
+				assert.Contains(t, result, tt.wantContains, "Suggestion result should contain %q", tt.wantContains)
 			}
 			// When wantContains is "", we only assert "Example values" is absent (no false examples)
-			if tt.wantContains == "" && strings.Contains(result, "Example values:") {
-				t.Errorf("Expected result NOT to contain 'Example values:', got: %q", result)
+			if tt.wantContains == "" {
+				assert.NotContains(t, result, "Example values:", "Suggestion result should not contain spurious 'Example values:' section")
 			}
 		})
 	}
