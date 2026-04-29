@@ -29,6 +29,8 @@ safe-outputs:
     expires: 7d
     title-prefix: "[architecture] "
     labels: [architecture, diagram, documentation]
+    allowed-base-branches:
+      - main
   noop:
 
 imports:
