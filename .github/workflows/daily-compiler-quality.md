@@ -25,9 +25,16 @@ tools:
   cache-memory: true
   bash:
     - "find pkg/workflow -name 'compiler*.go' ! -name '*_test.go' -type f"
-    - "wc -l pkg/workflow/compiler*.go"
+    - "wc -l"
     - "git log --since='7 days ago' --format='%h %s' -- pkg/workflow/compiler*.go"
     - "git log --since='7 days ago' --oneline --name-only -- pkg/workflow/compiler*.go"
+    - "git log -1 --format=%H --"
+    - "mkdir"
+    - "cat"
+    - "jq"
+    - "mv"
+    - "echo"
+    - "bc"
 timeout-minutes: 30
 strict: true
 features:
