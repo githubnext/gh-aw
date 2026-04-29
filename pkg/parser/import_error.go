@@ -65,7 +65,7 @@ func FormatImportCycleError(err *ImportCycleError) error {
 	messageBuilder.WriteString("2. Remove one of the imports to break the cycle\n")
 	messageBuilder.WriteString("3. Consider restructuring your workflow imports to avoid circular dependencies\n")
 
-	return fmt.Errorf("%s", messageBuilder.String())
+	return &FormattedParserError{formatted: messageBuilder.String(), cause: err}
 }
 
 // FormattedParserError is a sentinel error type returned by FormatImportError (and similar

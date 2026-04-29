@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -217,5 +218,5 @@ func formatTemplateInjectionError(violations []TemplateInjectionViolation) error
 	builder.WriteString("  - https://docs.zizmor.sh/audits/#template-injection\n")
 	builder.WriteString("  - scratchpad/template-injection-prevention.md\n")
 
-	return fmt.Errorf("%s", builder.String())
+	return errors.New(builder.String())
 }
