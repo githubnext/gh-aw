@@ -1043,6 +1043,74 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
   return processedContent;
 }
 
+/**
+ * Checks if a file path is allowed for @filepath expansion.
+ * Allowed paths must be absolute, clean (no .. or . traversal), and within
+ * the workspace directory or /tmp/gh-aw.
+ * @param {string} filePath - The absolute file path to validate
+ * @param {string} workspaceDir - The GITHUB_WORKSPACE directory
+ * @returns {boolean} - True if the path is allowed
+ */
+function isAllowedFileReference(filePath, workspaceDir) {
+  // Must be absolute path
+  if (!path.isAbsolute(filePath)) return false;
+
+  // Must be clean path (no .. or . directory traversal components)
+  const parts = filePath.split("/");
+  for (const part of parts) {
+    if (part === ".." || part === ".") return false;
+  }
+
+  const normalizedPath = path.normalize(filePath);
+
+  // Check if within workspace directory
+  const normalizedWorkspace = path.normalize(workspaceDir);
+  const rel = path.relative(normalizedWorkspace, normalizedPath);
+  if (!rel.startsWith("..") && !path.isAbsolute(rel)) return true;
+
+  // Check if within /tmp/gh-aw
+  if (normalizedPath === "/tmp/gh-aw" || normalizedPath.startsWith("/tmp/gh-aw/")) return true;
+
+  return false;
+}
+
+/**
+ * Expands @/absolute/path file references in content by replacing them with file contents.
+ * Paths must be absolute, clean (no .. or . traversal), and within the workspace directory
+ * or /tmp/gh-aw. Invalid paths, paths outside allowed directories, and missing files are
+ * silently ignored (the reference is left as-is with a warning).
+ * @param {string} content - The content with potential @/path references
+ * @param {string} workspaceDir - The GITHUB_WORKSPACE directory path
+ * @returns {string} - Content with valid file references expanded
+ */
+function expandFileReferences(content, workspaceDir) {
+  // Pattern: @ followed by an absolute path (starts with /)
+  // Distinguishes @/path from @username mentions (which don't start with /)
+  const pattern = /@(\/[^\s@]+)/g;
+
+  return content.replace(pattern, (match, filePath) => {
+    if (!isAllowedFileReference(filePath, workspaceDir)) {
+      core.info(`[expandFileReferences] Ignoring disallowed path reference: ${filePath}`);
+      return match;
+    }
+
+    if (!fs.existsSync(filePath)) {
+      core.warning(`[expandFileReferences] File not found: ${filePath}`);
+      return match;
+    }
+
+    try {
+      const fileContent = fs.readFileSync(filePath, "utf8");
+      core.info(`[expandFileReferences] Expanded file reference: ${filePath} (${fileContent.length} chars)`);
+      return fileContent;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      core.warning(`[expandFileReferences] Failed to read file ${filePath}: ${errorMessage}`);
+      return match;
+    }
+  });
+}
+
 module.exports = {
   processRuntimeImports,
   processRuntimeImport,
@@ -1055,4 +1123,6 @@ module.exports = {
   wrapExpressionsInTemplateConditionals,
   extractAndReplacePlaceholders,
   generatePlaceholderName,
+  isAllowedFileReference,
+  expandFileReferences,
 };

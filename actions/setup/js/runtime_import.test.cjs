@@ -15,6 +15,8 @@ const {
   wrapExpressionsInTemplateConditionals,
   extractAndReplacePlaceholders,
   generatePlaceholderName,
+  isAllowedFileReference,
+  expandFileReferences,
 } = require("./runtime_import.cjs");
 describe("runtime_import", () => {
   let tempDir;
@@ -1696,6 +1698,106 @@ describe("runtime_import", () => {
       const result = await processRuntimeImport("doc.md", false, tempDir2);
       expect(result).toBe(content);
       expect(result).not.toContain("__GH_AW_");
+    });
+  });
+
+  describe("isAllowedFileReference", () => {
+    let wsDir;
+    beforeEach(() => {
+      wsDir = fs.mkdtempSync(path.join(os.tmpdir(), "isallowed-test-"));
+    });
+    afterEach(() => {
+      fs.rmSync(wsDir, { recursive: true, force: true });
+    });
+
+    it("should allow absolute path within workspace", () => {
+      expect(isAllowedFileReference(path.join(wsDir, "file.txt"), wsDir)).toBe(true);
+    });
+    it("should allow absolute path in subdirectory of workspace", () => {
+      expect(isAllowedFileReference(path.join(wsDir, "sub", "file.txt"), wsDir)).toBe(true);
+    });
+    it("should allow /tmp/gh-aw/ paths", () => {
+      expect(isAllowedFileReference("/tmp/gh-aw/agent/comment-body.md", wsDir)).toBe(true);
+    });
+    it("should allow /tmp/gh-aw root path", () => {
+      expect(isAllowedFileReference("/tmp/gh-aw", wsDir)).toBe(true);
+    });
+    it("should reject relative paths", () => {
+      expect(isAllowedFileReference("relative/path.txt", wsDir)).toBe(false);
+    });
+    it("should reject paths with .. traversal", () => {
+      expect(isAllowedFileReference("/tmp/gh-aw/../etc/passwd", wsDir)).toBe(false);
+    });
+    it("should reject paths with . component", () => {
+      expect(isAllowedFileReference("/tmp/gh-aw/./file.txt", wsDir)).toBe(false);
+    });
+    it("should reject /etc/passwd", () => {
+      expect(isAllowedFileReference("/etc/passwd", wsDir)).toBe(false);
+    });
+    it("should reject /tmp/ paths that are not /tmp/gh-aw", () => {
+      expect(isAllowedFileReference("/tmp/other/file.txt", wsDir)).toBe(false);
+    });
+    it("should reject /tmp/gh-aw-evil path (not a prefix match confusion)", () => {
+      expect(isAllowedFileReference("/tmp/gh-aw-evil/file.txt", wsDir)).toBe(false);
+    });
+  });
+
+  describe("expandFileReferences", () => {
+    let wsDir;
+    let ghAwDir;
+    beforeEach(() => {
+      wsDir = fs.mkdtempSync(path.join(os.tmpdir(), "expand-fileref-test-"));
+      ghAwDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-test-"));
+      vi.clearAllMocks();
+    });
+    afterEach(() => {
+      fs.rmSync(wsDir, { recursive: true, force: true });
+      fs.rmSync(ghAwDir, { recursive: true, force: true });
+    });
+
+    it("should expand a valid @/path reference within workspace", () => {
+      const filePath = path.join(wsDir, "data.txt");
+      fs.writeFileSync(filePath, "file contents here");
+      const result = expandFileReferences(`prefix @${filePath} suffix`, wsDir);
+      expect(result).toBe("prefix file contents here suffix");
+    });
+    it("should expand @/path at start of line (standalone reference)", () => {
+      const filePath = path.join(wsDir, "body.md");
+      fs.writeFileSync(filePath, "# Body\n\nContent.");
+      const result = expandFileReferences(`@${filePath}`, wsDir);
+      expect(result).toBe("# Body\n\nContent.");
+    });
+    it("should leave @username mentions unchanged", () => {
+      const result = expandFileReferences("@copilot please review", wsDir);
+      expect(result).toBe("@copilot please review");
+    });
+    it("should leave disallowed paths unchanged and log info", () => {
+      const result = expandFileReferences("See @/etc/passwd for details", wsDir);
+      expect(result).toBe("See @/etc/passwd for details");
+      expect(core.info).toHaveBeenCalledWith(expect.stringContaining("Ignoring disallowed path reference: /etc/passwd"));
+    });
+    it("should leave non-existent allowed paths unchanged and warn", () => {
+      const filePath = path.join(wsDir, "missing.txt");
+      const result = expandFileReferences(`@${filePath}`, wsDir);
+      expect(result).toBe(`@${filePath}`);
+      expect(core.warning).toHaveBeenCalledWith(expect.stringContaining(`File not found: ${filePath}`));
+    });
+    it("should expand multiple @/path references in the same content", () => {
+      const file1 = path.join(wsDir, "a.txt");
+      const file2 = path.join(wsDir, "b.txt");
+      fs.writeFileSync(file1, "AAA");
+      fs.writeFileSync(file2, "BBB");
+      const result = expandFileReferences(`@${file1} and @${file2}`, wsDir);
+      expect(result).toBe("AAA and BBB");
+    });
+    it("should reject paths with .. traversal even when within allowed prefix", () => {
+      const result = expandFileReferences(`@${wsDir}/../etc/passwd`, wsDir);
+      expect(result).toBe(`@${wsDir}/../etc/passwd`);
+    });
+    it("should leave content without @/path unchanged", () => {
+      const input = "No file references here. ${{ github.actor }}";
+      const result = expandFileReferences(input, wsDir);
+      expect(result).toBe(input);
     });
   });
 });

@@ -7,7 +7,7 @@
 
 const fs = require("fs");
 const { isTruthy } = require("./is_truthy.cjs");
-const { processRuntimeImports } = require("./runtime_import.cjs");
+const { processRuntimeImports, expandFileReferences } = require("./runtime_import.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 
@@ -205,6 +205,28 @@ async function main() {
       core.info(`Content length change: ${beforeImports} -> ${afterImports} (${afterImports > beforeImports ? "+" : ""}${afterImports - beforeImports})`);
     } else {
       core.info("No runtime import macros found, skipping runtime import processing");
+    }
+
+    // Step 1.5: Expand @/absolute/path file references
+    core.info("\n========================================");
+    core.info("[main] STEP 1.5: @filepath Expansion");
+    core.info("========================================");
+    const hasFileReferences = /@\//.test(content);
+    if (hasFileReferences) {
+      const fileRefMatches = content.match(/@\/[^\s@]+/g) || [];
+      core.info(`Found ${fileRefMatches.length} potential @filepath reference(s)`);
+      fileRefMatches.forEach((ref, i) => {
+        core.info(`  Reference ${i + 1}: ${ref.substring(0, 80)}${ref.length > 80 ? "..." : ""}`);
+      });
+
+      const beforeExpansion = content.length;
+      content = expandFileReferences(content, workspaceDir);
+      const afterExpansion = content.length;
+
+      core.info(`@filepath expansion complete`);
+      core.info(`Content length change: ${beforeExpansion} -> ${afterExpansion} (${afterExpansion > beforeExpansion ? "+" : ""}${afterExpansion - beforeExpansion})`);
+    } else {
+      core.info("No @filepath references found, skipping expansion");
     }
 
     // Step 2: Interpolate variables
