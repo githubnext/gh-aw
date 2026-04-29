@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -819,9 +820,14 @@ func substituteImportInputsInContent(content string, inputs map[string]any) stri
 					return string(b), true
 				}
 			case reflect.Map:
-				normalized := make(map[string]any, rv.Len())
+				keys := make([]string, 0, rv.Len())
 				for _, key := range rv.MapKeys() {
-					normalized[key.String()] = rv.MapIndex(key).Interface()
+					keys = append(keys, key.String())
+				}
+				sort.Strings(keys)
+				normalized := make(map[string]any, rv.Len())
+				for _, k := range keys {
+					normalized[k] = rv.MapIndex(reflect.ValueOf(k)).Interface()
 				}
 				if b, err := json.Marshal(normalized); err == nil {
 					return string(b), true
