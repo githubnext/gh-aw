@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +30,7 @@ func TestBuildSafeOutputChainMetrics(t *testing.T) {
   "aw_beta": {"repo": "github/gh-aw", "number": 102}
 }
 `
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, temporaryIDMapFilename), []byte(temporaryIDMap), 0o600), "should write temporary ID map fixture")
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, constants.TemporaryIdMapFilename), []byte(temporaryIDMap), 0o600), "should write temporary ID map fixture")
 
 	metrics := buildSafeOutputChainMetrics(tmpDir)
 
@@ -48,7 +49,7 @@ func TestBuildSafeOutputChainMetricsIgnoresMalformedTemporaryIDMap(t *testing.T)
 {"type":"add_comment","repo":"github/gh-aw","number":301,"timestamp":"2026-01-01T00:01:00Z"}
 `
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, safeOutputItemsManifestFilename), []byte(manifest), 0o600), "should write manifest fixture")
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, temporaryIDMapFilename), []byte(`{"aw_alpha":`), 0o600), "should write malformed temporary ID map fixture")
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, constants.TemporaryIdMapFilename), []byte(`{"aw_alpha":`), 0o600), "should write malformed temporary ID map fixture")
 
 	metrics := buildSafeOutputChainMetrics(tmpDir)
 
@@ -70,7 +71,7 @@ func TestBuildLogsDataIncludesSafeOutputChainMetrics(t *testing.T) {
 {"type":"assign_to_agent","repo":"github/gh-aw","number":201,"timestamp":"2026-01-01T00:02:00Z"}
 `
 	require.NoError(t, os.WriteFile(filepath.Join(runDir, safeOutputItemsManifestFilename), []byte(manifest), 0o600), "should write manifest fixture")
-	require.NoError(t, os.WriteFile(filepath.Join(runDir, temporaryIDMapFilename), []byte(`{"aw_alpha":{"repo":"github/gh-aw","number":201}}`), 0o600), "should write temporary ID map fixture")
+	require.NoError(t, os.WriteFile(filepath.Join(runDir, constants.TemporaryIdMapFilename), []byte(`{"aw_alpha":{"repo":"github/gh-aw","number":201}}`), 0o600), "should write temporary ID map fixture")
 
 	processedRuns := []ProcessedRun{
 		{
@@ -133,7 +134,7 @@ func TestBuildLogsDataTracksTemporaryIDMapHealth(t *testing.T) {
 `
 	require.NoError(t, os.WriteFile(filepath.Join(missingRunDir, safeOutputItemsManifestFilename), []byte(missingManifest), 0o600), "should write manifest for missing-map run")
 	require.NoError(t, os.WriteFile(filepath.Join(invalidRunDir, safeOutputItemsManifestFilename), []byte(invalidManifest), 0o600), "should write manifest for invalid-map run")
-	require.NoError(t, os.WriteFile(filepath.Join(invalidRunDir, temporaryIDMapFilename), []byte(`{"aw_invalid":`), 0o600), "should write malformed temporary ID map")
+	require.NoError(t, os.WriteFile(filepath.Join(invalidRunDir, constants.TemporaryIdMapFilename), []byte(`{"aw_invalid":`), 0o600), "should write malformed temporary ID map")
 
 	processedRuns := []ProcessedRun{
 		{
@@ -167,4 +168,32 @@ func TestBuildLogsDataTracksTemporaryIDMapHealth(t *testing.T) {
 	assert.Equal(t, 1, logsData.Summary.RunsWithInvalidTemporaryIDMap, "summary should count runs with invalid temporary ID maps")
 	assert.Equal(t, 0, logsData.Summary.TotalClosedTempTargets, "summary should not count closed temp targets when the temp map cannot be resolved")
 	assert.Equal(t, 0, logsData.Summary.TotalTemporaryIDMappings, "summary should not count temp mappings for missing or invalid maps")
+}
+
+func TestBuildLogsDataLeavesTemporaryIDMapStatusEmptyWithoutSafeOutputArtifacts(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-logs-no-safe-output-artifacts-*")
+	runDir := filepath.Join(tmpDir, "run-93001")
+	require.NoError(t, os.MkdirAll(runDir, 0o755), "should create run directory")
+
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				DatabaseID:   93001,
+				WorkflowName: "No Safe Outputs",
+				Status:       "completed",
+				Conclusion:   "success",
+				CreatedAt:    time.Date(2026, 1, 1, 14, 0, 0, 0, time.UTC),
+				LogsPath:     runDir,
+			},
+		},
+	}
+
+	logsData := buildLogsData(processedRuns, tmpDir, nil)
+	require.Len(t, logsData.Runs, 1, "should produce one run")
+
+	assert.Equal(t, "", logsData.Runs[0].TemporaryIDMapStatus, "run should leave temp map status empty when no safe-output artifacts exist")
+	assert.Equal(t, 0, logsData.Summary.RunsWithMissingTemporaryIDMap, "summary should not count missing temp maps when no safe-output artifacts exist")
+	assert.Equal(t, 0, logsData.Summary.RunsWithInvalidTemporaryIDMap, "summary should not count invalid temp maps when no safe-output artifacts exist")
+	assert.Equal(t, 0, logsData.Summary.TotalTemporaryIDMappings, "summary should not count temp mappings when no safe-output artifacts exist")
+	assert.Equal(t, 0, logsData.Summary.RunsWithTemporaryIDChains, "summary should not count temp-ID chains when no safe-output artifacts exist")
 }

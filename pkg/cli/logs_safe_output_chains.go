@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-)
 
-const temporaryIDMapFilename = "temporary-id-map.json"
+	"github.com/github/gh-aw/pkg/constants"
+)
 
 const (
 	temporaryIDMapStatusLoaded  = "loaded"
@@ -39,6 +39,9 @@ func buildSafeOutputChainMetrics(logsPath string) SafeOutputChainMetrics {
 		ManifestEntryCount: len(items),
 	}
 	if logsPath == "" {
+		return metrics
+	}
+	if !safeOutputArtifactsPresent(logsPath) {
 		return metrics
 	}
 
@@ -89,7 +92,7 @@ func loadResolvedTemporaryIDTargets(logsPath string) (map[string]resolvedTempora
 		return nil, ""
 	}
 
-	content, err := os.ReadFile(filepath.Join(logsPath, temporaryIDMapFilename))
+	content, err := os.ReadFile(filepath.Join(logsPath, constants.TemporaryIdMapFilename))
 	if err != nil || len(content) == 0 {
 		return nil, temporaryIDMapStatusMissing
 	}
@@ -99,6 +102,20 @@ func loadResolvedTemporaryIDTargets(logsPath string) (map[string]resolvedTempora
 		return nil, temporaryIDMapStatusInvalid
 	}
 	return resolved, temporaryIDMapStatusLoaded
+}
+
+func safeOutputArtifactsPresent(logsPath string) bool {
+	if logsPath == "" {
+		return false
+	}
+
+	for _, filename := range []string{safeOutputItemsManifestFilename, constants.TemporaryIdMapFilename} {
+		if _, err := os.Stat(filepath.Join(logsPath, filename)); err == nil {
+			return true
+		}
+	}
+
+	return false
 }
 
 func safeOutputTargetKey(repo string, number int) string {
