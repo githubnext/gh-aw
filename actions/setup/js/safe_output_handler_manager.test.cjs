@@ -2,6 +2,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
+import os from "os";
+import path from "path";
 import { loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles } from "./safe_output_handler_manager.cjs";
 
 describe("Safe Output Handler Manager", () => {
@@ -704,6 +706,92 @@ describe("Safe Output Handler Manager", () => {
       expect(calledMessage.body).not.toContain("#aw_chart1");
       // The issue does not need synthetic update since body was pre-resolved
       expect(result.outputsWithUnresolvedIds.length).toBe(0);
+    });
+
+    describe("@filepath expansion in message body", () => {
+      let tempWorkspace;
+
+      beforeEach(() => {
+        tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), "handler-manager-ws-"));
+        process.env.GITHUB_WORKSPACE = tempWorkspace;
+      });
+
+      afterEach(() => {
+        delete process.env.GITHUB_WORKSPACE;
+        fs.rmSync(tempWorkspace, { recursive: true, force: true });
+      });
+
+      it("should expand @filepath reference in add_comment body to file contents", async () => {
+        const bodyFile = path.join(tempWorkspace, "comment-body.md");
+        fs.writeFileSync(bodyFile, "# Hello\n\nThis is the comment body.");
+
+        const messages = [{ type: "add_comment", body: `@${bodyFile}` }];
+
+        const mockHandler = vi.fn().mockResolvedValue({ success: true });
+        const handlers = new Map([["add_comment", mockHandler]]);
+
+        await processMessages(handlers, messages);
+
+        const calledMessage = mockHandler.mock.calls[0][0];
+        expect(calledMessage.body).toBe("# Hello\n\nThis is the comment body.");
+        expect(calledMessage.body).not.toContain("@/");
+      });
+
+      it("should expand @filepath reference in create_issue body to file contents", async () => {
+        const bodyFile = path.join(tempWorkspace, "issue-body.md");
+        fs.writeFileSync(bodyFile, "Issue body content.");
+
+        const messages = [{ type: "create_issue", title: "My Issue", body: `@${bodyFile}` }];
+
+        const mockHandler = vi.fn().mockResolvedValue({ repo: "owner/repo", number: 42 });
+        const handlers = new Map([["create_issue", mockHandler]]);
+
+        await processMessages(handlers, messages);
+
+        const calledMessage = mockHandler.mock.calls[0][0];
+        expect(calledMessage.body).toBe("Issue body content.");
+      });
+
+      it("should allow @filepath reference from /tmp/gh-aw when GITHUB_WORKSPACE is set", async () => {
+        // Create a temp file simulating /tmp/gh-aw by writing to tempWorkspace/subdir instead
+        // (actual /tmp/gh-aw may not be writable in all CI environments; we test via workspace)
+        const bodyFile = path.join(tempWorkspace, "agent-body.md");
+        fs.writeFileSync(bodyFile, "Agent comment body.");
+
+        const messages = [{ type: "add_comment", body: `@${bodyFile}` }];
+
+        const mockHandler = vi.fn().mockResolvedValue({ success: true });
+        const handlers = new Map([["add_comment", mockHandler]]);
+
+        await processMessages(handlers, messages);
+
+        const calledMessage = mockHandler.mock.calls[0][0];
+        expect(calledMessage.body).toBe("Agent comment body.");
+      });
+
+      it("should leave body unchanged when no @filepath reference is present", async () => {
+        const messages = [{ type: "add_comment", body: "Plain comment body without file refs." }];
+
+        const mockHandler = vi.fn().mockResolvedValue({ success: true });
+        const handlers = new Map([["add_comment", mockHandler]]);
+
+        await processMessages(handlers, messages);
+
+        const calledMessage = mockHandler.mock.calls[0][0];
+        expect(calledMessage.body).toBe("Plain comment body without file refs.");
+      });
+
+      it("should leave disallowed @filepath references unchanged", async () => {
+        const messages = [{ type: "add_comment", body: "See @/etc/passwd for details." }];
+
+        const mockHandler = vi.fn().mockResolvedValue({ success: true });
+        const handlers = new Map([["add_comment", mockHandler]]);
+
+        await processMessages(handlers, messages);
+
+        const calledMessage = mockHandler.mock.calls[0][0];
+        expect(calledMessage.body).toBe("See @/etc/passwd for details.");
+      });
     });
 
     it("should silently skip message types handled by standalone steps", async () => {

@@ -24,6 +24,7 @@ const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult
 const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers, isStagedMode } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
 const { listCommentMemoryFiles, COMMENT_MEMORY_DIR } = require("./comment_memory_helpers.cjs");
+const { expandFileReferences } = require("./runtime_import.cjs");
 const nodePath = require("path");
 const fs = require("fs");
 
@@ -561,6 +562,19 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         if (resolvedBody !== effectiveMessage.body) {
           effectiveMessage = { ...effectiveMessage, body: resolvedBody };
           core.info(`Resolved artifact URL reference(s) in ${messageType} body`);
+        }
+      }
+
+      // Pre-process: expand @/absolute/path file references in the message body.
+      // Agents may write a path like @/tmp/gh-aw/agent/comment-body.md as the body
+      // value; this resolves the file and inlines its contents before the handler runs.
+      // Only paths within GITHUB_WORKSPACE or /tmp/gh-aw are expanded; all others are ignored.
+      if (effectiveMessage.body && typeof effectiveMessage.body === "string") {
+        const workspaceDir = process.env.GITHUB_WORKSPACE || "";
+        const expandedBody = expandFileReferences(effectiveMessage.body, workspaceDir);
+        if (expandedBody !== effectiveMessage.body) {
+          effectiveMessage = { ...effectiveMessage, body: expandedBody };
+          core.info(`Expanded @filepath reference(s) in ${messageType} body`);
         }
       }
 

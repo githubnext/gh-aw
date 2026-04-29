@@ -7,7 +7,7 @@
 
 const fs = require("fs");
 const { isTruthy } = require("./is_truthy.cjs");
-const { processRuntimeImports, expandFileReferences } = require("./runtime_import.cjs");
+const { processRuntimeImports } = require("./runtime_import.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 
@@ -206,16 +206,6 @@ async function main() {
     } else {
       core.info("No runtime import macros found, skipping runtime import processing");
     }
-
-    // Step 1.5: Expand @/absolute/path file references
-    core.info("\n========================================");
-    core.info("[main] STEP 1.5: @filepath Expansion");
-    core.info("========================================");
-    const beforeExpansion = content.length;
-    content = expandFileReferences(content, workspaceDir);
-    const afterExpansion = content.length;
-    core.info(`@filepath expansion complete`);
-    core.info(`Content length change: ${beforeExpansion} -> ${afterExpansion} (${afterExpansion > beforeExpansion ? "+" : ""}${afterExpansion - beforeExpansion})`);
 
     // Step 2: Interpolate variables
     core.info("\n========================================");
