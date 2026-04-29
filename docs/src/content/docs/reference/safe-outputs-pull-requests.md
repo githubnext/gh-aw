@@ -84,7 +84,7 @@ The `excluded-files` field accepts a list of glob patterns. Each matching file i
 
 The `preserve-branch-name` field, when set to `true`, omits the random hex salt suffix that is normally appended to the agent-specified branch name. This is useful when the target repository enforces branch naming conventions such as Jira keys in uppercase (e.g., `bugfix/BR-329-red` instead of `bugfix/br-329-red-cde2a954`). Invalid characters are always replaced for security, and casing is always preserved regardless of this setting. Defaults to `false`.
 
-When `preserve-branch-name: true` and the agent-supplied branch name already exists on the remote, the workflow reuses the existing branch by force-deleting the stale remote ref and recreating it from the agent's local HEAD (force-push semantic). This is the intended behavior for long-lived reusable branches whose previous PR was merged. The handler does not silently rename the branch in this case.
+When `preserve-branch-name: true` and the agent-supplied branch name already exists on the remote, the workflow reuses the existing branch by force-deleting the stale remote ref and recreating it from the agent's local HEAD (force-push semantics). This is the intended behavior for long-lived reusable branches whose previous PR was merged. The handler does not silently rename the branch in this case.
 
 The `draft` field is a **configuration policy**, not a default. Whatever value is set in the workflow frontmatter is always used — the agent cannot override it at runtime.
 

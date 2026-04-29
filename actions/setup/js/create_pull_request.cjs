@@ -466,7 +466,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
 
   if (preserveBranchName) {
     // Reuse the existing branch by deleting the remote ref so the subsequent
-    // push recreates it from the local HEAD (force-push semantic). This is the
+    // push recreates it from the local HEAD (force-push semantics). This is the
     // intended behavior of preserve-branch-name for long-lived reusable
     // branches whose previous PR was merged.
     const { githubClient, owner, repo } = options;
