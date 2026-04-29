@@ -1045,8 +1045,9 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
 
 /**
  * Checks if a file path is allowed for @filepath expansion.
- * Allowed paths must be absolute, clean (no .. or . traversal), and within
- * the workspace directory or /tmp/gh-aw.
+ * Allowed paths must be absolute, clean (no .. or . traversal components in the raw
+ * path string — paths are refused rather than silently normalized), and within the
+ * workspace directory or /tmp/gh-aw.
  * @param {string} filePath - The absolute file path to validate
  * @param {string} workspaceDir - The GITHUB_WORKSPACE directory
  * @returns {boolean} - True if the path is allowed
@@ -1055,7 +1056,9 @@ function isAllowedFileReference(filePath, workspaceDir) {
   // Must be absolute path
   if (!path.isAbsolute(filePath)) return false;
 
-  // Must be clean path (no .. or . directory traversal components)
+  // Must be a clean path: refuse paths with .. or . traversal components rather than
+  // silently normalizing them. This enforces the requirement that the caller provides
+  // the canonical path (e.g. @/tmp/gh-aw/../etc/passwd is refused outright).
   const parts = filePath.split("/");
   for (const part of parts) {
     if (part === ".." || part === ".") return false;
@@ -1085,8 +1088,9 @@ function isAllowedFileReference(filePath, workspaceDir) {
  */
 function expandFileReferences(content, workspaceDir) {
   // Pattern: @ followed by an absolute path (starts with /)
-  // Distinguishes @/path from @username mentions (which don't start with /)
-  const pattern = /@(\/[^\s@]+)/g;
+  // Restricts to standard filesystem characters to avoid matching shell-special sequences.
+  // Distinguishes @/path from @username mentions (which don't start with /).
+  const pattern = /@(\/[a-zA-Z0-9_./-]+)/g;
 
   return content.replace(pattern, (match, filePath) => {
     if (!isAllowedFileReference(filePath, workspaceDir)) {

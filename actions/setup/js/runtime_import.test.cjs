@@ -1794,6 +1794,16 @@ describe("runtime_import", () => {
       const result = expandFileReferences(`@${wsDir}/../etc/passwd`, wsDir);
       expect(result).toBe(`@${wsDir}/../etc/passwd`);
     });
+    it("should reject URL-encoded traversal paths", () => {
+      // URL-encoded .. (%2e%2e) should not be expanded since the regex only
+      // matches [a-zA-Z0-9_./-] — % is excluded so the reference won't even match
+      const result = expandFileReferences("@/tmp/gh-aw/%2e%2e/etc/passwd", wsDir);
+      expect(result).toBe("@/tmp/gh-aw/%2e%2e/etc/passwd");
+    });
+    it("should reject mixed-separator traversal paths", () => {
+      const result = expandFileReferences(`@${wsDir}/subdir/../../etc/passwd`, wsDir);
+      expect(result).toBe(`@${wsDir}/subdir/../../etc/passwd`);
+    });
     it("should leave content without @/path unchanged", () => {
       const input = "No file references here. ${{ github.actor }}";
       const result = expandFileReferences(input, wsDir);
