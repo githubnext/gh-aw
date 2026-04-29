@@ -247,7 +247,10 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			config.GitHubToken = token
 		}
 
-		// Check for both "toolset" and "toolsets" (plural is more common in user configs)
+		// Check for both "toolset" and "toolsets" (plural is more common in user configs).
+		// Both fields accept either a single string (coerced to a one-element slice) or an
+		// array of strings, so that users can write either `toolsets: "default"` or
+		// `toolsets: [default]`.
 		if toolset, ok := configMap["toolsets"].([]any); ok {
 			config.Toolset = make(GitHubToolsets, 0, len(toolset))
 			for _, item := range toolset {
@@ -255,6 +258,11 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 					config.Toolset = append(config.Toolset, GitHubToolset(str))
 				}
 			}
+		} else if toolsetStr, ok := configMap["toolsets"].(string); ok {
+			config.Toolset = GitHubToolsets{GitHubToolset(toolsetStr)}
+			// Normalize the raw map to an array so the compiled GitHub Actions YAML
+			// always emits an array, maintaining consistent output regardless of input form.
+			configMap["toolsets"] = []any{toolsetStr}
 		} else if toolset, ok := configMap["toolset"].([]any); ok {
 			config.Toolset = make(GitHubToolsets, 0, len(toolset))
 			for _, item := range toolset {
@@ -262,6 +270,11 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 					config.Toolset = append(config.Toolset, GitHubToolset(str))
 				}
 			}
+		} else if toolsetStr, ok := configMap["toolset"].(string); ok {
+			config.Toolset = GitHubToolsets{GitHubToolset(toolsetStr)}
+			// Normalize the raw map to an array so the compiled GitHub Actions YAML
+			// always emits an array, maintaining consistent output regardless of input form.
+			configMap["toolset"] = []any{toolsetStr}
 		}
 
 		if lockdown, ok := configMap["lockdown"].(bool); ok {

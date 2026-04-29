@@ -257,6 +257,68 @@ func TestGitHubConfigParsing(t *testing.T) {
 			t.Errorf("expected 2 toolsets, got %d", len(config.Toolset))
 		}
 	})
+
+	t.Run("coerces single string toolsets to slice", func(t *testing.T) {
+		toolsMap := map[string]any{
+			"github": map[string]any{
+				"toolsets": "default",
+			},
+		}
+
+		configMap := toolsMap["github"].(map[string]any)
+		tools := NewTools(toolsMap)
+		config := tools.GitHub
+
+		if config == nil {
+			t.Fatal("expected non-nil config")
+		}
+
+		if len(config.Toolset) != 1 {
+			t.Fatalf("expected 1 toolset, got %d", len(config.Toolset))
+		}
+		if config.Toolset[0] != "default" {
+			t.Errorf("expected toolset 'default', got %q", config.Toolset[0])
+		}
+
+		// Verify raw map is normalized to an array for JSON rendering
+		normalized, ok := configMap["toolsets"].([]any)
+		if !ok {
+			t.Errorf("expected raw configMap[toolsets] to be []any after coercion, got %T", configMap["toolsets"])
+		} else if len(normalized) != 1 || normalized[0] != "default" {
+			t.Errorf("expected normalized raw toolsets to be [default], got %v", normalized)
+		}
+	})
+
+	t.Run("coerces single string toolset (singular) to slice", func(t *testing.T) {
+		toolsMap := map[string]any{
+			"github": map[string]any{
+				"toolset": "repos",
+			},
+		}
+
+		configMap := toolsMap["github"].(map[string]any)
+		tools := NewTools(toolsMap)
+		config := tools.GitHub
+
+		if config == nil {
+			t.Fatal("expected non-nil config")
+		}
+
+		if len(config.Toolset) != 1 {
+			t.Fatalf("expected 1 toolset, got %d", len(config.Toolset))
+		}
+		if config.Toolset[0] != "repos" {
+			t.Errorf("expected toolset 'repos', got %q", config.Toolset[0])
+		}
+
+		// Verify raw map is normalized to an array for JSON rendering
+		normalized, ok := configMap["toolset"].([]any)
+		if !ok {
+			t.Errorf("expected raw configMap[toolset] to be []any after coercion, got %T", configMap["toolset"])
+		} else if len(normalized) != 1 || normalized[0] != "repos" {
+			t.Errorf("expected normalized raw toolset to be [repos], got %v", normalized)
+		}
+	})
 }
 
 func TestPlaywrightConfigParsing(t *testing.T) {

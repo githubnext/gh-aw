@@ -1947,11 +1947,19 @@ tools:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # Array of GitHub MCP server toolset names to enable specific groups of GitHub API
-    # functionalities
+    # GitHub MCP server toolset name(s) to enable. Accepts a single toolset name
+    # (string) or an array of toolset names.
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: A single GitHub MCP server toolset name (shorthand for a one-element
+    # array)
+    toolsets: "all"
+
+    # Option 2: Array of GitHub MCP server toolset names to enable specific groups of
+    # GitHub API functionalities
     toolsets: []
-      # Array of Toolset name
+      # Array items: Toolset name
 
     # Volume mounts for the containerized GitHub MCP server (format:
     # 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write).

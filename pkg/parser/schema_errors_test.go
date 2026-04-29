@@ -109,6 +109,24 @@ func TestSynthesizeOneOfTypeConflictMessage(t *testing.T) {
 			wantAny: []string{"expected string or object, got number", "Valid engine names", "copilot"},
 		},
 		{
+			name: "engine hint includes object form example",
+			lines: []string{
+				"at '/engine': 'oneOf' failed, none matched",
+				"- at '/engine': got number, want string",
+				"- at '/engine': got number, want object",
+			},
+			wantAny: []string{"id: copilot", "max-turns"},
+		},
+		{
+			name: "toolsets field with number type produces actionable message",
+			lines: []string{
+				"at '/tools/github/toolsets': 'oneOf' failed, none matched",
+				"- at '/tools/github/toolsets': got number, want string",
+				"- at '/tools/github/toolsets': got number, want array",
+			},
+			wantAny: []string{"expected string or array, got number", "Valid toolsets", "default", "toolsets: default"},
+		},
+		{
 			name: "unknown field produces generic message without hints",
 			lines: []string{
 				"at '/foo': 'oneOf' failed, none matched",
