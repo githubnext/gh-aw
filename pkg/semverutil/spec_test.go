@@ -123,6 +123,20 @@ func TestSpec_PublicAPI_ParseVersion(t *testing.T) {
 		ver := ParseVersion("not-a-version")
 		assert.Nil(t, ver, "ParseVersion should return nil for invalid semver")
 	})
+
+	t.Run("Pre field is prerelease identifier without leading hyphen", func(t *testing.T) {
+		// Spec: Pre string // Prerelease identifier without leading hyphen (e.g. "beta.1")
+		ver := ParseVersion("v1.2.3-beta.1")
+		require.NotNil(t, ver, "ParseVersion should return non-nil for valid prerelease semver")
+		assert.Equal(t, "beta.1", ver.Pre, "Pre field should contain prerelease identifier without leading hyphen")
+	})
+
+	t.Run("Raw field is original version string without leading v prefix", func(t *testing.T) {
+		// Spec: Raw string // Original version string without leading "v"
+		ver := ParseVersion("v1.2.3")
+		require.NotNil(t, ver, "ParseVersion should return non-nil for valid semver")
+		assert.Equal(t, "1.2.3", ver.Raw, "Raw field should contain version string without leading v prefix")
+	})
 }
 
 // TestSpec_Types_SemanticVersion_IsPreciseVersion validates the documented

@@ -137,3 +137,19 @@ func TestSpec_PublicAPI_Median_EvenCount(t *testing.T) {
 	assert.InDelta(t, 2.5, sv.Median(), 1e-9,
 		"Median with even count should return the average of the two middle sorted values")
 }
+
+// TestSpec_SpecMismatch_MissingMethods documents the discrepancy between
+// the README.md specification and the current implementation of StatVar.
+//
+// SPEC_MISMATCH: The README.md specification documents the following methods that
+// are not present in statvar.go:
+//   - Sum() float64       — "Returns the arithmetic sum"
+//   - Variance() float64  — "Returns population variance (N denominator)"
+//   - StdDev() float64    — "Returns population standard deviation"
+//
+// The implementation provides only SampleVariance and SampleStdDev (N-1 denominator).
+// Tests for Sum, Variance, and StdDev are skipped until the implementation matches
+// the specification.
+func TestSpec_SpecMismatch_MissingMethods(t *testing.T) {
+	t.Skip("SPEC_MISMATCH: Sum(), Variance(), and StdDev() are documented in README.md but not implemented in statvar.go")
+}
