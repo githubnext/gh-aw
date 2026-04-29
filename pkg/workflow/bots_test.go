@@ -196,6 +196,67 @@ Test workflow content with bot and default roles.`
 	}
 }
 
+// TestMergeBots tests the mergeBots helper function
+func TestMergeBots(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name     string
+		top      []string
+		imported []string
+		expected []string
+	}{
+		{
+			name:     "top only",
+			top:      []string{"dependabot[bot]"},
+			imported: nil,
+			expected: []string{"dependabot[bot]"},
+		},
+		{
+			name:     "imported only",
+			top:      nil,
+			imported: []string{"renovate[bot]"},
+			expected: []string{"renovate[bot]"},
+		},
+		{
+			name:     "both with no overlap",
+			top:      []string{"dependabot[bot]"},
+			imported: []string{"renovate[bot]"},
+			expected: []string{"dependabot[bot]", "renovate[bot]"},
+		},
+		{
+			name:     "both with duplicates deduped",
+			top:      []string{"dependabot[bot]", "renovate[bot]"},
+			imported: []string{"renovate[bot]", "github-actions[bot]"},
+			expected: []string{"dependabot[bot]", "renovate[bot]", "github-actions[bot]"},
+		},
+		{
+			name:     "both nil",
+			top:      nil,
+			imported: nil,
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.mergeBots(tt.top, tt.imported)
+			if len(tt.expected) == 0 && len(result) == 0 {
+				return
+			}
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d bots, got %d: %v", len(tt.expected), len(result), result)
+				return
+			}
+			for i, expected := range tt.expected {
+				if result[i] != expected {
+					t.Errorf("Expected bot '%s' at index %d, got '%s'", expected, i, result[i])
+				}
+			}
+		})
+	}
+}
+
 // TestBotsWithRolesAll tests that bots field works even when roles: all is set
 func TestBotsWithRolesAll(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-bots-roles-all-test")

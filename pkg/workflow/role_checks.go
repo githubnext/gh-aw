@@ -563,6 +563,11 @@ func (c *Compiler) mergeSkipBots(topSkipBots []string, importedSkipBots []string
 	return mergeStringSlicesDedup(topSkipBots, importedSkipBots, "skip-bots")
 }
 
+// mergeBots merges top-level bots with imported bots (union)
+func (c *Compiler) mergeBots(topBots []string, importedBots []string) []string {
+	return mergeStringSlicesDedup(topBots, importedBots, "bots")
+}
+
 // extractActivationGitHubToken extracts the 'github-token' field from the 'on:' section of frontmatter.
 // This token is used for pre-activation reactions and activation status comments.
 func (c *Compiler) extractActivationGitHubToken(frontmatter map[string]any) string {
