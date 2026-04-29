@@ -91,6 +91,19 @@ func TestCleanupOldRunFolders(t *testing.T) {
 			wantDirsRemoved: []string{"run-30"},
 		},
 		{
+			name: "ignores run- directories with non-integer suffix",
+			setup: func(t *testing.T, dir string) {
+				// Directories like "run-backup" or "run-temp" must not be removed
+				for _, name := range []string{"run-backup", "run-temp", "run-old"} {
+					require.NoError(t, os.MkdirAll(filepath.Join(dir, name), 0755))
+				}
+				makeRunDir(t, dir, 50, now.Add(-30*24*time.Hour), true) // old with numeric ID - removed
+			},
+			wantRemoved:     1,
+			wantDirsLeft:    []string{"run-backup", "run-temp", "run-old"},
+			wantDirsRemoved: []string{"run-50"},
+		},
+		{
 			name: "falls back to dir mtime when no run_summary.json",
 			setup: func(t *testing.T, dir string) {
 				// Create a run dir without a summary file; its mtime will be recent

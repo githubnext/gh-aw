@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -107,6 +108,12 @@ func cleanupOldRunFolders(outputDir string, cutoff time.Time, verbose bool) (int
 			continue
 		}
 		if !strings.HasPrefix(entry.Name(), "run-") {
+			continue
+		}
+		// Only consider directories whose name is exactly "run-{integer}" to avoid
+		// accidentally deleting unrelated directories like "run-backup" or "run-temp".
+		if _, parseErr := strconv.ParseInt(strings.TrimPrefix(entry.Name(), "run-"), 10, 64); parseErr != nil {
+			logsCacheLog.Printf("Skipping non-run directory: %s", entry.Name())
 			continue
 		}
 

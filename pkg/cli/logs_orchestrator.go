@@ -59,7 +59,16 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		}
 	}
 
+	// Check context cancellation at the start
+	select {
+	case <-ctx.Done():
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+		return ctx.Err()
+	default:
+	}
+
 	// Clean up cached run folders older than the --after cutoff, if specified.
+	// Runs after the context check so a cancelled context never triggers disk scanning.
 	if after != "" {
 		cutoff, parseErr := parseCleanupCutoff(after)
 		if parseErr != nil {
@@ -70,20 +79,16 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		if cleanErr != nil {
 			// Non-fatal: log but continue with download
 			logsOrchestratorLog.Printf("Failed to clean up old run folders: %v", cleanErr)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up old run folders: %v", cleanErr)))
+			if !jsonOutput {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up old run folders: %v", cleanErr)))
+			}
 		} else if removed > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed %d cached run folder(s) older than %s", removed, after)))
-		} else if verbose {
+			if !jsonOutput {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed %d cached run folder(s) older than %s", removed, after)))
+			}
+		} else if verbose && !jsonOutput {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No cached run folders older than %s found", after)))
 		}
-	}
-
-	// Check context cancellation at the start
-	select {
-	case <-ctx.Done():
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
-		return ctx.Err()
-	default:
 	}
 
 	if verbose {
