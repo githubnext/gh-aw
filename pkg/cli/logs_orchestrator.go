@@ -665,15 +665,25 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, runURLs []string, output
 		return nil
 	}
 
-	// Parse owner/repo from --repo override if provided
-	var ownerOverride, repoNameOverride string
+	// Parse owner/repo (and optional GHES host) from --repo override if provided.
+	// Accepted formats: "owner/repo" or "HOST/owner/repo".
+	var hostOverride, ownerOverride, repoNameOverride string
 	if repoOverride != "" {
-		parts := strings.SplitN(repoOverride, "/", 2)
-		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-			return fmt.Errorf("invalid repository format '%s': expected 'owner/repo'", repoOverride)
+		parts := strings.SplitN(repoOverride, "/", 3)
+		switch len(parts) {
+		case 3: // HOST/owner/repo
+			if parts[0] == "" || parts[1] == "" || parts[2] == "" {
+				return fmt.Errorf("invalid repository format '%s': expected '[HOST/]owner/repo'", repoOverride)
+			}
+			hostOverride, ownerOverride, repoNameOverride = parts[0], parts[1], parts[2]
+		case 2: // owner/repo
+			if parts[0] == "" || parts[1] == "" {
+				return fmt.Errorf("invalid repository format '%s': expected '[HOST/]owner/repo'", repoOverride)
+			}
+			ownerOverride, repoNameOverride = parts[0], parts[1]
+		default:
+			return fmt.Errorf("invalid repository format '%s': expected '[HOST/]owner/repo'", repoOverride)
 		}
-		ownerOverride = parts[0]
-		repoNameOverride = parts[1]
 	}
 
 	// Start timeout timer if specified
@@ -710,13 +720,21 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, runURLs []string, output
 			continue
 		}
 
-		// Prefer owner/repo embedded in the URL; fall back to --repo override
+		// Prefer owner/repo embedded in the URL; fall back to --repo override.
+		// If neither source provides owner, the run cannot be fetched — return an
+		// actionable error rather than silently continuing with a broken API call.
 		owner := components.Owner
 		repo := components.Repo
 		host := components.Host
 		if owner == "" {
 			owner = ownerOverride
 			repo = repoNameOverride
+			if host == "" {
+				host = hostOverride
+			}
+		}
+		if owner == "" {
+			return fmt.Errorf("run %q does not include repository information; pass --repo owner/repo or provide full run URLs", rawURL)
 		}
 
 		run, err := fetchWorkflowRunMetadata(ctx, components.Number, owner, repo, host, verbose)

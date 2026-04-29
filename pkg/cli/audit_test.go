@@ -1064,3 +1064,34 @@ func TestRunAuditMulti_Validation(t *testing.T) {
 		})
 	}
 }
+
+func TestAuditCommandStdinFlag(t *testing.T) {
+	cmd := NewAuditCommand()
+	flags := cmd.Flags()
+
+	// --stdin flag must be registered
+	stdinFlag := flags.Lookup("stdin")
+	require.NotNil(t, stdinFlag, "Should have 'stdin' flag")
+	assert.Equal(t, "bool", stdinFlag.Value.Type(), "--stdin should be a boolean flag")
+	assert.Equal(t, "false", stdinFlag.DefValue, "--stdin should default to false")
+}
+
+func TestAuditCommandStdinRejectsPositionalArgs(t *testing.T) {
+	cmd := NewAuditCommand()
+	cmd.SetArgs([]string{"1234567890", "--stdin"})
+	cmd.SetOut(nil)
+	cmd.SetErr(nil)
+	err := cmd.Execute()
+	require.Error(t, err, "audit --stdin with a positional arg should return an error")
+	assert.Contains(t, err.Error(), "positional arguments are not allowed with --stdin", "error message should explain the conflict")
+}
+
+func TestAuditCommandRequiresArgsOrStdin(t *testing.T) {
+	cmd := NewAuditCommand()
+	cmd.SetArgs([]string{})
+	cmd.SetOut(nil)
+	cmd.SetErr(nil)
+	err := cmd.Execute()
+	require.Error(t, err, "audit with no args and no --stdin should return an error")
+	assert.Contains(t, err.Error(), "at least one run ID or URL is required", "error message should prompt for required input")
+}
