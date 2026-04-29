@@ -195,6 +195,12 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
+	// Validate safe-outputs steps for dangerous shell expansion patterns
+	log.Printf("Validating safe-outputs steps for shell expansion patterns")
+	if err := validateSafeOutputsStepsShellExpansion(workflowData.SafeOutputs); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	// Validate safe-outputs allowed-domains configuration
 	log.Printf("Validating safe-outputs allowed-domains")
 	if err := c.validateSafeOutputsAllowedDomains(workflowData.SafeOutputs); err != nil {
