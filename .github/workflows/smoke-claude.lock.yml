@@ -2643,7 +2643,7 @@ jobs:
           AW_APM_LEGACY_OWNER: ${{ github.aw.import-inputs.owner }}
           AW_APM_LEGACY_PRIVATE_KEY: ${{ github.aw.import-inputs.private-key }}
           AW_APM_LEGACY_REPOS: ${{ github.aw.import-inputs.repositories }}
-          AW_APM_PACKAGES: "[microsoft/apm-sample-package]"
+          AW_APM_PACKAGES: "[\"microsoft/apm-sample-package\"]"
 
   conclusion:
     needs:

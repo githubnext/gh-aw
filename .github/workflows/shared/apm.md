@@ -146,8 +146,8 @@ jobs:
       - name: Compute APM credential-group matrix
         id: compute
         env:
-          AW_APM_PACKAGES: ${{ github.aw.import-inputs.packages }}
-          AW_APM_APPS: ${{ github.aw.import-inputs.apps }}
+          AW_APM_PACKAGES: '${{ github.aw.import-inputs.packages }}'
+          AW_APM_APPS: '${{ github.aw.import-inputs.apps }}'
           AW_APM_LEGACY_APP_ID: ${{ github.aw.import-inputs.app-id }}
           AW_APM_LEGACY_PRIVATE_KEY: ${{ github.aw.import-inputs.private-key }}
           AW_APM_LEGACY_OWNER: ${{ github.aw.import-inputs.owner }}
