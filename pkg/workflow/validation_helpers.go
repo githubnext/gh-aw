@@ -209,13 +209,13 @@ func parseStringSliceAny(raw any, log *logger.Logger) []string {
 // validateNoDuplicateIDs checks that all items have unique IDs extracted by idFunc.
 // The onDuplicate callback creates the error to return when a duplicate is found.
 func validateNoDuplicateIDs[T any](items []T, idFunc func(T) string, onDuplicate func(string) error) error {
-	seen := make(map[string]bool)
+	seen := make(map[string]struct{})
 	for _, item := range items {
 		id := idFunc(item)
-		if seen[id] {
+		if _, ok := seen[id]; ok {
 			return onDuplicate(id)
 		}
-		seen[id] = true
+		seen[id] = struct{}{}
 	}
 	return nil
 }
