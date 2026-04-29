@@ -490,14 +490,14 @@ Display workflow health metrics and success rates.
 gh aw health                       # Summary of all workflows (last 7 days)
 gh aw health issue-monster         # Detailed metrics for specific workflow
 gh aw health --days 30             # Summary for last 30 days
-gh aw health --threshold 90        # Alert if below 90% success rate
+gh aw health --threshold 90        # Warn if below 90% success rate
 gh aw health --json                # Output in JSON format
 gh aw health issue-monster --days 90  # 90-day metrics for workflow
 ```
 
 **Options:** `--days`, `--threshold`, `--repo`, `--json`
 
-Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and alerts when success rate drops below threshold.
+Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and warnings when success rate drops below threshold.
 
 #### `checks`
 

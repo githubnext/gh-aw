@@ -27,15 +27,6 @@ type ActionCacheEntry struct {
 	ActionDescription string                      `json:"action_description,omitempty"` // cached description from action.yml
 }
 
-// ContainerPin holds a pinned Docker container image reference.
-// The pin maps a mutable image tag to its immutable SHA-256 digest,
-// ensuring supply-chain integrity by making the pull operation deterministic.
-type ContainerPin struct {
-	Image       string `json:"image"`        // Original tag, e.g. "node:lts-alpine"
-	Digest      string `json:"digest"`       // Bare digest, e.g. "sha256:abc123..."
-	PinnedImage string `json:"pinned_image"` // Resolved reference, e.g. "node:lts-alpine@sha256:abc123..."
-}
-
 // ActionCache manages cached action pin resolutions.
 type ActionCache struct {
 	Entries       map[string]ActionCacheEntry `json:"entries"`              // key: "repo@version"

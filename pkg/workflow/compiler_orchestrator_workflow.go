@@ -267,7 +267,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 
 	workflowData.Roles = c.extractRoles(frontmatter)
-	workflowData.Bots = c.extractBots(frontmatter)
+	workflowData.Bots = c.mergeBots(c.extractBots(frontmatter), importsResult.MergedBots)
 	workflowData.LabelNames = c.extractLabelNames(frontmatter)
 	workflowData.RateLimit = c.extractRateLimitConfig(frontmatter)
 	workflowData.SkipRoles = c.mergeSkipRoles(c.extractSkipRoles(frontmatter), importsResult.MergedSkipRoles)

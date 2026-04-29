@@ -8,7 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestBotsFieldExtraction tests the extraction of the bots field from frontmatter
@@ -196,6 +199,56 @@ Test workflow content with bot and default roles.`
 	}
 }
 
+// TestMergeBots tests the mergeBots helper function
+func TestMergeBots(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name     string
+		top      []string
+		imported []string
+		expected []string
+	}{
+		{
+			name:     "top only",
+			top:      []string{"dependabot[bot]"},
+			imported: nil,
+			expected: []string{"dependabot[bot]"},
+		},
+		{
+			name:     "imported only",
+			top:      nil,
+			imported: []string{"renovate[bot]"},
+			expected: []string{"renovate[bot]"},
+		},
+		{
+			name:     "both with no overlap",
+			top:      []string{"dependabot[bot]"},
+			imported: []string{"renovate[bot]"},
+			expected: []string{"dependabot[bot]", "renovate[bot]"},
+		},
+		{
+			name:     "both with duplicates deduped",
+			top:      []string{"dependabot[bot]", "renovate[bot]"},
+			imported: []string{"renovate[bot]", "github-actions[bot]"},
+			expected: []string{"dependabot[bot]", "renovate[bot]", "github-actions[bot]"},
+		},
+		{
+			name:     "both nil",
+			top:      nil,
+			imported: nil,
+			expected: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.mergeBots(tt.top, tt.imported)
+			assert.Equal(t, tt.expected, result, "mergeBots result mismatch")
+		})
+	}
+}
+
 // TestBotsWithRolesAll tests that bots field works even when roles: all is set
 func TestBotsWithRolesAll(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-bots-roles-all-test")
@@ -239,4 +292,134 @@ Test workflow content.`
 	if strings.Contains(compiledStr, "check_membership") {
 		t.Errorf("Expected no check_membership job when roles: all is set")
 	}
+}
+
+// TestBotsImportMerge tests that bots from imported workflows are merged with top-level bots
+// in the compiled output (regression test for the fix in compiler_orchestrator_workflow.go).
+func TestBotsImportMerge(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("imported_bots_merged_with_top_level_bots", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "bots-import-merge-test")
+
+		// Shared workflow defines a bot at the top level (the format used by the importer)
+		sharedContent := `---
+on: issues
+bots:
+  - "renovate[bot]"
+---
+`
+		sharedPath := filepath.Join(tmpDir, "shared-bots.md")
+		err := os.WriteFile(sharedPath, []byte(sharedContent), 0644)
+		require.NoError(t, err, "Failed to write shared workflow file")
+
+		// Main workflow defines its own bot inside on.bots and imports the shared file
+		mainContent := `---
+on:
+  issues:
+    types: [opened]
+  bots: ["dependabot[bot]"]
+imports:
+  - shared-bots.md
+---
+
+# Main workflow importing bots from a shared file.
+`
+		mainPath := filepath.Join(tmpDir, "main-workflow.md")
+		err = os.WriteFile(mainPath, []byte(mainContent), 0644)
+		require.NoError(t, err, "Failed to write main workflow file")
+
+		err = compiler.CompileWorkflow(mainPath)
+		require.NoError(t, err, "Compilation failed")
+
+		lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(mainPath))
+		require.NoError(t, err, "Failed to read lock file")
+		lockStr := string(lockContent)
+
+		// Both top-level and imported bots must appear in the compiled output
+		assert.Contains(t, lockStr, `GH_AW_ALLOWED_BOTS: "dependabot[bot],renovate[bot]"`,
+			"Expected compiled workflow to contain both top-level and imported bots")
+	})
+
+	t.Run("imported_bots_only_no_top_level_bots", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "bots-import-only-test")
+
+		sharedContent := `---
+on: issues
+bots:
+  - "github-actions[bot]"
+---
+`
+		sharedPath := filepath.Join(tmpDir, "shared-bots-only.md")
+		err := os.WriteFile(sharedPath, []byte(sharedContent), 0644)
+		require.NoError(t, err, "Failed to write shared workflow file")
+
+		// Main workflow has no on.bots of its own; relies solely on the import
+		mainContent := `---
+on:
+  issues:
+    types: [opened]
+imports:
+  - shared-bots-only.md
+---
+
+# Main workflow with bots defined only in the import.
+`
+		mainPath := filepath.Join(tmpDir, "main-no-bots.md")
+		err = os.WriteFile(mainPath, []byte(mainContent), 0644)
+		require.NoError(t, err, "Failed to write main workflow file")
+
+		err = compiler.CompileWorkflow(mainPath)
+		require.NoError(t, err, "Compilation failed")
+
+		lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(mainPath))
+		require.NoError(t, err, "Failed to read lock file")
+		lockStr := string(lockContent)
+
+		// Imported bot must appear even when the main workflow has no on.bots
+		assert.Contains(t, lockStr, `GH_AW_ALLOWED_BOTS: "github-actions[bot]"`,
+			"Expected compiled workflow to contain bots from import when main workflow has none")
+	})
+
+	t.Run("duplicate_bots_across_top_level_and_import_deduped", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "bots-import-dedup-test")
+
+		sharedContent := `---
+on: issues
+bots:
+  - "dependabot[bot]"
+  - "renovate[bot]"
+---
+`
+		sharedPath := filepath.Join(tmpDir, "shared-bots-dup.md")
+		err := os.WriteFile(sharedPath, []byte(sharedContent), 0644)
+		require.NoError(t, err, "Failed to write shared workflow file")
+
+		// Main workflow overlaps with the shared workflow's bots
+		mainContent := `---
+on:
+  issues:
+    types: [opened]
+  bots: ["dependabot[bot]", "github-actions[bot]"]
+imports:
+  - shared-bots-dup.md
+---
+
+# Main workflow with overlapping bots in import.
+`
+		mainPath := filepath.Join(tmpDir, "main-dup-bots.md")
+		err = os.WriteFile(mainPath, []byte(mainContent), 0644)
+		require.NoError(t, err, "Failed to write main workflow file")
+
+		err = compiler.CompileWorkflow(mainPath)
+		require.NoError(t, err, "Compilation failed")
+
+		lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(mainPath))
+		require.NoError(t, err, "Failed to read lock file")
+		lockStr := string(lockContent)
+
+		// dependabot[bot] appears in both top-level and import — must be deduplicated
+		assert.Contains(t, lockStr, `GH_AW_ALLOWED_BOTS: "dependabot[bot],github-actions[bot],renovate[bot]"`,
+			"Expected compiled workflow to deduplicate bots from top-level and import")
+	})
 }
