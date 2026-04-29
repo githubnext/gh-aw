@@ -490,6 +490,18 @@ func TestUnzipFile(t *testing.T) {
 	if string(content) != "Job 1 logs" {
 		t.Errorf("Extracted subdirectory content mismatch: got %q, want %q", string(content), "Job 1 logs")
 	}
+
+	// Verify that extracted subdirectories have world-readable permissions (0755, not 0750)
+	// so that non-root users (e.g., runner uid=1001) can browse the logs
+	subdirPath := filepath.Join(destDir, "logs")
+	info, err := os.Stat(subdirPath)
+	if err != nil {
+		t.Fatalf("Failed to stat extracted subdirectory: %v", err)
+	}
+	perm := info.Mode().Perm()
+	if perm&0o005 == 0 {
+		t.Errorf("Extracted subdirectory has restrictive permissions %04o (world-read/execute bits not set); expected 0755", perm)
+	}
 }
 
 func TestUnzipFileZipSlipPrevention(t *testing.T) {

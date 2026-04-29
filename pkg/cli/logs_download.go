@@ -170,14 +170,14 @@ func flattenArtifactTree(sourceDir, artifactDir, outputDir, label string, verbos
 		destPath := filepath.Join(outputDir, relPath)
 
 		if info.IsDir() {
-			// Create directory in destination with owner+group permissions only (0750)
-			if err := os.MkdirAll(destPath, 0750); err != nil {
+			// Create directory in destination with world-readable permissions (0755)
+			if err := os.MkdirAll(destPath, 0755); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", destPath, err)
 			}
 			logsDownloadLog.Printf("Created directory: %s", destPath)
 		} else {
-			// Ensure parent directory exists with owner+group permissions only (0750)
-			if err := os.MkdirAll(filepath.Dir(destPath), 0750); err != nil {
+			// Ensure parent directory exists with world-readable permissions (0755)
+			if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 				return fmt.Errorf("failed to create parent directory for %s: %w", destPath, err)
 			}
 
@@ -386,7 +386,7 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 
 	// Create directory if it's a directory entry
 	if f.FileInfo().IsDir() {
-		return os.MkdirAll(filePath, 0750)
+		return os.MkdirAll(filePath, 0755)
 	}
 
 	// Decompression bomb protection - limit individual file size to 1GB
@@ -397,7 +397,7 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 	}
 
 	// Create parent directory if needed
-	if err := os.MkdirAll(filepath.Dir(filePath), 0750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
