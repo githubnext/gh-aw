@@ -668,7 +668,7 @@ This gives users the choice of triggering via comment (`/deploy`) or via label, 
 
 Monitoring workflows react automatically to pipeline events. The primary trigger for **GitHub Actions-internal** monitoring is `workflow_run`. Use it when you want to detect failures in another workflow in the same repository and take action — for example, posting a comment, opening an issue, or sending a notification. This is the recommended pattern for **DevOps monitoring** scenarios such as CI/CD failure detection.
 
-> **`deployment_status` vs `workflow_run`**: Use `deployment_status` for **external deployment services** (Heroku, Vercel, Railway, Fly.io, etc.) that post status back to GitHub via the Deployments API. Use `workflow_run` for **GitHub Actions-internal** pipelines. See `@.github/aw/deployment-status.md` for the `deployment_status` pattern.
+> **`deployment_status` vs `workflow_run`**: Use `deployment_status` for **external deployment services** (Heroku, Vercel, Railway, Fly.io, etc.) that post status back to GitHub via the Deployments API. Use `workflow_run` for **GitHub Actions-internal** pipelines. See reference: @.github/aw/deployment-status.md for the `deployment_status` pattern.
 
 ### workflow_run: React to CI/CD pipeline results
 
@@ -757,7 +757,7 @@ The `${{ github.event.workflow_run.name }}` workflow failed on branch `${{ githu
 
 **Instructions:**
 
-1. Check `/tmp/gh-aw/cache-memory/seen-runs.json`. If `${{ github.event.workflow_run.id }}` is already listed, stop — this run was already processed.
+1. Check `/tmp/gh-aw/cache-memory/seen-runs.json` (a JSON array of run ID strings, e.g. `["12345","67890"]`). If `${{ github.event.workflow_run.id }}` is already listed, stop — this run was already processed.
 
 2. Read `/tmp/gh-aw/agent/ci-logs-trimmed.txt` and identify the root cause of the failure.
 
