@@ -272,38 +272,34 @@ Explicit instructions in workflow prompts to reduce token consumption:
 
 **Engine**: Copilot - max-turns not available
 
-**Previous Configuration:**
-- No token budget controls
+**Previous Configuration (2026-04-06 optimization):**
 - 20-minute timeout
-- Tests 3 workflows with 3 different error categories
-- Verbose JSON evaluation reports per test case
-- Lengthy issue template with implementation guide (~250 lines)
-- Regenerated full Go code examples every run
+- Tests 2 workflows with 2 different error categories
+- Compact one-line scoring format (no verbose JSON)
+- Early stop (noop) when average score ≥ 70 and no individual score < 55
+- 235 candidate workflows listed for agent selection → agent often read many to compare complexity
+- `cat .github/workflows/*.md` bash permission allowed reading all 235 files
+- Verbose per-dimension rubrics (~115 lines) added to every prompt context
 
-**Optimized Configuration:**
+**Re-optimized Configuration (2026-04-29):**
 - `timeout-minutes: 20` (unchanged)
-- Added `## Token Budget Guidelines` section in prompt:
-  - Reduce test cases from 3 to 2 workflows
-  - Use compact one-line scoring format (no verbose JSON)
-  - Early stop (noop) when average score ≥ 70 and no individual score < 55 — skips all report generation
-  - Removed lengthy implementation guide from issue template
-  - Limit output to 20-turn target
+- **Pre-select 5 random candidates** in the pre-step (`shuf -n 5`) — agent only sees 5 choices instead of 235
+- **Removed `cat .github/workflows/*.md` bash permission** — agent can only preview with `head -n 30`
+- **Removed `find` and `head -n *` bash permissions** — prevents unbounded file reads
+- Lowered early-stop threshold: ≥ 70 → **≥ 65** (fires more often, skipping issue generation)
+- Lowered individual score floor: < 55 → **< 50**
+- Condensed verbose scoring rubric to a single compact table (~15 lines vs ~115 lines)
+- Turn target enforced: **≤ 20 turns** (was accidentally set to 30)
 
 **Expected Impact:**
-- **Token Reduction**: 85-95% for healthy runs (early-stop fires); 50-70% when an issue is created
+- **Token Reduction**: 90-95% vs the 6M run; 50-70% vs the 2026-04-06 baseline
 - **Quality**: Maintained — compiler error quality still evaluated across all 5 dimensions
-- **Runtime**: Reduced from ~129 turns to ≤ 20 turns (most runs end early)
+- **Runtime**: ≤ 20 turns; most runs end with noop when scores ≥ 65
 
 **Budget Target:**
-- **Target tokens/run**: 300K–600K (typical, early-stop); up to 2M (issue-creating run)
+- **Target tokens/run**: 150K–400K (typical, early-stop); up to 1.5M (issue-creating run)
 - **Alert threshold**: >2M tokens
-- **Cost estimate**: $5.25-10.50 per run (typical)
-
-**Optimization Strategy:**
-- Fewer test cases → fewer compile calls and eval rounds
-- Compact scoring format → less output to generate and process
-- Early-stop for healthy quality → avoids generating verbose reports when not needed (covers ~most runs given 0 errors in prior run)
-- Removed boilerplate implementation guide from issue template → less re-generation
+- **Cost estimate**: $2.63-7.00 per run (typical)
 
 ### Dead Code Remover
 
@@ -350,7 +346,7 @@ Explicit instructions in workflow prompts to reduce token consumption:
 | Issue Monster | 50K-150K | >300K | >500K |
 | CI Optimization Coach | 300K-600K | >1M | >1.5M |
 | Step Name Alignment | 300K-500K | >800K | >1.2M |
-| Daily Syntax Error Quality Check | 300K-2M | >2M | >4M |
+| Daily Syntax Error Quality Check | 150K-1.5M | >2M | >4M |
 | Dead Code Remover | 4M-5M | >7M | >9M |
 
 ## Optimization Strategies
@@ -485,6 +481,15 @@ When adding token budgets to a workflow:
 - 300K tokens ≈ $5.25
 
 ## Revision History
+
+- **2026-04-29**: Re-optimized Daily Syntax Error Quality Check after 6.07M token run
+  - Pre-select 5 random candidates in pre-step (was 235 → agent reads many to compare)
+  - Removed `cat .github/workflows/*.md` bash permission (prevented mass file reads)
+  - Removed `find` and `head -n *` open-ended bash permissions
+  - Fixed turn target: 30 → 20 (was accidentally set to 30)
+  - Lowered early-stop threshold: ≥ 70 → ≥ 65 (fires more often)
+  - Condensed scoring rubric: ~115 lines → compact table (~15 lines)
+  - New target: 150K-400K/run (typical); see issue #29104
 
 - **2026-04-06**: Added token budget guardrails for two high-cost workflows
   - Daily Syntax Error Quality Check: reduced to 2 test cases, compact scoring, early-stop noop (target 500K-1M/run)
