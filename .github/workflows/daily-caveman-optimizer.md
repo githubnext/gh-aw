@@ -81,8 +81,9 @@ find .github/aw .github/agents -type f -name '*.md' | sort
 Collect the sorted list of files.
 
 **Excluded from processing** (never modify these):
-- `.github/aw/github-agentic-workflows.md` — canonical schema reference, maintained by instructions-janitor
-- `.github/aw/create-agentic-workflow.md`, `.github/aw/update-agentic-workflow.md`, `.github/aw/debug-agentic-workflow.md`, `.github/aw/upgrade-agentic-workflows.md` — dispatcher prompts
+- `github-agentic-workflows.md` — canonical schema reference, maintained by instructions-janitor
+- Any file whose name ends in `-agentic-workflow.md` or matches `*-workflow.md` inside `.github/aw/` (dispatcher/template prompts such as create, update, debug, upgrade variants)
+- Any file that contains `disable-model-invocation: true` in its first 10 lines (template files)
 - Any file under 20 lines (already concise)
 
 ## Step 2: Load Round-Robin State
@@ -121,7 +122,7 @@ Ask yourself honestly:
 
 **If the file is already good** — mark it as "no change needed" and move on. Do not make cosmetic edits just to justify the run.
 
-**Optimization threshold**: Only edit if you can reduce token count by at least ~15% without any loss of meaning.
+**Optimization threshold**: Only edit if you can measurably reduce the file size — aim for at least 10% fewer characters or lines — without any loss of technical meaning. Do not count whitespace-only changes toward this threshold. When uncertain whether a cut loses meaning, keep the original text.
 
 ### 3c. Apply caveman optimization
 
