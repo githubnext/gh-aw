@@ -759,11 +759,11 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryM
 			mcpCustomLog.Printf("Auto-assigning container for command '%s': %s", result.Command, containerConfig.Image)
 			result.Container = containerConfig.Image
 			result.Entrypoint = containerConfig.Entrypoint
-			// Move command to entrypointArgs and preserve existing args after it
-			if result.Command != "" {
-				result.EntrypointArgs = append([]string{result.Command}, result.Args...)
-				result.Args = nil // Clear args since they're now in entrypointArgs
-			}
+			// The command becomes the container entrypoint; original args become entrypointArgs.
+			// Do NOT prepend the command to entrypointArgs — the entrypoint field already carries it,
+			// and prepending would cause it to appear twice (e.g. "npx npx @sentry/mcp-server").
+			result.EntrypointArgs = result.Args
+			result.Args = nil   // Clear args since they're now in entrypointArgs
 			result.Command = "" // Clear command since it's now the entrypoint
 		}
 	}

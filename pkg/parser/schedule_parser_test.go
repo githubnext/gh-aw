@@ -831,6 +831,68 @@ func TestParseSchedule(t *testing.T) {
 			expectedCron: "0 0 * * *",
 			expectedOrig: "every 1 day",
 		},
+
+		// "every day [at TIME]" — natural-language daily alias
+		{
+			name:         "every day (fuzzy)",
+			input:        "every day",
+			expectedCron: "FUZZY:DAILY * * *",
+			expectedOrig: "every day",
+		},
+		{
+			name:         "every days (plural, fuzzy)",
+			input:        "every days",
+			expectedCron: "FUZZY:DAILY * * *",
+			expectedOrig: "every days",
+		},
+		{
+			name:         "every day on weekdays",
+			input:        "every day on weekdays",
+			expectedCron: "FUZZY:DAILY_WEEKDAYS * * *",
+			expectedOrig: "every day on weekdays",
+		},
+		{
+			name:         "every day at 9am",
+			input:        "every day at 9am",
+			expectedCron: "0 9 * * *",
+			expectedOrig: "every day at 9am",
+		},
+		{
+			name:         "every day at 09:00",
+			input:        "every day at 09:00",
+			expectedCron: "0 9 * * *",
+			expectedOrig: "every day at 09:00",
+		},
+		{
+			name:         "every day at 14:30",
+			input:        "every day at 14:30",
+			expectedCron: "30 14 * * *",
+			expectedOrig: "every day at 14:30",
+		},
+		{
+			name:         "every day at midnight",
+			input:        "every day at midnight",
+			expectedCron: "0 0 * * *",
+			expectedOrig: "every day at midnight",
+		},
+		{
+			name:         "every day at noon",
+			input:        "every day at noon",
+			expectedCron: "0 12 * * *",
+			expectedOrig: "every day at noon",
+		},
+		{
+			name:         "every day at 6pm",
+			input:        "every day at 6pm",
+			expectedCron: "0 18 * * *",
+			expectedOrig: "every day at 6pm",
+		},
+		{
+			name:           "every day with unrecognised extra token",
+			input:          "every day around 9am",
+			shouldError:    true,
+			errorSubstring: "invalid 'every day' format",
+		},
 		{
 			name:           "weekly without on",
 			input:          "weekly monday",

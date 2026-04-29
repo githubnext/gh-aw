@@ -3,8 +3,10 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 )
 
@@ -658,8 +660,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	return nil
 }
 
-// addCustomStepsAsIs adds custom steps without modification
+// addCustomStepsAsIs adds custom steps after sanitizing any GitHub Actions expressions
+// found directly in run: fields.  Any ${{ ... }} expression in a run: script is
+// extracted into an env: variable to prevent shell injection attacks; a compiler
+// warning is emitted for every such extraction.
 func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string) {
+	customSteps = c.sanitizeAndWarnCustomSteps(customSteps)
 	// Remove "steps:" line and adjust indentation
 	lines := strings.Split(customSteps, "\n")
 	if len(lines) > 1 {
@@ -676,8 +682,10 @@ func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string)
 	}
 }
 
-// addCustomStepsWithRuntimeInsertion adds custom steps and inserts runtime steps after the first checkout
+// addCustomStepsWithRuntimeInsertion adds custom steps and inserts runtime steps after the first checkout.
+// Like addCustomStepsAsIs it sanitizes any ${{ ... }} expressions found in run: fields before writing.
 func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep, tools *ToolsConfig) {
+	customSteps = c.sanitizeAndWarnCustomSteps(customSteps)
 	// Remove "steps:" line and adjust indentation
 	lines := strings.Split(customSteps, "\n")
 	if len(lines) <= 1 {
@@ -914,4 +922,20 @@ func (c *Compiler) generateDevModeCLIBuildSteps(yaml *strings.Builder) {
 	yaml.WriteString("          tags: localhost/gh-aw:dev\n")
 	yaml.WriteString("          build-args: |\n")
 	yaml.WriteString("            BINARY=dist/gh-aw-linux-amd64\n")
+}
+
+// sanitizeAndWarnCustomSteps applies sanitizeCustomStepsYAML to the custom steps string,
+// emits a compiler warning for every expression that was extracted, and returns the
+// sanitized string.  If sanitization fails or produces no changes the original is returned.
+func (c *Compiler) sanitizeAndWarnCustomSteps(customSteps string) string {
+	sanitized, warnings, err := sanitizeCustomStepsYAML(customSteps)
+	if err != nil {
+		compilerYamlLog.Printf("Failed to sanitize custom steps YAML: %v", err)
+		return customSteps
+	}
+	for _, w := range warnings {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+		c.IncrementWarningCount()
+	}
+	return sanitized
 }

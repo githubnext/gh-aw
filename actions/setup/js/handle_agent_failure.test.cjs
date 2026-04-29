@@ -1465,4 +1465,242 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).toHaveBeenCalled();
     });
   });
+
+  describe("parseFirewallAuthErrors", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+
+    let tmpDir;
+    let parseFirewallAuthErrors;
+
+    beforeEach(() => {
+      global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
+      global.github = {};
+      global.context = { repo: { owner: "owner", repo: "repo" } };
+      vi.resetModules();
+      ({ parseFirewallAuthErrors } = require("./handle_agent_failure.cjs"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-firewall-auth-"));
+    });
+
+    afterEach(() => {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_ENGINE_API_HOSTS;
+      delete process.env.GH_AW_ENGINE_ID;
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty array when file does not exist", () => {
+      const result = parseFirewallAuthErrors(path.join(tmpDir, "nonexistent.jsonl"));
+      expect(result).toEqual([]);
+    });
+
+    it("returns empty array when file is empty", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, "");
+      expect(parseFirewallAuthErrors(jsonlPath)).toEqual([]);
+    });
+
+    it("returns empty array when no 401/403 entries", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, [JSON.stringify({ ts: 1000, host: "api.enterprise.githubcopilot.com:443", status: 200 }), JSON.stringify({ ts: 1001, host: "api.openai.com:443", status: 200 })].join("\n"));
+      expect(parseFirewallAuthErrors(jsonlPath)).toEqual([]);
+    });
+
+    it("detects Copilot 401 auth rejection via hardcoded fallback", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "api.enterprise.githubcopilot.com:443", status: 401 }));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(1);
+      expect(result[0].provider).toBe("GitHub Copilot");
+      expect(result[0].credential).toContain("COPILOT_GITHUB_TOKEN");
+    });
+
+    it("detects OpenAI 401 auth rejection via hardcoded fallback", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "api.openai.com:443", status: 401 }));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(1);
+      expect(result[0].provider).toBe("OpenAI Codex");
+      expect(result[0].credential).toContain("OPENAI_API_KEY");
+    });
+
+    it("detects Anthropic 403 auth rejection via hardcoded fallback", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "api.anthropic.com:443", status: 403 }));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(1);
+      expect(result[0].provider).toBe("Anthropic Claude");
+      expect(result[0].credential).toContain("ANTHROPIC_API_KEY");
+    });
+
+    it("detects Gemini 403 auth rejection via hardcoded fallback", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "generativelanguage.googleapis.com:443", status: 403 }));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(1);
+      expect(result[0].provider).toBe("Google Gemini");
+      expect(result[0].credential).toContain("GEMINI_API_KEY");
+    });
+
+    it("deduplicates multiple auth errors for the same provider", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, [JSON.stringify({ ts: 1000, host: "api.enterprise.githubcopilot.com:443", status: 401 }), JSON.stringify({ ts: 1001, host: "api.githubcopilot.com:443", status: 401 })].join("\n"));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(1);
+      expect(result[0].provider).toBe("GitHub Copilot");
+    });
+
+    it("reports multiple different providers", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, [JSON.stringify({ ts: 1000, host: "api.openai.com:443", status: 401 }), JSON.stringify({ ts: 1001, host: "api.anthropic.com:443", status: 403 })].join("\n"));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(2);
+      const providers = result.map(r => r.provider);
+      expect(providers).toContain("OpenAI Codex");
+      expect(providers).toContain("Anthropic Claude");
+    });
+
+    it("skips non-JSON lines without throwing", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, ["# comment line", "not json", JSON.stringify({ ts: 1000, host: "api.openai.com:443", status: 401 }), ""].join("\n"));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(1);
+      expect(result[0].provider).toBe("OpenAI Codex");
+    });
+
+    it("uses GH_AW_ENGINE_API_HOSTS env var when set", () => {
+      process.env.GH_AW_ENGINE_API_HOSTS = "api.enterprise.githubcopilot.com,api.githubcopilot.com";
+      process.env.GH_AW_ENGINE_ID = "copilot";
+      vi.resetModules();
+      ({ parseFirewallAuthErrors } = require("./handle_agent_failure.cjs"));
+
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "api.enterprise.githubcopilot.com:443", status: 401 }));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(1);
+      expect(result[0].provider).toBe("GitHub Copilot");
+      expect(result[0].credential).toContain("COPILOT_GITHUB_TOKEN");
+    });
+
+    it("uses engine label from ENGINE_ID_TO_LABEL when env var host matches", () => {
+      process.env.GH_AW_ENGINE_API_HOSTS = "api.anthropic.com";
+      process.env.GH_AW_ENGINE_ID = "claude";
+      vi.resetModules();
+      ({ parseFirewallAuthErrors } = require("./handle_agent_failure.cjs"));
+
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "api.anthropic.com:443", status: 401 }));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(1);
+      expect(result[0].provider).toBe("Anthropic Claude");
+      expect(result[0].credential).toContain("ANTHROPIC_API_KEY");
+    });
+
+    it("uses engine ID as provider label when not in lookup table", () => {
+      process.env.GH_AW_ENGINE_API_HOSTS = "custom-llm.internal.example.com";
+      process.env.GH_AW_ENGINE_ID = "custom";
+      vi.resetModules();
+      ({ parseFirewallAuthErrors } = require("./handle_agent_failure.cjs"));
+
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "custom-llm.internal.example.com:443", status: 401 }));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(1);
+      expect(result[0].provider).toBe("custom");
+    });
+
+    it("selective pre-scan: skips full parse when no 4xx entries in large file", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      // Write many 200 entries — should bail on pre-scan without parsing each line
+      const lines = [];
+      for (let i = 0; i < 100; i++) {
+        lines.push(JSON.stringify({ ts: 1000 + i, host: "api.github.com:443", status: 200 }));
+      }
+      fs.writeFileSync(jsonlPath, lines.join("\n"));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe("buildCredentialAuthErrorContext", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+
+    let tmpDir;
+    let buildCredentialAuthErrorContext;
+
+    beforeEach(() => {
+      global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
+      global.github = {};
+      global.context = { repo: { owner: "owner", repo: "repo" } };
+      vi.resetModules();
+      ({ buildCredentialAuthErrorContext } = require("./handle_agent_failure.cjs"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-cred-auth-"));
+      // Create prompt template so getPromptPath resolves
+      const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.writeFileSync(path.join(promptsDir, "credential_auth_error.md"), "**🔑 Credential Authentication Failed**: Missing/invalid credentials for:\n{providers}\n");
+      process.env.RUNNER_TEMP = tmpDir;
+    });
+
+    afterEach(() => {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      delete process.env.RUNNER_TEMP;
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty string when audit.jsonl does not exist", () => {
+      const result = buildCredentialAuthErrorContext(path.join(tmpDir, "nonexistent.jsonl"));
+      expect(result).toBe("");
+    });
+
+    it("returns empty string when no auth errors in audit.jsonl", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "api.github.com:443", status: 200 }));
+      const result = buildCredentialAuthErrorContext(jsonlPath);
+      expect(result).toBe("");
+    });
+
+    it("returns credential alert when auth rejection found", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "api.openai.com:443", status: 401 }));
+      const result = buildCredentialAuthErrorContext(jsonlPath);
+      expect(result).toBeTruthy();
+      expect(result).toContain("OpenAI");
+      expect(result).toContain("OPENAI_API_KEY");
+    });
+
+    it("includes all affected providers in the output", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, [JSON.stringify({ ts: 1000, host: "api.enterprise.githubcopilot.com:443", status: 401 }), JSON.stringify({ ts: 1001, host: "api.anthropic.com:443", status: 403 })].join("\n"));
+      const result = buildCredentialAuthErrorContext(jsonlPath);
+      expect(result).toContain("GitHub Copilot");
+      expect(result).toContain("Anthropic Claude");
+    });
+
+    it("derives audit.jsonl path from GH_AW_AGENT_OUTPUT when no override provided", () => {
+      const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+      fs.mkdirSync(auditDir, { recursive: true });
+      const jsonlPath = path.join(auditDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "api.openai.com:443", status: 401 }));
+
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      vi.resetModules();
+      ({ buildCredentialAuthErrorContext } = require("./handle_agent_failure.cjs"));
+
+      const result = buildCredentialAuthErrorContext();
+      expect(result).toContain("OpenAI");
+    });
+  });
 });
