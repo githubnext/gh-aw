@@ -245,6 +245,21 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		env["GH_AW_WORKFLOW_ID_SANITIZED"] = sanitizedID
 	}
 
+	// Set GH_AW_ENGINE_ID so that pre-agent-steps (e.g. shared/gh-skill.md) can
+	// determine the active engine without requiring an explicit user input.
+	{
+		engineID := data.AI
+		if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+			engineID = data.EngineConfig.ID
+		}
+		if engineID != "" {
+			if env == nil {
+				env = make(map[string]string)
+			}
+			env["GH_AW_ENGINE_ID"] = engineID
+		}
+	}
+
 	// Generate agent concurrency configuration
 	agentConcurrency := GenerateJobConcurrencyConfig(data)
 

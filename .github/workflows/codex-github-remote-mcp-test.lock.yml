@@ -285,6 +285,7 @@ jobs:
       contents: read
       issues: read
     env:
+      GH_AW_ENGINE_ID: codex
       GH_AW_WORKFLOW_ID_SANITIZED: codexgithubremotemcptest
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}

@@ -21,12 +21,12 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 		shouldHaveEnv   bool
 	}{
 		{
-			name: "No safe outputs - no env section",
+			name: "No safe outputs - engine ID still injected",
 			frontmatter: map[string]any{
 				"name": "Test Workflow",
 				"on":   "push",
 			},
-			shouldHaveEnv: false,
+			shouldHaveEnv: true,
 		},
 		{
 			name: "Safe outputs with create-issue",
@@ -91,6 +91,11 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 
 			if len(job.Env) == 0 {
 				t.Fatal("Expected environment variables to be present")
+			}
+
+			// GH_AW_ENGINE_ID must always be set when AI/EngineConfig.ID is non-empty
+			if _, ok := job.Env["GH_AW_ENGINE_ID"]; !ok {
+				t.Error("Expected GH_AW_ENGINE_ID to be set in job env")
 			}
 
 			// Create job manager and render to YAML to test the output

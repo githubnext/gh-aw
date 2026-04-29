@@ -12,7 +12,6 @@
 #   imports:
 #     - uses: shared/gh-skill.md
 #       with:
-#         engine: copilot            # optional: copilot (default), claude, codex, gemini, opencode
 #         github-token: ${{ secrets.MY_TOKEN }}  # optional: defaults to GITHUB_TOKEN
 #         upstream: false            # optional: pass false to skip --upstream (default: true)
 #         skills:
@@ -23,6 +22,13 @@
 #   - owner/repo                     — install all skills from the repository
 #   - owner/repo/skill-name          — install a specific skill (latest, with --upstream)
 #   - owner/repo/skill-name@ref      — install a pinned version (passes --pin ref)
+#
+# Engine mapping (from $GH_AW_ENGINE_ID, set by the compiler):
+#   copilot  → github-copilot
+#   claude   → claude-code
+#   codex    → codex
+#   gemini   → gemini-cli
+#   opencode → opencode
 
 import-schema:
   skills:
@@ -44,19 +50,6 @@ import-schema:
       expression, e.g. ${{ secrets.GH_TOKEN }}. Defaults to the built-in
       GITHUB_TOKEN when omitted (sufficient for public skill repositories).
 
-  engine:
-    type: string
-    required: false
-    description: >
-      The gh-aw engine name. Determines which agent host receives the skills.
-      Accepted values: copilot (default), claude, codex, gemini, opencode.
-      Maps to the corresponding gh skill --agent value:
-        copilot  → github-copilot
-        claude   → claude-code
-        codex    → codex
-        gemini   → gemini-cli
-        opencode → opencode
-
   upstream:
     type: boolean
     required: false
@@ -70,7 +63,6 @@ pre-agent-steps:
     env:
       GH_TOKEN: ${{ github.aw.import-inputs.github-token || secrets.GITHUB_TOKEN }}
       GH_AW_SKILLS: ${{ github.aw.import-inputs.skills }}
-      GH_AW_SKILL_ENGINE: ${{ github.aw.import-inputs.engine }}
       GH_AW_SKILL_UPSTREAM: ${{ github.aw.import-inputs.upstream }}
     run: |
       set -euo pipefail
@@ -80,7 +72,8 @@ pre-agent-steps:
         echo "::error::shared/gh-skill.md import provided no skills. Add skills: <list> in the with: block."
         exit 1
       fi
-      case "${GH_AW_SKILL_ENGINE:-copilot}" in
+      # GH_AW_ENGINE_ID is injected by the compiler as a job-level env var
+      case "${GH_AW_ENGINE_ID:-copilot}" in
         claude)   agent="claude-code" ;;
         codex)    agent="codex" ;;
         gemini)   agent="gemini-cli" ;;

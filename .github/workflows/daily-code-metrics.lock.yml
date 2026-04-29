@@ -354,6 +354,7 @@ jobs:
       GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg,.svg"
       GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
       GH_AW_ASSETS_MAX_SIZE_KB: 10240
+      GH_AW_ENGINE_ID: claude
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_WORKFLOW_ID_SANITIZED: dailycodemetrics
     outputs:
