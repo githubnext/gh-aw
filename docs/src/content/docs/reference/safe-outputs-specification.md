@@ -1579,6 +1579,8 @@ create-pull-request:
   commit-changes: true           # Auto-commit workspace changes
   reviewers: [user1, copilot]    # Auto-request reviewers
   labels: [automated]            # Auto-apply labels
+  preserve-branch-name: false    # Keep agent branch name verbatim (no random salt suffix)
+  recreate-ref: false            # When preserve-branch-name and remote branch exists, force-delete and recreate the remote ref
 ```
 
 **Asset Upload Extensions**:
@@ -2179,6 +2181,14 @@ safe-outputs:
 3. **Draft Status**: Creates as draft by default for safety.
 4. **Auto-Commit**: When `commit-changes: true`, commits workspace changes before PR creation.
 5. **Reviewer Assignment**: Auto-requests reviewers if configured.
+6. **Branch Name Normalization**: The agent-supplied branch name is sanitized (invalid characters replaced; casing preserved). When `preserve-branch-name: false` (default), a random hex salt suffix is appended to ensure uniqueness across runs. When `preserve-branch-name: true`, the salt suffix is omitted so the branch name appears verbatim (useful for repository naming conventions, e.g. `bugfix/BR-329-red`).
+7. **Remote Branch Collision Handling**: When the resolved branch name already exists on the remote, behavior depends on the configuration:
+
+   | `preserve-branch-name` | `recreate-ref` | Behavior on collision |
+   |---|---|---|
+   | `false` (default) | n/a | Append random hex suffix to local branch name and continue |
+   | `true` | `false` (default) | Surface `push_failed`; caller falls back (e.g. opens an issue when `fallback-as-issue: true`) |
+   | `true` | `true` | Force-delete the existing remote ref via `DELETE /repos/{owner}/{repo}/git/refs/heads/{branch}` and let the subsequent push recreate it from the agent's local HEAD (force-push semantics). Concurrent-deletion 422 responses with "Reference does not exist" are treated as success. |
 
 **Configuration Parameters**:
 
@@ -2191,6 +2201,8 @@ safe-outputs:
 - `labels`: Auto-apply labels
 - `title-prefix`: Prepend to titles
 - `footer`: Footer override
+- `preserve-branch-name`: When `true`, use the agent-supplied branch name verbatim without appending a random salt suffix (default: `false`)
+- `recreate-ref`: When `true` (and `preserve-branch-name: true`), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD on collision. When `false` (default), an existing remote branch under `preserve-branch-name: true` causes a fallback rather than overwriting the remote ref. Has no effect when `preserve-branch-name: false`. (default: `false`)
 
 **Security Requirements**:
 
