@@ -25,6 +25,10 @@ imports:
   - shared/reporting.md
   - shared/github-queries-mcp-script.md
   - shared/mcp/serena-go.md
+  - uses: shared/gh-skill.md
+    with:
+      skills:
+        - github/awesome-copilot/dependabot
 network:
   allowed:
     - defaults

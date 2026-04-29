@@ -102,122 +102,14 @@ pre-agent-steps:
             skill_name="${skill_part%%@*}"
             pin_ref="${skill_part#*@}"
             echo "Installing skill: $repo $skill_name (pinned to $pin_ref)"
-            gh skill install "$repo" "$skill_name" --agent "$agent" --pin "$pin_ref" $upstream_flag
+            gh skill install "$repo" "$skill_name" --agent "$agent" --pin "$pin_ref" --allow-hidden-dirs --force $upstream_flag
           else
             echo "Installing skill: $repo $skill_part"
-            gh skill install "$repo" "$skill_part" --agent "$agent" $upstream_flag
+            gh skill install "$repo" "$skill_part" --agent "$agent" --allow-hidden-dirs --force $upstream_flag
           fi
         else
           echo "Installing all skills from: $repo"
-          gh skill install "$repo" --agent "$agent" $upstream_flag
+          gh skill install "$repo" --agent "$agent" --allow-hidden-dirs --force $upstream_flag
         fi
       done < <(echo "$skills_json" | jq -r '.[]')
 ---
-
-<!--
-## Agent Skills
-
-This shared workflow installs agent skills before the AI agent runs, using the
-[`gh skill install`](https://cli.github.com/manual/gh_skill_install) command
-(available in GitHub CLI v2.90.0+).
-
-### How it works
-
-Each skill in the `skills:` list is installed into the repository's
-`.github/skills/` directory via `gh skill install`, making the skills available
-to the AI agent during its session.
-
-### Usage
-
-```yaml
-engine: copilot
-imports:
-  - uses: shared/gh-skill.md
-    with:
-      skills:
-        - github/awesome-copilot/documentation-writer
-        - github/awesome-copilot/code-review@v1.2.0
-```
-
-For other engines, set `engine:` in the `with:` block to match your workflow
-engine so skills are installed for the correct agent host:
-
-```yaml
-engine: claude
-imports:
-  - uses: shared/gh-skill.md
-    with:
-      engine: claude
-      skills:
-        - github/awesome-copilot/documentation-writer
-```
-
-To opt out of the upstream update:
-
-```yaml
-imports:
-  - uses: shared/gh-skill.md
-    with:
-      upstream: false
-      skills:
-        - github/awesome-copilot/documentation-writer
-```
-
-### Inputs
-
-| Input | Required | Description |
-|-------|----------|-------------|
-| `skills` | ✅ | List of skills to install (see formats below) |
-| `engine` | No | gh-aw engine name — determines the `--agent` target (default: `copilot`) |
-| `github-token` | No | GitHub token for downloading skills (default: built-in `GITHUB_TOKEN`) |
-| `upstream` | No | Pass `false` to skip `--upstream` and use the cached version (default: `true`) |
-
-### Skill format
-
-Each entry in `skills:` is one of:
-
-| Format | Example | Effect |
-|--------|---------|--------|
-| `owner/repo` | `github/awesome-copilot` | Installs all skills from the repo |
-| `owner/repo/skill-name` | `github/awesome-copilot/documentation-writer` | Installs a specific skill (latest, with `--upstream`) |
-| `owner/repo/skill-name@ref` | `github/awesome-copilot/code-review@v1.2.0` | Installs with `--pin ref` |
-
-The `@ref` part is extracted from the skill path and passed as `--pin ref` to
-`gh skill install`. Any git ref is accepted (tag, branch, SHA).
-
-### Engine → agent mapping
-
-| `engine` input | `gh skill --agent` value |
-|---------------|--------------------------|
-| `copilot` (default) | `github-copilot` |
-| `claude` | `claude-code` |
-| `codex` | `codex` |
-| `gemini` | `gemini-cli` |
-| `opencode` | `opencode` |
-
-### Authentication
-
-Uses the token provided via the `token` input, falling back to the built-in
-`GITHUB_TOKEN`. For private skill repositories, pass a token with read access:
-
-```yaml
-imports:
-  - uses: shared/gh-skill.md
-    with:
-      github-token: ${{ secrets.MY_SKILLS_TOKEN }}
-      skills:
-        - my-org/private-skills/my-skill
-```
-
-### Network access
-
-`gh skill install` downloads skill files from GitHub. No additional network
-configuration is needed on standard GitHub-hosted runners. If your workflow
-uses a strict network firewall, add `github.com` to the allowed domains:
-
-```yaml
-network:
-  allowed:
-    - github.com
-```
--->
