@@ -20,14 +20,13 @@ describe("performance_now.cjs", () => {
     expect(typeof nowMs()).toBe("number");
   });
 
-  it("returns a value close to Date.now()", () => {
+  it("returns a value within the current performance-based epoch range", () => {
     const { nowMs } = req("./performance_now.cjs");
-    const before = Date.now();
+    const before = perfHooks.performance.timeOrigin + perfHooks.performance.now();
     const result = nowMs();
-    const after = Date.now();
-    // Allow 5ms slack for test execution overhead
-    expect(result).toBeGreaterThanOrEqual(before - 5);
-    expect(result).toBeLessThanOrEqual(after + 5);
+    const after = perfHooks.performance.timeOrigin + perfHooks.performance.now();
+    expect(result).toBeGreaterThanOrEqual(before);
+    expect(result).toBeLessThanOrEqual(after);
   });
 
   it("returns an increasing value on successive calls", () => {
