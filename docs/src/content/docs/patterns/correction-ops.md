@@ -42,12 +42,12 @@ Most implementations reduce to three workflow classes: a thin relay that forward
 
 The important rule is to keep relays, snapshot resolution, diffing, and grouping deterministic. Use the agent for semantic judgment, not for reconstructing event history or inferring provenance after the fact.
 
-## Example: Discussion Labeling
+## Example: Issue Labeling
 
 ```mermaid
 flowchart TB
   subgraph ProductionRepo[Production Repo]
-    A[Discussion or item in production]
+    A[Issue or item in production]
     D[Later human correction in production]
     B[Thin relay]
   end
@@ -232,7 +232,7 @@ Discussion labeling, routing, moderation, prioritization, approvals, and summari
 
 ## Related Documentation
 
-- [Safe Rollout](/gh-aw/organization-practices/safe-rollout/) for the optional safe-write rollout guidance inside CorrectionOps
+- [Staged Mode](/gh-aw/reference/staged-mode/) for the optional safe-write rollout guidance inside CorrectionOps
 - [SideRepoOps](/gh-aw/patterns/side-repo-ops/) for separating workflow infrastructure from the production repository
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for coordinating workflows across repository boundaries
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for controlling write targets and protections
