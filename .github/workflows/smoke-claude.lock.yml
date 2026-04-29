@@ -969,7 +969,7 @@ jobs:
           ARTIFACT_PREFIX: ${{ needs.activation.outputs.artifact_prefix }}
           EXPECTED_MATRIX: ${{ needs.apm-prep.outputs.matrix }}
         name: Validate downloaded bundles match matrix manifest
-        run: "set -euo pipefail\nexpected=$(echo \"$EXPECTED_MATRIX\" | jq -r --arg prefix \"$ARTIFACT_PREFIX\" '.group | map($prefix + \"apm-\" + .id) | sort | .[]')\nactual=$(ls /tmp/gh-aw/apm-bundles | sort)\nmissing=$(comm -23 <(echo \"$expected\") <(echo \"$actual\") || true)\nunexpected=$(comm -13 <(echo \"$expected\") <(echo \"$actual\") || true)\nif [ -n \"$missing\" ]; then\n  echo \"::error::missing APM bundles (group did not pack successfully): $missing\"\n  exit 1\nfi\nif [ -n \"$unexpected\" ]; then\n  echo \"::error::unexpected artifact in apm bundle download (collision attack?): $unexpected\"\n  exit 1\nfi\n"
+        run: "set -euo pipefail\nmapfile -t expected_names < <(echo \"$EXPECTED_MATRIX\" | jq -r --arg prefix \"$ARTIFACT_PREFIX\" '.group | map($prefix + \"apm-\" + .id) | sort | .[]')\nmissing=()\nfor name in \"${expected_names[@]}\"; do\n  if ! find /tmp/gh-aw/apm-bundles -maxdepth 2 -name \"${name}.tar.gz\" | grep -q .; then\n    missing+=(\"$name\")\n  fi\ndone\nif [ ${#missing[@]} -gt 0 ]; then\n  echo \"::error::missing APM bundles (group did not pack successfully): ${missing[*]}\"\n  exit 1\nfi\nactual_count=$(find /tmp/gh-aw/apm-bundles -maxdepth 2 -name \"${ARTIFACT_PREFIX}apm-*.tar.gz\" | wc -l)\nexpected_count=${#expected_names[@]}\nif [ \"$actual_count\" -gt \"$expected_count\" ]; then\n  echo \"::error::unexpected APM bundles found: $actual_count file(s) but only $expected_count expected (possible collision)\"\n  exit 1\nfi\n"
       - id: bundles
         name: Build bundle list
         run: "set -euo pipefail\nmapfile -t list < <(find /tmp/gh-aw/apm-bundles -name '*.tar.gz' | sort)\n[ ${#list[@]} -gt 0 ] || { echo '::error::no apm bundles found'; exit 1; }\nprintf '%s\\n' \"${list[@]}\" > /tmp/gh-aw/apm-bundle-list.txt\n"
@@ -2558,12 +2558,22 @@ jobs:
           pack: "true"
           target: all
           working-directory: /tmp/gh-aw/apm-workspace
+      - name: Rename bundle to group-scoped filename
+        id: rename-bundle
+        run: |
+          dst="$(dirname "$BUNDLE_SRC")/${ARTIFACT_PREFIX}apm-${GROUP_ID}.tar.gz"
+          mv "$BUNDLE_SRC" "$dst"
+          echo "bundle-path=$dst" >> "$GITHUB_OUTPUT"
+        env:
+          ARTIFACT_PREFIX: ${{ needs.activation.outputs.artifact_prefix }}
+          BUNDLE_SRC: ${{ steps.pack.outputs.bundle-path }}
+          GROUP_ID: ${{ matrix.group.id }}
       - name: Upload APM bundle artifact
         if: success()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ needs.activation.outputs.artifact_prefix }}apm-${{ matrix.group.id }}
-          path: ${{ steps.pack.outputs.bundle-path }}
+          path: ${{ steps.rename-bundle.outputs.bundle-path }}
           retention-days: "1"
 
   apm-prep:

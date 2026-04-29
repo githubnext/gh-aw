@@ -244,12 +244,22 @@ jobs:
           archive: 'true'
           target: all
           working-directory: /tmp/gh-aw/apm-workspace
+      - name: Rename bundle to group-scoped filename
+        id: rename-bundle
+        env:
+          BUNDLE_SRC: ${{ steps.pack.outputs.bundle-path }}
+          GROUP_ID: ${{ matrix.group.id }}
+          ARTIFACT_PREFIX: ${{ needs.activation.outputs.artifact_prefix }}
+        run: |
+          dst="$(dirname "$BUNDLE_SRC")/${ARTIFACT_PREFIX}apm-${GROUP_ID}.tar.gz"
+          mv "$BUNDLE_SRC" "$dst"
+          echo "bundle-path=$dst" >> "$GITHUB_OUTPUT"
       - name: Upload APM bundle artifact
         if: success()
         uses: actions/upload-artifact@v7.0.1
         with:
           name: ${{ needs.activation.outputs.artifact_prefix }}apm-${{ matrix.group.id }}
-          path: ${{ steps.pack.outputs.bundle-path }}
+          path: ${{ steps.rename-bundle.outputs.bundle-path }}
           retention-days: '1'
 
 pre-agent-steps:
@@ -265,16 +275,21 @@ pre-agent-steps:
       ARTIFACT_PREFIX: ${{ needs.activation.outputs.artifact_prefix }}
     run: |
       set -euo pipefail
-      expected=$(echo "$EXPECTED_MATRIX" | jq -r --arg prefix "$ARTIFACT_PREFIX" '.group | map($prefix + "apm-" + .id) | sort | .[]')
-      actual=$(ls /tmp/gh-aw/apm-bundles | sort)
-      missing=$(comm -23 <(echo "$expected") <(echo "$actual") || true)
-      unexpected=$(comm -13 <(echo "$expected") <(echo "$actual") || true)
-      if [ -n "$missing" ]; then
-        echo "::error::missing APM bundles (group did not pack successfully): $missing"
+      mapfile -t expected_names < <(echo "$EXPECTED_MATRIX" | jq -r --arg prefix "$ARTIFACT_PREFIX" '.group | map($prefix + "apm-" + .id) | sort | .[]')
+      missing=()
+      for name in "${expected_names[@]}"; do
+        if ! find /tmp/gh-aw/apm-bundles -maxdepth 2 -name "${name}.tar.gz" | grep -q .; then
+          missing+=("$name")
+        fi
+      done
+      if [ ${#missing[@]} -gt 0 ]; then
+        echo "::error::missing APM bundles (group did not pack successfully): ${missing[*]}"
         exit 1
       fi
-      if [ -n "$unexpected" ]; then
-        echo "::error::unexpected artifact in apm bundle download (collision attack?): $unexpected"
+      actual_count=$(find /tmp/gh-aw/apm-bundles -maxdepth 2 -name "${ARTIFACT_PREFIX}apm-*.tar.gz" | wc -l)
+      expected_count=${#expected_names[@]}
+      if [ "$actual_count" -gt "$expected_count" ]; then
+        echo "::error::unexpected APM bundles found: $actual_count file(s) but only $expected_count expected (possible collision)"
         exit 1
       fi
   - name: Build bundle list
