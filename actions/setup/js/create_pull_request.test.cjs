@@ -1451,6 +1451,18 @@ describe("create_pull_request - base branch override policy", () => {
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("allowed-base-branches is not configured"));
   });
 
+  it("should allow base override when it matches the default base branch and no allowed-base-branches is configured", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+
+    // GITHUB_BASE_REF is set to "main" in beforeEach, so requesting base: "main" should be implicitly allowed
+    const result = await handler({ title: "Test PR", body: "Test body", base: "main" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('Base branch override requested: "main"'));
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('Base branch "main" matches the default base branch, no override needed'));
+  });
+
   it("should allow base override when it matches allowed-base-branches", async () => {
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ allow_empty: true, allowed_base_branches: ["release/*", "main"] });

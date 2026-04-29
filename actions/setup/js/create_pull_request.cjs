@@ -699,46 +699,53 @@ async function main(config = {}) {
     let baseBranch = configBaseBranch || (await getBaseBranch(repoParts));
 
     // Optional agent-provided base branch override.
-    // This is only allowed when allowed_base_branches is configured.
+    // The default base branch is always implicitly allowed even without allowed_base_branches.
+    // Overriding to a different branch requires allowed_base_branches to be configured.
     if (typeof pullRequestItem.base === "string" && pullRequestItem.base.trim() !== "") {
       const requestedBaseBranchRaw = pullRequestItem.base.trim();
       const requestedBaseBranchForLog = JSON.stringify(requestedBaseBranchRaw);
       core.info(`Base branch override requested: ${requestedBaseBranchForLog}`);
-      if (allowedBaseBranches.size === 0) {
-        core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: allowed-base-branches is not configured`);
-        return {
-          success: false,
-          error: "Base branch override is not allowed. Configure safe-outputs.create-pull-request.allowed-base-branches to allow per-run base overrides.",
-        };
-      }
+      if (requestedBaseBranchRaw === baseBranch && allowedBaseBranches.size === 0) {
+        // The agent explicitly specified the current base branch with no allowlist configured —
+        // this is a no-op, not a true override, so no allowlist check is needed.
+        core.info(`Base branch ${requestedBaseBranchForLog} matches the default base branch, no override needed`);
+      } else {
+        if (allowedBaseBranches.size === 0) {
+          core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: allowed-base-branches is not configured`);
+          return {
+            success: false,
+            error: "Base branch override is not allowed. Configure safe-outputs.create-pull-request.allowed-base-branches to allow per-run base overrides.",
+          };
+        }
 
-      const requestedBaseBranch = normalizeBranchName(requestedBaseBranchRaw);
-      if (!requestedBaseBranch) {
-        core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: sanitization resulted in empty branch name`);
-        return {
-          success: false,
-          error: `Invalid base branch override: sanitization resulted in empty string (original: "${requestedBaseBranchRaw}")`,
-        };
-      }
-      if (requestedBaseBranchRaw !== requestedBaseBranch) {
-        core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: sanitized value '${requestedBaseBranch}' does not match original`);
-        return {
-          success: false,
-          error: `Invalid base branch override: contains invalid characters (original: "${requestedBaseBranchRaw}", normalized: "${requestedBaseBranch}")`,
-        };
-      }
-      const requestedBaseBranchSafeForLog = JSON.stringify(requestedBaseBranch);
-      if (!isBaseBranchAllowed(requestedBaseBranch, allowedBaseBranches)) {
-        core.warning(`Rejecting base branch override ${requestedBaseBranchSafeForLog}: does not match allowed patterns (${Array.from(allowedBaseBranches).join(", ")})`);
-        return {
-          success: false,
-          error: `Base branch override '${requestedBaseBranch}' is not allowed. Allowed patterns: ${Array.from(allowedBaseBranches).join(", ")}`,
-        };
-      }
+        const requestedBaseBranch = normalizeBranchName(requestedBaseBranchRaw);
+        if (!requestedBaseBranch) {
+          core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: sanitization resulted in empty branch name`);
+          return {
+            success: false,
+            error: `Invalid base branch override: sanitization resulted in empty string (original: "${requestedBaseBranchRaw}")`,
+          };
+        }
+        if (requestedBaseBranchRaw !== requestedBaseBranch) {
+          core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: sanitized value '${requestedBaseBranch}' does not match original`);
+          return {
+            success: false,
+            error: `Invalid base branch override: contains invalid characters (original: "${requestedBaseBranchRaw}", normalized: "${requestedBaseBranch}")`,
+          };
+        }
+        const requestedBaseBranchSafeForLog = JSON.stringify(requestedBaseBranch);
+        if (!isBaseBranchAllowed(requestedBaseBranch, allowedBaseBranches)) {
+          core.warning(`Rejecting base branch override ${requestedBaseBranchSafeForLog}: does not match allowed patterns (${Array.from(allowedBaseBranches).join(", ")})`);
+          return {
+            success: false,
+            error: `Base branch override '${requestedBaseBranch}' is not allowed. Allowed patterns: ${Array.from(allowedBaseBranches).join(", ")}`,
+          };
+        }
 
-      core.info(`Base branch override accepted: ${requestedBaseBranchSafeForLog}`);
-      baseBranch = requestedBaseBranch;
-      core.info(`Using agent-provided base branch override: ${baseBranch}`);
+        core.info(`Base branch override accepted: ${requestedBaseBranchSafeForLog}`);
+        baseBranch = requestedBaseBranch;
+        core.info(`Using agent-provided base branch override: ${baseBranch}`);
+      }
     }
 
     // Multi-repo support: Switch checkout to target repo if different from current
