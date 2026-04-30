@@ -112,6 +112,10 @@ function generateXMLMarker(workflowName, runUrl) {
  * messages_core.cjs which contains 'GH_AW_SAFE_OUTPUT_MESSAGES:' in a warning message,
  * breaking tests that check for env var declarations.
  *
+ * The equivalent function in messages_footer.cjs is getDetectionCautionAlert().
+ * If the caution alert format changes in either location, BOTH functions must be updated
+ * together to keep them in sync.
+ *
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
  * @returns {string} Caution alert markdown or empty string
