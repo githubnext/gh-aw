@@ -336,10 +336,10 @@ describe("copilot_harness.cjs", () => {
     it("retries as fresh run when auth fails on a --continue attempt", () => {
       // This replicates the fix: attempt 1 ran for 3+ min then failed mid-stream,
       // attempt 2 (--continue) fails with auth error — driver retries once as fresh run.
-      const resumeResult = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
-      expect(shouldRetry(resumeResult, 1, true)).toBe(true); // --continue attempt: triggers fresh retry
-      expect(shouldRetry(resumeResult, 2, true)).toBe(true); // still within retry budget
-      expect(shouldRetry(resumeResult, 3, true)).toBe(false); // budget exhausted
+      const continueResult = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
+      expect(shouldRetry(continueResult, 1, true)).toBe(true); // --continue attempt: triggers fresh retry
+      expect(shouldRetry(continueResult, 2, true)).toBe(true); // still within retry budget
+      expect(shouldRetry(continueResult, 3, true)).toBe(false); // budget exhausted
     });
 
     it("does not retry when auth fails on a fresh-run recovery attempt (useContinueOnRetry=false)", () => {

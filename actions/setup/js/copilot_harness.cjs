@@ -59,7 +59,7 @@ const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
 
 // Pattern to detect "model not supported" error (e.g. Copilot Pro/Education users hitting
 // a model that is unavailable for their subscription tier).
-// This is a persistent configuration error — retrying with --resume will not help.
+// This is a persistent configuration error — retrying with --continue will not help.
 const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
 
 // Pattern to detect missing authentication credentials.
