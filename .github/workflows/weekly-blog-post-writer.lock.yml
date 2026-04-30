@@ -56,7 +56,7 @@
 name: "Weekly Blog Post Writer"
 "on":
   schedule:
-  - cron: "48 12 * * 1"
+  - cron: "5 12 * * 1"
     # Friendly format: weekly on monday (scattered)
   workflow_dispatch:
     inputs:

@@ -57,7 +57,7 @@
 name: "Daily Malicious Code Scan Agent"
 "on":
   schedule:
-  - cron: "8 21 * * *"
+  - cron: "40 19 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

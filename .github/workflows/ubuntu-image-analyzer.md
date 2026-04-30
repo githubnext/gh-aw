@@ -15,7 +15,11 @@ permissions:
 tracker-id: ubuntu-image-analyzer
 engine: copilot
 imports:
-  - shared/activation-app.md
+  - uses: shared/daily-pr-base.md
+    with:
+      title-prefix: "[ubuntu-image] "
+      expires: "2d"
+      labels: [documentation, automation, infrastructure]
 strict: true
 
 network:
@@ -31,13 +35,6 @@ tools:
     - "find .github/workflows -name '*.lock.yml' -type f"
     - "cat research/ubuntulatest.md"
     - "git"
-
-safe-outputs:
-  create-pull-request:
-    expires: 2d
-    title-prefix: "[ubuntu-image] "
-    labels: [documentation, automation, infrastructure]
-    draft: false
 
 timeout-minutes: 30
 

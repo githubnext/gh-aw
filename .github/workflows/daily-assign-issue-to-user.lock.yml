@@ -54,7 +54,7 @@
 name: "Auto-Assign Issue"
 "on":
   schedule:
-  - cron: "25 23 * * *"
+  - cron: "13 16 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

@@ -9819,6 +9819,18 @@
               "type": "boolean",
               "description": "When true, disables automatic loading of context and custom instructions by the AI engine. The engine-specific flag depends on the engine: copilot uses --no-custom-instructions (suppresses .github/AGENTS.md and user-level custom instructions), claude uses --bare (suppresses CLAUDE.md memory files), codex uses --no-system-prompt (suppresses the default system prompt), gemini sets GEMINI_SYSTEM_MD=/dev/null (overrides the built-in system prompt with an empty one). Defaults to false.",
               "default": false
+            },
+            "mcp": {
+              "type": "object",
+              "description": "Engine-level MCP gateway configuration. Settings here apply to the MCP gateway used by this engine.",
+              "properties": {
+                "session-timeout": {
+                  "type": "string",
+                  "description": "Session timeout for MCP gateway sessions as a Go duration string (e.g. \"30m\", \"4h\", \"24h\"). Must be at least 5m (no upper bound). Omitted or empty uses the effective gateway default (precedence: this field > MCP_GATEWAY_SESSION_TIMEOUT env var > built-in default 6h). Longer timeouts benefit multi-hour workflows such as large-scale migrations; shorter values free gateway resources sooner.",
+                  "examples": ["30m", "1h", "4h", "6h", "12h"]
+                }
+              },
+              "additionalProperties": false
             }
           },
           "required": ["id"],

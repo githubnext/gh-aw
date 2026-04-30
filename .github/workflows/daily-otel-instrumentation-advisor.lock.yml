@@ -58,7 +58,7 @@
 name: "Daily OTel Instrumentation Advisor"
 "on":
   schedule:
-  - cron: "6 21 * * *"
+  - cron: "8 18 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

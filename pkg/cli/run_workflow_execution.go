@@ -22,6 +22,9 @@ import (
 
 var executionLog = logger.New("cli:run_workflow_execution")
 
+// workflowCompletionWaitTimeoutMinutes matches the GitHub Actions maximum job runtime.
+const workflowCompletionWaitTimeoutMinutes = 6 * 60
+
 // RunOptions contains all configuration options for running workflows
 type RunOptions struct {
 	Enable            bool     // Enable the workflow if it's disabled
@@ -461,7 +464,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 				}
 
 				runIDStr := strconv.FormatInt(runInfo.DatabaseID, 10)
-				if err := WaitForWorkflowCompletion(ctx, targetRepo, runIDStr, 30, opts.Verbose); err != nil {
+				if err := WaitForWorkflowCompletion(ctx, targetRepo, runIDStr, workflowCompletionWaitTimeoutMinutes, opts.Verbose); err != nil {
 					// Propagate interrupts/cancellation so the caller (repeat loop) can stop
 					if ctx.Err() != nil || errors.Is(err, ErrInterrupted) {
 						return err

@@ -216,6 +216,9 @@ const DefaultToolTimeout = 60 * time.Second
 // DefaultMCPStartupTimeout is the default timeout for MCP server startup
 const DefaultMCPStartupTimeout = 120 * time.Second
 
+// MCPSessionTimeoutMin is the minimum allowed value for engine.mcp.session-timeout (5 minutes).
+const MCPSessionTimeoutMin = 5 * time.Minute
+
 // DefaultActivationJobRunnerImage is the default runner image for activation and pre-activation jobs
 const DefaultActivationJobRunnerImage = "ubuntu-slim"
 
