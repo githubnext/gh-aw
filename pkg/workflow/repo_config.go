@@ -75,8 +75,9 @@ type MaintenanceConfig struct {
 	ActionFailureIssueExpires int `json:"action_failure_issue_expires,omitempty"`
 
 	// LabelTriggerDisable controls the label-triggered disable_agentic_workflow job.
-	// When nil (omitted) or true (default), the job is included in the maintenance workflow.
-	// Set to false explicitly to exclude the job and its associated issue/pull_request triggers.
+	// The value represents whether the feature is active: true (or omitted/nil) means
+	// the job IS included; false means the job is excluded.
+	// To opt out, set label_trigger_disable: false in aw.json.
 	LabelTriggerDisable *bool `json:"label_trigger_disable,omitempty"`
 }
 

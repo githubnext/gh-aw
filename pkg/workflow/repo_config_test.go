@@ -109,7 +109,7 @@ func TestLoadRepoConfig_DisableLabelTrigger(t *testing.T) {
 	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
 	require.NotNil(t, cfg.Maintenance.LabelTriggerDisable, "label_trigger_disable should be set")
 	assert.False(t, *cfg.Maintenance.LabelTriggerDisable, "label_trigger_disable should be false when explicitly set")
-	assert.False(t, cfg.Maintenance.IsLabelTriggerEnabled(), "label trigger should be disabled when label_trigger_disable is false")
+	assert.False(t, cfg.Maintenance.IsLabelTriggerEnabled(), "setting label_trigger_disable: false explicitly opts out — the job should not be included")
 }
 
 func TestLoadRepoConfig_LabelTriggerDisable_DefaultTrue(t *testing.T) {
@@ -132,7 +132,7 @@ func TestLoadRepoConfig_LabelTriggerDisable_ExplicitTrue(t *testing.T) {
 	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
 	require.NotNil(t, cfg.Maintenance.LabelTriggerDisable, "label_trigger_disable should be set")
 	assert.True(t, *cfg.Maintenance.LabelTriggerDisable, "label_trigger_disable should be true")
-	assert.True(t, cfg.Maintenance.IsLabelTriggerEnabled(), "label trigger should be enabled when label_trigger_disable is true")
+	assert.True(t, cfg.Maintenance.IsLabelTriggerEnabled(), "label_trigger_disable: true keeps the job enabled (true = feature active, despite the 'disable' suffix in the field name)")
 }
 
 // TestLoadRepoConfig_UnknownProperty tests that unknown properties are rejected.
