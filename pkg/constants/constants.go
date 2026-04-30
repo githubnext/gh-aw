@@ -131,10 +131,10 @@ const AWFAuditDir = "/tmp/gh-aw/sandbox/firewall/audit"
 // for post-run analysis without mixing path roots in the artifact.
 const AWFConfigFilePath = "/tmp/gh-aw/awf-config.json"
 
-// FirewallAuditArtifactName is the legacy artifact name that was previously used for dedicated
-// firewall audit log uploads. Firewall audit/observability logs are now included in the unified
-// agent artifact. This constant is retained for backward compatibility when downloading artifacts
-// from older workflow runs.
+// FirewallAuditArtifactName is the name of the dedicated artifact that contains firewall proxy
+// logs and audit files (policy-manifest.json and audit.jsonl) for firewall-enabled workflows.
+// Uploaded separately from the agent artifact so the `gh aw logs audit` command can always find
+// policy attribution data regardless of whether the full agent artifact was downloaded.
 const FirewallAuditArtifactName = "firewall-audit-logs"
 
 // AWFDefaultLogLevel is the default log level for AWF

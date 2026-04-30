@@ -5558,11 +5558,23 @@ safe-outputs:
   # when safe-outputs are configured)
   threat-detection: true
 
-  # Option 2: Threat detection configuration object
+  # Option 2: GitHub Actions expression that resolves to a boolean at runtime,
+  # enabling or disabling threat detection based on workflow inputs (e.g. '${{
+  # inputs.enable-threat-detection }}')
+  threat-detection: "example-value"
+
+  # Option 3: Threat detection configuration object
   threat-detection:
-    # Whether threat detection is enabled
+    # Whether threat detection is enabled. Accepts a boolean literal or a GitHub
+    # Actions expression (e.g. '${{ inputs.enable-threat-detection }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: boolean
     enabled: true
+
+    # Option 2: GitHub Actions expression that resolves to a boolean at runtime
+    enabled: "example-value"
 
     # Additional custom prompt instructions to append to threat detection analysis
     # (optional)
@@ -5594,9 +5606,16 @@ safe-outputs:
 
     # When true (default), detection failures produce warnings and allow safe outputs
     # to proceed with a caution notice and 'needs-review' label. When false, detection
-    # failures block safe outputs entirely.
+    # failures block safe outputs entirely. Accepts a boolean literal or a GitHub
+    # Actions expression.
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: boolean
     continue-on-error: true
+
+    # Option 2: GitHub Actions expression that resolves to a boolean at runtime
+    continue-on-error: "example-value"
 
   # Custom safe-output jobs that can be executed based on agentic workflow output.
   # Job names containing dashes will be automatically normalized to underscores

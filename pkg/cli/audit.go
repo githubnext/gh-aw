@@ -454,11 +454,12 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs: %v", err)))
 	}
 
-	// Analyze firewall/gateway data only when the agent artifact was downloaded.
-	// Firewall audit logs are now included in the unified agent artifact.
-	// Skip silently when the artifact was intentionally excluded from the filter to
+	// Analyze firewall/gateway data when the agent artifact or the dedicated
+	// firewall-audit-logs artifact was downloaded.
+	// Skip silently when both were intentionally excluded from the filter to
 	// avoid spurious "not found" warnings in verbose mode.
-	hasFirewallArtifact := artifactMatchesFilter(constants.AgentArtifactName, artifactFilter)
+	hasFirewallArtifact := artifactMatchesFilter(constants.AgentArtifactName, artifactFilter) ||
+		artifactMatchesFilter(constants.FirewallAuditArtifactName, artifactFilter)
 
 	// Analyze firewall logs if available
 	var firewallAnalysis *FirewallAnalysis

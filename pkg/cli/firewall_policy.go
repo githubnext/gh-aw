@@ -405,51 +405,78 @@ func enrichWithPolicyRules(entries []AuditLogEntry, manifest *PolicyManifest) *P
 
 // detectFirewallAuditArtifacts looks for policy-manifest.json and audit.jsonl in the run directory.
 // Returns the paths if found, or empty strings if not present.
+//
+// Supported artifact layouts (checked in order):
+//  1. Dedicated firewall-audit-logs artifact (new): files in <firewall-audit-dir>/audit/
+//  2. Merged agent artifact (legacy): files in sandbox/firewall/audit/
+//  3. Direct placement in firewall-audit-dir (legacy): files at <firewall-audit-dir>/
 func detectFirewallAuditArtifacts(runDir string) (manifestPath, auditJSONLPath string) {
 	firewallPolicyLog.Printf("Detecting firewall audit artifacts in: %s", runDir)
 
-	// Check for artifacts in sandbox/firewall/audit/ (primary path after artifact download)
-	auditDir := filepath.Join(runDir, "sandbox", "firewall", "audit")
-	manifestCandidate := filepath.Join(auditDir, "policy-manifest.json")
-	auditCandidate := filepath.Join(auditDir, "audit.jsonl")
-
-	if _, err := os.Stat(manifestCandidate); err == nil {
-		manifestPath = manifestCandidate
-		firewallPolicyLog.Printf("Found policy manifest: %s", manifestPath)
-	}
-
-	if _, err := os.Stat(auditCandidate); err == nil {
-		auditJSONLPath = auditCandidate
-		firewallPolicyLog.Printf("Found audit JSONL: %s", auditJSONLPath)
-	}
-
-	// Also check for legacy firewall-audit-logs directory (backward compat for older runs)
-	if manifestPath == "" || auditJSONLPath == "" {
-		entries, err := os.ReadDir(runDir)
-		if err != nil {
-			return
-		}
+	// Primary: check in firewall-audit-logs artifact (dedicated artifact, new structure).
+	// When uploaded with paths /tmp/gh-aw/sandbox/firewall/logs/ and
+	// /tmp/gh-aw/sandbox/firewall/audit/, the artifact strips the common prefix
+	// (/tmp/gh-aw/sandbox/firewall/) so audit files land under audit/ inside the artifact dir.
+	if entries, err := os.ReadDir(runDir); err == nil {
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				continue
 			}
 			name := entry.Name()
-			if strings.HasPrefix(name, "firewall-audit") {
-				dir := filepath.Join(runDir, name)
-				if manifestPath == "" {
-					candidate := filepath.Join(dir, "policy-manifest.json")
-					if _, err := os.Stat(candidate); err == nil {
-						manifestPath = candidate
-						firewallPolicyLog.Printf("Found policy manifest in %s: %s", name, manifestPath)
-					}
+			if !strings.HasPrefix(name, "firewall-audit") {
+				continue
+			}
+			dir := filepath.Join(runDir, name)
+
+			// New layout: <firewall-audit-dir>/audit/policy-manifest.json
+			if manifestPath == "" {
+				candidate := filepath.Join(dir, "audit", "policy-manifest.json")
+				if _, err := os.Stat(candidate); err == nil {
+					manifestPath = candidate
+					firewallPolicyLog.Printf("Found policy manifest in %s/audit/: %s", name, manifestPath)
 				}
-				if auditJSONLPath == "" {
-					candidate := filepath.Join(dir, "audit.jsonl")
-					if _, err := os.Stat(candidate); err == nil {
-						auditJSONLPath = candidate
-						firewallPolicyLog.Printf("Found audit JSONL in %s: %s", name, auditJSONLPath)
-					}
+			}
+			if auditJSONLPath == "" {
+				candidate := filepath.Join(dir, "audit", "audit.jsonl")
+				if _, err := os.Stat(candidate); err == nil {
+					auditJSONLPath = candidate
+					firewallPolicyLog.Printf("Found audit JSONL in %s/audit/: %s", name, auditJSONLPath)
 				}
+			}
+
+			// Old layout: <firewall-audit-dir>/policy-manifest.json (very old artifacts)
+			if manifestPath == "" {
+				candidate := filepath.Join(dir, "policy-manifest.json")
+				if _, err := os.Stat(candidate); err == nil {
+					manifestPath = candidate
+					firewallPolicyLog.Printf("Found policy manifest in %s: %s", name, manifestPath)
+				}
+			}
+			if auditJSONLPath == "" {
+				candidate := filepath.Join(dir, "audit.jsonl")
+				if _, err := os.Stat(candidate); err == nil {
+					auditJSONLPath = candidate
+					firewallPolicyLog.Printf("Found audit JSONL in %s: %s", name, auditJSONLPath)
+				}
+			}
+		}
+	}
+
+	// Legacy: check sandbox/firewall/audit/ (from merged agent artifact, older workflow runs)
+	if manifestPath == "" || auditJSONLPath == "" {
+		auditDir := filepath.Join(runDir, "sandbox", "firewall", "audit")
+		if manifestPath == "" {
+			candidate := filepath.Join(auditDir, "policy-manifest.json")
+			if _, err := os.Stat(candidate); err == nil {
+				manifestPath = candidate
+				firewallPolicyLog.Printf("Found policy manifest (legacy path): %s", manifestPath)
+			}
+		}
+		if auditJSONLPath == "" {
+			candidate := filepath.Join(auditDir, "audit.jsonl")
+			if _, err := os.Stat(candidate); err == nil {
+				auditJSONLPath = candidate
+				firewallPolicyLog.Printf("Found audit JSONL (legacy path): %s", auditJSONLPath)
 			}
 		}
 	}

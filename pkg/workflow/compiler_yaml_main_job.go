@@ -615,18 +615,26 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
 
-	// Include firewall audit/observability logs in the unified agent artifact
-	// so all agent job outputs ship as a single artifact (AWF v0.25.0+).
+	// Include the AWF config file in the unified agent artifact for post-run analysis.
 	if isFirewallEnabled(data) {
 		artifactPaths = append(artifactPaths, constants.AWFConfigFilePath)
-		artifactPaths = append(artifactPaths, constants.AWFProxyLogsDir+"/")
-		artifactPaths = append(artifactPaths, constants.AWFAuditDir+"/")
 	}
 
 	// Generate single unified artifact upload with all collected paths.
 	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
 	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
 	c.generateUnifiedArtifactUpload(yaml, artifactPaths, agentArtifactPrefix)
+
+	// Generate a dedicated firewall audit artifact for all firewall-enabled engines
+	// (including Gemini and any engine that uses the AWF sandbox).
+	// This separates policy-manifest.json and audit.jsonl from the generic agent artifact
+	// so the `gh aw logs audit` command can reliably find them via the firewall-audit-logs artifact.
+	if isFirewallEnabled(data) {
+		squidLogsUpload := generateSquidLogsUploadStep(data.Name)
+		for _, line := range squidLogsUpload {
+			yaml.WriteString(line + "\n")
+		}
+	}
 
 	// Add GitHub MCP app token invalidation step if configured (runs always, even on failure)
 	c.generateGitHubMCPAppTokenInvalidationStep(yaml, data)

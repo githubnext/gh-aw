@@ -581,6 +581,23 @@ func TestDetectFirewallAuditArtifacts(t *testing.T) {
 		assert.Equal(t, auditPath, foundAudit, "Should find audit JSONL in firewall-audit-logs")
 	})
 
+	t.Run("firewall-audit-logs/audit/ subdirectory (new layout)", func(t *testing.T) {
+		dir := t.TempDir()
+		// Simulate the new dedicated artifact where actions/upload-artifact strips the common
+		// /tmp/gh-aw/sandbox/firewall/ prefix leaving logs/ and audit/ inside the artifact dir.
+		auditSubDir := filepath.Join(dir, "firewall-audit-logs", "audit")
+		require.NoError(t, os.MkdirAll(auditSubDir, 0755))
+
+		manifestPath := filepath.Join(auditSubDir, "policy-manifest.json")
+		auditPath := filepath.Join(auditSubDir, "audit.jsonl")
+		require.NoError(t, os.WriteFile(manifestPath, []byte("{}"), 0644))
+		require.NoError(t, os.WriteFile(auditPath, []byte(""), 0644))
+
+		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		assert.Equal(t, manifestPath, foundManifest, "Should find policy manifest in firewall-audit-logs/audit/")
+		assert.Equal(t, auditPath, foundAudit, "Should find audit JSONL in firewall-audit-logs/audit/")
+	})
+
 	t.Run("no artifacts", func(t *testing.T) {
 		dir := t.TempDir()
 		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)

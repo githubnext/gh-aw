@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -97,20 +96,20 @@ func (c *Compiler) checkFirewallDisable(networkPermissions *NetworkPermissions) 
 }
 
 // generateSquidLogsUploadStep creates a GitHub Actions step to upload Squid logs as artifact.
-func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
-	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
-	artifactName := "firewall-logs-" + sanitizedName
-	// Firewall logs are now at a known location in the sandbox folder structure
-	firewallLogsDir := "/tmp/gh-aw/sandbox/firewall/logs/"
-
+// Both the firewall proxy logs and the audit directory (policy-manifest.json, audit.jsonl)
+// are uploaded under the fixed artifact name `firewall-audit-logs` so that
+// `gh aw logs audit` can perform rule-level attribution for blocked requests.
+func generateSquidLogsUploadStep(_ string) GitHubActionStep {
 	stepLines := []string{
-		"      - name: Upload Firewall Logs",
+		"      - name: Upload firewall audit logs",
 		"        if: always()",
 		"        continue-on-error: true",
 		"        uses: " + getActionPin("actions/upload-artifact"),
 		"        with:",
-		"          name: " + artifactName,
-		"          path: " + firewallLogsDir,
+		"          name: " + constants.FirewallAuditArtifactName,
+		"          path: |",
+		"            " + constants.AWFProxyLogsDir + "/",
+		"            " + constants.AWFAuditDir + "/",
 		"          if-no-files-found: ignore",
 	}
 
