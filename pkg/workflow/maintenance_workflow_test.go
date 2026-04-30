@@ -593,6 +593,12 @@ func TestGenerateMaintenanceWorkflow_DisableAgenticWorkflowJob(t *testing.T) {
 	if !strings.Contains(disableJobSection, "actions: write") {
 		t.Errorf("disable_agentic_workflow job should have actions: write permission in:\n%s", disableJobSection)
 	}
+	if !strings.Contains(disableJobSection, "contents: read") {
+		t.Errorf("disable_agentic_workflow job should have contents: read permission in:\n%s", disableJobSection)
+	}
+	if strings.Contains(disableJobSection, "contents: write") {
+		t.Errorf("disable_agentic_workflow job must NOT have contents: write (only read is needed) in:\n%s", disableJobSection)
+	}
 	if !strings.Contains(disableJobSection, "issues: write") {
 		t.Errorf("disable_agentic_workflow job should have issues: write permission in:\n%s", disableJobSection)
 	}

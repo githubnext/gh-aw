@@ -563,7 +563,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       actions: write
-      contents: write
+      contents: read
       issues: write
       pull-requests: write
     steps:

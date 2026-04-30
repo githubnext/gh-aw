@@ -6,6 +6,26 @@ const { ERR_SYSTEM } = require("./error_codes.cjs");
 const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 
 /**
+ * Fixed colors for specific well-known labels.
+ * These labels always get the specified hex color instead of a deterministic pastel.
+ */
+const FIXED_LABEL_COLORS = {
+  "agentic-workflows:disable": "8250df", // GitHub purple
+};
+
+/**
+ * Built-in labels that are always created regardless of workflow configuration.
+ * Each entry is { name: string, color: string, description: string }.
+ */
+const BUILTIN_LABELS = [
+  {
+    name: "agentic-workflows:disable",
+    color: FIXED_LABEL_COLORS["agentic-workflows:disable"],
+    description: "Disable the agentic workflow that created this issue or pull request",
+  },
+];
+
+/**
  * Generate a deterministic pastel hex color string from a label name.
  * Produces colors in the pastel range (128–191 per channel) for readability.
  *
@@ -86,6 +106,11 @@ async function main() {
     )
   );
 
+  // Always include built-in labels
+  for (const builtin of BUILTIN_LABELS) {
+    allLabels.add(builtin.name);
+  }
+
   if (allLabels.size === 0) {
     core.info("No labels found in safe-outputs configurations — nothing to create");
     return;
@@ -121,13 +146,17 @@ async function main() {
       core.info(`ℹ️  Label already exists: ${labelName}`);
       skipped++;
     } else {
+      // Use fixed color and description for known built-in labels; fall back to deterministic pastel
+      const builtin = BUILTIN_LABELS.find(b => b.name === labelName);
+      const color = builtin ? builtin.color : deterministicLabelColor(labelName);
+      const description = builtin ? builtin.description : "";
       try {
         await github.rest.issues.createLabel({
           owner,
           repo,
           name: labelName,
-          color: deterministicLabelColor(labelName),
-          description: "",
+          color,
+          description,
         });
         core.info(`✅ Created label: ${labelName}`);
         created++;
@@ -146,4 +175,4 @@ async function main() {
   core.info(`Done: ${created} label(s) created, ${skipped} already existed`);
 }
 
-module.exports = { main, deterministicLabelColor };
+module.exports = { main, deterministicLabelColor, BUILTIN_LABELS, FIXED_LABEL_COLORS };

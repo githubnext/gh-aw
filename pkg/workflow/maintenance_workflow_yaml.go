@@ -628,7 +628,7 @@ jobs:
     runs-on: ` + runsOnValue + `
     permissions:
       actions: write
-      contents: write
+      contents: read
       issues: write
       pull-requests: write
     steps:

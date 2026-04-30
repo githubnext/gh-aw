@@ -189,6 +189,20 @@ async function main() {
   });
 
   core.info(`Posted disable confirmation comment on ${itemType} #${itemNumber}`);
+
+  // Remove the disable label now that the action is complete
+  try {
+    await github.rest.issues.removeLabel({
+      owner,
+      repo,
+      issue_number: itemNumber,
+      name: DISABLE_LABEL,
+    });
+    core.info(`Removed label '${DISABLE_LABEL}' from ${itemType} #${itemNumber}`);
+  } catch (err) {
+    // Non-fatal: the disable already succeeded, just log a warning
+    core.warning(`Failed to remove label '${DISABLE_LABEL}': ${getErrorMessage(err)}`);
+  }
 }
 
-module.exports = { main, extractWorkflowId };
+module.exports = { main, extractWorkflowId, isValidWorkflowId };

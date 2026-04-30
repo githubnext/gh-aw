@@ -1,7 +1,162 @@
 // @ts-check
 
-import { describe, it, expect } from "vitest";
-import { extractWorkflowId } from "./disable_agentic_workflow.cjs";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { createRequire } from "module";
+
+const req = createRequire(import.meta.url);
+const { extractWorkflowId, main } = req("./disable_agentic_workflow.cjs");
+
+// ─── global mocks ────────────────────────────────────────────────────────────
+
+const mockCore = {
+  info: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+  setFailed: vi.fn(),
+};
+
+const mockExec = {
+  exec: vi.fn(),
+};
+
+const mockGithub = {
+  rest: {
+    issues: {
+      createComment: vi.fn(),
+      removeLabel: vi.fn(),
+    },
+  },
+};
+
+const mockContext = {
+  eventName: "issues",
+  repo: { owner: "test-owner", repo: "test-repo" },
+  payload: {
+    issue: { number: 42, body: "<!-- gh-aw-workflow-id: my-workflow -->" },
+    label: { name: "agentic-workflows:disable" },
+  },
+};
+
+global.core = mockCore;
+global.exec = mockExec;
+global.github = mockGithub;
+global.context = mockContext;
+
+describe("main", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.GH_AW_CMD_PREFIX = "./gh-aw";
+    process.env.GH_TOKEN = "fake-token";
+    process.env.GITHUB_TOKEN = "fake-token";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_SERVER_URL = "https://github.com";
+    process.env.GITHUB_RUN_ID = "999";
+
+    // Default: disable command succeeds
+    mockExec.exec.mockResolvedValue(0);
+    mockGithub.rest.issues.createComment.mockResolvedValue({});
+    mockGithub.rest.issues.removeLabel.mockResolvedValue({});
+
+    // Restore default context (issue event)
+    global.context = {
+      eventName: "issues",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {
+        issue: { number: 42, body: "<!-- gh-aw-workflow-id: my-workflow -->" },
+        label: { name: "agentic-workflows:disable" },
+      },
+    };
+  });
+
+  it("disables the workflow and posts a success comment", async () => {
+    await main();
+
+    expect(mockExec.exec).toHaveBeenCalledWith(expect.any(String), expect.arrayContaining(["disable", "my-workflow"]), expect.objectContaining({ ignoreReturnCode: true }));
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        issue_number: 42,
+        body: expect.stringContaining("my-workflow"),
+      })
+    );
+  });
+
+  it("removes the label after successful disable and comment", async () => {
+    await main();
+
+    expect(mockGithub.rest.issues.removeLabel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        issue_number: 42,
+        name: "agentic-workflows:disable",
+      })
+    );
+  });
+
+  it("removes label after success on pull_request events too", async () => {
+    global.context = {
+      eventName: "pull_request",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {
+        pull_request: { number: 7, body: "<!-- gh-aw-workflow-id: pr-workflow -->" },
+        label: { name: "agentic-workflows:disable" },
+      },
+    };
+
+    await main();
+
+    expect(mockGithub.rest.issues.removeLabel).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 7, name: "agentic-workflows:disable" }));
+  });
+
+  it("does not remove label when no workflow ID marker is found", async () => {
+    global.context = {
+      eventName: "issues",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {
+        issue: { number: 5, body: "No marker here." },
+        label: { name: "agentic-workflows:disable" },
+      },
+    };
+
+    await main();
+
+    expect(mockGithub.rest.issues.removeLabel).not.toHaveBeenCalled();
+  });
+
+  it("does not remove label when the disable command fails", async () => {
+    mockExec.exec.mockResolvedValue(1); // non-zero exit
+
+    await main();
+
+    expect(mockGithub.rest.issues.removeLabel).not.toHaveBeenCalled();
+  });
+
+  it("logs a warning when label removal fails but does not fail the step", async () => {
+    mockGithub.rest.issues.removeLabel.mockRejectedValue(new Error("Not Found"));
+
+    await main();
+
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to remove label"));
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("calls setFailed when no workflow ID is found in body", async () => {
+    global.context = {
+      eventName: "issues",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {
+        issue: { number: 3, body: "Plain body with no markers." },
+        label: { name: "agentic-workflows:disable" },
+      },
+    };
+
+    await main();
+
+    expect(mockCore.setFailed).toHaveBeenCalled();
+  });
+});
 
 describe("extractWorkflowId", () => {
   it("returns null for null body", () => {
