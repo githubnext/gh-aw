@@ -254,8 +254,8 @@ cat /tmp/gh-aw/agent/community-data/tier3_candidates_capped.json | \
 # View closing reference index
 cat /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json | jq
 
-# View current README (pre-fetched — do not read README.md separately)
-head -80 /tmp/gh-aw/agent/community-data/README_current.md
+# View current README (pre-fetched — read from README_current.md; only fall back to README.md if the pre-fetched copy is missing)
+head -80 /tmp/gh-aw/agent/community-data/README_current.md 2>/dev/null || head -80 README.md
 
 # View existing wiki page (if any)
 cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md 2>/dev/null || echo "(wiki page does not exist yet)"
@@ -405,7 +405,7 @@ This workflow uses the Copilot engine — max-turns is not available. Follow the
 
 - **Read each data file at most once** — do not re-read `pre_attributed.json`, `closing_refs_by_issue.json`, or `README_current.md`
 - **Tier 3 cap enforced in pre-step** — `tier3_candidates_capped.json` contains at most 5 issues; process only those, then stop
-- **At most 1 `issue_read` call per Tier 3 candidate** — one comment-lookup per issue; do not chain further lookups
+- **At most 1 `issue_read` call per Tier 3 candidate** — call `issue_read` with `method: "get_comments"` once per issue to look for indirect linkage; do not chain further lookups from the results
 - **Stop immediately after the safe-output call** — once `create_pull_request` or `noop` is called, halt without any further tool calls or reasoning
 - **Keep the PR body under 400 words** — use `<details>` for any extended attribution summary
 - **Do not access any external URLs** — use only GitHub MCP `issue_read` for GitHub data; do not call `gh api` or any external HTTP endpoints directly
