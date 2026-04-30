@@ -123,12 +123,6 @@ func ParseStringArrayOrExprFromConfig(m map[string]any, key string, log *logger.
 	return nil
 }
 
-// parseLabelsFromConfig extracts and validates labels from a config map
-// Returns a slice of label strings, or nil if labels is not present or invalid
-func parseLabelsFromConfig(configMap map[string]any) []string {
-	return ParseStringArrayFromConfig(configMap, "labels", configHelpersLog)
-}
-
 // extractStringFromMap is a generic helper that extracts and validates a string value from a map
 // Returns the string value, or empty string if not present or invalid
 // If log is provided, it will log the extracted value for debugging
