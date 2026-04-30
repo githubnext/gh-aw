@@ -44,13 +44,6 @@ The codebase exhibits several well-organized patterns that should be emulated:
 - `create_code_scanning_alert.go` - Code scanning alert creation
 - `create_agent_task.go` - Agent task creation logic
 
-**Why it works**:
-- Clear separation of concerns
-- Enables quick location of specific functionality
-- Prevents files from becoming too large
-- Facilitates parallel development
-- Makes testing straightforward
-
 #### 2. Engine Separation Pattern
 
 **Pattern**: Each AI engine has its own file with shared helpers in `engine_helpers.go`
@@ -62,12 +55,6 @@ The codebase exhibits several well-organized patterns that should be emulated:
 - `custom_engine.go` (300 lines) - Custom engine support
 - `engine_helpers.go` (424 lines) - Shared engine utilities
 
-**Why it works**:
-- Engine-specific logic is isolated
-- Shared code is centralized
-- Allows addition of new engines without affecting existing ones
-- Clear boundaries reduce merge conflicts
-
 #### 3. Test Organization Pattern
 
 **Pattern**: Tests live alongside implementation files with descriptive names
@@ -76,12 +63,6 @@ The codebase exhibits several well-organized patterns that should be emulated:
 - Feature tests: `feature.go` + `feature_test.go`
 - Integration tests: `feature_integration_test.go`
 - Specific scenario tests: `feature_scenario_test.go`
-
-**Why it works**:
-- Tests are co-located with implementation
-- Clear test purpose from filename
-- Encourages comprehensive testing
-- Separates integration from unit tests
 
 ### File Creation Decision Tree
 
@@ -450,15 +431,6 @@ graph TD
 | **Fuzz Tests** | Find edge cases | `*_fuzz_test.go` | Continuous |
 | **Benchmark Tests** | Performance tracking | `*_benchmark_test.go` | Pre-release |
 
-### Test Maintenance
-
-The testing framework is designed to be:
-- **Self-validating**: The validation script ensures all tests work correctly
-- **Comprehensive**: Covers all aspects of functionality and interface design
-- **Maintainable**: Clear structure and documentation for future updates
-- **Scalable**: Tests can be added incrementally as functionality is implemented
-- **Security-focused**: Security regression tests prevent reintroduction of vulnerabilities
-
 ### Visual Regression Testing
 
 Visual regression tests ensure console output formatting remains consistent across code changes. The system uses golden files to capture expected output for table layouts, box rendering, tree structures, and error formatting.
@@ -580,14 +552,6 @@ graph TD
 |------|------|---------|----------|
 | **Workflow Health Manager** | `workflow-health-manager.md` | Monitor workflow health | Daily |
 | **Agent Performance Analyzer** | `agent-performance-analyzer.md` | Analyze agent quality | Daily |
-
-**Key Capabilities**:
-- Cross-workflow coordination
-- Workflow health monitoring
-- Performance trend analysis
-- Strategic priority management
-- Proactive maintenance
-- Quality assessment
 
 **Implementation**: See scratchpad/agents/hierarchical-agents.md and `.github/workflows/` meta-orchestrator files
 
@@ -791,61 +755,6 @@ If **two or more** closed PRs already exist on the same topic:
 3. Use `engine_helpers.go` for shared functionality
 4. Add engine-specific tests
 5. Register engine in engine factory
-
----
-
-## Additional Documentation
-
-For detailed specifications, see individual files in `scratchpad/`:
-
-### Architecture & Organization
-- [Code Organization Patterns](../../scratchpad/code-organization.md)
-- [Validation Architecture](../../scratchpad/validation-architecture.md)
-- [Layout System](../../scratchpad/layout.md)
-- [Go Type Patterns](../../scratchpad/go-type-patterns.md)
-
-### Core Features
-- [Safe Output Messages Design](../../scratchpad/safe-output-messages.md)
-- [Repo-Memory System](../../scratchpad/repo-memory.md)
-- [MCP Gateway](../../scratchpad/mcp-gateway.md)
-- [MCP Logs Guardrails](../../scratchpad/mcp_logs_guardrails.md)
-- [Custom Actions Build](../../scratchpad/actions.md)
-
-### Testing & Quality
-- [Testing Framework](../../scratchpad/testing.md)
-- [Visual Regression Testing](../../scratchpad/visual-regression-testing.md)
-- [End-to-End Feature Testing](../../scratchpad/end-to-end-feature-testing.md)
-- [Security Review](../../scratchpad/security_review.md)
-- [GoSec Integration](../../scratchpad/gosec.md)
-
-### Security & Standards
-- [GitHub Actions Security](../../scratchpad/github-actions-security-best-practices.md)
-- [Template Injection Prevention](../../scratchpad/template-injection-prevention.md)
-- [String Sanitization](../../scratchpad/string-sanitization-normalization.md)
-- [Schema Validation](../../scratchpad/schema-validation.md)
-
-### Development Guidelines
-- [Capitalization Guidelines](../../scratchpad/capitalization.md)
-- [Breaking Change Rules](../../scratchpad/breaking-cli-rules.md)
-- [CLI Command Patterns](../../scratchpad/cli-command-patterns.md)
-- [Styles Guide](../../scratchpad/styles-guide.md)
-- [Changesets](../../scratchpad/changesets.md)
-- [Labels](../../scratchpad/labels.md)
-
-### Advanced Topics
-- [Hierarchical Agents](../../scratchpad/agents/hierarchical-agents.md)
-- [Hierarchical Agents Quickstart](../../scratchpad/agents/hierarchical-agents-quickstart.md)
-- [Gastown Multi-Agent Orchestration](../../scratchpad/gastown.md)
-- [mdflow Comparison](../../scratchpad/mdflow-comparison.md)
-- [mdflow Deep Research](../../scratchpad/mdflow.md)
-
-### Technical Details
-- [YAML Version Gotchas](../../scratchpad/yaml-version-gotchas.md)
-- [Validation Refactoring](../../scratchpad/validation-refactoring.md)
-- [Workflow Refactoring Patterns](../../scratchpad/workflow-refactoring-patterns.md)
-- [Safe Output Handlers Refactoring](../../scratchpad/safe-output-handlers-refactoring.md)
-- [Artifact Naming Compatibility](../../scratchpad/artifact-naming-compatibility.md)
-- [Safe Output Environment Variables](../../scratchpad/safe-output-environment-variables.md)
 
 ---
 
