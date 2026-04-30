@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"maps"
+	"strings"
 	"testing"
 )
 
@@ -934,4 +935,828 @@ func TestUnmarshalConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestParseStringArrayOrExprFromConfig verifies that the expression-aware array helper
+// accepts GitHub Actions expression strings in addition to the usual array types.
+func TestParseStringArrayOrExprFromConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string]any
+		key      string
+		expected []string
+	}{
+		{
+			name:     "nil map returns nil",
+			input:    nil,
+			key:      "labels",
+			expected: nil,
+		},
+		{
+			name:     "missing key returns nil",
+			input:    map[string]any{},
+			key:      "labels",
+			expected: nil,
+		},
+		{
+			name: "valid []string array",
+			input: map[string]any{
+				"labels": []string{"bug", "enhancement"},
+			},
+			key:      "labels",
+			expected: []string{"bug", "enhancement"},
+		},
+		{
+			name: "valid []any array",
+			input: map[string]any{
+				"labels": []any{"bug", "enhancement"},
+			},
+			key:      "labels",
+			expected: []string{"bug", "enhancement"},
+		},
+		{
+			name: "empty array returns empty slice",
+			input: map[string]any{
+				"labels": []string{},
+			},
+			key:      "labels",
+			expected: []string{},
+		},
+		{
+			name: "GitHub Actions expression string wrapped in single-element slice",
+			input: map[string]any{
+				"labels": "${{ inputs['required-labels'] }}",
+			},
+			key:      "labels",
+			expected: []string{"${{ inputs['required-labels'] }}"},
+		},
+		{
+			name: "expression with extra whitespace is still valid",
+			input: map[string]any{
+				"allowed-repos": "${{  inputs['allowed-repos']  }}",
+			},
+			key:      "allowed-repos",
+			expected: []string{"${{  inputs['allowed-repos']  }}"},
+		},
+		{
+			name: "non-expression bare string returns nil",
+			input: map[string]any{
+				"labels": "not-an-expression",
+			},
+			key:      "labels",
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseStringArrayOrExprFromConfig(tt.input, tt.key, nil)
+			if tt.expected == nil {
+				if result != nil {
+					t.Errorf("expected nil, got %v", result)
+				}
+				return
+			}
+			if result == nil {
+				t.Errorf("expected %v, got nil", tt.expected)
+				return
+			}
+			if len(result) != len(tt.expected) {
+				t.Errorf("expected length %d, got %d: %v", len(tt.expected), len(result), result)
+				return
+			}
+			for i, v := range tt.expected {
+				if result[i] != v {
+					t.Errorf("element[%d]: expected %q, got %q", i, v, result[i])
+				}
+			}
+		})
+	}
+}
+
+// TestPreprocessStringArrayFieldAsTemplatable verifies that the expression-aware
+// preprocessor wraps expression strings and rejects non-expression strings.
+func TestPreprocessStringArrayFieldAsTemplatable(t *testing.T) {
+	tests := []struct {
+		name            string
+		configData      map[string]any
+		fieldName       string
+		wantErr         bool
+		wantErrContains []string // substrings the error message must contain
+		wantWrapped     bool     // true when the value should be wrapped in []string{expr}
+	}{
+		{
+			name:        "nil configData is a no-op",
+			configData:  nil,
+			fieldName:   "labels",
+			wantErr:     false,
+			wantWrapped: false,
+		},
+		{
+			name:        "missing field is a no-op",
+			configData:  map[string]any{},
+			fieldName:   "labels",
+			wantErr:     false,
+			wantWrapped: false,
+		},
+		{
+			name: "array value is left unchanged",
+			configData: map[string]any{
+				"labels": []string{"bug"},
+			},
+			fieldName:   "labels",
+			wantErr:     false,
+			wantWrapped: false,
+		},
+		{
+			name: "expression string is wrapped",
+			configData: map[string]any{
+				"labels": "${{ inputs.labels }}",
+			},
+			fieldName:   "labels",
+			wantErr:     false,
+			wantWrapped: true,
+		},
+		{
+			name: "non-expression string returns error with actionable message",
+			configData: map[string]any{
+				"labels": "automation",
+			},
+			fieldName:       "labels",
+			wantErr:         true,
+			wantErrContains: []string{"labels", "array", "expression"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := preprocessStringArrayFieldAsTemplatable(tt.configData, tt.fieldName, nil)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error, got nil")
+					return
+				}
+				for _, substr := range tt.wantErrContains {
+					if !strings.Contains(err.Error(), substr) {
+						t.Errorf("error message %q does not contain expected substring %q", err.Error(), substr)
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			if tt.wantWrapped {
+				val, exists := tt.configData[tt.fieldName]
+				if !exists {
+					t.Errorf("field %q disappeared from configData", tt.fieldName)
+					return
+				}
+				wrapped, ok := val.([]string)
+				if !ok {
+					t.Errorf("expected []string, got %T: %v", val, val)
+					return
+				}
+				if len(wrapped) != 1 {
+					t.Errorf("expected single-element slice, got len=%d: %v", len(wrapped), wrapped)
+					return
+				}
+				if !isExpression(wrapped[0]) {
+					t.Errorf("expected expression in wrapped slice, got %q", wrapped[0])
+				}
+			}
+		})
+	}
+}
+
+// TestAddTemplatableStringSliceBuilder verifies the handler config builder method.
+func TestAddTemplatableStringSliceBuilder(t *testing.T) {
+	tests := []struct {
+		name        string
+		value       []string
+		wantKey     bool
+		wantAsArray bool   // true if stored as []string; false if stored as string
+		wantValue   string // expected string when stored as expression
+	}{
+		{
+			name:    "nil slice omits key",
+			value:   nil,
+			wantKey: false,
+		},
+		{
+			name:    "empty slice omits key",
+			value:   []string{},
+			wantKey: false,
+		},
+		{
+			name:        "literal slice stored as array",
+			value:       []string{"bug", "enhancement"},
+			wantKey:     true,
+			wantAsArray: true,
+		},
+		{
+			name:        "expression single-element stored as string",
+			value:       []string{"${{ inputs.labels }}"},
+			wantKey:     true,
+			wantAsArray: false,
+			wantValue:   "${{ inputs.labels }}",
+		},
+		{
+			name:        "multi-element slice with expression-like string stored as array",
+			value:       []string{"${{ inputs.labels }}", "bug"},
+			wantKey:     true,
+			wantAsArray: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := newHandlerConfigBuilder()
+			b.AddTemplatableStringSlice("field", tt.value)
+			cfg := b.Build()
+
+			if !tt.wantKey {
+				if _, exists := cfg["field"]; exists {
+					t.Errorf("expected key to be absent, but it was present: %v", cfg["field"])
+				}
+				return
+			}
+
+			val, exists := cfg["field"]
+			if !exists {
+				t.Error("expected key to be present, but it was absent")
+				return
+			}
+
+			if tt.wantAsArray {
+				arr, ok := val.([]string)
+				if !ok {
+					t.Errorf("expected []string, got %T: %v", val, val)
+					return
+				}
+				if len(arr) != len(tt.value) {
+					t.Errorf("array length mismatch: expected %d, got %d", len(tt.value), len(arr))
+				}
+			} else {
+				s, ok := val.(string)
+				if !ok {
+					t.Errorf("expected string (expression), got %T: %v", val, val)
+					return
+				}
+				if s != tt.wantValue {
+					t.Errorf("expression value: expected %q, got %q", tt.wantValue, s)
+				}
+			}
+		})
+	}
+}
+
+// TestParsePullRequestsConfigExpressionFields verifies that create-pull-request
+// accepts GitHub Actions expression strings for labels, allowed-repos, and
+// allowed-base-branches.
+func TestParsePullRequestsConfigExpressionFields(t *testing.T) {
+	tests := []struct {
+		name     string
+		field    string
+		expr     string
+		getField func(*CreatePullRequestsConfig) []string
+	}{
+		{
+			name:     "labels as expression",
+			field:    "labels",
+			expr:     "${{ inputs.labels }}",
+			getField: func(c *CreatePullRequestsConfig) []string { return c.Labels },
+		},
+		{
+			name:     "allowed-repos as expression",
+			field:    "allowed-repos",
+			expr:     "${{ inputs['allowed-repos'] }}",
+			getField: func(c *CreatePullRequestsConfig) []string { return c.AllowedRepos },
+		},
+		{
+			name:     "allowed-base-branches as expression",
+			field:    "allowed-base-branches",
+			expr:     "${{ inputs['allowed-base-branches'] }}",
+			getField: func(c *CreatePullRequestsConfig) []string { return c.AllowedBaseBranches },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := &Compiler{}
+			outputMap := map[string]any{
+				"create-pull-request": map[string]any{
+					tt.field: tt.expr,
+				},
+			}
+
+			result := compiler.parsePullRequestsConfig(outputMap)
+			if result == nil {
+				t.Fatal("expected non-nil result")
+			}
+
+			got := tt.getField(result)
+			if len(got) != 1 {
+				t.Fatalf("expected single-element slice, got %v", got)
+			}
+			if got[0] != tt.expr {
+				t.Errorf("expected expression %q, got %q", tt.expr, got[0])
+			}
+		})
+	}
+}
+
+// TestParseAddCommentConfigExpressionFields verifies that add-comment accepts a
+// GitHub Actions expression string for allowed-repos.
+func TestParseAddCommentConfigExpressionFields(t *testing.T) {
+	compiler := &Compiler{}
+	expr := "${{ inputs['allowed-repos'] }}"
+	outputMap := map[string]any{
+		"add-comment": map[string]any{
+			"allowed-repos": expr,
+		},
+	}
+
+	result := compiler.parseCommentsConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if len(result.AllowedRepos) != 1 {
+		t.Fatalf("expected single-element AllowedRepos, got %v", result.AllowedRepos)
+	}
+	if result.AllowedRepos[0] != expr {
+		t.Errorf("expected expression %q, got %q", expr, result.AllowedRepos[0])
+	}
+}
+
+// TestParsePushToPullRequestBranchExpressionFields verifies that
+// push-to-pull-request-branch accepts GitHub Actions expression strings for
+// labels and allowed-repos.
+func TestParsePushToPullRequestBranchExpressionFields(t *testing.T) {
+	tests := []struct {
+		name     string
+		field    string
+		expr     string
+		getField func(*PushToPullRequestBranchConfig) []string
+	}{
+		{
+			name:     "labels as expression",
+			field:    "labels",
+			expr:     "${{ inputs['required-labels'] }}",
+			getField: func(c *PushToPullRequestBranchConfig) []string { return c.Labels },
+		},
+		{
+			name:     "allowed-repos as expression",
+			field:    "allowed-repos",
+			expr:     "${{ inputs['allowed-repos'] }}",
+			getField: func(c *PushToPullRequestBranchConfig) []string { return c.AllowedRepos },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := &Compiler{}
+			outputMap := map[string]any{
+				"push-to-pull-request-branch": map[string]any{
+					tt.field: tt.expr,
+				},
+			}
+
+			result := compiler.parsePushToPullRequestBranchConfig(outputMap)
+			if result == nil {
+				t.Fatal("expected non-nil result")
+			}
+
+			got := tt.getField(result)
+			if len(got) != 1 {
+				t.Fatalf("expected single-element slice, got %v", got)
+			}
+			if got[0] != tt.expr {
+				t.Errorf("expected expression %q, got %q", tt.expr, got[0])
+			}
+		})
+	}
+}
+
+// TestHandlerConfigExpressionFields verifies that the handler config builder
+// emits expression strings as JSON strings (not arrays) when a single-element
+// expression slice is provided.
+func TestHandlerConfigExpressionFields(t *testing.T) {
+	tests := []struct {
+		name      string
+		safeOuts  *SafeOutputsConfig
+		handler   string
+		configKey string
+		wantValue string // expected string in config; empty means wantArray=true
+		wantArray bool
+	}{
+		{
+			name: "create_pull_request labels expression stored as string",
+			safeOuts: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					Labels: []string{"${{ inputs.labels }}"},
+				},
+			},
+			handler:   "create_pull_request",
+			configKey: "labels",
+			wantValue: "${{ inputs.labels }}",
+		},
+		{
+			name: "create_pull_request labels literal stored as array",
+			safeOuts: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					Labels: []string{"bug", "enhancement"},
+				},
+			},
+			handler:   "create_pull_request",
+			configKey: "labels",
+			wantArray: true,
+		},
+		{
+			name: "create_pull_request allowed_repos expression stored as string",
+			safeOuts: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					AllowedRepos: []string{"${{ inputs['allowed-repos'] }}"},
+				},
+			},
+			handler:   "create_pull_request",
+			configKey: "allowed_repos",
+			wantValue: "${{ inputs['allowed-repos'] }}",
+		},
+		{
+			name: "create_pull_request allowed_base_branches expression stored as string",
+			safeOuts: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					AllowedBaseBranches: []string{"${{ inputs['allowed-base-branches'] }}"},
+				},
+			},
+			handler:   "create_pull_request",
+			configKey: "allowed_base_branches",
+			wantValue: "${{ inputs['allowed-base-branches'] }}",
+		},
+		{
+			name: "add_comment allowed_repos expression stored as string",
+			safeOuts: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					AllowedRepos: []string{"${{ inputs['allowed-repos'] }}"},
+				},
+			},
+			handler:   "add_comment",
+			configKey: "allowed_repos",
+			wantValue: "${{ inputs['allowed-repos'] }}",
+		},
+		{
+			name: "push_to_pull_request_branch labels expression stored as string",
+			safeOuts: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					Labels: []string{"${{ inputs['required-labels'] }}"},
+				},
+			},
+			handler:   "push_to_pull_request_branch",
+			configKey: "labels",
+			wantValue: "${{ inputs['required-labels'] }}",
+		},
+		{
+			name: "push_to_pull_request_branch allowed_repos expression stored as string",
+			safeOuts: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					AllowedRepos: []string{"${{ inputs['allowed-repos'] }}"},
+				},
+			},
+			handler:   "push_to_pull_request_branch",
+			configKey: "allowed_repos",
+			wantValue: "${{ inputs['allowed-repos'] }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			builder, exists := handlerRegistry[tt.handler]
+			if !exists {
+				t.Fatalf("handler %q not found in registry", tt.handler)
+			}
+
+			cfg := builder(tt.safeOuts)
+			if cfg == nil {
+				t.Fatal("handler returned nil config")
+			}
+
+			val, exists := cfg[tt.configKey]
+			if !exists {
+				t.Fatalf("key %q not found in handler config; config: %v", tt.configKey, cfg)
+			}
+
+			if tt.wantArray {
+				_, ok := val.([]string)
+				if !ok {
+					t.Errorf("expected []string, got %T: %v", val, val)
+				}
+			} else {
+				s, ok := val.(string)
+				if !ok {
+					t.Errorf("expected string (expression), got %T: %v", val, val)
+					return
+				}
+				if s != tt.wantValue {
+					t.Errorf("expected %q, got %q", tt.wantValue, s)
+				}
+			}
+		})
+	}
+}
+
+// TestExpressionFieldsRejectedForInvalidStrings verifies that non-expression bare strings
+// are rejected (return nil / return error) rather than silently accepted.
+func TestExpressionFieldsRejectedForInvalidStrings(t *testing.T) {
+	// create-pull-request: non-expression bare string returns nil config
+	compiler := &Compiler{}
+
+	for _, field := range []string{"labels", "allowed-repos", "allowed-base-branches"} {
+		t.Run("create-pull-request/"+field+"/non-expression", func(t *testing.T) {
+			outputMap := map[string]any{
+				"create-pull-request": map[string]any{
+					field: "not-an-expression",
+				},
+			}
+			result := compiler.parsePullRequestsConfig(outputMap)
+			// Must return nil (invalid input is rejected)
+			if result != nil {
+				t.Errorf("expected nil result for invalid bare string in %q, got %+v", field, result)
+			}
+		})
+	}
+
+	// add-comment: non-expression bare string returns nil config
+	t.Run("add-comment/allowed-repos/non-expression", func(t *testing.T) {
+		outputMap := map[string]any{
+			"add-comment": map[string]any{
+				"allowed-repos": "not-an-expression",
+			},
+		}
+		result := compiler.parseCommentsConfig(outputMap)
+		if result != nil {
+			t.Errorf("expected nil result for invalid bare string in allowed-repos, got %+v", result)
+		}
+	})
+}
+
+// TestAllListEncodingForms verifies all supported list encodings for the templatable
+// string-array safe-output fields, covering both compile-time (literal arrays) and
+// runtime (expression strings) forms.
+//
+// Compile-time forms (supported by the Go parser):
+//   - Literal array with multiple items
+//   - Literal array with a single item
+//   - Empty literal array (→ omitted from handler config)
+//   - GitHub Actions expression string (bracket notation required for names with hyphens)
+//
+// Runtime forms (resolved by GitHub Actions before config.json is written, then parsed
+// by JS handlers using comma-splitting):
+//   - The expression resolves to a comma-separated string: "bug,enhancement"
+//   - The expression resolves to a single value: "bug"
+//   - The expression resolves to a value with spaces: "bug, enhancement"
+//
+// This test covers the Go compile-time pipeline only.  The JS runtime forms are
+// covered by the existing JS handler tests (parseAllowedRepos, parseStringListConfig,
+// parseAllowedBaseBranches).
+func TestAllListEncodingForms(t *testing.T) {
+	type listFieldCase struct {
+		name      string
+		value     any      // raw value as it would appear in the config map
+		wantSlice []string // expected []string in the parsed config struct; nil = field absent
+	}
+
+	// Helper: run a single field case through parsePullRequestsConfig.labels and
+	// verify the Labels field.
+	runPRLabelsCase := func(t *testing.T, tc listFieldCase) {
+		t.Helper()
+		compiler := &Compiler{}
+		outputMap := map[string]any{
+			"create-pull-request": map[string]any{
+				"labels": tc.value,
+			},
+		}
+		result := compiler.parsePullRequestsConfig(outputMap)
+		if tc.wantSlice == nil {
+			// Invalid input — parser should reject (nil config)
+			if result != nil && len(result.Labels) > 0 {
+				t.Errorf("expected empty/absent Labels, got %v", result.Labels)
+			}
+			return
+		}
+		if result == nil {
+			t.Fatal("expected non-nil config")
+		}
+		if len(result.Labels) != len(tc.wantSlice) {
+			t.Fatalf("Labels length: expected %d, got %d (%v)", len(tc.wantSlice), len(result.Labels), result.Labels)
+		}
+		for i, v := range tc.wantSlice {
+			if result.Labels[i] != v {
+				t.Errorf("Labels[%d]: expected %q, got %q", i, v, result.Labels[i])
+			}
+		}
+	}
+
+	// Helper: run a case through the handler builder and check the JSON output.
+	runHandlerLabelsCase := func(t *testing.T, tc listFieldCase, wantKey bool, wantArray bool, wantExprValue string) {
+		t.Helper()
+		labels, ok := tc.value.([]string)
+		if !ok {
+			t.Skip("handler test requires []string input")
+		}
+		builder, exists := handlerRegistry["create_pull_request"]
+		if !exists {
+			t.Fatal("create_pull_request handler not found")
+		}
+		cfg := builder(&SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{Labels: labels},
+		})
+		if cfg == nil {
+			t.Fatal("handler returned nil config")
+		}
+		val, exists := cfg["labels"]
+		if !wantKey {
+			if exists {
+				t.Errorf("expected 'labels' key absent, got %v", val)
+			}
+			return
+		}
+		if !exists {
+			t.Errorf("expected 'labels' key present, but absent")
+			return
+		}
+		if wantArray {
+			if _, ok := val.([]string); !ok {
+				t.Errorf("expected []string, got %T: %v", val, val)
+			}
+		} else {
+			s, ok := val.(string)
+			if !ok {
+				t.Errorf("expected string (expression), got %T: %v", val, val)
+				return
+			}
+			if s != wantExprValue {
+				t.Errorf("expected expression %q, got %q", wantExprValue, s)
+			}
+		}
+	}
+
+	t.Run("parser/literal_multi_item_array", func(t *testing.T) {
+		runPRLabelsCase(t, listFieldCase{
+			value:     []any{"bug", "enhancement"},
+			wantSlice: []string{"bug", "enhancement"},
+		})
+	})
+
+	t.Run("parser/literal_single_item_array", func(t *testing.T) {
+		runPRLabelsCase(t, listFieldCase{
+			value:     []any{"automation"},
+			wantSlice: []string{"automation"},
+		})
+	})
+
+	t.Run("parser/literal_empty_array", func(t *testing.T) {
+		runPRLabelsCase(t, listFieldCase{
+			value:     []any{},
+			wantSlice: []string{},
+		})
+	})
+
+	t.Run("parser/expression_with_bracket_notation", func(t *testing.T) {
+		expr := "${{ inputs['required-labels'] }}"
+		runPRLabelsCase(t, listFieldCase{
+			value:     expr,
+			wantSlice: []string{expr},
+		})
+	})
+
+	t.Run("parser/expression_vars_reference", func(t *testing.T) {
+		expr := "${{ vars.PR_LABELS }}"
+		runPRLabelsCase(t, listFieldCase{
+			value:     expr,
+			wantSlice: []string{expr},
+		})
+	})
+
+	t.Run("parser/expression_with_fallback_operator", func(t *testing.T) {
+		expr := "${{ inputs.labels || 'automation' }}"
+		runPRLabelsCase(t, listFieldCase{
+			value:     expr,
+			wantSlice: []string{expr},
+		})
+	})
+
+	t.Run("parser/expression_env_reference", func(t *testing.T) {
+		expr := "${{ env.DEFAULT_LABELS }}"
+		runPRLabelsCase(t, listFieldCase{
+			value:     expr,
+			wantSlice: []string{expr},
+		})
+	})
+
+	// Handler builder forms — verify JSON config output.
+	t.Run("builder/multi_item_array_stored_as_array", func(t *testing.T) {
+		runHandlerLabelsCase(t, listFieldCase{value: []string{"bug", "enhancement"}}, true, true, "")
+	})
+
+	t.Run("builder/single_item_literal_stored_as_array", func(t *testing.T) {
+		runHandlerLabelsCase(t, listFieldCase{value: []string{"automation"}}, true, true, "")
+	})
+
+	t.Run("builder/empty_array_omits_key", func(t *testing.T) {
+		runHandlerLabelsCase(t, listFieldCase{value: []string{}}, false, false, "")
+	})
+
+	t.Run("builder/expression_string_stored_as_string", func(t *testing.T) {
+		expr := "${{ inputs['required-labels'] }}"
+		runHandlerLabelsCase(t, listFieldCase{value: []string{expr}}, true, false, expr)
+	})
+
+	t.Run("builder/vars_expression_stored_as_string", func(t *testing.T) {
+		expr := "${{ vars.PR_LABELS }}"
+		runHandlerLabelsCase(t, listFieldCase{value: []string{expr}}, true, false, expr)
+	})
+
+	// ParseStringArrayOrExprFromConfig — all resolved string forms.
+	// These represent what the expression might resolve to at runtime (passed through
+	// the Go helper when config is read from a pre-expanded config.json at startup time).
+	t.Run("parseHelper/comma_separated_string_not_accepted_at_compile_time", func(t *testing.T) {
+		// A comma-separated bare string is rejected at compile time (not an expression).
+		// At runtime the expression resolves before Go code runs, so this case never
+		// occurs in practice — but we document it explicitly.
+		result := ParseStringArrayOrExprFromConfig(map[string]any{
+			"labels": "automation,bot",
+		}, "labels", nil)
+		if result != nil {
+			t.Errorf("expected nil for non-expression bare string, got %v", result)
+		}
+	})
+
+	t.Run("parseHelper/expression_string_accepted", func(t *testing.T) {
+		expr := "${{ inputs.labels }}"
+		result := ParseStringArrayOrExprFromConfig(map[string]any{
+			"labels": expr,
+		}, "labels", nil)
+		if len(result) != 1 || result[0] != expr {
+			t.Errorf("expected [%q], got %v", expr, result)
+		}
+	})
+
+	t.Run("parseHelper/string_array_all_forms", func(t *testing.T) {
+		cases := []struct {
+			name     string
+			value    any
+			wantLen  int
+			wantVals []string
+		}{
+			{"single-string-array", []string{"automation"}, 1, []string{"automation"}},
+			{"multi-string-array", []string{"automation", "bot"}, 2, []string{"automation", "bot"}},
+			{"any-array", []any{"automation", "bot"}, 2, []string{"automation", "bot"}},
+			{"empty-array", []string{}, 0, []string{}},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				result := ParseStringArrayOrExprFromConfig(map[string]any{"labels": c.value}, "labels", nil)
+				if len(result) != c.wantLen {
+					t.Fatalf("expected len %d, got %d: %v", c.wantLen, len(result), result)
+				}
+				for i, v := range c.wantVals {
+					if result[i] != v {
+						t.Errorf("[%d]: expected %q, got %q", i, v, result[i])
+					}
+				}
+			})
+		}
+	})
+
+	// Error message content for hyphenated vs non-hyphenated field names.
+	t.Run("errorMessage/hyphenated_field_uses_bracket_notation", func(t *testing.T) {
+		err := preprocessStringArrayFieldAsTemplatable(
+			map[string]any{"allowed-repos": "not-an-expr"},
+			"allowed-repos", nil,
+		)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		msg := err.Error()
+		if !strings.Contains(msg, "inputs['allowed-repos']") {
+			t.Errorf("error message should use bracket notation, got: %q", msg)
+		}
+	})
+
+	t.Run("errorMessage/non_hyphenated_field_uses_dot_notation", func(t *testing.T) {
+		err := preprocessStringArrayFieldAsTemplatable(
+			map[string]any{"labels": "not-an-expr"},
+			"labels", nil,
+		)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		msg := err.Error()
+		if !strings.Contains(msg, "inputs.labels") {
+			t.Errorf("error message should use dot notation, got: %q", msg)
+		}
+	})
 }

@@ -633,7 +633,7 @@
   },
   {
     "name": "add_reviewer",
-    "description": "Add reviewers to a GitHub pull request. Reviewers receive notifications and can approve or request changes. Use 'copilot' as a reviewer name to request the Copilot PR review bot.",
+    "description": "Add reviewers (users or teams) to a GitHub pull request. Reviewers receive notifications and can approve or request changes. Use 'copilot' as a reviewer name to request the Copilot PR review bot. Provide at least one of 'reviewers' (user logins) or 'team_reviewers' (team slugs).",
     "inputSchema": {
       "type": "object",
       "anyOf": [

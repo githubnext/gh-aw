@@ -546,10 +546,10 @@
   },
   {
     "name": "add_reviewer",
-    "description": "Add reviewers to a GitHub pull request. Reviewers receive notifications and can approve or request changes. Use 'copilot' as a reviewer name to request the Copilot PR review bot.",
+    "description": "Add reviewers (users or teams) to a GitHub pull request. Reviewers receive notifications and can approve or request changes. Use 'copilot' as a reviewer name to request the Copilot PR review bot. Provide at least one of 'reviewers' (user logins) or 'team_reviewers' (team slugs).",
     "inputSchema": {
       "type": "object",
-      "required": ["reviewers"],
+      "anyOf": [{ "required": ["reviewers"] }, { "required": ["team_reviewers"] }],
       "properties": {
         "reviewers": {
           "type": "array",
@@ -558,9 +558,16 @@
           },
           "description": "GitHub usernames to add as reviewers (e.g., ['octocat', 'copilot']). Users must have access to the repository."
         },
+        "team_reviewers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "GitHub team slugs to add as team reviewers (e.g., ['platform-team', 'security-reviewers']). Teams must have access to the repository."
+        },
         "pull_request_number": {
           "type": ["number", "string"],
-          "description": "Pull request number to add reviewers to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds reviewers to the PR that triggered this workflow."
+          "description": "Pull request number to add reviewers to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds reviewers to the PR that triggered this workflow. Only works for pull_request event triggers. For workflow_dispatch, schedule, or other triggers, pull_request_number is required — omitting it will silently skip the reviewer assignment."
         },
         "secrecy": {
           "type": "string",

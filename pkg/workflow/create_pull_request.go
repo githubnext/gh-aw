@@ -128,6 +128,17 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		return nil
 	}
 
+	// Pre-process list fields that also accept a GitHub Actions expression string.
+	// An expression is wrapped in a single-element []string so the []string struct field
+	// can receive it after YAML unmarshaling; the handler config builder later re-emits it
+	// as a JSON string for runtime evaluation.
+	for _, field := range []string{"labels", "allowed-repos", "allowed-base-branches"} {
+		if err := preprocessStringArrayFieldAsTemplatable(configData, field, createPRLog); err != nil {
+			createPRLog.Printf("Invalid %s value: %v", field, err)
+			return nil
+		}
+	}
+
 	config := parseConfigScaffold(outputMap, "create-pull-request", createPRLog, func(err error) *CreatePullRequestsConfig {
 		createPRLog.Printf("Failed to unmarshal config: %v", err)
 		// For backward compatibility, handle nil/empty config

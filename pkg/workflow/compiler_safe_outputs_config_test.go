@@ -2689,3 +2689,91 @@ func TestNoProtectedDotFolderExcludesWhenNoneDotFolderExcluded(t *testing.T) {
 	_, exists := prConfig["protected_dot_folder_excludes"]
 	assert.False(t, exists, "protected_dot_folder_excludes should be absent when no dot-folders excluded")
 }
+
+// TestPRPolicyFieldsExpressionsPassThrough verifies that GitHub Actions expression strings
+// set on protected-files and patch-format are emitted verbatim into the handler config.
+// This enables reusable workflow_call workflows to parameterise these policy fields per caller.
+func TestPRPolicyFieldsExpressionsPassThrough(t *testing.T) {
+	t.Parallel()
+
+	protectedFilesExpr := "${{ inputs.protected-files-policy }}"
+	patchFormatExpr := "${{ inputs.patch-format }}"
+
+	tests := []struct {
+		name          string
+		safeOutputs   *SafeOutputsConfig
+		handlerKey    string
+		wantProtected string
+		wantFormat    string
+	}{
+		{
+			name: "create-pull-request: expression values pass through",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					ManifestFilesPolicy:  &protectedFilesExpr,
+					PatchFormat:          patchFormatExpr,
+				},
+			},
+			handlerKey:    "create_pull_request",
+			wantProtected: protectedFilesExpr,
+			wantFormat:    patchFormatExpr,
+		},
+		{
+			name: "push-to-pull-request-branch: expression values pass through",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					ManifestFilesPolicy:  &protectedFilesExpr,
+					PatchFormat:          patchFormatExpr,
+				},
+			},
+			handlerKey:    "push_to_pull_request_branch",
+			wantProtected: protectedFilesExpr,
+			wantFormat:    patchFormatExpr,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Name:        "Test Workflow",
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			var steps []string
+			compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+			require.NotEmpty(t, steps, "should produce config steps")
+
+			// Extract handler-config JSON
+			var configJSON string
+			for _, step := range steps {
+				if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+					parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+					require.Len(t, parts, 2, "should split env var line")
+					configJSON = strings.TrimSpace(parts[1])
+					configJSON = strings.Trim(configJSON, "\"")
+					configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+				}
+			}
+			require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+			var config map[string]map[string]any
+			require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+			handlerConfig, ok := config[tt.handlerKey]
+			require.True(t, ok, "should have %s config", tt.handlerKey)
+
+			// protected_files_policy must contain the expression verbatim
+			pfPolicy, ok := handlerConfig["protected_files_policy"]
+			require.True(t, ok, "should have protected_files_policy field")
+			assert.Equal(t, tt.wantProtected, pfPolicy, "protected_files_policy should contain the expression")
+
+			// patch_format must contain the expression verbatim
+			patchFmt, ok := handlerConfig["patch_format"]
+			require.True(t, ok, "should have patch_format field")
+			assert.Equal(t, tt.wantFormat, patchFmt, "patch_format should contain the expression")
+		})
+	}
+}
