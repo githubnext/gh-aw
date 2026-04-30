@@ -645,6 +645,80 @@ func TestBuildLabeledDisableCondition(t *testing.T) {
 	}
 }
 
+func TestGenerateMaintenanceWorkflow_DisableLabelTrigger_Disabled(t *testing.T) {
+	workflowDataList := []*WorkflowData{
+		{
+			Name: "test-workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{Expires: 48},
+			},
+		},
+	}
+
+	tmpDir := t.TempDir()
+	cfg := &RepoConfig{
+		Maintenance: &MaintenanceConfig{DisableLabelTrigger: true},
+	}
+	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, cfg, "")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+	if err != nil {
+		t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+	}
+	yaml := string(content)
+
+	// Label-event triggers should be absent
+	if strings.Contains(yaml, "  issues:\n    types: [labeled]") {
+		t.Error("When disable_label_trigger is true the issues labeled trigger should not be present")
+	}
+	if strings.Contains(yaml, "  pull_request:\n    types: [labeled]") {
+		t.Error("When disable_label_trigger is true the pull_request labeled trigger should not be present")
+	}
+
+	// The disable_agentic_workflow job should be absent
+	if strings.Contains(yaml, "disable_agentic_workflow:") {
+		t.Error("When disable_label_trigger is true the disable_agentic_workflow job should not be present")
+	}
+}
+
+func TestGenerateMaintenanceWorkflow_DisableLabelTrigger_Default(t *testing.T) {
+	workflowDataList := []*WorkflowData{
+		{
+			Name: "test-workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{Expires: 48},
+			},
+		},
+	}
+
+	tmpDir := t.TempDir()
+	// Default: DisableLabelTrigger is false (omitted)
+	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, "")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+	if err != nil {
+		t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+	}
+	yaml := string(content)
+
+	// Label-event triggers should be present by default
+	if !strings.Contains(yaml, "  issues:\n    types: [labeled]") {
+		t.Error("By default (no config) the issues labeled trigger should be present")
+	}
+	if !strings.Contains(yaml, "  pull_request:\n    types: [labeled]") {
+		t.Error("By default (no config) the pull_request labeled trigger should be present")
+	}
+
+	// The disable_agentic_workflow job should be present by default
+	if !strings.Contains(yaml, "disable_agentic_workflow:") {
+		t.Error("By default (no config) the disable_agentic_workflow job should be present")
+	}
+}
+
 func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 	const jobSectionSearchRange = 500
 
@@ -685,7 +759,7 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 	t.Run("dev mode uses custom default branch from buildMaintenanceWorkflowYAML", func(t *testing.T) {
 		// Call buildMaintenanceWorkflowYAML directly to test the branch substitution
 		// without needing a live GitHub API call (FetchDefaultBranch falls back to "main" with no slug)
-		yaml := buildMaintenanceWorkflowYAML("37 */2 * * *", "Every 2 hours", 1, "ubuntu-slim", ActionModeDev, "v1.0.0", "", nil, nil, "develop")
+		yaml := buildMaintenanceWorkflowYAML("37 */2 * * *", "Every 2 hours", 1, "ubuntu-slim", ActionModeDev, "v1.0.0", "", nil, nil, "develop", false)
 		if !strings.Contains(yaml, "      - develop") {
 			t.Errorf("Push trigger should use the provided default branch 'develop', got:\n%s", yaml[:min(500, len(yaml))])
 		}

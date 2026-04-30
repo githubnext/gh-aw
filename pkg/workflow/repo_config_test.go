@@ -100,6 +100,27 @@ func TestLoadRepoConfig_SchemaViolation(t *testing.T) {
 	assert.Error(t, err, "schema violation should return an error")
 }
 
+func TestLoadRepoConfig_DisableLabelTrigger(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"maintenance": {"disable_label_trigger": true}}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
+	assert.True(t, cfg.Maintenance.DisableLabelTrigger, "disable_label_trigger should be true")
+}
+
+func TestLoadRepoConfig_DisableLabelTrigger_DefaultFalse(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"maintenance": {}}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
+	assert.False(t, cfg.Maintenance.DisableLabelTrigger, "disable_label_trigger should default to false")
+}
+
+// TestLoadRepoConfig_UnknownProperty tests that unknown properties are rejected.
 func TestLoadRepoConfig_UnknownProperty(t *testing.T) {
 	dir := t.TempDir()
 	writeAWJSON(t, dir, `{"unknown_property": "value"}`)

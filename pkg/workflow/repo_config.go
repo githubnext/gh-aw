@@ -10,6 +10,7 @@
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
 //	    "action_failure_issue_expires": 72 // expiration (hours) for conclusion failure issues
+//	    "disable_label_trigger": true // set to true to disable the label-triggered disable job
 //	  }                            // maintenance jobs (default: ubuntu-slim)
 //	}
 //
@@ -72,6 +73,10 @@ type MaintenanceConfig struct {
 	// ActionFailureIssueExpires configures expiration (in hours) for action
 	// failure issues opened by the conclusion job. Defaults to 168 (7 days).
 	ActionFailureIssueExpires int `json:"action_failure_issue_expires,omitempty"`
+
+	// DisableLabelTrigger disables the label-triggered disable_agentic_workflow job
+	// when set to true. By default (false or omitted) the job is included.
+	DisableLabelTrigger bool `json:"disable_label_trigger,omitempty"`
 }
 
 // RepoConfig is the parsed representation of aw.json.

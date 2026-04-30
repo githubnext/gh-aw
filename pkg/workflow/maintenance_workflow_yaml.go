@@ -21,8 +21,9 @@ func buildMaintenanceWorkflowYAML(
 	resolver ActionSHAResolver,
 	configuredRunsOn RunsOnValue,
 	defaultBranch string,
+	disableLabelTrigger bool,
 ) string {
-	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q", actionMode, minExpiresDays, cronSchedule, defaultBranch)
+	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger)
 
 	var yaml strings.Builder
 
@@ -57,11 +58,16 @@ on:
 `)
 	}
 
-	yaml.WriteString(`  issues:
+	// Add label-event triggers only when the label-triggered disable job is enabled
+	if !disableLabelTrigger {
+		yaml.WriteString(`  issues:
     types: [labeled]
   pull_request:
     types: [labeled]
-  workflow_dispatch:
+`)
+	}
+
+	yaml.WriteString(`  workflow_dispatch:
     inputs:
       operation:
         description: 'Optional maintenance operation to run'
@@ -621,8 +627,10 @@ jobs:
 	// Add disable_agentic_workflow job triggered by label "agentic-workflows:disable" on issues or PRs.
 	// This job reads the body of the labeled issue/PR to extract the workflow_id from XML comment
 	// markers, disables the corresponding agentic workflow, and posts a confirmation comment.
-	disableLabelCondition := buildLabeledDisableCondition()
-	yaml.WriteString(`
+	// Skipped when disable_label_trigger is set to true in aw.json maintenance config.
+	if !disableLabelTrigger {
+		disableLabelCondition := buildLabeledDisableCondition()
+		yaml.WriteString(`
   disable_agentic_workflow:
     if: ${{ ` + RenderCondition(disableLabelCondition) + ` }}
     runs-on: ` + runsOnValue + `
@@ -654,8 +662,8 @@ jobs:
 
 `)
 
-	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
-	yaml.WriteString(`      - name: Disable agentic workflow
+		yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+		yaml.WriteString(`      - name: Disable agentic workflow
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -668,6 +676,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/disable_agentic_workflow.cjs');
             await main();
 `)
+	}
 
 	// Add compile-workflows and zizmor-scan jobs only in dev mode
 	// These jobs are specific to the gh-aw repository and require go.mod, make build, etc.
