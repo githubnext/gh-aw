@@ -95,6 +95,11 @@ export default defineConfig({
 		'/reference/custom-agents/': '/gh-aw/reference/copilot-custom-agents/',
 		'/reference/custom-agent/': '/gh-aw/reference/custom-agent-for-aw/',
 
+		// Organization Practices moved under Guides
+		'/organization-practices/': '/gh-aw/guides/organization-practices/',
+		'/organization-practices/safe-rollout/': '/gh-aw/guides/organization-practices/safe-rollout/',
+		'/organization-practices/sharing-workflows/': '/gh-aw/guides/organization-practices/sharing-workflows/',
+
 		// Guides → Patterns renames
 		'/guides/chatops/': '/gh-aw/patterns/chat-ops/',
 		'/guides/issueops/': '/gh-aw/patterns/issue-ops/',
@@ -269,6 +274,14 @@ export default defineConfig({
 						{ label: 'GitHub Actions Primer', link: '/guides/github-actions-primer/' },
 						{ label: 'Maintaining Repositories', link: '/guides/maintaining-repos/' },
 						{ label: 'Network Configuration', link: '/guides/network-configuration/' },
+						{
+							label: 'Organization Practices',
+							items: [
+								{ label: 'Overview', link: '/guides/organization-practices/' },
+								{ label: 'Safe Rollout', link: '/guides/organization-practices/safe-rollout/' },
+								{ label: 'Sharing Workflows', link: '/guides/organization-practices/sharing-workflows/' },
+							],
+						},
 						{ label: 'Reusing Workflows', link: '/guides/packaging-imports/' },
 						{ label: 'Serena', link: '/guides/serena/' },
 						{ label: 'Using Custom MCPs', link: '/guides/mcps/' },
@@ -277,14 +290,6 @@ export default defineConfig({
 						{ label: 'Ephemerals', link: '/guides/ephemerals/' },
 						{ label: 'Web Search', link: '/guides/web-search/' },
 						{ label: 'Audit Reports', link: '/guides/audit-with-agents/' },
-					],
-				},
-				{
-					label: 'Organization Practices',
-					items: [
-						{ label: 'Overview', link: '/organization-practices/' },
-						{ label: 'Safe Rollout', link: '/organization-practices/safe-rollout/' },
-						{ label: 'Sharing Workflows', link: '/organization-practices/sharing-workflows/' },
 					],
 				},
 				{
