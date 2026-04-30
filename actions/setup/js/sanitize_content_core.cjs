@@ -620,8 +620,9 @@ function neutralizeMarkdownLinkTitles(s) {
  */
 function convertXmlTags(s) {
   // Allow safe HTML tags supported by GitHub Flavored Markdown:
-  // b, blockquote, br, code, details, em, h1–h6, hr, i, li, ol, p, pre, strong, sub, summary, sup, table, tbody, td, th, thead, tr, ul
+  // b, blockquote, br, code, details, em, h1–h6, hr, i, img, li, ol, p, pre, strong, sub, summary, sup, table, tbody, td, th, thead, tr, ul
   // Plus GFM inline tags: abbr, del, ins, kbd, mark, s, span
+  // Note: img on* event handlers and style are stripped by stripDangerousAttributes(); src is covered by sanitizeUrlDomains()
   const allowedTags = [
     "abbr",
     "b",
@@ -639,6 +640,7 @@ function convertXmlTags(s) {
     "h6",
     "hr",
     "i",
+    "img",
     "ins",
     "kbd",
     "li",
