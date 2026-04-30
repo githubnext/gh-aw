@@ -125,7 +125,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 	// Determine the runs-on value to use for all maintenance jobs.
 	const defaultRunsOn = "ubuntu-slim"
 	var configuredRunsOn RunsOnValue
-	disableLabelTrigger := false // default: include the label-triggered job
+	disableLabelTrigger := true // default: disable label-triggered jobs (opt-in)
 	if repoConfig != nil && repoConfig.Maintenance != nil {
 		configuredRunsOn = repoConfig.Maintenance.RunsOn
 		disableLabelTrigger = !repoConfig.Maintenance.IsLabelTriggerEnabled()

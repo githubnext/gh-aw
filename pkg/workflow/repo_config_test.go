@@ -112,7 +112,7 @@ func TestLoadRepoConfig_LabelTriggersDisable(t *testing.T) {
 	assert.False(t, cfg.Maintenance.IsLabelTriggerEnabled(), "setting label_triggers: false explicitly opts out — label-triggered jobs should not be included")
 }
 
-func TestLoadRepoConfig_LabelTriggers_DefaultTrue(t *testing.T) {
+func TestLoadRepoConfig_LabelTriggers_DefaultFalse(t *testing.T) {
 	dir := t.TempDir()
 	writeAWJSON(t, dir, `{"maintenance": {}}`)
 
@@ -120,7 +120,7 @@ func TestLoadRepoConfig_LabelTriggers_DefaultTrue(t *testing.T) {
 	require.NoError(t, err, "valid aw.json should load without error")
 	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
 	assert.Nil(t, cfg.Maintenance.LabelTriggers, "label_triggers should be nil when not specified")
-	assert.True(t, cfg.Maintenance.IsLabelTriggerEnabled(), "label triggers should be enabled by default (nil = true)")
+	assert.False(t, cfg.Maintenance.IsLabelTriggerEnabled(), "label triggers should be disabled by default (nil = false)")
 }
 
 func TestLoadRepoConfig_LabelTriggers_ExplicitTrue(t *testing.T) {

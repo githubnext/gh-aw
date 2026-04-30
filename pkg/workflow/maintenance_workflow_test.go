@@ -551,7 +551,11 @@ func TestGenerateMaintenanceWorkflow_DisableAgenticWorkflowJob(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, "")
+	trueVal := true
+	cfg := &RepoConfig{
+		Maintenance: &MaintenanceConfig{LabelTriggers: &trueVal},
+	}
+	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, cfg, "")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -740,7 +744,7 @@ func TestGenerateMaintenanceWorkflow_LabelTriggers_Default(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	// Default: LabelTriggers is nil (omitted) → treated as true → jobs included
+	// Default: LabelTriggers is nil (omitted) → treated as false (opt-in semantics) → jobs absent
 	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, "")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -751,9 +755,50 @@ func TestGenerateMaintenanceWorkflow_LabelTriggers_Default(t *testing.T) {
 	}
 	yaml := string(content)
 
-	// Issues labeled trigger should be present by default
+	// Issues labeled trigger should NOT be present by default (opt-in required)
+	if strings.Contains(yaml, "  issues:\n    types: [labeled]") {
+		t.Error("By default (no config) the issues labeled trigger should NOT be present — label_triggers must be explicitly enabled")
+	}
+
+	// The label_disable_agentic_workflow job should NOT be present by default
+	if strings.Contains(yaml, "label_disable_agentic_workflow:") {
+		t.Error("By default (no config) the label_disable_agentic_workflow job should NOT be present — label_triggers must be explicitly enabled")
+	}
+
+	// The label_apply_safe_outputs job should NOT be present by default
+	if strings.Contains(yaml, "label_apply_safe_outputs:") {
+		t.Error("By default (no config) the label_apply_safe_outputs job should NOT be present — label_triggers must be explicitly enabled")
+	}
+}
+
+func TestGenerateMaintenanceWorkflow_LabelTriggers_ExplicitTrue(t *testing.T) {
+	workflowDataList := []*WorkflowData{
+		{
+			Name: "test-workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{Expires: 48},
+			},
+		},
+	}
+
+	tmpDir := t.TempDir()
+	trueVal := true
+	cfg := &RepoConfig{
+		Maintenance: &MaintenanceConfig{LabelTriggers: &trueVal},
+	}
+	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, cfg, "")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+	if err != nil {
+		t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+	}
+	yaml := string(content)
+
+	// Issues labeled trigger should be present when explicitly enabled
 	if !strings.Contains(yaml, "  issues:\n    types: [labeled]") {
-		t.Error("By default (no config) the issues labeled trigger should be present")
+		t.Error("When label_triggers: true the issues labeled trigger should be present")
 	}
 
 	// pull_request labeled trigger should never be present (issues-only by design)
@@ -761,14 +806,14 @@ func TestGenerateMaintenanceWorkflow_LabelTriggers_Default(t *testing.T) {
 		t.Error("pull_request labeled trigger should never be present (issues-only)")
 	}
 
-	// The label_disable_agentic_workflow job should be present by default
+	// The label_disable_agentic_workflow job should be present when explicitly enabled
 	if !strings.Contains(yaml, "label_disable_agentic_workflow:") {
-		t.Error("By default (no config) the label_disable_agentic_workflow job should be present")
+		t.Error("When label_triggers: true the label_disable_agentic_workflow job should be present")
 	}
 
-	// The label_apply_safe_outputs job should be present by default
+	// The label_apply_safe_outputs job should be present when explicitly enabled
 	if !strings.Contains(yaml, "label_apply_safe_outputs:") {
-		t.Error("By default (no config) the label_apply_safe_outputs job should be present")
+		t.Error("When label_triggers: true the label_apply_safe_outputs job should be present")
 	}
 
 	// Verify label_apply_safe_outputs job has an explicit step id and if condition so that

@@ -10,7 +10,7 @@
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
 //	    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
-//	    "label_triggers": false // set to false to disable all label-triggered jobs
+//	    "label_triggers": true // set to true to enable all label-triggered jobs (opt-in)
 //	  }                            // maintenance jobs (default: ubuntu-slim)
 //	}
 //
@@ -76,17 +76,17 @@ type MaintenanceConfig struct {
 
 	// LabelTriggers controls all label-triggered jobs (disable_agentic_workflow,
 	// label_apply_safe_outputs, etc.).
-	// The value is treated as a feature-active flag: true (or omitted/nil) means
-	// all label-triggered jobs ARE included; false explicitly opts out.
-	// To opt out, set label_triggers: false in aw.json.
+	// The value is treated as an opt-in flag: only true enables the jobs.
+	// nil (omitted) or false both disable label-triggered jobs.
+	// To opt in, set label_triggers: true in aw.json.
 	LabelTriggers *bool `json:"label_triggers,omitempty"`
 }
 
-// IsLabelTriggerEnabled returns true unless label_triggers is explicitly set to false.
-// The default (nil / omitted) is treated as enabled (true).
+// IsLabelTriggerEnabled returns true only when label_triggers is explicitly set to true.
+// The default (nil / omitted) is treated as disabled (false) — opt-in semantics.
 func (m *MaintenanceConfig) IsLabelTriggerEnabled() bool {
 	if m == nil || m.LabelTriggers == nil {
-		return true
+		return false
 	}
 	return *m.LabelTriggers
 }
