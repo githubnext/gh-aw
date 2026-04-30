@@ -36,6 +36,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -271,7 +272,16 @@ func preprocessStringArrayFieldAsTemplatable(configData map[string]any, fieldNam
 	if val, exists := configData[fieldName]; exists {
 		if s, ok := val.(string); ok {
 			if !isExpression(s) {
-				return fmt.Errorf("field %q must be an array of strings or a GitHub Actions expression (e.g. '${{ inputs.%s }}'), got string %q", fieldName, fieldName, s)
+				// Build an example expression that is syntactically valid for fieldNames
+				// containing hyphens: dot-notation (e.g. inputs.foo) is invalid for those,
+				// so use bracket notation (e.g. inputs['foo']) instead.
+				var exampleExpr string
+				if strings.Contains(fieldName, "-") {
+					exampleExpr = fmt.Sprintf("${{ inputs['%s'] }}", fieldName)
+				} else {
+					exampleExpr = fmt.Sprintf("${{ inputs.%s }}", fieldName)
+				}
+				return fmt.Errorf("field %q must be an array of strings or a GitHub Actions expression (e.g. '%s'), got string %q", fieldName, exampleExpr, s)
 			}
 			// Wrap the expression in a single-element slice so the []string struct field
 			// can receive it after YAML marshaling/unmarshaling.

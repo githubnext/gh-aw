@@ -5695,7 +5695,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository comments. Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
-                  "description": "List of additional repositories in format 'owner/repo' that comments can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the comment in. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs.allowed-repos }}').",
+                  "description": "List of additional repositories in format 'owner/repo' that comments can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the comment in. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
                   "oneOf": [
                     {
                       "type": "array",
@@ -5706,7 +5706,8 @@
                     },
                     {
                       "type": "string",
-                      "description": "Comma-separated list of repository slugs or a GitHub Actions expression resolving to such a list (e.g. '${{ inputs.allowed-repos }}')"
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of repository slugs (e.g. '${{ inputs[\\'allowed-repos\\'] }}')"
                     }
                   ]
                 },
@@ -5805,7 +5806,8 @@
                     },
                     {
                       "type": "string",
-                      "description": "Comma-separated list of label names or a GitHub Actions expression resolving to such a list (e.g. '${{ inputs.labels }}')"
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of label names (e.g. '${{ inputs.labels }}')"
                     }
                   ]
                 },
@@ -5894,7 +5896,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository pull request creation. Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
-                  "description": "List of additional repositories in format 'owner/repo' that pull requests can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the pull request in. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs.allowed-repos }}').",
+                  "description": "List of additional repositories in format 'owner/repo' that pull requests can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the pull request in. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
                   "oneOf": [
                     {
                       "type": "array",
@@ -5905,7 +5907,8 @@
                     },
                     {
                       "type": "string",
-                      "description": "Comma-separated list of repository slugs or a GitHub Actions expression resolving to such a list (e.g. '${{ inputs.allowed-repos }}')"
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of repository slugs (e.g. '${{ inputs[\\'allowed-repos\\'] }}')"
                     }
                   ]
                 },
@@ -5938,7 +5941,7 @@
                   "description": "Base branch for the pull request. Defaults to the workflow's branch (github.ref_name) if not specified. Useful for cross-repository PRs targeting non-default branches (e.g., 'vnext', 'release/v1.0')."
                 },
                 "allowed-base-branches": {
-                  "description": "Optional list of allowed base branch patterns (glob syntax, e.g. 'main', 'release/*'). When configured, the agent may provide a `base` field in create_pull_request output to override base-branch for a single run, but only if it matches one of these patterns. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs.allowed-base-branches }}').",
+                  "description": "Optional list of allowed base branch patterns (glob syntax, e.g. 'main', 'release/*'). When configured, the agent may provide a `base` field in create_pull_request output to override base-branch for a single run, but only if it matches one of these patterns. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-base-branches\\'] }}').",
                   "oneOf": [
                     {
                       "type": "array",
@@ -5949,7 +5952,8 @@
                     },
                     {
                       "type": "string",
-                      "description": "Comma-separated list of base branch patterns or a GitHub Actions expression resolving to such a list (e.g. '${{ inputs.allowed-base-branches }}')"
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of base branch patterns (e.g. '${{ inputs[\\'allowed-base-branches\\'] }}')"
                     }
                   ]
                 },
@@ -7224,7 +7228,7 @@
                   "description": "Required prefix for pull request title. Only pull requests with this prefix will be accepted."
                 },
                 "labels": {
-                  "description": "Required labels for pull request validation. Only pull requests with all these labels will be accepted. Accepts an array of label names or a GitHub Actions expression resolving to a comma-separated list of labels (e.g. '${{ inputs.required-labels }}').",
+                  "description": "Required labels for pull request validation. Only pull requests with all these labels will be accepted. Accepts an array of label names or a GitHub Actions expression resolving to a comma-separated list of labels (e.g. '${{ inputs[\\'required-labels\\'] }}').",
                   "oneOf": [
                     {
                       "type": "array",
@@ -7235,7 +7239,8 @@
                     },
                     {
                       "type": "string",
-                      "description": "Comma-separated list of label names or a GitHub Actions expression resolving to such a list (e.g. '${{ inputs.required-labels }}')"
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of label names (e.g. '${{ inputs[\\'required-labels\\'] }}')"
                     }
                   ]
                 },
@@ -7276,7 +7281,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository push to pull request branch. Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
-                  "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs.allowed-repos }}').",
+                  "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
                   "oneOf": [
                     {
                       "type": "array",
@@ -7287,7 +7292,8 @@
                     },
                     {
                       "type": "string",
-                      "description": "Comma-separated list of repository slugs or a GitHub Actions expression resolving to such a list (e.g. '${{ inputs.allowed-repos }}')"
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of repository slugs (e.g. '${{ inputs[\\'allowed-repos\\'] }}')"
                     }
                   ]
                 },
