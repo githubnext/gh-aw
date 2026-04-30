@@ -228,9 +228,6 @@ jobs:
           
           GH_AW_PROMPT_958392f59ada5f3c_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          if find "${GITHUB_WORKSPACE}" -name "SKILL.md" -maxdepth 4 -print -quit 2>/dev/null | grep -q .; then
-            cat "${RUNNER_TEMP}/gh-aw/prompts/skills_prompt.md"
-          fi
           cat << 'GH_AW_PROMPT_958392f59ada5f3c_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}

@@ -305,14 +305,6 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		}
 	}
 
-	// 12. Skills instructions (if SKILL.md files are present in the workspace at runtime)
-	unifiedPromptLog.Print("Adding skills detection section")
-	sections = append(sections, PromptSection{
-		Content:        skillsPromptFile,
-		IsFile:         true,
-		ShellCondition: `find "${GITHUB_WORKSPACE}" -name "SKILL.md" -maxdepth 4 -print -quit 2>/dev/null | grep -q .`,
-	})
-
 	return sections
 }
 

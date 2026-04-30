@@ -207,9 +207,6 @@ jobs:
           
           GH_AW_PROMPT_d2100dd9504f0ecb_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_prompt.md"
-          if find "${GITHUB_WORKSPACE}" -name "SKILL.md" -maxdepth 4 -print -quit 2>/dev/null | grep -q .; then
-            cat "${RUNNER_TEMP}/gh-aw/prompts/skills_prompt.md"
-          fi
           cat << 'GH_AW_PROMPT_d2100dd9504f0ecb_EOF'
           </system>
           {{#runtime-import .github/workflows/test-workflow.md}}

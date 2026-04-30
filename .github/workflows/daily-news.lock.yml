@@ -242,9 +242,6 @@ jobs:
           
           GH_AW_PROMPT_28e02fa8d0cb2ffc_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          if find "${GITHUB_WORKSPACE}" -name "SKILL.md" -maxdepth 4 -print -quit 2>/dev/null | grep -q .; then
-            cat "${RUNNER_TEMP}/gh-aw/prompts/skills_prompt.md"
-          fi
           cat << 'GH_AW_PROMPT_28e02fa8d0cb2ffc_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/mcp/tavily.md}}
