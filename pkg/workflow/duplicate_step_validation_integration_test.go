@@ -173,13 +173,18 @@ compile without duplicate 'Generate GitHub App token' step errors in the activat
 		t.Errorf("Expected exactly 1 'Generate GitHub App token for checkout (1)' step, got %d", count1)
 	}
 
-	// Exactly one generic "Generate GitHub App token" step is expected — for the GitHub MCP server
-	// in the agent job (id: github-mcp-app-token). If more than one appears, that means a
-	// checkout minting step was not renamed, which would cause a duplicate-name error.
-	genericCount := strings.Count(lockContentStr, "name: Generate GitHub App token\n")
-	if genericCount > 1 {
-		t.Errorf("Found %d generic 'Generate GitHub App token' steps; checkout steps must use unique names to avoid duplicates", genericCount)
+	// Within the agent job, exactly one generic "Generate GitHub App token" step is expected —
+	// for the GitHub MCP server (id: github-mcp-app-token). If more than one appears within
+	// the agent job, that means a checkout minting step was not renamed, which would cause a
+	// duplicate-name error in GitHub Actions (which validates step names per-job).
+	//
+	// Note: the same generic name legitimately appears in other jobs (safe_outputs, conclusion)
+	// which is valid — GitHub Actions only enforces unique step names within a single job.
+	agentJobSection := extractJobSection(lockContentStr, "agent")
+	genericCountInAgent := strings.Count(agentJobSection, "name: Generate GitHub App token\n")
+	if genericCountInAgent > 1 {
+		t.Errorf("Found %d generic 'Generate GitHub App token' steps in the agent job; checkout steps must use unique names to avoid duplicates", genericCountInAgent)
 	}
 
-	t.Logf("✓ No duplicate token steps: checkout (0) count=%d, checkout (1) count=%d, generic=%d", count0, count1, genericCount)
+	t.Logf("✓ No duplicate token steps: checkout (0) count=%d, checkout (1) count=%d, generic in agent=%d", count0, count1, genericCountInAgent)
 }

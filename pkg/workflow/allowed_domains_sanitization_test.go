@@ -702,23 +702,31 @@ Test workflow with GITHUB_COPILOT_BASE_URL in engine.env.
 	}
 	lockStr := string(lockContent)
 
-	// --copilot-api-target should be derived from the env var
-	if !strings.Contains(lockStr, "--copilot-api-target copilot-proxy.corp.example.com") {
-		t.Error("Expected --copilot-api-target to be derived from GITHUB_COPILOT_BASE_URL")
+	// The copilot API target should be derived from the env var and present in the
+	// AWF JSON config (apiProxy.targets.copilot.host) rather than as a --copilot-api-target
+	// CLI flag, since network/proxy settings are now expressed via --config JSON file.
+	if !strings.Contains(lockStr, `"copilot":{"host":"copilot-proxy.corp.example.com"}`) {
+		t.Error("Expected copilot API target to be derived from GITHUB_COPILOT_BASE_URL in AWF config JSON")
 	}
 
-	// Extracted hostname should appear in --allow-domains
-	allowDomainsIdx := strings.Index(lockStr, "--allow-domains")
+	// Extracted hostname should appear in the allowDomains list inside the AWF JSON config.
+	// The AWF JSON config embeds the allowDomains array as a comma-separated list.
+	// We search for the allowDomains key followed by its opening "[" and verify the hostname
+	// appears before the closing "]" of that specific array.
+	allowDomainsPrefix := `"allowDomains":[`
+	allowDomainsIdx := strings.Index(lockStr, allowDomainsPrefix)
 	if allowDomainsIdx < 0 {
-		t.Fatal("--allow-domains flag not found in compiled lock file")
+		t.Fatal("allowDomains key not found in compiled lock file")
 	}
-	allowDomainsEnd := strings.Index(lockStr[allowDomainsIdx:], "\n")
+	// Start searching for "]" from after the opening "[".
+	arrayStart := allowDomainsIdx + len(allowDomainsPrefix)
+	allowDomainsEnd := strings.Index(lockStr[arrayStart:], "]")
 	if allowDomainsEnd < 0 {
-		allowDomainsEnd = len(lockStr) - allowDomainsIdx
+		allowDomainsEnd = len(lockStr) - arrayStart
 	}
-	allowDomainsLine := lockStr[allowDomainsIdx : allowDomainsIdx+allowDomainsEnd]
-	if !strings.Contains(allowDomainsLine, "copilot-proxy.corp.example.com") {
-		t.Errorf("Expected hostname from GITHUB_COPILOT_BASE_URL in --allow-domains.\nLine: %s", allowDomainsLine)
+	allowDomainsSection := lockStr[arrayStart : arrayStart+allowDomainsEnd]
+	if !strings.Contains(allowDomainsSection, "copilot-proxy.corp.example.com") {
+		t.Errorf("Expected hostname from GITHUB_COPILOT_BASE_URL in allowDomains.\nSection: %s", allowDomainsSection)
 	}
 
 	// Extracted hostname should appear in GH_AW_ALLOWED_DOMAINS
