@@ -240,6 +240,8 @@ func (c *Compiler) parseThreatDetectionObjectConfig(configMap map[string]any) *T
 // extractRawExpression strips the "${{" prefix and "}}" suffix from a GitHub Actions
 // expression string (e.g. "${{ inputs.flag }}" → "inputs.flag"). The result can be
 // embedded directly into a YAML if: condition expression tree.
+// Callers must ensure the input is a valid expression (verified by isExpression()) before
+// calling this function; non-expression strings are returned with no modification.
 func extractRawExpression(expr string) string {
 	s := strings.TrimPrefix(expr, "${{")
 	s = strings.TrimSuffix(s, "}}")
@@ -463,14 +465,14 @@ func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
 	// blocking safe_outputs due to an unanticipated runtime error in the parse step.
 	// In strict mode (continue-on-error: false), we intentionally leave this off so that
 	// a parse failure in strict mode keeps the detection job result as failure.
-	// When the value is an expression, default to true (permissive) at compile time.
-	if continueOnError || continueOnErrorExpr != nil {
-		if continueOnErrorExpr != nil {
-			// Expression form: GitHub Actions evaluates this at runtime.
-			steps = append(steps, fmt.Sprintf("        continue-on-error: %s\n", *continueOnErrorExpr))
-		} else {
-			steps = append(steps, "        continue-on-error: true\n")
-		}
+	// When the value is an expression, emit it unquoted; when the value is a literal, only
+	// emit if true (permissive default). In either expression or literal-true case the step
+	// is included, so the two paths are distinct.
+	if continueOnErrorExpr != nil {
+		// Expression form: GitHub Actions evaluates this at runtime.
+		steps = append(steps, fmt.Sprintf("        continue-on-error: %s\n", *continueOnErrorExpr))
+	} else if continueOnError {
+		steps = append(steps, "        continue-on-error: true\n")
 	}
 
 	// Build the GH_AW_DETECTION_CONTINUE_ON_ERROR env var.
