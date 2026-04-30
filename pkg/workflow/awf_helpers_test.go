@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestExtractAPITargetHost tests the extractAPITargetHost function that extracts
@@ -127,10 +128,12 @@ func TestExtractAPITargetHost(t *testing.T) {
 	}
 }
 
-// TestAWFCustomAPITargetFlags tests that BuildAWFArgs includes custom API target flags
-// when OPENAI_BASE_URL or ANTHROPIC_BASE_URL are configured in engine.env
+// TestAWFCustomAPITargetFlags tests that BuildAWFConfigJSON includes custom API targets
+// when OPENAI_BASE_URL or ANTHROPIC_BASE_URL are configured in engine.env.
+// With config file support (default AWF version), API targets move to the JSON config
+// rather than being emitted as --*-api-target CLI flags.
 func TestAWFCustomAPITargetFlags(t *testing.T) {
-	t.Run("includes openai-api-target flag when OPENAI_BASE_URL is configured", func(t *testing.T) {
+	t.Run("includes openai target in config JSON when OPENAI_BASE_URL is configured", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -153,14 +156,19 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 			AllowedDomains: "github.com",
 		}
 
+		// API targets are in the JSON config file, not in CLI args
+		awfConfigJSON, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
+		assert.Contains(t, awfConfigJSON, `"openai"`, "Should include openai target in config JSON")
+		assert.Contains(t, awfConfigJSON, "llm-router.internal.example.com", "Should include custom hostname in config JSON")
+
+		// --openai-api-target should NOT appear as a CLI flag
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
-
-		assert.Contains(t, argsStr, "--openai-api-target", "Should include --openai-api-target flag")
-		assert.Contains(t, argsStr, "llm-router.internal.example.com", "Should include custom hostname")
+		assert.NotContains(t, argsStr, "--openai-api-target", "Should not emit --openai-api-target as CLI flag when config file is used")
 	})
 
-	t.Run("includes anthropic-api-target flag when ANTHROPIC_BASE_URL is configured", func(t *testing.T) {
+	t.Run("includes anthropic target in config JSON when ANTHROPIC_BASE_URL is configured", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -183,14 +191,17 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 			AllowedDomains: "github.com",
 		}
 
+		awfConfigJSON, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
+		assert.Contains(t, awfConfigJSON, `"anthropic"`, "Should include anthropic target in config JSON")
+		assert.Contains(t, awfConfigJSON, "claude-proxy.internal.company.com", "Should include custom hostname in config JSON")
+
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
-
-		assert.Contains(t, argsStr, "--anthropic-api-target", "Should include --anthropic-api-target flag")
-		assert.Contains(t, argsStr, "claude-proxy.internal.company.com", "Should include custom hostname")
+		assert.NotContains(t, argsStr, "--anthropic-api-target", "Should not emit --anthropic-api-target as CLI flag when config file is used")
 	})
 
-	t.Run("does not include api-target flags when using default URLs", func(t *testing.T) {
+	t.Run("does not include api targets in config JSON when using default URLs", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -210,14 +221,18 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 			AllowedDomains: "github.com",
 		}
 
+		awfConfigJSON, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
+		assert.NotContains(t, awfConfigJSON, `"openai"`, "Should not include openai target when not configured")
+		assert.NotContains(t, awfConfigJSON, `"anthropic"`, "Should not include anthropic target when not configured")
+
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
-
 		assert.NotContains(t, argsStr, "--openai-api-target", "Should not include --openai-api-target when not configured")
 		assert.NotContains(t, argsStr, "--anthropic-api-target", "Should not include --anthropic-api-target when not configured")
 	})
 
-	t.Run("includes both api-target flags when both are configured", func(t *testing.T) {
+	t.Run("includes both api targets in config JSON when both are configured", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -240,13 +255,18 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 			AllowedDomains: "github.com",
 		}
 
+		awfConfigJSON, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
+		assert.Contains(t, awfConfigJSON, `"openai"`, "Should include openai target")
+		assert.Contains(t, awfConfigJSON, "openai-proxy.company.com", "Should include OpenAI custom hostname")
+		assert.Contains(t, awfConfigJSON, `"anthropic"`, "Should include anthropic target")
+		assert.Contains(t, awfConfigJSON, "anthropic-proxy.company.com", "Should include Anthropic custom hostname")
+
+		// API targets should not appear as CLI flags
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
-
-		assert.Contains(t, argsStr, "--openai-api-target", "Should include --openai-api-target flag")
-		assert.Contains(t, argsStr, "openai-proxy.company.com", "Should include OpenAI custom hostname")
-		assert.Contains(t, argsStr, "--anthropic-api-target", "Should include --anthropic-api-target flag")
-		assert.Contains(t, argsStr, "anthropic-proxy.company.com", "Should include Anthropic custom hostname")
+		assert.NotContains(t, argsStr, "--openai-api-target", "Should not emit --openai-api-target as CLI flag")
+		assert.NotContains(t, argsStr, "--anthropic-api-target", "Should not emit --anthropic-api-target as CLI flag")
 	})
 }
 
@@ -307,7 +327,9 @@ func TestExtractAPIBasePath(t *testing.T) {
 }
 
 // TestAWFBasePathFlags tests that BuildAWFArgs includes --openai-api-base-path and
-// --anthropic-api-base-path when the configured URLs contain a path component
+// --anthropic-api-base-path when the configured URLs contain a path component.
+// Note: API targets (hosts) move to the JSON config file, while base paths remain
+// as CLI flags — they are not yet represented in the AWF config file schema.
 func TestAWFBasePathFlags(t *testing.T) {
 	t.Run("includes openai-api-base-path when OPENAI_BASE_URL has path component", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -333,9 +355,15 @@ func TestAWFBasePathFlags(t *testing.T) {
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		assert.Contains(t, argsStr, "--openai-api-target", "Should include --openai-api-target flag")
+		// Base path is still a CLI flag (not in config file schema yet)
 		assert.Contains(t, argsStr, "--openai-api-base-path", "Should include --openai-api-base-path flag")
 		assert.Contains(t, argsStr, "/serving-endpoints", "Should include the path component")
+
+		// API target (host) is now in the config JSON
+		assert.NotContains(t, argsStr, "--openai-api-target", "API target should be in config JSON, not CLI args")
+		awfConfigJSON, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
+		assert.Contains(t, awfConfigJSON, "stone-dataplatform.cloud.databricks.com", "Target host should be in config JSON")
 	})
 
 	t.Run("includes anthropic-api-base-path when ANTHROPIC_BASE_URL has path component", func(t *testing.T) {
@@ -362,9 +390,15 @@ func TestAWFBasePathFlags(t *testing.T) {
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		assert.Contains(t, argsStr, "--anthropic-api-target", "Should include --anthropic-api-target flag")
+		// Base path is still a CLI flag
 		assert.Contains(t, argsStr, "--anthropic-api-base-path", "Should include --anthropic-api-base-path flag")
 		assert.Contains(t, argsStr, "/anthropic/v1", "Should include the path component")
+
+		// API target (host) is now in the config JSON
+		assert.NotContains(t, argsStr, "--anthropic-api-target", "API target should be in config JSON, not CLI args")
+		awfConfigJSON, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
+		assert.Contains(t, awfConfigJSON, "proxy.company.com", "Target host should be in config JSON")
 	})
 
 	t.Run("does not include base-path flags when URLs have no path", func(t *testing.T) {
@@ -652,9 +686,10 @@ func TestBuildAWFArgsMemoryLimit(t *testing.T) {
 }
 
 // TestEngineExecutionWithCustomAPITarget tests that engine execution steps include
-// custom API target flags when configured in engine.env
+// custom API targets when configured in engine.env.
+// With config file support (default AWF version), API targets are in the JSON config.
 func TestEngineExecutionWithCustomAPITarget(t *testing.T) {
-	t.Run("Codex engine includes openai-api-target flag when OPENAI_BASE_URL is configured", func(t *testing.T) {
+	t.Run("Codex engine includes openai target in config JSON when OPENAI_BASE_URL is configured", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -678,11 +713,13 @@ func TestEngineExecutionWithCustomAPITarget(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		assert.Contains(t, stepContent, "--openai-api-target", "Should include --openai-api-target flag")
-		assert.Contains(t, stepContent, "llm-router.internal.example.com", "Should include custom hostname")
+		// API target is in the JSON config (in the printf command), not as a CLI flag
+		assert.Contains(t, stepContent, `"openai"`, "Should include openai target in config JSON")
+		assert.Contains(t, stepContent, "llm-router.internal.example.com", "Should include custom hostname in config JSON")
+		assert.NotContains(t, stepContent, "--openai-api-target", "Should not emit --openai-api-target as CLI flag")
 	})
 
-	t.Run("Claude engine includes anthropic-api-target flag when ANTHROPIC_BASE_URL is configured", func(t *testing.T) {
+	t.Run("Claude engine includes anthropic target in config JSON when ANTHROPIC_BASE_URL is configured", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -706,8 +743,10 @@ func TestEngineExecutionWithCustomAPITarget(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		assert.Contains(t, stepContent, "--anthropic-api-target", "Should include --anthropic-api-target flag")
-		assert.Contains(t, stepContent, "claude-proxy.internal.company.com", "Should include custom hostname")
+		// API target is in the JSON config (in the printf command), not as a CLI flag
+		assert.Contains(t, stepContent, `"anthropic"`, "Should include anthropic target in config JSON")
+		assert.Contains(t, stepContent, "claude-proxy.internal.company.com", "Should include custom hostname in config JSON")
+		assert.NotContains(t, stepContent, "--anthropic-api-target", "Should not emit --anthropic-api-target as CLI flag")
 	})
 }
 
@@ -781,7 +820,8 @@ func TestGetCopilotAPITarget(t *testing.T) {
 }
 
 // TestCopilotEngineIncludesCopilotAPITargetFromEnvVar tests that the Copilot engine execution
-// step includes --copilot-api-target when GITHUB_COPILOT_BASE_URL is configured in engine.env.
+// step includes the copilot API target in the JSON config when GITHUB_COPILOT_BASE_URL is
+// configured in engine.env.
 func TestCopilotEngineIncludesCopilotAPITargetFromEnvVar(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -805,8 +845,10 @@ func TestCopilotEngineIncludesCopilotAPITargetFromEnvVar(t *testing.T) {
 
 	stepContent := strings.Join(steps[0], "\n")
 
-	assert.Contains(t, stepContent, "--copilot-api-target", "Should include --copilot-api-target flag")
-	assert.Contains(t, stepContent, "copilot-api.contoso-aw.ghe.com", "Should include custom Copilot hostname")
+	// With config file support, Copilot API target is in the JSON config (not as CLI flag)
+	assert.Contains(t, stepContent, `"copilot"`, "Should include copilot target in config JSON")
+	assert.Contains(t, stepContent, "copilot-api.contoso-aw.ghe.com", "Should include custom Copilot hostname in config JSON")
+	assert.NotContains(t, stepContent, "--copilot-api-target", "Should not emit --copilot-api-target as CLI flag")
 }
 
 // TestAWFSupportsExcludeEnv verifies that --exclude-env is only enabled for AWF v0.25.3+.
@@ -1202,10 +1244,10 @@ func TestGetGeminiAPITarget(t *testing.T) {
 	}
 }
 
-// TestAWFGeminiAPITargetFlags tests that BuildAWFArgs includes --gemini-api-target flag
-// for the Gemini engine with default and custom endpoints.
+// TestAWFGeminiAPITargetFlags tests that BuildAWFConfigJSON includes --gemini target
+// for the Gemini engine with default and custom endpoints, while base paths remain CLI flags.
 func TestAWFGeminiAPITargetFlags(t *testing.T) {
-	t.Run("includes default gemini-api-target flag for gemini engine", func(t *testing.T) {
+	t.Run("includes default gemini target in config JSON for gemini engine", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -1224,14 +1266,18 @@ func TestAWFGeminiAPITargetFlags(t *testing.T) {
 			AllowedDomains: "github.com",
 		}
 
+		// Gemini target is in the JSON config, not in CLI args
+		awfConfigJSON, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
+		assert.Contains(t, awfConfigJSON, `"gemini"`, "Should include gemini target in config JSON")
+		assert.Contains(t, awfConfigJSON, "generativelanguage.googleapis.com", "Should include default Gemini API hostname")
+
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
-
-		assert.Contains(t, argsStr, "--gemini-api-target", "Should include --gemini-api-target flag")
-		assert.Contains(t, argsStr, "generativelanguage.googleapis.com", "Should include default Gemini API hostname")
+		assert.NotContains(t, argsStr, "--gemini-api-target", "Should not emit --gemini-api-target as CLI flag")
 	})
 
-	t.Run("includes custom gemini-api-target flag when GEMINI_API_BASE_URL is configured", func(t *testing.T) {
+	t.Run("includes custom gemini target in config JSON when GEMINI_API_BASE_URL is configured", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -1254,14 +1300,17 @@ func TestAWFGeminiAPITargetFlags(t *testing.T) {
 			AllowedDomains: "github.com",
 		}
 
+		awfConfigJSON, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
+		assert.Contains(t, awfConfigJSON, `"gemini"`, "Should include gemini target in config JSON")
+		assert.Contains(t, awfConfigJSON, "gemini-proxy.internal.company.com", "Should include custom Gemini hostname")
+
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
-
-		assert.Contains(t, argsStr, "--gemini-api-target", "Should include --gemini-api-target flag")
-		assert.Contains(t, argsStr, "gemini-proxy.internal.company.com", "Should include custom Gemini hostname")
+		assert.NotContains(t, argsStr, "--gemini-api-target", "Should not emit --gemini-api-target as CLI flag")
 	})
 
-	t.Run("does not include gemini-api-target for non-gemini engine without custom URL", func(t *testing.T) {
+	t.Run("does not include gemini target for non-gemini engine without custom URL", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -1280,9 +1329,12 @@ func TestAWFGeminiAPITargetFlags(t *testing.T) {
 			AllowedDomains: "github.com",
 		}
 
+		awfConfigJSON, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
+		assert.NotContains(t, awfConfigJSON, `"gemini"`, "Should not include gemini target for non-gemini engine")
+
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
-
 		assert.NotContains(t, argsStr, "--gemini-api-target", "Should not include --gemini-api-target for non-gemini engine")
 	})
 
@@ -1312,13 +1364,14 @@ func TestAWFGeminiAPITargetFlags(t *testing.T) {
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
+		// Base path remains as a CLI flag (not in config file schema yet)
 		assert.Contains(t, argsStr, "--gemini-api-base-path", "Should include --gemini-api-base-path flag")
 		assert.Contains(t, argsStr, "/serving-endpoints", "Should include the path component")
 	})
 }
 
 // TestGeminiEngineIncludesGeminiAPITarget tests that the Gemini engine execution
-// step includes --gemini-api-target when firewall is enabled.
+// step includes the gemini API target in the JSON config when firewall is enabled.
 func TestGeminiEngineIncludesGeminiAPITarget(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -1342,8 +1395,10 @@ func TestGeminiEngineIncludesGeminiAPITarget(t *testing.T) {
 	// steps[0] = Write Gemini Config, steps[1] = Execute Gemini CLI
 	stepContent := strings.Join(steps[1], "\n")
 
-	assert.Contains(t, stepContent, "--gemini-api-target", "Should include --gemini-api-target flag")
+	// With config file support, Gemini target is in the JSON config (not as CLI flag)
+	assert.Contains(t, stepContent, `"gemini"`, "Should include gemini target in config JSON")
 	assert.Contains(t, stepContent, "generativelanguage.googleapis.com", "Should include default Gemini API hostname")
+	assert.NotContains(t, stepContent, "--gemini-api-target", "Should not emit --gemini-api-target as CLI flag")
 }
 
 func TestBuildAWFImageTagWithDigests(t *testing.T) {
@@ -1375,18 +1430,17 @@ func TestBuildAWFArgs_ImageTagIncludesDigests(t *testing.T) {
 		},
 	}
 
+	// When the AWF version supports --config (default), --image-tag moves to the JSON config file.
+	// Verify the config file JSON contains the image tag with digest metadata.
+	awfConfigJSON, err := BuildAWFConfigJSON(config)
+	require.NoError(t, err, "BuildAWFConfigJSON should not error")
+	assert.Contains(t, awfConfigJSON, "imageTag", "expected imageTag in AWF config JSON")
+	assert.Contains(t, awfConfigJSON, "squid=sha256:", "expected squid digest metadata in AWF config JSON")
+	assert.Contains(t, awfConfigJSON, "agent=sha256:", "expected agent digest metadata in AWF config JSON")
+	assert.Contains(t, awfConfigJSON, "api-proxy=sha256:", "expected api-proxy digest metadata in AWF config JSON")
+
+	// --image-tag should NOT appear in the CLI args (it's in the config file).
 	args := BuildAWFArgs(config)
-
-	imageTagValue := ""
-	for i := range len(args) - 1 {
-		if args[i] == "--image-tag" {
-			imageTagValue = args[i+1]
-			break
-		}
-	}
-
-	assert.NotEmpty(t, imageTagValue, "expected --image-tag argument")
-	assert.Contains(t, imageTagValue, "squid=sha256:", "expected digest metadata in --image-tag")
-	assert.Contains(t, imageTagValue, "agent=sha256:", "expected digest metadata in --image-tag")
-	assert.Contains(t, imageTagValue, "api-proxy=sha256:", "expected digest metadata in --image-tag")
+	argsStr := strings.Join(args, " ")
+	assert.NotContains(t, argsStr, "--image-tag", "expected --image-tag to be absent from CLI args when config file is used")
 }

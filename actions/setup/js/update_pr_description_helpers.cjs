@@ -7,7 +7,7 @@
  * @module update_pr_description_helpers
  */
 
-const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
@@ -28,7 +28,7 @@ function buildAIFooter(workflowName, runUrl, historyUrl) {
   const triggeringIssueNumber = ctx?.payload?.issue?.number;
   const triggeringPRNumber = ctx?.payload?.pull_request?.number;
   const triggeringDiscussionNumber = ctx?.payload?.discussion?.number;
-  return generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl || undefined).trimEnd();
+  return generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl || undefined, { skipDetectionCaution: true }).trimEnd();
 }
 
 /**
@@ -96,10 +96,14 @@ function updateBody(params) {
   // Sanitize new content to prevent injection attacks
   const sanitizedNewContent = sanitizeContent(newContent);
 
+  // Inject CAUTION at top of new content if threat detection warning was raised
+  const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+  const contentWithCaution = detectionCaution ? detectionCaution + "\n\n" + sanitizedNewContent : sanitizedNewContent;
+
   if (operation === "replace") {
     // Replace: use new content with optional AI footer
     core.info("Operation: replace (full body replacement)");
-    return sanitizedNewContent + aiFooter + workflowIdMarker;
+    return contentWithCaution + aiFooter + workflowIdMarker;
   }
 
   if (operation === "replace-island") {
@@ -111,7 +115,7 @@ function updateBody(params) {
       core.info(`Operation: replace-island (updating existing island for workflow ${workflowId})`);
       const startMarker = buildIslandStartMarker(workflowId);
       const endMarker = buildIslandEndMarker(workflowId);
-      const islandContent = `${startMarker}\n${sanitizedNewContent}${aiFooter}${workflowIdMarker}\n${endMarker}`;
+      const islandContent = `${startMarker}\n${contentWithCaution}${aiFooter}${workflowIdMarker}\n${endMarker}`;
 
       const before = currentBody.substring(0, island.startIndex);
       const after = currentBody.substring(island.endIndex);
@@ -121,7 +125,7 @@ function updateBody(params) {
       core.info(`Operation: replace-island (island not found for workflow ${workflowId}, falling back to append)`);
       const startMarker = buildIslandStartMarker(workflowId);
       const endMarker = buildIslandEndMarker(workflowId);
-      const islandContent = `${startMarker}\n${sanitizedNewContent}${aiFooter}${workflowIdMarker}\n${endMarker}`;
+      const islandContent = `${startMarker}\n${contentWithCaution}${aiFooter}${workflowIdMarker}\n${endMarker}`;
       const appendSection = `\n\n---\n\n${islandContent}`;
       return currentBody + appendSection;
     }
@@ -130,13 +134,13 @@ function updateBody(params) {
   if (operation === "prepend") {
     // Prepend: add content, AI footer (if enabled), and horizontal line at the start
     core.info("Operation: prepend (add to start with separator)");
-    const prependSection = `${sanitizedNewContent}${aiFooter}${workflowIdMarker}\n\n---\n\n`;
+    const prependSection = `${contentWithCaution}${aiFooter}${workflowIdMarker}\n\n---\n\n`;
     return prependSection + currentBody;
   }
 
   // Default to append
   core.info("Operation: append (add to end with separator)");
-  const appendSection = `\n\n---\n\n${sanitizedNewContent}${aiFooter}${workflowIdMarker}`;
+  const appendSection = `\n\n---\n\n${contentWithCaution}${aiFooter}${workflowIdMarker}`;
   return currentBody + appendSection;
 }
 

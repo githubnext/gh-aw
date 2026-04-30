@@ -103,10 +103,8 @@ This is a test workflow for MCP configuration.
 				if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"`) {
 					t.Errorf("Expected GITHUB_PERSONAL_ACCESS_TOKEN to use shell variable but didn't find it in:\n%s", lockContent)
 				}
-				// Should NOT contain HTTP configuration
-				if strings.Contains(lockContent, `"type": "http"`) {
-					t.Errorf("Expected no HTTP configuration but found it in:\n%s", lockContent)
-				}
+				// NOTE: We do not check for absence of "type": "http" here because the safe-outputs
+				// MCP server also uses HTTP transport, causing false positives on whole-file scans.
 				// Should NOT contain services configuration
 				if strings.Contains(lockContent, `services:`) {
 					t.Errorf("Expected no services configuration but found it in:\n%s", lockContent)

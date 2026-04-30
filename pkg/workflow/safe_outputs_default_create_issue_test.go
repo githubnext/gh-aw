@@ -4,6 +4,8 @@ package workflow
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -137,10 +139,13 @@ func TestAutoInjectCreateIssue(t *testing.T) {
 		expectedAutoInjected bool
 	}{
 		{
-			name:            "nil safe-outputs - no injection",
-			workflowID:      "my-workflow",
-			safeOutputs:     nil,
-			expectInjection: false,
+			name:                 "nil safe-outputs - inject create-issue",
+			workflowID:           "my-workflow",
+			safeOutputs:          nil,
+			expectInjection:      true,
+			expectedLabel:        "my-workflow",
+			expectedTitlePrefix:  "[my-workflow]",
+			expectedAutoInjected: true,
 		},
 		{
 			name:       "only builtins configured - inject create-issue",
@@ -282,4 +287,151 @@ func TestAutoInjectCreateIssueWithVariousWorkflowIDs(t *testing.T) {
 				"Title prefix should be [workflowID]")
 		})
 	}
+}
+
+// TestAutoInjectCreateIssueWithImportedNonBuiltin verifies that when a workflow imports a shared
+// file that already provides a non-builtin safe output (e.g. add-comment), create-issue is NOT
+// auto-injected. The imported non-builtin is treated the same as an explicitly configured one.
+func TestAutoInjectCreateIssueWithImportedNonBuiltin(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Shared workflow provides a non-builtin safe output (add-comment)
+	sharedContent := `---
+safe-outputs:
+  add-comment:
+    target: "triggering"
+---
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "shared.md"), []byte(sharedContent), 0644))
+
+	// Main workflow has NO safe-outputs: section — non-builtin comes entirely from import
+	mainContent := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared.md
+---
+
+# Workflow relying on imported safe outputs
+`
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0644))
+
+	workflowData, err := compiler.ParseWorkflowFile(mainFile)
+	require.NoError(t, err, "ParseWorkflowFile should not error")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// Non-builtin from import: add-comment should be present
+	require.NotNil(t, workflowData.SafeOutputs.AddComments, "AddComments should be imported")
+
+	// Auto-injection must NOT happen because import already provides a non-builtin
+	assert.Nil(t, workflowData.SafeOutputs.CreateIssues,
+		"create-issue should NOT be auto-injected when a non-builtin is already imported")
+	assert.False(t, workflowData.SafeOutputs.AutoInjectedCreateIssue,
+		"AutoInjectedCreateIssue should be false when non-builtin is imported")
+}
+
+// TestAutoInjectCreateIssueWithImportedCreateIssue verifies that when a workflow imports a shared
+// file that explicitly configures create-issue, the imported config is preserved unchanged and
+// auto-injection does NOT overwrite it.
+func TestAutoInjectCreateIssueWithImportedCreateIssue(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Shared workflow provides create-issue with a specific title prefix and labels.
+	// Note: max must be an integer (not a quoted string) to pass schema validation.
+	sharedContent := `---
+safe-outputs:
+  create-issue:
+    title-prefix: "[imported] "
+    labels: [imported-label]
+    max: 3
+---
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "shared.md"), []byte(sharedContent), 0644))
+
+	// Main workflow has NO safe-outputs section — create-issue comes from import
+	mainContent := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared.md
+---
+
+# Workflow using imported create-issue
+`
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0644))
+
+	workflowData, err := compiler.ParseWorkflowFile(mainFile)
+	require.NoError(t, err, "ParseWorkflowFile should not error")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.CreateIssues, "CreateIssues should be imported")
+
+	// Imported config must be preserved — auto-injection must not overwrite it
+	assert.Equal(t, "[imported] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix,
+		"Imported title-prefix must not be overwritten by auto-injection")
+	assert.Equal(t, []string{"imported-label"}, workflowData.SafeOutputs.CreateIssues.Labels,
+		"Imported labels must not be overwritten by auto-injection")
+	assert.Equal(t, "3", *workflowData.SafeOutputs.CreateIssues.Max,
+		"Imported max must not be overwritten by auto-injection")
+	assert.False(t, workflowData.SafeOutputs.AutoInjectedCreateIssue,
+		"AutoInjectedCreateIssue should be false when create-issue comes from import")
+}
+
+// TestAutoInjectCreateIssueWithImportedBuiltinsOnly verifies that when a workflow imports ONLY
+// builtin safe outputs (noop, missing-tool, missing-data), create-issue is still auto-injected
+// because builtins alone do not constitute a meaningful non-builtin output.
+func TestAutoInjectCreateIssueWithImportedBuiltinsOnly(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Shared workflow provides ONLY builtin safe outputs (using explicit empty maps)
+	sharedContent := `---
+safe-outputs:
+  noop:
+    max: 1
+  missing-tool: {}
+  missing-data: {}
+---
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "shared.md"), []byte(sharedContent), 0644))
+
+	// Main workflow has NO safe-outputs section
+	mainContent := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared.md
+---
+
+# Workflow importing only builtins
+`
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0644))
+
+	workflowData, err := compiler.ParseWorkflowFile(mainFile)
+	require.NoError(t, err, "ParseWorkflowFile should not error")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// create-issue must be auto-injected since only builtins are imported
+	require.NotNil(t, workflowData.SafeOutputs.CreateIssues,
+		"create-issue should be auto-injected when only builtins are imported")
+	assert.True(t, workflowData.SafeOutputs.AutoInjectedCreateIssue,
+		"AutoInjectedCreateIssue should be true when auto-injected")
+	assert.Equal(t, "main", workflowData.SafeOutputs.CreateIssues.Labels[0],
+		"Label should be the workflow ID (basename without extension)")
 }

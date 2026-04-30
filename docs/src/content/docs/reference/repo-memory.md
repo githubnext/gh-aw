@@ -64,7 +64,13 @@ Mounts at `/tmp/gh-aw/repo-memory-{id}/` during workflow execution. Required `id
 
 ## Behavior
 
-Branches auto-create as orphans (default) or clone with `--depth 1`. Changes auto-commit after validation (`file-glob`, `max-file-size`, `max-file-count`), pull with `-X ours` (your changes win), and push when changes detected and threat detection passes.
+Branches auto-create as orphans (default) or clone with `--depth 1`. Changes auto-commit after validation (`file-glob`, `max-file-size`, `max-file-count`) and push when changes detected and threat detection passes.
+
+Commits are pushed via the [GitHub GraphQL `createCommitOnBranch` mutation](https://docs.github.com/en/graphql/reference/mutations#createcommitonbranch), which signs each commit with GitHub's GPG key. This means repo-memory pushes are automatically **Verified** and satisfy repository rulesets that require signed commits (e.g. enterprise "Commits must have verified signatures" baselines).
+
+:::note[Signed-commit fallback limitation]
+The GraphQL mutation does not support symlinks, executable files (`chmod +x`), or submodule entries. If your memory artifact contains any of these, the helper falls back to a plain `git push`, which will be rejected by signed-commit rulesets. Keep memory artifacts as regular plain-text files (`.json`, `.jsonl`, `.txt`, `.md`, `.csv` — the default `allowed-extensions`).
+:::
 
 ## Comparison with Cache Memory
 
@@ -85,7 +91,8 @@ For fast 7-day caching without version control, see [Cache Memory](/gh-aw/refere
 - **Validation failures**: Match `file-glob`, stay under `max-file-size` (10KB default), `max-file-count` (100 default), and `max-patch-size` (10KB default).
 - **Patch too large**: If the total diff exceeds `max-patch-size` (default 10KB), the push is rejected. Reduce the number or size of changes, or increase `max-patch-size` in the configuration.
 - **Changes not persisting**: Check directory path, workflow completion, push errors in logs.
-- **Merge conflicts**: Uses `-X ours` (your changes win). Read before writing to preserve data.
+- **Merge conflicts**: Concurrent pushes are handled: if another run has pushed since the branch was checked out, the GraphQL mutation replays your file diff on top of the latest remote state (your changes win).
+- **GH013 — Commits must have verified signatures**: Repo-memory uses GraphQL signed commits, so this error should not appear for standard plain-text memory files. If it does, your artifact contains a symlink, executable file, or submodule entry that forced a fallback to `git push`. Remove the unsupported file type and re-run.
 
 ## Security
 

@@ -3307,3 +3307,109 @@ func TestBuildCustomJobsAllNewFieldsViaWorkflowData(t *testing.T) {
 		}
 	}
 }
+
+// TestPushRepoMemoryJobConditionalDetection verifies that push_repo_memory already uses
+// always() and buildDetectionPassedCondition() (accepting 'success' or 'skipped') when
+// detection is expression-controlled, so the job still runs when detection is skipped at runtime.
+func TestPushRepoMemoryJobConditionalDetection(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	expr := "${{ inputs.enable-threat-detection }}"
+	data := &WorkflowData{
+		Name:   "Test Workflow",
+		AI:     "copilot",
+		RunsOn: "runs-on: ubuntu-latest",
+		RepoMemoryConfig: &RepoMemoryConfig{
+			Memories: []RepoMemoryEntry{
+				{ID: "default"},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{TitlePrefix: "[bot] "},
+			ThreatDetection: &ThreatDetectionConfig{
+				EnabledExpr: &expr,
+			},
+		},
+	}
+
+	// When detection is conditional, IsDetectionJobEnabled returns true
+	threatDetectionEnabled := IsDetectionJobEnabled(data.SafeOutputs)
+	if !threatDetectionEnabled {
+		t.Fatal("IsDetectionJobEnabled should be true for conditional detection")
+	}
+
+	job, err := compiler.buildPushRepoMemoryJob(data, threatDetectionEnabled)
+	if err != nil {
+		t.Fatalf("buildPushRepoMemoryJob returned error: %v", err)
+	}
+	if job == nil {
+		t.Fatal("expected non-nil push_repo_memory job")
+	}
+
+	// Job condition must use always() so it runs even when detection is skipped at runtime
+	if !strings.Contains(job.If, "always()") {
+		t.Errorf("push_repo_memory if: %q should contain 'always()'", job.If)
+	}
+	// Job condition must accept detection being skipped
+	if !strings.Contains(job.If, "'skipped'") {
+		t.Errorf("push_repo_memory if: %q should accept 'skipped' detection result", job.If)
+	}
+	// Detection must be in Needs
+	if !slices.Contains(job.Needs, string(constants.DetectionJobName)) {
+		t.Errorf("push_repo_memory Needs %v should contain detection job", job.Needs)
+	}
+}
+
+// TestUpdateCacheMemoryJobConditionalDetection verifies that update_cache_memory already uses
+// always() and buildDetectionPassedCondition() (accepting 'success' or 'skipped') when
+// detection is expression-controlled, so the job still runs when detection is skipped at runtime.
+func TestUpdateCacheMemoryJobConditionalDetection(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	expr := "${{ inputs.enable-threat-detection }}"
+	data := &WorkflowData{
+		Name:   "Test Workflow",
+		AI:     "copilot",
+		RunsOn: "runs-on: ubuntu-latest",
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: []CacheMemoryEntry{
+				{ID: "default"},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{TitlePrefix: "[bot] "},
+			ThreatDetection: &ThreatDetectionConfig{
+				EnabledExpr: &expr,
+			},
+		},
+	}
+
+	// When detection is conditional, IsDetectionJobEnabled returns true
+	threatDetectionEnabled := IsDetectionJobEnabled(data.SafeOutputs)
+	if !threatDetectionEnabled {
+		t.Fatal("IsDetectionJobEnabled should be true for conditional detection")
+	}
+
+	job, err := compiler.buildUpdateCacheMemoryJob(data, threatDetectionEnabled)
+	if err != nil {
+		t.Fatalf("buildUpdateCacheMemoryJob returned error: %v", err)
+	}
+	if job == nil {
+		t.Fatal("expected non-nil update_cache_memory job")
+	}
+
+	// Job condition must use always() so it runs even when detection is skipped at runtime
+	if !strings.Contains(job.If, "always()") {
+		t.Errorf("update_cache_memory if: %q should contain 'always()'", job.If)
+	}
+	// Job condition must accept detection being skipped
+	if !strings.Contains(job.If, "'skipped'") {
+		t.Errorf("update_cache_memory if: %q should accept 'skipped' detection result", job.If)
+	}
+	// Detection must be in Needs
+	if !slices.Contains(job.Needs, string(constants.DetectionJobName)) {
+		t.Errorf("update_cache_memory Needs %v should contain detection job", job.Needs)
+	}
+}

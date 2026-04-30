@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.18.0  
+**Version**: 1.19.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-04-21  
+**Publication Date**: 2026-04-30  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -1010,12 +1010,26 @@ Configuration flows from author intent to runtime enforcement:
 **Authoring Layer**:
 
 ```yaml
-# Workflow .md file
+# Workflow .md file — explicit configuration
 safe-outputs:
   create-issue:
     max: 3
     allowed-labels: [bug, enhancement]
 ```
+
+When no `safe-outputs:` section is present, the compiler automatically injects a default `create-issue` configuration (implicit path):
+
+```yaml
+# Workflow .md file — no safe-outputs section
+# Compiler auto-injects:
+# safe-outputs:
+#   create-issue:
+#     max: 1
+#     labels: [<workflowID>]
+#     title-prefix: "[<workflowID>]"
+```
+
+This auto-injection is suppressed when any safe output type other than the system types (`noop`, `missing-tool`, `missing-data`) is explicitly configured.
 
 **Compilation Layer**:
 
@@ -2246,6 +2260,8 @@ safe-outputs:
 ---
 
 ### 7.2 System Types
+
+System types are always available in every workflow. The types `noop`, `missing-tool`, and `missing-data` are unconditionally enabled, while `create-issue` is conditionally auto-injected when no other safe output types are explicitly configured (see Section 4.3 for auto-injection rules).
 
 #### Type: noop
 
@@ -4884,6 +4900,13 @@ safe-outputs:
 ---
 
 ## Appendix F: Document History
+
+**Version 1.19.0** (2026-04-30):
+
+- **Added**: Auto-injection of `create-issue` when no `safe-outputs:` section is present (or when only system types are configured). The injected config uses `max: 1`, with labels and `title-prefix` set to the workflow ID. Injection is suppressed when any non-builtin safe output is explicitly configured.
+- **Updated**: Section 4.3 Configuration Propagation to document the implicit `create-issue` default path.
+- **Updated**: Section 7.2 System Types to document `create-issue` conditional auto-injection.
+- **Updated**: Publication metadata to 1.19.0
 
 **Version 1.18.0** (2026-04-21):
 

@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -53,8 +53,11 @@ function buildCommentBody(body, triggeringIssueNumber, triggeringPRNumber) {
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
   const runUrl = buildWorkflowRunUrl(context, context.repo);
 
+  // Inject CAUTION at top of body if threat detection warning was raised.
   // Caller is responsible for sanitizing body before passing it here.
-  return body.trim() + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
+  const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+  const bodyWithCaution = detectionCaution ? detectionCaution + "\n\n" + body.trim() : body.trim();
+  return bodyWithCaution + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined, undefined, { skipDetectionCaution: true });
 }
 
 /**

@@ -9,6 +9,9 @@ The [`safe-outputs:`](/gh-aw/reference/glossary/#safe-outputs) (validated GitHub
 
 Safe outputs enforce security through separation: agents run read-only and request actions via structured output, while separate permission-controlled jobs execute those requests. This provides least privilege, defense against prompt injection, auditability, and controlled limits per operation.
 
+> [!NOTE]
+> When no `safe-outputs:` section is present (or when only [system types](#system-types-auto-enabled) are configured), `create-issue` is automatically enabled with conservative defaults (`max: 1`, labels and title-prefix set to the workflow ID). To opt out, add an explicit `safe-outputs:` section with the outputs you want.
+
 Example:
 
 ```yaml wrap
@@ -74,6 +77,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**No-Op**](#no-op-logging-noop) (`noop`) - Log completion message for transparency (max: 1, same-repo only)
 - [**Missing Tool**](#missing-tool-reporting-missing-tool) (`missing-tool`) - Report missing tools (max: unlimited, same-repo only)
 - [**Missing Data**](#missing-data-reporting-missing-data) (`missing-data`) - Report missing data required to achieve goals (max: unlimited, same-repo only)
+- [**Create Issue**](#issue-creation-create-issue) (`create-issue`) - Auto-injected when no `safe-outputs:` section is present or when only system types (`noop`, `missing-tool`, `missing-data`) are configured (max: 1, labels and title-prefix set to workflow ID).
 
 ### Custom Safe Output Jobs (`jobs:`)
 

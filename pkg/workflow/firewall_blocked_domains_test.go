@@ -31,18 +31,18 @@ func TestFirewallBlockedDomainsInCopilotEngine(t *testing.T) {
 
 		stepContent := requireCopilotExecutionStep(t, steps)
 
-		// Verify --allow-domains is present
-		assert.Contains(t, stepContent, "--allow-domains", "Expected command to contain '--allow-domains'")
+		// With config file support, domains appear in the JSON config (not as CLI flags)
+		assert.Contains(t, stepContent, "allowDomains", "Expected command to contain 'allowDomains' in config JSON")
 
-		// Verify --block-domains is present
-		assert.Contains(t, stepContent, "--block-domains", "Expected command to contain '--block-domains'")
+		// Verify blockDomains is present in the JSON config
+		assert.Contains(t, stepContent, "blockDomains", "Expected command to contain 'blockDomains' in config JSON")
 
 		// Verify blocked domains are in the command
 		assert.Contains(t, stepContent, "analytics.example.com", "Expected command to contain blocked domain")
 		assert.Contains(t, stepContent, "tracker.example.com", "Expected command to contain blocked domain")
 	})
 
-	t.Run("no blocked domains means no --block-domains flag", func(t *testing.T) {
+	t.Run("no blocked domains means no blockDomains field in config JSON", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -61,11 +61,11 @@ func TestFirewallBlockedDomainsInCopilotEngine(t *testing.T) {
 
 		stepContent := requireCopilotExecutionStep(t, steps)
 
-		// Verify --allow-domains is present
-		assert.Contains(t, stepContent, "--allow-domains", "Expected command to contain '--allow-domains'")
+		// Verify allowDomains is present
+		assert.Contains(t, stepContent, "allowDomains", "Expected command to contain 'allowDomains' in config JSON")
 
-		// Verify --block-domains is NOT present when there are no blocked domains
-		assert.NotContains(t, stepContent, "--block-domains", "Expected command to NOT contain '--block-domains' when no domains are blocked")
+		// Verify blockDomains is NOT present when there are no blocked domains
+		assert.NotContains(t, stepContent, "blockDomains", "Expected command to NOT contain 'blockDomains' when no domains are blocked")
 	})
 
 	t.Run("ecosystem identifiers are expanded in blocked domains", func(t *testing.T) {
@@ -88,8 +88,8 @@ func TestFirewallBlockedDomainsInCopilotEngine(t *testing.T) {
 
 		stepContent := requireCopilotExecutionStep(t, steps)
 
-		// Verify --block-domains is present
-		assert.Contains(t, stepContent, "--block-domains", "Expected command to contain '--block-domains'")
+		// Verify blockDomains is present in the JSON config
+		assert.Contains(t, stepContent, "blockDomains", "Expected command to contain 'blockDomains' in config JSON")
 
 		// Verify that python ecosystem domains are expanded and included
 		// Get python domains to verify at least one is present
@@ -132,8 +132,8 @@ func TestFirewallBlockedDomainsInClaudeEngine(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		// Verify --block-domains is present
-		assert.Contains(t, stepContent, "--block-domains", "Expected command to contain '--block-domains'")
+		// Verify blockDomains is present in the JSON config
+		assert.Contains(t, stepContent, "blockDomains", "Expected command to contain 'blockDomains' in config JSON")
 		assert.Contains(t, stepContent, "tracker.example.com", "Expected command to contain blocked domain")
 	})
 }
@@ -162,8 +162,8 @@ func TestFirewallBlockedDomainsInCodexEngine(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		// Verify --block-domains is present
-		assert.Contains(t, stepContent, "--block-domains", "Expected command to contain '--block-domains'")
+		// Verify blockDomains is present in the JSON config
+		assert.Contains(t, stepContent, "blockDomains", "Expected command to contain 'blockDomains' in config JSON")
 		assert.Contains(t, stepContent, "tracker.example.com", "Expected command to contain blocked domain")
 	})
 }

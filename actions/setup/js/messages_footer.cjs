@@ -161,12 +161,6 @@ function getFooterWorkflowRecompileMessage(ctx) {
   // Use custom workflow recompile footer if configured, otherwise use default footer
   let footer = messages?.footerWorkflowRecompile ? renderTemplate(messages.footerWorkflowRecompile, templateContext) : renderTemplate(defaultFooter, templateContext);
 
-  // Prepend detection caution alert if detection job found a potential issue
-  const detectionCaution = getDetectionCautionAlert(ctx.workflowName, ctx.runUrl);
-  if (detectionCaution) {
-    footer = detectionCaution + "\n\n" + footer;
-  }
-
   return footer;
 }
 
@@ -192,12 +186,6 @@ function getFooterWorkflowRecompileCommentMessage(ctx) {
 
   // Use custom workflow recompile comment footer if configured, otherwise use default footer
   let footer = messages?.footerWorkflowRecompileComment ? renderTemplate(messages.footerWorkflowRecompileComment, templateContext) : renderTemplate(defaultFooter, templateContext);
-
-  // Prepend detection caution alert if detection job found a potential issue
-  const detectionCaution = getDetectionCautionAlert(ctx.workflowName, ctx.runUrl);
-  if (detectionCaution) {
-    footer = detectionCaution + "\n\n" + footer;
-  }
 
   return footer;
 }

@@ -9,7 +9,7 @@ const { resolveTarget, isStagedMode } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
-const { generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, getDetectionCautionAlert, generateXMLMarker } = require("./messages_footer.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
@@ -44,7 +44,12 @@ function buildManagedMemoryBody(rawBody, memoryID, options) {
   // Use code-fence-as-container so the memory content is visible in GitHub's rendered Markdown.
   // The language specifier encodes the memory ID: ``````gh-aw-comment-memory:<id>
   const codeFenceOpener = buildCodeFenceOpener(memoryID);
-  let body = `${MANAGED_COMMENT_HEADER}\n\n${codeFenceOpener}\n${sanitizeContent(rawBody)}\n${COMMENT_MEMORY_CODE_FENCE}`;
+
+  // Inject CAUTION at top of body if threat detection warning was raised
+  const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+  const cautionPrefix = detectionCaution ? detectionCaution + "\n\n" : "";
+
+  let body = `${cautionPrefix}${MANAGED_COMMENT_HEADER}\n\n${codeFenceOpener}\n${sanitizeContent(rawBody)}\n${COMMENT_MEMORY_CODE_FENCE}`;
 
   const tracker = getTrackerID("markdown");
   if (tracker) {
@@ -55,7 +60,7 @@ function buildManagedMemoryBody(rawBody, memoryID, options) {
     core.info(`comment_memory: footer enabled for memory_id='${memoryID}'`);
     const resolvedDisclosureNote = renderManagedCommentDisclosureNote();
     body += "\n\n" + resolvedDisclosureNote;
-    body += "\n\n" + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined, historyUrl).trimEnd();
+    body += "\n\n" + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined, historyUrl, { skipDetectionCaution: true }).trimEnd();
   } else {
     core.info(`comment_memory: footer disabled for memory_id='${memoryID}', adding provenance marker only`);
     body += "\n\n" + generateXMLMarker(workflowName, runUrl);

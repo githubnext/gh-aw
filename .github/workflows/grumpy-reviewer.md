@@ -6,17 +6,14 @@ on:
     events: [pull_request_comment, pull_request_review_comment]
   pull_request:
     types: [ready_for_review]
+engine: codex
 permissions:
   contents: read
   pull-requests: read
-engine: codex
 imports:
-  - shared/github-guard-policy.md
-  - shared/pr-code-review-config.md
-tools:
-  cli-proxy: true
-  github:
-    min-integrity: approved
+  - uses: shared/pr-review-base.md
+    with:
+      min-integrity: approved
 safe-outputs:
   create-pull-request-review-comment:
     max: 5

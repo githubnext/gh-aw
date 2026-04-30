@@ -553,7 +553,7 @@
                         {
                           "type": "array",
                           "minItems": 1,
-                          "description": "Array of label names — any of these labels will trigger the workflow.",
+                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
                           "items": {
                             "type": "string",
                             "minLength": 1,
@@ -574,7 +574,7 @@
                         {
                           "type": "array",
                           "minItems": 1,
-                          "description": "Array of label names — any of these labels will trigger the workflow.",
+                          "description": "Array of label names \u2014 any of these labels will trigger the workflow.",
                           "items": {
                             "type": "string",
                             "minLength": 1,
@@ -1725,7 +1725,7 @@
               "oneOf": [
                 {
                   "type": "null",
-                  "description": "Bare key with no value — equivalent to true. Skips workflow execution if any CI checks on the target branch are currently failing."
+                  "description": "Bare key with no value \u2014 equivalent to true. Skips workflow execution if any CI checks on the target branch are currently failing."
                 },
                 {
                   "type": "boolean",
@@ -1799,12 +1799,12 @@
               "description": "Skip workflow execution for specific GitHub users. Useful for preventing workflows from running for specific accounts (e.g., bots, specific team members)."
             },
             "roles": {
-              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
+              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
               "oneOf": [
                 {
                   "type": "string",
                   "enum": ["admin", "maintainer", "maintain", "write", "triage", "read", "all"],
-                  "description": "Single repository permission level that can trigger the workflow. Use 'all' to allow any authenticated user (⚠️ disables permission checking entirely - use with caution)"
+                  "description": "Single repository permission level that can trigger the workflow. Use 'all' to allow any authenticated user (\u26a0\ufe0f disables permission checking entirely - use with caution)"
                 },
                 {
                   "type": "array",
@@ -1829,7 +1829,7 @@
               }
             },
             "labels": {
-              "description": "Filter workflows triggered by pull_request_target (or other labeled events) to only fire when the triggering label matches one of these names. Generates a job-level if: condition on the pre-activation job so unmatched label events show as Skipped (⊘) rather than Failed (❌).",
+              "description": "Filter workflows triggered by pull_request_target (or other labeled events) to only fire when the triggering label matches one of these names. Generates a job-level if: condition on the pre-activation job so unmatched label events show as Skipped (\u2298) rather than Failed (\u274c).",
               "oneOf": [
                 {
                   "$ref": "#/$defs/non_empty_string",
@@ -2950,7 +2950,7 @@
     },
     "network": {
       "$comment": "Strict mode requirements: When strict=true, the 'network' field must be present (not null/undefined) and cannot contain standalone wildcard '*' in allowed domains (but patterns like '*.example.com' ARE allowed). This is validated in Go code (pkg/workflow/strict_mode_validation.go) via validateStrictNetwork().",
-      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' — 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
+      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' \u2014 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
       "examples": [
         "defaults",
         {
@@ -3432,7 +3432,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -6024,14 +6024,14 @@
                       "description": "Object form for granular control over the protected-file set. Use the exclude list to remove specific files from the default protection while keeping the rest."
                     }
                   ],
-                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue — or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
+                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue \u2014 or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
                 },
                 "allowed-files": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern \u2014 files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "preserve-branch-name": {
                   "type": "boolean",
@@ -6306,7 +6306,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for resolving review threads on pull requests. Resolution is scoped to the triggering PR only — threads on other PRs cannot be resolved.",
+              "description": "Configuration for resolving review threads on pull requests. Resolution is scoped to the triggering PR only \u2014 threads on other PRs cannot be resolved.",
               "properties": {
                 "max": {
                   "description": "Maximum number of review threads to resolve (default: 10) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
@@ -7365,14 +7365,14 @@
                       "description": "Object form for granular control over the protected-file set. Use the exclude list to remove specific files from the default protection while keeping the rest."
                     }
                   ],
-                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue — or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
+                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue \u2014 or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
                 },
                 "allowed-files": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern — files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "Exclusive allowlist of glob patterns. When set, every file in the patch must match at least one pattern \u2014 files outside the list are always refused, including normal source files. This is a restriction, not an exception: setting allowed-files: [\".github/workflows/*\"] blocks all other files. To allow multiple sets of files, list all patterns explicitly. Acts independently of the protected-files policy; both checks must pass. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "excluded-files": {
                   "type": "array",
@@ -8181,13 +8181,17 @@
               "description": "Enable or disable threat detection for safe outputs (defaults to true when safe-outputs are configured)"
             },
             {
+              "type": "string",
+              "pattern": "^\\$\\{\\{.*\\}\\}$",
+              "description": "GitHub Actions expression that resolves to a boolean at runtime, enabling or disabling threat detection based on workflow inputs (e.g. '${{ inputs.enable-threat-detection }}')"
+            },
+            {
               "type": "object",
               "description": "Threat detection configuration object",
               "properties": {
                 "enabled": {
-                  "type": "boolean",
-                  "description": "Whether threat detection is enabled",
-                  "default": true
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "Whether threat detection is enabled. Accepts a boolean literal or a GitHub Actions expression (e.g. '${{ inputs.enable-threat-detection }}')."
                 },
                 "prompt": {
                   "type": "string",
@@ -8225,9 +8229,8 @@
                   "description": "Runner specification for the detection job. Overrides agent.runs-on for the detection job only. Defaults to agent.runs-on."
                 },
                 "continue-on-error": {
-                  "type": "boolean",
-                  "default": true,
-                  "description": "When true (default), detection failures produce warnings and allow safe outputs to proceed with a caution notice and 'needs-review' label. When false, detection failures block safe outputs entirely."
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true (default), detection failures produce warnings and allow safe outputs to proceed with a caution notice and 'needs-review' label. When false, detection failures block safe outputs entirely. Accepts a boolean literal or a GitHub Actions expression."
                 }
               },
               "additionalProperties": false
@@ -8388,7 +8391,7 @@
         },
         "scripts": {
           "type": "object",
-          "description": "Inline JavaScript script handlers that run inside the consolidated safe-outputs job handler loop. Unlike 'jobs' (which create separate GitHub Actions jobs), scripts execute in-process alongside the built-in handlers. Users write only the body of the main function — the compiler wraps it with 'async function main(config = {}) { ... }' and 'module.exports = { main };' automatically. Script names containing dashes will be automatically normalized to underscores (e.g., 'post-slack-message' becomes 'post_slack_message').",
+          "description": "Inline JavaScript script handlers that run inside the consolidated safe-outputs job handler loop. Unlike 'jobs' (which create separate GitHub Actions jobs), scripts execute in-process alongside the built-in handlers. Users write only the body of the main function \u2014 the compiler wraps it with 'async function main(config = {}) { ... }' and 'module.exports = { main };' automatically. Script names containing dashes will be automatically normalized to underscores (e.g., 'post-slack-message' becomes 'post_slack_message').",
           "patternProperties": {
             "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
               "type": "object",
@@ -8446,7 +8449,7 @@
                 },
                 "script": {
                   "type": "string",
-                  "description": "JavaScript handler body. Write only the code that runs inside the handler for each item — the compiler generates the full outer wrapper including config input destructuring (`const { channel, message } = config;`) and the handler function (`return async function handleX(item, resolvedTemporaryIds) { ... }`). The body has access to `item` (runtime message with input values), `resolvedTemporaryIds` (map of temporary IDs), and config-destructured local variables for each declared input."
+                  "description": "JavaScript handler body. Write only the code that runs inside the handler for each item \u2014 the compiler generates the full outer wrapper including config input destructuring (`const { channel, message } = config;`) and the handler function (`return async function handleX(item, resolvedTemporaryIds) { ... }`). The body has access to `item` (runtime message with input values), `resolvedTemporaryIds` (map of temporary IDs), and config-destructured local variables for each declared input."
                 }
               },
               "required": ["script"],
@@ -8481,8 +8484,8 @@
             },
             "staged-title": {
               "type": "string",
-              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '🎭 Preview: {operation}'",
-              "examples": ["🎭 Preview: {operation}", "## Staged Mode: {operation}"]
+              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
+              "examples": ["\ud83c\udfad Preview: {operation}", "## Staged Mode: {operation}"]
             },
             "staged-description": {
               "type": "string",
@@ -8496,18 +8499,18 @@
             },
             "run-success": {
               "type": "string",
-              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic [{workflow_name}]({run_url}) completed successfully.'",
-              "examples": ["✅ Agentic [{workflow_name}]({run_url}) completed successfully.", "✅ [{workflow_name}]({run_url}) finished."]
+              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
+              "examples": ["\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.", "\u2705 [{workflow_name}]({run_url}) finished."]
             },
             "run-failure": {
               "type": "string",
-              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
-              "examples": ["❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "❌ [{workflow_name}]({run_url}) {status}."]
+              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
+              "examples": ["\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "\u274c [{workflow_name}]({run_url}) {status}."]
             },
             "detection-failure": {
               "type": "string",
-              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
-              "examples": ["⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "⚠️ Detection job failed in [{workflow_name}]({run_url})."]
+              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
+              "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
             },
             "agent-failure-issue": {
               "type": "string",
@@ -9279,7 +9282,7 @@
             },
             "github-token": {
               "type": "string",
-              "description": "GitHub token expression to authenticate APM with private package repositories. Uses cascading fallback (GH_AW_PLUGINS_TOKEN → GH_AW_GITHUB_TOKEN → GITHUB_TOKEN) when not specified. Takes effect unless github-app is also configured (which takes precedence).",
+              "description": "GitHub token expression to authenticate APM with private package repositories. Uses cascading fallback (GH_AW_PLUGINS_TOKEN \u2192 GH_AW_GITHUB_TOKEN \u2192 GITHUB_TOKEN) when not specified. Takes effect unless github-app is also configured (which takes precedence).",
               "examples": ["${{ secrets.MY_TOKEN }}", "${{ secrets.GH_AW_GITHUB_TOKEN }}"]
             }
           },
@@ -10059,7 +10062,7 @@
             },
             "auth": {
               "type": "array",
-              "description": "Authentication bindings — maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
+              "description": "Authentication bindings \u2014 maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
               "items": {
                 "type": "object",
                 "properties": {

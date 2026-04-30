@@ -71,9 +71,9 @@ func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 			t.Error("--tty flag should be present for Claude with AWF")
 		}
 
-		// Verify --allow-domains is present
-		if !strings.Contains(stepYAML, "--allow-domains") {
-			t.Error("--allow-domains should be present with AWF")
+		// Verify domains are in the AWF config JSON (not as --allow-domains CLI flag)
+		if !strings.Contains(stepYAML, "allowDomains") {
+			t.Error("allowDomains should be present in AWF config JSON")
 		}
 	})
 }

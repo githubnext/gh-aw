@@ -9,26 +9,21 @@ permissions:
   pull-requests: read
   actions: read
 engine: copilot
+imports:
+  - uses: shared/pr-review-base.md
+  - shared/reporting.md
 safe-outputs:
   create-discussion:
     expires: 1d
     title-prefix: "[nitpick-report] "
     category: "audits"
     max: 1
-  create-pull-request-review-comment:
-    max: 10
   messages:
     footer: "> 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}..."
     run-success: "🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅"
     run-failure: "🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected..."
 timeout-minutes: 15
-imports:
-  - shared/pr-code-review-config.md
-  - shared/reporting.md
-
-tools:
-  cli-proxy: true
 
 ---
 

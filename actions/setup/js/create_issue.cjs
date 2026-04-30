@@ -4,7 +4,7 @@
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
-const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
@@ -447,6 +447,12 @@ async function main(config = {}) {
     const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID ?? "";
     const runUrl = buildWorkflowRunUrl(context, context.repo);
 
+    // Inject CAUTION at top of body if threat detection warning was raised
+    const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+    if (detectionCaution) {
+      bodyLines.unshift(...detectionCaution.split("\n"), "");
+    }
+
     // Add tracker-id comment if present
     const trackerIDComment = getTrackerID("markdown");
     if (trackerIDComment) {
@@ -465,7 +471,7 @@ async function main(config = {}) {
         serverUrl: context.serverUrl,
       });
       const footer = addExpirationToFooter(
-        generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl).trimEnd(),
+        generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, { skipDetectionCaution: true }).trimEnd(),
         expiresHours,
         "Issue"
       );
