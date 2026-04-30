@@ -1,5 +1,5 @@
 // @ts-check
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 const { ERR_CONFIG, ERR_API } = require("./error_codes.cjs");
 
 const mockCore = {
