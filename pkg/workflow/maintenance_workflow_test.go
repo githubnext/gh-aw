@@ -619,7 +619,7 @@ func TestGenerateMaintenanceWorkflow_DisableAgenticWorkflowJob(t *testing.T) {
 		t.Errorf("label_disable_agentic_workflow job should use disable_agentic_workflow.cjs script in:\n%s", disableJobSection)
 	}
 
-	// Verify the job includes the CLI installation and permission check steps
+	// Verify the job includes the permission check step
 	if !strings.Contains(disableJobSection, "check_team_member.cjs") {
 		t.Errorf("label_disable_agentic_workflow job should check permissions using check_team_member.cjs in:\n%s", disableJobSection)
 	}

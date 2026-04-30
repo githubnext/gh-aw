@@ -4,70 +4,11 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { ensureLabelExists, validateLabeledIssueEvent, removeLabelSafely } = require("./label_trigger_helpers.cjs");
+const { extractWorkflowId, isValidWorkflowId } = require("./generate_footer.cjs");
 
 const DISABLE_LABEL = "agentic-workflows:disable";
 const DISABLE_LABEL_COLOR = "8250df"; // GitHub purple
-const DISABLE_LABEL_DESCRIPTION = "Disable the agentic workflow that created this issue or pull request";
-
-/**
- * Validate that an extracted workflow ID has a safe, expected format.
- * Workflow IDs are file basenames (without .md) and must not contain
- * path traversal sequences or other shell-unsafe characters.
- *
- * @param {string} id - Candidate workflow ID
- * @returns {boolean} True if the ID is safe to use as a CLI argument
- */
-function isValidWorkflowId(id) {
-  // Allow alphanumeric characters, hyphens, underscores, and dots.
-  // Reject anything else, as well as path traversal sequences like "..".
-  return id.length > 0 && id.length <= 100 && /^[\w.-]+$/.test(id) && !id.includes("..");
-}
-
-/**
- * Extract the workflow_id from an issue or pull request body using XML comment markers.
- *
- * Looks for (in priority order):
- * 1. Standalone marker: <!-- gh-aw-workflow-id: my-workflow -->
- * 2. Combined marker: <!-- gh-aw-agentic-workflow: ..., workflow_id: my-workflow, ... -->
- * 3. Workflow-call-id marker: <!-- gh-aw-workflow-call-id: owner/repo/my-workflow -->
- *    (extracts the last path segment to get the workflow ID)
- *
- * The combined and call-id markers are only searched within actual HTML comment blocks
- * to prevent unintended matches in user-provided content.
- *
- * @param {string|null|undefined} body - Issue or PR body
- * @returns {string|null} Workflow ID or null if not found or invalid
- */
-function extractWorkflowId(body) {
-  if (!body) return null;
-
-  // Try standalone marker: <!-- gh-aw-workflow-id: my-workflow -->
-  const standaloneMatch = body.match(/<!--\s*gh-aw-workflow-id:\s*([\w.-]+)\s*-->/);
-  if (standaloneMatch) {
-    const id = standaloneMatch[1].trim();
-    return isValidWorkflowId(id) ? id : null;
-  }
-
-  // Try combined marker, but only within HTML comment blocks that contain
-  // gh-aw-agentic-workflow: to avoid matching user content.
-  const commentMatch = body.match(/<!--\s*gh-aw-agentic-workflow:[^>]*?workflow_id:\s*([\w.-]+)[\s,>]/s);
-  if (commentMatch) {
-    const id = commentMatch[1].trim();
-    return isValidWorkflowId(id) ? id : null;
-  }
-
-  // Try workflow-call-id marker (handles workflow_dispatch): <!-- gh-aw-workflow-call-id: owner/repo/my-workflow -->
-  // The call-id has the form "owner/repo/workflow-id"; extract the last non-empty path segment.
-  const callIdMatch = body.match(/<!--\s*gh-aw-workflow-call-id:\s*([^\s>][^>]*?)\s*-->/);
-  if (callIdMatch) {
-    const segments = callIdMatch[1].trim().split("/");
-    const id = segments[segments.length - 1].trim();
-    if (id.length === 0) return null;
-    return isValidWorkflowId(id) ? id : null;
-  }
-
-  return null;
-}
+const DISABLE_LABEL_DESCRIPTION = "Disable the agentic workflow that created this issue";
 
 /**
  * Disable an agentic workflow when the "agentic-workflows:disable" label is applied to an issue.
@@ -150,4 +91,4 @@ async function main() {
   await removeLabelSafely(owner, repo, issueNumber, DISABLE_LABEL);
 }
 
-module.exports = { main, extractWorkflowId, isValidWorkflowId };
+module.exports = { main };

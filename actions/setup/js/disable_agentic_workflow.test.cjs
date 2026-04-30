@@ -4,7 +4,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createRequire } from "module";
 
 const req = createRequire(import.meta.url);
-const { extractWorkflowId, isValidWorkflowId, main } = req("./disable_agentic_workflow.cjs");
+const { main } = req("./disable_agentic_workflow.cjs");
+const { extractWorkflowId, isValidWorkflowId } = req("./generate_footer.cjs");
 
 // ─── global mocks ────────────────────────────────────────────────────────────
 
@@ -309,5 +310,54 @@ describe("extractWorkflowId", () => {
   it("returns null when call-id ends with a trailing slash (empty last segment)", () => {
     const body = "<!-- gh-aw-workflow-call-id: owner/repo/ -->";
     expect(extractWorkflowId(body)).toBeNull();
+  });
+
+  // ─── extension normalization ───────────────────────────────────────────────
+
+  it("strips .yml extension from standalone marker", () => {
+    const body = "<!-- gh-aw-workflow-id: my-workflow.yml -->";
+    expect(extractWorkflowId(body)).toBe("my-workflow");
+  });
+
+  it("strips .yaml extension from standalone marker", () => {
+    const body = "<!-- gh-aw-workflow-id: my-workflow.yaml -->";
+    expect(extractWorkflowId(body)).toBe("my-workflow");
+  });
+
+  it("strips .lock.yml extension from standalone marker", () => {
+    const body = "<!-- gh-aw-workflow-id: my-workflow.lock.yml -->";
+    expect(extractWorkflowId(body)).toBe("my-workflow");
+  });
+
+  it("strips .yml extension from combined marker workflow_id field", () => {
+    const body = "<!-- gh-aw-agentic-workflow: My Workflow, workflow_id: ci-doctor.yml, run: https://example.com -->";
+    expect(extractWorkflowId(body)).toBe("ci-doctor");
+  });
+
+  it("strips .yml extension from call-id last segment", () => {
+    const body = "<!-- gh-aw-workflow-call-id: owner/repo/my-workflow.yml -->";
+    expect(extractWorkflowId(body)).toBe("my-workflow");
+  });
+});
+
+describe("isValidWorkflowId", () => {
+  it("returns true for a plain workflow ID", () => {
+    expect(isValidWorkflowId("my-workflow")).toBe(true);
+  });
+
+  it("returns true for a workflow ID with dots and underscores", () => {
+    expect(isValidWorkflowId("code_review.v2")).toBe(true);
+  });
+
+  it("returns false for empty string", () => {
+    expect(isValidWorkflowId("")).toBe(false);
+  });
+
+  it("returns false for path traversal", () => {
+    expect(isValidWorkflowId("../secrets")).toBe(false);
+  });
+
+  it("returns false for ID with shell-special characters", () => {
+    expect(isValidWorkflowId("my;workflow")).toBe(false);
   });
 });

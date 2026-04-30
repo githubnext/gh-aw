@@ -9,7 +9,7 @@
 //	{
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
-//	    "action_failure_issue_expires": 72 // expiration (hours) for conclusion failure issues
+//	    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
 //	    "label_triggers": false // set to false to disable all label-triggered jobs
 //	  }                            // maintenance jobs (default: ubuntu-slim)
 //	}
