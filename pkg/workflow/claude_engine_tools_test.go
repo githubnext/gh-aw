@@ -79,21 +79,21 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 					"key": "test-memory-key",
 				},
 			},
-			expected: "Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write(/tmp/gh-aw/cache-memory/*)",
+			expected: "Bash(cat /tmp/gh-aw/cache-memory/),Bash(cat > /tmp/gh-aw/cache-memory/),Bash(mkdir -p /tmp/gh-aw/cache-memory/),Bash(mv /tmp/gh-aw/cache-memory/),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write(/tmp/gh-aw/cache-memory/*)",
 		},
 		{
 			name: "cache-memory with boolean true",
 			tools: map[string]any{
 				"cache-memory": true,
 			},
-			expected: "Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write(/tmp/gh-aw/cache-memory/*)",
+			expected: "Bash(cat /tmp/gh-aw/cache-memory/),Bash(cat > /tmp/gh-aw/cache-memory/),Bash(mkdir -p /tmp/gh-aw/cache-memory/),Bash(mv /tmp/gh-aw/cache-memory/),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write(/tmp/gh-aw/cache-memory/*)",
 		},
 		{
 			name: "cache-memory with nil value (no value specified)",
 			tools: map[string]any{
 				"cache-memory": nil,
 			},
-			expected: "Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write(/tmp/gh-aw/cache-memory/*)",
+			expected: "Bash(cat /tmp/gh-aw/cache-memory/),Bash(cat > /tmp/gh-aw/cache-memory/),Bash(mkdir -p /tmp/gh-aw/cache-memory/),Bash(mv /tmp/gh-aw/cache-memory/),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write(/tmp/gh-aw/cache-memory/*)",
 		},
 		{
 			name: "cache-memory with github tools",
@@ -103,7 +103,15 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 					"allowed": []any{"get_repository"},
 				},
 			},
-			expected: "Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write(/tmp/gh-aw/cache-memory/*),mcp__github__get_repository",
+			expected: "Bash(cat /tmp/gh-aw/cache-memory/),Bash(cat > /tmp/gh-aw/cache-memory/),Bash(mkdir -p /tmp/gh-aw/cache-memory/),Bash(mv /tmp/gh-aw/cache-memory/),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write(/tmp/gh-aw/cache-memory/*),mcp__github__get_repository",
+		},
+		{
+			name: "cache-memory with unrestricted bash (no extra cache bash commands injected)",
+			tools: map[string]any{
+				"cache-memory": true,
+				"bash":         []any{"*"},
+			},
+			expected: "Bash,BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write(/tmp/gh-aw/cache-memory/*)",
 		},
 		{
 			name: "mixed neutral and mcp tools",
