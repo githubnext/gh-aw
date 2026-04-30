@@ -1523,7 +1523,6 @@ func TestExpressionFieldsRejectedForInvalidStrings(t *testing.T) {
 // parseAllowedBaseBranches).
 func TestAllListEncodingForms(t *testing.T) {
 	type listFieldCase struct {
-		name      string
 		value     any      // raw value as it would appear in the config map
 		wantSlice []string // expected []string in the parsed config struct; nil = field absent
 	}

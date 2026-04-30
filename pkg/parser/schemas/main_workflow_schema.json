@@ -5989,13 +5989,27 @@
                       "default": "blocked"
                     },
                     {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to parameterise the policy per caller."
+                    },
+                    {
                       "type": "object",
                       "properties": {
                         "policy": {
-                          "type": "string",
-                          "enum": ["blocked", "allowed", "fallback-to-issue"],
-                          "description": "Protection policy. blocked (default): hard-block any patch that modifies protected files. allowed: allow all changes. fallback-to-issue: push the branch but create a review issue instead of a PR.",
-                          "default": "blocked"
+                          "oneOf": [
+                            {
+                              "type": "string",
+                              "enum": ["blocked", "allowed", "fallback-to-issue"],
+                              "description": "Protection policy. blocked (default): hard-block any patch that modifies protected files. allowed: allow all changes. fallback-to-issue: push the branch but create a review issue instead of a PR.",
+                              "default": "blocked"
+                            },
+                            {
+                              "type": "string",
+                              "pattern": "^\\$\\{\\{.*\\}\\}$",
+                              "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime."
+                            }
+                          ]
                         },
                         "exclude": {
                           "type": "array",
@@ -6010,7 +6024,7 @@
                       "description": "Object form for granular control over the protected-file set. Use the exclude list to remove specific files from the default protection while keeping the rest."
                     }
                   ],
-                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue. Object form: { policy, exclude } to customise the protected-file set."
+                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue — or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
                 },
                 "allowed-files": {
                   "type": "array",
@@ -6037,10 +6051,20 @@
                   "description": "List of glob patterns for files to exclude from the patch. Each pattern is passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec, so matching files are stripped by git at generation time and will not appear in the commit. Excluded files are also not subject to `allowed-files` or `protected-files` checks. Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "patch-format": {
-                  "type": "string",
-                  "enum": ["am", "bundle"],
-                  "default": "am",
-                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["am", "bundle"],
+                      "default": "am",
+                      "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to 'am' or 'bundle' at runtime. Use in reusable workflow_call workflows to parameterise the transport format per caller."
+                    }
+                  ],
+                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle. Accepts a GitHub Actions expression for reusable workflows."
                 },
                 "staged": {
                   "type": "boolean",
@@ -7306,13 +7330,27 @@
                       "default": "blocked"
                     },
                     {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to parameterise the policy per caller."
+                    },
+                    {
                       "type": "object",
                       "properties": {
                         "policy": {
-                          "type": "string",
-                          "enum": ["blocked", "allowed", "fallback-to-issue"],
-                          "description": "Protection policy. blocked (default): hard-block any patch that modifies protected files. allowed: allow all changes. fallback-to-issue: create a review issue instead of pushing.",
-                          "default": "blocked"
+                          "oneOf": [
+                            {
+                              "type": "string",
+                              "enum": ["blocked", "allowed", "fallback-to-issue"],
+                              "description": "Protection policy. blocked (default): hard-block any patch that modifies protected files. allowed: allow all changes. fallback-to-issue: create a review issue instead of pushing.",
+                              "default": "blocked"
+                            },
+                            {
+                              "type": "string",
+                              "pattern": "^\\$\\{\\{.*\\}\\}$",
+                              "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime."
+                            }
+                          ]
                         },
                         "exclude": {
                           "type": "array",
@@ -7327,7 +7365,7 @@
                       "description": "Object form for granular control over the protected-file set. Use the exclude list to remove specific files from the default protection while keeping the rest."
                     }
                   ],
-                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue. Object form: { policy, exclude } to customise the protected-file set."
+                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue — or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
                 },
                 "allowed-files": {
                   "type": "array",
@@ -7344,10 +7382,20 @@
                   "description": "List of glob patterns for files to exclude from the patch. Each pattern is passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec, so matching files are stripped by git at generation time and will not appear in the commit. Excluded files are also not subject to `allowed-files` or `protected-files` checks. Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "patch-format": {
-                  "type": "string",
-                  "enum": ["am", "bundle"],
-                  "default": "am",
-                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["am", "bundle"],
+                      "default": "am",
+                      "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to 'am' or 'bundle' at runtime. Use in reusable workflow_call workflows to parameterise the transport format per caller."
+                    }
+                  ],
+                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle. Accepts a GitHub Actions expression for reusable workflows."
                 },
                 "allow-workflows": {
                   "type": "boolean",
