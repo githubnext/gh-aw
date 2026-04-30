@@ -641,7 +641,9 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("labels", c.Labels).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged)
-		// Embed GitHub Actions expression in config so it can be evaluated at runtime.
+		// When create-issue is a GitHub Actions expression, embed it in the handler config.
+		// GitHub Actions evaluates the expression before the handler runs; the JavaScript
+		// handler then parses the resolved value via parseBoolTemplatable at runtime.
 		if c.CreateIssue != nil && isExpression(*c.CreateIssue) {
 			builder = builder.AddTemplatableBool("create-issue", c.CreateIssue)
 		}

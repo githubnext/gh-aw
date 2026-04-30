@@ -33,9 +33,11 @@ function buildMissingIssueHandler(options) {
 
   return async function main(config = {}) {
     // Extract configuration
-    // create_issue: templatable boolean — default true. When an expression was used in the
-    // workflow frontmatter, GitHub Actions evaluates it before this handler runs, so
-    // config.create_issue will be the resolved boolean/string value.
+    // create_issue: templatable boolean — default true.
+    // Accepts: literal boolean (true/false), string 'true'/'false', or a GitHub Actions
+    // expression (e.g. '${{ inputs.create-incomplete-issue }}'). Expressions are evaluated
+    // by GitHub Actions before this handler runs, so config.create_issue holds the
+    // resolved boolean or string value when the handler executes.
     const createIssue = parseBoolTemplatable(config.create_issue, true);
     const titlePrefix = config.title_prefix || defaultTitlePrefix;
     const userLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
@@ -167,12 +169,14 @@ function buildMissingIssueHandler(options) {
     }
 
     /**
-     * Message handler function that processes a single missing-issue message
+     * Message handler function that processes a single missing-issue message.
+     * Accepts the same two-argument signature as all other handler types so the
+     * handler manager can call it uniformly; resolvedTemporaryIds is unused here.
      * @param {Object} message - The message to process
-     * @param {Object} resolvedTemporaryIds - Map of temporary IDs (unused for missing-issue handlers)
+     * @param {Object} _resolvedTemporaryIds - Temporary ID map (unused for missing-issue handlers)
      * @returns {Promise<Object>} Result with success/error status and issue details
      */
-    return async function handleMissingIssue(message, resolvedTemporaryIds) {
+    return async function handleMissingIssue(message, _resolvedTemporaryIds) {
       // When create-issue is disabled (e.g. via a resolved GitHub Actions expression),
       // skip issue creation without recording a failure.
       if (!createIssue) {
