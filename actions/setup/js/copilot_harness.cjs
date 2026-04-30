@@ -69,6 +69,14 @@ const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
 // On a fresh run the token is genuinely absent — retrying will not help.
 const NO_AUTH_INFO_PATTERN = /No authentication information found/;
 
+// Pattern to detect null-type tool_call error that poisons conversation history.
+// Matches the Copilot API 400 error:
+//   "Invalid type for '...tool_calls[N].type': expected one of 'function', ..., but got null instead."
+// The model emitted a malformed tool call with type: null.  Retrying with --continue
+// re-injects the same broken history, producing the same 400 on every subsequent attempt.
+// A fresh restart is required to discard the poisoned history.
+const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
+
 /**
  * @typedef {(path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void} AppendFileSyncLike
  */
@@ -123,6 +131,18 @@ function isModelNotSupportedError(output) {
  */
 function isNoAuthInfoError(output) {
   return NO_AUTH_INFO_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains a null-type tool_call error.
+ * This error occurs when the model emits a malformed tool call with type: null.
+ * The Copilot API rejects it with a 400, and retrying with --continue will re-inject
+ * the same broken history, causing the same failure on every subsequent attempt.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isNullTypeToolCallError(output) {
+  return NULL_TYPE_TOOL_CALL_PATTERN.test(output);
 }
 
 /**
@@ -384,6 +404,9 @@ async function main() {
   let scheduledExit2Retries = 0;
   let scheduledExit2RetryAttempted = false;
   let useContinueOnRetry = false;
+  // Once set to true, --continue is never re-enabled for the remainder of this run.
+  // This prevents a broken --continue recovery from resurrecting --continue on the next attempt.
+  let continueDisabledPermanently = false;
   const driverStartTime = Date.now();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -417,12 +440,14 @@ async function main() {
     const isMCPPolicy = isMCPPolicyError(result.output);
     const isModelNotSupported = isModelNotSupportedError(result.output);
     const isAuthErr = isNoAuthInfoError(result.output);
+    const isNullTypeToolCall = isNullTypeToolCallError(result.output);
     log(
       `attempt ${attempt + 1} failed:` +
         ` exitCode=${result.exitCode}` +
         ` isCAPIError400=${isCAPIError}` +
         ` isMCPPolicyError=${isMCPPolicy}` +
         ` isModelNotSupportedError=${isModelNotSupported}` +
+        ` isNullTypeToolCallError=${isNullTypeToolCall}` +
         ` isAuthError=${isAuthErr}` +
         ` hasOutput=${result.hasOutput}` +
         ` retriesRemaining=${MAX_RETRIES - attempt}`
@@ -448,11 +473,26 @@ async function main() {
     if (isAuthErr) {
       if (useContinueOnRetry && attempt < MAX_RETRIES) {
         useContinueOnRetry = false;
+        continueDisabledPermanently = true;
         log(`attempt ${attempt + 1}: auth error on --continue — retrying as fresh run (session credential may be corrupted; context will be lost)`);
         continue;
       }
       log(`attempt ${attempt + 1}: no authentication information found — not retrying (COPILOT_GITHUB_TOKEN, GH_TOKEN, and GITHUB_TOKEN are all absent or invalid)`);
       break;
+    }
+
+    // Null-type tool_call error: the model emitted a malformed tool call that poisons the
+    // conversation history.  Retrying with --continue re-injects the same broken history and
+    // produces the same 400 on every subsequent attempt.  Restart fresh to discard the poisoned
+    // history, and permanently disable --continue so the corrupt state is never re-loaded.
+    if (isNullTypeToolCall) {
+      if (attempt < MAX_RETRIES && result.hasOutput) {
+        const priorMode = attempt > 0 && useContinueOnRetry ? "--continue" : "fresh run";
+        useContinueOnRetry = false;
+        continueDisabledPermanently = true;
+        log(`attempt ${attempt + 1}: null-type tool_call error (${priorMode}) — restarting fresh (poisoned history discarded; --continue disabled permanently)`);
+        continue;
+      }
     }
 
     // Scheduled runs: retry once on exit code 2 even when no output was produced.
@@ -471,8 +511,9 @@ async function main() {
 
     if (attempt < MAX_RETRIES && result.hasOutput) {
       const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
-      useContinueOnRetry = true;
-      log(`attempt ${attempt + 1}: ${reason} — will retry with --continue (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+      useContinueOnRetry = !continueDisabledPermanently;
+      const retryMode = useContinueOnRetry ? "--continue" : "fresh run (--continue permanently disabled)";
+      log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
       continue;
     }
 
