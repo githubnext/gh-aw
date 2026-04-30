@@ -44,9 +44,9 @@ func TestMCPScriptsWithFirewallIncludesHostDockerInternal(t *testing.T) {
 		t.Error("Expected firewall command to include 'host.docker.internal' when mcp-scripts is enabled")
 	}
 
-	// Verify the firewall command structure
-	if !strings.Contains(stepContent, "--allow-domains") {
-		t.Error("Expected command to contain '--allow-domains'")
+	// Verify the firewall command structure uses config file
+	if !strings.Contains(stepContent, "allowDomains") {
+		t.Error("Expected command to contain 'allowDomains' in AWF config JSON")
 	}
 }
 

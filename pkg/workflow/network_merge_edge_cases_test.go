@@ -69,27 +69,29 @@ imports:
 
 		lockStr := string(content)
 
-		// Extract the --allow-domains line and count github.com occurrences within it
-		// The domain should only appear once in the --allow-domains list (not duplicated)
+		// With config file support, domains appear in the AWF JSON config rather than
+		// as a --allow-domains CLI flag. Find the line that contains the JSON config
+		// (written via printf) and verify github.com appears there.
 		lines := strings.Split(lockStr, "\n")
 		var allowDomainsLine string
 		for _, line := range lines {
-			if strings.Contains(line, "--allow-domains") {
+			// Domains appear in the JSON config written by printf
+			if strings.Contains(line, "allowDomains") {
 				allowDomainsLine = line
 				break
 			}
 		}
 
 		if allowDomainsLine == "" {
-			t.Fatal("Could not find --allow-domains line in compiled workflow")
+			t.Fatal("Could not find allowDomains in compiled workflow")
 		}
 
-		// Count github.com occurrences within the --allow-domains line only
+		// Count github.com occurrences within the allowDomains line only
 		count := strings.Count(allowDomainsLine, "github.com")
 		// github.com appears twice: once as github.com and once as api.github.com
-		// We just need to check the --allow-domains is present
+		// We just need to check the allowDomains is present
 		if count < 1 {
-			t.Errorf("Expected github.com to appear in --allow-domains, but found %d occurrences", count)
+			t.Errorf("Expected github.com to appear in allowDomains, but found %d occurrences", count)
 		}
 	})
 

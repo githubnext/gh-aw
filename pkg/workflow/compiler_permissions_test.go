@@ -251,12 +251,12 @@ This is a test workflow with explicit network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should contain AWF wrapper with --allow-domains
+		// Should contain AWF wrapper with domains in config JSON
 		if !strings.Contains(string(lockContent), "sudo -E awf") {
 			t.Error("Should contain AWF wrapper with explicit network permissions")
 		}
-		if !strings.Contains(string(lockContent), "--allow-domains") {
-			t.Error("Should contain --allow-domains flag in AWF command")
+		if !strings.Contains(string(lockContent), "allowDomains") {
+			t.Error("Should contain allowDomains in AWF config JSON")
 		}
 		if !strings.Contains(string(lockContent), "example.com") {
 			t.Error("Should contain example.com in allowed domains")

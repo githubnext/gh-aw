@@ -58,9 +58,9 @@ func TestGetAWFImageTag(t *testing.T) {
 	})
 }
 
-// TestClaudeEngineAWFImageTag tests that Claude engine includes --image-tag in AWF commands
+// TestClaudeEngineAWFImageTag tests that Claude engine includes image tag in AWF config JSON
 func TestClaudeEngineAWFImageTag(t *testing.T) {
-	t.Run("AWF command includes image-tag with default version", func(t *testing.T) {
+	t.Run("AWF config JSON includes imageTag with default version", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -82,14 +82,18 @@ func TestClaudeEngineAWFImageTag(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		// Check that --image-tag is included with default version (without v prefix)
-		expectedImageTag := "--image-tag " + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
-		if !strings.Contains(stepContent, expectedImageTag) {
-			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
+		// With config file support (default AWF version), image tag is in the JSON config
+		// rather than as a --image-tag CLI flag.
+		expectedVersion := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+		if !strings.Contains(stepContent, expectedVersion) {
+			t.Errorf("Expected AWF config JSON to contain version '%s'", expectedVersion)
+		}
+		if !strings.Contains(stepContent, "imageTag") {
+			t.Error("Expected AWF config JSON to contain 'imageTag' field")
 		}
 	})
 
-	t.Run("AWF command includes image-tag with custom version", func(t *testing.T) {
+	t.Run("AWF command includes --image-tag with custom old version (legacy fallback)", func(t *testing.T) {
 		customVersion := "v0.5.0"
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
@@ -113,17 +117,17 @@ func TestClaudeEngineAWFImageTag(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		// Check that --image-tag is included with custom version (without v prefix)
+		// Old version < AWFConfigFileMinVersion → falls back to CLI flag
 		expectedImageTag := "--image-tag " + strings.TrimPrefix(customVersion, "v")
 		if !strings.Contains(stepContent, expectedImageTag) {
-			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
+			t.Errorf("Expected AWF command to contain '%s' for legacy version, got:\n%s", expectedImageTag, stepContent)
 		}
 	})
 }
 
-// TestCodexEngineAWFImageTag tests that Codex engine includes --image-tag in AWF commands
+// TestCodexEngineAWFImageTag tests that Codex engine includes image tag in AWF config JSON
 func TestCodexEngineAWFImageTag(t *testing.T) {
-	t.Run("AWF command includes image-tag with default version", func(t *testing.T) {
+	t.Run("AWF config JSON includes imageTag with default version", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -145,14 +149,17 @@ func TestCodexEngineAWFImageTag(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		// Check that --image-tag is included with default version (without v prefix)
-		expectedImageTag := "--image-tag " + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
-		if !strings.Contains(stepContent, expectedImageTag) {
-			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
+		// With config file support (default AWF version), image tag is in the JSON config
+		expectedVersion := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+		if !strings.Contains(stepContent, expectedVersion) {
+			t.Errorf("Expected AWF config JSON to contain version '%s'", expectedVersion)
+		}
+		if !strings.Contains(stepContent, "imageTag") {
+			t.Error("Expected AWF config JSON to contain 'imageTag' field")
 		}
 	})
 
-	t.Run("AWF command includes image-tag with custom version", func(t *testing.T) {
+	t.Run("AWF command includes --image-tag with custom old version (legacy fallback)", func(t *testing.T) {
 		customVersion := "v0.5.0"
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
@@ -176,10 +183,10 @@ func TestCodexEngineAWFImageTag(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		// Check that --image-tag is included with custom version (without v prefix)
+		// Old version < AWFConfigFileMinVersion → falls back to CLI flag
 		expectedImageTag := "--image-tag " + strings.TrimPrefix(customVersion, "v")
 		if !strings.Contains(stepContent, expectedImageTag) {
-			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
+			t.Errorf("Expected AWF command to contain '%s' for legacy version, got:\n%s", expectedImageTag, stepContent)
 		}
 	})
 }
