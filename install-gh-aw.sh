@@ -335,8 +335,8 @@ if [ "$SKIP_CHECKSUM" = false ]; then
             EXPECTED_FILENAME="${PLATFORM}.exe"
         fi
         
-        # Extract the expected checksum from the checksums file
-        EXPECTED_CHECKSUM=$(grep "$EXPECTED_FILENAME" "$CHECKSUMS_PATH" | awk '{print $1}')
+        # Extract the expected checksum from the checksums file (exact filename match on field 2)
+        EXPECTED_CHECKSUM=$(awk -v f="$EXPECTED_FILENAME" '$2 == f {print $1}' "$CHECKSUMS_PATH")
         
         if [ -z "$EXPECTED_CHECKSUM" ]; then
             print_warning "Checksum for $EXPECTED_FILENAME not found in checksums file"
