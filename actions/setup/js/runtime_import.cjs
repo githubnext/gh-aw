@@ -40,6 +40,33 @@ function removeXMLComments(content) {
 }
 
 /**
+ * Neutralizes AI-model control tags to prevent prompt injection.
+ *
+ * `<system>` (and its closing form `</system>`) act as top-level system-prompt
+ * delimiters in Anthropic's Claude API. When workflow markdown files are
+ * runtime-imported into prompt.txt — which already contains a legitimate
+ * `<system>...</system>` security-policy block — a second `<system>` tag
+ * anywhere in the imported content creates a duplicate system block and can
+ * override the security policy (prompt injection).
+ *
+ * This function converts those tags to a parenthetical form `(system)` /
+ * `(/system)` so they are treated as ordinary text rather than control tokens,
+ * consistent with the approach used by `convertXmlTags` in
+ * `sanitize_content_core.cjs` for user-provided content.
+ *
+ * @param {string} content - The content to process
+ * @returns {string} - Content with AI-model control tags neutralized
+ */
+function neutralizeSystemTags(content) {
+  // Convert <system>, <system attr="...">, </system> to parenthetical equivalents.
+  // The regex matches:
+  //   - optional closing slash (</system>)
+  //   - tag name "system" (case-insensitive)
+  //   - optional attributes (everything up to the closing >)
+  return content.replace(/<(\/?\s*system(?:\s[^>]*)?)\s*>/gi, "($1)");
+}
+
+/**
  * Safe list of allowed GitHub Actions expressions
  * These are expressions that cannot be tampered with by users
  * and are safe to evaluate at runtime.
@@ -890,6 +917,9 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
   // Remove XML comments
   content = removeXMLComments(content);
 
+  // Neutralize AI-model control tags to prevent prompt injection via runtime-imported files
+  content = neutralizeSystemTags(content);
+
   // Wrap expressions in template conditionals
   // This handles {{#if expression}} where expression is not already wrapped in ${{ }}
   content = wrapExpressionsInTemplateConditionals(content);
@@ -1048,6 +1078,7 @@ module.exports = {
   processRuntimeImport,
   hasFrontMatter,
   removeXMLComments,
+  neutralizeSystemTags,
   hasGitHubActionsMacros,
   isSafeExpression,
   evaluateExpression,
