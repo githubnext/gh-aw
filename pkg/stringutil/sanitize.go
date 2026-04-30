@@ -19,30 +19,30 @@ var (
 	pascalCaseSecretPattern = regexp.MustCompile(`\b([A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)*(?:Token|Key|Secret|Password|Credential|Auth))\b`)
 
 	// Common non-sensitive workflow keywords to exclude from redaction
-	commonWorkflowKeywords = map[string]bool{
-		"GITHUB":            true,
-		"ACTIONS":           true,
-		"WORKFLOW":          true,
-		"RUNNER":            true,
-		"JOB":               true,
-		"STEP":              true,
-		"MATRIX":            true,
-		"ENV":               true,
-		"PATH":              true,
-		"HOME":              true,
-		"SHELL":             true,
-		"INPUTS":            true,
-		"OUTPUTS":           true,
-		"NEEDS":             true,
-		"STRATEGY":          true,
-		"CONCURRENCY":       true,
-		"IF":                true,
-		"WITH":              true,
-		"USES":              true,
-		"RUN":               true,
-		"WORKING_DIRECTORY": true,
-		"CONTINUE_ON_ERROR": true,
-		"TIMEOUT_MINUTES":   true,
+	commonWorkflowKeywords = map[string]struct{}{
+		"GITHUB":            {},
+		"ACTIONS":           {},
+		"WORKFLOW":          {},
+		"RUNNER":            {},
+		"JOB":               {},
+		"STEP":              {},
+		"MATRIX":            {},
+		"ENV":               {},
+		"PATH":              {},
+		"HOME":              {},
+		"SHELL":             {},
+		"INPUTS":            {},
+		"OUTPUTS":           {},
+		"NEEDS":             {},
+		"STRATEGY":          {},
+		"CONCURRENCY":       {},
+		"IF":                {},
+		"WITH":              {},
+		"USES":              {},
+		"RUN":               {},
+		"WORKING_DIRECTORY": {},
+		"CONTINUE_ON_ERROR": {},
+		"TIMEOUT_MINUTES":   {},
 	}
 )
 
@@ -59,7 +59,7 @@ func SanitizeErrorMessage(message string) string {
 	// Redact uppercase snake_case patterns (e.g., MY_SECRET_KEY, API_TOKEN)
 	sanitized := secretNamePattern.ReplaceAllStringFunc(message, func(match string) string {
 		// Don't redact common workflow keywords
-		if commonWorkflowKeywords[match] {
+		if _, ok := commonWorkflowKeywords[match]; ok {
 			return match
 		}
 		// Don't redact gh-aw public configuration variables (e.g., GH_AW_SKIP_NPX_VALIDATION)

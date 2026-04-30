@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -94,7 +95,7 @@ func validateGitHubToolsAgainstToolsetsImpl(allowedTools []string, enabledToolse
 		errMsg.WriteString(fmt.Sprintf("Valid GitHub tools include: %s\n\n", formatList(validTools[:exampleCount])))
 		errMsg.WriteString("See all tools: https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_tool_to_toolset.json")
 
-		return fmt.Errorf("%s", errMsg.String())
+		return errors.New(errMsg.String())
 	}
 
 	if len(missingToolsets) > 0 {

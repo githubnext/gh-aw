@@ -5950,6 +5950,11 @@
                   "description": "When true, the random salt suffix is not appended to the agent-specified branch name. Invalid characters are still replaced for security, and casing is always preserved regardless of this setting. Useful when the target repository enforces branch naming conventions (e.g. Jira keys in uppercase such as 'bugfix/BR-329-red'). Defaults to false.",
                   "default": false
                 },
+                "recreate-ref": {
+                  "type": "boolean",
+                  "description": "When true (and preserve-branch-name is true), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD. When false (default), if the agent-specified branch already exists on the remote with preserve-branch-name enabled, the handler falls back (e.g. opens an issue) rather than overwriting the remote ref. Useful for long-lived reusable branches whose previous PR was merged.",
+                  "default": false
+                },
                 "excluded-files": {
                   "type": "array",
                   "items": {

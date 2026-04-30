@@ -427,15 +427,36 @@ function generatePatchPreview(patchContent) {
 }
 
 /**
- * Check whether the remote branch already exists and, if so, either fail loudly
- * (when preserve-branch-name is enabled) or rename the local branch by appending
- * a random hex suffix.
+ * Check whether the remote branch already exists and, if so, either reuse it
+ * (when preserve-branch-name and recreate-ref are enabled, by force-deleting
+ * the remote ref so the subsequent push recreates it from the local HEAD) or rename
+ * the local branch by appending a random hex suffix.
+ *
+ * The "force-delete then recreate" semantic is gated behind `recreate-ref`
+ * because the existing remote branch may have diverged from the local HEAD
+ * (e.g. a long-lived branch whose previous PR was merged and is now behind
+ * the base branch). Deleting the ref first lets `pushSignedCommits` recreate
+ * the branch at the local commit's parent OID and replay only the local
+ * commits via the GraphQL `createCommitOnBranch` mutation, which is what
+ * users intend by enabling `recreate-ref` on a reusable branch.
+ *
+ * When `preserve-branch-name: true` but `recreate-ref: false` (default),
+ * an existing remote branch results in an error so the caller falls back to
+ * the configured fallback (e.g. opening an issue) rather than silently
+ * destroying the remote ref.
+ *
  * @param {string} branchName - Current local branch name.
  * @param {boolean} preserveBranchName - Whether preserve-branch-name is enabled.
+ * @param {object} [options] - Additional options.
+ * @param {boolean} [options.recreateRef] - Whether recreate-ref is enabled.
+ *   Only meaningful when preserveBranchName is true.
+ * @param {object} [options.githubClient] - Authenticated Octokit client used to delete the
+ *   existing remote ref when recreate-ref is enabled.
+ * @param {string} [options.owner] - Repository owner for the deleteRef call.
+ * @param {string} [options.repo] - Repository name for the deleteRef call.
  * @returns {Promise<string>} The (possibly renamed) branch name to use going forward.
- * @throws {Error} If the remote branch exists and preserve-branch-name is true.
  */
-async function handleRemoteBranchCollision(branchName, preserveBranchName) {
+async function handleRemoteBranchCollision(branchName, preserveBranchName, options = {}) {
   let remoteBranchExists = false;
   try {
     const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
@@ -451,11 +472,45 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName) {
   }
 
   if (preserveBranchName) {
-    throw new Error(
-      `Remote branch "${branchName}" already exists and preserve-branch-name is enabled. ` +
-        `Refusing to silently rename the branch. Either delete the remote branch, choose a different ` +
-        `branch name, or disable preserve-branch-name to allow a random suffix to be appended.`
-    );
+    const { recreateRef, githubClient, owner, repo } = options;
+    if (!recreateRef) {
+      // preserve-branch-name asked us to keep the exact branch name, but
+      // recreate-ref is not enabled, so we cannot silently destroy the
+      // existing remote ref. Surface an error so the caller falls back to the
+      // configured fallback (e.g. opening an issue).
+      throw new Error(
+        `Remote branch "${branchName}" already exists and preserve-branch-name is enabled. ` + `Set recreate-ref: true to force-delete and recreate the remote ref, or disable ` + `preserve-branch-name to allow renaming the branch.`
+      );
+    }
+    // Reuse the existing branch by deleting the remote ref so the subsequent
+    // push recreates it from the local HEAD (force-push semantics). This is the
+    // intended behavior when recreate-ref is enabled for long-lived
+    // reusable branches whose previous PR was merged.
+    if (!githubClient || !owner || !repo) {
+      throw new Error(
+        `Remote branch "${branchName}" already exists and recreate-ref is enabled, ` +
+          `but no GitHub client was provided to delete the existing remote ref. This is an ` +
+          `internal error: the caller must pass githubClient, owner, and repo to reuse the branch.`
+      );
+    }
+    core.warning(`Remote branch ${branchName} already exists - reusing it (recreate-ref enabled, force-deleting remote ref)`);
+    try {
+      await githubClient.rest.git.deleteRef({ owner, repo, ref: `heads/${branchName}` });
+      core.info(`Deleted remote branch ${branchName} to reuse it`);
+    } catch (deleteError) {
+      /** @type {any} */
+      const err = deleteError;
+      const status = err && typeof err === "object" ? err.status : undefined;
+      const message = err && typeof err === "object" ? String(err.message || "") : "";
+      // 422 "Reference does not exist" can happen if the branch was deleted concurrently;
+      // treat that as success and continue.
+      if (status === 422 && /Reference does not exist/i.test(message)) {
+        core.info(`Remote branch ${branchName} was already deleted concurrently; continuing`);
+      } else {
+        throw new Error(`Failed to delete existing remote branch "${branchName}" for reuse with recreate-ref: ${message || String(err)}`);
+      }
+    }
+    return branchName;
   }
 
   core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
@@ -488,6 +543,7 @@ async function main(config = {}) {
   const allowEmpty = parseBoolTemplatable(config.allow_empty, false);
   const autoMerge = parseBoolTemplatable(config.auto_merge, false);
   const preserveBranchName = config.preserve_branch_name === true;
+  const recreateRef = config.recreate_ref === true;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
@@ -1201,7 +1257,7 @@ async function main(config = {}) {
 
       // Push the commits from the bundle to the remote branch
       try {
-        branchName = await handleRemoteBranchCollision(branchName, preserveBranchName);
+        branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
 
         await pushSignedCommits({
           githubClient,
@@ -1410,7 +1466,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 
         // Push the applied commits to the branch (with fallback to issue creation on failure)
         try {
-          branchName = await handleRemoteBranchCollision(branchName, preserveBranchName);
+          branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
 
           await pushSignedCommits({
             githubClient,
@@ -1554,7 +1610,7 @@ ${patchPreview}`;
             await exec.exec(`git commit --allow-empty -m "Initialize"`);
             core.info("Created empty commit");
 
-            branchName = await handleRemoteBranchCollision(branchName, preserveBranchName);
+            branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
 
             await pushSignedCommits({
               githubClient,

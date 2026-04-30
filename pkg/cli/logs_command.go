@@ -12,6 +12,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -105,6 +106,52 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --after 2024-01-01         # Delete cached run folders from before 2024-01-01`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logsCommandLog.Printf("Starting logs command: args=%d", len(args))
+
+			stdin, _ := cmd.Flags().GetBool("stdin")
+
+			// When --stdin is provided, read run IDs/URLs from stdin and bypass GitHub API discovery.
+			if stdin {
+				if len(args) > 0 {
+					return errors.New(console.FormatErrorWithSuggestions(
+						"positional arguments are not allowed with --stdin",
+						[]string{"Remove the workflow name argument, or omit --stdin to use the normal discovery mode"},
+					))
+				}
+				logsCommandLog.Printf("Reading run IDs from stdin")
+				runURLs, err := readRunIDsFromStdin(os.Stdin)
+				if err != nil {
+					return fmt.Errorf("failed to read run IDs from stdin: %w", err)
+				}
+
+				outputDir, _ := cmd.Flags().GetString("output")
+				engine, _ := cmd.Flags().GetString("engine")
+				repoOverride, _ := cmd.Flags().GetString("repo")
+				verbose, _ := cmd.Flags().GetBool("verbose")
+				toolGraph, _ := cmd.Flags().GetBool("tool-graph")
+				noStaged, _ := cmd.Flags().GetBool("no-staged")
+				firewallOnly, _ := cmd.Flags().GetBool("firewall")
+				noFirewall, _ := cmd.Flags().GetBool("no-firewall")
+				parse, _ := cmd.Flags().GetBool("parse")
+				jsonOutput, _ := cmd.Flags().GetBool("json")
+				timeout, _ := cmd.Flags().GetInt("timeout")
+				summaryFile, _ := cmd.Flags().GetString("summary-file")
+				safeOutputType, _ := cmd.Flags().GetString("safe-output")
+				filteredIntegrity, _ := cmd.Flags().GetBool("filtered-integrity")
+				train, _ := cmd.Flags().GetBool("train")
+				format, _ := cmd.Flags().GetString("format")
+				artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
+
+				if engine != "" {
+					logsCommandLog.Printf("Validating engine parameter: %s", engine)
+					registry := workflow.GetGlobalEngineRegistry()
+					if !registry.IsValidEngine(engine) {
+						supportedEngines := registry.GetSupportedEngines()
+						return fmt.Errorf("invalid engine value '%s'. Must be one of: %s", engine, strings.Join(supportedEngines, ", "))
+					}
+				}
+
+				return DownloadWorkflowLogsFromStdin(cmd.Context(), runURLs, outputDir, engine, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, summaryFile, safeOutputType, filteredIntegrity, train, format, artifacts)
+			}
 
 			var workflowName string
 			if len(args) > 0 && args[0] != "" {
@@ -225,6 +272,7 @@ Examples:
 	logsCmd.Flags().Int("last", 0, "Alias for --count: number of recent runs to download")
 	logsCmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
 	logsCmd.Flags().String("after", "", "Remove locally cached run folders created before this date (cache cleanup). Use deltas like -1w or -1mo, or an absolute date YYYY-MM-DD. For example, --after -1w removes folders older than 1 week.")
+	logsCmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of discovering runs via the GitHub API")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 
 	// Register completions for logs command

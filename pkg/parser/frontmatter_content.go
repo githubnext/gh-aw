@@ -99,7 +99,7 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 		// Use FormatYAMLError to provide source-positioned error output with adjusted line numbers
 		// FrontmatterStart is 2 (line 2 is where frontmatter content starts after opening ---)
 		formattedErr := FormatYAMLError(err, 2, frontmatterYAML)
-		return nil, fmt.Errorf("failed to parse frontmatter:\n%s", formattedErr)
+		return nil, &FormattedParserError{formatted: "failed to parse frontmatter:\n" + formattedErr, cause: err}
 	}
 
 	// Ensure frontmatter is never nil (yaml.Unmarshal sets it to nil for empty YAML)

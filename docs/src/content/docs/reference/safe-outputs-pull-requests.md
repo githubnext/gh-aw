@@ -48,6 +48,7 @@ safe-outputs:
     fallback-as-issue: false      # disable issue fallback (default: true)
     auto-close-issue: false       # don't auto-add "Fixes #N" to PR description (default: true)
     preserve-branch-name: true    # omit random salt suffix from branch name (default: false)
+    recreate-ref: true      # force-delete and recreate the remote branch when it already exists (requires preserve-branch-name; default: false)
     excluded-files:               # files to omit from the patch entirely
       - "**/*.lock"
       - "dist/**"
@@ -84,7 +85,7 @@ The `excluded-files` field accepts a list of glob patterns. Each matching file i
 
 The `preserve-branch-name` field, when set to `true`, omits the random hex salt suffix that is normally appended to the agent-specified branch name. This is useful when the target repository enforces branch naming conventions such as Jira keys in uppercase (e.g., `bugfix/BR-329-red` instead of `bugfix/br-329-red-cde2a954`). Invalid characters are always replaced for security, and casing is always preserved regardless of this setting. Defaults to `false`.
 
-When `preserve-branch-name: true` and the agent-supplied branch name already exists on the remote, the workflow fails with an explicit error rather than silently appending a random suffix. To resolve, delete the existing remote branch, choose a different branch name, or disable `preserve-branch-name` to allow collision-avoidance via a random suffix.
+When `preserve-branch-name: true` and the agent-supplied branch name already exists on the remote, the default behavior is to fall back (e.g. open an issue when `fallback-as-issue: true`) rather than rename the branch or overwrite the remote ref. To enable reuse of the existing remote branch, set `recreate-ref: true`: the handler will force-delete the stale remote ref and recreate it from the agent's local HEAD (force-push semantics). This is the intended behavior for long-lived reusable branches whose previous PR was merged. `recreate-ref` requires `preserve-branch-name: true` to take effect; the handler does not silently rename the branch in this case.
 
 The `draft` field is a **configuration policy**, not a default. Whatever value is set in the workflow frontmatter is always used — the agent cannot override it at runtime.
 

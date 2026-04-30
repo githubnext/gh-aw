@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -351,7 +352,7 @@ func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, import
 			fmt.Fprintf(&errorMsg, "  %s: %s\n", scope, level)
 		}
 
-		return fmt.Errorf("%s", errorMsg.String())
+		return errors.New(errorMsg.String())
 	}
 
 	permissionsValidationLog.Print("All included workflow permissions are satisfied by main workflow")

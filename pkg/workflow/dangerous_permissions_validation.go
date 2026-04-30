@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -93,5 +94,5 @@ func formatDangerousPermissionsError(writePermissions []PermissionScope) error {
 		lines = append(lines, fmt.Sprintf("  %s: read", scope))
 	}
 
-	return fmt.Errorf("%s", strings.Join(lines, "\n"))
+	return errors.New(strings.Join(lines, "\n"))
 }
