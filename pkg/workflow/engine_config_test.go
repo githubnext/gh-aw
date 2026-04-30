@@ -870,3 +870,58 @@ func TestBareMode_UnsupportedEngineNoFlag(t *testing.T) {
 		}
 	})
 }
+
+// TestEngineMCPSessionTimeoutExtraction tests extraction of engine.mcp.session-timeout.
+func TestEngineMCPSessionTimeoutExtraction(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name            string
+		frontmatter     map[string]any
+		expectedTimeout string
+	}{
+		{
+			name: "extracts session-timeout from engine.mcp",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+					"mcp": map[string]any{
+						"session-timeout": "4h",
+					},
+				},
+			},
+			expectedTimeout: "4h",
+		},
+		{
+			name: "no mcp section - empty session timeout",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+				},
+			},
+			expectedTimeout: "",
+		},
+		{
+			name: "mcp section without session-timeout - empty",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":  "copilot",
+					"mcp": map[string]any{},
+				},
+			},
+			expectedTimeout: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, config := compiler.ExtractEngineConfig(tt.frontmatter)
+			if config == nil {
+				t.Fatal("Expected non-nil config")
+			}
+			if config.MCPSessionTimeout != tt.expectedTimeout {
+				t.Errorf("MCPSessionTimeout = %q, want %q", config.MCPSessionTimeout, tt.expectedTimeout)
+			}
+		})
+	}
+}

@@ -8,11 +8,11 @@ permissions:
   issues: read
 engine: copilot
 imports:
-  - shared/github-guard-policy.md
+  - uses: shared/pr-review-base.md
+    with:
+      min-integrity: approved
 tools:
-  cli-proxy: true
   github:
-    min-integrity: approved
     toolsets: [pull_requests, repos, issues]
 safe-outputs:
   create-pull-request:

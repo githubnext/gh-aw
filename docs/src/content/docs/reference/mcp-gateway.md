@@ -251,7 +251,8 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `payloadSizeThreshold` | integer | No | Size threshold in bytes for storing payloads to disk (default: 524288 = 512KB) |
 | `trustedBots` | array[string] | No | Additional GitHub bot identity strings (e.g., `github-actions[bot]`) passed to the gateway and merged with its built-in trusted identity list. This field is additive — it extends the internal list but cannot remove built-in entries. |
 | `keepaliveInterval` | integer | No | Keepalive ping interval in seconds for HTTP MCP backends. Prevents session expiry during long-running tasks. Use `-1` to disable, `0` or unset for gateway default (1500s = 25 min), or a positive integer for a custom interval. |
-| `opentelemetry` | object | No | OpenTelemetry configuration for emitting distributed tracing events for MCP calls. See Section 4.1.3.6 for details. |
+| `sessionTimeout` | string | No | Session timeout for MCP gateway sessions as a Go duration string (e.g. `"30m"`, `"4h"`, `"24h"`). Empty or omitted uses the gateway default (6h). Must be at least 5m when set by the workflow compiler (no upper bound; infrastructure operators may override via `MCP_GATEWAY_SESSION_TIMEOUT` env var). |
+| `opentelemetry` | object | No | OpenTelemetry configuration for emitting distributed tracing events for MCP calls. See Section 4.1.3.7 for details. |
 
 #### 4.1.3.1 Payload Directory Path Validation
 
@@ -449,7 +450,47 @@ sandbox:
 - A value of `-1` disables keepalive pings entirely
 - Any positive integer sets the keepalive interval in seconds
 
-#### 4.1.3.6 OpenTelemetry Configuration
+#### 4.1.3.6 Session Timeout Configuration
+
+The optional `sessionTimeout` field in the gateway configuration controls how long stateful MCP sessions survive in both unified and routed modes.
+
+| Value | Behavior |
+|-------|----------|
+| Unset / `""` | Gateway default: 6 hours (or `MCP_GATEWAY_SESSION_TIMEOUT` env var) |
+| Go duration string | Custom session lifetime (e.g. `"30m"`, `"4h"`, `"6h"`, `"12h"`) |
+
+**Precedence**: `sessionTimeout` in the stdin config JSON **>** `MCP_GATEWAY_SESSION_TIMEOUT` environment variable **>** gateway built-in default (6h).
+
+**Configuration example (JSON)**:
+
+```json
+{
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "${MCP_GATEWAY_API_KEY}",
+    "sessionTimeout": "4h"
+  }
+}
+```
+
+**Workflow frontmatter** (via `engine.mcp.session-timeout`):
+
+```yaml
+engine:
+  id: copilot
+  mcp:
+    session-timeout: 4h   # 4-hour sessions for long-running migrations
+```
+
+**Compliance rules**:
+
+- `sessionTimeout` MUST be a valid Go duration string when present (e.g. `"30m"`, `"4h"`)
+- The workflow compiler enforces a minimum of `5m` for author-specified values (no upper bound)
+- Infrastructure operators may set `MCP_GATEWAY_SESSION_TIMEOUT` on the gateway container to override the default for all workflows; a per-workflow `sessionTimeout` in the stdin config takes precedence
+- When unset, the gateway uses its built-in default (6h)
+
+#### 4.1.3.7 OpenTelemetry Configuration
 
 The optional `opentelemetry` object in the gateway configuration enables the gateway to emit distributed tracing events for MCP calls using the [OpenTelemetry](https://opentelemetry.io/) standard. When configured, the gateway creates spans for each MCP tool invocation and exports them to the designated collector endpoint.
 
@@ -1851,6 +1892,16 @@ Content-Type: application/json
 - **Added**: OpenTelemetry example configurations (Appendix A.6, A.7)
 - **Added**: Normative references for W3C Trace Context and OTLP
 - **Updated**: JSON Schema with `opentelemetry` property and `opentelemetryConfig` definition in `gatewayConfig`
+
+### Version 1.11.0 (Draft)
+
+- **Added**: `sessionTimeout` field to gateway configuration (Section 4.1.3, 4.1.3.6)
+  - Optional Go duration string for controlling MCP session lifetime (e.g. `"4h"`, `"30m"`)
+  - Precedence: stdin config `sessionTimeout` > `MCP_GATEWAY_SESSION_TIMEOUT` env var > gateway default (6h)
+  - Workflow authors configure via `engine.mcp.session-timeout` in frontmatter; the compiler validates (min 5m, no upper bound) and emits it into the gateway config JSON
+- **Added**: Section 4.1.3.6 — Session Timeout Configuration
+- **Renumbered**: Former Section 4.1.3.6 (OpenTelemetry) to 4.1.3.7
+- **Updated**: JSON Schema with `sessionTimeout` property in `gatewayConfig` definition
 
 ### Version 1.10.0 (Draft)
 
