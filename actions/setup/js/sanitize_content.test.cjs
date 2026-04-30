@@ -526,6 +526,11 @@ describe("sanitize_content.cjs", () => {
       expect(result).toBe("Hello <img/> world");
     });
 
+    it("should convert disallowed self-closing tags to parentheses", () => {
+      const result = sanitizeContent("Hello <div/> world");
+      expect(result).toBe("Hello (div/) world");
+    });
+
     it("should preserve img tags with layout attributes", () => {
       const input = '<img align="right" width="120" src="https://example.com/image.png" alt="Mascot" />';
       const result = sanitizeContent(input);
@@ -537,6 +542,12 @@ describe("sanitize_content.cjs", () => {
 
     it("should strip dangerous event-handler attributes from img tags", () => {
       const result = sanitizeContent('<img src=x onerror="alert(1)">');
+      expect(result).toContain("<img");
+      expect(result).not.toContain("onerror");
+    });
+
+    it("should strip dangerous event-handler attributes from img tags even when slash-prefixed", () => {
+      const result = sanitizeContent("<img/onerror=alert(1) src=x>");
       expect(result).toContain("<img");
       expect(result).not.toContain("onerror");
     });
