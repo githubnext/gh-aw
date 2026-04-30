@@ -878,6 +878,54 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ProtectedFilesObje
 			},
 			wantErr: false,
 		},
+		{
+			name: "create-pull-request: expression string for protected-files passes",
+			safeOutputs: map[string]any{
+				"create-pull-request": map[string]any{
+					"protected-files": "${{ inputs.protected-files-policy }}",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "create-pull-request: expression string for patch-format passes",
+			safeOutputs: map[string]any{
+				"create-pull-request": map[string]any{
+					"patch-format": "${{ inputs.patch-format }}",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "push-to-pull-request-branch: expression string for protected-files passes",
+			safeOutputs: map[string]any{
+				"push-to-pull-request-branch": map[string]any{
+					"protected-files": "${{ inputs.protected-files-policy }}",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "push-to-pull-request-branch: expression string for patch-format passes",
+			safeOutputs: map[string]any{
+				"push-to-pull-request-branch": map[string]any{
+					"patch-format": "${{ inputs.patch-format }}",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "create-pull-request: object form with expression policy passes",
+			safeOutputs: map[string]any{
+				"create-pull-request": map[string]any{
+					"protected-files": map[string]any{
+						"policy":  "${{ inputs.policy }}",
+						"exclude": []any{"AGENTS.md"},
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

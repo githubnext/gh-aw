@@ -545,5 +545,25 @@ index abc..def 100644
       expect(result.action).toBe("deny");
       expect(result.source).toBe("allowlist");
     });
+
+    it("should fail closed (deny) when protected_files_policy resolves to an invalid value", () => {
+      // An expression like ${{ inputs.policy }} that resolves to an unrecognised string
+      // must not silently allow protected file changes — it must deny (fail closed).
+      const result = checkFileProtection(makePatch("package.json"), {
+        protected_files: ["package.json"],
+        protected_files_policy: "not-a-valid-policy",
+      });
+      expect(result.action).toBe("deny");
+      expect(result.source).toBe("protected");
+    });
+
+    it("should fail closed (deny) when protected_files_policy is undefined", () => {
+      const result = checkFileProtection(makePatch("package.json"), {
+        protected_files: ["package.json"],
+        // protected_files_policy intentionally absent
+      });
+      expect(result.action).toBe("deny");
+      expect(result.source).toBe("protected");
+    });
   });
 });

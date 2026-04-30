@@ -320,6 +320,23 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Determine transport format: "bundle" uses git bundle (preserves merge topology),
     // "am" (default) uses git format-patch / git am (good for linear histories).
     const patchFormat = prConfig["patch_format"] || config["patch_format"] || "am";
+    const validPatchFormats = ["am", "bundle"];
+    if (!validPatchFormats.includes(patchFormat)) {
+      const errorMsg = `Invalid patch_format: "${patchFormat}". Must be one of: ${validPatchFormats.join(", ")}`;
+      server.debug(`create_pull_request: ${errorMsg}`);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: errorMsg,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
     const useBundle = patchFormat === "bundle";
 
     // Build common options for both patch and bundle generation
@@ -531,6 +548,23 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Determine transport format: "bundle" uses git bundle (preserves merge topology),
     // "am" (default) uses git format-patch / git am (good for linear histories).
     const pushPatchFormat = pushConfig["patch_format"] || config["patch_format"] || "am";
+    const validPushPatchFormats = ["am", "bundle"];
+    if (!validPushPatchFormats.includes(pushPatchFormat)) {
+      const errorMsg = `Invalid patch_format: "${pushPatchFormat}". Must be one of: ${validPushPatchFormats.join(", ")}`;
+      server.debug(`push_to_pull_request_branch: ${errorMsg}`);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: errorMsg,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
     const useBundle = pushPatchFormat === "bundle";
 
     // Build common options for both patch and bundle generation
