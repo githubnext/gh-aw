@@ -53,7 +53,7 @@ Extract and inline **only the specific sections** of the skill content that the 
 **Pattern**:
 
 ```markdown
-<!-- From skills/github-mcp-server/SKILL.md — only the "authentication" section -->
+<!-- gh-skill-fusion: skills/github-mcp-server/SKILL.md#authentication -->
 
 When calling GitHub MCP tools, use the pre-configured token already injected into the
 environment. Never prompt the user for credentials.
