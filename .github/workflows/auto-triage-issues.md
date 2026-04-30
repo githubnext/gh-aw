@@ -23,6 +23,22 @@ network:
 imports:
   - shared/github-guard-policy.md
   - shared/reporting.md
+  - uses: githubnext/repo-mind-light-aw/.github/workflows/shared/repo-mind-light.md@main
+    with:
+      config-yaml: |
+        slug: ${{ github.repository }}
+        store_path: /var/lib/repo-mind-light/index
+        refresh_if_older_than: 1d
+        indexing:
+          keep_count: 1000
+          issue_state: all
+          pr_state: all
+          ignore_bot_authored: true
+        query:
+          preload_query_sources_on_startup: true
+          code_search:
+            enabled: true
+            limit: 50
 tools:
   cli-proxy: true
   github:
@@ -63,6 +79,10 @@ You are the Auto-Triage Issues Agent - an intelligent system that automatically 
 ## Objective
 
 Reduce the percentage of unlabeled issues from 8.6% to below 5% by automatically applying appropriate labels based on issue content, patterns, and context.
+
+## Repository Context
+
+Before classifying any issue, use the `query` tool from the `repo-mind` MCP server to retrieve relevant repository context. Ask a focused question based on the issue title or topic — for example, "what parts of the codebase are affected by compiler validation errors?" or "what areas relate to MCP server configuration?". Use this context to make more accurate label decisions, especially for component labels (`cli`, `compiler`, `mcp`, etc.).
 
 ## Task
 

@@ -11,6 +11,22 @@ permissions:
 engine: copilot
 imports:
   - shared/github-guard-policy.md
+  - uses: githubnext/repo-mind-light-aw/.github/workflows/shared/repo-mind-light.md@main
+    with:
+      config-yaml: |
+        slug: ${{ github.repository }}
+        store_path: /var/lib/repo-mind-light/index
+        refresh_if_older_than: 1d
+        indexing:
+          keep_count: 1000
+          issue_state: all
+          pr_state: all
+          ignore_bot_authored: true
+        query:
+          preload_query_sources_on_startup: true
+          code_search:
+            enabled: true
+            limit: 50
 tools:
   cli-proxy: true
   github:
@@ -47,6 +63,10 @@ You are an automated PR triage system responsible for categorizing, assessing ri
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
+
+## Repository Context
+
+Use the `query` tool from the `repo-mind` MCP server to understand the repository before assessing PRs. For each PR, issue a focused query about the changed areas — for example, "what subsystems are affected by changes to pkg/workflow/compiler.go?" — to inform your risk and impact scoring. Prefer one or two targeted queries per session rather than broad exploratory queries.
 
 ## Your Mission
 

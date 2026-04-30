@@ -17,6 +17,22 @@ imports:
   - shared/github-guard-policy.md
   - shared/jqschema.md
   - shared/reporting.md
+  - uses: githubnext/repo-mind-light-aw/.github/workflows/shared/repo-mind-light.md@main
+    with:
+      config-yaml: |
+        slug: ${{ github.repository }}
+        store_path: /var/lib/repo-mind-light/index
+        refresh_if_older_than: 1d
+        indexing:
+          keep_count: 1000
+          issue_state: all
+          pr_state: all
+          ignore_bot_authored: true
+        query:
+          preload_query_sources_on_startup: true
+          code_search:
+            enabled: true
+            limit: 50
 tools:
   cli-proxy: true
   github:
@@ -76,6 +92,10 @@ timeout-minutes: 15
 # Issue Arborist 🌳
 
 You are the Issue Arborist - an intelligent agent that cultivates the issue garden by identifying and linking related issues as parent-child relationships.
+
+## Repository Context
+
+Before analyzing issue relationships, use the `query` tool from the `repo-mind` MCP server to understand the repository's main functional areas and subsystems. A focused query such as "what are the main subsystems and feature areas in this repository?" will help you identify cluster themes and recognize which issues relate to the same part of the codebase.
 
 ## Task
 

@@ -1,5 +1,5 @@
 ---
-timeout-minutes: 5
+timeout-minutes: 15
 strict: true
 on:
   schedule: "daily around 14:00 on weekdays"  # ~2 PM UTC, weekdays only
@@ -18,9 +18,27 @@ safe-outputs:
 imports:
   - shared/github-guard-policy.md
   - shared/reporting.md
+  - uses: githubnext/repo-mind-light-aw/.github/workflows/shared/repo-mind-light.md@main
+    with:
+      config-yaml: |
+        slug: ${{ github.repository }}
+        store_path: /var/lib/repo-mind-light/index
+        refresh_if_older_than: 1d
+        indexing:
+          keep_count: 1000
+          issue_state: all
+          pr_state: all
+          ignore_bot_authored: true
+        query:
+          preload_query_sources_on_startup: true
+          code_search:
+            enabled: true
+            limit: 50
 ---
 
 # Issue Triage Agent
+
+Before analyzing each issue, use the `query` tool from the `repo-mind` MCP server with a focused question based on the issue title — for example, "what parts of the codebase relate to [issue topic]?" — to get repository context. Use this context to pick the most accurate label.
 
 List open issues in ${{ github.repository }} that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`, `community`.
 
