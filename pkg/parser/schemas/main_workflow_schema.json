@@ -7724,7 +7724,7 @@
                 },
                 "create-issue": {
                   "$ref": "#/$defs/templatable_boolean",
-                  "description": "Whether to create or update GitHub issues when tools are missing (default: true). Supports literal boolean or GitHub Actions expression (e.g. '${{ inputs.create-incomplete-issue }}').",
+                  "description": "Whether to create or update GitHub issues when tools are missing (default: true). Supports literal boolean or GitHub Actions expression (e.g. '${{ inputs.create-issue }}').",
                   "default": true
                 },
                 "title-prefix": {
