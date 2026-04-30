@@ -346,4 +346,9 @@ describe("extractWorkflowId", () => {
     const body = "<!-- gh-aw-workflow-call-id: owner/repo/my;workflow -->";
     expect(extractWorkflowId(body)).toBeNull();
   });
+
+  it("returns null when call-id ends with a trailing slash (empty last segment)", () => {
+    const body = "<!-- gh-aw-workflow-call-id: owner/repo/ -->";
+    expect(extractWorkflowId(body)).toBeNull();
+  });
 });

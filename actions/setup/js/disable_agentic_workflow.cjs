@@ -57,11 +57,12 @@ function extractWorkflowId(body) {
   }
 
   // Try workflow-call-id marker (handles workflow_dispatch): <!-- gh-aw-workflow-call-id: owner/repo/my-workflow -->
-  // The call-id has the form "owner/repo/workflow-id"; extract the last path segment.
+  // The call-id has the form "owner/repo/workflow-id"; extract the last non-empty path segment.
   const callIdMatch = body.match(/<!--\s*gh-aw-workflow-call-id:\s*([^\s>][^>]*?)\s*-->/);
   if (callIdMatch) {
     const segments = callIdMatch[1].trim().split("/");
     const id = segments[segments.length - 1].trim();
+    if (id.length === 0) return null;
     return isValidWorkflowId(id) ? id : null;
   }
 
@@ -89,7 +90,7 @@ async function ensureDisableLabelExists(owner, repo) {
     core.info(`✅ Created label '${DISABLE_LABEL}'`);
   } catch (err) {
     // 422 means the label already exists — expected on most runs
-    if (err && typeof err === "object" && /** @type {any} */ err.status === 422) {
+    if (err !== null && typeof err === "object" && /** @type {any} */ err.status === 422) {
       core.info(`ℹ️  Label '${DISABLE_LABEL}' already exists`);
     } else {
       // Non-fatal: log a warning but continue — the label may already be present
