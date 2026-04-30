@@ -656,8 +656,9 @@ func TestGenerateMaintenanceWorkflow_DisableLabelTrigger_Disabled(t *testing.T) 
 	}
 
 	tmpDir := t.TempDir()
+	falseVal := false
 	cfg := &RepoConfig{
-		Maintenance: &MaintenanceConfig{DisableLabelTrigger: true},
+		Maintenance: &MaintenanceConfig{LabelTriggerDisable: &falseVal},
 	}
 	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, cfg, "")
 	if err != nil {
@@ -671,15 +672,15 @@ func TestGenerateMaintenanceWorkflow_DisableLabelTrigger_Disabled(t *testing.T) 
 
 	// Label-event triggers should be absent
 	if strings.Contains(yaml, "  issues:\n    types: [labeled]") {
-		t.Error("When disable_label_trigger is true the issues labeled trigger should not be present")
+		t.Error("When label_trigger_disable is false the issues labeled trigger should not be present")
 	}
 	if strings.Contains(yaml, "  pull_request:\n    types: [labeled]") {
-		t.Error("When disable_label_trigger is true the pull_request labeled trigger should not be present")
+		t.Error("When label_trigger_disable is false the pull_request labeled trigger should not be present")
 	}
 
 	// The disable_agentic_workflow job should be absent
 	if strings.Contains(yaml, "disable_agentic_workflow:") {
-		t.Error("When disable_label_trigger is true the disable_agentic_workflow job should not be present")
+		t.Error("When label_trigger_disable is false the disable_agentic_workflow job should not be present")
 	}
 }
 
@@ -694,7 +695,7 @@ func TestGenerateMaintenanceWorkflow_DisableLabelTrigger_Default(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	// Default: DisableLabelTrigger is false (omitted)
+	// Default: LabelTriggerDisable is nil (omitted) → treated as true → job included
 	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, "")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)

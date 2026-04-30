@@ -10,7 +10,7 @@
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
 //	    "action_failure_issue_expires": 72 // expiration (hours) for conclusion failure issues
-//	    "disable_label_trigger": true // set to true to disable the label-triggered disable job
+//	    "label_trigger_disable": false // set to false to disable the label-triggered disable job
 //	  }                            // maintenance jobs (default: ubuntu-slim)
 //	}
 //
@@ -74,9 +74,19 @@ type MaintenanceConfig struct {
 	// failure issues opened by the conclusion job. Defaults to 168 (7 days).
 	ActionFailureIssueExpires int `json:"action_failure_issue_expires,omitempty"`
 
-	// DisableLabelTrigger disables the label-triggered disable_agentic_workflow job
-	// when set to true. By default (false or omitted) the job is included.
-	DisableLabelTrigger bool `json:"disable_label_trigger,omitempty"`
+	// LabelTriggerDisable controls the label-triggered disable_agentic_workflow job.
+	// When nil (omitted) or true (default), the job is included in the maintenance workflow.
+	// Set to false explicitly to exclude the job and its associated issue/pull_request triggers.
+	LabelTriggerDisable *bool `json:"label_trigger_disable,omitempty"`
+}
+
+// IsLabelTriggerEnabled returns true unless label_trigger_disable is explicitly set to false.
+// The default (nil / omitted) is treated as enabled (true).
+func (m *MaintenanceConfig) IsLabelTriggerEnabled() bool {
+	if m == nil || m.LabelTriggerDisable == nil {
+		return true
+	}
+	return *m.LabelTriggerDisable
 }
 
 // RepoConfig is the parsed representation of aw.json.

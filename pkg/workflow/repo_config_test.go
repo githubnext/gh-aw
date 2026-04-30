@@ -102,22 +102,37 @@ func TestLoadRepoConfig_SchemaViolation(t *testing.T) {
 
 func TestLoadRepoConfig_DisableLabelTrigger(t *testing.T) {
 	dir := t.TempDir()
-	writeAWJSON(t, dir, `{"maintenance": {"disable_label_trigger": true}}`)
+	writeAWJSON(t, dir, `{"maintenance": {"label_trigger_disable": false}}`)
 
 	cfg, err := LoadRepoConfig(dir)
 	require.NoError(t, err, "valid aw.json should load without error")
 	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
-	assert.True(t, cfg.Maintenance.DisableLabelTrigger, "disable_label_trigger should be true")
+	require.NotNil(t, cfg.Maintenance.LabelTriggerDisable, "label_trigger_disable should be set")
+	assert.False(t, *cfg.Maintenance.LabelTriggerDisable, "label_trigger_disable should be false when explicitly set")
+	assert.False(t, cfg.Maintenance.IsLabelTriggerEnabled(), "label trigger should be disabled when label_trigger_disable is false")
 }
 
-func TestLoadRepoConfig_DisableLabelTrigger_DefaultFalse(t *testing.T) {
+func TestLoadRepoConfig_LabelTriggerDisable_DefaultTrue(t *testing.T) {
 	dir := t.TempDir()
 	writeAWJSON(t, dir, `{"maintenance": {}}`)
 
 	cfg, err := LoadRepoConfig(dir)
 	require.NoError(t, err, "valid aw.json should load without error")
 	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
-	assert.False(t, cfg.Maintenance.DisableLabelTrigger, "disable_label_trigger should default to false")
+	assert.Nil(t, cfg.Maintenance.LabelTriggerDisable, "label_trigger_disable should be nil when not specified")
+	assert.True(t, cfg.Maintenance.IsLabelTriggerEnabled(), "label trigger should be enabled by default (nil = true)")
+}
+
+func TestLoadRepoConfig_LabelTriggerDisable_ExplicitTrue(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"maintenance": {"label_trigger_disable": true}}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
+	require.NotNil(t, cfg.Maintenance.LabelTriggerDisable, "label_trigger_disable should be set")
+	assert.True(t, *cfg.Maintenance.LabelTriggerDisable, "label_trigger_disable should be true")
+	assert.True(t, cfg.Maintenance.IsLabelTriggerEnabled(), "label trigger should be enabled when label_trigger_disable is true")
 }
 
 // TestLoadRepoConfig_UnknownProperty tests that unknown properties are rejected.
