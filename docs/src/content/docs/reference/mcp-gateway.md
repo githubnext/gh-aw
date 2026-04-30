@@ -251,7 +251,7 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `payloadSizeThreshold` | integer | No | Size threshold in bytes for storing payloads to disk (default: 524288 = 512KB) |
 | `trustedBots` | array[string] | No | Additional GitHub bot identity strings (e.g., `github-actions[bot]`) passed to the gateway and merged with its built-in trusted identity list. This field is additive — it extends the internal list but cannot remove built-in entries. |
 | `keepaliveInterval` | integer | No | Keepalive ping interval in seconds for HTTP MCP backends. Prevents session expiry during long-running tasks. Use `-1` to disable, `0` or unset for gateway default (1500s = 25 min), or a positive integer for a custom interval. |
-| `sessionTimeout` | string | No | Session timeout for MCP gateway sessions as a Go duration string (e.g. `"30m"`, `"4h"`, `"6h"`). Empty or omitted uses the gateway default (6h). Must be between 5m and 12h when set by the workflow compiler (infrastructure operators may override via `MCP_GATEWAY_SESSION_TIMEOUT` env var). |
+| `sessionTimeout` | string | No | Session timeout for MCP gateway sessions as a Go duration string (e.g. `"30m"`, `"4h"`, `"24h"`). Empty or omitted uses the gateway default (6h). Must be at least 5m when set by the workflow compiler (no upper bound; infrastructure operators may override via `MCP_GATEWAY_SESSION_TIMEOUT` env var). |
 | `opentelemetry` | object | No | OpenTelemetry configuration for emitting distributed tracing events for MCP calls. See Section 4.1.3.7 for details. |
 
 #### 4.1.3.1 Payload Directory Path Validation
@@ -486,7 +486,7 @@ engine:
 **Compliance rules**:
 
 - `sessionTimeout` MUST be a valid Go duration string when present (e.g. `"30m"`, `"4h"`)
-- The workflow compiler enforces a minimum of `5m` and a maximum of `12h` for author-specified values
+- The workflow compiler enforces a minimum of `5m` for author-specified values (no upper bound)
 - Infrastructure operators may set `MCP_GATEWAY_SESSION_TIMEOUT` on the gateway container to override the default for all workflows; a per-workflow `sessionTimeout` in the stdin config takes precedence
 - When unset, the gateway uses its built-in default (6h)
 
@@ -1898,7 +1898,7 @@ Content-Type: application/json
 - **Added**: `sessionTimeout` field to gateway configuration (Section 4.1.3, 4.1.3.6)
   - Optional Go duration string for controlling MCP session lifetime (e.g. `"4h"`, `"30m"`)
   - Precedence: stdin config `sessionTimeout` > `MCP_GATEWAY_SESSION_TIMEOUT` env var > gateway default (6h)
-  - Workflow authors configure via `engine.mcp.session-timeout` in frontmatter; the compiler validates (min 5m, max 12h) and emits it into the gateway config JSON
+  - Workflow authors configure via `engine.mcp.session-timeout` in frontmatter; the compiler validates (min 5m, no upper bound) and emits it into the gateway config JSON
 - **Added**: Section 4.1.3.6 — Session Timeout Configuration
 - **Renumbered**: Former Section 4.1.3.6 (OpenTelemetry) to 4.1.3.7
 - **Updated**: JSON Schema with `sessionTimeout` property in `gatewayConfig` definition

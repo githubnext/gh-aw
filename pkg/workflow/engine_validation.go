@@ -110,7 +110,7 @@ func (c *Compiler) validateEngineHarnessScript(workflowData *WorkflowData) error
 }
 
 // validateEngineMCPSessionTimeout validates optional engine.mcp.session-timeout configuration.
-// The value must be a valid Go duration string between 5m and 12h.
+// The value must be a valid Go duration string of at least 5m (no upper bound).
 func (c *Compiler) validateEngineMCPSessionTimeout(workflowData *WorkflowData) error {
 	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.MCPSessionTimeout == "" {
 		return nil
@@ -120,14 +120,11 @@ func (c *Compiler) validateEngineMCPSessionTimeout(workflowData *WorkflowData) e
 
 	d, err := time.ParseDuration(raw)
 	if err != nil {
-		return fmt.Errorf("engine.mcp.session-timeout: invalid duration %q. Must be a valid Go duration string (e.g. \"30m\", \"4h\", \"6h\").\n\nExamples:\n  engine:\n    mcp:\n      session-timeout: 4h\n\nSee: %s", raw, constants.DocsEnginesURL)
+		return fmt.Errorf("engine.mcp.session-timeout: invalid duration %q. Must be a valid Go duration string (e.g. \"30m\", \"4h\", \"24h\").\n\nExamples:\n  engine:\n    mcp:\n      session-timeout: 4h\n\nSee: %s", raw, constants.DocsEnginesURL)
 	}
 
 	if d < constants.MCPSessionTimeoutMin {
-		return fmt.Errorf("engine.mcp.session-timeout: %q is too short (minimum is 5m). Use a value between 5m and 12h.\n\nExamples:\n  session-timeout: 30m\n  session-timeout: 4h\n\nSee: %s", raw, constants.DocsEnginesURL)
-	}
-	if d > constants.MCPSessionTimeoutMax {
-		return fmt.Errorf("engine.mcp.session-timeout: %q is too long (maximum is 12h). Use a value between 5m and 12h.\n\nExamples:\n  session-timeout: 4h\n  session-timeout: 12h\n\nSee: %s", raw, constants.DocsEnginesURL)
+		return fmt.Errorf("engine.mcp.session-timeout: %q is too short (minimum is 5m).\n\nExamples:\n  session-timeout: 30m\n  session-timeout: 4h\n\nSee: %s", raw, constants.DocsEnginesURL)
 	}
 
 	engineValidationLog.Printf("engine.mcp.session-timeout validated: %s (%s)", raw, d)

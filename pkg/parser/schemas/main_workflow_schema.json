@@ -9826,7 +9826,7 @@
               "properties": {
                 "session-timeout": {
                   "type": "string",
-                  "description": "Session timeout for MCP gateway sessions as a Go duration string (e.g. \"30m\", \"4h\", \"6h\"). Must be between 5m and 12h. Omitted or empty uses the effective gateway default (precedence: this field > MCP_GATEWAY_SESSION_TIMEOUT env var > built-in default 6h). Longer timeouts benefit multi-hour workflows such as large-scale migrations; shorter values free gateway resources sooner.",
+                  "description": "Session timeout for MCP gateway sessions as a Go duration string (e.g. \"30m\", \"4h\", \"24h\"). Must be at least 5m (no upper bound). Omitted or empty uses the effective gateway default (precedence: this field > MCP_GATEWAY_SESSION_TIMEOUT env var > built-in default 6h). Longer timeouts benefit multi-hour workflows such as large-scale migrations; shorter values free gateway resources sooner.",
                   "examples": ["30m", "1h", "4h", "6h", "12h"]
                 }
               },

@@ -40,11 +40,11 @@ Using an integer (seconds) would be simpler to parse and validate. A Go duration
 #### Negative
 - Adds another frontmatter field and a new `engine.mcp` sub-object, increasing frontmatter surface area.
 - The three-level precedence rule (stdin config > env var > gateway default) is non-obvious and must be documented; operators may be surprised that a per-workflow value overrides their env-var setting.
-- Any workflow that sets `session-timeout` to a very long value (approaching 12h) could hold gateway resources for extended periods if a run hangs or is abandoned.
+- Any workflow that sets `session-timeout` to a very long value could hold gateway resources for extended periods if a run hangs or is abandoned.
 
 #### Neutral
-- Constants `MCPSessionTimeoutMin` (5m) and `MCPSessionTimeoutMax` (12h) are added to `pkg/constants`, establishing a named home for MCP session bounds that future policies can reference.
-- Both kebab-case (`session-timeout`) and camelCase (`sessionTimeout`) key spellings are accepted during extraction for consistency with other frontmatter fields that support dual spellings.
+- Constants `MCPSessionTimeoutMin` (5m) is added to `pkg/constants`, establishing a named home for the MCP session minimum bound that future policies can reference.
+- Only the kebab-case (`session-timeout`) key spelling is accepted during extraction; the JSON Schema uses `additionalProperties: false` to reject any other keys under `engine.mcp`.
 - The JSON Schema for `engine_config` gains a new `mcp` object definition with `additionalProperties: false`, which prevents unrecognized MCP sub-keys from silently passing validation.
 
 ---
@@ -57,15 +57,14 @@ Using an integer (seconds) would be simpler to parse and validate. A Go duration
 
 1. The `engine.mcp.session-timeout` frontmatter field is **OPTIONAL**.
 2. When present and non-empty, the value **MUST** be a valid Go duration string parseable by `time.ParseDuration`.
-3. When present, the value **MUST** be greater than or equal to `5m` (as defined by `constants.MCPSessionTimeoutMin`).
-4. When present, the value **MUST** be less than or equal to `12h` (as defined by `constants.MCPSessionTimeoutMax`).
-5. Implementations **MUST** accept both kebab-case (`session-timeout`) and camelCase (`sessionTimeout`) as equivalent spellings for this key.
-6. Implementations **MUST NOT** accept any other spellings or sibling keys under `engine.mcp`; the `mcp` sub-object **MUST** be declared with `additionalProperties: false` in the JSON Schema.
+3. When present, the value **MUST** be greater than or equal to `5m` (as defined by `constants.MCPSessionTimeoutMin`); there is no upper bound.
+4. Implementations **MUST** accept only kebab-case (`session-timeout`) for this key; camelCase is not supported.
+5. Implementations **MUST NOT** accept any other spellings or sibling keys under `engine.mcp`; the `mcp` sub-object **MUST** be declared with `additionalProperties: false` in the JSON Schema.
 
 ### Validation
 
 1. The compiler **MUST** validate `engine.mcp.session-timeout` during `ParseWorkflowFile`, before the workflow is further processed.
-2. A validation error **MUST** produce a human-readable message that includes the offending value, the valid range, and a corrected example.
+2. A validation error **MUST** produce a human-readable message that includes the offending value, the minimum bound, and a corrected example.
 3. Workflows that omit `engine.mcp.session-timeout` or set it to an empty string **MUST** be treated as if the field were absent; no default value **SHALL** be injected by the compiler.
 
 ### Propagation

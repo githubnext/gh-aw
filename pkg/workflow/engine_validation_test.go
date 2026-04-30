@@ -472,12 +472,11 @@ func TestValidateEngineMCPSessionTimeout(t *testing.T) {
 			errorSubstr: "too short",
 		},
 		{
-			name: "too long - 13h",
+			name: "valid duration 24h (no upper bound)",
 			workflow: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", MCPSessionTimeout: "13h"},
+				EngineConfig: &EngineConfig{ID: "copilot", MCPSessionTimeout: "24h"},
 			},
-			expectError: true,
-			errorSubstr: "too long",
+			expectError: false,
 		},
 		{
 			name: "plain integer - not valid Go duration",
