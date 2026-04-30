@@ -369,7 +369,7 @@ describe("copilot_harness.cjs", () => {
   describe("null-type tool_call detection pattern", () => {
     const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
 
-    it("matches the exact error from the failed workflow run", () => {
+    it("matches the error format observed in failed workflow runs", () => {
       const errorOutput = "Execution failed: CAPIError: 400 Invalid type for 'messages[45].tool_calls[0].type': expected one of 'function', 'all...ols', or 'custom', but got null instead.";
       expect(NULL_TYPE_TOOL_CALL_PATTERN.test(errorOutput)).toBe(true);
     });

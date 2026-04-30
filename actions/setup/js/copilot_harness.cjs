@@ -23,6 +23,12 @@
  *     - On a fresh run (attempt 0 or after a `--continue`-auth fallback): the env-var token is
  *       genuinely absent or invalid.  All further retries will produce the same failure, so the
  *       driver bails immediately.
+ *   - Null-type tool_call errors (400 "Invalid type for '...tool_calls[N].type': ... got null")
+ *     poison the conversation history.  Retrying with `--continue` re-injects the same broken
+ *     state on every subsequent attempt.  The driver restarts fresh to discard the poisoned
+ *     history and permanently disables `--continue` for the remainder of the run so the corrupt
+ *     state can never be reloaded.  Once `--continue` is disabled this way it is not re-enabled
+ *     even if later retries produce output.
  *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s).
  *   - Maximum 3 retry attempts after the initial run.
  *
@@ -434,8 +440,12 @@ async function main() {
     // Retry whenever the session was partially executed (hasOutput), using --continue so that
     // the Copilot CLI can continue from where it left off.  CAPIError 400 is the well-known
     // transient case, but any partial-execution failure is eligible for a continue retry.
-    // Exceptions: MCP policy errors, model-not-supported errors, and auth errors are persistent
-    // configuration issues — never retry.
+    // Exceptions:
+    //   - MCP policy errors and model-not-supported errors are persistent configuration issues.
+    //   - Auth errors trigger a one-time fallback to a fresh run; after that --continue is
+    //     permanently disabled.
+    //   - Null-type tool_call 400 errors poison conversation history — always restart fresh and
+    //     permanently disable --continue so the corrupt state is never reloaded.
     const isCAPIError = isTransientCAPIError(result.output);
     const isMCPPolicy = isMCPPolicyError(result.output);
     const isModelNotSupported = isModelNotSupportedError(result.output);
