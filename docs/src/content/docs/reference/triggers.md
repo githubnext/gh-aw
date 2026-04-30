@@ -281,29 +281,17 @@ See the [Security Architecture](/gh-aw/introduction/architecture/) for details.
 
 #### Conclusion Filtering (`conclusion:`)
 
-Use `conclusion:` to restrict the trigger to specific workflow run outcomes. The compiler compiles this into a guarded `if:` condition so the workflow only runs for the matching conclusions. Other combined triggers (such as `workflow_dispatch`) are not blocked by the guard.
+Use `conclusion:` to restrict the trigger to specific workflow run outcomes. Accepts a single value or a list. Compiles into a guarded `if:` condition — other events in the same `on:` block are unaffected.
 
 ```yaml wrap
 on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
-    conclusion: failure          # Single conclusion
+    conclusion: [failure, cancelled]
 ```
 
-```yaml wrap
-on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    conclusion: [failure, cancelled]  # Multiple conclusions
-  workflow_dispatch:                   # Safely combined — guard ensures dispatch passes through
-```
-
-Valid `conclusion` values: `success`, `failure`, `cancelled`, `skipped`, `timed_out`, `action_required`, `neutral`, `stale`.
-
-> [!NOTE]
-> The `conclusion` field compiles into a GitHub Actions `if:` condition: `github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'failure')`. This means the workflow still runs when triggered by other events in the same `on:` block.
+Valid values: `success`, `failure`, `cancelled`, `skipped`, `timed_out`, `action_required`, `neutral`, `stale`.
 
 ### Deployment Status Triggers (`deployment_status:`)
 
