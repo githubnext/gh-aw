@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -298,6 +299,9 @@ func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 	// Should write the config file using printf
 	assert.Contains(t, command, "printf", "expected printf command to write the config file")
 	assert.Contains(t, command, "awf-config.json", "expected awf-config.json reference")
+
+	// Should copy the config file to /tmp/gh-aw/awf-config.json for artifact upload
+	assert.Contains(t, command, constants.AWFConfigFilePath, "expected awf-config.json to be copied to /tmp/gh-aw/")
 
 	// Should reference the config file via --config
 	assert.Contains(t, command, "--config", "expected --config flag in AWF invocation")

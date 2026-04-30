@@ -115,9 +115,13 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		// single quotes), so single-quoting the JSON string requires no further escaping
 		// in practice. shellEscapeArg handles the edge case where a domain value might
 		// somehow contain a single quote.
+		// Write the config to ${RUNNER_TEMP}/gh-aw/awf-config.json (host path read by AWF at
+		// startup) and also copy it to /tmp/gh-aw/awf-config.json so the unified agent artifact
+		// upload can include it alongside the other /tmp/gh-aw/ files.
 		configFileSetup = fmt.Sprintf(
-			"printf '%%s\\n' %s > \"${RUNNER_TEMP}/gh-aw/awf-config.json\"",
+			"printf '%%s\\n' %s > \"${RUNNER_TEMP}/gh-aw/awf-config.json\" && cp \"${RUNNER_TEMP}/gh-aw/awf-config.json\" %s",
 			shellEscapeArg(awfConfigJSON),
+			constants.AWFConfigFilePath,
 		)
 		// Add --config as the first expandable arg so it appears before --container-workdir.
 		expandableArgs = `--config "${RUNNER_TEMP}/gh-aw/awf-config.json" ` + expandableArgs
