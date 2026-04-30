@@ -1682,6 +1682,18 @@ engine:
   # (optional)
   bare: true
 
+  # Engine-level MCP gateway configuration. Settings here apply to the MCP gateway
+  # used by this engine.
+  # (optional)
+  mcp:
+    # Session timeout for MCP gateway sessions as a Go duration string (e.g. "30m",
+    # "4h", "24h"). Must be at least 5m (no upper bound). Omitted or empty uses the
+    # effective gateway default (precedence: this field > MCP_GATEWAY_SESSION_TIMEOUT
+    # env var > built-in default 6h). Longer timeouts benefit multi-hour workflows
+    # such as large-scale migrations; shorter values free gateway resources sooner.
+    # (optional)
+    session-timeout: "example-value"
+
 # Option 3: Inline engine definition: specifies a runtime adapter and optional
 # provider settings directly in the workflow frontmatter, without requiring a
 # named catalog entry
