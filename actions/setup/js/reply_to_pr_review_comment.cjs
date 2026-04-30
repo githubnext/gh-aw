@@ -7,7 +7,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getPRNumber } = require("./update_context_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -159,7 +159,12 @@ async function main(config = {}) {
       // Append footer with workflow information when enabled
       let finalBody = sanitizeContent(body);
       if (includeFooter) {
-        const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, triggeringPRNumber, undefined);
+        // Inject CAUTION at top of body if threat detection warning was raised
+        const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+        if (detectionCaution) {
+          finalBody = detectionCaution + "\n\n" + finalBody;
+        }
+        const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, triggeringPRNumber, undefined, undefined, { skipDetectionCaution: true });
         finalBody = finalBody.trimEnd() + footer;
       }
 

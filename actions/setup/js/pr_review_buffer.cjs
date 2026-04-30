@@ -19,7 +19,7 @@
  *   await buffer.submitReview();
  */
 
-const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
@@ -253,6 +253,12 @@ function createReviewBuffer() {
 
     // Add footer to review body if we should and we have footer context
     if (shouldAddFooter && footerContext) {
+      // Inject CAUTION at top of body if threat detection warning was raised
+      const detectionCaution = getDetectionCautionAlert(footerContext.workflowName, footerContext.runUrl);
+      if (detectionCaution) {
+        body = detectionCaution + "\n\n" + body;
+      }
+
       body += generateFooterWithMessages(
         footerContext.workflowName,
         footerContext.runUrl,
@@ -260,7 +266,9 @@ function createReviewBuffer() {
         footerContext.workflowSourceURL,
         footerContext.triggeringIssueNumber,
         footerContext.triggeringPRNumber,
-        footerContext.triggeringDiscussionNumber
+        footerContext.triggeringDiscussionNumber,
+        undefined,
+        { skipDetectionCaution: true }
       );
 
       const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
