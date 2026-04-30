@@ -27,7 +27,7 @@
 //	    }
 //	  },
 //	  "container": {
-//	    "imageTag": "v0.25.29,squid=sha256:..."
+//	    "imageTag": "0.25.29,squid=sha256:..."
 //	  }
 //	}
 //
@@ -173,7 +173,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// splitDomainList splits a comma-separated domain string into a sorted, deduplicated
+// splitDomainList splits a comma-separated domain string into a deduplicated
 // slice. Empty entries are ignored. The order of the original list is preserved for
 // non-duplicate entries; this keeps the allow-list deterministic.
 func splitDomainList(domains string) []string {
