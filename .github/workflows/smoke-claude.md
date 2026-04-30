@@ -178,12 +178,14 @@ timeout-minutes: 10
     - Use `pr_number: <pr_number>`, `event: "COMMENT"`, and `body: "💥 Automated smoke test review - all systems nominal!"`
     - Verify the review is submitted successfully
     - Note: This will bundle all review comments from test #14
+    - After submitting, use the GitHub MCP tool to list review threads on the PR and note the thread IDs from review comments you created in test #14 — these will be used in test #16
 
 16. **Resolve Review Thread Testing**: 
-    - Use the GitHub MCP tool to list review threads on the PR
-    - If any threads exist, use the `resolve_pull_request_review_thread` tool to resolve one thread
-    - Use `thread_id: "<thread_id>"` from an existing thread
-    - If no threads exist, mark this test as ⚠️ (skipped - no threads to resolve)
+    - Use the GitHub MCP tool to list review threads on the PR and filter for threads that are **not yet resolved** (`isResolved: false`)
+    - Prefer resolving a thread created by your own review comments from test #14 in this run
+    - Use `thread_id: "<thread_id>"` from one of those unresolved threads
+    - **IMPORTANT: Only resolve threads that are currently unresolved — attempting to resolve an already-resolved thread will cause an API error**
+    - If no unresolved threads exist, mark this test as ⚠️ (skipped - no unresolved threads to resolve)
 
 17. **Add Reviewer Testing**: Use the `add_reviewer` tool to add a reviewer to the PR
     - Use `pr_number: <pr_number>` and `reviewers: ["copilot"]` (or another valid reviewer)
