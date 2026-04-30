@@ -52,9 +52,21 @@ func validatePathComponents(owner, repo, path, sha string) error {
 	return nil
 }
 
+// GitHubRefPinner resolves and pins a github_ref value (owner/repo[@ref] or owner/repo/path[@ref])
+// to a pinned action reference of the form repo@sha # version.
+// If the reference cannot be resolved or pinned, it is returned as-is with a warning.
+// The pinner is optional; a nil pinner leaves values unchanged (no pinning).
+type GitHubRefPinner interface {
+	// PinGitHubRef pins a single github_ref string value.
+	// If the value includes a subpath (e.g., owner/repo/path), the path is preserved in the output.
+	// Returns the pinned reference string, or the original value if no pin can be resolved.
+	PinGitHubRef(value string) string
+}
+
 // ImportCache manages cached imported workflow files
 type ImportCache struct {
-	baseDir string // Base directory for cache (typically repo root)
+	baseDir string          // Base directory for cache (typically repo root)
+	Pinner  GitHubRefPinner // Optional pinner for github_ref input values
 }
 
 // NewImportCache creates a new import cache instance

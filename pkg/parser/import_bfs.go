@@ -79,6 +79,9 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 
 	// Initialize result accumulator
 	acc := newImportAccumulator()
+	if cache != nil {
+		acc.pinner = cache.Pinner
+	}
 
 	// Seed the queue with initial imports
 	for _, importSpec := range importSpecs {

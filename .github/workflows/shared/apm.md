@@ -62,12 +62,14 @@ import-schema:
     type: array
     items:
       type: string
+      github_ref: true
     required: false
     description: >
       Public APM packages or packages reachable via the default token cascade
       (GH_AW_PLUGINS_TOKEN, GH_AW_GITHUB_TOKEN, GITHUB_TOKEN). Optional. At
       least one of `packages`, the single-app inputs, or `apps` must be provided.
-      Format: owner/repo or owner/repo/path/to/skill.
+      Format: owner/repo or owner/repo/path/to/skill. The compiler resolves and
+      pins these references to their latest known SHA for supply-chain security.
 
   # Single-app convenience form (canonical shorthand for one-org users)
   app-id:

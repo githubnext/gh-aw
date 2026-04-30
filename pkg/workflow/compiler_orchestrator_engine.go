@@ -140,6 +140,11 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// Process imports from frontmatter first (before @include directives)
 	orchestratorEngineLog.Printf("Processing imports from frontmatter")
 	importCache := c.getSharedImportCache()
+	// Attach a GitHub ref pinner to the import cache so that import-schema
+	// inputs with github_ref: true are pinned at compile time.
+	if importCache.Pinner == nil {
+		importCache.Pinner = c.newImportCacheGitHubRefPinner()
+	}
 	// Pass the full file content for accurate line/column error reporting
 	importsResult, err := parser.ProcessImportsFromFrontmatterWithSource(result.Frontmatter, markdownDir, importCache, cleanPath, string(content))
 	if err != nil {

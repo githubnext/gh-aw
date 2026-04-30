@@ -23,6 +23,10 @@ type InputDefinition struct {
 	Default     any      `yaml:"default,omitempty" json:"default,omitempty"` // Can be string, number, or boolean
 	Type        string   `yaml:"type,omitempty" json:"type,omitempty"`       // "string", "choice", "boolean", "number", "environment"
 	Options     []string `yaml:"options,omitempty" json:"options,omitempty"` // Options for choice type
+	// GitHubRef constrains string or string[] values to the owner/repo[@ref] or owner/repo/path[@ref] format.
+	// When true, the compiler resolves and pins those references through the action pin manager,
+	// treating them as action pins (producing repo@sha # version output).
+	GitHubRef bool `yaml:"github_ref,omitempty" json:"github_ref,omitempty"`
 }
 
 // ParseInputDefinition parses an input definition from a map.
@@ -70,7 +74,14 @@ func ParseInputDefinition(inputConfig map[string]any) *InputDefinition {
 		}
 	}
 
-	inputsLog.Printf("Parsed input definition: type=%s, required=%t, options=%d", input.Type, input.Required, len(input.Options))
+	// Parse github_ref constraint
+	if gr, exists := inputConfig["github_ref"]; exists {
+		if grBool, ok := gr.(bool); ok {
+			input.GitHubRef = grBool
+		}
+	}
+
+	inputsLog.Printf("Parsed input definition: type=%s, required=%t, options=%d, github_ref=%t", input.Type, input.Required, len(input.Options), input.GitHubRef)
 	return input
 }
 

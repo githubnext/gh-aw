@@ -659,6 +659,202 @@ imports:
 	})
 }
 
+// TestImportSchemaGitHubRef tests that github_ref: true on import-schema inputs
+// validates values as owner/repo[@ref] format and produces pinned references.
+func TestImportSchemaGitHubRef(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-import-schema-github-ref-*")
+
+	sharedPath := filepath.Join(tempDir, "shared", "pkg-installer.md")
+	if err := os.MkdirAll(filepath.Dir(sharedPath), 0755); err != nil {
+		t.Fatalf("Failed to create shared directory: %v", err)
+	}
+
+	sharedContent := `---
+import-schema:
+  package:
+    type: string
+    github_ref: true
+    required: false
+    description: A GitHub repository reference (owner/repo or owner/repo@ref)
+  packages:
+    type: array
+    items:
+      type: string
+      github_ref: true
+    required: false
+    description: List of GitHub repository references
+---
+
+Package: ${{ github.aw.import-inputs.package }}
+Packages: ${{ github.aw.import-inputs.packages }}
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	t.Run("valid owner/repo string passes", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "valid-string.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/pkg-installer.md
+    with:
+      package: microsoft/apm-sample-package
+---
+
+# Test
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		compiler := workflow.NewCompiler()
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
+			t.Fatalf("Expected compilation to succeed for valid github_ref string, got: %v", err)
+		}
+	})
+
+	t.Run("valid owner/repo/path string passes", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "valid-path.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/pkg-installer.md
+    with:
+      package: github/awesome-copilot/skills/review-and-refactor
+---
+
+# Test
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		compiler := workflow.NewCompiler()
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
+			t.Fatalf("Expected compilation to succeed for valid github_ref path, got: %v", err)
+		}
+	})
+
+	t.Run("valid owner/repo@ref string passes", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "valid-ref.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/pkg-installer.md
+    with:
+      package: microsoft/apm-sample-package@v1.5.0
+---
+
+# Test
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		compiler := workflow.NewCompiler()
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
+			t.Fatalf("Expected compilation to succeed for valid github_ref with ref, got: %v", err)
+		}
+	})
+
+	t.Run("invalid format is rejected", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "invalid-format.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/pkg-installer.md
+    with:
+      package: just-a-package-name
+---
+
+# Test
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		compiler := workflow.NewCompiler()
+		err := compiler.CompileWorkflow(workflowPath)
+		if err == nil {
+			t.Fatal("Expected compilation to fail for invalid github_ref format")
+		}
+		if !strings.Contains(err.Error(), "github_ref") {
+			t.Errorf("Expected error to mention 'github_ref', got: %v", err)
+		}
+	})
+
+	t.Run("valid array of github_ref items passes", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "valid-array.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/pkg-installer.md
+    with:
+      packages:
+        - microsoft/apm-sample-package
+        - github/awesome-copilot/skills/review-and-refactor
+---
+
+# Test
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		compiler := workflow.NewCompiler()
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
+			t.Fatalf("Expected compilation to succeed for valid github_ref array, got: %v", err)
+		}
+	})
+
+	t.Run("array with invalid item is rejected", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "invalid-array-item.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/pkg-installer.md
+    with:
+      packages:
+        - microsoft/apm-sample-package
+        - not-a-valid-ref
+---
+
+# Test
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		compiler := workflow.NewCompiler()
+		err := compiler.CompileWorkflow(workflowPath)
+		if err == nil {
+			t.Fatal("Expected compilation to fail for invalid github_ref item in array")
+		}
+		if !strings.Contains(err.Error(), "github_ref") {
+			t.Errorf("Expected error to mention 'github_ref', got: %v", err)
+		}
+	})
+}
+
 // TestImportSchemaDefaultsNoExplicitInputs tests that import-schema default values are
 // applied when no explicit 'with:' inputs are provided by the importing workflow.
 // This verifies the fix where ${{ github.aw.import-inputs.* }} expressions in 'engine'

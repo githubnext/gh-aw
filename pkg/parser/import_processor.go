@@ -67,6 +67,9 @@ type ImportInputDefinition struct {
 	Default     any      `yaml:"default,omitempty" json:"default,omitempty"` // Can be string, number, or boolean (dynamic type from YAML)
 	Type        string   `yaml:"type,omitempty" json:"type,omitempty"`       // "string", "choice", "boolean", "number"
 	Options     []string `yaml:"options,omitempty" json:"options,omitempty"` // Options for choice type
+	// GitHubRef constrains string or string[] values to the owner/repo[@ref] or owner/repo/path[@ref] format.
+	// When true, the compiler resolves and pins those references through the action pin manager.
+	GitHubRef bool `yaml:"github_ref,omitempty" json:"github_ref,omitempty"`
 }
 
 // ImportSpec represents a single import specification (either a string path or an object with path and inputs)

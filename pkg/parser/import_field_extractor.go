@@ -55,6 +55,7 @@ type importAccumulator struct {
 	agentImportSpec          string
 	repositoryImports        []string
 	importInputs             map[string]any
+	pinner                   GitHubRefPinner // Optional pinner for github_ref inputs
 	// First on.github-token / on.github-app found across all imported files (first-wins strategy)
 	activationGitHubToken string
 	activationGitHubApp   string // JSON-encoded GitHubAppConfig
@@ -111,6 +112,11 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	// Array and map values are serialized as JSON so they produce valid YAML inline syntax.
 	// We reuse the already-parsed frontmatter to avoid a second YAML parse.
 	inputsWithDefaults := applyImportSchemaDefaultsFromFrontmatter(origFm, item.inputs)
+	// Resolve and pin any github_ref values declared in the import-schema.
+	// This replaces e.g. "owner/repo" with "owner/repo@sha # v1.0.0" before substitution.
+	if len(inputsWithDefaults) > 0 {
+		inputsWithDefaults = resolveGitHubRefInputs(inputsWithDefaults, origFm, acc.pinner)
+	}
 	rawContent := origContent
 	if len(inputsWithDefaults) > 0 {
 		rawContent = substituteImportInputsInContent(origContent, inputsWithDefaults)
@@ -651,8 +657,15 @@ func validateObjectInput(name string, value any, paramDef map[string]any, import
 func validateImportInputType(name string, value any, declaredType string, paramDef map[string]any, importPath string) error {
 	switch declaredType {
 	case "string":
-		if _, ok := value.(string); !ok {
+		strVal, ok := value.(string)
+		if !ok {
 			return fmt.Errorf("import '%s': 'with' input %q must be a string (got %T)", importPath, name, value)
+		}
+		// When github_ref: true, validate that the value matches owner/repo[@ref] format.
+		if isGitHubRefParam(paramDef) {
+			if err := ValidateGitHubRefInput(strVal); err != nil {
+				return fmt.Errorf("import '%s': 'with' input %q: %w", importPath, name, err)
+			}
 		}
 	case "number":
 		// Accept all numeric types that YAML parsers may produce
@@ -708,6 +721,130 @@ func validateImportInputType(name string, value any, declaredType string, paramD
 		return validateObjectInput(name, value, paramDef, importPath)
 	}
 	return nil
+}
+
+// isGitHubRefParam reports whether a parameter definition has github_ref: true.
+func isGitHubRefParam(paramDef map[string]any) bool {
+	v, ok := paramDef["github_ref"]
+	if !ok {
+		return false
+	}
+	b, ok := v.(bool)
+	return ok && b
+}
+
+// resolveGitHubRefInputs returns a copy of inputs where every field declared with
+// github_ref: true in the import-schema has its string (or []string) values replaced
+// with the pinned action reference returned by pinner.
+// If pinner is nil, the function returns the original inputs map unchanged.
+func resolveGitHubRefInputs(inputs map[string]any, fm map[string]any, pinner GitHubRefPinner) map[string]any {
+	if pinner == nil {
+		return inputs
+	}
+	rawSchema, ok := fm["import-schema"]
+	if !ok {
+		return inputs
+	}
+	schemaMap, ok := rawSchema.(map[string]any)
+	if !ok || len(schemaMap) == 0 {
+		return inputs
+	}
+
+	var result map[string]any // lazily copied only when a value is changed
+
+	for paramName, paramDefRaw := range schemaMap {
+		paramDef, ok := paramDefRaw.(map[string]any)
+		if !ok {
+			continue
+		}
+		value, provided := inputs[paramName]
+		if !provided {
+			continue
+		}
+
+		declaredType, _ := paramDef["type"].(string)
+
+		switch declaredType {
+		case "string":
+			if !isGitHubRefParam(paramDef) {
+				continue
+			}
+			strVal, ok := value.(string)
+			if !ok {
+				continue
+			}
+			pinned := pinGitHubRefValue(strVal, pinner)
+			if pinned == strVal {
+				continue
+			}
+			if result == nil {
+				result = copyInputs(inputs)
+			}
+			result[paramName] = pinned
+
+		case "array":
+			itemsDefRaw, hasItems := paramDef["items"]
+			if !hasItems {
+				continue
+			}
+			itemsDef, ok := itemsDefRaw.(map[string]any)
+			if !ok || !isGitHubRefParam(itemsDef) {
+				continue
+			}
+			arr, ok := value.([]any)
+			if !ok {
+				continue
+			}
+			pinned := pinGitHubRefArray(arr, pinner)
+			if result == nil {
+				result = copyInputs(inputs)
+			}
+			result[paramName] = pinned
+		}
+	}
+
+	if result == nil {
+		return inputs
+	}
+	return result
+}
+
+// pinGitHubRefValue pins a single github_ref string value using the provided pinner.
+func pinGitHubRefValue(value string, pinner GitHubRefPinner) string {
+	if pinner == nil {
+		return value
+	}
+	return pinner.PinGitHubRef(value)
+}
+
+// pinGitHubRefArray pins all string elements in an array using the provided pinner.
+// Non-string elements are left unchanged.
+func pinGitHubRefArray(arr []any, pinner GitHubRefPinner) []any {
+	result := make([]any, len(arr))
+	changed := false
+	for i, item := range arr {
+		str, ok := item.(string)
+		if !ok {
+			result[i] = item
+			continue
+		}
+		pinned := pinner.PinGitHubRef(str)
+		result[i] = pinned
+		if pinned != str {
+			changed = true
+		}
+	}
+	if !changed {
+		return arr
+	}
+	return result
+}
+
+// copyInputs makes a shallow copy of the inputs map.
+func copyInputs(inputs map[string]any) map[string]any {
+	cp := make(map[string]any, len(inputs))
+	maps.Copy(cp, inputs)
+	return cp
 }
 
 // applyImportSchemaDefaultsFromFrontmatter applies import-schema defaults from an
