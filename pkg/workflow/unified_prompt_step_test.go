@@ -49,6 +49,7 @@ func TestCollectPromptSections_Order(t *testing.T) {
 	// 6. Safe outputs
 	// 7. GitHub context
 	// 8. PR context
+	// 9. Skills detection
 
 	var sectionTypes []string
 	for _, section := range sections {
@@ -59,6 +60,8 @@ func TestCollectPromptSections_Order(t *testing.T) {
 				sectionTypes = append(sectionTypes, "playwright")
 			} else if strings.Contains(section.Content, "pr_context") {
 				sectionTypes = append(sectionTypes, "pr-context")
+			} else if strings.Contains(section.Content, "skills") {
+				sectionTypes = append(sectionTypes, "skills")
 			}
 		} else {
 			if strings.Contains(section.Content, "## Note") {
@@ -76,7 +79,7 @@ func TestCollectPromptSections_Order(t *testing.T) {
 	}
 
 	// Verify expected order (not all may be present, but order should be maintained)
-	expectedOrder := []string{"temp", "playwright", "trial", "cache", "repo", "safe-outputs", "github", "pr-context"}
+	expectedOrder := []string{"temp", "playwright", "trial", "cache", "repo", "safe-outputs", "github", "pr-context", "skills"}
 
 	// Check that the sections we found appear in the expected order
 	lastIndex := -1

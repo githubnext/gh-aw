@@ -239,6 +239,9 @@ jobs:
           
           GH_AW_PROMPT_c14a880afa97f469_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
+          if find "${GITHUB_WORKSPACE}" -name "SKILL.md" -maxdepth 6 -print -quit 2>/dev/null | grep -q .; then
+            cat "${RUNNER_TEMP}/gh-aw/prompts/skills_prompt.md"
+          fi
           cat << 'GH_AW_PROMPT_c14a880afa97f469_EOF'
           </system>
           ## Serena Code Analysis

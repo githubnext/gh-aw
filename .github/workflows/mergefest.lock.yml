@@ -272,6 +272,9 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
             cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_push_to_pr_branch_guidance.md"
           fi
+          if find "${GITHUB_WORKSPACE}" -name "SKILL.md" -maxdepth 6 -print -quit 2>/dev/null | grep -q .; then
+            cat "${RUNNER_TEMP}/gh-aw/prompts/skills_prompt.md"
+          fi
           cat << 'GH_AW_PROMPT_1dc0005748a496ab_EOF'
           </system>
           {{#runtime-import .github/workflows/mergefest.md}}
