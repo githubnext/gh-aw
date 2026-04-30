@@ -337,6 +337,39 @@ Explicit instructions in workflow prompts to reduce token consumption:
 - Truncated test output → avoids multi-MB test logs inflating token count
 - Early-stop condition (Phase 2) → skips all phases when nothing new to process
 
+### Daily Community Attribution Updater
+
+**Engine**: Copilot (claude-haiku-4.5) - max-turns not available
+
+**Previous Configuration (runaway — 2026-04-30):**
+- No token budget controls
+- 30-minute timeout
+- Unbounded Tier 3 candidate lookups (one `issue_read` per issue, up to hundreds)
+- No early-stop after PR creation / noop
+- README.md not pre-fetched (agent spent extra turns locating it)
+- 159 turns, 8.7M tokens, 35.6% firewall block rate (88/247)
+
+**Optimized Configuration (2026-04-30):**
+- `timeout-minutes: 20` (reduced from 30)
+- Tier 3 candidates capped at **5 per run** in the bash pre-step
+- `README.md` pre-copied to `/tmp/gh-aw/agent/community-data/README_current.md`
+- Added `## Token Budget Guidelines` section in prompt:
+  - Read each data file at most once
+  - At most 1 `issue_read` call per Tier 3 candidate
+  - Stop immediately after `create_pull_request` or `noop`
+  - PR body capped at 400 words
+  - No direct external HTTP calls
+
+**Expected Impact:**
+- **Token Reduction**: 90-95% (from ~8.7M to ~200K-600K per run)
+- **Quality**: Maintained — Tier 3 deferred items processed in subsequent daily runs
+- **Firewall blocks**: Eliminated — agent no longer loops retrying blocked calls
+
+**Budget Target:**
+- **Target tokens/run**: 200K–600K
+- **Alert threshold**: >1.5M tokens
+- **Cost estimate**: $3.50-10.50 per run
+
 ## Alert Thresholds (Updated)
 
 | Workflow | Target Tokens | Alert Threshold | Critical Threshold |
@@ -348,6 +381,7 @@ Explicit instructions in workflow prompts to reduce token consumption:
 | Step Name Alignment | 300K-500K | >800K | >1.2M |
 | Daily Syntax Error Quality Check | 150K-1.5M | >2M | >4M |
 | Dead Code Remover | 4M-5M | >7M | >9M |
+| Daily Community Attribution Updater | 200K-600K | >1.5M | >3M |
 
 ## Optimization Strategies
 
@@ -481,6 +515,13 @@ When adding token budgets to a workflow:
 - 300K tokens ≈ $5.25
 
 ## Revision History
+
+- **2026-04-30**: Fixed Daily Community Attribution Updater runaway (159 turns, 8.7M tokens)
+  - Capped Tier 3 candidate lookups to 5 per run in bash pre-step (was unbounded)
+  - Pre-copied README.md to pre-fetched data directory (eliminated extra agent turns)
+  - Added `## Token Budget Guidelines` section: read-once, 1 call/candidate, stop-after-safe-output
+  - Reduced `timeout-minutes`: 30 → 20
+  - New target: 200K-600K/run; see issue #29308
 
 - **2026-04-29**: Re-optimized Daily Syntax Error Quality Check after 6.07M token run
   - Pre-select 5 random candidates in pre-step (was 235 → agent reads many to compare)
