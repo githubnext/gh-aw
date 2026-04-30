@@ -121,8 +121,8 @@ steps:
 
 	t.Logf("Found %d steps: %v", len(stepNames), stepNames)
 
-	if len(stepNames) < 7 {
-		t.Fatalf("Expected at least 7 steps, got %d: %v", len(stepNames), stepNames)
+	if len(stepNames) < 8 {
+		t.Fatalf("Expected at least 8 steps, got %d: %v", len(stepNames), stepNames)
 	}
 
 	// Verify the order in dev mode (when local actions are used):
