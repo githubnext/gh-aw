@@ -36,17 +36,15 @@ tools:
   github:
     toolsets: [default, repos, pull_requests]
 
-safe-outputs:
-  create-pull-request:
-    expires: 3d
-    title-prefix: "[rendering-scripts] "
-    labels: [rendering, javascript, automated-fix]
-    reviewers: [copilot]
-
 timeout-minutes: 30
 
 imports:
-  - shared/activation-app.md
+  - uses: shared/daily-pr-base.md
+    with:
+      title-prefix: "[rendering-scripts] "
+      expires: "3d"
+      labels: [rendering, javascript, automated-fix]
+      reviewers: [copilot]
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[rendering-scripts] "

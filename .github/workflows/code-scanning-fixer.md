@@ -11,7 +11,12 @@ permissions:
 engine: copilot
 imports:
   - shared/security-analysis-base.md
-  - shared/activation-app.md
+  - uses: shared/daily-pr-base.md
+    with:
+      title-prefix: "[code-scanning-fix] "
+      expires: "2d"
+      labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
+      reviewers: [copilot]
 tools:
   cli-proxy: true
   github:
@@ -28,11 +33,6 @@ safe-outputs:
     allowed:
       - agentic-campaign
       - z_campaign_security-alert-burndown
-  create-pull-request:
-    expires: 2d
-    title-prefix: "[code-scanning-fix] "
-    labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
-    reviewers: [copilot]
 timeout-minutes: 20
 
 ---
