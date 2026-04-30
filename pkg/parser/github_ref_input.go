@@ -11,7 +11,7 @@ import (
 // path is an optional /… suffix of one or more path segments.
 // ref is an optional @<ref> suffix where ref may be a tag, branch, or SHA.
 var githubRefPattern = regexp.MustCompile(
-	`^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+(?:/[a-zA-Z0-9._\-/]+)?(?:@[a-zA-Z0-9._\-/]+)?$`,
+	`^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+(?:/[a-zA-Z0-9._-][a-zA-Z0-9._/\-]*)?(?:@[a-zA-Z0-9._/\-]+)?$`,
 )
 
 // ValidateGitHubRefInput checks that value is a valid github_ref string:

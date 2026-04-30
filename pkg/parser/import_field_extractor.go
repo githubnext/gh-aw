@@ -113,10 +113,9 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	// We reuse the already-parsed frontmatter to avoid a second YAML parse.
 	inputsWithDefaults := applyImportSchemaDefaultsFromFrontmatter(origFm, item.inputs)
 	// Resolve and pin any github_ref values declared in the import-schema.
-	// This replaces e.g. "owner/repo" with "owner/repo@sha # v1.0.0" before substitution.
-	if len(inputsWithDefaults) > 0 {
-		inputsWithDefaults = resolveGitHubRefInputs(inputsWithDefaults, origFm, acc.pinner)
-	}
+	// Called unconditionally — resolveGitHubRefInputs returns early (no allocation)
+	// when there's no schema, no pinner, or no github_ref fields to pin.
+	inputsWithDefaults = resolveGitHubRefInputs(inputsWithDefaults, origFm, acc.pinner)
 	rawContent := origContent
 	if len(inputsWithDefaults) > 0 {
 		rawContent = substituteImportInputsInContent(origContent, inputsWithDefaults)
@@ -750,7 +749,7 @@ func resolveGitHubRefInputs(inputs map[string]any, fm map[string]any, pinner Git
 		return inputs
 	}
 
-	var result map[string]any // lazily copied only when a value is changed
+	var result map[string]any // lazily copied on first change to avoid allocating when no github_ref fields need pinning (the common case)
 
 	for paramName, paramDefRaw := range schemaMap {
 		paramDef, ok := paramDefRaw.(map[string]any)
