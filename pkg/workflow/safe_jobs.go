@@ -212,14 +212,24 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// Use normalized job name to match the underscore format in output_types
 		safeOutputCondition := BuildSafeOutputType(normalizedJobName) // min=0 means check for the tool in output_types
 
+		// When detection is expression-controlled the detection job may be skipped at runtime.
+		// Wrap the condition with always() + detection-passed so the safe-job still runs when
+		// the caller disabled threat detection for this invocation via the expression.
+		baseCondition := safeOutputCondition
+		if IsConditionalDetection(data.SafeOutputs) {
+			baseCondition = BuildAnd(
+				BuildAnd(BuildFunctionCall("always"), safeOutputCondition),
+				buildDetectionPassedCondition(),
+			)
+		}
+
 		if jobConfig.If != "" {
-			// If user provided a custom condition, combine it with the safe output type check
+			// If user provided a custom condition, combine it with the base condition
 			userConditionStr := c.extractExpressionFromIfString(jobConfig.If)
 			userCondition := &ExpressionNode{Expression: userConditionStr}
-			job.If = RenderCondition(BuildAnd(safeOutputCondition, userCondition))
+			job.If = RenderCondition(BuildAnd(baseCondition, userCondition))
 		} else {
-			// Otherwise, just use the safe output type check
-			job.If = RenderCondition(safeOutputCondition)
+			job.If = RenderCondition(baseCondition)
 		}
 
 		// Build job steps

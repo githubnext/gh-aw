@@ -25,7 +25,7 @@ func TestNewAddCommand(t *testing.T) {
 
 	require.NotNil(t, cmd, "NewAddCommand should not return nil")
 	assert.Equal(t, "add <workflow>...", cmd.Use, "Command use should be 'add <workflow>...'")
-	assert.Equal(t, "Add agentic workflows from repositories to .github/workflows", cmd.Short, "Command short description should match")
+	assert.Equal(t, "Add agentic workflows from repositories or local files to .github/workflows", cmd.Short, "Command short description should match")
 	assert.Contains(t, cmd.Long, "Add one or more agentic workflows", "Command long description should contain expected text")
 
 	// Verify Args validator is set

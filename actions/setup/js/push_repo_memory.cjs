@@ -6,8 +6,9 @@ const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
-const { execGitSync } = require("./git_helpers.cjs");
+const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
 const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
+const { pushSignedCommits } = require("./push_signed_commits.cjs");
 
 /**
  * Push repo-memory changes to git branch
@@ -155,6 +156,13 @@ async function main() {
   // involved. The memory branch only holds a handful of small files, so sparse
   // checkout does not need to be altered for either case below.
   core.info(`Checking out branch: ${branchName}...`);
+
+  // baseRef: the remote branch HEAD SHA before we make our local commit.
+  // Used by pushSignedCommits to compute git rev-list baseRef..HEAD (i.e. only
+  // our new commit) and as the OCC token for the GraphQL createCommitOnBranch
+  // mutation.  Empty string when the branch is brand new (orphan).
+  let baseRef = "";
+
   try {
     const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
 
@@ -163,6 +171,10 @@ async function main() {
       execGitSync(["fetch", repoUrl, `${branchName}:${branchName}`], { stdio: "pipe", suppressLogs: true });
       execGitSync(["checkout", branchName], { stdio: "inherit" });
       core.info(`Checked out existing branch: ${branchName}`);
+      // Capture the remote HEAD SHA so pushSignedCommits can compute which
+      // local commits are new (rev-list range: baseRef..HEAD).
+      baseRef = execGitSync(["rev-parse", "HEAD"]).trim();
+      core.info(`Captured baseRef for signed commit push: ${baseRef}`);
     } catch (fetchError) {
       // Determine whether the fetch failed because the branch does not exist
       // (expected for new memory branches) or because of a network / auth
@@ -176,6 +188,8 @@ async function main() {
       }
 
       // Branch doesn't exist, create orphan branch
+      // baseRef stays "" — pushSignedCommits will create the branch via
+      // rest.git.createRef before the first GraphQL mutation.
       core.info(`Branch ${branchName} does not exist, creating orphan branch...`);
       execGitSync(["checkout", "--orphan", branchName], { stdio: "inherit" });
       // Reset the index to an empty tree. This is O(1) regardless of how many
@@ -436,33 +450,85 @@ async function main() {
     return;
   }
 
-  const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
+  // Push using the GraphQL createCommitOnBranch mutation so commits are
+  // server-signed (verified) by GitHub.  This satisfies "Require signed
+  // commits" branch-protection rules that reject plain git push.
+  //
+  // pushSignedCommits falls back to a plain `git push` when the mutation
+  // cannot be used (merge commits, symlinks, submodule entries).  Under a
+  // strict signed-commits ruleset that fallback will also be rejected —
+  // that is expected behaviour: remove the unsupported file types and
+  // re-run.
+  const [targetOwner, targetRepoName] = targetRepo.split("/");
+  // URL with embedded token used for the pull-on-retry merge step only;
+  // pushSignedCommits authenticates via the git extraheader set by
+  // actions/checkout (and the gitAuthEnv fallback for the git-push path).
+  const repoUrlWithToken = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
+
+  // Point origin at the memory target repo so pushSignedCommits can resolve
+  // the remote branch HEAD (ls-remote origin) and the git-push fallback
+  // pushes to the correct repository.
+  execGitSync(["remote", "set-url", "origin", `https://${serverHost}/${targetRepo}.git`], { stdio: "pipe" });
+
   const MAX_RETRIES = 3;
   const BASE_DELAY_MS = 1000;
+  let currentBaseRef = baseRef;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    // Pull with merge strategy (ours wins on conflicts)
-    core.info(`Pulling latest changes from ${branchName}...`);
+    core.info(`Pushing changes to ${branchName} (attempt ${attempt + 1}/${MAX_RETRIES + 1})...`);
     try {
-      execGitSync(["pull", "--no-rebase", "-X", "ours", repoUrl, branchName], { stdio: "inherit", suppressLogs: true });
-    } catch (error) {
-      // Pull might fail if branch doesn't exist yet or on conflicts - this is acceptable
-      core.info(`Pull failed (this is expected when branch does not exist yet): ${getErrorMessage(error)}`);
-    }
-
-    // Push changes
-    core.info(`Pushing changes to ${branchName}...`);
-    try {
-      execGitSync(["push", repoUrl, `HEAD:${branchName}`], { stdio: "inherit" });
+      await pushSignedCommits({
+        githubClient: github,
+        owner: targetOwner,
+        repo: targetRepoName,
+        branch: branchName,
+        baseRef: currentBaseRef,
+        cwd: workspaceDir,
+        gitAuthEnv: getGitAuthEnv(ghToken),
+      });
       core.info(`Successfully pushed changes to ${branchName} branch`);
       return;
     } catch (error) {
+      const errMsg = getErrorMessage(error);
       if (attempt < MAX_RETRIES) {
         const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-        core.warning(`Push failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delay}ms: ${getErrorMessage(error)}`);
+        core.warning(`Push failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delay}ms: ${errMsg}`);
         await new Promise(resolve => setTimeout(resolve, delay));
+
+        // Refresh currentBaseRef and merge concurrent remote changes before
+        // retrying, in case another run pushed to the branch in the interim.
+        try {
+          const { stdout: lsOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branchName}`], { cwd: workspaceDir });
+          const remoteHead = lsOut.trim().split(/\s+/)[0] || "";
+          if (remoteHead && remoteHead !== currentBaseRef) {
+            currentBaseRef = remoteHead;
+            core.info(`Refreshed baseRef for retry: ${currentBaseRef}`);
+            // Merge the concurrent remote changes (ours wins on conflicts).
+            // Note: this may produce a merge commit; if so, pushSignedCommits
+            // will fall back to git push for this retry attempt.
+            try {
+              execGitSync(["pull", "--no-rebase", "-X", "ours", repoUrlWithToken, branchName], { stdio: "inherit", suppressLogs: true });
+            } catch (pullError) {
+              core.info(`Pull on retry failed (may be expected for new branches): ${getErrorMessage(pullError)}`);
+            }
+          }
+        } catch (lsRemoteError) {
+          // ls-remote failed; proceed with existing currentBaseRef
+          core.info(`ls-remote on retry failed, keeping existing baseRef: ${getErrorMessage(lsRemoteError)}`);
+        }
       } else {
-        core.setFailed(`Failed to push changes after ${MAX_RETRIES + 1} attempts: ${getErrorMessage(error)}`);
+        // Surface a helpful message when the repository's signed-commits
+        // ruleset rejects the git-push fallback path.
+        if (/GH013|must have verified signatures|Commits must have verified signatures/i.test(errMsg)) {
+          core.setFailed(
+            `repo-memory: push to branch ${branchName} was rejected because the repository requires verified (signed) commits. ` +
+              `Commits pushed via the GitHub GraphQL API are signed automatically, but the signed-commit path could not be used for this push. ` +
+              `If your memory files contain symlinks, executable files, or submodule references, remove them and use regular plain-text files (.json, .jsonl, .txt, .md, .csv). ` +
+              `Original error: ${errMsg}`
+          );
+        } else {
+          core.setFailed(`Failed to push changes after ${MAX_RETRIES + 1} attempts: ${errMsg}`);
+        }
         return;
       }
     }

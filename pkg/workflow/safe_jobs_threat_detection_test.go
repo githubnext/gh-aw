@@ -5,9 +5,11 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
@@ -690,5 +692,377 @@ imports:
 	// When imported config uses { enabled: false }, the default should NOT be applied.
 	if workflowData.SafeOutputs.ThreatDetection != nil {
 		t.Error("Expected ThreatDetection to be nil (disabled) when imported config uses threat-detection: { enabled: false }")
+	}
+}
+
+// TestParseThreatDetectionConfigExpression verifies that expression strings are accepted
+// for threat-detection (top-level) and stored in EnabledExpr.
+func TestParseThreatDetectionConfigExpression(t *testing.T) {
+	c := NewCompiler()
+
+	tests := []struct {
+		name            string
+		frontmatter     map[string]any
+		wantNil         bool
+		wantEnabledExpr string
+		wantConditional bool
+		wantHasRunnable bool
+	}{
+		{
+			name: "literal true",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"threat-detection": true,
+				},
+			},
+			wantNil:         false,
+			wantEnabledExpr: "",
+			wantConditional: false,
+			wantHasRunnable: true,
+		},
+		{
+			name: "literal false",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"threat-detection": false,
+				},
+			},
+			wantNil: true,
+		},
+		{
+			name: "expression string",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"threat-detection": "${{ inputs.enable-threat-detection }}",
+				},
+			},
+			wantNil:         false,
+			wantEnabledExpr: "${{ inputs.enable-threat-detection }}",
+			wantConditional: true,
+			wantHasRunnable: true,
+		},
+		{
+			name: "object with literal enabled true",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"threat-detection": map[string]any{
+						"enabled": true,
+					},
+				},
+			},
+			wantNil:         false,
+			wantEnabledExpr: "",
+			wantConditional: false,
+			wantHasRunnable: true,
+		},
+		{
+			name: "object with literal enabled false",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"threat-detection": map[string]any{
+						"enabled": false,
+					},
+				},
+			},
+			wantNil: true,
+		},
+		{
+			name: "object with expression enabled",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"threat-detection": map[string]any{
+						"enabled": "${{ inputs.enable-threat-detection }}",
+					},
+				},
+			},
+			wantNil:         false,
+			wantEnabledExpr: "${{ inputs.enable-threat-detection }}",
+			wantConditional: true,
+			wantHasRunnable: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := c.extractSafeOutputsConfig(tt.frontmatter)
+			if tt.wantNil {
+				if config != nil && config.ThreatDetection != nil {
+					t.Errorf("expected ThreatDetection nil (disabled), got non-nil")
+				}
+				return
+			}
+			if config == nil || config.ThreatDetection == nil {
+				t.Fatal("expected non-nil ThreatDetection config")
+			}
+			td := config.ThreatDetection
+			if tt.wantEnabledExpr == "" {
+				if td.EnabledExpr != nil {
+					t.Errorf("expected EnabledExpr nil, got %q", *td.EnabledExpr)
+				}
+			} else {
+				if td.EnabledExpr == nil {
+					t.Fatalf("expected EnabledExpr %q, got nil", tt.wantEnabledExpr)
+				}
+				if *td.EnabledExpr != tt.wantEnabledExpr {
+					t.Errorf("expected EnabledExpr %q, got %q", tt.wantEnabledExpr, *td.EnabledExpr)
+				}
+			}
+			if got := td.IsConditional(); got != tt.wantConditional {
+				t.Errorf("IsConditional() = %v, want %v", got, tt.wantConditional)
+			}
+			if got := td.HasRunnableDetection(); got != tt.wantHasRunnable {
+				t.Errorf("HasRunnableDetection() = %v, want %v", got, tt.wantHasRunnable)
+			}
+		})
+	}
+}
+
+// TestParseThreatDetectionContinueOnErrorExpression verifies that expression strings
+// are accepted for continue-on-error and stored in ContinueOnErrorExpr.
+func TestParseThreatDetectionContinueOnErrorExpression(t *testing.T) {
+	c := NewCompiler()
+
+	tests := []struct {
+		name           string
+		coeValue       any
+		wantCOELiteral *bool
+		wantCOEExpr    string
+	}{
+		{
+			name:           "literal true",
+			coeValue:       true,
+			wantCOELiteral: boolPtr(true),
+			wantCOEExpr:    "",
+		},
+		{
+			name:           "literal false",
+			coeValue:       false,
+			wantCOELiteral: boolPtr(false),
+			wantCOEExpr:    "",
+		},
+		{
+			name:        "expression string",
+			coeValue:    "${{ inputs.detection-coe }}",
+			wantCOEExpr: "${{ inputs.detection-coe }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			frontmatter := map[string]any{
+				"safe-outputs": map[string]any{
+					"threat-detection": map[string]any{
+						"continue-on-error": tt.coeValue,
+					},
+				},
+			}
+			config := c.extractSafeOutputsConfig(frontmatter)
+			if config == nil || config.ThreatDetection == nil {
+				t.Fatal("expected non-nil ThreatDetection")
+			}
+			td := config.ThreatDetection
+
+			if tt.wantCOELiteral != nil {
+				if td.ContinueOnError == nil {
+					t.Fatalf("expected ContinueOnError %v, got nil", *tt.wantCOELiteral)
+				}
+				if *td.ContinueOnError != *tt.wantCOELiteral {
+					t.Errorf("ContinueOnError = %v, want %v", *td.ContinueOnError, *tt.wantCOELiteral)
+				}
+			} else {
+				if td.ContinueOnError != nil {
+					t.Errorf("expected ContinueOnError nil, got %v", *td.ContinueOnError)
+				}
+			}
+
+			if tt.wantCOEExpr == "" {
+				if td.ContinueOnErrorExpr != nil {
+					t.Errorf("expected ContinueOnErrorExpr nil, got %q", *td.ContinueOnErrorExpr)
+				}
+			} else {
+				if td.ContinueOnErrorExpr == nil {
+					t.Fatalf("expected ContinueOnErrorExpr %q, got nil", tt.wantCOEExpr)
+				}
+				if *td.ContinueOnErrorExpr != tt.wantCOEExpr {
+					t.Errorf("ContinueOnErrorExpr = %q, want %q", *td.ContinueOnErrorExpr, tt.wantCOEExpr)
+				}
+			}
+		})
+	}
+}
+
+// TestIsConditionalDetection verifies the IsConditionalDetection helper.
+func TestIsConditionalDetection(t *testing.T) {
+	expr := "${{ inputs.flag }}"
+	tests := []struct {
+		name string
+		so   *SafeOutputsConfig
+		want bool
+	}{
+		{"nil SafeOutputsConfig", nil, false},
+		{"nil ThreatDetection", &SafeOutputsConfig{}, false},
+		{"literal bool config", &SafeOutputsConfig{ThreatDetection: &ThreatDetectionConfig{}}, false},
+		{"expression config", &SafeOutputsConfig{ThreatDetection: &ThreatDetectionConfig{EnabledExpr: &expr}}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsConditionalDetection(tt.so); got != tt.want {
+				t.Errorf("IsConditionalDetection() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestDetectionJobConditionWithExpression verifies that when threat-detection uses an expression,
+// the compiled detection job's if: condition includes the expression.
+func TestDetectionJobConditionWithExpression(t *testing.T) {
+	c := NewCompiler()
+
+	expr := "${{ inputs.enable-threat-detection }}"
+	data := &WorkflowData{
+		Name: "Test",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EnabledExpr: &expr,
+			},
+		},
+	}
+
+	job, err := c.buildDetectionJob(data)
+	if err != nil {
+		t.Fatalf("buildDetectionJob returned error: %v", err)
+	}
+	if job == nil {
+		t.Fatal("expected non-nil detection job")
+	}
+
+	// The if: condition must include the raw expression (without ${{ }})
+	if !strings.Contains(job.If, "inputs.enable-threat-detection") {
+		t.Errorf("detection job if: %q does not contain 'inputs.enable-threat-detection'", job.If)
+	}
+}
+
+// TestSafeOutputsJobConditionWithConditionalDetection verifies that the safe_outputs job
+// condition uses always() + buildDetectionPassedCondition() when detection is expression-based.
+func TestSafeOutputsJobConditionWithConditionalDetection(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	expr := "${{ inputs.enable-threat-detection }}"
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EnabledExpr: &expr,
+			},
+			CreateIssues: &CreateIssuesConfig{
+				TitlePrefix: "[Test] ",
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test.md")
+	if err != nil {
+		t.Fatalf("buildConsolidatedSafeOutputsJob returned error: %v", err)
+	}
+	if job == nil {
+		t.Fatal("expected non-nil safe_outputs job")
+	}
+
+	// Condition must include always() to override skip behavior when detection is skipped
+	if !strings.Contains(job.If, "always()") {
+		t.Errorf("safe_outputs job if: %q should contain 'always()' for conditional detection", job.If)
+	}
+
+	// Condition must accept both success and skipped detection results
+	if !strings.Contains(job.If, "'skipped'") {
+		t.Errorf("safe_outputs job if: %q should check for 'skipped' detection result for conditional detection", job.If)
+	}
+	if !strings.Contains(job.If, "'success'") {
+		t.Errorf("safe_outputs job if: %q should check for 'success' detection result", job.If)
+	}
+
+	// Job must still depend on detection job
+	if !slices.Contains(job.Needs, string(constants.DetectionJobName)) {
+		t.Errorf("safe_outputs job Needs %v should contain detection job", job.Needs)
+	}
+}
+
+// TestIsThreatDetectionExplicitlyDisabledExpressionNotDisabled verifies that an expression
+// string in an imported config is NOT treated as "explicitly disabled".
+func TestIsThreatDetectionExplicitlyDisabledExpressionNotDisabled(t *testing.T) {
+	configs := []string{
+		`{"threat-detection": "${{ inputs.enable-threat-detection }}"}`,
+	}
+	if isThreatDetectionExplicitlyDisabledInConfigs(configs) {
+		t.Error("expression string for threat-detection should not be treated as explicitly disabled")
+	}
+}
+
+// TestDetectionJobWithExpressionCompilation is an integration test that compiles a full
+// workflow with expression-based threat-detection and verifies the lock file output.
+func TestDetectionJobWithExpressionCompilation(t *testing.T) {
+	c := NewCompiler()
+
+	markdown := `---
+on:
+  workflow_call:
+    inputs:
+      enable-threat-detection:
+        type: boolean
+        required: false
+        default: true
+safe-outputs:
+  threat-detection: ${{ inputs.enable-threat-detection }}
+  create-issue:
+    title-prefix: "[Test] "
+---
+
+# Test Workflow
+Test workflow content
+`
+	tmpDir := testutil.TempDir(t, "test-expr-detection-*")
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(markdown), 0o644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	if err := c.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	yaml := string(content)
+
+	// Detection job must be present (always compiled for conditional detection)
+	if !strings.Contains(yaml, "  detection:") {
+		t.Error("compiled workflow should contain a 'detection:' job")
+	}
+
+	detectionSection := extractJobSection(yaml, "detection")
+	if detectionSection == "" {
+		t.Fatal("detection job section not found")
+	}
+
+	// The detection job's if: must include the caller expression
+	if !strings.Contains(detectionSection, "inputs.enable-threat-detection") {
+		t.Errorf("detection job should reference 'inputs.enable-threat-detection' in its condition, got:\n%s", detectionSection)
+	}
+
+	// The safe_outputs job must handle detection being skipped (always() in condition)
+	safeOutputsSection := extractJobSection(yaml, "safe_outputs")
+	if safeOutputsSection == "" {
+		t.Fatal("safe_outputs job section not found")
+	}
+
+	if !strings.Contains(safeOutputsSection, "always()") {
+		t.Errorf("safe_outputs job should use always() for conditional detection, got:\n%s", safeOutputsSection)
+	}
+	if !strings.Contains(safeOutputsSection, "'skipped'") {
+		t.Errorf("safe_outputs condition should handle 'skipped' detection result, got:\n%s", safeOutputsSection)
 	}
 }

@@ -274,14 +274,9 @@ export default defineConfig({
 						{ label: 'GitHub Actions Primer', link: '/guides/github-actions-primer/' },
 						{ label: 'Maintaining Repositories', link: '/guides/maintaining-repos/' },
 						{ label: 'Network Configuration', link: '/guides/network-configuration/' },
-						{
-							label: 'Organization Practices',
-							items: [
-								{ label: 'Overview', link: '/guides/organization-practices/' },
-								{ label: 'Safe Rollout', link: '/guides/organization-practices/safe-rollout/' },
-								{ label: 'Sharing Workflows', link: '/guides/organization-practices/sharing-workflows/' },
-							],
-						},
+						{ label: 'Organization Practices', link: '/guides/organization-practices/' },
+						{ label: 'Safe Rollout', link: '/guides/organization-practices/safe-rollout/' },
+						{ label: 'Sharing Workflows', link: '/guides/organization-practices/sharing-workflows/' },
 						{ label: 'Reusing Workflows', link: '/guides/packaging-imports/' },
 						{ label: 'Serena', link: '/guides/serena/' },
 						{ label: 'Using Custom MCPs', link: '/guides/mcps/' },
