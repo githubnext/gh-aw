@@ -15,17 +15,14 @@ tracker-id: daily-testify-uber-super-expert
 engine: copilot
 
 imports:
-  - shared/activation-app.md
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[testify-expert] "
+      expires: "2d"
+      labels: [testing, code-quality, automated-analysis, cookie]
   - shared/go-source-analysis.md
   - shared/safe-output-app.md
   - shared/observability-otlp.md
-
-safe-outputs:
-  create-issue:
-    expires: 2d
-    title-prefix: "[testify-expert] "
-    labels: [testing, code-quality, automated-analysis, cookie]
-    max: 1
 
 tools:
   cli-proxy: true
