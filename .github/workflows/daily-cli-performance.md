@@ -692,4 +692,4 @@ Each entry contains:
 
 Begin your daily performance analysis now!
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

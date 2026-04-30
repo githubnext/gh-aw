@@ -28,8 +28,6 @@
 #   Imports:
 #     - shared/jqschema.md
 #     - shared/reporting.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -231,6 +229,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/jqschema.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/cli-version-checker.md}}
           GH_AW_PROMPT_1cb164cb4aa17a5d_EOF
           } > "$GH_AW_PROMPT"

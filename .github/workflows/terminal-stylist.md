@@ -147,4 +147,4 @@ Create a discussion with:
 
 **Objective**: Ensure consistent, well-formatted, and accessible console output throughout the codebase using modern Charmbracelet ecosystem best practices.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

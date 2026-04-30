@@ -32,8 +32,6 @@
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -274,6 +272,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/terminal-stylist.md}}
           GH_AW_PROMPT_622a0a32a37a95cc_EOF
           } > "$GH_AW_PROMPT"

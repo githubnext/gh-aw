@@ -284,4 +284,4 @@ Now analyze the user's request: "${{ steps.sanitized.outputs.text }}"
 5. Push changes using `push-to-pull-request-branch`
 6. Report success with details
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

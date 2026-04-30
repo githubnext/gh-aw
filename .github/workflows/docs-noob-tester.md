@@ -219,4 +219,4 @@ You've successfully completed this task if you:
 - Provided actionable recommendations
 - Created a discussion with clear findings and screenshots
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

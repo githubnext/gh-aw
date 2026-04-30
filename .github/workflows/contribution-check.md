@@ -271,4 +271,4 @@ If any subagent call failed (❓), also apply `outdated`.
 - `noop` is global, not per-PR. Emit at most one consolidated noop for the entire workflow run.
 - If you emitted any actionable safe outputs (`create_issue`, `add_comment`, `add_labels`), do **not** emit `noop`.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

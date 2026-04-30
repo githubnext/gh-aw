@@ -110,4 +110,4 @@ This issue has been assigned to an AI agent for workflow design. The agent will:
 
 The workflow designer agent will have clear instructions in the issue body about what it needs to do.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

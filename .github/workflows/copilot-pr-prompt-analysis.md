@@ -303,4 +303,4 @@ A successful analysis:
 
 **Remember**: The goal is to help developers write better prompts that lead to more successful PR merges.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

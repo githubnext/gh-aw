@@ -295,4 +295,4 @@ Always create a GitHub Discussion with your findings using this structure:
 
 Begin your analysis now. Gather the data, identify the patterns, and create an insightful discussion about the team's evolution.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

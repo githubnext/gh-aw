@@ -30,8 +30,6 @@
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -245,6 +243,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/github-mcp-tools-report.md}}
           GH_AW_PROMPT_23eab3a3b62941d3_EOF
           } > "$GH_AW_PROMPT"

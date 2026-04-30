@@ -467,4 +467,4 @@ make test-unit
 - Test on multiple browsers if possible
 ```
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

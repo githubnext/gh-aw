@@ -367,4 +367,4 @@ Created X issues | Updated X | Closed X
 
 Execute all phases systematically and maintain a proactive approach to workflow health management.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

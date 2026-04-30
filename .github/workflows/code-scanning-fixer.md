@@ -226,4 +226,4 @@ If any step fails:
 
 Remember: Your goal is to provide a secure, well-tested fix that can be reviewed and merged safely. Focus on quality and correctness over speed.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

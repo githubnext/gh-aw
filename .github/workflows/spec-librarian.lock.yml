@@ -32,8 +32,6 @@
 #     - shared/reporting.md
 #     - shared/daily-issue-base.md
 #     - shared/go-source-analysis.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_AGENT_TOKEN
@@ -264,6 +262,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/activation-app.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/spec-librarian.md}}
           GH_AW_PROMPT_8179cb458aa485c2_EOF
           } > "$GH_AW_PROMPT"

@@ -29,8 +29,6 @@
 #     - shared/python-dataviz.md
 #     - shared/trends.md
 #     - shared/charts-with-trending.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -237,6 +235,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/charts-with-trending.md}}
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/workflows/shared/trends.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/python-data-charts.md}}
           GH_AW_PROMPT_130cf5488a7b6ad4_EOF
           } > "$GH_AW_PROMPT"

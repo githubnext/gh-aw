@@ -24,10 +24,6 @@
 #
 # Fix critical vulnerabilities before audit deadline with full tracking and reporting
 #
-# Resolved workflow manifest:
-#   Includes:
-#     - shared/noop-reminder.md
-#
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -236,6 +232,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_e182ce1782081fe9_EOF'
           </system>
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/security-compliance.md}}
           GH_AW_PROMPT_e182ce1782081fe9_EOF
           } > "$GH_AW_PROMPT"

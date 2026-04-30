@@ -29,8 +29,6 @@
 #     - shared/activation-app.md
 #     - shared/reporting.md
 #     - shared/daily-issue-base.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_AGENT_TOKEN
@@ -228,6 +226,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/activation-app.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/architecture-guardian.md}}
           GH_AW_PROMPT_e6992fd02959aa19_EOF
           } > "$GH_AW_PROMPT"

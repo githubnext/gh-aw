@@ -46,4 +46,4 @@ Generate a daily status report for the gh-aw project, focusing on documentation 
 
 Keep the report informative but concise.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

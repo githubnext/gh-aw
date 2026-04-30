@@ -217,4 +217,4 @@ When updating instructions for AI agents:
 
 Your updates help keep AI agents effective and accurate when creating agentic workflows.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -32,8 +32,6 @@
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
 #     - shared/trends.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -251,6 +249,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/trends.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-code-metrics.md}}
           GH_AW_PROMPT_e45ff8a78a8305e1_EOF
           } > "$GH_AW_PROMPT"

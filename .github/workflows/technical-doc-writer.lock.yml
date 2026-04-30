@@ -28,8 +28,6 @@
 #   Imports:
 #     - ../agents/technical-doc-writer.agent.md
 #     - ../skills/documentation/SKILL.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -238,6 +236,7 @@ jobs:
           </system>
           {{#runtime-import .github/skills/documentation/SKILL.md}}
           {{#runtime-import .github/agents/technical-doc-writer.agent.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/technical-doc-writer.md}}
           GH_AW_PROMPT_2ce6bd8ddc747cbe_EOF
           } > "$GH_AW_PROMPT"

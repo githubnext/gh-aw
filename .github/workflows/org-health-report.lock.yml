@@ -30,8 +30,6 @@
 #     - shared/jqschema.md
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -238,6 +236,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/workflows/shared/jqschema.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/org-health-report.md}}
           GH_AW_PROMPT_8d94051de3622e61_EOF
           } > "$GH_AW_PROMPT"

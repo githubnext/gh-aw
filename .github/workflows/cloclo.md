@@ -208,4 +208,4 @@ Now analyze the content above and execute the appropriate action. Remember:
 - ❌ Never modify `.github/workflows` directory
 - ❌ Don't make changes without understanding the request
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

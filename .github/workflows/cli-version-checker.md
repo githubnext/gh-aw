@@ -334,4 +334,4 @@ npm view @github/copilot --json 2>/dev/null | jq -r '.version'
 - Exit successfully if no updates found
 - Document incomplete research if rate-limited
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

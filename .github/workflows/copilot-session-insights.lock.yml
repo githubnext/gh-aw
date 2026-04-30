@@ -36,8 +36,6 @@
 #     - shared/daily-audit-base.md
 #     - shared/session-analysis-charts.md
 #     - shared/session-analysis-strategies.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -259,6 +257,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/copilot-session-insights.md}}
           GH_AW_PROMPT_317daefa67de4e54_EOF
           } > "$GH_AW_PROMPT"

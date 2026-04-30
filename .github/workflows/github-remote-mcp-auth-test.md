@@ -188,4 +188,4 @@ Authentication with GitHub Actions token is working correctly.
 **On Failure**:
 Create a discussion with the error details as described above.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

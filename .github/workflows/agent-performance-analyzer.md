@@ -576,4 +576,4 @@ Your effectiveness is measured by:
 
 Execute all phases systematically and maintain an objective, data-driven approach to agent performance analysis.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

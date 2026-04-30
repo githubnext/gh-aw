@@ -365,4 +365,4 @@ To keep this workflow efficient, adhere to these hard limits:
 
 Good luck! Your work helps users understand GitHub Agentic Workflows terminology.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

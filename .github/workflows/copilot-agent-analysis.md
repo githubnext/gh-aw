@@ -479,4 +479,4 @@ A successful **concise** analysis:
 
 **Remember**: Less is more. Focus on key metrics and notable changes only.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

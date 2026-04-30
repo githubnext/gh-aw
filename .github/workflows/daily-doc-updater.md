@@ -297,4 +297,4 @@ This PR updates the documentation based on features merged in the last 24 hours.
 
 Good luck! Your documentation updates help keep our project accessible and up-to-date.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

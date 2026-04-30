@@ -82,4 +82,4 @@ This provides both per-issue context and batch visibility.
 - `good-first-issue`: Marks issues that are suitable for newcomers to the project, often with simpler scope.
 - `community`: Indicates that the issue is related to community engagement, such as events, discussions, or contributions that don't fit into the other categories. From authors who are not contributors to the codebase but are engaging with the project in other ways.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

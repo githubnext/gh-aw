@@ -28,8 +28,6 @@
 #   Imports:
 #     - shared/mcp/ast-grep.md
 #     - shared/reporting.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -230,6 +228,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/mcp/ast-grep.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/go-pattern-detector.md}}
           GH_AW_PROMPT_11d1dc8414fd260f_EOF
           } > "$GH_AW_PROMPT"

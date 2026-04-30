@@ -27,8 +27,6 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/ffmpeg.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -228,6 +226,7 @@ jobs:
           cat << 'GH_AW_PROMPT_5e55eb320375d33b_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/ffmpeg.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/video-analyzer.md}}
           GH_AW_PROMPT_5e55eb320375d33b_EOF
           } > "$GH_AW_PROMPT"

@@ -61,4 +61,4 @@ Create an upbeat daily status report for the team as a GitHub issue.
 1. Gather recent activity from the repository
 2. Create a new GitHub issue with your findings and insights
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -30,8 +30,6 @@
 #     - shared/pr-code-review-config.md
 #     - shared/pr-review-base.md
 #     - shared/reporting.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -284,6 +282,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/workflows/shared/pr-code-review-config.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/pr-nitpick-reviewer.md}}
           GH_AW_PROMPT_6784ac7453b2c5f0_EOF
           } > "$GH_AW_PROMPT"

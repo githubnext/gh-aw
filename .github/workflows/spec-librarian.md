@@ -346,4 +346,4 @@ The following specifications are outdated:
 - ✅ Quality scores assigned to each specification
 - ✅ Issue created if problems found, or noop if all is well
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

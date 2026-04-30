@@ -28,8 +28,6 @@
 #   Imports:
 #     - shared/mcp/markitdown.md
 #     - shared/reporting.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -302,6 +300,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/mcp/markitdown.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/pdf-summary.md}}
           GH_AW_PROMPT_b882b92635115046_EOF
           } > "$GH_AW_PROMPT"

@@ -27,8 +27,6 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -234,6 +232,7 @@ jobs:
           cat << 'GH_AW_PROMPT_c845abc30647a9b9_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/dev-hawk.md}}
           GH_AW_PROMPT_c845abc30647a9b9_EOF
           } > "$GH_AW_PROMPT"

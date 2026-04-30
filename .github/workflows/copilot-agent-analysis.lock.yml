@@ -34,8 +34,6 @@
 #     - shared/reporting.md
 #     - shared/copilot-pr-analysis-base.md
 #     - shared/daily-audit-base.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -251,6 +249,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/jqschema.md}}
           {{#runtime-import .github/workflows/shared/copilot-pr-data-fetch.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/copilot-agent-analysis.md}}
           GH_AW_PROMPT_e8af2cc2a2fbd6e3_EOF
           } > "$GH_AW_PROMPT"

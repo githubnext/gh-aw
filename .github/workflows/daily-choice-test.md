@@ -78,4 +78,4 @@ Make your selection based on the day of the week:
 
 Provide a brief explanation of why you chose this configuration.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

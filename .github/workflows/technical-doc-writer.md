@@ -156,4 +156,4 @@ Keep your feedback specific, actionable, and empathetic. Focus on the most impac
 
 You have access to cache-memory for persistent storage across runs, which you can use to track documentation patterns and improvement suggestions.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

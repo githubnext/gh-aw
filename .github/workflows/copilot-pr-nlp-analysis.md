@@ -513,4 +513,4 @@ Store reusable components and historical data:
 
 **Remember**: Focus on identifying actionable patterns in Copilot PR conversations that can inform prompt improvements, development practices, and collaboration quality.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -524,4 +524,4 @@ Begin your tool discovery now. Follow these steps:
 14. **Generate report**: Create the final markdown report including change tracking, source links, and inconsistency detection
 15. **Publish**: Create a GitHub discussion with the complete tools report
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

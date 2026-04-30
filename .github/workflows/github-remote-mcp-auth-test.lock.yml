@@ -30,8 +30,6 @@
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -239,6 +237,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/github-remote-mcp-auth-test.md}}
           GH_AW_PROMPT_a535e73ab33e528e_EOF
           } > "$GH_AW_PROMPT"

@@ -444,4 +444,4 @@ This ensures the quality score reflects actionable source code volatility, not n
 - Embed charts in discussion report with analysis
 - Store metrics to repo memory, create discussion report with visualizations
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

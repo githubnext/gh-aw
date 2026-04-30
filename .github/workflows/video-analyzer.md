@@ -168,4 +168,4 @@ Create your issue with the following markdown structure:
 *Generated using ffmpeg via GitHub Agentic Workflows*
 ```
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

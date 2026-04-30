@@ -404,4 +404,4 @@ Your effectiveness is measured by:
 
 Execute all phases systematically and produce high-quality refinement pull requests that genuinely improve the codebase.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

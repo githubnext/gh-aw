@@ -118,4 +118,4 @@ If any tool is missing:
 2. Mark overall status as FAIL
 3. Include the error message from the failed version check
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

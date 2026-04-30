@@ -558,4 +558,4 @@ Your output MUST:
 
 Begin your quality improvement analysis now. Select a focus area (prioritizing custom, repository-specific areas), conduct appropriate analysis, generate actionable tasks for the Copilot coding agent, and create the discussion report.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

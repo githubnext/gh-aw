@@ -155,4 +155,4 @@ Follow the **Report Formatting Guidelines** in `shared/reporting.md` to structur
 - Detailed issue lists wrapped in `<details>` tags
 - Critical information (overview, trends, statistics, recommendations) always visible
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

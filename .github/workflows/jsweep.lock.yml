@@ -27,8 +27,6 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/serena.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -264,6 +262,7 @@ jobs:
           4. **Focus on the relevant language files** — ignore unrelated file types
           
           
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/jsweep.md}}
           GH_AW_PROMPT_45dd6562b2fb7643_EOF
           } > "$GH_AW_PROMPT"

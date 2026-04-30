@@ -342,4 +342,4 @@ A successful analysis run:
 
 Begin your analysis now. Focus on evaluating error messages from a developer experience perspective - imagine you're a developer encountering this error for the first time and ask: "Would this help me fix the problem quickly?"
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

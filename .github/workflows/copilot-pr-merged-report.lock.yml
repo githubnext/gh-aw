@@ -34,8 +34,6 @@
 #     - shared/reporting.md
 #     - shared/copilot-pr-analysis-base.md
 #     - shared/daily-audit-base.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -205,6 +203,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/jqschema.md}}
           {{#runtime-import .github/workflows/shared/copilot-pr-data-fetch.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/copilot-pr-merged-report.md}}
           GH_AW_PROMPT_4802dcbccdc6c215_EOF
           } > "$GH_AW_PROMPT"

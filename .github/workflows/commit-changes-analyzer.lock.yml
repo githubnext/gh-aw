@@ -27,8 +27,6 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -228,6 +226,7 @@ jobs:
           cat << 'GH_AW_PROMPT_c6ba27c7d7f9057e_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/commit-changes-analyzer.md}}
           GH_AW_PROMPT_c6ba27c7d7f9057e_EOF
           } > "$GH_AW_PROMPT"

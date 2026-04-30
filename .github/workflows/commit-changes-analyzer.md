@@ -263,4 +263,4 @@ If any of these conditions occur, explain clearly in the discussion:
 
 Make the error message helpful so the user knows how to correct the input.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

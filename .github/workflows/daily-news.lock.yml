@@ -35,8 +35,6 @@
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
 #     - shared/trends.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -251,6 +249,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/shared/editorial.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-news.md}}
           GH_AW_PROMPT_28e02fa8d0cb2ffc_EOF
           } > "$GH_AW_PROMPT"

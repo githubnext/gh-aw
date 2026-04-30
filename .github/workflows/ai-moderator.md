@@ -202,4 +202,4 @@ If no spam was detected, you may still update the log to remove stale entries, b
 - Provide clear reasoning for each detection in your analysis
 - Only take action if you have high confidence in the detection
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

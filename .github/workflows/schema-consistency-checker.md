@@ -493,4 +493,4 @@ A successful run:
 
 Begin your analysis now. Check the cache, choose a strategy, execute it, and report your findings in a discussion.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

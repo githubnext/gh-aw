@@ -29,8 +29,6 @@
 #     - shared/github-guard-policy.md
 #     - shared/pr-code-review-config.md
 #     - shared/pr-review-base.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -234,6 +232,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/workflows/shared/pr-code-review-config.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/pr-triage-agent.md}}
           GH_AW_PROMPT_4121728c94f94cf8_EOF
           } > "$GH_AW_PROMPT"

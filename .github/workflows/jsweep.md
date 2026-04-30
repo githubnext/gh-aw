@@ -300,4 +300,4 @@ If the pull request cannot be created (e.g., one already exists, validation fail
 
 Begin by checking cache-memory for previously cleaned files, then find and clean the next `.cjs` file!
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}
