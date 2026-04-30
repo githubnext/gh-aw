@@ -30,15 +30,21 @@ var bestDailyMinutes = []int{7, 13, 23, 37, 43, 53}
 //   - BEST  (weight 3): 02:00–05:59 UTC at odd minutes (07,13,23,37,43,53)
 //   - BROAD (weight 1): 06:00–23:59 UTC, minutes [5,54]
 //
-// The BROAD tier spans the full daytime and evening window to prevent thundering-herd
-// API rate-limit bursts that occurred when too many workflows clustered in a narrow
-// 10:00–12:59 UTC window (the former GOOD tier). With BROAD, the per-hour density
-// drops from ~48% to ~5% for any given hour, so 20 concurrent workflows spread
-// across roughly one per hour instead of clustering in a 3-hour band.
+// Pool size: 4×6×3 (BEST) + 18×50×1 (BROAD) = 72 + 900 = 972 slots.
+// BEST represents 72/972 ≈ 7% and BROAD represents 900/972 ≈ 93% of slots.
+// Within BROAD, each hour claims 50/972 ≈ 5% of the pool.
 //
-// Using weights means a randomly selected slot is 3× more likely to land in the
-// BEST window than the BROAD window (per slot), but the much larger BROAD pool
-// means ~7% of workflows land in BEST and ~93% are spread evenly across 18 hours.
+// The BROAD tier spans the full daytime and evening window to prevent thundering-herd
+// API rate-limit bursts. The former design used a GOOD tier (10:00–12:59 UTC, weight 2)
+// that concentrated ~300/622 ≈ 48% of pool slots in a 3-hour window—equivalent to
+// ~16% of workflows per hour in that band. With BROAD, no single hour claims more
+// than ~5% of workflows, so 20 concurrent daily workflows spread across roughly
+// one per hour instead of 7–10 clustering in the same 3-hour window.
+//
+// Using weights means each BEST slot appears 3× in the pool while each BROAD slot
+// appears once, making any individual BEST slot 3× more likely to be chosen than
+// any individual BROAD slot. However, because BROAD has 900 vs 72 BEST slots, a
+// randomly selected workflow still has only ~7% chance of landing in BEST.
 func buildWeightedDailyPool() []timeSlot {
 	var pool []timeSlot
 
@@ -62,7 +68,6 @@ func buildWeightedDailyPool() []timeSlot {
 }
 
 // weightedDailyPool is the pre-computed weighted pool of daily time slots.
-// Pool size: 4×6×3 (BEST) + 18×50×1 (BROAD) = 72 + 900 = 972 slots.
 var weightedDailyPool = buildWeightedDailyPool()
 
 // weightedDailyTimeSlot returns a deterministic (hour, minute) pair sampled from the
