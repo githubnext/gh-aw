@@ -31,7 +31,12 @@ engine:
 
 # Shared instructions
 imports:
-  - shared/reporting.md
+  - uses: shared/daily-pr-base.md
+    with:
+      title-prefix: "[docs] "
+      expires: "2d"
+      labels: [documentation, automation, doc-unbloat]
+      reviewers: [copilot]
   - shared/docs-server-lifecycle.md
 
 # Network access for documentation best practices research

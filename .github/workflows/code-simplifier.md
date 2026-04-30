@@ -13,15 +13,12 @@ permissions:
 tracker-id: code-simplifier
 
 imports:
-  - shared/activation-app.md
-  - shared/reporting.md
-
-safe-outputs:
-  create-pull-request:
-    title-prefix: "[code-simplifier] "
-    labels: [refactoring, code-quality, automation]
-    reviewers: [copilot]
-    expires: 1d
+  - uses: shared/daily-pr-base.md
+    with:
+      title-prefix: "[code-simplifier] "
+      expires: "1d"
+      labels: [refactoring, code-quality, automation]
+      reviewers: [copilot]
 
 network:
   allowed:

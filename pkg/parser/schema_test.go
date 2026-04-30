@@ -500,11 +500,33 @@ func TestMainWorkflowSchema_CreatePullRequestAllowedBaseBranches(t *testing.T) {
 		t.Fatal("'allowed-base-branches' not found under safe-outputs.create-pull-request")
 	}
 
-	if gotType, _ := allowedBaseBranches["type"].(string); gotType != "array" {
-		t.Fatalf("'allowed-base-branches' should be type array, got: %v", allowedBaseBranches["type"])
+	// The field accepts either a literal array or an expression string (oneOf).
+	// Validate that the array variant is present and has the right structure.
+	var arraySchema map[string]any
+	if oneOf, hasOneOf := allowedBaseBranches["oneOf"].([]any); hasOneOf {
+		// New schema: oneOf[array, string-expression]
+		for _, candidate := range oneOf {
+			candidateMap, ok := candidate.(map[string]any)
+			if !ok {
+				continue
+			}
+			if t2, _ := candidateMap["type"].(string); t2 == "array" {
+				arraySchema = candidateMap
+				break
+			}
+		}
+		if arraySchema == nil {
+			t.Fatal("'allowed-base-branches' oneOf does not include an array variant")
+		}
+	} else {
+		// Legacy schema: direct type:array
+		if gotType, _ := allowedBaseBranches["type"].(string); gotType != "array" {
+			t.Fatalf("'allowed-base-branches' should be type array (or oneOf with array), got: %v", allowedBaseBranches["type"])
+		}
+		arraySchema = allowedBaseBranches
 	}
 
-	items, ok := allowedBaseBranches["items"].(map[string]any)
+	items, ok := arraySchema["items"].(map[string]any)
 	if !ok {
 		t.Fatal("'allowed-base-branches.items' not found in schema")
 	}
@@ -852,6 +874,54 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ProtectedFilesObje
 			safeOutputs: map[string]any{
 				"push-to-pull-request-branch": map[string]any{
 					"protected-files": "blocked",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "create-pull-request: expression string for protected-files passes",
+			safeOutputs: map[string]any{
+				"create-pull-request": map[string]any{
+					"protected-files": "${{ inputs.protected-files-policy }}",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "create-pull-request: expression string for patch-format passes",
+			safeOutputs: map[string]any{
+				"create-pull-request": map[string]any{
+					"patch-format": "${{ inputs.patch-format }}",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "push-to-pull-request-branch: expression string for protected-files passes",
+			safeOutputs: map[string]any{
+				"push-to-pull-request-branch": map[string]any{
+					"protected-files": "${{ inputs.protected-files-policy }}",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "push-to-pull-request-branch: expression string for patch-format passes",
+			safeOutputs: map[string]any{
+				"push-to-pull-request-branch": map[string]any{
+					"patch-format": "${{ inputs.patch-format }}",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "create-pull-request: object form with expression policy passes",
+			safeOutputs: map[string]any{
+				"create-pull-request": map[string]any{
+					"protected-files": map[string]any{
+						"policy":  "${{ inputs.policy }}",
+						"exclude": []any{"AGENTS.md"},
+					},
 				},
 			},
 			wantErr: false,

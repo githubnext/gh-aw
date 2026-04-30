@@ -41,6 +41,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -106,6 +107,28 @@ func (c *Compiler) validateEngineHarnessScript(workflowData *WorkflowData) error
 	default:
 		return fmt.Errorf("engine.harness must be a Node.js script ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", workflowData.EngineConfig.HarnessScript, constants.DocsEnginesURL)
 	}
+}
+
+// validateEngineMCPSessionTimeout validates optional engine.mcp.session-timeout configuration.
+// The value must be a valid Go duration string of at least 5m (no upper bound).
+func (c *Compiler) validateEngineMCPSessionTimeout(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.MCPSessionTimeout == "" {
+		return nil
+	}
+
+	raw := workflowData.EngineConfig.MCPSessionTimeout
+
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		return fmt.Errorf("engine.mcp.session-timeout: invalid duration %q. Must be a valid Go duration string (e.g. \"30m\", \"4h\", \"24h\").\n\nExamples:\n  engine:\n    mcp:\n      session-timeout: 4h\n\nSee: %s", raw, constants.DocsEnginesURL)
+	}
+
+	if d < constants.MCPSessionTimeoutMin {
+		return fmt.Errorf("engine.mcp.session-timeout: %q is too short (minimum is 5m).\n\nExamples:\n  session-timeout: 30m\n  session-timeout: 4h\n\nSee: %s", raw, constants.DocsEnginesURL)
+	}
+
+	engineValidationLog.Printf("engine.mcp.session-timeout validated: %s (%s)", raw, d)
+	return nil
 }
 
 // validateEngineInlineDefinition validates an inline engine definition parsed from

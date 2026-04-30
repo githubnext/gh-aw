@@ -5,7 +5,7 @@ sidebar:
   badge: { text: 'Project', variant: 'tip' }
 ---
 
-The `update-project` and `create-project-status-update` safe-output tools enable automatic tracking of workflow-created items in GitHub Projects boards. Configure these tools in the `safe-outputs` section of your workflow frontmatter to enable project management capabilities including item addition, field updates, and status reporting.
+Use `update-project` and `create-project-status-update` safe-outputs to automatically track workflow items in GitHub Projects boards, with support for field updates and status reporting.
 
 ## Quick Start
 
@@ -27,10 +27,6 @@ safe-outputs:
     max: 1
 ---
 ```
-
-This enables:
-- **update-project** - Add items to projects, update fields (status, priority, etc.)
-- **create-project-status-update** - Post status updates to project boards
 
 ## Configuration
 
@@ -56,7 +52,7 @@ Supported operations: `add` (add items), `update` (update fields), `create_field
 
 ### Project Status Update Configuration
 
-Configure `create-project-status-update` to post status updates — useful for progress reports, milestone summaries, and workflow health indicators:
+Configure `create-project-status-update` to post project status updates:
 
 ```yaml
 safe-outputs:
@@ -65,13 +61,6 @@ safe-outputs:
     max: 1                                                 # Max status updates per run (default: 1)
     github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
 ```
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `project` | string | (required) | GitHub Project URL for update-project or create-project-status-update |
-| `max` | integer | 10 | Maximum operations per run (update-project) or 1 (create-project-status-update) |
-| `github-token` | string | `GITHUB_TOKEN` | Custom token with Projects permissions |
-| `views` | array | - | Optional auto-created views for update-project (with name, layout, filter) |
 
 See [Safe Outputs: Project Board Updates](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) for complete configuration details.
 
@@ -160,20 +149,9 @@ When a pull request is opened or reviews are requested:
    - Default → "Low"
 ```
 
-## How this fits
-
-- **Projects & Monitoring:** Use `update-project` to track work items and `create-project-status-update` to publish run summaries.
-- **Orchestration:** An orchestrator can dispatch workers and use the same project safe-outputs to keep a shared board updated.
-
-See:
-- [Projects & Monitoring](/gh-aw/patterns/monitoring/)
-- [Orchestration](/gh-aw/patterns/orchestration/)
-
 ## Common Patterns
 
 ### Progressive Status Updates
-
-Move items through workflow stages:
 
 ```aw
 Analyze the issue and determine its current state:
@@ -187,8 +165,6 @@ Update the project item with the appropriate status.
 
 ### Priority Assignment
 
-Set priority based on content analysis:
-
 ```aw
 Examine the issue for urgency indicators:
 - Contains "critical", "urgent", "blocker" → priority="High"
@@ -199,8 +175,6 @@ Update the project item with the assigned priority.
 ```
 
 ### Field-Based Routing
-
-Use custom fields for workflow routing:
 
 ```aw
 Determine the team that should handle this issue:
@@ -214,41 +188,15 @@ Update the project item with the team field.
 
 ## Troubleshooting
 
-### Items Not Added to Project
-
-**Symptoms**: Workflow runs successfully but items don't appear in project board
-
-**Solutions**:
-- Verify project URL is correct (check browser address bar)
-- Confirm token has Projects: Read & Write permissions
-- Check that organization allows Projects access for the token
-- Review workflow logs for safe_outputs job errors
-
-### Permission Errors
-
-**Symptoms**: Workflow fails with "Resource not accessible" or "Insufficient permissions"
-
-**Solutions**:
-- For organization projects: Use fine-grained PAT with organization Projects permission
-- For user projects: Use classic PAT with `project` scope
-- Ensure token is stored in correct secret name
-- Verify repository settings allow Actions to access secrets
-
-### Token Not Resolved
-
-**Symptoms**: Workflow fails with "invalid token" or token appears as literal string
-
-**Solutions**:
-- Use GitHub expression syntax: `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}`
-- Don't quote the expression in YAML
-- Ensure secret name matches exactly (case-sensitive)
-- Check secret is set at repository or organization level
+| Issue | Symptom | Solution |
+|-------|---------|----------|
+| Items not added | Items don't appear despite a successful run | Verify project URL, confirm token has Projects: Read & Write permission, review `safe_outputs` job logs |
+| Permission errors | "Resource not accessible" or "Insufficient permissions" | Use fine-grained PAT with org Projects permission, or classic PAT with `project` scope; verify secret name and repository settings |
+| Token not resolved | "invalid token" or literal `${{...}}` string in output | Use `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}` syntax without quotes; check secret name is exact (case-sensitive) |
 
 ## See Also
 
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe-outputs documentation
-- [update-project](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) - Detailed update-project configuration
-- [create-project-status-update](/gh-aw/reference/safe-outputs/#project-status-updates-create-project-status-update) - Status update configuration
 - [Project token authentication](/gh-aw/patterns/project-ops/#project-token-authentication) - Token setup guide
 - [Projects & Monitoring](/gh-aw/patterns/monitoring/) - Design pattern guide
 - [Orchestration](/gh-aw/patterns/orchestration/) - Design pattern guide

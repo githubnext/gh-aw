@@ -51,6 +51,12 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 		return nil
 	}
 
+	// Pre-process list fields that also accept a GitHub Actions expression string.
+	if err := preprocessStringArrayFieldAsTemplatable(configData, "allowed-repos", addCommentLog); err != nil {
+		addCommentLog.Printf("Invalid allowed-repos value: %v", err)
+		return nil
+	}
+
 	config := parseConfigScaffold(outputMap, "add-comment", addCommentLog, func(err error) *AddCommentsConfig {
 		addCommentLog.Printf("Failed to unmarshal config: %v", err)
 		// For backward compatibility, handle nil/empty config

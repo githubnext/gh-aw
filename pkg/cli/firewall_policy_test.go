@@ -566,6 +566,74 @@ func TestDetectFirewallAuditArtifacts(t *testing.T) {
 		assert.Equal(t, auditPath, foundAudit, "Should find audit JSONL")
 	})
 
+	t.Run("agent artifact new structure (not yet flattened)", func(t *testing.T) {
+		// Simulates a directory populated by `gh run download` before flattenUnifiedArtifact
+		// is called. actions/upload-artifact v4+ strips the /tmp/gh-aw/ common prefix, so
+		// files land at agent/sandbox/firewall/audit/ inside the downloaded artifact dir.
+		dir := t.TempDir()
+		auditDir := filepath.Join(dir, "agent", "sandbox", "firewall", "audit")
+		require.NoError(t, os.MkdirAll(auditDir, 0755))
+
+		manifestPath := filepath.Join(auditDir, "policy-manifest.json")
+		auditPath := filepath.Join(auditDir, "audit.jsonl")
+		require.NoError(t, os.WriteFile(manifestPath, []byte("{}"), 0644))
+		require.NoError(t, os.WriteFile(auditPath, []byte(""), 0644))
+
+		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		assert.Equal(t, manifestPath, foundManifest, "Should find policy manifest in agent/sandbox/firewall/audit")
+		assert.Equal(t, auditPath, foundAudit, "Should find audit JSONL in agent/sandbox/firewall/audit")
+	})
+
+	t.Run("agent artifact old structure with tmp/gh-aw prefix (not yet flattened)", func(t *testing.T) {
+		// Simulates older artifact structure where the full /tmp/gh-aw/ path was preserved
+		// inside the agent artifact directory before the v4+ prefix-stripping behavior.
+		dir := t.TempDir()
+		auditDir := filepath.Join(dir, "agent", "tmp", "gh-aw", "sandbox", "firewall", "audit")
+		require.NoError(t, os.MkdirAll(auditDir, 0755))
+
+		manifestPath := filepath.Join(auditDir, "policy-manifest.json")
+		auditPath := filepath.Join(auditDir, "audit.jsonl")
+		require.NoError(t, os.WriteFile(manifestPath, []byte("{}"), 0644))
+		require.NoError(t, os.WriteFile(auditPath, []byte(""), 0644))
+
+		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		assert.Equal(t, manifestPath, foundManifest, "Should find policy manifest in agent/tmp/gh-aw/sandbox/firewall/audit")
+		assert.Equal(t, auditPath, foundAudit, "Should find audit JSONL in agent/tmp/gh-aw/sandbox/firewall/audit")
+	})
+
+	t.Run("agent-artifacts legacy artifact name (not yet flattened)", func(t *testing.T) {
+		// Simulates the legacy "agent-artifacts" artifact name used before the rename to "agent".
+		dir := t.TempDir()
+		auditDir := filepath.Join(dir, "agent-artifacts", "sandbox", "firewall", "audit")
+		require.NoError(t, os.MkdirAll(auditDir, 0755))
+
+		manifestPath := filepath.Join(auditDir, "policy-manifest.json")
+		auditPath := filepath.Join(auditDir, "audit.jsonl")
+		require.NoError(t, os.WriteFile(manifestPath, []byte("{}"), 0644))
+		require.NoError(t, os.WriteFile(auditPath, []byte(""), 0644))
+
+		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		assert.Equal(t, manifestPath, foundManifest, "Should find policy manifest in agent-artifacts/sandbox/firewall/audit")
+		assert.Equal(t, auditPath, foundAudit, "Should find audit JSONL in agent-artifacts/sandbox/firewall/audit")
+	})
+
+	t.Run("workflow_call prefixed agent artifact (not yet flattened)", func(t *testing.T) {
+		// Simulates the workflow_call artifact naming where a hash prefix is added:
+		// e.g., "abc123-agent" instead of "agent".
+		dir := t.TempDir()
+		auditDir := filepath.Join(dir, "abc123-agent", "sandbox", "firewall", "audit")
+		require.NoError(t, os.MkdirAll(auditDir, 0755))
+
+		manifestPath := filepath.Join(auditDir, "policy-manifest.json")
+		auditPath := filepath.Join(auditDir, "audit.jsonl")
+		require.NoError(t, os.WriteFile(manifestPath, []byte("{}"), 0644))
+		require.NoError(t, os.WriteFile(auditPath, []byte(""), 0644))
+
+		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		assert.Equal(t, manifestPath, foundManifest, "Should find policy manifest in prefixed-agent/sandbox/firewall/audit")
+		assert.Equal(t, auditPath, foundAudit, "Should find audit JSONL in prefixed-agent/sandbox/firewall/audit")
+	})
+
 	t.Run("firewall-audit-logs directory", func(t *testing.T) {
 		dir := t.TempDir()
 		auditDir := filepath.Join(dir, "firewall-audit-logs")
@@ -586,6 +654,17 @@ func TestDetectFirewallAuditArtifacts(t *testing.T) {
 		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
 		assert.Empty(t, foundManifest, "Should not find manifest")
 		assert.Empty(t, foundAudit, "Should not find audit JSONL")
+	})
+
+	t.Run("file named 'agent' does not panic or falsely match", func(t *testing.T) {
+		// If a plain file happens to be named "agent" in the run directory (e.g., a flattened
+		// single-file artifact from a different upload), the lookup must skip it gracefully.
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "agent"), []byte("not a directory"), 0644))
+
+		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		assert.Empty(t, foundManifest, "Should not find manifest when 'agent' is a file")
+		assert.Empty(t, foundAudit, "Should not find audit JSONL when 'agent' is a file")
 	})
 }
 

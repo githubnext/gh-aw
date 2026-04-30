@@ -179,8 +179,17 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 		"branch_name":     "${{ steps.upload_assets.outputs.branch_name }}",
 	}
 
-	// Build the job condition using expression tree
+	// Build the job condition using expression tree.
+	// When detection is expression-controlled the detection job may be skipped at runtime.
+	// Wrap the condition with always() + detection-passed so this job still runs when the
+	// caller disabled threat detection for this invocation via the expression.
 	jobCondition := BuildSafeOutputType("upload_asset")
+	if IsConditionalDetection(data.SafeOutputs) {
+		jobCondition = BuildAnd(
+			BuildAnd(BuildFunctionCall("always"), BuildSafeOutputType("upload_asset")),
+			buildDetectionPassedCondition(),
+		)
+	}
 
 	// Build job dependencies — always include activation job for OTLP trace ID correlation
 	needs := []string{mainJobName, string(constants.ActivationJobName)}

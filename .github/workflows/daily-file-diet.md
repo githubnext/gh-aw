@@ -18,17 +18,14 @@ engine:
   agent: "developer.instructions"
 
 imports:
-  - shared/activation-app.md
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[file-diet] "
+      expires: "2d"
+      labels: [refactoring, code-health, automated-analysis, cookie]
   - shared/go-source-analysis.md
   - shared/safe-output-app.md
   - shared/observability-otlp.md
-
-safe-outputs:
-  create-issue:
-    expires: 2d
-    title-prefix: "[file-diet] "
-    labels: [refactoring, code-health, automated-analysis, cookie]
-    max: 1
 
 tools:
   cli-proxy: true

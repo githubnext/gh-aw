@@ -5,6 +5,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -32,6 +33,12 @@ function buildMissingIssueHandler(options) {
 
   return async function main(config = {}) {
     // Extract configuration
+    // create_issue: templatable boolean — default true.
+    // Accepts: literal boolean (true/false), string 'true'/'false', or a GitHub Actions
+    // expression (e.g. '${{ inputs.create-incomplete-issue }}'). Expressions are evaluated
+    // by GitHub Actions before this handler runs, so config.create_issue holds the
+    // resolved boolean or string value when the handler executes.
+    const createIssue = parseBoolTemplatable(config.create_issue, true);
     const titlePrefix = config.title_prefix || defaultTitlePrefix;
     const userLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
     const envLabels = [...new Set([...defaultLabels, ...userLabels])];
@@ -162,11 +169,21 @@ function buildMissingIssueHandler(options) {
     }
 
     /**
-     * Message handler function that processes a single missing-issue message
+     * Message handler function that processes a single missing-issue message.
+     * Accepts the same two-argument signature as all other handler types so the
+     * handler manager can call it uniformly; resolvedTemporaryIds is unused here.
      * @param {Object} message - The message to process
+     * @param {Object} _resolvedTemporaryIds - Temporary ID map (unused for missing-issue handlers)
      * @returns {Promise<Object>} Result with success/error status and issue details
      */
-    return async function handleMissingIssue(message) {
+    return async function handleMissingIssue(message, _resolvedTemporaryIds) {
+      // When create-issue is disabled (e.g. via a resolved GitHub Actions expression),
+      // skip issue creation without recording a failure.
+      if (!createIssue) {
+        core.info(`${handlerType}: create-issue is disabled, skipping issue creation`);
+        return { success: true, skipped: true, reason: "create-issue disabled" };
+      }
+
       // Check if we've hit the max limit
       if (processedCount >= maxCount) {
         core.warning(`Skipping ${handlerType}: max count of ${maxCount} reached`);

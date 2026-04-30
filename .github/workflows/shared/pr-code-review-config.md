@@ -10,6 +10,7 @@ tools:
 safe-outputs:
   create-pull-request-review-comment:
     side: "RIGHT"
+    max: 10
   submit-pull-request-review:
     max: 1
 ---

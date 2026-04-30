@@ -108,7 +108,13 @@ Test workflow without safe outputs.
 
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err, "Failed to parse markdown content")
-	assert.Nil(t, workflowData.SafeOutputs, "SafeOutputs should be nil")
+	// create-issue is auto-injected even when no safe-outputs section is configured
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected SafeOutputs to be non-nil after auto-injection of create-issue")
+	}
+	if workflowData.SafeOutputs.CreateIssues == nil || !workflowData.SafeOutputs.AutoInjectedCreateIssue {
+		t.Error("Expected create-issue to be auto-injected when no safe-outputs configured")
+	}
 }
 
 // TestSafeOutputsAppTokenDiscussionsPermission tests that discussions permission is included

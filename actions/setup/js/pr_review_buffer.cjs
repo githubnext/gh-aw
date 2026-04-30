@@ -19,7 +19,7 @@
  *   await buffer.submitReview();
  */
 
-const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
@@ -251,6 +251,18 @@ function createReviewBuffer() {
       core.info(`Footer mode "if-body": body is ${body.trim().length > 0 ? "non-empty" : "empty"}, ${shouldAddFooter ? "adding" : "skipping"} footer`);
     }
 
+    // Inject CAUTION at top of body unconditionally if threat detection warning was raised,
+    // independent of footer inclusion so the alert is never silently dropped.
+    if (footerContext) {
+      const detectionCaution = getDetectionCautionAlert(footerContext.workflowName, footerContext.runUrl);
+      if (detectionCaution) {
+        body = detectionCaution + "\n\n" + body;
+        // When CAUTION is present, ensure the footer (and XML marker) is always included
+        // so the review body is not empty of metadata, and re-evaluate shouldAddFooter.
+        shouldAddFooter = true;
+      }
+    }
+
     // Add footer to review body if we should and we have footer context
     if (shouldAddFooter && footerContext) {
       body += generateFooterWithMessages(
@@ -260,7 +272,9 @@ function createReviewBuffer() {
         footerContext.workflowSourceURL,
         footerContext.triggeringIssueNumber,
         footerContext.triggeringPRNumber,
-        footerContext.triggeringDiscussionNumber
+        footerContext.triggeringDiscussionNumber,
+        undefined,
+        { skipDetectionCaution: true }
       );
 
       const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";

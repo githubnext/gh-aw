@@ -69,27 +69,31 @@ Test that role membership check uses GITHUB_TOKEN.`
 		"GH_AW_GITHUB_MCP_SERVER_TOKEN",
 	}
 
-	// Extract the check_membership job section for more precise checking
+	// Extract the check_membership step section for more precise checking.
+	// We collect lines starting from the step with "id: check_membership" until we
+	// encounter the next step (another "- name:" line) or a new top-level job.
 	checkMembershipSection := ""
 	lines := strings.Split(compiledStr, "\n")
 	inCheckMembership := false
-	for i, line := range lines {
+	var sectionLines []string
+	for _, line := range lines {
 		if strings.Contains(line, "id: check_membership") {
 			inCheckMembership = true
-			// Include lines before the step for context
-			if i > 5 {
-				checkMembershipSection = strings.Join(lines[i-5:], "\n")
-			}
 		}
-		if inCheckMembership && i < len(lines)-1 {
-			// Stop when we reach the next step or job
-			if strings.HasPrefix(line, "      - name:") && !strings.Contains(line, "Check team membership") {
+		if inCheckMembership {
+			// Stop when we reach the next step (a "- name:" that is NOT the membership step itself)
+			if strings.HasPrefix(line, "      - name:") && !strings.Contains(line, "Check team membership") && len(sectionLines) > 0 {
 				break
 			}
-			if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") && i > 0 {
+			// Stop when we reach a new top-level job (line with exactly 2 spaces indent)
+			if len(sectionLines) > 0 && len(line) > 2 && line[0] == ' ' && line[1] == ' ' && line[2] != ' ' {
 				break
 			}
+			sectionLines = append(sectionLines, line)
 		}
+	}
+	if len(sectionLines) > 0 {
+		checkMembershipSection = strings.Join(sectionLines, "\n")
 	}
 
 	if checkMembershipSection == "" {

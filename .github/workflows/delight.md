@@ -37,13 +37,16 @@ tools:
   cli-proxy: true
   github:
     toolsets: [default, discussions]
-  edit:
   bash:
-    - "find docs -name '*.md' -o -name '*.mdx'"
+    - "find docs/src/content/docs -name '*.md' -o -name '*.mdx'"
     - "find .github/workflows -name '*.md'"
     - "./gh-aw --help"
-    - "grep -r '*' docs"
-    - "cat *"
+    - "./gh-aw * --help"
+    - "cat /tmp/gh-aw/agent/*"
+    - "cat docs/src/content/docs/*.md"
+    - "cat docs/src/content/docs/*.mdx"
+    - "cat .github/workflows/*.md"
+    - "cat pkg/*/*.go"
 
 timeout-minutes: 30
 
@@ -55,7 +58,20 @@ imports:
     with:
       branch-name: "memory/delight"
       description: "Track delight findings and historical patterns"
-  - shared/jqschema.md
+
+pre-agent-steps:
+  - name: Sample files and load memory
+    run: |
+      mkdir -p /tmp/gh-aw/agent
+      # Sample documentation files (eliminates agent exploratory find turns)
+      find docs/src/content/docs \( -name '*.md' -o -name '*.mdx' \) | shuf -n 2 > /tmp/gh-aw/agent/doc-samples.txt
+      # Sample workflows with messages (pre-compute instead of agent grep)
+      grep -rl "messages:" .github/workflows/ --include="*.md" | shuf -n 2 > /tmp/gh-aw/agent/workflow-samples.txt
+      # Sample validation files
+      find pkg -name '*validation*.go' | shuf -n 1 > /tmp/gh-aw/agent/validation-sample.txt || echo "No validation files found" > /tmp/gh-aw/agent/validation-sample.txt
+      # Load historical memory (eliminates agent memory-read turns)
+      cat memory/delight/previous-findings.json 2>/dev/null > /tmp/gh-aw/agent/previous-findings.json || echo "[]" > /tmp/gh-aw/agent/previous-findings.json
+      cat memory/delight/improvement-themes.json 2>/dev/null > /tmp/gh-aw/agent/improvement-themes.json || echo "[]" > /tmp/gh-aw/agent/improvement-themes.json
 
 features:
   copilot-requests: true
@@ -126,9 +142,10 @@ Apply these principles when evaluating user experience in an enterprise context:
 
 **Select 1-2 high-impact documentation files:**
 
+The following files have been pre-sampled for this run:
+
 ```bash
-# List docs and pick 1-2 samples focusing on frequently accessed pages
-find docs/src/content/docs -name '*.md' -o -name '*.mdx' | shuf -n 2
+cat /tmp/gh-aw/agent/doc-samples.txt
 ```
 
 **Evaluate each file for:**
@@ -180,9 +197,10 @@ For each selected command, run `./gh-aw [command] --help` and evaluate:
 
 **Select 1-2 workflows with custom messages:**
 
+The following workflows have been pre-sampled for this run:
+
 ```bash
-# Find workflows with safe-outputs messages
-grep -l "messages:" .github/workflows/*.md | shuf -n 2
+cat /tmp/gh-aw/agent/workflow-samples.txt
 ```
 
 For each selected workflow, review the messages section:
@@ -206,9 +224,10 @@ For each selected workflow, review the messages section:
 
 **Select 1 validation file for review:**
 
+The following file has been pre-sampled for this run:
+
 ```bash
-# Find error message patterns in validation code
-find pkg -name '*validation*.go' | shuf -n 1
+cat /tmp/gh-aw/agent/validation-sample.txt
 ```
 
 Review error messages in the selected file:
@@ -231,10 +250,11 @@ Review error messages in the selected file:
 
 ### Step 1: Load Historical Memory
 
+Historical memory has been pre-loaded for this run:
+
 ```bash
-# Check previous findings to avoid duplication
-cat memory/delight/previous-findings.json 2>/dev/null || echo "[]"
-cat memory/delight/improvement-themes.json 2>/dev/null || echo "[]"
+cat /tmp/gh-aw/agent/previous-findings.json
+cat /tmp/gh-aw/agent/improvement-themes.json
 ```
 
 ### Step 2: Targeted Selection

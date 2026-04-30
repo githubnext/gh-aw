@@ -405,52 +405,75 @@ func enrichWithPolicyRules(entries []AuditLogEntry, manifest *PolicyManifest) *P
 
 // detectFirewallAuditArtifacts looks for policy-manifest.json and audit.jsonl in the run directory.
 // Returns the paths if found, or empty strings if not present.
+//
+// Search order:
+//  1. sandbox/firewall/audit/ — primary path after flattenUnifiedArtifact strips the /tmp/gh-aw/ prefix
+//  2. agent/sandbox/firewall/audit/ — non-flattened unified agent artifact (new structure)
+//  3. agent/tmp/gh-aw/sandbox/firewall/audit/ — non-flattened unified agent artifact (old structure)
+//  4. firewall-audit*/ — legacy separate firewall-audit-logs artifact (backward compat)
 func detectFirewallAuditArtifacts(runDir string) (manifestPath, auditJSONLPath string) {
 	firewallPolicyLog.Printf("Detecting firewall audit artifacts in: %s", runDir)
 
-	// Check for artifacts in sandbox/firewall/audit/ (primary path after artifact download)
-	auditDir := filepath.Join(runDir, "sandbox", "firewall", "audit")
-	manifestCandidate := filepath.Join(auditDir, "policy-manifest.json")
-	auditCandidate := filepath.Join(auditDir, "audit.jsonl")
-
-	if _, err := os.Stat(manifestCandidate); err == nil {
-		manifestPath = manifestCandidate
-		firewallPolicyLog.Printf("Found policy manifest: %s", manifestPath)
-	}
-
-	if _, err := os.Stat(auditCandidate); err == nil {
-		auditJSONLPath = auditCandidate
-		firewallPolicyLog.Printf("Found audit JSONL: %s", auditJSONLPath)
-	}
-
-	// Also check for legacy firewall-audit-logs directory (backward compat for older runs)
-	if manifestPath == "" || auditJSONLPath == "" {
-		entries, err := os.ReadDir(runDir)
-		if err != nil {
-			return
+	// checkDir probes dir for policy-manifest.json and audit.jsonl, populating the
+	// return variables for any files not yet found. Returns true when both are found.
+	checkDir := func(dir, label string) bool {
+		if manifestPath == "" {
+			candidate := filepath.Join(dir, "policy-manifest.json")
+			if _, err := os.Stat(candidate); err == nil {
+				manifestPath = candidate
+				firewallPolicyLog.Printf("Found policy manifest in %s: %s", label, manifestPath)
+			}
 		}
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
+		if auditJSONLPath == "" {
+			candidate := filepath.Join(dir, "audit.jsonl")
+			if _, err := os.Stat(candidate); err == nil {
+				auditJSONLPath = candidate
+				firewallPolicyLog.Printf("Found audit JSONL in %s: %s", label, auditJSONLPath)
 			}
-			name := entry.Name()
-			if strings.HasPrefix(name, "firewall-audit") {
-				dir := filepath.Join(runDir, name)
-				if manifestPath == "" {
-					candidate := filepath.Join(dir, "policy-manifest.json")
-					if _, err := os.Stat(candidate); err == nil {
-						manifestPath = candidate
-						firewallPolicyLog.Printf("Found policy manifest in %s: %s", name, manifestPath)
-					}
-				}
-				if auditJSONLPath == "" {
-					candidate := filepath.Join(dir, "audit.jsonl")
-					if _, err := os.Stat(candidate); err == nil {
-						auditJSONLPath = candidate
-						firewallPolicyLog.Printf("Found audit JSONL in %s: %s", name, auditJSONLPath)
-					}
-				}
+		}
+		return manifestPath != "" && auditJSONLPath != ""
+	}
+
+	// 1. Primary path: sandbox/firewall/audit/ after flattenUnifiedArtifact
+	if checkDir(filepath.Join(runDir, "sandbox", "firewall", "audit"), "sandbox/firewall/audit") {
+		return
+	}
+
+	// 2 & 3. Non-flattened unified agent artifact (before flattenUnifiedArtifact is called,
+	// e.g., when the audit command is run on a directory populated via `gh run download`).
+	// Handles "agent", "agent-artifacts", and workflow_call prefixed names (e.g. "hash-agent").
+	if agentDir := findArtifactDir(runDir, "agent", "agent-artifacts"); agentDir != "" {
+		// Guard: findArtifactDir checks existence but not type; skip if it resolved to a file.
+		if info, err := os.Stat(agentDir); err != nil || !info.IsDir() {
+			firewallPolicyLog.Printf("Skipping agent artifact path (not a directory): %s", agentDir)
+		} else {
+			agentBase := filepath.Base(agentDir)
+			// New artifact structure (actions/upload-artifact v4+, /tmp/gh-aw/ prefix stripped):
+			//   <agentDir>/sandbox/firewall/audit/
+			if !checkDir(filepath.Join(agentDir, "sandbox", "firewall", "audit"), agentBase+"/sandbox/firewall/audit") {
+				// Old artifact structure (/tmp/gh-aw/ prefix preserved inside the artifact):
+				//   <agentDir>/tmp/gh-aw/sandbox/firewall/audit/
+				checkDir(filepath.Join(agentDir, "tmp", "gh-aw", "sandbox", "firewall", "audit"), agentBase+"/tmp/gh-aw/sandbox/firewall/audit")
 			}
+			if manifestPath != "" && auditJSONLPath != "" {
+				return
+			}
+		}
+	}
+
+	// 4. Legacy separate firewall-audit-logs artifact (backward compat for older runs that
+	// uploaded the audit directory as a standalone artifact named firewall-audit-logs).
+	entries, err := os.ReadDir(runDir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasPrefix(name, "firewall-audit") {
+			checkDir(filepath.Join(runDir, name), name)
 		}
 	}
 

@@ -39,7 +39,8 @@ func TestGitHubProxyModeIntegration(t *testing.T) {
 		"Compiled workflow should include host CLI proxy startup for tools.github.mode=gh-proxy")
 	assert.Contains(t, compiled, "stop_cli_proxy.sh",
 		"Compiled workflow should include host CLI proxy cleanup for tools.github.mode=gh-proxy")
-	assert.Contains(t, compiled, "cli_proxy_prompt.md",
+	assert.True(t,
+		strings.Contains(compiled, "cli_proxy_prompt.md") || strings.Contains(compiled, "cli_proxy_with_safeoutputs_prompt.md"),
 		"Compiled workflow should include CLI proxy guidance prompt for tools.github.mode=gh-proxy")
 
 	assert.NotContains(t, compiled, "github_mcp_tools_prompt.md",

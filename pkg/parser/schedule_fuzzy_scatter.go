@@ -28,11 +28,23 @@ var bestDailyMinutes = []int{7, 13, 23, 37, 43, 53}
 // used for full-day scatter patterns. The pool reflects the following distribution:
 //
 //   - BEST  (weight 3): 02:00–05:59 UTC at odd minutes (07,13,23,37,43,53)
-//   - GOOD  (weight 2): 10:00–12:59 UTC (gap between EU/US peaks), minutes [5,54]
-//   - OK    (weight 1): 19:00–23:59 UTC (evening hours), minutes [5,54]
+//   - BROAD (weight 1): 06:00–23:59 UTC, minutes [5,54]
 //
-// Using weights means a randomly selected slot is 3× more likely to land in the
-// BEST window than the OK window.
+// Pool size: 4×6×3 (BEST) + 18×50×1 (BROAD) = 72 + 900 = 972 slots.
+// BEST represents 72/972 ≈ 7% and BROAD represents 900/972 ≈ 93% of slots.
+// Within BROAD, each hour claims 50/972 ≈ 5% of the pool.
+//
+// The BROAD tier spans the full daytime and evening window to prevent thundering-herd
+// API rate-limit bursts. The former design used a GOOD tier (10:00–12:59 UTC, weight 2)
+// that concentrated ~300/622 ≈ 48% of pool slots in a 3-hour window—equivalent to
+// ~16% of workflows per hour in that band. With BROAD, no single hour claims more
+// than ~5% of workflows, so 20 concurrent daily workflows spread across roughly
+// one per hour instead of 7–10 clustering in the same 3-hour window.
+//
+// Using weights means each BEST slot appears 3× in the pool while each BROAD slot
+// appears once, making any individual BEST slot 3× more likely to be chosen than
+// any individual BROAD slot. However, because BROAD has 900 vs 72 BEST slots, a
+// randomly selected workflow still has only ~7% chance of landing in BEST.
 func buildWeightedDailyPool() []timeSlot {
 	var pool []timeSlot
 
@@ -43,15 +55,10 @@ func buildWeightedDailyPool() []timeSlot {
 		}
 	}
 
-	// GOOD: hours 10–12, all valid minutes [5,54], weight 2 (appear 2 times each)
-	for h := 10; h <= 12; h++ {
-		for m := 5; m <= 54; m++ {
-			pool = append(pool, timeSlot{h, m}, timeSlot{h, m})
-		}
-	}
-
-	// OK: hours 19–23, all valid minutes [5,54], weight 1
-	for h := 19; h <= 23; h++ {
+	// BROAD: hours 06–23, all valid minutes [5,54], weight 1
+	// This replaces the old GOOD (10–12, weight 2) + OK (19–23, weight 1) split that
+	// caused ~48% of daily workflows to cluster in the 10:00–12:59 UTC window.
+	for h := 6; h <= 23; h++ {
 		for m := 5; m <= 54; m++ {
 			pool = append(pool, timeSlot{h, m})
 		}
@@ -61,7 +68,6 @@ func buildWeightedDailyPool() []timeSlot {
 }
 
 // weightedDailyPool is the pre-computed weighted pool of daily time slots.
-// Pool size: 4×6×3 (BEST) + 3×50×2 (GOOD) + 5×50×1 (OK) = 72 + 300 + 250 = 622 slots.
 var weightedDailyPool = buildWeightedDailyPool()
 
 // weightedDailyTimeSlot returns a deterministic (hour, minute) pair sampled from the

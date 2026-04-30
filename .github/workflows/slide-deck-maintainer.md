@@ -20,7 +20,10 @@ concurrency:
 tracker-id: slide-deck-maintainer
 engine: copilot
 imports:
-  - shared/activation-app.md
+  - uses: shared/daily-pr-base.md
+    with:
+      title-prefix: "[slides] "
+      expires: "1d"
 timeout-minutes: 45
 tools:
   cli-proxy: true
@@ -46,10 +49,6 @@ tools:
     - "head*"
     - "tail*"
     - "git"
-safe-outputs:
-  create-pull-request:
-    title-prefix: "[slides] "
-    expires: 1d
 network:
   allowed:
     - node

@@ -10,18 +10,18 @@ permissions:
   actions: read
 engine: copilot
 tracker-id: architecture-guardian
+imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[architecture-guardian] "
+      expires: "2d"
+      labels: [architecture, automated-analysis, cookie]
+      assignees: [copilot]
 tools:
   cli-proxy: true
   bash:
     - "cat:*"
 safe-outputs:
-  create-issue:
-    expires: 2d
-    title-prefix: "[architecture-guardian] "
-    labels: [architecture, automated-analysis, cookie]
-    assignees: copilot
-    max: 1
-  noop:
   messages:
     footer: "> 🏛️ *Architecture report by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     footer-workflow-recompile: "> 🛠️ *Workflow maintenance by [{workflow_name}]({run_url}) for {repository}*"

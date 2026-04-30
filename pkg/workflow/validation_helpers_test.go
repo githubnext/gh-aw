@@ -644,3 +644,124 @@ func TestPreprocessProtectedFilesField(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateStringEnumField tests the validateStringEnumField helper.
+func TestValidateStringEnumField(t *testing.T) {
+	allowed := []string{"am", "bundle"}
+	tests := []struct {
+		name        string
+		configData  map[string]any
+		wantPresent bool
+		wantValue   any
+	}{
+		{
+			name:        "valid enum value is kept",
+			configData:  map[string]any{"patch-format": "am"},
+			wantPresent: true,
+			wantValue:   "am",
+		},
+		{
+			name:        "another valid enum value is kept",
+			configData:  map[string]any{"patch-format": "bundle"},
+			wantPresent: true,
+			wantValue:   "bundle",
+		},
+		{
+			name:        "invalid literal string is removed",
+			configData:  map[string]any{"patch-format": "invalid"},
+			wantPresent: false,
+		},
+		{
+			name:        "non-string value is removed",
+			configData:  map[string]any{"patch-format": 42},
+			wantPresent: false,
+		},
+		{
+			name:        "absent field is a no-op",
+			configData:  map[string]any{"other": "value"},
+			wantPresent: false,
+		},
+		{
+			name:        "nil configData is a no-op",
+			configData:  nil,
+			wantPresent: false,
+		},
+		{
+			name:        "GitHub Actions expression is passed through",
+			configData:  map[string]any{"patch-format": "${{ inputs.patch-format }}"},
+			wantPresent: true,
+			wantValue:   "${{ inputs.patch-format }}",
+		},
+		{
+			name:        "expression with spaces is passed through",
+			configData:  map[string]any{"patch-format": "${{ inputs.format || 'am' }}"},
+			wantPresent: true,
+			wantValue:   "${{ inputs.format || 'am' }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validateStringEnumField(tt.configData, "patch-format", allowed, nil)
+			if tt.configData == nil {
+				return
+			}
+			val, present := tt.configData["patch-format"]
+			assert.Equal(t, tt.wantPresent, present, "field presence should match")
+			if tt.wantPresent {
+				assert.Equal(t, tt.wantValue, val, "field value should match")
+			}
+		})
+	}
+}
+
+// TestPreprocessProtectedFilesFieldWithExpression tests that GitHub Actions expressions
+// in the object-form policy field pass through the preprocessing step unchanged.
+func TestPreprocessProtectedFilesFieldWithExpression(t *testing.T) {
+	tests := []struct {
+		name          string
+		configData    map[string]any
+		wantExclude   []string
+		wantPFAfter   any
+		wantPFPresent bool
+	}{
+		{
+			name: "expression string form passes through unchanged",
+			configData: map[string]any{
+				"protected-files": "${{ inputs.protected-files-policy }}",
+			},
+			wantExclude:   nil,
+			wantPFAfter:   "${{ inputs.protected-files-policy }}",
+			wantPFPresent: true,
+		},
+		{
+			name: "object form with expression policy",
+			configData: map[string]any{
+				"protected-files": map[string]any{
+					"policy":  "${{ inputs.policy }}",
+					"exclude": []any{"AGENTS.md"},
+				},
+			},
+			wantExclude:   []string{"AGENTS.md"},
+			wantPFAfter:   "${{ inputs.policy }}",
+			wantPFPresent: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := preprocessProtectedFilesField(tt.configData, nil)
+			if len(tt.wantExclude) == 0 {
+				assert.Empty(t, got, "exclude list should be empty/nil")
+			} else {
+				assert.Equal(t, tt.wantExclude, got, "exclude list should match")
+			}
+
+			pfVal, pfPresent := tt.configData["protected-files"]
+			assert.Equal(t, tt.wantPFPresent, pfPresent, "protected-files presence should match")
+			if tt.wantPFPresent {
+				assert.Equal(t, tt.wantPFAfter, pfVal, "protected-files value should match after preprocessing")
+			}
+		})
+	}
+}

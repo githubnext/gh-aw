@@ -46,6 +46,9 @@ type EngineConfig struct {
 
 	// Extended inline request shaping fields (engine.provider.request.*)
 	InlineProviderRequest *RequestShape // request shaping parsed from engine.provider.request
+
+	// MCP gateway configuration from engine.mcp sub-object
+	MCPSessionTimeout string // session-timeout: Go duration string for MCP gateway sessions (e.g. "4h", "30m")
 }
 
 // NetworkPermissions represents network access permissions for workflow execution
@@ -315,6 +318,19 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				if tw := parseEngineTokenWeights(tokenWeightsRaw); tw != nil {
 					config.TokenWeights = tw
 					engineLog.Printf("Extracted token-weights: %d multipliers", len(tw.Multipliers))
+				}
+			}
+
+			// Extract optional 'mcp' sub-object (engine-level MCP gateway configuration)
+			if mcpVal, hasMCP := engineObj["mcp"]; hasMCP {
+				if mcpObj, ok := mcpVal.(map[string]any); ok {
+					// Extract session-timeout (kebab-case only; camelCase is not supported)
+					if stVal, hasSessionTimeout := mcpObj["session-timeout"]; hasSessionTimeout {
+						if stStr, ok := stVal.(string); ok && stStr != "" {
+							config.MCPSessionTimeout = stStr
+							engineLog.Printf("Extracted engine.mcp.session-timeout: %s", config.MCPSessionTimeout)
+						}
+					}
 				}
 			}
 

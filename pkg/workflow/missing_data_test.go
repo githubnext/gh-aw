@@ -121,7 +121,7 @@ func TestMissingDataConfigParsing(t *testing.T) {
 		configData   map[string]any
 		expectNil    bool
 		expectMax    int
-		expectIssue  bool
+		expectIssue  *string
 		expectTitle  string
 		expectLabels []string
 	}{
@@ -132,7 +132,7 @@ func TestMissingDataConfigParsing(t *testing.T) {
 			},
 			expectNil:    false,
 			expectMax:    0,
-			expectIssue:  true,
+			expectIssue:  strPtr("true"),
 			expectTitle:  "[missing data]",
 			expectLabels: []string{},
 		},
@@ -145,7 +145,20 @@ func TestMissingDataConfigParsing(t *testing.T) {
 			},
 			expectNil:    false,
 			expectMax:    0,
-			expectIssue:  false,
+			expectIssue:  strPtr("false"),
+			expectTitle:  "[missing data]",
+			expectLabels: []string{},
+		},
+		{
+			name: "Config with create-issue as expression",
+			configData: map[string]any{
+				"missing-data": map[string]any{
+					"create-issue": "${{ inputs.create-missing-data-issue }}",
+				},
+			},
+			expectNil:    false,
+			expectMax:    0,
+			expectIssue:  strPtr("${{ inputs.create-missing-data-issue }}"),
 			expectTitle:  "[missing data]",
 			expectLabels: []string{},
 		},
@@ -160,7 +173,7 @@ func TestMissingDataConfigParsing(t *testing.T) {
 			},
 			expectNil:    false,
 			expectMax:    10,
-			expectIssue:  true,
+			expectIssue:  strPtr("true"),
 			expectTitle:  "[data needed]",
 			expectLabels: []string{"data", "blocked"},
 		},
@@ -171,7 +184,7 @@ func TestMissingDataConfigParsing(t *testing.T) {
 			},
 			expectNil:    true,
 			expectMax:    0,
-			expectIssue:  false,
+			expectIssue:  nil,
 			expectTitle:  "",
 			expectLabels: nil,
 		},
@@ -197,8 +210,16 @@ func TestMissingDataConfigParsing(t *testing.T) {
 				t.Errorf("Expected Max=%d, got Max=%v", tt.expectMax, config.Max)
 			}
 
-			if config.CreateIssue != tt.expectIssue {
-				t.Errorf("Expected CreateIssue=%v, got CreateIssue=%v", tt.expectIssue, config.CreateIssue)
+			if tt.expectIssue == nil {
+				if config.CreateIssue != nil {
+					t.Errorf("Expected CreateIssue=nil, got CreateIssue=%q", *config.CreateIssue)
+				}
+			} else {
+				if config.CreateIssue == nil {
+					t.Errorf("Expected CreateIssue=%q, got CreateIssue=nil", *tt.expectIssue)
+				} else if *config.CreateIssue != *tt.expectIssue {
+					t.Errorf("Expected CreateIssue=%q, got CreateIssue=%q", *tt.expectIssue, *config.CreateIssue)
+				}
 			}
 
 			if config.TitlePrefix != tt.expectTitle {

@@ -126,8 +126,8 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			// Parse title-prefix using shared helper
 			pushToBranchConfig.TitlePrefix = parseTitlePrefixFromConfig(configMap)
 
-			// Parse labels using shared helper
-			pushToBranchConfig.Labels = parseLabelsFromConfig(configMap)
+			// Parse labels using expression-aware shared helper
+			pushToBranchConfig.Labels = ParseStringArrayOrExprFromConfig(configMap, "labels", pushToPullRequestBranchLog)
 
 			// Parse commit-title-suffix (optional)
 			if commitTitleSuffix, exists := configMap["commit-title-suffix"]; exists {
@@ -147,8 +147,8 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			// Parse target-repo for cross-repository push
 			pushToBranchConfig.TargetRepoSlug = parseTargetRepoFromConfig(configMap)
 
-			// Parse allowed-repos for cross-repository push
-			pushToBranchConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
+			// Parse allowed-repos for cross-repository push (expression-aware)
+			pushToBranchConfig.AllowedRepos = ParseStringArrayOrExprFromConfig(configMap, "allowed-repos", pushToPullRequestBranchLog)
 
 			// Parse protected-files: supports string enum OR object form {policy, exclude}.
 			exclude := preprocessProtectedFilesField(configMap, pushToPullRequestBranchLog)

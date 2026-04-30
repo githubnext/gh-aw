@@ -526,6 +526,33 @@ One workflow is simpler to maintain and good for learning, while multiple workfl
 
 Either approach works well. AI-assisted authoring using `/agent agentic-workflows create` in GitHub Copilot Chat provides interactive guidance with automatic best practices, while manual editing gives full control and is essential for advanced customizations. See [Creating Workflows](/gh-aw/setup/creating-workflows/) for AI-assisted approach, or [Reference documentation](/gh-aw/reference/frontmatter/) for manual configuration.
 
+### Can the agent use an existing branch specified at runtime (e.g., from a Jira issue)?
+
+The `create-pull-request` safe output always creates a new branch, but you can control its name and make it reuse an existing remote branch. Set these two fields in your workflow frontmatter:
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+    preserve-branch-name: true   # omit random salt suffix from agent-specified name
+    recreate-ref: true           # force-reset remote branch if it already exists
+```
+
+With `preserve-branch-name: true`, the agent's branch name (e.g., `feature/abc-123-my-change`) is used as-is instead of having a random hex suffix appended. With `recreate-ref: true`, if that branch already exists remotely, it is force-reset to the agent's current HEAD rather than falling back to creating an issue.
+
+To pass the branch name from a Jira issue body (or any issue body), instruct the agent in your workflow's markdown:
+
+```markdown
+Read the issue body and extract the branch name from the line starting with
+"Use existing branch:". Use that name when calling `create_pull_request`.
+```
+
+The agent reads the triggering issue body as part of its context, so no extra integration is needed when the branch name is embedded there. For richer Jira data (status, custom fields), use a [custom safe output](/gh-aw/reference/custom-safe-outputs/) or Jira MCP server.
+
+> [!NOTE]
+> `recreate-ref` requires `preserve-branch-name: true` to take effect. The agent always starts from the configured base branch — it doesn't literally check out the named branch before making changes.
+
+See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/) for full configuration details.
+
 ### You use 'agent' and 'agentic workflow' interchangeably. Are they the same thing?
 
 Yes, for the purpose of this technology. An **"agent"** is an agentic workflow in a repository - an AI-powered automation that can reason, make decisions, and take actions. We use **"agentic workflow"** as it's plainer and emphasizes the workflow nature of the automation, but the terms are synonymous in this context.

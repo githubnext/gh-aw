@@ -12,7 +12,6 @@ permissions:
   issues: read
   security-events: read
 tools:
-  cli-proxy: true
   github:
     toolsets: [all]
   agentic-workflows:
@@ -20,8 +19,6 @@ tools:
   edit:
   web-fetch:
 safe-outputs:
-  create-pull-request-review-comment:
-    max: 10
   messages:
     footer: "> 🔒 *Security review by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications..."
@@ -29,8 +26,8 @@ safe-outputs:
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} during security review."
 timeout-minutes: 15
 imports:
+  - uses: shared/pr-review-base.md
   - shared/security-analysis-base.md
-  - shared/pr-code-review-config.md
 ---
 
 # Security Review Agent 🔒

@@ -49,7 +49,7 @@ type AddWorkflowsResult struct {
 func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <workflow>...",
-		Short: "Add agentic workflows from repositories to .github/workflows",
+		Short: "Add agentic workflows from repositories or local files to .github/workflows",
 		Long: `Add one or more agentic workflows from repositories to .github/workflows.
 
 This command adds workflows directly without interactive prompts. Use 'add-wizard'

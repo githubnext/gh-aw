@@ -20,13 +20,14 @@ tools:
     - "cat:*"
     - "grep:*"
   edit:
+imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[breaking-change] "
+      expires: "2d"
+      labels: [breaking-change, automated-analysis, cookie]
+      assignees: [copilot]
 safe-outputs:
-  create-issue:
-    expires: 2d
-    title-prefix: "[breaking-change] "
-    labels: [breaking-change, automated-analysis, cookie]
-    assignees: copilot
-    max: 1
   messages:
     footer: "> ⚠️ *Compatibility report by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     footer-workflow-recompile: "> 🛠️ *Workflow maintenance by [{workflow_name}]({run_url}) for {repository}*"
@@ -34,9 +35,6 @@ safe-outputs:
     run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋"
     run-failure: "🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown..."
 timeout-minutes: 10
-imports:
-  - shared/activation-app.md
-  - shared/reporting.md
 features:
   copilot-requests: true
 ---

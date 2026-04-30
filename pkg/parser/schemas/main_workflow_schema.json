@@ -1896,7 +1896,22 @@
               ],
               "default": "eyes",
               "description": "AI reaction to add/remove on triggering item. Scalar form accepts one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none. Object form implies enabled reactions and supports optional `issues`, `pull-requests`, and `discussions` fields to control trigger groups independently; use `type` to choose the reaction emoji (defaults to `eyes` when omitted). Use 'none' to disable reactions.",
-              "examples": ["eyes", "rocket", "+1", 1, -1, "none", { "type": "rocket", "pull-requests": false }, { "issues": false, "discussions": true }]
+              "examples": [
+                "eyes",
+                "rocket",
+                "+1",
+                1,
+                -1,
+                "none",
+                {
+                  "type": "rocket",
+                  "pull-requests": false
+                },
+                {
+                  "issues": false,
+                  "discussions": true
+                }
+              ]
             },
             "status-comment": {
               "oneOf": [
@@ -1923,7 +1938,24 @@
                 }
               ],
               "description": "Whether to post status comments (started/completed) on the triggering item. Boolean form enables/disables status comments globally. Object form implies enabled status comments and supports optional `issues`, `pull-requests`, and `discussions` fields to control trigger groups independently. Automatically enabled for slash_command and label_command triggers when not explicitly configured.",
-              "examples": [true, false, { "issues": false }, { "pull-requests": false }, { "discussions": false }, { "issues": false, "pull-requests": true, "discussions": true }]
+              "examples": [
+                true,
+                false,
+                {
+                  "issues": false
+                },
+                {
+                  "pull-requests": false
+                },
+                {
+                  "discussions": false
+                },
+                {
+                  "issues": false,
+                  "pull-requests": true,
+                  "discussions": true
+                }
+              ]
             },
             "github-token": {
               "type": "string",
@@ -5663,15 +5695,25 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository comments. Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "List of additional repositories in format 'owner/repo' that comments can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the comment in. The target repository (current or target-repo) is always implicitly allowed."
+                  "description": "List of additional repositories in format 'owner/repo' that comments can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the comment in. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of repository slugs in 'owner/repo' format",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of repository slugs (e.g. '${{ inputs[\\'allowed-repos\\'] }}')"
+                    }
+                  ]
                 },
                 "hide-older-comments": {
-                  "type": "boolean",
-                  "description": "When true, minimizes/hides all previous comments from the same agentic workflow (identified by tracker-id) before creating the new comment. Default: false."
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, minimizes/hides all previous comments from the same agentic workflow (identified by tracker-id) before creating the new comment. Supports literal boolean or GitHub Actions expression (e.g. '${{ inputs.hide-older-comments }}'). Default: false."
                 },
                 "allowed-reasons": {
                   "type": "array",
@@ -5753,11 +5795,21 @@
                   "description": "Optional prefix for the pull request title"
                 },
                 "labels": {
-                  "type": "array",
-                  "description": "Optional list of labels to attach to the pull request",
-                  "items": {
-                    "type": "string"
-                  }
+                  "description": "Optional list of labels to attach to the pull request. Accepts an array of label names or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs.labels }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of label names",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of label names (e.g. '${{ inputs.labels }}')"
+                    }
+                  ]
                 },
                 "allowed-labels": {
                   "type": "array",
@@ -5844,11 +5896,21 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository pull request creation. Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "List of additional repositories in format 'owner/repo' that pull requests can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the pull request in. The target repository (current or target-repo) is always implicitly allowed."
+                  "description": "List of additional repositories in format 'owner/repo' that pull requests can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the pull request in. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of repository slugs in 'owner/repo' format",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of repository slugs (e.g. '${{ inputs[\\'allowed-repos\\'] }}')"
+                    }
+                  ]
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -5879,11 +5941,21 @@
                   "description": "Base branch for the pull request. Defaults to the workflow's branch (github.ref_name) if not specified. Useful for cross-repository PRs targeting non-default branches (e.g., 'vnext', 'release/v1.0')."
                 },
                 "allowed-base-branches": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "Optional list of allowed base branch patterns (glob syntax, e.g. 'main', 'release/*'). When configured, the agent may provide a `base` field in create_pull_request output to override base-branch for a single run, but only if it matches one of these patterns."
+                  "description": "Optional list of allowed base branch patterns (glob syntax, e.g. 'main', 'release/*'). When configured, the agent may provide a `base` field in create_pull_request output to override base-branch for a single run, but only if it matches one of these patterns. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-base-branches\\'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of base branch patterns (glob syntax supported)",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of base branch patterns (e.g. '${{ inputs[\\'allowed-base-branches\\'] }}')"
+                    }
+                  ]
                 },
                 "footer": {
                   "type": "boolean",
@@ -5917,17 +5989,33 @@
                       "default": "blocked"
                     },
                     {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to parameterise the policy per caller."
+                    },
+                    {
                       "type": "object",
                       "properties": {
                         "policy": {
-                          "type": "string",
-                          "enum": ["blocked", "allowed", "fallback-to-issue"],
-                          "description": "Protection policy. blocked (default): hard-block any patch that modifies protected files. allowed: allow all changes. fallback-to-issue: push the branch but create a review issue instead of a PR.",
-                          "default": "blocked"
+                          "oneOf": [
+                            {
+                              "type": "string",
+                              "enum": ["blocked", "allowed", "fallback-to-issue"],
+                              "description": "Protection policy. blocked (default): hard-block any patch that modifies protected files. allowed: allow all changes. fallback-to-issue: push the branch but create a review issue instead of a PR.",
+                              "default": "blocked"
+                            },
+                            {
+                              "type": "string",
+                              "pattern": "^\\$\\{\\{.*\\}\\}$",
+                              "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime."
+                            }
+                          ]
                         },
                         "exclude": {
                           "type": "array",
-                          "items": { "type": "string" },
+                          "items": {
+                            "type": "string"
+                          },
                           "description": "List of filenames or path prefixes to remove from the default protected-file set. Items are matched by basename (e.g. \"AGENTS.md\") or path prefix (e.g. \".agents/\"). Use this to allow the agent to modify specific files that are otherwise blocked by default.",
                           "examples": [["AGENTS.md"], ["AGENTS.md", ".agents/"]]
                         }
@@ -5936,7 +6024,7 @@
                       "description": "Object form for granular control over the protected-file set. Use the exclude list to remove specific files from the default protection while keeping the rest."
                     }
                   ],
-                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue. Object form: { policy, exclude } to customise the protected-file set."
+                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue \u2014 or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
                 },
                 "allowed-files": {
                   "type": "array",
@@ -5963,10 +6051,20 @@
                   "description": "List of glob patterns for files to exclude from the patch. Each pattern is passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec, so matching files are stripped by git at generation time and will not appear in the commit. Excluded files are also not subject to `allowed-files` or `protected-files` checks. Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "patch-format": {
-                  "type": "string",
-                  "enum": ["am", "bundle"],
-                  "default": "am",
-                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["am", "bundle"],
+                      "default": "am",
+                      "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to 'am' or 'bundle' at runtime. Use in reusable workflow_call workflows to parameterise the transport format per caller."
+                    }
+                  ],
+                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle. Accepts a GitHub Actions expression for reusable workflows."
                 },
                 "staged": {
                   "type": "boolean",
@@ -7154,11 +7252,21 @@
                   "description": "Required prefix for pull request title. Only pull requests with this prefix will be accepted."
                 },
                 "labels": {
-                  "type": "array",
-                  "description": "Required labels for pull request validation. Only pull requests with all these labels will be accepted.",
-                  "items": {
-                    "type": "string"
-                  }
+                  "description": "Required labels for pull request validation. Only pull requests with all these labels will be accepted. Accepts an array of label names or a GitHub Actions expression resolving to a comma-separated list of labels (e.g. '${{ inputs[\\'required-labels\\'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of label names",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of label names (e.g. '${{ inputs[\\'required-labels\\'] }}')"
+                    }
+                  ]
                 },
                 "if-no-changes": {
                   "type": "string",
@@ -7197,11 +7305,21 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository push to pull request branch. Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed."
+                  "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of repository slugs in 'owner/repo' format",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of repository slugs (e.g. '${{ inputs[\\'allowed-repos\\'] }}')"
+                    }
+                  ]
                 },
                 "protected-files": {
                   "oneOf": [
@@ -7212,17 +7330,33 @@
                       "default": "blocked"
                     },
                     {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to parameterise the policy per caller."
+                    },
+                    {
                       "type": "object",
                       "properties": {
                         "policy": {
-                          "type": "string",
-                          "enum": ["blocked", "allowed", "fallback-to-issue"],
-                          "description": "Protection policy. blocked (default): hard-block any patch that modifies protected files. allowed: allow all changes. fallback-to-issue: create a review issue instead of pushing.",
-                          "default": "blocked"
+                          "oneOf": [
+                            {
+                              "type": "string",
+                              "enum": ["blocked", "allowed", "fallback-to-issue"],
+                              "description": "Protection policy. blocked (default): hard-block any patch that modifies protected files. allowed: allow all changes. fallback-to-issue: create a review issue instead of pushing.",
+                              "default": "blocked"
+                            },
+                            {
+                              "type": "string",
+                              "pattern": "^\\$\\{\\{.*\\}\\}$",
+                              "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime."
+                            }
+                          ]
                         },
                         "exclude": {
                           "type": "array",
-                          "items": { "type": "string" },
+                          "items": {
+                            "type": "string"
+                          },
                           "description": "List of filenames or path prefixes to remove from the default protected-file set. Items are matched by basename (e.g. \"AGENTS.md\") or path prefix (e.g. \".agents/\"). Use this to allow the agent to modify specific files that are otherwise blocked by default.",
                           "examples": [["AGENTS.md"], ["AGENTS.md", ".agents/"]]
                         }
@@ -7231,7 +7365,7 @@
                       "description": "Object form for granular control over the protected-file set. Use the exclude list to remove specific files from the default protection while keeping the rest."
                     }
                   ],
-                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue. Object form: { policy, exclude } to customise the protected-file set."
+                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue \u2014 or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
                 },
                 "allowed-files": {
                   "type": "array",
@@ -7248,10 +7382,20 @@
                   "description": "List of glob patterns for files to exclude from the patch. Each pattern is passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec, so matching files are stripped by git at generation time and will not appear in the commit. Excluded files are also not subject to `allowed-files` or `protected-files` checks. Supports * (any characters except /) and ** (any characters including /)."
                 },
                 "patch-format": {
-                  "type": "string",
-                  "enum": ["am", "bundle"],
-                  "default": "am",
-                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["am", "bundle"],
+                      "default": "am",
+                      "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to 'am' or 'bundle' at runtime. Use in reusable workflow_call workflows to parameterise the transport format per caller."
+                    }
+                  ],
+                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle. Accepts a GitHub Actions expression for reusable workflows."
                 },
                 "allow-workflows": {
                   "type": "boolean",
@@ -7627,8 +7771,8 @@
                   ]
                 },
                 "create-issue": {
-                  "type": "boolean",
-                  "description": "Whether to create or update GitHub issues when tools are missing (default: true)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "Whether to create or update GitHub issues when tools are missing (default: true). Supports literal boolean or GitHub Actions expression (e.g. '${{ inputs.create-issue }}').",
                   "default": true
                 },
                 "title-prefix": {
@@ -7689,8 +7833,8 @@
                   ]
                 },
                 "create-issue": {
-                  "type": "boolean",
-                  "description": "Whether to create or update GitHub issues when data is missing (default: true)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "Whether to create or update GitHub issues when data is missing (default: true). Supports literal boolean or GitHub Actions expression (e.g. '${{ inputs.create-missing-data-issue }}').",
                   "default": true
                 },
                 "title-prefix": {
@@ -8037,13 +8181,17 @@
               "description": "Enable or disable threat detection for safe outputs (defaults to true when safe-outputs are configured)"
             },
             {
+              "type": "string",
+              "pattern": "^\\$\\{\\{.*\\}\\}$",
+              "description": "GitHub Actions expression that resolves to a boolean at runtime, enabling or disabling threat detection based on workflow inputs (e.g. '${{ inputs.enable-threat-detection }}')"
+            },
+            {
               "type": "object",
               "description": "Threat detection configuration object",
               "properties": {
                 "enabled": {
-                  "type": "boolean",
-                  "description": "Whether threat detection is enabled",
-                  "default": true
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "Whether threat detection is enabled. Accepts a boolean literal or a GitHub Actions expression (e.g. '${{ inputs.enable-threat-detection }}')."
                 },
                 "prompt": {
                   "type": "string",
@@ -8081,9 +8229,8 @@
                   "description": "Runner specification for the detection job. Overrides agent.runs-on for the detection job only. Defaults to agent.runs-on."
                 },
                 "continue-on-error": {
-                  "type": "boolean",
-                  "default": true,
-                  "description": "When true (default), detection failures produce warnings and allow safe outputs to proceed with a caution notice and 'needs-review' label. When false, detection failures block safe outputs entirely."
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true (default), detection failures produce warnings and allow safe outputs to proceed with a caution notice and 'needs-review' label. When false, detection failures block safe outputs entirely. Accepts a boolean literal or a GitHub Actions expression."
                 }
               },
               "additionalProperties": false
@@ -8641,8 +8788,8 @@
                   ]
                 },
                 "create-issue": {
-                  "type": "boolean",
-                  "description": "Whether to create or update GitHub issues when the task was incomplete (default: true)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "Whether to create or update GitHub issues when the task was incomplete (default: true). Supports literal boolean or GitHub Actions expression (e.g. '${{ inputs.create-incomplete-issue }}').",
                   "default": true
                 },
                 "title-prefix": {
@@ -9672,6 +9819,18 @@
               "type": "boolean",
               "description": "When true, disables automatic loading of context and custom instructions by the AI engine. The engine-specific flag depends on the engine: copilot uses --no-custom-instructions (suppresses .github/AGENTS.md and user-level custom instructions), claude uses --bare (suppresses CLAUDE.md memory files), codex uses --no-system-prompt (suppresses the default system prompt), gemini sets GEMINI_SYSTEM_MD=/dev/null (overrides the built-in system prompt with an empty one). Defaults to false.",
               "default": false
+            },
+            "mcp": {
+              "type": "object",
+              "description": "Engine-level MCP gateway configuration. Settings here apply to the MCP gateway used by this engine.",
+              "properties": {
+                "session-timeout": {
+                  "type": "string",
+                  "description": "Session timeout for MCP gateway sessions as a Go duration string (e.g. \"30m\", \"4h\", \"24h\"). Must be at least 5m (no upper bound). Omitted or empty uses the effective gateway default (precedence: this field > MCP_GATEWAY_SESSION_TIMEOUT env var > built-in default 6h). Longer timeouts benefit multi-hour workflows such as large-scale migrations; shorter values free gateway resources sooner.",
+                  "examples": ["30m", "1h", "4h", "6h", "12h"]
+                }
+              },
+              "additionalProperties": false
             }
           },
           "required": ["id"],

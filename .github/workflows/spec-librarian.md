@@ -16,7 +16,12 @@ engine: copilot
 strict: true
 
 imports:
-  - shared/reporting.md
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[spec-librarian] "
+      expires: "3d"
+      labels: [pkg-specifications, review, automation]
+      assignees: [copilot]
   - shared/go-source-analysis.md
 
 network:
@@ -54,7 +59,6 @@ safe-outputs:
     assignees: copilot
     max: 1
     close-older-issues: true
-  noop:
   messages:
     footer: "> 📚 *Specification review by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "📚 Specification Librarian online! [{workflow_name}]({run_url}) is reviewing all package specifications..."

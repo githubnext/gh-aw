@@ -14,7 +14,7 @@ permissions:
 engine:
   id: copilot
   model: claude-haiku-4.5
-timeout-minutes: 30
+timeout-minutes: 20
 
 network:
   allowed:
@@ -100,6 +100,10 @@ steps:
 
       LINK_COUNT=$(jq 'keys | length' /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json)
       echo "✓ Built closing refs index: $LINK_COUNT issues with native GitHub close links"
+
+      # Copy the current README so the agent can read it without extra tool calls
+      cp README.md /tmp/gh-aw/agent/community-data/README_current.md 2>/dev/null \
+        || echo "⚠ README.md not found; agent will read it from the working directory"
 
       # Find community issues closed within the PR lookback window (attribution candidates)
       jq --arg since "$SINCE" \
@@ -203,10 +207,20 @@ steps:
 
       T3=$(jq length /tmp/gh-aw/agent/community-data/tier3_candidates.json)
       echo "Tier 3+ candidates (agent lookup needed): $T3"
+
+      # Cap Tier 3 to 5 per run — prevents runaway API call loops when there are
+      # many unlinked issues. Remaining candidates will be processed in future runs.
+      jq '.[0:5]' /tmp/gh-aw/agent/community-data/tier3_candidates.json \
+        > /tmp/gh-aw/agent/community-data/tier3_candidates_capped.json
+      T3_CAPPED=$(jq length /tmp/gh-aw/agent/community-data/tier3_candidates_capped.json)
+      if [ "$T3_CAPPED" -lt "$T3" ]; then
+        echo "⚠ Capped Tier 3 lookups: processing $T3_CAPPED of $T3 candidates this run"
+      fi
       echo ""
       echo "Data available in /tmp/gh-aw/agent/community-data/:"
-      echo "  pre_attributed.json    — Tier 0+1+2 confirmed attributions"
-      echo "  tier3_candidates.json  — issues needing Tier 3 agent lookup"
+      echo "  pre_attributed.json             — Tier 0+1+2 confirmed attributions"
+      echo "  tier3_candidates_capped.json    — up to 5 issues needing Tier 3 agent lookup (this run)"
+      echo "  tier3_candidates.json           — full list of Tier 3+ candidates (for reference)"
 
 ---
 
@@ -233,15 +247,15 @@ All data is in `/tmp/gh-aw/agent/community-data/`:
 cat /tmp/gh-aw/agent/community-data/pre_attributed.json | \
   jq -r '.[] | "- #\(.number) [Tier \(.tier)] \(.attribution_type) — \(.title) by @\(.author.login)"'
 
-# Issues still needing Tier 3 agent lookup:
-cat /tmp/gh-aw/agent/community-data/tier3_candidates.json | \
+# Issues still needing Tier 3 agent lookup (capped at 5 per run):
+cat /tmp/gh-aw/agent/community-data/tier3_candidates_capped.json | \
   jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login) (closed: \(.closedAt), stateReason: \(.stateReason // "null"))"'
 
 # View closing reference index
 cat /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json | jq
 
-# View current README
-head -80 /tmp/gh-aw/agent/community-data/README_current.md
+# View current README (pre-fetched — read from README_current.md; only fall back to README.md if the pre-fetched copy is missing)
+head -80 /tmp/gh-aw/agent/community-data/README_current.md 2>/dev/null || head -80 README.md
 
 # View existing wiki page (if any)
 cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md 2>/dev/null || echo "(wiki page does not exist yet)"
@@ -255,12 +269,13 @@ cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md 2>/dev/null || echo
 `pre_attributed.json` — do not re-derive them. Read this file directly
 and use its contents as the confirmed attribution list.
 
-For each issue in `tier3_candidates.json`, apply **Tier 3** from the
+For each issue in `tier3_candidates_capped.json` (at most 5 per run), apply **Tier 3** from the
 imported Community Attribution Strategy (GitHub MCP `issue_read` to
 look for indirect linkage via follow-up or split issues).
 
 Any candidate still unresolved after Tier 3 becomes a **Tier 4**
-"needs review" item.
+"needs review" item. Issues in `tier3_candidates.json` beyond the first 5
+are deferred to the next run — do not attempt to process them.
 
 ### 2. Update the Community Contributors Wiki Page
 
@@ -383,6 +398,17 @@ and the Community Contributors wiki page.
 ```json
 {"noop": {"message": "No action needed: [brief explanation]"}}
 ```
+
+## Token Budget Guidelines
+
+This workflow uses the Copilot engine — max-turns is not available. Follow these rules to avoid runaway token consumption:
+
+- **Read each data file at most once** — do not re-read `pre_attributed.json`, `closing_refs_by_issue.json`, or `README_current.md`
+- **Tier 3 cap enforced in pre-step** — `tier3_candidates_capped.json` contains at most 5 issues; process only those, then stop
+- **At most 1 `issue_read` call per Tier 3 candidate** — call `issue_read` with `method: "get_comments"` once per issue to look for indirect linkage; do not chain further lookups from the results
+- **Stop immediately after the safe-output call** — once `create_pull_request` or `noop` is called, halt without any further tool calls or reasoning
+- **Keep the PR body under 400 words** — use `<details>` for any extended attribution summary
+- **Do not access any external URLs** — use only GitHub MCP `issue_read` for GitHub data; do not call `gh api` or any external HTTP endpoints directly
 
 ### 6. Report Failures
 
