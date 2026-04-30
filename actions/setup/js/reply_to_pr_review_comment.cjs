@@ -156,14 +156,15 @@ async function main(config = {}) {
         return { skipped: true, reason: "staged_mode" };
       }
 
-      // Append footer with workflow information when enabled
+      // Inject CAUTION at top of body unconditionally if threat detection warning was raised
       let finalBody = sanitizeContent(body);
+      const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+      if (detectionCaution) {
+        finalBody = detectionCaution + "\n\n" + finalBody;
+      }
+
+      // Append footer with workflow information when enabled
       if (includeFooter) {
-        // Inject CAUTION at top of body if threat detection warning was raised
-        const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
-        if (detectionCaution) {
-          finalBody = detectionCaution + "\n\n" + finalBody;
-        }
         const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, triggeringPRNumber, undefined, undefined, { skipDetectionCaution: true });
         finalBody = finalBody.trimEnd() + footer;
       }

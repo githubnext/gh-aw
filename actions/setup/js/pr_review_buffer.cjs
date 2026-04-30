@@ -251,14 +251,20 @@ function createReviewBuffer() {
       core.info(`Footer mode "if-body": body is ${body.trim().length > 0 ? "non-empty" : "empty"}, ${shouldAddFooter ? "adding" : "skipping"} footer`);
     }
 
-    // Add footer to review body if we should and we have footer context
-    if (shouldAddFooter && footerContext) {
-      // Inject CAUTION at top of body if threat detection warning was raised
+    // Inject CAUTION at top of body unconditionally if threat detection warning was raised,
+    // independent of footer inclusion so the alert is never silently dropped.
+    if (footerContext) {
       const detectionCaution = getDetectionCautionAlert(footerContext.workflowName, footerContext.runUrl);
       if (detectionCaution) {
         body = detectionCaution + "\n\n" + body;
+        // When CAUTION is present, ensure the footer (and XML marker) is always included
+        // so the review body is not empty of metadata, and re-evaluate shouldAddFooter.
+        shouldAddFooter = true;
       }
+    }
 
+    // Add footer to review body if we should and we have footer context
+    if (shouldAddFooter && footerContext) {
       body += generateFooterWithMessages(
         footerContext.workflowName,
         footerContext.runUrl,
