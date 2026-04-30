@@ -28,14 +28,17 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * Maps gh-aw internal engine IDs to the OTel GenAI semantic-convention
  * `gen_ai.system` values expected by Grafana, Datadog, Honeycomb, and Sentry.
  * Unknown engines fall back to the engine ID as-is.
+ *
+ * Uses Object.create(null) to avoid prototype-pollution risks from keys like
+ * "constructor" or "__proto__" returning unexpected non-string values.
  * @type {Record<string, string>}
  */
-const ENGINE_TO_SYSTEM_MAP = {
+const ENGINE_TO_SYSTEM_MAP = Object.assign(Object.create(null), {
   copilot: "github_models",
   claude: "anthropic",
   codex: "openai",
   gemini: "google_vertex_ai",
-};
+});
 
 // ---------------------------------------------------------------------------
 // Low-level helpers
