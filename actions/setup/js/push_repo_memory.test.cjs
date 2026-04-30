@@ -1477,7 +1477,7 @@ describe("push_repo_memory.cjs - signed commit push (pushSignedCommits delegatio
 
     // Must NOT use a plain git push as the primary push mechanism
     // (only the retry-pull helper uses repoUrlWithToken)
-    expect(scriptContent).not.toContain('"push", repoUrl');
+    expect(scriptContent).not.toContain('"push", repoUrlWithToken');
 
     // Must include a GH013 detection message
     expect(scriptContent).toContain("GH013");

@@ -512,8 +512,9 @@ async function main() {
               core.info(`Pull on retry failed (may be expected for new branches): ${getErrorMessage(pullError)}`);
             }
           }
-        } catch {
+        } catch (lsRemoteError) {
           // ls-remote failed; proceed with existing currentBaseRef
+          core.debug(`ls-remote on retry failed, keeping existing baseRef: ${getErrorMessage(lsRemoteError)}`);
         }
       } else {
         // Surface a helpful message when the repository's signed-commits
