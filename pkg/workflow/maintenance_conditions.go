@@ -102,6 +102,25 @@ func buildDispatchOperationCondition(operation string) ConditionNode {
 	)
 }
 
+// buildLabeledDisableCondition creates a condition for the disable_agentic_workflow job
+// that triggers when an issue or pull request is labeled with "agentic-workflows:disable".
+// Condition: !fork && (event_name == 'issues' || event_name == 'pull_request') && event.label.name == 'agentic-workflows:disable'
+func buildLabeledDisableCondition() ConditionNode {
+	return BuildAnd(
+		buildNotForkCondition(),
+		BuildAnd(
+			BuildOr(
+				BuildEventTypeEquals("issues"),
+				BuildEventTypeEquals("pull_request"),
+			),
+			BuildEquals(
+				BuildPropertyAccess("github.event.label.name"),
+				BuildStringLiteral("agentic-workflows:disable"),
+			),
+		),
+	)
+}
+
 // buildRunOperationCondition creates the condition for the unified run_operation
 // job that handles all dispatch/call operations except the ones with dedicated jobs.
 // Condition: (dispatch || call) && operation != ” && operation != each excluded && !fork.

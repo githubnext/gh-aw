@@ -57,7 +57,11 @@ on:
 `)
 	}
 
-	yaml.WriteString(`  workflow_dispatch:
+	yaml.WriteString(`  issues:
+    types: [labeled]
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
     inputs:
       operation:
         description: 'Optional maintenance operation to run'
@@ -611,6 +615,57 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/run_validate_workflows.cjs');
+            await main();
+`)
+
+	// Add disable_agentic_workflow job triggered by label "agentic-workflows:disable" on issues or PRs.
+	// This job reads the body of the labeled issue/PR to extract the workflow_id from XML comment
+	// markers, disables the corresponding agentic workflow, and posts a confirmation comment.
+	disableLabelCondition := buildLabeledDisableCondition()
+	yaml.WriteString(`
+  disable_agentic_workflow:
+    if: ${{ ` + RenderCondition(disableLabelCondition) + ` }}
+    runs-on: ` + runsOnValue + `
+    permissions:
+      actions: write
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: ` + getActionPin("actions/checkout") + `
+        with:
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+`)
+
+	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+	yaml.WriteString(`      - name: Disable agentic workflow
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/disable_agentic_workflow.cjs');
             await main();
 `)
 
