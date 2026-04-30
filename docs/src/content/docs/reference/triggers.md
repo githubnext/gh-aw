@@ -279,6 +279,32 @@ Workflows with `workflow_run` triggers include automatic security protections:
 
 See the [Security Architecture](/gh-aw/introduction/architecture/) for details.
 
+#### Conclusion Filtering (`conclusion:`)
+
+Use `conclusion:` to restrict the trigger to specific workflow run outcomes. The compiler compiles this into a guarded `if:` condition so the workflow only runs for the matching conclusions. Other combined triggers (such as `workflow_dispatch`) are not blocked by the guard.
+
+```yaml wrap
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    conclusion: failure          # Single conclusion
+```
+
+```yaml wrap
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    conclusion: [failure, cancelled]  # Multiple conclusions
+  workflow_dispatch:                   # Safely combined — guard ensures dispatch passes through
+```
+
+Valid `conclusion` values: `success`, `failure`, `cancelled`, `skipped`, `timed_out`, `action_required`, `neutral`, `stale`.
+
+> [!NOTE]
+> The `conclusion` field compiles into a GitHub Actions `if:` condition: `github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'failure')`. This means the workflow still runs when triggered by other events in the same `on:` block.
+
 ### Deployment Status Triggers (`deployment_status:`)
 
 Trigger workflows when a GitHub deployment status changes. [Full event reference](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#deployment_status).
