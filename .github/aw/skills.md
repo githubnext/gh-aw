@@ -6,8 +6,6 @@ description: Guide for leveraging skills (SKILL.md files) in agentic workflows â
 
 Consult this file when you want a workflow to take advantage of skills â€” domain-specific knowledge files (`SKILL.md`) that live in the repository under `skills/` or `.github/skills/`.
 
-Skills are **not loaded automatically**. The workflow's prompt must direct the agent to either discover and read them at runtime, or have their relevant content fused into the prompt at authoring time.
-
 ---
 
 ## Detecting Skills
