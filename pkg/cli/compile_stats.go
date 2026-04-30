@@ -139,7 +139,7 @@ func printCompilationSummary(stats *CompilationStats) {
 			fmt.Fprintln(os.Stderr)
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Failed workflows:"))
 			for _, failure := range stats.FailureDetails {
-				fmt.Fprintf(os.Stderr, "  ✗ %s\n", filepath.Base(failure.Path))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✗ %s", filepath.Base(failure.Path))))
 			}
 			fmt.Fprintln(os.Stderr)
 
@@ -154,7 +154,7 @@ func printCompilationSummary(stats *CompilationStats) {
 			fmt.Fprintln(os.Stderr)
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Failed workflows:"))
 			for _, workflow := range stats.FailedWorkflows {
-				fmt.Fprintf(os.Stderr, "  ✗ %s\n", workflow)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✗ %s", workflow)))
 			}
 			fmt.Fprintln(os.Stderr)
 		}
@@ -264,11 +264,11 @@ func displayStatsTable(statsList []*WorkflowStats) {
 	// Print summary
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Summary:"))
 	if len(statsList) > maxDisplay {
-		fmt.Fprintf(os.Stderr, "  Showing top %d of %d workflows (sorted by size)\n", maxDisplay, len(statsList))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Showing top %d of %d workflows (sorted by size)", maxDisplay, len(statsList))))
 	}
-	fmt.Fprintf(os.Stderr, "  Total workflows: %d\n", len(statsList))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Total workflows: %d", len(statsList))))
 	fmt.Fprintf(os.Stderr, "  Total size:      %s\n", console.FormatFileSize(totalSize))
-	fmt.Fprintf(os.Stderr, "  Total jobs:      %d\n", totalJobs)
-	fmt.Fprintf(os.Stderr, "  Total steps:     %d\n", totalSteps)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Total jobs:      %d", totalJobs)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Total steps:     %d", totalSteps)))
 	fmt.Fprintf(os.Stderr, "  Total scripts:   %d (%s)\n", totalScripts, console.FormatFileSize(int64(totalScriptSize)))
 }

@@ -186,9 +186,9 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 			// running. Guide the user to upgrade manually from a separate shell.
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("On Windows, gh-aw cannot self-upgrade while it is running."))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please upgrade manually by running one of the following:"))
-			fmt.Fprintln(os.Stderr, "  gh extension upgrade gh-aw")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  gh extension upgrade gh-aw"))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("If that does not work, try reinstalling:"))
-			fmt.Fprintln(os.Stderr, "  gh extension remove gh-aw")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  gh extension remove gh-aw"))
 			fmt.Fprintln(os.Stderr, "  gh extension install "+extensionRepo)
 		}
 		return false, "", fmt.Errorf("failed to upgrade gh-aw extension: %w", retryErr)

@@ -182,7 +182,7 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 	if len(failedActions) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check %d action(s):", len(failedActions))))
 		for _, f := range failedActions {
-			fmt.Fprintf(os.Stderr, "  %s: %s\n", f.name, f.err)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s: %s", f.name, f.err)))
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}

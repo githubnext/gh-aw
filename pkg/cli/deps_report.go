@@ -109,14 +109,14 @@ func DisplayDependencyReport(report *DependencyReport) {
 	// Summary section
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Summary"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("-------"))
-	fmt.Fprintf(os.Stderr, "Total dependencies: %d (%d direct, %d indirect)\n", report.TotalDeps, report.DirectDeps, report.IndirectDeps)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Total dependencies: %d (%d direct, %d indirect)", report.TotalDeps, report.DirectDeps, report.IndirectDeps)))
 
 	outdatedPercentage := 0.0
 	if report.DirectDeps > 0 {
 		outdatedPercentage = float64(len(report.Outdated)) / float64(report.DirectDeps) * 100
 	}
-	fmt.Fprintf(os.Stderr, "Outdated: %d (%.0f%%)\n", len(report.Outdated), outdatedPercentage)
-	fmt.Fprintf(os.Stderr, "Security advisories: %d\n", len(report.Advisories))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Outdated: %d (%.0f%%)", len(report.Outdated), outdatedPercentage)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Security advisories: %d", len(report.Advisories))))
 
 	v0Percentage := 0.0
 	if report.TotalDeps > 0 {
@@ -160,13 +160,13 @@ func DisplayDependencyReport(report *DependencyReport) {
 	if report.TotalDeps > 0 {
 		v1Percentage = float64(report.V1PlusCount) / float64(report.TotalDeps) * 100
 	}
-	fmt.Fprintf(os.Stderr, "v1.x (stable): %d (%.0f%%)\n", report.V1PlusCount, v1Percentage)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("v1.x (stable): %d (%.0f%%)", report.V1PlusCount, v1Percentage)))
 
 	v2Percentage := 0.0
 	if report.TotalDeps > 0 {
 		v2Percentage = float64(report.V2PlusCount) / float64(report.TotalDeps) * 100
 	}
-	fmt.Fprintf(os.Stderr, "v2+ (mature): %d (%.0f%%)\n", report.V2PlusCount, v2Percentage)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("v2+ (mature): %d (%.0f%%)", report.V2PlusCount, v2Percentage)))
 	fmt.Fprintln(os.Stderr, "")
 
 	// Recommendations section
@@ -175,15 +175,15 @@ func DisplayDependencyReport(report *DependencyReport) {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("---------------"))
 
 		if len(report.Advisories) > 0 {
-			fmt.Fprintf(os.Stderr, "🔴 CRITICAL: Address %d security %s immediately\n", len(report.Advisories), pluralize("advisory", len(report.Advisories)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("🔴 CRITICAL: Address %d security %s immediately", len(report.Advisories), pluralize("advisory", len(report.Advisories)))))
 		}
 
 		if len(report.Outdated) > 0 {
-			fmt.Fprintf(os.Stderr, "📦 Update %d outdated %s\n", len(report.Outdated), pluralize("dependency", len(report.Outdated)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("📦 Update %d outdated %s", len(report.Outdated), pluralize("dependency", len(report.Outdated)))))
 		}
 
 		if v0Percentage > 30 {
-			fmt.Fprintf(os.Stderr, "⚠️  Reduce v0.x exposure from %.0f%% to <30%%\n", v0Percentage)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("⚠️  Reduce v0.x exposure from %.0f%% to <30%%", v0Percentage)))
 		}
 
 		fmt.Fprintln(os.Stderr, "")

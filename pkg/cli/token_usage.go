@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
 	"github.com/github/gh-aw/pkg/types"
@@ -385,7 +386,7 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 		if verbose {
 			fileInfo, _ := os.Stat(filePath)
 			if fileInfo != nil {
-				fmt.Fprintf(os.Stderr, "  Found token usage file: %s (%d bytes)\n", filepath.Base(filePath), fileInfo.Size())
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Found token usage file: %s (%d bytes)", filepath.Base(filePath), fileInfo.Size())))
 			}
 		}
 
@@ -401,7 +402,7 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 	if verbose {
 		fileInfo, _ := os.Stat(agentUsagePath)
 		if fileInfo != nil {
-			fmt.Fprintf(os.Stderr, "  Found agent usage file: %s (%d bytes)\n", filepath.Base(agentUsagePath), fileInfo.Size())
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Found agent usage file: %s (%d bytes)", filepath.Base(agentUsagePath), fileInfo.Size())))
 		}
 	}
 

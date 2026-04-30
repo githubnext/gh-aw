@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -106,7 +107,7 @@ func generateAllSideRepoMaintenanceWorkflows(
 		if err := generateSideRepoMaintenanceWorkflow(target, outPath, version, actionMode, actionTag, runsOnValue, resolver, hasExpires, minExpiresDays); err != nil {
 			return fmt.Errorf("failed to generate side-repo maintenance workflow for %s: %w", target.Repository, err)
 		}
-		fmt.Fprintf(os.Stderr, "  Generated side-repo maintenance workflow: %s\n", filename)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Generated side-repo maintenance workflow: "+filename))
 	}
 
 	// Remove stale side-repo maintenance workflows that are no longer referenced.
@@ -130,7 +131,7 @@ func generateAllSideRepoMaintenanceWorkflows(
 		if err := os.Remove(stalePath); err != nil {
 			return fmt.Errorf("failed to remove stale side-repo maintenance workflow %s: %w", stalePath, err)
 		}
-		fmt.Fprintf(os.Stderr, "  Removed stale side-repo maintenance workflow: %s\n", name)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("  Removed stale side-repo maintenance workflow: "+name))
 	}
 
 	return nil

@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -259,7 +260,7 @@ func analyzeGitHubRateLimits(runDir string, verbose bool) (*GitHubRateLimitUsage
 
 	if verbose {
 		if info, err := os.Stat(filePath); err == nil {
-			fmt.Fprintf(os.Stderr, "  Found GitHub rate limits file: %s (%d bytes)\n", filepath.Base(filePath), info.Size())
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Found GitHub rate limits file: %s (%d bytes)", filepath.Base(filePath), info.Size())))
 		}
 	}
 

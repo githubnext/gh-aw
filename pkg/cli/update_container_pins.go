@@ -147,7 +147,7 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 	if len(failedImages) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to resolve digest for %d image(s) (Docker/crane may be unavailable):", len(failedImages))))
 		for _, f := range failedImages {
-			fmt.Fprintf(os.Stderr, "  %s: %s\n", f.image, f.reason)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s: %s", f.image, f.reason)))
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}
@@ -307,7 +307,7 @@ func resolveDigestViaCrane(ctx context.Context, image string) (string, error) {
 // resolveDigestViaPull pulls the image and then reads its RepoDigests field.
 func resolveDigestViaPull(ctx context.Context, image string, verbose bool) (string, error) {
 	if verbose {
-		fmt.Fprintf(os.Stderr, "  Pulling %s to resolve digest...\n", image)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Pulling %s to resolve digest...", image)))
 	}
 
 	pullCtx, pullCancel := context.WithTimeout(ctx, dockerCmdTimeout)

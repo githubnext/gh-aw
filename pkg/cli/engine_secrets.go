@@ -290,19 +290,19 @@ func promptForSecret(req SecretRequirement, config EngineSecretConfig) error {
 // promptForCopilotPATUnified prompts the user for a Copilot PAT with detailed instructions
 func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig) error {
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "GitHub Copilot requires a fine-grained Personal Access Token (PAT) with 'Copilot requests' permissions.")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Copilot requires a fine-grained Personal Access Token (PAT) with 'Copilot requests' permissions."))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Please create a token at:")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please create a token at:"))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+req.KeyURL))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Configure the token with:")
-	fmt.Fprintln(os.Stderr, "  • Token name: Agentic Workflows Copilot")
-	fmt.Fprintln(os.Stderr, "  • Expiration: 90 days (recommended for testing)")
-	fmt.Fprintln(os.Stderr, "  • Resource owner: Your personal account")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configure the token with:"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • Token name: Agentic Workflows Copilot"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • Expiration: 90 days (recommended for testing)"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • Resource owner: Your personal account"))
 	fmt.Fprintln(os.Stderr, "  • Repository access: \"Public repositories\" (you must use this setting for Copilot Requests permission to appear)")
-	fmt.Fprintln(os.Stderr, "  • Add permissions → Copilot Requests: Read-only")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • Add permissions → Copilot Requests: Read-only"))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "If you run into trouble see https://github.github.com/gh-aw/reference/auth/#copilot_github_token.")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("If you run into trouble see https://github.github.com/gh-aw/reference/auth/#copilot_github_token."))
 
 	var token string
 	form := huh.NewForm(
@@ -343,12 +343,12 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 	engineSecretsLog.Printf("Prompting for system token: %s", req.Name)
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintf(os.Stderr, "%s requires a GitHub Personal Access Token (PAT).\n", req.Name)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("%s requires a GitHub Personal Access Token (PAT).", req.Name)))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("When needed: "+req.WhenNeeded))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recommended scopes: "+req.Description))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Create a token at:")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Create a token at:"))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  https://github.com/settings/personal-access-tokens/new"))
 	fmt.Fprintln(os.Stderr, "")
 
@@ -397,10 +397,10 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintf(os.Stderr, "%s requires an API key.\n", label)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("%s requires an API key.", label)))
 	fmt.Fprintln(os.Stderr, "")
 	if req.KeyURL != "" {
-		fmt.Fprintln(os.Stderr, "Get your API key from:")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Get your API key from:"))
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+req.KeyURL))
 		fmt.Fprintln(os.Stderr, "")
 	}
@@ -683,7 +683,7 @@ func displaySecretsSummaryTable(requirements []SecretRequirement, existingSecret
 		nameWithPadding := fmt.Sprintf("%-*s", maxNameWidth, req.Name)
 
 		// Display the line
-		fmt.Fprintf(os.Stderr, "  %s %s - %s\n", statusLine, nameWithPadding, req.WhenNeeded)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s %s - %s", statusLine, nameWithPadding, req.WhenNeeded)))
 	}
 
 	fmt.Fprintln(os.Stderr, "")

@@ -213,13 +213,13 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 
 	// Executive summary
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executive Summary"))
-	fmt.Fprintf(os.Stderr, "  Runs analyzed:              %d\n", report.RunsAnalyzed)
-	fmt.Fprintf(os.Stderr, "  Runs with firewall data:    %d\n", report.RunsWithData)
-	fmt.Fprintf(os.Stderr, "  Runs without firewall data: %d\n", report.RunsWithoutData)
-	fmt.Fprintf(os.Stderr, "  Total requests:             %d\n", report.Summary.TotalRequests)
-	fmt.Fprintf(os.Stderr, "  Allowed / Blocked:          %d / %d\n", report.Summary.TotalAllowed, report.Summary.TotalBlocked)
-	fmt.Fprintf(os.Stderr, "  Overall denial rate:        %.1f%%\n", report.Summary.OverallDenyRate*100)
-	fmt.Fprintf(os.Stderr, "  Unique domains:             %d\n", report.Summary.UniqueDomains)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Runs analyzed:              %d", report.RunsAnalyzed)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Runs with firewall data:    %d", report.RunsWithData)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Runs without firewall data: %d", report.RunsWithoutData)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Total requests:             %d", report.Summary.TotalRequests)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Allowed / Blocked:          %d / %d", report.Summary.TotalAllowed, report.Summary.TotalBlocked)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Overall denial rate:        %.1f%%", report.Summary.OverallDenyRate*100)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Unique domains:             %d", report.Summary.UniqueDomains)))
 	fmt.Fprintln(os.Stderr)
 
 	// Metrics trends
@@ -278,9 +278,9 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 		fmt.Fprintf(os.Stderr, "  Runs with errors:  %d/%d (%.0f%%)\n",
 			et.RunsWithErrors, report.RunsAnalyzed,
 			safePercent(et.RunsWithErrors, report.RunsAnalyzed))
-		fmt.Fprintf(os.Stderr, "  Total errors:      %d (avg=%.2f/run)\n", et.TotalErrors, et.AvgErrorsPerRun)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Total errors:      %d (avg=%.2f/run)", et.TotalErrors, et.AvgErrorsPerRun)))
 		if et.TotalWarnings > 0 {
-			fmt.Fprintf(os.Stderr, "  Total warnings:    %d (%d runs)\n", et.TotalWarnings, et.RunsWithWarnings)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Total warnings:    %d (%d runs)", et.TotalWarnings, et.RunsWithWarnings)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -310,10 +310,10 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 			case "low":
 				severityIcon = "🟡"
 			}
-			fmt.Fprintf(os.Stderr, "  %s [%s/%s] %s\n", severityIcon, insight.Category, insight.Severity, insight.Title)
-			fmt.Fprintf(os.Stderr, "     %s\n", insight.Summary)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s [%s/%s] %s", severityIcon, insight.Category, insight.Severity, insight.Title)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     "+insight.Summary))
 			if insight.Evidence != "" {
-				fmt.Fprintf(os.Stderr, "     evidence: %s\n", insight.Evidence)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     evidence: "+insight.Evidence))
 			}
 		}
 		fmt.Fprintln(os.Stderr)

@@ -93,7 +93,7 @@ func RunListWorkflows(repo, path, pattern string, verbose bool, jsonOutput bool,
 		// List workflows from remote repository
 		isRemote = true
 		if verbose && !jsonOutput {
-			fmt.Fprintf(os.Stderr, "Listing workflow files from %s\n", repo)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Listing workflow files from %s", repo)))
 		}
 		mdFiles, err = getRemoteWorkflowFiles(repo, path, verbose, jsonOutput)
 	} else {
@@ -101,7 +101,7 @@ func RunListWorkflows(repo, path, pattern string, verbose bool, jsonOutput bool,
 		if verbose && !jsonOutput {
 			fmt.Fprintf(os.Stderr, "Listing workflow files\n")
 			if pattern != "" {
-				fmt.Fprintf(os.Stderr, "Filtering by pattern: %s\n", pattern)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Filtering by pattern: %s", pattern)))
 			}
 		}
 		mdFiles, err = getMarkdownWorkflowFiles(path)
@@ -127,7 +127,7 @@ func RunListWorkflows(repo, path, pattern string, verbose bool, jsonOutput bool,
 	}
 
 	if verbose && !jsonOutput {
-		fmt.Fprintf(os.Stderr, "Found %d markdown workflow files\n", len(mdFiles))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d markdown workflow files", len(mdFiles))))
 	}
 
 	// Build workflow list
@@ -259,7 +259,7 @@ func getRemoteWorkflowFiles(repoSpec, workflowPath string, verbose bool, jsonOut
 	repo = repoParts[1]
 
 	if verbose && !jsonOutput {
-		fmt.Fprintf(os.Stderr, "Fetching workflow files from %s/%s@%s (path: %s)\n", owner, repo, ref, workflowPath)
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Fetching workflow files from %s/%s@%s (path: %s)", owner, repo, ref, workflowPath)))
 	}
 
 	// Use the parser package to list workflow files

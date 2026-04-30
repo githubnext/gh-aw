@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -59,7 +60,7 @@ func ensureMCPConfig(verbose bool) error {
 			if string(existingJSON) == string(newJSON) {
 				mcpConfigLog.Print("Configuration is identical, skipping")
 				if verbose {
-					fmt.Fprintf(os.Stderr, "MCP server '%s' already configured in %s\n", ghAwServerName, mcpConfigPath)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("MCP server '%s' already configured in %s", ghAwServerName, mcpConfigPath)))
 				}
 				return nil
 			}
@@ -103,7 +104,7 @@ func renderMCPConfigUpdateInstructions(filePath, serverName string, serverConfig
 		"ℹ",
 		"Existing file detected: "+filePath)
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "To enable GitHub Copilot Agent MCP server integration, please add the following")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To enable GitHub Copilot Agent MCP server integration, please add the following"))
 	fmt.Fprintf(os.Stderr, "to the \"mcpServers\" section of your %s file:\n", filePath)
 	fmt.Fprintln(os.Stderr)
 

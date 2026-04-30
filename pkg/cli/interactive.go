@@ -289,7 +289,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 	}
 
 	interactiveLog.Printf("Workflow file created successfully: %s", destFile)
-	fmt.Fprintf(os.Stderr, "Created new workflow: %s\n", destFile)
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created new workflow: %s", destFile)))
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
@@ -335,7 +336,7 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 	var topLevel map[string]any
 	if err := yaml.Unmarshal([]byte(data.Cache), &topLevel); err != nil {
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Warning: Failed to parse cache configuration: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Warning: Failed to parse cache configuration: %v", err)))
 		}
 		return
 	}
@@ -344,7 +345,7 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 	cacheConfig, exists := topLevel["cache"]
 	if !exists {
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Warning: No cache key found in parsed configuration\n")
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No cache key found in parsed configuration"))
 		}
 		return
 	}

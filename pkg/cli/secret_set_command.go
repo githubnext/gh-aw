@@ -163,7 +163,7 @@ func resolveSecretValueForSet(fromEnv, fromFlag string) (string, error) {
 	// Fallback to non-interactive stdin reading (piped input or non-TTY)
 	secretSetLog.Print("Using non-interactive stdin reading")
 	if isTerminal {
-		fmt.Fprintln(os.Stderr, "Enter secret value, then press Ctrl+D:")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Enter secret value, then press Ctrl+D:"))
 	}
 
 	reader := io.Reader(os.Stdin)

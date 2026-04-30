@@ -745,18 +745,18 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 
 		// Display file locations
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nDownloaded files:"))
-		fmt.Fprintf(os.Stderr, "  - %s (full job log)\n", jobLogPath)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  - %s (full job log)", jobLogPath)))
 
 		if stepNumber > 0 {
 			stepLogPath := filepath.Join(outputDir, fmt.Sprintf("job-%d-step-%d.log", jobID, stepNumber))
 			if _, err := os.Stat(stepLogPath); err == nil {
-				fmt.Fprintf(os.Stderr, "  - %s (step %d output)\n", stepLogPath, stepNumber)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  - %s (step %d output)", stepLogPath, stepNumber)))
 			}
 		} else {
 			failingStepPath := filepath.Join(outputDir, fmt.Sprintf("job-%d-step-*-failed.log", jobID))
 			matches, _ := filepath.Glob(failingStepPath)
 			for _, match := range matches {
-				fmt.Fprintf(os.Stderr, "  - %s (first failing step)\n", match)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  - %s (first failing step)", match)))
 			}
 		}
 	}

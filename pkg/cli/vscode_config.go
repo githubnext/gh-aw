@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -77,7 +78,7 @@ func ensureVSCodeSettings(verbose bool) error {
 	if _, err := os.Stat(settingsPath); err == nil {
 		vscodeConfigLog.Print("Settings file already exists, skipping creation")
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Settings file already exists at %s\n", settingsPath)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Settings file already exists at %s", settingsPath)))
 		}
 		return nil
 	}

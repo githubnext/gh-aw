@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/typeutil"
 )
@@ -152,7 +153,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 		// If that fails, try to parse as mixed format (debug logs + JSONL)
 		claudeLogsLog.Print("JSON array parse failed, trying JSONL format")
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Failed to parse Claude log as JSON array, trying JSONL format: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to parse Claude log as JSON array, trying JSONL format: %v", err)))
 		}
 
 		logEntries = []map[string]any{}
@@ -213,7 +214,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 			if err := json.Unmarshal([]byte(trimmedLine), &jsonEntry); err != nil {
 				// Skip invalid JSON lines (could be partial debug output)
 				if verbose {
-					fmt.Fprintf(os.Stderr, "Skipping invalid JSON line: %s\n", trimmedLine)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping invalid JSON line: "+trimmedLine))
 				}
 				continue
 			}
@@ -223,13 +224,13 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 
 		if len(logEntries) == 0 {
 			if verbose {
-				fmt.Fprintf(os.Stderr, "No valid JSON entries found in Claude log\n")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No valid JSON entries found in Claude log"))
 			}
 			return metrics
 		}
 
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Extracted %d JSON entries from mixed format Claude log\n", len(logEntries))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Extracted %d JSON entries from mixed format Claude log", len(logEntries))))
 		}
 	}
 

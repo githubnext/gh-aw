@@ -47,22 +47,22 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 			parsed, _ := parseWorkflowSpec(c.WorkflowSpecs[0])
 			if parsed != nil {
 				if c.Verbose {
-					fmt.Fprintf(os.Stderr, "Checking workflow status (attempt %d/5) for: %s\n", i+1, parsed.WorkflowName)
+					fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Checking workflow status (attempt %d/5) for: %s", i+1, parsed.WorkflowName)))
 				}
 				// Check if workflow is in status
 				statuses, err := findWorkflowsByFilenamePattern(parsed.WorkflowName, c.RepoOverride, c.Verbose)
 				if err != nil {
 					if c.Verbose {
-						fmt.Fprintf(os.Stderr, "Status check error: %v\n", err)
+						fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Status check error: %v", err)))
 					}
 				} else if len(statuses) > 0 {
 					if c.Verbose {
-						fmt.Fprintf(os.Stderr, "Found %d workflow(s) matching pattern\n", len(statuses))
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d workflow(s) matching pattern", len(statuses))))
 					}
 					workflowFound = true
 					break
 				} else if c.Verbose {
-					fmt.Fprintln(os.Stderr, "No workflows found matching pattern yet")
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflows found matching pattern yet"))
 				}
 			}
 		}
@@ -74,7 +74,7 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 
 	if !workflowFound {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not verify workflow status."))
-		fmt.Fprintf(os.Stderr, "You can check status with: %s status\n", string(constants.CLIExtensionPrefix))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("You can check status with: %s status", string(constants.CLIExtensionPrefix))))
 		c.showFinalInstructions()
 		return nil
 	}
@@ -93,7 +93,7 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 		addInteractiveLog.Print("Running in Codespaces, skipping run offer and showing Actions link")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running in GitHub Codespaces - please trigger the workflow manually from the Actions page"))
-		fmt.Fprintf(os.Stderr, "🔗 https://github.com/%s/actions\n", c.RepoOverride)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("🔗 https://github.com/%s/actions", c.RepoOverride)))
 		c.showFinalInstructions()
 		return nil
 	}
@@ -132,15 +132,15 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 			// after the PR merge—avoids a race where git fetch runs before GitHub's git
 			// objects have been updated, which caused "workflow file not found" errors.
 			if !c.Verbose {
-				fmt.Fprintln(os.Stderr, "Updating local branch (this may take a few seconds)...")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating local branch (this may take a few seconds)..."))
 			}
 			if err := c.updateLocalBranch(); err != nil {
 				addInteractiveLog.Printf("Failed to update local branch: %v", err)
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update local branch: %v", err)))
-				fmt.Fprintln(os.Stderr, "You may need to switch to your repository's default branch (for example 'main') and run 'git pull' manually before running the workflow.")
+				fmt.Fprintln(os.Stderr, console.FormatProgressMessage("You may need to switch to your repository's default branch (for example 'main') and run 'git pull' manually before running the workflow."))
 			}
 			if !c.Verbose {
-				fmt.Fprintln(os.Stderr, "Finished updating local branch.")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Finished updating local branch."))
 			}
 
 			if err := RunSpecificWorkflowInteractively(ctx, parsed.WorkflowName, c.Verbose, c.EngineOverride, c.RepoOverride, "", false, false, false); err != nil {
@@ -155,7 +155,7 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 				fmt.Fprintln(os.Stderr, "")
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow triggered successfully!"))
 				fmt.Fprintln(os.Stderr, "")
-				fmt.Fprintf(os.Stderr, "🔗 View workflow run: %s\n", runInfo.URL)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("🔗 View workflow run: "+runInfo.URL))
 			}
 		}
 	}
@@ -176,20 +176,20 @@ func findWorkflowsByFilenamePattern(pattern, repoOverride string, verbose bool) 
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Running: gh %s\n", strings.Join(args, " "))
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Running: gh "+strings.Join(args, " ")))
 	}
 
 	output, err := workflow.RunGH("Checking workflow status...", args...)
 	if err != nil {
 		if verbose {
-			fmt.Fprintf(os.Stderr, "gh workflow list failed: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("gh workflow list failed: "+err.Error()))
 		}
 		return nil, err
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "gh workflow list output: %s\n", string(output))
-		fmt.Fprintf(os.Stderr, "Looking for workflow with filename containing: %s\n", pattern)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("gh workflow list output: "+string(output)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Looking for workflow with filename containing: "+pattern))
 	}
 
 	// Check if any workflow path contains the pattern
@@ -198,13 +198,13 @@ func findWorkflowsByFilenamePattern(pattern, repoOverride string, verbose bool) 
 	// We check if the path contains the pattern
 	if strings.Contains(string(output), pattern+".lock.yml") || strings.Contains(string(output), pattern+".md") {
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Workflow with filename '%s' found in workflow list\n", pattern)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow with filename '%s' found in workflow list", pattern)))
 		}
 		return []WorkflowStatus{{Workflow: pattern}}, nil
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Workflow with filename '%s' NOT found in workflow list\n", pattern)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow with filename '%s' NOT found in workflow list", pattern)))
 	}
 	return nil, nil
 }

@@ -43,7 +43,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 	// If no specific workflow names provided, enable/disable all workflows
 	if len(workflowNames) == 0 {
 		enableLog.Print("No specific workflows provided, processing all workflows")
-		fmt.Fprintf(os.Stderr, "No specific workflows provided. %sing all workflows...\n", strings.ToUpper(action[:1])+action[1:])
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("%sing all workflows...", strings.ToUpper(action[:1])+action[1:])))
 		// Get all workflow names and process them
 		mdFiles, err := getMarkdownWorkflowFiles("")
 		if err != nil {
@@ -133,12 +133,12 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 				if exists {
 					if enable && githubWorkflow.State == "active" {
 						// Already enabled
-						fmt.Fprintf(os.Stderr, "Workflow %s is already enabled\n", name)
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already enabled", name)))
 						continue
 					}
 					if !enable && githubWorkflow.State == "disabled_manually" {
 						// Already disabled
-						fmt.Fprintf(os.Stderr, "Workflow %s is already disabled\n", name)
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already disabled", name)))
 						continue
 					}
 				}
@@ -189,15 +189,15 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 	// If no targets after filtering, everything was already in the desired state
 	if len(targets) == 0 {
 		enableLog.Printf("No workflows need to be %sd - all already in desired state", action)
-		fmt.Fprintf(os.Stderr, "All specified workflows are already %sd\n", action)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("All specified workflows are already %sd", action)))
 		return nil
 	}
 
 	enableLog.Printf("Proceeding to %s %d workflows", action, len(targets))
 	// Show what will be changed
-	fmt.Fprintf(os.Stderr, "The following workflows will be %sd:\n", action)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("The following workflows will be %sd:", action)))
 	for _, t := range targets {
-		fmt.Fprintf(os.Stderr, "  %s (current state: %s)\n", t.Name, t.CurrentState)
+		fmt.Fprintln(os.Stderr, console.FormatListItem(fmt.Sprintf("%s (current state: %s)", t.Name, t.CurrentState)))
 	}
 
 	// Perform the action
@@ -257,7 +257,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 			}
 			failures = append(failures, t.Name)
 		} else {
-			fmt.Fprintf(os.Stderr, "%sd workflow: %s\n", strings.ToUpper(action[:1])+action[1:], t.Name)
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("%sd workflow: %s", strings.ToUpper(action[:1])+action[1:], t.Name)))
 		}
 	}
 
@@ -318,7 +318,7 @@ func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbos
 		// Skip if it's in the keep-enabled set
 		if keepEnabled[base] {
 			if verbose {
-				fmt.Fprintf(os.Stderr, "Keeping enabled: %s\n", base)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Keeping enabled: %s", base)))
 			}
 			continue
 		}
@@ -327,7 +327,7 @@ func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbos
 		nameWithoutExt := strings.TrimSuffix(base, filepath.Ext(base))
 		if keepEnabled[nameWithoutExt] {
 			if verbose {
-				fmt.Fprintf(os.Stderr, "Keeping enabled: %s\n", base)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Keeping enabled: %s", base)))
 			}
 			continue
 		}
@@ -343,9 +343,9 @@ func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbos
 	}
 
 	// Show what will be disabled
-	fmt.Fprintf(os.Stderr, "Disabling %d workflow(s) in cloned repository:\n", len(workflowsToDisable))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Disabling %d workflow(s) in cloned repository:", len(workflowsToDisable))))
 	for _, wf := range workflowsToDisable {
-		fmt.Fprintf(os.Stderr, "  %s\n", wf)
+		fmt.Fprintln(os.Stderr, console.FormatListItem(wf))
 	}
 
 	// Disable each workflow
@@ -364,7 +364,7 @@ func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbos
 			failures = append(failures, wf)
 		} else {
 			if verbose {
-				fmt.Fprintf(os.Stderr, "Disabled workflow: %s\n", wf)
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Disabled workflow: %s", wf)))
 			}
 		}
 	}

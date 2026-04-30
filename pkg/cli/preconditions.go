@@ -23,7 +23,7 @@ func checkGHAuthStatusShared(verbose bool) error {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("You are not logged in to GitHub CLI."))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Please run the following command to authenticate:")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please run the following command to authenticate:"))
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  gh auth login"))
 		fmt.Fprintln(os.Stderr, "")
@@ -68,8 +68,8 @@ func checkActionsEnabledShared(repoSlug string, verbose bool) error {
 	if !permissions.Enabled {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("GitHub Actions appears to be disabled for this repository."))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "You can still add workflows, but they won't run until Actions is enabled.")
-		fmt.Fprintln(os.Stderr, "To enable GitHub Actions, go to Settings → Actions → General.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("You can still add workflows, but they won't run until Actions is enabled."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To enable GitHub Actions, go to Settings → Actions → General."))
 		fmt.Fprintln(os.Stderr, "")
 		return nil
 	}
@@ -85,12 +85,12 @@ func checkActionsEnabledShared(repoSlug string, verbose bool) error {
 		// Only local actions allowed - this won't work for agentic workflows
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("This repository only allows local actions (actions defined in this repository)."))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Agentic workflows require GitHub-owned actions to run.")
-		fmt.Fprintln(os.Stderr, "To allow this, go to Settings → Actions → General → Actions permissions")
-		fmt.Fprintln(os.Stderr, "and select 'Allow all actions' or 'Allow select actions' with GitHub-owned actions enabled.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Agentic workflows require GitHub-owned actions to run."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To allow this, go to Settings → Actions → General → Actions permissions"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("and select 'Allow all actions' or 'Allow select actions' with GitHub-owned actions enabled."))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Note: For organization repositories, this setting may be controlled at the org level.")
-		fmt.Fprintln(os.Stderr, "Contact an organization owner if you cannot change this setting.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("For organization repositories, this setting may be controlled at the org level."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Contact an organization owner if you cannot change this setting."))
 		fmt.Fprintln(os.Stderr, "")
 		return errors.New("repository action permissions prevent agentic workflows from running")
 	case "selected":
@@ -137,12 +137,12 @@ func checkSelectedActionsPermissions(selectedActionsURL string, verbose bool) er
 	if !selectedActions.GitHubOwnedAllowed {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("This repository does not allow GitHub-owned actions."))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Agentic workflows require GitHub-owned actions (like actions/checkout) to run.")
-		fmt.Fprintln(os.Stderr, "To allow this, go to Settings → Actions → General → Actions permissions")
-		fmt.Fprintln(os.Stderr, "and enable 'Allow actions created by GitHub'.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Agentic workflows require GitHub-owned actions (like actions/checkout) to run."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To allow this, go to Settings → Actions → General → Actions permissions"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("and enable 'Allow actions created by GitHub'."))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Note: For organization repositories, this setting may be controlled at the org level.")
-		fmt.Fprintln(os.Stderr, "Contact an organization owner if you cannot change this setting.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("For organization repositories, this setting may be controlled at the org level."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Contact an organization owner if you cannot change this setting."))
 		fmt.Fprintln(os.Stderr, "")
 		return errors.New("GitHub-owned actions are not allowed in this repository")
 	}
@@ -183,7 +183,7 @@ func checkUserPermissionsShared(repoSlug string, verbose bool) (bool, error) {
 	if !hasAccess {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("You do not have write access to %s/%s.", owner, repo)))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "You can still add workflows, but you'll need to propose changes via pull requests.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("You can still add workflows, but you'll need to propose changes via pull requests."))
 		fmt.Fprintln(os.Stderr, "")
 	} else if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Repository permissions verified"))

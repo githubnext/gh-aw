@@ -55,7 +55,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error
 			if workflowName != "" {
 				fmt.Fprintf(os.Stderr, "  %-20s - %s\n", name, workflowName)
 			} else {
-				fmt.Fprintf(os.Stderr, "  %s\n", name)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s", name)))
 			}
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nUsage: %s remove <filter>", string(constants.CLIExtensionPrefix))))
@@ -99,15 +99,15 @@ func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error
 	for _, file := range filesToRemove {
 		workflowName, _ := extractWorkflowNameFromFile(file)
 		if workflowName != "" {
-			fmt.Fprintf(os.Stderr, "  %s - %s\n", filepath.Base(file), workflowName)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s - %s", filepath.Base(file), workflowName)))
 		} else {
-			fmt.Fprintf(os.Stderr, "  %s\n", filepath.Base(file))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s", filepath.Base(file))))
 		}
 
 		// Also check for corresponding .lock.yml file in .github/workflows
 		lockFile := stringutil.MarkdownToLockFile(file)
 		if _, err := os.Stat(lockFile); err == nil {
-			fmt.Fprintf(os.Stderr, "  %s (compiled workflow)\n", filepath.Base(lockFile))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s (compiled workflow)", filepath.Base(lockFile))))
 		}
 	}
 
@@ -115,7 +115,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error
 	if len(orphanedIncludes) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nThe following orphaned include files will also be removed (suppress with --keep-orphans):"))
 		for _, include := range orphanedIncludes {
-			fmt.Fprintf(os.Stderr, "  %s (orphaned include)\n", include)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s (orphaned include)", include)))
 		}
 	}
 

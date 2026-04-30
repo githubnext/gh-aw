@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -109,7 +110,7 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 					default:
 						// Invalid value, use default and log warning
 						if c.verbose {
-							fmt.Fprintf(os.Stderr, "Warning: invalid if-no-changes value '%s', using default 'warn'\n", ifNoChangesStr)
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("invalid if-no-changes value '%s', using default 'warn'", ifNoChangesStr)))
 						}
 						pushToBranchConfig.IfNoChanges = "warn"
 					}

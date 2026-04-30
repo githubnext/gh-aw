@@ -49,6 +49,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -86,7 +87,7 @@ func HandleCustomMCPToolInSwitch(
 	if toolConfig, ok := tools[toolName].(map[string]any); ok {
 		if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
 			if err := renderFunc(yaml, toolName, toolConfig, isLast); err != nil {
-				fmt.Fprintf(os.Stderr, "Error generating custom MCP configuration for %s: %v\n", toolName, err)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Error generating custom MCP configuration for %s: %v", toolName, err)))
 			}
 			return true
 		}

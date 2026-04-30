@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -162,7 +163,7 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 		}
 
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Updated existing devcontainer at %s\n", devcontainerPath)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Updated existing devcontainer at %s", devcontainerPath)))
 		}
 	} else {
 		// Create new configuration
@@ -189,7 +190,7 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 		}
 
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Created new devcontainer at %s\n", devcontainerPath)
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created new devcontainer at %s", devcontainerPath)))
 		}
 	}
 

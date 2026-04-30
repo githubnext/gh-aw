@@ -416,7 +416,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Staging %d files for commit", len(files))))
 		for _, file := range files {
-			fmt.Fprintf(os.Stderr, "  - %s\n", file)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  - %s", file)))
 		}
 	}
 
@@ -535,7 +535,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Extra staged files:"))
 		for _, file := range extraStagedFiles {
-			fmt.Fprintf(os.Stderr, "  - %s\n", file)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  - %s", file)))
 		}
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please commit or unstage these files before using --push"))
@@ -553,7 +553,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Ready to commit and push the following files:"))
 	for _, file := range files {
-		fmt.Fprintf(os.Stderr, "  - %s\n", file)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  - %s", file)))
 	}
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Commit message: %s\n"), commitMessage)

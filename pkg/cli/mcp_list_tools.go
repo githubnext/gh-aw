@@ -75,7 +75,7 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 		if len(mcpConfigs) > 0 {
 			fmt.Fprintf(os.Stderr, "Available MCP servers: ")
 			serverNames := sliceutil.Map(mcpConfigs, func(config parser.RegistryMCPServerConfig) string { return config.Name })
-			fmt.Fprintf(os.Stderr, "%s\n", strings.Join(serverNames, ", "))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(strings.Join(serverNames, ", ")))
 		}
 		return nil
 	}
@@ -132,7 +132,7 @@ func findWorkflowsWithMCPServer(workflowsDir string, mcpServerName string, verbo
 	// Display matching workflows and suggest using one
 	fmt.Fprintf(os.Stderr, "Found MCP server '%s' in %d workflow(s): %s\n",
 		mcpServerName, len(matchingWorkflows), strings.Join(matchingWorkflows, ", "))
-	fmt.Fprintf(os.Stderr, "\nRun 'gh aw mcp list-tools %s <workflow-name>' to list tools for a specific workflow\n", mcpServerName)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nRun 'gh aw mcp list-tools %s <workflow-name>' to list tools for a specific workflow", mcpServerName)))
 
 	return nil
 }

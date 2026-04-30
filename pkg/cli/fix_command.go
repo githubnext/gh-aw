@@ -98,11 +98,11 @@ func listAvailableCodemods() error {
 
 	for _, codemod := range codemods {
 		fmt.Fprintf(os.Stderr, "  %s\n", console.FormatInfoMessage(codemod.Name))
-		fmt.Fprintf(os.Stderr, "    ID: %s\n", codemod.ID)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    ID: %s", codemod.ID)))
 		if codemod.IntroducedIn != "" {
-			fmt.Fprintf(os.Stderr, "    Introduced in: %s\n", codemod.IntroducedIn)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    Introduced in: %s", codemod.IntroducedIn)))
 		}
-		fmt.Fprintf(os.Stderr, "    %s\n", codemod.Description)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    %s", codemod.Description)))
 		fmt.Fprintln(os.Stderr, "")
 	}
 
@@ -241,12 +241,12 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 			// Output as agent prompt
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To fix these issues, run:"))
 			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, "  gh aw fix --write")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  gh aw fix --write"))
 			fmt.Fprintln(os.Stderr, "")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or fix them individually:"))
 			fmt.Fprintln(os.Stderr, "")
 			for _, wf := range workflowsNeedingFixes {
-				fmt.Fprintf(os.Stderr, "  gh aw fix %s --write\n", strings.TrimSuffix(wf.File, ".md"))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  gh aw fix %s --write", strings.TrimSuffix(wf.File, ".md"))))
 			}
 		} else {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("✓ No fixes needed"))
@@ -326,12 +326,12 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage("✓ "+fileName))
 		for _, codemodName := range appliedCodemods {
-			fmt.Fprintf(os.Stderr, "    • %s\n", codemodName)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    • %s", codemodName)))
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage("⚠ "+fileName))
 		for _, codemodName := range appliedCodemods {
-			fmt.Fprintf(os.Stderr, "    • %s\n", codemodName)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    • %s", codemodName)))
 		}
 	}
 

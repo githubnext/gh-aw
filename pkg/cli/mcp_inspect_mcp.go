@@ -443,7 +443,7 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 		for i, tool := range info.Tools {
 			toolNames[i] = tool.Name
 		}
-		fmt.Fprintf(os.Stderr, "%s\n", strings.Join(toolNames, ", "))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(strings.Join(toolNames, ", ")))
 		return
 	}
 
@@ -456,23 +456,23 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("🛠️  Tool Details: "+foundTool.Name))
 
 	// Display basic information
-	fmt.Fprintf(os.Stderr, "📋 **Name:** %s\n", foundTool.Name)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("📋 **Name:** %s", foundTool.Name)))
 
 	// Show title if available and different from name
 	if foundTool.Title != "" && foundTool.Title != foundTool.Name {
-		fmt.Fprintf(os.Stderr, "📄 **Title:** %s\n", foundTool.Title)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("📄 **Title:** %s", foundTool.Title)))
 	}
 	if foundTool.Annotations != nil && foundTool.Annotations.Title != "" && foundTool.Annotations.Title != foundTool.Name && foundTool.Annotations.Title != foundTool.Title {
-		fmt.Fprintf(os.Stderr, "📄 **Annotation Title:** %s\n", foundTool.Annotations.Title)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("📄 **Annotation Title:** %s", foundTool.Annotations.Title)))
 	}
 
-	fmt.Fprintf(os.Stderr, "📝 **Description:** %s\n", foundTool.Description)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("📝 **Description:** %s", foundTool.Description)))
 
 	// Display allowance status
 	if isAllowed {
-		fmt.Fprintf(os.Stderr, "✅ **Status:** Allowed\n")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("✅ **Status:** Allowed"))
 	} else {
-		fmt.Fprintf(os.Stderr, "🚫 **Status:** Not allowed (add to 'allowed' list in workflow frontmatter)\n")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("🚫 **Status:** Not allowed (add to 'allowed' list in workflow frontmatter)"))
 	}
 
 	// Display annotations if available
@@ -480,28 +480,28 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("⚙️  Tool Attributes"))
 
 		if foundTool.Annotations.ReadOnlyHint {
-			fmt.Fprintf(os.Stderr, "🔒 **Read-only:** This tool does not modify its environment\n")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("🔒 **Read-only:** This tool does not modify its environment"))
 		} else {
-			fmt.Fprintf(os.Stderr, "🔓 **Modifies environment:** This tool can make changes\n")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("🔓 **Modifies environment:** This tool can make changes"))
 		}
 
 		if foundTool.Annotations.IdempotentHint {
-			fmt.Fprintf(os.Stderr, "🔄 **Idempotent:** Calling with same arguments has no additional effect\n")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("🔄 **Idempotent:** Calling with same arguments has no additional effect"))
 		}
 
 		if foundTool.Annotations.DestructiveHint != nil {
 			if *foundTool.Annotations.DestructiveHint {
-				fmt.Fprintf(os.Stderr, "⚠️  **Destructive:** May perform destructive updates\n")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("⚠️  **Destructive:** May perform destructive updates"))
 			} else {
-				fmt.Fprintf(os.Stderr, "➕ **Additive:** Performs only additive updates\n")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("➕ **Additive:** Performs only additive updates"))
 			}
 		}
 
 		if foundTool.Annotations.OpenWorldHint != nil {
 			if *foundTool.Annotations.OpenWorldHint {
-				fmt.Fprintf(os.Stderr, "🌐 **Open world:** Interacts with external entities\n")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("🌐 **Open world:** Interacts with external entities"))
 			} else {
-				fmt.Fprintf(os.Stderr, "🏠 **Closed world:** Domain of interaction is closed\n")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("🏠 **Closed world:** Domain of interaction is closed"))
 			}
 		}
 	}
@@ -510,9 +510,9 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 	if foundTool.InputSchema != nil {
 		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("📥 Input Schema"))
 		if schemaJSON, err := json.MarshalIndent(foundTool.InputSchema, "", "  "); err == nil {
-			fmt.Fprintf(os.Stderr, "```json\n%s\n```\n", string(schemaJSON))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("```json\n%s\n```", string(schemaJSON))))
 		} else {
-			fmt.Fprintf(os.Stderr, "Error displaying input schema: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Error displaying input schema: %v", err)))
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("📥 No input schema defined"))
@@ -522,9 +522,9 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 	if foundTool.OutputSchema != nil {
 		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("📤 Output Schema"))
 		if schemaJSON, err := json.MarshalIndent(foundTool.OutputSchema, "", "  "); err == nil {
-			fmt.Fprintf(os.Stderr, "```json\n%s\n```\n", string(schemaJSON))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("```json\n%s\n```", string(schemaJSON))))
 		} else {
-			fmt.Fprintf(os.Stderr, "Error displaying output schema: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Error displaying output schema: %v", err)))
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("📤 No output schema defined"))
@@ -553,29 +553,29 @@ func displayToolAllowanceHint(info *parser.MCPServerInfo) {
 		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("💡 To allow blocked tools, add them to your workflow frontmatter:"))
 
 		// Show the frontmatter syntax example
-		fmt.Fprintf(os.Stderr, "\n")
-		fmt.Fprintf(os.Stderr, "```yaml\n")
-		fmt.Fprintf(os.Stderr, "tools:\n")
-		fmt.Fprintf(os.Stderr, "  %s:\n", info.Config.Name)
-		fmt.Fprintf(os.Stderr, "    allowed:\n")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(""))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("```yaml"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("tools:"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s:", info.Config.Name)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("    allowed:"))
 
 		// Add currently allowed tools first (if any)
 		for _, allowed := range info.Config.Allowed {
-			fmt.Fprintf(os.Stderr, "      - %s\n", allowed)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("      - %s", allowed)))
 		}
 
 		// Show first few blocked tools as examples (limit to 3 for readability)
 		exampleCount := min(len(blockedTools), 3)
 
 		for i := range exampleCount {
-			fmt.Fprintf(os.Stderr, "      - %s\n", blockedTools[i])
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("      - %s", blockedTools[i])))
 		}
 
 		if len(blockedTools) > 3 {
-			fmt.Fprintf(os.Stderr, "      # ... and %d more tools\n", len(blockedTools)-3)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("      # ... and %d more tools", len(blockedTools)-3)))
 		}
 
-		fmt.Fprintf(os.Stderr, "```\n")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("```"))
 
 		if len(blockedTools) > 3 {
 			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("📋 All blocked tools: "+strings.Join(blockedTools, ", ")))
@@ -585,16 +585,16 @@ func displayToolAllowanceHint(info *parser.MCPServerInfo) {
 		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("💡 All tools are currently allowed (no 'allowed' list specified)"))
 		if len(info.Tools) > 0 {
 			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("To restrict tools, add an 'allowed' list to your workflow frontmatter:"))
-			fmt.Fprintf(os.Stderr, "\n")
-			fmt.Fprintf(os.Stderr, "```yaml\n")
-			fmt.Fprintf(os.Stderr, "tools:\n")
-			fmt.Fprintf(os.Stderr, "  %s:\n", info.Config.Name)
-			fmt.Fprintf(os.Stderr, "    allowed:\n")
-			fmt.Fprintf(os.Stderr, "      - %s  # Allow only specific tools\n", info.Tools[0].Name)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(""))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("```yaml"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("tools:"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s:", info.Config.Name)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("    allowed:"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("      - %s  # Allow only specific tools", info.Tools[0].Name)))
 			if len(info.Tools) > 1 {
-				fmt.Fprintf(os.Stderr, "      - %s\n", info.Tools[1].Name)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("      - %s", info.Tools[1].Name)))
 			}
-			fmt.Fprintf(os.Stderr, "```\n")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("```"))
 		}
 	} else {
 		// All tools are explicitly allowed

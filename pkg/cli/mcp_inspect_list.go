@@ -59,9 +59,9 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 	mcpInspectListLog.Printf("Found %d workflows with MCP servers", len(workflowsWithMCP))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Workflows with MCP servers:"))
 	for _, workflow := range workflowsWithMCP {
-		fmt.Fprintf(os.Stderr, "  • %s\n", workflow)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  • %s", workflow)))
 	}
-	fmt.Fprintf(os.Stderr, "\nRun 'gh aw mcp inspect <workflow-name>' to inspect MCP servers in a specific workflow.\n")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nRun 'gh aw mcp inspect <workflow-name>' to inspect MCP servers in a specific workflow."))
 
 	return nil
 }

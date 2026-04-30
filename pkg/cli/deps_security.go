@@ -121,10 +121,10 @@ func DisplaySecurityAdvisories(advisories []SecurityAdvisory) {
 		fmt.Fprintln(os.Stderr, "")
 
 		if len(adv.PatchedVers) > 0 {
-			fmt.Fprintf(os.Stderr, "    Fixed in: %s\n", strings.Join(adv.PatchedVers, ", "))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    Fixed in: %s", strings.Join(adv.PatchedVers, ", "))))
 		}
 
-		fmt.Fprintf(os.Stderr, "    %s\n", adv.URL)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    %s", adv.URL)))
 		fmt.Fprintln(os.Stderr, "")
 	}
 }

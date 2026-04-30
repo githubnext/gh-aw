@@ -128,11 +128,11 @@ func renderMCPServerHealth(health *MCPServerHealth) {
 	if health == nil {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "  %s\n", health.Summary)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s", health.Summary)))
 	if health.TotalRequests > 0 {
-		fmt.Fprintf(os.Stderr, "  Total Requests:    %d\n", health.TotalRequests)
-		fmt.Fprintf(os.Stderr, "  Total Errors:      %d\n", health.TotalErrors)
-		fmt.Fprintf(os.Stderr, "  Error Rate:        %.1f%%\n", health.ErrorRate)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Total Requests:    %d", health.TotalRequests)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Total Errors:      %d", health.TotalErrors)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Error Rate:        %.1f%%", health.ErrorRate)))
 	}
 	fmt.Fprintln(os.Stderr)
 

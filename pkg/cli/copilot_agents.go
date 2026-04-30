@@ -117,7 +117,7 @@ func deleteSetupAgenticWorkflowsAgent(verbose bool) error {
 			return fmt.Errorf("failed to remove setup-agentic-workflows agent: %w", err)
 		}
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Removed setup-agentic-workflows agent: %s\n", agentPath)
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed setup-agentic-workflows agent: %s", agentPath)))
 		}
 	}
 
@@ -215,7 +215,7 @@ func deleteOldAgentFiles(verbose bool) error {
 					return fmt.Errorf("failed to remove old %s file %s: %w", subdir, file, err)
 				}
 				if verbose {
-					fmt.Fprintf(os.Stderr, "Removed old %s file: %s\n", subdir, path)
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed old %s file: %s", subdir, path)))
 				}
 			}
 		}

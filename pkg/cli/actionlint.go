@@ -94,9 +94,9 @@ func displayActionlintSummary() {
 	// Create visual separator
 	separator := strings.Repeat("━", 60)
 
-	fmt.Fprintf(os.Stderr, "\n%s\n", separator)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\n"+separator))
 	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Actionlint Summary"))
-	fmt.Fprintf(os.Stderr, "%s\n\n", separator)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(separator+"\n"))
 
 	// Show total workflows checked
 	fmt.Fprintf(os.Stderr, "%s\n",
@@ -119,7 +119,7 @@ func displayActionlintSummary() {
 		if len(actionlintStats.ErrorsByKind) > 0 {
 			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("Issues by type:"))
 			for kind, count := range actionlintStats.ErrorsByKind {
-				fmt.Fprintf(os.Stderr, "  • %s: %d\n", kind, count)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  • %s: %d", kind, count)))
 			}
 		}
 	} else if actionlintStats.IntegrationErrors > 0 {
@@ -141,7 +141,7 @@ func displayActionlintSummary() {
 		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatWarningMessage(msg))
 	}
 
-	fmt.Fprintf(os.Stderr, "\n%s\n", separator)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\n"+separator))
 }
 
 // getActionlintVersion fetches and caches the actionlint version from Docker

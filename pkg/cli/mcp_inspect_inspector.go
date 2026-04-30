@@ -73,7 +73,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 		if len(mcpConfigs) > 0 {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s) in workflow:", len(mcpConfigs))))
 			for _, config := range mcpConfigs {
-				fmt.Fprintf(os.Stderr, "  • %s (%s)\n", config.Name, config.Type)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  • %s (%s)", config.Name, config.Type)))
 			}
 			fmt.Fprintln(os.Stderr)
 
@@ -155,22 +155,22 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configuration details for MCP inspector:"))
 			for _, config := range mcpConfigs {
-				fmt.Fprintf(os.Stderr, "\n📡 %s (%s):\n", config.Name, config.Type)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\n📡 %s (%s):", config.Name, config.Type)))
 				switch config.Type {
 				case "stdio":
 					if config.Container != "" {
-						fmt.Fprintf(os.Stderr, "  Container: %s\n", config.Container)
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Container: %s", config.Container)))
 					} else {
-						fmt.Fprintf(os.Stderr, "  Command: %s\n", config.Command)
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Command: %s", config.Command)))
 						if len(config.Args) > 0 {
-							fmt.Fprintf(os.Stderr, "  Args: %s\n", strings.Join(config.Args, " "))
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Args: %s", strings.Join(config.Args, " "))))
 						}
 					}
 				case "http":
-					fmt.Fprintf(os.Stderr, "  URL: %s\n", config.URL)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  URL: %s", config.URL)))
 				}
 				if len(config.Env) > 0 {
-					fmt.Fprintf(os.Stderr, "  Environment Variables: %v\n", config.Env)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Environment Variables: %v", config.Env)))
 				}
 			}
 			fmt.Fprintln(os.Stderr)

@@ -55,9 +55,9 @@ func renderKeyFindings(findings []Finding) {
 	// Render critical findings first
 	for _, finding := range critical {
 		fmt.Fprintf(os.Stderr, "  🔴 %s [%s]\n", console.FormatErrorMessage(finding.Title), finding.Category)
-		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     "+finding.Description))
 		if finding.Impact != "" {
-			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     Impact: "+finding.Impact))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -65,29 +65,29 @@ func renderKeyFindings(findings []Finding) {
 	// Then high severity
 	for _, finding := range high {
 		fmt.Fprintf(os.Stderr, "  🟠 %s [%s]\n", console.FormatWarningMessage(finding.Title), finding.Category)
-		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     "+finding.Description))
 		if finding.Impact != "" {
-			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     Impact: "+finding.Impact))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
 
 	// Medium severity
 	for _, finding := range medium {
-		fmt.Fprintf(os.Stderr, "  🟡 %s [%s]\n", finding.Title, finding.Category)
-		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  🟡 %s [%s]", finding.Title, finding.Category)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     "+finding.Description))
 		if finding.Impact != "" {
-			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     Impact: "+finding.Impact))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
 
 	// Low severity
 	for _, finding := range low {
-		fmt.Fprintf(os.Stderr, "  ℹ️  %s [%s]\n", finding.Title, finding.Category)
-		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ℹ️  %s [%s]", finding.Title, finding.Category)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     "+finding.Description))
 		if finding.Impact != "" {
-			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     Impact: "+finding.Impact))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -95,9 +95,9 @@ func renderKeyFindings(findings []Finding) {
 	// Info findings
 	for _, finding := range info {
 		fmt.Fprintf(os.Stderr, "  ✅ %s [%s]\n", console.FormatSuccessMessage(finding.Title), finding.Category)
-		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     "+finding.Description))
 		if finding.Impact != "" {
-			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     Impact: "+finding.Impact))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -114,9 +114,9 @@ func renderRecommendations(recommendations []Recommendation) {
 	// Render high priority first
 	for i, rec := range high {
 		fmt.Fprintf(os.Stderr, "  %d. [HIGH] %s\n", i+1, console.FormatWarningMessage(rec.Action))
-		fmt.Fprintf(os.Stderr, "     Reason: %s\n", rec.Reason)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     Reason: "+rec.Reason))
 		if rec.Example != "" {
-			fmt.Fprintf(os.Stderr, "     Example: %s\n", rec.Example)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     Example: "+rec.Example))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -124,10 +124,10 @@ func renderRecommendations(recommendations []Recommendation) {
 	// Medium priority
 	startIdx := len(high) + 1
 	for i, rec := range medium {
-		fmt.Fprintf(os.Stderr, "  %d. [MEDIUM] %s\n", startIdx+i, rec.Action)
-		fmt.Fprintf(os.Stderr, "     Reason: %s\n", rec.Reason)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %d. [MEDIUM] %s", startIdx+i, rec.Action)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     Reason: "+rec.Reason))
 		if rec.Example != "" {
-			fmt.Fprintf(os.Stderr, "     Example: %s\n", rec.Example)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     Example: "+rec.Example))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -135,10 +135,10 @@ func renderRecommendations(recommendations []Recommendation) {
 	// Low priority
 	startIdx += len(medium)
 	for i, rec := range low {
-		fmt.Fprintf(os.Stderr, "  %d. [LOW] %s\n", startIdx+i, rec.Action)
-		fmt.Fprintf(os.Stderr, "     Reason: %s\n", rec.Reason)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %d. [LOW] %s", startIdx+i, rec.Action)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     Reason: "+rec.Reason))
 		if rec.Example != "" {
-			fmt.Fprintf(os.Stderr, "     Example: %s\n", rec.Example)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     Example: "+rec.Example))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -149,8 +149,8 @@ func renderSafeOutputSummary(summary *SafeOutputSummary) {
 	if summary == nil {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "  Total Items:       %d\n", summary.TotalItems)
-	fmt.Fprintf(os.Stderr, "  Summary:           %s\n", summary.Summary)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Total Items:       %d", summary.TotalItems)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Summary:           "+summary.Summary))
 	fmt.Fprintln(os.Stderr)
 
 	// Type breakdown table
@@ -181,7 +181,7 @@ func renderTokenUsage(summary *TokenUsageSummary) {
 	fmt.Fprintf(os.Stderr, "  Requests:   %d (avg %s)\n",
 		summary.TotalRequests, timeutil.FormatDurationMs(summary.AvgDurationMs()))
 	if summary.CacheEfficiency > 0 {
-		fmt.Fprintf(os.Stderr, "  Cache hit:  %.1f%%\n", summary.CacheEfficiency*100)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Cache hit:  %.1f%%", summary.CacheEfficiency*100)))
 	}
 	fmt.Fprintln(os.Stderr)
 
@@ -223,7 +223,7 @@ func renderGitHubRateLimitUsage(usage *GitHubRateLimitUsage) {
 			console.FormatNumber(usage.CoreRemaining),
 		)
 	}
-	fmt.Fprintf(os.Stderr, "  %s\n\n", summary)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s\n", summary)))
 
 	// Per-resource breakdown table (only when there are multiple resources or non-core resources)
 	rows := usage.ResourceRows()
@@ -253,9 +253,9 @@ func renderErrorsAndWarnings(errors []ErrorInfo, warnings []ErrorInfo) {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Errors (%d):", len(errors))))
 		for _, err := range errors {
 			if err.File != "" && err.Line > 0 {
-				fmt.Fprintf(os.Stderr, "    %s:%d: %s\n", filepath.Base(err.File), err.Line, err.Message)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    %s:%d: %s", filepath.Base(err.File), err.Line, err.Message)))
 			} else {
-				fmt.Fprintf(os.Stderr, "    %s\n", err.Message)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("    "+err.Message))
 			}
 		}
 		fmt.Fprintln(os.Stderr)
@@ -265,9 +265,9 @@ func renderErrorsAndWarnings(errors []ErrorInfo, warnings []ErrorInfo) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warnings (%d):", len(warnings))))
 		for _, warn := range warnings {
 			if warn.File != "" && warn.Line > 0 {
-				fmt.Fprintf(os.Stderr, "    %s:%d: %s\n", filepath.Base(warn.File), warn.Line, warn.Message)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    %s:%d: %s", filepath.Base(warn.File), warn.Line, warn.Message)))
 			} else {
-				fmt.Fprintf(os.Stderr, "    %s\n", warn.Message)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("    "+warn.Message))
 			}
 		}
 		fmt.Fprintln(os.Stderr)

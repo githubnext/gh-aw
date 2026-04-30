@@ -24,7 +24,7 @@ func showUpdateSummary(successfulUpdates []string, failedUpdates []updateFailure
 	if len(failedUpdates) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to update %d workflow(s):", len(failedUpdates))))
 		for _, failure := range failedUpdates {
-			fmt.Fprintf(os.Stderr, "  %s: %s\n", failure.Name, failure.Error)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s: %s", failure.Name, failure.Error)))
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}

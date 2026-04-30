@@ -191,7 +191,7 @@ func RunWorkflowDomains(workflowArg string, jsonOutput bool) error {
 	}
 	fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
 
-	fmt.Fprintf(os.Stderr, "\n%d allowed, %d blocked\n", len(allowedDomains), len(blockedDomains))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\n%d allowed, %d blocked", len(allowedDomains), len(blockedDomains))))
 
 	return nil
 }

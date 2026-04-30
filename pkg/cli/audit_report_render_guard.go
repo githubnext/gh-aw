@@ -23,22 +23,22 @@ func renderGuardPolicySummary(summary *GuardPolicySummary) {
 	// Breakdown by reason
 	fmt.Fprintln(os.Stderr, "  Block Reasons:")
 	if summary.IntegrityBlocked > 0 {
-		fmt.Fprintf(os.Stderr, "    Integrity below minimum : %d\n", summary.IntegrityBlocked)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    Integrity below minimum : %d", summary.IntegrityBlocked)))
 	}
 	if summary.RepoScopeBlocked > 0 {
-		fmt.Fprintf(os.Stderr, "    Repository not allowed  : %d\n", summary.RepoScopeBlocked)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    Repository not allowed  : %d", summary.RepoScopeBlocked)))
 	}
 	if summary.AccessDenied > 0 {
-		fmt.Fprintf(os.Stderr, "    Access denied           : %d\n", summary.AccessDenied)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    Access denied           : %d", summary.AccessDenied)))
 	}
 	if summary.BlockedUserDenied > 0 {
-		fmt.Fprintf(os.Stderr, "    Blocked user            : %d\n", summary.BlockedUserDenied)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    Blocked user            : %d", summary.BlockedUserDenied)))
 	}
 	if summary.PermissionDenied > 0 {
-		fmt.Fprintf(os.Stderr, "    Insufficient permissions: %d\n", summary.PermissionDenied)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    Insufficient permissions: %d", summary.PermissionDenied)))
 	}
 	if summary.PrivateRepoDenied > 0 {
-		fmt.Fprintf(os.Stderr, "    Private repo denied     : %d\n", summary.PrivateRepoDenied)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    Private repo denied     : %d", summary.PrivateRepoDenied)))
 	}
 	fmt.Fprintln(os.Stderr)
 

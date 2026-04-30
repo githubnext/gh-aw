@@ -118,7 +118,7 @@ func findRunnableWorkflows(verbose bool) ([]WorkflowOption, error) {
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Found %d workflow files, checking for workflow_dispatch trigger...\n", len(mdFiles))
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Found %d workflow files, checking for workflow_dispatch trigger...", len(mdFiles))))
 	}
 
 	var runnableWorkflows []WorkflowOption
@@ -210,9 +210,9 @@ func selectWorkflow(ctx context.Context, workflows []WorkflowOption) (*WorkflowO
 func selectWorkflowNonInteractive(workflows []WorkflowOption) (*WorkflowOption, error) {
 	runInteractiveLog.Printf("Non-TTY detected, showing text list: %d workflows", len(workflows))
 
-	fmt.Fprintf(os.Stderr, "\nSelect a workflow to run:\n\n")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nSelect a workflow to run:\n"))
 	for i, wf := range workflows {
-		fmt.Fprintf(os.Stderr, "  %d) %s\n", i+1, wf.Name)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %d) %s", i+1, wf.Name)))
 	}
 	fmt.Fprintf(os.Stderr, "\nSelect (1-%d): ", len(workflows))
 
@@ -251,7 +251,7 @@ func showWorkflowInfo(wf *WorkflowOption) {
 			if input.Default != "" {
 				defaultVal = fmt.Sprintf(" [default: %s]", input.Default)
 			}
-			fmt.Fprintf(os.Stderr, "  • %s%s%s%s\n", name, required, desc, defaultVal)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  • %s%s%s%s", name, required, desc, defaultVal)))
 		}
 	}
 	fmt.Fprintln(os.Stderr, "")

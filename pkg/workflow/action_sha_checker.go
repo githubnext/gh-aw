@@ -183,8 +183,8 @@ func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbo
 
 			// Show full SHA in verbose mode
 			if verbose {
-				fmt.Fprintf(os.Stderr, "    Current: %s\n", check.Action.SHA)
-				fmt.Fprintf(os.Stderr, "    Latest:  %s\n", check.LatestSHA)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("    Current: "+check.Action.SHA))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("    Latest:  "+check.LatestSHA))
 			}
 		}
 	}

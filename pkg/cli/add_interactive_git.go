@@ -48,7 +48,7 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 	// Step 8b: Optionally merge the PR – loop until merged, confirmed-merged, or user exits
 	if result.PRNumber == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not determine PR number"))
-		fmt.Fprintln(os.Stderr, "Please merge the PR manually from the GitHub web interface.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please merge the PR manually from the GitHub web interface."))
 	} else {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Pull request created: "+result.PRURL))
 		fmt.Fprintln(os.Stderr, "")
@@ -177,9 +177,9 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 		if err := c.addRepositorySecret(secretName, secretValue); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to add secret: %v", err)))
 			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, "Please add the secret manually:")
-			fmt.Fprintln(os.Stderr, "  1. Go to your repository Settings → Secrets and variables → Actions")
-			fmt.Fprintf(os.Stderr, "  2. Click 'New repository secret' and add '%s'\n", secretName)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please add the secret manually:"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  1. Go to your repository Settings → Secrets and variables → Actions"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  2. Click 'New repository secret' and add '%s'", secretName)))
 			return fmt.Errorf("failed to add secret: %w", err)
 		}
 
@@ -266,8 +266,8 @@ func (c *AddInteractiveConfig) checkCleanWorkingDirectory() error {
 	if err := checkCleanWorkingDirectory(c.Verbose); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Working directory is not clean."))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "The add wizard creates a pull request which requires a clean working directory.")
-		fmt.Fprintln(os.Stderr, "Please commit or stash your changes first:")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("The add wizard creates a pull request which requires a clean working directory."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please commit or stash your changes first:"))
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git stash        # Temporarily stash changes"))
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git add -A && git commit -m 'wip'  # Commit changes"))

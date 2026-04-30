@@ -289,8 +289,8 @@ func installZshCompletion(verbose bool, cmd *cobra.Command) error {
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To enable completions, add the following to your ~/.zshrc:"))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintf(os.Stderr, "  fpath=(~/.zsh/completions $fpath)\n")
-		fmt.Fprintf(os.Stderr, "  autoload -Uz compinit && compinit\n")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  fpath=(~/.zsh/completions $fpath)"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  autoload -Uz compinit && compinit"))
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then restart your shell or run: source ~/.zshrc"))
 	} else {
@@ -363,14 +363,14 @@ func installPowerShellCompletion(verbose bool, cmd *cobra.Command) error {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To enable completions, add the following to your PowerShell profile:"))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "  gh aw completion powershell | Out-String | Invoke-Expression")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  gh aw completion powershell | Out-String | Invoke-Expression"))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or run the following command to append it automatically:"))
 	fmt.Fprintln(os.Stderr, "")
 	if runtime.GOOS == "windows" {
-		fmt.Fprintln(os.Stderr, "  gh aw completion powershell >> $PROFILE")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  gh aw completion powershell >> $PROFILE"))
 	} else {
-		fmt.Fprintln(os.Stderr, "  echo 'gh aw completion powershell | Out-String | Invoke-Expression' >> $PROFILE")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  echo 'gh aw completion powershell | Out-String | Invoke-Expression' >> $PROFILE"))
 	}
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then restart your shell or run: . $PROFILE"))
@@ -547,7 +547,7 @@ func uninstallPowerShellCompletion(verbose bool) error {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To uninstall completions, remove the following line from your PowerShell profile:"))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "  gh aw completion powershell | Out-String | Invoke-Expression")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  gh aw completion powershell | Out-String | Invoke-Expression"))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then restart your shell or run: . $PROFILE"))
 

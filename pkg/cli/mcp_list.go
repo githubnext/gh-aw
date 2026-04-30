@@ -122,7 +122,7 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 	}
 
 	if !verbose {
-		fmt.Fprintf(os.Stderr, "\nRun 'gh aw mcp list %s --verbose' for detailed information\n", workflowFile)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nRun 'gh aw mcp list %s --verbose' for detailed information", workflowFile)))
 	}
 
 	return nil
@@ -220,9 +220,9 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 	}
 
 	if !verbose {
-		fmt.Fprintf(os.Stderr, "\nRun 'gh aw mcp list --verbose' for detailed information\n")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nRun 'gh aw mcp list --verbose' for detailed information"))
 	}
-	fmt.Fprintf(os.Stderr, "Run 'gh aw mcp list <workflow-name>' to list MCP servers in a specific workflow\n")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run 'gh aw mcp list <workflow-name>' to list MCP servers in a specific workflow"))
 
 	return nil
 }

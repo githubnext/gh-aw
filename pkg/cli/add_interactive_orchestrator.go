@@ -206,9 +206,9 @@ func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, in
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "The following workflow files will be added:")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("The following workflow files will be added:"))
 	for _, f := range workflowFiles {
-		fmt.Fprintf(os.Stderr, "  • .github/workflows/%s\n", f)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • .github/workflows/"+f))
 	}
 
 	return workflowFiles, initFiles, nil
@@ -238,7 +238,7 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string,
 	}
 
 	if !confirmed {
-		fmt.Fprintln(os.Stderr, "Operation cancelled.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Operation cancelled."))
 		return errors.New("user cancelled the operation")
 	}
 
@@ -248,23 +248,23 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string,
 // showFinalInstructions shows final instructions to the user
 func (c *AddInteractiveConfig) showFinalInstructions() {
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("🎉 Addition complete!"))
-	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
 	fmt.Fprintln(os.Stderr, "")
 
 	// Show summary with workflow name(s)
 	if c.resolvedWorkflows != nil && len(c.resolvedWorkflows.Workflows) > 0 {
 		wf := c.resolvedWorkflows.Workflows[0]
-		fmt.Fprintf(os.Stderr, "The workflow '%s' has been added to the repository and will now run automatically.\n", wf.Spec.WorkflowName)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("The workflow '%s' has been added to the repository and will now run automatically.", wf.Spec.WorkflowName)))
 		c.showWorkflowDescriptions()
 	}
 
-	fmt.Fprintln(os.Stderr, "Useful commands:")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Useful commands:"))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s status          # Check workflow status", string(constants.CLIExtensionPrefix))))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s run <workflow>  # Trigger a workflow", string(constants.CLIExtensionPrefix))))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s logs            # View workflow logs", string(constants.CLIExtensionPrefix))))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Learn more at: https://github.github.com/gh-aw/")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Learn more at: https://github.github.com/gh-aw/"))
 	fmt.Fprintln(os.Stderr, "")
 }

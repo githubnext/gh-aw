@@ -16,9 +16,9 @@ func renderFirewallAnalysis(analysis *FirewallAnalysis) {
 	auditReportLog.Printf("Rendering firewall analysis: total=%d, allowed=%d, blocked=%d, allowed_domains=%d, blocked_domains=%d",
 		analysis.TotalRequests, analysis.AllowedRequests, analysis.BlockedRequests, len(analysis.AllowedDomains), len(analysis.BlockedDomains))
 	// Summary statistics
-	fmt.Fprintf(os.Stderr, "  Total Requests : %d\n", analysis.TotalRequests)
-	fmt.Fprintf(os.Stderr, "  Allowed        : %d\n", analysis.AllowedRequests)
-	fmt.Fprintf(os.Stderr, "  Blocked        : %d\n", analysis.BlockedRequests)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Total Requests : %d", analysis.TotalRequests)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Allowed        : %d", analysis.AllowedRequests)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Blocked        : %d", analysis.BlockedRequests)))
 	fmt.Fprintln(os.Stderr)
 
 	// Allowed domains
@@ -26,7 +26,7 @@ func renderFirewallAnalysis(analysis *FirewallAnalysis) {
 		fmt.Fprintln(os.Stderr, "  Allowed Domains:")
 		for _, domain := range analysis.AllowedDomains {
 			if stats, ok := analysis.RequestsByDomain[domain]; ok {
-				fmt.Fprintf(os.Stderr, "    ✓ %s (%d requests)\n", domain, stats.Allowed)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    ✓ %s (%d requests)", domain, stats.Allowed)))
 			}
 		}
 		fmt.Fprintln(os.Stderr)
@@ -37,7 +37,7 @@ func renderFirewallAnalysis(analysis *FirewallAnalysis) {
 		fmt.Fprintln(os.Stderr, "  Blocked Domains:")
 		for _, domain := range analysis.BlockedDomains {
 			if stats, ok := analysis.RequestsByDomain[domain]; ok {
-				fmt.Fprintf(os.Stderr, "    ✗ %s (%d requests)\n", domain, stats.Blocked)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    ✗ %s (%d requests)", domain, stats.Blocked)))
 			}
 		}
 		fmt.Fprintln(os.Stderr)
@@ -48,14 +48,14 @@ func renderFirewallAnalysis(analysis *FirewallAnalysis) {
 func renderRedactedDomainsAnalysis(analysis *RedactedDomainsAnalysis) {
 	auditReportLog.Printf("Rendering redacted domains analysis: total_domains=%d", analysis.TotalDomains)
 	// Summary statistics
-	fmt.Fprintf(os.Stderr, "  Total Domains Redacted: %d\n", analysis.TotalDomains)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Total Domains Redacted: %d", analysis.TotalDomains)))
 	fmt.Fprintln(os.Stderr)
 
 	// List domains
 	if len(analysis.Domains) > 0 {
 		fmt.Fprintln(os.Stderr, "  Redacted Domains:")
 		for _, domain := range analysis.Domains {
-			fmt.Fprintf(os.Stderr, "    🔒 %s\n", domain)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    🔒 %s", domain)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}

@@ -164,10 +164,10 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Missing Tools"))
 		fmt.Fprintln(os.Stderr)
 		for _, tool := range data.MissingTools {
-			fmt.Fprintf(os.Stderr, "  • %s\n", tool.Tool)
-			fmt.Fprintf(os.Stderr, "    Reason: %s\n", tool.Reason)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • "+tool.Tool))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("    Reason: "+tool.Reason))
 			if tool.Alternatives != "" {
-				fmt.Fprintf(os.Stderr, "    Alternatives: %s\n", tool.Alternatives)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("    Alternatives: "+tool.Alternatives))
 			}
 		}
 		fmt.Fprintln(os.Stderr)
@@ -185,7 +185,7 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("MCP Server Failures"))
 		fmt.Fprintln(os.Stderr)
 		for _, failure := range data.MCPFailures {
-			fmt.Fprintf(os.Stderr, "  • %s: %s\n", failure.ServerName, failure.Status)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  • %s: %s", failure.ServerName, failure.Status)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -236,7 +236,7 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Logs Location"))
 	fmt.Fprintln(os.Stderr)
 	absPath, _ := filepath.Abs(logsPath)
-	fmt.Fprintf(os.Stderr, "  %s\n", absPath)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  "+absPath))
 	fmt.Fprintln(os.Stderr)
 }
 
@@ -257,31 +257,31 @@ func renderAuditComparison(comparison *AuditComparisonData) {
 	}
 	fmt.Fprintln(os.Stderr)
 	if comparison.Baseline.Selection != "" {
-		fmt.Fprintf(os.Stderr, "  Selection: %s\n", strings.ReplaceAll(comparison.Baseline.Selection, "_", " "))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Selection: "+strings.ReplaceAll(comparison.Baseline.Selection, "_", " ")))
 	}
 	if len(comparison.Baseline.MatchedOn) > 0 {
-		fmt.Fprintf(os.Stderr, "  Matched on: %s\n", strings.Join(comparison.Baseline.MatchedOn, ", "))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Matched on: "+strings.Join(comparison.Baseline.MatchedOn, ", ")))
 	}
-	fmt.Fprintf(os.Stderr, "  Classification: %s\n", comparison.Classification.Label)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Classification: "+comparison.Classification.Label))
 	fmt.Fprintln(os.Stderr, "  Changes:")
 
 	if comparison.Delta.Turns.Changed {
-		fmt.Fprintf(os.Stderr, "    - Turns: %d -> %d\n", comparison.Delta.Turns.Before, comparison.Delta.Turns.After)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - Turns: %d -> %d", comparison.Delta.Turns.Before, comparison.Delta.Turns.After)))
 	}
 	if comparison.Delta.Posture.Changed {
-		fmt.Fprintf(os.Stderr, "    - Posture: %s -> %s\n", comparison.Delta.Posture.Before, comparison.Delta.Posture.After)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - Posture: %s -> %s", comparison.Delta.Posture.Before, comparison.Delta.Posture.After)))
 	}
 	if comparison.Delta.BlockedRequests.Changed {
-		fmt.Fprintf(os.Stderr, "    - Blocked requests: %d -> %d\n", comparison.Delta.BlockedRequests.Before, comparison.Delta.BlockedRequests.After)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - Blocked requests: %d -> %d", comparison.Delta.BlockedRequests.Before, comparison.Delta.BlockedRequests.After)))
 	}
 	if comparison.Delta.MCPFailure != nil && comparison.Delta.MCPFailure.NewlyPresent {
-		fmt.Fprintf(os.Stderr, "    - New MCP failure: %s\n", strings.Join(comparison.Delta.MCPFailure.After, ", "))
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("    - New MCP failure: "+strings.Join(comparison.Delta.MCPFailure.After, ", ")))
 	}
 	if len(comparison.Classification.ReasonCodes) == 0 {
 		fmt.Fprintln(os.Stderr, "    - No meaningful behavior change from the selected successful baseline")
 	}
 	if comparison.Recommendation != nil && comparison.Recommendation.Action != "" {
-		fmt.Fprintf(os.Stderr, "  Recommended action: %s\n", comparison.Recommendation.Action)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Recommended action: "+comparison.Recommendation.Action))
 	}
 	fmt.Fprintln(os.Stderr)
 }
