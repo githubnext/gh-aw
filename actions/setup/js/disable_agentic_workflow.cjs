@@ -8,14 +8,31 @@ const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 const DISABLE_LABEL = "agentic-workflows:disable";
 
 /**
+ * Validate that an extracted workflow ID has a safe, expected format.
+ * Workflow IDs are file basenames (without .md) and must not contain
+ * path traversal sequences or other shell-unsafe characters.
+ *
+ * @param {string} id - Candidate workflow ID
+ * @returns {boolean} True if the ID is safe to use as a CLI argument
+ */
+function isValidWorkflowId(id) {
+  // Allow alphanumeric characters, hyphens, underscores, and dots.
+  // Reject anything else, as well as path traversal sequences like "..".
+  return id.length > 0 && id.length <= 100 && /^[\w.-]+$/.test(id) && !id.includes("..");
+}
+
+/**
  * Extract the workflow_id from an issue or pull request body using XML comment markers.
  *
  * Looks for:
  * 1. Standalone marker: <!-- gh-aw-workflow-id: my-workflow -->
  * 2. Combined marker: <!-- gh-aw-agentic-workflow: ..., workflow_id: my-workflow, ... -->
  *
+ * The combined marker is only searched within actual HTML comment blocks to prevent
+ * unintended matches in user-provided content.
+ *
  * @param {string|null|undefined} body - Issue or PR body
- * @returns {string|null} Workflow ID or null if not found
+ * @returns {string|null} Workflow ID or null if not found or invalid
  */
 function extractWorkflowId(body) {
   if (!body) return null;
@@ -23,14 +40,16 @@ function extractWorkflowId(body) {
   // Try standalone marker: <!-- gh-aw-workflow-id: my-workflow -->
   const standaloneMatch = body.match(/<!--\s*gh-aw-workflow-id:\s*([\w.-]+)\s*-->/);
   if (standaloneMatch) {
-    return standaloneMatch[1].trim();
+    const id = standaloneMatch[1].trim();
+    return isValidWorkflowId(id) ? id : null;
   }
 
-  // Try combined marker: <!-- gh-aw-agentic-workflow: ..., workflow_id: my-workflow, ... -->
-  // Match workflow_id: value followed by comma, space, or end of comment
-  const combinedMatch = body.match(/workflow_id:\s*([\w.-]+)(?:[,\s]|-->)/);
-  if (combinedMatch) {
-    return combinedMatch[1].trim();
+  // Try combined marker, but only within HTML comment blocks that contain
+  // gh-aw-agentic-workflow: to avoid matching user content.
+  const commentMatch = body.match(/<!--\s*gh-aw-agentic-workflow:[^>]*?workflow_id:\s*([\w.-]+)[\s,>]/s);
+  if (commentMatch) {
+    const id = commentMatch[1].trim();
+    return isValidWorkflowId(id) ? id : null;
   }
 
   return null;
@@ -107,7 +126,15 @@ async function main() {
   let exitCode;
   try {
     exitCode = await exec.exec(bin, [...prefixArgs, "disable", workflowId], {
-      env: { ...process.env, GH_TOKEN: process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "" },
+      env: {
+        HOME: process.env.HOME || "",
+        PATH: process.env.PATH || "",
+        GH_TOKEN: process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "",
+        GITHUB_TOKEN: process.env.GITHUB_TOKEN || "",
+        GITHUB_REPOSITORY: process.env.GITHUB_REPOSITORY || "",
+        GITHUB_SERVER_URL: process.env.GITHUB_SERVER_URL || "https://github.com",
+        GH_AW_CMD_PREFIX: cmdPrefixStr,
+      },
       ignoreReturnCode: true,
     });
   } catch (err) {

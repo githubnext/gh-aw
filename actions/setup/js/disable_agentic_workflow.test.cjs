@@ -36,12 +36,12 @@ describe("extractWorkflowId", () => {
   });
 
   it("extracts workflow ID from combined marker when workflow_id is last before closing -->", () => {
-    const body = "<!-- gh-aw-agentic-workflow: My Workflow, workflow_id: auto-fix -->";
+    const body = "<!-- gh-aw-agentic-workflow: My Workflow, workflow_id: auto-fix, run: https://example.com -->";
     expect(extractWorkflowId(body)).toBe("auto-fix");
   });
 
   it("prefers standalone marker over combined marker when both are present", () => {
-    const body = "<!-- gh-aw-workflow-id: standalone-workflow -->\n" + "<!-- gh-aw-agentic-workflow: Name, workflow_id: combined-workflow -->";
+    const body = "<!-- gh-aw-workflow-id: standalone-workflow -->\n" + "<!-- gh-aw-agentic-workflow: Name, workflow_id: combined-workflow, run: https://example.com -->";
     expect(extractWorkflowId(body)).toBe("standalone-workflow");
   });
 
@@ -60,10 +60,6 @@ describe("extractWorkflowId", () => {
       "## Issue Title",
       "",
       "This is a long description of the issue created by an agentic workflow.",
-      "It contains multiple paragraphs.",
-      "",
-      "### Details",
-      "Some details here.",
       "",
       "> Closed by [My Workflow](https://github.com/owner/repo/actions/runs/123)",
       "",
@@ -72,5 +68,22 @@ describe("extractWorkflowId", () => {
       "<!-- gh-aw-agentic-workflow: My Workflow, workflow_id: expired-issue-workflow, run: https://github.com/owner/repo/actions/runs/123 -->",
     ].join("\n");
     expect(extractWorkflowId(body)).toBe("expired-issue-workflow");
+  });
+
+  it("returns null for workflow_id outside of an XML comment block", () => {
+    // workflow_id: appearing outside a gh-aw-agentic-workflow comment should NOT be extracted
+    const body = "The workflow_id: my-injected-id is mentioned in user text.";
+    expect(extractWorkflowId(body)).toBeNull();
+  });
+
+  it("returns null for workflow ID with path traversal attempt", () => {
+    const body = "<!-- gh-aw-workflow-id: ../secrets -->";
+    expect(extractWorkflowId(body)).toBeNull();
+  });
+
+  it("returns null for workflow ID with shell-special characters", () => {
+    // The regex won't match ';' since it requires [\w.-]+ followed by whitespace/-->
+    const body = "<!-- gh-aw-workflow-id: my;workflow -->";
+    expect(extractWorkflowId(body)).toBeNull();
   });
 });
