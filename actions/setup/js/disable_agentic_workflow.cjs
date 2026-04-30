@@ -6,6 +6,8 @@ const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 
 const DISABLE_LABEL = "agentic-workflows:disable";
+const DISABLE_LABEL_COLOR = "8250df"; // GitHub purple
+const DISABLE_LABEL_DESCRIPTION = "Disable the agentic workflow that created this issue or pull request";
 
 /**
  * Validate that an extracted workflow ID has a safe, expected format.
@@ -24,12 +26,14 @@ function isValidWorkflowId(id) {
 /**
  * Extract the workflow_id from an issue or pull request body using XML comment markers.
  *
- * Looks for:
+ * Looks for (in priority order):
  * 1. Standalone marker: <!-- gh-aw-workflow-id: my-workflow -->
  * 2. Combined marker: <!-- gh-aw-agentic-workflow: ..., workflow_id: my-workflow, ... -->
+ * 3. Workflow-call-id marker: <!-- gh-aw-workflow-call-id: owner/repo/my-workflow -->
+ *    (extracts the last path segment to get the workflow ID)
  *
- * The combined marker is only searched within actual HTML comment blocks to prevent
- * unintended matches in user-provided content.
+ * The combined and call-id markers are only searched within actual HTML comment blocks
+ * to prevent unintended matches in user-provided content.
  *
  * @param {string|null|undefined} body - Issue or PR body
  * @returns {string|null} Workflow ID or null if not found or invalid
@@ -52,7 +56,46 @@ function extractWorkflowId(body) {
     return isValidWorkflowId(id) ? id : null;
   }
 
+  // Try workflow-call-id marker (handles workflow_dispatch): <!-- gh-aw-workflow-call-id: owner/repo/my-workflow -->
+  // The call-id has the form "owner/repo/workflow-id"; extract the last path segment.
+  const callIdMatch = body.match(/<!--\s*gh-aw-workflow-call-id:\s*([^\s>][^>]*?)\s*-->/);
+  if (callIdMatch) {
+    const segments = callIdMatch[1].trim().split("/");
+    const id = segments[segments.length - 1].trim();
+    return isValidWorkflowId(id) ? id : null;
+  }
+
   return null;
+}
+
+/**
+ * Ensure the "agentic-workflows:disable" label exists in the repository.
+ * Creates it with the standard purple color if it is missing.
+ * This is a no-op (and non-fatal) when the label already exists.
+ *
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {Promise<void>}
+ */
+async function ensureDisableLabelExists(owner, repo) {
+  try {
+    await github.rest.issues.createLabel({
+      owner,
+      repo,
+      name: DISABLE_LABEL,
+      color: DISABLE_LABEL_COLOR,
+      description: DISABLE_LABEL_DESCRIPTION,
+    });
+    core.info(`✅ Created label '${DISABLE_LABEL}'`);
+  } catch (err) {
+    // 422 means the label already exists — expected on most runs
+    if (err && typeof err === "object" && /** @type {any} */ err.status === 422) {
+      core.info(`ℹ️  Label '${DISABLE_LABEL}' already exists`);
+    } else {
+      // Non-fatal: log a warning but continue — the label may already be present
+      core.warning(`Failed to ensure label '${DISABLE_LABEL}' exists: ${getErrorMessage(err)}`);
+    }
+  }
 }
 
 /**
@@ -72,6 +115,9 @@ async function main() {
   }
 
   const { owner, repo } = resolveExecutionOwnerRepo();
+
+  // Ensure the disable label exists so it is available for future use
+  await ensureDisableLabelExists(owner, repo);
 
   // Get the item (issue or PR) from the payload
   const item = context.payload.issue || context.payload.pull_request;
@@ -205,4 +251,4 @@ async function main() {
   }
 }
 
-module.exports = { main, extractWorkflowId, isValidWorkflowId };
+module.exports = { main, extractWorkflowId, isValidWorkflowId, ensureDisableLabelExists };

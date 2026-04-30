@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createRequire } from "module";
 
 const req = createRequire(import.meta.url);
-const { main, deterministicLabelColor, BUILTIN_LABELS } = req("./create_labels.cjs");
+const { main, deterministicLabelColor } = req("./create_labels.cjs");
 
 // ─── global mocks ────────────────────────────────────────────────────────────
 
@@ -91,15 +91,14 @@ describe("main", () => {
       stderr: "",
     });
 
-    // Default: repo has the builtin labels already plus "bug"
-    mockGithub.paginate.mockResolvedValue([{ name: "bug" }, ...BUILTIN_LABELS.map(b => ({ name: b.name }))]);
+    // Default: repo has "bug"
+    mockGithub.paginate.mockResolvedValue([{ name: "bug" }]);
     mockGithub.rest.issues.createLabel.mockResolvedValue({});
   });
 
   it("creates labels that are missing from the repository", async () => {
     await main();
 
-    // enhancement and docs are missing from the repo; builtin labels are already present
     const names = mockGithub.rest.issues.createLabel.mock.calls.map(c => c[0].name);
     expect(names).toContain("enhancement");
     expect(names).toContain("docs");
@@ -137,77 +136,18 @@ describe("main", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("already existed"));
   });
 
-  it("always creates the built-in agentic-workflows:disable label", async () => {
-    // Repo has no labels at all
-    mockGithub.paginate.mockResolvedValue([]);
-    mockExec.getExecOutput.mockResolvedValue({
-      exitCode: 0,
-      stdout: JSON.stringify([{ labels: [] }]),
-      stderr: "",
-    });
-
-    await main();
-
-    const names = mockGithub.rest.issues.createLabel.mock.calls.map(c => c[0].name);
-    expect(names).toContain("agentic-workflows:disable");
-  });
-
-  it("creates the agentic-workflows:disable label with the fixed purple color", async () => {
-    mockGithub.paginate.mockResolvedValue([]);
-    mockExec.getExecOutput.mockResolvedValue({
-      exitCode: 0,
-      stdout: JSON.stringify([{ labels: [] }]),
-      stderr: "",
-    });
-
-    await main();
-
-    const call = mockGithub.rest.issues.createLabel.mock.calls.find(c => c[0].name === "agentic-workflows:disable");
-    expect(call).toBeDefined();
-    expect(call[0].color).toBe("8250df");
-  });
-
-  it("skips creating agentic-workflows:disable when it already exists", async () => {
-    mockGithub.paginate.mockResolvedValue([{ name: "agentic-workflows:disable" }]);
-    mockExec.getExecOutput.mockResolvedValue({
-      exitCode: 0,
-      stdout: JSON.stringify([{ labels: [] }]),
-      stderr: "",
-    });
-
-    await main();
-
-    const names = mockGithub.rest.issues.createLabel.mock.calls.map(c => c[0].name);
-    expect(names).not.toContain("agentic-workflows:disable");
-  });
-
-  it("still processes builtin labels even when no workflow labels are found", async () => {
-    mockGithub.paginate.mockResolvedValue([]);
+  it("does nothing when no workflow labels are found", async () => {
     mockExec.getExecOutput.mockResolvedValue({
       exitCode: 0,
       stdout: JSON.stringify([{ labels: [] }, {}]),
       stderr: "",
     });
-
-    await main();
-
-    // builtin labels are always created even with no workflow labels
-    const names = mockGithub.rest.issues.createLabel.mock.calls.map(c => c[0].name);
-    expect(names).toContain("agentic-workflows:disable");
-  });
-
-  it("does nothing when no labels are found and all builtins already exist", async () => {
-    mockExec.getExecOutput.mockResolvedValue({
-      exitCode: 0,
-      stdout: JSON.stringify([{ labels: [] }, {}]),
-      stderr: "",
-    });
-    // All builtin labels already exist
-    mockGithub.paginate.mockResolvedValue(BUILTIN_LABELS.map(b => ({ name: b.name })));
+    mockGithub.paginate.mockResolvedValue([]);
 
     await main();
 
     expect(mockGithub.rest.issues.createLabel).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No labels found"));
   });
 
   it("ignores non-string or empty label values", async () => {

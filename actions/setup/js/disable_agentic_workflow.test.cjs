@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createRequire } from "module";
 
 const req = createRequire(import.meta.url);
-const { extractWorkflowId, main } = req("./disable_agentic_workflow.cjs");
+const { extractWorkflowId, ensureDisableLabelExists, main } = req("./disable_agentic_workflow.cjs");
 
 // ─── global mocks ────────────────────────────────────────────────────────────
 
@@ -24,6 +24,7 @@ const mockGithub = {
     issues: {
       createComment: vi.fn(),
       removeLabel: vi.fn(),
+      createLabel: vi.fn(),
     },
   },
 };
@@ -56,6 +57,9 @@ describe("main", () => {
     mockExec.exec.mockResolvedValue(0);
     mockGithub.rest.issues.createComment.mockResolvedValue({});
     mockGithub.rest.issues.removeLabel.mockResolvedValue({});
+    // Default: createLabel returns 422 (label already exists)
+    const alreadyExists = Object.assign(new Error("Unprocessable Entity"), { status: 422 });
+    mockGithub.rest.issues.createLabel.mockRejectedValue(alreadyExists);
 
     // Restore default context (issue event)
     global.context = {
@@ -156,6 +160,74 @@ describe("main", () => {
 
     expect(mockCore.setFailed).toHaveBeenCalled();
   });
+
+  it("calls ensureDisableLabelExists (createLabel) at the start of main", async () => {
+    // createLabel returning 422 (already exists) is the happy path
+    const alreadyExists = Object.assign(new Error("Unprocessable Entity"), { status: 422 });
+    mockGithub.rest.issues.createLabel.mockRejectedValue(alreadyExists);
+
+    await main();
+
+    expect(mockGithub.rest.issues.createLabel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "agentic-workflows:disable",
+        color: "8250df",
+      })
+    );
+  });
+
+  it("continues normally when ensureDisableLabelExists creates the label (201)", async () => {
+    // Label didn't exist yet — createLabel succeeds
+    mockGithub.rest.issues.createLabel.mockResolvedValue({});
+
+    await main();
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created label 'agentic-workflows:disable'"));
+    expect(mockExec.exec).toHaveBeenCalled(); // disable command still ran
+  });
+});
+
+describe("ensureDisableLabelExists", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    global.github = mockGithub;
+    global.core = mockCore;
+  });
+
+  it("creates the label when it does not exist", async () => {
+    mockGithub.rest.issues.createLabel.mockResolvedValue({});
+
+    await ensureDisableLabelExists("owner", "repo");
+
+    expect(mockGithub.rest.issues.createLabel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "owner",
+        repo: "repo",
+        name: "agentic-workflows:disable",
+        color: "8250df",
+      })
+    );
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created label"));
+  });
+
+  it("treats a 422 response as 'already exists' and does not warn", async () => {
+    const err = Object.assign(new Error("Unprocessable Entity"), { status: 422 });
+    mockGithub.rest.issues.createLabel.mockRejectedValue(err);
+
+    await ensureDisableLabelExists("owner", "repo");
+
+    expect(mockCore.warning).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("already exists"));
+  });
+
+  it("logs a warning on non-422 errors but does not throw", async () => {
+    const err = Object.assign(new Error("Internal Server Error"), { status: 500 });
+    mockGithub.rest.issues.createLabel.mockRejectedValue(err);
+
+    await ensureDisableLabelExists("owner", "repo");
+
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to ensure label"));
+  });
 });
 
 describe("extractWorkflowId", () => {
@@ -239,6 +311,39 @@ describe("extractWorkflowId", () => {
   it("returns null for workflow ID with shell-special characters", () => {
     // The regex won't match ';' since it requires [\w.-]+ followed by whitespace/-->
     const body = "<!-- gh-aw-workflow-id: my;workflow -->";
+    expect(extractWorkflowId(body)).toBeNull();
+  });
+
+  // ─── gh-aw-workflow-call-id fallback ───────────────────────────────────────
+
+  it("extracts workflow ID from gh-aw-workflow-call-id marker (last path segment)", () => {
+    const body = "<!-- gh-aw-workflow-call-id: github/gh-aw/my-workflow -->";
+    expect(extractWorkflowId(body)).toBe("my-workflow");
+  });
+
+  it("extracts workflow ID from call-id with dots and underscores in workflow name", () => {
+    const body = "<!-- gh-aw-workflow-call-id: acme/backend/code_review.v2 -->";
+    expect(extractWorkflowId(body)).toBe("code_review.v2");
+  });
+
+  it("prefers standalone marker over call-id when both are present", () => {
+    const body = "<!-- gh-aw-workflow-id: standalone -->\n<!-- gh-aw-workflow-call-id: owner/repo/call-id-workflow -->";
+    expect(extractWorkflowId(body)).toBe("standalone");
+  });
+
+  it("falls back to call-id when only that marker is present", () => {
+    const body = "Issue body\n<!-- gh-aw-workflow-call-id: owner/repo/dispatch-workflow -->";
+    expect(extractWorkflowId(body)).toBe("dispatch-workflow");
+  });
+
+  it("returns null when call-id last segment fails validation", () => {
+    // Segment with path traversal
+    const body = "<!-- gh-aw-workflow-call-id: owner/repo/.. -->";
+    expect(extractWorkflowId(body)).toBeNull();
+  });
+
+  it("returns null when call-id last segment contains shell-special characters", () => {
+    const body = "<!-- gh-aw-workflow-call-id: owner/repo/my;workflow -->";
     expect(extractWorkflowId(body)).toBeNull();
   });
 });
