@@ -2,4 +2,4 @@
 "gh-aw": patch
 ---
 
-Fix copilot-driver `--resume` authentication failures: detect "No authentication information found" as non-retryable, add GITHUB_TOKEN/GH_TOKEN fallback for COPILOT_GITHUB_TOKEN, and log auth token availability for diagnostics.
+Fix copilot-driver `--continue` auth failure: when "No authentication information found" occurs on a `--continue` retry attempt (session credential may be corrupted by mid-stream exit), fall back to a fresh run instead of bailing immediately, giving the job a recovery path via env-var auth.
