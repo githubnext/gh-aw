@@ -123,13 +123,10 @@ func (c *Compiler) validateEngineMCPSessionTimeout(workflowData *WorkflowData) e
 		return fmt.Errorf("engine.mcp.session-timeout: invalid duration %q. Must be a valid Go duration string (e.g. \"30m\", \"4h\", \"6h\").\n\nExamples:\n  engine:\n    mcp:\n      session-timeout: 4h\n\nSee: %s", raw, constants.DocsEnginesURL)
 	}
 
-	const minTimeout = 5 * time.Minute
-	const maxTimeout = 12 * time.Hour
-
-	if d < minTimeout {
+	if d < constants.MCPSessionTimeoutMin {
 		return fmt.Errorf("engine.mcp.session-timeout: %q is too short (minimum is 5m). Use a value between 5m and 12h.\n\nExamples:\n  session-timeout: 30m\n  session-timeout: 4h\n\nSee: %s", raw, constants.DocsEnginesURL)
 	}
-	if d > maxTimeout {
+	if d > constants.MCPSessionTimeoutMax {
 		return fmt.Errorf("engine.mcp.session-timeout: %q is too long (maximum is 12h). Use a value between 5m and 12h.\n\nExamples:\n  session-timeout: 4h\n  session-timeout: 12h\n\nSee: %s", raw, constants.DocsEnginesURL)
 	}
 
