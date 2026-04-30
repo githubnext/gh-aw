@@ -52,13 +52,14 @@ imports:
 
 This lets a single shared component serve multiple consuming workflows with different configurations without requiring separate copies.
 
-See [Imports Reference](/gh-aw/reference/imports/#parameterized-imports-useswith) for schema declaration and validation details.
+See [Imports Reference](/gh-aw/reference/imports/#calling-a-parameterized-shared-workflow) for schema declaration and validation details.
 
 ### 4. Versioning and update flow
 
 Enterprise workflow sharing needs a clear versioning model:
 
-- **Semantic versions** (`@v1.2.0`) pin to a stable release and update to the latest compatible patch or minor within the same major via `gh aw update`.
+- **Exact release tags** (`@v1.2.0`) pin to a specific immutable release. They do not move on their own, so `gh aw update` will keep fetching that same tagged version unless you change the `source:` ref explicitly.
+- **Moving release refs** (`@v1`) follow the latest compatible release within that stream. These are the typical refs to use when you want `gh aw update` to pick up newer upstream releases automatically.
 - **Branch refs** (`@develop`) track the latest commit on a branch — useful for development integration.
 - **SHA pins** (`@abc123def`) provide strict reproducibility and never move without an explicit change.
 
@@ -69,7 +70,7 @@ gh aw update ci-doctor          # update one workflow
 gh aw update                    # update all tracked workflows
 ```
 
-Updates use a 3-way merge by default to preserve local edits. Use `--no-merge` to replace the local copy with the upstream version without merging. Semantic version updates stay within the same major version unless `--major` is passed.
+Updates use a 3-way merge by default to preserve local edits. Use `--no-merge` to replace the local copy with the upstream version without merging. When the recorded `source:` uses a moving major ref such as `@v1`, `gh aw update` stays within that major line unless `--major` is passed.
 
 ### 5. Private and internal sharing controls
 
