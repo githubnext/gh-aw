@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"maps"
+	"strings"
 	"testing"
 )
 
@@ -1037,11 +1038,12 @@ func TestParseStringArrayOrExprFromConfig(t *testing.T) {
 // preprocessor wraps expression strings and rejects non-expression strings.
 func TestPreprocessStringArrayFieldAsTemplatable(t *testing.T) {
 	tests := []struct {
-		name        string
-		configData  map[string]any
-		fieldName   string
-		wantErr     bool
-		wantWrapped bool // true when the value should be wrapped in []string{expr}
+		name            string
+		configData      map[string]any
+		fieldName       string
+		wantErr         bool
+		wantErrContains []string // substrings the error message must contain
+		wantWrapped     bool     // true when the value should be wrapped in []string{expr}
 	}{
 		{
 			name:        "nil configData is a no-op",
@@ -1076,12 +1078,13 @@ func TestPreprocessStringArrayFieldAsTemplatable(t *testing.T) {
 			wantWrapped: true,
 		},
 		{
-			name: "non-expression string returns error",
+			name: "non-expression string returns error with actionable message",
 			configData: map[string]any{
 				"labels": "automation",
 			},
-			fieldName: "labels",
-			wantErr:   true,
+			fieldName:       "labels",
+			wantErr:         true,
+			wantErrContains: []string{"labels", "array", "expression"},
 		},
 	}
 
@@ -1091,6 +1094,12 @@ func TestPreprocessStringArrayFieldAsTemplatable(t *testing.T) {
 			if tt.wantErr {
 				if err == nil {
 					t.Error("expected error, got nil")
+					return
+				}
+				for _, substr := range tt.wantErrContains {
+					if !strings.Contains(err.Error(), substr) {
+						t.Errorf("error message %q does not contain expected substring %q", err.Error(), substr)
+					}
 				}
 				return
 			}
@@ -1474,9 +1483,6 @@ func TestExpressionFieldsRejectedForInvalidStrings(t *testing.T) {
 			result := compiler.parsePullRequestsConfig(outputMap)
 			// Must return nil (invalid input is rejected)
 			if result != nil {
-				// Allow result if the field is simply not set (backwards-compat for unknown fields)
-				fieldMap := outputMap["create-pull-request"].(map[string]any)
-				_ = fieldMap
 				t.Errorf("expected nil result for invalid bare string in %q, got %+v", field, result)
 			}
 		})
