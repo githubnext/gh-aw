@@ -223,9 +223,6 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 // BuildAWFArgs constructs common AWF arguments from configuration.
 // This extracts the shared AWF argument building logic from engine implementations.
 //
-// BuildAWFArgs constructs common AWF arguments from configuration.
-// This extracts the shared AWF argument building logic from engine implementations.
-//
 // The following flags are expressed in the generated JSON config file written by
 // BuildAWFCommand and are therefore not emitted here:
 //   - --allow-domains / --block-domains   → network.allowDomains / network.blockDomains
