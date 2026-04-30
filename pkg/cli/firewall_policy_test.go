@@ -655,6 +655,17 @@ func TestDetectFirewallAuditArtifacts(t *testing.T) {
 		assert.Empty(t, foundManifest, "Should not find manifest")
 		assert.Empty(t, foundAudit, "Should not find audit JSONL")
 	})
+
+	t.Run("file named 'agent' does not panic or falsely match", func(t *testing.T) {
+		// If a plain file happens to be named "agent" in the run directory (e.g., a flattened
+		// single-file artifact from a different upload), the lookup must skip it gracefully.
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "agent"), []byte("not a directory"), 0644))
+
+		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		assert.Empty(t, foundManifest, "Should not find manifest when 'agent' is a file")
+		assert.Empty(t, foundAudit, "Should not find audit JSONL when 'agent' is a file")
+	})
 }
 
 func TestAnalyzeFirewallPolicy(t *testing.T) {

@@ -443,15 +443,21 @@ func detectFirewallAuditArtifacts(runDir string) (manifestPath, auditJSONLPath s
 	// e.g., when the audit command is run on a directory populated via `gh run download`).
 	// Handles "agent", "agent-artifacts", and workflow_call prefixed names (e.g. "hash-agent").
 	if agentDir := findArtifactDir(runDir, "agent", "agent-artifacts"); agentDir != "" {
-		// New artifact structure (actions/upload-artifact v4+, /tmp/gh-aw/ prefix stripped):
-		//   agent/sandbox/firewall/audit/
-		if !checkDir(filepath.Join(agentDir, "sandbox", "firewall", "audit"), "agent/sandbox/firewall/audit") {
-			// Old artifact structure (/tmp/gh-aw/ prefix preserved inside the artifact):
-			//   agent/tmp/gh-aw/sandbox/firewall/audit/
-			checkDir(filepath.Join(agentDir, "tmp", "gh-aw", "sandbox", "firewall", "audit"), "agent/tmp/gh-aw/sandbox/firewall/audit")
-		}
-		if manifestPath != "" && auditJSONLPath != "" {
-			return
+		// Guard: findArtifactDir checks existence but not type; skip if it resolved to a file.
+		if info, err := os.Stat(agentDir); err != nil || !info.IsDir() {
+			firewallPolicyLog.Printf("Skipping agent artifact path (not a directory): %s", agentDir)
+		} else {
+			agentBase := filepath.Base(agentDir)
+			// New artifact structure (actions/upload-artifact v4+, /tmp/gh-aw/ prefix stripped):
+			//   <agentDir>/sandbox/firewall/audit/
+			if !checkDir(filepath.Join(agentDir, "sandbox", "firewall", "audit"), agentBase+"/sandbox/firewall/audit") {
+				// Old artifact structure (/tmp/gh-aw/ prefix preserved inside the artifact):
+				//   <agentDir>/tmp/gh-aw/sandbox/firewall/audit/
+				checkDir(filepath.Join(agentDir, "tmp", "gh-aw", "sandbox", "firewall", "audit"), agentBase+"/tmp/gh-aw/sandbox/firewall/audit")
+			}
+			if manifestPath != "" && auditJSONLPath != "" {
+				return
+			}
 		}
 	}
 
