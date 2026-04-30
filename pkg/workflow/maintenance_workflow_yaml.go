@@ -622,14 +622,15 @@ jobs:
             await main();
 `)
 
-	// Add disable_agentic_workflow job triggered by label "agentic-workflows:disable" on issues or PRs.
-	// This job reads the body of the labeled issue/PR to extract the workflow_id from XML comment
-	// markers, disables the corresponding agentic workflow, and posts a confirmation comment.
+	// Add label_disable_agentic_workflow job triggered by label "agentic-workflows:disable" on issues.
+	// This job reads the body of the labeled issue to extract the workflow_id from XML comment
+	// markers, disables the corresponding agentic workflow via the GitHub REST API, and posts
+	// a confirmation comment.
 	// Skipped when label_triggers is set to false in aw.json maintenance config.
 	if !disableLabelTrigger {
 		disableLabelCondition := buildLabeledDisableCondition()
 		yaml.WriteString(`
-  disable_agentic_workflow:
+  label_disable_agentic_workflow:
     if: ${{ ` + RenderCondition(disableLabelCondition) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
@@ -637,9 +638,11 @@ jobs:
       contents: read
       issues: write
     steps:
-      - name: Checkout repository
+      - name: Checkout actions folder
         uses: ` + getActionPin("actions/checkout") + `
         with:
+          sparse-checkout: |
+            actions
           persist-credentials: false
 
       - name: Setup Scripts
@@ -657,14 +660,8 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
             await main();
 
-`)
-
-		yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
-		yaml.WriteString(`      - name: Disable agentic workflow
+      - name: Disable agentic workflow
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

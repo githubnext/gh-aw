@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createRequire } from "module";
 
 const req = createRequire(import.meta.url);
-const { extractWorkflowId, ensureDisableLabelExists, main } = req("./disable_agentic_workflow.cjs");
+const { extractWorkflowId, isValidWorkflowId, main } = req("./disable_agentic_workflow.cjs");
 
 // ─── global mocks ────────────────────────────────────────────────────────────
 
@@ -15,12 +15,11 @@ const mockCore = {
   setFailed: vi.fn(),
 };
 
-const mockExec = {
-  exec: vi.fn(),
-};
-
 const mockGithub = {
   rest: {
+    actions: {
+      disableWorkflow: vi.fn(),
+    },
     issues: {
       createComment: vi.fn(),
       removeLabel: vi.fn(),
@@ -39,22 +38,20 @@ const mockContext = {
 };
 
 global.core = mockCore;
-global.exec = mockExec;
 global.github = mockGithub;
 global.context = mockContext;
 
 describe("main", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.GH_AW_CMD_PREFIX = "./gh-aw";
     process.env.GH_TOKEN = "fake-token";
     process.env.GITHUB_TOKEN = "fake-token";
     process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
     process.env.GITHUB_SERVER_URL = "https://github.com";
     process.env.GITHUB_RUN_ID = "999";
 
-    // Default: disable command succeeds
-    mockExec.exec.mockResolvedValue(0);
+    // Default: REST API disable call succeeds
+    mockGithub.rest.actions.disableWorkflow.mockResolvedValue({});
     mockGithub.rest.issues.createComment.mockResolvedValue({});
     mockGithub.rest.issues.removeLabel.mockResolvedValue({});
     // Default: createLabel returns 422 (label already exists)
@@ -72,10 +69,14 @@ describe("main", () => {
     };
   });
 
-  it("disables the workflow and posts a success comment", async () => {
+  it("disables the workflow via REST API and posts a success comment", async () => {
     await main();
 
-    expect(mockExec.exec).toHaveBeenCalledWith(expect.any(String), expect.arrayContaining(["disable", "my-workflow"]), expect.objectContaining({ ignoreReturnCode: true }));
+    expect(mockGithub.rest.actions.disableWorkflow).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      workflow_id: "my-workflow.lock.yml",
+    });
     expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(
       expect.objectContaining({
         owner: "test-owner",
@@ -111,7 +112,7 @@ describe("main", () => {
 
     await main();
 
-    expect(mockExec.exec).not.toHaveBeenCalled();
+    expect(mockGithub.rest.actions.disableWorkflow).not.toHaveBeenCalled();
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
@@ -130,12 +131,13 @@ describe("main", () => {
     expect(mockGithub.rest.issues.removeLabel).not.toHaveBeenCalled();
   });
 
-  it("does not remove label when the disable command fails", async () => {
-    mockExec.exec.mockResolvedValue(1); // non-zero exit
+  it("does not remove label when the REST API disable call fails", async () => {
+    mockGithub.rest.actions.disableWorkflow.mockRejectedValue(new Error("Forbidden"));
 
     await main();
 
     expect(mockGithub.rest.issues.removeLabel).not.toHaveBeenCalled();
+    expect(mockCore.setFailed).toHaveBeenCalled();
   });
 
   it("logs a warning when label removal fails but does not fail the step", async () => {
@@ -162,8 +164,7 @@ describe("main", () => {
     expect(mockCore.setFailed).toHaveBeenCalled();
   });
 
-  it("calls ensureDisableLabelExists (createLabel) at the start of main", async () => {
-    // createLabel returning 422 (already exists) is the happy path
+  it("calls ensureLabelExists (createLabel) at the start of main", async () => {
     const alreadyExists = Object.assign(new Error("Unprocessable Entity"), { status: 422 });
     mockGithub.rest.issues.createLabel.mockRejectedValue(alreadyExists);
 
@@ -177,57 +178,14 @@ describe("main", () => {
     );
   });
 
-  it("continues normally when ensureDisableLabelExists creates the label (201)", async () => {
-    // Label didn't exist yet — createLabel succeeds
+  it("continues normally when ensureLabelExists creates the label (201)", async () => {
+    // Label did not exist yet — createLabel succeeds
     mockGithub.rest.issues.createLabel.mockResolvedValue({});
 
     await main();
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created label 'agentic-workflows:disable'"));
-    expect(mockExec.exec).toHaveBeenCalled(); // disable command still ran
-  });
-});
-
-describe("ensureDisableLabelExists", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    global.github = mockGithub;
-    global.core = mockCore;
-  });
-
-  it("creates the label when it does not exist", async () => {
-    mockGithub.rest.issues.createLabel.mockResolvedValue({});
-
-    await ensureDisableLabelExists("owner", "repo");
-
-    expect(mockGithub.rest.issues.createLabel).toHaveBeenCalledWith(
-      expect.objectContaining({
-        owner: "owner",
-        repo: "repo",
-        name: "agentic-workflows:disable",
-        color: "8250df",
-      })
-    );
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created label"));
-  });
-
-  it("treats a 422 response as 'already exists' and does not warn", async () => {
-    const err = Object.assign(new Error("Unprocessable Entity"), { status: 422 });
-    mockGithub.rest.issues.createLabel.mockRejectedValue(err);
-
-    await ensureDisableLabelExists("owner", "repo");
-
-    expect(mockCore.warning).not.toHaveBeenCalled();
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("already exists"));
-  });
-
-  it("logs a warning on non-422 errors but does not throw", async () => {
-    const err = Object.assign(new Error("Internal Server Error"), { status: 500 });
-    mockGithub.rest.issues.createLabel.mockRejectedValue(err);
-
-    await ensureDisableLabelExists("owner", "repo");
-
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to ensure label"));
+    expect(mockGithub.rest.actions.disableWorkflow).toHaveBeenCalled(); // disable still ran
   });
 });
 

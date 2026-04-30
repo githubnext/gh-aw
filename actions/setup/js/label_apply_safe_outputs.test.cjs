@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createRequire } from "module";
 
 const req = createRequire(import.meta.url);
-const { extractRunUrl, ensureApplySafeOutputsLabelExists, main } = req("./label_apply_safe_outputs.cjs");
+const { extractRunUrl, main } = req("./label_apply_safe_outputs.cjs");
 
 // ─── global mocks ────────────────────────────────────────────────────────────
 
@@ -13,10 +13,6 @@ const mockCore = {
   warning: vi.fn(),
   error: vi.fn(),
   setFailed: vi.fn(),
-};
-
-const mockExec = {
-  exec: vi.fn(),
 };
 
 const mockGithub = {
@@ -42,7 +38,6 @@ const mockContext = {
 };
 
 global.core = mockCore;
-global.exec = mockExec;
 global.github = mockGithub;
 global.context = mockContext;
 
@@ -94,48 +89,6 @@ describe("extractRunUrl", () => {
   it("does not match partial or malformed combined markers", () => {
     const body = `<!-- gh-aw-agentic-workflow: name only no run field -->`;
     expect(extractRunUrl(body)).toBeNull();
-  });
-});
-
-// ─── ensureApplySafeOutputsLabelExists ───────────────────────────────────────
-
-describe("ensureApplySafeOutputsLabelExists", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    global.github = mockGithub;
-    global.core = mockCore;
-  });
-
-  it("creates the label when it does not exist", async () => {
-    mockGithub.rest.issues.createLabel.mockResolvedValue({});
-
-    await ensureApplySafeOutputsLabelExists("owner", "repo");
-
-    expect(mockGithub.rest.issues.createLabel).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: "agentic-workflows:apply-safe-outputs",
-        color: "8250df",
-      })
-    );
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created label"));
-  });
-
-  it("logs info when label already exists (422)", async () => {
-    const alreadyExists = Object.assign(new Error("Unprocessable Entity"), { status: 422 });
-    mockGithub.rest.issues.createLabel.mockRejectedValue(alreadyExists);
-
-    await ensureApplySafeOutputsLabelExists("owner", "repo");
-
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("already exists"));
-    expect(mockCore.warning).not.toHaveBeenCalled();
-  });
-
-  it("logs a warning for unexpected errors (non-fatal)", async () => {
-    mockGithub.rest.issues.createLabel.mockRejectedValue(new Error("Network error"));
-
-    await ensureApplySafeOutputsLabelExists("owner", "repo");
-
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to ensure label"));
   });
 });
 
@@ -216,7 +169,7 @@ describe("main", () => {
     const alreadyExists = Object.assign(new Error("Unprocessable Entity"), { status: 422 });
     mockGithub.rest.issues.createLabel.mockRejectedValue(alreadyExists);
 
-    // The issue body has no run URL, so main() will call setFailed after ensureApplySafeOutputsLabelExists —
+    // The issue body has no run URL, so main() will call setFailed after ensureLabelExists —
     // we only care that createLabel was called with the right args.
     global.context = {
       ...global.context,

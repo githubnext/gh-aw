@@ -3,7 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
-const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
+const { ensureLabelExists, validateLabeledIssueEvent, removeLabelSafely } = require("./label_trigger_helpers.cjs");
 
 const APPLY_SAFE_OUTPUTS_LABEL = "agentic-workflows:apply-safe-outputs";
 const APPLY_SAFE_OUTPUTS_LABEL_COLOR = "8250df"; // GitHub purple
@@ -45,36 +45,6 @@ function extractRunUrl(body) {
 }
 
 /**
- * Ensure the "agentic-workflows:apply-safe-outputs" label exists in the repository.
- * Creates it with the standard purple color if it is missing.
- * This is a no-op (and non-fatal) when the label already exists.
- *
- * @param {string} owner
- * @param {string} repo
- * @returns {Promise<void>}
- */
-async function ensureApplySafeOutputsLabelExists(owner, repo) {
-  try {
-    await github.rest.issues.createLabel({
-      owner,
-      repo,
-      name: APPLY_SAFE_OUTPUTS_LABEL,
-      color: APPLY_SAFE_OUTPUTS_LABEL_COLOR,
-      description: APPLY_SAFE_OUTPUTS_LABEL_DESCRIPTION,
-    });
-    core.info(`✅ Created label '${APPLY_SAFE_OUTPUTS_LABEL}'`);
-  } catch (err) {
-    // 422 means the label already exists — expected on most runs
-    if (err !== null && typeof err === "object" && /** @type {any} */ err.status === 422) {
-      core.info(`ℹ️  Label '${APPLY_SAFE_OUTPUTS_LABEL}' already exists`);
-    } else {
-      // Non-fatal: log a warning but continue — the label may already be present
-      core.warning(`Failed to ensure label '${APPLY_SAFE_OUTPUTS_LABEL}' exists: ${getErrorMessage(err)}`);
-    }
-  }
-}
-
-/**
  * Re-apply safe outputs from a previous workflow run when the
  * "agentic-workflows:apply-safe-outputs" label is applied to an issue.
  *
@@ -85,36 +55,17 @@ async function ensureApplySafeOutputsLabelExists(owner, repo) {
  * @returns {Promise<void>}
  */
 async function main() {
-  const eventName = context.eventName;
-  if (eventName !== "issues") {
-    core.info(`Skipping: unexpected event type '${eventName}' (expected 'issues')`);
-    return;
-  }
+  const ctx = validateLabeledIssueEvent(APPLY_SAFE_OUTPUTS_LABEL);
+  if (!ctx) return;
 
-  const { owner, repo } = resolveExecutionOwnerRepo();
+  const { owner, repo, issueNumber, body } = ctx;
 
   // Ensure the label exists so it is available for future use
-  await ensureApplySafeOutputsLabelExists(owner, repo);
+  await ensureLabelExists(owner, repo, APPLY_SAFE_OUTPUTS_LABEL, APPLY_SAFE_OUTPUTS_LABEL_COLOR, APPLY_SAFE_OUTPUTS_LABEL_DESCRIPTION);
 
-  // Get the issue from the payload
-  const item = context.payload.issue;
-  if (!item) {
-    core.warning("No issue found in event payload");
-    return;
-  }
-
-  const issueNumber = item.number;
-  const labelName = context.payload.label?.name;
-
-  if (labelName !== APPLY_SAFE_OUTPUTS_LABEL) {
-    core.info(`Skipping: label '${labelName}' is not '${APPLY_SAFE_OUTPUTS_LABEL}'`);
-    return;
-  }
-
-  core.info(`Processing issue #${issueNumber} labeled with '${labelName}'`);
+  core.info(`Processing issue #${issueNumber} labeled with '${APPLY_SAFE_OUTPUTS_LABEL}'`);
 
   // Extract run URL from body XML comment markers
-  const body = item.body || "";
   const runUrl = extractRunUrl(body);
 
   if (!runUrl) {
@@ -174,18 +125,7 @@ async function main() {
   core.info(`Posted success comment on issue #${issueNumber}`);
 
   // Remove the label now that the action is complete
-  try {
-    await github.rest.issues.removeLabel({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      name: APPLY_SAFE_OUTPUTS_LABEL,
-    });
-    core.info(`Removed label '${APPLY_SAFE_OUTPUTS_LABEL}' from issue #${issueNumber}`);
-  } catch (err) {
-    // Non-fatal: the apply already succeeded, just log a warning
-    core.warning(`Failed to remove label '${APPLY_SAFE_OUTPUTS_LABEL}': ${getErrorMessage(err)}`);
-  }
+  await removeLabelSafely(owner, repo, issueNumber, APPLY_SAFE_OUTPUTS_LABEL);
 }
 
-module.exports = { main, extractRunUrl, ensureApplySafeOutputsLabelExists };
+module.exports = { main, extractRunUrl };
