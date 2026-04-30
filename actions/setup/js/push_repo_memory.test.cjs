@@ -1008,8 +1008,8 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       const scriptPath = path.join(import.meta.dirname, "push_repo_memory.cjs");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
-      // Should import execGitSync from git_helpers, not use execSync or spawnSync directly
-      expect(scriptContent).toContain('const { execGitSync } = require("./git_helpers.cjs")');
+      // Should import execGitSync (and getGitAuthEnv) from git_helpers, not use execSync or spawnSync directly
+      expect(scriptContent).toContain('require("./git_helpers.cjs")');
       expect(scriptContent).not.toContain('const { execSync } = require("child_process")');
       expect(scriptContent).not.toContain('const { spawnSync } = require("child_process")');
 
@@ -1442,6 +1442,110 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       // orphan branch
       expect(scriptContent).toContain("if (!isMissingBranch)");
       expect(scriptContent).toContain("throw fetchError");
+    });
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Signed-commit push tests
+// Verifies that push_repo_memory delegates to pushSignedCommits (GraphQL-based
+// signed commits) instead of plain git push.
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("push_repo_memory.cjs - signed commit push (pushSignedCommits delegation)", () => {
+  it("should import and call pushSignedCommits instead of plain git push (source check)", () => {
+    const nodeFs = require("fs");
+    const nodePath = require("path");
+
+    const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+    const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+    // Must require the shared signed-commit helper
+    expect(scriptContent).toContain('require("./push_signed_commits.cjs")');
+    expect(scriptContent).toContain("pushSignedCommits");
+
+    // Must capture remote HEAD SHA before making the local commit
+    expect(scriptContent).toContain("baseRef");
+    expect(scriptContent).toContain('rev-parse", "HEAD"');
+
+    // Must configure origin remote so pushSignedCommits can resolve the remote branch
+    expect(scriptContent).toContain('"remote", "set-url"');
+    expect(scriptContent).toContain("getGitAuthEnv");
+
+    // Must use GitHub client (global `github`) from @actions/github-script
+    expect(scriptContent).toContain("githubClient: github");
+
+    // Must NOT use a plain git push as the primary push mechanism
+    // (only the retry-pull helper uses repoUrlWithToken)
+    expect(scriptContent).not.toContain('"push", repoUrlWithToken');
+
+    // Must include a GH013 detection message
+    expect(scriptContent).toContain("GH013");
+    expect(scriptContent).toContain("verified (signed) commits");
+  });
+
+  describe("pushSignedCommits integration - source checks", () => {
+    it("should capture baseRef from rev-parse HEAD after checkout and pass it to pushSignedCommits", () => {
+      const nodeFs = require("fs");
+      const nodePath = require("path");
+      const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+      const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+      // Must capture remote HEAD SHA after checkout for the rev-list base
+      expect(scriptContent).toContain('"rev-parse", "HEAD"');
+      // baseRef variable must be assigned the result and trimmed
+      expect(scriptContent).toContain("baseRef =");
+      expect(scriptContent).toContain(".trim()");
+      // Must be threaded through to pushSignedCommits
+      expect(scriptContent).toContain("baseRef: currentBaseRef");
+    });
+
+    it("should configure origin remote URL to target repo (without embedded token) before calling pushSignedCommits", () => {
+      const nodeFs = require("fs");
+      const nodePath = require("path");
+      const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+      const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+      // Must update origin via execGitSync args array (not shell string)
+      expect(scriptContent).toContain('"remote", "set-url"');
+      // Must pass owner and repo separately to pushSignedCommits
+      expect(scriptContent).toContain("owner: targetOwner");
+      expect(scriptContent).toContain("repo: targetRepoName");
+      // Must pass the global github client
+      expect(scriptContent).toContain("githubClient: github");
+      // Must pass gitAuthEnv for the git-push fallback
+      expect(scriptContent).toContain("gitAuthEnv: getGitAuthEnv(ghToken)");
+    });
+
+    it("should refresh baseRef via ls-remote on retry when pushSignedCommits fails", () => {
+      const nodeFs = require("fs");
+      const nodePath = require("path");
+      const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+      const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+      // Must query ls-remote on retry to get the latest remote HEAD
+      expect(scriptContent).toContain('"ls-remote"');
+      expect(scriptContent).toContain("currentBaseRef");
+      // Must assign the fresh remote HEAD to currentBaseRef before retrying
+      expect(scriptContent).toContain("currentBaseRef = remoteHead");
+      // Must keep the retry loop with exponential backoff
+      expect(scriptContent).toContain("BASE_DELAY_MS * Math.pow(2, attempt)");
+    });
+
+    it("should surface a clear GH013 error message when signed-commit push is rejected (regression guard)", () => {
+      const nodeFs = require("fs");
+      const nodePath = require("path");
+      const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+      const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+      // Must detect GH013 / "Commits must have verified signatures" rejection
+      expect(scriptContent).toContain("GH013");
+      expect(scriptContent).toContain("must have verified signatures");
+      // Must emit an actionable error message that mentions the cause and fix
+      expect(scriptContent).toContain("verified (signed) commits");
+      expect(scriptContent).toContain("repo-memory:");
+      // Must include guidance about unsupported file types in the fallback message
+      expect(scriptContent).toContain("symlinks");
     });
   });
 });

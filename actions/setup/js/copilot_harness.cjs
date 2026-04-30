@@ -15,8 +15,20 @@
  *     any partial-execution failure is retried — not just CAPIError 400.
  *   - If the process produced no output (failed to start / auth error before any work), the
  *     driver does not retry because there is nothing to resume.
- *   - "No authentication information found" errors are non-retryable: the absent token will
- *     remain absent on every subsequent attempt, so all further retries will also fail.
+ *   - "No authentication information found" errors are handled differently depending on context:
+ *     - On a `--continue` attempt: the Copilot CLI's on-disk session credential written by the
+ *       interrupted run may be incomplete/invalid.  The driver falls back to a single fresh run
+ *       (without `--continue`) so env-var auth can succeed.  Mid-stream context is lost but the
+ *       job has a recovery path.
+ *     - On a fresh run (attempt 0 or after a `--continue`-auth fallback): the env-var token is
+ *       genuinely absent or invalid.  All further retries will produce the same failure, so the
+ *       driver bails immediately.
+ *   - Null-type tool_call errors (400 "Invalid type for '...tool_calls[N].type': ... got null")
+ *     poison the conversation history.  Retrying with `--continue` re-injects the same broken
+ *     state on every subsequent attempt.  The driver restarts fresh to discard the poisoned
+ *     history and permanently disables `--continue` for the remainder of the run so the corrupt
+ *     state can never be reloaded.  Once `--continue` is disabled this way it is not re-enabled
+ *     even if later retries produce output.
  *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s).
  *   - Maximum 3 retry attempts after the initial run.
  *
@@ -53,13 +65,23 @@ const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
 
 // Pattern to detect "model not supported" error (e.g. Copilot Pro/Education users hitting
 // a model that is unavailable for their subscription tier).
-// This is a persistent configuration error — retrying with --resume will not help.
+// This is a persistent configuration error — retrying with --continue will not help.
 const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
 
 // Pattern to detect missing authentication credentials.
-// This error means no auth token is available in the environment; retrying will not help
-// because the missing token will still be absent on every subsequent attempt.
+// On a --continue attempt this may indicate that the Copilot CLI's on-disk session
+// credential (written by a mid-stream interrupted run) is incomplete or invalid.  In that
+// case the driver falls back to a fresh run (without --continue) to re-do env-var auth.
+// On a fresh run the token is genuinely absent — retrying will not help.
 const NO_AUTH_INFO_PATTERN = /No authentication information found/;
+
+// Pattern to detect null-type tool_call error that poisons conversation history.
+// Matches the Copilot API 400 error:
+//   "Invalid type for '...tool_calls[N].type': expected one of 'function', ..., but got null instead."
+// The model emitted a malformed tool call with type: null.  Retrying with --continue
+// re-injects the same broken history, producing the same 400 on every subsequent attempt.
+// A fresh restart is required to discard the poisoned history.
+const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
 
 /**
  * @typedef {(path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void} AppendFileSyncLike
@@ -115,6 +137,18 @@ function isModelNotSupportedError(output) {
  */
 function isNoAuthInfoError(output) {
   return NO_AUTH_INFO_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains a null-type tool_call error.
+ * This error occurs when the model emits a malformed tool call with type: null.
+ * The Copilot API rejects it with a 400, and retrying with --continue will re-inject
+ * the same broken history, causing the same failure on every subsequent attempt.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isNullTypeToolCallError(output) {
+  return NULL_TYPE_TOOL_CALL_PATTERN.test(output);
 }
 
 /**
@@ -376,6 +410,9 @@ async function main() {
   let scheduledExit2Retries = 0;
   let scheduledExit2RetryAttempted = false;
   let useContinueOnRetry = false;
+  // Once set to true, --continue is never re-enabled for the remainder of this run.
+  // This prevents a broken --continue recovery from resurrecting --continue on the next attempt.
+  let continueDisabledPermanently = false;
   const driverStartTime = Date.now();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -403,18 +440,24 @@ async function main() {
     // Retry whenever the session was partially executed (hasOutput), using --continue so that
     // the Copilot CLI can continue from where it left off.  CAPIError 400 is the well-known
     // transient case, but any partial-execution failure is eligible for a continue retry.
-    // Exceptions: MCP policy errors, model-not-supported errors, and auth errors are persistent
-    // configuration issues — never retry.
+    // Exceptions:
+    //   - MCP policy errors and model-not-supported errors are persistent configuration issues.
+    //   - Auth errors trigger a one-time fallback to a fresh run; after that --continue is
+    //     permanently disabled.
+    //   - Null-type tool_call 400 errors poison conversation history — always restart fresh and
+    //     permanently disable --continue so the corrupt state is never reloaded.
     const isCAPIError = isTransientCAPIError(result.output);
     const isMCPPolicy = isMCPPolicyError(result.output);
     const isModelNotSupported = isModelNotSupportedError(result.output);
     const isAuthErr = isNoAuthInfoError(result.output);
+    const isNullTypeToolCall = isNullTypeToolCallError(result.output);
     log(
       `attempt ${attempt + 1} failed:` +
         ` exitCode=${result.exitCode}` +
         ` isCAPIError400=${isCAPIError}` +
         ` isMCPPolicyError=${isMCPPolicy}` +
         ` isModelNotSupportedError=${isModelNotSupported}` +
+        ` isNullTypeToolCallError=${isNullTypeToolCall}` +
         ` isAuthError=${isAuthErr}` +
         ` hasOutput=${result.hasOutput}` +
         ` retriesRemaining=${MAX_RETRIES - attempt}`
@@ -432,12 +475,34 @@ async function main() {
       break;
     }
 
-    // Auth errors are persistent for the duration of the job — retrying will not help.
-    // "No authentication information found" means COPILOT_GITHUB_TOKEN / GH_TOKEN / GITHUB_TOKEN
-    // are all absent or invalid.  Retrying with --continue will produce the same auth failure.
+    // Auth error: behavior depends on whether this was a --continue attempt.
+    // On a --continue attempt: the Copilot CLI's on-disk session credential written by the
+    // interrupted run may be incomplete/invalid.  Fall back to a fresh run (without --continue)
+    // once so env-var auth can succeed.  Mid-stream context is lost but the job can recover.
+    // On a fresh run: the auth token is genuinely absent or invalid — retrying will not help.
     if (isAuthErr) {
+      if (useContinueOnRetry && attempt < MAX_RETRIES) {
+        useContinueOnRetry = false;
+        continueDisabledPermanently = true;
+        log(`attempt ${attempt + 1}: auth error on --continue — retrying as fresh run (session credential may be corrupted; context will be lost)`);
+        continue;
+      }
       log(`attempt ${attempt + 1}: no authentication information found — not retrying (COPILOT_GITHUB_TOKEN, GH_TOKEN, and GITHUB_TOKEN are all absent or invalid)`);
       break;
+    }
+
+    // Null-type tool_call error: the model emitted a malformed tool call that poisons the
+    // conversation history.  Retrying with --continue re-injects the same broken history and
+    // produces the same 400 on every subsequent attempt.  Restart fresh to discard the poisoned
+    // history, and permanently disable --continue so the corrupt state is never re-loaded.
+    if (isNullTypeToolCall) {
+      if (attempt < MAX_RETRIES && result.hasOutput) {
+        const priorMode = attempt > 0 && useContinueOnRetry ? "--continue" : "fresh run";
+        useContinueOnRetry = false;
+        continueDisabledPermanently = true;
+        log(`attempt ${attempt + 1}: null-type tool_call error (${priorMode}) — restarting fresh (poisoned history discarded; --continue disabled permanently)`);
+        continue;
+      }
     }
 
     // Scheduled runs: retry once on exit code 2 even when no output was produced.
@@ -456,8 +521,9 @@ async function main() {
 
     if (attempt < MAX_RETRIES && result.hasOutput) {
       const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
-      useContinueOnRetry = true;
-      log(`attempt ${attempt + 1}: ${reason} — will retry with --continue (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+      useContinueOnRetry = !continueDisabledPermanently;
+      const retryMode = useContinueOnRetry ? "--continue" : "fresh run (--continue permanently disabled)";
+      log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
       continue;
     }
 

@@ -232,9 +232,15 @@ This workflow has no output configuration.
 		t.Fatalf("Unexpected error parsing workflow without output config: %v", err)
 	}
 
-	// Verify output configuration is nil when not specified
-	if workflowData.SafeOutputs != nil {
-		t.Error("Expected SafeOutputs to be nil when not configured")
+	// Verify create-issue is auto-injected when no safe-outputs are configured (aligns with other builtins)
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected SafeOutputs to be non-nil after auto-injection of create-issue")
+	}
+	if workflowData.SafeOutputs.CreateIssues == nil {
+		t.Error("Expected create-issue to be auto-injected when no safe-outputs configured")
+	}
+	if !workflowData.SafeOutputs.AutoInjectedCreateIssue {
+		t.Error("Expected AutoInjectedCreateIssue to be true when auto-injected")
 	}
 }
 

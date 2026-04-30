@@ -105,6 +105,10 @@ func validateMountStringFormat(mount string) (source, dest, mode string, err err
 // of the allowed string values. Non-string values and unrecognised strings are
 // removed from the map (treated as absent) and a warning is logged. Use this
 // for fields that are pure string enums with no boolean shorthand.
+//
+// GitHub Actions expression strings (e.g. "${{ inputs.policy }}") are accepted
+// without enum validation and passed through unchanged; the resolved value is
+// validated at runtime by the safe-output handler.
 func validateStringEnumField(configData map[string]any, fieldName string, allowed []string, log *logger.Logger) {
 	if configData == nil {
 		return
@@ -114,7 +118,21 @@ func validateStringEnumField(configData map[string]any, fieldName string, allowe
 		return
 	}
 	strVal, ok := val.(string)
-	if !ok || !slices.Contains(allowed, strVal) {
+	if !ok {
+		if log != nil {
+			log.Printf("Invalid %s value %v (must be one of %v), ignoring", fieldName, val, allowed)
+		}
+		delete(configData, fieldName)
+		return
+	}
+	// GitHub Actions expressions are validated at runtime by the handler.
+	if containsExpression(strVal) {
+		if log != nil {
+			log.Printf("%s value is a GitHub Actions expression, skipping compile-time enum validation", fieldName)
+		}
+		return
+	}
+	if !slices.Contains(allowed, strVal) {
 		if log != nil {
 			log.Printf("Invalid %s value %v (must be one of %v), ignoring", fieldName, val, allowed)
 		}

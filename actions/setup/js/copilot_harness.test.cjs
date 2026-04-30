@@ -314,44 +314,255 @@ describe("copilot_harness.cjs", () => {
     /**
      * @param {{hasOutput: boolean, exitCode: number, output: string}} result
      * @param {number} attempt
+     * @param {boolean} useContinueOnRetry - whether the current attempt used --continue
      * @returns {boolean}
      */
-    function shouldRetry(result, attempt) {
+    function shouldRetry(result, attempt, useContinueOnRetry = false) {
       if (result.exitCode === 0) return false;
       // MCP policy errors are persistent — never retry
       if (MCP_POLICY_BLOCKED_PATTERN.test(result.output)) return false;
-      // Auth errors are persistent — never retry
-      if (NO_AUTH_INFO_PATTERN.test(result.output)) return false;
+      // Auth error on --continue: fall back to fresh run once; on fresh run: bail
+      if (NO_AUTH_INFO_PATTERN.test(result.output)) {
+        return useContinueOnRetry && attempt < MAX_RETRIES;
+      }
       return attempt < MAX_RETRIES && result.hasOutput;
     }
 
     it("does not retry when auth fails on first attempt (no real work done)", () => {
       const result = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
-      expect(shouldRetry(result, 0)).toBe(false);
+      expect(shouldRetry(result, 0, false)).toBe(false);
     });
 
-    it("does not retry when auth fails on a --continue attempt (the reported bug scenario)", () => {
-      // This replicates the issue: attempt 1 ran for 39 min then failed,
-      // attempt 2 (--continue) fails with auth error — should not retry attempts 3 & 4.
-      const resumeResult = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
-      expect(shouldRetry(resumeResult, 1)).toBe(false);
-      expect(shouldRetry(resumeResult, 2)).toBe(false);
-      expect(shouldRetry(resumeResult, 3)).toBe(false);
+    it("retries as fresh run when auth fails on a --continue attempt", () => {
+      // This replicates the fix: attempt 1 ran for 3+ min then failed mid-stream,
+      // attempt 2 (--continue) fails with auth error — driver retries once as fresh run.
+      const continueResult = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
+      expect(shouldRetry(continueResult, 1, true)).toBe(true); // --continue attempt: triggers fresh retry
+      expect(shouldRetry(continueResult, 2, true)).toBe(true); // still within retry budget
+      expect(shouldRetry(continueResult, 3, true)).toBe(false); // budget exhausted
+    });
+
+    it("does not retry when auth fails on a fresh-run recovery attempt (useContinueOnRetry=false)", () => {
+      // After falling back to a fresh run, useContinueOnRetry is reset to false.
+      // If the fresh run also hits auth error, the driver bails immediately.
+      const freshResult = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
+      expect(shouldRetry(freshResult, 1, false)).toBe(false);
+      expect(shouldRetry(freshResult, 2, false)).toBe(false);
     });
 
     it("does not retry auth error even when output is mixed with other content", () => {
       const result = { exitCode: 1, hasOutput: true, output: "Some output\nError: No authentication information found.\nMore output" };
-      expect(shouldRetry(result, 0)).toBe(false);
+      expect(shouldRetry(result, 0, false)).toBe(false);
     });
 
     it("still retries non-auth errors with output (CAPIError 400)", () => {
       const result = { exitCode: 1, hasOutput: true, output: "CAPIError: 400 Bad Request" };
-      expect(shouldRetry(result, 0)).toBe(true);
+      expect(shouldRetry(result, 0, false)).toBe(true);
     });
 
     it("still retries generic partial-execution errors with output", () => {
       const result = { exitCode: 1, hasOutput: true, output: "Failed to get response from the AI model; retried 5 times" };
-      expect(shouldRetry(result, 0)).toBe(true);
+      expect(shouldRetry(result, 0, false)).toBe(true);
+    });
+  });
+
+  describe("null-type tool_call detection pattern", () => {
+    const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
+
+    it("matches the error format observed in failed workflow runs", () => {
+      const errorOutput = "Execution failed: CAPIError: 400 Invalid type for 'messages[45].tool_calls[0].type': expected one of 'function', 'all...ols', or 'custom', but got null instead.";
+      expect(NULL_TYPE_TOOL_CALL_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    it("matches with different array indices", () => {
+      expect(NULL_TYPE_TOOL_CALL_PATTERN.test("tool_calls[0].type: null")).toBe(true);
+      expect(NULL_TYPE_TOOL_CALL_PATTERN.test("tool_calls[12].type, got null")).toBe(true);
+    });
+
+    it("does not match unrelated tool_calls errors", () => {
+      expect(NULL_TYPE_TOOL_CALL_PATTERN.test("tool_calls[0].name: missing")).toBe(false);
+      expect(NULL_TYPE_TOOL_CALL_PATTERN.test("Error: tool call failed")).toBe(false);
+    });
+
+    it("does not match unrelated null errors", () => {
+      expect(NULL_TYPE_TOOL_CALL_PATTERN.test("Unexpected null value in response")).toBe(false);
+      expect(NULL_TYPE_TOOL_CALL_PATTERN.test("CAPIError: 400 Bad Request")).toBe(false);
+      expect(NULL_TYPE_TOOL_CALL_PATTERN.test("")).toBe(false);
+    });
+  });
+
+  describe("null-type tool_call restarts fresh instead of --continue", () => {
+    // Inline the same retry logic as the driver including null-type tool_call handling
+    const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
+    const NO_AUTH_INFO_PATTERN = /No authentication information found/;
+    const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
+    const MAX_RETRIES = 3;
+
+    /**
+     * @param {{hasOutput: boolean, exitCode: number, output: string}} result
+     * @param {number} attempt
+     * @param {boolean} useContinueOnRetry
+     * @param {boolean} continueDisabledPermanently
+     * @returns {{ shouldRetry: boolean, useContinueOnRetry: boolean, continueDisabledPermanently: boolean }}
+     */
+    function applyRetryPolicy(result, attempt, useContinueOnRetry = false, continueDisabledPermanently = false) {
+      if (result.exitCode === 0) return { shouldRetry: false, useContinueOnRetry, continueDisabledPermanently };
+      if (MCP_POLICY_BLOCKED_PATTERN.test(result.output)) return { shouldRetry: false, useContinueOnRetry, continueDisabledPermanently };
+      if (NO_AUTH_INFO_PATTERN.test(result.output)) {
+        if (useContinueOnRetry && attempt < MAX_RETRIES) {
+          return { shouldRetry: true, useContinueOnRetry: false, continueDisabledPermanently: true };
+        }
+        return { shouldRetry: false, useContinueOnRetry, continueDisabledPermanently };
+      }
+      if (NULL_TYPE_TOOL_CALL_PATTERN.test(result.output)) {
+        if (attempt < MAX_RETRIES && result.hasOutput) {
+          return { shouldRetry: true, useContinueOnRetry: false, continueDisabledPermanently: true };
+        }
+        return { shouldRetry: false, useContinueOnRetry, continueDisabledPermanently };
+      }
+      if (attempt < MAX_RETRIES && result.hasOutput) {
+        return { shouldRetry: true, useContinueOnRetry: !continueDisabledPermanently, continueDisabledPermanently };
+      }
+      return { shouldRetry: false, useContinueOnRetry, continueDisabledPermanently };
+    }
+
+    it("restarts fresh when null-type error occurs on a --continue attempt", () => {
+      const result = {
+        exitCode: 1,
+        hasOutput: true,
+        output: "CAPIError: 400 Invalid type for 'messages[45].tool_calls[0].type': expected one of 'function', 'all...ols', or 'custom', but got null instead.",
+      };
+      const {
+        shouldRetry,
+        useContinueOnRetry: newContinue,
+        continueDisabledPermanently: disabled,
+      } = applyRetryPolicy(
+        result,
+        1,
+        true, // was using --continue
+        false
+      );
+      expect(shouldRetry).toBe(true);
+      expect(newContinue).toBe(false); // must NOT use --continue on restart
+      expect(disabled).toBe(true); // permanently disabled
+    });
+
+    it("restarts fresh when null-type error occurs on a fresh run", () => {
+      const result = {
+        exitCode: 1,
+        hasOutput: true,
+        output: "CAPIError: 400 Invalid type for 'messages[0].tool_calls[0].type': got null instead.",
+      };
+      const { shouldRetry, useContinueOnRetry: newContinue, continueDisabledPermanently: disabled } = applyRetryPolicy(result, 0, false, false);
+      expect(shouldRetry).toBe(true);
+      expect(newContinue).toBe(false); // must NOT use --continue
+      expect(disabled).toBe(true); // permanently disabled
+    });
+
+    it("does not retry when budget is exhausted", () => {
+      const result = {
+        exitCode: 1,
+        hasOutput: true,
+        output: "tool_calls[0].type: null",
+      };
+      const { shouldRetry } = applyRetryPolicy(result, MAX_RETRIES, true, false);
+      expect(shouldRetry).toBe(false);
+    });
+
+    it("does not retry when no output was produced", () => {
+      const result = {
+        exitCode: 1,
+        hasOutput: false,
+        output: "tool_calls[0].type: null",
+      };
+      const { shouldRetry } = applyRetryPolicy(result, 0, false, false);
+      expect(shouldRetry).toBe(false);
+    });
+  });
+
+  describe("permanent --continue disable guard", () => {
+    // Inline retry logic to verify that once continueDisabledPermanently is set,
+    // subsequent partial-execution retries never re-enable --continue.
+    const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
+    const MAX_RETRIES = 3;
+
+    /**
+     * @param {{hasOutput: boolean, exitCode: number, output: string}} result
+     * @param {number} attempt
+     * @param {boolean} useContinueOnRetry
+     * @param {boolean} continueDisabledPermanently
+     * @returns {{ shouldRetry: boolean, useContinueOnRetry: boolean, continueDisabledPermanently: boolean }}
+     */
+    function applyRetryPolicy(result, attempt, useContinueOnRetry = false, continueDisabledPermanently = false) {
+      if (result.exitCode === 0) return { shouldRetry: false, useContinueOnRetry, continueDisabledPermanently };
+      if (NULL_TYPE_TOOL_CALL_PATTERN.test(result.output)) {
+        if (attempt < MAX_RETRIES && result.hasOutput) {
+          return { shouldRetry: true, useContinueOnRetry: false, continueDisabledPermanently: true };
+        }
+        return { shouldRetry: false, useContinueOnRetry, continueDisabledPermanently };
+      }
+      if (attempt < MAX_RETRIES && result.hasOutput) {
+        return { shouldRetry: true, useContinueOnRetry: !continueDisabledPermanently, continueDisabledPermanently };
+      }
+      return { shouldRetry: false, useContinueOnRetry, continueDisabledPermanently };
+    }
+
+    it("does not re-enable --continue after a null-type fresh restart", () => {
+      // Attempt 0 (fresh): normal failure → schedule --continue
+      const attempt0Result = { exitCode: 1, hasOutput: true, output: "some error" };
+      const after0 = applyRetryPolicy(attempt0Result, 0, false, false);
+      expect(after0.shouldRetry).toBe(true);
+      expect(after0.useContinueOnRetry).toBe(true);
+      expect(after0.continueDisabledPermanently).toBe(false);
+
+      // Attempt 1 (--continue): null-type error → restart fresh, disable permanently
+      const attempt1Result = { exitCode: 1, hasOutput: true, output: "tool_calls[0].type: null" };
+      const after1 = applyRetryPolicy(attempt1Result, 1, after0.useContinueOnRetry, after0.continueDisabledPermanently);
+      expect(after1.shouldRetry).toBe(true);
+      expect(after1.useContinueOnRetry).toBe(false); // disabled for this retry
+      expect(after1.continueDisabledPermanently).toBe(true); // permanently set
+
+      // Attempt 2 (fresh): another partial failure → MUST NOT re-enable --continue
+      const attempt2Result = { exitCode: 1, hasOutput: true, output: "another error" };
+      const after2 = applyRetryPolicy(attempt2Result, 2, after1.useContinueOnRetry, after1.continueDisabledPermanently);
+      expect(after2.shouldRetry).toBe(true);
+      expect(after2.useContinueOnRetry).toBe(false); // guard prevents re-enabling
+      expect(after2.continueDisabledPermanently).toBe(true);
+    });
+
+    it("does not re-enable --continue after an auth-error fresh restart", () => {
+      const NO_AUTH_INFO_PATTERN_LOCAL = /No authentication information found/;
+
+      function applyRetryPolicyWithAuth(result, attempt, useContinueOnRetry = false, continueDisabledPermanently = false) {
+        if (result.exitCode === 0) return { shouldRetry: false, useContinueOnRetry, continueDisabledPermanently };
+        if (NO_AUTH_INFO_PATTERN_LOCAL.test(result.output)) {
+          if (useContinueOnRetry && attempt < MAX_RETRIES) {
+            return { shouldRetry: true, useContinueOnRetry: false, continueDisabledPermanently: true };
+          }
+          return { shouldRetry: false, useContinueOnRetry, continueDisabledPermanently };
+        }
+        if (attempt < MAX_RETRIES && result.hasOutput) {
+          return { shouldRetry: true, useContinueOnRetry: !continueDisabledPermanently, continueDisabledPermanently };
+        }
+        return { shouldRetry: false, useContinueOnRetry, continueDisabledPermanently };
+      }
+
+      // Attempt 0 (fresh): normal failure → schedule --continue
+      const attempt0Result = { exitCode: 1, hasOutput: true, output: "some work done" };
+      const after0 = applyRetryPolicyWithAuth(attempt0Result, 0, false, false);
+      expect(after0.useContinueOnRetry).toBe(true);
+
+      // Attempt 1 (--continue): auth error → restart fresh, disable permanently
+      const attempt1Result = { exitCode: 1, hasOutput: true, output: "No authentication information found" };
+      const after1 = applyRetryPolicyWithAuth(attempt1Result, 1, after0.useContinueOnRetry, after0.continueDisabledPermanently);
+      expect(after1.shouldRetry).toBe(true);
+      expect(after1.useContinueOnRetry).toBe(false);
+      expect(after1.continueDisabledPermanently).toBe(true);
+
+      // Attempt 2 (fresh): partial failure → MUST NOT re-enable --continue
+      const attempt2Result = { exitCode: 1, hasOutput: true, output: "some other error" };
+      const after2 = applyRetryPolicyWithAuth(attempt2Result, 2, after1.useContinueOnRetry, after1.continueDisabledPermanently);
+      expect(after2.useContinueOnRetry).toBe(false); // guard prevents re-enabling
     });
   });
 

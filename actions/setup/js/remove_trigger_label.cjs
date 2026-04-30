@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Remove the label that triggered this workflow from the issue, pull request, or discussion.
@@ -12,8 +13,6 @@ const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
  */
 async function main() {
   const labelNamesJSON = process.env.GH_AW_LABEL_NAMES;
-
-  const { getErrorMessage } = require("./error_helpers.cjs");
 
   if (!labelNamesJSON) {
     core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_LABEL_NAMES not specified.`);

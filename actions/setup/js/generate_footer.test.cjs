@@ -336,12 +336,14 @@ describe("generate_footer.cjs", () => {
 
   describe("generateExpiredEntityFooter", () => {
     let generateExpiredEntityFooter;
+    let getExpiredEntityCautionAlert;
 
     beforeEach(async () => {
       // Reset modules and import fresh
       vi.resetModules();
       const freshModule = await import("./generate_footer.cjs");
       generateExpiredEntityFooter = freshModule.generateExpiredEntityFooter;
+      getExpiredEntityCautionAlert = freshModule.getExpiredEntityCautionAlert;
     });
 
     it("should generate footer with 'Closed by' wording and workflow link", () => {
@@ -438,15 +440,13 @@ describe("generate_footer.cjs", () => {
       expect(markerMatches?.length).toBe(1);
     });
 
-    it("should include caution alert when detection conclusion is warning", () => {
+    it("should NOT include caution alert (caution is now injected by callers at the top)", () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
       process.env.GH_AW_DETECTION_REASON = "threat_detected";
 
       const result = generateExpiredEntityFooter("Test Workflow", "https://github.com/test/repo/actions/runs/123", "test-workflow");
 
-      expect(result).toContain("> [!CAUTION]");
-      expect(result).toContain("Security scanning requires review");
-      expect(result).toContain("Potential security threats were detected");
+      expect(result).not.toContain("> [!CAUTION]");
       expect(result).toContain("> Closed by [Test Workflow]");
     });
 
@@ -464,6 +464,33 @@ describe("generate_footer.cjs", () => {
 
       expect(result).not.toContain("> [!CAUTION]");
       expect(result).toContain("> Closed by [Test Workflow]");
+    });
+
+    describe("getExpiredEntityCautionAlert", () => {
+      it("should return caution alert when detection conclusion is warning", () => {
+        process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+        process.env.GH_AW_DETECTION_REASON = "threat_detected";
+
+        const result = getExpiredEntityCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+        expect(result).toContain("> [!CAUTION]");
+        expect(result).toContain("Security scanning requires review");
+        expect(result).toContain("Potential security threats were detected");
+      });
+
+      it("should return empty string when detection conclusion is not warning", () => {
+        process.env.GH_AW_DETECTION_CONCLUSION = "success";
+
+        const result = getExpiredEntityCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+        expect(result).toBe("");
+      });
+
+      it("should return empty string when detection conclusion is not set", () => {
+        const result = getExpiredEntityCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+        expect(result).toBe("");
+      });
     });
   });
 });

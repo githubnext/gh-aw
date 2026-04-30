@@ -5,7 +5,7 @@
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
  */
 
-const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -217,8 +217,13 @@ async function main(config = {}) {
       const triggeringDiscussionNumber = context.payload?.discussion?.number;
 
       const sanitizedReason = sanitizeContent(item.reason);
-      const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
-      const commentBody = `${sanitizedReason}\n\n${footer}`;
+
+      // Inject CAUTION at top of body if threat detection warning was raised
+      const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+      const cautionPrefix = detectionCaution ? detectionCaution + "\n\n" : "";
+
+      const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, undefined, { skipDetectionCaution: true });
+      const commentBody = `${cautionPrefix}${sanitizedReason}\n\n${footer}`;
 
       await addPullRequestComment(githubClient, context.repo.owner, context.repo.repo, prNumber, commentBody);
 

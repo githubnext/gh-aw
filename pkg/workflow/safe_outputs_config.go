@@ -332,8 +332,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			} else {
 				// Enable missing-tool by default if safe-outputs exists and it wasn't explicitly disabled
 				if _, exists := outputMap["missing-tool"]; !exists {
+					trueVal := "true"
 					config.MissingTool = &MissingToolConfig{
-						CreateIssue: true,
+						CreateIssue: &trueVal,
 						TitlePrefix: "",
 						Labels:      nil,
 					}
@@ -347,8 +348,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			} else {
 				// Enable missing-data by default if safe-outputs exists and it wasn't explicitly disabled
 				if _, exists := outputMap["missing-data"]; !exists {
+					trueVal := "true"
 					config.MissingData = &MissingDataConfig{
-						CreateIssue: true,
+						CreateIssue: &trueVal,
 						TitlePrefix: "",
 						Labels:      nil,
 					}
@@ -378,8 +380,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				// Enable report-incomplete by default if safe-outputs exists and it wasn't explicitly disabled.
 				// This ensures agents always have a first-class channel to signal task incompletion.
 				if _, exists := outputMap["report-incomplete"]; !exists {
+					trueVal := "true"
 					config.ReportIncomplete = &ReportIncompleteConfig{
-						CreateIssue: true,
+						CreateIssue: &trueVal,
 						TitlePrefix: "",
 						Labels:      nil,
 					}

@@ -2,7 +2,7 @@
 // <reference types="@actions/github-script" />
 
 const { executeExpiredEntityCleanup } = require("./expired_entity_main_flow.cjs");
-const { generateExpiredEntityFooter } = require("./generate_footer.cjs");
+const { generateExpiredEntityFooter, getExpiredEntityCautionAlert } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getWorkflowMetadata } = require("./workflow_metadata_helpers.cjs");
 const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
@@ -138,7 +138,9 @@ async function main() {
         };
       }
 
-      const closingMessage = `This discussion was automatically closed because it expired on ${discussion.expirationDate.toISOString()}.` + generateExpiredEntityFooter(workflowName, runUrl, workflowId) + "\n\n<!-- gh-aw-closed -->";
+      const cautionAlert = getExpiredEntityCautionAlert(workflowName, runUrl);
+      const expirationText = `This discussion was automatically closed because it expired on ${discussion.expirationDate.toISOString()}.`;
+      const closingMessage = (cautionAlert ? cautionAlert + "\n\n" : "") + expirationText + generateExpiredEntityFooter(workflowName, runUrl, workflowId) + "\n\n<!-- gh-aw-closed -->";
 
       core.info(`  Adding closing comment to discussion #${discussion.number}`);
       await addDiscussionComment(github, discussion.id, closingMessage);

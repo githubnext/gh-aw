@@ -103,7 +103,42 @@ function generateXMLMarker(workflowName, runUrl) {
 }
 
 /**
- * Generate footer for expired entity closing comments
+ * Get the detection caution alert for expired entity closing comments.
+ * Reads GH_AW_DETECTION_CONCLUSION and GH_AW_DETECTION_REASON from environment variables.
+ * Returns the caution alert markdown when conclusion is "warning", or empty string otherwise.
+ *
+ * Note: This function is intentionally kept inline (not imported from messages_footer.cjs)
+ * because importing messages_footer.cjs here would cause the bundler to inline
+ * messages_core.cjs which contains 'GH_AW_SAFE_OUTPUT_MESSAGES:' in a warning message,
+ * breaking tests that check for env var declarations.
+ *
+ * The equivalent function in messages_footer.cjs is getDetectionCautionAlert().
+ * If the caution alert format changes in either location, BOTH functions must be updated
+ * together to keep them in sync.
+ *
+ * @param {string} workflowName - Name of the workflow
+ * @param {string} runUrl - URL of the workflow run
+ * @returns {string} Caution alert markdown or empty string
+ */
+function getExpiredEntityCautionAlert(workflowName, runUrl) {
+  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
+  if (detectionConclusion !== "warning") {
+    return "";
+  }
+  const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
+  const reasonDescriptions = {
+    threat_detected: "Potential security threats were detected in the agent output.",
+    agent_failure: "The threat detection engine failed to produce results.",
+    parse_error: "The threat detection results could not be parsed.",
+  };
+  const reasonText = reasonDescriptions[detectionReason] || "The threat detection analysis could not be completed.";
+  return `> [!CAUTION]\n> **Security scanning requires review** for [${workflowName}](${runUrl})\n>\n> <details>\n> <summary>Details</summary>\n>\n> ${reasonText} The workflow output should be reviewed before merging.\n>\n> Review the [workflow run logs](${runUrl}) for details.\n> </details>`;
+}
+
+/**
+ * Generate footer for expired entity closing comments.
+ * Note: The detection caution alert is NOT included here; callers are responsible for
+ * prepending it to the top of the full closing message using getExpiredEntityCautionAlert.
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
  * @param {string} workflowId - Workflow identifier
@@ -111,19 +146,6 @@ function generateXMLMarker(workflowName, runUrl) {
  */
 function generateExpiredEntityFooter(workflowName, runUrl, workflowId) {
   let footer = "";
-
-  // Add detection caution alert if detection job found a potential issue
-  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
-  if (detectionConclusion === "warning") {
-    const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
-    const reasonDescriptions = {
-      threat_detected: "Potential security threats were detected in the agent output.",
-      agent_failure: "The threat detection engine failed to produce results.",
-      parse_error: "The threat detection results could not be parsed.",
-    };
-    const reasonText = reasonDescriptions[detectionReason] || "The threat detection analysis could not be completed.";
-    footer += `\n\n> [!CAUTION]\n> **Security scanning requires review** for [${workflowName}](${runUrl})\n>\n> <details>\n> <summary>Details</summary>\n>\n> ${reasonText} The workflow output should be reviewed before merging.\n>\n> Review the [workflow run logs](${runUrl}) for details.\n> </details>`;
-  }
 
   footer += `\n\n> Closed by [${workflowName}](${runUrl})`;
 
@@ -200,6 +222,7 @@ module.exports = {
   getWorkflowIdMarkerContent,
   matchesWorkflowId,
   generateExpiredEntityFooter,
+  getExpiredEntityCautionAlert,
   normalizeCloseOlderKey,
   generateCloseKeyMarker,
   getCloseKeyMarkerContent,

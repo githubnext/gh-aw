@@ -308,11 +308,11 @@ func NewMCPAddSubcommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "add [workflow] [server]",
-		Short: "Add an MCP tool to an agentic workflow",
-		Long: `Add an MCP tool to an agentic workflow by searching the MCP registry.
+		Short: "Add an MCP server to an agentic workflow",
+		Long: `Add an MCP server to an agentic workflow by searching the MCP registry.
 
 This command searches the MCP registry for the specified server, adds it to the workflow's tools section,
-and automatically compiles the workflow. If the tool already exists, the command will fail.
+and automatically compiles the workflow. If the server already exists, the command will fail.
 
 When called with no arguments, it will show a list of available MCP servers from the registry.
 
@@ -329,8 +329,8 @@ Examples:
 
 The command will:
 - Search the MCP registry for the specified server
-- Check that the tool doesn't already exist in the workflow
-- Add the MCP tool configuration to the workflow's frontmatter
+- Check that the server doesn't already exist in the workflow
+- Add the MCP server configuration to the workflow's frontmatter
 - Automatically compile the workflow to generate the .lock.yml file`,
 		Args: cobra.RangeArgs(0, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -347,7 +347,7 @@ The command will:
 
 			// If only workflow ID/file is provided, show error (need both workflow and server)
 			if len(args) == 1 {
-				return errors.New("both workflow ID/file and server name are required to add an MCP tool\nUse 'gh aw mcp add' to list available servers")
+				return errors.New("both workflow ID/file and server name are required to add an MCP server\nUse 'gh aw mcp add' to list available servers")
 			}
 
 			// If both arguments are provided, add the MCP tool
@@ -359,7 +359,7 @@ The command will:
 	}
 
 	cmd.Flags().StringVar(&registryURL, "registry", "", "MCP registry URL (default: https://api.mcp.github.com/v0.1)")
-	cmd.Flags().StringVar(&transportType, "transport", "", "Preferred transport type (stdio, HTTP, Docker)")
+	cmd.Flags().StringVar(&transportType, "transport", "", "Preferred transport type (stdio, http, docker)")
 	cmd.Flags().StringVar(&customToolID, "tool-id", "", "Custom tool ID to use in the workflow (default: uses server ID)")
 
 	return cmd

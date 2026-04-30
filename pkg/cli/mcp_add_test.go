@@ -157,19 +157,23 @@ This is a test workflow.
 	}
 }
 
-func TestMCPAddTransportFlagDescriptionIncludesCapitalizedHTTPAndDocker(t *testing.T) {
+func TestMCPAddTransportFlagDescriptionUsesLowercaseValues(t *testing.T) {
 	cmd := NewMCPAddSubcommand()
 	transportFlag := cmd.Flags().Lookup("transport")
 	if transportFlag == nil {
 		t.Fatal("expected --transport flag to exist")
 	}
 
-	if !strings.Contains(transportFlag.Usage, "HTTP") {
-		t.Fatalf("expected --transport usage to include HTTP, got: %s", transportFlag.Usage)
+	if !strings.Contains(transportFlag.Usage, "http") {
+		t.Fatalf("expected --transport usage to include http (lowercase), got: %s", transportFlag.Usage)
 	}
 
-	if !strings.Contains(transportFlag.Usage, "Docker") {
-		t.Fatalf("expected --transport usage to include Docker, got: %s", transportFlag.Usage)
+	if !strings.Contains(transportFlag.Usage, "docker") {
+		t.Fatalf("expected --transport usage to include docker (lowercase), got: %s", transportFlag.Usage)
+	}
+
+	if !strings.Contains(transportFlag.Usage, "stdio") {
+		t.Fatalf("expected --transport usage to include stdio, got: %s", transportFlag.Usage)
 	}
 }
 

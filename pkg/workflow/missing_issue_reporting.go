@@ -13,7 +13,7 @@ var reportIncompleteLog = logger.New("workflow:report_incomplete")
 // parent struct fields give them their distinct YAML keys.
 type IssueReportingConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	CreateIssue          bool     `yaml:"create-issue,omitempty"` // Whether to create/update issues (default: true)
+	CreateIssue          *string  `yaml:"create-issue,omitempty"` // Whether to create/update issues (default: true). Supports literal bool or GitHub Actions expression.
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"` // Prefix for issue titles
 	Labels               []string `yaml:"labels,omitempty"`       // Labels to add to created issues
 }
@@ -68,7 +68,8 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 	// Enabled with no value: missing-data: (nil)
 	if configData == nil {
 		log.Printf("%s configuration enabled with defaults", yamlKey)
-		cfg.CreateIssue = true
+		trueVal := "true"
+		cfg.CreateIssue = &trueVal
 		cfg.TitlePrefix = defaultTitle
 		cfg.Labels = []string{}
 		return cfg
@@ -78,13 +79,20 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 		log.Printf("Parsing %s configuration from map", yamlKey)
 		c.parseBaseSafeOutputConfig(configMap, &cfg.BaseSafeOutputConfig, 0)
 
-		if createIssue, exists := configMap["create-issue"]; exists {
-			if createIssueBool, ok := createIssue.(bool); ok {
-				cfg.CreateIssue = createIssueBool
-				log.Printf("create-issue: %v", createIssueBool)
+		// Pre-process create-issue to support literal booleans and GitHub Actions expressions.
+		if err := preprocessBoolFieldAsString(configMap, "create-issue", log); err != nil {
+			log.Printf("Invalid create-issue value for %s: %v", yamlKey, err)
+			return nil
+		}
+
+		if createIssueVal, exists := configMap["create-issue"]; exists {
+			if createIssueStr, ok := createIssueVal.(string); ok {
+				cfg.CreateIssue = &createIssueStr
+				log.Printf("create-issue: %s", createIssueStr)
 			}
 		} else {
-			cfg.CreateIssue = true
+			trueVal := "true"
+			cfg.CreateIssue = &trueVal
 		}
 
 		if titlePrefix, exists := configMap["title-prefix"]; exists {

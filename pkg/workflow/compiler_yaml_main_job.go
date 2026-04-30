@@ -618,6 +618,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Include firewall audit/observability logs in the unified agent artifact
 	// so all agent job outputs ship as a single artifact (AWF v0.25.0+).
 	if isFirewallEnabled(data) {
+		artifactPaths = append(artifactPaths, constants.AWFConfigFilePath)
 		artifactPaths = append(artifactPaths, constants.AWFProxyLogsDir+"/")
 		artifactPaths = append(artifactPaths, constants.AWFAuditDir+"/")
 	}

@@ -1055,7 +1055,9 @@ imports:
 	if strings.Contains(workflowData, "cli_proxy_prompt.md") {
 		t.Error("Expected top-level mode:local to win over imported mode:gh-proxy (cli_proxy_prompt.md should not be present)")
 	}
-	if !strings.Contains(workflowData, "github_mcp_tools_prompt.md") {
-		t.Error("Expected GitHub MCP prompt guidance when top-level mode is local")
+	// When safe-outputs is auto-injected (no explicit safe-outputs in frontmatter), the GitHub MCP
+	// guidance uses the "with safe outputs" variant that separates reads and writes.
+	if !strings.Contains(workflowData, "github_mcp_tools_with_safeoutputs_prompt.md") {
+		t.Error("Expected GitHub MCP prompt guidance (with safe outputs variant) when top-level mode is local")
 	}
 }

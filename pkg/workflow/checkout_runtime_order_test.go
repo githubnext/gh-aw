@@ -121,18 +121,19 @@ steps:
 
 	t.Logf("Found %d steps: %v", len(stepNames), stepNames)
 
-	if len(stepNames) < 6 {
-		t.Fatalf("Expected at least 6 steps, got %d: %v", len(stepNames), stepNames)
+	if len(stepNames) < 8 {
+		t.Fatalf("Expected at least 8 steps, got %d: %v", len(stepNames), stepNames)
 	}
 
 	// Verify the order in dev mode (when local actions are used):
 	// 1. First step should be "Checkout actions folder" (checkout local actions)
 	// 2. Second step should be "Setup Scripts" (use the checked out action)
-	// 3. Third step should be "Create gh-aw temp directory" (before custom steps)
-	// 4. Fourth step should be "Configure gh CLI for GitHub Enterprise" (GHE host setup)
-	// 5. Fifth step should be "Checkout code" (from custom steps - full checkout, no separate .github checkout needed)
-	// 6. Sixth step should be "Setup Node.js" (runtime setup, inserted after checkout)
-	// 7. Seventh step should be "Use Node" (from custom steps)
+	// 3. Third step should be "Set runtime paths" (safe-outputs port, always injected)
+	// 4. Fourth step should be "Create gh-aw temp directory" (before custom steps)
+	// 5. Fifth step should be "Configure gh CLI for GitHub Enterprise" (GHE host setup)
+	// 6. Sixth step should be "Checkout code" (from custom steps - full checkout, no separate .github checkout needed)
+	// 7. Seventh step should be "Setup Node.js" (runtime setup, inserted after checkout)
+	// 8. Eighth step should be "Use Node" (from custom steps)
 	// NOTE: The .github sparse checkout is skipped because custom steps contain a full checkout
 
 	if stepNames[0] != "Checkout actions folder" {
@@ -143,24 +144,28 @@ steps:
 		t.Errorf("Second step should be 'Setup Scripts', got '%s'", stepNames[1])
 	}
 
-	if stepNames[2] != "Create gh-aw temp directory" {
-		t.Errorf("Third step should be 'Create gh-aw temp directory', got '%s'", stepNames[2])
+	if stepNames[2] != "Set runtime paths" {
+		t.Errorf("Third step should be 'Set runtime paths', got '%s'", stepNames[2])
 	}
 
-	if stepNames[3] != "Configure gh CLI for GitHub Enterprise" {
-		t.Errorf("Fourth step should be 'Configure gh CLI for GitHub Enterprise', got '%s'", stepNames[3])
+	if stepNames[3] != "Create gh-aw temp directory" {
+		t.Errorf("Fourth step should be 'Create gh-aw temp directory', got '%s'", stepNames[3])
 	}
 
-	if stepNames[4] != "Checkout code" {
-		t.Errorf("Fifth step should be 'Checkout code', got '%s'", stepNames[4])
+	if stepNames[4] != "Configure gh CLI for GitHub Enterprise" {
+		t.Errorf("Fifth step should be 'Configure gh CLI for GitHub Enterprise', got '%s'", stepNames[4])
 	}
 
-	if stepNames[5] != "Setup Node.js" {
-		t.Errorf("Sixth step should be 'Setup Node.js' (runtime setup after checkout), got '%s'", stepNames[5])
+	if stepNames[5] != "Checkout code" {
+		t.Errorf("Sixth step should be 'Checkout code', got '%s'", stepNames[5])
 	}
 
-	if stepNames[6] != "Use Node" {
-		t.Errorf("Seventh step should be 'Use Node', got '%s'", stepNames[6])
+	if stepNames[6] != "Setup Node.js" {
+		t.Errorf("Seventh step should be 'Setup Node.js' (runtime setup after checkout), got '%s'", stepNames[6])
+	}
+
+	if stepNames[7] != "Use Node" {
+		t.Errorf("Eighth step should be 'Use Node', got '%s'", stepNames[7])
 	}
 
 	// Verify that .github checkout is NOT present (redundant with full checkout in custom steps)
@@ -205,7 +210,7 @@ steps:
 	}
 
 	t.Logf("Step order is correct:")
-	for i, name := range stepNames[:7] {
+	for i, name := range stepNames[:8] {
 		t.Logf("  %d. %s", i+1, name)
 	}
 }
@@ -306,14 +311,15 @@ Run node --version to check the Node.js version.
 		}
 	}
 
-	if len(stepNames) < 3 {
-		t.Fatalf("Expected at least 3 steps, got %d: %v", len(stepNames), stepNames)
+	if len(stepNames) < 4 {
+		t.Fatalf("Expected at least 4 steps, got %d: %v", len(stepNames), stepNames)
 	}
 
 	// Verify the order in dev mode:
 	// 1. First step should be "Checkout actions folder" (checkout local actions)
 	// 2. Second step should be "Setup Scripts" (use the checked out action)
-	// 3. Third step should be "Checkout repository" (automatic full checkout - no separate .github checkout needed)
+	// 3. Third step should be "Set runtime paths" (safe-outputs port, always injected)
+	// 4. Fourth step should be "Checkout repository" (automatic full checkout - no separate .github checkout needed)
 	// NOTE: The .github sparse checkout is skipped when full repository checkout is performed
 
 	if stepNames[0] != "Checkout actions folder" {
@@ -324,8 +330,12 @@ Run node --version to check the Node.js version.
 		t.Errorf("Second step should be 'Setup Scripts', got '%s'", stepNames[1])
 	}
 
-	if stepNames[2] != "Checkout repository" {
-		t.Errorf("Third step should be 'Checkout repository', got '%s'", stepNames[2])
+	if stepNames[2] != "Set runtime paths" {
+		t.Errorf("Third step should be 'Set runtime paths', got '%s'", stepNames[2])
+	}
+
+	if stepNames[3] != "Checkout repository" {
+		t.Errorf("Fourth step should be 'Checkout repository', got '%s'", stepNames[3])
 	}
 
 	// Verify that .github checkout is NOT present (redundant with full checkout)
@@ -339,4 +349,5 @@ Run node --version to check the Node.js version.
 	t.Logf("  1. %s", stepNames[0])
 	t.Logf("  2. %s", stepNames[1])
 	t.Logf("  3. %s", stepNames[2])
+	t.Logf("  4. %s", stepNames[3])
 }

@@ -411,7 +411,15 @@ gh aw logs --train                    # Train on last 10 runs
 gh aw logs my-workflow --train -c 50  # Train on up to 50 runs of a specific workflow
 ```
 
-**Options:** `--after`, `--after-run-id`, `--artifacts`, `--before-run-id`, `--count/-c`, `--end-date`, `--engine/-e`, `--filtered-integrity`, `--firewall`, `--format`, `--json/-j`, `--last`, `--no-firewall`, `--no-staged`, `--output/-o`, `--parse`, `--ref`, `--repo/-r`, `--safe-output`, `--start-date`, `--summary-file`, `--timeout`, `--tool-graph`, `--train`
+**`--stdin` flag:** Reads run IDs or URLs from stdin (one per line) instead of discovering runs from the GitHub API. Mutually exclusive with the workflow-name positional argument. Date, count, and workflow-name filters are ignored when `--stdin` is set; content filters (`--engine`, `--firewall`, `--safe-output`, etc.) still apply. Blank lines and `#`-prefixed comment lines are ignored. Bare numeric IDs require `--repo owner/repo` because they carry no embedded repo context. Full run URLs are self-contained and do not require `--repo`.
+
+```bash wrap
+cat run-ids.txt | gh aw logs --stdin
+echo "1234567890" | gh aw logs --stdin --engine claude
+cat run-ids.txt | gh aw logs --stdin --repo owner/repo   # required for bare numeric IDs
+```
+
+**Options:** `--after`, `--after-run-id`, `--artifacts`, `--before-run-id`, `--count/-c`, `--end-date`, `--engine/-e`, `--filtered-integrity`, `--firewall`, `--format`, `--json/-j`, `--last`, `--no-firewall`, `--no-staged`, `--output/-o`, `--parse`, `--ref`, `--repo/-r`, `--safe-output`, `--start-date`, `--stdin`, `--summary-file`, `--timeout`, `--tool-graph`, `--train`
 
 #### `audit`
 
@@ -430,7 +438,15 @@ gh aw audit 12345678 --parse                              # Parse logs to markdo
 gh aw audit 12345678 --repo owner/repo                    # Specify repository for bare run ID
 ```
 
-**Options:** `--parse`, `--json`, `--repo/-r`
+**`--stdin` flag:** Reads run IDs or URLs from stdin (one per line), bypassing the need to pass positional arguments. Mutually exclusive with positional run-ID arguments. Blank lines and `#`-prefixed lines are ignored. Bare numeric IDs require `--repo owner/repo`; full URLs carry their own repo context.
+
+```bash wrap
+echo "1234567890" | gh aw audit --stdin
+echo -e "1234567890\n9876543210" | gh aw audit --stdin   # diff mode: first is base
+cat run-ids.txt | gh aw audit --stdin --repo owner/repo
+```
+
+**Options:** `--parse`, `--json`, `--repo/-r`, `--stdin`
 
 The `--repo` flag accepts `owner/repo` format and is required when passing a bare numeric run ID without a full URL, allowing the command to locate the correct repository.
 

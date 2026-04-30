@@ -347,6 +347,29 @@ describe("Safe Outputs MCP Schema Validation", () => {
         throw new Error(`Tools missing 'additionalProperties: false' for strict validation:\n  - ${missingAdditionalProperties.join("\n  - ")}`);
       }
     });
+
+    it("should not use oneOf, allOf, or anyOf at the top level of inputSchema (Anthropic API incompatible)", () => {
+      // The Anthropic API rejects input_schema objects that use oneOf, allOf, or anyOf
+      // at the top level. These composition keywords must not appear directly on the
+      // inputSchema object — only inside nested property definitions.
+      const violations = [];
+
+      tools.forEach(tool => {
+        const schema = tool.inputSchema;
+        for (const keyword of ["oneOf", "allOf", "anyOf"]) {
+          if (Object.prototype.hasOwnProperty.call(schema, keyword)) {
+            violations.push({ tool: tool.name, keyword });
+          }
+        }
+      });
+
+      if (violations.length > 0) {
+        const errorMessage = violations.map(v => `  - Tool '${v.tool}': uses top-level '${v.keyword}'`).join("\n");
+        throw new Error(
+          `Tools use top-level JSON Schema composition keywords incompatible with the Anthropic API:\n${errorMessage}\n` + `Fix: remove the top-level composition keyword and rely on the tool description to convey constraints.`
+        );
+      }
+    });
   });
 
   describe("Enum Value Validation", () => {

@@ -91,8 +91,9 @@ This workflow should have merged network domains.
 		}
 	}
 
-	// Should use AWF with --allow-domains (Claude uses AWF for network restriction)
-	if !strings.Contains(workflowData, "--allow-domains") {
-		t.Error("Expected compiled workflow to contain --allow-domains configuration (AWF)")
+	// Should use AWF with allowDomains in the JSON config (domains appear in the printf
+	// command that writes the JSON config file, not as a --allow-domains CLI flag).
+	if !strings.Contains(workflowData, "allowDomains") {
+		t.Error("Expected compiled workflow to contain allowDomains in AWF config JSON (AWF)")
 	}
 }
