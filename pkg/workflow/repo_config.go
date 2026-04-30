@@ -10,7 +10,7 @@
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
 //	    "action_failure_issue_expires": 72 // expiration (hours) for conclusion failure issues
-//	    "label_trigger_disable": false // set to false to disable the label-triggered disable job
+//	    "label_triggers": false // set to false to disable all label-triggered jobs
 //	  }                            // maintenance jobs (default: ubuntu-slim)
 //	}
 //
@@ -74,20 +74,21 @@ type MaintenanceConfig struct {
 	// failure issues opened by the conclusion job. Defaults to 168 (7 days).
 	ActionFailureIssueExpires int `json:"action_failure_issue_expires,omitempty"`
 
-	// LabelTriggerDisable controls the label-triggered disable_agentic_workflow job.
-	// The value represents whether the feature is active: true (or omitted/nil) means
-	// the job IS included; false means the job is excluded.
-	// To opt out, set label_trigger_disable: false in aw.json.
-	LabelTriggerDisable *bool `json:"label_trigger_disable,omitempty"`
+	// LabelTriggers controls all label-triggered jobs (disable_agentic_workflow,
+	// label_apply_safe_outputs, etc.).
+	// The value is treated as a feature-active flag: true (or omitted/nil) means
+	// all label-triggered jobs ARE included; false explicitly opts out.
+	// To opt out, set label_triggers: false in aw.json.
+	LabelTriggers *bool `json:"label_triggers,omitempty"`
 }
 
-// IsLabelTriggerEnabled returns true unless label_trigger_disable is explicitly set to false.
+// IsLabelTriggerEnabled returns true unless label_triggers is explicitly set to false.
 // The default (nil / omitted) is treated as enabled (true).
 func (m *MaintenanceConfig) IsLabelTriggerEnabled() bool {
-	if m == nil || m.LabelTriggerDisable == nil {
+	if m == nil || m.LabelTriggers == nil {
 		return true
 	}
-	return *m.LabelTriggerDisable
+	return *m.LabelTriggers
 }
 
 // RepoConfig is the parsed representation of aw.json.

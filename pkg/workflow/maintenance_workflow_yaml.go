@@ -58,11 +58,9 @@ on:
 `)
 	}
 
-	// Add label-event triggers only when the label-triggered disable job is enabled
+	// Add label-event trigger only when the label-triggered jobs are enabled
 	if !disableLabelTrigger {
 		yaml.WriteString(`  issues:
-    types: [labeled]
-  pull_request:
     types: [labeled]
 `)
 	}
@@ -627,7 +625,7 @@ jobs:
 	// Add disable_agentic_workflow job triggered by label "agentic-workflows:disable" on issues or PRs.
 	// This job reads the body of the labeled issue/PR to extract the workflow_id from XML comment
 	// markers, disables the corresponding agentic workflow, and posts a confirmation comment.
-	// Skipped when disable_label_trigger is set to true in aw.json maintenance config.
+	// Skipped when label_triggers is set to false in aw.json maintenance config.
 	if !disableLabelTrigger {
 		disableLabelCondition := buildLabeledDisableCondition()
 		yaml.WriteString(`
@@ -638,7 +636,6 @@ jobs:
       actions: write
       contents: read
       issues: write
-      pull-requests: write
     steps:
       - name: Checkout repository
         uses: ` + getActionPin("actions/checkout") + `
@@ -674,6 +671,55 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/disable_agentic_workflow.cjs');
+            await main();
+`)
+
+		// Add label_apply_safe_outputs job triggered by "agentic-workflows:apply-safe-outputs" label on issues.
+		// This job extracts a workflow run URL from the issue body XML comments and re-applies the safe outputs.
+		applySafeOutputsCondition := buildLabeledApplySafeOutputsCondition()
+		yaml.WriteString(`
+  label_apply_safe_outputs:
+    if: ${{ ` + RenderCondition(applySafeOutputsCondition) + ` }}
+    runs-on: ` + runsOnValue + `
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout actions folder
+        uses: ` + getActionPin("actions/checkout") + `
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+      - name: Apply safe outputs from referenced run
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/label_apply_safe_outputs.cjs');
             await main();
 `)
 	}

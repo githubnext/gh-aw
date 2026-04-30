@@ -99,7 +99,7 @@ describe("main", () => {
     );
   });
 
-  it("removes label after success on pull_request events too", async () => {
+  it("skips silently when event type is pull_request", async () => {
     global.context = {
       eventName: "pull_request",
       repo: { owner: "test-owner", repo: "test-repo" },
@@ -111,7 +111,8 @@ describe("main", () => {
 
     await main();
 
-    expect(mockGithub.rest.issues.removeLabel).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 7, name: "agentic-workflows:disable" }));
+    expect(mockExec.exec).not.toHaveBeenCalled();
+    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
   it("does not remove label when no workflow ID marker is found", async () => {

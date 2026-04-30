@@ -103,19 +103,32 @@ func buildDispatchOperationCondition(operation string) ConditionNode {
 }
 
 // buildLabeledDisableCondition creates a condition for the disable_agentic_workflow job
-// that triggers when an issue or pull request is labeled with "agentic-workflows:disable".
-// Condition: !fork && (event_name == 'issues' || event_name == 'pull_request') && event.label.name == 'agentic-workflows:disable'
+// that triggers when an issue is labeled with "agentic-workflows:disable".
+// Condition: !fork && event_name == 'issues' && event.label.name == 'agentic-workflows:disable'
 func buildLabeledDisableCondition() ConditionNode {
 	return BuildAnd(
 		buildNotForkCondition(),
 		BuildAnd(
-			BuildOr(
-				BuildEventTypeEquals("issues"),
-				BuildEventTypeEquals("pull_request"),
-			),
+			BuildEventTypeEquals("issues"),
 			BuildEquals(
 				BuildPropertyAccess("github.event.label.name"),
 				BuildStringLiteral("agentic-workflows:disable"),
+			),
+		),
+	)
+}
+
+// buildLabeledApplySafeOutputsCondition creates a condition for the label_apply_safe_outputs job
+// that triggers when an issue is labeled with "agentic-workflows:apply-safe-outputs".
+// Condition: !fork && event_name == 'issues' && event.label.name == 'agentic-workflows:apply-safe-outputs'
+func buildLabeledApplySafeOutputsCondition() ConditionNode {
+	return BuildAnd(
+		buildNotForkCondition(),
+		BuildAnd(
+			BuildEventTypeEquals("issues"),
+			BuildEquals(
+				BuildPropertyAccess("github.event.label.name"),
+				BuildStringLiteral("agentic-workflows:apply-safe-outputs"),
 			),
 		),
 	)

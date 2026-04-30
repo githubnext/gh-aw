@@ -100,9 +100,9 @@ async function ensureDisableLabelExists(owner, repo) {
 }
 
 /**
- * Disable an agentic workflow when the "agentic-workflows:disable" label is applied to an issue or PR.
+ * Disable an agentic workflow when the "agentic-workflows:disable" label is applied to an issue.
  *
- * Reads the labeled issue/PR body to extract the workflow_id from XML comment markers,
+ * Reads the labeled issue body to extract the workflow_id from XML comment markers,
  * disables the corresponding agentic workflow using `gh aw disable`, and posts a comment
  * confirming the action.
  *
@@ -110,8 +110,8 @@ async function ensureDisableLabelExists(owner, repo) {
  */
 async function main() {
   const eventName = context.eventName;
-  if (eventName !== "issues" && eventName !== "pull_request") {
-    core.info(`Skipping: unexpected event type '${eventName}'`);
+  if (eventName !== "issues") {
+    core.info(`Skipping: unexpected event type '${eventName}' (expected 'issues')`);
     return;
   }
 
@@ -120,10 +120,10 @@ async function main() {
   // Ensure the disable label exists so it is available for future use
   await ensureDisableLabelExists(owner, repo);
 
-  // Get the item (issue or PR) from the payload
-  const item = context.payload.issue || context.payload.pull_request;
+  // Get the issue from the payload
+  const item = context.payload.issue;
   if (!item) {
-    core.warning("No issue or pull_request found in event payload");
+    core.warning("No issue found in event payload");
     return;
   }
 
@@ -135,15 +135,14 @@ async function main() {
     return;
   }
 
-  const itemType = eventName === "issues" ? "issue" : "pull request";
-  core.info(`Processing ${itemType} #${itemNumber} labeled with '${labelName}'`);
+  core.info(`Processing issue #${itemNumber} labeled with '${labelName}'`);
 
   // Extract workflow ID from body XML comment markers
   const body = item.body || "";
   const workflowId = extractWorkflowId(body);
 
   if (!workflowId) {
-    core.warning(`Could not find workflow ID in ${itemType} #${itemNumber} body. ` + `Expected a <!-- gh-aw-workflow-id: ... --> marker.`);
+    core.warning(`Could not find workflow ID in issue #${itemNumber} body. Expected a <!-- gh-aw-workflow-id: ... --> marker.`);
     await github.rest.issues.createComment({
       owner,
       repo,
@@ -151,15 +150,15 @@ async function main() {
       body:
         `> [!WARNING]\n` +
         `> **Could not disable agentic workflow**\n>\n` +
-        `> No workflow ID marker was found in this ${itemType}'s body. ` +
-        `The \`${DISABLE_LABEL}\` label can only be used on issues and pull requests that were created by an agentic workflow ` +
+        `> No workflow ID marker was found in this issue's body. ` +
+        `The \`${DISABLE_LABEL}\` label can only be used on issues that were created by an agentic workflow ` +
         `(they contain a \`<!-- gh-aw-workflow-id: ... -->\` marker).\n>\n` +
         `> To disable a workflow manually, use:\n` +
         `> \`\`\`\n` +
         `> gh aw disable <workflow-id>\n` +
         `> \`\`\``,
     });
-    core.setFailed(`${ERR_NOT_FOUND}: No workflow ID marker found in ${itemType} #${itemNumber}`);
+    core.setFailed(`${ERR_NOT_FOUND}: No workflow ID marker found in issue #${itemNumber}`);
     return;
   }
 
@@ -220,7 +219,7 @@ async function main() {
 
   core.info(`Successfully disabled workflow '${workflowId}'`);
 
-  // Post a success comment on the issue/PR
+  // Post a success comment on the issue
   await github.rest.issues.createComment({
     owner,
     repo,
@@ -235,7 +234,7 @@ async function main() {
       `<!-- gh-aw-comment-type: workflow-disabled -->`,
   });
 
-  core.info(`Posted disable confirmation comment on ${itemType} #${itemNumber}`);
+  core.info(`Posted disable confirmation comment on issue #${itemNumber}`);
 
   // Remove the disable label now that the action is complete
   try {
@@ -245,7 +244,7 @@ async function main() {
       issue_number: itemNumber,
       name: DISABLE_LABEL,
     });
-    core.info(`Removed label '${DISABLE_LABEL}' from ${itemType} #${itemNumber}`);
+    core.info(`Removed label '${DISABLE_LABEL}' from issue #${itemNumber}`);
   } catch (err) {
     // Non-fatal: the disable already succeeded, just log a warning
     core.warning(`Failed to remove label '${DISABLE_LABEL}': ${getErrorMessage(err)}`);
