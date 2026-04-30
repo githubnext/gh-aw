@@ -3383,15 +3383,32 @@ safe-outputs:
     # List of additional repositories in format 'owner/repo' that comments can be
     # created in. When specified, the agent can use a 'repo' field in the output to
     # specify which repository to create the comment in. The target repository
-    # (current or target-repo) is always implicitly allowed.
+    # (current or target-repo) is always implicitly allowed. Accepts an array or a
+    # GitHub Actions expression resolving to a comma-separated list (e.g. '${{
+    # inputs[\'allowed-repos\'] }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Array of repository slugs in 'owner/repo' format
     allowed-repos: []
-      # Array of strings
+      # Array items: string
+
+    # Option 2: GitHub Actions expression resolving to a comma-separated list of
+    # repository slugs (e.g. '${{ inputs[\'allowed-repos\'] }}')
+    allowed-repos: "example-value"
 
     # When true, minimizes/hides all previous comments from the same agentic workflow
-    # (identified by tracker-id) before creating the new comment. Default: false.
+    # (identified by tracker-id) before creating the new comment. Supports literal
+    # boolean or GitHub Actions expression (e.g. '${{ inputs.hide-older-comments }}').
+    # Default: false.
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: boolean
     hide-older-comments: true
+
+    # Option 2: GitHub Actions expression that resolves to a boolean at runtime
+    hide-older-comments: "example-value"
 
     # List of allowed reasons for hiding older comments when hide-older-comments is
     # enabled. Default: all reasons allowed (spam, abuse, off_topic, outdated,
@@ -3462,10 +3479,19 @@ safe-outputs:
     # (optional)
     title-prefix: "example-value"
 
-    # Optional list of labels to attach to the pull request
+    # Optional list of labels to attach to the pull request. Accepts an array of label
+    # names or a GitHub Actions expression resolving to a comma-separated list (e.g.
+    # '${{ inputs.labels }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Array of label names
     labels: []
-      # Array of strings
+      # Array items: string
+
+    # Option 2: GitHub Actions expression resolving to a comma-separated list of label
+    # names (e.g. '${{ inputs.labels }}')
+    labels: "example-value"
 
     # Optional list of allowed labels that can be used when creating pull requests. If
     # omitted, any labels are allowed (including creating new ones). When specified,
@@ -3553,10 +3579,19 @@ safe-outputs:
     # List of additional repositories in format 'owner/repo' that pull requests can be
     # created in. When specified, the agent can use a 'repo' field in the output to
     # specify which repository to create the pull request in. The target repository
-    # (current or target-repo) is always implicitly allowed.
+    # (current or target-repo) is always implicitly allowed. Accepts an array or a
+    # GitHub Actions expression resolving to a comma-separated list (e.g. '${{
+    # inputs[\'allowed-repos\'] }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Array of repository slugs in 'owner/repo' format
     allowed-repos: []
-      # Array of strings
+      # Array items: string
+
+    # Option 2: GitHub Actions expression resolving to a comma-separated list of
+    # repository slugs (e.g. '${{ inputs[\'allowed-repos\'] }}')
+    allowed-repos: "example-value"
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -3591,10 +3626,19 @@ safe-outputs:
     # Optional list of allowed base branch patterns (glob syntax, e.g. 'main',
     # 'release/*'). When configured, the agent may provide a `base` field in
     # create_pull_request output to override base-branch for a single run, but only if
-    # it matches one of these patterns.
+    # it matches one of these patterns. Accepts an array or a GitHub Actions
+    # expression resolving to a comma-separated list (e.g. '${{
+    # inputs[\'allowed-base-branches\'] }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Array of base branch patterns (glob syntax supported)
     allowed-base-branches: []
-      # Array of strings
+      # Array items: string
+
+    # Option 2: GitHub Actions expression resolving to a comma-separated list of base
+    # branch patterns (e.g. '${{ inputs[\'allowed-base-branches\'] }}')
+    allowed-base-branches: "example-value"
 
     # Controls whether AI-generated footer is added to the pull request. When false,
     # the visible footer content is omitted but XML markers (workflow-id, tracker-id,
@@ -3627,8 +3671,8 @@ safe-outputs:
     github-token-for-extra-empty-commit: "example-value"
 
     # Controls protected-file protection. String form: blocked (default), allowed, or
-    # fallback-to-issue. Object form: { policy, exclude } to customise the
-    # protected-file set.
+    # fallback-to-issue — or a GitHub Actions expression for reusable workflows.
+    # Object form: { policy, exclude } to customise the protected-file set.
     # (optional)
     # This field supports multiple formats (oneOf):
 
@@ -3639,15 +3683,26 @@ safe-outputs:
     # instead of a PR, so a human can review the manifest changes before merging.
     protected-files: "blocked"
 
-    # Option 2: Object form for granular control over the protected-file set. Use the
+    # Option 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
+    # 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to
+    # parameterise the policy per caller.
+    protected-files: "example-value"
+
+    # Option 3: Object form for granular control over the protected-file set. Use the
     # exclude list to remove specific files from the default protection while keeping
     # the rest.
     protected-files:
-      # Protection policy. blocked (default): hard-block any patch that modifies
-      # protected files. allowed: allow all changes. fallback-to-issue: push the branch
-      # but create a review issue instead of a PR.
       # (optional)
+      # This field supports multiple formats (oneOf):
+
+      # Option 1: Protection policy. blocked (default): hard-block any patch that
+      # modifies protected files. allowed: allow all changes. fallback-to-issue: push
+      # the branch but create a review issue instead of a PR.
       policy: "blocked"
+
+      # Option 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
+      # 'fallback-to-issue' at runtime.
+      policy: "example-value"
 
       # List of filenames or path prefixes to remove from the default protected-file
       # set. Items are matched by basename (e.g. "AGENTS.md") or path prefix (e.g.
@@ -3698,10 +3753,20 @@ safe-outputs:
       # Array of strings
 
     # Transport format for packaging changes. "am" (default) uses git format-patch/git
-    # am. "bundle" uses git bundle, which preserves merge commit topology, per-commit
-    # authorship, and merge-resolution-only content.
+    # am. "bundle" uses git bundle. Accepts a GitHub Actions expression for reusable
+    # workflows.
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Transport format for packaging changes. "am" (default) uses git
+    # format-patch/git am. "bundle" uses git bundle, which preserves merge commit
+    # topology, per-commit authorship, and merge-resolution-only content.
     patch-format: "am"
+
+    # Option 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
+    # format per caller.
+    patch-format: "example-value"
 
     # If true, emit step summary messages instead of making GitHub API calls for this
     # specific output type (preview mode)
@@ -4758,10 +4823,19 @@ safe-outputs:
     title-prefix: "example-value"
 
     # Required labels for pull request validation. Only pull requests with all these
-    # labels will be accepted.
+    # labels will be accepted. Accepts an array of label names or a GitHub Actions
+    # expression resolving to a comma-separated list of labels (e.g. '${{
+    # inputs[\'required-labels\'] }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Array of label names
     labels: []
-      # Array of strings
+      # Array items: string
+
+    # Option 2: GitHub Actions expression resolving to a comma-separated list of label
+    # names (e.g. '${{ inputs[\'required-labels\'] }}')
+    labels: "example-value"
 
     # Behavior when no changes to push: 'warn' (default - log warning but succeed),
     # 'error' (fail the action), or 'ignore' (silent success)
@@ -4812,14 +4886,23 @@ safe-outputs:
     # List of additional repositories in format 'owner/repo' that push to pull request
     # branch can target. When specified, the agent can use a 'repo' field in the
     # output to specify which repository to push to. The target repository (current or
-    # target-repo) is always implicitly allowed.
+    # target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions
+    # expression resolving to a comma-separated list (e.g. '${{
+    # inputs[\'allowed-repos\'] }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Array of repository slugs in 'owner/repo' format
     allowed-repos: []
-      # Array of strings
+      # Array items: string
+
+    # Option 2: GitHub Actions expression resolving to a comma-separated list of
+    # repository slugs (e.g. '${{ inputs[\'allowed-repos\'] }}')
+    allowed-repos: "example-value"
 
     # Controls protected-file protection. String form: blocked (default), allowed, or
-    # fallback-to-issue. Object form: { policy, exclude } to customise the
-    # protected-file set.
+    # fallback-to-issue — or a GitHub Actions expression for reusable workflows.
+    # Object form: { policy, exclude } to customise the protected-file set.
     # (optional)
     # This field supports multiple formats (oneOf):
 
@@ -4830,15 +4913,26 @@ safe-outputs:
     # PR branch, so a human can review the changes before applying.
     protected-files: "blocked"
 
-    # Option 2: Object form for granular control over the protected-file set. Use the
+    # Option 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
+    # 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to
+    # parameterise the policy per caller.
+    protected-files: "example-value"
+
+    # Option 3: Object form for granular control over the protected-file set. Use the
     # exclude list to remove specific files from the default protection while keeping
     # the rest.
     protected-files:
-      # Protection policy. blocked (default): hard-block any patch that modifies
-      # protected files. allowed: allow all changes. fallback-to-issue: create a review
-      # issue instead of pushing.
       # (optional)
+      # This field supports multiple formats (oneOf):
+
+      # Option 1: Protection policy. blocked (default): hard-block any patch that
+      # modifies protected files. allowed: allow all changes. fallback-to-issue: create
+      # a review issue instead of pushing.
       policy: "blocked"
+
+      # Option 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
+      # 'fallback-to-issue' at runtime.
+      policy: "example-value"
 
       # List of filenames or path prefixes to remove from the default protected-file
       # set. Items are matched by basename (e.g. "AGENTS.md") or path prefix (e.g.
@@ -4872,10 +4966,20 @@ safe-outputs:
       # Array of strings
 
     # Transport format for packaging changes. "am" (default) uses git format-patch/git
-    # am. "bundle" uses git bundle, which preserves merge commit topology, per-commit
-    # authorship, and merge-resolution-only content.
+    # am. "bundle" uses git bundle. Accepts a GitHub Actions expression for reusable
+    # workflows.
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Transport format for packaging changes. "am" (default) uses git
+    # format-patch/git am. "bundle" uses git bundle, which preserves merge commit
+    # topology, per-commit authorship, and merge-resolution-only content.
     patch-format: "am"
+
+    # Option 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
+    # format per caller.
+    patch-format: "example-value"
 
     # When true, adds workflows: write to the GitHub App token permissions. Required
     # when allowed-files targets .github/workflows/ paths. Requires
@@ -5109,9 +5213,17 @@ safe-outputs:
     # Option 2: GitHub Actions expression that resolves to an integer at runtime
     max: "example-value"
 
-    # Whether to create or update GitHub issues when tools are missing (default: true)
+    # Whether to create or update GitHub issues when tools are missing (default:
+    # true). Supports literal boolean or GitHub Actions expression (e.g. '${{
+    # inputs.create-issue }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: boolean
     create-issue: true
+
+    # Option 2: GitHub Actions expression that resolves to a boolean at runtime
+    create-issue: "example-value"
 
     # Prefix for issue titles when creating issues for missing tools (default:
     # '[missing tool]')
@@ -5160,9 +5272,17 @@ safe-outputs:
     # Option 2: GitHub Actions expression that resolves to an integer at runtime
     max: "example-value"
 
-    # Whether to create or update GitHub issues when data is missing (default: true)
+    # Whether to create or update GitHub issues when data is missing (default: true).
+    # Supports literal boolean or GitHub Actions expression (e.g. '${{
+    # inputs.create-missing-data-issue }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: boolean
     create-issue: true
+
+    # Option 2: GitHub Actions expression that resolves to a boolean at runtime
+    create-issue: "example-value"
 
     # Prefix for issue titles when creating issues for missing data (default:
     # '[missing data]')
@@ -5766,9 +5886,16 @@ safe-outputs:
     max: "example-value"
 
     # Whether to create or update GitHub issues when the task was incomplete (default:
-    # true)
+    # true). Supports literal boolean or GitHub Actions expression (e.g. '${{
+    # inputs.create-incomplete-issue }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: boolean
     create-issue: true
+
+    # Option 2: GitHub Actions expression that resolves to a boolean at runtime
+    create-issue: "example-value"
 
     # Prefix for issue titles when creating issues for incomplete runs (default:
     # '[incomplete]')
