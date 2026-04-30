@@ -188,6 +188,9 @@ func RenderJSONMCPConfig(
 		if options.GatewayConfig.KeepaliveInterval != 0 {
 			fmt.Fprintf(&configBuilder, ",\n              \"keepaliveInterval\": %d", options.GatewayConfig.KeepaliveInterval)
 		}
+		if options.GatewayConfig.SessionTimeout != "" {
+			fmt.Fprintf(&configBuilder, ",\n              \"sessionTimeout\": %q", options.GatewayConfig.SessionTimeout)
+		}
 		// When OTLP tracing is configured, add the opentelemetry section directly to the
 		// gateway config. The endpoint is passed via the OTEL_EXPORTER_OTLP_ENDPOINT env var
 		// (injected by injectOTLPConfig) so that secrets are never interpolated directly into

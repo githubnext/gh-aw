@@ -597,3 +597,74 @@ func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
 		})
 	}
 }
+
+// TestRenderJSONMCPConfig_SessionTimeout verifies that sessionTimeout is emitted
+// in the gateway JSON section when set on the MCPGatewayRuntimeConfig.
+func TestRenderJSONMCPConfig_SessionTimeout(t *testing.T) {
+	tests := []struct {
+		name           string
+		sessionTimeout string
+		wantField      bool
+	}{
+		{
+			name:           "includes sessionTimeout when set",
+			sessionTimeout: "4h",
+			wantField:      true,
+		},
+		{
+			name:           "omits sessionTimeout when empty",
+			sessionTimeout: "",
+			wantField:      false,
+		},
+		{
+			name:           "includes sessionTimeout 30m",
+			sessionTimeout: "30m",
+			wantField:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gatewayConfig := &MCPGatewayRuntimeConfig{
+				Domain:         "localhost",
+				APIKey:         "test-api-key",
+				SessionTimeout: tt.sessionTimeout,
+			}
+
+			workflowData := &WorkflowData{
+				Name:            "test-workflow",
+				FrontmatterHash: "abc123",
+			}
+
+			var output strings.Builder
+			err := RenderJSONMCPConfig(
+				&output,
+				map[string]any{},
+				[]string{},
+				workflowData,
+				JSONMCPConfigOptions{
+					ConfigPath:    "/tmp/test/mcp-servers.json",
+					GatewayConfig: gatewayConfig,
+					Renderers:     MCPToolRenderers{},
+				},
+			)
+
+			if err != nil {
+				t.Fatalf("RenderJSONMCPConfig returned error: %v", err)
+			}
+
+			result := output.String()
+			hasField := strings.Contains(result, `"sessionTimeout":`)
+			if hasField != tt.wantField {
+				t.Errorf("sessionTimeout field presence = %v, want %v\noutput:\n%s", hasField, tt.wantField, result)
+			}
+
+			if tt.wantField && tt.sessionTimeout != "" {
+				expected := `"sessionTimeout": "` + tt.sessionTimeout + `"`
+				if !strings.Contains(result, expected) {
+					t.Errorf("expected %q in output\noutput:\n%s", expected, result)
+				}
+			}
+		})
+	}
+}
