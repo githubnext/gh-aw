@@ -172,16 +172,18 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 	return enabled
 }
 
-// applyDefaultCreateIssue injects a default create-issues safe output when safe-outputs is configured
-// but has no non-builtin output types. The injected config uses the workflow ID as the label
-// and [workflowID] as the title prefix. The AutoInjectedCreateIssue flag is set so the prompt
-// generator can add a specific instruction for the agent.
+// applyDefaultCreateIssue injects a default create-issues safe output when no non-builtin
+// safe outputs are configured (including when safe-outputs is nil / not configured at all).
+// The injected config uses the workflow ID as the label and [workflowID] as the title prefix.
+// The AutoInjectedCreateIssue flag is set so the prompt generator can add a specific
+// instruction for the agent. This aligns create-issue with the other builtin safe outputs
+// (noop, missing-tool, missing-data) that are always available.
 func applyDefaultCreateIssue(workflowData *WorkflowData) {
-	if workflowData.SafeOutputs == nil {
-		return
-	}
 	if hasNonBuiltinSafeOutputsEnabled(workflowData.SafeOutputs) {
 		return
+	}
+	if workflowData.SafeOutputs == nil {
+		workflowData.SafeOutputs = &SafeOutputsConfig{}
 	}
 
 	workflowID := workflowData.WorkflowID

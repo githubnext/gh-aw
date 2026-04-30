@@ -137,10 +137,13 @@ func TestAutoInjectCreateIssue(t *testing.T) {
 		expectedAutoInjected bool
 	}{
 		{
-			name:            "nil safe-outputs - no injection",
-			workflowID:      "my-workflow",
-			safeOutputs:     nil,
-			expectInjection: false,
+			name:                 "nil safe-outputs - inject create-issue",
+			workflowID:           "my-workflow",
+			safeOutputs:          nil,
+			expectInjection:      true,
+			expectedLabel:        "my-workflow",
+			expectedTitlePrefix:  "[my-workflow]",
+			expectedAutoInjected: true,
 		},
 		{
 			name:       "only builtins configured - inject create-issue",
