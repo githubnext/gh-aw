@@ -127,11 +127,12 @@ func TestGenerateSafeOutputsConfigActionsCollisionReturnsError(t *testing.T) {
 // TestGenerateSafeOutputsConfigMissingToolWithIssue tests the missing_tool config.
 // The legacy create_missing_tool_issue sub-key is no longer generated; only missing_tool is present.
 func TestGenerateSafeOutputsConfigMissingToolWithIssue(t *testing.T) {
+	trueVal := "true"
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			MissingTool: &MissingToolConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
-				CreateIssue:          true,
+				CreateIssue:          &trueVal,
 				TitlePrefix:          "[Missing Tool] ",
 				Labels:               []string{"bug"},
 			},

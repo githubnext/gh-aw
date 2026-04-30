@@ -126,9 +126,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		missingToolEnvVars = append(missingToolEnvVars, buildTemplatableIntEnvVar("GH_AW_MISSING_TOOL_MAX", data.SafeOutputs.MissingTool.Max)...)
 
 		// Add create-issue configuration
-		if data.SafeOutputs.MissingTool.CreateIssue {
-			missingToolEnvVars = append(missingToolEnvVars, "          GH_AW_MISSING_TOOL_CREATE_ISSUE: \"true\"\n")
-		}
+		missingToolEnvVars = append(missingToolEnvVars, buildTemplatableBoolEnvVar("GH_AW_MISSING_TOOL_CREATE_ISSUE", data.SafeOutputs.MissingTool.CreateIssue)...)
 
 		// Add title-prefix configuration
 		if data.SafeOutputs.MissingTool.TitlePrefix != "" {
@@ -166,9 +164,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		reportIncompleteEnvVars = append(reportIncompleteEnvVars, buildTemplatableIntEnvVar("GH_AW_REPORT_INCOMPLETE_MAX", data.SafeOutputs.ReportIncomplete.Max)...)
 
 		// Add create-issue configuration
-		if data.SafeOutputs.ReportIncomplete.CreateIssue {
-			reportIncompleteEnvVars = append(reportIncompleteEnvVars, "          GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: \"true\"\n")
-		}
+		reportIncompleteEnvVars = append(reportIncompleteEnvVars, buildTemplatableBoolEnvVar("GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE", data.SafeOutputs.ReportIncomplete.CreateIssue)...)
 
 		// Add title-prefix configuration
 		if data.SafeOutputs.ReportIncomplete.TitlePrefix != "" {

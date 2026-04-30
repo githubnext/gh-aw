@@ -2689,3 +2689,80 @@ func TestNoProtectedDotFolderExcludesWhenNoneDotFolderExcluded(t *testing.T) {
 	_, exists := prConfig["protected_dot_folder_excludes"]
 	assert.False(t, exists, "protected_dot_folder_excludes should be absent when no dot-folders excluded")
 }
+
+// TestCreateReportIncompleteIssueTemplatableBool tests that create-issue in report-incomplete
+// correctly handles literal booleans and GitHub Actions expressions.
+func TestCreateReportIncompleteIssueTemplatableBool(t *testing.T) {
+	compiler := NewCompiler()
+
+	extractHandlerConfig := func(t *testing.T, safeOutputs *SafeOutputsConfig) map[string]any {
+		t.Helper()
+		workflowData := &WorkflowData{Name: "Test", SafeOutputs: safeOutputs}
+		var steps []string
+		compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+		for _, step := range steps {
+			if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+				parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+				if len(parts) == 2 {
+					jsonStr := strings.TrimSpace(parts[1])
+					jsonStr = strings.Trim(jsonStr, "\"")
+					jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+					var config map[string]any
+					require.NoError(t, json.Unmarshal([]byte(jsonStr), &config), "config JSON should be valid")
+					return config
+				}
+			}
+		}
+		return nil
+	}
+
+	t.Run("create-issue nil (default) includes handler", func(t *testing.T) {
+		config := extractHandlerConfig(t, &SafeOutputsConfig{
+			ReportIncomplete: &ReportIncompleteConfig{},
+		})
+		require.NotNil(t, config)
+		_, hasHandler := config["create_report_incomplete_issue"]
+		assert.True(t, hasHandler, "create_report_incomplete_issue should be present when create-issue is nil (default)")
+	})
+
+	t.Run("create-issue true includes handler without create-issue field", func(t *testing.T) {
+		trueVal := "true"
+		config := extractHandlerConfig(t, &SafeOutputsConfig{
+			ReportIncomplete: &ReportIncompleteConfig{CreateIssue: &trueVal},
+		})
+		require.NotNil(t, config)
+		handlerCfg, hasHandler := config["create_report_incomplete_issue"]
+		require.True(t, hasHandler, "create_report_incomplete_issue should be present when create-issue is true")
+		handlerMap, ok := handlerCfg.(map[string]any)
+		require.True(t, ok)
+		_, hasCreateIssueField := handlerMap["create-issue"]
+		assert.False(t, hasCreateIssueField, "create-issue field should not be in handler config for literal true")
+	})
+
+	t.Run("create-issue false excludes handler", func(t *testing.T) {
+		falseVal := "false"
+		config := extractHandlerConfig(t, &SafeOutputsConfig{
+			ReportIncomplete: &ReportIncompleteConfig{CreateIssue: &falseVal},
+		})
+		require.NotNil(t, config)
+		_, hasHandler := config["create_report_incomplete_issue"]
+		assert.False(t, hasHandler, "create_report_incomplete_issue should be absent when create-issue is false")
+	})
+
+	t.Run("create-issue expression includes handler with create-issue expression field", func(t *testing.T) {
+		expr := "${{ inputs.create-incomplete-issue }}"
+		config := extractHandlerConfig(t, &SafeOutputsConfig{
+			ReportIncomplete: &ReportIncompleteConfig{CreateIssue: &expr},
+		})
+		require.NotNil(t, config)
+		handlerCfg, hasHandler := config["create_report_incomplete_issue"]
+		require.True(t, hasHandler, "create_report_incomplete_issue should be present when create-issue is an expression")
+		handlerMap, ok := handlerCfg.(map[string]any)
+		require.True(t, ok)
+		// Note: the JSON key is "create-issue" (hyphen); the JS handler manager normalises
+		// hyphens to underscores at runtime, so handlers see "create_issue".
+		createIssueVal, hasCreateIssueField := handlerMap["create-issue"]
+		assert.True(t, hasCreateIssueField, "create-issue field should be in handler config for expression")
+		assert.Equal(t, expr, createIssueVal, "create-issue field should carry the expression string")
+	})
+}

@@ -5,6 +5,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -32,6 +33,10 @@ function buildMissingIssueHandler(options) {
 
   return async function main(config = {}) {
     // Extract configuration
+    // create_issue: templatable boolean — default true. When an expression was used in the
+    // workflow frontmatter, GitHub Actions evaluates it before this handler runs, so
+    // config.create_issue will be the resolved boolean/string value.
+    const createIssue = parseBoolTemplatable(config.create_issue, true);
     const titlePrefix = config.title_prefix || defaultTitlePrefix;
     const userLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
     const envLabels = [...new Set([...defaultLabels, ...userLabels])];
@@ -164,9 +169,17 @@ function buildMissingIssueHandler(options) {
     /**
      * Message handler function that processes a single missing-issue message
      * @param {Object} message - The message to process
+     * @param {Object} resolvedTemporaryIds - Map of temporary IDs (unused for missing-issue handlers)
      * @returns {Promise<Object>} Result with success/error status and issue details
      */
-    return async function handleMissingIssue(message) {
+    return async function handleMissingIssue(message, resolvedTemporaryIds) {
+      // When create-issue is disabled (e.g. via a resolved GitHub Actions expression),
+      // skip issue creation without recording a failure.
+      if (!createIssue) {
+        core.info(`${handlerType}: create-issue is disabled, skipping issue creation`);
+        return { success: true, skipped: true, reason: "create-issue disabled" };
+      }
+
       // Check if we've hit the max limit
       if (processedCount >= maxCount) {
         core.warning(`Skipping ${handlerType}: max count of ${maxCount} reached`);

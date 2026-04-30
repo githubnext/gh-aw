@@ -5712,8 +5712,8 @@
                   ]
                 },
                 "hide-older-comments": {
-                  "type": "boolean",
-                  "description": "When true, minimizes/hides all previous comments from the same agentic workflow (identified by tracker-id) before creating the new comment. Default: false."
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, minimizes/hides all previous comments from the same agentic workflow (identified by tracker-id) before creating the new comment. Supports literal boolean or GitHub Actions expression (e.g. '${{ inputs.hide-older-comments }}'). Default: false."
                 },
                 "allowed-reasons": {
                   "type": "array",
@@ -7723,8 +7723,8 @@
                   ]
                 },
                 "create-issue": {
-                  "type": "boolean",
-                  "description": "Whether to create or update GitHub issues when tools are missing (default: true)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "Whether to create or update GitHub issues when tools are missing (default: true). Supports literal boolean or GitHub Actions expression (e.g. '${{ inputs.create-incomplete-issue }}').",
                   "default": true
                 },
                 "title-prefix": {
@@ -7785,8 +7785,8 @@
                   ]
                 },
                 "create-issue": {
-                  "type": "boolean",
-                  "description": "Whether to create or update GitHub issues when data is missing (default: true)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "Whether to create or update GitHub issues when data is missing (default: true). Supports literal boolean or GitHub Actions expression (e.g. '${{ inputs.create-missing-data-issue }}').",
                   "default": true
                 },
                 "title-prefix": {
@@ -8737,8 +8737,8 @@
                   ]
                 },
                 "create-issue": {
-                  "type": "boolean",
-                  "description": "Whether to create or update GitHub issues when the task was incomplete (default: true)",
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "Whether to create or update GitHub issues when the task was incomplete (default: true). Supports literal boolean or GitHub Actions expression (e.g. '${{ inputs.create-incomplete-issue }}').",
                   "default": true
                 },
                 "title-prefix": {

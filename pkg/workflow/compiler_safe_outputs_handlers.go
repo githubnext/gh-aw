@@ -629,16 +629,23 @@ var handlerRegistry = map[string]handlerBuilder{
 			return nil
 		}
 		c := cfg.ReportIncomplete
-		if !c.CreateIssue {
+		// If create-issue is explicitly false, skip generating the issue handler.
+		// For nil (default) or "true", always include; for expressions, include
+		// the handler and embed the expression so it is evaluated at runtime.
+		if c.CreateIssue != nil && *c.CreateIssue == "false" {
 			return nil
 		}
-		return newHandlerConfigBuilder().
+		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("title-prefix", c.TitlePrefix).
 			AddStringSlice("labels", c.Labels).
 			AddIfNotEmpty("github-token", c.GitHubToken).
-			AddIfTrue("staged", c.Staged).
-			Build()
+			AddIfTrue("staged", c.Staged)
+		// Embed GitHub Actions expression in config so it can be evaluated at runtime.
+		if c.CreateIssue != nil && isExpression(*c.CreateIssue) {
+			builder = builder.AddTemplatableBool("create-issue", c.CreateIssue)
+		}
+		return builder.Build()
 	},
 	"assign_to_agent": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.AssignToAgent == nil {

@@ -192,7 +192,7 @@ func TestMissingToolConfigParsing(t *testing.T) {
 		name              string
 		configData        map[string]any
 		expectMax         int
-		expectCreateIssue bool
+		expectCreateIssue *string
 		expectTitlePrefix string
 		expectLabels      []string
 		expectError       bool
@@ -201,7 +201,7 @@ func TestMissingToolConfigParsing(t *testing.T) {
 			name:              "Empty config - defaults",
 			configData:        map[string]any{"missing-tool": nil},
 			expectMax:         0,
-			expectCreateIssue: true,
+			expectCreateIssue: strPtr("true"),
 			expectTitlePrefix: "[missing tool]",
 			expectLabels:      []string{},
 		},
@@ -211,7 +211,7 @@ func TestMissingToolConfigParsing(t *testing.T) {
 				"missing-tool": map[string]any{"max": 5},
 			},
 			expectMax:         5,
-			expectCreateIssue: true,
+			expectCreateIssue: strPtr("true"),
 			expectTitlePrefix: "[missing tool]",
 			expectLabels:      []string{},
 		},
@@ -221,7 +221,7 @@ func TestMissingToolConfigParsing(t *testing.T) {
 				"missing-tool": map[string]any{"max": float64(10)},
 			},
 			expectMax:         10,
-			expectCreateIssue: true,
+			expectCreateIssue: strPtr("true"),
 			expectTitlePrefix: "[missing tool]",
 			expectLabels:      []string{},
 		},
@@ -231,7 +231,7 @@ func TestMissingToolConfigParsing(t *testing.T) {
 				"missing-tool": map[string]any{"max": int64(15)},
 			},
 			expectMax:         15,
-			expectCreateIssue: true,
+			expectCreateIssue: strPtr("true"),
 			expectTitlePrefix: "[missing tool]",
 			expectLabels:      []string{},
 		},
@@ -255,7 +255,19 @@ func TestMissingToolConfigParsing(t *testing.T) {
 				},
 			},
 			expectMax:         0,
-			expectCreateIssue: false,
+			expectCreateIssue: strPtr("false"),
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{},
+		},
+		{
+			name: "create-issue as expression",
+			configData: map[string]any{
+				"missing-tool": map[string]any{
+					"create-issue": "${{ inputs.create-issue }}",
+				},
+			},
+			expectMax:         0,
+			expectCreateIssue: strPtr("${{ inputs.create-issue }}"),
 			expectTitlePrefix: "[missing tool]",
 			expectLabels:      []string{},
 		},
@@ -267,7 +279,7 @@ func TestMissingToolConfigParsing(t *testing.T) {
 				},
 			},
 			expectMax:         0,
-			expectCreateIssue: true,
+			expectCreateIssue: strPtr("true"),
 			expectTitlePrefix: "🔧 Missing:",
 			expectLabels:      []string{},
 		},
@@ -279,7 +291,7 @@ func TestMissingToolConfigParsing(t *testing.T) {
 				},
 			},
 			expectMax:         0,
-			expectCreateIssue: true,
+			expectCreateIssue: strPtr("true"),
 			expectTitlePrefix: "[missing tool]",
 			expectLabels:      []string{"bug", "enhancement", "missing-tool"},
 		},
@@ -291,7 +303,7 @@ func TestMissingToolConfigParsing(t *testing.T) {
 				},
 			},
 			expectMax:         0,
-			expectCreateIssue: true,
+			expectCreateIssue: strPtr("true"),
 			expectTitlePrefix: "[missing tool]",
 			expectLabels:      []string{"bug", "enhancement", "missing-tool"},
 		},
@@ -306,7 +318,7 @@ func TestMissingToolConfigParsing(t *testing.T) {
 				},
 			},
 			expectMax:         3,
-			expectCreateIssue: true,
+			expectCreateIssue: strPtr("true"),
 			expectTitlePrefix: "[Tool Missing]",
 			expectLabels:      []string{"needs-triage", "missing-tool"},
 		},
@@ -327,8 +339,16 @@ func TestMissingToolConfigParsing(t *testing.T) {
 				if templatableIntValue(config.Max) != tt.expectMax {
 					t.Errorf("Expected max %d, got %v", tt.expectMax, config.Max)
 				}
-				if config.CreateIssue != tt.expectCreateIssue {
-					t.Errorf("Expected create-issue %v, got %v", tt.expectCreateIssue, config.CreateIssue)
+				if tt.expectCreateIssue == nil {
+					if config.CreateIssue != nil {
+						t.Errorf("Expected create-issue nil, got %q", *config.CreateIssue)
+					}
+				} else {
+					if config.CreateIssue == nil {
+						t.Errorf("Expected create-issue %q, got nil", *tt.expectCreateIssue)
+					} else if *config.CreateIssue != *tt.expectCreateIssue {
+						t.Errorf("Expected create-issue %q, got %q", *tt.expectCreateIssue, *config.CreateIssue)
+					}
 				}
 				if config.TitlePrefix != tt.expectTitlePrefix {
 					t.Errorf("Expected title-prefix %q, got %q", tt.expectTitlePrefix, config.TitlePrefix)
