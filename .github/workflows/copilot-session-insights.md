@@ -135,6 +135,110 @@ Follow the chart generation process defined in the `session-analysis-charts` sha
 
 Upload charts and collect URLs for embedding in the report.
 
+### Phase 2b: Orphaned Branch Escalation Detection
+
+Identify **orphaned branches** — branches with active CI gate sweeps but no Copilot agent assigned — that have been waiting for more than 1 hour and have a high gate footprint.
+
+**Data Collection**:
+```bash
+# Fetch all open PRs (paginated to handle repos with >100 open PRs)
+gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" \
+  --paginate \
+  --jq '.[] | {number, title, head_branch: .head.ref, created_at, updated_at, assignees: [.assignees[].login], requested_reviewers: [.requested_reviewers[].login]}' \
+  | jq -s '.' \
+  > /tmp/gh-aw/session-data/open-prs.json
+
+# Fetch in-progress workflow runs from the last 6 hours (paginated)
+SIX_HOURS_AGO=$(date -d '6 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-6H '+%Y-%m-%dT%H:%M:%SZ')
+gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=in_progress&per_page=100" \
+  --paginate \
+  --jq ".workflow_runs[] | select(.created_at >= \"${SIX_HOURS_AGO}\") | {run_id: .id, branch: .head_branch, workflow_name: .name, created_at, status}" \
+  | jq -s '.' \
+  > /tmp/gh-aw/session-data/active-runs.json
+
+echo "Fetched $(jq 'length' /tmp/gh-aw/session-data/open-prs.json) open PRs"
+echo "Fetched $(jq 'length' /tmp/gh-aw/session-data/active-runs.json) in-progress runs"
+```
+
+**Orphan Detection Logic**:
+
+Build the escalation candidate list entirely in jq to keep structured data throughout:
+
+```bash
+TWO_HOURS_AGO=$(date -d '2 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-2H '+%Y-%m-%dT%H:%M:%SZ')
+ONE_HOUR_AGO=$(date -d '1 hour ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-1H '+%Y-%m-%dT%H:%M:%SZ')
+
+# Combine open PR data with gate counts using jq:
+# 1. Compute gate_count per branch from active-runs.json
+# 2. Join with open-prs.json on head_branch
+# 3. Filter: gate_count >= 5, no copilot agent assigned, created_at < two_hours_ago
+# 4. Classify severity and emit escalation records
+jq -n \
+  --slurpfile prs /tmp/gh-aw/session-data/open-prs.json \
+  --slurpfile runs /tmp/gh-aw/session-data/active-runs.json \
+  --arg two_hours_ago "$TWO_HOURS_AGO" \
+  --arg one_hour_ago "$ONE_HOUR_AGO" '
+  # Build a map of branch -> gate_count from in-progress runs
+  ($runs[0] | group_by(.branch) | map({key: .[0].branch, value: length}) | from_entries) as $gate_counts |
+
+  # Process each open PR
+  $prs[0] | map(
+    . as $pr |
+    ($gate_counts[$pr.head_branch] // 0) as $gates |
+
+    # Check agent assignment: look for copilot-swe-agent in assignees
+    ([$pr.assignees[] | select(. == "copilot-swe-agent")] | length == 0) as $no_agent |
+
+    # Only include PRs with >= 5 gates and no agent assigned
+    select($gates >= 5 and $no_agent) |
+
+    # Determine wait-time severity based on created_at
+    (if $pr.created_at < $two_hours_ago then "critical_or_high"
+     elif $pr.created_at < $one_hour_ago then "warning"
+     else "none" end) as $wait_class |
+
+    # Only escalate if waiting long enough (>= 1 hour)
+    select($wait_class != "none") |
+
+    # Classify severity
+    (if $gates >= 10 and $wait_class == "critical_or_high" then "critical"
+     elif $gates >= 5  and $wait_class == "critical_or_high" then "high"
+     else "warning" end) as $severity |
+
+    {
+      pr_number:   $pr.number,
+      title:       $pr.title,
+      branch:      $pr.head_branch,
+      gate_count:  $gates,
+      created_at:  $pr.created_at,
+      severity:    $severity,
+      assignees:   $pr.assignees,
+      recommended_action: (if $severity == "critical" then "immediate manual review"
+                           else "priority agent assignment" end)
+    }
+  ) | sort_by(-.gate_count)
+' > /tmp/gh-aw/session-data/orphan-escalations.json
+
+echo "Escalation candidates found: $(jq 'length' /tmp/gh-aw/session-data/orphan-escalations.json)"
+jq '.' /tmp/gh-aw/session-data/orphan-escalations.json
+```
+
+Use this data to populate the **Orphaned Branch Escalation Alerts** section in the report.
+
+**Escalation Thresholds**:
+- **≥10 simultaneous gate firings** + **no agent assigned** + **>2 hours wait** → critical — recommend immediate manual review
+- **5–9 simultaneous gate firings** + **no agent assigned** + **>2 hours wait** → high priority — flag for agent assignment
+- **≥5 simultaneous gate firings** + **no agent assigned** + **1–2 hours wait** → warning — monitor closely
+
+**Historical Comparison**:
+- Compare today's orphaned rate against the historical baseline (~40%) stored in cache memory.
+- If today's rate exceeds 50%, flag as an elevated waste pattern.
+- Save orphan metrics to cache for trend tracking:
+  ```bash
+  mkdir -p /tmp/gh-aw/cache-memory/session-analysis/
+  # Append today's orphan stats to history.json (see cache memory management section)
+  ```
+
 ### Phase 3: Insight Synthesis
 
 Aggregate observations across all analyzed sessions using the synthesis patterns from the `session-analysis-strategies` module:
@@ -230,6 +334,29 @@ Common indicators of inefficiency or failure:
 ```
 [Example of an ineffective task description]
 ```
+
+## Orphaned Branch Escalation Alerts 🚨
+
+> Branches with ≥5 simultaneous gate firings and no Copilot agent assigned for >2 hours.
+
+### Summary
+
+- **Orphaned Branches Today**: [N] out of [TOTAL] active branches ([%])
+- **Historical Baseline**: ~40% orphaned rate
+- **Status**: [NORMAL / ⚠️ ELEVATED] (flag if today's rate > 50%)
+
+### Escalation Candidates
+
+| Branch | PR | Gate Count | Wait Time | Severity | Recommended Action |
+|--------|-----|------------|-----------|----------|--------------------|
+| [branch-name] | #[N] | [N] gates | [Xh Ym] | 🔴 Critical / 🟠 High / 🟡 Warning | Assign agent / Manual review |
+
+_(If no escalation candidates: "✅ No orphaned branches exceed the escalation threshold today.")_
+
+### CI Waste Estimate
+
+- **Orphaned gate-hours today**: [N] gate × [Xh] ≈ [N] CI-minutes wasted
+- **Recoverable capacity**: Assigning agents to critical/high branches could recover ~[%] of orphaned CI capacity
 
 ## Notable Observations
 
@@ -447,6 +574,9 @@ A successful analysis includes:
 - ✅ Created comprehensive GitHub Discussion
 - ✅ Included experimental strategy (if 30% probability triggered)
 - ✅ Provided clear, data-driven insights
+- ✅ Detected orphaned branches with ≥5 gate firings and no agent for >2 hours
+- ✅ Reported escalation alerts in the "Orphaned Branch Escalation Alerts" section
+- ✅ Compared today's orphaned rate against historical baseline and flagged elevated patterns
 
 ## Notes
 
