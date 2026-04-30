@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -197,6 +199,139 @@ func TestParseTagRefTSV(t *testing.T) {
 			}
 			if objType != tt.wantType {
 				t.Errorf("ParseTagRefTSV(%q): type = %q, want %q", tt.input, objType, tt.wantType)
+			}
+		})
+	}
+}
+
+func TestFetchGitObjectPublic(t *testing.T) {
+	commitSHA := "aabbccddeeff00112233445566778899aabbccdd"
+	tagSHA := "1234567890abcdef1234567890abcdef12345678"
+
+	tests := []struct {
+		name       string
+		body       string
+		statusCode int
+		wantSHA    string
+		wantType   string
+		wantErr    bool
+	}{
+		{
+			name:       "commit object",
+			statusCode: 200,
+			body:       `{"object":{"sha":"` + commitSHA + `","type":"commit"}}`,
+			wantSHA:    commitSHA,
+			wantType:   "commit",
+		},
+		{
+			name:       "annotated tag object",
+			statusCode: 200,
+			body:       `{"object":{"sha":"` + tagSHA + `","type":"tag"}}`,
+			wantSHA:    tagSHA,
+			wantType:   "tag",
+		},
+		{
+			name:       "http error",
+			statusCode: 404,
+			body:       `{"message":"Not Found"}`,
+			wantErr:    true,
+		},
+		{
+			name:       "malformed json",
+			statusCode: 200,
+			body:       `not json`,
+			wantErr:    true,
+		},
+		{
+			name:       "missing sha field",
+			statusCode: 200,
+			body:       `{"object":{"type":"commit"}}`,
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tt.statusCode)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer srv.Close()
+
+			sha, objType, err := fetchGitObjectPublic(srv.URL)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("fetchGitObjectPublic: expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("fetchGitObjectPublic: unexpected error: %v", err)
+			}
+			if sha != tt.wantSHA {
+				t.Errorf("sha = %q, want %q", sha, tt.wantSHA)
+			}
+			if objType != tt.wantType {
+				t.Errorf("type = %q, want %q", objType, tt.wantType)
+			}
+		})
+	}
+}
+
+func TestQueryLatestReleaseTagPublic(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		statusCode int
+		wantTag    string
+		wantErr    bool
+	}{
+		{
+			name:       "success",
+			statusCode: 200,
+			body:       `{"tag_name":"v1.2.3","name":"Release 1.2.3"}`,
+			wantTag:    "v1.2.3",
+		},
+		{
+			name:       "not found",
+			statusCode: 404,
+			body:       `{"message":"Not Found"}`,
+			wantErr:    true,
+		},
+		{
+			name:       "empty tag_name",
+			statusCode: 200,
+			body:       `{"tag_name":""}`,
+			wantErr:    true,
+		},
+		{
+			name:       "malformed json",
+			statusCode: 200,
+			body:       `bad json`,
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tt.statusCode)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer srv.Close()
+
+			tag, err := queryLatestReleaseTagPublicFromURL(srv.URL)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("queryLatestReleaseTagPublic: expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("queryLatestReleaseTagPublic: unexpected error: %v", err)
+			}
+			if tag != tt.wantTag {
+				t.Errorf("tag = %q, want %q", tag, tt.wantTag)
 			}
 		})
 	}
