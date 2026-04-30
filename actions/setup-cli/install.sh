@@ -5,7 +5,7 @@ set +o histexpand
 # Script to download and install gh-aw binary for the current OS and architecture
 # Supports: Linux, macOS (Darwin), FreeBSD, Windows (Git Bash/MSYS/Cygwin)
 # If no version is specified, it will use "latest"
-# Note: Checksum validation is currently skipped by default (will be enabled in future releases)
+# SHA256 checksum validation is performed by default to ensure binary integrity.
 # 
 # Usage: ./install.sh [version] [options]
 #
@@ -21,7 +21,7 @@ set +o histexpand
 set -e  # Exit on any error
 
 # Parse arguments
-SKIP_CHECKSUM=true  # Default to true until checksums are available in releases
+SKIP_CHECKSUM=false  # Checksum verification is enabled by default
 TRY_GH_INSTALL=false  # Whether to try gh extension install first
 VERSION=""
 
@@ -29,7 +29,6 @@ VERSION=""
 if [ -n "$INPUT_VERSION" ]; then
     VERSION="$INPUT_VERSION"
     TRY_GH_INSTALL=true  # In GitHub Actions, try gh install first
-    SKIP_CHECKSUM=false  # Enable checksum validation in GitHub Actions
 fi
 
 for arg in "$@"; do
