@@ -199,16 +199,15 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 
 		stepContent := requireCopilotExecutionStep(t, steps)
 
-		// Check that --image-tag is included with custom version (without v prefix)
-		expectedImageTag := "--image-tag " + strings.TrimPrefix(customVersion, "v")
+		// Image tag is now always written to the JSON config file, never as a CLI flag.
+		expectedImageTag := `"imageTag":"` + strings.TrimPrefix(customVersion, "v")
 		if !strings.Contains(stepContent, expectedImageTag) {
-			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
+			t.Errorf("Expected AWF config JSON to contain '%s', got:\n%s", expectedImageTag, stepContent)
 		}
 
-		// Ensure default version is not used when custom version is specified
-		defaultImageTag := "--image-tag " + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
-		if strings.TrimPrefix(customVersion, "v") != strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v") && strings.Contains(stepContent, defaultImageTag) {
-			t.Error("Should use custom version, not default version")
+		// --image-tag must NOT appear as a CLI flag
+		if strings.Contains(stepContent, "--image-tag") {
+			t.Error("--image-tag should not appear as a CLI flag; it is in the config JSON")
 		}
 	})
 

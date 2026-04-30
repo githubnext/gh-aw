@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -278,133 +277,43 @@ func TestSplitDomainList(t *testing.T) {
 	}
 }
 
-// TestAwfSupportsConfigFile verifies the version-gating logic for --config flag support.
-func TestAwfSupportsConfigFile(t *testing.T) {
-	minVer := string(constants.AWFConfigFileMinVersion)
-
-	tests := []struct {
-		name           string
-		firewallConfig *FirewallConfig
-		expected       bool
-	}{
-		{
-			name:           "nil firewall config uses default version → supported",
-			firewallConfig: nil,
-			expected:       true,
-		},
-		{
-			name:           "empty version uses default version → supported",
-			firewallConfig: &FirewallConfig{Version: ""},
-			expected:       true,
-		},
-		{
-			name:           "latest always supported",
-			firewallConfig: &FirewallConfig{Version: "latest"},
-			expected:       true,
-		},
-		{
-			name:           "min version itself is supported",
-			firewallConfig: &FirewallConfig{Version: minVer},
-			expected:       true,
-		},
-		{
-			name:           "version newer than min is supported",
-			firewallConfig: &FirewallConfig{Version: "v0.26.0"},
-			expected:       true,
-		},
-		{
-			name:           "old version predating config file support is not supported",
-			firewallConfig: &FirewallConfig{Version: "v0.25.0"},
-			expected:       false,
-		},
-		{
-			name:           "non-semver branch name is not supported (conservative)",
-			firewallConfig: &FirewallConfig{Version: "my-feature-branch"},
-			expected:       false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := awfSupportsConfigFile(tt.firewallConfig)
-			assert.Equal(t, tt.expected, result, "awfSupportsConfigFile for version %v", func() string {
-				if tt.firewallConfig == nil {
-					return "<nil>"
-				}
-				return tt.firewallConfig.Version
-			}())
-		})
-	}
-}
-
-// TestBuildAWFCommand_UsesConfigFile verifies that BuildAWFCommand produces a run step
-// that writes a JSON config file and references it via --config when the AWF version
-// supports it.
+// TestBuildAWFCommand_UsesConfigFile verifies that BuildAWFCommand always produces a run step
+// that writes a JSON config file and references it via --config.
 func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
-	t.Run("default version uses config file", func(t *testing.T) {
-		config := AWFCommandConfig{
-			EngineName:     "copilot",
-			EngineCommand:  "copilot --prompt-file /tmp/prompt.txt",
-			LogFile:        "/tmp/gh-aw/agent-stdio.log",
-			AllowedDomains: "github.com,api.github.com",
-			WorkflowData: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot"},
-				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{Enabled: true},
-				},
+	config := AWFCommandConfig{
+		EngineName:     "copilot",
+		EngineCommand:  "copilot --prompt-file /tmp/prompt.txt",
+		LogFile:        "/tmp/gh-aw/agent-stdio.log",
+		AllowedDomains: "github.com,api.github.com",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
 			},
-		}
+		},
+	}
 
-		command := BuildAWFCommand(config)
+	command := BuildAWFCommand(config)
 
-		// Should write the config file using printf
-		assert.Contains(t, command, "printf", "expected printf command to write the config file")
-		assert.Contains(t, command, "awf-config.json", "expected awf-config.json reference")
+	// Should write the config file using printf
+	assert.Contains(t, command, "printf", "expected printf command to write the config file")
+	assert.Contains(t, command, "awf-config.json", "expected awf-config.json reference")
 
-		// Should reference the config file via --config
-		assert.Contains(t, command, "--config", "expected --config flag in AWF invocation")
+	// Should reference the config file via --config
+	assert.Contains(t, command, "--config", "expected --config flag in AWF invocation")
 
-		// Should NOT have --allow-domains as a CLI flag (moved to config file)
-		assert.NotContains(t, command, "--allow-domains", "expected --allow-domains to be absent from CLI args")
+	// Should NOT have --allow-domains as a CLI flag (moved to config file)
+	assert.NotContains(t, command, "--allow-domains", "expected --allow-domains to be absent from CLI args")
 
-		// Should NOT have --enable-api-proxy as a CLI flag (moved to config file)
-		assert.NotContains(t, command, "--enable-api-proxy", "expected --enable-api-proxy to be absent from CLI args")
+	// Should NOT have --enable-api-proxy as a CLI flag (moved to config file)
+	assert.NotContains(t, command, "--enable-api-proxy", "expected --enable-api-proxy to be absent from CLI args")
 
-		// Should NOT have --image-tag as a CLI flag (moved to config file)
-		assert.NotContains(t, command, "--image-tag", "expected --image-tag to be absent from CLI args")
+	// Should NOT have --image-tag as a CLI flag (moved to config file)
+	assert.NotContains(t, command, "--image-tag", "expected --image-tag to be absent from CLI args")
 
-		// The JSON content in the printf command should have the expected structure
-		assert.Contains(t, command, `"allowDomains"`, "config JSON should include allowDomains")
-		assert.Contains(t, command, `"enabled":true`, "config JSON should have apiProxy enabled")
-	})
-
-	t.Run("old AWF version falls back to CLI flags", func(t *testing.T) {
-		config := AWFCommandConfig{
-			EngineName:     "copilot",
-			EngineCommand:  "copilot --prompt-file /tmp/prompt.txt",
-			LogFile:        "/tmp/gh-aw/agent-stdio.log",
-			AllowedDomains: "github.com",
-			WorkflowData: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot"},
-				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{
-						Enabled: true,
-						Version: "v0.25.0", // older than AWFConfigFileMinVersion
-					},
-				},
-			},
-		}
-
-		command := BuildAWFCommand(config)
-
-		// Should use CLI flags (no config file)
-		assert.Contains(t, command, "--allow-domains", "expected --allow-domains CLI flag for legacy version")
-		assert.Contains(t, command, "--enable-api-proxy", "expected --enable-api-proxy CLI flag for legacy version")
-		assert.Contains(t, command, "--image-tag", "expected --image-tag CLI flag for legacy version")
-
-		// Should NOT have --config
-		assert.NotContains(t, command, "--config ", "expected no --config flag for legacy version")
-	})
+	// The JSON content in the printf command should have the expected structure
+	assert.Contains(t, command, `"allowDomains"`, "config JSON should include allowDomains")
+	assert.Contains(t, command, `"enabled":true`, "config JSON should have apiProxy enabled")
 }
 
 // TestBuildAWFCommand_ConfigFileWithPathSetup verifies that the config file write command

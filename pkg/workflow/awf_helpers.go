@@ -98,35 +98,30 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		ghAwDir, ghAwDir, ghAwDir, ghAwDir,
 	)
 
-	// When the AWF version supports --config, generate a JSON config file and reference it
-	// via --config "${RUNNER_TEMP}/gh-aw/awf-config.json". This replaces several verbose CLI
-	// flags (--allow-domains, --enable-api-proxy, --image-tag, API targets) with a structured
-	// JSON file that is easier to audit and extend.
+	// Generate a JSON config file and reference it via --config "${RUNNER_TEMP}/gh-aw/awf-config.json".
+	// This replaces several verbose CLI flags (--allow-domains, --enable-api-proxy, --image-tag,
+	// API targets) with a structured JSON file that is easier to audit and extend.
 	//
 	// The config file is written at runtime (inside the run: step) immediately before the AWF
 	// invocation, using printf to a fixed path inside the pre-existing ${RUNNER_TEMP}/gh-aw/
 	// directory that is already set up by actions/setup.
 	var configFileSetup string
-	firewallConfig := getFirewallConfig(config.WorkflowData)
-	if awfSupportsConfigFile(firewallConfig) {
-		if awfConfigJSON, err := BuildAWFConfigJSON(config); err == nil {
-			// Write the config JSON to ${RUNNER_TEMP}/gh-aw/awf-config.json before AWF runs.
-			// printf '%s\n' '...' is safe here because JSON uses only double quotes (never
-			// single quotes), so single-quoting the JSON string requires no further escaping
-			// in practice. shellEscapeArg handles the edge case where a domain value might
-			// somehow contain a single quote.
-			configFileSetup = fmt.Sprintf(
-				"printf '%%s\\n' %s > \"${RUNNER_TEMP}/gh-aw/awf-config.json\"",
-				shellEscapeArg(awfConfigJSON),
-			)
-			// Add --config as the first expandable arg so it appears before --container-workdir.
-			expandableArgs = `--config "${RUNNER_TEMP}/gh-aw/awf-config.json" ` + expandableArgs
-			awfHelpersLog.Print("Using AWF config file (--config flag)")
-		} else {
-			awfHelpersLog.Printf("Warning: failed to build AWF config JSON, falling back to CLI flags: %v", err)
-		}
+	awfConfigJSON, err := BuildAWFConfigJSON(config)
+	if err != nil {
+		awfHelpersLog.Printf("Warning: failed to build AWF config JSON: %v", err)
 	} else {
-		awfHelpersLog.Printf("AWF version does not support --config flag; using CLI flags only")
+		// Write the config JSON to ${RUNNER_TEMP}/gh-aw/awf-config.json before AWF runs.
+		// printf '%s\n' '...' is safe here because JSON uses only double quotes (never
+		// single quotes), so single-quoting the JSON string requires no further escaping
+		// in practice. shellEscapeArg handles the edge case where a domain value might
+		// somehow contain a single quote.
+		configFileSetup = fmt.Sprintf(
+			"printf '%%s\\n' %s > \"${RUNNER_TEMP}/gh-aw/awf-config.json\"",
+			shellEscapeArg(awfConfigJSON),
+		)
+		// Add --config as the first expandable arg so it appears before --container-workdir.
+		expandableArgs = `--config "${RUNNER_TEMP}/gh-aw/awf-config.json" ` + expandableArgs
+		awfHelpersLog.Print("Using AWF config file (--config flag)")
 	}
 
 	// When upload_artifact is configured, add a read-write mount for the staging directory
@@ -228,9 +223,11 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 // BuildAWFArgs constructs common AWF arguments from configuration.
 // This extracts the shared AWF argument building logic from engine implementations.
 //
-// When the AWF version supports --config (see awfSupportsConfigFile), the following
-// flags are omitted here because they are expressed in the generated JSON config file
-// written by BuildAWFCommand instead:
+// BuildAWFArgs constructs common AWF arguments from configuration.
+// This extracts the shared AWF argument building logic from engine implementations.
+//
+// The following flags are expressed in the generated JSON config file written by
+// BuildAWFCommand and are therefore not emitted here:
 //   - --allow-domains / --block-domains   → network.allowDomains / network.blockDomains
 //   - --enable-api-proxy                  → apiProxy.enabled
 //   - --image-tag                         → container.imageTag
@@ -250,9 +247,6 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 
 	firewallConfig := getFirewallConfig(config.WorkflowData)
 	agentConfig := getAgentConfig(config.WorkflowData)
-
-	// Determine whether network/image/apiProxy config moves to the JSON config file.
-	usingConfigFile := awfSupportsConfigFile(firewallConfig)
 
 	var awfArgs []string
 
@@ -300,23 +294,6 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
 	}
 
-	if !usingConfigFile {
-		// Add allowed domains. When the value contains ${{ }} GitHub Actions expressions,
-		// shellEscapeArg (via shellJoinArgs) double-quotes it so the expression is preserved
-		// for GA evaluation. Otherwise it escapes or quotes only when needed (typically using
-		// single quotes for shell-special content), which safely handles wildcards like
-		// *.domain.com without shell glob expansion.
-		awfArgs = append(awfArgs, "--allow-domains", config.AllowedDomains)
-
-		// Add blocked domains if specified
-		blockedDomains := formatBlockedDomains(config.WorkflowData.NetworkPermissions)
-		if blockedDomains != "" {
-			// Same quoting rationale as --allow-domains above
-			awfArgs = append(awfArgs, "--block-domains", blockedDomains)
-			awfHelpersLog.Printf("Added blocked domains: %s", blockedDomains)
-		}
-	}
-
 	// Set log level
 	awfLogLevel := string(constants.AWFDefaultLogLevel)
 	if firewallConfig != nil && firewallConfig.LogLevel != "" {
@@ -351,23 +328,9 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Skipping --allow-host-ports: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAllowHostPortsMinVersion)
 	}
 
-	if !usingConfigFile {
-		// Pin AWF Docker image version to match the installed binary version and include
-		// digest metadata when available so AWF uses immutable image references.
-		awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
-		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
-		awfHelpersLog.Printf("Pinned AWF image tag to %s", awfImageTag)
-	}
-
 	// Skip pulling images since they are pre-downloaded
 	awfArgs = append(awfArgs, "--skip-pull")
 	awfHelpersLog.Print("Using --skip-pull since images are pre-downloaded")
-
-	if !usingConfigFile {
-		// Enable API proxy sidecar (always required for LLM gateway)
-		awfArgs = append(awfArgs, "--enable-api-proxy")
-		awfHelpersLog.Print("Added --enable-api-proxy for LLM API proxying")
-	}
 
 	// Enable CLI proxy sidecar when GitHub mode is gh-proxy.
 	// Start the difc-proxy on the host and tell AWF where to connect
@@ -379,39 +342,6 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 			awfHelpersLog.Print("Added --difc-proxy-host and --difc-proxy-ca-cert for CLI proxy sidecar")
 		} else {
 			awfHelpersLog.Printf("Skipping CLI proxy flags: AWF version %q is older than minimum %s", getAWFImageTag(firewallConfig), constants.AWFCliProxyMinVersion)
-		}
-	}
-
-	if !usingConfigFile {
-		// Add custom API targets if configured in engine.env
-		// This allows AWF's credential isolation and firewall to work with custom endpoints
-		// (e.g., corporate LLM routers, Azure OpenAI, self-hosted APIs)
-		openaiTarget := extractAPITargetHost(config.WorkflowData, "OPENAI_BASE_URL")
-		if openaiTarget != "" {
-			awfArgs = append(awfArgs, "--openai-api-target", openaiTarget)
-			awfHelpersLog.Printf("Added --openai-api-target=%s", openaiTarget)
-		}
-
-		anthropicTarget := extractAPITargetHost(config.WorkflowData, "ANTHROPIC_BASE_URL")
-		if anthropicTarget != "" {
-			awfArgs = append(awfArgs, "--anthropic-api-target", anthropicTarget)
-			awfHelpersLog.Printf("Added --anthropic-api-target=%s", anthropicTarget)
-		}
-
-		// Add Copilot API target for custom Copilot endpoints (GHEC, GHES, or custom).
-		// Resolved from engine.api-target (explicit) or GITHUB_COPILOT_BASE_URL in engine.env (implicit).
-		if copilotTarget := GetCopilotAPITarget(config.WorkflowData); copilotTarget != "" {
-			awfArgs = append(awfArgs, "--copilot-api-target", copilotTarget)
-			awfHelpersLog.Printf("Added --copilot-api-target=%s", copilotTarget)
-		}
-
-		// Add Gemini API target for the LLM gateway proxy.
-		// Unlike OpenAI/Anthropic/Copilot where AWF has built-in default routing,
-		// Gemini requires an explicit target so the proxy knows where to forward requests.
-		// Defaults to generativelanguage.googleapis.com when the engine is Gemini.
-		if geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName); geminiTarget != "" {
-			awfArgs = append(awfArgs, "--gemini-api-target", geminiTarget)
-			awfHelpersLog.Printf("Added --gemini-api-target=%s", geminiTarget)
 		}
 	}
 
@@ -751,38 +681,5 @@ func awfSupportsAllowHostPorts(firewallConfig *FirewallConfig) bool {
 	}
 
 	minVersion := string(constants.AWFAllowHostPortsMinVersion)
-	return semverutil.Compare(versionStr, minVersion) >= 0
-}
-
-// awfSupportsConfigFile returns true when the effective AWF version supports the
-// --config flag for loading configuration from a JSON/YAML file.
-//
-// When supported, the compiler generates a JSON config file that replaces several
-// verbose CLI flags (--allow-domains, --enable-api-proxy, --image-tag, API targets)
-// with a single structured file referenced via --config.
-//
-// Special cases:
-//   - No version override (firewallConfig is nil or has no Version): use DefaultFirewallVersion
-//     which is always ≥ AWFConfigFileMinVersion → returns true.
-//   - "latest": always returns true (latest is always a new release).
-//   - Any semver string ≥ AWFConfigFileMinVersion: returns true.
-//   - Any semver string < AWFConfigFileMinVersion: returns false.
-//   - Non-semver string (e.g. a branch name): returns false (conservative).
-func awfSupportsConfigFile(firewallConfig *FirewallConfig) bool {
-	var versionStr string
-	if firewallConfig != nil && firewallConfig.Version != "" {
-		versionStr = firewallConfig.Version
-	} else {
-		// No override → use the default, which is always ≥ the minimum.
-		return true
-	}
-
-	// "latest" means the newest release — always supports the flag.
-	if strings.EqualFold(versionStr, "latest") {
-		return true
-	}
-
-	// Normalise the v-prefix for semverutil.Compare.
-	minVersion := string(constants.AWFConfigFileMinVersion)
 	return semverutil.Compare(versionStr, minVersion) >= 0
 }

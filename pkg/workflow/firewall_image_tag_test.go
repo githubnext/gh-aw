@@ -92,37 +92,6 @@ func TestClaudeEngineAWFImageTag(t *testing.T) {
 			t.Error("Expected AWF config JSON to contain 'imageTag' field")
 		}
 	})
-
-	t.Run("AWF command includes --image-tag with custom old version (legacy fallback)", func(t *testing.T) {
-		customVersion := "v0.5.0"
-		workflowData := &WorkflowData{
-			Name: "test-workflow",
-			EngineConfig: &EngineConfig{
-				ID: "claude",
-			},
-			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{
-					Enabled: true,
-					Version: customVersion,
-				},
-			},
-		}
-
-		engine := NewClaudeEngine()
-		steps := engine.GetExecutionSteps(workflowData, "test.log")
-
-		if len(steps) == 0 {
-			t.Fatal("Expected at least one execution step")
-		}
-
-		stepContent := strings.Join(steps[0], "\n")
-
-		// Old version < AWFConfigFileMinVersion → falls back to CLI flag
-		expectedImageTag := "--image-tag " + strings.TrimPrefix(customVersion, "v")
-		if !strings.Contains(stepContent, expectedImageTag) {
-			t.Errorf("Expected AWF command to contain '%s' for legacy version, got:\n%s", expectedImageTag, stepContent)
-		}
-	})
 }
 
 // TestCodexEngineAWFImageTag tests that Codex engine includes image tag in AWF config JSON
@@ -156,37 +125,6 @@ func TestCodexEngineAWFImageTag(t *testing.T) {
 		}
 		if !strings.Contains(stepContent, "imageTag") {
 			t.Error("Expected AWF config JSON to contain 'imageTag' field")
-		}
-	})
-
-	t.Run("AWF command includes --image-tag with custom old version (legacy fallback)", func(t *testing.T) {
-		customVersion := "v0.5.0"
-		workflowData := &WorkflowData{
-			Name: "test-workflow",
-			EngineConfig: &EngineConfig{
-				ID: "codex",
-			},
-			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{
-					Enabled: true,
-					Version: customVersion,
-				},
-			},
-		}
-
-		engine := NewCodexEngine()
-		steps := engine.GetExecutionSteps(workflowData, "test.log")
-
-		if len(steps) == 0 {
-			t.Fatal("Expected at least one execution step")
-		}
-
-		stepContent := strings.Join(steps[0], "\n")
-
-		// Old version < AWFConfigFileMinVersion → falls back to CLI flag
-		expectedImageTag := "--image-tag " + strings.TrimPrefix(customVersion, "v")
-		if !strings.Contains(stepContent, expectedImageTag) {
-			t.Errorf("Expected AWF command to contain '%s' for legacy version, got:\n%s", expectedImageTag, stepContent)
 		}
 	})
 }

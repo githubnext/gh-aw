@@ -268,35 +268,6 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 		assert.NotContains(t, argsStr, "--openai-api-target", "Should not emit --openai-api-target as CLI flag")
 		assert.NotContains(t, argsStr, "--anthropic-api-target", "Should not emit --anthropic-api-target as CLI flag")
 	})
-
-	t.Run("legacy old AWF version still emits API targets as CLI flags", func(t *testing.T) {
-		workflowData := &WorkflowData{
-			Name: "test-workflow",
-			EngineConfig: &EngineConfig{
-				ID: "codex",
-				Env: map[string]string{
-					"OPENAI_BASE_URL": "https://llm-router.internal.example.com/v1",
-				},
-			},
-			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{
-					Enabled: true,
-					Version: "v0.25.0", // older than AWFConfigFileMinVersion
-				},
-			},
-		}
-
-		config := AWFCommandConfig{
-			EngineName:     "codex",
-			WorkflowData:   workflowData,
-			AllowedDomains: "github.com",
-		}
-
-		args := BuildAWFArgs(config)
-		argsStr := strings.Join(args, " ")
-		assert.Contains(t, argsStr, "--openai-api-target", "Legacy version should emit --openai-api-target as CLI flag")
-		assert.Contains(t, argsStr, "llm-router.internal.example.com", "Should include custom hostname")
-	})
 }
 
 // TestExtractAPIBasePath tests the extractAPIBasePath function that extracts
@@ -1468,38 +1439,8 @@ func TestBuildAWFArgs_ImageTagIncludesDigests(t *testing.T) {
 	assert.Contains(t, awfConfigJSON, "agent=sha256:", "expected agent digest metadata in AWF config JSON")
 	assert.Contains(t, awfConfigJSON, "api-proxy=sha256:", "expected api-proxy digest metadata in AWF config JSON")
 
-	// --image-tag should NOT appear in the CLI args when config file is used.
+	// --image-tag should NOT appear in the CLI args (it's in the config file).
 	args := BuildAWFArgs(config)
 	argsStr := strings.Join(args, " ")
 	assert.NotContains(t, argsStr, "--image-tag", "expected --image-tag to be absent from CLI args when config file is used")
-}
-
-func TestBuildAWFArgs_ImageTagLegacyOldVersion(t *testing.T) {
-	// When the workflow pins an old AWF version that predates --config support,
-	// --image-tag must still be emitted as a CLI flag (legacy fallback).
-	config := AWFCommandConfig{
-		EngineName:     "copilot",
-		AllowedDomains: "github.com",
-		WorkflowData: &WorkflowData{
-			EngineConfig: &EngineConfig{ID: "copilot"},
-			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{
-					Enabled: true,
-					Version: "v0.25.0", // older than AWFConfigFileMinVersion
-				},
-			},
-		},
-	}
-
-	args := BuildAWFArgs(config)
-
-	imageTagValue := ""
-	for i := range len(args) - 1 {
-		if args[i] == "--image-tag" {
-			imageTagValue = args[i+1]
-			break
-		}
-	}
-
-	assert.NotEmpty(t, imageTagValue, "expected --image-tag argument for legacy AWF version")
 }

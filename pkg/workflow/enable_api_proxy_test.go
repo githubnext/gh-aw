@@ -138,32 +138,4 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 			t.Error("Expected Gemini AWF command to contain apiProxy enabled in config JSON")
 		}
 	})
-
-	t.Run("legacy old AWF version still emits --enable-api-proxy CLI flag", func(t *testing.T) {
-		workflowData := &WorkflowData{
-			Name: "test-workflow",
-			EngineConfig: &EngineConfig{
-				ID: "copilot",
-			},
-			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{
-					Enabled: true,
-					Version: "v0.25.0", // older than AWFConfigFileMinVersion
-				},
-			},
-		}
-
-		config := AWFCommandConfig{
-			EngineName:     "copilot",
-			AllowedDomains: "github.com",
-			WorkflowData:   workflowData,
-		}
-
-		args := BuildAWFArgs(config)
-		argsStr := strings.Join(args, " ")
-
-		if !strings.Contains(argsStr, "--enable-api-proxy") {
-			t.Error("Expected --enable-api-proxy CLI flag for legacy AWF version")
-		}
-	})
 }
