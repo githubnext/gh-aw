@@ -651,6 +651,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
+        id: check_permissions
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -661,6 +662,7 @@ jobs:
             await main();
 
       - name: Disable agentic workflow
+        if: ${{ steps.check_permissions.outcome == 'success' }}
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -698,6 +700,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
+        id: check_permissions
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -708,6 +711,7 @@ jobs:
             await main();
 
       - name: Apply safe outputs from referenced run
+        if: ${{ steps.check_permissions.outcome == 'success' }}
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

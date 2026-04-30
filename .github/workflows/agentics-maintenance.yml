@@ -577,6 +577,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
+        id: check_permissions
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -587,6 +588,7 @@ jobs:
             await main();
 
       - name: Disable agentic workflow
+        if: ${{ steps.check_permissions.outcome == 'success' }}
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -619,6 +621,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
+        id: check_permissions
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -629,6 +632,7 @@ jobs:
             await main();
 
       - name: Apply safe outputs from referenced run
+        if: ${{ steps.check_permissions.outcome == 'success' }}
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -619,9 +619,16 @@ func TestGenerateMaintenanceWorkflow_DisableAgenticWorkflowJob(t *testing.T) {
 		t.Errorf("label_disable_agentic_workflow job should use disable_agentic_workflow.cjs script in:\n%s", disableJobSection)
 	}
 
-	// Verify the job includes the permission check step
+	// Verify the job includes the permission check step with an id and that the operation step
+	// has an explicit if condition referencing that id (so unauthorized users cannot bypass the check)
 	if !strings.Contains(disableJobSection, "check_team_member.cjs") {
 		t.Errorf("label_disable_agentic_workflow job should check permissions using check_team_member.cjs in:\n%s", disableJobSection)
+	}
+	if !strings.Contains(disableJobSection, "id: check_permissions") {
+		t.Errorf("label_disable_agentic_workflow permission check step should have id: check_permissions in:\n%s", disableJobSection)
+	}
+	if !strings.Contains(disableJobSection, "steps.check_permissions.outcome == 'success'") {
+		t.Errorf("label_disable_agentic_workflow operation step should have if: steps.check_permissions.outcome == 'success' in:\n%s", disableJobSection)
 	}
 }
 
@@ -762,6 +769,19 @@ func TestGenerateMaintenanceWorkflow_LabelTriggers_Default(t *testing.T) {
 	// The label_apply_safe_outputs job should be present by default
 	if !strings.Contains(yaml, "label_apply_safe_outputs:") {
 		t.Error("By default (no config) the label_apply_safe_outputs job should be present")
+	}
+
+	// Verify label_apply_safe_outputs job has an explicit step id and if condition so that
+	// the operation step only runs when the permission check passes
+	applySafeIdx := strings.Index(yaml, "\n  label_apply_safe_outputs:")
+	if applySafeIdx != -1 {
+		applySection := yaml[applySafeIdx:min(applySafeIdx+2000, len(yaml))]
+		if !strings.Contains(applySection, "id: check_permissions") {
+			t.Errorf("label_apply_safe_outputs permission check step should have id: check_permissions in:\n%s", applySection[:min(500, len(applySection))])
+		}
+		if !strings.Contains(applySection, "steps.check_permissions.outcome == 'success'") {
+			t.Errorf("label_apply_safe_outputs operation step should have if: steps.check_permissions.outcome == 'success' in:\n%s", applySection[:min(500, len(applySection))])
+		}
 	}
 }
 
