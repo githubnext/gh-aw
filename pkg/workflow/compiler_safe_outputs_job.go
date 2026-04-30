@@ -460,7 +460,15 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	)
 
 	jobCondition := agentNotSkipped
-	if threatDetectionEnabled {
+	if IsConditionalDetection(data.SafeOutputs) {
+		// When detection is expression-controlled, the detection job may be skipped at runtime
+		// (expression evaluated to false). Use always() to prevent safe_outputs from being
+		// skipped due to a skipped dependency, and accept both success and skipped results.
+		jobCondition = BuildAnd(
+			BuildAnd(BuildFunctionCall("always"), agentNotSkipped),
+			buildDetectionPassedCondition(),
+		)
+	} else if threatDetectionEnabled {
 		jobCondition = BuildAnd(agentNotSkipped, buildDetectionSuccessCondition())
 	}
 
