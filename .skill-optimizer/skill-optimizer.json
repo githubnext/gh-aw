@@ -33,6 +33,6 @@
     "allowedPaths": ["SKILL.md"],
     "validation": [],
     "maxIterations": 3,
-    "requireCleanGit": false
+    "requireCleanGit": true
   }
 }
