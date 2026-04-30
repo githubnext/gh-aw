@@ -59,7 +59,7 @@
 name: "Copilot Opt"
 "on":
   schedule:
-  - cron: "53 10 * * 1"
+  - cron: "24 20 * * 1"
     # Friendly format: weekly on monday (scattered)
   workflow_dispatch:
     inputs:

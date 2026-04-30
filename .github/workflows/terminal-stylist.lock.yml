@@ -62,7 +62,7 @@
 name: "Terminal Stylist"
 "on":
   schedule:
-  - cron: "39 11 * * *"
+  - cron: "7 4 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

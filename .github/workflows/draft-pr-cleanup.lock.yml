@@ -51,7 +51,7 @@
 name: "Draft PR Cleanup"
 "on":
   schedule:
-  - cron: "51 21 * * *"
+  - cron: "53 2 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

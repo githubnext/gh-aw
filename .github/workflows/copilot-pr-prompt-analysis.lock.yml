@@ -64,7 +64,7 @@
 name: "Copilot PR Prompt Pattern Analysis"
 "on":
   schedule:
-  - cron: "7 4 * * *"
+  - cron: "25 21 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

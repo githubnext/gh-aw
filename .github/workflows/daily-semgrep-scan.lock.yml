@@ -59,7 +59,7 @@
 name: "Daily Semgrep Scan"
 "on":
   schedule:
-  - cron: "29 23 * * *"
+  - cron: "17 9 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

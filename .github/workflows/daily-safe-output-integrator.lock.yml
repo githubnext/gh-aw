@@ -57,7 +57,7 @@
 name: "Daily Safe Output Integrator"
 "on":
   schedule:
-  - cron: "49 22 * * *"
+  - cron: "51 19 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

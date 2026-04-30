@@ -56,7 +56,7 @@
 name: "GPL Dependency Cleaner (gpclean)"
 "on":
   schedule:
-  - cron: "7 4 * * *"
+  - cron: "50 7 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

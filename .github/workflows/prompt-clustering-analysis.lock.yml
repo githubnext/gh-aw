@@ -71,7 +71,7 @@
 name: "Copilot Agent Prompt Clustering Analysis"
 "on":
   schedule:
-  - cron: "46 19 * * *"
+  - cron: "42 7 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
