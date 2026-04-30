@@ -633,7 +633,7 @@
   },
   {
     "name": "add_reviewer",
-    "description": "Add reviewers to a GitHub pull request. Reviewers receive notifications and can approve or request changes. Use 'copilot' as a reviewer name to request the Copilot PR review bot.",
+    "description": "Add reviewers (users or teams) to a GitHub pull request. Reviewers receive notifications and can approve or request changes. Use 'copilot' as a reviewer name to request the Copilot PR review bot. Provide at least one of 'reviewers' (user logins) or 'team_reviewers' (team slugs).",
     "inputSchema": {
       "type": "object",
       "anyOf": [
@@ -1111,7 +1111,7 @@
   },
   {
     "name": "missing_tool",
-    "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
+    "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted. When a bash command is blocked by security policy, call this tool with reason set to \"security\".",
     "inputSchema": {
       "type": "object",
       "required": [

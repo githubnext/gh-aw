@@ -35,6 +35,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -139,7 +140,7 @@ func (c *Compiler) validateEngineInlineDefinition(config *EngineConfig) error {
 				errMsg = fmt.Sprintf("inline engine definition references unknown runtime.id: %s. Known runtime IDs are: %s.\n\nDid you mean: %s?\n\nExample:\nengine:\n  runtime:\n    id: codex\n\nSee: %s",
 					config.ID, enginesStr, suggestions[0], constants.DocsEnginesURL)
 			}
-			return fmt.Errorf("%s", errMsg)
+			return errors.New(errMsg)
 		}
 	}
 

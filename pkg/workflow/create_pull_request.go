@@ -42,6 +42,7 @@ type CreatePullRequestsConfig struct {
 	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for create. Checked independently of protected-files; both checks must pass.
 	ExcludedFiles                  []string `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
 	PreserveBranchName             bool     `yaml:"preserve-branch-name,omitempty"`                // When true, skips the random salt suffix on agent-specified branch names. Invalid characters are still replaced for security; casing is always preserved. Useful when CI enforces branch naming conventions (e.g. Jira keys in uppercase).
+	RecreateRef                    bool     `yaml:"recreate-ref,omitempty"`                        // When true (and preserve-branch-name is true), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD. When false (default), an existing remote branch causes a fallback to issue (or push_failed). Useful for long-lived reusable branches whose previous PR was merged.
 	PatchFormat                    string   `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "am" (default, uses git format-patch) or "bundle" (uses git bundle, preserves merge topology and per-commit metadata).
 	AllowWorkflows                 bool     `yaml:"allow-workflows,omitempty"`                     // When true, adds workflows: write to the GitHub App token. Requires safe-outputs.github-app to be configured.
 }
@@ -125,6 +126,17 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	if err := preprocessIntFieldAsString(configData, "max", createPRLog); err != nil {
 		createPRLog.Printf("Invalid max value: %v", err)
 		return nil
+	}
+
+	// Pre-process list fields that also accept a GitHub Actions expression string.
+	// An expression is wrapped in a single-element []string so the []string struct field
+	// can receive it after YAML unmarshaling; the handler config builder later re-emits it
+	// as a JSON string for runtime evaluation.
+	for _, field := range []string{"labels", "allowed-repos", "allowed-base-branches"} {
+		if err := preprocessStringArrayFieldAsTemplatable(configData, field, createPRLog); err != nil {
+			createPRLog.Printf("Invalid %s value: %v", field, err)
+			return nil
+		}
 	}
 
 	config := parseConfigScaffold(outputMap, "create-pull-request", createPRLog, func(err error) *CreatePullRequestsConfig {

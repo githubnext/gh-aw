@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 func TestGenerateMaintenanceCron(t *testing.T) {
@@ -1223,9 +1225,9 @@ func TestSanitizeRepoForFilename(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got := sanitizeRepoForFilename(tt.input)
+			got := stringutil.SanitizeForFilename(tt.input)
 			if got != tt.expected {
-				t.Errorf("sanitizeRepoForFilename(%q) = %q, want %q", tt.input, got, tt.expected)
+				t.Errorf("stringutil.SanitizeForFilename(%q) = %q, want %q", tt.input, got, tt.expected)
 			}
 		})
 	}

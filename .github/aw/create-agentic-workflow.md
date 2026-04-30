@@ -664,6 +664,36 @@ This gives users the choice of triggering via comment (`/deploy`) or via label, 
 - `slash_command` full reference: https://github.github.com/gh-aw/reference/command-triggers/
 - `label_command` and LabelOps: https://github.github.com/gh-aw/patterns/label-ops/
 
+## Creating Monitoring Workflows
+
+Use `workflow_run` to react to CI/CD pipelines in the same repository. Set `on.workflow_run.conclusion` to filter by result — the compiler converts it into a job `if` condition automatically.
+
+```aw wrap
+---
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    conclusion: failure          # or: [failure, timed_out]
+permissions:
+  contents: read
+tools:
+  github:
+    toolsets: [default]
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+The CI workflow failed for branch `${{ github.event.workflow_run.head_branch }}`.
+
+Use the GitHub MCP tools to find the open pull request for branch `${{ github.event.workflow_run.head_branch }}`. Post a concise comment on that PR summarising the failure and suggesting next steps for the author.
+```
+
+Valid conclusion values: `success`, `failure`, `cancelled`, `skipped`, `timed_out`, `action_required`, `neutral`, `stale`.
+
+> ⚠️ `workflow_run` only works for workflows in the **same repository**. Use `deployment_status` for external deployment services.
+
 ## Best Practices
 
 ### Improver Coding Agents in Large Repositories

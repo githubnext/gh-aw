@@ -319,6 +319,32 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 						if !slices.Contains(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern)) {
 							allowedTools = append(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern))
 						}
+
+						// If unrestricted bash is not already granted, inject the minimal bash
+						// permissions needed to manipulate cache files (create subdirs, read, write,
+						// move). This avoids requiring every workflow author to add these manually.
+						if !slices.Contains(allowedTools, "Bash") {
+							cacheDir := cacheMemoryDirFor(cache.ID)
+							cacheDirSlash := cacheDir + "/"
+							bashCacheTools := []string{
+								fmt.Sprintf("Bash(mkdir -p %s)", cacheDirSlash),
+								fmt.Sprintf("Bash(cat %s)", cacheDirSlash),
+								fmt.Sprintf("Bash(cat > %s)", cacheDirSlash),
+								fmt.Sprintf("Bash(mv %s)", cacheDirSlash),
+							}
+							for _, bashTool := range bashCacheTools {
+								if !slices.Contains(allowedTools, bashTool) {
+									allowedTools = append(allowedTools, bashTool)
+								}
+							}
+							// Add BashOutput and KillBash since bash commands are now allowed
+							if !slices.Contains(allowedTools, "BashOutput") {
+								allowedTools = append(allowedTools, "BashOutput")
+							}
+							if !slices.Contains(allowedTools, "KillBash") {
+								allowedTools = append(allowedTools, "KillBash")
+							}
+						}
 					}
 				}
 				continue

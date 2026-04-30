@@ -331,9 +331,7 @@ The command will:
 - Search the MCP registry for the specified server
 - Check that the tool doesn't already exist in the workflow
 - Add the MCP tool configuration to the workflow's frontmatter
-- Automatically compile the workflow to generate the .lock.yml file
-
-Registry URL defaults to: https://api.mcp.github.com/v0.1`,
+- Automatically compile the workflow to generate the .lock.yml file`,
 		Args: cobra.RangeArgs(0, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")

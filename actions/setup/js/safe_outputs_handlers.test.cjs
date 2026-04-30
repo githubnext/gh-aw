@@ -585,6 +585,51 @@ describe("safe_outputs_handlers", () => {
         delete process.env.GITHUB_REF_NAME;
       }
     });
+
+    it("should fail closed when patch_format resolves to an invalid value", async () => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          patch_format: "invalid-format",
+        },
+      });
+
+      const result = await handlers.createPullRequestHandler({
+        branch: "feature-branch",
+        title: "Test PR",
+        body: "Test description",
+      });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("Invalid patch_format");
+      expect(responseData.error).toContain("am");
+      expect(responseData.error).toContain("bundle");
+      // Must not echo the raw resolved value (could be a secret expression result)
+      expect(responseData.error).not.toContain("invalid-format");
+      // Must not have appended any safe output
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should fail closed when patch_format resolves to an empty string", async () => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          patch_format: "",
+        },
+      });
+
+      const result = await handlers.createPullRequestHandler({
+        branch: "feature-branch",
+        title: "Test PR",
+        body: "Test description",
+      });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("Invalid patch_format");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
   });
 
   describe("pushToPullRequestBranchHandler", () => {
@@ -777,6 +822,47 @@ describe("safe_outputs_handlers", () => {
       } finally {
         delete process.env.GITHUB_BASE_REF;
       }
+    });
+
+    it("should fail closed when patch_format resolves to an invalid value", async () => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        push_to_pull_request_branch: {
+          patch_format: "invalid-format",
+        },
+      });
+
+      const result = await handlers.pushToPullRequestBranchHandler({
+        branch: "feature-branch",
+      });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("Invalid patch_format");
+      expect(responseData.error).toContain("am");
+      expect(responseData.error).toContain("bundle");
+      // Must not echo the raw resolved value (could be a secret expression result)
+      expect(responseData.error).not.toContain("invalid-format");
+      // Must not have appended any safe output
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should fail closed when patch_format resolves to an empty string", async () => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        push_to_pull_request_branch: {
+          patch_format: "",
+        },
+      });
+
+      const result = await handlers.pushToPullRequestBranchHandler({
+        branch: "feature-branch",
+      });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("Invalid patch_format");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
   });
 

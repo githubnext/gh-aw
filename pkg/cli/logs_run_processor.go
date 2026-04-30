@@ -22,6 +22,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/sourcegraph/conc/pool"
 )
@@ -64,13 +65,16 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 	// Get configured max concurrent downloads (default or from environment variable)
 	maxConcurrent := getMaxConcurrentDownloads()
 
-	// Parse repoOverride into owner/repo once for cross-repo artifact download
-	var dlOwner, dlRepo string
+	// Parse repoOverride into host/owner/repo once for cross-repo artifact download.
+	// Accepted formats: "owner/repo" or "HOST/owner/repo".
+	var dlHost, dlOwner, dlRepo string
 	if repoOverride != "" {
-		parts := strings.SplitN(repoOverride, "/", 2)
-		if len(parts) == 2 {
-			dlOwner = parts[0]
-			dlRepo = parts[1]
+		parts := strings.SplitN(repoOverride, "/", 3)
+		switch len(parts) {
+		case 3: // HOST/owner/repo
+			dlHost, dlOwner, dlRepo = parts[0], parts[1], parts[2]
+		case 2: // owner/repo
+			dlOwner, dlRepo = parts[0], parts[1]
 		}
 	}
 
@@ -136,8 +140,17 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				return result, nil
 			}
 
-			// No cached summary or version mismatch - download and process
-			err := downloadRunArtifacts(ctx, run.DatabaseID, runOutputDir, verbose, dlOwner, dlRepo, "", artifactFilter)
+			// No cached summary or version mismatch - download and process.
+			// Use the global owner/repo/host override from --repo when available.
+			// When the global override is absent (stdin mode with per-run URLs), derive
+			// the context from run.URL so each run downloads from the correct repository.
+			runOwner, runRepo, runHost := dlOwner, dlRepo, dlHost
+			if runOwner == "" && run.URL != "" {
+				if c, parseErr := parser.ParseRunURLExtended(run.URL); parseErr == nil && c.Owner != "" {
+					runOwner, runRepo, runHost = c.Owner, c.Repo, c.Host
+				}
+			}
+			err := downloadRunArtifacts(ctx, run.DatabaseID, runOutputDir, verbose, runOwner, runRepo, runHost, artifactFilter)
 
 			result := DownloadResult{
 				Run:      run,

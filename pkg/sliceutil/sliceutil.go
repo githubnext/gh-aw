@@ -62,11 +62,11 @@ func Any[T any](slice []T, predicate func(T) bool) bool {
 // The order of first occurrence is preserved.
 // This is a pure function that does not modify the input slice.
 func Deduplicate[T comparable](slice []T) []T {
-	seen := make(map[T]bool, len(slice))
+	seen := make(map[T]struct{}, len(slice))
 	result := make([]T, 0, len(slice))
 	for _, item := range slice {
-		if !seen[item] {
-			seen[item] = true
+		if _, ok := seen[item]; !ok {
+			seen[item] = struct{}{}
 			result = append(result, item)
 		}
 	}

@@ -28,6 +28,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -277,5 +278,5 @@ func (c *EngineCatalog) Resolve(id string, config *EngineConfig) (*ResolvedEngin
 			constants.DocsEnginesURL)
 	}
 
-	return nil, fmt.Errorf("%s", errMsg)
+	return nil, errors.New(errMsg)
 }

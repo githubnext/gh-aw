@@ -40,6 +40,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -88,7 +89,7 @@ func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 					lineNum+1, actualSize, maxSizeFormatted)
 			}
 
-			return fmt.Errorf("%s", errorMsg)
+			return errors.New(errorMsg)
 		}
 	}
 

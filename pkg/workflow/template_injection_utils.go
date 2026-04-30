@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -30,6 +31,9 @@ func extractRunBlocks(data any) []string {
 		}
 	}
 
+	if len(runBlocks) > 0 {
+		templateInjectionValidationLog.Printf("Extracted %d run block(s) from YAML tree", len(runBlocks))
+	}
 	return runBlocks
 }
 
@@ -63,10 +67,14 @@ var heredocPatterns = func() []heredocPattern {
 // Heredocs (e.g., cat > file << 'EOF' ... EOF) are safe for template expressions
 // because the content is written to files, not executed in the shell.
 func removeHeredocContent(content string) string {
+	templateInjectionValidationLog.Printf("Removing heredoc content from shell command: input_size=%d bytes", len(content))
 	result := content
 	for _, p := range heredocPatterns {
 		result = p.quoted.ReplaceAllString(result, "# heredoc removed")
 		result = p.unquoted.ReplaceAllString(result, "# heredoc removed")
+	}
+	if len(result) != len(content) {
+		templateInjectionValidationLog.Printf("Heredoc content removed: output_size=%d bytes (reduced by %d bytes)", len(result), len(content)-len(result))
 	}
 	return result
 }
@@ -101,6 +109,8 @@ func replaceOutsideQuotedHeredocs(s, old, new string) string {
 	if len(quotedRegions) == 0 {
 		return strings.ReplaceAll(s, old, new)
 	}
+
+	templateInjectionValidationLog.Printf("Replacing outside %d quoted heredoc region(s): replacing %q with %q", len(quotedRegions), old, new)
 
 	// Sort regions by start position so we can walk left-to-right.
 	sort.Slice(quotedRegions, func(i, j int) bool {
@@ -217,5 +227,5 @@ func formatTemplateInjectionError(violations []TemplateInjectionViolation) error
 	builder.WriteString("  - https://docs.zizmor.sh/audits/#template-injection\n")
 	builder.WriteString("  - scratchpad/template-injection-prevention.md\n")
 
-	return fmt.Errorf("%s", builder.String())
+	return errors.New(builder.String())
 }

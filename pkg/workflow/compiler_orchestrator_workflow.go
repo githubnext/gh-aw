@@ -128,7 +128,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.ActionPinWarnings = c.actionPinWarnings
 
 	// Extract YAML configuration sections from frontmatter
-	c.extractYAMLSections(result.Frontmatter, workflowData)
+	if err := c.extractYAMLSections(result.Frontmatter, workflowData); err != nil {
+		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
+	}
 
 	// Merge observability config from imports into RawFrontmatter so that injectOTLPConfig
 	// can see an OTLP endpoint defined in an imported workflow (first-wins from imports).
@@ -265,7 +267,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 
 	workflowData.Roles = c.extractRoles(frontmatter)
-	workflowData.Bots = c.extractBots(frontmatter)
+	workflowData.Bots = c.mergeBots(c.extractBots(frontmatter), importsResult.MergedBots)
 	workflowData.LabelNames = c.extractLabelNames(frontmatter)
 	workflowData.RateLimit = c.extractRateLimitConfig(frontmatter)
 	workflowData.SkipRoles = c.mergeSkipRoles(c.extractSkipRoles(frontmatter), importsResult.MergedSkipRoles)

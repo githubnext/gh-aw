@@ -257,6 +257,76 @@ func TestGitHubConfigParsing(t *testing.T) {
 			t.Errorf("expected 2 toolsets, got %d", len(config.Toolset))
 		}
 	})
+
+	t.Run("coerces single string toolsets to slice", func(t *testing.T) {
+		toolsMap := map[string]any{
+			"github": map[string]any{
+				"toolsets": "default",
+			},
+		}
+
+		tools := NewTools(toolsMap)
+		config := tools.GitHub
+
+		if config == nil {
+			t.Fatal("expected non-nil config")
+		}
+
+		if len(config.Toolset) != 1 {
+			t.Fatalf("expected 1 toolset, got %d", len(config.Toolset))
+		}
+		if config.Toolset[0] != "default" {
+			t.Errorf("expected toolset 'default', got %q", config.Toolset[0])
+		}
+
+		// Verify ToMap() emits an array so compiled YAML always renders an array
+		resultMap := tools.ToMap()
+		githubMap, ok := resultMap["github"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected ToMap()[github] to be map[string]any, got %T", resultMap["github"])
+		}
+		normalized, ok := githubMap["toolsets"].([]any)
+		if !ok {
+			t.Errorf("expected ToMap()[github][toolsets] to be []any after coercion, got %T", githubMap["toolsets"])
+		} else if len(normalized) != 1 || normalized[0] != "default" {
+			t.Errorf("expected normalized toolsets to be [default], got %v", normalized)
+		}
+	})
+
+	t.Run("coerces single string toolset (singular) to slice", func(t *testing.T) {
+		toolsMap := map[string]any{
+			"github": map[string]any{
+				"toolset": "repos",
+			},
+		}
+
+		tools := NewTools(toolsMap)
+		config := tools.GitHub
+
+		if config == nil {
+			t.Fatal("expected non-nil config")
+		}
+
+		if len(config.Toolset) != 1 {
+			t.Fatalf("expected 1 toolset, got %d", len(config.Toolset))
+		}
+		if config.Toolset[0] != "repos" {
+			t.Errorf("expected toolset 'repos', got %q", config.Toolset[0])
+		}
+
+		// Verify ToMap() emits an array so compiled YAML always renders an array
+		resultMap := tools.ToMap()
+		githubMap, ok := resultMap["github"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected ToMap()[github] to be map[string]any, got %T", resultMap["github"])
+		}
+		normalized, ok := githubMap["toolset"].([]any)
+		if !ok {
+			t.Errorf("expected ToMap()[github][toolset] to be []any after coercion, got %T", githubMap["toolset"])
+		} else if len(normalized) != 1 || normalized[0] != "repos" {
+			t.Errorf("expected normalized toolset to be [repos], got %v", normalized)
+		}
+	})
 }
 
 func TestPlaywrightConfigParsing(t *testing.T) {

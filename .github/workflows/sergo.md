@@ -95,7 +95,11 @@ Document all available Serena tools by exploring the MCP server's tool list.
 ### 1.3 Load Previous Tools List from Cache
 Check if you have a cached tools list from previous runs:
 ```bash
-cat /tmp/gh-aw/cache-memory/sergo-tools-list.json
+if [ -f /tmp/gh-aw/cache-memory/sergo-tools-list.json ]; then
+  cat /tmp/gh-aw/cache-memory/sergo-tools-list.json
+else
+  echo "No cached tools list found — this is a first run or the cache expired. Start fresh without a tools history."
+fi
 ```
 
 The file should contain:
@@ -126,7 +130,11 @@ echo '{"last_updated": "<ISO-8601-timestamp>", "tools": [...]}' > /tmp/gh-aw/cac
 ### 2.1 Load Previous Strategies
 Read the strategy history to understand what analysis approaches have been used before:
 ```bash
-cat /tmp/gh-aw/cache-memory/sergo-strategies.jsonl
+if [ -f /tmp/gh-aw/cache-memory/sergo-strategies.jsonl ]; then
+  cat /tmp/gh-aw/cache-memory/sergo-strategies.jsonl
+else
+  echo "No strategy history found — this is a first run or the cache expired. Start fresh with a new exploration strategy."
+fi
 ```
 
 Each line in this JSONL file represents a previous strategy execution:
@@ -588,6 +596,14 @@ Ensure your discussion:
 - **Track trends**: Look for patterns across multiple runs
 - **Prune old data**: Consider keeping last 30-60 days
 - **Document schema**: Keep cache file formats clear
+
+### When to Call `missing_data`
+
+Only call the `missing_data` tool when an **external** dependency is truly unavailable and prevents analysis from completing — for example, the Serena MCP server is unreachable and tools cannot be discovered.
+
+**Do NOT call `missing_data` for**:
+- An absent `sergo-tools-list.json`, `sergo-strategies.jsonl`, or `sergo-stats.json` at startup — this is **expected and normal** for the first run or after a cache reset. Just initialize the files and proceed.
+- Having no historical strategy data to compare against yet.
 
 ### Serena MCP Usage
 - **Explore capabilities**: Don't just use the same tools repeatedly

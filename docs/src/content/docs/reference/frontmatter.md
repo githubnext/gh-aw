@@ -887,7 +887,8 @@ The agent span (`gh-aw.agent.agent`) uses [OpenTelemetry GenAI semantic conventi
 |-----------|-------------|
 | `gen_ai.request.model` | Model name used for inference |
 | `gen_ai.operation.name` | Always `"chat"` |
-| `gen_ai.provider.name` | Engine identifier (e.g. `copilot`, `claude`) |
+| `gen_ai.system` | Standardized OTel system name (e.g. `github_models`, `anthropic`, `openai`, `google_vertex_ai`) |
+| `gh-aw.engine` | gh-aw internal engine identifier (e.g. `copilot`, `claude`, `codex`, `gemini`) |
 | `gen_ai.workflow.name` | Workflow name |
 | `gen_ai.usage.input_tokens` | Total input tokens consumed |
 | `gen_ai.usage.output_tokens` | Total output tokens produced |
@@ -896,6 +897,9 @@ The agent span (`gh-aw.agent.agent`) uses [OpenTelemetry GenAI semantic conventi
 
 > [!NOTE]
 > Prior to v0.70, the agent span used private `gh-aw.*` attribute names (`gh-aw.model`, `gh-aw.tokens.input`, etc.) and `SPAN_KIND_INTERNAL`. These attributes were removed and replaced with the `gen_ai.*` convention above. Update any dashboards or alert rules that reference the old attribute names.
+
+> [!NOTE]
+> Prior to v0.76, the engine was emitted as `gen_ai.provider.name` with the raw gh-aw engine ID. It is now emitted as the standard `gen_ai.system` attribute with a mapped OTel system name, and the raw engine ID is preserved in `gh-aw.engine`.
 
 ## Related Documentation
 

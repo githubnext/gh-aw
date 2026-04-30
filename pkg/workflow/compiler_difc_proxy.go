@@ -248,7 +248,7 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	containerImage := resolveProxyContainerImage(data.SandboxConfig.MCP)
 
 	var sb strings.Builder
-	sb.WriteString("      - name: Start DIFC Proxy for pre-agent gh calls\n")
+	sb.WriteString("      - name: Start DIFC Proxy\n")
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_TOKEN: %s\n", effectiveToken)
 	sb.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")

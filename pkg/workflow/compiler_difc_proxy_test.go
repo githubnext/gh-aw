@@ -326,7 +326,7 @@ func TestGenerateStartDIFCProxyStep(t *testing.T) {
 
 		result := yaml.String()
 		require.NotEmpty(t, result, "should generate proxy start step")
-		assert.Contains(t, result, "Start DIFC Proxy for pre-agent gh calls", "step name should be present")
+		assert.Contains(t, result, "Start DIFC Proxy", "step name should be present")
 		assert.Contains(t, result, "GH_TOKEN:", "step should include GH_TOKEN env var")
 		assert.Contains(t, result, "GITHUB_SERVER_URL:", "step should include GITHUB_SERVER_URL env var")
 		assert.Contains(t, result, "DIFC_PROXY_POLICY:", "step should include policy as env var")
@@ -434,7 +434,7 @@ Test that DIFC proxy is injected by default when min-integrity is set with custo
 	require.NoError(t, err, "compilation should succeed")
 
 	// Verify proxy start step is present
-	assert.Contains(t, result, "Start DIFC Proxy for pre-agent gh calls",
+	assert.Contains(t, result, "Start DIFC Proxy",
 		"compiled workflow should contain proxy start step")
 
 	// Verify proxy stop step is present
@@ -459,7 +459,7 @@ Test that DIFC proxy is injected by default when min-integrity is set with custo
 		"custom step should have NODE_EXTRA_CA_CERTS in step-level env")
 
 	// Verify step ordering: Start proxy must come before Stop proxy
-	startIdx := strings.Index(result, "Start DIFC Proxy for pre-agent gh calls")
+	startIdx := strings.Index(result, "Start DIFC Proxy")
 	stopIdx := strings.Index(result, "Stop DIFC Proxy")
 	require.Greater(t, startIdx, -1, "start proxy step should be in output")
 	require.Greater(t, stopIdx, -1, "stop proxy step should be in output")

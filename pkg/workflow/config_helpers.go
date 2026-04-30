@@ -83,6 +83,46 @@ func extractStringSliceFromConfig(config map[string]any, key string) []string {
 	return parseStringSliceAny(raw, nil)
 }
 
+// ParseStringArrayOrExprFromConfig is like ParseStringArrayFromConfig but also accepts a
+// GitHub Actions expression string as a valid value.  When the raw value is an expression
+// (starts with "${{" and ends with "}}") it is returned as []string{exprString} so that
+// the handler config builder can later detect and re-emit it as a JSON string rather than
+// a JSON array.
+//
+// Non-expression bare strings are treated as invalid and nil is returned.
+func ParseStringArrayOrExprFromConfig(m map[string]any, key string, log *logger.Logger) []string {
+	if value, exists := m[key]; exists {
+		if log != nil {
+			log.Printf("Parsing %s from config", key)
+		}
+		// Accept a GitHub Actions expression string: wrap it in a single-element slice.
+		if s, ok := value.(string); ok {
+			if isExpression(s) {
+				if log != nil {
+					log.Printf("Field %s is a GitHub Actions expression, wrapping in single-element array", key)
+				}
+				return []string{s}
+			}
+			// Non-expression string is invalid for an array field.
+			if log != nil {
+				log.Printf("Field %q must be an array or a GitHub Actions expression, ignoring non-expression string: %q", key, s)
+			}
+			return nil
+		}
+		// Handle arrays (existing logic).
+		if strings := parseStringSliceAny(value, log); strings != nil {
+			if len(strings) == 0 && log != nil {
+				log.Printf("No valid %s strings found, returning empty array", key)
+			}
+			if log != nil {
+				log.Printf("Parsed %d %s from config", len(strings), key)
+			}
+			return strings
+		}
+	}
+	return nil
+}
+
 // parseLabelsFromConfig extracts and validates labels from a config map
 // Returns a slice of label strings, or nil if labels is not present or invalid
 func parseLabelsFromConfig(configMap map[string]any) []string {

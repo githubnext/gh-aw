@@ -246,20 +246,13 @@ func getCustomJobsBeforeActivation(data *WorkflowData) []string {
 // parseNeedsField parses the needs field from a job configuration
 // The needs field can be a string (single dependency) or an array of strings
 func parseNeedsField(needsField any) []string {
-	switch v := needsField.(type) {
-	case string:
-		return []string{v}
-	case []string:
-		return v
-	case []any:
-		var result []string
-		for _, item := range v {
-			if str, ok := item.(string); ok {
-				result = append(result, str)
-			}
-		}
-		return result
-	default:
+	// GitHub Actions allows `needs: "single-dep"` as shorthand for `needs: ["single-dep"]`
+	if s, ok := needsField.(string); ok {
+		return []string{s}
+	}
+	result := parseStringSliceAny(needsField, nil)
+	if result == nil {
 		return []string{}
 	}
+	return result
 }

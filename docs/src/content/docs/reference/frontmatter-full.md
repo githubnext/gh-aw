@@ -1947,11 +1947,18 @@ tools:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-    # Array of GitHub MCP server toolset names to enable specific groups of GitHub API
-    # functionalities
+    # GitHub MCP server toolset name(s) to enable. Accepts a single toolset name
+    # (string) or an array of toolset names.
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: A single GitHub MCP server toolset name (shorthand for a one-element
+    # array)
+
+    # Option 2: Array of GitHub MCP server toolset names to enable specific groups of
+    # GitHub API functionalities
     toolsets: []
-      # Array of Toolset name
+      # Array items: undefined
 
     # Volume mounts for the containerized GitHub MCP server (format:
     # 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write).
@@ -3670,6 +3677,15 @@ safe-outputs:
     # 'bugfix/BR-329-red'). Defaults to false.
     # (optional)
     preserve-branch-name: true
+
+    # When true (and preserve-branch-name is true), allows the handler to force-delete
+    # an existing remote branch ref and recreate it from the agent's local HEAD. When
+    # false (default), if the agent-specified branch already exists on the remote with
+    # preserve-branch-name enabled, the handler falls back (e.g. opens an issue)
+    # rather than overwriting the remote ref. Useful for long-lived reusable branches
+    # whose previous PR was merged.
+    # (optional)
+    recreate-ref: true
 
     # List of glob patterns for files to exclude from the patch. Each pattern is
     # passed to `git format-patch` as a `:(exclude)<pattern>` magic pathspec, so

@@ -219,7 +219,9 @@ interface RemoveLabelsItem extends BaseSafeOutputItem {
 interface AddReviewerItem extends BaseSafeOutputItem {
   type: "add_reviewer";
   /** Array of GitHub usernames to add as reviewers */
-  reviewers: string[];
+  reviewers?: string[];
+  /** Array of GitHub team slugs to add as team reviewers */
+  team_reviewers?: string[];
   /** Pull request number (optional - uses triggering PR if not provided) */
   pull_request_number?: number | string;
 }

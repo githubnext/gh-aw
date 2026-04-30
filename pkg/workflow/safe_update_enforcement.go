@@ -1,7 +1,7 @@
 package workflow
 
 import (
-	"fmt"
+	"errors"
 	"sort"
 	"strings"
 
@@ -254,7 +254,7 @@ func buildSafeUpdateError(secretViolations, addedActions, removedActions []strin
 	}
 
 	sb.WriteString("\n\nRemediation options:\n  1. Use the --approve flag to allow the changes.\n  2. Revert the unapproved changes.\n  3. Use an interactive coding agent to review and approve the changes.")
-	return fmt.Errorf("%s", sb.String())
+	return errors.New(sb.String())
 }
 
 // buildSafeUpdateWarningPrompt wraps the raw safe update violation message in a

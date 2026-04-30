@@ -179,9 +179,11 @@ func validateGlobList(eventMap map[string]any, eventName, filterKey string, isPa
 		return nil
 	}
 
-	patterns, err := toStringSlice(val)
-	if err != nil {
-		// Non-string-list values are skipped; schema validation handles type errors separately
+	patterns := parseStringSliceAny(val, nil)
+	if len(patterns) == 0 {
+		// Skip when the value is absent, empty, or a non-list type.
+		// parseStringSliceAny returns nil for unrecognised types (e.g., int, bool);
+		// those type errors are handled separately by schema validation.
 		return nil
 	}
 

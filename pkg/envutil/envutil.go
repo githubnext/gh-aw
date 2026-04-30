@@ -26,8 +26,16 @@ import (
 //   - Value cannot be parsed as an integer
 //   - Value is outside the [minValue, maxValue] range
 //
-// Invalid values trigger warning messages to stderr.
+// Invalid values trigger warning messages to stderr, or through the logger if provided.
 func GetIntFromEnv(envVar string, defaultValue, minValue, maxValue int, log *logger.Logger) int {
+	warn := func(msg string) {
+		if log != nil {
+			log.Printf("WARNING: %s", msg)
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+		}
+	}
+
 	envValue := os.Getenv(envVar)
 	if envValue == "" {
 		return defaultValue
@@ -35,16 +43,12 @@ func GetIntFromEnv(envVar string, defaultValue, minValue, maxValue int, log *log
 
 	val, err := strconv.Atoi(envValue)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-			fmt.Sprintf("Invalid %s value '%s' (must be a number), using default %d", envVar, envValue, defaultValue),
-		))
+		warn(fmt.Sprintf("Invalid %s value '%s' (must be a number), using default %d", envVar, envValue, defaultValue))
 		return defaultValue
 	}
 
 	if val < minValue || val > maxValue {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-			fmt.Sprintf("%s value %d is out of bounds (must be %d-%d), using default %d", envVar, val, minValue, maxValue, defaultValue),
-		))
+		warn(fmt.Sprintf("%s value %d is out of bounds (must be %d-%d), using default %d", envVar, val, minValue, maxValue, defaultValue))
 		return defaultValue
 	}
 

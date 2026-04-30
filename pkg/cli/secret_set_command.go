@@ -118,7 +118,7 @@ Examples:
 	}
 
 	addRepoFlag(cmd)
-	cmd.Flags().StringVar(&flagValue, "value", "", "Secret value (if empty, read from stdin)")
+	cmd.Flags().StringVar(&flagValue, "value", "", "Secret value (if not provided, prompts interactively in a terminal or reads from stdin)")
 	cmd.Flags().StringVar(&flagValueEnv, "value-from-env", "", "Environment variable to read secret value from")
 	cmd.Flags().StringVar(&flagAPIBase, "api-url", "", "GitHub API base URL (default: https://api.github.com or $GITHUB_API_URL)")
 

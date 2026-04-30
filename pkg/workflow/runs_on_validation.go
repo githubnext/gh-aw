@@ -76,20 +76,10 @@ func extractRunnerLabels(runsOn any) []string {
 	case string:
 		labels = append(labels, v)
 	case []any:
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				labels = append(labels, s)
-			}
-		}
+		labels = parseStringSliceAny(v, nil)
 	case map[string]any:
 		if labelsVal, ok := v["labels"]; ok {
-			if labelsArr, ok := labelsVal.([]any); ok {
-				for _, item := range labelsArr {
-					if s, ok := item.(string); ok {
-						labels = append(labels, s)
-					}
-				}
-			}
+			labels = parseStringSliceAny(labelsVal, nil)
 		}
 	}
 

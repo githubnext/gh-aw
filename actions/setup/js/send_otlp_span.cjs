@@ -21,6 +21,26 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 
 // ---------------------------------------------------------------------------
+// OTel GenAI engine-to-system mapping
+// ---------------------------------------------------------------------------
+
+/**
+ * Maps gh-aw internal engine IDs to the OTel GenAI semantic-convention
+ * `gen_ai.system` values expected by Grafana, Datadog, Honeycomb, and Sentry.
+ * Unknown engines fall back to the engine ID as-is.
+ *
+ * Uses Object.create(null) to avoid prototype-pollution risks from keys like
+ * "constructor" or "__proto__" returning unexpected non-string values.
+ * @type {Record<string, string>}
+ */
+const ENGINE_TO_SYSTEM_MAP = Object.assign(Object.create(null), {
+  copilot: "github_models",
+  claude: "anthropic",
+  codex: "openai",
+  gemini: "google_vertex_ai",
+});
+
+// ---------------------------------------------------------------------------
 // Low-level helpers
 // ---------------------------------------------------------------------------
 
@@ -525,6 +545,11 @@ async function sendJobSetupSpan(options = {}) {
   if (deploymentStateSetup) {
     attributes.push(buildAttr("gh-aw.deployment.state", deploymentStateSetup));
   }
+  // Workflow run conclusion: from aw_info or aw_context propagation.
+  const workflowRunConclusion = (typeof awInfo.workflow_run_conclusion === "string" ? awInfo.workflow_run_conclusion : "") || (typeof awInfo.context?.workflow_run_conclusion === "string" ? awInfo.context.workflow_run_conclusion : "");
+  if (workflowRunConclusion) {
+    attributes.push(buildAttr("gh-aw.workflow_run.conclusion", workflowRunConclusion));
+  }
   attributes.push(buildAttr("gh-aw.staged", staged));
   if (itemType) attributes.push(buildAttr("gh-aw.trigger.item_type", itemType));
   if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
@@ -775,6 +800,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (deploymentStateConclusion) {
     attributes.push(buildAttr("gh-aw.deployment.state", deploymentStateConclusion));
   }
+  // Workflow run conclusion: from aw_info or aw_context propagation.
+  const workflowRunConclusion = (typeof awInfo.workflow_run_conclusion === "string" ? awInfo.workflow_run_conclusion : "") || (typeof awInfo.context?.workflow_run_conclusion === "string" ? awInfo.context.workflow_run_conclusion : "");
+  if (workflowRunConclusion) {
+    attributes.push(buildAttr("gh-aw.workflow_run.conclusion", workflowRunConclusion));
+  }
   attributes.push(buildAttr("gh-aw.staged", staged));
   if (itemType) attributes.push(buildAttr("gh-aw.trigger.item_type", itemType));
   if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
@@ -903,9 +933,14 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     // All gh-aw agent executions are chat-style LLM completions.
     agentAttributes.push(buildAttr("gen_ai.operation.name", "chat"));
     if (model) agentAttributes.push(buildAttr("gen_ai.request.model", model));
-    // Emit gen_ai.provider.name when engineId is available; it may be omitted when
-    // engine metadata is unavailable, so this span does not guarantee full GenAI spec compliance.
-    if (engineId) agentAttributes.push(buildAttr("gen_ai.provider.name", engineId));
+    // gen_ai.system is the OTel GenAI standard attribute for the LLM system/provider.
+    // Map the gh-aw internal engine ID to the standardized value so backends can apply
+    // native GenAI dashboard detection. The original engine ID is preserved in gh-aw.engine.
+    if (engineId) {
+      const genAiSystem = ENGINE_TO_SYSTEM_MAP[engineId] || engineId;
+      agentAttributes.push(buildAttr("gen_ai.system", genAiSystem));
+      agentAttributes.push(buildAttr("gh-aw.engine", engineId));
+    }
     // gen_ai.workflow.name identifies the agentic workflow, matching the OTel spec example
     // use-cases (e.g. "multi_agent_rag", "customer_support_pipeline").
     if (workflowName) agentAttributes.push(buildAttr("gen_ai.workflow.name", workflowName));

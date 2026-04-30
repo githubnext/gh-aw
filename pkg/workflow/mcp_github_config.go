@@ -206,22 +206,8 @@ func getGitHubToolsets(githubTool any) string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if toolsetsSetting, exists := toolConfig["toolsets"]; exists {
 			// Handle array format only
-			switch v := toolsetsSetting.(type) {
-			case []any:
-				// Convert array to comma-separated string
-				toolsets := make([]string, 0, len(v))
-				for _, item := range v {
-					if str, ok := item.(string); ok {
-						toolsets = append(toolsets, str)
-					}
-				}
+			if toolsets := parseStringSliceAny(toolsetsSetting, githubConfigLog); toolsets != nil {
 				toolsetsStr := strings.Join(toolsets, ",")
-				// Expand "default" to individual toolsets for action-friendly compatibility
-				resolved := expandDefaultToolset(toolsetsStr)
-				githubConfigLog.Printf("GitHub MCP toolsets resolved: %s", resolved)
-				return resolved
-			case []string:
-				toolsetsStr := strings.Join(v, ",")
 				// Expand "default" to individual toolsets for action-friendly compatibility
 				resolved := expandDefaultToolset(toolsetsStr)
 				githubConfigLog.Printf("GitHub MCP toolsets resolved: %s", resolved)
@@ -279,20 +265,7 @@ func expandDefaultToolset(toolsetsStr string) string {
 func getGitHubAllowedTools(githubTool any) []string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if allowedSetting, exists := toolConfig["allowed"]; exists {
-			// Handle array format
-			switch v := allowedSetting.(type) {
-			case []any:
-				// Convert array to string slice
-				tools := make([]string, 0, len(v))
-				for _, item := range v {
-					if str, ok := item.(string); ok {
-						tools = append(tools, str)
-					}
-				}
-				return tools
-			case []string:
-				return v
-			}
+			return parseStringSliceAny(allowedSetting, nil)
 		}
 	}
 	return nil

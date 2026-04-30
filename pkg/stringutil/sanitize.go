@@ -19,30 +19,30 @@ var (
 	pascalCaseSecretPattern = regexp.MustCompile(`\b([A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)*(?:Token|Key|Secret|Password|Credential|Auth))\b`)
 
 	// Common non-sensitive workflow keywords to exclude from redaction
-	commonWorkflowKeywords = map[string]bool{
-		"GITHUB":            true,
-		"ACTIONS":           true,
-		"WORKFLOW":          true,
-		"RUNNER":            true,
-		"JOB":               true,
-		"STEP":              true,
-		"MATRIX":            true,
-		"ENV":               true,
-		"PATH":              true,
-		"HOME":              true,
-		"SHELL":             true,
-		"INPUTS":            true,
-		"OUTPUTS":           true,
-		"NEEDS":             true,
-		"STRATEGY":          true,
-		"CONCURRENCY":       true,
-		"IF":                true,
-		"WITH":              true,
-		"USES":              true,
-		"RUN":               true,
-		"WORKING_DIRECTORY": true,
-		"CONTINUE_ON_ERROR": true,
-		"TIMEOUT_MINUTES":   true,
+	commonWorkflowKeywords = map[string]struct{}{
+		"GITHUB":            {},
+		"ACTIONS":           {},
+		"WORKFLOW":          {},
+		"RUNNER":            {},
+		"JOB":               {},
+		"STEP":              {},
+		"MATRIX":            {},
+		"ENV":               {},
+		"PATH":              {},
+		"HOME":              {},
+		"SHELL":             {},
+		"INPUTS":            {},
+		"OUTPUTS":           {},
+		"NEEDS":             {},
+		"STRATEGY":          {},
+		"CONCURRENCY":       {},
+		"IF":                {},
+		"WITH":              {},
+		"USES":              {},
+		"RUN":               {},
+		"WORKING_DIRECTORY": {},
+		"CONTINUE_ON_ERROR": {},
+		"TIMEOUT_MINUTES":   {},
 	}
 )
 
@@ -59,7 +59,7 @@ func SanitizeErrorMessage(message string) string {
 	// Redact uppercase snake_case patterns (e.g., MY_SECRET_KEY, API_TOKEN)
 	sanitized := secretNamePattern.ReplaceAllStringFunc(message, func(match string) string {
 		// Don't redact common workflow keywords
-		if commonWorkflowKeywords[match] {
+		if _, ok := commonWorkflowKeywords[match]; ok {
 			return match
 		}
 		// Don't redact gh-aw public configuration variables (e.g., GH_AW_SKIP_NPX_VALIDATION)
@@ -187,15 +187,25 @@ func SanitizeToolID(toolID string) string {
 }
 
 // SanitizeForFilename converts a repository slug (owner/repo) to a filename-safe string.
-// Replaces "/" with "-". Returns "clone-mode" if the slug is empty.
+// Replaces "/" with "-" and any remaining non-alphanumeric characters (except "-", "_", ".")
+// with "-". Returns "clone-mode" if the slug is empty.
 //
 // Examples:
 //
-//	SanitizeForFilename("owner/repo")  // returns "owner-repo"
-//	SanitizeForFilename("")            // returns "clone-mode"
+//	SanitizeForFilename("owner/repo")     // returns "owner-repo"
+//	SanitizeForFilename("my.org/my_repo") // returns "my.org-my_repo"
+//	SanitizeForFilename("")               // returns "clone-mode"
 func SanitizeForFilename(slug string) string {
 	if slug == "" {
 		return "clone-mode"
 	}
-	return strings.ReplaceAll(slug, "/", "-")
+	var sb strings.Builder
+	for _, r := range strings.ReplaceAll(slug, "/", "-") {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			sb.WriteRune(r)
+		} else {
+			sb.WriteRune('-')
+		}
+	}
+	return sb.String()
 }

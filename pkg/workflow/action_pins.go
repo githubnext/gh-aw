@@ -22,6 +22,9 @@ type ActionPin = actionpins.ActionPin
 // ActionPinsData is the embedded JSON structure from pkg/actionpins.
 type ActionPinsData = actionpins.ActionPinsData
 
+// ContainerPin is the pinned container image type from pkg/actionpins.
+type ContainerPin = actionpins.ContainerPin
+
 // --------------------------------------------------------------------------
 // Package-private helpers used throughout pkg/workflow
 // --------------------------------------------------------------------------
@@ -91,7 +94,7 @@ func lookupContainerPin(image string, cache *ActionCache) (ContainerPin, bool) {
 		}
 	}
 	if pin, ok := getEmbeddedContainerPin(image); ok {
-		return ContainerPin(pin), true
+		return pin, true
 	}
 	return ContainerPin{}, false
 }

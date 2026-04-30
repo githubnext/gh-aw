@@ -804,40 +804,33 @@ func TestValidatePathGlob(t *testing.T) {
 	}
 }
 
-// TestToStringSlice tests the toStringSlice conversion helper.
-func TestToStringSlice(t *testing.T) {
+// TestParseStringSliceAnyStringScalar verifies the behaviour of parseStringSliceAny,
+// the canonical any→[]string helper (formerly covered by TestToStringSlice for toStringSlice).
+func TestParseStringSliceAnyStringScalar(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   any
-		want    []string
-		wantErr bool
+		name  string
+		input any
+		want  []string
 	}{
-		{name: "[]string", input: []string{"a", "b"}, want: []string{"a", "b"}, wantErr: false},
-		{name: "[]any strings", input: []any{"a", "b"}, want: []string{"a", "b"}, wantErr: false},
-		{name: "single string", input: "hello", want: []string{"hello"}, wantErr: false},
-		{name: "[]any with int", input: []any{"a", 42}, wantErr: true},
-		{name: "integer type", input: 123, wantErr: true},
-		{name: "nil", input: nil, wantErr: true},
-		{name: "empty []string", input: []string{}, want: []string{}, wantErr: false},
-		{name: "empty []any", input: []any{}, want: []string{}, wantErr: false},
+		{name: "[]string", input: []string{"a", "b"}, want: []string{"a", "b"}},
+		{name: "[]any strings", input: []any{"a", "b"}, want: []string{"a", "b"}},
+		{name: "[]any skips int", input: []any{"a", 42}, want: []string{"a"}},
+		{name: "nil returns nil", input: nil, want: nil},
+		{name: "unknown type returns nil", input: 123, want: nil},
+		{name: "empty []string", input: []string{}, want: []string{}},
+		{name: "empty []any", input: []any{}, want: []string{}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := toStringSlice(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("toStringSlice(%v): err = %v, wantErr %v", tt.input, err, tt.wantErr)
+			got := parseStringSliceAny(tt.input, nil)
+			if len(got) != len(tt.want) {
+				t.Errorf("parseStringSliceAny(%v): got %v, want %v", tt.input, got, tt.want)
 				return
 			}
-			if !tt.wantErr {
-				if len(got) != len(tt.want) {
-					t.Errorf("toStringSlice(%v): got %v, want %v", tt.input, got, tt.want)
-					return
-				}
-				for i := range got {
-					if got[i] != tt.want[i] {
-						t.Errorf("toStringSlice(%v)[%d]: got %q, want %q", tt.input, i, got[i], tt.want[i])
-					}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("parseStringSliceAny(%v)[%d]: got %q, want %q", tt.input, i, got[i], tt.want[i])
 				}
 			}
 		})

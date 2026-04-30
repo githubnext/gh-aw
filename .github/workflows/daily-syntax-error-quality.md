@@ -13,11 +13,9 @@ engine: copilot
 tools:
   cli-proxy: true
   bash:
-    - "find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md'"
     - "gh aw compile *"
     - "gh aw compile /tmp/gh-aw/syntax-error-tests/*.md"
-    - "cat .github/workflows/*.md"
-    - "head -n * .github/workflows/*.md"
+    - "head -n 30 .github/workflows/*.md"
     - "cp .github/workflows/*.md /tmp/gh-aw/syntax-error-tests/*.md"
     - "cat /tmp/gh-aw/syntax-error-tests/*.md"
     - "mkdir -p /tmp/gh-aw/syntax-error-tests"
@@ -35,8 +33,9 @@ steps:
     run: |
       mkdir -p /tmp/gh-aw/agent
       find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md' \
+        | shuf -n 5 \
         > /tmp/gh-aw/agent/candidates.txt
-      echo "Found $(wc -l < /tmp/gh-aw/agent/candidates.txt) candidate workflows"
+      echo "Pre-selected $(wc -l < /tmp/gh-aw/agent/candidates.txt) candidate workflows"
   - name: Install gh-aw CLI
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -73,15 +72,15 @@ Test the quality of compiler error messages by:
 
 ## Token Budget Guidelines
 
-**Target**: Complete the full analysis in ≤ 30 turns.
+**Target**: Complete the full analysis in ≤ 20 turns.
 
 - Test **2 workflows** (not 3) — one simple, one complex.
 - One error category per workflow (Category A for workflow 1, Category B for workflow 2).
-- **If the average score across both test cases is ≥ 70 and no individual score is < 55**: skip Phase 6 entirely, call `noop` with a one-line summary — do **not** generate the issue or structured report.
+- **If the average score across both test cases is ≥ 65 and no individual score is < 50**: skip Phase 6 entirely, call `noop` with a one-line summary — do **not** generate the issue or structured report.
 - When scores require an issue: use the compact format in Phase 6 — skip verbose per-dimension narratives.
 - Do **not** re-read files already loaded into context.
 - One `gh aw compile` call per test case — do not retry after an expected failure.
-- Avoid printing full file contents; use `head -n 30` to confirm error locations.
+- Use `head -n 30` to preview workflows — do **not** read full file contents.
 
 ## Current Context
 
@@ -91,16 +90,17 @@ Test the quality of compiler error messages by:
 
 ## Phase 1: Select Test Workflows
 
-Select 2 diverse workflows for testing from the pre-computed candidate list:
+Select 2 diverse workflows for testing from the pre-selected candidate list (5 candidates):
 
 ```bash
-# Candidate workflows have already been discovered by the pre-step
+# 5 candidates have been randomly pre-selected by the pre-step
 cat /tmp/gh-aw/agent/candidates.txt
 ```
 
 **Selection Criteria**:
 - Choose workflows with different complexity levels (simple, complex)
 - Prefer workflows with different structures (different engines, tools, safe-outputs)
+- Preview with `head -n 30` only — do not read full files
 
 **Example selections**:
 1. Simple workflow (< 100 lines, minimal config)
@@ -213,123 +213,19 @@ For each test case:
 
 ## Phase 4: Evaluate Error Message Quality
 
-For each error output, score across these dimensions:
+For each error output, score across these dimensions (total 100 points):
 
-### 1. Clarity (25 points)
-**Score 20-25**: Error message is crystal clear
-- Immediately obvious what went wrong
-- Uses plain, non-technical language where possible
-- Error type and location are prominent
+| Dimension | Max | 20-max: Excellent | 15-19: Good | 10-14: Acceptable | 0-9: Poor |
+|-----------|-----|-------------------|-------------|-------------------|-----------|
+| Clarity | 25 | Crystal clear, plain language, obvious location | Understandable with minor confusion | Needs re-reading | Confusing or misleading |
+| Actionability | 25 | Clear fix steps, specific suggestions | General guidance + some specifics | Vague suggestions | No hints |
+| Context | 20 | Shows code, highlights exact location | File + line + some code | File or line only | None |
+| Examples | 15 | Correct + incorrect usage shown | ≥1 relevant example | Brief/generic example | None |
+| Consistency | 15 | Matches IDE-parseable format | Mostly consistent | Minor deviations | Very inconsistent |
 
-**Score 15-19**: Generally clear
-- Understandable with minor confusion
-- May use some technical jargon
-- Location is provided but not prominent
-
-**Score 10-14**: Somewhat unclear
-- Requires reading multiple times to understand
-- Heavy technical terminology
-- Location is vague
-
-**Score 0-9**: Confusing or misleading
-- Error message doesn't match the actual problem
-- Technical jargon without explanation
-- Missing or incorrect location
-
-### 2. Actionability (25 points)
-**Score 20-25**: Highly actionable
-- Clear steps to fix the error
-- Specific suggestions (e.g., "Change X to Y")
-- Points to relevant documentation
-
-**Score 15-19**: Moderately actionable
-- General guidance provided
-- Some specific suggestions
-- Hints at solution
-
-**Score 10-14**: Minimally actionable
-- Vague suggestions
-- No specific guidance
-- User must research solution
-
-**Score 0-9**: Not actionable
-- No suggestions or hints
-- Generic "fix this" without guidance
-- Leaves user completely confused
-
-### 3. Context (20 points)
-**Score 16-20**: Excellent context
-- Shows the problematic code
-- Highlights exact error location
-- Provides surrounding context
-
-**Score 11-15**: Good context
-- Shows file and line number
-- Some code context
-- Error location is clear
-
-**Score 6-10**: Limited context
-- Only file name or line number
-- No code shown
-- Vague location
-
-**Score 0-5**: No context
-- Missing file/line information
-- No code or context
-- User must hunt for the error
-
-### 4. Examples (15 points)
-**Score 13-15**: Excellent examples
-- Provides multiple examples
-- Shows both incorrect and correct usage
-- Examples are relevant to the specific error
-
-**Score 9-12**: Good examples
-- Provides at least one example
-- Shows correct usage
-- Generally relevant
-
-**Score 5-8**: Minimal examples
-- Brief example or reference
-- May not be directly relevant
-- Generic example
-
-**Score 0-4**: No examples
-- No examples provided
-- No reference to documentation
-- User must search for examples
-
-### 5. Consistency (15 points)
-**Score 13-15**: Highly consistent
-- Error format matches established patterns
-- Terminology is consistent with other errors
-- Follows IDE-parseable format (file:line:column:)
-
-**Score 9-12**: Generally consistent
-- Mostly follows patterns
-- Minor deviations in format
-- Terminology mostly consistent
-
-**Score 5-8**: Inconsistent
-- Format varies from other errors
-- Inconsistent terminology
-- Not IDE-parseable
-
-**Score 0-4**: Very inconsistent
-- Completely different format
-- Confusing terminology
-- No standard structure
-
-### Scoring Summary
-
-- **Total Score**: 100 points
-- **Excellent**: 85-100 (Error messages are exemplary)
-- **Good**: 70-84 (Error messages are helpful)
-- **Acceptable**: 55-69 (Error messages need improvement)
-- **Poor**: 40-54 (Error messages are confusing)
-- **Critical**: 0-39 (Error messages are harmful)
-
-**Quality Threshold**: Average score ≥ 70 across all test cases
+**Scoring Summary**:
+- **Excellent**: 85-100 · **Good**: 70-84 · **Acceptable**: 55-69 · **Poor**: 40-54 · **Critical**: 0-39
+- **Quality Threshold**: Average ≥ 65 **and** no individual score < 50 → noop (skip issue creation)
 
 ## Phase 5: Generate Evaluation Report
 
@@ -344,8 +240,8 @@ Collect key strengths (1–2 bullets) and improvement suggestions (1–2 bullets
 ## Phase 6: Create Issue with Suggestions
 
 **Only create an issue if**:
-- Average score < 70 across all test cases, OR
-- Any individual test case scores < 55, OR
+- Average score < 65 across all test cases, OR
+- Any individual test case scores < 50, OR
 - Critical pattern issues are identified
 
 ### Issue Structure
@@ -439,7 +335,7 @@ A successful analysis run:
 - ✅ Introduces 2 different error types (categories A and B)
 - ✅ Captures compiler output for each test
 - ✅ Provides quality scores across all dimensions
-- ✅ Creates issue only when quality is below threshold (average < 70 or any score < 55)
+- ✅ Creates issue only when quality is below threshold (average < 65 or any score < 50)
 - ✅ Cleans up temporary test files
 
 ---

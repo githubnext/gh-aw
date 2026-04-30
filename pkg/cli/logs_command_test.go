@@ -268,3 +268,25 @@ func TestLogsCommandHelpText(t *testing.T) {
 	assert.Contains(t, safeOutputFlag.Usage, "noop", "safe-output flag help should mention noop")
 	assert.Contains(t, safeOutputFlag.Usage, "report-incomplete", "safe-output flag help should mention report-incomplete")
 }
+
+func TestLogsCommandStdinFlag(t *testing.T) {
+	cmd := NewLogsCommand()
+	flags := cmd.Flags()
+
+	// --stdin flag must be registered
+	stdinFlag := flags.Lookup("stdin")
+	require.NotNil(t, stdinFlag, "Should have 'stdin' flag")
+	assert.Equal(t, "bool", stdinFlag.Value.Type(), "--stdin should be a boolean flag")
+	assert.Equal(t, "false", stdinFlag.DefValue, "--stdin should default to false")
+}
+
+func TestLogsCommandStdinRejectsPositionalArgs(t *testing.T) {
+	cmd := NewLogsCommand()
+	cmd.SetArgs([]string{"my-workflow", "--stdin"})
+	// Suppress output so test output stays clean
+	cmd.SetOut(nil)
+	cmd.SetErr(nil)
+	err := cmd.Execute()
+	require.Error(t, err, "logs --stdin with a positional arg should return an error")
+	assert.Contains(t, err.Error(), "positional arguments are not allowed with --stdin", "error message should explain the conflict")
+}

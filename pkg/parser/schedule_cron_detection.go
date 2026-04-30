@@ -122,6 +122,7 @@ func IsWeeklyCron(cron string) bool {
 		}
 	}
 
+	log.Printf("Cron expression classified as weekly: %q (minute=%s, hour=%s, dow=%s)", cron, minute, hour, dow)
 	return true
 }
 
@@ -143,9 +144,11 @@ func IsCronExpression(input string) bool {
 	// Each field should match cron syntax (numbers, *, /, -, ,)
 	for _, field := range fields {
 		if !cronFieldPattern.MatchString(field) {
+			log.Printf("Cron field %q contains invalid characters in expression: %q", field, input)
 			return false
 		}
 	}
 
+	log.Printf("Input recognized as valid cron expression: %q", input)
 	return true
 }
