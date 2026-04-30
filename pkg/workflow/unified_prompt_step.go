@@ -310,7 +310,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	sections = append(sections, PromptSection{
 		Content:        skillsPromptFile,
 		IsFile:         true,
-		ShellCondition: `find "${GITHUB_WORKSPACE}" -name "SKILL.md" -maxdepth 6 -print -quit 2>/dev/null | grep -q .`,
+		ShellCondition: `find "${GITHUB_WORKSPACE}" -name "SKILL.md" -maxdepth 4 -print -quit 2>/dev/null | grep -q .`,
 	})
 
 	return sections

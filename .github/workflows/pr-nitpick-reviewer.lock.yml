@@ -277,7 +277,7 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
             cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md"
           fi
-          if find "${GITHUB_WORKSPACE}" -name "SKILL.md" -maxdepth 6 -print -quit 2>/dev/null | grep -q .; then
+          if find "${GITHUB_WORKSPACE}" -name "SKILL.md" -maxdepth 4 -print -quit 2>/dev/null | grep -q .; then
             cat "${RUNNER_TEMP}/gh-aw/prompts/skills_prompt.md"
           fi
           cat << 'GH_AW_PROMPT_06a57a4830833cb8_EOF'
