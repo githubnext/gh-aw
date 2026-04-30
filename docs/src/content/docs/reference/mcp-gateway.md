@@ -252,7 +252,7 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `trustedBots` | array[string] | No | Additional GitHub bot identity strings (e.g., `github-actions[bot]`) passed to the gateway and merged with its built-in trusted identity list. This field is additive — it extends the internal list but cannot remove built-in entries. |
 | `keepaliveInterval` | integer | No | Keepalive ping interval in seconds for HTTP MCP backends. Prevents session expiry during long-running tasks. Use `-1` to disable, `0` or unset for gateway default (1500s = 25 min), or a positive integer for a custom interval. |
 | `sessionTimeout` | string | No | Session timeout for MCP gateway sessions as a Go duration string (e.g. `"30m"`, `"4h"`, `"6h"`). Empty or omitted uses the gateway default (6h). Must be between 5m and 12h when set by the workflow compiler (infrastructure operators may override via `MCP_GATEWAY_SESSION_TIMEOUT` env var). |
-| `opentelemetry` | object | No | OpenTelemetry configuration for emitting distributed tracing events for MCP calls. See Section 4.1.3.6 for details. |
+| `opentelemetry` | object | No | OpenTelemetry configuration for emitting distributed tracing events for MCP calls. See Section 4.1.3.7 for details. |
 
 #### 4.1.3.1 Payload Directory Path Validation
 

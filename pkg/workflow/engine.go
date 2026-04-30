@@ -324,14 +324,11 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			// Extract optional 'mcp' sub-object (engine-level MCP gateway configuration)
 			if mcpVal, hasMCP := engineObj["mcp"]; hasMCP {
 				if mcpObj, ok := mcpVal.(map[string]any); ok {
-					// Extract session-timeout
-					for _, key := range []string{"session-timeout", "sessionTimeout"} {
-						if stVal, hasSessionTimeout := mcpObj[key]; hasSessionTimeout {
-							if stStr, ok := stVal.(string); ok && stStr != "" {
-								config.MCPSessionTimeout = stStr
-								engineLog.Printf("Extracted engine.mcp.session-timeout: %s", config.MCPSessionTimeout)
-							}
-							break
+					// Extract session-timeout (kebab-case only; camelCase is not supported)
+					if stVal, hasSessionTimeout := mcpObj["session-timeout"]; hasSessionTimeout {
+						if stStr, ok := stVal.(string); ok && stStr != "" {
+							config.MCPSessionTimeout = stStr
+							engineLog.Printf("Extracted engine.mcp.session-timeout: %s", config.MCPSessionTimeout)
 						}
 					}
 				}

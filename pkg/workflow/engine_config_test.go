@@ -893,18 +893,6 @@ func TestEngineMCPSessionTimeoutExtraction(t *testing.T) {
 			expectedTimeout: "4h",
 		},
 		{
-			name: "extracts session-timeout using camelCase key",
-			frontmatter: map[string]any{
-				"engine": map[string]any{
-					"id": "copilot",
-					"mcp": map[string]any{
-						"sessionTimeout": "30m",
-					},
-				},
-			},
-			expectedTimeout: "30m",
-		},
-		{
 			name: "no mcp section - empty session timeout",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
