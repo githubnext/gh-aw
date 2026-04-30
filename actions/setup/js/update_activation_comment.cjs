@@ -30,7 +30,7 @@ async function updateActivationComment(github, context, core, itemUrl, itemNumbe
   const footerMessage = getFooterMessage({ workflowName, runUrl });
   const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
   const cautionSection = detectionCaution ? `${detectionCaution}\n\n` : "";
-  const linkMessage = `\n\n${body}\n\n${cautionSection}${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
+  const linkMessage = `\n\n${cautionSection}${body}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
   await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel, {});
 }
 
@@ -52,7 +52,7 @@ async function updateActivationCommentWithCommit(github, context, core, commitSh
   const footerMessage = getFooterMessage({ workflowName, runUrl });
   const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
   const cautionSection = detectionCaution ? `${detectionCaution}\n\n` : "";
-  const message = `\n\n${getCommitPushedMessage({ commitSha, shortSha, commitUrl })}\n\n${cautionSection}${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
+  const message = `\n\n${cautionSection}${getCommitPushedMessage({ commitSha, shortSha, commitUrl })}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
   await updateActivationCommentWithMessage(github, context, core, message, "commit", options);
 }
 

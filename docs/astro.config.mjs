@@ -280,6 +280,14 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Organization Practices',
+					items: [
+						{ label: 'Overview', link: '/organization-practices/' },
+						{ label: 'Safe Rollout', link: '/organization-practices/safe-rollout/' },
+						{ label: 'Sharing Workflows', link: '/organization-practices/sharing-workflows/' },
+					],
+				},
+				{
 					label: 'Design Patterns',
 					items: [
 						{ label: 'BatchOps', link: '/patterns/batch-ops/' },

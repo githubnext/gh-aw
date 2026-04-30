@@ -2,7 +2,7 @@
 // <reference types="@actions/github-script" />
 
 const { executeExpiredEntityCleanup } = require("./expired_entity_main_flow.cjs");
-const { generateExpiredEntityFooter } = require("./generate_footer.cjs");
+const { generateExpiredEntityFooter, getExpiredEntityCautionAlert } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getWorkflowMetadata } = require("./workflow_metadata_helpers.cjs");
 const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
@@ -60,7 +60,9 @@ async function main() {
     entityLabel: "Pull Request",
     summaryHeading: "Expired Pull Requests Cleanup",
     processEntity: async pr => {
-      const closingMessage = `This pull request was automatically closed because it expired on ${pr.expirationDate.toISOString()}.` + generateExpiredEntityFooter(workflowName, runUrl, workflowId);
+      const cautionAlert = getExpiredEntityCautionAlert(workflowName, runUrl);
+      const expirationText = `This pull request was automatically closed because it expired on ${pr.expirationDate.toISOString()}.`;
+      const closingMessage = (cautionAlert ? cautionAlert + "\n\n" : "") + expirationText + generateExpiredEntityFooter(workflowName, runUrl, workflowId);
 
       await addPullRequestComment(github, owner, repo, pr.number, closingMessage);
       core.info(`  ✓ Comment added successfully`);

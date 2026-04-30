@@ -5,7 +5,7 @@
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
  */
 
-const { generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, getDetectionCautionAlert, generateXMLMarker } = require("./messages_footer.cjs");
 const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
@@ -575,16 +575,22 @@ async function main(config = {}) {
       };
     }
 
+    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+    const runUrl = buildWorkflowRunUrl(context, context.repo);
+    const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
+    const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
+
+    // Inject CAUTION at top of body if threat detection warning was raised
+    const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+    if (detectionCaution) {
+      processedBody = detectionCaution + "\n\n" + processedBody;
+    }
+
     // Add tracker ID and footer
     const trackerIDComment = getTrackerID("markdown");
     if (trackerIDComment) {
       processedBody += "\n\n" + trackerIDComment;
     }
-
-    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-    const runUrl = buildWorkflowRunUrl(context, context.repo);
-    const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
-    const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
 
     // Get triggering context for footer
     const triggeringIssueNumber = context.payload.issue?.number;
@@ -603,8 +609,10 @@ async function main(config = {}) {
       }) || undefined;
 
     if (includeFooter) {
-      // When footer is enabled, add full footer with attribution and XML markers
-      processedBody += "\n\n" + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl).trimEnd();
+      // When footer is enabled, add full footer with attribution and XML markers.
+      // Pass skipDetectionCaution:true to avoid duplicating the caution already prepended above.
+      processedBody +=
+        "\n\n" + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, { skipDetectionCaution: true }).trimEnd();
     } else {
       // When footer is disabled, only add XML marker for searchability (no visible attribution text)
       processedBody += "\n\n" + generateXMLMarker(workflowName, runUrl);

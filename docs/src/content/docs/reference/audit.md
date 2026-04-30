@@ -41,6 +41,7 @@ Self-comparisons and duplicate run IDs are rejected when using diff mode.
 | `--json` | off | Output report as JSON to stdout |
 | `--parse` | off | Run JavaScript parsers on agent and firewall logs, writing `log.md` and `firewall.md` (single-run only) |
 | `--repo <owner/repo>` | auto | Specify repository when the run ID is not from a URL |
+| `--stdin` | off | Read run IDs or URLs from stdin (one per line) instead of positional arguments |
 | `--verbose` | off | Print detailed progress information |
 | `--format <fmt>` | `pretty` | Diff output format: `pretty` or `markdown` (multi-run only) |
 
@@ -53,6 +54,17 @@ gh aw audit 1234567890 --parse
 gh aw audit 1234567890 --json
 gh aw audit 1234567890 -o ./audit-reports
 gh aw audit 1234567890 --repo owner/repo
+```
+
+**Stdin mode:**
+
+Use `--stdin` to pass run IDs or URLs from a file or pipeline. This is mutually exclusive with positional arguments. Blank lines and lines starting with `#` are ignored. When passing bare numeric IDs (without embedded repo context), `--repo owner/repo` is required.
+
+```bash
+echo "1234567890" | gh aw audit --stdin
+echo -e "1234567890\n9876543210" | gh aw audit --stdin   # diff mode: first is base
+cat run-ids.txt | gh aw audit --stdin
+cat run-ids.txt | gh aw audit --stdin --repo owner/repo  # required for bare numeric IDs
 ```
 
 **Multi-run diff examples:**
@@ -104,11 +116,20 @@ This feature is built into the `gh aw logs` command via the `--format` flag.
 | `--json` | off | Output cross-run report as JSON (when combined with `--format`) |
 | `--repo <owner/repo>` | auto | Specify repository |
 | `-o, --output <dir>` | `./logs` | Directory for downloaded artifacts |
+| `--stdin` | off | Read run IDs or URLs from stdin (one per line) instead of run-discovery; content filters still apply |
 | `--verbose` | off | Print detailed progress |
 
 The report output includes an executive summary, domain inventory, metrics trends, MCP server health, and per-run breakdown. It detects cross-run anomalies such as domain access spikes, elevated MCP error rates, and connection rate changes.
 
 For each run in detailed logs JSON output, an `ambient_context` object is included when token usage data is available. It reflects only the first LLM invocation in the run (`input_tokens`, `cached_tokens`, `effective_tokens`).
+
+**`--stdin` mode:** Pass `--stdin` to supply an explicit list of run IDs or URLs instead of letting the command discover runs from the GitHub API. Date, count, and workflow-name filters are ignored; `--engine`, `--firewall`, `--safe-output`, and other content filters still apply. Blank lines and `#`-prefixed lines are ignored. Bare numeric IDs require `--repo owner/repo`.
+
+```bash
+cat run-ids.txt | gh aw logs --stdin
+echo "1234567890" | gh aw logs --stdin --engine claude
+cat run-ids.txt | gh aw logs --stdin --repo owner/repo   # required for bare numeric IDs
+```
 
 **Examples:**
 

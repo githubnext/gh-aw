@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { generateFooterWithMessages, getFooterWorkflowRecompileMessage, getFooterWorkflowRecompileCommentMessage, generateXMLMarker } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, getFooterWorkflowRecompileMessage, getFooterWorkflowRecompileCommentMessage, generateXMLMarker, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const fs = require("fs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
@@ -103,8 +103,12 @@ async function main() {
       const footer = getFooterWorkflowRecompileCommentMessage(ctx);
       const xmlMarker = generateXMLMarker(workflowName, runUrl);
 
+      // Inject CAUTION at top of body if threat detection warning was raised
+      const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+      const cautionPrefix = detectionCaution ? detectionCaution + "\n\n" : "";
+
       // Sanitize the message text but not the footer/marker which are system-generated
-      const commentBody = `Workflows are still out of sync.\n\n---\n${footer}\n\n${xmlMarker}`;
+      const commentBody = `${cautionPrefix}Workflows are still out of sync.\n\n---\n${footer}\n\n${xmlMarker}`;
 
       await github.rest.issues.createComment({
         owner,
@@ -157,6 +161,13 @@ async function main() {
   // Use custom footer template if configured, with XML marker for traceability
   const footer = getFooterWorkflowRecompileMessage(ctx);
   const xmlMarker = generateXMLMarker(workflowName, runUrl);
+
+  // Inject CAUTION at top of body if threat detection warning was raised
+  const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+  if (detectionCaution) {
+    issueBody = detectionCaution + "\n\n" + issueBody;
+  }
+
   // Note: issueBody is built from a template render, no user content to sanitize
   issueBody += "\n\n---\n" + footer + "\n\n" + xmlMarker + "\n";
 

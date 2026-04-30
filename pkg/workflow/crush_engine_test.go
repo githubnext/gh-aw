@@ -386,8 +386,9 @@ func TestCrushEngineFirewallIntegration(t *testing.T) {
 
 		// Should use AWF command
 		assert.Contains(t, stepContent, "awf", "Should use AWF when firewall is enabled")
-		assert.Contains(t, stepContent, "--allow-domains", "Should include allow-domains flag")
-		assert.Contains(t, stepContent, "--enable-api-proxy", "Should include --enable-api-proxy flag")
+		// With config file support, domains are in the JSON config (not as CLI flags)
+		assert.Contains(t, stepContent, "allowDomains", "Should include allowDomains in config JSON")
+		assert.Contains(t, stepContent, `"enabled":true`, "Should include apiProxy enabled in config JSON")
 		assert.Contains(t, stepContent, "GITHUB_COPILOT_BASE_URL: http://host.docker.internal:10002", "Should route copilot/* fallback through Copilot LLM gateway URL")
 	})
 

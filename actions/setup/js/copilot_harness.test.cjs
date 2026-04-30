@@ -314,44 +314,55 @@ describe("copilot_harness.cjs", () => {
     /**
      * @param {{hasOutput: boolean, exitCode: number, output: string}} result
      * @param {number} attempt
+     * @param {boolean} useContinueOnRetry - whether the current attempt used --continue
      * @returns {boolean}
      */
-    function shouldRetry(result, attempt) {
+    function shouldRetry(result, attempt, useContinueOnRetry = false) {
       if (result.exitCode === 0) return false;
       // MCP policy errors are persistent — never retry
       if (MCP_POLICY_BLOCKED_PATTERN.test(result.output)) return false;
-      // Auth errors are persistent — never retry
-      if (NO_AUTH_INFO_PATTERN.test(result.output)) return false;
+      // Auth error on --continue: fall back to fresh run once; on fresh run: bail
+      if (NO_AUTH_INFO_PATTERN.test(result.output)) {
+        return useContinueOnRetry && attempt < MAX_RETRIES;
+      }
       return attempt < MAX_RETRIES && result.hasOutput;
     }
 
     it("does not retry when auth fails on first attempt (no real work done)", () => {
       const result = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
-      expect(shouldRetry(result, 0)).toBe(false);
+      expect(shouldRetry(result, 0, false)).toBe(false);
     });
 
-    it("does not retry when auth fails on a --continue attempt (the reported bug scenario)", () => {
-      // This replicates the issue: attempt 1 ran for 39 min then failed,
-      // attempt 2 (--continue) fails with auth error — should not retry attempts 3 & 4.
-      const resumeResult = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
-      expect(shouldRetry(resumeResult, 1)).toBe(false);
-      expect(shouldRetry(resumeResult, 2)).toBe(false);
-      expect(shouldRetry(resumeResult, 3)).toBe(false);
+    it("retries as fresh run when auth fails on a --continue attempt", () => {
+      // This replicates the fix: attempt 1 ran for 3+ min then failed mid-stream,
+      // attempt 2 (--continue) fails with auth error — driver retries once as fresh run.
+      const continueResult = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
+      expect(shouldRetry(continueResult, 1, true)).toBe(true); // --continue attempt: triggers fresh retry
+      expect(shouldRetry(continueResult, 2, true)).toBe(true); // still within retry budget
+      expect(shouldRetry(continueResult, 3, true)).toBe(false); // budget exhausted
+    });
+
+    it("does not retry when auth fails on a fresh-run recovery attempt (useContinueOnRetry=false)", () => {
+      // After falling back to a fresh run, useContinueOnRetry is reset to false.
+      // If the fresh run also hits auth error, the driver bails immediately.
+      const freshResult = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
+      expect(shouldRetry(freshResult, 1, false)).toBe(false);
+      expect(shouldRetry(freshResult, 2, false)).toBe(false);
     });
 
     it("does not retry auth error even when output is mixed with other content", () => {
       const result = { exitCode: 1, hasOutput: true, output: "Some output\nError: No authentication information found.\nMore output" };
-      expect(shouldRetry(result, 0)).toBe(false);
+      expect(shouldRetry(result, 0, false)).toBe(false);
     });
 
     it("still retries non-auth errors with output (CAPIError 400)", () => {
       const result = { exitCode: 1, hasOutput: true, output: "CAPIError: 400 Bad Request" };
-      expect(shouldRetry(result, 0)).toBe(true);
+      expect(shouldRetry(result, 0, false)).toBe(true);
     });
 
     it("still retries generic partial-execution errors with output", () => {
       const result = { exitCode: 1, hasOutput: true, output: "Failed to get response from the AI model; retried 5 times" };
-      expect(shouldRetry(result, 0)).toBe(true);
+      expect(shouldRetry(result, 0, false)).toBe(true);
     });
   });
 
