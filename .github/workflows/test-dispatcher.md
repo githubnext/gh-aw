@@ -68,4 +68,4 @@ Or in the agent's output format:
 }
 ```
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

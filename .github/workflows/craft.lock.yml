@@ -24,10 +24,6 @@
 #
 # Generates new agentic workflow markdown files based on user requests when invoked with /craft command
 #
-# Resolved workflow manifest:
-#   Includes:
-#     - shared/noop-reminder.md
-#
 # Secrets used:
 #   - GH_AW_CI_TRIGGER_TOKEN
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -269,6 +265,7 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_0938d13c8e03385e_EOF'
           </system>
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/craft.md}}
           GH_AW_PROMPT_0938d13c8e03385e_EOF
           } > "$GH_AW_PROMPT"

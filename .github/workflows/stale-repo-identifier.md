@@ -368,4 +368,4 @@ To avoid GitHub API rate limits:
 - Print summary statistics to stdout
 - Be clear and actionable in recommendations
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

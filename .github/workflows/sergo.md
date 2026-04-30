@@ -637,4 +637,4 @@ A successful Sergo run delivers:
 
 Begin your analysis! Scan Serena tools, pick your strategy, and dive deep into the Go codebase to discover meaningful improvements.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -463,4 +463,4 @@ To keep token consumption predictable:
 
 Good luck! Your work helps maintain a consistent, professional codebase with clear, accurate step names that align with project terminology.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

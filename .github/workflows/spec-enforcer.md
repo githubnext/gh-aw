@@ -406,4 +406,4 @@ All tests are derived from README.md specifications, not from implementation sou
 - ✅ Round-robin rotation advances correctly
 - ✅ PR created with test changes **OR** `noop` called when all tests are already up-to-date
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

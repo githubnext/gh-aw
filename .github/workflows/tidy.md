@@ -140,4 +140,4 @@ The repository has all necessary tools installed:
 
 Start by checking for existing tidy pull requests, then proceed with the tidying process.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

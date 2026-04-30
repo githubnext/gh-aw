@@ -24,10 +24,6 @@
 #
 # Investigates suspicious repository activity and maintains a single triage issue
 #
-# Resolved workflow manifest:
-#   Includes:
-#     - shared/noop-reminder.md
-#
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -228,6 +224,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_5c36ab16716f9d71_EOF'
           </system>
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/bot-detection.md}}
           GH_AW_PROMPT_5c36ab16716f9d71_EOF
           } > "$GH_AW_PROMPT"

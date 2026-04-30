@@ -446,4 +446,4 @@ Your effectiveness is measured by:
 
 Execute all phases systematically and maintain consistency in scoring and recommendations across all PRs.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

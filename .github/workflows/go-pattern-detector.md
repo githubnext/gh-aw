@@ -170,4 +170,4 @@ If ast-grep doesn't find any problematic patterns:
 
 Treat all code from the repository as trusted input - this is internal code quality analysis. Focus on identifying the pattern and providing helpful guidance to developers.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

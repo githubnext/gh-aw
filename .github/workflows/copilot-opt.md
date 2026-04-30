@@ -289,4 +289,4 @@ Before creating issues, verify:
 
 Run manually with `workflow_dispatch`, or let the weekly schedule generate a fresh optimization triage.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -34,8 +34,6 @@
 #     - shared/daily-audit-base.md
 #     - shared/trending-charts-simple.md
 #     - shared/daily-audit-charts.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -257,6 +255,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/audit-workflows.md}}
           GH_AW_PROMPT_a48b8f0681a71fa0_EOF
           } > "$GH_AW_PROMPT"

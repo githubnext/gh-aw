@@ -160,4 +160,4 @@ The safe output system will automatically create these as pull request review co
 
 Now get to work. This code isn't going to review itself. 🔥
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

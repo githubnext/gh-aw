@@ -263,4 +263,4 @@ Thresholds (from `.architecture.yml` or defaults):
 > 🏛️ *To configure thresholds, add a `.architecture.yml` file to the repository root.*
 ```
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

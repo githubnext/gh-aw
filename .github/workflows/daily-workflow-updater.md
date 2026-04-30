@@ -208,4 +208,4 @@ git status
 
 Good luck keeping our GitHub Actions up to date!
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -328,4 +328,4 @@ If you cannot find any improvements, still create a discussion noting the module
 
 Begin your analysis! Pick the next module and start your deep review.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

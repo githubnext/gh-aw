@@ -772,4 +772,4 @@ Your output MUST:
 
 Begin your repository audit analysis now!
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

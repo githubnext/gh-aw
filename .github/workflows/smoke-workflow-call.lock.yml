@@ -24,10 +24,6 @@
 #
 # Reusable workflow to validate checkout from fork works correctly in workflow_call context
 #
-# Resolved workflow manifest:
-#   Includes:
-#     - shared/noop-reminder.md
-#
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -279,6 +275,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_022421748a24fe95_EOF'
           </system>
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/smoke-workflow-call.md}}
           GH_AW_PROMPT_022421748a24fe95_EOF
           } > "$GH_AW_PROMPT"

@@ -30,8 +30,6 @@
 #     - shared/jqschema.md
 #     - shared/ci-data-analysis.md
 #     - shared/reporting.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_CI_TRIGGER_TOKEN
@@ -235,6 +233,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/ci-optimization-strategies.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/jqschema.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/ci-coach.md}}
           GH_AW_PROMPT_7a2e23ba30062ebd_EOF
           } > "$GH_AW_PROMPT"

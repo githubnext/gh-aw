@@ -24,10 +24,6 @@
 #
 # Scans step names in .lock.yml files and aligns them with step intent and project glossary
 #
-# Resolved workflow manifest:
-#   Includes:
-#     - shared/noop-reminder.md
-#
 # Secrets used:
 #   - ANTHROPIC_API_KEY
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -226,6 +222,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_651666ff422bb502_EOF'
           </system>
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/step-name-alignment.md}}
           GH_AW_PROMPT_651666ff422bb502_EOF
           } > "$GH_AW_PROMPT"

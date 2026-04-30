@@ -143,4 +143,4 @@ During processing, maintain clear logging:
 - Always verify the completion status before closing an issue
 - Add clear, informative comments when closing issues for transparency
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

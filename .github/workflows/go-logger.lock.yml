@@ -27,8 +27,6 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/go-make.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -234,6 +232,7 @@ jobs:
           cat << 'GH_AW_PROMPT_62eba90e58c4f484_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/go-make.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/go-logger.md}}
           GH_AW_PROMPT_62eba90e58c4f484_EOF
           } > "$GH_AW_PROMPT"

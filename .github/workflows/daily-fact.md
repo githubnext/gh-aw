@@ -129,4 +129,4 @@ This ensures tomorrow's verse celebrates something new.
 
 Now, analyze the recent activity and compose one poetic fact to share in discussion #4750.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -193,4 +193,4 @@ Use the safe-outputs capabilities to:
 
 Examine the current context and create your masterpiece! Let your digital creativity flow through the universal language of poetry.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

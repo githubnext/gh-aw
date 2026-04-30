@@ -483,4 +483,4 @@ A successful run:
 
 Begin by scanning the docs directory and selecting the best candidate for improvement!
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

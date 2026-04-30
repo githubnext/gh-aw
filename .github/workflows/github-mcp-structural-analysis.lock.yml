@@ -31,8 +31,6 @@
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -247,6 +245,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/github-mcp-structural-analysis.md}}
           GH_AW_PROMPT_3ba4f9c395e5bcb6_EOF
           } > "$GH_AW_PROMPT"

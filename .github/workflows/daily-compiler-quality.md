@@ -621,4 +621,4 @@ A successful analysis run:
 
 Begin your analysis now. Remember to use Serena's semantic capabilities to provide deep, meaningful insights into code quality beyond surface-level metrics.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

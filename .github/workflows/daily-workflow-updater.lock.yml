@@ -27,8 +27,6 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/observability-otlp.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_CI_TRIGGER_TOKEN
@@ -232,6 +230,7 @@ jobs:
           cat << 'GH_AW_PROMPT_2f621c28df87af7d_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-workflow-updater.md}}
           GH_AW_PROMPT_2f621c28df87af7d_EOF
           } > "$GH_AW_PROMPT"

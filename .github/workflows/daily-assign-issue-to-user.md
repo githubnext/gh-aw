@@ -45,4 +45,4 @@ If you find a match:
 
 If no unassigned issue exists, exit successfully without taking action.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

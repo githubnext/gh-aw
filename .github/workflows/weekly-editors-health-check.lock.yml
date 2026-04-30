@@ -24,10 +24,6 @@
 #
 # Checks that the workflow editors listed in the documentation are still valid, takes Playwright screenshots, and opens a PR to update the docs with preview images
 #
-# Resolved workflow manifest:
-#   Includes:
-#     - shared/noop-reminder.md
-#
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
 #   - GH_AW_CI_TRIGGER_TOKEN
@@ -231,6 +227,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_734dc520e9323e06_EOF'
           </system>
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/weekly-editors-health-check.md}}
           GH_AW_PROMPT_734dc520e9323e06_EOF
           } > "$GH_AW_PROMPT"

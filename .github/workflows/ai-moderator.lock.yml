@@ -23,10 +23,6 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# Resolved workflow manifest:
-#   Includes:
-#     - shared/noop-reminder.md
-#
 # Secrets used:
 #   - CODEX_API_KEY
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -272,6 +268,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_2854fab51269987e_EOF'
           </system>
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/ai-moderator.md}}
           GH_AW_PROMPT_2854fab51269987e_EOF
           } > "$GH_AW_PROMPT"

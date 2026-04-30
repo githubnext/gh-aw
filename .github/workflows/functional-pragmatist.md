@@ -686,4 +686,4 @@ Begin your functional/immutability analysis now:
 4. **Apply tasteful, moderate improvements** that enhance clarity and safety while maintaining Go's pragmatic style
 5. **Update cache** with the processed package before finishing
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

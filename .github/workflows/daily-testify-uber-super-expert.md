@@ -525,4 +525,4 @@ Use Serena to:
 
 Begin your analysis now. Load the cache, select a test file, perform deep quality analysis, create an issue with specific improvements, and update the cache.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

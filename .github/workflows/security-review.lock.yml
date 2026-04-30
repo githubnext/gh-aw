@@ -30,8 +30,6 @@
 #     - shared/pr-code-review-config.md
 #     - shared/pr-review-base.md
 #     - shared/security-analysis-base.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -281,6 +279,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/security-analysis-base.md}}
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/workflows/shared/pr-code-review-config.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/security-review.md}}
           GH_AW_PROMPT_e80266a212ef24a1_EOF
           } > "$GH_AW_PROMPT"

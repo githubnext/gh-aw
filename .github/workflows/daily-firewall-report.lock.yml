@@ -32,8 +32,6 @@
 #     - shared/daily-audit-base.md
 #     - shared/trending-charts-simple.md
 #     - shared/daily-audit-charts.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -252,6 +250,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-firewall-report.md}}
           GH_AW_PROMPT_36c89e0507e45aff_EOF
           } > "$GH_AW_PROMPT"

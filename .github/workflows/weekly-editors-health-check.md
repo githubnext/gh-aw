@@ -138,4 +138,4 @@ Example body (rows reflect whatever editors were discovered in Step 0):
 - If no screenshots were successfully taken and no documentation changes are needed, do **not** open a pull request. Instead, exit successfully after logging the results.
 - Always attempt all editors before deciding whether to create a PR.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -354,4 +354,4 @@ Your output MUST:
 
 Begin your analysis now. Collect the data systematically, perform thorough statistical analysis, and generate an insightful report that helps understand the structure and patterns of agentic workflows in this repository.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

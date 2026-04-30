@@ -28,8 +28,6 @@
 #   Imports:
 #     - shared/github-guard-policy.md
 #     - shared/observability-otlp.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -244,6 +242,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-doc-updater.md}}
           GH_AW_PROMPT_60321b637369216b_EOF
           } > "$GH_AW_PROMPT"

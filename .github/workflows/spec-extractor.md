@@ -301,4 +301,4 @@ This PR updates README.md specifications for the following packages:
 - ✅ Round-robin rotation advances correctly
 - ✅ PR created with specification changes
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}
