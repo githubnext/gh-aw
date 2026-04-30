@@ -1,7 +1,7 @@
 # ADR-26060: Add Gemini API Target Routing to AWF Proxy
 
 **Date**: 2026-04-13
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, Copilot
 
 ---
