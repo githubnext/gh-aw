@@ -286,7 +286,7 @@ MAX_RETRIES=3
 RETRY_DELAY=2
 
 for attempt in $(seq 1 $MAX_RETRIES); do
-    if curl -L -f -o "$BINARY_PATH" "$DOWNLOAD_URL"; then
+    if curl -L -f --connect-timeout 15 --max-time 120 -o "$BINARY_PATH" "$DOWNLOAD_URL"; then
         print_success "Binary downloaded successfully"
         break
     else
@@ -308,7 +308,7 @@ if [ "$SKIP_CHECKSUM" = false ]; then
     CHECKSUMS_DOWNLOADED=false
     
     for attempt in $(seq 1 $MAX_RETRIES); do
-        if curl -L -f -o "$CHECKSUMS_PATH" "$CHECKSUMS_URL" 2>/dev/null; then
+        if curl -L -f --connect-timeout 15 --max-time 60 -o "$CHECKSUMS_PATH" "$CHECKSUMS_URL" 2>/dev/null; then
             CHECKSUMS_DOWNLOADED=true
             print_success "Checksums file downloaded successfully"
             break
