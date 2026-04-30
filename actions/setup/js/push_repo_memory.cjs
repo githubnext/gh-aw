@@ -514,7 +514,7 @@ async function main() {
           }
         } catch (lsRemoteError) {
           // ls-remote failed; proceed with existing currentBaseRef
-          core.debug(`ls-remote on retry failed, keeping existing baseRef: ${getErrorMessage(lsRemoteError)}`);
+          core.info(`ls-remote on retry failed, keeping existing baseRef: ${getErrorMessage(lsRemoteError)}`);
         }
       } else {
         // Surface a helpful message when the repository's signed-commits
