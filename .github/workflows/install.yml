@@ -18,6 +18,7 @@ jobs:
   test-install:
     name: Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
     permissions:
       contents: read
     strategy:

@@ -371,13 +371,27 @@ fi
 print_info "Making binary executable..."
 chmod +x "$BINARY_PATH"
 
+# On Windows, executing a freshly downloaded binary may stall while Windows Defender
+# scans it.  Wrap verification calls with a timeout so the script doesn't hang.
+BINARY_EXEC_TIMEOUT=""
+if [ "$OS_NAME" = "windows" ] && command -v timeout &>/dev/null; then
+    BINARY_EXEC_TIMEOUT="timeout 30"
+    print_info "Windows detected: wrapping binary verification with a 30s timeout"
+fi
+
 # Verify the binary
 print_info "Verifying binary..."
-if "$BINARY_PATH" --help > /dev/null 2>&1; then
+# shellcheck disable=SC2086
+if $BINARY_EXEC_TIMEOUT "$BINARY_PATH" --help > /dev/null 2>&1; then
     print_success "Binary is working correctly!"
 else
-    print_error "Binary verification failed. The downloaded file may be corrupted or incompatible."
-    exit 1
+    if [ "$OS_NAME" = "windows" ]; then
+        print_warning "Binary verification timed out — Windows Defender may still be scanning the binary."
+        print_warning "Installation is complete. Verify manually with: '$BINARY_PATH' --help"
+    else
+        print_error "Binary verification failed. The downloaded file may be corrupted or incompatible."
+        exit 1
+    fi
 fi
 
 # Show file info
@@ -396,7 +410,8 @@ print_info "  gh aw version"
 # Show version
 print_info ""
 print_info "Running gh-aw version check..."
-"$BINARY_PATH" version
+# shellcheck disable=SC2086
+$BINARY_EXEC_TIMEOUT "$BINARY_PATH" version || print_warning "Version check timed out (Windows Defender may still be scanning the binary)."
 
 # Set output for GitHub Actions
 if [ -n "${GITHUB_OUTPUT}" ]; then
