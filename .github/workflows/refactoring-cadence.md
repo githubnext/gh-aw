@@ -29,6 +29,10 @@ safe-outputs:
     run-started: "🔧 Refactoring Cadence online! [{workflow_name}]({run_url}) is measuring code health..."
     run-success: "✅ Code health check complete! [{workflow_name}]({run_url}) has finished its analysis."
     run-failure: "🔧 Code health check failed! [{workflow_name}]({run_url}) {status}. Code health status unknown..."
+network:
+  allowed:
+    - defaults
+    - go
 timeout-minutes: 20
 features:
   copilot-requests: true
