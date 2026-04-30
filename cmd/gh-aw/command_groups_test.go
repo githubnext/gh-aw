@@ -53,6 +53,7 @@ func TestCommandGroupAssignments(t *testing.T) {
 		{name: "completion command in utilities group", commandName: "completion", expectedGroup: "utilities", shouldHaveGroup: true},
 		{name: "hash-frontmatter command in utilities group", commandName: "hash-frontmatter", expectedGroup: "utilities", shouldHaveGroup: true},
 		{name: "project command in utilities group", commandName: "project", expectedGroup: "utilities", shouldHaveGroup: true},
+		{name: "skills command in utilities group", commandName: "skills", expectedGroup: "utilities", shouldHaveGroup: true},
 
 		// Commands without groups (intentionally)
 		{name: "version command without group", commandName: "version", expectedGroup: "", shouldHaveGroup: false},
