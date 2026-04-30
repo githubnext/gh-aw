@@ -216,7 +216,7 @@ describe("main", () => {
     const alreadyExists = Object.assign(new Error("Unprocessable Entity"), { status: 422 });
     mockGithub.rest.issues.createLabel.mockRejectedValue(alreadyExists);
 
-    // The issue body has no run URL, so main() will call setFailed after ensureLabel —
+    // The issue body has no run URL, so main() will call setFailed after ensureApplySafeOutputsLabelExists —
     // we only care that createLabel was called with the right args.
     global.context = {
       ...global.context,

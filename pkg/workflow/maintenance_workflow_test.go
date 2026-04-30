@@ -563,7 +563,7 @@ func TestGenerateMaintenanceWorkflow_DisableAgenticWorkflowJob(t *testing.T) {
 
 	const jobSectionSearchRange = 2000
 
-	// Verify only the issues label trigger is present (pull_request is no longer supported)
+	// Verify only the issues label trigger is present (pull request is no longer supported)
 	if !strings.Contains(yaml, "  issues:\n    types: [labeled]") {
 		t.Error("Maintenance workflow should include issues: types: [labeled] trigger")
 	}
