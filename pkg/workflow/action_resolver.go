@@ -12,6 +12,9 @@ import (
 
 var resolverLog = logger.New("workflow:action_resolver")
 
+// defaultAPITimeout is the maximum time allowed for a single GitHub API call.
+const defaultAPITimeout = 30 * time.Second
+
 // ActionSHAResolver is the minimal interface for resolving an action tag to its commit SHA.
 type ActionSHAResolver interface {
 	ResolveSHA(repo, version string) (string, error)
@@ -103,7 +106,7 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 	apiPath := fmt.Sprintf("/repos/%s/git/ref/tags/%s", baseRepo, version)
 	resolverLog.Printf("Querying GitHub API: %s", apiPath)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultAPITimeout)
 	defer cancel()
 
 	// Fetch both SHA and object type to detect annotated tags.
@@ -131,7 +134,7 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 		}
 		resolverLog.Printf("Detected annotated tag for %s@%s (depth %d, tag object SHA: %s), peeling to underlying object", repo, version, depth, sha)
 		tagPath := fmt.Sprintf("/repos/%s/git/tags/%s", baseRepo, sha)
-		peelCtx, peelCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		peelCtx, peelCancel := context.WithTimeout(context.Background(), defaultAPITimeout)
 		cmd2 := ExecGHContext(peelCtx, "api", tagPath, "--jq", "[.object.sha, .object.type] | @tsv")
 		output2, peelErr := cmd2.Output()
 		peelCancel()
@@ -146,4 +149,40 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 	resolverLog.Printf("Resolved %s@%s to %s SHA: %s", repo, version, objType, sha)
 
 	return sha, nil
+}
+
+// ResolveLatestTag returns the latest release tag and its commit SHA for a
+// given repository. It queries the GitHub API for the latest release and then
+// resolves the tag to a commit SHA using ResolveSHA. The result is cached via
+// the action cache so subsequent calls within the same compilation run are free.
+//
+// This is used as a fallback when pinning github_ref inputs that have no
+// explicit ref and no entry in the embedded action_pins.json.
+func (r *ActionResolver) ResolveLatestTag(repo string) (tag, sha string, err error) {
+	baseRepo := gitutil.ExtractBaseRepo(repo)
+	resolverLog.Printf("Querying latest release for %s", baseRepo)
+
+	apiPath := fmt.Sprintf("/repos/%s/releases/latest", baseRepo)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultAPITimeout)
+	defer cancel()
+
+	cmd := ExecGHContext(ctx, "api", apiPath, "--jq", ".tag_name")
+	output, cmdErr := cmd.Output()
+	if cmdErr != nil {
+		resolverLog.Printf("Failed to query latest release for %s: %v", baseRepo, cmdErr)
+		return "", "", fmt.Errorf("failed to get latest release for %s: %w", baseRepo, cmdErr)
+	}
+
+	tag = strings.TrimSpace(string(output))
+	if tag == "" {
+		resolverLog.Printf("No release found for %s", baseRepo)
+		return "", "", fmt.Errorf("no release found for %s", baseRepo)
+	}
+
+	resolverLog.Printf("Latest release tag for %s: %s", baseRepo, tag)
+	sha, err = r.ResolveSHA(repo, tag)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to resolve SHA for %s@%s: %w", repo, tag, err)
+	}
+	return tag, sha, nil
 }
