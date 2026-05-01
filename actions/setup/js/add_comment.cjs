@@ -657,7 +657,7 @@ async function main(config = {}) {
     // Records a created comment in createdComments and returns the success result.
     const recordComment = (/** @type {{ id: string | number, html_url: string }} */ comment, /** @type {boolean} */ isDiscussionFlag) => {
       createdComments.push({ id: comment.id, html_url: comment.html_url, _tracking: { commentId: comment.id, itemNumber, repo: itemRepo, isDiscussion: isDiscussionFlag } });
-      return { success: true, commentId: comment.id, url: comment.html_url, itemNumber, repo: itemRepo, isDiscussion: isDiscussionFlag };
+      return { success: true, commentId: comment.id, url: comment.html_url, body: processedBody, itemNumber, repo: itemRepo, isDiscussion: isDiscussionFlag };
     };
 
     // Normalize reply_to_id once so both the main discussion path and the
