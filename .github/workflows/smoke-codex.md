@@ -98,7 +98,7 @@ checkout:
 8. **Comment Memory Testing**: Append an original 3-line haiku to the comment-memory markdown file(s) in `/tmp/gh-aw/comment-memory/*.md` without removing existing content.
 9. **Cache Memory Testing**:
    - Check if `/tmp/gh-aw/cache-memory/smoke-codex-history.json` exists; if it does, read it and note the previous run's results (run ID, timestamp, status)
-   - Write current run results to `/tmp/gh-aw/cache-memory/smoke-codex-history.json` with content: `{"run_id": "${{ github.run_id }}", "timestamp": "<current UTC timestamp>", "status": "PASS or FAIL", "tests_passed": <count>, "tests_failed": <count>}` (create the parent directory if it doesn't exist)
+   - Write current run results to `/tmp/gh-aw/cache-memory/smoke-codex-history.json` with content: `{"run_id": "${{ github.run_id }}", "timestamp": "<current UTC timestamp in ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ>", "status": "PASS or FAIL", "tests_passed": <count>, "tests_failed": <count>}` (create the parent directory if it doesn't exist)
    - Use bash to verify the file was written successfully (use `cat` to read it back)
 
 ## Output
