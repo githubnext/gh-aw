@@ -361,6 +361,22 @@ Test workflow
 `,
 			wantAssocCheck: false,
 		},
+		{
+			name: "issue_comment trigger with on.bots allows bot actor in pre_activation if",
+			frontmatter: `---
+on:
+  issue_comment:
+    types: [created]
+  bots:
+    - dependabot[bot]
+    - renovate[bot]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -387,12 +403,38 @@ Test workflow
 
 			compiledStr := string(compiledContent)
 
-			hasCheck := strings.Contains(compiledStr, "author_association")
+			// Extract the pre_activation job section so we check only the job-level if:,
+			// not unrelated occurrences in other jobs or comments.
+			preActivationSection := extractJobSection(compiledStr, "pre_activation")
+
+			// When there is no pre_activation job (e.g. roles:all or workflow_dispatch-only),
+			// the author_association guard is clearly absent — handle both outcomes here.
+			if preActivationSection == "" {
+				if tt.wantAssocCheck {
+					t.Errorf("Expected pre_activation job section to be present and contain author_association check, but the section was not found")
+				}
+				// wantAssocCheck == false and no pre_activation section → test passes.
+				return
+			}
+
+			// Look for the author_association guard within the pre_activation job section.
+			// The job-level if: may be rendered as a block scalar (if: >\n  <expression>),
+			// so we check the whole section rather than a single line. Any occurrence of
+			// author_association in this section comes from the job-level if: expression.
+			hasCheck := strings.Contains(preActivationSection, "author_association")
 			if tt.wantAssocCheck && !hasCheck {
-				t.Errorf("Expected compiled workflow to contain author_association check, but it was absent.\nWorkflow:\n%s", compiledStr)
+				t.Errorf("Expected pre_activation job if: to contain author_association check, but it was absent.\nFull pre_activation section:\n%s", preActivationSection)
 			}
 			if !tt.wantAssocCheck && hasCheck {
-				t.Errorf("Expected compiled workflow to NOT contain author_association check, but it was present.\nWorkflow:\n%s", compiledStr)
+				t.Errorf("Expected pre_activation job if: to NOT contain author_association check, but it was present.\nFull pre_activation section:\n%s", preActivationSection)
+			}
+
+			// For the bot test case, also verify bot actor exemptions appear in the job if:.
+			if tt.wantAssocCheck && strings.Contains(tt.frontmatter, "bots:") {
+				hasBot := strings.Contains(preActivationSection, "dependabot") && strings.Contains(preActivationSection, "renovate")
+				if !hasBot {
+					t.Errorf("Expected pre_activation job if: to contain bot actor exemptions, but they were absent.\nFull pre_activation section:\n%s", preActivationSection)
+				}
 			}
 		})
 	}

@@ -760,7 +760,7 @@ func TestUpdateActions_NeverDowngrades(t *testing.T) {
 		t.Fatalf("failed to chdir: %v", err)
 	}
 
-	if err := UpdateActions(context.Background(), true, false, false); err != nil {
+	if err := UpdateActions(context.Background(), true, false, false, 0); err != nil {
 		t.Fatalf("UpdateActions() error = %v", err)
 	}
 

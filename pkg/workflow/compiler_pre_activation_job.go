@@ -445,7 +445,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	//   - the compiled on: section includes issue_comment or pull_request_review_comment events.
 	// Workflows with roles:all opt out of needsPermissionCheck and are intentionally unrestricted.
 	if needsPermissionCheck && hasCommentEventInOn(data.On) {
-		commentAuthCondition := RenderCondition(buildCommentAuthorAssociationCondition())
+		commentAuthCondition := RenderCondition(buildCommentAuthorAssociationCondition(data.Bots))
 		if jobIfCondition != "" {
 			jobIfCondition = RenderCondition(BuildAnd(
 				&ExpressionNode{Expression: commentAuthCondition},
@@ -514,15 +514,22 @@ func hasCommentEventInOn(on string) bool {
 
 // buildCommentAuthorAssociationCondition returns a ConditionNode that passes for non-comment
 // events and for comment events whose author is an OWNER, MEMBER, or COLLABORATOR.
+// Actors listed in bots (from on.bots) are also exempted so that bot/app-triggered workflows
+// continue to work even though bots rarely carry an OWNER/MEMBER/COLLABORATOR association.
 //
-// The generated expression is:
+// The generated expression (without bots) is:
 //
 //	(github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment')
 //	|| contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
 //
+// With one or more bots an additional OR clause is appended for each bot:
+//
+//	|| github.actor == 'dependabot[bot]'
+//
 // This satisfies the RGS-004 rule (explicit author_association check for comment-triggered
-// workflows) while remaining transparent to non-comment events such as push or schedule.
-func buildCommentAuthorAssociationCondition() ConditionNode {
+// workflows) while remaining transparent to non-comment events such as push or schedule,
+// and preserves existing on.bots allow-list behaviour.
+func buildCommentAuthorAssociationCondition(bots []string) ConditionNode {
 	notIssueComment := BuildNotEquals(
 		BuildPropertyAccess("github.event_name"),
 		BuildStringLiteral("issue_comment"),
@@ -539,7 +546,19 @@ func buildCommentAuthorAssociationCondition() ConditionNode {
 		BuildPropertyAccess("github.event.comment.author_association"),
 	)
 
-	return BuildOr(notCommentEvent, authorizedAssoc)
+	result := BuildOr(notCommentEvent, authorizedAssoc)
+
+	// Allow explicitly listed bot/app actors so on.bots behaviour is preserved.
+	// Bots typically carry no OWNER/MEMBER/COLLABORATOR association, so we exempt
+	// them by actor login rather than by author_association.
+	for _, bot := range bots {
+		result = BuildOr(result, BuildEquals(
+			BuildPropertyAccess("github.actor"),
+			BuildStringLiteral(bot),
+		))
+	}
+
+	return result
 }
 
 // generateReportSkipStep generates the "Report skip reason" step for the pre-activation job.
