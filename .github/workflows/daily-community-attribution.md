@@ -269,9 +269,10 @@ cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md 2>/dev/null || echo
 {{#if (eq experiments.prompt_style "concise")}}
 ### 1. Attribute Issues
 
-Read `pre_attributed.json` (Tier 0–2, pre-computed). For each entry in
-`tier3_candidates_capped.json` (≤5), apply Tier 3 (one `issue_read` call per
-issue). Anything unresolved → Tier 4.
+Read `pre_attributed.json` (Tier 0–2, pre-computed — do not re-derive). For each
+entry in `tier3_candidates_capped.json` (≤5), apply Tier 3 (one `issue_read` call per
+issue). Anything unresolved → Tier 4. Issues beyond the first 5 in
+`tier3_candidates.json` are deferred to the next run — do not process them.
 {{else}}
 ### 1. Attribute All Resolved Community Issues
 
@@ -291,9 +292,10 @@ are deferred to the next run — do not attempt to process them.
 {{#if (eq experiments.prompt_style "concise")}}
 ### 2. Update Wiki Page
 
-Merge all attributions into `/tmp/gh-aw/repo-memory-default/Community-Contributors.md`.
-Group by author (alphabetical), issues descending. Keep under 9 KB (remove oldest
-entries from most-prolific author if needed). Format:
+Read the existing wiki at `/tmp/gh-aw/repo-memory-default/Community-Contributors.md`
+(empty/missing on first run). Merge all confirmed attributions without duplicating
+entries. Group by author (alphabetical), issues descending. Keep under 9 KB (remove
+oldest entries from most-prolific author if needed). Format:
 `- [#N](url) Title — YYYY-MM-DD — attribution_type`. Write back with edit tool.
 {{else}}
 ### 2. Update the Community Contributors Wiki Page
