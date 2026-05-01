@@ -217,38 +217,61 @@ func longestCommonPrefixLen(a, b string) int {
 //
 // The map key is the MCP tool name; the value is the sorted list of valid JSON
 // parameter names taken from the corresponding *Args struct json tags.
+//
+// MAINTENANCE: When tool parameters change, update the corresponding entry here
+// to match the json tags on the *Args struct in register*Tool functions:
+//   - status       → registerStatusTool   in mcp_tools_readonly.go  (statusArgs)
+//   - compile      → registerCompileTool  in mcp_tools_readonly.go  (compileArgs)
+//   - logs         → registerLogsTool     in mcp_tools_privileged.go (logsArgs)
+//   - audit        → registerAuditTool    in mcp_tools_privileged.go (auditArgs)
+//   - audit-diff   → registerAuditDiffTool in mcp_tools_privileged.go (auditDiffArgs)
+//   - checks       → registerChecksTool   in mcp_tools_readonly.go  (checksArgs)
+//   - mcp-inspect  → registerMCPInspectTool in mcp_tools_readonly.go (mcpInspectArgs)
+//   - add          → registerAddTool      in mcp_tools_management.go (addArgs)
+//   - update       → registerUpdateTool   in mcp_tools_management.go (updateArgs)
+//   - fix          → registerFixTool      in mcp_tools_management.go (fixArgs)
 func mcpToolParams() map[string]toolParamEntry {
 	params := map[string]toolParamEntry{
+		// statusArgs in mcp_tools_readonly.go
 		"status": {
 			"pattern",
 		},
+		// compileArgs in mcp_tools_readonly.go
 		"compile": {
 			"workflows", "strict", "zizmor", "poutine", "actionlint",
 			"runner-guard", "fix", "max_tokens",
 		},
+		// logsArgs in mcp_tools_privileged.go
 		"logs": {
 			"workflow_name", "count", "start_date", "end_date", "engine",
 			"firewall", "no_firewall", "filtered_integrity", "branch",
 			"after_run_id", "before_run_id", "timeout", "max_tokens", "artifacts",
 		},
+		// auditArgs in mcp_tools_privileged.go
 		"audit": {
 			"run_id_or_url", "run_ids_or_urls", "artifacts", "max_tokens",
 		},
+		// auditDiffArgs in mcp_tools_privileged.go
 		"audit-diff": {
 			"base_run_id", "compare_run_ids", "artifacts",
 		},
+		// checksArgs in mcp_tools_readonly.go
 		"checks": {
 			"pr_number", "repo",
 		},
+		// mcpInspectArgs in mcp_tools_readonly.go
 		"mcp-inspect": {
 			"workflow_file", "server", "tool",
 		},
+		// addArgs in mcp_tools_management.go
 		"add": {
 			"workflows", "number", "name",
 		},
+		// updateArgs in mcp_tools_management.go
 		"update": {
 			"workflows", "major", "force",
 		},
+		// fixArgs in mcp_tools_management.go
 		"fix": {
 			"workflows", "write", "list_codemods",
 		},

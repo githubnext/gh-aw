@@ -280,6 +280,9 @@ func TestArgumentValidationMiddleware_PassesThroughNonToolCallMethods(t *testing
 
 // TestMCPToolParams verifies that the tool parameter registry is populated and
 // consistent with the known tools.
+//
+// MAINTENANCE: This list must mirror createMCPServer in mcp_server.go —
+// add an entry here whenever a new register*Tool call is added there.
 func TestMCPToolParams(t *testing.T) {
 	params := mcpToolParams()
 
