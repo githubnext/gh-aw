@@ -68,8 +68,8 @@ function renderMarkdownTemplate(markdown) {
   }
 
   // Count conditionals before processing
-  const blockConditionals = (_stripped.match(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g) || []).length;
-  const inlineConditionals = (_stripped.match(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g) || []).length - blockConditionals;
+  const blockConditionals = (_stripped.match(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*(?:{{#endif}}|{{\/if}})[ \t]*)(\n?)/g) || []).length;
+  const inlineConditionals = (_stripped.match(/{{#if\s+([^}]*)}}([\s\S]*?)(?:{{#endif}}|{{\/if}})/g) || []).length - blockConditionals;
 
   core.info(`[renderMarkdownTemplate] Found ${blockConditionals} block conditional(s) and ${inlineConditionals} inline conditional(s)`);
 
@@ -79,7 +79,8 @@ function renderMarkdownTemplate(markdown) {
 
   // First pass: Handle blocks where tags are on their own lines
   // Captures: (leading newline)(opening tag line)(condition)(body)(closing tag line)(trailing newline)
-  let result = _stripped.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+  // Closing tag: {{#endif}} (primary) or {{/if}} (alternate)
+  let result = _stripped.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*(?:{{#endif}}|{{\/if}})[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
     blockCount++;
     const condTrimmed = cond.trim();
     const truthyResult = isTruthy(cond);
@@ -88,22 +89,22 @@ function renderMarkdownTemplate(markdown) {
     core.info(`[renderMarkdownTemplate] Block ${blockCount}: condition="${condTrimmed}" -> ${truthyResult ? "KEEP" : "REMOVE"}`);
     core.info(`[renderMarkdownTemplate]   Body preview: "${bodyPreview}${body.length > 60 ? "..." : ""}"`);
 
-    // Split on {{else}} if present to support two-branch conditionals.
-    // e.g. {{#if (eq concise "concise")}} ... {{else}} ... {{/if}}
-    const elseParts = body.split(/[ \t]*\{\{else\}\}[ \t]*\n?/);
+    // Split on {{#else}} if present to support two-branch conditionals.
+    // e.g. {{#if experiments.prompt_style == "concise"}} ... {{#else}} ... {{#endif}}
+    const elseParts = body.split(/[ \t]*\{\{#else\}\}[ \t]*\n?/);
     const trueBranch = elseParts[0];
-    const falseBranch = elseParts.length > 1 ? elseParts.slice(1).join("{{else}}") : null;
+    const falseBranch = elseParts.length > 1 ? elseParts.slice(1).join("{{#else}}") : null;
 
     if (truthyResult) {
-      // Keep the true branch (before {{else}}, or full body if no {{else}})
+      // Keep the true branch (before {{#else}}, or full body if no {{#else}})
       keptBlocks++;
       core.info(`[renderMarkdownTemplate]   Action: Keeping ${falseBranch !== null ? "true branch" : "body"} with leading newline=${!!leadNL}`);
       return leadNL + trueBranch;
     } else {
-      // Remove the block, or keep the false branch when {{else}} is present
+      // Remove the block, or keep the false branch when {{#else}} is present
       removedBlocks++;
       if (falseBranch !== null) {
-        core.info(`[renderMarkdownTemplate]   Action: Keeping false branch ({{else}} branch)`);
+        core.info(`[renderMarkdownTemplate]   Action: Keeping false branch ({{#else}} branch)`);
         return leadNL + falseBranch;
       }
       core.info(`[renderMarkdownTemplate]   Action: Removing entire block`);
@@ -118,7 +119,8 @@ function renderMarkdownTemplate(markdown) {
   let removedInline = 0;
 
   // Second pass: Handle inline conditionals (tags not on their own lines)
-  result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => {
+  // Closing tag: {{#endif}} (primary) or {{/if}} (alternate)
+  result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?)(?:{{#endif}}|{{\/if}})/g, (_, cond, body) => {
     inlineCount++;
     const condTrimmed = cond.trim();
     const truthyResult = isTruthy(cond);

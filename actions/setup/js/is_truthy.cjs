@@ -4,7 +4,8 @@
  *
  * Supports:
  *   - Simple falsy string check: "", "false", "no", "0", "null", "undefined"
- *   - Equality helper: (eq VALUE "LITERAL") — returns true when VALUE === LITERAL
+ *   - GitHub Actions script style equality: lhs == "rhs" or lhs === "rhs"
+ *     After experiment substitution the condition looks like: concise == "concise"
  *
  * @param {string} expr - The expression to evaluate
  * @returns {boolean} - Whether the expression is truthy
@@ -12,12 +13,16 @@
 function isTruthy(expr) {
   const trimmed = expr.trim();
 
-  // Handle (eq VALUE "LITERAL") helper expression.
-  // Used by experiment conditionals: {{#if (eq concise "concise")}}
-  // after the experiment placeholder has been substituted into the condition.
-  const eqMatch = trimmed.match(/^\(eq\s+(.+?)\s+"(.+?)"\)$/i);
+  // Handle GitHub Actions script style equality expressions: lhs == "rhs" or lhs === "rhs"
+  // Used by experiment conditionals after the experiment value has been substituted:
+  //   {{#if experiments.prompt_style == "concise"}} becomes {{#if concise == "concise"}}
+  const eqMatch = trimmed.match(/^(.+?)\s*===?\s*"([^"]*)"\s*$/);
   if (eqMatch) {
-    return eqMatch[1].trim() === eqMatch[2].trim();
+    return eqMatch[1].trim() === eqMatch[2];
+  }
+  const neqMatch = trimmed.match(/^(.+?)\s*!==?\s*"([^"]*)"\s*$/);
+  if (neqMatch) {
+    return neqMatch[1].trim() !== neqMatch[2];
   }
 
   const v = trimmed.toLowerCase();
