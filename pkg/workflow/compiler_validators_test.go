@@ -322,7 +322,7 @@ func TestValidateReportFormattingImport(t *testing.T) {
 			expectWarning: false,
 		},
 		{
-			name: "create-discussion only — no create-issue — warning applies",
+			name: "create-discussion with create-issue — warning still applies",
 			safeOutputs: &SafeOutputsConfig{
 				CreateDiscussions: &CreateDiscussionsConfig{},
 				CreateIssues:      &CreateIssuesConfig{},

@@ -411,6 +411,6 @@ func (c *Compiler) validateReportFormattingImport(workflowData *WorkflowData, ma
 			"or, if you manage discussions outside the standard stack:\n"+
 			"  imports:\n"+
 			"    - shared/reporting.md\n"+
-			"See: https://github.com/github/gh-aw/blob/main/.github/workflows/shared/reporting.md"))
+			"See: https://github.com/github/gh-aw/blob/HEAD/.github/workflows/shared/reporting.md"))
 	c.IncrementWarningCount()
 }
