@@ -11,7 +11,7 @@ const mockCore = {
 
 global.core = mockCore;
 
-const REFLECT_PATH = "/tmp/gh-aw/awf-reflect.json";
+const REFLECT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
 
 /** Full sample /reflect response from the AWF api-proxy server */
 const SAMPLE_REFLECT = {
@@ -65,7 +65,7 @@ describe("awf_reflect_summary.cjs", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+    fs.mkdirSync("/tmp/gh-aw/sandbox/firewall", { recursive: true });
     module = await import("./awf_reflect_summary.cjs");
   });
 

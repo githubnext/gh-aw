@@ -628,6 +628,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		artifactPaths = append(artifactPaths, constants.AWFConfigFilePath)
 		artifactPaths = append(artifactPaths, constants.AWFProxyLogsDir+"/")
 		artifactPaths = append(artifactPaths, constants.AWFAuditDir+"/")
+		// Include the AWF /reflect payload persisted by the agent harness.
+		// Co-located under /tmp/gh-aw/sandbox/firewall/ so the existing
+		// chmod -R a+r step covers its permissions before upload.
+		artifactPaths = append(artifactPaths, constants.AWFReflectFilePath)
 	}
 
 	// Generate single unified artifact upload with all collected paths.

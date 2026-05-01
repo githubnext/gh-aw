@@ -3,7 +3,7 @@
 
 const fs = require("fs");
 
-const AWF_REFLECT_PATH = "/tmp/gh-aw/awf-reflect.json";
+const AWF_REFLECT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
 
 /**
  * Read the AWF reflect payload that was persisted to disk by copilot_harness.cjs.

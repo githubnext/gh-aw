@@ -41,6 +41,7 @@
 const { spawn } = require("child_process");
 const fs = require("fs");
 const http = require("http");
+const path = require("path");
 
 // Maximum number of retry attempts after the initial run
 const MAX_RETRIES = 3;
@@ -61,9 +62,9 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 // The api-proxy sidecar exposes /reflect on its management port (port 10000) inside the AWF
 // Docker network. From the agent container, the proxy is reachable via the "api-proxy" hostname.
 const AWF_API_PROXY_REFLECT_URL = "http://api-proxy:10000/reflect";
-// Path inside the agent container (and on the host via bind-mount) where the reflect payload
-// is persisted so the post-run GitHub Actions step can include it in the step summary.
-const AWF_REFLECT_OUTPUT_PATH = "/tmp/gh-aw/awf-reflect.json";
+// Path inside the agent container where the reflect payload is persisted. The directory is
+// co-located with other AWF firewall observability data so it is included in the agent artifact.
+const AWF_REFLECT_OUTPUT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
 // Milliseconds to wait for the /reflect endpoint before giving up.
 const AWF_REFLECT_TIMEOUT_MS = 5000;
 
@@ -306,6 +307,7 @@ async function fetchAWFReflect(options) {
         try {
           // Validate that the body is parseable JSON before saving.
           JSON.parse(body);
+          fs.mkdirSync(path.dirname(outputPath), { recursive: true });
           writeFile(outputPath, body, { encoding: "utf8" });
           logger(`awf-reflect: saved ${body.length}B to ${outputPath}`);
         } catch (err) {
