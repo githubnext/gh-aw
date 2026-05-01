@@ -32,26 +32,6 @@ const path = require("path");
 require(path.join(__dirname, "shim.cjs"));
 
 // ---------------------------------------------------------------------------
-// Internal: lazy-load send_otlp_span.cjs so the module can be required from
-// the runtime actions directory (/tmp/gh-aw/actions/) without knowing the
-// absolute path of this file at author time.
-// ---------------------------------------------------------------------------
-
-/** @type {typeof import('./send_otlp_span.cjs') | null} */
-let _core = null;
-
-/**
- * Return the low-level send_otlp_span module, resolved relative to this file.
- * @returns {typeof import('./send_otlp_span.cjs')}
- */
-function core() {
-  if (!_core) {
-    _core = require(path.join(__dirname, "send_otlp_span.cjs"));
-  }
-  return _core;
-}
-
-// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -92,7 +72,7 @@ function core() {
  */
 async function logSpan(toolName, attributes = {}, options = {}) {
   try {
-    const { buildAttr, buildOTLPPayload, sendOTLPSpan, generateSpanId, isValidTraceId, isValidSpanId, SPAN_KIND_CLIENT } = core();
+    const { buildAttr, buildOTLPPayload, sendOTLPSpan, generateSpanId, isValidTraceId, isValidSpanId, SPAN_KIND_CLIENT } = require(path.join(__dirname, "send_otlp_span.cjs"));
 
     const now = Date.now();
     const startMs = options.startMs ?? now;
