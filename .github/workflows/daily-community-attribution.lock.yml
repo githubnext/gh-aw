@@ -57,7 +57,7 @@
 name: "Daily Community Attribution Updater"
 "on":
   schedule:
-  - cron: "5 10 * * *"
+  - cron: "20 2 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

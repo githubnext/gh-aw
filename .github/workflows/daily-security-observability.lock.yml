@@ -67,7 +67,7 @@
 name: "Daily Security Observability Report"
 "on":
   schedule:
-  - cron: "54 10 * * *"
+  - cron: "49 15 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

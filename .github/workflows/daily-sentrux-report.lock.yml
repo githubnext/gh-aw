@@ -58,7 +58,7 @@
 name: "Daily Sentrux Report"
 "on":
   schedule:
-  - cron: "36 11 * * *"
+  - cron: "52 23 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

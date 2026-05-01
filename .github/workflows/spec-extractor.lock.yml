@@ -59,7 +59,7 @@
 name: "Package Specification Extractor"
 "on":
   schedule:
-  - cron: "20 9 * * *"
+  - cron: "24 9 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

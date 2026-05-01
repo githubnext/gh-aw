@@ -59,7 +59,7 @@
 name: "Multi-Device Docs Tester"
 "on":
   schedule:
-  - cron: "38 16 * * *"
+  - cron: "26 5 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

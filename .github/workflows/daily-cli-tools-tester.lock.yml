@@ -60,7 +60,7 @@
 name: "Daily CLI Tools Exploratory Tester"
 "on":
   schedule:
-  - cron: "54 19 * * *"
+  - cron: "8 5 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

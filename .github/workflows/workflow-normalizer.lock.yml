@@ -55,7 +55,7 @@
 name: "Workflow Normalizer"
 "on":
   schedule:
-  - cron: "23 4 * * *"
+  - cron: "40 12 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

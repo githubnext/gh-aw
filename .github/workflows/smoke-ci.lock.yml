@@ -62,7 +62,7 @@ name: "Smoke CI"
     - go.mod
     - actions/setup/js/**
   schedule:
-  - cron: "22 7 * * *"
+  - cron: "52 7 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

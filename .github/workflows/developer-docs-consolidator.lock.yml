@@ -64,7 +64,7 @@
 name: "Developer Documentation Consolidator"
 "on":
   schedule:
-  - cron: "12 15 * * *"
+  - cron: "19 13 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

@@ -57,7 +57,7 @@
 name: "Daily Team Evolution Insights"
 "on":
   schedule:
-  - cron: "15 17 * * *"
+  - cron: "6 20 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

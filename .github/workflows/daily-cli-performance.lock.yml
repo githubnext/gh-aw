@@ -60,7 +60,7 @@ name: "Daily CLI Performance Agent"
   # permissions: # Permissions applied to pre-activation job
     # contents: read
   schedule:
-  - cron: "15 23 * * *"
+  - cron: "49 14 * * *"
     # Friendly format: daily (scattered)
   # steps: # Steps injected into pre-activation job
   # - id: changes

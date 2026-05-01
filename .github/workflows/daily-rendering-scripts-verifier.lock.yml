@@ -66,7 +66,7 @@
 name: "Daily Rendering Scripts Verifier"
 "on":
   schedule:
-  - cron: "12 15 * * *"
+  - cron: "36 7 * * *"
     # Friendly format: daily (scattered)
   # skip-if-match: is:pr is:open in:title "[rendering-scripts]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:

@@ -2,7 +2,7 @@
 description: Posts a daily poetic verse about the gh-aw project to a discussion thread
 on:
   schedule:
-    - cron: "daily around 11:00 on weekdays"  # ~11 AM UTC, weekdays only
+    - cron: "daily around 14:00 on weekdays"  # ~2 PM UTC, weekdays only
   workflow_dispatch:
 permissions:
   contents: read

@@ -64,7 +64,7 @@
 name: "Safe Output Health Monitor"
 "on":
   schedule:
-  - cron: "22 10 * * *"
+  - cron: "6 4 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

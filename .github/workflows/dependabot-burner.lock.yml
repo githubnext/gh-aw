@@ -51,7 +51,7 @@
 name: "Dependabot Burner"
 "on":
   schedule:
-  - cron: "43 5 * * 5"
+  - cron: "8 6 * * 5"
     # Friendly format: weekly (scattered)
   workflow_dispatch:
     inputs:
