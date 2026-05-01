@@ -14,7 +14,9 @@ engine:
   id: claude
   max-turns: 140
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, repos]
   cache-memory: true
   bash:

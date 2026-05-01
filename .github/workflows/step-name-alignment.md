@@ -28,8 +28,10 @@ safe-outputs:
     labels: [maintenance, step-naming, cookie]
 
 tools:
+  cli-proxy: true
   cache-memory: true
   github:
+    mode: gh-proxy
     toolsets: [default]
   bash:
     - "yq --version"

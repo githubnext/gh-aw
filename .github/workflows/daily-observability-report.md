@@ -13,6 +13,7 @@ tracker-id: daily-observability-report
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, discussions, actions]
   agentic-workflows: true
 timeout-minutes: 45

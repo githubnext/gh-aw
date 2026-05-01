@@ -28,7 +28,9 @@ network:
     - github
 
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, actions]
   edit:
   bash:

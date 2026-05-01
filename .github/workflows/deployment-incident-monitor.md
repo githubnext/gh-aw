@@ -10,7 +10,9 @@ permissions:
   deployments: read
 engine: copilot
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [repos, actions]
 safe-outputs:
   create-issue:

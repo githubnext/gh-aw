@@ -128,6 +128,7 @@ pre-agent-steps:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [pull_requests]
   cache-memory: true
   edit:

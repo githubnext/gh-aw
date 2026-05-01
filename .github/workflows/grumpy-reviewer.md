@@ -14,6 +14,8 @@ imports:
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
+tools:
+  cli-proxy: true
 safe-outputs:
   create-pull-request-review-comment:
     max: 5

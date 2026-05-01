@@ -27,6 +27,7 @@ tools:
   bash:
     - "*"
   github:
+    mode: gh-proxy
     toolsets:
       - default
       - discussions

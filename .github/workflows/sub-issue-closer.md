@@ -13,7 +13,9 @@ network:
   allowed:
     - defaults
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets:
       - issues
 safe-outputs:

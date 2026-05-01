@@ -9,6 +9,8 @@ permissions:
    pull-requests: read
    actions: read
 engine: claude
+tools:
+  cli-proxy: true
 timeout-minutes: 30
 strict: true
 imports:

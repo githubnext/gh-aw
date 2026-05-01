@@ -26,7 +26,9 @@ network:
     - go
 
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default]
   cache-memory: true
   edit:

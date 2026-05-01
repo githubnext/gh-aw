@@ -14,6 +14,7 @@ tracker-id: daily-issues-report
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     min-integrity: approved
     toolsets: [default, discussions]
 timeout-minutes: 30

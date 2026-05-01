@@ -12,6 +12,7 @@ strict: true
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [repos, issues]
   bash: true
 safe-outputs:

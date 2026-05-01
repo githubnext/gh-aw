@@ -20,6 +20,7 @@ imports:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [context, pull_requests]
   repo-memory:

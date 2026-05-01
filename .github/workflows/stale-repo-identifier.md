@@ -58,7 +58,9 @@ safe-outputs:
     run-failure: "⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}."
 
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     read-only: true
     min-integrity: approved
     toolsets:

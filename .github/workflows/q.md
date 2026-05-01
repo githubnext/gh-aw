@@ -20,6 +20,7 @@ tools:
   cli-proxy: true
   agentic-workflows:
   github:
+    mode: gh-proxy
     min-integrity: none
     toolsets:
       - default
@@ -229,6 +230,7 @@ Example:
 ```yaml
 tools:
   github:
+    mode: gh-proxy
     allowed: 
       - issue_read
       - list_commits

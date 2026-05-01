@@ -18,6 +18,7 @@ tools:
   edit:
   bash: true
   github:
+    mode: gh-proxy
     toolsets: [actions, repos]
 safe-outputs:
   create-discussion:

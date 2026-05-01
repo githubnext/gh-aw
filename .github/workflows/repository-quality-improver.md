@@ -30,6 +30,7 @@ tools:
     - id: focus-areas
       key: quality-focus-${{ github.workflow }}
   github:
+    mode: gh-proxy
     toolsets:
       - default
 timeout-minutes: 20

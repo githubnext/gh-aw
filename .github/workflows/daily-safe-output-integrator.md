@@ -17,6 +17,7 @@ strict: true
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default]
   bash:
     - "find pkg/cli/workflows -name 'test-*.md' -type f"

@@ -14,6 +14,7 @@ tracker-id: daily-secrets-analysis
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, discussions]
   bash: true
 timeout-minutes: 20
