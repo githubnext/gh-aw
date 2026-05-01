@@ -40,6 +40,7 @@
 
 const { spawn } = require("child_process");
 const fs = require("fs");
+const http = require("http");
 
 // Maximum number of retry attempts after the initial run
 const MAX_RETRIES = 3;
@@ -55,6 +56,16 @@ const MAX_SCHEDULED_EXIT2_RETRIES = 1;
 // If prompt files are larger than this threshold, avoid inlining into argv.
 const PROMPT_FILE_INLINE_THRESHOLD_BYTES = 100 * 1024;
 const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
+
+// AWF API proxy management endpoint for discovering configured LLM providers and available models.
+// The api-proxy sidecar exposes /reflect on its management port (port 10000) inside the AWF
+// Docker network. From the agent container, the proxy is reachable via the "api-proxy" hostname.
+const AWF_API_PROXY_REFLECT_URL = "http://api-proxy:10000/reflect";
+// Path inside the agent container (and on the host via bind-mount) where the reflect payload
+// is persisted so the post-run GitHub Actions step can include it in the step summary.
+const AWF_REFLECT_OUTPUT_PATH = "/tmp/gh-aw/awf-reflect.json";
+// Milliseconds to wait for the /reflect endpoint before giving up.
+const AWF_REFLECT_TIMEOUT_MS = 5000;
 
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
@@ -251,6 +262,74 @@ function formatDuration(ms) {
 }
 
 /**
+ * Fetch the AWF API proxy /reflect endpoint and persist the response to disk.
+ *
+ * The /reflect endpoint is exposed by the api-proxy sidecar on its management port (10000)
+ * and returns the list of configured LLM providers together with their available model lists.
+ * This information is saved to AWF_REFLECT_OUTPUT_PATH so the post-run GitHub Actions step
+ * (awf_reflect_summary.cjs) can include it in the step summary without requiring the
+ * containers to still be running.
+ *
+ * The function is best-effort: any network or parse error is logged but does not abort
+ * the agent run.
+ *
+ * @param {{
+ *   reflectUrl?: string,
+ *   outputPath?: string,
+ *   timeoutMs?: number,
+ *   logger?: (msg: string) => void,
+ *   writeFileSync?: (path: string, data: string, options: object) => void,
+ * }=} options
+ * @returns {Promise<void>}
+ */
+async function fetchAWFReflect(options) {
+  const reflectUrl = (options && options.reflectUrl) || AWF_API_PROXY_REFLECT_URL;
+  const outputPath = (options && options.outputPath) || AWF_REFLECT_OUTPUT_PATH;
+  const timeoutMs = options && options.timeoutMs != null ? options.timeoutMs : AWF_REFLECT_TIMEOUT_MS;
+  const logger = (options && options.logger) || log;
+  const writeFile = (options && options.writeFileSync) || fs.writeFileSync;
+
+  logger(`awf-reflect: fetching ${reflectUrl} (timeout=${timeoutMs}ms)`);
+
+  return new Promise(resolve => {
+    const req = http.get(reflectUrl, res => {
+      let body = "";
+      res.on("data", chunk => {
+        body += chunk.toString();
+      });
+      res.on("end", () => {
+        if (res.statusCode !== 200) {
+          logger(`awf-reflect: unexpected status ${res.statusCode}, skipping`);
+          resolve();
+          return;
+        }
+        try {
+          // Validate that the body is parseable JSON before saving.
+          JSON.parse(body);
+          writeFile(outputPath, body, { encoding: "utf8" });
+          logger(`awf-reflect: saved ${body.length}B to ${outputPath}`);
+        } catch (err) {
+          const e = /** @type {Error} */ err;
+          logger(`awf-reflect: failed to parse or write response: ${e.message}`);
+        }
+        resolve();
+      });
+    });
+
+    req.on("error", err => {
+      logger(`awf-reflect: request failed: ${err.message}`);
+      resolve();
+    });
+
+    req.setTimeout(timeoutMs, () => {
+      logger(`awf-reflect: request timed out after ${timeoutMs}ms`);
+      req.destroy();
+      resolve();
+    });
+  });
+}
+
+/**
  * Run a command with the given arguments, transparently forwarding stdin/stdout/stderr.
  * Also collects output for error pattern detection.
  *
@@ -430,10 +509,11 @@ async function main() {
     const result = await runProcess(command, currentArgs, attempt);
     lastExitCode = result.exitCode;
 
-    // Success — exit immediately
+    // Success — record exit code and stop retrying
     if (result.exitCode === 0) {
       log(`success on attempt ${attempt + 1}: totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
-      process.exit(0);
+      lastExitCode = 0;
+      break;
     }
 
     // Determine whether to retry.
@@ -541,17 +621,25 @@ async function main() {
     emitInfrastructureIncomplete("Copilot API interruption (exit code 2) persisted after automatic retry in scheduled workflow run.");
   }
 
+  // Fetch AWF API proxy reflection data and persist to disk for post-run step summary.
+  // This is best-effort: failures are logged but do not affect the agent exit code.
+  await fetchAWFReflect();
+
   log(`done: exitCode=${lastExitCode} totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
   process.exit(lastExitCode);
 }
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    AWF_API_PROXY_REFLECT_URL,
+    AWF_REFLECT_OUTPUT_PATH,
+    AWF_REFLECT_TIMEOUT_MS,
     PROMPT_FILE_INLINE_THRESHOLD_BYTES,
     appendSafeOutputLine,
     buildPromptFileFallbackInstruction,
     buildInfrastructureIncompletePayload,
     emitInfrastructureIncomplete,
+    fetchAWFReflect,
     resolvePromptFileArgs,
   };
 }

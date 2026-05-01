@@ -521,6 +521,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.TokenUsageFilename)
 	}
 
+	// Append AWF API proxy reflection data (available endpoints and models) to step summary.
+	// This data is fetched from the /reflect endpoint by copilot_harness.cjs before the
+	// agent exits and persisted to /tmp/gh-aw/awf-reflect.json.
+	if isFirewallEnabled(data) {
+		c.generateAWFReflectSummary(yaml, data)
+	}
+
 	// Synthesize a compact observability section from runtime artifacts when OTLP is enabled.
 	c.generateObservabilitySummary(yaml, data)
 
