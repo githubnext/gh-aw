@@ -63,11 +63,41 @@ func TestDetectKnownCredentialLeakingActions(t *testing.T) {
 			expected: map[string]bool{"GH_AW_CLEAN_DOCKER": true},
 		},
 		{
-			name: "actions/checkout detected",
+			name: "actions/checkout without ssh-key not detected",
 			steps: []any{
 				map[string]any{"uses": "actions/checkout@v4"},
 			},
+			expected: nil,
+		},
+		{
+			name: "actions/checkout with ssh-key detected",
+			steps: []any{
+				map[string]any{
+					"uses": "actions/checkout@v4",
+					"with": map[string]any{"ssh-key": "${{ secrets.DEPLOY_KEY }}"},
+				},
+			},
 			expected: map[string]bool{"GH_AW_CLEAN_SSH": true},
+		},
+		{
+			name: "actions/checkout with empty ssh-key not detected",
+			steps: []any{
+				map[string]any{
+					"uses": "actions/checkout@v4",
+					"with": map[string]any{"ssh-key": ""},
+				},
+			},
+			expected: nil,
+		},
+		{
+			name: "actions/checkout with whitespace-only ssh-key not detected",
+			steps: []any{
+				map[string]any{
+					"uses": "actions/checkout@v4",
+					"with": map[string]any{"ssh-key": "   "},
+				},
+			},
+			expected: nil,
 		},
 		{
 			name: "multiple known actions detected",
@@ -87,7 +117,10 @@ func TestDetectKnownCredentialLeakingActions(t *testing.T) {
 				map[string]any{"uses": "aws-actions/configure-aws-credentials@v4"},
 				map[string]any{"uses": "azure/login@v2"},
 				map[string]any{"uses": "docker/login-action@v3"},
-				map[string]any{"uses": "actions/checkout@v4"},
+				map[string]any{
+					"uses": "actions/checkout@v4",
+					"with": map[string]any{"ssh-key": "${{ secrets.DEPLOY_KEY }}"},
+				},
 			},
 			expected: map[string]bool{
 				"GH_AW_CLEAN_GCP":    true,
@@ -345,6 +378,43 @@ Test workflow.
 				`GH_AW_CLEAN_AZURE: "true"`,
 				`GH_AW_CLEAN_DOCKER: "true"`,
 			},
+		},
+		{
+			name: "checkout without ssh-key does not trigger ssh cleanup",
+			workflowContent: `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
+    with:
+      persist-credentials: false
+---
+Test workflow.
+`,
+			expectCleaner: false,
+			expectEnvVars: nil,
+		},
+		{
+			name: "checkout with ssh-key triggers ssh cleanup",
+			workflowContent: `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+steps:
+  - name: Checkout with deploy key
+    uses: actions/checkout@v4
+    with:
+      persist-credentials: false
+      ssh-key: ${{ secrets.DEPLOY_KEY }}
+---
+Test workflow.
+`,
+			expectCleaner: true,
+			expectEnvVars: []string{`GH_AW_CLEAN_SSH: "true"`},
 		},
 	}
 

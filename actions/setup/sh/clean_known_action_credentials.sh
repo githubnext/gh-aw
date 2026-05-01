@@ -77,14 +77,17 @@ if [[ "${GH_AW_CLEAN_SSH:-}" == "true" ]]; then
   echo "Cleaning SSH keys (actions/checkout with deploy key)..."
   # Clear all keys from the SSH agent
   if command -v ssh-add >/dev/null 2>&1; then
-    ssh-add -D 2>/dev/null && echo "Cleared SSH agent keys" || true
-    CLEANED=$((CLEANED + 1))
+    if ssh-add -D 2>/dev/null; then
+      echo "Cleared SSH agent keys"
+      CLEANED=$((CLEANED + 1))
+    fi
   fi
   # Remove deploy key files added by checkout (typically named id_rsa, id_ed25519, etc.)
   # Only remove private key files (no .pub extension) that are not system defaults
   while IFS= read -r key_file; do
     rm -f "${key_file}"
     echo "Removed SSH key file: ${key_file@Q}"
+    CLEANED=$((CLEANED + 1))
   done < <(find "${HOME_DIR}/.ssh" -maxdepth 1 -type f ! -name "*.pub" ! -name "known_hosts" ! -name "config" ! -name "authorized_keys" 2>/dev/null) || true
 fi
 

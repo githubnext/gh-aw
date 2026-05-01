@@ -14,7 +14,8 @@
 //   - aws-actions/configure-aws-credentials → ~/.aws/credentials (AWS access keys)
 //   - azure/login                 → ~/.azure/ (Azure service principal credentials)
 //   - docker/login-action         → ~/.docker/config.json (Docker registry auth tokens)
-//   - actions/checkout            → ~/.ssh/ (SSH private keys from deploy key)
+//   - actions/checkout (with deploy key) → ~/.ssh/ (SSH private keys from deploy key)
+//     Only triggered when the step has a non-empty 'with.ssh-key' input.
 //
 // # Integration
 //
@@ -48,6 +49,36 @@ type knownCredentialLeakingAction struct {
 	envVar string
 	// credentialPaths describes the credentials the action creates (used in log messages)
 	credentialPaths string
+	// extraCheck is an optional additional predicate evaluated against the full step
+	// map when the action prefix matches. When non-nil, both the prefix match and this
+	// predicate must return true for the action to be considered detected.
+	// When nil, the prefix match alone is sufficient.
+	extraCheck func(step map[string]any) bool
+}
+
+// checkoutHasSSHKey returns true when an actions/checkout step has a non-empty
+// 'with.ssh-key' input, which indicates a deploy key is being used and SSH
+// credentials will be left on disk.
+func checkoutHasSSHKey(step map[string]any) bool {
+	withVal, ok := step["with"]
+	if !ok {
+		return false
+	}
+	withMap, ok := withVal.(map[string]any)
+	if !ok {
+		return false
+	}
+	sshKey, ok := withMap["ssh-key"]
+	if !ok {
+		return false
+	}
+	switch v := sshKey.(type) {
+	case string:
+		return strings.TrimSpace(v) != ""
+	default:
+		// Non-string value (e.g. an expression object) is treated as present
+		return true
+	}
 }
 
 // knownCredentialLeakingActions is the ordered list of GitHub Actions known to leave
@@ -77,6 +108,9 @@ var knownCredentialLeakingActions = []knownCredentialLeakingAction{
 		actionPrefix:    "actions/checkout",
 		envVar:          "GH_AW_CLEAN_SSH",
 		credentialPaths: "~/.ssh/ (SSH private keys from deploy key)",
+		// Only clean SSH keys when a deploy key is explicitly configured via ssh-key input.
+		// Standard token-based checkouts do not leave SSH credentials on disk.
+		extraCheck: checkoutHasSSHKey,
 	},
 }
 
@@ -103,13 +137,19 @@ func DetectKnownCredentialLeakingActions(steps []any) map[string]bool {
 		actionRef, _, _ := strings.Cut(uses, "@")
 
 		for _, known := range knownCredentialLeakingActions {
-			if actionRef == known.actionPrefix {
-				detected[known.envVar] = true
-				knownActionCredentialsLog.Printf(
-					"Detected known credential-leaking action: %s → will clean %s",
-					actionRef, known.credentialPaths,
-				)
+			if actionRef != known.actionPrefix {
+				continue
 			}
+			// When an extra predicate is configured, both the prefix match and the
+			// predicate must pass before treating this action as detected.
+			if known.extraCheck != nil && !known.extraCheck(stepMap) {
+				continue
+			}
+			detected[known.envVar] = true
+			knownActionCredentialsLog.Printf(
+				"Detected known credential-leaking action: %s → will clean %s",
+				actionRef, known.credentialPaths,
+			)
 		}
 	}
 
