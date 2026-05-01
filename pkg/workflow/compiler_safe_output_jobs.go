@@ -245,12 +245,38 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 		}
 
 		callJob := &Job{
-			Name:           jobName,
-			Needs:          []string{"safe_outputs"},
-			If:             fmt.Sprintf("needs.safe_outputs.outputs.call_workflow_name == '%s'", workflowName),
-			Uses:           workflowPath,
-			SecretsInherit: true,
-			With:           with,
+			Name:  jobName,
+			Needs: []string{"safe_outputs"},
+			If:    fmt.Sprintf("needs.safe_outputs.outputs.call_workflow_name == '%s'", workflowName),
+			Uses:  workflowPath,
+			With:  with,
+		}
+
+		// Infer the minimal set of secrets required by the worker workflow so we can
+		// pass them explicitly instead of using secrets: inherit. This requires the
+		// worker to have been compiled with on.workflow_call.secrets declarations.
+		// If the worker has not yet been compiled (no .lock.yml/.yml), or declares no
+		// secrets, fall back to secrets: inherit for backward compatibility.
+		if markdownPath != "" {
+			workerSecrets, secretsErr := extractCallWorkflowSecrets(workflowName, markdownPath)
+			if secretsErr != nil {
+				compilerSafeOutputJobsLog.Printf("Warning: could not extract secrets for call-workflow job '%s': %v. "+
+					"Falling back to secrets: inherit.", jobName, secretsErr)
+				callJob.SecretsInherit = true
+			} else if len(workerSecrets) == 0 {
+				// No secrets declared in worker — fall back to secrets: inherit.
+				compilerSafeOutputJobsLog.Printf("Worker '%s' declares no workflow_call secrets; using secrets: inherit", workflowName)
+				callJob.SecretsInherit = true
+			} else {
+				// Map each declared secret explicitly.
+				callJob.Secrets = make(map[string]string, len(workerSecrets))
+				for _, s := range workerSecrets {
+					callJob.Secrets[s] = fmt.Sprintf("${{ secrets.%s }}", s)
+				}
+				compilerSafeOutputJobsLog.Printf("Mapped %d explicit secrets for call-workflow job '%s'", len(workerSecrets), jobName)
+			}
+		} else {
+			callJob.SecretsInherit = true
 		}
 
 		// Compute the permission superset required by the worker's jobs and

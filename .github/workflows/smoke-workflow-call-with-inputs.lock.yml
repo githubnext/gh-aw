@@ -61,6 +61,13 @@ name: "Smoke Workflow Call with Inputs"
       created_issue_url:
         description: URL of the first created issue
         value: ${{ jobs.safe_outputs.outputs.created_issue_url }}
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: false
+      GH_AW_GITHUB_MCP_SERVER_TOKEN:
+        required: false
+      GH_AW_GITHUB_TOKEN:
+        required: false
   workflow_dispatch:
     inputs:
       aw_context:

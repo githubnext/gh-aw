@@ -354,6 +354,23 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	secrets := CollectSecretReferences(bodyContent)
 	actions := CollectActionReferences(bodyContent)
 
+	// If this workflow has a workflow_call trigger, inject on.workflow_call.secrets:
+	// declarations so callers can map secrets explicitly instead of using secrets: inherit.
+	// We update data.On and regenerate the body so the compiled output includes the
+	// declarations. The set of secrets does not change between the two passes (the
+	// injected declarations do not add new ${{ secrets.* }} references).
+	if hasWorkflowCallTrigger(data.On) && len(secrets) > 0 {
+		updatedOn := injectWorkflowCallSecretsSection(data.On, secrets)
+		if updatedOn != data.On {
+			data.On = updatedOn
+			body.Reset()
+			body.Grow(initialBuilderCapacity)
+			c.generateWorkflowBody(&body, data)
+			bodyContent = body.String()
+			compilerYamlLog.Printf("Regenerated workflow body with on.workflow_call.secrets declarations")
+		}
+	}
+
 	// Generate workflow header comments (including metadata as first line, plus secrets/actions lists)
 	c.generateWorkflowHeader(&yaml, data, frontmatterHash, secrets, actions)
 
