@@ -235,6 +235,18 @@ describe("pick_experiment", () => {
       expect(fs.existsSync(assignmentsFile)).toBe(false);
     });
 
+    it("does not write assignments.json when all experiments have fewer than 2 variants", async () => {
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ exp1: ["only-one"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      // All experiments are skipped (< 2 variants), so no assignments are written.
+      const assignmentsFile = path.join(tmpDir, "assignments.json");
+      expect(fs.existsSync(assignmentsFile)).toBe(false);
+    });
+
     it("calls setFailed on invalid JSON spec", async () => {
       process.env.GH_AW_EXPERIMENT_SPEC = "not-json";
       process.env.GH_AW_EXPERIMENT_STATE_FILE = path.join(tmpDir, "state.json");

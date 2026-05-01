@@ -189,9 +189,12 @@ async function main() {
 
   // Persist current-run assignments to a separate file so downstream jobs and
   // OTLP telemetry can read which variant was selected without recomputing it.
-  const assignmentsFile = path.join(stateDir, "assignments.json");
-  fs.writeFileSync(assignmentsFile, JSON.stringify(assignments, null, 2) + "\n", "utf8");
-  core.info(`Experiment assignments written to ${assignmentsFile}`);
+  // Only written when at least one experiment was successfully assigned.
+  if (Object.keys(assignments).length > 0) {
+    const assignmentsFile = path.join(stateDir, "assignments.json");
+    fs.writeFileSync(assignmentsFile, JSON.stringify(assignments, null, 2) + "\n", "utf8");
+    core.info(`Experiment assignments written to ${assignmentsFile}`);
+  }
 
   // Write step summary.
   await writeSummary(assignments, spec, state, core);

@@ -1750,11 +1750,18 @@ describe("buildExperimentAttributes", () => {
     expect(JSON.parse(attrMap["gh-aw.experiments"])).toEqual({ caveman: "yes", style: "detailed" });
   });
 
-  it("skips assignments with non-string or empty-string variants", () => {
+  it("skips assignments with non-string or empty-string variants and still adds gh-aw.experiments for valid ones", () => {
     const attrs = buildExperimentAttributes({ good: "A", bad: "" });
     const keys = attrs.map(a => a.key);
     expect(keys).toContain("gh-aw.experiment.good");
     expect(keys).not.toContain("gh-aw.experiment.bad");
+    // gh-aw.experiments is still present because at least one valid variant exists
+    expect(keys).toContain("gh-aw.experiments");
+  });
+
+  it("returns empty array and omits gh-aw.experiments when all variants are empty strings", () => {
+    const attrs = buildExperimentAttributes({ exp1: "", exp2: "" });
+    expect(attrs).toEqual([]);
   });
 });
 

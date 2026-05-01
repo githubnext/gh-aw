@@ -262,7 +262,9 @@ function buildExperimentAttributes(assignments) {
       attrs.push(buildAttr(`gh-aw.experiment.${name}`, variant));
     }
   }
-  attrs.push(buildAttr("gh-aw.experiments", JSON.stringify(assignments)));
+  if (attrs.length > 0) {
+    attrs.push(buildAttr("gh-aw.experiments", JSON.stringify(assignments)));
+  }
   return attrs;
 }
 
