@@ -76,8 +76,8 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 			content = t
 		}
 
-		// Detect experiments.NAME expressions and remap them to env.GH_AW_EXPERIMENTS_NAME
-		// so the substitution step reads the value set by the experiment selection step via GITHUB_ENV.
+		// Detect experiments.NAME expressions and remap them to steps.pick-experiment.outputs.NAME
+		// so the substitution step reads the variant value from the pick_experiment step output.
 		if t := transformExperimentsExpression(content); t != content {
 			expressionExtractionLog.Printf("Transformed experiment expression: %s -> %s", content, t)
 			content = t
@@ -199,10 +199,9 @@ func transformActivationOutputs(expr string) string {
 // experimentNameRegex matches experiments.<name> expressions where name is a simple identifier.
 var experimentNameRegex = regexp.MustCompile(`^experiments\.([a-zA-Z_][a-zA-Z0-9_]*)$`)
 
-// ExperimentEnvVarName returns the GITHUB_ENV / GITHUB_OUTPUT variable name used by the
-// pick_experiment step for the given experiment name.
-// The name is uppercased and any character that is not A-Z, 0-9, or underscore is replaced
-// with underscore, matching the JavaScript normalization in pick_experiment.cjs.
+// ExperimentEnvVarName returns the env-var name used for the given experiment.
+// The name is uppercased; hyphens are converted to underscores; all other characters
+// that are not A-Z, 0-9, or underscore are dropped (not replaced).
 // Example: "feature1" → "GH_AW_EXPERIMENTS_FEATURE1"
 // Example: "my-flag"  → "GH_AW_EXPERIMENTS_MY_FLAG"
 func ExperimentEnvVarName(experimentName string) string {

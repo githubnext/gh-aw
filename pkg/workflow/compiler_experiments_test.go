@@ -80,6 +80,26 @@ func TestExtractExperimentsFromFrontmatter(t *testing.T) {
 			},
 			want: map[string][]string{"feature1": {"A", "B"}},
 		},
+		{
+			name: "skips experiment with invalid name (hyphen)",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"my-flag": []any{"A", "B"},
+					"valid":   []any{"X", "Y"},
+				},
+			},
+			want: map[string][]string{"valid": {"X", "Y"}},
+		},
+		{
+			name: "skips experiment with name starting with digit",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"1invalid": []any{"A", "B"},
+					"valid":    []any{"X", "Y"},
+				},
+			},
+			want: map[string][]string{"valid": {"X", "Y"}},
+		},
 	}
 
 	for _, tt := range tests {
@@ -161,6 +181,20 @@ func TestGenerateExperimentSteps_SpecJSON(t *testing.T) {
 	steps := c.generateExperimentSteps(data)
 	joined := strings.Join(steps, "")
 	assert.Contains(t, joined, `{"style":["concise","detailed"]}`, "spec JSON should be embedded in the step")
+}
+
+func TestGenerateExperimentSteps_SingleQuoteEscaping(t *testing.T) {
+	c := &Compiler{}
+	data := &WorkflowData{
+		Experiments: map[string][]string{
+			"variant": {"Bob's choice", "Alice's choice"},
+		},
+	}
+	steps := c.generateExperimentSteps(data)
+	joined := strings.Join(steps, "")
+	// Single quotes in JSON string values must be doubled for YAML single-quoted scalar.
+	assert.Contains(t, joined, "Bob''s", "single quotes in variant values must be escaped as '' in YAML")
+	assert.Contains(t, joined, "Alice''s", "single quotes in variant values must be escaped as '' in YAML")
 }
 
 func TestExperimentExpressionMappings(t *testing.T) {

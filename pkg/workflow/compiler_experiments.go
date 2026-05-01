@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -21,6 +22,11 @@ const experimentStateFile = experimentsCacheDir + "/state.json"
 // extractExperimentsFromFrontmatter reads the "experiments" map from a raw frontmatter map.
 // Each key is an experiment name; each value must be a []string (or []any of strings) of
 // variant values.  Invalid entries are silently skipped.
+// Experiment names must match [a-zA-Z_][a-zA-Z0-9_]* (identifier style) so they can be used
+// as GitHub Actions step output names and in ${{ experiments.<name> }} expressions without
+// bracket notation.  Names that do not match are skipped with a warning.
+var experimentNamePattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
 func extractExperimentsFromFrontmatter(frontmatter map[string]any) map[string][]string {
 	raw, ok := frontmatter["experiments"]
 	if !ok || raw == nil {
@@ -32,6 +38,10 @@ func extractExperimentsFromFrontmatter(frontmatter map[string]any) map[string][]
 	}
 	result := make(map[string][]string, len(rawMap))
 	for name, val := range rawMap {
+		if !experimentNamePattern.MatchString(name) {
+			experimentsLog.Printf("Skipping experiment %q: name must match [a-zA-Z_][a-zA-Z0-9_]*", name)
+			continue
+		}
 		switch v := val.(type) {
 		case []string:
 			if len(v) >= 2 {
@@ -59,11 +69,10 @@ func extractExperimentsFromFrontmatter(frontmatter map[string]any) map[string][]
 //
 // Steps generated (only when experiments are declared):
 //  1. Restore experiment cache   – actions/cache/restore keyed by workflow ID
-//  2. Pick variants              – pick_experiment.cjs (reads/writes state.json, sets step outputs)
-//     Outputs: one per experiment (e.g. "caveman=yes") + "experiments" JSON blob
-//  3. Experiment step summary    – write a Markdown summary to GITHUB_STEP_SUMMARY
-//  4. Save experiment cache      – actions/cache/save keyed by workflow ID
-//  5. Upload experiment artifact – actions/upload-artifact named "experiment"
+//  2. Pick variants              – pick_experiment.cjs (reads/writes state.json, sets step outputs,
+//     writes a Markdown step summary); outputs: one per experiment (e.g. "caveman=yes") + "experiments" JSON blob
+//  3. Save experiment cache      – actions/cache/save keyed by workflow ID
+//  4. Upload experiment artifact – actions/upload-artifact named "experiment"
 func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 	if len(data.Experiments) == 0 {
 		return nil
@@ -97,7 +106,7 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 		"        id: pick-experiment\n",
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
-		fmt.Sprintf("          GH_AW_EXPERIMENT_SPEC: '%s'\n", specJSON),
+		fmt.Sprintf("          GH_AW_EXPERIMENT_SPEC: '%s'\n", strings.ReplaceAll(specJSON, "'", "''")),
 		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_FILE: %s\n", experimentStateFile),
 		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_DIR: %s\n", experimentsCacheDir),
 		"        with:\n",
@@ -136,7 +145,9 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 
 // buildExperimentSpecJSON builds a compact JSON object from the experiments map.
 // Uses encoding/json for proper escaping of all special characters.
-// The resulting JSON is safe to embed in a YAML single-quoted scalar (no single quotes in output).
+// Caller is responsible for escaping single quotes (” in YAML) when embedding the
+// result in a YAML single-quoted scalar, since JSON string values may contain literal
+// single quotes (e.g. "Bob's").
 func buildExperimentSpecJSON(experiments map[string][]string, names []string) string {
 	// Build JSON manually with encoding/json for individual values to ensure
 	// correct escaping of all special characters.  We iterate names (a sorted slice)

@@ -22,7 +22,8 @@
  *   K is the number of variants, satisfying basic A/B statistical balance.
  *
  * Outputs:
- *   - Sets GH_AW_EXPERIMENTS_<NAME>=<variant> in GITHUB_ENV for each experiment.
+ *   - Sets core.setOutput(name, selected) for each experiment (e.g. caveman=yes).
+ *   - Sets core.setOutput('experiments', JSON.stringify(assignments)) for the full map.
  *   - Writes the updated counter state back to GH_AW_EXPERIMENT_STATE_FILE.
  *   - Appends a Markdown step summary with the assignment table and cumulative counts.
  */
@@ -171,7 +172,7 @@ async function main() {
     assignments[name] = selected;
 
     // Expose the selected variant as a step output (individual per experiment).
-    // Downstream jobs access this via needs.activation.outputs.experiment_<name>.
+    // Downstream jobs access this via needs.activation.outputs.<name>.
     core.setOutput(name, selected);
     core.info(`Experiment "${name}": selected variant "${selected}" (output: ${name}=${selected})`);
   }
