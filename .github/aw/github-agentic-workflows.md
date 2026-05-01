@@ -528,7 +528,10 @@ The YAML frontmatter supports these fields:
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
     - `allowed:` - Array of allowed GitHub API functions
-    - `mode:` - "local" (Docker, default) — **do NOT use "remote"** as it does not work with the GitHub Actions token
+    - `mode:` - GitHub access mode:
+      - `"local"` (default) — Docker-based GitHub MCP Server
+      - `"gh-proxy"` — pre-authenticated `gh` CLI, no MCP server; preferred for better performance. The legacy `features.cli-proxy: true` flag is equivalent and still accepted.
+      - **do NOT use `"remote"`** — it does not work with the GitHub Actions token; use `"gh-proxy"` instead
     - `version:` - MCP server version (local mode only)
     - `args:` - Additional command-line arguments (local mode only)
     - `read-only:` - The GitHub MCP server always operates in read-only mode; this field is accepted but has no effect
