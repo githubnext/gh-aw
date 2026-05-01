@@ -506,6 +506,7 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		// repo-memory is backed by a git working tree.
 		fmt.Fprintf(builder, "      - name: Sanitize %s filenames (%s)\n", memoryLabel, memory.ID)
 		builder.WriteString("        if: always()\n")
+		builder.WriteString("        continue-on-error: true\n")
 		builder.WriteString("        env:\n")
 		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
 		builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/sanitize_repo_memory_filenames.sh\"\n")

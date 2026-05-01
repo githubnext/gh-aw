@@ -1073,6 +1073,7 @@ jobs:
       # Upload repo memory as artifacts for push job
       - name: Sanitize repo-memory filenames (default)
         if: always()
+        continue-on-error: true
         env:
           MEMORY_DIR: /tmp/gh-aw/repo-memory/default
         run: bash "${RUNNER_TEMP}/gh-aw/actions/sanitize_repo_memory_filenames.sh"
