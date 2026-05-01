@@ -250,6 +250,7 @@ If your threat model requires an authority completely outside GitHub's control p
 jobs:
   external-admission:
     runs-on: ubuntu-latest
+    needs: [agent, detection]        # waits for agent output and threat scanning to complete
     environment: production-deploy   # optional: also adds GitHub-native reviewer gate
     steps:
       - name: Request admission from external authority
