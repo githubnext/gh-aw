@@ -1696,8 +1696,10 @@ describe("sendJobSetupSpan", () => {
 
 describe("readExperimentAssignments", () => {
   let readFileSpy;
+  const savedStateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR;
 
   beforeEach(() => {
+    delete process.env.GH_AW_EXPERIMENT_STATE_DIR;
     readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
@@ -1705,6 +1707,11 @@ describe("readExperimentAssignments", () => {
 
   afterEach(() => {
     readFileSpy.mockRestore();
+    if (savedStateDir !== undefined) {
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = savedStateDir;
+    } else {
+      delete process.env.GH_AW_EXPERIMENT_STATE_DIR;
+    }
   });
 
   it("returns null when the assignments file does not exist", () => {
@@ -1729,6 +1736,27 @@ describe("readExperimentAssignments", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
     expect(readExperimentAssignments()).toEqual({ caveman: "yes", style: "detailed" });
+  });
+
+  it("reads from GH_AW_EXPERIMENT_STATE_DIR/assignments.json when env var is set", () => {
+    process.env.GH_AW_EXPERIMENT_STATE_DIR = "/custom/experiments";
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === "/custom/experiments/assignments.json") {
+        return JSON.stringify({ feature: "on" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readExperimentAssignments()).toEqual({ feature: "on" });
+  });
+
+  it("falls back to EXPERIMENT_ASSIGNMENTS_PATH when GH_AW_EXPERIMENT_STATE_DIR is not set", () => {
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === EXPERIMENT_ASSIGNMENTS_PATH) {
+        return JSON.stringify({ mode: "fast" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readExperimentAssignments()).toEqual({ mode: "fast" });
   });
 });
 
@@ -1755,8 +1783,10 @@ describe("buildExperimentAttributes", () => {
     const keys = attrs.map(a => a.key);
     expect(keys).toContain("gh-aw.experiment.good");
     expect(keys).not.toContain("gh-aw.experiment.bad");
-    // gh-aw.experiments is still present because at least one valid variant exists
-    expect(keys).toContain("gh-aw.experiments");
+    // gh-aw.experiments is present and only contains the valid variant
+    const experimentsAttr = attrs.find(a => a.key === "gh-aw.experiments");
+    expect(experimentsAttr).toBeDefined();
+    expect(JSON.parse(experimentsAttr.value.stringValue)).toEqual({ good: "A" });
   });
 
   it("returns empty array and omits gh-aw.experiments when all variants are empty strings", () => {
