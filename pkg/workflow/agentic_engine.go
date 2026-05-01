@@ -439,6 +439,11 @@ func (e *BaseEngine) RenderConfig(_ *ResolvedEngineTarget) ([]map[string]any, er
 // EngineRegistry manages available agentic engines
 type EngineRegistry struct {
 	engines map[string]CodingAgentEngine
+
+	// Cached results for GetAllAgentManifestFiles and GetAllAgentManifestFolders.
+	// These are computed once on first call and never change after engine registration.
+	cachedManifestFiles   []string
+	cachedManifestFolders []string
 }
 
 var (
@@ -463,6 +468,15 @@ func NewEngineRegistry() *EngineRegistry {
 	registry.Register(NewCrushEngine())
 
 	agenticEngineLog.Printf("Registered %d engines", len(registry.engines))
+
+	// Pre-compute and cache the manifest file/folder lists now that all engines are
+	// registered. These lists are derived solely from the registered engine set, which
+	// is fixed after construction.  Pre-computing here guarantees thread-safe access:
+	// callers that read the cached slices later see a fully-initialised, immutable
+	// value and never trigger concurrent writes.
+	registry.cachedManifestFolders = registry.computeAllAgentManifestFolders()
+	registry.cachedManifestFiles = registry.computeAllAgentManifestFiles()
+
 	return registry
 }
 
@@ -522,7 +536,20 @@ func (r *EngineRegistry) GetDefaultEngine() CodingAgentEngine {
 // with trailing slashes stripped, plus ".agents" as the gh-aw platform agent directory.
 // The returned list is sorted and deduplicated, making the engine implementations the
 // single source of truth for which directories the save/restore scripts protect.
+//
+// When created via NewEngineRegistry the result is pre-computed at construction time
+// so subsequent calls are allocation-free.  Registries created directly (e.g. in tests)
+// fall back to computing on demand.
 func (r *EngineRegistry) GetAllAgentManifestFolders() []string {
+	if r.cachedManifestFolders != nil {
+		return r.cachedManifestFolders
+	}
+	return r.computeAllAgentManifestFolders()
+}
+
+// computeAllAgentManifestFolders computes the manifest folders list from the registered engines.
+// Called once during NewEngineRegistry to populate cachedManifestFolders.
+func (r *EngineRegistry) computeAllAgentManifestFolders() []string {
 	seen := map[string]bool{}
 	var result []string
 	for _, engine := range r.engines {
@@ -550,7 +577,20 @@ func (r *EngineRegistry) GetAllAgentManifestFolders() []string {
 // GetAllAgentManifestFiles returns the union of all engines' GetAgentManifestFiles().
 // The returned list is sorted and deduplicated, making the engine implementations the
 // single source of truth for which root-level instruction files the save/restore scripts protect.
+//
+// When created via NewEngineRegistry the result is pre-computed at construction time
+// so subsequent calls are allocation-free.  Registries created directly (e.g. in tests)
+// fall back to computing on demand.
 func (r *EngineRegistry) GetAllAgentManifestFiles() []string {
+	if r.cachedManifestFiles != nil {
+		return r.cachedManifestFiles
+	}
+	return r.computeAllAgentManifestFiles()
+}
+
+// computeAllAgentManifestFiles computes the manifest files list from the registered engines.
+// Called once during NewEngineRegistry to populate cachedManifestFiles.
+func (r *EngineRegistry) computeAllAgentManifestFiles() []string {
 	seen := map[string]bool{}
 	var result []string
 	for _, engine := range r.engines {

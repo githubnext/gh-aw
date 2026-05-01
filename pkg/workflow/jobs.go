@@ -162,6 +162,10 @@ func (jm *JobManager) RenderToYAML() string {
 	}
 
 	var yaml strings.Builder
+	// Pre-allocate capacity: "jobs:\n" header + estimated size per job.
+	// A typical compiled workflow has 3-5 jobs; each agent job can be ~30 KB.
+	// 96 KB avoids the first reallocation for most workflows.
+	yaml.Grow(96 * 1024)
 	yaml.WriteString("jobs:\n")
 
 	// jobOrder is kept sorted alphabetically by AddJob
@@ -177,6 +181,11 @@ func (jm *JobManager) RenderToYAML() string {
 func (jm *JobManager) renderJob(job *Job) string {
 	jobLog.Printf("Rendering job: %s (steps=%d, needs=%d, reusable=%t)", job.Name, len(job.Steps), len(job.Needs), job.Uses != "")
 	var yaml strings.Builder
+	// Pre-allocate capacity for a typical job.
+	// Agent jobs can be very large (~30 KB); smaller jobs like activation are ~2 KB.
+	// 8 KB is a reasonable default that avoids most reallocations without over-allocating
+	// for activation/conclusion jobs while keeping the reallocation count low for main jobs.
+	yaml.Grow(8 * 1024)
 
 	fmt.Fprintf(&yaml, "  %s:\n", job.Name)
 
