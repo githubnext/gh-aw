@@ -302,6 +302,20 @@ func (c *Compiler) extractAdditionalConfigurations(
 		workflowData.MCPScripts = c.mergeMCPScripts(workflowData.MCPScripts, importsResult.MergedMCPScripts)
 	}
 
+	// Extract structured-output configuration from frontmatter
+	if structuredOutputRaw, exists := frontmatter["structured-output"]; exists {
+		if structuredOutputMap, ok := structuredOutputRaw.(map[string]any); ok {
+			config := &StructuredOutputConfig{}
+			if schema, ok := structuredOutputMap["schema"].(map[string]any); ok {
+				config.Schema = schema
+			}
+			if schemaFile, ok := structuredOutputMap["schema-file"].(string); ok {
+				config.SchemaFile = schemaFile
+			}
+			workflowData.StructuredOutput = config
+		}
+	}
+
 	// Extract safe-jobs from safe-outputs.jobs location
 	topSafeJobs := extractSafeJobsFromFrontmatter(frontmatter)
 

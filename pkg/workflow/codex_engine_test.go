@@ -1007,3 +1007,95 @@ func TestCodexEngineWithExpressionVersion(t *testing.T) {
 		t.Errorf("Expression should NOT be embedded directly in npm install command, got:\n%s", installStep)
 	}
 }
+
+func TestCodexEngineStructuredOutputInlineSchema(t *testing.T) {
+	engine := NewCodexEngine()
+
+	workflowData := &WorkflowData{
+		Name: "test-structured-output",
+		AI:   "codex",
+		StructuredOutput: &StructuredOutputConfig{
+			Schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"decision": map[string]any{
+						"type": "string",
+						"enum": []any{"APPROVE", "REQUEST_CHANGES", "ESCALATE"},
+					},
+					"reasoning": map[string]any{
+						"type": "string",
+					},
+				},
+				"required":             []any{"decision", "reasoning"},
+				"additionalProperties": false,
+			},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/codex.log")
+	if len(steps) == 0 {
+		t.Fatal("Expected execution steps, got none")
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Should include --output-schema flag
+	if !strings.Contains(stepContent, "--output-schema /tmp/gh-aw/output-schema.json") {
+		t.Errorf("Expected --output-schema flag in execution step, got:\n%s", stepContent)
+	}
+
+	// Should include base64 decode command to write the schema file
+	if !strings.Contains(stepContent, "base64 --decode > /tmp/gh-aw/output-schema.json") {
+		t.Errorf("Expected base64 decode command for schema file setup, got:\n%s", stepContent)
+	}
+}
+
+func TestCodexEngineStructuredOutputSchemaFile(t *testing.T) {
+	engine := NewCodexEngine()
+
+	workflowData := &WorkflowData{
+		Name: "test-structured-output-file",
+		AI:   "codex",
+		StructuredOutput: &StructuredOutputConfig{
+			SchemaFile: ".github/schemas/output.schema.json",
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/codex.log")
+	if len(steps) == 0 {
+		t.Fatal("Expected execution steps, got none")
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Should include --output-schema flag referencing the workspace file
+	if !strings.Contains(stepContent, `--output-schema "$GITHUB_WORKSPACE/.github/schemas/output.schema.json"`) {
+		t.Errorf("Expected --output-schema flag with workspace path, got:\n%s", stepContent)
+	}
+
+	// Should NOT include base64 setup for schema-file case
+	if strings.Contains(stepContent, "base64 --decode") {
+		t.Errorf("Should not have base64 decode for schema-file case, got:\n%s", stepContent)
+	}
+}
+
+func TestCodexEngineNoStructuredOutput(t *testing.T) {
+	engine := NewCodexEngine()
+
+	workflowData := &WorkflowData{
+		Name: "test-no-structured-output",
+		AI:   "codex",
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/codex.log")
+	if len(steps) == 0 {
+		t.Fatal("Expected execution steps, got none")
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Should NOT include --output-schema flag when no structured output is configured
+	if strings.Contains(stepContent, "--output-schema") {
+		t.Errorf("Expected no --output-schema flag when structured output not configured, got:\n%s", stepContent)
+	}
+}

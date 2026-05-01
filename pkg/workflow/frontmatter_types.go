@@ -202,6 +202,10 @@ type FrontmatterConfig struct {
 	InlinedImports bool           `json:"inlined-imports,omitempty"` // If true, inline all imports at compile time instead of using runtime-import macros
 	Resources      []string       `json:"resources,omitempty"`       // Additional workflow .md or action .yml files to fetch alongside this workflow
 
+	// Structured output configuration for constraining agent responses to a JSON schema.
+	// Only supported with the codex engine.
+	StructuredOutput *StructuredOutputConfig `json:"structured-output,omitempty"`
+
 	// Metadata
 	Metadata      map[string]string    `json:"metadata,omitempty"` // Custom metadata key-value pairs
 	SecretMasking *SecretMaskingConfig `json:"secret-masking,omitempty"`
@@ -222,4 +226,17 @@ type FrontmatterConfig struct {
 	Checkout         any               `json:"checkout,omitempty"` // Raw value (object, array, or false)
 	CheckoutConfigs  []*CheckoutConfig `json:"-"`                  // Parsed checkout configs (not in JSON)
 	CheckoutDisabled bool              `json:"-"`                  // true when checkout: false is set in frontmatter
+}
+
+// StructuredOutputConfig holds configuration for constraining the agent's response
+// to a declared JSON schema. Only supported with the codex engine, which natively
+// enforces the schema via --output-schema.
+type StructuredOutputConfig struct {
+	// Schema is an inline JSON Schema that the agent's final response must conform to.
+	// Use this for small schemas defined directly in the workflow frontmatter.
+	Schema map[string]any `json:"schema,omitempty"`
+
+	// SchemaFile is a path to a JSON Schema file relative to the repository root.
+	// Use this for larger schemas stored in a separate file (e.g., .github/schemas/triage.schema.json).
+	SchemaFile string `json:"schema-file,omitempty"`
 }

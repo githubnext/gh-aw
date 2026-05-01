@@ -472,6 +472,7 @@ type WorkflowData struct {
 	SandboxConfig                 *SandboxConfig                  // parsed sandbox configuration (AWF or SRT)
 	SafeOutputs                   *SafeOutputsConfig              // output configuration for automatic output routes
 	MCPScripts                    *MCPScriptsConfig               // mcp-scripts configuration for custom MCP tools
+	StructuredOutput              *StructuredOutputConfig         // structured output configuration for constraining agent responses to a JSON schema
 	LabelNames                    []string                        // label names that must match for pull_request_target labeled events (on.labels)
 	Roles                         []string                        // permission levels required to trigger workflow
 	Bots                          []string                        // allow list of bot identifiers that can trigger workflow

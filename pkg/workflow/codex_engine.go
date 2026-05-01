@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"regexp"
@@ -192,6 +194,31 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		customArgsParam += customArgsParamSb.String()
 	}
 
+	// Build structured output parameter if configured.
+	// The Codex CLI supports --output-schema <FILE> to constrain the agent's final
+	// response to a declared JSON schema (see openai/codex codex-rs/exec/src/cli.rs).
+	const codexOutputSchemaPath = "/tmp/gh-aw/output-schema.json"
+	var outputSchemaSetup string
+	var outputSchemaParam string
+	if workflowData.StructuredOutput != nil {
+		if len(workflowData.StructuredOutput.Schema) > 0 {
+			// Inline schema: marshal to JSON, base64-encode, and write to a temp file at runtime.
+			// Base64 encoding avoids shell quoting issues with arbitrary JSON content.
+			schemaJSON, err := json.Marshal(workflowData.StructuredOutput.Schema)
+			if err == nil {
+				schemaBase64 := base64.StdEncoding.EncodeToString(schemaJSON)
+				outputSchemaSetup = fmt.Sprintf("printf '%%s' '%s' | base64 --decode > %s",
+					schemaBase64, codexOutputSchemaPath)
+				outputSchemaParam = " --output-schema " + codexOutputSchemaPath
+				codexEngineLog.Printf("Structured output: inline schema with %d fields, path=%s", len(workflowData.StructuredOutput.Schema), codexOutputSchemaPath)
+			}
+		} else if workflowData.StructuredOutput.SchemaFile != "" {
+			// Schema file: reference the file from the workspace directly.
+			outputSchemaParam = fmt.Sprintf(` --output-schema "$GITHUB_WORKSPACE/%s"`, workflowData.StructuredOutput.SchemaFile)
+			codexEngineLog.Printf("Structured output: schema-file=%s", workflowData.StructuredOutput.SchemaFile)
+		}
+	}
+
 	// Build the Codex command
 	// Determine which command to use
 	var commandName string
@@ -203,8 +230,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		commandName = "codex"
 	}
 
-	codexCommand := fmt.Sprintf("%s %sexec%s%s%s%s\"$INSTRUCTION\"",
-		commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
+	codexCommand := fmt.Sprintf("%s %sexec%s%s%s%s%s\"$INSTRUCTION\"",
+		commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam, outputSchemaParam)
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
 	var command string
@@ -235,6 +262,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			codexCommandWithSetup = fmt.Sprintf("%s && %s", mcpCLIPath, codexCommandWithSetup)
 		}
+		// Prepend schema file setup when structured output is configured
+		if outputSchemaSetup != "" {
+			codexCommandWithSetup = fmt.Sprintf("%s && %s", outputSchemaSetup, codexCommandWithSetup)
+		}
 
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "codex",
@@ -256,12 +287,16 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// For engines that do not support native agent-file handling (including Codex),
 		// the compiler prepends the agent file content to prompt.txt so no special
 		// shell variable juggling is needed here.
+		schemaSetupLine := ""
+		if outputSchemaSetup != "" {
+			schemaSetupLine = "\n" + outputSchemaSetup
+		}
 		command = fmt.Sprintf(`set -o pipefail
 touch %s
 (umask 177 && touch %s)
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
-mkdir -p "$CODEX_HOME/logs"
-%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, codexCommand, logFile)
+mkdir -p "$CODEX_HOME/logs"%s
+%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, schemaSetupLine, codexCommand, logFile)
 	}
 
 	// Get effective GitHub token based on precedence: custom token > default

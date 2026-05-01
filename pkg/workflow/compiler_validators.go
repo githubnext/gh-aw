@@ -77,6 +77,12 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		return err
 	}
 
+	// Validate structured-output configuration
+	log.Printf("Validating structured-output configuration")
+	if err := validateStructuredOutput(workflowData); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	// Validate sandbox configuration
 	log.Printf("Validating sandbox configuration")
 	if err := validateSandboxConfig(workflowData); err != nil {
