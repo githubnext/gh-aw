@@ -136,10 +136,10 @@ Test protocol-specific domains in safe-outputs.
 				}
 			}
 
-			// If checking AWF args, verify --allow-domains flag is present
+			// If checking AWF args, verify allowDomains key is present in the config JSON
 			if tt.checkAWFArgs {
-				if !strings.Contains(lockYAML, "--allow-domains") {
-					t.Error("Expected --allow-domains flag in compiled workflow")
+				if !strings.Contains(lockYAML, `"allowDomains"`) {
+					t.Error("Expected 'allowDomains' key in config JSON of compiled workflow")
 				}
 			}
 
@@ -301,8 +301,8 @@ Test backward compatibility with domains without protocols.
 		}
 	}
 
-	// Verify --allow-domains flag is present
-	if !strings.Contains(lockYAML, "--allow-domains") {
-		t.Error("Expected --allow-domains flag in compiled workflow")
+	// Verify allowDomains key is present in the config JSON
+	if !strings.Contains(lockYAML, `"allowDomains"`) {
+		t.Error("Expected 'allowDomains' key in config JSON of compiled workflow")
 	}
 }
