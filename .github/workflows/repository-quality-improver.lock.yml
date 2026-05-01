@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b315280330b99c10124b84de1a8fae90611ec6dd887049cbae4fdcc622ce5fe3","strict":true,"agent_id":"copilot"}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.29","digest":"sha256:e68f37e36962dcb3f3d1de680a49bc2302cefd001b941a7dc377155ec7ce42f4","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.29@sha256:e68f37e36962dcb3f3d1de680a49bc2302cefd001b941a7dc377155ec7ce42f4"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.29","digest":"sha256:d1219e4110684402aabbeb5a43858f26790c9d0be210581cf3f7a521bd2c87b6","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.29@sha256:d1219e4110684402aabbeb5a43858f26790c9d0be210581cf3f7a521bd2c87b6"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.29","digest":"sha256:8a71ad9e40454051672312917e51567abfb8251d7c294d086c48f63d84e4cb53","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.29@sha256:8a71ad9e40454051672312917e51567abfb8251d7c294d086c48f63d84e4cb53"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.1","digest":"sha256:287fad0236959f3b3d9936ea1ef8d5b4f135ef2a5f5789713495cbbef191e60c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.1@sha256:287fad0236959f3b3d9936ea1ef8d5b4f135ef2a5f5789713495cbbef191e60c"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"ghcr.io/github/serena-mcp-server:latest","digest":"sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5","pinned_image":"ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"e7e40a5eae6e96e3735a08bda64d634720cd89907b88eec0ae4f5710445c63a2","strict":true,"agent_id":"copilot"}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.29","digest":"sha256:e68f37e36962dcb3f3d1de680a49bc2302cefd001b941a7dc377155ec7ce42f4","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.29@sha256:e68f37e36962dcb3f3d1de680a49bc2302cefd001b941a7dc377155ec7ce42f4"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.29","digest":"sha256:d1219e4110684402aabbeb5a43858f26790c9d0be210581cf3f7a521bd2c87b6","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.29@sha256:d1219e4110684402aabbeb5a43858f26790c9d0be210581cf3f7a521bd2c87b6"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.29","digest":"sha256:8a71ad9e40454051672312917e51567abfb8251d7c294d086c48f63d84e4cb53","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.29@sha256:8a71ad9e40454051672312917e51567abfb8251d7c294d086c48f63d84e4cb53"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.1","digest":"sha256:287fad0236959f3b3d9936ea1ef8d5b4f135ef2a5f5789713495cbbef191e60c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.1@sha256:287fad0236959f3b3d9936ea1ef8d5b4f135ef2a5f5789713495cbbef191e60c"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -27,11 +27,10 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/daily-audit-discussion.md
-#     - shared/mcp/serena-go.md
-#     - shared/mcp/serena.md
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
+#     - shared/repository-quality-report-template.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -56,7 +55,6 @@
 #   - ghcr.io/github/gh-aw-firewall/squid:0.25.29@sha256:8a71ad9e40454051672312917e51567abfb8251d7c294d086c48f63d84e4cb53
 #   - ghcr.io/github/gh-aw-mcpg:v0.3.1@sha256:287fad0236959f3b3d9936ea1ef8d5b4f135ef2a5f5789713495cbbef191e60c
 #   - ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959
-#   - ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5
 #   - node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
 
 name: "Repository Quality Improvement Agent"
@@ -71,6 +69,11 @@ name: "Repository Quality Improvement Agent"
         description: Agent caller context (used internally by Agentic Workflows).
         required: false
         type: string
+      serena:
+        default: false
+        description: Enable Serena MCP for deep static analysis (off by default)
+        required: false
+        type: boolean
 
 permissions: {}
 
@@ -194,21 +197,21 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_4f44a3ac5441beb0_EOF'
+          cat << 'GH_AW_PROMPT_179e04e3ac2824d2_EOF'
           <system>
-          GH_AW_PROMPT_4f44a3ac5441beb0_EOF
+          GH_AW_PROMPT_179e04e3ac2824d2_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt_multi.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_4f44a3ac5441beb0_EOF'
+          cat << 'GH_AW_PROMPT_179e04e3ac2824d2_EOF'
           <safe-output-tools>
           Tools: create_discussion, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_4f44a3ac5441beb0_EOF
+          GH_AW_PROMPT_179e04e3ac2824d2_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_4f44a3ac5441beb0_EOF'
+          cat << 'GH_AW_PROMPT_179e04e3ac2824d2_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -237,53 +240,21 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_4f44a3ac5441beb0_EOF
+          GH_AW_PROMPT_179e04e3ac2824d2_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_4f44a3ac5441beb0_EOF'
+          cat << 'GH_AW_PROMPT_179e04e3ac2824d2_EOF'
           </system>
-          ## Serena Code Analysis
-          
-          The Serena MCP server is configured for **["go"]** analysis in this workspace:
-          - **Workspace**: `__GH_AW_GITHUB_WORKSPACE__`
-          - **Memory**: `/tmp/gh-aw/cache-memory/serena/`
-          
-          ### Project Activation
-          
-          Before analyzing code, activate the Serena project:
-          ```
-          Tool: activate_project
-          Args: { "path": "__GH_AW_GITHUB_WORKSPACE__" }
-          ```
-          
-          ### Available Capabilities
-          
-          Serena provides IDE-grade Language Server Protocol (LSP) tools including:
-          - **Symbol search**: `find_symbol` — locate functions, types, interfaces by name
-          - **Navigation**: `find_referencing_symbols` — find all callers/usages of a symbol
-          - **Type info**: `get_symbol_documentation` — hover-level type and doc information
-          - **Code editing**: `replace_symbol_body`, `insert_after_symbol` — symbol-level edits
-          - **Diagnostics**: `get_diagnostics` — compiler errors and linter warnings
-          
-          ### Analysis Guidelines
-          
-          1. **Use semantic tools over text search** — prefer Serena's LSP tools over `grep`
-          2. **Activate project first** — always call `activate_project` before other tools
-          3. **Cross-reference findings** — validate with multiple tools for accuracy
-          4. **Focus on the relevant language files** — ignore unrelated file types
-          
-          
-          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
+          {{#runtime-import .github/workflows/shared/repository-quality-report-template.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/repository-quality-improver.md}}
-          GH_AW_PROMPT_4f44a3ac5441beb0_EOF
+          GH_AW_PROMPT_179e04e3ac2824d2_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         with:
           script: |
@@ -306,7 +277,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_MCP_CLI_SERVERS_LIST: "- `safeoutputs` — run `safeoutputs --help` to see available tools\n- `serena` — run `serena --help` to see available tools"
+          GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -419,6 +390,9 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Collect quality metrics
+        run: "mkdir -p /tmp/gh-aw/agent\n{\n  echo \"## Focus Area History\"\n  if [ -f /tmp/gh-aw/cache-memory-focus-areas/history.json ]; then\n    cat /tmp/gh-aw/cache-memory-focus-areas/history.json\n  else\n    echo '{\"runs\":[],\"recent_areas\":[],\"statistics\":{\"total_runs\":0,\"custom_rate\":0,\"reuse_rate\":0,\"unique_areas_explored\":0}}'\n  fi\n\n  echo \"\"\n  echo \"## Code Metrics\"\n  echo \"### Largest Go source files (top 20)\"\n  find . -type f -name \"*.go\" ! -name \"*_test.go\" ! -path \"./.git/*\" | xargs wc -l 2>/dev/null | sort -rn | head -21 | tail -20\n\n  echo \"### Test ratio\"\n  TEST_LOC=$(find . -type f -name \"*_test.go\" ! -path \"./.git/*\" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')\n  SRC_LOC=$(find . -type f -name \"*.go\" ! -name \"*_test.go\" ! -path \"./.git/*\" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')\n  echo \"Test LOC: $TEST_LOC | Source LOC: $SRC_LOC\"\n\n  echo \"### Directory file counts\"\n  for dir in cmd pkg docs .github; do\n    if [ -d \"$dir\" ]; then\n      echo \"$dir: $(find \"$dir\" -type f | wc -l) files\"\n    fi\n  done\n\n  echo \"### TODO/FIXME count\"\n  grep -r \"TODO\\|FIXME\" --include=\"*.go\" --include=\"*.cjs\" . 2>/dev/null | wc -l\n\n  echo \"### README size\"\n  wc -l README.md 2>/dev/null || echo \"No README.md\"\n} > /tmp/gh-aw/agent/analysis-context.md\necho \"✅ Quality metrics collected → /tmp/gh-aw/agent/analysis-context.md\"\n"
+
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory (focus-areas)
         run: |
@@ -490,15 +464,15 @@ jobs:
           GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md opencode.jsonc"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.29@sha256:e68f37e36962dcb3f3d1de680a49bc2302cefd001b941a7dc377155ec7ce42f4 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.29@sha256:d1219e4110684402aabbeb5a43858f26790c9d0be210581cf3f7a521bd2c87b6 ghcr.io/github/gh-aw-firewall/squid:0.25.29@sha256:8a71ad9e40454051672312917e51567abfb8251d7c294d086c48f63d84e4cb53 ghcr.io/github/gh-aw-mcpg:v0.3.1@sha256:287fad0236959f3b3d9936ea1ef8d5b4f135ef2a5f5789713495cbbef191e60c ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959 ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5 node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.29@sha256:e68f37e36962dcb3f3d1de680a49bc2302cefd001b941a7dc377155ec7ce42f4 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.29@sha256:d1219e4110684402aabbeb5a43858f26790c9d0be210581cf3f7a521bd2c87b6 ghcr.io/github/gh-aw-firewall/squid:0.25.29@sha256:8a71ad9e40454051672312917e51567abfb8251d7c294d086c48f63d84e4cb53 ghcr.io/github/gh-aw-mcpg:v0.3.1@sha256:287fad0236959f3b3d9936ea1ef8d5b4f135ef2a5f5789713495cbbef191e60c ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959 node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
       - name: Write Safe Outputs Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_52fd8070a6e27f0a_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_7f7490042d01184e_EOF'
           {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1,"title_prefix":"[repository-quality] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_52fd8070a6e27f0a_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_7f7490042d01184e_EOF
       - name: Write Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -683,8 +657,8 @@ jobs:
           export DEBUG="*"
           
           export GH_AW_ENGINE="copilot"
-          export GH_AW_MCP_CLI_SERVERS='["safeoutputs","serena"]'
-          echo 'GH_AW_MCP_CLI_SERVERS=["safeoutputs","serena"]' >> "$GITHUB_ENV"
+          export GH_AW_MCP_CLI_SERVERS='["safeoutputs"]'
+          echo 'GH_AW_MCP_CLI_SERVERS=["safeoutputs"]' >> "$GITHUB_ENV"
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')
@@ -692,7 +666,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_045034982f015d67_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_e2b8c003b09e3450_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -724,35 +698,6 @@ jobs:
                     ]
                   }
                 }
-              },
-              "serena": {
-                "type": "stdio",
-                "container": "ghcr.io/github/serena-mcp-server:latest",
-                "entrypoint": "serena",
-                "entrypointArgs": [
-                  "start-mcp-server",
-                  "--context",
-                  "codex",
-                  "--project",
-                  "\${GITHUB_WORKSPACE}"
-                ],
-                "mounts": [
-                  "\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"
-                ],
-                "args": [
-                  "--network",
-                  "host"
-                ],
-                "tools": [
-                  "*"
-                ],
-                "guard-policies": {
-                  "write-sink": {
-                    "accept": [
-                      "*"
-                    ]
-                  }
-                }
               }
             },
             "gateway": {
@@ -768,7 +713,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_045034982f015d67_EOF
+          GH_AW_MCP_CONFIG_e2b8c003b09e3450_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
