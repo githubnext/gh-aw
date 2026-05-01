@@ -212,6 +212,33 @@ When `allowed-github-references` is not configured at all, all references are le
 
 See [Text Sanitization](/gh-aw/reference/safe-outputs/#text-sanitization-allowed-domains-allowed-github-references) for full configuration options.
 
+### How are agent actions constrained — commenting, opening PRs, modifying files, and calling external tools?
+
+gh-aw uses defense-in-depth rather than a single control. Three layers work together:
+
+**1. Read-only agent by default.** The AI agent step has read-only GitHub permissions. It cannot comment, open PRs, or push files unless you explicitly configure [safe outputs](/gh-aw/reference/safe-outputs/).
+
+**2. Safe outputs for all writes.** Commenting, creating PRs, and modifying files all go through safe outputs — separate GitHub Actions jobs with scoped write tokens. The agent produces a structured artifact; a downstream job applies the changes after sanitization (secret redaction, URL filtering, size limits). You declare exactly which operations are permitted:
+
+```yaml wrap
+safe-outputs:
+  add-comment:
+    max: 3
+  create-pull-request:
+    max: 1
+```
+
+**3. Network allowlist for external calls.** The [Agent Workflow Firewall](/gh-aw/reference/sandbox/) blocks all outbound network access by default. You must explicitly allow each domain an agent may reach:
+
+```yaml wrap
+network:
+  allowed:
+    - defaults
+    - "api.example.com"
+```
+
+For sensitive operations, you can layer on a [GitHub Environment protection rule](/gh-aw/reference/faq/#can-i-require-external-human-approval-before-safe-outputs-are-applied) so a designated reviewer must approve before any write jobs run.
+
 ### Tell me more about guardrails
 
 Guardrails are foundational to the design. Agentic workflows implement defense-in-depth through compilation-time validation (schema checks, expression safety, action SHA pinning), runtime isolation (sandboxed containers with network controls), permission separation (read-only defaults with [safe outputs](/gh-aw/reference/safe-outputs/) for writes), tool allowlisting, and output sanitization. See the [Security Architecture](/gh-aw/introduction/architecture/).
