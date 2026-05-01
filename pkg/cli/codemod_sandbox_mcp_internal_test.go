@@ -265,6 +265,70 @@ on: workflow_dispatch
 	assert.Equal(t, content, result)
 }
 
+func TestSandboxMCPContainerRemoval_SkipsWhenStrictFalse(t *testing.T) {
+	codemod := getSandboxMCPContainerRemovalCodemod()
+
+	content := `---
+on: workflow_dispatch
+strict: false
+sandbox:
+  mcp:
+    container: github/gh-aw-mcpg
+    port: 8080
+---
+
+# Test`
+
+	frontmatter := map[string]any{
+		"on":     "workflow_dispatch",
+		"strict": false,
+		"sandbox": map[string]any{
+			"mcp": map[string]any{
+				"container": "github/gh-aw-mcpg",
+				"port":      8080,
+			},
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.False(t, applied, "should not apply when strict: false is set")
+	assert.Equal(t, content, result)
+}
+
+func TestSandboxMCPVersionRemoval_SkipsWhenStrictFalse(t *testing.T) {
+	codemod := getSandboxMCPVersionRemovalCodemod()
+
+	content := `---
+on: workflow_dispatch
+strict: false
+sandbox:
+  mcp:
+    version: v1.0.0
+    port: 8080
+---
+
+# Test`
+
+	frontmatter := map[string]any{
+		"on":     "workflow_dispatch",
+		"strict": false,
+		"sandbox": map[string]any{
+			"mcp": map[string]any{
+				"version": "v1.0.0",
+				"port":    8080,
+			},
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.False(t, applied, "should not apply when strict: false is set")
+	assert.Equal(t, content, result)
+}
+
 func TestSandboxMCPVersionRemoval_BothContainerAndVersion(t *testing.T) {
 	// Verify that version removal does not affect the container key.
 	codemod := getSandboxMCPVersionRemovalCodemod()

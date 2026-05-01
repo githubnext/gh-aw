@@ -14,6 +14,9 @@ func getSandboxMCPContainerRemovalCodemod() Codemod {
 		Description:  "Removes 'sandbox.mcp.container' as the MCP gateway container is now managed internally. Remove this key or set 'strict: false' to disable strict mode.",
 		IntroducedIn: "0.26.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			if isFrontmatterStrictFalse(frontmatter) {
+				return content, false, nil
+			}
 			if !hasSandboxMCPField(frontmatter, "container") {
 				return content, false, nil
 			}
@@ -38,6 +41,9 @@ func getSandboxMCPVersionRemovalCodemod() Codemod {
 		Description:  "Removes 'sandbox.mcp.version' as the MCP gateway version is now managed internally. Remove this key or set 'strict: false' to disable strict mode.",
 		IntroducedIn: "0.26.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			if isFrontmatterStrictFalse(frontmatter) {
+				return content, false, nil
+			}
 			if !hasSandboxMCPField(frontmatter, "version") {
 				return content, false, nil
 			}

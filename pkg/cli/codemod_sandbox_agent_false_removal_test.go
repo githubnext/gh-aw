@@ -185,6 +185,33 @@ sandbox:
 	assert.Equal(t, content, result)
 }
 
+func TestSandboxAgentFalseRemoval_SkipsWhenStrictFalse(t *testing.T) {
+	codemod := getSandboxAgentFalseRemovalCodemod()
+
+	content := `---
+on: workflow_dispatch
+strict: false
+sandbox:
+  agent: false
+---
+
+# Test`
+
+	frontmatter := map[string]any{
+		"on":     "workflow_dispatch",
+		"strict": false,
+		"sandbox": map[string]any{
+			"agent": false,
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.False(t, applied, "should not apply when strict: false is set")
+	assert.Equal(t, content, result)
+}
+
 func TestSandboxAgentFalseRemoval_PreservesMarkdown(t *testing.T) {
 	codemod := getSandboxAgentFalseRemovalCodemod()
 

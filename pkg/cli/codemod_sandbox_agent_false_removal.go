@@ -16,6 +16,9 @@ func getSandboxAgentFalseRemovalCodemod() Codemod {
 		Description:  "Removes 'sandbox.agent: false' which is no longer allowed in strict mode. The agent sandbox firewall is now always enabled by default. Remove this key to restore sandboxed behavior, or set 'strict: false' to opt out of strict mode.",
 		IntroducedIn: "0.26.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			if isFrontmatterStrictFalse(frontmatter) {
+				return content, false, nil
+			}
 			if !isSandboxAgentFalse(frontmatter) {
 				return content, false, nil
 			}
