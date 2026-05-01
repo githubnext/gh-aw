@@ -91,6 +91,30 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 	updateExtensionCheckLog.Printf("Upgrading extension from %s to %s", currentVersion, latestVersion)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Upgrading gh-aw extension from %s to %s...", currentVersion, latestVersion)))
 
+	// When targeting a prerelease version on platforms that do not lock running
+	// binaries (i.e., not Linux or Windows), gh extension upgrade --force resolves
+	// the upgrade target via /releases/latest which excludes prereleases.  On
+	// those platforms the first attempt would silently install an older stable
+	// release instead of the desired prerelease.  Skip directly to the pin-based
+	// install to ensure the exact target version is installed.
+	if includePrereleases && !needsRenameWorkaround() {
+		updateExtensionCheckLog.Printf("Prerelease target on non-rename-workaround platform: skipping gh extension upgrade, using pin-based install for %s", latestVersion)
+		removeCmd := exec.Command("gh", "extension", "remove", extensionRepo)
+		removeCmd.Stdout = os.Stderr
+		removeCmd.Stderr = os.Stderr
+		if removeErr := removeCmd.Run(); removeErr != nil {
+			updateExtensionCheckLog.Printf("Could not remove extension before pin-based install (continuing anyway): %v", removeErr)
+		}
+		pinCmd := exec.Command("gh", "extension", "install", extensionRepo, "--pin", latestVersion)
+		pinCmd.Stdout = os.Stderr
+		pinCmd.Stderr = os.Stderr
+		if pinErr := pinCmd.Run(); pinErr != nil {
+			return false, "", fmt.Errorf("failed to install gh-aw extension at version %s: %w", latestVersion, pinErr)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+latestVersion))
+		return true, "", nil
+	}
+
 	// First attempt: run the upgrade without touching the filesystem.
 	// On most systems this will succeed.  On Linux with WSL the kernel may
 	// return ETXTBSY when gh tries to open the currently-executing binary for
@@ -143,6 +167,19 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		} else {
 			installPath = iPath
 			backupPath = bPath
+			// On Windows, gh extension remove cannot delete the extension directory
+			// while it still contains a running binary (even a renamed one).  Move
+			// the backup to the OS temp directory so that the extension directory
+			// becomes empty and gh extension remove can succeed.
+			if runtime.GOOS == "windows" {
+				tmpBackup := filepath.Join(os.TempDir(), filepath.Base(backupPath))
+				if moveErr := os.Rename(backupPath, tmpBackup); moveErr == nil {
+					updateExtensionCheckLog.Printf("Moved Windows backup %s → %s to free extension directory for removal", backupPath, tmpBackup)
+					backupPath = tmpBackup
+				} else {
+					updateExtensionCheckLog.Printf("Could not move backup to temp directory (gh extension remove may fail): %v", moveErr)
+				}
+			}
 		}
 	}
 
@@ -159,14 +196,17 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 	// manifest in place the install command takes the "already installed" code
 	// path and does nothing; removing the extension clears that guard.
 	//
-	// Note: the backup file lives inside the extension directory, so if the
-	// remove step succeeds the backup is also gone; we clear backupPath to
+	// Note: on Linux the backup file lives inside the extension directory and is
+	// gone once the remove step succeeds (unlink frees the directory entry even
+	// though the process still holds the file open).  On Windows the backup has
+	// been moved to the OS temp directory (above) so the remove step can always
+	// succeed.  In both cases we clear backupPath after a successful remove to
 	// avoid a misleading restore attempt on subsequent failures.
 	removeCmd := exec.Command("gh", "extension", "remove", extensionRepo)
 	removeCmd.Stdout = os.Stderr
 	removeCmd.Stderr = os.Stderr
 	if removeErr := removeCmd.Run(); removeErr == nil {
-		// Extension directory (and the backup inside it) has been deleted.
+		// Extension directory has been deleted.
 		backupPath = ""
 	} else {
 		updateExtensionCheckLog.Printf("Could not remove extension before reinstall (will attempt install anyway): %v", removeErr)
