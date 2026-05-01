@@ -39,9 +39,9 @@ experiments:
 
 {{#if experiments.prompt_style == "concise" }}
 Summarise the findings in ≤ 5 bullets.
-{{else}}
+{{#else}}
 Provide a detailed analysis with reasoning for each finding.
-{{/if}}
+{{#endif}}
 ```
 
 ### Naming Rules
@@ -67,9 +67,9 @@ The selected variant is injected into the prompt in two ways:
 ```markdown
 {{#if experiments.tone == "formal" }}
 Use formal, professional language throughout the report.
-{{else}}
+{{#else}}
 Use a friendly, conversational tone.
-{{/if}}
+{{#endif}}
 ```
 
 ### 2 — Direct interpolation
@@ -149,9 +149,9 @@ experiments:
 ```markdown
 {{#if experiments.tool_scope == "narrow" }}
 Only use the `issues` and `pull_requests` toolsets.
-{{else}}
+{{#else}}
 Use any available GitHub MCP tools.
-{{/if}}
+{{#endif}}
 ```
 
 **Typical metrics**: number of tool calls, run duration, output accuracy.
@@ -166,7 +166,7 @@ experiments:
 ```markdown
 {{#if experiments.skill_hint == "enabled" }}
 Check `skills/` for SKILL.md files relevant to this task and apply their guidance.
-{{/if}}
+{{#endif}}
 ```
 
 **Typical metrics**: output quality, context token consumption, run duration.
@@ -208,10 +208,10 @@ Summarise the pull requests merged in ${{ github.repository }} today.
 
 {{#if experiments.output_style == "concise" }}
 Write a maximum of 5 bullet points. Each bullet is one sentence.
-{{else}}
+{{#else}}
 Write a structured report with sections for: new features, bug fixes, refactors,
 and documentation changes. Include a one-paragraph executive summary at the top.
-{{/if}}
+{{#endif}}
 
 Include links to each PR. Use ${{ github.server_url }}/${{ github.repository }}/pull/<number> format.
 ```
