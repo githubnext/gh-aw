@@ -9,7 +9,8 @@
 //	{
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
-//	    "action_failure_issue_expires": 72 // expiration (hours) for conclusion failure issues
+//	    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
+//	    "label_triggers": true // set to true to enable all label-triggered jobs (opt-in)
 //	  }                            // maintenance jobs (default: ubuntu-slim)
 //	}
 //
@@ -72,6 +73,22 @@ type MaintenanceConfig struct {
 	// ActionFailureIssueExpires configures expiration (in hours) for action
 	// failure issues opened by the conclusion job. Defaults to 168 (7 days).
 	ActionFailureIssueExpires int `json:"action_failure_issue_expires,omitempty"`
+
+	// LabelTriggers controls all label-triggered jobs (disable_agentic_workflow,
+	// label_apply_safe_outputs, etc.).
+	// The value is treated as an opt-in flag: only true enables the jobs.
+	// nil (omitted) or false both disable label-triggered jobs.
+	// To opt in, set label_triggers: true in aw.json.
+	LabelTriggers *bool `json:"label_triggers,omitempty"`
+}
+
+// IsLabelTriggerEnabled returns true only when label_triggers is explicitly set to true.
+// The default (nil / omitted) is treated as disabled (false) — opt-in semantics.
+func (m *MaintenanceConfig) IsLabelTriggerEnabled() bool {
+	if m == nil || m.LabelTriggers == nil {
+		return false
+	}
+	return *m.LabelTriggers
 }
 
 // RepoConfig is the parsed representation of aw.json.

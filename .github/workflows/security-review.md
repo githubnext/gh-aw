@@ -235,4 +235,4 @@ Use cache memory at `/tmp/gh-aw/cache-memory/` to:
 
 Begin your security review. 🔒
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

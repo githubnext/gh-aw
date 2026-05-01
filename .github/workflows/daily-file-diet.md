@@ -284,4 +284,4 @@ Use Serena to:
 
 Begin your analysis now. Find the largest Go source file, assess if it needs refactoring, and create an issue only if necessary.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -24,4 +24,4 @@ tools:
 
 Scan the repository for SQL injection vulnerabilities using Semgrep.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

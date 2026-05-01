@@ -48,4 +48,4 @@ Please call the `create_pull_request` tool with:
 
 Then report the exact error message you received.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

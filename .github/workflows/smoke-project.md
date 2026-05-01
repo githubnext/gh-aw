@@ -143,4 +143,4 @@ Do not re-create draft items but use their returned temporary-ids for the update
     - `start_date`: Optional date in "YYYY-MM-DD" format (if you want to represent the run start)
     - `target_date`: Optional date in "YYYY-MM-DD" format (if you want to represent the run target/end)
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

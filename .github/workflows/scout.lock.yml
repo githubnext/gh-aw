@@ -33,8 +33,6 @@
 #     - shared/mcp/microsoft-docs.md
 #     - shared/mcp/tavily.md
 #     - shared/reporting.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -338,6 +336,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/mcp/deepwiki.md}}
           {{#runtime-import .github/workflows/shared/mcp/markitdown.md}}
           {{#runtime-import .github/workflows/shared/jqschema.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/scout.md}}
           GH_AW_PROMPT_8272fdeb55a2370c_EOF
           } > "$GH_AW_PROMPT"

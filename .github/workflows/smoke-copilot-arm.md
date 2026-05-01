@@ -162,4 +162,4 @@ If all tests pass:
 - Use the `add_labels` safe-output tool to add the label `smoke-copilot-arm` to the pull request
 - Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

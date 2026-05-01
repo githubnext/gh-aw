@@ -625,4 +625,4 @@ A successful consolidation run:
 
 Begin the consolidation process now. Use Serena for analysis, **directly apply changes** to adjust tone and formatting, add helpful Mermaid diagrams, consolidate into the instructions file, and report your findings through both a discussion and pull request.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

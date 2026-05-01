@@ -155,4 +155,4 @@ Use this priority rubric:
 - Keep recommendations concrete and actionable.
 - If no action is needed, call `noop` with a brief explanation.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

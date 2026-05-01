@@ -298,4 +298,4 @@ For detailed information about secret usage patterns, see:
 - Use **tables and formatting** for readability
 - Include **actionable recommendations**
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

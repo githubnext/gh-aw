@@ -357,4 +357,4 @@ A successful audit:
 
 Begin your audit now. Collect the logs, analyze safe output job failures thoroughly, cluster errors, identify root causes, and create a discussion with your findings and recommendations.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

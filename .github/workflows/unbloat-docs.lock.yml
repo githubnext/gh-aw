@@ -30,8 +30,6 @@
 #     - shared/docs-server-lifecycle.md
 #     - shared/reporting.md
 #     - shared/daily-pr-base.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -293,6 +291,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/docs-server-lifecycle.md}}
           {{#runtime-import .github/workflows/shared/activation-app.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/unbloat-docs.md}}
           GH_AW_PROMPT_f4559a378e98eeee_EOF
           } > "$GH_AW_PROMPT"

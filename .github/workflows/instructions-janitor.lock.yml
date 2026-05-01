@@ -24,10 +24,6 @@
 #
 # Reviews and cleans up instruction files to ensure clarity, consistency, and adherence to best practices
 #
-# Resolved workflow manifest:
-#   Includes:
-#     - shared/noop-reminder.md
-#
 # Secrets used:
 #   - ANTHROPIC_API_KEY
 #   - GH_AW_CI_TRIGGER_TOKEN
@@ -230,6 +226,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_c0fdee58eb98fb81_EOF'
           </system>
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/instructions-janitor.md}}
           GH_AW_PROMPT_c0fdee58eb98fb81_EOF
           } > "$GH_AW_PROMPT"

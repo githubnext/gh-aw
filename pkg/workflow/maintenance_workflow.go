@@ -125,8 +125,10 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 	// Determine the runs-on value to use for all maintenance jobs.
 	const defaultRunsOn = "ubuntu-slim"
 	var configuredRunsOn RunsOnValue
+	disableLabelTrigger := true // default: disable label-triggered jobs (opt-in)
 	if repoConfig != nil && repoConfig.Maintenance != nil {
 		configuredRunsOn = repoConfig.Maintenance.RunsOn
+		disableLabelTrigger = !repoConfig.Maintenance.IsLabelTriggerEnabled()
 	}
 	runsOnValue := FormatRunsOn(configuredRunsOn, defaultRunsOn)
 
@@ -176,7 +178,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 	defaultBranch := FetchDefaultBranch(repoSlug)
 
 	// Generate the YAML content for the maintenance workflow
-	content := buildMaintenanceWorkflowYAML(cronSchedule, scheduleDesc, minExpiresDays, runsOnValue, actionMode, version, actionTag, resolver, configuredRunsOn, defaultBranch)
+	content := buildMaintenanceWorkflowYAML(cronSchedule, scheduleDesc, minExpiresDays, runsOnValue, actionMode, version, actionTag, resolver, configuredRunsOn, defaultBranch, disableLabelTrigger)
 
 	// Write the maintenance workflow file
 	maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")

@@ -419,4 +419,4 @@ A successful run:
 
 Begin your analysis now. Download logs, identify safe output tool errors, classify root causes, and create an issue if tool description improvements are needed.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

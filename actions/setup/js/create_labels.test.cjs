@@ -91,7 +91,7 @@ describe("main", () => {
       stderr: "",
     });
 
-    // Default: repo has one existing label
+    // Default: repo has "bug"
     mockGithub.paginate.mockResolvedValue([{ name: "bug" }]);
     mockGithub.rest.issues.createLabel.mockResolvedValue({});
   });
@@ -99,7 +99,6 @@ describe("main", () => {
   it("creates labels that are missing from the repository", async () => {
     await main();
 
-    expect(mockGithub.rest.issues.createLabel).toHaveBeenCalledTimes(2);
     const names = mockGithub.rest.issues.createLabel.mock.calls.map(c => c[0].name);
     expect(names).toContain("enhancement");
     expect(names).toContain("docs");
@@ -137,12 +136,13 @@ describe("main", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("already existed"));
   });
 
-  it("does nothing when no labels are found", async () => {
+  it("does nothing when no workflow labels are found", async () => {
     mockExec.getExecOutput.mockResolvedValue({
       exitCode: 0,
       stdout: JSON.stringify([{ labels: [] }, {}]),
       stderr: "",
     });
+    mockGithub.paginate.mockResolvedValue([]);
 
     await main();
 

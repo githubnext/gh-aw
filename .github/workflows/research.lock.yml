@@ -28,8 +28,6 @@
 #   Imports:
 #     - shared/mcp/tavily.md
 #     - shared/reporting.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -231,6 +229,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/mcp/tavily.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/research.md}}
           GH_AW_PROMPT_98d74baf63f8b6ad_EOF
           } > "$GH_AW_PROMPT"

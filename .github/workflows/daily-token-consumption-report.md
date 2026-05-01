@@ -177,4 +177,4 @@ You must call one safe output tool before finishing:
 - `create_issue` for normal reporting.
 - `noop` only if no valid telemetry could be retrieved.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

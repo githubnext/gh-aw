@@ -630,4 +630,4 @@ If workflow logs unavailable for most PRs:
 
 Now analyze the prompts and generate your comprehensive report!
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

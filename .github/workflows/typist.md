@@ -502,4 +502,4 @@ This analysis is successful when:
 
 **Objective**: Improve type safety and code maintainability by identifying and recommending fixes for duplicated type definitions and untyped usages in the Go codebase.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

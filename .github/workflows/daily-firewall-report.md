@@ -508,4 +508,4 @@ Ensure the discussion body:
 
 A GitHub discussion in the "audits" category containing a comprehensive daily firewall analysis report.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

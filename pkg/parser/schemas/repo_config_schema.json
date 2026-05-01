@@ -51,6 +51,10 @@
               "type": "integer",
               "minimum": 1,
               "examples": [24, 72, 168]
+            },
+            "label_triggers": {
+              "description": "Set to false to disable all label-triggered jobs (disable_agentic_workflow, label_apply_safe_outputs, etc.). When absent or true (default), all label-triggered jobs are included in the maintenance workflow.",
+              "type": "boolean"
             }
           }
         }

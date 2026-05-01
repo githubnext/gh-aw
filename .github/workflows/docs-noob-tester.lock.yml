@@ -32,8 +32,6 @@
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -240,6 +238,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/keep-it-short.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/docs-noob-tester.md}}
           GH_AW_PROMPT_f108143180cedb5e_EOF
           } > "$GH_AW_PROMPT"

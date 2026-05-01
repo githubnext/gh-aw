@@ -27,8 +27,6 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -229,6 +227,7 @@ jobs:
           cat << 'GH_AW_PROMPT_fedacafa2d5987fc_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/gpclean.md}}
           GH_AW_PROMPT_fedacafa2d5987fc_EOF
           } > "$GH_AW_PROMPT"

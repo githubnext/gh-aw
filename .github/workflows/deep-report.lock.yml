@@ -30,8 +30,6 @@
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #     - shared/weekly-issues-data-fetch.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -241,6 +239,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/discussions-data-fetch.md}}
           {{#runtime-import .github/workflows/shared/weekly-issues-data-fetch.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/deep-report.md}}
           GH_AW_PROMPT_06cf79caca093559_EOF
           } > "$GH_AW_PROMPT"

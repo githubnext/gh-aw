@@ -30,8 +30,6 @@
 #     - shared/mcp/serena.md
 #     - shared/reporting.md
 #     - shared/go-source-analysis.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -263,6 +261,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/go-source-analysis.md}}
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/semantic-function-refactor.md}}
           GH_AW_PROMPT_63264fecff0f6f38_EOF
           } > "$GH_AW_PROMPT"

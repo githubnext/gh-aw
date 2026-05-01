@@ -27,8 +27,6 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/observability-otlp.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -235,6 +233,7 @@ jobs:
           cat << 'GH_AW_PROMPT_cc851a8c6a90d45c_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-choice-test.md}}
           GH_AW_PROMPT_cc851a8c6a90d45c_EOF
           } > "$GH_AW_PROMPT"

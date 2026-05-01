@@ -486,4 +486,4 @@ If you cannot find the "Included Software" URL in logs:
 
 Good luck! Your analysis helps developers understand and replicate the GitHub Actions runner environment.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

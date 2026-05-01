@@ -19,4 +19,4 @@ imports:
 - Find all open Dependabot PRs.
 - Create bundle issues, each for exactly **one runtime + one manifest file**.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

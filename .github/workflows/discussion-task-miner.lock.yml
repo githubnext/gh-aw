@@ -30,8 +30,6 @@
 #     - shared/jqschema.md
 #     - shared/repo-memory-standard.md
 #     - shared/reporting.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -226,6 +224,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/workflows/shared/jqschema.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/discussion-task-miner.md}}
           GH_AW_PROMPT_c4ccfc574d2c382e_EOF
           } > "$GH_AW_PROMPT"

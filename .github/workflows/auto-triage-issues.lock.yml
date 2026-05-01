@@ -28,8 +28,6 @@
 #   Imports:
 #     - shared/github-guard-policy.md
 #     - shared/reporting.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -242,6 +240,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/auto-triage-issues.md}}
           GH_AW_PROMPT_acbbe709b3acdcf4_EOF
           } > "$GH_AW_PROMPT"

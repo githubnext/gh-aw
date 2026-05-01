@@ -29,8 +29,6 @@
 #     - shared/mcp/semgrep.md
 #     - shared/observability-otlp.md
 #     - shared/security-analysis-base.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -234,6 +232,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/security-analysis-base.md}}
           {{#runtime-import .github/workflows/shared/mcp/semgrep.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-semgrep-scan.md}}
           GH_AW_PROMPT_3aaf13339fe74d32_EOF
           } > "$GH_AW_PROMPT"

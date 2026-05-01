@@ -27,8 +27,6 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/brave.md
-#   Includes:
-#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - BRAVE_API_KEY
@@ -268,6 +266,7 @@ jobs:
           cat << 'GH_AW_PROMPT_49863381d8f5674f_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/mcp/brave.md}}
+          {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/brave.md}}
           GH_AW_PROMPT_49863381d8f5674f_EOF
           } > "$GH_AW_PROMPT"

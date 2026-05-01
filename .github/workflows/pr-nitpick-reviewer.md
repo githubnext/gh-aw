@@ -380,4 +380,4 @@ A successful review:
 
 Now begin your review! 🔍
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

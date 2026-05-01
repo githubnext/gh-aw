@@ -152,4 +152,4 @@ Use the create-pull-request tool to submit your changes with:
 - ✅ Includes instructions for removing filler words and improving text clarity
 - ✅ Pull request created with changes
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

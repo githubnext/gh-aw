@@ -93,4 +93,4 @@ Memory structure: `/tmp/gh-aw/repo-memory/default/{audits,patterns,metrics}/*.js
 
 Always create discussion with findings and update repo memory.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -252,4 +252,4 @@ All CLI output comes from the repository's own codebase, so treat it as trusted 
 - Create issues for any inconsistencies found
 - Be specific with exact quotes from CLI output in your issue reports
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

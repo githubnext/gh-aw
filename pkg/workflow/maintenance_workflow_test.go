@@ -538,6 +538,298 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	}
 }
 
+func TestGenerateMaintenanceWorkflow_DisableAgenticWorkflowJob(t *testing.T) {
+	workflowDataList := []*WorkflowData{
+		{
+			Name: "test-workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					Expires: 48,
+				},
+			},
+		},
+	}
+
+	tmpDir := t.TempDir()
+	trueVal := true
+	cfg := &RepoConfig{
+		Maintenance: &MaintenanceConfig{LabelTriggers: &trueVal},
+	}
+	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, cfg, "")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+	if err != nil {
+		t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+	}
+	yaml := string(content)
+
+	const jobSectionSearchRange = 2000
+
+	// Verify only the issues label trigger is present (pull request is no longer supported)
+	if !strings.Contains(yaml, "  issues:\n    types: [labeled]") {
+		t.Error("Maintenance workflow should include issues: types: [labeled] trigger")
+	}
+	if strings.Contains(yaml, "  pull_request:\n    types: [labeled]") {
+		t.Error("Maintenance workflow must NOT include pull_request: types: [labeled] trigger (issues-only)")
+	}
+
+	// Verify the label_disable_agentic_workflow job exists
+	disableJobIdx := strings.Index(yaml, "\n  label_disable_agentic_workflow:")
+	if disableJobIdx == -1 {
+		t.Fatal("Job label_disable_agentic_workflow not found in generated workflow")
+	}
+	// Bound the section to just the label_disable_agentic_workflow job by finding the next job start
+	nextJobIdx := strings.Index(yaml[disableJobIdx+1:], "\n  label_apply_safe_outputs:")
+	if nextJobIdx == -1 {
+		nextJobIdx = jobSectionSearchRange
+	}
+	disableJobSection := yaml[disableJobIdx : disableJobIdx+1+nextJobIdx]
+
+	// Verify the condition triggers only on issues label events (not pull_request)
+	if !strings.Contains(disableJobSection, "github.event_name == 'issues'") {
+		t.Errorf("label_disable_agentic_workflow job should trigger on issues events in:\n%s", disableJobSection)
+	}
+	if strings.Contains(disableJobSection, "github.event_name == 'pull_request'") {
+		t.Errorf("label_disable_agentic_workflow job must NOT trigger on pull_request events (issues-only) in:\n%s", disableJobSection)
+	}
+	if !strings.Contains(disableJobSection, "github.event.label.name == 'agentic-workflows:disable'") {
+		t.Errorf("label_disable_agentic_workflow job should check for agentic-workflows:disable label in:\n%s", disableJobSection)
+	}
+	if !strings.Contains(disableJobSection, "github.event.repository.fork") {
+		t.Errorf("label_disable_agentic_workflow job should exclude forks in:\n%s", disableJobSection)
+	}
+
+	// Verify required permissions (no pull-requests: write since issues-only)
+	if !strings.Contains(disableJobSection, "actions: write") {
+		t.Errorf("label_disable_agentic_workflow job should have actions: write permission in:\n%s", disableJobSection)
+	}
+	if !strings.Contains(disableJobSection, "contents: read") {
+		t.Errorf("label_disable_agentic_workflow job should have contents: read permission in:\n%s", disableJobSection)
+	}
+	if strings.Contains(disableJobSection, "contents: write") {
+		t.Errorf("label_disable_agentic_workflow job must NOT have contents: write (only read is needed) in:\n%s", disableJobSection)
+	}
+	if !strings.Contains(disableJobSection, "issues: write") {
+		t.Errorf("label_disable_agentic_workflow job should have issues: write permission in:\n%s", disableJobSection)
+	}
+	if strings.Contains(disableJobSection, "pull-requests: write") {
+		t.Errorf("label_disable_agentic_workflow job must NOT have pull-requests: write (issues-only) in:\n%s", disableJobSection)
+	}
+
+	// Verify the job uses disable_agentic_workflow.cjs
+	if !strings.Contains(disableJobSection, "disable_agentic_workflow.cjs") {
+		t.Errorf("label_disable_agentic_workflow job should use disable_agentic_workflow.cjs script in:\n%s", disableJobSection)
+	}
+
+	// Verify the job includes the permission check step with an id and that the operation step
+	// has an explicit if condition referencing that id (so unauthorized users cannot bypass the check)
+	if !strings.Contains(disableJobSection, "check_team_member.cjs") {
+		t.Errorf("label_disable_agentic_workflow job should check permissions using check_team_member.cjs in:\n%s", disableJobSection)
+	}
+	if !strings.Contains(disableJobSection, "id: check_permissions") {
+		t.Errorf("label_disable_agentic_workflow permission check step should have id: check_permissions in:\n%s", disableJobSection)
+	}
+	if !strings.Contains(disableJobSection, "steps.check_permissions.outcome == 'success'") {
+		t.Errorf("label_disable_agentic_workflow operation step should have if: steps.check_permissions.outcome == 'success' in:\n%s", disableJobSection)
+	}
+}
+
+func TestBuildLabeledDisableCondition(t *testing.T) {
+	condition := buildLabeledDisableCondition()
+	rendered := RenderCondition(condition)
+
+	// Should only include issues event (not pull_request — issues-only by design)
+	if !strings.Contains(rendered, "github.event_name == 'issues'") {
+		t.Errorf("Condition should include issues event, got: %s", rendered)
+	}
+	if strings.Contains(rendered, "github.event_name == 'pull_request'") {
+		t.Errorf("Condition must not include pull_request event (issues-only), got: %s", rendered)
+	}
+
+	// Should check the label name
+	if !strings.Contains(rendered, "github.event.label.name == 'agentic-workflows:disable'") {
+		t.Errorf("Condition should check for agentic-workflows:disable label, got: %s", rendered)
+	}
+
+	// Should exclude forks
+	if !strings.Contains(rendered, "github.event.repository.fork") {
+		t.Errorf("Condition should exclude forks, got: %s", rendered)
+	}
+
+	// Should not include workflow_dispatch or schedule-related conditions
+	if strings.Contains(rendered, "workflow_dispatch") || strings.Contains(rendered, "workflow_call") {
+		t.Errorf("Condition should not reference workflow_dispatch or workflow_call, got: %s", rendered)
+	}
+}
+
+func TestBuildLabeledApplySafeOutputsCondition(t *testing.T) {
+	condition := buildLabeledApplySafeOutputsCondition()
+	rendered := RenderCondition(condition)
+
+	// Should only include issues event
+	if !strings.Contains(rendered, "github.event_name == 'issues'") {
+		t.Errorf("Condition should include issues event, got: %s", rendered)
+	}
+	if strings.Contains(rendered, "github.event_name == 'pull_request'") {
+		t.Errorf("Condition must not include pull_request event (issues-only), got: %s", rendered)
+	}
+
+	// Should check the apply-safe-outputs label name
+	if !strings.Contains(rendered, "github.event.label.name == 'agentic-workflows:apply-safe-outputs'") {
+		t.Errorf("Condition should check for agentic-workflows:apply-safe-outputs label, got: %s", rendered)
+	}
+
+	// Should exclude forks
+	if !strings.Contains(rendered, "github.event.repository.fork") {
+		t.Errorf("Condition should exclude forks, got: %s", rendered)
+	}
+}
+
+func TestGenerateMaintenanceWorkflow_LabelTriggers_Disabled(t *testing.T) {
+	workflowDataList := []*WorkflowData{
+		{
+			Name: "test-workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{Expires: 48},
+			},
+		},
+	}
+
+	tmpDir := t.TempDir()
+	falseVal := false
+	cfg := &RepoConfig{
+		Maintenance: &MaintenanceConfig{LabelTriggers: &falseVal},
+	}
+	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, cfg, "")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+	if err != nil {
+		t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+	}
+	yaml := string(content)
+
+	// Label-event trigger should be absent
+	if strings.Contains(yaml, "  issues:\n    types: [labeled]") {
+		t.Error("When label_triggers is false the issues labeled trigger should not be present")
+	}
+
+	// The pull_request labeled trigger should never be present (removed)
+	if strings.Contains(yaml, "  pull_request:\n    types: [labeled]") {
+		t.Error("pull_request labeled trigger should never be present (issues-only)")
+	}
+
+	// The label_disable_agentic_workflow job should be absent
+	if strings.Contains(yaml, "label_disable_agentic_workflow:") {
+		t.Error("When label_triggers is false the label_disable_agentic_workflow job should not be present")
+	}
+
+	// The label_apply_safe_outputs job should be absent
+	if strings.Contains(yaml, "label_apply_safe_outputs:") {
+		t.Error("When label_triggers is false the label_apply_safe_outputs job should not be present")
+	}
+}
+
+func TestGenerateMaintenanceWorkflow_LabelTriggers_Default(t *testing.T) {
+	workflowDataList := []*WorkflowData{
+		{
+			Name: "test-workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{Expires: 48},
+			},
+		},
+	}
+
+	tmpDir := t.TempDir()
+	// Default: LabelTriggers is nil (omitted) → treated as false (opt-in semantics) → jobs absent
+	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, "")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+	if err != nil {
+		t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+	}
+	yaml := string(content)
+
+	// Issues labeled trigger should NOT be present by default (opt-in required)
+	if strings.Contains(yaml, "  issues:\n    types: [labeled]") {
+		t.Error("By default (no config) the issues labeled trigger should NOT be present — label_triggers must be explicitly enabled")
+	}
+
+	// The label_disable_agentic_workflow job should NOT be present by default
+	if strings.Contains(yaml, "label_disable_agentic_workflow:") {
+		t.Error("By default (no config) the label_disable_agentic_workflow job should NOT be present — label_triggers must be explicitly enabled")
+	}
+
+	// The label_apply_safe_outputs job should NOT be present by default
+	if strings.Contains(yaml, "label_apply_safe_outputs:") {
+		t.Error("By default (no config) the label_apply_safe_outputs job should NOT be present — label_triggers must be explicitly enabled")
+	}
+}
+
+func TestGenerateMaintenanceWorkflow_LabelTriggers_ExplicitTrue(t *testing.T) {
+	workflowDataList := []*WorkflowData{
+		{
+			Name: "test-workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{Expires: 48},
+			},
+		},
+	}
+
+	tmpDir := t.TempDir()
+	trueVal := true
+	cfg := &RepoConfig{
+		Maintenance: &MaintenanceConfig{LabelTriggers: &trueVal},
+	}
+	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, cfg, "")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+	if err != nil {
+		t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+	}
+	yaml := string(content)
+
+	// Issues labeled trigger should be present when explicitly enabled
+	if !strings.Contains(yaml, "  issues:\n    types: [labeled]") {
+		t.Error("When label_triggers: true the issues labeled trigger should be present")
+	}
+
+	// pull_request labeled trigger should never be present (issues-only by design)
+	if strings.Contains(yaml, "  pull_request:\n    types: [labeled]") {
+		t.Error("pull_request labeled trigger should never be present (issues-only)")
+	}
+
+	// The label_disable_agentic_workflow job should be present when explicitly enabled
+	if !strings.Contains(yaml, "label_disable_agentic_workflow:") {
+		t.Error("When label_triggers: true the label_disable_agentic_workflow job should be present")
+	}
+
+	// The label_apply_safe_outputs job should be present when explicitly enabled
+	if !strings.Contains(yaml, "label_apply_safe_outputs:") {
+		t.Error("When label_triggers: true the label_apply_safe_outputs job should be present")
+	}
+
+	// Verify label_apply_safe_outputs job has an explicit step id and if condition so that
+	// the operation step only runs when the permission check passes
+	applySafeIdx := strings.Index(yaml, "\n  label_apply_safe_outputs:")
+	if applySafeIdx != -1 {
+		applySection := yaml[applySafeIdx:min(applySafeIdx+2000, len(yaml))]
+		if !strings.Contains(applySection, "id: check_permissions") {
+			t.Errorf("label_apply_safe_outputs permission check step should have id: check_permissions in:\n%s", applySection[:min(500, len(applySection))])
+		}
+		if !strings.Contains(applySection, "steps.check_permissions.outcome == 'success'") {
+			t.Errorf("label_apply_safe_outputs operation step should have if: steps.check_permissions.outcome == 'success' in:\n%s", applySection[:min(500, len(applySection))])
+		}
+	}
+}
+
 func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 	const jobSectionSearchRange = 500
 
@@ -578,7 +870,7 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 	t.Run("dev mode uses custom default branch from buildMaintenanceWorkflowYAML", func(t *testing.T) {
 		// Call buildMaintenanceWorkflowYAML directly to test the branch substitution
 		// without needing a live GitHub API call (FetchDefaultBranch falls back to "main" with no slug)
-		yaml := buildMaintenanceWorkflowYAML("37 */2 * * *", "Every 2 hours", 1, "ubuntu-slim", ActionModeDev, "v1.0.0", "", nil, nil, "develop")
+		yaml := buildMaintenanceWorkflowYAML("37 */2 * * *", "Every 2 hours", 1, "ubuntu-slim", ActionModeDev, "v1.0.0", "", nil, nil, "develop", false)
 		if !strings.Contains(yaml, "      - develop") {
 			t.Errorf("Push trigger should use the provided default branch 'develop', got:\n%s", yaml[:min(500, len(yaml))])
 		}
@@ -894,6 +1186,7 @@ func TestGenerateMaintenanceWorkflow_RunOperationCLICodegen(t *testing.T) {
 		yaml := string(content)
 		// run_operation, create_labels, activity_report, validate_workflows, and compile_workflows should use the same setup-go version
 		// (all use getActionPin, not hardcoded pins). Exactly 5 occurrences expected.
+		// Note: label_disable_agentic_workflow no longer installs the CLI, so it has no setup-go step.
 		setupGoPin := getActionPin("actions/setup-go")
 		occurrences := strings.Count(yaml, setupGoPin)
 		if occurrences != 5 {
