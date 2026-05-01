@@ -32,7 +32,7 @@ on:
 
 ### Observation before action
 
-Before proposing changes, the expert reads live state from its domain. This observation step is what separates ExpertOps from a simple linting or static-analysis workflow — the agent sees the *current runtime behaviour*, not just the code:
+Before proposing changes, the expert reads live state from its domain. This observation step is what separates ExpertOps from a simple linting or static-analysis workflow — the agent sees the *current runtime behavior*, not just the code:
 
 ```aw wrap
 ---
