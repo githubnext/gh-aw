@@ -189,6 +189,52 @@ describe("pick_experiment", () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
+    it("writes assignments.json alongside state.json after picking variants", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        feature1: ["A", "B"],
+        style: ["concise", "detailed"],
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      const assignmentsFile = path.join(tmpDir, "assignments.json");
+      expect(fs.existsSync(assignmentsFile)).toBe(true);
+      const assignments = JSON.parse(fs.readFileSync(assignmentsFile, "utf8"));
+      expect(assignments).toEqual({ feature1: "A", style: "concise" });
+    });
+
+    it("overwrites assignments.json on successive runs reflecting the current variant", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      // First run → X
+      await main();
+      const assignmentsFile = path.join(tmpDir, "assignments.json");
+      expect(JSON.parse(fs.readFileSync(assignmentsFile, "utf8"))).toEqual({ feat: "X" });
+
+      vi.clearAllMocks();
+
+      // Second run → Y
+      await main();
+      expect(JSON.parse(fs.readFileSync(assignmentsFile, "utf8"))).toEqual({ feat: "Y" });
+    });
+
+    it("does not write assignments.json when spec is empty", async () => {
+      process.env.GH_AW_EXPERIMENT_SPEC = "{}";
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      const assignmentsFile = path.join(tmpDir, "assignments.json");
+      expect(fs.existsSync(assignmentsFile)).toBe(false);
+    });
+
     it("calls setFailed on invalid JSON spec", async () => {
       process.env.GH_AW_EXPERIMENT_SPEC = "not-json";
       process.env.GH_AW_EXPERIMENT_STATE_FILE = path.join(tmpDir, "state.json");
