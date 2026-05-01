@@ -195,6 +195,71 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, "\n", "JSON output should not contain newlines (must be compact)")
 		assert.NotContains(t, jsonStr, "    ", "JSON output should not contain indentation")
 	})
+
+	t.Run("enableOpenCode is set in apiProxy for opencode engine with supported AWF version", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "opencode",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "opencode"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: "v0.25.30",
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		assert.Contains(t, jsonStr, `"enableOpenCode":true`, "apiProxy should include enableOpenCode:true for opencode engine")
+	})
+
+	t.Run("enableOpenCode is not set for non-opencode engines", func(t *testing.T) {
+		for _, engine := range []string{"copilot", "claude", "codex", "gemini"} {
+			config := AWFCommandConfig{
+				EngineName:     engine,
+				AllowedDomains: "github.com",
+				WorkflowData: &WorkflowData{
+					EngineConfig: &EngineConfig{ID: engine},
+					NetworkPermissions: &NetworkPermissions{
+						Firewall: &FirewallConfig{
+							Enabled: true,
+							Version: "v0.25.30",
+						},
+					},
+				},
+			}
+
+			jsonStr, err := BuildAWFConfigJSON(config)
+			require.NoError(t, err)
+
+			assert.NotContains(t, jsonStr, `"enableOpenCode"`, "apiProxy should not include enableOpenCode for engine %s", engine)
+		}
+	})
+
+	t.Run("enableOpenCode is not set for opencode engine with old AWF version", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "opencode",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "opencode"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: "v0.25.29",
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		assert.NotContains(t, jsonStr, `"enableOpenCode"`, "apiProxy should not include enableOpenCode for AWF version below minimum")
+	})
 }
 
 // TestBuildAWFConfigJSON_DomainDeduplication verifies that duplicate domain entries

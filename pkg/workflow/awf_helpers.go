@@ -231,6 +231,7 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 // BuildAWFCommand and are therefore not emitted here:
 //   - --allow-domains / --block-domains   → network.allowDomains / network.blockDomains
 //   - --enable-api-proxy                  → apiProxy.enabled
+//   - --enable-opencode (opencode engine) → apiProxy.enableOpenCode (AWF v0.25.30+)
 //   - --image-tag                         → container.imageTag
 //   - --openai-api-target                 → apiProxy.targets.openai.host
 //   - --anthropic-api-target              → apiProxy.targets.anthropic.host

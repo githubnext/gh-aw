@@ -19,6 +19,7 @@
 //	  },
 //	  "apiProxy": {
 //	    "enabled": true,
+//	    "enableOpenCode": true,
 //	    "targets": {
 //	      "openai":    { "host": "api.openai.com" },
 //	      "anthropic": { "host": "api.anthropic.com" },
@@ -47,6 +48,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // AWFConfigFile represents the AWF configuration file schema.
@@ -79,11 +82,17 @@ type AWFNetworkConfig struct {
 }
 
 // AWFAPIProxyConfig is the "apiProxy" section of the AWF config file.
-// It maps to the --enable-api-proxy and --*-api-target CLI flags.
+// It maps to the --enable-api-proxy, --enable-opencode, and --*-api-target CLI flags.
 type AWFAPIProxyConfig struct {
 	// Enabled enables the API proxy sidecar for LLM gateway credential isolation.
 	// Maps to: --enable-api-proxy
 	Enabled bool `json:"enabled"`
+
+	// EnableOpenCode enables the OpenCode API proxy listener on port 10004
+	// (dynamic provider routing). Only emitted when true (omitempty).
+	// Maps to: --enable-opencode
+	// Requires: Enabled == true and AWF >= v0.25.30
+	EnableOpenCode bool `json:"enableOpenCode,omitempty"`
 
 	// Targets holds per-provider API target overrides.
 	// Supported keys: "openai", "anthropic", "copilot", "gemini"
@@ -137,6 +146,14 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		Enabled: true,
 	}
 
+	// Enable the OpenCode API proxy listener on port 10004 for the opencode engine.
+	// Expressed in the config file as apiProxy.enableOpenCode so it is auditable
+	// alongside the other apiProxy settings, mirroring the --enable-opencode CLI flag.
+	firewallConfig := getFirewallConfig(config.WorkflowData)
+	if config.EngineName == string(constants.OpenCodeEngine) && awfSupportsEnableOpenCode(firewallConfig) {
+		apiProxy.EnableOpenCode = true
+	}
+
 	targets := map[string]*AWFAPITargetConfig{}
 
 	if openaiTarget := extractAPITargetHost(config.WorkflowData, "OPENAI_BASE_URL"); openaiTarget != "" {
@@ -158,7 +175,6 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	awfConfig.APIProxy = apiProxy
 
 	// ── Container section ─────────────────────────────────────────────────────
-	firewallConfig := getFirewallConfig(config.WorkflowData)
 	awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
 	if awfImageTag != "" {
 		awfConfig.Container = &AWFContainerConfig{
