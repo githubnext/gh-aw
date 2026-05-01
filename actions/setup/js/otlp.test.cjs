@@ -204,14 +204,14 @@ describe("otlp.cjs", () => {
   // ---------------------------------------------------------------------------
 
   describe("logSpan — missing trace ID", () => {
-    it("warns and skips the span when GITHUB_AW_OTEL_TRACE_ID is not set", async () => {
+    it("silently skips the span when GITHUB_AW_OTEL_TRACE_ID is not set", async () => {
       delete process.env.GITHUB_AW_OTEL_TRACE_ID;
       mockIsValidTraceId.mockReturnValue(false);
 
       await otlp.logSpan("my-scanner", { "my-scanner.count": 1 });
 
       expect(mockSendOTLPSpan).not.toHaveBeenCalled();
-      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("GITHUB_AW_OTEL_TRACE_ID is not set"));
+      expect(console.warn).not.toHaveBeenCalled();
     });
   });
 

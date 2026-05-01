@@ -83,7 +83,6 @@ async function logSpan(toolName, attributes = {}, options = {}) {
     const parentSpanId = options.parentSpanId ?? process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID ?? "";
 
     if (!isValidTraceId(traceId)) {
-      console.warn(`[otlp] ${toolName}: GITHUB_AW_OTEL_TRACE_ID is not set or invalid; skipping span`);
       return;
     }
 
