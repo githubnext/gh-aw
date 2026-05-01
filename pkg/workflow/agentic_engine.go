@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -471,8 +470,7 @@ func NewEngineRegistry() *EngineRegistry {
 	}
 	for _, engine := range builtins {
 		if err := registry.Register(engine); err != nil {
-			fmt.Fprintf(os.Stderr, "fatal: failed to register built-in engine: %v\n", err)
-			os.Exit(1)
+			panic(fmt.Sprintf("failed to register built-in engine: %v", err))
 		}
 	}
 
