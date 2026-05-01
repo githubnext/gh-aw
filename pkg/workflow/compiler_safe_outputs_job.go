@@ -57,7 +57,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	steps := append(setupSteps, handlerSteps...)
 
 	// Phase 3: App-token insertion, finalization, job condition/deps, and job construction
-	return c.buildSafeOutputsJobFromParts(data, mainJobName, agentArtifactPrefix, steps, outputs, safeOutputStepNames, permissions, threatDetectionEnabled)
+	return c.buildSafeOutputsJobFromParts(data, mainJobName, markdownPath, agentArtifactPrefix, steps, outputs, safeOutputStepNames, permissions, threatDetectionEnabled)
 }
 
 // buildSafeOutputsSetupAndDownloadSteps builds the initial steps for the consolidated safe
@@ -392,7 +392,7 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 // dependency list, and assembles the Job struct for the safe_outputs job.
 func (c *Compiler) buildSafeOutputsJobFromParts(
 	data *WorkflowData,
-	mainJobName, agentArtifactPrefix string,
+	mainJobName, markdownPath, agentArtifactPrefix string,
 	steps []string,
 	outputs map[string]string,
 	safeOutputStepNames []string,
@@ -550,8 +550,11 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 		}
 	}
 
+	// Extract workflow ID from markdown path for GH_AW_WORKFLOW_ID
+	workflowID := GetWorkflowIDFromPath(markdownPath)
+
 	// Build job-level environment variables that are common to all safe output steps
-	jobEnv := c.buildJobLevelSafeOutputEnvVars(data, data.WorkflowID)
+	jobEnv := c.buildJobLevelSafeOutputEnvVars(data, workflowID)
 
 	// Build concurrency config for the safe-outputs job if a concurrency-group is configured
 	var concurrency string
