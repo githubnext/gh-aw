@@ -26,6 +26,11 @@
 
 const path = require("path");
 
+// Ensures global.core / global.context shims are available when this module
+// is loaded outside the github-script runtime (e.g., in plain Node.js or the
+// MCP server context where those globals are not injected automatically).
+require(path.join(__dirname, "shim.cjs"));
+
 // ---------------------------------------------------------------------------
 // Internal: lazy-load send_otlp_span.cjs so the module can be required from
 // the runtime actions directory (/tmp/gh-aw/actions/) without knowing the

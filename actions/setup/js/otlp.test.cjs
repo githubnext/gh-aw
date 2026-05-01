@@ -81,6 +81,21 @@ describe("otlp.cjs", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // shim.cjs integration — global.core must be available after require
+  // ---------------------------------------------------------------------------
+
+  describe("shim integration", () => {
+    it("populates global.core when otlp.cjs is loaded", () => {
+      // otlp.cjs requires shim.cjs at module load time; by the time we reach
+      // this test global.core must already be set (either by the real
+      // github-script runtime or by the shim).
+      expect(global.core).toBeDefined();
+      expect(typeof global.core.warning).toBe("function");
+      expect(typeof global.core.info).toBe("function");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // logSpan — happy path
   // ---------------------------------------------------------------------------
 
