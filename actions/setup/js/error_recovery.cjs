@@ -8,6 +8,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
+const { logRetryEvent } = require("./github_rate_limit_logger.cjs");
 
 /**
  * Configuration for retry behavior
@@ -174,6 +175,7 @@ async function withRetry(operation, config = {}, operationName = "operation") {
         const jitter = fullConfig.jitterMs > 0 ? Math.floor(Math.random() * fullConfig.jitterMs) : 0;
         const delayWithJitter = delay + jitter;
         core.info(`Retry attempt ${attempt}/${fullConfig.maxRetries} for ${operationName} after ${delayWithJitter}ms delay`);
+        logRetryEvent(lastError, operationName, attempt, delayWithJitter);
         await sleep(delayWithJitter);
       }
 

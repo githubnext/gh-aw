@@ -1,5 +1,6 @@
 // @ts-check
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import fs from "fs";
 
 // Mock core global (needed by github_rate_limit_logger.cjs)
 const mockCore = {
@@ -150,6 +151,43 @@ describe("rate_limit_helpers", () => {
       });
       await checkRateLimitHeadroom(mockGithub, "test");
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Rate-limit headroom low:"));
+    });
+    it("should write the quota snapshot to the JSONL log file when response has rate-limit headers", async () => {
+      const { checkRateLimitHeadroom } = await import("./rate_limit_helpers.cjs");
+
+      // Provide rate-limit headers so logRateLimitFromResponse can write an entry
+      mockGithub.rest.rateLimit.get.mockResolvedValue({
+        data: {
+          rate: { remaining: 3000, limit: 5000, used: 2000 },
+          resources: {},
+        },
+        headers: {
+          "x-ratelimit-limit": "5000",
+          "x-ratelimit-remaining": "3000",
+          "x-ratelimit-reset": "1700000000",
+          "x-ratelimit-resource": "core",
+        },
+      });
+
+      const existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      const mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined);
+      const appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => undefined);
+
+      try {
+        await checkRateLimitHeadroom(mockGithub, "pre-flight-check");
+
+        expect(appendSpy).toHaveBeenCalledOnce();
+        const entry = JSON.parse(appendSpy.mock.calls[0][1].trimEnd());
+        expect(entry.source).toBe("response_headers");
+        expect(entry.operation).toBe("pre-flight-check");
+        expect(entry.remaining).toBe(3000);
+        expect(entry.limit).toBe(5000);
+        expect(entry.resource).toBe("core");
+      } finally {
+        existsSpy.mockRestore();
+        mkdirSpy.mockRestore();
+        appendSpy.mockRestore();
+      }
     });
   });
 });

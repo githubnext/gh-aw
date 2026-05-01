@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
+const { fetchAndLogRateLimit, logRateLimitFromResponse } = require("./github_rate_limit_logger.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
@@ -63,7 +63,9 @@ async function checkRateLimit(github, operation = "rate_limit_check") {
  */
 async function checkRateLimitHeadroom(github, operation = "rate_limit_headroom") {
   try {
-    const { data } = await github.rest.rateLimit.get();
+    const response = await github.rest.rateLimit.get();
+    const { data } = response;
+    logRateLimitFromResponse(response, operation);
     const { remaining, limit } = data.rate;
     const percentRemaining = limit > 0 ? Math.floor((remaining / limit) * 100) : 100;
 

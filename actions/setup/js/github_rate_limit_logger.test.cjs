@@ -20,7 +20,7 @@ global.core = mockCore;
 // Module import
 // ---------------------------------------------------------------------------
 
-const { logRateLimitFromResponse, fetchAndLogRateLimit, createRateLimitAwareGithub, GITHUB_RATE_LIMITS_JSONL_PATH } = await import("./github_rate_limit_logger.cjs?" + Date.now());
+const { logRateLimitFromResponse, fetchAndLogRateLimit, logRetryEvent, createRateLimitAwareGithub, GITHUB_RATE_LIMITS_JSONL_PATH } = await import("./github_rate_limit_logger.cjs?" + Date.now());
 
 // ---------------------------------------------------------------------------
 // logRateLimitFromResponse
@@ -398,5 +398,104 @@ describe("createRateLimitAwareGithub", () => {
     const result = wrapped.endpoint.merge({ owner: "o", repo: "r", ref: "main", per_page: 100 });
     expect(result).toBe(mergedOptions);
     expect(endpointObj.merge).toHaveBeenCalledWith({ owner: "o", repo: "r", ref: "main", per_page: 100 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// logRetryEvent
+// ---------------------------------------------------------------------------
+
+describe("logRetryEvent", () => {
+  let existsSpy, mkdirSpy, appendSpy;
+
+  beforeEach(() => {
+    existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined);
+    appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => undefined);
+    vi.clearAllMocks();
+    existsSpy.mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    existsSpy.mockRestore();
+    mkdirSpy.mockRestore();
+    appendSpy.mockRestore();
+  });
+
+  it("writes a retry JSONL entry with source=retry", () => {
+    const error = { message: "rate limit exceeded" };
+    logRetryEvent(error, "issues.create", 1, 30000);
+
+    expect(appendSpy).toHaveBeenCalledOnce();
+    const entry = JSON.parse(appendSpy.mock.calls[0][1].trimEnd());
+    expect(entry.source).toBe("retry");
+    expect(entry.operation).toBe("issues.create");
+    expect(entry.attempt).toBe(1);
+    expect(entry.delay_ms).toBe(30000);
+    expect(typeof entry.timestamp).toBe("string");
+  });
+
+  it("includes HTTP status when present in error", () => {
+    const error = { response: { status: 429, headers: {} } };
+    logRetryEvent(error, "issues.create", 1, 15000);
+
+    const entry = JSON.parse(appendSpy.mock.calls[0][1].trimEnd());
+    expect(entry.status).toBe(429);
+  });
+
+  it("includes rate-limit headers from the error response when present", () => {
+    const resetSeconds = 1700000000;
+    const error = {
+      response: {
+        status: 429,
+        headers: {
+          "x-ratelimit-limit": "5000",
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": String(resetSeconds),
+          "x-ratelimit-resource": "core",
+        },
+      },
+    };
+
+    logRetryEvent(error, "lock-issue", 2, 60000);
+
+    const entry = JSON.parse(appendSpy.mock.calls[0][1].trimEnd());
+    expect(entry.limit).toBe(5000);
+    expect(entry.remaining).toBe(0);
+    expect(entry.reset).toBe(new Date(resetSeconds * 1000).toISOString());
+    expect(entry.resource).toBe("core");
+  });
+
+  it("also reads headers from top-level error.headers", () => {
+    const error = {
+      status: 429,
+      headers: { "x-ratelimit-remaining": "10", "x-ratelimit-limit": "5000" },
+    };
+
+    logRetryEvent(error, "add-labels", 1, 30000);
+
+    const entry = JSON.parse(appendSpy.mock.calls[0][1].trimEnd());
+    expect(entry.remaining).toBe(10);
+    expect(entry.limit).toBe(5000);
+  });
+
+  it("omits optional fields when error has no response headers", () => {
+    logRetryEvent(new Error("network timeout"), "create-issue", 3, 120000);
+
+    const entry = JSON.parse(appendSpy.mock.calls[0][1].trimEnd());
+    expect(entry.source).toBe("retry");
+    expect(entry.status).toBeUndefined();
+    expect(entry.remaining).toBeUndefined();
+    expect(entry.limit).toBeUndefined();
+    expect(entry.reset).toBeUndefined();
+    expect(entry.resource).toBeUndefined();
+  });
+
+  it("writes valid JSONL (ends with newline, no embedded newlines)", () => {
+    logRetryEvent({}, "test-op", 1, 5000);
+
+    const content = appendSpy.mock.calls[0][1];
+    expect(content).toMatch(/\n$/);
+    expect(content.trimEnd()).not.toContain("\n");
   });
 });

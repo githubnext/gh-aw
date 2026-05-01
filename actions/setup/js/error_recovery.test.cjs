@@ -1,6 +1,7 @@
 // @ts-check
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import fs from "fs";
 
 // Mock @actions/core
 global.core = {
@@ -428,6 +429,20 @@ describe("error_recovery", () => {
   });
 
   describe("withRetry with Retry-After header", () => {
+    let appendSpy, existsSpy, mkdirSpy;
+
+    beforeEach(() => {
+      existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined);
+      appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      existsSpy.mockRestore();
+      mkdirSpy.mockRestore();
+      appendSpy.mockRestore();
+    });
+
     it("should use Retry-After delay instead of backoff when header is present on 429", async () => {
       const retryAfterError = {
         message: "rate limit exceeded",
@@ -455,6 +470,28 @@ describe("error_recovery", () => {
       // Normal backoff: 10 * 2 = 20ms — NOT the 120s reset header
       expect(core.info).toHaveBeenCalledWith(expect.stringContaining("after 20ms delay"));
       expect(core.info).not.toHaveBeenCalledWith(expect.stringContaining("Retry-After header detected"));
+    });
+
+    it("should write a JSONL retry entry to the rate-limit log file on each retry", async () => {
+      const error = {
+        message: "rate limit exceeded",
+        response: {
+          status: 429,
+          headers: { "x-ratelimit-remaining": "0", "x-ratelimit-limit": "5000", "retry-after": "1" },
+        },
+      };
+      const operation = vi.fn().mockRejectedValueOnce(error).mockResolvedValue("ok");
+
+      await withRetry(operation, { maxRetries: 2, initialDelayMs: 10, backoffMultiplier: 2, jitterMs: 0 }, "test-log-op");
+
+      // appendFileSync should have been called once (one retry)
+      expect(appendSpy).toHaveBeenCalledOnce();
+      const entry = JSON.parse(appendSpy.mock.calls[0][1].trimEnd());
+      expect(entry.source).toBe("retry");
+      expect(entry.operation).toBe("test-log-op");
+      expect(entry.attempt).toBe(1);
+      expect(entry.status).toBe(429);
+      expect(entry.remaining).toBe(0);
     });
   });
 });
