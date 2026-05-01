@@ -72,7 +72,7 @@ require(path.join(__dirname, "shim.cjs"));
  */
 async function logSpan(toolName, attributes = {}, options = {}) {
   try {
-    const { buildAttr, buildOTLPPayload, sendOTLPSpan, generateSpanId, isValidTraceId, isValidSpanId, SPAN_KIND_CLIENT } = require(path.join(__dirname, "send_otlp_span.cjs"));
+    const { buildAttr, buildOTLPPayload, sendOTLPSpan, sanitizeOTLPPayload, appendToOTLPJSONL, generateSpanId, isValidTraceId, isValidSpanId, SPAN_KIND_CLIENT } = require(path.join(__dirname, "send_otlp_span.cjs"));
 
     const now = Date.now();
     const startMs = options.startMs ?? now;
@@ -103,7 +103,11 @@ async function logSpan(toolName, attributes = {}, options = {}) {
       ...(options.isError && options.errorMessage ? { statusMessage: options.errorMessage } : {}),
     });
 
-    await sendOTLPSpan(endpoint, payload);
+    // Sanitize before mirroring so that the local JSONL debug file never
+    // contains secrets, just like the over-the-wire export.
+    appendToOTLPJSONL(sanitizeOTLPPayload(payload));
+    // skipJSONL: true because we already wrote the sanitized mirror above.
+    await sendOTLPSpan(endpoint, payload, { skipJSONL: true });
   } catch (err) {
     // Export failures must never break the workflow.
     console.warn(`[otlp] ${toolName}: failed to emit span: ${err instanceof Error ? err.message : String(err)}`);

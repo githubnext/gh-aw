@@ -22,12 +22,14 @@ const VALID_SPAN_ID = "aabbccdd00112233";
 const mockBuildAttr = vi.fn();
 const mockBuildOTLPPayload = vi.fn();
 const mockSendOTLPSpan = vi.fn();
+const mockSanitizeOTLPPayload = vi.fn();
+const mockAppendToOTLPJSONL = vi.fn();
 const mockGenerateSpanId = vi.fn();
 const mockIsValidTraceId = vi.fn();
 const mockIsValidSpanId = vi.fn();
 
 // Capture originals so we can restore them after each test
-const PATCHED_KEYS = ["buildAttr", "buildOTLPPayload", "sendOTLPSpan", "generateSpanId", "isValidTraceId", "isValidSpanId"];
+const PATCHED_KEYS = ["buildAttr", "buildOTLPPayload", "sendOTLPSpan", "sanitizeOTLPPayload", "appendToOTLPJSONL", "generateSpanId", "isValidTraceId", "isValidSpanId"];
 const originals = Object.fromEntries(PATCHED_KEYS.map(k => [k, sendOtlpModule[k]]));
 
 describe("otlp.cjs", () => {
@@ -42,6 +44,8 @@ describe("otlp.cjs", () => {
     mockBuildAttr.mockImplementation((key, value) => ({ key, value }));
     mockBuildOTLPPayload.mockReturnValue({ resourceSpans: [] });
     mockSendOTLPSpan.mockResolvedValue(undefined);
+    mockSanitizeOTLPPayload.mockImplementation(p => p);
+    mockAppendToOTLPJSONL.mockReturnValue(undefined);
     mockGenerateSpanId.mockReturnValue(VALID_SPAN_ID);
     mockIsValidTraceId.mockImplementation(id => id === VALID_TRACE_ID);
     mockIsValidSpanId.mockImplementation(id => id === VALID_SPAN_ID);
@@ -50,6 +54,8 @@ describe("otlp.cjs", () => {
     sendOtlpModule.buildAttr = mockBuildAttr;
     sendOtlpModule.buildOTLPPayload = mockBuildOTLPPayload;
     sendOtlpModule.sendOTLPSpan = mockSendOTLPSpan;
+    sendOtlpModule.sanitizeOTLPPayload = mockSanitizeOTLPPayload;
+    sendOtlpModule.appendToOTLPJSONL = mockAppendToOTLPJSONL;
     sendOtlpModule.generateSpanId = mockGenerateSpanId;
     sendOtlpModule.isValidTraceId = mockIsValidTraceId;
     sendOtlpModule.isValidSpanId = mockIsValidSpanId;
@@ -127,7 +133,7 @@ describe("otlp.cjs", () => {
     it("reads the endpoint from OTEL_EXPORTER_OTLP_ENDPOINT", async () => {
       await otlp.logSpan("my-scanner", {});
 
-      expect(mockSendOTLPSpan).toHaveBeenCalledWith("https://otel.example.com", expect.anything());
+      expect(mockSendOTLPSpan).toHaveBeenCalledWith("https://otel.example.com", expect.anything(), { skipJSONL: true });
     });
 
     it("converts attributes object to buildAttr calls", async () => {
@@ -166,7 +172,21 @@ describe("otlp.cjs", () => {
     it("accepts options.endpoint override", async () => {
       await otlp.logSpan("my-scanner", {}, { endpoint: "https://custom.otel.io" });
 
-      expect(mockSendOTLPSpan).toHaveBeenCalledWith("https://custom.otel.io", expect.anything());
+      expect(mockSendOTLPSpan).toHaveBeenCalledWith("https://custom.otel.io", expect.anything(), { skipJSONL: true });
+    });
+
+    it("sanitizes the payload before writing to the JSONL mirror", async () => {
+      const rawPayload = { resourceSpans: ["raw"] };
+      const sanitizedPayload = { resourceSpans: ["sanitized"] };
+      mockBuildOTLPPayload.mockReturnValue(rawPayload);
+      mockSanitizeOTLPPayload.mockReturnValue(sanitizedPayload);
+
+      await otlp.logSpan("my-scanner", {});
+
+      expect(mockSanitizeOTLPPayload).toHaveBeenCalledWith(rawPayload);
+      expect(mockAppendToOTLPJSONL).toHaveBeenCalledWith(sanitizedPayload);
+      // Wire export still uses the original payload (sendOTLPSpan sanitizes internally)
+      expect(mockSendOTLPSpan).toHaveBeenCalledWith(expect.any(String), rawPayload, { skipJSONL: true });
     });
   });
 
