@@ -328,6 +328,31 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
     });
+
+    it("should work correctly for workflow_call events with aw_context (no false positive)", async () => {
+      // In workflow_call, context.payload = { inputs: { aw_context: "..." } }
+      // The aw_context carries event_type but NOT pull_request.user.login
+      // Confused deputy check must NOT trigger - this is a legitimate reusable workflow call
+      mockContext.actor = "dependabot[bot]";
+      mockContext.eventName = "workflow_call";
+      mockContext.payload = {
+        inputs: {
+          aw_context: JSON.stringify({ event_type: "pull_request", item_number: "42", actor: "attacker" }),
+        },
+      };
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write" },
+      });
+
+      await runScript();
+
+      // workflow_call proceeds to normal permission check - no confused_deputy denial
+      expect(mockCore.setOutput).not.toHaveBeenCalledWith("result", "confused_deputy");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
+    });
   });
 
   describe("API error handling", () => {

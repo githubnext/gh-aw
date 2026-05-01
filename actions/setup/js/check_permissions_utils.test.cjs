@@ -607,6 +607,20 @@ describe("check_permissions_utils", () => {
       it("should return false for schedule events", () => {
         expect(isConfusedDeputyAttack("github-actions[bot]", "schedule", {})).toBe(false);
       });
+
+      it("should return false for workflow_call events (no PR/comment in payload)", () => {
+        // In workflow_call, context.payload = { inputs: { aw_context: "..." } }
+        // aw_context carries event_type/item_number but NOT pull_request.user.login
+        const payload = { inputs: { aw_context: '{"event_type":"pull_request","item_number":"42","actor":"attacker"}' } };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "workflow_call", payload)).toBe(false);
+      });
+
+      it("should return false for workflow_call even if payload contains unrelated pull_request data", () => {
+        // Even if someone injects pull_request data in the payload, the eventName check
+        // guards against false positives: workflow_call is never in prEvents
+        const payload = { pull_request: { user: { login: "attacker" } }, inputs: {} };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "workflow_call", payload)).toBe(false);
+      });
     });
 
     describe("edge cases", () => {
