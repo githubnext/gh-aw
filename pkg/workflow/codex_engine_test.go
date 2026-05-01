@@ -439,6 +439,77 @@ func TestCodexEngineExecutionAddsMountedMCPCLIPathSetup(t *testing.T) {
 	}
 }
 
+func TestCodexEngineInstallationCopiesCodexToAWFAccessibleLocation(t *testing.T) {
+	engine := NewCodexEngine()
+
+	// With firewall enabled, should include a step to copy codex to /tmp/gh-aw/npm-bins/
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+
+	steps := engine.GetInstallationSteps(workflowData)
+
+	// Expected steps: Node.js setup, Install Codex CLI, Install AWF binary, Copy Codex to AWF-accessible location
+	if len(steps) < 3 {
+		t.Fatalf("Expected at least 3 installation steps with firewall enabled, got %d", len(steps))
+	}
+
+	// Last step should copy the codex binary to /tmp/gh-aw/npm-bins/
+	lastStep := strings.Join([]string(steps[len(steps)-1]), "\n")
+	if !strings.Contains(lastStep, "Copy Codex binary to AWF-accessible location") {
+		t.Errorf("Expected last step to copy codex to AWF-accessible location, got:\n%s", lastStep)
+	}
+	if !strings.Contains(lastStep, "/tmp/gh-aw/npm-bins") {
+		t.Errorf("Expected step to copy codex to /tmp/gh-aw/npm-bins, got:\n%s", lastStep)
+	}
+	if !strings.Contains(lastStep, "which codex") {
+		t.Errorf("Expected step to use 'which codex' to find the binary, got:\n%s", lastStep)
+	}
+}
+
+func TestCodexEngineInstallationDoesNotCopyWithoutFirewall(t *testing.T) {
+	engine := NewCodexEngine()
+
+	// Without firewall, should NOT include a copy step
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+
+	steps := engine.GetInstallationSteps(workflowData)
+
+	for _, step := range steps {
+		stepContent := strings.Join([]string(step), "\n")
+		if strings.Contains(stepContent, "/tmp/gh-aw/npm-bins") {
+			t.Errorf("Expected no /tmp/gh-aw/npm-bins copy step without firewall, got:\n%s", stepContent)
+		}
+	}
+}
+
+func TestCodexEngineExecutionIncludesNpmBinsPathInAWFContainer(t *testing.T) {
+	engine := NewCodexEngine()
+
+	// With firewall enabled, execution should prepend /tmp/gh-aw/npm-bins to PATH
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	if len(steps) == 0 {
+		t.Fatal("Expected execution step")
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, "/tmp/gh-aw/npm-bins") {
+		t.Errorf("Expected /tmp/gh-aw/npm-bins in PATH setup for AWF container, got:\n%s", stepContent)
+	}
+}
+
 func TestCodexEngineUserAgentIdentifierConversion(t *testing.T) {
 	engine := NewCodexEngine()
 

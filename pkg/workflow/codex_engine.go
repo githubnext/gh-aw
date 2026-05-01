@@ -104,6 +104,19 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		if len(awfInstall) > 0 {
 			steps = append(steps, awfInstall)
 		}
+
+		// Copy the codex binary to /tmp/gh-aw/npm-bins/ so it is accessible inside the AWF
+		// container. On GPU runners (e.g. aw-gpu-runner-T4) RUNNER_TOOL_CACHE is set to
+		// /home/runner/work/_tool which is NOT mounted in the AWF chroot container by default.
+		// The GetNpmBinPathSetup PATH export inside the container searches both
+		// /opt/hostedtoolcache and /home/runner/work/_tool, but the latter is invisible inside
+		// the container on GPU runners, so 'codex' cannot be found. Copying the binary to
+		// /tmp/gh-aw/npm-bins/ (which is under /tmp that IS mounted inside the container)
+		// ensures codex is always findable regardless of runner type.
+		steps = append(steps, GitHubActionStep{
+			"      - name: Copy Codex binary to AWF-accessible location",
+			"        run: mkdir -p /tmp/gh-aw/npm-bins && cp \"$(which codex)\" /tmp/gh-aw/npm-bins/codex",
+		})
 	}
 
 	return steps
@@ -226,11 +239,19 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// However, npm-installed CLIs (like codex) need hostedtoolcache bin directories in PATH.
 		npmPathSetup := GetNpmBinPathSetup()
 
+		// Prepend /tmp/gh-aw/npm-bins to PATH as a fallback for GPU runners.
+		// On GPU runners (e.g. aw-gpu-runner-T4), RUNNER_TOOL_CACHE=/home/runner/work/_tool is
+		// not mounted inside the AWF chroot container, so GetNpmBinPathSetup's find of that
+		// directory produces no results. The install step copies the codex binary to
+		// /tmp/gh-aw/npm-bins/ (under /tmp which IS mounted in the container) so it is always
+		// findable inside the container regardless of runner type.
+		codexAWFPathSetup := `export PATH="/tmp/gh-aw/npm-bins:$PATH"`
+
 		// Codex reads prompt inside AWF container (PATH setup + codex command).
 		// For engines that do not support native agent-file handling (including Codex),
 		// the compiler prepends the agent file content to prompt.txt so no special
 		// shell variable juggling is needed here.
-		codexCommandWithSetup := fmt.Sprintf(`%s && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && %s`, npmPathSetup, codexCommand)
+		codexCommandWithSetup := fmt.Sprintf(`%s && %s && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && %s`, codexAWFPathSetup, npmPathSetup, codexCommand)
 		// Add MCP CLI bin directory to PATH when cli-proxy is enabled
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			codexCommandWithSetup = fmt.Sprintf("%s && %s", mcpCLIPath, codexCommandWithSetup)
