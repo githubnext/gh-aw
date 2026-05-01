@@ -285,6 +285,7 @@ export default defineConfig({
 						{ label: 'Ephemerals', link: '/guides/ephemerals/' },
 						{ label: 'Web Search', link: '/guides/web-search/' },
 						{ label: 'Audit Reports', link: '/guides/audit-with-agents/' },
+						{ label: 'Custom OTLP Attributes', link: '/guides/custom-otlp-attributes/' },
 					],
 				},
 				{
