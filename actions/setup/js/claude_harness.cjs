@@ -293,9 +293,14 @@ async function main() {
   // Args without --prompt-file, used as the base for --continue retries.
   const continueBaseArgs = stripPromptFileArgs(args);
 
-  // Safe arg list for logging: replace the last arg (prompt content) with a placeholder
-  // so that task instructions are never written to stderr or captured in agent logs.
-  const safeInitialArgs = initialArgs.length > 0 ? [...initialArgs.slice(0, -1), "<prompt omitted>"] : initialArgs;
+  // Detect whether the original args included --prompt-file so we know whether
+  // initialArgs carries prompt text as its last positional arg.
+  const hadPromptFile = args.includes("--prompt-file");
+
+  // Safe arg list for logging: when --prompt-file was present, the last element of
+  // initialArgs is the resolved prompt content. Replace it with a placeholder so that
+  // task instructions are never written to stderr or captured in agent logs.
+  const safeInitialArgs = hadPromptFile && initialArgs.length > 0 ? [...initialArgs.slice(0, -1), "<prompt omitted>"] : initialArgs;
 
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;

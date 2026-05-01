@@ -36,7 +36,7 @@ describe("claude_harness.cjs", () => {
       expect(result).toEqual(["--print", "--output-format", "json"]);
     });
 
-    it("logs a warning and preserves args when --prompt-file is provided without a path", () => {
+    it("preserves args when --prompt-file is provided without a path", () => {
       const result = resolveClaudePromptFileArgs(["--print", "--prompt-file"]);
       // When no path follows --prompt-file, it is preserved as-is
       expect(result).toEqual(["--print", "--prompt-file"]);
