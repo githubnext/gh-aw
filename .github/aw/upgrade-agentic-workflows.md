@@ -17,6 +17,7 @@ Read the ENTIRE content of this file carefully before proceeding. Follow the ins
   - Local copy: @.github/aw/github-agentic-workflows.md
   - Canonical upstream: https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/github-agentic-workflows.md
 - If the user says “campaign”, “KPI”, “pacing”, “cadence”, or “stop-after”, consult @.github/aw/campaign.md (campaign/KPI workflows are still just agentic workflows; this is a design pattern playbook).
+- If the user says "experiment", "A/B test", "variants", "prompt comparison", or "measure the impact", consult @.github/aw/experiments.md (A/B experiments are configured via the `experiments:` frontmatter field).
 
 **Key Commands Available**
 

@@ -205,6 +205,7 @@ Before creating workflows, consult these documentation resources:
 - **Main documentation site**: https://github.github.com/gh-aw/
 - **Comprehensive reference**: `.github/aw/github-agentic-workflows.md` (local file with complete frontmatter schema)
 - **Campaign playbook**: `.github/aw/campaign.md` (patterns for campaign/KPI workflows; campaigns are not a separate workflow type)
+- **Experiments playbook**: `.github/aw/experiments.md` (A/B testing experiments for prompt changes, skills, model variants, and tool configurations)
 - **Setup guides**: https://github.github.com/gh-aw/setup/quick-start/
 - **Example workflows**: `.github/workflows/*.md` (actual working examples in this repository)
 
@@ -227,6 +228,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    - What should trigger the workflow (`on:` — e.g., issues, pull requests, schedule, slash command, label command)?
    - What should the agent do (comment, triage, create PR, fetch API data, etc.)?
   - If the user says “campaign”, “KPI”, “pacing”, “cadence”, or “stop-after”, consult `.github/aw/campaign.md` (it’s still an agentic workflow; this is just a pattern).
+   - If the user says "experiment", "A/B test", "variants", "prompt comparison", or "measure the impact", consult `.github/aw/experiments.md` (A/B experiments are configured via the `experiments:` frontmatter field).
    - ⚠️ If you think the task requires **network access beyond localhost**, **automatically infer** the ecosystem from repository language files rather than asking the user. Only ask if you cannot determine the ecosystem from available context.
    - 🌐 **Always infer network ecosystem from repository language**: If the workflow involves package management, building, or testing code, detect the repository's primary language from file indicators and include the matching ecosystem identifier. **Never use `network: defaults` alone for code workflows** — `defaults` only provides basic infrastructure and cannot reach package registries. Key indicators:
      - `.csproj`, `.fsproj`, `*.sln`, `*.slnx`, `global.json` → add `dotnet` (for `dotnet restore`, NuGet)
