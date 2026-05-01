@@ -33,9 +33,10 @@
 #     - shared/python-dataviz.md
 #     - shared/repo-memory-standard.md
 #     - shared/reporting.md
-#     - shared/daily-audit-base.md
 #     - shared/session-analysis-charts.md
 #     - shared/session-analysis-strategies.md
+#     - shared/validation-strategy.md
+#     - shared/daily-audit-base.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -256,6 +257,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/session-analysis-charts.md}}
           {{#runtime-import .github/workflows/shared/session-analysis-strategies.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/validation-strategy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}

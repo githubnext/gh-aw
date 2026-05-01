@@ -29,6 +29,7 @@
 #     - shared/daily-audit-discussion.md
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
+#     - shared/validation-strategy.md
 #     - shared/daily-audit-base.md
 #
 # Secrets used:
@@ -239,6 +240,7 @@ jobs:
           cat << 'GH_AW_PROMPT_61aa761659405206_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/validation-strategy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/lockfile-stats.md}}

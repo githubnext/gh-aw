@@ -30,8 +30,9 @@
 #     - shared/daily-audit-discussion.md
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
-#     - shared/daily-audit-base.md
 #     - shared/daily-pr-base.md
+#     - shared/validation-strategy.md
+#     - shared/daily-audit-base.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
@@ -255,6 +256,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/activation-app.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/validation-strategy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-rendering-scripts-verifier.md}}

@@ -29,8 +29,9 @@
 #     - shared/daily-audit-discussion.md
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
-#     - shared/daily-audit-base.md
 #     - shared/trending-charts-simple.md
+#     - shared/validation-strategy.md
+#     - shared/daily-audit-base.md
 #     - shared/daily-audit-charts.md
 #
 # Secrets used:
@@ -249,6 +250,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/validation-strategy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-firewall-report.md}}

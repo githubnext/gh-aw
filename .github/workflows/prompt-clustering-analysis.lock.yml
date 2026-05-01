@@ -32,8 +32,9 @@
 #     - shared/observability-otlp.md
 #     - shared/python-nlp.md
 #     - shared/reporting.md
-#     - shared/daily-audit-base.md
 #     - shared/trending-charts-simple.md
+#     - shared/validation-strategy.md
+#     - shared/daily-audit-base.md
 #     - shared/daily-audit-charts.md
 #
 # Secrets used:
@@ -259,6 +260,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/python-nlp.md}}
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/validation-strategy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/prompt-clustering-analysis.md}}

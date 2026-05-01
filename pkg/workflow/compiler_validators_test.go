@@ -260,3 +260,102 @@ func TestValidateToolConfiguration(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateReportFormattingImport tests the lint check that warns when a
+// create-discussion workflow does not import shared/reporting.md.
+func TestValidateReportFormattingImport(t *testing.T) {
+	tests := []struct {
+		name          string
+		safeOutputs   *SafeOutputsConfig
+		importedFiles []string
+		expectWarning bool
+	}{
+		{
+			name:          "no create-discussion safe output — no warning",
+			safeOutputs:   nil,
+			importedFiles: []string{},
+			expectWarning: false,
+		},
+		{
+			name: "create-discussion with shared/reporting.md — no warning",
+			safeOutputs: &SafeOutputsConfig{
+				CreateDiscussions: &CreateDiscussionsConfig{},
+			},
+			importedFiles: []string{
+				"/repo/.github/workflows/shared/daily-audit-discussion.md",
+				"/repo/.github/workflows/shared/reporting.md",
+				"/repo/.github/workflows/shared/observability-otlp.md",
+			},
+			expectWarning: false,
+		},
+		{
+			name: "create-discussion without shared/reporting.md — warning",
+			safeOutputs: &SafeOutputsConfig{
+				CreateDiscussions: &CreateDiscussionsConfig{},
+			},
+			importedFiles: []string{
+				"/repo/.github/workflows/shared/some-other.md",
+			},
+			expectWarning: true,
+		},
+		{
+			name: "create-discussion with empty import list — warning",
+			safeOutputs: &SafeOutputsConfig{
+				CreateDiscussions: &CreateDiscussionsConfig{},
+			},
+			importedFiles: nil,
+			expectWarning: true,
+		},
+		{
+			name: "create-discussion with reporting.md via transitive chain — no warning",
+			safeOutputs: &SafeOutputsConfig{
+				CreateDiscussions: &CreateDiscussionsConfig{},
+			},
+			// shared/daily-audit-base.md imports shared/reporting.md transitively
+			importedFiles: []string{
+				"/repo/.github/workflows/shared/daily-audit-discussion.md",
+				"/repo/.github/workflows/shared/reporting.md",
+				"/repo/.github/workflows/shared/validation-strategy.md",
+				"/repo/.github/workflows/shared/observability-otlp.md",
+				"/repo/.github/workflows/shared/daily-audit-base.md",
+			},
+			expectWarning: false,
+		},
+		{
+			name: "create-discussion only — no create-issue — warning applies",
+			safeOutputs: &SafeOutputsConfig{
+				CreateDiscussions: &CreateDiscussionsConfig{},
+				CreateIssues:      &CreateIssuesConfig{},
+			},
+			importedFiles: []string{},
+			expectWarning: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "report-fmt-test")
+			markdownPath := filepath.Join(tmpDir, "test.md")
+
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: "# Test",
+				AI:              "copilot",
+				SafeOutputs:     tt.safeOutputs,
+				ImportedFiles:   tt.importedFiles,
+			}
+
+			initialWarnings := compiler.GetWarningCount()
+			compiler.validateReportFormattingImport(workflowData, markdownPath)
+
+			if tt.expectWarning {
+				assert.Greater(t, compiler.GetWarningCount(), initialWarnings,
+					"Expected a warning to be emitted for missing shared/reporting.md import")
+			} else {
+				assert.Equal(t, initialWarnings, compiler.GetWarningCount(),
+					"Expected no warning to be emitted")
+			}
+		})
+	}
+}

@@ -1,6 +1,6 @@
 ---
 # Daily Audit Base - Standard stack for daily audit workflows publishing to GitHub Discussions.
-# Bundles: daily-audit-discussion + reporting guidelines + OTLP observability.
+# Bundles: daily-audit-discussion + reporting guidelines + validation strategy + OTLP observability.
 #
 # Usage:
 #   imports:
@@ -25,5 +25,6 @@ imports:
       title-prefix: "${{ github.aw.import-inputs.title-prefix }}"
       expires: "${{ github.aw.import-inputs.expires }}"
   - shared/reporting.md
+  - shared/validation-strategy.md
   - shared/observability-otlp.md
 ---

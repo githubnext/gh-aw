@@ -33,8 +33,9 @@
 #     - shared/python-dataviz.md
 #     - shared/repo-memory-standard.md
 #     - shared/reporting.md
-#     - shared/daily-audit-base.md
 #     - shared/trends.md
+#     - shared/validation-strategy.md
+#     - shared/daily-audit-base.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -246,6 +247,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/jqschema.md}}
           {{#runtime-import .github/workflows/shared/trends.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/validation-strategy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/shared/editorial.md}}

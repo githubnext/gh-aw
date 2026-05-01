@@ -29,6 +29,7 @@
 #     - shared/daily-audit-discussion.md
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
+#     - shared/validation-strategy.md
 #     - shared/daily-audit-base.md
 #
 # Secrets used:
@@ -237,6 +238,7 @@ jobs:
           cat << 'GH_AW_PROMPT_f29d244b9c2b73c7_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/validation-strategy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/daily-safe-outputs-conformance.md}}
           GH_AW_PROMPT_f29d244b9c2b73c7_EOF

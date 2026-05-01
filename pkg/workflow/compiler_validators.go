@@ -373,5 +373,44 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		return formatCompilerError(markdownPath, "error", fmt.Sprintf("call-workflow validation failed: %v", err), err)
 	}
 
+	// Warn when a discussion-producing workflow does not import shared/reporting.md
+	log.Print("Validating report formatting import for discussion workflows")
+	c.validateReportFormattingImport(workflowData, markdownPath)
+
 	return nil
+}
+
+// validateReportFormattingImport warns when a workflow that produces GitHub Discussions
+// does not import the canonical shared/reporting.md formatting guidelines (directly or
+// transitively through shared/daily-audit-base.md, shared/daily-audit-charts.md, etc.).
+//
+// Without this import the agent will not receive the standard header-level and
+// progressive-disclosure instructions, leading to inconsistent report structure.
+func (c *Compiler) validateReportFormattingImport(workflowData *WorkflowData, markdownPath string) {
+	// Only applies to workflows that create discussions (where formatting matters most)
+	if workflowData.SafeOutputs == nil || workflowData.SafeOutputs.CreateDiscussions == nil {
+		return
+	}
+
+	// Check if shared/reporting.md is present anywhere in the transitive import chain
+	for _, f := range workflowData.ImportedFiles {
+		if strings.HasSuffix(f, "shared/reporting.md") {
+			return
+		}
+	}
+
+	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+		"This workflow creates GitHub Discussions but does not import the shared report "+
+			"formatting guidelines (shared/reporting.md). Without this import the agent may "+
+			"produce inconsistent header levels and missing collapsible sections.\n"+
+			"Fix: add to your imports:\n"+
+			"  imports:\n"+
+			"    - uses: shared/daily-audit-base.md\n"+
+			"      with:\n"+
+			"        title-prefix: \"[my-workflow] \"\n"+
+			"or, if you manage discussions outside the standard stack:\n"+
+			"  imports:\n"+
+			"    - shared/reporting.md\n"+
+			"See: https://github.com/github/gh-aw/blob/main/.github/workflows/shared/reporting.md"))
+	c.IncrementWarningCount()
 }

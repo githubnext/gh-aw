@@ -31,8 +31,9 @@
 #     - shared/mcp/serena.md
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
-#     - shared/daily-audit-base.md
 #     - shared/go-source-analysis.md
+#     - shared/validation-strategy.md
+#     - shared/daily-audit-base.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -269,6 +270,7 @@ jobs:
           
           {{#runtime-import .github/workflows/shared/go-source-analysis.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/validation-strategy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}

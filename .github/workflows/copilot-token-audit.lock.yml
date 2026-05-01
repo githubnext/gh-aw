@@ -33,6 +33,7 @@
 #     - shared/python-dataviz.md
 #     - shared/repo-memory-standard.md
 #     - shared/reporting.md
+#     - shared/validation-strategy.md
 #     - shared/daily-audit-base.md
 #
 # Secrets used:
@@ -248,6 +249,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/mcp/gh-aw.md}}
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/validation-strategy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/copilot-token-audit.md}}
           GH_AW_PROMPT_ebb38a51743f7aa4_EOF

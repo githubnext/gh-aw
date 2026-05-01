@@ -33,6 +33,7 @@
 #     - shared/repo-memory-standard.md
 #     - shared/reporting.md
 #     - shared/copilot-pr-analysis-base.md
+#     - shared/validation-strategy.md
 #     - shared/daily-audit-base.md
 #
 # Secrets used:
@@ -239,6 +240,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/copilot-pr-analysis-base.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/validation-strategy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/jqschema.md}}
           {{#runtime-import .github/workflows/shared/copilot-pr-data-fetch.md}}

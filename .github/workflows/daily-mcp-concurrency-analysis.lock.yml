@@ -30,8 +30,9 @@
 #     - shared/mcp/serena.md
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
-#     - shared/daily-audit-base.md
 #     - shared/safe-output-app.md
+#     - shared/validation-strategy.md
+#     - shared/daily-audit-base.md
 #
 # Secrets used:
 #   - GH_AW_AGENT_TOKEN
@@ -269,6 +270,7 @@ jobs:
           
           {{#runtime-import .github/workflows/shared/safe-output-app.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/validation-strategy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/daily-mcp-concurrency-analysis.md}}
           GH_AW_PROMPT_a9898b9c9820f96c_EOF

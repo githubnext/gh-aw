@@ -29,8 +29,9 @@
 #     - shared/daily-audit-discussion.md
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
-#     - shared/daily-audit-base.md
 #     - shared/security-analysis-base.md
+#     - shared/validation-strategy.md
+#     - shared/daily-audit-base.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
@@ -231,6 +232,7 @@ jobs:
           </system>
           {{#runtime-import .github/workflows/shared/security-analysis-base.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/validation-strategy.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/daily-malicious-code-scan.md}}
           GH_AW_PROMPT_25b1dcbd4862ff19_EOF
