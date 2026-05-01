@@ -195,7 +195,7 @@ network:
 
 The Copilot engine supports routing requests to an external LLM provider instead of GitHub's default routing. This is useful when you want to use a different model or provider (e.g., OpenAI, Anthropic, Azure OpenAI, or a local Ollama/vLLM instance) while still using the Copilot CLI tooling.
 
-Set `COPILOT_PROVIDER_BASE_URL` in `engine.env` to activate BYOK mode. All `COPILOT_PROVIDER_*` secret variables are allowed in `engine.env` under strict mode — they are not leaked to the agent container.
+Set `COPILOT_PROVIDER_BASE_URL` in `engine.env` to activate BYOK mode. The credential variables `COPILOT_PROVIDER_BASE_URL`, `COPILOT_PROVIDER_API_KEY`, and `COPILOT_PROVIDER_BEARER_TOKEN` are explicitly allowed to carry `${{ secrets.* }}` references in `engine.env` under strict mode — they are not leaked to the agent container. Other `COPILOT_PROVIDER_*` variables hold non-sensitive configuration and can be set as plain strings.
 
 | Variable | Required | Description |
 |---|---|---|
