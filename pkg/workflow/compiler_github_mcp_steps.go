@@ -189,6 +189,9 @@ func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Build
 //   - Splits all inputs on commas and newlines, trims whitespace, removes empty entries.
 //   - Outputs `blocked_users`, `trusted_users`, `approval_labels`, and `disapproval_labels` as JSON arrays via $GITHUB_OUTPUT.
 //   - Fails the step if any item is invalid.
+//
+// The disapproval-labels env vars (GH_AW_DISAPPROVAL_LABELS_EXTRA and GH_AW_DISAPPROVAL_LABELS_VAR)
+// are only emitted when the disapproval-labels feature flag is enabled.
 func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *WorkflowData) {
 	githubTool, hasGitHub := data.Tools["github"]
 	if !hasGitHub || githubTool == false {
@@ -199,6 +202,8 @@ func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *Workf
 	if len(getGitHubGuardPolicies(githubTool)) == 0 {
 		return
 	}
+
+	disapprovalLabelsEnabled := isFeatureEnabled(constants.DisapprovalLabelsFeatureFlag, data)
 
 	githubConfigLog.Print("Generating parse-guard-vars step for blocked-users, trusted-users, approval-labels, and disapproval-labels")
 
@@ -228,11 +233,13 @@ func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *Workf
 		case gh.ApprovalLabelsExpr != "":
 			approvalLabelsExtra = gh.ApprovalLabelsExpr
 		}
-		switch {
-		case len(gh.DisapprovalLabels) > 0:
-			disapprovalLabelsExtra = strings.Join(gh.DisapprovalLabels, ",")
-		case gh.DisapprovalLabelsExpr != "":
-			disapprovalLabelsExtra = gh.DisapprovalLabelsExpr
+		if disapprovalLabelsEnabled {
+			switch {
+			case len(gh.DisapprovalLabels) > 0:
+				disapprovalLabelsExtra = strings.Join(gh.DisapprovalLabels, ",")
+			case gh.DisapprovalLabelsExpr != "":
+				disapprovalLabelsExtra = gh.DisapprovalLabelsExpr
+			}
 		}
 	}
 
@@ -255,10 +262,12 @@ func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *Workf
 	}
 	fmt.Fprintf(yaml, "          GH_AW_APPROVAL_LABELS_VAR: ${{ vars.%s || '' }}\n", constants.EnvVarGitHubApprovalLabels)
 
-	if disapprovalLabelsExtra != "" {
-		fmt.Fprintf(yaml, "          GH_AW_DISAPPROVAL_LABELS_EXTRA: %s\n", disapprovalLabelsExtra)
+	if disapprovalLabelsEnabled {
+		if disapprovalLabelsExtra != "" {
+			fmt.Fprintf(yaml, "          GH_AW_DISAPPROVAL_LABELS_EXTRA: %s\n", disapprovalLabelsExtra)
+		}
+		fmt.Fprintf(yaml, "          GH_AW_DISAPPROVAL_LABELS_VAR: ${{ vars.%s || '' }}\n", constants.EnvVarGitHubDisapprovalLabels)
 	}
-	fmt.Fprintf(yaml, "          GH_AW_DISAPPROVAL_LABELS_VAR: ${{ vars.%s || '' }}\n", constants.EnvVarGitHubDisapprovalLabels)
 
 	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/parse_guard_list.sh\"\n")
 }

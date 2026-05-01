@@ -471,7 +471,7 @@ This workflow sets trusted-users without min-integrity (should fail).
 }
 
 // TestGuardPolicyDisapprovalLabelsCompiledOutput verifies that disapproval-labels are written
-// into the compiled guard-policies allow-only block.
+// into the compiled guard-policies allow-only block when the feature flag is enabled.
 func TestGuardPolicyDisapprovalLabelsCompiledOutput(t *testing.T) {
 	workflowContent := `---
 on:
@@ -479,6 +479,8 @@ on:
 permissions:
   contents: read
 engine: copilot
+features:
+  disapproval-labels: true
 tools:
   github:
     allowed-repos: all
@@ -523,6 +525,8 @@ on:
 permissions:
   contents: read
 engine: copilot
+features:
+  disapproval-labels: true
 tools:
   github:
     allowed-repos: all
@@ -564,6 +568,8 @@ on:
 permissions:
   contents: read
 engine: copilot
+features:
+  disapproval-labels: true
 tools:
   github:
     disapproval-labels:
@@ -584,4 +590,77 @@ This workflow sets disapproval-labels without min-integrity (should fail).
 	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
 	require.Error(t, err, "Expected compilation to fail without min-integrity")
 	assert.Contains(t, err.Error(), "min-integrity", "Error should mention min-integrity requirement")
+}
+
+// TestGuardPolicyDisapprovalLabelsRequiresFeatureFlag verifies that disapproval-labels cannot
+// be set without the disapproval-labels feature flag.
+func TestGuardPolicyDisapprovalLabelsRequiresFeatureFlag(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+tools:
+  github:
+    allowed-repos: all
+    min-integrity: approved
+    disapproval-labels:
+      - needs-work
+---
+
+# Guard Policy Test
+
+This workflow sets disapproval-labels without the feature flag (should fail).
+`
+
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "test-guard-policy-disapproval-no-flag.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "Failed to write workflow file")
+
+	compiler := workflow.NewCompiler()
+	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	require.Error(t, err, "Expected compilation to fail without disapproval-labels feature flag")
+	assert.Contains(t, err.Error(), "disapproval-labels", "Error should mention disapproval-labels feature flag requirement")
+}
+
+// TestGuardPolicyDisapprovalLabelsNotEmittedWithoutFeatureFlag verifies that the disapproval-labels
+// env vars are NOT emitted in the parse-guard-vars step when the feature flag is disabled.
+func TestGuardPolicyDisapprovalLabelsNotEmittedWithoutFeatureFlag(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+tools:
+  github:
+    allowed-repos: all
+    min-integrity: approved
+    approval-labels:
+      - human-reviewed
+---
+
+# Guard Policy Test
+
+This workflow uses approval-labels but NOT disapproval-labels (no feature flag).
+`
+
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "test-guard-policy-no-disapproval.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "Failed to write workflow file")
+
+	compiler := workflow.NewCompiler()
+	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	require.NoError(t, err, "Expected compilation to succeed")
+
+	lockFilePath := filepath.Join(tmpDir, "test-guard-policy-no-disapproval.lock.yml")
+	lockFileBytes, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "Failed to read compiled lock file")
+
+	lockFileContent := string(lockFileBytes)
+	assert.NotContains(t, lockFileContent, `GH_AW_DISAPPROVAL_LABELS_VAR`, "Compiled lock file must NOT include GH_AW_DISAPPROVAL_LABELS_VAR when feature flag is disabled")
+	assert.NotContains(t, lockFileContent, `GH_AW_DISAPPROVAL_LABELS_EXTRA`, "Compiled lock file must NOT include GH_AW_DISAPPROVAL_LABELS_EXTRA when feature flag is disabled")
 }

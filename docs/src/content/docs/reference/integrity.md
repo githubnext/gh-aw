@@ -161,9 +161,11 @@ Promotion only raises integrity — it never lowers it. An item already at `merg
 
 ### Demoting items via labels
 
-`disapproval-labels` degrades items bearing any listed GitHub label to `none` integrity, enabling maintainer-driven veto gates where a label marks content as unsafe for the agent.
+`disapproval-labels` degrades items bearing any listed GitHub label to `none` integrity, enabling maintainer-driven veto gates where a label marks content as unsafe for the agent. Requires the `disapproval-labels` feature flag.
 
 ```aw wrap
+features:
+  disapproval-labels: true
 tools:
   github:
     min-integrity: approved
@@ -172,7 +174,7 @@ tools:
       - "unsafe-for-agent"
 ```
 
-This is useful when a maintainer wants to explicitly block a specific item without blocking the entire author. `disapproval-labels` takes precedence over `approval-labels` and `trusted-users` but does not override `blocked-users`.
+This is useful when a maintainer wants to explicitly block a specific item without blocking the entire author. `disapproval-labels` takes precedence over `approval-labels` but not over `blocked-users` or `trusted-users` — if an item's author is in `trusted-users`, the trusted elevation applies regardless of labels.
 
 ### Promoting and demoting items via reactions
 
@@ -376,6 +378,8 @@ tools:
 **Maintainer veto for specific items:**
 
 ```aw wrap
+features:
+  disapproval-labels: true
 tools:
   github:
     min-integrity: approved
@@ -408,6 +412,8 @@ tools:
 **Combined: blocking, trusting, labeling, and vetoing:**
 
 ```aw wrap
+features:
+  disapproval-labels: true
 tools:
   github:
     allowed-repos: "all"

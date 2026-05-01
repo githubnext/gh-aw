@@ -3,6 +3,8 @@ package workflow
 import (
 	"errors"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // validateGitHubReadOnly validates that read-only: false is not set for the GitHub tool.
@@ -49,7 +51,7 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	// AllowedRepos is populated from either 'allowed-repos' (preferred) or deprecated 'repos' during parsing
 	hasRepos := github.AllowedRepos != nil
 	hasMinIntegrity := github.MinIntegrity != ""
-	// blocked-users / approval-labels / trusted-users can be an array or a
+	// blocked-users / approval-labels / trusted-users / disapproval-labels can be an array or a
 	// GitHub Actions expression string.
 	hasBlockedUsers := len(github.BlockedUsers) > 0 || github.BlockedUsersExpr != ""
 	hasApprovalLabels := len(github.ApprovalLabels) > 0 || github.ApprovalLabelsExpr != ""
@@ -256,4 +258,28 @@ func isValidOwnerOrRepo(s string) bool {
 // corresponding toolsets enabled in the configuration.
 func ValidateGitHubToolsAgainstToolsets(allowedTools []string, enabledToolsets []string) error {
 	return validateGitHubToolsAgainstToolsetsImpl(allowedTools, enabledToolsets)
+}
+
+// validateDisapprovalLabels checks that disapproval-labels (and the centralized
+// GH_AW_GITHUB_DISAPPROVAL_LABELS org/repo variable) are gated behind the
+// disapproval-labels feature flag.
+//
+// Rules:
+//   - If disapproval-labels is set (array, string, or expression) without the feature flag → error.
+//   - No-op when disapproval-labels is not configured and the feature flag is not enabled.
+func validateDisapprovalLabels(tools *Tools, workflowName string, data *WorkflowData) error {
+	if tools == nil || tools.GitHub == nil {
+		return nil
+	}
+
+	github := tools.GitHub
+	hasDisapprovalLabels := len(github.DisapprovalLabels) > 0 || github.DisapprovalLabelsExpr != ""
+	featureEnabled := isFeatureEnabled(constants.DisapprovalLabelsFeatureFlag, data)
+
+	if hasDisapprovalLabels && !featureEnabled {
+		toolsValidationLog.Printf("disapproval-labels set but feature flag not enabled in workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'github.disapproval-labels' requires the 'disapproval-labels' feature flag to be enabled. Add 'features: disapproval-labels: true' to your workflow")
+	}
+
+	return nil
 }

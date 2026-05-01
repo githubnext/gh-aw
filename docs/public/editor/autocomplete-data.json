@@ -975,7 +975,7 @@
             },
             "disapproval-labels": {
               "type": "array|string",
-              "desc": "Guard policy: GitHub label names that degrade a content item's effective integrity to 'none' when present.",
+              "desc": "Guard policy: GitHub label names that degrade a content item's effective integrity to 'none' when present. Requires the 'disapproval-labels' feature flag.",
               "leaf": true,
               "array": true
             },

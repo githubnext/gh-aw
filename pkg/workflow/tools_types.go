@@ -331,8 +331,9 @@ type GitHubToolConfig struct {
 	// Set when the approval-labels field is a string expression rather than a literal array.
 	ApprovalLabelsExpr string `yaml:"-"`
 	// DisapprovalLabels is an optional list of GitHub label names that degrade a content item's
-	// effective integrity to "none" when present. Takes precedence over approval-labels and
-	// trusted-users but not over blocked-users. Requires min-integrity to be set.
+	// effective integrity to "none" when present. Takes precedence over approval-labels
+	// but not over blocked-users or trusted-users. Requires min-integrity to be set.
+	// Requires the disapproval-labels feature flag to be enabled.
 	DisapprovalLabels []string `yaml:"disapproval-labels,omitempty"`
 	// DisapprovalLabelsExpr holds a GitHub Actions expression (e.g. "${{ vars.DISAPPROVAL_LABELS }}") that
 	// resolves at runtime to a comma- or newline-separated list of disapproval label names.

@@ -72,4 +72,13 @@ const (
 	//	features:
 	//	  integrity-reactions: true
 	IntegrityReactionsFeatureFlag FeatureFlag = "integrity-reactions"
+	// DisapprovalLabelsFeatureFlag enables label-based integrity demotion in the MCPG
+	// allow-only policy. When enabled, items bearing any listed label in disapproval-labels
+	// have their effective integrity degraded to "none".
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  disapproval-labels: true
+	DisapprovalLabelsFeatureFlag FeatureFlag = "disapproval-labels"
 )

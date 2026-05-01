@@ -2057,9 +2057,10 @@ tools:
     # Guard policy: GitHub label names that degrade a content item's effective
     # integrity to 'none' when present. Enables maintainer-driven veto gates where a
     # label marks an item as unsafe for the agent. Takes precedence over
-    # approval-labels and trusted-users; does not override blocked-users. Requires
-    # 'min-integrity' to be set. Accepts an array of label names, a comma-separated
-    # string, a newline-separated string, or a GitHub Actions expression (e.g. '${{
+    # approval-labels; does not override blocked-users or trusted-users. Requires
+    # 'min-integrity' to be set and the 'disapproval-labels' feature flag to be
+    # enabled. Accepts an array of label names, a comma-separated string, a
+    # newline-separated string, or a GitHub Actions expression (e.g. '${{
     # vars.DISAPPROVAL_LABELS }}').
     # (optional)
     # This field supports multiple formats (oneOf):
