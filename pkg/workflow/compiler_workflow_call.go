@@ -316,9 +316,6 @@ func injectWorkflowCallSecretsSection(onSection string, secrets []string) string
 		secretsOut[k] = map[string]any{"required": v.Required}
 	}
 	workflowCallMap["secrets"] = secretsOut
-
-	// Preserve other workflow_call fields using maps.Copy.
-	maps.Copy(workflowCallMap, map[string]any{"secrets": secretsOut})
 	onMap["workflow_call"] = workflowCallMap
 
 	// Re-marshal to YAML.

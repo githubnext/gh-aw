@@ -1044,10 +1044,20 @@ Use MY_CUSTOM_TOKEN from secrets.MY_CUSTOM_TOKEN when making API calls.
 
 	// The compiled worker should declare its secrets in on.workflow_call.secrets
 	assert.Contains(t, lockContent, "workflow_call:", "Should have workflow_call trigger")
-	assert.Contains(t, lockContent, "secrets:", "Should have secrets section in on.workflow_call")
 	assert.Contains(t, lockContent, "COPILOT_GITHUB_TOKEN", "Should declare COPILOT_GITHUB_TOKEN")
 	assert.Contains(t, lockContent, "GH_AW_GITHUB_TOKEN", "Should declare GH_AW_GITHUB_TOKEN")
-	// GITHUB_TOKEN should NOT be in the declarations (auto-provided by GitHub Actions)
-	// Check it's not in the on.workflow_call.secrets section specifically
-	// (it may appear in job steps, so we can't check NotContains on full content)
+
+	// GITHUB_TOKEN should NOT be in the on.workflow_call.secrets section.
+	// It may appear in job steps, so we check the on: section specifically.
+	// Verify the secrets block exists and GITHUB_TOKEN is absent from it by
+	// finding the secrets section between "workflow_call:" and "workflow_dispatch:".
+	workflowCallStart := strings.Index(lockContent, "workflow_call:")
+	workflowDispatchStart := strings.Index(lockContent, "workflow_dispatch:")
+	if workflowCallStart >= 0 && workflowDispatchStart > workflowCallStart {
+		onWorkflowCallSection := lockContent[workflowCallStart:workflowDispatchStart]
+		assert.NotContains(t, onWorkflowCallSection, "GITHUB_TOKEN",
+			"GITHUB_TOKEN should not be declared in on.workflow_call.secrets (auto-provided by GitHub Actions)")
+		assert.Contains(t, onWorkflowCallSection, "secrets:",
+			"Should have secrets section under workflow_call")
+	}
 }
