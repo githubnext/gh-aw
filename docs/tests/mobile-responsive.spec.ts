@@ -158,4 +158,44 @@ test.describe('Mobile and Responsive Layout', () => {
       });
     });
   }
+
+  // Regression test for https://github.com/github/gh-aw/issues/29545
+  // Verify the navigation dropdown is fully within the viewport when large
+  // user fonts cause header elements to shift on Android Chrome.
+  test('hamburger dropdown stays within viewport with large user fonts', async ({ browser }) => {
+    const VIEWPORT_WIDTH = 393;
+    const context = await browser.newContext({
+      // Simulate Android Chrome with the user's accessibility font size set to
+      // "Large" — typically 1.3× the default, so override the page root font-size.
+      viewport: { width: VIEWPORT_WIDTH, height: 852 },
+      javaScriptEnabled: true,
+    });
+    const page = await context.newPage();
+
+    // Simulate large OS-level font scaling by overriding the root font size.
+    await page.addStyleTag({ content: 'html { font-size: 20px !important; }' });
+
+    await page.goto('/gh-aw/introduction/overview/');
+    await page.waitForLoadState('networkidle');
+
+    // The hamburger wrapper should be visible on a narrow mobile viewport.
+    const hamburgerBtn = page.locator('.hamburger-btn');
+    await expect(hamburgerBtn).toBeVisible();
+
+    // Click the hamburger to open the dropdown.
+    await hamburgerBtn.click();
+
+    const dropdown = page.locator('.tablet-dropdown');
+    await expect(dropdown).toBeVisible();
+
+    // The dropdown must be fully within the viewport horizontally.
+    const dropdownBox = await dropdown.boundingBox();
+    expect(dropdownBox).not.toBeNull();
+    if (dropdownBox) {
+      expect(dropdownBox.x).toBeGreaterThanOrEqual(0);
+      expect(dropdownBox.x + dropdownBox.width).toBeLessThanOrEqual(VIEWPORT_WIDTH + 1); // 1px tolerance
+    }
+
+    await context.close();
+  });
 });

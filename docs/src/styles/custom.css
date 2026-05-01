@@ -21,6 +21,13 @@
 
 /* CSS Variables - Theme Colors */
 :root {
+  /* Prevent Android Chrome from automatically inflating text sizes when the user
+     has set a large system font. Without this, OS-level font scaling can push
+     header items out of position and cause the navigation dropdown to render
+     off-screen. See: https://github.com/github/gh-aw/issues/29545 */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+
   --sl-font: "Mona Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --sl-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   
@@ -1551,8 +1558,16 @@ table img[src*="badge.svg"] {
   box-sizing: border-box;
 }
 
-/* Ensure body and main containers don't overflow */
-body, html {
+/* Ensure body and main containers don't overflow.
+   NOTE: overflow-x is intentionally set ONLY on body, not on html.
+   Setting overflow-x:hidden on the html element breaks position:fixed overlays
+   (e.g. the mobile sidebar drawer) on Android Chrome with large user fonts.
+   See: https://github.com/github/gh-aw/issues/29545 */
+html {
+  max-width: 100vw;
+}
+
+body {
   overflow-x: hidden;
   max-width: 100vw;
 }
