@@ -55,8 +55,8 @@ No active experiments found in ${{ github.repository }} — nothing to report.
 
 ## Step 2 — Collect Run Data
 
-For each workflow that has experiments, list the **last 30 completed runs** using the GitHub MCP
-tools. For each run, record:
+For each workflow that has experiments, list the **last 30 completed runs** (any final state:
+`success`, `failure`, `cancelled`, or `skipped`) using the GitHub MCP tools. For each run, record:
 
 - `run_id`
 - `conclusion` (`success`, `failure`, `cancelled`, …)
@@ -77,8 +77,18 @@ has the cumulative counts for every variant up to and including that run:
 ```
 
 By comparing the cumulative counts between consecutive runs (oldest → newest), infer which variant
-was assigned to each run: the variant whose count increased by 1 from the previous snapshot is the
-variant used on that run.
+was assigned to each run: the variant whose count increased by exactly 1 from the previous snapshot
+is the variant used on that run.
+
+**Edge cases for variant inference:**
+- **Missing artifact**: If a run has no experiment artifact, skip it and treat the count sequence as
+  having a gap — do not attempt to infer assignment from the next available snapshot.
+- **Zero increases**: If no variant count changed between two consecutive snapshots (e.g., cancelled
+  run before the experiment step), record the variant as `unknown` and exclude that run from
+  statistical calculations.
+- **Multiple increases**: If more than one variant count increased (e.g., two runs completed between
+  downloaded snapshots), record both runs as `ambiguous` and exclude them from calculations.
+  Note the number of ambiguous runs in the report.
 
 Build a per-run record for every run that had an experiment artifact:
 
@@ -112,8 +122,14 @@ For each experiment and each variant, compute the following statistics over all 
 CI = mean ± t(0.975, n-1) × (std_dev / sqrt(n))
 ```
 
-Approximate t-critical values: n=2 → 12.706, n=3 → 4.303, n=4 → 3.182, n=5 → 2.776,
-n=10 → 2.262, n=20 → 2.093, n=30 → 2.045, n=∞ → 1.960.
+For precise t-critical values use `scipy.stats.t.ppf(0.975, df=n-1)` if Python is available.
+Fallback approximations: n=2 → 12.706, n=3 → 4.303, n=4 → 3.182, n=5 → 2.776,
+n=10 → 2.262, n=15 → 2.131, n=20 → 2.093, n=30 → 2.045, n=60 → 2.000, n=∞ → 1.960.
+For unlisted values interpolate linearly between the two nearest entries.
+
+**Edge cases for variance:**
+- If n < 2 for a variant, variance and CI cannot be computed — show `N/A` in those columns and
+  exclude that variant from the Welch t-test comparison.
 
 ## Step 4 — Detect Statistical Significance (p < 0.05)
 
@@ -129,7 +145,9 @@ z = (p1 - p2) / sqrt(p_pool × (1 − p_pool) × (1/n_ctrl + 1/n_var))
 ```
 
 Convert z to a two-tailed p-value using: p ≈ 2 × (1 − Φ(|z|)).
-Use: Φ(1.282)=0.90, Φ(1.645)=0.95, Φ(1.960)=0.975, Φ(2.326)=0.99, Φ(2.576)=0.995.
+For precise p-values use `scipy.stats.norm.sf(abs(z)) * 2` if Python is available.
+Fallback CDF approximations: Φ(1.282)=0.90, Φ(1.645)=0.95, Φ(1.960)=0.975,
+Φ(2.326)=0.99, Φ(2.576)=0.995. Interpolate linearly for intermediate z-values.
 
 **Duration — Welch's t-test:**
 
@@ -138,7 +156,10 @@ t  = (mean_A − mean_B) / sqrt(var_A/n_A + var_B/n_B)
 df = (var_A/n_A + var_B/n_B)^2 / ((var_A/n_A)^2/(n_A−1) + (var_B/n_B)^2/(n_B−1))
 ```
 
-Convert t to a two-tailed p-value using the t-distribution with `df` degrees of freedom.
+For precise p-values use `scipy.stats.t.sf(abs(t), df=df) * 2` if Python is available.
+
+**Zero-variance edge case:** If all runs for a variant share the same duration (variance = 0), the
+Welch t-test cannot be applied — show `N/A` for p-value and note "zero variance" in the table.
 
 The significance threshold is **p < 0.05**.
 
@@ -173,6 +194,10 @@ Rationale     : <one sentence>
 | p ≥ 0.05 AND n ≥ 20 per variant (no detectable effect)        | **ABANDON**    |
 | p < 0.05 AND variant degrades success rate vs. control        | **ABANDON**    |
 | Any variant has n < 5 (insufficient data)                     | **EXTEND** (note insufficient data) |
+
+> **Note on statistical power:** With n < 20 per variant, tests have low power to detect small
+> effects. Even a non-significant result at this sample size does not rule out a meaningful
+> difference — use the **EXTEND** recommendation to gather more data before drawing conclusions.
 
 ## Step 6 — Post Results
 
