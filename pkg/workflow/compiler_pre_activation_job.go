@@ -445,10 +445,13 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	//   - the compiled on: section includes issue_comment or pull_request_review_comment events.
 	// Workflows with roles:all opt out of needsPermissionCheck and are intentionally unrestricted.
 	//
-	// Exception: if any bot name in data.Bots is a GitHub Actions expression (contains ${{),
-	// we cannot evaluate it statically. In that case the guard is skipped entirely so the
-	// runtime check_membership step always runs and handles bot authorization at runtime.
-	if needsPermissionCheck && hasCommentEventInOn(data.On) && !botsContainExpression(data.Bots) {
+	// Exceptions — the static guard is skipped and runtime check_membership always runs:
+	//   1. Any bot name in data.Bots is a GitHub Actions expression (contains ${{): we cannot
+	//      embed the bot identity into a static if: expression. This also applies to bots that
+	//      originate from imported shared agentic workflows.
+	//   2. The compiled on: section itself contains a GitHub Actions expression (contains ${{):
+	//      event detection cannot be performed reliably at compile time.
+	if needsPermissionCheck && hasCommentEventInOn(data.On) && !botsContainExpression(data.Bots) && !strings.Contains(data.On, "${{") {
 		commentAuthCondition := RenderCondition(buildCommentAuthorAssociationCondition(data.Bots))
 		if jobIfCondition != "" {
 			jobIfCondition = RenderCondition(BuildAnd(

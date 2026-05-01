@@ -456,3 +456,63 @@ Test workflow
 		})
 	}
 }
+
+// TestCommentAuthorAssociationImportedExpressionBot verifies that when a shared agentic workflow
+// contributes an expression-based bot (e.g. "${{ vars.TRUSTED_BOT }}") via imports, the static
+// author_association guard is disabled and check_membership is always reached at runtime.
+func TestCommentAuthorAssociationImportedExpressionBot(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "comment-auth-import-test")
+	compiler := NewCompiler()
+
+	// Shared agentic workflow: no on: field, but defines a bot with a GHA expression.
+	sharedContent := `---
+bots:
+  - "${{ vars.TRUSTED_BOT }}"
+---
+`
+	sharedPath := filepath.Join(tmpDir, "shared-bots.md")
+	err := os.WriteFile(sharedPath, []byte(sharedContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write shared workflow file: %v", err)
+	}
+
+	// Main workflow imports the shared workflow; its own on: has issue_comment.
+	mainContent := `---
+on:
+  issue_comment:
+    types: [created]
+engine: copilot
+imports:
+  - shared-bots.md
+---
+
+Test workflow
+`
+	mainPath := filepath.Join(tmpDir, "main-workflow.md")
+	err = os.WriteFile(mainPath, []byte(mainContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write main workflow file: %v", err)
+	}
+
+	err = compiler.CompileWorkflow(mainPath)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockPath := filepath.Join(tmpDir, "main-workflow.lock.yml")
+	compiled, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	preActivationSection := extractJobSection(string(compiled), "pre_activation")
+	if preActivationSection == "" {
+		t.Fatal("Expected pre_activation job section to be present")
+	}
+
+	// The static guard must be absent: the expression bot cannot be evaluated at compile time,
+	// so check_membership must always run to handle authorization at runtime.
+	if strings.Contains(preActivationSection, "author_association") {
+		t.Errorf("Expected pre_activation job if: to NOT contain author_association check (expression bot from import), but it was present.\nFull pre_activation section:\n%s", preActivationSection)
+	}
+}
