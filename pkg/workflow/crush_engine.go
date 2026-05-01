@@ -10,6 +10,13 @@ import (
 
 var crushLog = logger.New("workflow:crush_engine")
 
+// crushNpmGlobalPrefix is the writable npm global prefix used when installing
+// Crush CLI. GitHub-hosted runners mount the Node.js toolcache at
+// /opt/hostedtoolcache with EROFS (read-only); npm install -g without a custom
+// prefix fails. Pointing npm to $RUNNER_TEMP keeps the install writable while
+// making the resulting binary findable via GetCrushNpmBinPathSetup.
+const crushNpmGlobalPrefix = "${RUNNER_TEMP}/npm-global"
+
 // CrushEngine represents the Crush CLI agentic engine.
 // Crush is a provider-agnostic, open-source AI coding agent with broader BYOK
 // (Bring Your Own Key) support, but gh-aw currently supports a subset of
@@ -59,14 +66,56 @@ func (e *CrushEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		return []GitHubActionStep{}
 	}
 
-	npmSteps := BuildStandardNpmEngineInstallSteps(
-		"@charmland/crush",
-		string(constants.DefaultCrushVersion),
-		"Install Crush CLI",
-		"crush",
-		workflowData,
-	)
+	// Determine version to install
+	version := string(constants.DefaultCrushVersion)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		version = workflowData.EngineConfig.Version
+	}
+
+	// Use Node.js setup + custom install step that redirects npm's global prefix
+	// to a writable directory. GitHub-hosted runners mount the Node.js toolcache
+	// at /opt/hostedtoolcache with EROFS (read-only); npm install -g without a
+	// custom prefix fails with EROFS.
+	npmSteps := []GitHubActionStep{
+		GenerateNodeJsSetupStep(),
+		e.buildCrushInstallStep(version),
+	}
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
+}
+
+// buildCrushInstallStep generates an npm install step for the Crush CLI that
+// redirects npm's global prefix to a writable directory under $RUNNER_TEMP.
+// GitHub-hosted runners mount /opt/hostedtoolcache with EROFS (read-only
+// filesystem) so a plain `npm install -g` fails. By setting NPM_CONFIG_PREFIX
+// we avoid the read-only toolcache while keeping the binary accessible via
+// GetCrushNpmBinPathSetup at execution time.
+func (e *CrushEngine) buildCrushInstallStep(version string) GitHubActionStep {
+	baseCmd := "export NPM_CONFIG_PREFIX=\"" + crushNpmGlobalPrefix + "\"\nmkdir -p \"" + crushNpmGlobalPrefix + "/bin\"\n"
+
+	var command string
+	var env map[string]string
+
+	if ExpressionPattern.MatchString(version) {
+		// Version is a GitHub Actions expression – pass through an env var to
+		// prevent shell injection if the expression evaluates to an attacker-
+		// controlled string.
+		command = baseCmd + `npm install --ignore-scripts -g @charmland/crush@"${ENGINE_VERSION}"`
+		env = map[string]string{"ENGINE_VERSION": version}
+	} else {
+		command = baseCmd + "npm install --ignore-scripts -g @charmland/crush@" + version
+	}
+
+	stepLines := []string{"      - name: Install Crush CLI"}
+	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
+	return GitHubActionStep(stepLines)
+}
+
+// GetCrushNpmBinPathSetup returns a shell command that prepends Crush's writable
+// npm global bin directory to PATH, followed by the standard hostedtoolcache bin
+// directories. Call this before executing the crush binary so it is found
+// regardless of the runner's Node.js toolcache layout.
+func GetCrushNpmBinPathSetup() string {
+	return `export PATH="` + crushNpmGlobalPrefix + `/bin:$(find /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true`
 }
 
 // GetSecretValidationStep returns the secret validation step for the Crush engine.
@@ -153,7 +202,7 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			panic(fmt.Sprintf("BUG: invalid model %q reached domain computation (should have been caught by validation): %v", model, err))
 		}
 
-		npmPathSetup := GetNpmBinPathSetup()
+		npmPathSetup := GetCrushNpmBinPathSetup()
 		crushCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, crushCommand)
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			crushCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, crushCommandWithPath)
@@ -168,7 +217,9 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			AllowedDomains: allowedDomains,
 		})
 	} else {
-		command = fmt.Sprintf("set -o pipefail\n%s 2>&1 | tee -a %s", crushCommand, logFile)
+		// Add PATH setup so crush is found from its writable npm global prefix.
+		pathSetup := GetCrushNpmBinPathSetup()
+		command = fmt.Sprintf("set -o pipefail\n%s\n%s 2>&1 | tee -a %s", pathSetup, crushCommand, logFile)
 	}
 
 	env := map[string]string{

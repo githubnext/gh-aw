@@ -165,6 +165,43 @@ func TestCrushEngineInstallation(t *testing.T) {
 		assert.GreaterOrEqual(t, len(steps), 2, "Should have at least 2 installation steps")
 	})
 
+	t.Run("install step uses writable npm prefix to avoid EROFS", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+		}
+
+		steps := engine.GetInstallationSteps(workflowData)
+		require.GreaterOrEqual(t, len(steps), 2, "Should have at least 2 installation steps")
+
+		// Find the Install Crush CLI step (last step, after Node.js setup)
+		installStep := steps[len(steps)-1]
+		installContent := strings.Join(installStep, "\n")
+
+		assert.Contains(t, installContent, "Install Crush CLI", "Should be the install step")
+		assert.Contains(t, installContent, "NPM_CONFIG_PREFIX", "Should set NPM_CONFIG_PREFIX to redirect from read-only toolcache")
+		assert.Contains(t, installContent, "${RUNNER_TEMP}/npm-global", "Should redirect npm prefix to writable RUNNER_TEMP directory")
+		assert.Contains(t, installContent, "--ignore-scripts", "Should use --ignore-scripts for supply-chain safety")
+		assert.Contains(t, installContent, "@charmland/crush", "Should install the crush package")
+	})
+
+	t.Run("install step with expression version uses ENGINE_VERSION env var", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Version: "${{ inputs.crush-version }}",
+			},
+		}
+
+		steps := engine.GetInstallationSteps(workflowData)
+		require.GreaterOrEqual(t, len(steps), 2, "Should have at least 2 installation steps")
+
+		installStep := steps[len(steps)-1]
+		installContent := strings.Join(installStep, "\n")
+
+		assert.Contains(t, installContent, "ENGINE_VERSION:", "Should pass expression version via env var for injection safety")
+		assert.Contains(t, installContent, `"${ENGINE_VERSION}"`, "Should reference ENGINE_VERSION in install command")
+	})
+
 	t.Run("custom command skips installation", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
@@ -345,6 +382,18 @@ func TestCrushEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, "CUSTOM_VAR: custom-value", "engine.env non-secret vars should be included")
 	})
 
+	t.Run("non-firewall execution includes npm-global/bin in PATH", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate config step and execution step")
+
+		stepContent := strings.Join(steps[1], "\n")
+		assert.Contains(t, stepContent, "${RUNNER_TEMP}/npm-global/bin", "Non-firewall path should include writable npm global bin in PATH")
+	})
+
 	t.Run("config step is first", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
@@ -390,6 +439,7 @@ func TestCrushEngineFirewallIntegration(t *testing.T) {
 		assert.Contains(t, stepContent, "allowDomains", "Should include allowDomains in config JSON")
 		assert.Contains(t, stepContent, `"enabled":true`, "Should include apiProxy enabled in config JSON")
 		assert.Contains(t, stepContent, "GITHUB_COPILOT_BASE_URL: http://host.docker.internal:10002", "Should route copilot/* fallback through Copilot LLM gateway URL")
+		assert.Contains(t, stepContent, "${RUNNER_TEMP}/npm-global/bin", "Firewall path should include writable npm global bin in PATH")
 	})
 
 	t.Run("firewall enabled adds mounted MCP CLI path setup", func(t *testing.T) {
