@@ -43,6 +43,7 @@ type WorkflowStats struct {
 	ScriptSize  int
 	ShellCount  int
 	ShellSize   int
+	Schedules   []string // Cron expressions from on.schedule[*].cron
 }
 
 // collectWorkflowStats parses a lock file and collects statistics
@@ -103,8 +104,21 @@ func collectWorkflowStats(lockFilePath string) (*WorkflowStats, error) {
 		}
 	}
 
-	compileStatsLog.Printf("Stats collected: jobs=%d, steps=%d, scripts=%d, size=%d bytes",
-		stats.Jobs, stats.Steps, stats.ScriptCount, stats.FileSize)
+	// Extract cron expressions from on.schedule[*].cron
+	if onSection, ok := workflowYAML["on"].(map[string]any); ok {
+		if schedules, ok := onSection["schedule"].([]any); ok {
+			for _, entry := range schedules {
+				if schedMap, ok := entry.(map[string]any); ok {
+					if cron, ok := schedMap["cron"].(string); ok && cron != "" {
+						stats.Schedules = append(stats.Schedules, cron)
+					}
+				}
+			}
+		}
+	}
+
+	compileStatsLog.Printf("Stats collected: jobs=%d, steps=%d, scripts=%d, size=%d bytes, schedules=%d",
+		stats.Jobs, stats.Steps, stats.ScriptCount, stats.FileSize, len(stats.Schedules))
 	return stats, nil
 }
 
