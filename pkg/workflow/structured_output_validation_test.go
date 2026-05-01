@@ -3,17 +3,17 @@
 package workflow
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateStructuredOutput_NilConfig(t *testing.T) {
 	workflowData := &WorkflowData{
 		AI: "codex",
 	}
-	if err := validateStructuredOutput(workflowData); err != nil {
-		t.Errorf("Expected no error for nil structured output, got: %v", err)
-	}
+	assert.NoError(t, validateStructuredOutput(workflowData), "nil structured output should not error")
 }
 
 func TestValidateStructuredOutput_CodexWithInlineSchema(t *testing.T) {
@@ -28,9 +28,7 @@ func TestValidateStructuredOutput_CodexWithInlineSchema(t *testing.T) {
 			},
 		},
 	}
-	if err := validateStructuredOutput(workflowData); err != nil {
-		t.Errorf("Expected no error for codex with inline schema, got: %v", err)
-	}
+	assert.NoError(t, validateStructuredOutput(workflowData), "codex with inline schema should not error")
 }
 
 func TestValidateStructuredOutput_CodexWithSchemaFile(t *testing.T) {
@@ -40,9 +38,7 @@ func TestValidateStructuredOutput_CodexWithSchemaFile(t *testing.T) {
 			SchemaFile: ".github/schemas/output.schema.json",
 		},
 	}
-	if err := validateStructuredOutput(workflowData); err != nil {
-		t.Errorf("Expected no error for codex with schema-file, got: %v", err)
-	}
+	assert.NoError(t, validateStructuredOutput(workflowData), "codex with schema-file should not error")
 }
 
 func TestValidateStructuredOutput_NonCodexEngine(t *testing.T) {
@@ -56,16 +52,9 @@ func TestValidateStructuredOutput_NonCodexEngine(t *testing.T) {
 				},
 			}
 			err := validateStructuredOutput(workflowData)
-			if err == nil {
-				t.Errorf("Expected error for %s engine with structured-output, got nil", engine)
-				return
-			}
-			if !strings.Contains(err.Error(), "only supported with the codex engine") {
-				t.Errorf("Expected error to mention codex engine, got: %v", err)
-			}
-			if !strings.Contains(err.Error(), engine) {
-				t.Errorf("Expected error to mention engine name %q, got: %v", engine, err)
-			}
+			require.Error(t, err, "structured-output with %s engine should error", engine)
+			assert.Contains(t, err.Error(), "only supported with the codex engine", "error should mention codex engine")
+			assert.Contains(t, err.Error(), engine, "error should mention current engine name")
 		})
 	}
 }
@@ -76,12 +65,8 @@ func TestValidateStructuredOutput_MissingSchemaAndSchemaFile(t *testing.T) {
 		StructuredOutput: &StructuredOutputConfig{},
 	}
 	err := validateStructuredOutput(workflowData)
-	if err == nil {
-		t.Error("Expected error when neither schema nor schema-file is set, got nil")
-	}
-	if !strings.Contains(err.Error(), "requires either") {
-		t.Errorf("Expected error about missing schema/schema-file, got: %v", err)
-	}
+	require.Error(t, err, "missing both schema and schema-file should error")
+	assert.Contains(t, err.Error(), "requires either", "error should describe missing requirement")
 }
 
 func TestValidateStructuredOutput_BothSchemaAndSchemaFile(t *testing.T) {
@@ -93,10 +78,6 @@ func TestValidateStructuredOutput_BothSchemaAndSchemaFile(t *testing.T) {
 		},
 	}
 	err := validateStructuredOutput(workflowData)
-	if err == nil {
-		t.Error("Expected error when both schema and schema-file are set, got nil")
-	}
-	if !strings.Contains(err.Error(), "cannot specify both") {
-		t.Errorf("Expected error about conflicting schema/schema-file, got: %v", err)
-	}
+	require.Error(t, err, "setting both schema and schema-file should error")
+	assert.Contains(t, err.Error(), "cannot specify both", "error should describe conflicting fields")
 }
