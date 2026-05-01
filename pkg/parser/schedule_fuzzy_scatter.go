@@ -76,38 +76,42 @@ var weightedHourPool = buildWeightedHourPool()
 var availableMinutes = buildAvailableMinutes()
 
 // weightedDailyTimeSlot returns a deterministic (hour, minute) pair for the given
-// workflow identifier using two independent hash values — one for hour selection and
-// one for minute selection.
+// workflow identifier using two hash operations — one for hour selection and one for
+// minute selection — where the minute hash incorporates the hour-pool index as a
+// disambiguation component.
 //
 // The original single-hash approach (972-slot flat pool) produced exact cron-time
 // collisions for ~5 workflow pairs per 99 workflows (birthday paradox). Three-way
 // collisions caused concurrent token-API bursts that exhausted the 60 req/min quota,
 // silently losing safe-output writes.
 //
-// This implementation uses three hash values so that all three must collide
-// simultaneously for a full (hour, minute) collision:
+// This implementation reduces collision probability by requiring two independent
+// conditions to hold simultaneously for a full (hour, minute) collision:
 //
-//  1. hHash  — selects hour from the weighted pool.
-//  2. mHash  — selects raw minute; keyed with ":" suffix for independence from hHash.
-//  3. minuteSeed (incorporates identifier + hHash) — breaks ties that survive the
-//     first two hashes (e.g. the BEST-tier weight-3 duplication or a genuine
-//     double FNV collision) by mixing the hour-pool index into the minute key.
+//  1. hHash (stableHash of identifier) must map to the same hour-pool index.
+//  2. The minute hash of a composite seed (identifier + ":" + hHash index string)
+//     must map to the same minute-pool index.
+//
+// The composite seed in step 2 means that even when two workflows share the same
+// mapped hour (e.g. via BEST-tier weight-3 duplicates at pool indices 0 and 1, both
+// resolving to hour 2), they typically receive different minute seeds as long as
+// their hHash values differ. Only a true double collision on both hash operations
+// produces a duplicate cron expression.
 func weightedDailyTimeSlot(identifier string) (int, int) {
 	// Hash 1: select hour from the weighted hour pool (preserves BEST/BROAD preference).
 	hHash := stableHash(identifier, len(weightedHourPool))
 	hour := weightedHourPool[hHash]
 
-	// Hash 2: select minute with a seed that incorporates the hour-pool index.
-	// Encoding hHash in the key guarantees that two workflows sharing the same
-	// hour (e.g. both map to the BEST tier at index 0 and 2, both resolving to
-	// hour 2) still receive different minute seeds as long as their hHash values
-	// differ.  When hHash values also coincide (a true double collision), the full
-	// identifier strings differ, so stableHash still produces distinct values for
-	// almost all real-world workflow name pairs.
+	// Hash 2: select minute using a composite seed that encodes the hour-pool index.
+	// Incorporating hHash into the seed ensures two workflows that share the same
+	// hour via different pool indices (a common outcome of the BEST-tier weight-3
+	// duplication) still get different minute hashes as long as their hHash values
+	// differ.  When hHash also coincides, the full identifier strings diverge, making
+	// collisions on this second hash unlikely for distinct real-world workflow names.
 	// avoidPeakMinutes is intentionally NOT called here because availableMinutes
-	// already pre-excludes all peak ranges; calling it on pool values would cause
-	// multiple distinct raw minutes to collapse to the same post-remap value,
-	// artificially increasing collision counts.
+	// already pre-excludes all peak ranges; calling it on pool values would remap
+	// multiple distinct raw minutes to the same output, artificially increasing
+	// collision counts.
 	minuteSeed := fmt.Sprintf("%s:%d", identifier, hHash)
 	minute := availableMinutes[stableHash(minuteSeed, len(availableMinutes))]
 
