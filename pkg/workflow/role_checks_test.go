@@ -280,6 +280,7 @@ func TestCommentAuthorAssociationConditionInPreActivation(t *testing.T) {
 		name           string
 		frontmatter    string
 		wantAssocCheck bool
+		wantBotNames   []string // bot actor logins expected in the pre_activation if: condition
 	}{
 		{
 			name: "issue_comment trigger with default roles gets author_association check",
@@ -376,6 +377,7 @@ engine: copilot
 Test workflow
 `,
 			wantAssocCheck: true,
+			wantBotNames:   []string{"dependabot[bot]", "renovate[bot]"},
 		},
 	}
 
@@ -430,10 +432,9 @@ Test workflow
 			}
 
 			// For the bot test case, also verify bot actor exemptions appear in the job if:.
-			if tt.wantAssocCheck && strings.Contains(tt.frontmatter, "bots:") {
-				hasBot := strings.Contains(preActivationSection, "dependabot") && strings.Contains(preActivationSection, "renovate")
-				if !hasBot {
-					t.Errorf("Expected pre_activation job if: to contain bot actor exemptions, but they were absent.\nFull pre_activation section:\n%s", preActivationSection)
+			for _, botName := range tt.wantBotNames {
+				if !strings.Contains(preActivationSection, botName) {
+					t.Errorf("Expected pre_activation job if: to contain bot actor exemption for %q, but it was absent.\nFull pre_activation section:\n%s", botName, preActivationSection)
 				}
 			}
 		})

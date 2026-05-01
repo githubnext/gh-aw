@@ -551,11 +551,17 @@ func buildCommentAuthorAssociationCondition(bots []string) ConditionNode {
 	// Allow explicitly listed bot/app actors so on.bots behaviour is preserved.
 	// Bots typically carry no OWNER/MEMBER/COLLABORATOR association, so we exempt
 	// them by actor login rather than by author_association.
-	for _, bot := range bots {
-		result = BuildOr(result, BuildEquals(
-			BuildPropertyAccess("github.actor"),
-			BuildStringLiteral(bot),
-		))
+	// Use BuildDisjunction to collect all bot conditions into a flat OR rather than
+	// building a deeply nested binary tree with repeated BuildOr calls.
+	if len(bots) > 0 {
+		botTerms := make([]ConditionNode, len(bots))
+		for i, bot := range bots {
+			botTerms[i] = BuildEquals(
+				BuildPropertyAccess("github.actor"),
+				BuildStringLiteral(bot),
+			)
+		}
+		result = BuildOr(result, BuildDisjunction(false, botTerms...))
 	}
 
 	return result
