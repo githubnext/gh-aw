@@ -153,9 +153,9 @@ This is a test workflow to verify git credentials cleaner is included.
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
 
-	// Verify git credentials cleaner step is present
-	if !strings.Contains(lockContent, "Clean git credentials") {
-		t.Error("Expected 'Clean git credentials' step to be present in compiled workflow")
+	// Verify credentials cleaner step is present
+	if !strings.Contains(lockContent, "Clean credentials") {
+		t.Error("Expected 'Clean credentials' step to be present in compiled workflow")
 	}
 
 	// Verify the cleaner script is called
@@ -165,7 +165,7 @@ This is a test workflow to verify git credentials cleaner is included.
 
 	// Verify the cleaner step comes before the agent execution
 	// Find the positions of both steps
-	cleanerPos := strings.Index(lockContent, "Clean git credentials")
+	cleanerPos := strings.Index(lockContent, "Clean credentials")
 	// The agent execution step is named "Execute GitHub Copilot CLI" (for Copilot engine)
 	// or similar names for other engines
 	agentPos := strings.Index(lockContent, "Execute GitHub Copilot CLI")
@@ -175,7 +175,7 @@ This is a test workflow to verify git credentials cleaner is included.
 	}
 
 	if cleanerPos == -1 {
-		t.Fatal("Could not find 'Clean git credentials' step in compiled workflow")
+		t.Fatal("Could not find 'Clean credentials' step in compiled workflow")
 	}
 
 	if agentPos == -1 {
@@ -184,40 +184,57 @@ This is a test workflow to verify git credentials cleaner is included.
 
 	// Verify cleaner comes before agent execution
 	if cleanerPos >= agentPos {
-		t.Error("Expected 'Clean git credentials' step to come before agent execution step")
+		t.Error("Expected 'Clean credentials' step to come before agent execution step")
 	}
 }
 
-// TestGitCredentialsCleanerStepsHelper tests the generateGitCredentialsCleanerStep helper directly
-func TestGitCredentialsCleanerStepsHelper(t *testing.T) {
+// TestCredentialsCleanerStepsHelper tests the generateCredentialsCleanerStep helper directly
+func TestCredentialsCleanerStepsHelper(t *testing.T) {
 	compiler := NewCompiler()
 
-	steps := compiler.generateGitCredentialsCleanerStep()
+	t.Run("no known actions - only git credentials script", func(t *testing.T) {
+		steps := compiler.generateCredentialsCleanerStep(nil)
 
-	// Verify we get expected number of lines (3 lines: name, continue-on-error, and run)
-	if len(steps) != 3 {
-		t.Errorf("Expected 3 lines in git credentials cleaner steps, got %d", len(steps))
-	}
+		fullContent := strings.Join(steps, "")
 
-	// Verify the content of the steps
-	expectedContents := []string{
-		"Clean git credentials",
-		"continue-on-error: true",
-		"run: bash \"${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh\"",
-	}
-
-	fullContent := strings.Join(steps, "")
-
-	for _, expected := range expectedContents {
-		if !strings.Contains(fullContent, expected) {
-			t.Errorf("Expected git credentials cleaner steps to contain '%s'", expected)
+		expectedContents := []string{
+			"Clean credentials",
+			"continue-on-error: true",
+			"run: bash \"${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh\"",
 		}
-	}
+		for _, expected := range expectedContents {
+			if !strings.Contains(fullContent, expected) {
+				t.Errorf("Expected credentials cleaner steps to contain '%s'", expected)
+			}
+		}
+		if strings.Contains(fullContent, "clean_known_action_credentials.sh") {
+			t.Error("clean_known_action_credentials.sh must not appear when no known actions are detected")
+		}
 
-	// Verify proper indentation (should start with 6 spaces for job step level)
-	if !strings.HasPrefix(steps[0], "      - name:") {
-		t.Error("Expected first line to have proper indentation for job step (6 spaces)")
-	}
+		// Verify proper indentation (should start with 6 spaces for job step level)
+		if !strings.HasPrefix(steps[0], "      - name:") {
+			t.Error("Expected first line to have proper indentation for job step (6 spaces)")
+		}
+	})
+
+	t.Run("with known actions - both scripts in run block", func(t *testing.T) {
+		steps := compiler.generateCredentialsCleanerStep(map[string]bool{"GH_AW_CLEAN_AWS": true})
+
+		fullContent := strings.Join(steps, "")
+
+		if !strings.Contains(fullContent, "Clean credentials") {
+			t.Error("Expected step name 'Clean credentials'")
+		}
+		if !strings.Contains(fullContent, `GH_AW_CLEAN_AWS: "true"`) {
+			t.Error("Expected GH_AW_CLEAN_AWS env var")
+		}
+		if !strings.Contains(fullContent, "clean_git_credentials.sh") {
+			t.Error("Expected clean_git_credentials.sh call")
+		}
+		if !strings.Contains(fullContent, "clean_known_action_credentials.sh") {
+			t.Error("Expected clean_known_action_credentials.sh call")
+		}
+	})
 }
 
 // TestGitConfigurationSkippedWhenCheckoutDisabled verifies that git credential steps
@@ -262,11 +279,11 @@ This workflow uses API tools only and does not need the repository to be checked
 		t.Error("'Configure Git credentials' step must NOT be present when checkout: false (no .git directory)")
 	}
 
-	// The "Clean git credentials" step should still be present (resilient, continue-on-error).
+	// The "Clean credentials" step should still be present (resilient, continue-on-error).
 	// Assert that the cleaner step block itself contains both the name and continue-on-error
 	// to avoid false positives from other steps that also use continue-on-error.
-	const cleanerStepBlock = "- name: Clean git credentials\n        continue-on-error: true\n        run: bash \"${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh\""
+	const cleanerStepBlock = "- name: Clean credentials\n        continue-on-error: true\n        run: bash \"${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh\""
 	if !strings.Contains(lockContent, cleanerStepBlock) {
-		t.Error("Expected 'Clean git credentials' step with 'continue-on-error: true' to be present when checkout: false")
+		t.Error("Expected 'Clean credentials' step with 'continue-on-error: true' to be present when checkout: false")
 	}
 }

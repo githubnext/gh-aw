@@ -27,7 +27,6 @@
 package workflow
 
 import (
-	"fmt"
 	"maps"
 	"strings"
 
@@ -215,29 +214,4 @@ func DetectKnownCredentialLeakingActionsFromWorkflowData(workflowData *WorkflowD
 		knownActionCredentialsLog.Printf("Known credential-leaking actions detected, env vars: %v", result)
 	}
 	return result
-}
-
-// generateKnownActionsCredentialCleanerStep generates the YAML lines for a step that
-// removes credentials left by known GitHub Actions before the agentic engine runs.
-// Returns nil when envVars is empty (no known actions detected).
-func (c *Compiler) generateKnownActionsCredentialCleanerStep(envVars map[string]bool) []string {
-	if len(envVars) == 0 {
-		return nil
-	}
-
-	lines := []string{
-		"      - name: Clean known action credentials\n",
-		"        continue-on-error: true\n",
-		"        env:\n",
-	}
-
-	// Emit env vars in a stable, deterministic order (knownCredentialLeakingActions order)
-	for _, known := range knownCredentialLeakingActions {
-		if envVars[known.envVar] {
-			lines = append(lines, fmt.Sprintf("          %s: \"true\"\n", known.envVar))
-		}
-	}
-
-	lines = append(lines, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/clean_known_action_credentials.sh\"\n")
-	return lines
 }

@@ -393,7 +393,7 @@ jobs:
             }
           }
           GH_AW_MCP_CONFIG_NORM_EOF
-      - name: Clean git credentials
+      - name: Clean credentials
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
       - name: Execute GitHub Copilot CLI

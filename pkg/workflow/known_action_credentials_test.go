@@ -212,36 +212,48 @@ func TestDetectKnownCredentialLeakingActionsFromYAML(t *testing.T) {
 	}
 }
 
-// TestGenerateKnownActionsCredentialCleanerStep verifies step generation.
-func TestGenerateKnownActionsCredentialCleanerStep(t *testing.T) {
+// TestGenerateCredentialsCleanerStep verifies the merged credentials cleaner step generation.
+func TestGenerateCredentialsCleanerStep(t *testing.T) {
 	compiler := NewCompiler()
 
-	t.Run("returns nil for empty env vars", func(t *testing.T) {
-		steps := compiler.generateKnownActionsCredentialCleanerStep(nil)
-		assert.Nil(t, steps, "expected nil for empty env vars")
+	t.Run("no known actions - only git credentials script, no env block", func(t *testing.T) {
+		steps := compiler.generateCredentialsCleanerStep(nil)
+		require.NotNil(t, steps, "expected non-nil steps")
+
+		content := strings.Join(steps, "")
+		assert.Contains(t, content, "Clean credentials", "expected step name")
+		assert.Contains(t, content, "continue-on-error: true", "expected continue-on-error")
+		assert.Contains(t, content, "clean_git_credentials.sh", "expected git cleaner script")
+		assert.NotContains(t, content, "clean_known_action_credentials.sh", "known-action script must not appear")
+		assert.NotContains(t, content, "env:", "env block must not appear when no known actions detected")
 	})
 
-	t.Run("returns nil for empty map", func(t *testing.T) {
-		steps := compiler.generateKnownActionsCredentialCleanerStep(map[string]bool{})
-		assert.Nil(t, steps, "expected nil for empty map")
+	t.Run("empty map - same as nil", func(t *testing.T) {
+		steps := compiler.generateCredentialsCleanerStep(map[string]bool{})
+		require.NotNil(t, steps, "expected non-nil steps")
+
+		content := strings.Join(steps, "")
+		assert.Contains(t, content, "clean_git_credentials.sh", "expected git cleaner script")
+		assert.NotContains(t, content, "clean_known_action_credentials.sh", "known-action script must not appear")
 	})
 
-	t.Run("generates step for single action", func(t *testing.T) {
-		steps := compiler.generateKnownActionsCredentialCleanerStep(map[string]bool{
+	t.Run("generates merged step for single known action", func(t *testing.T) {
+		steps := compiler.generateCredentialsCleanerStep(map[string]bool{
 			"GH_AW_CLEAN_AWS": true,
 		})
 		require.NotNil(t, steps, "expected non-nil steps")
 
 		content := strings.Join(steps, "")
-		assert.Contains(t, content, "Clean known action credentials", "expected step name")
+		assert.Contains(t, content, "Clean credentials", "expected step name")
 		assert.Contains(t, content, "continue-on-error: true", "expected continue-on-error")
 		assert.Contains(t, content, `GH_AW_CLEAN_AWS: "true"`, "expected AWS env var")
-		assert.Contains(t, content, "clean_known_action_credentials.sh", "expected script name")
+		assert.Contains(t, content, "clean_git_credentials.sh", "expected git cleaner script")
+		assert.Contains(t, content, "clean_known_action_credentials.sh", "expected known-action script")
 		assert.NotContains(t, content, "GH_AW_CLEAN_GCP", "unexpected GCP env var")
 	})
 
-	t.Run("generates step for multiple actions", func(t *testing.T) {
-		steps := compiler.generateKnownActionsCredentialCleanerStep(map[string]bool{
+	t.Run("generates merged step for multiple known actions", func(t *testing.T) {
+		steps := compiler.generateCredentialsCleanerStep(map[string]bool{
 			"GH_AW_CLEAN_GCP":    true,
 			"GH_AW_CLEAN_DOCKER": true,
 		})
@@ -254,7 +266,7 @@ func TestGenerateKnownActionsCredentialCleanerStep(t *testing.T) {
 	})
 
 	t.Run("env vars are in deterministic order", func(t *testing.T) {
-		steps := compiler.generateKnownActionsCredentialCleanerStep(map[string]bool{
+		steps := compiler.generateCredentialsCleanerStep(map[string]bool{
 			"GH_AW_CLEAN_SSH":    true,
 			"GH_AW_CLEAN_GCP":    true,
 			"GH_AW_CLEAN_DOCKER": true,
@@ -278,7 +290,7 @@ func TestGenerateKnownActionsCredentialCleanerStep(t *testing.T) {
 	})
 
 	t.Run("proper YAML indentation for job step level", func(t *testing.T) {
-		steps := compiler.generateKnownActionsCredentialCleanerStep(map[string]bool{
+		steps := compiler.generateCredentialsCleanerStep(map[string]bool{
 			"GH_AW_CLEAN_GCP": true,
 		})
 		require.NotNil(t, steps, "expected non-nil steps")
@@ -434,7 +446,7 @@ Test workflow.
 			require.NoError(t, err, "should generate YAML")
 
 			if tt.expectCleaner {
-				assert.Contains(t, lockContent, "Clean known action credentials",
+				assert.Contains(t, lockContent, "Clean credentials",
 					"expected cleanup step to be present")
 				assert.Contains(t, lockContent, "clean_known_action_credentials.sh",
 					"expected cleanup script reference")
@@ -443,8 +455,8 @@ Test workflow.
 						"expected env var %q to be present", envVar)
 				}
 			} else {
-				assert.NotContains(t, lockContent, "Clean known action credentials",
-					"cleanup step must not be present when no known actions are used")
+				assert.NotContains(t, lockContent, "clean_known_action_credentials.sh",
+					"clean_known_action_credentials.sh must not appear when no known actions are used")
 			}
 		})
 	}
@@ -482,7 +494,7 @@ Test workflow.
 	lockContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	require.NoError(t, err, "should generate YAML")
 
-	cleanerPos := strings.Index(lockContent, "Clean known action credentials")
+	cleanerPos := strings.Index(lockContent, "Clean credentials")
 	agentPos := strings.Index(lockContent, "Execute GitHub Copilot CLI")
 	if agentPos == -1 {
 		agentPos = strings.Index(lockContent, "agentic_execution")

@@ -70,14 +70,39 @@ func getGitIdentityEnvVars() map[string]string {
 	}
 }
 
-// generateGitCredentialsCleanerStep generates a step that removes git credentials from .git/config
-// This is a security measure to prevent credentials left by injected steps from being accessed by the agent.
-// The step uses continue-on-error to remain resilient when no .git directory exists (e.g. checkout: false)
-// or when git is not installed.
-func (c *Compiler) generateGitCredentialsCleanerStep() []string {
-	return []string{
-		"      - name: Clean git credentials\n",
+// generateCredentialsCleanerStep generates a single "Clean credentials" step that removes
+// git credentials from .git/config and, when known credential-leaking actions were
+// detected (envVars non-empty), also removes cloud-provider / registry credentials.
+//
+// When envVars is empty the step runs only clean_git_credentials.sh.
+// When envVars is non-empty the env block is included and both scripts are run in sequence.
+//
+// The step always uses continue-on-error to remain resilient when no .git directory
+// exists (e.g. checkout: false) or when git is not installed.
+func (c *Compiler) generateCredentialsCleanerStep(envVars map[string]bool) []string {
+	lines := []string{
+		"      - name: Clean credentials\n",
 		"        continue-on-error: true\n",
-		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh\"\n",
 	}
+
+	if len(envVars) > 0 {
+		lines = append(lines, "        env:\n")
+		// Emit env vars in a stable, deterministic order (knownCredentialLeakingActions order)
+		for _, known := range knownCredentialLeakingActions {
+			if envVars[known.envVar] {
+				lines = append(lines, fmt.Sprintf("          %s: \"true\"\n", known.envVar))
+			}
+		}
+		lines = append(lines,
+			"        run: |\n",
+			"          bash \"${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh\"\n",
+			"          bash \"${RUNNER_TEMP}/gh-aw/actions/clean_known_action_credentials.sh\"\n",
+		)
+	} else {
+		lines = append(lines,
+			"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh\"\n",
+		)
+	}
+
+	return lines
 }

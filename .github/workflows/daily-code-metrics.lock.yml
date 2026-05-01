@@ -778,7 +778,7 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/mount_mcp_as_cli.cjs');
             await main();
-      - name: Clean git credentials
+      - name: Clean credentials
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
       - name: Execute Claude Code CLI
