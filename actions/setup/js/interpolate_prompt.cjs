@@ -256,10 +256,10 @@ async function main() {
     // otherwise the placeholder string is truthy and the block is always kept.
     // The activation job exposes GH_AW_EXPERIMENTS_* env vars (from the pick-experiment
     // step output via the step's env: block), so we can substitute them here.
-    //
-    // Additionally, {{#if (eq experiments.name "value")}} conditions use the dot-notation
+    // Additionally, {{#if experiments.name == "value"}} conditions use the dot-notation
     // form directly in the condition expression. We substitute experiments.NAME → actual
-    // value inside {{#if ...}} condition tags so that isTruthy can evaluate (eq ...) helpers.
+    // value inside {{#if ...}} condition tags so that isTruthy can evaluate the resulting
+    // GitHub Actions script style expression (e.g. concise == "concise").
     core.info("\n========================================");
     core.info("[main] STEP 2.5: Experiment Placeholder Substitution");
     core.info("========================================");
@@ -273,7 +273,8 @@ async function main() {
           core.info(`  Substituted ${placeholder} → "${value || ""}"`);
         }
         // Also substitute experiments.name references inside {{#if ...}} conditions.
-        // This enables (eq experiments.name "value") comparisons to resolve correctly.
+        // This enables GitHub Actions script style comparisons (e.g. prompt_style == "concise")
+        // to resolve correctly — after substitution the condition becomes: concise == "concise".
         const experimentName = key.substring("GH_AW_EXPERIMENTS_".length).toLowerCase();
         const exprForm = `experiments.${experimentName}`;
         const conditionPattern = new RegExp(`(\\{\\{#if[^}]*?)${exprForm.replace(".", "\\.")}`, "gi");

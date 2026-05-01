@@ -16,11 +16,14 @@ function isTruthy(expr) {
   // Handle GitHub Actions script style equality expressions: lhs == "rhs" or lhs === "rhs"
   // Used by experiment conditionals after the experiment value has been substituted:
   //   {{#if experiments.prompt_style == "concise"}} becomes {{#if concise == "concise"}}
-  const eqMatch = trimmed.match(/^(.+?)\s*===?\s*"([^"]*)"\s*$/);
+  // Note: (.*?) allows an empty LHS — if the experiment variable was not set the substituted
+  // condition looks like ' == "concise"', which correctly returns false here rather than
+  // falling through to the generic truthy check and incorrectly returning true.
+  const eqMatch = trimmed.match(/^(.*?)\s*===?\s*"([^"]*)"\s*$/);
   if (eqMatch) {
     return eqMatch[1].trim() === eqMatch[2];
   }
-  const neqMatch = trimmed.match(/^(.+?)\s*!==?\s*"([^"]*)"\s*$/);
+  const neqMatch = trimmed.match(/^(.*?)\s*!==?\s*"([^"]*)"\s*$/);
   if (neqMatch) {
     return neqMatch[1].trim() !== neqMatch[2];
   }

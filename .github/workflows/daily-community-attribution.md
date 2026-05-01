@@ -454,7 +454,7 @@ and the Community Contributors wiki page.
 - One `issue_read` per Tier 3 candidate
 - Stop after safe-output call
 - PR body under 400 words
-- No external URLs
+- Do not access external URLs; use only GitHub MCP `issue_read` for GitHub data
 {{#else}}
 ## Token Budget Guidelines
 
