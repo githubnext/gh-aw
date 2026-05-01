@@ -20,9 +20,12 @@
 //     github-app.permissions field is used in a context that does not support it.
 //  5. workflow_run branch restrictions — validates that workflow_run triggers carry
 //     explicit branch filters to prevent untrusted-code execution.
-//  6. GitHub MCP toolset permission alignment — validates that the workflow's
+//  6. pull_request_target security — warns (strict) or errors when checkout is not
+//     disabled, because running with write permissions on untrusted PR code is a
+//     critical "pwn request" vulnerability.
+//  7. GitHub MCP toolset permission alignment — validates that the workflow's
 //     declared permissions cover the read/write requirements of all enabled toolsets.
-//  7. id-token: write warning — emits a security reminder when OIDC tokens are
+//  8. id-token: write warning — emits a security reminder when OIDC tokens are
 //     requested, because they can be used to authenticate to cloud providers.
 //
 // # Strict Mode
@@ -78,6 +81,12 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 	// Validate workflow_run triggers have branch restrictions
 	log.Printf("Validating workflow_run triggers for branch restrictions")
 	if err := c.validateWorkflowRunBranches(workflowData, markdownPath); err != nil {
+		return nil, err
+	}
+
+	// Validate pull_request_target trigger security
+	log.Printf("Validating pull_request_target trigger security")
+	if err := c.validatePullRequestTargetTrigger(workflowData, markdownPath); err != nil {
 		return nil, err
 	}
 
