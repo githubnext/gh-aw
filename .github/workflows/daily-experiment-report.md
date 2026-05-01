@@ -112,7 +112,7 @@ grep -m 1 '^description:' .github/workflows/WORKFLOW.md
 
 For each workflow that has experiments, fetch its recent run history using the GitHub API. Check the last **20 runs** for each workflow.
 
-Use the `gh` CLI via `cli-proxy`:
+Use the `gh` CLI via `cli-proxy`. Replace `WORKFLOW_BASENAME` with the bare workflow name without extension (e.g., for `.github/workflows/smoke-copilot.md`, use `smoke-copilot`):
 
 ```bash
 gh run list --workflow="WORKFLOW_BASENAME.lock.yml" --limit 20 --json databaseId,conclusion,createdAt,displayTitle,durationMS,status
@@ -123,19 +123,18 @@ For each run, note:
 
 ## Phase 3: Analyze Variant Distribution
 
-For each experiment, analyze the step summaries of recent successful runs to determine variant assignments.
+For each experiment, try to determine variant assignments from recent successful run step summaries. The `pick_experiment.cjs` script appends a Markdown step summary table during each run showing which variant was assigned and the cumulative counts per variant.
 
-The `pick_experiment.cjs` script writes a Markdown step summary table during each run showing:
-- Which variant was assigned for each experiment
-- Cumulative counts per variant
-
-Try to get the step summary for recent runs:
+Step summaries are stored in GitHub Actions and are not directly accessible via `gh run view --log` (which returns raw job logs only). Use the GitHub API to retrieve step summary data for a specific run's jobs:
 
 ```bash
-gh run view RUN_ID --log 2>/dev/null | grep -A 5 'Experiment Assignment'
+# Get job IDs for a run (replace RUN_ID with a successful run ID)
+gh api repos/${{ github.repository }}/actions/runs/RUN_ID/jobs --jq '.jobs[] | {id, name}'
 ```
 
-If step summaries are not accessible via CLI, use available run metadata to estimate distribution based on run count divided by number of variants (round-robin algorithm), and note this is an estimate.
+If step summaries are not accessible via the available tools, estimate variant distribution based on successful run count divided by the number of variants (the round-robin algorithm guarantees near-equal distribution). Clearly note in the report when figures are estimates vs. confirmed.
+
+**Important**: Only count **successful** runs when estimating variant distribution — cancelled or failed runs may not have reached the experiment assignment step.
 
 ## Phase 4: Generate Discussion Report
 
