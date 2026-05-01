@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -48,7 +49,9 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` update --no-compile           # Update without regenerating lock files
   ` + string(constants.CLIExtensionPrefix) + ` update --no-redirect          # Refuse workflows that use redirect frontmatter
   ` + string(constants.CLIExtensionPrefix) + ` update --dir custom/workflows  # Update workflows in custom directory
-  ` + string(constants.CLIExtensionPrefix) + ` update --create-pull-request   # Update and open a pull request`,
+  ` + string(constants.CLIExtensionPrefix) + ` update --create-pull-request   # Update and open a pull request
+  ` + string(constants.CLIExtensionPrefix) + ` update --cool-down 0           # Disable cooldown and apply all pending releases immediately
+  ` + string(constants.CLIExtensionPrefix) + ` update --cool-down 3d          # Apply a custom 3-day cooldown period`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			majorFlag, _ := cmd.Flags().GetBool("major")
 			forceFlag, _ := cmd.Flags().GetBool("force")
@@ -64,9 +67,15 @@ Examples:
 			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
+			coolDownStr, _ := cmd.Flags().GetString("cool-down")
 
 			if err := validateEngine(engineOverride); err != nil {
 				return err
+			}
+
+			coolDown, err := parseCoolDownFlag(coolDownStr)
+			if err != nil {
+				return fmt.Errorf("invalid --cool-down value: %w", err)
 			}
 
 			if createPR {
@@ -75,7 +84,7 @@ Examples:
 				}
 			}
 
-			if err := RunUpdateWorkflows(cmd.Context(), args, majorFlag, forceFlag, verbose, engineOverride, workflowDir, noStopAfter, stopAfter, noMergeFlag, disableReleaseBump, noCompile, noRedirect); err != nil {
+			if err := RunUpdateWorkflows(cmd.Context(), args, majorFlag, forceFlag, verbose, engineOverride, workflowDir, noStopAfter, stopAfter, noMergeFlag, disableReleaseBump, noCompile, noRedirect, coolDown); err != nil {
 				return err
 			}
 
@@ -101,6 +110,7 @@ Examples:
 	cmd.Flags().Bool("no-redirect", false, "Refuse updates when redirect frontmatter is present")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the update changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
+	cmd.Flags().String("cool-down", "7d", "Cooldown period before applying a new release (e.g. 7d, 24h, 0 to disable). Does not apply to actions/* or github/* repositories")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 
 	// Register completions for update command
@@ -113,12 +123,12 @@ Examples:
 
 // RunUpdateWorkflows updates workflows from their source repositories.
 // Each workflow is compiled immediately after update.
-func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, disableReleaseBump bool, noCompile bool, noRedirect bool) error {
-	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v, disableReleaseBump=%v, noCompile=%v, noRedirect=%v", workflowNames, allowMajor, force, noMerge, disableReleaseBump, noCompile, noRedirect)
+func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, disableReleaseBump bool, noCompile bool, noRedirect bool, coolDown time.Duration) error {
+	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v, disableReleaseBump=%v, noCompile=%v, noRedirect=%v, coolDown=%v", workflowNames, allowMajor, force, noMerge, disableReleaseBump, noCompile, noRedirect, coolDown)
 
 	var firstErr error
 
-	if err := UpdateWorkflows(ctx, workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter, noMerge, noCompile, noRedirect); err != nil {
+	if err := UpdateWorkflows(ctx, workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter, noMerge, noCompile, noRedirect, coolDown); err != nil {
 		firstErr = fmt.Errorf("workflow update failed: %w", err)
 	}
 
@@ -126,7 +136,7 @@ func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor,
 	// By default all actions are updated to the latest major version.
 	// Pass --disable-release-bump to revert to only forcing updates for core (actions/*) actions.
 	updateLog.Printf("Updating GitHub Actions versions in actions-lock.json: allowMajor=%v, disableReleaseBump=%v", allowMajor, disableReleaseBump)
-	if err := UpdateActions(ctx, allowMajor, verbose, disableReleaseBump); err != nil {
+	if err := UpdateActions(ctx, allowMajor, verbose, disableReleaseBump, coolDown); err != nil {
 		// Non-fatal: warn but don't fail the update
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions-lock.json: %v", err)))
 	}
@@ -141,7 +151,7 @@ func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor,
 	// Update action references in user-provided steps within workflow .md files.
 	// By default all org/repo@version references are updated to the latest major version.
 	updateLog.Print("Updating action references in workflow .md files")
-	if err := UpdateActionsInWorkflowFiles(ctx, workflowsDir, engineOverride, verbose, disableReleaseBump, noCompile); err != nil {
+	if err := UpdateActionsInWorkflowFiles(ctx, workflowsDir, engineOverride, verbose, disableReleaseBump, noCompile, coolDown); err != nil {
 		// Non-fatal: warn but don't fail the update
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update action references in workflow files: %v", err)))
 	}

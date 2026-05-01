@@ -245,6 +245,82 @@ func TestRepoMemoryStepsGeneration(t *testing.T) {
 	}
 }
 
+// TestGenerateRepoMemoryArtifactUpload tests that the artifact upload steps are generated correctly,
+// including the sanitize step that appears before each upload step.
+func TestGenerateRepoMemoryArtifactUpload(t *testing.T) {
+	tests := []struct {
+		name              string
+		memory            RepoMemoryEntry
+		wantSanitizeLabel string
+	}{
+		{
+			name: "non-wiki memory",
+			memory: RepoMemoryEntry{
+				ID:         "default",
+				BranchName: "memory/default",
+				Wiki:       false,
+			},
+			wantSanitizeLabel: "repo-memory",
+		},
+		{
+			name: "wiki memory",
+			memory: RepoMemoryEntry{
+				ID:         "notes",
+				BranchName: "memory/notes",
+				Wiki:       true,
+			},
+			wantSanitizeLabel: "wiki-memory",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &RepoMemoryConfig{
+				Memories: []RepoMemoryEntry{tt.memory},
+			}
+			data := &WorkflowData{
+				RepoMemoryConfig: config,
+			}
+
+			var builder strings.Builder
+			generateRepoMemoryArtifactUpload(&builder, data)
+			output := builder.String()
+
+			sanitizeName := "Sanitize " + tt.wantSanitizeLabel + " filenames (" + tt.memory.ID + ")"
+			uploadName := "Upload " + tt.wantSanitizeLabel + " artifact (" + tt.memory.ID + ")"
+
+			// Both steps must be present
+			assert.Contains(t, output, sanitizeName, "Should contain sanitize step")
+			assert.Contains(t, output, uploadName, "Should contain upload step")
+
+			// Sanitize step must appear before the upload step
+			sanitizePos := strings.Index(output, sanitizeName)
+			uploadPos := strings.Index(output, uploadName)
+			assert.Less(t, sanitizePos, uploadPos, "Sanitize step should appear before upload step")
+
+			// Sanitize step must have continue-on-error: true so a rename failure
+			// does not block the artifact upload. Verify it appears between
+			// "if: always()" and "env:" (correct position in YAML step structure).
+			sanitizeSection := output[sanitizePos:uploadPos]
+			ifPos := strings.Index(sanitizeSection, "if: always()")
+			continuePos := strings.Index(sanitizeSection, "continue-on-error: true")
+			envPos := strings.Index(sanitizeSection, "env:")
+			require.Greater(t, continuePos, -1, "Sanitize step should have continue-on-error: true")
+			assert.Greater(t, continuePos, ifPos,
+				"continue-on-error should appear after if: always()")
+			assert.Less(t, continuePos, envPos,
+				"continue-on-error should appear before env:")
+
+			// Sanitize step must set MEMORY_DIR and call the script
+			expectedDir := "/tmp/gh-aw/repo-memory/" + tt.memory.ID
+			assert.Contains(t, sanitizeSection, "MEMORY_DIR: "+expectedDir,
+				"Sanitize step should set MEMORY_DIR env var")
+			assert.Contains(t, sanitizeSection, "sanitize_repo_memory_filenames.sh",
+				"Sanitize step should call sanitize_repo_memory_filenames.sh")
+		})
+	}
+}
+
 // TestRepoMemoryPromptGeneration tests that prompt section is generated correctly
 func TestRepoMemoryPromptGeneration(t *testing.T) {
 	config := &RepoMemoryConfig{

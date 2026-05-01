@@ -216,13 +216,13 @@ func getLatestActionPinReference(repo string) string {
 // FormatPinnedActionReference formats a pinned action reference with repo, SHA, and version comment.
 // Example: "actions/checkout@abc123 # v4.1.0"
 func FormatPinnedActionReference(repo, sha, version string) string {
-	return fmt.Sprintf("%s@%s # %s", repo, sha, version)
+	return repo + "@" + sha + " # " + version
 }
 
 // FormatCacheKey generates a cache key for action resolution.
 // Example: "actions/checkout@v4"
 func FormatCacheKey(repo, version string) string {
-	return fmt.Sprintf("%s@%s", repo, version)
+	return repo + "@" + version
 }
 
 // ExtractRepo extracts the action repository from a uses string.

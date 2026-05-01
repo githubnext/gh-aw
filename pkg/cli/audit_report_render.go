@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -131,6 +132,13 @@ func renderConsole(data AuditData, logsPath string) {
 		renderSafeOutputSummary(data.SafeOutputSummary)
 	}
 
+	// Experiments Section
+	if data.Experiments != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("🧪 A/B Experiments"))
+		fmt.Fprintln(os.Stderr)
+		renderExperimentData(data.Experiments)
+	}
+
 	// Metrics Section - use new rendering system
 	fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Metrics"))
 	fmt.Fprintln(os.Stderr)
@@ -237,6 +245,37 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Fprintln(os.Stderr)
 	absPath, _ := filepath.Abs(logsPath)
 	fmt.Fprintf(os.Stderr, "  %s\n", absPath)
+	fmt.Fprintln(os.Stderr)
+}
+
+func renderExperimentData(exp *ExperimentData) {
+	if exp == nil {
+		return
+	}
+
+	names := make([]string, 0, len(exp.Assignments))
+	for name := range exp.Assignments {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		variant := exp.Assignments[name]
+		line := fmt.Sprintf("  • %s = %s", name, variant)
+		if counts, ok := exp.CumulativeCounts[name]; ok && len(counts) > 0 {
+			variants := make([]string, 0, len(counts))
+			for v := range counts {
+				variants = append(variants, v)
+			}
+			sort.Strings(variants)
+			parts := make([]string, 0, len(variants))
+			for _, v := range variants {
+				parts = append(parts, fmt.Sprintf("%s:%d", v, counts[v]))
+			}
+			line += fmt.Sprintf(" (cumulative: %s)", strings.Join(parts, ", "))
+		}
+		fmt.Fprintln(os.Stderr, line)
+	}
 	fmt.Fprintln(os.Stderr)
 }
 

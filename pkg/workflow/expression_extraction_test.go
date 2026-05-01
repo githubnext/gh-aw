@@ -56,6 +56,12 @@ func TestExpressionExtractor_ExtractExpressions(t *testing.T) {
 			wantExpressions: []string{"steps.sanitized.outputs.text"},
 		},
 		{
+			name:            "experiments.name gets transformed to step output",
+			markdown:        "Value: ${{ experiments.caveman }}",
+			wantCount:       1,
+			wantExpressions: []string{"steps.pick-experiment.outputs.caveman"},
+		},
+		{
 			name:            "expression with whitespace",
 			markdown:        "Value: ${{  github.actor  }}",
 			wantCount:       1,

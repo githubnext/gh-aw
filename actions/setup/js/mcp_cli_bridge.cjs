@@ -433,15 +433,87 @@ function parseBridgeArgs(argv) {
 }
 
 /**
+ * Check whether any of the user args use '-' as a stdin placeholder value.
+ * Recognizes both '--key -' and '--key=-' forms.
+ *
+ * @param {string[]} args - User arguments after the tool name
+ * @returns {boolean}
+ */
+function hasStdinPlaceholder(args) {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (typeof arg !== "string" || !arg.startsWith("--")) continue;
+    const raw = arg.slice(2);
+    const eqIdx = raw.indexOf("=");
+    if (eqIdx >= 0) {
+      // --key=value form: check if value is '-'
+      if (raw.slice(eqIdx + 1) === "-") return true;
+    } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+      // --key value form: check if value is '-'
+      if (args[i + 1] === "-") return true;
+      i++; // skip value so we don't misidentify it as a flag
+    }
+  }
+  return false;
+}
+
+/** Maximum bytes accepted from stdin to prevent memory exhaustion (10 MB) */
+const STDIN_MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Read all of stdin synchronously and return the content as a string.
+ * Uses low-level fs.readSync on fd 0 so it works in both TTY and piped contexts.
+ * Throws an error if stdin exceeds STDIN_MAX_BYTES or if a read error occurs
+ * after bytes have already been collected (to prevent silently returning partial content).
+ * Returns an empty string if stdin is empty or if an error occurs before any bytes are read.
+ *
+ * @returns {string}
+ */
+function readStdinSync() {
+  const STDIN_FD = 0;
+  /** @type {Buffer[]} */
+  const chunks = [];
+  const bufSize = 65536;
+  let totalBytes = 0;
+  while (true) {
+    const buf = Buffer.alloc(bufSize);
+    let bytesRead;
+    try {
+      bytesRead = fs.readSync(STDIN_FD, buf, 0, bufSize, null);
+    } catch (err) {
+      // If we have already read some bytes, rethrow so the caller doesn't
+      // unknowingly use partial content. An error before any data is read
+      // (e.g. stdin is not connected) is treated as empty input.
+      if (totalBytes > 0) {
+        throw err;
+      }
+      return "";
+    }
+    if (bytesRead === 0) break;
+    totalBytes += bytesRead;
+    if (totalBytes > STDIN_MAX_BYTES) {
+      throw new Error(`stdin input exceeds maximum allowed size of ${STDIN_MAX_BYTES} bytes`);
+    }
+    chunks.push(buf.slice(0, bytesRead));
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+/**
  * Parse user-provided --key value pairs into a tool arguments object.
  * Supports both --key value and --key=value styles.
  * Boolean flags (--key without a value) are set to true.
  *
+ * When `stdinContent` is provided and a value is exactly '-', the stdin
+ * content is substituted in place of that value. This allows multiline
+ * strings to be piped safely: `printf 'line1\nline2' | cmd --body -`
+ *
  * @param {string[]} args - User arguments after the tool name
  * @param {Record<string, {type?: string|string[]}>} [schemaProperties] - Tool input schema properties
+ * @param {string | null} [stdinContent] - Pre-read stdin content; substituted when value is '-'
  * @returns {{args: Record<string, unknown>, json: boolean}}
  */
-function parseToolArgs(args, schemaProperties = {}) {
+function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
   /** @type {Record<string, unknown>} */
   const result = {};
   let jsonOutput = false;
@@ -459,13 +531,17 @@ function parseToolArgs(args, schemaProperties = {}) {
           jsonOutput = true;
         } else {
           const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
-          result[canonicalKey] = coerceToolArgValue(canonicalKey, raw.slice(eqIdx + 1), schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
+          const rawValue = raw.slice(eqIdx + 1);
+          const effectiveValue = rawValue === "-" && stdinContent !== null ? stdinContent : rawValue;
+          result[canonicalKey] = coerceToolArgValue(canonicalKey, effectiveValue, schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
         }
       } else if (raw === "json") {
         jsonOutput = true;
       } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
         const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
-        result[canonicalKey] = coerceToolArgValue(canonicalKey, args[i + 1], schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
+        const rawValue = args[i + 1];
+        const effectiveValue = rawValue === "-" && stdinContent !== null ? stdinContent : rawValue;
+        result[canonicalKey] = coerceToolArgValue(canonicalKey, effectiveValue, schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
         i++;
       } else {
         const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
@@ -965,7 +1041,12 @@ async function main() {
   // Route: <command> [--param value ...] → call tool via MCP
   const matchedTool = tools.find(tool => tool && typeof tool === "object" && tool.name === toolName);
   const schemaProperties = matchedTool && matchedTool.inputSchema && matchedTool.inputSchema.properties ? matchedTool.inputSchema.properties : {};
-  const { args: toolArgs, json: jsonOutput } = parseToolArgs(toolUserArgs, schemaProperties);
+
+  // Pre-read stdin once when any argument uses '-' as a stdin placeholder.
+  // This avoids shell escaping issues with multiline strings:
+  //   printf 'line1\nline2' | safeoutputs add_comment --body -
+  const stdinContent = hasStdinPlaceholder(toolUserArgs) ? readStdinSync() : null;
+  const { args: toolArgs, json: jsonOutput } = parseToolArgs(toolUserArgs, schemaProperties, stdinContent);
 
   core.info(`[${serverName}] Calling tool '${toolName}' with args: ${JSON.stringify(toolArgs)}${jsonOutput ? " (--json)" : ""}`);
   auditLog(serverName, { event: "call_start", tool: toolName, arguments: toolArgs });
@@ -1023,5 +1104,7 @@ module.exports = {
   extractJSONRPCMessages,
   renderProgressMessages,
   formatResponse,
+  hasStdinPlaceholder,
+  readStdinSync,
   main,
 };

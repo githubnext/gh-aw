@@ -137,11 +137,9 @@ For commands with > 500 lines, split into focused files:
 - `command_name_orchestrator.go` - Main orchestration
 
 **Example**: Compile command split into multiple files:
-- `compile_command.go` - Command definition (minimal)
 - `compile_config.go` - Configuration types
-- `compile_helpers.go` - Utility functions
 - `compile_validation.go` - Validation logic
-- `compile_orchestrator.go` - Main orchestration
+- `compile_orchestrator.go` - Main orchestration (entry point)
 
 ---
 
@@ -164,7 +162,7 @@ Format: `cli:command_name`
 ```go
 // ✅ CORRECT
 var auditLog = logger.New("cli:audit")
-var compileLog = logger.New("cli:compile_command")
+var compileLog = logger.New("cli:compile_orchestrator")
 var statusLog = logger.New("cli:status_command")
 
 // ❌ INCORRECT
@@ -723,10 +721,9 @@ if err != nil {
 
 ```go
 // ❌ INCORRECT - Single file with 2000+ lines
-compile_command.go  // 2000 lines
+compile_orchestrator.go  // 2000 lines
 
 // ✅ CORRECT - Split into focused files
-compile_command.go      // Command definition (50 lines)
 compile_config.go       // Configuration (100 lines)
 compile_validation.go   // Validation (300 lines)
 compile_orchestrator.go // Main logic (500 lines)
@@ -741,7 +738,7 @@ var logger = logger.New("compile")
 
 // ✅ CORRECT
 var auditLog = logger.New("cli:audit")
-var compileLog = logger.New("cli:compile_command")
+var compileLog = logger.New("cli:compile_orchestrator")
 ```
 
 #### 6. Don't Skip Input Validation

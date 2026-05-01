@@ -79,6 +79,16 @@ func getEngineEnvOverrides(workflowData *WorkflowData) map[string]string {
 	return workflowData.EngineConfig.Env
 }
 
+// engineEnvHasKey reports whether the given env var key is present in the engine.env map.
+// Returns false if workflowData or EngineConfig is nil, or if the key is not in the map.
+func engineEnvHasKey(workflowData *WorkflowData, key string) bool {
+	if workflowData == nil || workflowData.EngineConfig == nil {
+		return false
+	}
+	_, ok := workflowData.EngineConfig.Env[key]
+	return ok
+}
+
 // GetBaseInstallationSteps returns the common installation steps for an engine.
 // This includes npm package installation steps shared across all engines.
 // Secret validation is now handled in the activation job via GetSecretValidationStep.

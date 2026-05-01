@@ -130,6 +130,40 @@ func TestCopilotEngineHasSecretValidation(t *testing.T) {
 	}
 }
 
+func TestCopilotEngineSkipsSecretValidationWhenBYOKProviderAPIKeySet(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			Env: map[string]string{
+				"COPILOT_PROVIDER_BASE_URL": "${{ secrets.PROVIDER_BASE_URL }}",
+				"COPILOT_PROVIDER_API_KEY":  "${{ secrets.PROVIDER_API_KEY }}",
+			},
+		},
+	}
+
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) != 0 {
+		t.Errorf("Expected empty validation step when BYOK COPILOT_PROVIDER_API_KEY is set, got:\n%s", strings.Join(step, "\n"))
+	}
+}
+
+func TestCopilotEngineSkipsSecretValidationWhenBYOKBearerTokenSet(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			Env: map[string]string{
+				"COPILOT_PROVIDER_BASE_URL":     "${{ secrets.PROVIDER_BASE_URL }}",
+				"COPILOT_PROVIDER_BEARER_TOKEN": "${{ secrets.PROVIDER_BEARER_TOKEN }}",
+			},
+		},
+	}
+
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) != 0 {
+		t.Errorf("Expected empty validation step when BYOK COPILOT_PROVIDER_BEARER_TOKEN is set, got:\n%s", strings.Join(step, "\n"))
+	}
+}
+
 func TestCodexEngineHasSecretValidation(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{}

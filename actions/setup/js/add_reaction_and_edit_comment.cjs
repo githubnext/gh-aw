@@ -185,7 +185,7 @@ async function main() {
  * @param {string} reaction - The reaction type to add
  */
 async function addReaction(endpoint, reaction) {
-  const response = await github.request("POST " + endpoint, {
+  const response = await github.request(`POST ${endpoint}`, {
     content: reaction,
     headers: {
       Accept: "application/vnd.github+json",
@@ -193,13 +193,8 @@ async function addReaction(endpoint, reaction) {
   });
 
   const reactionId = response.data?.id;
-  if (reactionId) {
-    core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-    core.setOutput("reaction-id", reactionId.toString());
-  } else {
-    core.info(`Successfully added reaction: ${reaction}`);
-    core.setOutput("reaction-id", "");
-  }
+  core.info(`Successfully added reaction: ${reaction}${reactionId ? ` (id: ${reactionId})` : ""}`);
+  core.setOutput("reaction-id", reactionId?.toString() ?? "");
 }
 
 /**
@@ -369,7 +364,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
     }
 
     // Create a new comment for non-discussion events
-    const createResponse = await github.request("POST " + endpoint, {
+    const createResponse = await github.request(`POST ${endpoint}`, {
       body: commentBody,
       headers: {
         Accept: "application/vnd.github+json",
@@ -380,7 +375,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
   } catch (error) {
     // Don't fail the entire job if comment creation fails - just log it
     const errorMessage = getErrorMessage(error);
-    core.warning("Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage);
+    core.warning(`Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): ${errorMessage}`);
   }
 }
 

@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/goccy/go-yaml"
 )
@@ -181,21 +179,13 @@ func (c *Compiler) getCustomJobsReferencedInPromptWithNoActivationDep(data *Work
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	compilerJobsLog.Printf("Building jobs for workflow: %s", markdownPath)
 
-	// Try to read frontmatter to determine event types for safe events check.
-	// Use contentOverride first (set by ParseWorkflowString for wasm/string API mode),
-	// then fall back to reading from disk.
-	var frontmatter map[string]any
-	var rawContent string
-	if c.contentOverride != "" {
-		rawContent = c.contentOverride
-	} else if diskContent, err := os.ReadFile(markdownPath); err == nil {
-		rawContent = string(diskContent)
-	}
-	if rawContent != "" {
-		if result, err := parser.ExtractFrontmatterFromContent(rawContent); err == nil {
-			frontmatter = result.Frontmatter
-		}
-	}
+	// Use the already-parsed frontmatter from WorkflowData (populated by ParseWorkflowFile /
+	// ParseWorkflowString) instead of re-reading and re-parsing the file on every compilation.
+	// Note: RawFrontmatter has already been through preprocessScheduleFields, so shorthand
+	// triggers (e.g. "on: daily") are already expanded into their structured form.
+	// The consumers (needsRoleCheck, hasWorkflowRunTrigger) only inspect event keys in the
+	// "on" field, which is exactly what we need here.
+	frontmatter := data.RawFrontmatter
 
 	// Extract lock filename for timestamp check
 	lockFilename := filepath.Base(stringutil.MarkdownToLockFile(markdownPath))

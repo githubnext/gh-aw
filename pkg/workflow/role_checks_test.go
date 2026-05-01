@@ -269,3 +269,250 @@ func TestInferEventsFromTriggers(t *testing.T) {
 		})
 	}
 }
+
+// TestCommentAuthorAssociationConditionInPreActivation verifies that the compiler adds
+// an explicit author_association guard to the pre_activation job's if: condition when the
+// workflow is triggered by issue_comment or pull_request_review_comment events and permission
+// checks are enabled (i.e. roles is NOT set to "all").  This addresses the RGS-004 static
+// analysis finding.
+func TestCommentAuthorAssociationConditionInPreActivation(t *testing.T) {
+	tests := []struct {
+		name           string
+		frontmatter    string
+		wantAssocCheck bool
+		wantBotNames   []string // bot actor logins expected in the pre_activation if: condition
+	}{
+		{
+			name: "issue_comment trigger with default roles gets author_association check",
+			frontmatter: `---
+on:
+  issue_comment:
+    types: [created]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: true,
+		},
+		{
+			name: "slash_command trigger compiles to issue_comment and gets check",
+			frontmatter: `---
+on:
+  slash_command:
+    name: test
+    events: [issue_comment]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: true,
+		},
+		{
+			name: "pull_request_review_comment trigger gets author_association check",
+			frontmatter: `---
+on:
+  pull_request_review_comment:
+    types: [created]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: true,
+		},
+		{
+			name: "issue_comment trigger with roles:all does NOT get author_association check",
+			frontmatter: `---
+on:
+  roles: all
+  issue_comment:
+    types: [created]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: false,
+		},
+		{
+			name: "push trigger only does NOT get author_association check",
+			frontmatter: `---
+on:
+  push:
+    branches: [main]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: false,
+		},
+		{
+			name: "workflow_dispatch-only trigger does NOT get author_association check",
+			frontmatter: `---
+on:
+  workflow_dispatch:
+  roles: [write]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: false,
+		},
+		{
+			name: "issue_comment trigger with on.bots allows bot actor in pre_activation if",
+			frontmatter: `---
+on:
+  issue_comment:
+    types: [created]
+  bots:
+    - dependabot[bot]
+    - renovate[bot]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: true,
+			wantBotNames:   []string{"dependabot[bot]", "renovate[bot]"},
+		},
+		{
+			name: "issue_comment trigger with expression bot disables static guard so runtime check always runs",
+			frontmatter: `---
+on:
+  issue_comment:
+    types: [created]
+  bots:
+    - ${{ vars.TRUSTED_BOT }}
+engine: copilot
+---
+
+Test workflow
+`,
+			// The static guard must be absent; check_membership handles the bot at runtime.
+			wantAssocCheck: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "comment-auth-test")
+			compiler := NewCompiler()
+
+			workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+			err := os.WriteFile(workflowPath, []byte(tt.frontmatter), 0644)
+			if err != nil {
+				t.Fatalf("Failed to write workflow file: %v", err)
+			}
+
+			err = compiler.CompileWorkflow(workflowPath)
+			if err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			outputPath := filepath.Join(tmpDir, "test-workflow.lock.yml")
+			compiledContent, err := os.ReadFile(outputPath)
+			if err != nil {
+				t.Fatalf("Failed to read compiled workflow: %v", err)
+			}
+
+			compiledStr := string(compiledContent)
+
+			// Extract the pre_activation job section so we check only the job-level if:,
+			// not unrelated occurrences in other jobs or comments.
+			preActivationSection := extractJobSection(compiledStr, "pre_activation")
+
+			// When there is no pre_activation job (e.g. roles:all or workflow_dispatch-only),
+			// the author_association guard is clearly absent — handle both outcomes here.
+			if preActivationSection == "" {
+				if tt.wantAssocCheck {
+					t.Errorf("Expected pre_activation job section to be present and contain author_association check, but the section was not found")
+				}
+				// wantAssocCheck == false and no pre_activation section → test passes.
+				return
+			}
+
+			// Look for the author_association guard within the pre_activation job section.
+			// The job-level if: may be rendered as a block scalar (if: >\n  <expression>),
+			// so we check the whole section rather than a single line. Any occurrence of
+			// author_association in this section comes from the job-level if: expression.
+			hasCheck := strings.Contains(preActivationSection, "author_association")
+			if tt.wantAssocCheck && !hasCheck {
+				t.Errorf("Expected pre_activation job if: to contain author_association check, but it was absent.\nFull pre_activation section:\n%s", preActivationSection)
+			}
+			if !tt.wantAssocCheck && hasCheck {
+				t.Errorf("Expected pre_activation job if: to NOT contain author_association check, but it was present.\nFull pre_activation section:\n%s", preActivationSection)
+			}
+
+			// For the bot test case, also verify bot actor exemptions appear in the job if:.
+			for _, botName := range tt.wantBotNames {
+				if !strings.Contains(preActivationSection, botName) {
+					t.Errorf("Expected pre_activation job if: to contain bot actor exemption for %q, but it was absent.\nFull pre_activation section:\n%s", botName, preActivationSection)
+				}
+			}
+		})
+	}
+}
+
+// TestCommentAuthorAssociationImportedExpressionBot verifies that when a shared agentic workflow
+// contributes an expression-based bot (e.g. "${{ vars.TRUSTED_BOT }}") via imports, the static
+// author_association guard is disabled and check_membership is always reached at runtime.
+func TestCommentAuthorAssociationImportedExpressionBot(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "comment-auth-import-test")
+	compiler := NewCompiler()
+
+	// Shared agentic workflow: no on: field, but defines a bot with a GHA expression.
+	sharedContent := `---
+bots:
+  - "${{ vars.TRUSTED_BOT }}"
+---
+`
+	sharedPath := filepath.Join(tmpDir, "shared-bots.md")
+	err := os.WriteFile(sharedPath, []byte(sharedContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write shared workflow file: %v", err)
+	}
+
+	// Main workflow imports the shared workflow; its own on: has issue_comment.
+	mainContent := `---
+on:
+  issue_comment:
+    types: [created]
+engine: copilot
+imports:
+  - shared-bots.md
+---
+
+Test workflow
+`
+	mainPath := filepath.Join(tmpDir, "main-workflow.md")
+	err = os.WriteFile(mainPath, []byte(mainContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write main workflow file: %v", err)
+	}
+
+	err = compiler.CompileWorkflow(mainPath)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockPath := filepath.Join(tmpDir, "main-workflow.lock.yml")
+	compiled, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	preActivationSection := extractJobSection(string(compiled), "pre_activation")
+	if preActivationSection == "" {
+		t.Fatal("Expected pre_activation job section to be present")
+	}
+
+	// The static guard must be absent: the expression bot cannot be evaluated at compile time,
+	// so check_membership must always run to handle authorization at runtime.
+	if strings.Contains(preActivationSection, "author_association") {
+		t.Errorf("Expected pre_activation job if: to NOT contain author_association check (expression bot from import), but it was present.\nFull pre_activation section:\n%s", preActivationSection)
+	}
+}

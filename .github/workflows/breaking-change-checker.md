@@ -12,6 +12,7 @@ tracker-id: breaking-change-checker
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [repos]
   bash:
     - "git diff:*"

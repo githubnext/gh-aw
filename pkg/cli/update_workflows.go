@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
@@ -17,8 +18,8 @@ import (
 )
 
 // UpdateWorkflows updates workflows from their source repositories
-func UpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool, noRedirect bool) error {
-	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, noMerge=%v, noCompile=%v, noRedirect=%v", workflowsDir, workflowNames, noMerge, noCompile, noRedirect)
+func UpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool, noRedirect bool, coolDown time.Duration) error {
+	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, noMerge=%v, noCompile=%v, noRedirect=%v, coolDown=%v", workflowsDir, workflowNames, noMerge, noCompile, noRedirect, coolDown)
 
 	// Use provided workflows directory or default
 	if workflowsDir == "" {
@@ -50,7 +51,7 @@ func UpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, fo
 	// Update each workflow
 	for _, wf := range workflows {
 		updateLog.Printf("Updating workflow: %s (source: %s)", wf.Name, wf.SourceSpec)
-		if err := updateWorkflow(ctx, wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter, noMerge, noCompile, noRedirect); err != nil {
+		if err := updateWorkflow(ctx, wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter, noMerge, noCompile, noRedirect, coolDown); err != nil {
 			updateLog.Printf("Failed to update workflow %s: %v", wf.Name, err)
 			failedUpdates = append(failedUpdates, updateFailure{
 				Name:  wf.Name,
@@ -177,7 +178,7 @@ func findWorkflowsWithSource(workflowsDir string, filterNames []string, verbose 
 }
 
 // resolveLatestRef resolves the latest ref for a workflow source
-func resolveLatestRef(ctx context.Context, repo, currentRef string, allowMajor, verbose bool) (string, error) {
+func resolveLatestRef(ctx context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error) {
 	updateLog.Printf("Resolving latest ref: repo=%s, currentRef=%s, allowMajor=%v", repo, currentRef, allowMajor)
 
 	if verbose {
@@ -187,7 +188,7 @@ func resolveLatestRef(ctx context.Context, repo, currentRef string, allowMajor, 
 	// Check if current ref is a tag (looks like a semantic version)
 	if isSemanticVersionTag(currentRef) {
 		updateLog.Print("Current ref is semantic version tag, resolving latest release")
-		return resolveLatestRelease(ctx, repo, currentRef, allowMajor, verbose)
+		return resolveLatestRelease(ctx, repo, currentRef, allowMajor, verbose, coolDown)
 	}
 
 	// Check if current ref is a commit SHA (40-character hex string)
@@ -284,7 +285,7 @@ var runWorkflowReleasesAPIFn = func(ctx context.Context, repo string) ([]byte, e
 }
 
 // resolveLatestRelease resolves the latest compatible release for a workflow source
-func resolveLatestRelease(ctx context.Context, repo, currentRef string, allowMajor, verbose bool) (string, error) {
+func resolveLatestRelease(ctx context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error) {
 	updateLog.Printf("Resolving latest release for repo %s (current: %s, allowMajor=%v)", repo, currentRef, allowMajor)
 
 	if verbose {
@@ -360,6 +361,17 @@ func resolveLatestRelease(ctx context.Context, repo, currentRef string, allowMaj
 		return "", errors.New("no compatible release found")
 	}
 
+	// Apply cooldown: if the latest release is newer than the current and the repo is not
+	// exempt from cooldown, check whether the release is recent enough to be held back.
+	if latestCompatible != currentRef && !isExemptFromCoolDown(repo) {
+		if result := checkReleaseCoolDown(ctx, repo, latestCompatible, coolDown); result.InCoolDown {
+			cooldownLog.Printf("Workflow source %s: %s", repo, result.Message)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", repo, result.Message)))
+			// Return the current ref — no update until cooldown expires.
+			return currentRef, nil
+		}
+	}
+
 	if verbose && latestCompatible != currentRef {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found newer release: "+latestCompatible))
 	}
@@ -368,7 +380,7 @@ func resolveLatestRelease(ctx context.Context, repo, currentRef string, allowMaj
 }
 
 // updateWorkflow updates a single workflow from its source
-func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool, noRedirect bool) error {
+func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool, noRedirect bool, coolDown time.Duration) error {
 	updateLog.Printf("Updating workflow: name=%s, source=%s, force=%v, noMerge=%v", wf.Name, wf.SourceSpec, force, noMerge)
 
 	if verbose {
@@ -384,7 +396,7 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, for
 		return fmt.Errorf("failed to parse source spec: %w", err)
 	}
 
-	resolvedLocation, err := resolveRedirectedUpdateLocation(ctx, wf.Name, initialSourceSpec, allowMajor, verbose, noRedirect)
+	resolvedLocation, err := resolveRedirectedUpdateLocation(ctx, wf.Name, initialSourceSpec, allowMajor, verbose, noRedirect, coolDown)
 	if err != nil {
 		return err
 	}

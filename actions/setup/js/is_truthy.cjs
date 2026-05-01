@@ -6,7 +6,7 @@
  */
 function isTruthy(expr) {
   const v = expr.trim().toLowerCase();
-  return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
+  return !(v === "" || v === "false" || v === "no" || v === "0" || v === "null" || v === "undefined");
 }
 
 module.exports = { isTruthy };

@@ -42,6 +42,7 @@ tools:
   bash: true
   edit:
   github:
+    mode: gh-proxy
     toolsets: [default, issues]
 safe-outputs:
   create-issue:

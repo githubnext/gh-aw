@@ -30,7 +30,7 @@ func NewLogsCommand() *cobra.Command {
 	logsCmd := &cobra.Command{
 		Use:   "logs [workflow]",
 		Short: "Download and analyze agentic workflow logs with aggregated metrics",
-		Long: `Download workflow run logs and artifacts from GitHub Actions for agentic workflows.
+		Long: `Download and analyze agentic workflow logs and artifacts from GitHub Actions.
 
 This command fetches workflow runs, downloads their artifacts, and extracts them into
 organized folders named by run ID. It also provides an overview table with aggregate
@@ -271,7 +271,7 @@ Examples:
 	logsCmd.Flags().String("format", "", "Output format for cross-run audit report: pretty, markdown (generates security audit report instead of default metrics table)")
 	logsCmd.Flags().Int("last", 0, "Alias for --count: number of recent runs to download")
 	logsCmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
-	logsCmd.Flags().String("after", "", "(Cache eviction) Delete locally cached run folders older than this cutoff date, before downloading. Use deltas like -1w or -1mo, or an absolute date YYYY-MM-DD. Note: this evicts old cache entries; it does not filter which runs are downloaded.")
+	logsCmd.Flags().String("after", "", "(Cache eviction) Evict locally cached run folders for runs before this date, prior to downloading. Accepts deltas like -1w, -1mo, or an absolute date YYYY-MM-DD. Unlike --start-date, this only clears local cache and does not filter which runs are fetched.")
 	logsCmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of discovering runs via the GitHub API")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 

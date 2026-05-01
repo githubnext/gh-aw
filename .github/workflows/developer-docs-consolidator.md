@@ -36,6 +36,7 @@ tools:
     wiki: true
     description: "Consolidated developer documentation and instructions"
   github:
+    mode: gh-proxy
     toolsets: [default]
   edit:
   bash:

@@ -24,10 +24,19 @@ import (
 var copilotInstallLog = logger.New("workflow:copilot_engine_installation")
 
 // GetSecretValidationStep returns the secret validation step for the Copilot engine.
-// Returns an empty step if copilot-requests feature is enabled or custom command is specified.
+// Returns an empty step if:
+//   - copilot-requests feature is enabled (uses GitHub Actions token instead), or
+//   - COPILOT_PROVIDER_API_KEY or COPILOT_PROVIDER_BEARER_TOKEN is set in engine.env
+//     (BYOK mode — the external provider handles authentication, so COPILOT_GITHUB_TOKEN
+//     is not required for model routing).
 func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
 	if isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData) {
 		copilotInstallLog.Print("Skipping secret validation step: copilot-requests feature enabled, using GitHub Actions token")
+		return GitHubActionStep{}
+	}
+	if engineEnvHasKey(workflowData, constants.CopilotProviderAPIKey) ||
+		engineEnvHasKey(workflowData, constants.CopilotProviderBearerToken) {
+		copilotInstallLog.Print("Skipping COPILOT_GITHUB_TOKEN validation: BYOK provider credentials are configured")
 		return GitHubActionStep{}
 	}
 	return BuildDefaultSecretValidationStep(

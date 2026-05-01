@@ -32,9 +32,11 @@ imports:
   - shared/mcp/markitdown.md
   - shared/jqschema.md
 tools:
+  cli-proxy: true
   edit:
   cache-memory: true
   github:
+    mode: gh-proxy
     allowed-repos: all
     min-integrity: none
 safe-outputs:

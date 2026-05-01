@@ -325,3 +325,84 @@ Create an issue.
 		})
 	}
 }
+
+// TestDetectionJobDownloadsExperimentArtifact verifies that when experiments are declared,
+// the detection job includes a step to download the experiment artifact.
+func TestDetectionJobDownloadsExperimentArtifact(t *testing.T) {
+	tests := []struct {
+		name                   string
+		frontmatter            string
+		wantExperimentDownload bool
+	}{
+		{
+			name: "experiments declared — detection job downloads experiment artifact",
+			frontmatter: `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+experiments:
+  caveman: [yes, no]
+safe-outputs:
+  create-issue:
+---
+
+# Test
+
+Create an issue.
+`,
+			wantExperimentDownload: true,
+		},
+		{
+			name: "no experiments — detection job does not download experiment artifact",
+			frontmatter: `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  create-issue:
+---
+
+# Test
+
+Create an issue.
+`,
+			wantExperimentDownload: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "test-*")
+			workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+
+			if err := os.WriteFile(workflowPath, []byte(tt.frontmatter), 0644); err != nil {
+				t.Fatalf("Failed to write workflow file: %v", err)
+			}
+
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(workflowPath); err != nil {
+				t.Fatalf("Failed to compile: %v", err)
+			}
+
+			lockPath := stringutil.MarkdownToLockFile(workflowPath)
+			yamlBytes, err := os.ReadFile(lockPath)
+			if err != nil {
+				t.Fatalf("Failed to read compiled YAML: %v", err)
+			}
+			detectionSection := extractJobSection(string(yamlBytes), "detection")
+			if detectionSection == "" {
+				t.Fatal("Detection job not found in compiled YAML")
+			}
+
+			hasDownload := strings.Contains(detectionSection, "Download experiment artifact")
+			if tt.wantExperimentDownload && !hasDownload {
+				t.Error("Expected detection job to download experiment artifact when experiments are declared")
+			}
+			if !tt.wantExperimentDownload && hasDownload {
+				t.Error("Expected detection job NOT to download experiment artifact when no experiments are declared")
+			}
+		})
+	}
+}

@@ -20,6 +20,7 @@ network:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, actions]
   repo-memory:
     branch-name: memory/copilot-cli-research

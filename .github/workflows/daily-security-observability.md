@@ -49,6 +49,7 @@ tools:
   cli-proxy: true
   agentic-workflows:
   github:
+    mode: gh-proxy
     toolsets:
       - all
   bash:

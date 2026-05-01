@@ -32,6 +32,7 @@ tools:
     file-glob: ["*.json", "*.txt"]
     max-file-size: 51200  # 50KB
   github:
+    mode: gh-proxy
     toolsets: [default]
   bash:
     - "find . -name '*_test.go' -type f"

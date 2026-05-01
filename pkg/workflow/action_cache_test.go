@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/github/gh-aw/pkg/testutil"
 )
@@ -804,5 +805,79 @@ func TestPruneStaleGHAWEntriesNoOp(t *testing.T) {
 	cache.PruneStaleGHAWEntries("v0.67.3-dirty", "github/gh-aw-actions")
 	if len(cache.Entries) != 2 {
 		t.Errorf("Expected 2 entries (no pruning for dirty release build), got %d", len(cache.Entries))
+	}
+}
+
+// TestActionCacheReleasedAt verifies that GetReleasedAt / SetReleasedAt
+// round-trip correctly and are preserved across a Save/Load cycle.
+func TestActionCacheReleasedAt(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+	cache.Set("owner/action", "v1", "sha1234567890123456789012345678901234567890")
+
+	// No date cached yet
+	_, ok := cache.GetReleasedAt("owner/action", "v1")
+	if ok {
+		t.Error("Expected no release date before SetReleasedAt")
+	}
+
+	// Store a date
+	ts := time.Date(2024, 3, 15, 12, 0, 0, 0, time.UTC)
+	cache.SetReleasedAt("owner/action", "v1", ts)
+
+	got, ok := cache.GetReleasedAt("owner/action", "v1")
+	if !ok {
+		t.Fatal("Expected release date after SetReleasedAt")
+	}
+	if !got.Equal(ts) {
+		t.Errorf("GetReleasedAt() = %v, want %v", got, ts)
+	}
+
+	// Persist to disk and reload
+	if err := cache.Save(); err != nil {
+		t.Fatalf("Failed to save: %v", err)
+	}
+	cache2 := NewActionCache(tmpDir)
+	if err := cache2.Load(); err != nil {
+		t.Fatalf("Failed to load: %v", err)
+	}
+	got2, ok2 := cache2.GetReleasedAt("owner/action", "v1")
+	if !ok2 {
+		t.Fatal("Expected release date to survive save/load")
+	}
+	if !got2.Equal(ts) {
+		t.Errorf("After reload: GetReleasedAt() = %v, want %v", got2, ts)
+	}
+}
+
+// TestActionCacheReleasedAtPreservedOnSHAMatch verifies that ReleasedAt is
+// preserved by Set when the SHA does not change.
+func TestActionCacheReleasedAtPreservedOnSHAMatch(t *testing.T) {
+	cache := NewActionCache(t.TempDir())
+	ts := time.Date(2024, 5, 1, 0, 0, 0, 0, time.UTC)
+	cache.Set("owner/action", "v2", "samesha1234567890123456789012345678901234")
+	cache.SetReleasedAt("owner/action", "v2", ts)
+
+	// Set again with the same SHA — ReleasedAt must be preserved.
+	cache.Set("owner/action", "v2", "samesha1234567890123456789012345678901234")
+	got, ok := cache.GetReleasedAt("owner/action", "v2")
+	if !ok || !got.Equal(ts) {
+		t.Errorf("ReleasedAt should be preserved when SHA unchanged; got %v, ok=%v", got, ok)
+	}
+}
+
+// TestActionCacheReleasedAtClearedOnSHAChange verifies that ReleasedAt is
+// cleared by Set when the SHA changes (stale date no longer valid).
+func TestActionCacheReleasedAtClearedOnSHAChange(t *testing.T) {
+	cache := NewActionCache(t.TempDir())
+	ts := time.Date(2024, 5, 1, 0, 0, 0, 0, time.UTC)
+	cache.Set("owner/action", "v2", "oldsha1234567890123456789012345678901234a")
+	cache.SetReleasedAt("owner/action", "v2", ts)
+
+	// Set with a different SHA — ReleasedAt must be cleared.
+	cache.Set("owner/action", "v2", "newsha1234567890123456789012345678901234b")
+	_, ok := cache.GetReleasedAt("owner/action", "v2")
+	if ok {
+		t.Error("ReleasedAt should be cleared when SHA changes")
 	}
 }

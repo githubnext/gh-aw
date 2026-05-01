@@ -61,9 +61,13 @@ func (c *Compiler) validateNetworkAllowedDomains(network *NetworkPermissions) er
 		return nil
 	}
 
-	networkFirewallValidationLog.Printf("Validating %d network allowed domains", len(network.Allowed))
+	if networkFirewallValidationLog.Enabled() {
+		networkFirewallValidationLog.Printf("Validating %d network allowed domains", len(network.Allowed))
+	}
 
-	collector := NewErrorCollector(c.failFast)
+	// collector is lazily initialized on the first validation error to avoid a heap
+	// allocation on the common path where all domains are valid.
+	var collector *ErrorCollector
 
 	for i, domain := range network.Allowed {
 		// "*" means allow all traffic - skip validation
@@ -76,17 +80,24 @@ func (c *Compiler) validateNetworkAllowedDomains(network *NetworkPermissions) er
 		if isEcosystemIdentifier(domain) {
 			// Validate it's a known ecosystem identifier using a direct map lookup to avoid allocations
 			if isKnownEcosystemIdentifier(domain) {
-				networkFirewallValidationLog.Printf("Skipping known ecosystem identifier: %s", domain)
+				if networkFirewallValidationLog.Enabled() {
+					networkFirewallValidationLog.Printf("Skipping known ecosystem identifier: %s", domain)
+				}
 				continue
 			}
 			// Unknown ecosystem identifier - error
-			networkFirewallValidationLog.Printf("Validation error: unknown ecosystem identifier: %s", domain)
+			if networkFirewallValidationLog.Enabled() {
+				networkFirewallValidationLog.Printf("Validation error: unknown ecosystem identifier: %s", domain)
+			}
 			wrappedErr := fmt.Errorf("network.allowed[%d]: %w", i, NewValidationError(
 				"network.allowed",
 				domain,
 				fmt.Sprintf("'%s' is not a valid ecosystem identifier", domain),
 				"Use a valid ecosystem identifier or a domain name containing a dot (e.g., 'example.com').\n\nValid ecosystem identifiers: "+strings.Join(getValidEcosystemIdentifiers(), ", "),
 			))
+			if collector == nil {
+				collector = NewErrorCollector(c.failFast)
+			}
 			if returnErr := collector.Add(wrappedErr); returnErr != nil {
 				return returnErr // Fail-fast mode
 			}
@@ -95,15 +106,22 @@ func (c *Compiler) validateNetworkAllowedDomains(network *NetworkPermissions) er
 
 		if err := validateDomainPattern(domain); err != nil {
 			wrappedErr := fmt.Errorf("network.allowed[%d]: %w", i, err)
+			if collector == nil {
+				collector = NewErrorCollector(c.failFast)
+			}
 			if returnErr := collector.Add(wrappedErr); returnErr != nil {
 				return returnErr // Fail-fast mode
 			}
 		}
 	}
 
-	if err := collector.Error(); err != nil {
-		networkFirewallValidationLog.Printf("Network allowed domains validation failed: %v", err)
-		return err
+	if collector != nil {
+		if err := collector.Error(); err != nil {
+			if networkFirewallValidationLog.Enabled() {
+				networkFirewallValidationLog.Printf("Network allowed domains validation failed: %v", err)
+			}
+			return err
+		}
 	}
 
 	networkFirewallValidationLog.Print("Network allowed domains validation passed")

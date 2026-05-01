@@ -36,7 +36,8 @@ func NewActionResolver(cache *ActionCache) *ActionResolver {
 func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 	resolverLog.Printf("Resolving SHA for action: %s@%s", repo, version)
 
-	// Create a cache key for tracking failed resolutions
+	// Create a cache key for tracking failed resolutions and cache lookups.
+	// Computed once here and reused below to avoid duplicate allocation.
 	cacheKey := formatActionCacheKey(repo, version)
 
 	// Check if we've already failed to resolve this action in this run
@@ -45,8 +46,8 @@ func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 		return "", fmt.Errorf("previously failed to resolve %s@%s in this compilation run", repo, version)
 	}
 
-	// Check cache first
-	if sha, found := r.cache.Get(repo, version); found {
+	// Check cache first using the pre-computed key to avoid a second key allocation.
+	if sha, found := r.cache.GetByCacheKey(cacheKey); found {
 		resolverLog.Printf("Cache hit for %s@%s: %s", repo, version, sha)
 		return sha, nil
 	}

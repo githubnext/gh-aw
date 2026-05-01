@@ -42,6 +42,7 @@ imports:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, repos]
   edit:
   bash:

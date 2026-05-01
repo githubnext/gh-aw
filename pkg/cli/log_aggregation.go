@@ -12,12 +12,19 @@ import (
 
 var logAggregationLog = logger.New("cli:log_aggregation")
 
-// LogAnalysis is an interface that both DomainAnalysis and FirewallAnalysis implement
+// LogAnalysis is a read-only interface for accessing domain analysis results.
+// Both DomainAnalysis and FirewallAnalysis implement this interface.
 type LogAnalysis interface {
 	// GetAllowedDomains returns the list of allowed domains
 	GetAllowedDomains() []string
 	// GetBlockedDomains returns the list of blocked domains
 	GetBlockedDomains() []string
+}
+
+// MutableLogAnalysis extends LogAnalysis with mutation methods for aggregation.
+// Use this interface when both reading and writing domain data is required.
+type MutableLogAnalysis interface {
+	LogAnalysis
 	// SetAllowedDomains sets the list of allowed domains
 	SetAllowedDomains(domains []string)
 	// SetBlockedDomains sets the list of blocked domains
@@ -27,11 +34,11 @@ type LogAnalysis interface {
 }
 
 // LogParser is a function type that parses a single log file
-type LogParser[T LogAnalysis] func(logPath string, verbose bool) (T, error)
+type LogParser[T MutableLogAnalysis] func(logPath string, verbose bool) (T, error)
 
 // aggregateLogFiles is a generic helper that aggregates multiple log files
 // It handles file discovery, parsing, domain deduplication, and sorting
-func aggregateLogFiles[T LogAnalysis](
+func aggregateLogFiles[T MutableLogAnalysis](
 	logsDir string,
 	globPattern string,
 	verbose bool,

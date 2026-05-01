@@ -108,7 +108,7 @@ For detailed help on any command, use:
 var newCmd = &cobra.Command{
 	Use:   "new [workflow]",
 	Short: "Create a new agentic workflow file with example configuration",
-	Long: `Create a new agentic workflow file with commented examples and explanations of all available options.
+	Long: `Create a new agentic workflow file with example configuration and explanations of all available options.
 
 When called without a workflow name (or with --interactive flag), launches an interactive wizard
 to guide you through creating a workflow with custom settings.
@@ -233,7 +233,7 @@ Examples:
 var compileCmd = &cobra.Command{
 	Use:   "compile [workflow]...",
 	Short: "Compile agentic workflow Markdown files into GitHub Actions YAML",
-	Long: `Compile one or more agentic workflows to YAML workflows.
+	Long: `Compile agentic workflow Markdown files into GitHub Actions YAML.
 
 If no workflows are specified, all Markdown files in .github/workflows will be compiled.
 
@@ -371,7 +371,7 @@ When called without workflow arguments, this command enters interactive mode and
 - Command display for future reference
 
 This command accepts one or more workflow IDs.
-The workflows must have been added as actions and compiled.
+The workflows must have been compiled into GitHub Actions YAML files.
 
 This command only works with workflows that have workflow_dispatch triggers.
 

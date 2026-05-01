@@ -13,6 +13,7 @@ tools:
   cli-proxy: true
   agentic-workflows:
   github:
+    mode: gh-proxy
     toolsets: [default, actions]
 timeout-minutes: 10
 imports:

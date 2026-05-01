@@ -31,6 +31,7 @@ describe("check_permissions_utils", () => {
   let parseAllowedBots;
   let canonicalizeBotIdentifier;
   let isAllowedBot;
+  let isConfusedDeputyAttack;
   let checkRepositoryPermission;
   let checkBotStatus;
   let originalEnv;
@@ -53,6 +54,7 @@ describe("check_permissions_utils", () => {
     isAllowedBot = module.isAllowedBot;
     checkRepositoryPermission = module.checkRepositoryPermission;
     checkBotStatus = module.checkBotStatus;
+    isConfusedDeputyAttack = module.isConfusedDeputyAttack;
   });
 
   afterEach(() => {
@@ -528,6 +530,169 @@ describe("check_permissions_utils", () => {
 
       expect(result).toEqual({ isBot: true, isActive: false, error: "API rate limit exceeded" });
       expect(mockCore.warning).toHaveBeenCalledWith("Failed to check bot status: API rate limit exceeded");
+    });
+  });
+
+  describe("isConfusedDeputyAttack", () => {
+    describe("pull_request events", () => {
+      it("should return false when actor matches PR author on synchronize (genuine dependabot PR)", () => {
+        const payload = { action: "synchronize", pull_request: { user: { login: "dependabot[bot]" } } };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request", payload)).toBe(false);
+      });
+
+      it("should return true when actor differs from PR author on synchronize (confused deputy via @dependabot recreate)", () => {
+        const payload = { action: "synchronize", pull_request: { user: { login: "attacker" } } };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request", payload)).toBe(true);
+      });
+
+      it("should return false when actor matches PR author for a human PR on synchronize", () => {
+        const payload = { action: "synchronize", pull_request: { user: { login: "octocat" } } };
+        expect(isConfusedDeputyAttack("octocat", "pull_request", payload)).toBe(false);
+      });
+
+      it("should return false when PR author is absent from payload on synchronize", () => {
+        const payload = { action: "synchronize", pull_request: {} };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request", payload)).toBe(false);
+      });
+
+      it("should return false when pull_request is absent from payload on synchronize", () => {
+        const payload = { action: "synchronize" };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request", payload)).toBe(false);
+      });
+
+      it("should return false for pull_request:labeled even if actor differs from PR author", () => {
+        // A team member can label a PR authored by someone else — NOT a confused deputy attack
+        const payload = { action: "labeled", pull_request: { user: { login: "pr-author" } } };
+        expect(isConfusedDeputyAttack("pelikhan", "pull_request", payload)).toBe(false);
+      });
+
+      it("should return false for pull_request:opened even if actor differs from PR author", () => {
+        // opened is not the synchronize attack vector — skip the check
+        const payload = { action: "opened", pull_request: { user: { login: "attacker" } } };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request", payload)).toBe(false);
+      });
+
+      it("should return false for pull_request:unlabeled even if actor differs from PR author", () => {
+        const payload = { action: "unlabeled", pull_request: { user: { login: "pr-author" } } };
+        expect(isConfusedDeputyAttack("pelikhan", "pull_request", payload)).toBe(false);
+      });
+
+      it("should return false for pull_request:review_requested even if actor differs from PR author", () => {
+        const payload = { action: "review_requested", pull_request: { user: { login: "pr-author" } } };
+        expect(isConfusedDeputyAttack("pelikhan", "pull_request", payload)).toBe(false);
+      });
+
+      it("should return false for pull_request_review when actor matches review author (genuine review)", () => {
+        const payload = {
+          pull_request: { user: { login: "pr-author" } },
+          review: { user: { login: "dependabot[bot]" } },
+        };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_review", payload)).toBe(false);
+      });
+
+      it("should return true for pull_request_review when actor differs from review author", () => {
+        const payload = {
+          pull_request: { user: { login: "pr-author" } },
+          review: { user: { login: "attacker" } },
+        };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_review", payload)).toBe(true);
+      });
+
+      it("should return false for pull_request_review when actor is reviewer even if PR author differs", () => {
+        // Normal case: reviewer is different from PR author — must NOT be false positive
+        const payload = {
+          pull_request: { user: { login: "pr-author" } },
+          review: { user: { login: "dependabot[bot]" } },
+        };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_review", payload)).toBe(false);
+      });
+
+      it("should return false for pull_request_review_comment when actor matches comment author (genuine comment)", () => {
+        const payload = {
+          pull_request: { user: { login: "pr-author" } },
+          comment: { user: { login: "dependabot[bot]" } },
+        };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_review_comment", payload)).toBe(false);
+      });
+
+      it("should return true for pull_request_review_comment when actor differs from comment author", () => {
+        const payload = {
+          pull_request: { user: { login: "pr-author" } },
+          comment: { user: { login: "attacker" } },
+        };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_review_comment", payload)).toBe(true);
+      });
+
+      it("should return false for pull_request_review_comment when actor is commenter even if PR author differs", () => {
+        // Normal case: commenter is different from PR author — must NOT be false positive
+        const payload = {
+          pull_request: { user: { login: "pr-author" } },
+          comment: { user: { login: "dependabot[bot]" } },
+        };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_review_comment", payload)).toBe(false);
+      });
+    });
+
+    describe("issue_comment events", () => {
+      it("should return false when actor matches comment author (genuine bot comment)", () => {
+        const payload = { comment: { user: { login: "dependabot[bot]" } } };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "issue_comment", payload)).toBe(false);
+      });
+
+      it("should return true when actor differs from comment author", () => {
+        const payload = { comment: { user: { login: "attacker" } } };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "issue_comment", payload)).toBe(true);
+      });
+
+      it("should return false when comment author is absent from payload", () => {
+        const payload = { comment: {} };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "issue_comment", payload)).toBe(false);
+      });
+
+      it("should return false when comment is absent from payload", () => {
+        const payload = {};
+        expect(isConfusedDeputyAttack("dependabot[bot]", "issue_comment", payload)).toBe(false);
+      });
+    });
+
+    describe("other event types", () => {
+      it("should return false for push events (no PR/comment context)", () => {
+        const payload = { sender: { login: "dependabot[bot]" } };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "push", payload)).toBe(false);
+      });
+
+      it("should return false for issues events", () => {
+        const payload = { issue: { user: { login: "attacker" } } };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "issues", payload)).toBe(false);
+      });
+
+      it("should return false for schedule events", () => {
+        expect(isConfusedDeputyAttack("github-actions[bot]", "schedule", {})).toBe(false);
+      });
+
+      it("should return false for workflow_call events (no PR/comment in payload)", () => {
+        // In workflow_call, context.payload = { inputs: { aw_context: "..." } }
+        // aw_context carries event_type/item_number but NOT pull_request.user.login
+        const payload = { inputs: { aw_context: '{"event_type":"pull_request","item_number":"42","actor":"attacker"}' } };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "workflow_call", payload)).toBe(false);
+      });
+
+      it("should return false for workflow_call even if payload contains unrelated pull_request data", () => {
+        // Even if someone injects pull_request data in the payload, the eventName check
+        // guards against false positives: workflow_call is never in prEvents
+        const payload = { pull_request: { user: { login: "attacker" } }, inputs: {} };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "workflow_call", payload)).toBe(false);
+      });
+    });
+
+    describe("edge cases", () => {
+      it("should return false when payload is null", () => {
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request", null)).toBe(false);
+      });
+
+      it("should return false when payload is undefined", () => {
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request", undefined)).toBe(false);
+      });
     });
   });
 });

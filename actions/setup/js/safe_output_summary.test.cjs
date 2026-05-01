@@ -238,6 +238,46 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("medium");
     });
 
+    it("should use result.body (final posted body) over message.body for body preview", () => {
+      const options = {
+        type: "add_comment",
+        messageIndex: 1,
+        success: true,
+        result: {
+          url: "https://github.com/owner/repo/issues/1#issuecomment-123",
+          body: "Submitted body\n\n> *Footer added by workflow*",
+        },
+        message: {
+          body: "Submitted body",
+        },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      // Should show the final posted body (from result.body) not the raw submitted body
+      expect(summary).toContain("Footer added by workflow");
+      expect(summary).toContain("Body Preview");
+    });
+
+    it("should fall back to message.body when result.body is absent", () => {
+      const options = {
+        type: "add_comment",
+        messageIndex: 1,
+        success: true,
+        result: {
+          url: "https://github.com/owner/repo/issues/1#issuecomment-123",
+        },
+        message: {
+          body: "Submitted body only",
+        },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      expect(summary).toContain("Submitted body only");
+      expect(summary).toContain("Body Preview");
+    });
+
     it("should not display secrecy or integrity when absent from message", () => {
       const options = {
         type: "create_issue",

@@ -9,6 +9,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
+const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 
 async function main() {
   // Log actor and event information for debugging
@@ -30,11 +31,16 @@ async function main() {
   try {
     // Check if issue is already locked
     core.info(`Checking if issue #${issueNumber} is already locked`);
-    const { data: issue } = await github.rest.issues.get({
-      owner,
-      repo,
-      issue_number: issueNumber,
-    });
+    const { data: issue } = await withRetry(
+      () =>
+        github.rest.issues.get({
+          owner,
+          repo,
+          issue_number: issueNumber,
+        }),
+      RATE_LIMIT_RETRY_CONFIG,
+      `get issue #${issueNumber}`
+    );
 
     // Skip locking if this is a pull request (PRs cannot be locked via issues API)
     if (issue.pull_request) {
@@ -52,11 +58,16 @@ async function main() {
     core.info(`Locking issue #${issueNumber} for agent workflow execution`);
 
     // Lock the issue without providing a lock_reason parameter
-    await github.rest.issues.lock({
-      owner,
-      repo,
-      issue_number: issueNumber,
-    });
+    await withRetry(
+      () =>
+        github.rest.issues.lock({
+          owner,
+          repo,
+          issue_number: issueNumber,
+        }),
+      RATE_LIMIT_RETRY_CONFIG,
+      `lock issue #${issueNumber}`
+    );
 
     core.info(`✅ Successfully locked issue #${issueNumber}`);
     // Set output to indicate the issue was locked and needs to be unlocked

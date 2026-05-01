@@ -19,10 +19,12 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
+  cli-proxy: true
   edit:
   bash:
     - "*"
   github:
+    mode: gh-proxy
     min-integrity: approved
     toolsets: 
       - issues

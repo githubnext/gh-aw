@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { isConfusedDeputyAttack } = require("./check_permissions_utils.cjs");
 const { writeDenialSummary } = require("./pre_activation_summary.cjs");
 
 /**
@@ -28,6 +29,19 @@ async function main() {
     .map(u => u.trim())
     .filter(u => u);
   core.info(`Checking if user '${actor}' is in skip-bots: ${skipBots.join(", ")}`);
+
+  // Guard against Dependabot Confused Deputy attacks.
+  // An attacker can trigger @dependabot recreate (for pull_request events) or
+  // @dependabot show (for issue_comment events) to make dependabot appear as the
+  // actor, causing a legitimate bot's skip-bots rule to suppress the workflow for
+  // the attacker's PR/issue.
+  // Reference: https://labs.boostsecurity.io/articles/weaponizing-dependabot-pwn-request-at-its-finest/
+  if (isConfusedDeputyAttack(actor, eventName, context.payload)) {
+    core.info(`Potential confused deputy attack detected: actor '${actor}' does not match the event author. Skipping skip-bots check.`);
+    core.setOutput("skip_bots_ok", "true");
+    core.setOutput("result", "not_skipped");
+    return;
+  }
 
   // Check if the actor is in the skip-bots list
   // Match both exact username and username with [bot] suffix

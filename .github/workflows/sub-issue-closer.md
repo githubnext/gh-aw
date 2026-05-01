@@ -13,7 +13,9 @@ network:
   allowed:
     - defaults
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets:
       - issues
 safe-outputs:
@@ -39,12 +41,12 @@ Recursively process GitHub issues in repository **${{ github.repository }}** and
 
 ### Step 1: Find Open Parent Issues
 
-Use the GitHub MCP server to search for open issues that have sub-issues. Look for:
+Use `gh issue list` to search for open issues that have sub-issues. Look for:
 - Issues with state = "OPEN"
 - Issues that have tracked issues (sub-issues)
 - Issues that appear to be tracking/parent issues based on their structure
 
-You can use the `search_issues` tool to find issues with sub-issues, or use `list_issues` to get all open issues and filter those with sub-issues.
+Use `gh issue list --repo ${{ github.repository }} --state open --json number,title,body,trackedIssues` to get all open issues and filter those with sub-issues.
 
 ### Step 2: Check Sub-Issue Completion
 
@@ -138,7 +140,7 @@ During processing, maintain clear logging:
 - It complements the existing event-triggered auto-close-parent-issues.yml workflow
 - The event-triggered workflow runs when a sub-issue is closed
 - This scheduled workflow catches any issues that were missed or changed outside the normal flow
-- Use the GitHub MCP server tools to query issues and their relationships
+- Use `gh issue list` and `gh api` to query issues and their relationships
 - Be careful with recursive processing to avoid infinite loops
 - Always verify the completion status before closing an issue
 - Add clear, informative comments when closing issues for transparency

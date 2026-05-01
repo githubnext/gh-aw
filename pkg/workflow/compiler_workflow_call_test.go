@@ -360,3 +360,88 @@ func TestHasWorkflowCallTrigger(t *testing.T) {
 		})
 	}
 }
+
+// TestInjectWorkflowCallSecretsSection tests that secrets are correctly injected into
+// the on.workflow_call.secrets section of the on: YAML string.
+func TestInjectWorkflowCallSecretsSection(t *testing.T) {
+	tests := []struct {
+		name        string
+		onSection   string
+		secrets     []string
+		wantContain []string
+		wantAbsent  []string
+		unchanged   bool
+	}{
+		{
+			name: "injects secrets into workflow_call trigger",
+			onSection: `"on":
+  workflow_call:
+    inputs:
+      payload:
+        type: string`,
+			secrets:     []string{"MY_TOKEN", "ANOTHER_SECRET"},
+			wantContain: []string{"MY_TOKEN", "ANOTHER_SECRET", "required: false"},
+		},
+		{
+			name: "excludes GITHUB_TOKEN",
+			onSection: `"on":
+  workflow_call: {}`,
+			secrets:     []string{"GITHUB_TOKEN", "MY_TOKEN"},
+			wantContain: []string{"MY_TOKEN"},
+			wantAbsent:  []string{"GITHUB_TOKEN"},
+		},
+		{
+			name: "no-op when only GITHUB_TOKEN",
+			onSection: `"on":
+  workflow_call: {}`,
+			secrets:   []string{"GITHUB_TOKEN"},
+			unchanged: true,
+		},
+		{
+			name: "no-op when no secrets",
+			onSection: `"on":
+  workflow_call: {}`,
+			secrets:   []string{},
+			unchanged: true,
+		},
+		{
+			name: "no-op when no workflow_call trigger",
+			onSection: `"on":
+  workflow_dispatch: {}`,
+			secrets:   []string{"MY_TOKEN"},
+			unchanged: true,
+		},
+		{
+			name: "user-defined secrets are preserved",
+			onSection: `"on":
+  workflow_call:
+    secrets:
+      USER_SECRET:
+        required: true`,
+			secrets:     []string{"AUTO_SECRET"},
+			wantContain: []string{"USER_SECRET", "AUTO_SECRET"},
+		},
+		{
+			name:        "handles string shorthand on: workflow_call",
+			onSection:   `"on": workflow_call`,
+			secrets:     []string{"MY_TOKEN"},
+			wantContain: []string{"MY_TOKEN", "required: false"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := injectWorkflowCallSecretsSection(tt.onSection, tt.secrets)
+			if tt.unchanged {
+				assert.Equal(t, tt.onSection, result, "on section should be unchanged")
+				return
+			}
+			for _, want := range tt.wantContain {
+				assert.Contains(t, result, want, "should contain %q", want)
+			}
+			for _, absent := range tt.wantAbsent {
+				assert.NotContains(t, result, absent, "should not contain %q", absent)
+			}
+		})
+	}
+}

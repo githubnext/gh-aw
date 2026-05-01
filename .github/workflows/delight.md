@@ -36,6 +36,7 @@ safe-outputs:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, discussions]
   bash:
     - "find docs/src/content/docs -name '*.md' -o -name '*.mdx'"
@@ -523,6 +524,7 @@ Configure MCP servers in your workflow frontmatter under the `tools` section. Fo
 \`\`\`yaml
 tools:
   github:
+    mode: gh-proxy
     toolsets: [default]
 \`\`\`
 
@@ -532,7 +534,7 @@ For additional examples, see the [tools documentation](/tools/overview).
 **Why Better**: Provides concrete example inline, eliminates need to search elsewhere, includes navigation link for deeper information.
 
 ### Good Example: CLI Help Text (Single File)
-**File**: `pkg/cli/compile_command.go`
+**File**: `pkg/cli/compile_orchestrator.go`
 
 **Before**: "Compile workflow files"
 
