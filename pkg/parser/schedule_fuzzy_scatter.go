@@ -72,7 +72,9 @@ func buildAvailableMinutes() []int {
 // weightedHourPool is the pre-computed weighted pool of hours (BEST + BROAD tiers).
 var weightedHourPool = buildWeightedHourPool()
 
-// availableMinutes is the pre-computed list of valid minute values [5, 54].
+// availableMinutes is the pre-computed curated set of valid minutes for scatter
+// selection: 29 values spanning [5–11, 19–26, 34–41, 49–54] with hour-boundary
+// and peak-traffic ranges pre-excluded (see buildAvailableMinutes).
 var availableMinutes = buildAvailableMinutes()
 
 // weightedDailyTimeSlot returns a deterministic (hour, minute) pair for the given
@@ -88,15 +90,16 @@ var availableMinutes = buildAvailableMinutes()
 // This implementation reduces collision probability by requiring two independent
 // conditions to hold simultaneously for a full (hour, minute) collision:
 //
-//  1. hHash (stableHash of identifier) must map to the same hour-pool index.
+//  1. Both workflows must resolve to the same hour value (not necessarily the same
+//     pool index — different indices can yield the same hour via BEST-tier weight-3
+//     duplication, e.g. indices 0 and 1 both resolve to hour 2).
 //  2. The minute hash of a composite seed (identifier + ":" + hHash index string)
-//     must map to the same minute-pool index.
+//     must produce the same minute value for both workflows.
 //
-// The composite seed in step 2 means that even when two workflows share the same
-// mapped hour (e.g. via BEST-tier weight-3 duplicates at pool indices 0 and 1, both
-// resolving to hour 2), they typically receive different minute seeds as long as
-// their hHash values differ. Only a true double collision on both hash operations
-// produces a duplicate cron expression.
+// The composite seed in condition 2 means that even when two workflows share the same
+// resolved hour, they typically receive different minute seeds as long as their hHash
+// values differ. Only when both the resolved hour AND the composite-seed minute hash
+// collide does a duplicate cron expression occur.
 func weightedDailyTimeSlot(identifier string) (int, int) {
 	// Hash 1: select hour from the weighted hour pool (preserves BEST/BROAD preference).
 	hHash := stableHash(identifier, len(weightedHourPool))
