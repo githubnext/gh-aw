@@ -60,6 +60,7 @@ safe-outputs:
       allowed: [githubactionagent]
       max: 1
     hide-comment:
+    edit-wiki:
     messages:
       footer: "> 🔮 *The oracle has spoken through [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
       run-started: "🔮 The ancient spirits stir... [{workflow_name}]({run_url}) awakens to divine this {event_type}..."
@@ -101,13 +102,20 @@ checkout:
    - Check if `/tmp/gh-aw/cache-memory/smoke-codex-history.json` exists; if it does, read it and note the previous run's results (run ID, timestamp, status)
    - Write current run results to `/tmp/gh-aw/cache-memory/smoke-codex-history.json` with content: `{"run_id": "${{ github.run_id }}", "timestamp": "<current UTC timestamp in ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ>", "status": "PASS or FAIL", "tests_passed": <count>, "tests_failed": <count>}` (create the parent directory if it doesn't exist)
    - Use bash to verify the file was written successfully (use `cat` to read it back)
+10. **Edit Wiki Testing**: Create a new wiki page with a haiku and link it from the main wiki page using the `edit_wiki` safe-output tool:
+   - Clone the wiki repo to `/tmp/gh-aw/wiki` using: `git clone https://github.com/${{ github.repository }}.wiki.git /tmp/gh-aw/wiki` (if the wiki doesn't exist yet, skip this test and mark it ⚠️ Skipped)
+   - Configure git identity in the wiki clone: `git -C /tmp/gh-aw/wiki config user.email "github-actions[bot]@users.noreply.github.com"` and `git -C /tmp/gh-aw/wiki config user.name "github-actions[bot]"`
+   - Create a new wiki page `/tmp/gh-aw/wiki/Smoke-Test-Haiku.md` with content: a title "# Smoke Test Haiku", a blank line, and an original 3-line haiku about automated testing or continuous integration (write the haiku content in the file, NOT in the commit message)
+   - Update `/tmp/gh-aw/wiki/Home.md` (if it exists) to append a link to the new page: `- [Smoke Test Haiku](Smoke-Test-Haiku)` (if Home.md does not exist, create it with that link)
+   - Stage and commit the wiki changes: `git -C /tmp/gh-aw/wiki add . && git -C /tmp/gh-aw/wiki commit -m "Add smoke test haiku page [run ${{ github.run_id }}]"`
+   - Call the `edit_wiki` safe-output tool with `{ "message": "Add smoke test haiku page", "wiki_dir": "/tmp/gh-aw/wiki" }`
 
 ## Output
 
 **ALWAYS create an issue** with a summary of the smoke test run:
 - Title: "Smoke Test: Codex - ${{ github.run_id }}"
 - Body should include:
-  - Test results (✅ or ❌ for each test, including test #9 Cache Memory)
+  - Test results (✅ or ❌ for each test, including test #9 Cache Memory and test #10 Edit Wiki)
   - Overall status: PASS or FAIL
   - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   - Timestamp

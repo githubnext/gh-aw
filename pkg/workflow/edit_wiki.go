@@ -64,8 +64,8 @@ func (c *Compiler) parseEditWikiConfig(outputMap map[string]any) *EditWikiConfig
 				}
 			}
 
-			// Parse common base fields with default max of 0 (no limit)
-			c.parseBaseSafeOutputConfig(configMap, &editWikiConfig.BaseSafeOutputConfig, 0)
+			// Parse common base fields with default max of 1
+			c.parseBaseSafeOutputConfig(configMap, &editWikiConfig.BaseSafeOutputConfig, 1)
 		}
 
 		return editWikiConfig

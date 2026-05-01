@@ -706,6 +706,116 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   };
 
   /**
+   * Handler for edit_wiki tool
+   * Generates a git patch from commits made to a wiki clone directory.
+   * The agent must clone the wiki repo, commit changes, then call this tool.
+   * The patch is applied to the wiki repo by the safe_outputs job handler (edit_wiki.cjs).
+   */
+  const editWikiHandler = async args => {
+    const entry = { ...(args || {}), type: "edit_wiki" };
+    const wikiConfig = config.edit_wiki || {};
+
+    // Determine the wiki directory - from args, config, or standard default location.
+    // The agent is expected to clone the wiki to this directory and commit changes before
+    // calling this tool.
+    const wikiDir = (args && args.wiki_dir) || wikiConfig.wiki_dir || "/tmp/gh-aw/wiki";
+
+    if (!wikiDir || !fs.existsSync(wikiDir)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: `Wiki directory '${wikiDir}' does not exist. Clone the wiki repo first (e.g. git clone https://github.com/OWNER/REPO.wiki.git /tmp/gh-aw/wiki), commit your changes, then call this tool.`,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    // Detect the current branch in the wiki clone (typically 'master' or 'main')
+    const wikiBranch = getCurrentBranch(wikiDir);
+    if (!wikiBranch) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: `Could not detect current branch in wiki directory '${wikiDir}'. Ensure the directory is a valid git repository with committed changes.`,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    server.debug(`Generating incremental patch for edit_wiki from dir=${wikiDir}, branch=${wikiBranch}`);
+
+    // Use incremental mode: include commits since origin/<branch>.
+    // This captures exactly the commits the agent made on top of the cloned state.
+    const patchOptions = {
+      mode: "incremental",
+      cwd: wikiDir,
+      repoSlug: "wiki",
+    };
+    if (wikiConfig["github-token"]) {
+      patchOptions.token = wikiConfig["github-token"];
+    }
+
+    const patchResult = await generateGitPatch(wikiBranch, wikiBranch, patchOptions);
+
+    if (!patchResult.success) {
+      const errorMsg = patchResult.error || "Failed to generate patch for wiki changes";
+      server.debug(`Wiki patch generation failed: ${errorMsg}`);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: errorMsg,
+              details: "No commits were found in the wiki directory. Make sure you have committed your changes using git add and git commit before calling edit_wiki.",
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    server.debug(`Wiki patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+
+    entry.patch_path = patchResult.patchPath;
+
+    if (patchResult.baseCommit) {
+      entry.base_commit = patchResult.baseCommit;
+    }
+
+    if (typeof patchResult.diffSize === "number" && patchResult.diffSize >= 0) {
+      entry.diff_size = patchResult.diffSize;
+    }
+
+    appendSafeOutput(entry);
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            result: "success",
+            patch: {
+              path: patchResult.patchPath,
+              size: patchResult.patchSize,
+              lines: patchResult.patchLines,
+            },
+          }),
+        },
+      ],
+    };
+  };
+
+  /**
    * Handler for push_repo_memory tool
    * Validates that memory files in the configured memory directory are within size limits.
    * Returns an error if any file or the total size exceeds the configured limits,
@@ -1084,6 +1194,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     uploadArtifactHandler,
     createPullRequestHandler,
     pushToPullRequestBranchHandler,
+    editWikiHandler,
     pushRepoMemoryHandler,
     createProjectHandler,
     addCommentHandler,

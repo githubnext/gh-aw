@@ -9,7 +9,6 @@ const { generateStagedPreview } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getGitAuthEnv } = require("./git_helpers.cjs");
 
 /**
@@ -241,7 +240,7 @@ async function main(config = {}) {
       if (commitTitleSuffix) {
         core.info(`Appending commit title suffix: "${commitTitleSuffix}"`);
         let patchFileContent = fs.readFileSync(patchFilePath, "utf8");
-        patchFileContent = patchFileContent.replace(/^Subject: (?:\[PATCH\] )?(.*)$/gm, (match, title) => `Subject: [PATCH] ${title}${commitTitleSuffix}`);
+        patchFileContent = patchFileContent.replace(/^Subject: (\[PATCH[^\]]*\] )?(.*)$/gm, (match, patchPrefix, title) => `Subject: ${patchPrefix || "[PATCH] "}${title}${commitTitleSuffix}`);
         patchFileToApply = nodePath.join(wikiCloneDir, "..", `aw-wiki-modified-${Date.now()}.patch`);
         fs.writeFileSync(patchFileToApply, patchFileContent, "utf8");
         core.info(`Patch modified with commit title suffix`);

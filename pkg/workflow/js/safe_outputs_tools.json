@@ -1052,6 +1052,10 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "wiki_dir": {
+          "type": "string",
+          "description": "Path to the local wiki repo clone (e.g., /tmp/gh-aw/wiki). Defaults to /tmp/gh-aw/wiki. Clone the wiki repo with git clone before calling this tool."
         }
       },
       "additionalProperties": false
