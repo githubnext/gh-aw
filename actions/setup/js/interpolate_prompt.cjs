@@ -88,14 +88,24 @@ function renderMarkdownTemplate(markdown) {
     core.info(`[renderMarkdownTemplate] Block ${blockCount}: condition="${condTrimmed}" -> ${truthyResult ? "KEEP" : "REMOVE"}`);
     core.info(`[renderMarkdownTemplate]   Body preview: "${bodyPreview}${body.length > 60 ? "..." : ""}"`);
 
+    // Split on {{else}} if present to support two-branch conditionals.
+    // e.g. {{#if (eq concise "concise")}} ... {{else}} ... {{/if}}
+    const elseParts = body.split(/[ \t]*\{\{else\}\}[ \t]*\n?/);
+    const trueBranch = elseParts[0];
+    const falseBranch = elseParts.length > 1 ? elseParts.slice(1).join("{{else}}") : null;
+
     if (truthyResult) {
-      // Keep body with leading newline if there was one before the opening tag
+      // Keep the true branch (before {{else}}, or full body if no {{else}})
       keptBlocks++;
-      core.info(`[renderMarkdownTemplate]   Action: Keeping body with leading newline=${!!leadNL}`);
-      return leadNL + body;
+      core.info(`[renderMarkdownTemplate]   Action: Keeping ${falseBranch !== null ? "true branch" : "body"} with leading newline=${!!leadNL}`);
+      return leadNL + trueBranch;
     } else {
-      // Remove entire block completely - the line containing the template is removed
+      // Remove the block, or keep the false branch when {{else}} is present
       removedBlocks++;
+      if (falseBranch !== null) {
+        core.info(`[renderMarkdownTemplate]   Action: Keeping false branch ({{else}} branch)`);
+        return leadNL + falseBranch;
+      }
       core.info(`[renderMarkdownTemplate]   Action: Removing entire block`);
       return "";
     }
@@ -244,6 +254,10 @@ async function main() {
     // otherwise the placeholder string is truthy and the block is always kept.
     // The activation job exposes GH_AW_EXPERIMENTS_* env vars (from the pick-experiment
     // step output via the step's env: block), so we can substitute them here.
+    //
+    // Additionally, {{#if (eq experiments.name "value")}} conditions use the dot-notation
+    // form directly in the condition expression. We substitute experiments.NAME → actual
+    // value inside {{#if ...}} condition tags so that isTruthy can evaluate (eq ...) helpers.
     core.info("\n========================================");
     core.info("[main] STEP 2.5: Experiment Placeholder Substitution");
     core.info("========================================");
@@ -255,6 +269,16 @@ async function main() {
           content = content.split(placeholder).join(value || "");
           experimentSubCount++;
           core.info(`  Substituted ${placeholder} → "${value || ""}"`);
+        }
+        // Also substitute experiments.name references inside {{#if ...}} conditions.
+        // This enables (eq experiments.name "value") comparisons to resolve correctly.
+        const experimentName = key.substring("GH_AW_EXPERIMENTS_".length).toLowerCase();
+        const exprForm = `experiments.${experimentName}`;
+        const conditionPattern = new RegExp(`(\\{\\{#if[^}]*?)${exprForm.replace(".", "\\.")}`, "gi");
+        if (conditionPattern.test(content)) {
+          conditionPattern.lastIndex = 0;
+          content = content.replace(conditionPattern, `$1${value || ""}`);
+          core.info(`  Substituted ${exprForm} in conditions → "${value || ""}"`);
         }
       }
     }

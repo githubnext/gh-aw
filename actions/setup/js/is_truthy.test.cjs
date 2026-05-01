@@ -63,5 +63,28 @@ describe("is_truthy.cjs", () => {
       expect(isTruthy("NuLl")).toBe(false);
       expect(isTruthy("UnDeFiNeD")).toBe(false);
     });
+
+    describe("(eq VALUE LITERAL) helper", () => {
+      it("should return true when value matches literal", () => {
+        expect(isTruthy('(eq concise "concise")')).toBe(true);
+        expect(isTruthy('(eq verbose "verbose")')).toBe(true);
+        expect(isTruthy('(eq yes "yes")')).toBe(true);
+      });
+
+      it("should return false when value does not match literal", () => {
+        expect(isTruthy('(eq verbose "concise")')).toBe(false);
+        expect(isTruthy('(eq concise "verbose")')).toBe(false);
+        expect(isTruthy('(eq no "yes")')).toBe(false);
+      });
+
+      it("should be case-insensitive for the (eq ...) wrapper but case-sensitive for values", () => {
+        expect(isTruthy('(EQ concise "concise")')).toBe(true);
+        expect(isTruthy('(Eq concise "concise")')).toBe(true);
+      });
+
+      it("should handle values with spaces via trim", () => {
+        expect(isTruthy('(eq  concise  "concise")')).toBe(true);
+      });
+    });
   });
 });
