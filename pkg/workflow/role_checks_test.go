@@ -379,6 +379,22 @@ Test workflow
 			wantAssocCheck: true,
 			wantBotNames:   []string{"dependabot[bot]", "renovate[bot]"},
 		},
+		{
+			name: "issue_comment trigger with expression bot disables static guard so runtime check always runs",
+			frontmatter: `---
+on:
+  issue_comment:
+    types: [created]
+  bots:
+    - ${{ vars.TRUSTED_BOT }}
+engine: copilot
+---
+
+Test workflow
+`,
+			// The static guard must be absent; check_membership handles the bot at runtime.
+			wantAssocCheck: false,
+		},
 	}
 
 	for _, tt := range tests {

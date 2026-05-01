@@ -444,7 +444,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	//   - the workflow has permission checks enabled (needsPermissionCheck == true), AND
 	//   - the compiled on: section includes issue_comment or pull_request_review_comment events.
 	// Workflows with roles:all opt out of needsPermissionCheck and are intentionally unrestricted.
-	if needsPermissionCheck && hasCommentEventInOn(data.On) {
+	//
+	// Exception: if any bot name in data.Bots is a GitHub Actions expression (contains ${{),
+	// we cannot evaluate it statically. In that case the guard is skipped entirely so the
+	// runtime check_membership step always runs and handles bot authorization at runtime.
+	if needsPermissionCheck && hasCommentEventInOn(data.On) && !botsContainExpression(data.Bots) {
 		commentAuthCondition := RenderCondition(buildCommentAuthorAssociationCondition(data.Bots))
 		if jobIfCondition != "" {
 			jobIfCondition = RenderCondition(BuildAnd(
@@ -510,6 +514,18 @@ func buildLabelNamesCondition(labelNames []string) string {
 // colon (':') reliably identifies a trigger key without false-positives from embedded strings.
 func hasCommentEventInOn(on string) bool {
 	return strings.Contains(on, "issue_comment:") || strings.Contains(on, "pull_request_review_comment:")
+}
+
+// botsContainExpression reports whether any entry in bots is a GitHub Actions expression
+// (i.e. contains "${{"). When true, the static author_association guard must be disabled so
+// that check_membership always runs and evaluates the bot list at runtime.
+func botsContainExpression(bots []string) bool {
+	for _, bot := range bots {
+		if strings.Contains(bot, "${{") {
+			return true
+		}
+	}
+	return false
 }
 
 // buildCommentAuthorAssociationCondition returns a ConditionNode that passes for non-comment
