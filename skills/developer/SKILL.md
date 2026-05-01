@@ -12,6 +12,7 @@ This document consolidates technical specifications and development guidelines f
 
 - [Capitalization Guidelines](#capitalization-guidelines)
 - [Code Organization](#code-organization)
+  - [WASM Build-Variant Pattern](#wasm-build-variant-pattern)
 - [Validation Architecture](#validation-architecture)
 - [Security Best Practices](#security-best-practices)
 - [Safe Output Messages](#safe-output-messages)
@@ -439,6 +440,73 @@ userInput := "My Workflow: Test/Build"
 normalized := normalizeWorkflowName(userInput) // Wrong tool!
 // normalized = "My Workflow: Test/Build" (unchanged - invalid chars remain)
 ```
+
+
+### WASM Build-Variant Pattern
+
+Seven files in `pkg/workflow/` provide stub implementations of OS-dependent
+features for the WASM compilation target (`GOOS=js GOARCH=wasm`) used by the
+gh-aw web playground. Each file is named with the `_wasm.go` suffix (Go's
+implicit filename build constraint for `GOARCH=wasm`) **and** carries an
+explicit `//go:build js || wasm` tag at line 1:
+
+```
+pkg/workflow/dependabot_wasm.go
+pkg/workflow/docker_validation_wasm.go
+pkg/workflow/git_helpers_wasm.go
+pkg/workflow/github_cli_wasm.go
+pkg/workflow/npm_validation_wasm.go
+pkg/workflow/pip_validation_wasm.go
+pkg/workflow/repository_features_validation_wasm.go
+```
+
+Each `_wasm.go` file mirrors the public/package-level function signatures of
+its non-WASM counterpart but replaces OS calls (exec, filesystem, network)
+with either no-ops or `fmt.Errorf("... not available in Wasm")` returns.
+
+#### When a `_wasm.go` Stub is Required
+
+Add a `_wasm.go` stub whenever you add a **new function** to an existing
+`_wasm.go`-guarded file (or create a new file that calls OS-level tools at
+compile/validation time). Specifically:
+
+- Functions that call `os/exec` or run external binaries (gh, git, docker,
+  npm, pip, uv, etc.)
+- Functions that read from the real filesystem during compilation
+- Functions that perform network I/O at validation time
+
+Functions that **do not** need a WASM stub:
+- Pure data transformations (string manipulation, YAML marshaling)
+- Functions that only operate on in-memory data structures
+- Functions gated behind `WithSkipValidation(true)` (already excluded at
+  runtime, but still need to compile)
+
+#### How to Add a Stub
+
+1. Identify the non-WASM file (e.g., `github_cli.go`).
+2. Open (or create) the corresponding `_wasm.go` file (e.g.,
+   `github_cli_wasm.go`).
+3. Ensure the build tag at line 1 is `//go:build js || wasm`.
+4. Add a stub with the same signature that returns a zero value and/or an
+   error:
+   ```go
+   func MyNewFunction(args ...string) ([]byte, error) {
+       return nil, fmt.Errorf("MyNewFunction not available in Wasm")
+   }
+   ```
+5. Verify the WASM build still compiles:
+   ```bash
+   GOOS=js GOARCH=wasm go build ./pkg/workflow/
+   ```
+
+#### Known Gap
+
+`github_cli_wasm.go` currently omits stubs for `enrichGHError`,
+`runGHWithSpinnerContext`, `RunGHCombinedContext`, `RunGHWithHost`, and
+`SetGHHostEnv`. These are unexported helpers or thin wrappers called only
+by the exported `RunGH*` family, which are already stubbed; the compiler
+does not reference them directly. This is intentional — avoid adding stubs
+for unexported helpers unless the WASM build breaks.
 
 
 ## Validation Architecture
