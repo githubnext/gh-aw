@@ -724,7 +724,6 @@ jobs:
                   "allow-only": {
                     "approval-labels": ${{ steps.parse-guard-vars.outputs.approval_labels }},
                     "blocked-users": ${{ steps.parse-guard-vars.outputs.blocked_users }},
-                    "disapproval-labels": ${{ steps.parse-guard-vars.outputs.disapproval_labels }},
                     "min-integrity": "none",
                     "repos": "all",
                     "trusted-users": ${{ steps.parse-guard-vars.outputs.trusted_users }}

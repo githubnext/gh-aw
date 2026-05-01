@@ -3,8 +3,6 @@ package workflow
 import (
 	"errors"
 	"strings"
-
-	"github.com/github/gh-aw/pkg/constants"
 )
 
 // validateGitHubReadOnly validates that read-only: false is not set for the GitHub tool.
@@ -51,17 +49,16 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	// AllowedRepos is populated from either 'allowed-repos' (preferred) or deprecated 'repos' during parsing
 	hasRepos := github.AllowedRepos != nil
 	hasMinIntegrity := github.MinIntegrity != ""
-	// blocked-users / approval-labels / trusted-users / disapproval-labels can be an array or a
+	// blocked-users / approval-labels / trusted-users can be an array or a
 	// GitHub Actions expression string.
 	hasBlockedUsers := len(github.BlockedUsers) > 0 || github.BlockedUsersExpr != ""
 	hasApprovalLabels := len(github.ApprovalLabels) > 0 || github.ApprovalLabelsExpr != ""
 	hasTrustedUsers := len(github.TrustedUsers) > 0 || github.TrustedUsersExpr != ""
-	hasDisapprovalLabels := len(github.DisapprovalLabels) > 0 || github.DisapprovalLabelsExpr != ""
 
-	// blocked-users, trusted-users, approval-labels, and disapproval-labels require a guard policy (min-integrity)
-	if (hasBlockedUsers || hasApprovalLabels || hasTrustedUsers || hasDisapprovalLabels) && !hasMinIntegrity {
-		toolsValidationLog.Printf("blocked-users/trusted-users/approval-labels/disapproval-labels without guard policy in workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'github.blocked-users', 'github.trusted-users', 'github.approval-labels', and 'github.disapproval-labels' require 'github.min-integrity' to be set")
+	// blocked-users, trusted-users, and approval-labels require a guard policy (min-integrity)
+	if (hasBlockedUsers || hasApprovalLabels || hasTrustedUsers) && !hasMinIntegrity {
+		toolsValidationLog.Printf("blocked-users/trusted-users/approval-labels without guard policy in workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'github.blocked-users', 'github.trusted-users', and 'github.approval-labels' require 'github.min-integrity' to be set")
 	}
 
 	// No guard policy fields present - nothing to validate
@@ -112,14 +109,6 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 		if label == "" {
 			toolsValidationLog.Printf("Empty approval-labels entry at index %d in workflow: %s", i, workflowName)
 			return errors.New("invalid guard policy: 'github.approval-labels' entries must not be empty strings")
-		}
-	}
-
-	// Validate disapproval-labels (must be non-empty strings; expressions are accepted as-is)
-	for i, label := range github.DisapprovalLabels {
-		if label == "" {
-			toolsValidationLog.Printf("Empty disapproval-labels entry at index %d in workflow: %s", i, workflowName)
-			return errors.New("invalid guard policy: 'github.disapproval-labels' entries must not be empty strings")
 		}
 	}
 
@@ -258,28 +247,4 @@ func isValidOwnerOrRepo(s string) bool {
 // corresponding toolsets enabled in the configuration.
 func ValidateGitHubToolsAgainstToolsets(allowedTools []string, enabledToolsets []string) error {
 	return validateGitHubToolsAgainstToolsetsImpl(allowedTools, enabledToolsets)
-}
-
-// validateDisapprovalLabels checks that disapproval-labels (and the centralized
-// GH_AW_GITHUB_DISAPPROVAL_LABELS org/repo variable) are gated behind the
-// disapproval-labels feature flag.
-//
-// Rules:
-//   - If disapproval-labels is set (array, string, or expression) without the feature flag → error.
-//   - No-op when disapproval-labels is not configured and the feature flag is not enabled.
-func validateDisapprovalLabels(tools *Tools, workflowName string, data *WorkflowData) error {
-	if tools == nil || tools.GitHub == nil {
-		return nil
-	}
-
-	github := tools.GitHub
-	hasDisapprovalLabels := len(github.DisapprovalLabels) > 0 || github.DisapprovalLabelsExpr != ""
-	featureEnabled := isFeatureEnabled(constants.DisapprovalLabelsFeatureFlag, data)
-
-	if hasDisapprovalLabels && !featureEnabled {
-		toolsValidationLog.Printf("disapproval-labels set but feature flag not enabled in workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'github.disapproval-labels' requires the 'disapproval-labels' feature flag to be enabled. Add 'features: disapproval-labels: true' to your workflow")
-	}
-
-	return nil
 }

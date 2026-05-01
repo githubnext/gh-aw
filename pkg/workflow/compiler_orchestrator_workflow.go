@@ -117,13 +117,22 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
+	// Validate integrity-reactions feature configuration
+	var gatewayConfig *MCPGatewayRuntimeConfig
+	if workflowData.SandboxConfig != nil {
+		gatewayConfig = workflowData.SandboxConfig.MCP
+	}
+	if err := validateIntegrityReactions(workflowData.ParsedTools, workflowData.Name, workflowData, gatewayConfig); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
 	// Use shared action cache and resolver from the compiler
 	actionCache, actionResolver := c.getSharedActionResolver()
 	workflowData.ActionCache = actionCache
 	workflowData.ActionResolver = actionResolver
 	workflowData.ActionPinWarnings = c.actionPinWarnings
 
-	// Extract YAML configuration sections from frontmatter (populates workflowData.Features among others)
+	// Extract YAML configuration sections from frontmatter
 	if err := c.extractYAMLSections(result.Frontmatter, workflowData); err != nil {
 		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
 	}
@@ -180,18 +189,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 			return nil, fmt.Errorf("failed to merge features from imports: %w", err)
 		}
 		workflowData.Features = mergedFeatures
-	}
-
-	// Validate feature-gated tool configurations (after extractYAMLSections+MergeFeatures populate workflowData.Features)
-	var gatewayConfig *MCPGatewayRuntimeConfig
-	if workflowData.SandboxConfig != nil {
-		gatewayConfig = workflowData.SandboxConfig.MCP
-	}
-	if err := validateIntegrityReactions(workflowData.ParsedTools, workflowData.Name, workflowData, gatewayConfig); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
-	}
-	if err := validateDisapprovalLabels(workflowData.ParsedTools, workflowData.Name, workflowData); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
 	// Process and merge custom steps with imported steps

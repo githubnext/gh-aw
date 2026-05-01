@@ -296,12 +296,6 @@ const (
 	// Set as an org or repo variable to apply a consistent approval label list across all workflows.
 	EnvVarGitHubApprovalLabels = "GH_AW_GITHUB_APPROVAL_LABELS"
 
-	// EnvVarGitHubDisapprovalLabels is the fallback variable for the tools.github.disapproval-labels guard policy field.
-	// When disapproval-labels is not explicitly set in the workflow frontmatter, this variable is used as
-	// a comma- or newline-separated list of GitHub label names that degrade content to "none" integrity.
-	// Set as an org or repo variable to apply a consistent disapproval label list across all workflows.
-	EnvVarGitHubDisapprovalLabels = "GH_AW_GITHUB_DISAPPROVAL_LABELS"
-
 	// EnvVarGitHubTrustedUsers is the fallback variable for the tools.github.trusted-users guard policy field.
 	// When trusted-users is not explicitly set in the workflow frontmatter, this variable is used as
 	// a comma- or newline-separated list of GitHub usernames elevated to "approved" integrity.
