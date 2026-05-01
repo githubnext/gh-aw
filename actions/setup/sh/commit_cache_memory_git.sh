@@ -27,6 +27,15 @@ cd "$CACHE_DIR"
 git config user.email "gh-aw@github.com"
 git config user.name "gh-aw"
 
+# --- Log cache directory contents before commit ---
+echo "=== Cache directory: non-git files being committed ==="
+_commit_files=$(find . -not -path './.git/*' -type f 2>/dev/null | sort || true)
+if [ -n "$_commit_files" ]; then
+  echo "$_commit_files"
+else
+  echo "(no non-git files)"
+fi
+
 # Stage all changes (new files, modifications, deletions)
 git add -A
 

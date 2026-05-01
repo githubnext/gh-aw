@@ -96,13 +96,17 @@ checkout:
 6. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 7. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project (both caches must be set to /tmp because the default cache locations are not writable). If the command fails, mark this test as ❌ and report the failure.
 8. **Comment Memory Testing**: Append an original 3-line haiku to the comment-memory markdown file(s) in `/tmp/gh-aw/comment-memory/*.md` without removing existing content.
+9. **Cache Memory Testing**:
+   - Check if `/tmp/gh-aw/cache-memory/smoke-codex-history.json` exists; if it does, read it and note the previous run's results (run ID, timestamp, status)
+   - Write current run results to `/tmp/gh-aw/cache-memory/smoke-codex-history.json` with content: `{"run_id": "${{ github.run_id }}", "timestamp": "<current UTC timestamp in ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ>", "status": "PASS or FAIL", "tests_passed": <count>, "tests_failed": <count>}` (create the parent directory if it doesn't exist)
+   - Use bash to verify the file was written successfully (use `cat` to read it back)
 
 ## Output
 
 **ALWAYS create an issue** with a summary of the smoke test run:
 - Title: "Smoke Test: Codex - ${{ github.run_id }}"
 - Body should include:
-  - Test results (✅ or ❌ for each test)
+  - Test results (✅ or ❌ for each test, including test #9 Cache Memory)
   - Overall status: PASS or FAIL
   - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   - Timestamp

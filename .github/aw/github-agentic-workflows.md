@@ -111,6 +111,11 @@ The YAML frontmatter supports these fields:
   - **`skip-bots:`** - Skip workflow execution when triggered by specific GitHub actors (array)
     - Bot name matching is flexible (handles with/without `[bot]` suffix)
     - Example: `skip-bots: [dependabot, renovate]` - Skip for Dependabot and Renovate
+  - **`labels:`** - Filter label-triggered events to only fire when the triggering label matches one of these names (string or array)
+    - String format: `labels: "my-label"` (single label name)
+    - Array format: `labels: [label-a, label-b]` (any matching label fires the workflow)
+    - Unmatched label events show as Skipped (⊘) rather than Failed (❌)
+    - Use with `pull_request_target` triggers with `types: [labeled]` to respond only to specific labels
   - **`skip-if-match:`** - Skip workflow execution when a GitHub search query returns results (string or object)
     - String format: `skip-if-match: "is:issue is:open label:bug"` (implies max=1)
     - Object format with threshold:
@@ -733,7 +738,12 @@ The YAML frontmatter supports these fields:
         excluded-files:                 # Optional: glob patterns to strip from the patch entirely
           - "**/*.lock"
         protected-files: blocked        # Optional: "blocked" (default), "fallback-to-issue", or "allowed"
+        allowed-base-branches:          # Optional: glob patterns for allowed base branch overrides per run
+          - "release/*"
+          - "main"
     ```
+
+    **Dynamic Base Branch**: When `allowed-base-branches` is set, the agent can provide a `base` field in its output to override the default base branch for a single run — but only if the value matches one of the configured glob patterns. Without `allowed-base-branches`, only the static `base-branch:` is used. Accepts a literal array or a GitHub Actions expression resolving to a comma-separated list (e.g. `${{ inputs.allowed-base-branches }}`).
 
     **File Restrictions**: Use `allowed-files` as an **exclusive allowlist** — every file touched must match at least one pattern or the operation is refused. Use `excluded-files` to strip files (e.g. lock files) from the patch before any checks. The `protected-files` field controls handling of sensitive files (package manifests, CI configs, agent instruction files): `blocked` (default, hard-block), `fallback-to-issue` (push branch and create a review issue), or `allowed` (no restriction — use only when the workflow is explicitly designed to manage these files). Object form is also supported: `protected-files: { policy: fallback-to-issue, exclude: [AGENTS.md] }`.
 
@@ -1622,6 +1632,7 @@ The YAML frontmatter supports these fields:
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
 - **`cache-memory:`** - Memory MCP server with persistent cache storage (boolean or object)
 - **`repo-memory:`** - Repository-specific memory storage (boolean)
+- **`comment-memory:`** - Managed issue/PR comment memory with file-based agent editing (boolean or object, under `tools:`)
 
 ### Cache Configuration
 
@@ -1757,6 +1768,41 @@ tools:
 ```
 
 This provides persistent memory storage specific to the repository, useful for maintaining workflow-specific context and state across runs.
+
+### Comment Memory Configuration
+
+The `comment-memory:` field (under `tools:`) persists agent memory in a managed issue or pull request comment. The agent edits files directly; the safe-output processor synchronizes changes back to GitHub after execution.
+
+**Simple Enable:**
+
+```yaml
+tools:
+  comment-memory: true
+```
+
+**Advanced Configuration:**
+
+```yaml
+tools:
+  comment-memory:
+    target: "triggering"            # Optional: "triggering" (default), "*", or explicit issue/PR number
+    target-repo: "owner/repo"       # Optional: cross-repository memory storage
+    allowed-repos: [owner/other]    # Optional: additional allowed repositories
+    memory-id: "default"            # Optional: default memory identifier (default: "default")
+    footer: true                    # Optional: include AI-generated footer in managed comment (default: true)
+    max: 1                          # Optional: max comment_memory updates to process (default: 1)
+    github-token: ${{ secrets.MY_TOKEN }}  # Optional: override token
+```
+
+**How It Works:**
+
+1. **Pre-agent setup**: Reads the managed comment body from the target issue/PR, extracts content within `<gh-aw-comment-memory id="...">` markers, and writes one file per memory entry under `/tmp/gh-aw/comment-memory/<memory_id>.md`
+2. **Agent execution**: The agent reads and edits files in `/tmp/gh-aw/comment-memory/` directly (no MCP tool call required)
+3. **Post-execution sync**: The processor reads the edited `*.md` files and upserts the managed comment on GitHub, preserving only content within the managed marker block
+
+`memory-id` must contain only alphanumeric characters, hyphens, and underscores (max 128 characters). Multiple memory entries can be maintained by using different `memory_id` values.
+
+Requires at least `add-comment:` in `safe-outputs:` so the safe-output processor job runs and has write permissions.
 
 ## Output Processing and Issue Creation
 

@@ -132,7 +132,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `AddMCPTool` | `func(string, string, ...) error` | Adds an MCP server to a workflow file |
 | `InspectWorkflowMCP` | `func(string, ...) error` | Inspects MCP server configurations |
 | `ListWorkflowMCP` | `func(string, bool) error` | Lists MCP server info for a workflow |
-| `UpdateActions` | `func(bool, bool, bool) error` | Bulk-updates GitHub Action versions in workflows |
+| `UpdateActions` | `func(bool, bool, bool, time.Duration) error` | Bulk-updates GitHub Action versions in workflows |
 | `ActionsBuildCommand` | `func() error` | Builds all custom actions in `actions/` |
 | `ActionsValidateCommand` | `func() error` | Validates all `action.yml` files under `actions/` |
 | `ActionsCleanCommand` | `func() error` | Removes generated action build artifacts |

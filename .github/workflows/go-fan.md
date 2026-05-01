@@ -74,11 +74,20 @@ Each day, you will:
 
 Use the cache-memory tool to track which modules you've recently reviewed.
 
-Check your cache for:
-- `last_reviewed_module`: The most recently reviewed module
-- `reviewed_modules`: Map of modules with their review timestamps (format: `[{"module": "<path>", "reviewed_at": "<date>"}, ...]`)
+The state is stored in a single JSON file at **`/tmp/gh-aw/cache-memory/state.json`** with this schema:
 
-If this is the first run or cache is empty, you'll start fresh with the sorted list of dependencies.
+```json
+{
+  "last_reviewed_module": "<module-path>",
+  "reviewed_modules": [{"module": "<path>", "reviewed_at": "<ISO 8601 date>"}, ...]
+}
+```
+
+To load the state:
+1. Check whether `/tmp/gh-aw/cache-memory/state.json` exists:
+   - If the file **does not exist**, this is the first run — start fresh (no `missing_data` call needed)
+   - If the file **exists**, read it and extract `last_reviewed_module` and `reviewed_modules`
+   - If the file **exists but is malformed**, call `missing_data` with `data_type: "cache_memory"` and `reason: "cache_memory_miss"`
 
 ## Step 2: Select Today's Module with Priority
 
@@ -109,9 +118,9 @@ This ensures we review dependencies that:
 
 ### 2.4 Apply Round-Robin Selection
 From the sorted list (most recent first):
-1. Check the cache for `reviewed_modules` (list of modules already analyzed recently)
+1. Check `reviewed_modules` from the state loaded in Step 1 (may be empty on first run)
 2. Find the first module in the sorted list that hasn't been reviewed in the last 7 days
-3. If all modules have been reviewed recently, reset the cache and start from the top of the sorted list
+3. If all modules have been reviewed recently, reset `reviewed_modules` to empty and start from the top of the sorted list
 
 **Priority Logic**: By sorting by `pushed_at` first, we automatically prioritize dependencies with recent activity, ensuring we stay current with the latest changes in our dependency tree.
 
@@ -237,10 +246,10 @@ Current version from go.mod.
 
 ## Step 7: Update Cache Memory
 
-Save your progress to cache-memory:
-- Update `last_reviewed_module` to today's module
-- Add to `reviewed_modules` map with timestamp: `{"module": "<module-path>", "reviewed_at": "<ISO 8601 date>"}`
-- Keep the cache for 7 days - remove entries older than 7 days from `reviewed_modules`
+Save your progress to **`/tmp/gh-aw/cache-memory/state.json`**:
+- Set `last_reviewed_module` to today's module path
+- Add an entry to `reviewed_modules`: `{"module": "<module-path>", "reviewed_at": "<ISO 8601 date>"}`
+- Remove entries older than 7 days from `reviewed_modules`
 
 This allows the round-robin to cycle through all dependencies while maintaining preference for recently updated ones.
 
