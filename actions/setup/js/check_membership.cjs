@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus, isAllowedBot } = require("./check_permissions_utils.cjs");
+const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus, isAllowedBot, isConfusedDeputyAttack } = require("./check_permissions_utils.cjs");
 const { writeDenialSummary } = require("./pre_activation_summary.cjs");
 
 async function main() {
@@ -48,6 +48,21 @@ async function main() {
     core.setOutput("result", "config_error");
     core.setOutput("error_message", "Configuration error: Required permissions not specified");
     await writeDenialSummary("Configuration error: Required permissions not specified.", "Contact the repository administrator to fix the workflow frontmatter configuration.");
+    return;
+  }
+
+  // Guard against Dependabot Confused Deputy attacks.
+  // An attacker can trigger @dependabot recreate (for pull_request events) or
+  // @dependabot show (for issue_comment events) to make dependabot appear as the
+  // actor, bypassing permission checks that rely solely on github.actor.
+  // Reference: https://labs.boostsecurity.io/articles/weaponizing-dependabot-pwn-request-at-its-finest/
+  if (isConfusedDeputyAttack(actor, eventName, context.payload)) {
+    const errorMessage = `Access denied: Potential confused deputy attack detected. Actor '${actor}' does not match the event author. The workflow may have been triggered indirectly via a bot command.`;
+    core.warning(errorMessage);
+    core.setOutput("is_team_member", "false");
+    core.setOutput("result", "confused_deputy");
+    core.setOutput("error_message", errorMessage);
+    await writeDenialSummary(errorMessage, "This can occur when a bot command (e.g. @dependabot recreate) causes a bot to appear as the actor on a PR or comment that was originally authored by a different user.");
     return;
   }
 

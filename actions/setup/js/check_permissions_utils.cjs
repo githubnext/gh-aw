@@ -47,6 +47,49 @@ function isAllowedBot(actor, allowedBots) {
 }
 
 /**
+ * Detect a potential Dependabot Confused Deputy attack.
+ *
+ * Attack vectors defended against:
+ *   - @dependabot recreate on a PR not authored by dependabot causes
+ *     github.actor = 'dependabot[bot]' while pull_request.user.login remains
+ *     the original (human) PR author.
+ *   - @dependabot show on an issue causes github.actor = 'dependabot[bot]'
+ *     while comment.user.login differs from the actor.
+ *
+ * Reference: https://labs.boostsecurity.io/articles/weaponizing-dependabot-pwn-request-at-its-finest/
+ *
+ * @param {string} actor - The current github.actor
+ * @param {string} eventName - The GitHub event name (e.g. "pull_request", "issue_comment")
+ * @param {object|undefined} payload - The GitHub event payload (context.payload)
+ * @returns {boolean} true if the event looks like a confused deputy attack
+ */
+function isConfusedDeputyAttack(actor, eventName, payload) {
+  if (!payload) return false;
+
+  // For pull_request, pull_request_review, and pull_request_review_comment events,
+  // the PR author must match the actor. @dependabot recreate triggers a synchronize
+  // event with actor=dependabot[bot] but pull_request.user = original human author.
+  const prEvents = ["pull_request", "pull_request_review", "pull_request_review_comment"];
+  if (prEvents.includes(eventName)) {
+    const prAuthor = payload.pull_request?.user?.login;
+    if (prAuthor !== undefined && prAuthor !== actor) {
+      return true;
+    }
+  }
+
+  // For issue_comment events, @dependabot show can trigger a comment from dependabot
+  // with actor=dependabot[bot]. Verify the comment itself was authored by the actor.
+  if (eventName === "issue_comment") {
+    const commentAuthor = payload.comment?.user?.login;
+    if (commentAuthor !== undefined && commentAuthor !== actor) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Check if the actor is a bot and if it's active on the repository.
  * Accepts both <slug> and <slug>[bot] actor forms, since GitHub Apps
  * may appear either way depending on the event context.
@@ -155,6 +198,7 @@ module.exports = {
   parseAllowedBots,
   canonicalizeBotIdentifier,
   isAllowedBot,
+  isConfusedDeputyAttack,
   checkRepositoryPermission,
   checkBotStatus,
 };

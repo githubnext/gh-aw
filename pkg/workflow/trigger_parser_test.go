@@ -194,7 +194,7 @@ func TestParseTriggerShorthand(t *testing.T) {
 			input:     "dependabot pull request",
 			wantEvent: "pull_request",
 			wantTypes: []string{"opened", "synchronize", "reopened"},
-			wantConds: []string{"github.actor == 'dependabot[bot]'"},
+			wantConds: []string{"github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]'"},
 		},
 		{
 			name:      "security alert",
