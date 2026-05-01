@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -28,7 +29,7 @@ type resolvedUpdateLocation struct {
 	redirectHistory []string
 }
 
-func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, initialSource *SourceSpec, allowMajor, verbose bool, noRedirect bool) (*resolvedUpdateLocation, error) {
+func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, initialSource *SourceSpec, allowMajor, verbose bool, noRedirect bool, coolDown time.Duration) (*resolvedUpdateLocation, error) {
 	updateRedirectsLog.Printf("Resolving update location: workflow=%s, source=%s/%s@%s", workflowName, initialSource.Repo, initialSource.Path, initialSource.Ref)
 	current := &SourceSpec{
 		Repo: initialSource.Repo,
@@ -51,7 +52,7 @@ func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, i
 		}
 		visited[locationKey] = struct{}{}
 
-		latestRef, err := resolveLatestRefFn(ctx, current.Repo, currentRef, allowMajor, verbose)
+		latestRef, err := resolveLatestRefFn(ctx, current.Repo, currentRef, allowMajor, verbose, coolDown)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve latest ref for %s: %w", sourceSpecWithRef(current, currentRef), err)
 		}

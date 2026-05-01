@@ -27,7 +27,7 @@ func TestResolveLatestRelease_PrereleaseTagsSkipped(t *testing.T) {
 		return []byte("v1.1.0-beta.1\nv1.0.0"), nil
 	})
 
-	result, err := resolveLatestRelease(context.Background(), "owner/repo", "v1.0.0", true, false)
+	result, err := resolveLatestRelease(context.Background(), "owner/repo", "v1.0.0", true, false, 0)
 	require.NoError(t, err, "should not error when stable release exists")
 	assert.Equal(t, "v1.0.0", result, "should select latest stable release, not prerelease")
 }
@@ -42,7 +42,7 @@ func TestResolveLatestRelease_PrereleaseSkippedWhenCurrentVersionInvalid(t *test
 		return []byte("v2.0.0-rc.1\nv1.3.0\nv1.5.0"), nil
 	})
 
-	result, err := resolveLatestRelease(context.Background(), "owner/repo", "not-a-version", true, false)
+	result, err := resolveLatestRelease(context.Background(), "owner/repo", "not-a-version", true, false, 0)
 	require.NoError(t, err, "should not error when stable release exists")
 	assert.Equal(t, "v1.5.0", result, "should skip prerelease and return highest stable release by semver")
 }
@@ -54,7 +54,7 @@ func TestResolveLatestRelease_ErrorWhenOnlyPrereleasesExist(t *testing.T) {
 		return []byte("v2.0.0-beta.1\nv1.0.0-rc.1"), nil
 	})
 
-	_, err := resolveLatestRelease(context.Background(), "owner/repo", "v1.0.0", true, false)
+	_, err := resolveLatestRelease(context.Background(), "owner/repo", "v1.0.0", true, false, 0)
 	assert.Error(t, err, "should error when no stable releases exist")
 }
 
@@ -65,7 +65,7 @@ func TestResolveLatestRelease_StableReleaseSelected(t *testing.T) {
 		return []byte("v1.2.0\nv1.1.0\nv1.0.0"), nil
 	})
 
-	result, err := resolveLatestRelease(context.Background(), "owner/repo", "v1.0.0", false, false)
+	result, err := resolveLatestRelease(context.Background(), "owner/repo", "v1.0.0", false, false, 0)
 	require.NoError(t, err, "should not error when stable releases exist")
 	assert.Equal(t, "v1.2.0", result, "should select highest compatible stable release")
 }
@@ -78,7 +78,7 @@ func TestResolveLatestRelease_MixedPrereleaseAndStable(t *testing.T) {
 	})
 
 	// Without allowMajor, should stay on v1.x and skip prereleases.
-	result, err := resolveLatestRelease(context.Background(), "owner/repo", "v1.1.0", false, false)
+	result, err := resolveLatestRelease(context.Background(), "owner/repo", "v1.1.0", false, false, 0)
 	require.NoError(t, err, "should not error when stable v1.x releases exist")
 	assert.Equal(t, "v1.3.0", result, "should select latest stable v1.x release, skipping prereleases")
 }
