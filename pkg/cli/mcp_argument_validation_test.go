@@ -186,9 +186,8 @@ func TestArgumentValidationMiddleware_TransformsAdditionalPropertiesError(t *tes
 		return fakeResult, nil
 	})
 
-	// Use a minimal fake request for the tools/call method.
-	// Since extractMCPToolName uses a type assertion, we pass nil params
-	// and accept an empty toolName (which skips the help line).
+	// Call the middleware with a request carrying tool name "compile" so
+	// extractMCPToolName resolves it and the help line is included in the output.
 	result, err := handler(context.Background(), "tools/call", fakeToolCallRequest("compile"))
 	require.NoError(t, err, "middleware should not return an error")
 

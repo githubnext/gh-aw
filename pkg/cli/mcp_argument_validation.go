@@ -32,7 +32,7 @@ type toolParamEntry = []string
 // a close match, and points to the tool's --help output.
 //
 // toolParams maps tool names to their list of valid JSON parameter names.  It is
-// built from the tool input schemas during server construction.
+// provided by the caller as a hardcoded registry (see mcpToolParams).
 func argumentValidationMiddleware(toolParams map[string]toolParamEntry) mcp.Middleware {
 	return func(next mcp.MethodHandler) mcp.MethodHandler {
 		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
