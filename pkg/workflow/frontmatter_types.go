@@ -237,10 +237,11 @@ type FrontmatterConfig struct {
 	SecretMasking *SecretMaskingConfig `json:"secret-masking,omitempty"`
 	Observability *ObservabilityConfig `json:"observability,omitempty"`
 
-	// A/B testing experiments: maps experiment name to a list of variant values.
-	// Variants are picked at runtime using actions/cache to maintain state across runs.
-	// Use ${{ experiments.name }} in the workflow prompt to reference the selected variant.
-	Experiments map[string][]string `json:"experiments,omitempty"`
+	// A/B testing experiments: maps experiment name to either a bare variant array or an
+	// object-form ExperimentConfig.  Typed as map[string]any so JSON unmarshaling succeeds
+	// for both the legacy bare-array form and the new object form; use ExperimentConfigs for
+	// typed access.  See ExperimentConfig and extractExperimentConfigsFromFrontmatter.
+	Experiments map[string]any `json:"experiments,omitempty"`
 
 	// ExperimentConfigs holds the fully-typed experiment metadata, populated alongside
 	// Experiments during frontmatter parsing.  Keys match those of Experiments.

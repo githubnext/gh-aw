@@ -27,9 +27,15 @@ var experimentNamePattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 // extractExperimentsFromFrontmatter reads the "experiments" map from a raw frontmatter map.
 // Both the bare-array form and the new object form with metadata fields are accepted.
-// Invalid entries are silently skipped.
+// Invalid entries (bad name pattern, missing/insufficient variants) are skipped with a
+// warning logged to the debug logger.
 func extractExperimentsFromFrontmatter(frontmatter map[string]any) map[string][]string {
-	configs := extractExperimentConfigsFromFrontmatter(frontmatter)
+	return experimentVariantsFromConfigs(extractExperimentConfigsFromFrontmatter(frontmatter))
+}
+
+// experimentVariantsFromConfigs derives the simple name→variants map from a configs map.
+// Returns nil when configs is empty so callers can use len-checks without special-casing.
+func experimentVariantsFromConfigs(configs map[string]*ExperimentConfig) map[string][]string {
 	if len(configs) == 0 {
 		return nil
 	}

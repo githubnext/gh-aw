@@ -383,9 +383,9 @@ func (c *Compiler) extractAdditionalConfigurations(
 	// This runs last so that all section-specific configurations have been resolved first.
 	applyTopLevelGitHubAppFallbacks(workflowData)
 
-	// Extract experiments configuration
-	workflowData.Experiments = extractExperimentsFromFrontmatter(frontmatter)
+	// Extract experiments configuration once; derive the simple variants map from the configs.
 	workflowData.ExperimentConfigs = extractExperimentConfigsFromFrontmatter(frontmatter)
+	workflowData.Experiments = experimentVariantsFromConfigs(workflowData.ExperimentConfigs)
 
 	return nil
 }
