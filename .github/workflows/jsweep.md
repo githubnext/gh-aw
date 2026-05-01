@@ -284,31 +284,28 @@ Before returning to create the pull request, **you MUST complete all these valid
 
 After cleaning the file, adding/improving tests, and **successfully passing all validation checks** (format, lint, typecheck, and tests):
 
-1. **Write updated cache state** — save the state file before creating the PR so the next run always finds prior progress:
+1. **Write updated cache state** — save the state file before creating the PR so the next run always finds prior progress.
+
+   Set `CLEANED_FILE` to the basename of the file you just cleaned (e.g., `cleanup_cache_memory.cjs`) and `CACHE_STATUS` to `"hit"` or `"miss"` based on Step 1, then run:
 
 ```bash
 STATE_FILE="/tmp/gh-aw/cache-memory/jsweep-state.json"
 TODAY=$(date +%Y-%m-%d)
 RUN_ID="${GITHUB_RUN_ID:-unknown}"
+# Set these two variables before running:
+CLEANED_FILE="<basename of cleaned file, e.g. cleanup_cache_memory.cjs>"
+CACHE_STATUS="<hit or miss from Step 1>"
 
-# Load existing state or start fresh
-if [ -f "$STATE_FILE" ]; then
-  EXISTING=$(cat "$STATE_FILE")
-else
-  EXISTING='{"cleaned_files":[],"last_run":"","last_file":"","cache_hit_history":[]}'
-fi
+export STATE_FILE TODAY RUN_ID CLEANED_FILE CACHE_STATUS
 
-# Append this run to cache_hit_history (keep last 14 entries) and update fields.
-# Replace <CLEANED_FILE> with the basename of the file you cleaned (e.g. "cleanup_cache_memory.cjs")
-# Replace <CACHE_STATUS> with "hit" or "miss" based on whether the state file was present at Step 1
 python3 - << 'PYEOF'
-import json, os, sys
+import json, os
 
-state_file = os.environ.get("STATE_FILE", "/tmp/gh-aw/cache-memory/jsweep-state.json")
-cleaned_file = "<CLEANED_FILE>"   # e.g. "cleanup_cache_memory.cjs"
-today = os.environ.get("TODAY", "")
-run_id = os.environ.get("RUN_ID", "unknown")
-cache_status = "<CACHE_STATUS>"   # "hit" or "miss"
+state_file = os.environ["STATE_FILE"]
+cleaned_file = os.environ["CLEANED_FILE"]
+today = os.environ["TODAY"]
+run_id = os.environ["RUN_ID"]
+cache_status = os.environ["CACHE_STATUS"]
 
 try:
     with open(state_file) as f:
@@ -316,12 +313,11 @@ try:
 except Exception:
     state = {"cleaned_files": [], "last_run": "", "last_file": "", "cache_hit_history": []}
 
-# Add or update cleaned file entry
+# Add cleaned file entry if not already present
 names = [e["file"] for e in state["cleaned_files"]]
 if cleaned_file not in names:
     state["cleaned_files"].append({"file": cleaned_file, "cleaned_at": today})
 
-# Update metadata
 state["last_run"] = today
 state["last_file"] = cleaned_file
 
@@ -338,8 +334,6 @@ print(f"Cache state written to {state_file}")
 print(json.dumps(state, indent=2))
 PYEOF
 ```
-
-   Replace `<CLEANED_FILE>` and `<CACHE_STATUS>` with the actual values from this run before executing.
 
 2. **Log final cache contents** to confirm the write succeeded:
 
