@@ -15,6 +15,38 @@ import (
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) error {
 	compilerYamlLog.Printf("Generating main job steps for workflow: %s", data.Name)
 
+	// Phase 1: Initial setup, checkout, and repository imports
+	checkoutMgr, needsCheckout, err := c.generateInitialAndCheckoutSteps(yaml, data)
+	if err != nil {
+		return err
+	}
+
+	// Phase 2: Runtime detection, custom steps, and workspace setup
+	customStepsContainCheckout := c.generateRuntimeAndWorkspaceSetupSteps(yaml, data, needsCheckout)
+	needsGitConfig := needsCheckout || customStepsContainCheckout
+
+	// Phase 3: Engine installation, MCP setup, and pre-agent preparation
+	engine, err := c.generateEngineInstallAndPreAgentSteps(yaml, data, needsGitConfig)
+	if err != nil {
+		return err
+	}
+
+	// Phase 4: Agent execution and immediate post-agent steps
+	artifactPaths, logFileFull, err := c.generateAgentRunSteps(yaml, data, engine, needsGitConfig)
+	if err != nil {
+		return err
+	}
+
+	// Phase 5: Artifact collection, log parsing, upload, and cleanup
+	return c.generatePostAgentCollectionAndUpload(yaml, data, engine, artifactPaths, logFileFull, checkoutMgr)
+}
+
+// generateInitialAndCheckoutSteps emits the OTLP mask step, pre-steps, all checkout steps
+// (default workspace checkout, dev-mode CLI build, additional checkouts), repository import
+// checkouts, legacy agent import checkout, and the merge-.github-folder step.
+// It returns the CheckoutManager (needed later for token invalidation and dev-mode restore)
+// and a flag indicating whether the default workspace checkout was emitted.
+func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *WorkflowData) (*CheckoutManager, bool, error) {
 	// Mask OTLP telemetry headers early so authentication tokens cannot leak in runner
 	// debug logs. The workflow-level OTEL_EXPORTER_OTLP_HEADERS env var is available
 	// from the very first step, so masking can happen before any other work.
@@ -126,7 +158,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			// Convert to JSON array for the script
 			repoImportsJSON, err := json.Marshal(data.RepositoryImports)
 			if err != nil {
-				return fmt.Errorf("failed to marshal repository imports for merge step: %w", err)
+				return nil, false, fmt.Errorf("failed to marshal repository imports for merge step: %w", err)
 			}
 			writeYAMLEnv(yaml, "          ", "GH_AW_REPOSITORY_IMPORTS", string(repoImportsJSON))
 		}
@@ -145,6 +177,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString("            await main();\n")
 	}
 
+	return checkoutMgr, needsCheckout, nil
+}
+
+// generateRuntimeAndWorkspaceSetupSteps emits runtime setup steps, the gh-aw temp directory
+// creation step, GitHub Enterprise CLI configuration, DIFC proxy start, custom steps, cache
+// steps, cache-memory steps, and repo-memory steps.
+// It mutates data.CustomSteps (via deduplication) and returns whether the custom steps
+// themselves contain a checkout action (used by the caller to compute needsGitConfig).
+func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, data *WorkflowData, needsCheckout bool) bool {
 	// Add automatic runtime setup steps if needed
 	// This detects runtimes from custom steps and MCP configs
 	runtimeRequirements := DetectRuntimeRequirements(data)
@@ -244,13 +285,21 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	compilerYamlLog.Printf("Generating repo-memory steps for workflow")
 	generateRepoMemorySteps(yaml, data)
 
+	return customStepsContainCheckout
+}
+
+// generateEngineInstallAndPreAgentSteps emits git credential configuration, the PR-ready-for-review
+// checkout, engine installation steps, GitHub MCP app token minting, MCP lockdown detection, guard
+// variable parsing, DIFC proxy stop, activation artifact download, comment-memory file preparation,
+// base-.github-folder restore, pre-agent steps, MCP gateway setup, and MCP CLI mount.
+// It returns the resolved CodingAgentEngine for use in subsequent phases.
+func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, data *WorkflowData, needsGitConfig bool) (CodingAgentEngine, error) {
 	// Configure git credentials for agentic workflows.
 	// Git credential configuration requires a .git directory in the workspace, which is only
 	// present when the repository was checked out. Skip these steps when checkout is disabled
 	// and no custom steps perform a checkout, since git remote set-url origin would fail
 	// with "fatal: not a git repository" otherwise.
-	needsGitConfig := needsCheckout || customStepsContainCheckout
-	compilerYamlLog.Printf("Git credential configuration needed: %t (needsCheckout=%t, customStepsContainCheckout=%t)", needsGitConfig, needsCheckout, customStepsContainCheckout)
+	compilerYamlLog.Printf("Git credential configuration needed: %t", needsGitConfig)
 	if needsGitConfig {
 		gitConfigSteps := c.generateGitConfigurationSteps()
 		for _, line := range gitConfigSteps {
@@ -263,9 +312,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add Node.js setup if the engine requires it and it's not already set up in custom steps
 	engine, err := c.getAgenticEngine(data.AI)
-
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to resolve agentic engine from AI configuration: %w", err)
 	}
 
 	// Ensure MCP gateway defaults are set before generating aw_info.json
@@ -360,12 +408,22 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add MCP setup
 	if err := c.generateMCPSetup(yaml, data.Tools, engine, data); err != nil {
-		return fmt.Errorf("failed to generate MCP setup: %w", err)
+		return nil, fmt.Errorf("failed to generate MCP setup: %w", err)
 	}
 
 	// Mount MCP servers as CLI tools (runs after gateway is started)
 	c.generateMCPCLIMountStep(yaml, data)
 
+	return engine, nil
+}
+
+// generateAgentRunSteps emits the git credentials cleaner, engine config steps, CLI proxy start,
+// AI execution, CLI proxy stop, Copilot error detection, agent-execution-complete marker,
+// post-agent git credential regeneration, firewall log collection, engine pre-bundle steps,
+// MCP gateway stop, secret redaction, agent step summary append, and output collection.
+// It returns the initial set of artifact paths (to be extended by the caller) and the
+// agent stdio log path constant.
+func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, needsGitConfig bool) ([]string, string, error) {
 	// Collect artifact paths for unified upload at the end
 	var artifactPaths []string
 	artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-prompts/prompt.txt")
@@ -388,7 +446,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		for _, step := range data.EngineConfigSteps {
 			stepYAML, err := ConvertStepToYAML(step)
 			if err != nil {
-				return fmt.Errorf("failed to render engine config step: %w", err)
+				return nil, "", fmt.Errorf("failed to render engine config step: %w", err)
 			}
 			yaml.WriteString(stepYAML)
 		}
@@ -464,10 +522,20 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add output collection step only if safe-outputs feature is used (GH_AW_SAFE_OUTPUTS functionality)
 	if data.SafeOutputs != nil {
 		if err := c.generateOutputCollectionStep(yaml, data); err != nil {
-			return err
+			return nil, "", err
 		}
 	}
 
+	return artifactPaths, logFileFull, nil
+}
+
+// generatePostAgentCollectionAndUpload emits all post-agent steps: engine output collection,
+// access log extraction/upload, log parsing, token usage/AWF reflect/observability summaries,
+// artifact path accumulation, safe-outputs agent output placeholder, Copilot engine cleanup,
+// repo-memory/cache-memory/staging artifact uploads, patch collection, post-steps, firewall
+// audit paths, the unified artifact upload, token invalidation steps, dev-mode actions restore,
+// and step-order validation.
+func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, artifactPaths []string, logFileFull string, checkoutMgr *CheckoutManager) error {
 	// Merge engine-declared output files into the unified artifact instead of creating a
 	// separate agent_outputs artifact. The cleanup step is still generated so workspace files
 	// are removed after collection.

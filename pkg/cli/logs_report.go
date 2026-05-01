@@ -138,6 +138,7 @@ type RunData struct {
 	TokenUsageSummary          *TokenUsageSummary     `json:"token_usage_summary,omitempty" console:"-"`                                            // Token usage from firewall proxy
 	GitHubAPICalls             int                    `json:"github_api_calls,omitempty" console:"header:GitHub API Calls,format:number,omitempty"` // GitHub API calls made during the run
 	AvgTimeBetweenTurns        string                 `json:"avg_time_between_turns,omitempty" console:"-"`                                         // Average time between consecutive LLM API calls (TBT)
+	Experiments                *ExperimentData        `json:"experiments,omitempty" console:"-"`                                                    // A/B experiment assignments for this run
 }
 
 // buildLogsData creates structured logs data from processed runs
@@ -291,6 +292,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			AwContext:                  awContext,
 			TokenUsageSummary:          pr.TokenUsage,
 			GitHubAPICalls:             gitHubAPICalls,
+			Experiments:                extractExperimentData(run.LogsPath),
 		}
 		if awInfo != nil {
 			runData.Repository = awInfo.Repository

@@ -369,7 +369,12 @@ func compileAllFilesInDirectory(
 		return workflowDataList, err
 	}
 
-	// Output results
+	// Output results.
+	// Populate MarkdownFiles so that outputResults can collect per-workflow stats
+	// (e.g. schedule heatmap) even when the caller did not specify explicit files.
+	if config.Stats && len(config.MarkdownFiles) == 0 {
+		config.MarkdownFiles = mdFiles
+	}
 	if err := outputResults(stats, validationResults, config); err != nil {
 		return workflowDataList, err
 	}
@@ -566,6 +571,7 @@ func outputResults(
 			statsList = collectWorkflowStatisticsWrapper(config.MarkdownFiles)
 		}
 		displayStatsTable(statsList)
+		displayScheduleCalendar(statsList)
 	}
 
 	// Output JSON if requested
