@@ -443,7 +443,9 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.29
       - name: Copy Codex binary to AWF-accessible location
-        run: mkdir -p /tmp/gh-aw/npm-bins && cp "$(which codex)" /tmp/gh-aw/npm-bins/codex
+        run: |
+          CODEX_BIN="$(command -v codex)" || { echo '::error::codex binary not found after npm install; cannot copy to AWF-accessible location' >&2; exit 1; }
+          mkdir -p /tmp/gh-aw/npm-bins && cp "$CODEX_BIN" /tmp/gh-aw/npm-bins/codex
       - name: Parse integrity filter lists
         id: parse-guard-vars
         env:

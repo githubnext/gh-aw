@@ -465,8 +465,8 @@ func TestCodexEngineInstallationCopiesCodexToAWFAccessibleLocation(t *testing.T)
 	if !strings.Contains(lastStep, "/tmp/gh-aw/npm-bins") {
 		t.Errorf("Expected step to copy codex to /tmp/gh-aw/npm-bins, got:\n%s", lastStep)
 	}
-	if !strings.Contains(lastStep, "which codex") {
-		t.Errorf("Expected step to use 'which codex' to find the binary, got:\n%s", lastStep)
+	if !strings.Contains(lastStep, "command -v codex") {
+		t.Errorf("Expected step to use 'command -v codex' to find the binary, got:\n%s", lastStep)
 	}
 }
 

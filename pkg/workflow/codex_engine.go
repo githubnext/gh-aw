@@ -115,7 +115,9 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		// ensures codex is always findable regardless of runner type.
 		steps = append(steps, GitHubActionStep{
 			"      - name: Copy Codex binary to AWF-accessible location",
-			"        run: mkdir -p /tmp/gh-aw/npm-bins && cp \"$(which codex)\" /tmp/gh-aw/npm-bins/codex",
+			"        run: |",
+			`          CODEX_BIN="$(command -v codex)" || { echo '::error::codex binary not found after npm install; cannot copy to AWF-accessible location' >&2; exit 1; }`,
+			"          mkdir -p /tmp/gh-aw/npm-bins && cp \"$CODEX_BIN\" /tmp/gh-aw/npm-bins/codex",
 		})
 	}
 
