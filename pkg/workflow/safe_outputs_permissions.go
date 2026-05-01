@@ -182,6 +182,7 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 		permissions.Merge(NewPermissionsContentsWrite())
 	}
 	if safeOutputs.UpdatePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UpdatePullRequests.Staged) {
+		safeOutputsPermissionsLog.Print("Adding permissions for update-pull-request")
 		if safeOutputs.UpdatePullRequests.UpdateBranch != nil && *safeOutputs.UpdatePullRequests.UpdateBranch {
 			safeOutputsPermissionsLog.Print("update-pull-request has update-branch enabled; requiring contents: write")
 			permissions.Merge(NewPermissionsContentsWritePRWrite())
