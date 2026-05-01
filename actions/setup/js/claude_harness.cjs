@@ -63,6 +63,12 @@ const OVERLOADED_ERROR_PATTERN = /overloaded_error|"overloaded"/i;
 // Pattern to detect Anthropic rate-limit errors (HTTP 429).
 const RATE_LIMIT_ERROR_PATTERN = /rate_limit_error|429 Too Many Requests/i;
 
+// Pattern to detect a clean max-turns exit from Claude Code.
+// Claude Code emits a JSON result object with "subtype":"error_max_turns" when the
+// session ends because the turn limit was reached.  This is a deterministic terminal
+// condition — --continue cannot recover it because no deferred tool marker was written.
+const MAX_TURNS_EXIT_PATTERN = /"subtype"\s*:\s*"error_max_turns"/;
+
 /**
  * Emit a timestamped diagnostic log line to stderr.
  * All driver messages are prefixed with "[claude-harness]" so they are easy to
@@ -90,6 +96,18 @@ function isOverloadedError(output) {
  */
 function isRateLimitError(output) {
   return RATE_LIMIT_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output signals a clean max-turns exit.
+ * When Claude Code hits its turn limit it emits a result object with
+ * "subtype":"error_max_turns".  This is not a transient error — retrying
+ * with --continue will always fail because no deferred tool marker was written.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isMaxTurnsExit(output) {
+  return MAX_TURNS_EXIT_PATTERN.test(output);
 }
 
 /**
@@ -341,7 +359,25 @@ async function main() {
 
     const isOverloaded = isOverloadedError(result.output);
     const isRateLimit = isRateLimitError(result.output);
-    log(`attempt ${attempt + 1} failed:` + ` exitCode=${result.exitCode}` + ` isOverloadedError=${isOverloaded}` + ` isRateLimitError=${isRateLimit}` + ` hasOutput=${result.hasOutput}` + ` retriesRemaining=${MAX_RETRIES - attempt}`);
+    const isMaxTurns = isMaxTurnsExit(result.output);
+    log(
+      `attempt ${attempt + 1} failed:` +
+        ` exitCode=${result.exitCode}` +
+        ` isOverloadedError=${isOverloaded}` +
+        ` isRateLimitError=${isRateLimit}` +
+        ` isMaxTurnsExit=${isMaxTurns}` +
+        ` hasOutput=${result.hasOutput}` +
+        ` retriesRemaining=${MAX_RETRIES - attempt}`
+    );
+
+    // max_turns is a deterministic terminal condition: the session ended cleanly after
+    // exhausting the allowed number of turns.  --continue cannot resume it because no
+    // deferred tool marker was written.  Retrying would immediately fail with "No deferred
+    // tool marker found", wasting time and masking the real exit reason.
+    if (isMaxTurns) {
+      log(`attempt ${attempt + 1}: max_turns exit — not retriable via --continue`);
+      break;
+    }
 
     // Retry when the session was partially executed (has output).
     // Use --continue so Claude Code can resume from its saved session state.
@@ -372,6 +408,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     resolveClaudePromptFileArgs,
     stripPromptFileArgs,
+    isMaxTurnsExit,
   };
 }
 

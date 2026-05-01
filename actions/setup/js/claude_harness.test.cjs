@@ -5,7 +5,7 @@ import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { resolveClaudePromptFileArgs, stripPromptFileArgs } = require("./claude_harness.cjs");
+const { resolveClaudePromptFileArgs, stripPromptFileArgs, isMaxTurnsExit } = require("./claude_harness.cjs");
 
 describe("claude_harness.cjs", () => {
   describe("resolveClaudePromptFileArgs", () => {
@@ -78,6 +78,33 @@ describe("claude_harness.cjs", () => {
     it("removes --prompt-file at the start", () => {
       const result = stripPromptFileArgs(["--prompt-file", "/tmp/prompt.txt", "--print"]);
       expect(result).toEqual(["--print"]);
+    });
+  });
+
+  describe("isMaxTurnsExit", () => {
+    it('returns true for a JSON result with "subtype":"error_max_turns"', () => {
+      const output = '{"type":"result","subtype":"error_max_turns","is_error":true,"num_turns":13,' + '"terminal_reason":"max_turns","errors":["Reached maximum number of turns (12)"]}';
+      expect(isMaxTurnsExit(output)).toBe(true);
+    });
+
+    it("returns true when subtype has extra whitespace around the colon", () => {
+      expect(isMaxTurnsExit('"subtype" : "error_max_turns"')).toBe(true);
+    });
+
+    it("returns false for an overloaded_error output", () => {
+      expect(isMaxTurnsExit('{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}')).toBe(false);
+    });
+
+    it("returns false for a rate_limit_error output", () => {
+      expect(isMaxTurnsExit('{"type":"error","error":{"type":"rate_limit_error","message":"429 Too Many Requests"}}')).toBe(false);
+    });
+
+    it("returns false for an empty string", () => {
+      expect(isMaxTurnsExit("")).toBe(false);
+    });
+
+    it("returns false for a successful result output", () => {
+      expect(isMaxTurnsExit('{"type":"result","subtype":"success","is_error":false}')).toBe(false);
     });
   });
 });
