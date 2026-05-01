@@ -106,8 +106,10 @@ async function logSpan(toolName, attributes = {}, options = {}) {
     // Sanitize before mirroring so that the local JSONL debug file never
     // contains secrets, just like the over-the-wire export.
     appendToOTLPJSONL(sanitizeOTLPPayload(payload));
-    // skipJSONL: true because we already wrote the sanitized mirror above.
-    await sendOTLPSpan(endpoint, payload, { skipJSONL: true });
+    // Only attempt the HTTP export when an endpoint is configured.
+    if (endpoint) {
+      await sendOTLPSpan(endpoint, payload, { skipJSONL: true });
+    }
   } catch (err) {
     // Export failures must never break the workflow.
     console.warn(`[otlp] ${toolName}: failed to emit span: ${err instanceof Error ? err.message : String(err)}`);

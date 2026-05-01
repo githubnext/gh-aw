@@ -175,6 +175,15 @@ describe("otlp.cjs", () => {
       expect(mockSendOTLPSpan).toHaveBeenCalledWith("https://custom.otel.io", expect.anything(), { skipJSONL: true });
     });
 
+    it("does not attempt HTTP export when OTEL_EXPORTER_OTLP_ENDPOINT is not set", async () => {
+      delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+
+      await otlp.logSpan("my-scanner", {});
+
+      expect(mockSendOTLPSpan).not.toHaveBeenCalled();
+      expect(mockAppendToOTLPJSONL).toHaveBeenCalledOnce();
+    });
+
     it("sanitizes the payload before writing to the JSONL mirror", async () => {
       const rawPayload = { resourceSpans: ["raw"] };
       const sanitizedPayload = { resourceSpans: ["sanitized"] };

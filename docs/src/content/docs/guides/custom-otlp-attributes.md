@@ -96,16 +96,16 @@ await otlp.logSpan('my-scanner', {
 
 ## Security
 
-All attribute values are sanitized before the payload is sent over the wire:
+Attribute values are sanitized automatically before the payload is exported or mirrored:
 
 - **Redacts** the value of any attribute whose key matches `token`, `secret`, `password`, `passwd`, `key`, `auth`, `credential`, `api-key`, or `access-key` (case-insensitive), replacing it with `[REDACTED]`.
 - **Truncates** string values longer than 1,024 characters.
 
-Sanitization is automatic — you do not need to call it yourself.
+Sanitization is applied to both the over-the-wire OTLP export and the local JSONL debug mirror, so you do not need to call it yourself.
 
 ## Debugging without a live collector
 
-Every span is always appended as a JSON line to `/tmp/gh-aw/otel.jsonl`, even when `OTEL_EXPORTER_OTLP_ENDPOINT` is not set. This file is included in the `firewall-audit-logs` artifact so you can inspect spans after the run:
+Every span is always appended as a sanitized JSON line to `/tmp/gh-aw/otel.jsonl`, even when `OTEL_EXPORTER_OTLP_ENDPOINT` is not set. This file is included in the `firewall-audit-logs` artifact so you can inspect spans after the run:
 
 ```bash
 # Download firewall/telemetry artifacts for a run
