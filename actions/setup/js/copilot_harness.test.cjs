@@ -1,11 +1,24 @@
 import { describe, it, expect } from "vitest";
 import { createRequire } from "module";
 import fs from "fs";
+import http from "http";
 import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { appendSafeOutputLine, buildInfrastructureIncompletePayload, buildPromptFileFallbackInstruction, emitInfrastructureIncomplete, PROMPT_FILE_INLINE_THRESHOLD_BYTES, resolvePromptFileArgs } = require("./copilot_harness.cjs");
+const {
+  appendSafeOutputLine,
+  buildInfrastructureIncompletePayload,
+  buildPromptFileFallbackInstruction,
+  emitInfrastructureIncomplete,
+  enrichReflectModels,
+  extractModelIds,
+  fetchAWFReflect,
+  fetchModelsFromUrl,
+  GEMINI_MODEL_NAME_PREFIX,
+  PROMPT_FILE_INLINE_THRESHOLD_BYTES,
+  resolvePromptFileArgs,
+} = require("./copilot_harness.cjs");
 
 describe("copilot_harness.cjs", () => {
   // Test the core logic patterns used by the driver without importing the module
@@ -685,6 +698,157 @@ describe("copilot_harness.cjs", () => {
       const logMsg = `attempt 1: failed to start process '/usr/local/bin/copilot': ${errMessage}` + ` (code=${errCode} syscall=${errSyscall})`;
       expect(logMsg).toContain("code=ENOENT");
       expect(logMsg).toContain("syscall=spawn");
+    });
+  });
+
+  describe("extractModelIds", () => {
+    it("returns null for null input", () => {
+      expect(extractModelIds(null)).toBeNull();
+    });
+
+    it("returns null for empty object", () => {
+      expect(extractModelIds({})).toBeNull();
+    });
+
+    it("returns null for empty data array", () => {
+      expect(extractModelIds({ data: [] })).toBeNull();
+    });
+
+    it("extracts ids from OpenAI format", () => {
+      const json = { data: [{ id: "gpt-4o" }, { id: "gpt-4o-mini" }] };
+      expect(extractModelIds(json)).toEqual(["gpt-4o", "gpt-4o-mini"]);
+    });
+
+    it("falls back to name when id is absent in OpenAI format", () => {
+      const json = { data: [{ name: "model-a" }, { id: "model-b" }] };
+      expect(extractModelIds(json)).toEqual(["model-a", "model-b"]);
+    });
+
+    it("extracts ids from Gemini format, stripping prefix", () => {
+      const json = {
+        models: [{ name: "models/gemini-1.5-pro" }, { name: "models/gemini-1.0-pro" }],
+      };
+      expect(extractModelIds(json)).toEqual(["gemini-1.0-pro", "gemini-1.5-pro"]);
+    });
+
+    it("handles Gemini entries without the prefix", () => {
+      const json = { models: [{ name: "custom-model" }] };
+      expect(extractModelIds(json)).toEqual(["custom-model"]);
+    });
+
+    it("returns sorted results", () => {
+      const json = { data: [{ id: "z-model" }, { id: "a-model" }, { id: "m-model" }] };
+      expect(extractModelIds(json)).toEqual(["a-model", "m-model", "z-model"]);
+    });
+  });
+
+  describe("enrichReflectModels", () => {
+    it("does nothing when all configured endpoints already have models", async () => {
+      const reflectData = {
+        endpoints: [{ provider: "openai", configured: true, models: ["gpt-4o"], models_url: "http://api-proxy:10000/v1/models" }],
+      };
+      const logger = () => {};
+      await enrichReflectModels(reflectData, 1000, logger);
+      expect(reflectData.endpoints[0].models).toEqual(["gpt-4o"]);
+    });
+
+    it("does nothing for unconfigured endpoints with null models", async () => {
+      const reflectData = {
+        endpoints: [{ provider: "anthropic", configured: false, models: null, models_url: "http://api-proxy:10001/v1/models" }],
+      };
+      const logger = () => {};
+      await enrichReflectModels(reflectData, 1000, logger);
+      expect(reflectData.endpoints[0].models).toBeNull();
+    });
+
+    it("does nothing when models_url is null", async () => {
+      const reflectData = {
+        endpoints: [{ provider: "opencode", configured: true, models: null, models_url: null }],
+      };
+      const logger = () => {};
+      await enrichReflectModels(reflectData, 1000, logger);
+      expect(reflectData.endpoints[0].models).toBeNull();
+    });
+
+    it("fetches models from models_url for configured endpoints with null models", async () => {
+      // Start a mock HTTP server returning OpenAI-format models
+      const server = http.createServer((req, res) => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ data: [{ id: "claude-sonnet-4.6" }, { id: "gpt-4o" }] }));
+      });
+      await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+      const { port } = server.address();
+
+      const reflectData = {
+        endpoints: [{ provider: "copilot", configured: true, models: null, models_url: `http://127.0.0.1:${port}/models` }],
+      };
+      const logs = [];
+      await enrichReflectModels(reflectData, 3000, msg => logs.push(msg));
+      server.close();
+
+      expect(reflectData.endpoints[0].models).toEqual(["claude-sonnet-4.6", "gpt-4o"]);
+      expect(logs.some(l => l.includes("fetched 2 model(s)"))).toBe(true);
+    });
+
+    it("leaves models null when models_url fetch fails", async () => {
+      const reflectData = {
+        endpoints: [{ provider: "openai", configured: true, models: null, models_url: "http://127.0.0.1:1/v1/models" }],
+      };
+      const logs = [];
+      await enrichReflectModels(reflectData, 500, msg => logs.push(msg));
+      expect(reflectData.endpoints[0].models).toBeNull();
+      expect(logs.some(l => l.includes("models fetch error"))).toBe(true);
+    });
+  });
+
+  describe("fetchAWFReflect enriches models via fallback", () => {
+    it("saves enriched reflect data when api-proxy returns null models for configured provider", async () => {
+      // Serve the /reflect endpoint with null models for a configured provider
+      // and serve the models_url endpoint with actual model data
+      const modelData = { data: [{ id: "gpt-4o" }, { id: "gpt-4o-mini" }] };
+      const reflectPayload = {
+        endpoints: [
+          {
+            provider: "openai",
+            port: 10000,
+            configured: true,
+            models: null,
+            models_url: null, // set after server starts
+          },
+        ],
+        models_fetch_complete: true,
+      };
+
+      const server = http.createServer((req, res) => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        if (req.url === "/reflect") {
+          res.end(JSON.stringify(reflectPayload));
+        } else {
+          res.end(JSON.stringify(modelData));
+        }
+      });
+      await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+      const { port } = server.address();
+
+      // Point the models_url to our mock server
+      reflectPayload.endpoints[0].models_url = `http://127.0.0.1:${port}/v1/models`;
+
+      const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "awf-reflect-test-"));
+      const outputPath = path.join(outputDir, "awf-reflect.json");
+      const logs = [];
+
+      await fetchAWFReflect({
+        reflectUrl: `http://127.0.0.1:${port}/reflect`,
+        outputPath,
+        timeoutMs: 3000,
+        modelsTimeoutMs: 1000,
+        logger: msg => logs.push(msg),
+      });
+      server.close();
+
+      const saved = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+      expect(saved.endpoints[0].models).toEqual(["gpt-4o", "gpt-4o-mini"]);
+      fs.rmSync(outputDir, { recursive: true, force: true });
     });
   });
 });
