@@ -206,6 +206,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Process and merge services
 	c.processAndMergeServices(result.Frontmatter, workflowData, engineSetup.importsResult)
 
+	// Detect known credential-leaking actions in all merged step collections so that the
+	// compiler can inject a targeted cleanup step before the agentic engine executes.
+	workflowData.KnownActionCredentialEnvVars = DetectKnownCredentialLeakingActionsFromWorkflowData(workflowData)
+
 	// Extract additional configurations (cache, mcp-scripts, safe-outputs, etc.)
 	if err := c.extractAdditionalConfigurations(
 		result.Frontmatter,

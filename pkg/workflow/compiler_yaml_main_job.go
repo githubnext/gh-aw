@@ -380,6 +380,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString(line)
 	}
 
+	// Clean credentials left by known GitHub Actions (e.g., cloud provider auth actions)
+	// This removes credential files created by google-github-actions/auth,
+	// aws-actions/configure-aws-credentials, azure/login, docker/login-action,
+	// and actions/checkout (deploy key) before the agent executes.
+	knownActionCleanerSteps := c.generateKnownActionsCredentialCleanerStep(data.KnownActionCredentialEnvVars)
+	for _, line := range knownActionCleanerSteps {
+		yaml.WriteString(line)
+	}
+
 	// Emit engine config steps (from RenderConfig) before the AI execution step.
 	// These steps write runtime config files to disk (e.g. provider/model config files).
 	// Most engines return no steps here; only engines that require config files use this.
