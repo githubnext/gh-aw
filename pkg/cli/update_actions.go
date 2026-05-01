@@ -128,6 +128,19 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 			}
 		}
 
+		// Prevent downgrades: if the proposed version is older than the current, skip.
+		// This can happen when GitHub Releases do not include every tag
+		// (e.g., v1.1.3 was pushed as a tag-only release without a formal GitHub
+		// Release, so the Releases API only returns v1.1.0 as the latest).
+		if currentVer := parseVersion(entry.Version); currentVer != nil {
+			if latestVer := parseVersion(latestVersion); latestVer != nil && currentVer.IsNewer(latestVer) {
+				updateLog.Printf("Skipping %s: proposed version %s is older than current %s (would be a downgrade)", entry.Repo, latestVersion, entry.Version)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s: skipping proposed update from %s to %s (would be a downgrade)", entry.Repo, entry.Version, latestVersion)))
+				skippedActions = append(skippedActions, entry.Repo)
+				continue
+			}
+		}
+
 		// Check if update is available
 		if latestVersion == entry.Version && latestSHA == entry.SHA {
 			if verbose {

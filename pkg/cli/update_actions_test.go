@@ -719,6 +719,70 @@ func TestIsGhAwNativeAction(t *testing.T) {
 	}
 }
 
+// TestUpdateActions_NeverDowngrades verifies that UpdateActions never replaces an action
+// with an older version. This can happen when an action has tags that were not published
+// as formal GitHub Releases: the Releases API only returns formally published releases,
+// so if the current version (e.g. v1.1.3) was tag-only, the API may return an older
+// release (e.g. v1.1.0) as the "latest". The update logic must detect this and skip.
+func TestUpdateActions_NeverDowngrades(t *testing.T) {
+	orig := getLatestActionReleaseFn
+	defer func() { getLatestActionReleaseFn = orig }()
+
+	// Simulate the Releases API returning a lower version than what is already pinned
+	// in actions-lock.json (e.g. actions-ecosystem/action-add-labels: v1.1.3 → v1.1.0).
+	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+		if repo == "actions-ecosystem/action-add-labels" {
+			// API only knows about v1.1.0 even though v1.1.3 is already pinned
+			return "v1.1.0", "oldsha1234567890123456789012345678901234a", nil
+		}
+		// Other actions are already at their latest version
+		return currentVersion, "somesha12345678901234567890123456789012b", nil
+	}
+
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := workflow.NewActionCache(tmpDir)
+	const currentSHA = "c96b68fec76a0987cd93957189e9abd0b9a72ff1"
+	cache.Set("actions-ecosystem/action-add-labels", "v1.1.3", currentSHA)
+	if err := cache.Save(); err != nil {
+		t.Fatalf("failed to save initial cache: %v", err)
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(wd); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	if err := UpdateActions(context.Background(), true, false, false); err != nil {
+		t.Fatalf("UpdateActions() error = %v", err)
+	}
+
+	saved := workflow.NewActionCache(tmpDir)
+	if err := saved.Load(); err != nil {
+		t.Fatalf("failed to reload cache: %v", err)
+	}
+
+	// The action must still be pinned at v1.1.3, not downgraded to v1.1.0.
+	entry, ok := saved.Entries["actions-ecosystem/action-add-labels@v1.1.3"]
+	if !ok {
+		t.Errorf("expected entry actions-ecosystem/action-add-labels@v1.1.3 to be preserved; got entries: %v", savedEntryKeys(saved))
+	} else if entry.SHA != currentSHA {
+		t.Errorf("SHA changed unexpectedly: got %q, want %q", entry.SHA, currentSHA)
+	}
+
+	// The downgraded entry must NOT appear.
+	if _, found := saved.Entries["actions-ecosystem/action-add-labels@v1.1.0"]; found {
+		t.Error("downgraded entry actions-ecosystem/action-add-labels@v1.1.0 must not appear")
+	}
+}
+
 // savedEntryKeys returns the map keys of a loaded ActionCache for error messages.
 func savedEntryKeys(cache *workflow.ActionCache) []string {
 	keys := make([]string, 0, len(cache.Entries))
