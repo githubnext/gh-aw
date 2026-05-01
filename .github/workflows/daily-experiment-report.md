@@ -1,25 +1,31 @@
 ---
-description: Daily statistical report that aggregates experiment-state artifacts across recent runs, computes per-variant statistics (mean, variance, 95% CI, success rate), detects significance via Welch t-test or two-proportion z-test (p < 0.05), renders an ASCII comparison table per experiment, and posts it to each experiment's tracking issue or as a workflow step summary with a promote/extend/abandon recommendation
+description: Daily statistical report that aggregates experiment-state artifacts across recent runs, computes per-variant statistics (mean, variance, 95% CI, success rate), detects significance via Welch t-test or two-proportion z-test (p < 0.05), renders bar charts and an ASCII comparison table per experiment, and posts a discussion with a promote/extend/abandon recommendation
 name: daily-experiment-report
 on:
-  schedule:
-    - cron: "0 8 * * *"   # 08:00 UTC daily
+  schedule: daily around 8:00
   workflow_dispatch:
 permissions:
   contents: read
   actions: read
   issues: read
   pull-requests: read
+  discussions: read
 
 engine: copilot
 tools:
   github:
     toolsets: [default, actions]
 
+imports:
+  - uses: shared/daily-audit-charts.md
+    with:
+      title-prefix: "[experiments] "
+      expires: 3d
+
 safe-outputs:
-  add-comment:
-    max: 20
-    hide-older-comments: true
+  upload-asset:
+    max: 10
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
   mentions: false
   allowed-github-references: []
   max-bot-mentions: 1
@@ -163,7 +169,79 @@ Welch t-test cannot be applied — show `N/A` for p-value and note "zero varianc
 
 The significance threshold is **p < 0.05**.
 
-## Step 5 — Render ASCII Comparison Table
+## Step 5 — Generate Bar Charts
+
+For each experiment, generate two bar charts using Python (libraries and directories are already set
+up by the imported `shared/trending-charts-simple.md` environment):
+
+### Chart A — Success Rate by Variant
+
+```python
+#!/usr/bin/env python3
+import json, os
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import numpy as np
+
+# Load per-run data written in step 2 (replace with actual data)
+# variants: list of variant names
+# success_rates: matching list of 0.0-1.0 success rates
+# ns: matching list of sample sizes
+
+fig, ax = plt.subplots(figsize=(10, 6), dpi=150)
+colors = plt.cm.Set2(np.linspace(0, 1, len(variants)))
+bars = ax.bar(variants, [r * 100 for r in success_rates], color=colors, edgecolor='white', linewidth=1.5)
+
+# Annotate each bar with n and percentage
+for bar, n, rate in zip(bars, ns, success_rates):
+    ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.8,
+            f'{rate*100:.1f}%\n(n={n})', ha='center', va='bottom', fontsize=11, fontweight='bold')
+
+ax.axhline(y=success_rates[0] * 100, color='grey', linestyle='--', linewidth=1.2, label='Control baseline')
+ax.set_ylim(0, 115)
+ax.set_xlabel('Variant', fontsize=13)
+ax.set_ylabel('Success Rate (%)', fontsize=13)
+ax.set_title(f'Experiment: {experiment_name} — Success Rate by Variant', fontsize=14, fontweight='bold')
+ax.legend(fontsize=11)
+ax.grid(axis='y', alpha=0.4)
+plt.tight_layout()
+plt.savefig(f'/tmp/gh-aw/python/charts/{experiment_name}_success_rate.png',
+            dpi=150, bbox_inches='tight', facecolor='white')
+plt.close()
+```
+
+### Chart B — Mean Duration by Variant (with 95% CI error bars)
+
+```python
+fig, ax = plt.subplots(figsize=(10, 6), dpi=150)
+# ci_lower, ci_upper: lists of CI bounds in seconds
+yerr_lower = [mean - lo for mean, lo in zip(mean_durations_s, ci_lower_s)]
+yerr_upper = [hi - mean for mean, hi in zip(mean_durations_s, ci_upper_s)]
+colors = plt.cm.Set2(np.linspace(0, 1, len(variants)))
+bars = ax.bar(variants, mean_durations_s, yerr=[yerr_lower, yerr_upper],
+              color=colors, edgecolor='white', linewidth=1.5,
+              capsize=8, error_kw={'linewidth': 2, 'ecolor': 'dimgray'})
+
+for bar, mean, n in zip(bars, mean_durations_s, ns):
+    ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max(yerr_upper) * 0.05,
+            f'{mean:.0f}s\n(n={n})', ha='center', va='bottom', fontsize=11, fontweight='bold')
+
+ax.axhline(y=mean_durations_s[0], color='grey', linestyle='--', linewidth=1.2, label='Control baseline')
+ax.set_xlabel('Variant', fontsize=13)
+ax.set_ylabel('Mean Duration (s)', fontsize=13)
+ax.set_title(f'Experiment: {experiment_name} — Mean Duration by Variant (95% CI)', fontsize=14, fontweight='bold')
+ax.legend(fontsize=11)
+ax.grid(axis='y', alpha=0.4)
+plt.tight_layout()
+plt.savefig(f'/tmp/gh-aw/python/charts/{experiment_name}_duration.png',
+            dpi=150, bbox_inches='tight', facecolor='white')
+plt.close()
+```
+
+After saving each chart, upload it using the `upload_asset` safe-output tool and store the returned
+asset URLs — they will be embedded in the discussion body.
+
+## Step 6 — Render ASCII Comparison Table
 
 For each experiment, produce an ASCII table inside a fenced code block:
 
@@ -199,18 +277,62 @@ Rationale     : <one sentence>
 > effects. Even a non-significant result at this sample size does not rule out a meaningful
 > difference — use the **EXTEND** recommendation to gather more data before drawing conclusions.
 
-## Step 6 — Post Results
+## Step 7 — Post Discussion
 
-For each experiment:
+Create a single GitHub Discussion containing all experiments using the `create-discussion`
+safe output. The `shared/daily-audit-charts.md` import configures the discussion with
+title-prefix `[experiments]`, category `audits`, and automatic cleanup of older discussions.
 
-1. **If `issue:` is set in the experiment's frontmatter**, post the ASCII table as a new comment on
-   that issue using the `add-comment` safe output. Begin the comment with:
-   `### 🧪 Experiment Report — YYYY-MM-DD`
+**Discussion title**: `[experiments] Daily Experiment Report — YYYY-MM-DD`
 
-2. **If no tracking issue is configured**, append the ASCII table to `$GITHUB_STEP_SUMMARY`.
+### Discussion body structure
 
-After processing all experiments, print a one-line summary to `$GITHUB_STEP_SUMMARY`:
+```markdown
+### 🧪 Daily Experiment Report — YYYY-MM-DD
+
+[1–2 sentence executive summary: N experiments analysed across M workflows,
+ K reached significance (p < 0.05), list recommendations at a glance.]
+
+---
+
+#### `<experiment_name>` · `<workflow_basename>`
+
+> **Variants**: `<v1>` vs `<v2>` · **Window**: last 30 runs · **Analysed**: N runs with artifacts
+
+![Success Rate Chart](<ASSET_URL_success_rate>)
+
+![Duration Chart](<ASSET_URL_duration>)
+
+<ASCII comparison table from Step 6 inside a ``` code block>
+
+**Recommendation: PROMOTE / EXTEND / ABANDON** — <one sentence rationale>
+
+---
+
+[Repeat the section above for each experiment]
+
+### 📊 Summary
+
+| Experiment | Workflow | Control | Best variant | p-value | Recommendation |
+|-----------|---------|---------|-------------|---------|----------------|
+| ... | ... | ... | ... | ... | ... |
+
+> Analysis window: last 30 runs per workflow · Significance threshold: p < 0.05 (two-tailed)
+> Run: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+```
+
+If no workflows declare `experiments:`, create the discussion with a brief notice:
+
+```markdown
+### 🧪 No Active Experiments — YYYY-MM-DD
+
+No workflows in `${{ github.repository }}` currently declare an `experiments:` section.
+
+Run the `ab-testing-advisor` workflow to generate experiment campaign ideas.
+```
+
+After the discussion is created, also write a one-line summary to `$GITHUB_STEP_SUMMARY`:
 
 ```
-Daily experiment report: N experiments analysed, M reached significance (p < 0.05).
+Daily experiment report: N experiments analysed, M reached significance (p < 0.05). Discussion: <url>
 ```
