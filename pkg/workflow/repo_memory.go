@@ -514,6 +514,10 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		builder.WriteString("              mv -- \"$f\" \"$dir/$safe\" && echo \"Renamed: $base -> $safe\"\n")
 		builder.WriteString("            fi\n")
 		builder.WriteString("          done\n")
+		// Ensure the step always exits 0: the while loop exits cleanly when
+		// find produces no output, but the `true` guards against edge cases
+		// (e.g. find returning non-zero for a missing directory) that could
+		// fail the step and block artifact upload.
 		builder.WriteString("          true\n")
 
 		// Step: Upload repo-memory directory as artifact
