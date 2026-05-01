@@ -12,8 +12,7 @@ permissions:
   discussions: read
 tracker-id: daily-fact-thread
 engine:
-  id: codex
-  model: gpt-5.4-mini
+  id: copilot
   bare: true
 strict: true
 timeout-minutes: 15
