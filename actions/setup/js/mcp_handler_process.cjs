@@ -16,7 +16,7 @@ const { execFile } = require("child_process");
  * Preserves exit code, signal, and the original error message so timeout and
  * missing-interpreter failures remain accurately described.
  *
- * @param {Error} error - The original execution error
+ * @param {import('child_process').ExecFileException} error - The original execution error
  * @param {string} scriptPath - Path to the script, used for context in the message
  * @param {string} stdout - Process stdout output
  * @param {string} stderr - Process stderr output
