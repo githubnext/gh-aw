@@ -297,6 +297,7 @@ export default defineConfig({
 						{ label: 'DailyOps', link: '/patterns/daily-ops/' },
 						{ label: 'DataOps', link: '/patterns/data-ops/' },
 						{ label: 'DispatchOps', link: '/patterns/dispatch-ops/' },
+						{ label: 'ExpertOps', link: '/patterns/expert-ops/' },
 						{ label: 'IssueOps', link: '/patterns/issue-ops/' },
 						{ label: 'LabelOps', link: '/patterns/label-ops/' },
 						{ label: 'MemoryOps', link: '/guides/memoryops/' },
