@@ -162,3 +162,27 @@ func TestGenerateExperimentSteps_SpecJSON(t *testing.T) {
 	joined := strings.Join(steps, "")
 	assert.Contains(t, joined, `{"style":["concise","detailed"]}`, "spec JSON should be embedded in the step")
 }
+
+func TestExperimentExpressionMappings(t *testing.T) {
+	experiments := map[string][]string{
+		"caveman": {"yes", "no"},
+		"style":   {"concise", "detailed"},
+	}
+	mappings := ExperimentExpressionMappings(experiments)
+	require.Len(t, mappings, 2, "one mapping per experiment")
+
+	// Build a lookup by EnvVar for easier assertions
+	byEnvVar := make(map[string]*ExpressionMapping, len(mappings))
+	for _, m := range mappings {
+		byEnvVar[m.EnvVar] = m
+	}
+
+	m := byEnvVar["GH_AW_EXPERIMENTS_CAVEMAN"]
+	require.NotNil(t, m, "mapping for GH_AW_EXPERIMENTS_CAVEMAN should exist")
+	assert.Equal(t, "steps.pick-experiment.outputs.caveman", m.Content, "content should be the step output expression")
+	assert.Equal(t, "${{ experiments.caveman }}", m.Original, "original should be the experiments expression")
+
+	m2 := byEnvVar["GH_AW_EXPERIMENTS_STYLE"]
+	require.NotNil(t, m2, "mapping for GH_AW_EXPERIMENTS_STYLE should exist")
+	assert.Equal(t, "steps.pick-experiment.outputs.style", m2.Content, "content should be the step output expression")
+}

@@ -170,11 +170,17 @@ async function main() {
     recordVariant(name, selected, state);
     assignments[name] = selected;
 
-    // Export the selected variant so subsequent steps can read it via $GITHUB_ENV.
-    const envVarName = `GH_AW_EXPERIMENTS_${name.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
-    core.exportVariable(envVarName, selected);
-    core.info(`Experiment "${name}": selected variant "${selected}" → ${envVarName}=${selected}`);
+    // Expose the selected variant as a step output (individual per experiment).
+    // Downstream jobs access this via needs.activation.outputs.experiment_<name>.
+    core.setOutput(name, selected);
+    core.info(`Experiment "${name}": selected variant "${selected}" (output: ${name}=${selected})`);
   }
+
+  // Expose the full assignments map as a serialized JSON step output.
+  // Downstream jobs access this via needs.activation.outputs.experiments.
+  const experimentsJSON = JSON.stringify(assignments);
+  core.setOutput("experiments", experimentsJSON);
+  core.info(`Experiment assignments (JSON): ${experimentsJSON}`);
 
   // Persist updated counts.
   saveState(stateFile, state);

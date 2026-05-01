@@ -210,14 +210,17 @@ func ExperimentEnvVarName(experimentName string) string {
 }
 
 // transformExperimentsExpression detects expressions of the form "experiments.<name>"
-// and rewrites them to "env.GH_AW_EXPERIMENTS_<NAME>" so that the placeholder
-// substitution step reads the value that the pick_experiment step wrote to GITHUB_ENV.
+// and rewrites them to "steps.pick-experiment.outputs.<name>" so that the placeholder
+// substitution step reads the value from the pick_experiment step output.
+// This is used for ${{ experiments.name }} expressions that appear directly in the prompt body
+// (mostly relevant in inline mode; in runtime-import mode the template conditional
+// {{#if experiments.name}} path is handled separately via ExperimentExpressionMappings).
 func transformExperimentsExpression(expr string) string {
 	m := experimentNameRegex.FindStringSubmatch(expr)
 	if m == nil {
 		return expr
 	}
-	return "env." + ExperimentEnvVarName(m[1])
+	return "steps.pick-experiment.outputs." + m[1]
 }
 
 // simpleIdentifierRegex matches simple JavaScript property access chains like

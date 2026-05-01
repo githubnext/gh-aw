@@ -10,7 +10,7 @@ const mockCore = {
   warning: vi.fn(),
   error: vi.fn(),
   setFailed: vi.fn(),
-  exportVariable: vi.fn(),
+  setOutput: vi.fn(),
   summary: {
     addRaw: vi.fn().mockReturnThis(),
     write: vi.fn().mockResolvedValue(undefined),
@@ -139,7 +139,7 @@ describe("pick_experiment", () => {
   // ── main ───────────────────────────────────────────────────────────────────
 
   describe("main", () => {
-    it("exports GITHUB_ENV variables for each experiment", async () => {
+    it("sets step outputs for each experiment and a combined JSON output", async () => {
       const stateFile = path.join(tmpDir, "state.json");
       process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
         feature1: ["A", "B"],
@@ -149,7 +149,10 @@ describe("pick_experiment", () => {
 
       await main();
 
-      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_EXPERIMENTS_FEATURE1", "A");
+      // Individual output per experiment
+      expect(mockCore.setOutput).toHaveBeenCalledWith("feature1", "A");
+      // Combined JSON output
+      expect(mockCore.setOutput).toHaveBeenCalledWith("experiments", JSON.stringify({ feature1: "A" }));
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -163,14 +166,14 @@ describe("pick_experiment", () => {
 
       // First run → X
       await main();
-      const firstCall = mockCore.exportVariable.mock.calls.find(c => c[0] === "GH_AW_EXPERIMENTS_FEAT");
+      const firstCall = mockCore.setOutput.mock.calls.find(c => c[0] === "feat");
       expect(firstCall?.[1]).toBe("X");
 
       vi.clearAllMocks();
 
       // Second run → Y (state persisted from first call)
       await main();
-      const secondCall = mockCore.exportVariable.mock.calls.find(c => c[0] === "GH_AW_EXPERIMENTS_FEAT");
+      const secondCall = mockCore.setOutput.mock.calls.find(c => c[0] === "feat");
       expect(secondCall?.[1]).toBe("Y");
     });
 
@@ -181,7 +184,8 @@ describe("pick_experiment", () => {
 
       await main();
 
-      expect(mockCore.exportVariable).not.toHaveBeenCalled();
+      // When no experiments are declared, the function returns early and emits no outputs.
+      expect(mockCore.setOutput).not.toHaveBeenCalled();
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 

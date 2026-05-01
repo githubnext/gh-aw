@@ -59,7 +59,8 @@ func extractExperimentsFromFrontmatter(frontmatter map[string]any) map[string][]
 //
 // Steps generated (only when experiments are declared):
 //  1. Restore experiment cache   – actions/cache/restore keyed by workflow ID
-//  2. Pick variants              – pick_experiment.cjs (reads/writes state.json, sets GITHUB_ENV)
+//  2. Pick variants              – pick_experiment.cjs (reads/writes state.json, sets step outputs)
+//     Outputs: one per experiment (e.g. "caveman=yes") + "experiments" JSON blob
 //  3. Experiment step summary    – write a Markdown summary to GITHUB_STEP_SUMMARY
 //  4. Save experiment cache      – actions/cache/save keyed by workflow ID
 //  5. Upload experiment artifact – actions/upload-artifact named "experiment"
@@ -154,6 +155,38 @@ func buildExperimentSpecJSON(experiments map[string][]string, names []string) st
 	}
 	sb.WriteString("}")
 	return sb.String()
+}
+
+// ExperimentExpressionMappings generates ExpressionMapping entries for all declared experiments.
+//
+// Each mapping maps the env-var name derived from "experiments.NAME"
+// (e.g. GH_AW_EXPERIMENTS_CAVEMAN) to the step output expression
+// "steps.pick-experiment.outputs.NAME".
+//
+// Adding these mappings to both expressionMappings and allExpressionMappings ensures:
+//   - The "Interpolate variables and render templates" step has
+//     GH_AW_EXPERIMENTS_NAME set from the step output, so that interpolate_prompt.cjs
+//     can substitute __GH_AW_EXPERIMENTS_NAME__ placeholders BEFORE template rendering.
+//   - The "Substitute placeholders" step can replace any remaining __GH_AW_EXPERIMENTS_NAME__
+//     occurrences that were produced by the runtime-import mechanism.
+func ExperimentExpressionMappings(experiments map[string][]string) []*ExpressionMapping {
+	names := sortedExperimentNames(experiments)
+	mappings := make([]*ExpressionMapping, 0, len(names))
+	for _, name := range names {
+		envVar := ExperimentEnvVarName(name) // e.g. GH_AW_EXPERIMENTS_CAVEMAN
+		// The step output expression resolves to the variant selected at runtime.
+		// The step ID "pick-experiment" is defined by generateExperimentSteps (the step with
+		// `id: pick-experiment` in the activation job).
+		content := "steps.pick-experiment.outputs." + name // e.g. steps.pick-experiment.outputs.caveman
+		original := "${{ experiments." + name + " }}"      // original expression in the markdown
+
+		mappings = append(mappings, &ExpressionMapping{
+			Original: original,
+			EnvVar:   envVar,
+			Content:  content,
+		})
+	}
+	return mappings
 }
 
 // sortedExperimentNames returns the experiment names in sorted order for deterministic output.
