@@ -138,4 +138,32 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 			t.Error("Expected Gemini AWF command to contain apiProxy enabled in config JSON")
 		}
 	})
+
+	t.Run("OpenCode AWF command includes apiProxy enabled in config file", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "opencode",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewOpenCodeEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) < 2 {
+			t.Fatal("Expected at least two execution steps (config + execution)")
+		}
+
+		// steps[0] = Write OpenCode Config, steps[1] = Execute OpenCode CLI
+		stepContent := strings.Join(steps[1], "\n")
+
+		if !strings.Contains(stepContent, `"enabled":true`) {
+			t.Error("Expected OpenCode AWF command to contain apiProxy enabled in config JSON")
+		}
+	})
 }

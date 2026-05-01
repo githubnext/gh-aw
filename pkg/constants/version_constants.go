@@ -73,6 +73,13 @@ const AWFCliProxyMinVersion Version = "v0.25.17"
 // --allow-host-ports or the run will fail at startup with an unknown flag error.
 const AWFAllowHostPortsMinVersion Version = "v0.25.24"
 
+// AWFEnableOpenCodeMinVersion is the minimum AWF version that supports the
+// --enable-opencode flag. This flag enables the OpenCode API proxy listener
+// on port 10004 (dynamic provider routing). Workflows pinning an older AWF
+// version must not emit --enable-opencode or the run will fail at startup.
+// Introduced in gh-aw-firewall PR #2337.
+const AWFEnableOpenCodeMinVersion Version = "v0.25.30"
+
 // CopilotNoAskUserMinVersion is the minimum Copilot CLI version that supports the --no-ask-user
 // flag, which enables fully autonomous agentic runs by suppressing interactive prompts.
 // Workflows using an older Copilot CLI version must not emit --no-ask-user or the run will fail.

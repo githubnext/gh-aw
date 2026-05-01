@@ -316,6 +316,11 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	// AWF's --enable-host-access defaults to ports 80,443. The MCP gateway now
 	// listens on port 8080 (non-privileged), so we must explicitly allow it
 	// when AWF supports --allow-host-ports.
+	// For OpenCode engine, also include port 10004 (OpenCode dynamic provider routing)
+	// and emit --enable-opencode when AWF supports it (v0.25.30+).
+	// AWFEnableOpenCodeMinVersion > AWFAllowHostPortsMinVersion, so when opencode support
+	// is available, --allow-host-ports support is also guaranteed.
+	opencodeEnabled := config.EngineName == string(constants.OpenCodeEngine) && awfSupportsEnableOpenCode(firewallConfig)
 	if awfSupportsAllowHostPorts(firewallConfig) {
 		mcpGatewayPort := int(DefaultMCPGatewayPort)
 		if config.WorkflowData != nil && config.WorkflowData.SandboxConfig != nil &&
@@ -323,10 +328,20 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 			mcpGatewayPort = config.WorkflowData.SandboxConfig.MCP.Port
 		}
 		hostPorts := fmt.Sprintf("80,443,%d", mcpGatewayPort)
+		if opencodeEnabled {
+			hostPorts += ",10004"
+		}
 		awfArgs = append(awfArgs, "--allow-host-ports", hostPorts)
 		awfHelpersLog.Printf("Added --allow-host-ports %s for MCP gateway access", hostPorts)
 	} else {
 		awfHelpersLog.Printf("Skipping --allow-host-ports: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAllowHostPortsMinVersion)
+	}
+
+	if opencodeEnabled {
+		awfArgs = append(awfArgs, "--enable-opencode")
+		awfHelpersLog.Print("Added --enable-opencode and port 10004 for OpenCode API proxy listener")
+	} else if config.EngineName == string(constants.OpenCodeEngine) {
+		awfHelpersLog.Printf("Skipping --enable-opencode: AWF version %q is older than minimum %s", getAWFImageTag(firewallConfig), constants.AWFEnableOpenCodeMinVersion)
 	}
 
 	// Skip pulling images since they are pre-downloaded
@@ -682,5 +697,36 @@ func awfSupportsAllowHostPorts(firewallConfig *FirewallConfig) bool {
 	}
 
 	minVersion := string(constants.AWFAllowHostPortsMinVersion)
+	return semverutil.Compare(versionStr, minVersion) >= 0
+}
+
+// awfSupportsEnableOpenCode returns true when the effective AWF version supports
+// --enable-opencode.
+//
+// The --enable-opencode flag enables the OpenCode API proxy listener on port 10004
+// (dynamic provider routing). It was introduced in AWF v0.25.30 (gh-aw-firewall PR #2337).
+// Any workflow that pins an explicit version older than v0.25.30 must not emit
+// --enable-opencode or the run will fail at startup.
+//
+// Special cases:
+//   - No version override (firewallConfig is nil or has no Version): use DefaultFirewallVersion
+//     and compare against AWFEnableOpenCodeMinVersion.
+//   - "latest": always returns true (latest is always a new release).
+//   - Any semver string ≥ AWFEnableOpenCodeMinVersion: returns true.
+//   - Any semver string < AWFEnableOpenCodeMinVersion: returns false.
+//   - Non-semver string (e.g. a branch name): returns false (conservative).
+func awfSupportsEnableOpenCode(firewallConfig *FirewallConfig) bool {
+	var versionStr string
+	if firewallConfig != nil && firewallConfig.Version != "" {
+		versionStr = firewallConfig.Version
+	} else {
+		versionStr = string(constants.DefaultFirewallVersion)
+	}
+
+	if strings.EqualFold(versionStr, "latest") {
+		return true
+	}
+
+	minVersion := string(constants.AWFEnableOpenCodeMinVersion)
 	return semverutil.Compare(versionStr, minVersion) >= 0
 }

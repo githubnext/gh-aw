@@ -550,6 +550,192 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 	})
 }
 
+// TestBuildAWFArgsEnableOpenCode tests that BuildAWFArgs emits --enable-opencode and
+// includes port 10004 in --allow-host-ports when engine=opencode and AWF supports it.
+func TestBuildAWFArgsEnableOpenCode(t *testing.T) {
+	t.Run("emits --enable-opencode and port 10004 for opencode engine with default AWF version", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "opencode",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "opencode"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: "v0.25.30",
+					},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--enable-opencode", "Should include --enable-opencode for opencode engine")
+		assert.Contains(t, argsStr, "10004", "Should include port 10004 in --allow-host-ports for opencode engine")
+		assert.Contains(t, argsStr, "80,443,8080,10004", "Should include all required ports for opencode engine")
+	})
+
+	t.Run("does not emit --enable-opencode for non-opencode engines", func(t *testing.T) {
+		for _, engine := range []string{"copilot", "claude", "codex", "gemini"} {
+			config := AWFCommandConfig{
+				EngineName: engine,
+				WorkflowData: &WorkflowData{
+					Name:         "test-workflow",
+					EngineConfig: &EngineConfig{ID: engine},
+					NetworkPermissions: &NetworkPermissions{
+						Firewall: &FirewallConfig{
+							Enabled: true,
+							Version: "v0.25.30",
+						},
+					},
+				},
+				AllowedDomains: "github.com",
+			}
+
+			args := BuildAWFArgs(config)
+			argsStr := strings.Join(args, " ")
+
+			assert.NotContains(t, argsStr, "--enable-opencode", "Should not include --enable-opencode for engine %s", engine)
+			assert.NotContains(t, argsStr, "10004", "Should not include port 10004 for engine %s", engine)
+		}
+	})
+
+	t.Run("skips --enable-opencode when AWF version is too old", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "opencode",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "opencode"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: "v0.25.29",
+					},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.NotContains(t, argsStr, "--enable-opencode", "Should skip --enable-opencode for AWF versions below minimum")
+		assert.NotContains(t, argsStr, "10004", "Should skip port 10004 for AWF versions below minimum")
+	})
+
+	t.Run("emits --enable-opencode for opencode engine with latest AWF version", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "opencode",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "opencode"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: "latest",
+					},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--enable-opencode", "Should include --enable-opencode for opencode engine with latest AWF version")
+		assert.Contains(t, argsStr, "10004", "Should include port 10004 for opencode engine with latest AWF version")
+	})
+
+	t.Run("port 10004 respects custom MCP gateway port", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "opencode",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "opencode"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: "v0.25.30",
+					},
+				},
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{Port: 9090},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "80,443,9090,10004", "Should use custom MCP port and include port 10004")
+	})
+}
+
+// TestAWFSupportsEnableOpenCode tests the awfSupportsEnableOpenCode version gate function.
+func TestAWFSupportsEnableOpenCode(t *testing.T) {
+	tests := []struct {
+		name           string
+		firewallConfig *FirewallConfig
+		want           bool
+	}{
+		{
+			name:           "nil firewall config returns false (default version v0.25.29 < v0.25.30)",
+			firewallConfig: nil,
+			want:           false,
+		},
+		{
+			name:           "empty version returns false (default version v0.25.29 < v0.25.30)",
+			firewallConfig: &FirewallConfig{},
+			want:           false,
+		},
+		{
+			name:           "latest returns true",
+			firewallConfig: &FirewallConfig{Version: "latest"},
+			want:           true,
+		},
+		{
+			name:           "v0.25.30 supports --enable-opencode (exact minimum version)",
+			firewallConfig: &FirewallConfig{Version: "v0.25.30"},
+			want:           true,
+		},
+		{
+			name:           "v0.26.0 supports --enable-opencode",
+			firewallConfig: &FirewallConfig{Version: "v0.26.0"},
+			want:           true,
+		},
+		{
+			name:           "v0.25.29 does not support --enable-opencode",
+			firewallConfig: &FirewallConfig{Version: "v0.25.29"},
+			want:           false,
+		},
+		{
+			name:           "v0.25.24 does not support --enable-opencode",
+			firewallConfig: &FirewallConfig{Version: "v0.25.24"},
+			want:           false,
+		},
+		{
+			name:           "v0.1.0 does not support --enable-opencode",
+			firewallConfig: &FirewallConfig{Version: "v0.1.0"},
+			want:           false,
+		},
+		{
+			name:           "non-semver branch name returns false (conservative)",
+			firewallConfig: &FirewallConfig{Version: "feature-branch"},
+			want:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := awfSupportsEnableOpenCode(tt.firewallConfig)
+			assert.Equal(t, tt.want, got, "awfSupportsEnableOpenCode result")
+		})
+	}
+}
+
 // TestBuildAWFArgsDiagnosticLogs tests that BuildAWFArgs includes --diagnostic-logs
 // only when features.awf-diagnostic-logs is enabled.
 func TestBuildAWFArgsDiagnosticLogs(t *testing.T) {
