@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatResponse, hasStdinPlaceholder, parseToolArgs } from "./mcp_cli_bridge.cjs";
+import { formatResponse, hasStdinPlaceholder, parseToolArgs, readStdinSync } from "./mcp_cli_bridge.cjs";
 
 describe("mcp_cli_bridge.cjs", () => {
   let originalCore;
@@ -282,6 +282,26 @@ describe("mcp_cli_bridge.cjs", () => {
     it("does not treat '-' after a non-flag arg as a placeholder", () => {
       // positional '-' not preceded by '--flag' should not trigger stdin detection
       expect(hasStdinPlaceholder(["-", "--body", "value"])).toBe(false);
+    });
+
+    it("throws when stdin exceeds maximum allowed size", () => {
+      const fs = require("fs");
+      // Simulate reading more than 10 MB total by making readSync return data repeatedly
+      const STDIN_MAX_BYTES = 10 * 1024 * 1024;
+      const callCount = { n: 0 };
+      const readSyncSpy = vi.spyOn(fs, "readSync").mockImplementation((_fd, buf, _offset, length) => {
+        callCount.n++;
+        // Each call fills the buffer until we exceed the limit
+        if (callCount.n > STDIN_MAX_BYTES / length + 1) return 0;
+        buf.fill(0x41, 0, length); // fill with 'A'
+        return length;
+      });
+
+      try {
+        expect(() => readStdinSync()).toThrow(/exceeds maximum allowed size/);
+      } finally {
+        readSyncSpy.mockRestore();
+      }
     });
   });
 });

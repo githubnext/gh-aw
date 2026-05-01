@@ -442,7 +442,7 @@ function parseBridgeArgs(argv) {
 function hasStdinPlaceholder(args) {
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (!arg.startsWith("--")) continue;
+    if (typeof arg !== "string" || !arg.startsWith("--")) continue;
     const raw = arg.slice(2);
     const eqIdx = raw.indexOf("=");
     if (eqIdx >= 0) {
@@ -457,10 +457,14 @@ function hasStdinPlaceholder(args) {
   return false;
 }
 
+/** Maximum bytes accepted from stdin to prevent memory exhaustion (10 MB) */
+const STDIN_MAX_BYTES = 10 * 1024 * 1024;
+
 /**
  * Read all of stdin synchronously and return the content as a string.
  * Uses low-level fs.readSync on fd 0 so it works in both TTY and piped contexts.
  * Returns an empty string if reading fails or stdin is empty.
+ * Throws an error if stdin exceeds STDIN_MAX_BYTES.
  *
  * @returns {string}
  */
@@ -469,6 +473,7 @@ function readStdinSync() {
   /** @type {Buffer[]} */
   const chunks = [];
   const bufSize = 65536;
+  let totalBytes = 0;
   while (true) {
     const buf = Buffer.alloc(bufSize);
     let bytesRead;
@@ -478,6 +483,10 @@ function readStdinSync() {
       break;
     }
     if (bytesRead === 0) break;
+    totalBytes += bytesRead;
+    if (totalBytes > STDIN_MAX_BYTES) {
+      throw new Error(`stdin input exceeds maximum allowed size of ${STDIN_MAX_BYTES} bytes`);
+    }
     chunks.push(buf.slice(0, bytesRead));
   }
   return Buffer.concat(chunks).toString("utf8");
