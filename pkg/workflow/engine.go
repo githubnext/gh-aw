@@ -49,6 +49,7 @@ type EngineConfig struct {
 
 	// MCP gateway configuration from engine.mcp sub-object
 	MCPSessionTimeout string // session-timeout: Go duration string for MCP gateway sessions (e.g. "4h", "30m")
+	MCPToolTimeout    string // tool-timeout: Go duration string for individual MCP tool calls (e.g. "2m", "30s")
 }
 
 // NetworkPermissions represents network access permissions for workflow execution
@@ -329,6 +330,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 						if stStr, ok := stVal.(string); ok && stStr != "" {
 							config.MCPSessionTimeout = stStr
 							engineLog.Printf("Extracted engine.mcp.session-timeout: %s", config.MCPSessionTimeout)
+						}
+					}
+					// Extract tool-timeout (kebab-case only; camelCase is not supported)
+					if ttVal, hasToolTimeout := mcpObj["tool-timeout"]; hasToolTimeout {
+						if ttStr, ok := ttVal.(string); ok && ttStr != "" {
+							config.MCPToolTimeout = ttStr
+							engineLog.Printf("Extracted engine.mcp.tool-timeout: %s", config.MCPToolTimeout)
 						}
 					}
 				}

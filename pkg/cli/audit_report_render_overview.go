@@ -30,14 +30,15 @@ func renderOverview(overview OverviewData) {
 	}
 
 	display := OverviewDisplay{
-		RunID:    overview.RunID,
-		Workflow: overview.WorkflowName,
-		Status:   statusLine,
-		Duration: overview.Duration,
-		Event:    overview.Event,
-		Branch:   overview.Branch,
-		URL:      overview.URL,
-		Files:    overview.LogsPath,
+		RunID:      overview.RunID,
+		Workflow:   overview.WorkflowName,
+		Status:     statusLine,
+		Duration:   overview.Duration,
+		Event:      overview.Event,
+		Branch:     overview.Branch,
+		URL:        overview.URL,
+		Files:      overview.LogsPath,
+		Experiment: overview.Experiment,
 	}
 
 	fmt.Fprint(os.Stderr, console.RenderStruct(display))

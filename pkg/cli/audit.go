@@ -72,6 +72,16 @@ Examples:
 			repoFlag, _ := cmd.Flags().GetString("repo")
 			artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
 			stdin, _ := cmd.Flags().GetBool("stdin")
+			experimentFilter, _ := cmd.Flags().GetString("experiment")
+			variantFilter, _ := cmd.Flags().GetString("variant")
+
+			// --variant requires --experiment to be meaningful.
+			if variantFilter != "" && experimentFilter == "" {
+				return errors.New(console.FormatErrorWithSuggestions(
+					"--variant requires --experiment to be specified",
+					[]string{"Add --experiment <name> to filter by experiment name alongside --variant"},
+				))
+			}
 
 			// When --stdin is provided, read run IDs/URLs from stdin instead of positional args.
 			if stdin {
@@ -136,6 +146,8 @@ Examples:
 					components.JobID,
 					components.StepNumber,
 					artifacts,
+					experimentFilter,
+					variantFilter,
 				)
 			}
 
@@ -153,6 +165,8 @@ Examples:
 	cmd.Flags().String("format", "pretty", "Diff output format for multi-run mode: pretty, markdown")
 	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
 	cmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of positional arguments")
+	cmd.Flags().String("experiment", "", "Filter to runs that include this experiment name")
+	cmd.Flags().String("variant", "", "Filter to runs with a specific variant value (requires --experiment)")
 
 	// Register completions for audit command
 	RegisterDirFlagCompletion(cmd, "output")
@@ -224,7 +238,10 @@ func isPermissionError(err error) bool {
 // AuditWorkflowRun audits a single workflow run and generates a report
 // If jobID is provided (>0), focuses audit on that specific job
 // If stepNumber is provided (>0), extracts output for that specific step
-func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname string, outputDir string, verbose bool, parse bool, jsonOutput bool, jobID int64, stepNumber int, artifactSets []string) error {
+// If experimentFilter is non-empty, the run is skipped when its experiment artifact does
+// not contain an assignment for that experiment name. If variantFilter is also non-empty,
+// the assigned variant must equal variantFilter.
+func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname string, outputDir string, verbose bool, parse bool, jsonOutput bool, jobID int64, stepNumber int, artifactSets []string, experimentFilter string, variantFilter string) error {
 	// Auto-detect GHES host from git remote if hostname is not provided
 	if hostname == "" {
 		hostname = getHostFromOriginRemote()
@@ -312,6 +329,18 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		// file reads (created items, aw_info, etc.) resolve correctly even if the run
 		// directory has been moved or copied since the summary was first written.
 		processedRun.Run.LogsPath = runOutputDir
+
+		// Apply experiment filter before rendering when flags are active.
+		if experimentFilter != "" {
+			expData := extractExperimentData(runOutputDir)
+			if !experimentMatchesFilter(expData, experimentFilter, variantFilter) {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+					formatExperimentSkipMessage(runID, experimentFilter, variantFilter),
+				))
+				return nil
+			}
+		}
+
 		return renderAuditReport(ctx, processedRun, summary.Metrics, summary.MCPToolUsage, runOutputDir, owner, repo, hostname, verbose, parse, jsonOutput)
 	}
 
@@ -571,6 +600,17 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 	if err := saveRunSummary(runOutputDir, summary, verbose); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary: %v", err)))
+		}
+	}
+
+	// Apply experiment filter before rendering when flags are active.
+	if experimentFilter != "" {
+		expData := extractExperimentData(runOutputDir)
+		if !experimentMatchesFilter(expData, experimentFilter, variantFilter) {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+				formatExperimentSkipMessage(runID, experimentFilter, variantFilter),
+			))
+			return nil
 		}
 	}
 

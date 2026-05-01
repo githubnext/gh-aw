@@ -94,7 +94,8 @@ type OverviewData struct {
 	Branch       string     `json:"branch" console:"header:Branch"`
 	URL          string     `json:"url" console:"header:URL"`
 	LogsPath     string     `json:"logs_path,omitempty" console:"header:Files,omitempty"`
-	AwContext    *AwContext `json:"context,omitempty" console:"-"` // aw_context data from aw_info.json
+	Experiment   string     `json:"experiment,omitempty" console:"header:Experiment,omitempty"` // compact A/B experiment label, e.g. "style=concise"
+	AwContext    *AwContext `json:"context,omitempty" console:"-"`                              // aw_context data from aw_info.json
 }
 
 // MetricsData contains execution metrics
@@ -227,20 +228,29 @@ type PolicySummaryDisplay struct {
 
 // OverviewDisplay is a display-optimized version of OverviewData for console rendering
 type OverviewDisplay struct {
-	RunID    int64  `console:"header:Run ID"`
-	Workflow string `console:"header:Workflow"`
-	Status   string `console:"header:Status"`
-	Duration string `console:"header:Duration,omitempty"`
-	Event    string `console:"header:Event"`
-	Branch   string `console:"header:Branch"`
-	URL      string `console:"header:URL"`
-	Files    string `console:"header:Files,omitempty"`
+	RunID      int64  `console:"header:Run ID"`
+	Workflow   string `console:"header:Workflow"`
+	Status     string `console:"header:Status"`
+	Duration   string `console:"header:Duration,omitempty"`
+	Event      string `console:"header:Event"`
+	Branch     string `console:"header:Branch"`
+	URL        string `console:"header:URL"`
+	Files      string `console:"header:Files,omitempty"`
+	Experiment string `console:"header:Experiment,omitempty"`
 }
 
 // buildAuditData creates structured audit data from workflow run information
 func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData) AuditData {
 	run := processedRun.Run
 	auditReportLog.Printf("Building audit data for run ID %d", run.DatabaseID)
+
+	// Extract experiment data once so it can be used in both the overview and
+	// the dedicated Experiments section without reading the file twice.
+	// Note: AuditWorkflowRun may also call extractExperimentData earlier when an
+	// --experiment filter is active, but that read is guarded by the filter flag so
+	// it only occurs when filtering is requested. This call here is always required
+	// to populate the Experiments section of the report.
+	expData := extractExperimentData(run.LogsPath)
 
 	// Build overview
 	overview := OverviewData{
@@ -254,6 +264,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		Event:        run.Event,
 		Branch:       run.HeadBranch,
 		URL:          run.URL,
+		Experiment:   formatExperimentLabel(expData),
 	}
 
 	if run.LogsPath != "" {
@@ -416,7 +427,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		ToolUsage:               toolUsage,
 		MCPToolUsage:            mcpToolUsage,
 		CreatedItems:            createdItems,
-		Experiments:             extractExperimentData(run.LogsPath),
+		Experiments:             expData,
 	}
 }
 

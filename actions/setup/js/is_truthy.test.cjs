@@ -63,5 +63,46 @@ describe("is_truthy.cjs", () => {
       expect(isTruthy("NuLl")).toBe(false);
       expect(isTruthy("UnDeFiNeD")).toBe(false);
     });
+
+    describe('GitHub Actions script style equality (v == "b")', () => {
+      it("should return true when value matches literal with ==", () => {
+        expect(isTruthy('concise == "concise"')).toBe(true);
+        expect(isTruthy('verbose == "verbose"')).toBe(true);
+        expect(isTruthy('yes == "yes"')).toBe(true);
+      });
+
+      it("should return false when value does not match literal with ==", () => {
+        expect(isTruthy('verbose == "concise"')).toBe(false);
+        expect(isTruthy('concise == "verbose"')).toBe(false);
+        expect(isTruthy('no == "yes"')).toBe(false);
+      });
+
+      it("should return true when value matches literal with ===", () => {
+        expect(isTruthy('concise === "concise"')).toBe(true);
+      });
+
+      it("should return false when value does not match literal with ===", () => {
+        expect(isTruthy('verbose === "concise"')).toBe(false);
+      });
+
+      it("should return true when value does not match literal with !=", () => {
+        expect(isTruthy('verbose != "concise"')).toBe(true);
+      });
+
+      it("should return false when value matches literal with !=", () => {
+        expect(isTruthy('concise != "concise"')).toBe(false);
+      });
+
+      it("should handle whitespace around operators", () => {
+        expect(isTruthy('  concise  ==  "concise"  ')).toBe(true);
+      });
+
+      it("should return false for empty LHS (unset experiment variable)", () => {
+        // If the experiment env var was not set, substitution leaves an empty LHS:
+        // {{#if  == "concise"}} — should be false, not truthy fallback
+        expect(isTruthy(' == "concise"')).toBe(false);
+        expect(isTruthy('== "concise"')).toBe(false);
+      });
+    });
   });
 });

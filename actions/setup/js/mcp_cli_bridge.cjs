@@ -457,6 +457,24 @@ function hasStdinPlaceholder(args) {
   return false;
 }
 
+/**
+ * Check whether stdin should be read and parsed as a JSON payload for tool arguments.
+ * Returns true when the '.' sentinel is the only argument, or when no arguments are
+ * provided and stdin is not connected to a terminal (i.e. data is being piped).
+ *
+ * This enables agents to pipe complex multi-argument payloads as a single JSON object:
+ *   printf '{"issue_number":42,"body":"hello"}' | safeoutputs add_comment .
+ *   printf '{"issue_number":42,"body":"hello"}' | safeoutputs add_comment
+ *
+ * @param {string[]} args - User arguments after the tool name
+ * @returns {boolean}
+ */
+function hasStdinJsonPayload(args) {
+  if (args.length === 1 && args[0] === ".") return true;
+  if (args.length === 0 && !process.stdin.isTTY) return true;
+  return false;
+}
+
 /** Maximum bytes accepted from stdin to prevent memory exhaustion (10 MB) */
 const STDIN_MAX_BYTES = 10 * 1024 * 1024;
 
@@ -508,6 +526,12 @@ function readStdinSync() {
  * content is substituted in place of that value. This allows multiline
  * strings to be piped safely: `printf 'line1\nline2' | cmd --body -`
  *
+ * When `stdinContent` is provided and args is empty or `['.']`, the stdin
+ * content is parsed as a JSON object and its properties are used as tool
+ * arguments directly (JSON payload mode). This enables agents to pipe
+ * complex multi-argument payloads without shell quoting issues:
+ *   printf '{"issue_number":42,"body":"hello"}' | safeoutputs add_comment .
+ *
  * @param {string[]} args - User arguments after the tool name
  * @param {Record<string, {type?: string|string[]}>} [schemaProperties] - Tool input schema properties
  * @param {string | null} [stdinContent] - Pre-read stdin content; substituted when value is '-'
@@ -519,6 +543,26 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
   let jsonOutput = false;
   const hasSchemaProperties = Object.keys(schemaProperties).length > 0;
   const { normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys } = buildNormalizedSchemaKeyMap(schemaProperties);
+
+  // JSON payload mode: when args is empty or ['.'] and stdinContent is available,
+  // parse stdin as a JSON object and use its properties directly as tool arguments.
+  if (stdinContent !== null && (args.length === 0 || (args.length === 1 && args[0] === "."))) {
+    const trimmed = stdinContent.trim();
+    if (trimmed) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+          for (const [key, value] of Object.entries(parsed)) {
+            const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
+            result[canonicalKey] = value;
+          }
+          return { args: result, json: false };
+        }
+      } catch {
+        // Not valid JSON; fall through to normal flag-based argument parsing.
+      }
+    }
+  }
 
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith("--")) {
@@ -1042,10 +1086,12 @@ async function main() {
   const matchedTool = tools.find(tool => tool && typeof tool === "object" && tool.name === toolName);
   const schemaProperties = matchedTool && matchedTool.inputSchema && matchedTool.inputSchema.properties ? matchedTool.inputSchema.properties : {};
 
-  // Pre-read stdin once when any argument uses '-' as a stdin placeholder.
+  // Pre-read stdin once when any argument uses '-' as a stdin placeholder, or when
+  // the JSON payload mode is triggered ('.' sentinel or no args with piped stdin).
   // This avoids shell escaping issues with multiline strings:
   //   printf 'line1\nline2' | safeoutputs add_comment --body -
-  const stdinContent = hasStdinPlaceholder(toolUserArgs) ? readStdinSync() : null;
+  //   printf '{"issue_number":42,"body":"hello"}' | safeoutputs add_comment .
+  const stdinContent = hasStdinPlaceholder(toolUserArgs) || hasStdinJsonPayload(toolUserArgs) ? readStdinSync() : null;
   const { args: toolArgs, json: jsonOutput } = parseToolArgs(toolUserArgs, schemaProperties, stdinContent);
 
   core.info(`[${serverName}] Calling tool '${toolName}' with args: ${JSON.stringify(toolArgs)}${jsonOutput ? " (--json)" : ""}`);
@@ -1105,6 +1151,7 @@ module.exports = {
   renderProgressMessages,
   formatResponse,
   hasStdinPlaceholder,
+  hasStdinJsonPayload,
   readStdinSync,
   main,
 };

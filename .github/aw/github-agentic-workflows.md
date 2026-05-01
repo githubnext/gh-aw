@@ -2136,6 +2136,66 @@ Deploy to environment: "${{ github.event.inputs.environment }}"
 # Complex: ${{ toJson(github.workflow) }}
 ```
 
+## Prompt Template Conditionals (`{{#if}}`)
+
+The workflow markdown body supports a lightweight template language for conditional blocks. Template tags are resolved **at runtime, before the agent receives the prompt** — the agent always sees the final resolved text.
+
+### Syntax
+
+```
+{{#if <condition>}}
+...true branch content...
+{{#else}}
+...false branch content (optional)...
+{{#endif}}
+```
+
+- **`{{#if <condition>}}`** — opens a conditional block; the content is included only when `<condition>` is truthy
+- **`{{#else}}`** — optional separator; splits the block into a true branch and a false branch
+- **`{{#endif}}`** — closes the block (**primary closing tag**; preferred)
+- **`{{/if}}`** — alternate closing tag (both forms are permanently supported; `{{#endif}}` is preferred for consistency)
+
+Tags may appear on their own line (block form) or inline. Block form (tag on its own line) is recommended for readability.
+
+### Supported Conditions
+
+| Form | Example | Truthy when |
+|---|---|---|
+| Bare value | `{{#if experiments.flag }}` | value is non-empty and not `"false"` |
+| Equality | `{{#if experiments.style == "concise" }}` | value equals the quoted string |
+| Inequality | `{{#if experiments.style != "verbose" }}` | value does not equal the quoted string |
+| Strict equality | `{{#if experiments.style === "concise" }}` | value strictly equals the quoted string |
+| Strict inequality | `{{#if experiments.style !== "verbose" }}` | value strictly differs from the quoted string |
+
+### Example: Conditional Without Else
+
+```markdown
+{{#if experiments.skill_hint == "enabled" }}
+Check `skills/` for SKILL.md files relevant to this task and apply their guidance.
+{{#endif}}
+```
+
+### Example: Conditional With Else
+
+```markdown
+{{#if experiments.output_style == "concise" }}
+Write a maximum of 5 bullet points. Each bullet is one sentence.
+{{#else}}
+Write a structured report with sections for new features, bug fixes, and refactors.
+Include a one-paragraph executive summary at the top.
+{{#endif}}
+```
+
+### Integration with Experiments
+
+When the `experiments:` frontmatter field is set, the selected variant value is substituted into `{{#if experiments.<name> == "..." }}` conditions before template rendering. See [A/B Testing Experiments](../aw/experiments.md) for full experiment design guidance.
+
+### Notes
+
+- **Fenced code blocks are preserved** — `{{#if}}` tags inside `` ``` `` blocks are never processed; they appear verbatim in the output.
+- **Nested conditionals are not supported** — do not place `{{#if}}` inside another `{{#if}}` block; the inner tags will be treated as literal text and appear verbatim in the agent prompt.
+- **Template tags are not visible to the agent** — all `{{#if}}` / `{{#else}}` / `{{#endif}}` tags are stripped from the prompt before the agent runs.
+
 ## Tool Configuration
 
 ### General Tools

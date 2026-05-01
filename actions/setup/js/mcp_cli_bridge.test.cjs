@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatResponse, hasStdinPlaceholder, parseToolArgs, readStdinSync } from "./mcp_cli_bridge.cjs";
+import { formatResponse, hasStdinPlaceholder, hasStdinJsonPayload, parseToolArgs, readStdinSync } from "./mcp_cli_bridge.cjs";
 
 describe("mcp_cli_bridge.cjs", () => {
   let originalCore;
@@ -336,6 +336,126 @@ describe("mcp_cli_bridge.cjs", () => {
       } finally {
         readSyncSpy.mockRestore();
       }
+    });
+  });
+
+  describe("stdin JSON payload support", () => {
+    it("returns true for '.' sentinel", () => {
+      expect(hasStdinJsonPayload(["."])).toBe(true);
+    });
+
+    it("returns true for empty args when stdin is not a TTY", () => {
+      const origIsTTY = process.stdin.isTTY;
+      process.stdin.isTTY = undefined;
+      try {
+        expect(hasStdinJsonPayload([])).toBe(true);
+      } finally {
+        process.stdin.isTTY = origIsTTY;
+      }
+    });
+
+    it("returns false for empty args when stdin is a TTY", () => {
+      const origIsTTY = process.stdin.isTTY;
+      // @ts-ignore
+      process.stdin.isTTY = true;
+      try {
+        expect(hasStdinJsonPayload([])).toBe(false);
+      } finally {
+        process.stdin.isTTY = origIsTTY;
+      }
+    });
+
+    it("returns false when args contain flags", () => {
+      expect(hasStdinJsonPayload(["--body", "hello"])).toBe(false);
+    });
+
+    it("returns false when args has more than just '.'", () => {
+      expect(hasStdinJsonPayload([".", "--extra", "value"])).toBe(false);
+    });
+
+    it("parses stdin JSON object when '.' sentinel is used", () => {
+      const schemaProperties = {
+        issue_number: { type: "integer" },
+        body: { type: "string" },
+      };
+      const stdinContent = '{"issue_number": 42, "body": "hello world"}';
+
+      const { args } = parseToolArgs(["."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ issue_number: 42, body: "hello world" });
+    });
+
+    it("parses stdin JSON object when no args and stdinContent is provided", () => {
+      const schemaProperties = {
+        issue_number: { type: "integer" },
+        body: { type: "string" },
+      };
+      const stdinContent = '{"issue_number": 7, "body": "test body"}';
+
+      const { args } = parseToolArgs([], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ issue_number: 7, body: "test body" });
+    });
+
+    it("preserves types from JSON payload without coercion", () => {
+      const schemaProperties = {
+        count: { type: "integer" },
+        enabled: { type: "boolean" },
+        tags: { type: "array" },
+      };
+      const stdinContent = '{"count": 5, "enabled": true, "tags": ["a", "b"]}';
+
+      const { args } = parseToolArgs(["."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ count: 5, enabled: true, tags: ["a", "b"] });
+    });
+
+    it("normalizes dashed JSON keys to schema underscore keys", () => {
+      const schemaProperties = {
+        issue_number: { type: "integer" },
+      };
+      const stdinContent = '{"issue-number": 99}';
+
+      const { args } = parseToolArgs(["."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ issue_number: 99 });
+    });
+
+    it("falls through to empty args when stdinContent is null and sentinel is used", () => {
+      const { args } = parseToolArgs(["."], {}, null);
+
+      expect(args).toEqual({});
+    });
+
+    it("falls through to empty args when stdinContent is empty string", () => {
+      const { args } = parseToolArgs(["."], {}, "");
+
+      expect(args).toEqual({});
+    });
+
+    it("falls through to normal parsing when stdinContent is not valid JSON", () => {
+      const schemaProperties = { body: { type: "string" } };
+
+      const { args } = parseToolArgs(["."], schemaProperties, "not json at all");
+
+      expect(args).toEqual({});
+    });
+
+    it("falls through when JSON is an array rather than an object", () => {
+      const { args } = parseToolArgs(["."], {}, '["a","b","c"]');
+
+      expect(args).toEqual({});
+    });
+
+    it("handles multiline JSON payload", () => {
+      const schemaProperties = { body: { type: "string" } };
+      const stdinContent = `{
+  "body": "### Title\\n\\nLine one.\\n\\nLine two."
+}`;
+
+      const { args } = parseToolArgs(["."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ body: "### Title\n\nLine one.\n\nLine two." });
     });
   });
 });

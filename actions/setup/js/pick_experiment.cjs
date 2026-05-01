@@ -7,25 +7,22 @@
  * Selects A/B experiment variants for the current workflow run.
  *
  * Environment variables (set by the compiled workflow step):
- *   GH_AW_EXPERIMENT_SPEC       - JSON object mapping experiment name → array of variant strings
- *                                  e.g. '{"feature1":["A","B"],"style":["concise","detailed"]}'
+ *   GH_AW_EXPERIMENT_SPEC       - JSON object mapping experiment name → variant config.
+ *                                  Each value is either a legacy bare array of strings
+ *                                  or a new object with a 'variants' field and optional
+ *                                  metadata: weight, start_date, end_date, description, metric.
+ *                                  e.g. '{"feature1":["A","B"],"style":{"variants":["concise","detailed"],"weight":[70,30]}}'
  *   GH_AW_EXPERIMENT_STATE_FILE - Absolute path to the JSON state file to read/write
  *                                  e.g. /tmp/gh-aw/experiments/state.json
  *   GH_AW_EXPERIMENT_STATE_DIR  - Directory that holds the state file (created if missing)
  *                                  e.g. /tmp/gh-aw/experiments
  *
  * Algorithm:
- *   For each experiment the function maintains a counter per variant in the state file.
- *   The variant with the lowest invocation count is selected next (ties are broken by
- *   variant order, yielding a deterministic round-robin across runs).
- *   This ensures that across N runs every variant is used approximately N/K times where
- *   K is the number of variants, satisfying basic A/B statistical balance.
- *
- * Outputs:
- *   - Sets core.setOutput(name, selected) for each experiment (e.g. caveman=yes).
- *   - Sets core.setOutput('experiments', JSON.stringify(assignments)) for the full map.
- *   - Writes the updated counter state back to GH_AW_EXPERIMENT_STATE_FILE.
- *   - Appends a Markdown step summary with the assignment table and cumulative counts.
+ *   When weight is provided the variant is chosen by weighted-random selection.
+ *   Otherwise the variant with the lowest invocation count is selected next (ties are
+ *   broken by variant order, yielding a deterministic round-robin across runs).
+ *   When start_date or end_date is provided and today falls outside that window the
+ *   control variant (first variant) is used and no counter is incremented.
  */
 
 const fs = require("fs");
@@ -36,6 +33,31 @@ const path = require("path");
  * @property {Record<string, Record<string, number>>} counts
  *   Maps experiment name → variant → cumulative invocation count.
  */
+
+/**
+ * @typedef {Object} ExperimentConfig
+ * @property {string[]} variants     - Array of variant values (length >= 2)
+ * @property {number[]|undefined} weight   - Optional per-variant weights (same length as variants)
+ * @property {string|undefined} start_date - ISO-8601 date; inactive before this date
+ * @property {string|undefined} end_date   - ISO-8601 date; inactive after this date
+ * @property {string|undefined} description
+ * @property {string|undefined} metric
+ * @property {number|undefined} issue
+ */
+
+/**
+ * Normalize a raw spec entry (either a legacy bare array or the new object form) into
+ * an ExperimentConfig object.
+ *
+ * @param {string[]|ExperimentConfig} raw
+ * @returns {ExperimentConfig}
+ */
+function normalizeConfig(raw) {
+  if (Array.isArray(raw)) {
+    return { variants: raw };
+  }
+  return raw;
+}
 
 /**
  * Load and parse the state JSON file.  Returns an empty state if the file does not exist
@@ -70,6 +92,26 @@ function saveState(stateFile, state) {
 }
 
 /**
+ * Return true when today (UTC) falls within the optional [start_date, end_date] window.
+ * A missing date is treated as unbounded (open interval).
+ *
+ * @param {string|undefined} startDate - YYYY-MM-DD or undefined
+ * @param {string|undefined} endDate   - YYYY-MM-DD or undefined
+ * @param {string} [todayOverride]     - Override today's date for testing (YYYY-MM-DD)
+ * @returns {boolean}
+ */
+function isWithinDateWindow(startDate, endDate, todayOverride) {
+  const today = todayOverride || new Date().toISOString().slice(0, 10);
+  if (startDate && today < startDate) {
+    return false;
+  }
+  if (endDate && today > endDate) {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Pick the variant for one experiment using a balanced least-used selection.
  * The variant with the lowest cumulative count is chosen; ties are broken by
  * the order of the variants array so selection is deterministic.
@@ -94,6 +136,35 @@ function pickVariant(name, variants, state) {
 }
 
 /**
+ * Pick the variant for one experiment using weighted random selection.
+ * Each variant is chosen with probability proportional to its weight.
+ * Zero-weight variants are never selected.
+ *
+ * @param {string[]} variants - Array of variant values (length >= 2)
+ * @param {number[]} weight   - Per-variant weights (same length as variants, all >= 0)
+ * @returns {string} The selected variant
+ */
+function pickVariantWeighted(variants, weight) {
+  const total = weight.reduce((a, b) => a + b, 0);
+  if (total <= 0) {
+    // All weights are zero – fall back to first variant (control).
+    return variants[0];
+  }
+  let rnd = Math.random() * total;
+  for (let i = 0; i < variants.length; i++) {
+    rnd -= weight[i];
+    if (rnd <= 0) {
+      return variants[i];
+    }
+  }
+  // Floating-point rounding guard: return last non-zero-weight variant.
+  for (let i = variants.length - 1; i >= 0; i--) {
+    if (weight[i] > 0) return variants[i];
+  }
+  return variants[0];
+}
+
+/**
  * Increment the counter for the chosen variant.
  *
  * @param {string} name    - Experiment name
@@ -111,22 +182,50 @@ function recordVariant(name, variant, state) {
  * Append a Markdown step summary describing the experiment assignments.
  *
  * @param {Record<string, string>} assignments  - Maps experiment name → selected variant
- * @param {Record<string, string[]>} spec       - Maps experiment name → variants array
+ * @param {Record<string, ExperimentConfig>} configs - Normalized config per experiment
  * @param {ExperimentState} state               - Updated state (post-selection)
  * @param {any} core                            - @actions/core
  */
-async function writeSummary(assignments, spec, state, core) {
+async function writeSummary(assignments, configs, state, core) {
   const names = Object.keys(assignments).sort();
   const lines = ["## 🧪 A/B Experiment Assignments", "", "| Experiment | Selected Variant | All Variants | Cumulative Counts |", "| --- | --- | --- | --- |"];
   for (const name of names) {
     const selected = assignments[name];
-    const variants = spec[name] || [];
+    const variants = configs[name]?.variants || [];
     const counts = state.counts[name] || {};
     const countsStr = variants.map(v => `${v}: ${counts[v] || 0}`).join(", ");
     lines.push(`| \`${name}\` | **${selected}** | ${variants.join(", ")} | ${countsStr} |`);
   }
   lines.push("");
-  lines.push("_Variants are selected by balanced round-robin to ensure statistical relevance across runs._");
+
+  // Append optional description and issue link for experiments that declare them.
+  const repo = process.env.GITHUB_REPOSITORY || "";
+  const metadataNames = names.filter(name => configs[name]?.description || configs[name]?.issue);
+  if (metadataNames.length > 0) {
+    lines.push("### Experiment Details");
+    lines.push("");
+    for (const name of metadataNames) {
+      const cfg = configs[name];
+      const description = cfg?.description;
+      const issue = cfg?.issue;
+      lines.push(`**${name}**`);
+      if (description) {
+        lines.push("");
+        lines.push(`> ${description}`);
+      }
+      if (issue) {
+        lines.push("");
+        if (repo) {
+          lines.push(`Tracking issue: [#${issue}](https://github.com/${repo}/issues/${issue})`);
+        } else {
+          lines.push(`Tracking issue: #${issue}`);
+        }
+      }
+      lines.push("");
+    }
+  }
+
+  lines.push("_Variants are selected by balanced round-robin (or weighted) to ensure statistical relevance across runs._");
   await core.summary.addRaw(lines.join("\n")).write();
 }
 
@@ -138,19 +237,26 @@ async function main() {
   const stateFile = process.env.GH_AW_EXPERIMENT_STATE_FILE || "/tmp/gh-aw/experiments/state.json";
   const stateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR || "/tmp/gh-aw/experiments";
 
-  /** @type {Record<string, string[]>} */
-  let spec;
+  /** @type {Record<string, string[]|ExperimentConfig>} */
+  let rawSpec;
   try {
-    spec = JSON.parse(specRaw);
+    rawSpec = JSON.parse(specRaw);
   } catch (e) {
     core.setFailed(`Failed to parse GH_AW_EXPERIMENT_SPEC: ${e.message}`);
     return;
   }
 
-  const experimentNames = Object.keys(spec).sort();
+  const experimentNames = Object.keys(rawSpec).sort();
   if (experimentNames.length === 0) {
     core.info("No experiments defined – nothing to do.");
     return;
+  }
+
+  // Normalize all spec entries to ExperimentConfig objects.
+  /** @type {Record<string, ExperimentConfig>} */
+  const configs = {};
+  for (const name of experimentNames) {
+    configs[name] = normalizeConfig(rawSpec[name]);
   }
 
   // Ensure the state directory exists so that the cache-save step can find it.
@@ -162,12 +268,28 @@ async function main() {
   const assignments = {};
 
   for (const name of experimentNames) {
-    const variants = spec[name];
+    const cfg = configs[name];
+    const variants = cfg.variants;
     if (!Array.isArray(variants) || variants.length < 2) {
       core.warning(`Experiment "${name}" has fewer than 2 variants – skipping.`);
       continue;
     }
-    const selected = pickVariant(name, variants, state);
+
+    // Date-window check: use control variant (first variant) when outside the window.
+    if (!isWithinDateWindow(cfg.start_date, cfg.end_date)) {
+      const control = variants[0];
+      assignments[name] = control;
+      core.setOutput(name, control);
+      core.info(`Experiment "${name}": outside date window – using control variant "${control}"`);
+      continue;
+    }
+
+    let selected;
+    if (cfg.weight && cfg.weight.length === variants.length) {
+      selected = pickVariantWeighted(variants, cfg.weight);
+    } else {
+      selected = pickVariant(name, variants, state);
+    }
     recordVariant(name, selected, state);
     assignments[name] = selected;
 
@@ -197,7 +319,7 @@ async function main() {
   }
 
   // Write step summary.
-  await writeSummary(assignments, spec, state, core);
+  await writeSummary(assignments, configs, state, core);
 }
 
-module.exports = { main, pickVariant, loadState, saveState, recordVariant };
+module.exports = { main, pickVariant, pickVariantWeighted, loadState, saveState, recordVariant, isWithinDateWindow, normalizeConfig };

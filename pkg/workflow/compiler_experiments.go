@@ -19,15 +19,37 @@ const experimentsCacheDir = "/tmp/gh-aw/experiments"
 // experimentStateFile is the path to the experiment state JSON written by pick_experiment.cjs.
 const experimentStateFile = experimentsCacheDir + "/state.json"
 
-// extractExperimentsFromFrontmatter reads the "experiments" map from a raw frontmatter map.
-// Each key is an experiment name; each value must be a []string (or []any of strings) of
-// variant values.  Invalid entries are silently skipped.
-// Experiment names must match [a-zA-Z_][a-zA-Z0-9_]* (identifier style) so they can be used
+// experimentNamePattern validates experiment names as identifier-style keys.
+// Experiment names must match [a-zA-Z_][a-zA-Z0-9_]* so they can be used
 // as GitHub Actions step output names and in ${{ experiments.<name> }} expressions without
 // bracket notation.  Names that do not match are skipped with a warning.
 var experimentNamePattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
+// extractExperimentsFromFrontmatter reads the "experiments" map from a raw frontmatter map.
+// Both the bare-array form and the new object form with metadata fields are accepted.
+// Invalid entries (bad name pattern, missing/insufficient variants) are skipped with a
+// warning logged to the debug logger.
 func extractExperimentsFromFrontmatter(frontmatter map[string]any) map[string][]string {
+	return experimentVariantsFromConfigs(extractExperimentConfigsFromFrontmatter(frontmatter))
+}
+
+// experimentVariantsFromConfigs derives the simple name→variants map from a configs map.
+// Returns nil when configs is empty so callers can use len-checks without special-casing.
+func experimentVariantsFromConfigs(configs map[string]*ExperimentConfig) map[string][]string {
+	if len(configs) == 0 {
+		return nil
+	}
+	result := make(map[string][]string, len(configs))
+	for name, cfg := range configs {
+		result[name] = cfg.Variants
+	}
+	return result
+}
+
+// extractExperimentConfigsFromFrontmatter reads the "experiments" map and returns
+// fully-typed ExperimentConfig objects.  Both the bare-array form and the new object
+// form are accepted.
+func extractExperimentConfigsFromFrontmatter(frontmatter map[string]any) map[string]*ExperimentConfig {
 	raw, ok := frontmatter["experiments"]
 	if !ok || raw == nil {
 		return nil
@@ -36,33 +58,113 @@ func extractExperimentsFromFrontmatter(frontmatter map[string]any) map[string][]
 	if !ok {
 		return nil
 	}
-	result := make(map[string][]string, len(rawMap))
+	result := make(map[string]*ExperimentConfig, len(rawMap))
 	for name, val := range rawMap {
 		if !experimentNamePattern.MatchString(name) {
 			experimentsLog.Printf("Skipping experiment %q: name must match [a-zA-Z_][a-zA-Z0-9_]*", name)
 			continue
 		}
-		switch v := val.(type) {
-		case []string:
-			if len(v) >= 2 {
-				result[name] = v
-			}
-		case []any:
-			var variants []string
-			for _, item := range v {
-				if s, ok := item.(string); ok {
-					variants = append(variants, s)
-				}
-			}
-			if len(variants) >= 2 {
-				result[name] = variants
-			}
+		cfg := extractOneExperimentConfig(name, val)
+		if cfg != nil {
+			result[name] = cfg
 		}
 	}
 	if len(result) == 0 {
 		return nil
 	}
 	return result
+}
+
+// extractOneExperimentConfig converts a single raw experiment value into an ExperimentConfig.
+// Returns nil when the value is invalid (e.g. fewer than two variants).
+func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
+	switch v := val.(type) {
+	case []string:
+		if len(v) >= 2 {
+			return &ExperimentConfig{Variants: v}
+		}
+	case []any:
+		var variants []string
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				variants = append(variants, s)
+			}
+		}
+		if len(variants) >= 2 {
+			return &ExperimentConfig{Variants: variants}
+		}
+	case map[string]any:
+		// New object form: extract variants and optional metadata fields.
+		cfg := &ExperimentConfig{}
+		varRaw, ok := v["variants"]
+		if !ok {
+			experimentsLog.Printf("Skipping experiment %q: object form requires 'variants' field", name)
+			return nil
+		}
+		switch vv := varRaw.(type) {
+		case []string:
+			cfg.Variants = vv
+		case []any:
+			for _, item := range vv {
+				if s, ok := item.(string); ok {
+					cfg.Variants = append(cfg.Variants, s)
+				}
+			}
+		}
+		if len(cfg.Variants) < 2 {
+			experimentsLog.Printf("Skipping experiment %q: must have at least 2 variants", name)
+			return nil
+		}
+		if d, ok := v["description"].(string); ok {
+			cfg.Description = d
+		}
+		if m, ok := v["metric"].(string); ok {
+			cfg.Metric = m
+		}
+		if sd, ok := v["start_date"].(string); ok {
+			cfg.StartDate = sd
+		}
+		if ed, ok := v["end_date"].(string); ok {
+			cfg.EndDate = ed
+		}
+		if issue, ok := v["issue"]; ok {
+			switch n := issue.(type) {
+			case int:
+				cfg.Issue = n
+			case int64:
+				cfg.Issue = int(n)
+			case float64:
+				cfg.Issue = int(n)
+			}
+		}
+		if weightRaw, ok := v["weight"]; ok {
+			cfg.Weight = extractIntSlice(weightRaw)
+		}
+		return cfg
+	}
+	return nil
+}
+
+// extractIntSlice converts a raw value to a []int, accepting []any of numeric values.
+func extractIntSlice(raw any) []int {
+	switch v := raw.(type) {
+	case []int:
+		return v
+	case []any:
+		var result []int
+		for _, item := range v {
+			switch n := item.(type) {
+			case int:
+				result = append(result, n)
+			case int64:
+				result = append(result, int(n))
+			case float64:
+				result = append(result, int(n))
+			}
+		}
+		return result
+	}
+	return nil
 }
 
 // generateExperimentSteps creates the steps that pick and upload A/B experiment variants.
@@ -98,8 +200,8 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 	)
 
 	// ── Step 2: Pick experiment variants ──────────────────────────────────────
-	// Build the JSON spec: {"feature1":["A","B"],...}
-	specJSON := buildExperimentSpecJSON(data.Experiments, experimentNames)
+	// Build the JSON spec including full metadata when available.
+	specJSON := buildExperimentSpecJSON(data.Experiments, data.ExperimentConfigs, experimentNames)
 
 	steps = append(steps,
 		"      - name: Pick experiment variants\n",
@@ -144,14 +246,14 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 }
 
 // buildExperimentSpecJSON builds a compact JSON object from the experiments map.
+// When configs is non-nil and contains an entry for a name, the full ExperimentConfig
+// (variants + metadata) is embedded so that pick_experiment.cjs can use weighted
+// selection, date-range gating, and other metadata.
+// When no config is available a bare variants array is emitted for backward compatibility.
 // Uses encoding/json for proper escaping of all special characters.
-// Caller is responsible for escaping single quotes (” in YAML) when embedding the
-// result in a YAML single-quoted scalar, since JSON string values may contain literal
-// single quotes (e.g. "Bob's").
-func buildExperimentSpecJSON(experiments map[string][]string, names []string) string {
-	// Build JSON manually with encoding/json for individual values to ensure
-	// correct escaping of all special characters.  We iterate names (a sorted slice)
-	// rather than the map directly to produce deterministic output.
+// Caller is responsible for escaping single quotes when embedding the result in a YAML
+// single-quoted scalar (each ' must be doubled to ” per YAML spec §7.3.3).
+func buildExperimentSpecJSON(experiments map[string][]string, configs map[string]*ExperimentConfig, names []string) string {
 	var sb strings.Builder
 	sb.WriteString("{")
 	for i, name := range names {
@@ -159,10 +261,18 @@ func buildExperimentSpecJSON(experiments map[string][]string, names []string) st
 			sb.WriteString(",")
 		}
 		keyBytes, _ := json.Marshal(name)
-		varBytes, _ := json.Marshal(experiments[name])
 		sb.Write(keyBytes)
 		sb.WriteString(":")
-		sb.Write(varBytes)
+
+		// Use the full config when available so the JS can consume metadata.
+		if cfg, ok := configs[name]; ok && cfg != nil {
+			cfgBytes, _ := json.Marshal(cfg)
+			sb.Write(cfgBytes)
+		} else {
+			// Fallback: bare variants array (legacy behaviour).
+			varBytes, _ := json.Marshal(experiments[name])
+			sb.Write(varBytes)
+		}
 	}
 	sb.WriteString("}")
 	return sb.String()

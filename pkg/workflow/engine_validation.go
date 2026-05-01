@@ -131,6 +131,32 @@ func (c *Compiler) validateEngineMCPSessionTimeout(workflowData *WorkflowData) e
 	return nil
 }
 
+// validateEngineMCPToolTimeout validates optional engine.mcp.tool-timeout configuration.
+// The value must be a valid Go duration string between 10s and 600s inclusive.
+func (c *Compiler) validateEngineMCPToolTimeout(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.MCPToolTimeout == "" {
+		return nil
+	}
+
+	raw := workflowData.EngineConfig.MCPToolTimeout
+
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		return fmt.Errorf("engine.mcp.tool-timeout: invalid duration %q. Must be a valid Go duration string (e.g. \"30s\", \"2m\", \"10m\").\n\nExamples:\n  engine:\n    mcp:\n      tool-timeout: 2m\n\nSee: %s", raw, constants.DocsEnginesURL)
+	}
+
+	if d < constants.MCPToolTimeoutMin {
+		return fmt.Errorf("engine.mcp.tool-timeout: %q is too short (minimum is 10s).\n\nExamples:\n  tool-timeout: 30s\n  tool-timeout: 2m\n\nSee: %s", raw, constants.DocsEnginesURL)
+	}
+
+	if d > constants.MCPToolTimeoutMax {
+		return fmt.Errorf("engine.mcp.tool-timeout: %q exceeds the maximum allowed value (600s / 10m).\n\nExamples:\n  tool-timeout: 2m\n  tool-timeout: 10m\n\nSee: %s", raw, constants.DocsEnginesURL)
+	}
+
+	engineValidationLog.Printf("engine.mcp.tool-timeout validated: %s (%s)", raw, d)
+	return nil
+}
+
 // validateEngineInlineDefinition validates an inline engine definition parsed from
 // engine.runtime + optional engine.provider in the workflow frontmatter.
 // Returns an error if:
