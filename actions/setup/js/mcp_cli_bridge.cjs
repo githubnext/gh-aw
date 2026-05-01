@@ -463,8 +463,9 @@ const STDIN_MAX_BYTES = 10 * 1024 * 1024;
 /**
  * Read all of stdin synchronously and return the content as a string.
  * Uses low-level fs.readSync on fd 0 so it works in both TTY and piped contexts.
- * Returns an empty string if reading fails or stdin is empty.
- * Throws an error if stdin exceeds STDIN_MAX_BYTES.
+ * Throws an error if stdin exceeds STDIN_MAX_BYTES or if a read error occurs
+ * after bytes have already been collected (to prevent silently returning partial content).
+ * Returns an empty string if stdin is empty or if an error occurs before any bytes are read.
  *
  * @returns {string}
  */
@@ -479,8 +480,14 @@ function readStdinSync() {
     let bytesRead;
     try {
       bytesRead = fs.readSync(STDIN_FD, buf, 0, bufSize, null);
-    } catch {
-      break;
+    } catch (err) {
+      // If we have already read some bytes, rethrow so the caller doesn't
+      // unknowingly use partial content. An error before any data is read
+      // (e.g. stdin is not connected) is treated as empty input.
+      if (totalBytes > 0) {
+        throw err;
+      }
+      return "";
     }
     if (bytesRead === 0) break;
     totalBytes += bytesRead;

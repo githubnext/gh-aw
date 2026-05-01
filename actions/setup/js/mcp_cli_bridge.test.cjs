@@ -303,5 +303,39 @@ describe("mcp_cli_bridge.cjs", () => {
         readSyncSpy.mockRestore();
       }
     });
+
+    it("returns empty string when readSync errors before any bytes are read", () => {
+      const fs = require("fs");
+      const readSyncSpy = vi.spyOn(fs, "readSync").mockImplementation(() => {
+        throw new Error("EBADF: bad file descriptor");
+      });
+
+      try {
+        expect(readStdinSync()).toBe("");
+      } finally {
+        readSyncSpy.mockRestore();
+      }
+    });
+
+    it("rethrows readSync errors that occur after some bytes have already been read", () => {
+      const fs = require("fs");
+      let callCount = 0;
+      const readSyncSpy = vi.spyOn(fs, "readSync").mockImplementation((_fd, buf, _offset, length) => {
+        callCount++;
+        if (callCount === 1) {
+          // First call: return some data
+          buf.fill(0x41, 0, length);
+          return length;
+        }
+        // Second call: simulate a mid-stream read error
+        throw new Error("EIO: i/o error");
+      });
+
+      try {
+        expect(() => readStdinSync()).toThrow(/EIO/);
+      } finally {
+        readSyncSpy.mockRestore();
+      }
+    });
   });
 });
