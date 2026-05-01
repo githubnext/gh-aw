@@ -220,3 +220,34 @@ func TestExperimentExpressionMappings(t *testing.T) {
 	require.NotNil(t, m2, "mapping for GH_AW_EXPERIMENTS_STYLE should exist")
 	assert.Equal(t, "steps.pick-experiment.outputs.style", m2.Content, "content should be the step output expression")
 }
+
+// ── buildExperimentArtifactDownloadSteps ──────────────────────────────────
+
+func TestBuildExperimentArtifactDownloadStep_Empty(t *testing.T) {
+	steps := buildExperimentArtifactDownloadSteps("prefix-", nil)
+	assert.Empty(t, steps, "no steps when experiments is nil")
+
+	steps = buildExperimentArtifactDownloadSteps("prefix-", map[string][]string{})
+	assert.Empty(t, steps, "no steps when experiments is empty")
+}
+
+func TestBuildExperimentArtifactDownloadStep_Generated(t *testing.T) {
+	experiments := map[string][]string{"caveman": {"yes", "no"}}
+	steps := buildExperimentArtifactDownloadSteps("${{ needs.activation.outputs.artifact_prefix }}", experiments)
+	require.NotEmpty(t, steps, "steps should be generated when experiments are declared")
+	joined := strings.Join(steps, "")
+	assert.Contains(t, joined, "Download experiment artifact", "should include download step name")
+	assert.Contains(t, joined, "experiment", "should reference experiment artifact")
+	assert.Contains(t, joined, experimentsCacheDir, "should download to experiments cache dir")
+	assert.Contains(t, joined, "actions/download-artifact", "should use download-artifact action")
+}
+
+func TestBuildExperimentArtifactDownloadStep_NoPrefix(t *testing.T) {
+	// Non-workflow_call workflows use empty prefix
+	experiments := map[string][]string{"style": {"A", "B"}}
+	steps := buildExperimentArtifactDownloadSteps("", experiments)
+	require.NotEmpty(t, steps, "steps should be generated")
+	joined := strings.Join(steps, "")
+	// Artifact name should be just the base name (no prefix)
+	assert.Contains(t, joined, "          name: experiment\n", "artifact name should be unqualified for non-workflow_call")
+}

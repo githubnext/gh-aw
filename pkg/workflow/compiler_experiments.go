@@ -209,3 +209,21 @@ func sortedExperimentNames(experiments map[string][]string) []string {
 	sort.Strings(names)
 	return names
 }
+
+// buildExperimentArtifactDownloadSteps creates a download step for the experiment artifact.
+// The artifact is downloaded to experimentsCacheDir so the detection agent can read the
+// current variant assignments from state.json.
+// prefix must be the artifact prefix expression for a job that directly depends on the
+// activation job (i.e. artifactPrefixExprForDownstreamJob).
+// The step is a no-op when no experiments are declared.
+func buildExperimentArtifactDownloadSteps(prefix string, experiments map[string][]string) []string {
+	if len(experiments) == 0 {
+		return nil
+	}
+	artifactName := prefix + constants.ExperimentArtifactName
+	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: artifactName,
+		DownloadPath: experimentsCacheDir + "/",
+		StepName:     "Download experiment artifact",
+	})
+}
