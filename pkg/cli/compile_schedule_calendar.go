@@ -249,8 +249,8 @@ func displayScheduleCalendar(statsList []*WorkflowStats) {
 	}
 
 	// One row per day, ordered Mon through Sun.
-	for displayIdx, dayLabel := range calendarDayNames {
-		cronDay := calendarDayIndex[displayIdx]
+	for calendarIndex, dayLabel := range calendarDayNames {
+		cronDay := calendarDayIndex[calendarIndex]
 
 		var row strings.Builder
 		label := fmt.Sprintf("%-*s", dayLabelWidth, dayLabel)
