@@ -359,6 +359,26 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 				configMap["trusted-users"] = toAnySlice(parsed) // normalize raw map for JSON rendering
 			}
 		}
+		if disapprovalLabels, ok := configMap["disapproval-labels"].([]any); ok {
+			config.DisapprovalLabels = make([]string, 0, len(disapprovalLabels))
+			for _, item := range disapprovalLabels {
+				if str, ok := item.(string); ok {
+					config.DisapprovalLabels = append(config.DisapprovalLabels, str)
+				}
+			}
+		} else if disapprovalLabels, ok := configMap["disapproval-labels"].([]string); ok {
+			config.DisapprovalLabels = disapprovalLabels
+		} else if disapprovalLabelsStr, ok := configMap["disapproval-labels"].(string); ok {
+			if hasExpressionMarker(disapprovalLabelsStr) {
+				// GitHub Actions expression: store as-is; raw map retains the string for JSON rendering.
+				config.DisapprovalLabelsExpr = disapprovalLabelsStr
+			} else {
+				// Static comma/newline-separated string: parse at compile time.
+				parsed := parseCommaSeparatedOrNewlineList(disapprovalLabelsStr)
+				config.DisapprovalLabels = parsed
+				configMap["disapproval-labels"] = toAnySlice(parsed) // normalize raw map for JSON rendering
+			}
+		}
 
 		// Parse reaction-based integrity fields (requires integrity-reactions feature flag + MCPG >= v0.2.18)
 		if endorsementReactions, ok := configMap["endorsement-reactions"].([]any); ok {

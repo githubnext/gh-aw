@@ -973,6 +973,12 @@
               "leaf": true,
               "array": true
             },
+            "disapproval-labels": {
+              "type": "array|string",
+              "desc": "Guard policy: GitHub label names that degrade a content item's effective integrity to 'none' when present.",
+              "leaf": true,
+              "array": true
+            },
             "github-app": {
               "type": "object",
               "desc": "GitHub App configuration for token minting.",

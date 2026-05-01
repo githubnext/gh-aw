@@ -330,6 +330,14 @@ type GitHubToolConfig struct {
 	// resolves at runtime to a comma- or newline-separated list of approval label names.
 	// Set when the approval-labels field is a string expression rather than a literal array.
 	ApprovalLabelsExpr string `yaml:"-"`
+	// DisapprovalLabels is an optional list of GitHub label names that degrade a content item's
+	// effective integrity to "none" when present. Takes precedence over approval-labels and
+	// trusted-users but not over blocked-users. Requires min-integrity to be set.
+	DisapprovalLabels []string `yaml:"disapproval-labels,omitempty"`
+	// DisapprovalLabelsExpr holds a GitHub Actions expression (e.g. "${{ vars.DISAPPROVAL_LABELS }}") that
+	// resolves at runtime to a comma- or newline-separated list of disapproval label names.
+	// Set when the disapproval-labels field is a string expression rather than a literal array.
+	DisapprovalLabelsExpr string `yaml:"-"`
 	// EndorsementReactions is an optional list of GitHub reaction types that promote content
 	// integrity to "approved" when added by maintainers. Only enforced in proxy mode (DIFC/CLI proxy);
 	// ignored in MCP gateway mode. Requires integrity-reactions feature flag and MCPG >= v0.2.18.

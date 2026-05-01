@@ -469,3 +469,119 @@ This workflow sets trusted-users without min-integrity (should fail).
 	require.Error(t, err, "Expected compilation to fail without min-integrity")
 	assert.Contains(t, err.Error(), "min-integrity", "Error should mention min-integrity requirement")
 }
+
+// TestGuardPolicyDisapprovalLabelsCompiledOutput verifies that disapproval-labels are written
+// into the compiled guard-policies allow-only block.
+func TestGuardPolicyDisapprovalLabelsCompiledOutput(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+tools:
+  github:
+    allowed-repos: all
+    min-integrity: approved
+    disapproval-labels:
+      - needs-work
+      - unsafe-for-agent
+---
+
+# Guard Policy Test
+
+This workflow uses disapproval-labels.
+`
+
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "test-guard-policy-disapproval.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "Failed to write workflow file")
+
+	compiler := workflow.NewCompiler()
+	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	require.NoError(t, err, "Expected compilation to succeed")
+
+	lockFilePath := filepath.Join(tmpDir, "test-guard-policy-disapproval.lock.yml")
+	lockFileBytes, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "Failed to read compiled lock file")
+
+	lockFileContent := string(lockFileBytes)
+	assert.Contains(t, lockFileContent, `id: parse-guard-vars`, "Compiled lock file must include parse-guard-vars step")
+	assert.Contains(t, lockFileContent, `GH_AW_DISAPPROVAL_LABELS_EXTRA: needs-work,unsafe-for-agent`, "Compiled lock file must include static disapproval-labels in step env")
+	assert.Contains(t, lockFileContent, `GH_AW_DISAPPROVAL_LABELS_VAR`, "Compiled lock file must include GH_AW_DISAPPROVAL_LABELS_VAR in step env")
+	assert.Contains(t, lockFileContent, `"disapproval-labels"`, "Compiled lock file must include disapproval-labels in the guard-policies allow-only block")
+	assert.Contains(t, lockFileContent, `steps.parse-guard-vars.outputs.disapproval_labels`, "Compiled lock file must reference disapproval_labels step output")
+}
+
+// TestGuardPolicyDisapprovalLabelsExpressionCompiledOutput verifies that disapproval-labels as
+// a GitHub Actions expression is passed through in the compiled guard-policies block.
+func TestGuardPolicyDisapprovalLabelsExpressionCompiledOutput(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+tools:
+  github:
+    allowed-repos: all
+    min-integrity: approved
+    disapproval-labels: "${{ vars.DISAPPROVAL_LABELS }}"
+---
+
+# Guard Policy Test
+
+This workflow passes disapproval-labels as an expression.
+`
+
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "test-guard-policy-disapproval-expr.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "Failed to write workflow file")
+
+	compiler := workflow.NewCompiler()
+	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	require.NoError(t, err, "Expected compilation to succeed")
+
+	lockFilePath := filepath.Join(tmpDir, "test-guard-policy-disapproval-expr.lock.yml")
+	lockFileBytes, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "Failed to read compiled lock file")
+
+	lockFileContent := string(lockFileBytes)
+	assert.Contains(t, lockFileContent, `GH_AW_DISAPPROVAL_LABELS_EXTRA: ${{ vars.DISAPPROVAL_LABELS }}`, "Compiled lock file must pass user expression to disapproval_labels extra")
+	assert.Contains(t, lockFileContent, `GH_AW_DISAPPROVAL_LABELS_VAR`, "Compiled lock file must include GH_AW_DISAPPROVAL_LABELS_VAR in step env")
+	assert.Contains(t, lockFileContent, `"disapproval-labels"`, "Compiled lock file must include disapproval-labels")
+	assert.Contains(t, lockFileContent, `steps.parse-guard-vars.outputs.disapproval_labels`, "Compiled lock file must reference disapproval_labels step output")
+}
+
+// TestGuardPolicyDisapprovalLabelsRequiresMinIntegrity verifies that disapproval-labels cannot
+// be set without a min-integrity guard policy.
+func TestGuardPolicyDisapprovalLabelsRequiresMinIntegrity(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+tools:
+  github:
+    disapproval-labels:
+      - needs-work
+---
+
+# Guard Policy Test
+
+This workflow sets disapproval-labels without min-integrity (should fail).
+`
+
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "test-guard-policy-disapproval-no-integrity.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "Failed to write workflow file")
+
+	compiler := workflow.NewCompiler()
+	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	require.Error(t, err, "Expected compilation to fail without min-integrity")
+	assert.Contains(t, err.Error(), "min-integrity", "Error should mention min-integrity requirement")
+}

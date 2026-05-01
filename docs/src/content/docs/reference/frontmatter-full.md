@@ -2054,6 +2054,24 @@ tools:
     # expression resolving to such a list (e.g. '${{ vars.APPROVAL_LABELS }}')
     approval-labels: "example-value"
 
+    # Guard policy: GitHub label names that degrade a content item's effective
+    # integrity to 'none' when present. Enables maintainer-driven veto gates where a
+    # label marks an item as unsafe for the agent. Takes precedence over
+    # approval-labels and trusted-users; does not override blocked-users. Requires
+    # 'min-integrity' to be set. Accepts an array of label names, a comma-separated
+    # string, a newline-separated string, or a GitHub Actions expression (e.g. '${{
+    # vars.DISAPPROVAL_LABELS }}').
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Array of GitHub label names
+    disapproval-labels: []
+      # Array items: GitHub label name
+
+    # Option 2: Comma- or newline-separated list of label names, or a GitHub Actions
+    # expression resolving to such a list (e.g. '${{ vars.DISAPPROVAL_LABELS }}')
+    disapproval-labels: "example-value"
+
     # Guard policy: GitHub reaction types that promote a content item's integrity to
     # 'approved' when added by maintainers. Only enforced in proxy mode (DIFC/CLI
     # proxy); ignored in MCP gateway mode because reaction authors cannot be
