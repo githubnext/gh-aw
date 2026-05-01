@@ -302,7 +302,8 @@ func (c *Compiler) extractAdditionalConfigurations(
 		workflowData.MCPScripts = c.mergeMCPScripts(workflowData.MCPScripts, importsResult.MergedMCPScripts)
 	}
 
-	// Extract structured-output configuration from frontmatter
+	// Extract structured-output configuration from frontmatter (main workflow takes precedence).
+	// Fall back to the first imported workflow that defines it (first-wins from imports).
 	if structuredOutputRaw, exists := frontmatter["structured-output"]; exists {
 		if structuredOutputMap, ok := structuredOutputRaw.(map[string]any); ok {
 			config := &StructuredOutputConfig{}
@@ -313,6 +314,20 @@ func (c *Compiler) extractAdditionalConfigurations(
 				config.SchemaFile = schemaFile
 			}
 			workflowData.StructuredOutput = config
+		}
+	} else if importsResult.MergedStructuredOutput != "" {
+		// Fall back to first imported workflow that defines structured-output
+		var structuredOutputMap map[string]any
+		if err := json.Unmarshal([]byte(importsResult.MergedStructuredOutput), &structuredOutputMap); err == nil {
+			config := &StructuredOutputConfig{}
+			if schema, ok := structuredOutputMap["schema"].(map[string]any); ok {
+				config.Schema = schema
+			}
+			if schemaFile, ok := structuredOutputMap["schema-file"].(string); ok {
+				config.SchemaFile = schemaFile
+			}
+			workflowData.StructuredOutput = config
+			orchestratorWorkflowLog.Print("Inherited structured-output from imported workflow")
 		}
 	}
 

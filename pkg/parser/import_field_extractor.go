@@ -37,6 +37,7 @@ type importAccumulator struct {
 	envBuilder               strings.Builder   // env vars from imported workflows (JSON, one object per line)
 	envSources               map[string]string // env var name → source import path (for conflict detection and header listing)
 	observabilityBuilder     strings.Builder   // observability config (first-wins for OTLP endpoint)
+	structuredOutput         string            // structured-output config (first-wins)
 	engines                  []string
 	safeOutputs              []string
 	mcpScripts               []string
@@ -449,6 +450,17 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
+	// Extract structured-output from imported file (first-wins: only set if not yet populated).
+	// This enables a shared workflow to declare the output schema without each consuming
+	// workflow having to repeat it.
+	if acc.structuredOutput == "" {
+		structuredOutputContent, structuredOutputErr := extractFieldJSONFromMap(fm, "structured-output", "{}")
+		if structuredOutputErr == nil && structuredOutputContent != "" && structuredOutputContent != "{}" {
+			acc.structuredOutput = structuredOutputContent
+			log.Printf("Extracted structured-output from import: %s", item.fullPath)
+		}
+	}
+
 	return nil
 }
 
@@ -486,6 +498,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedEnvSources:            acc.envSources,
 		MergedFeatures:              acc.features,
 		MergedObservability:         acc.observabilityBuilder.String(),
+		MergedStructuredOutput:      acc.structuredOutput,
 		ImportedFiles:               topologicalOrder,
 		AgentFile:                   acc.agentFile,
 		AgentImportSpec:             acc.agentImportSpec,
