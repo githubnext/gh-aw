@@ -123,12 +123,15 @@ function formatDuration(ms) {
  * @param {string} command - The executable to run
  * @param {string[]} args - Arguments to pass to the command
  * @param {number} attempt - Current attempt index (0-based), used for logging
+ * @param {string[]} [logArgs] - Safe arg list used only for logging; defaults to `args`.
+ *   Pass a redacted copy to avoid leaking prompt content into logs.
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-function runProcess(command, args, attempt) {
+function runProcess(command, args, attempt, logArgs) {
   return new Promise(resolve => {
     const startTime = Date.now();
-    log(`attempt ${attempt + 1}: spawning: ${command} ${args.join(" ").substring(0, 200)}`);
+    const argsForLog = logArgs ?? args;
+    log(`attempt ${attempt + 1}: spawning: ${command} ${argsForLog.join(" ").substring(0, 200)}`);
 
     const child = spawn(command, args, {
       stdio: ["inherit", "pipe", "pipe"],
@@ -227,8 +230,10 @@ function resolveClaudePromptFileArgs(args) {
       promptContent = fs.readFileSync(promptFile, "utf8");
     } catch (error) {
       const err = /** @type {Error} */ error;
-      log(`warning: failed to read --prompt-file ${promptFile}: ${err.message}; leaving arguments unchanged`);
-      filteredArgs.push(args[i], promptFile);
+      // An unreadable prompt file means no task instructions can be delivered to Claude.
+      // Propagate as a fatal error rather than forwarding the harness-only flag to the
+      // claude subprocess (which would fail with an "unknown option" error).
+      throw new Error(`--prompt-file '${promptFile}' is not readable: ${err.message}`);
     }
     i++; // Skip the prompt-file path argument
   }
@@ -276,9 +281,21 @@ async function main() {
   log(`starting: command=${command} maxRetries=${MAX_RETRIES} initialDelayMs=${INITIAL_DELAY_MS}` + ` backoffMultiplier=${BACKOFF_MULTIPLIER} maxDelayMs=${MAX_DELAY_MS}` + ` nodeVersion=${process.version} platform=${process.platform}`);
 
   // Resolve the prompt for the initial run (reads --prompt-file content).
-  const initialArgs = resolveClaudePromptFileArgs(args);
+  // A missing or unreadable prompt file is treated as a fatal startup error.
+  let initialArgs;
+  try {
+    initialArgs = resolveClaudePromptFileArgs(args);
+  } catch (err) {
+    const e = /** @type {Error} */ err;
+    log(`fatal: ${e.message}`);
+    process.exit(1);
+  }
   // Args without --prompt-file, used as the base for --continue retries.
   const continueBaseArgs = stripPromptFileArgs(args);
+
+  // Safe arg list for logging: replace the last arg (prompt content) with a placeholder
+  // so that task instructions are never written to stderr or captured in agent logs.
+  const safeInitialArgs = initialArgs.length > 0 ? [...initialArgs.slice(0, -1), "<prompt omitted>"] : initialArgs;
 
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;
@@ -296,6 +313,9 @@ async function main() {
       currentArgs = initialArgs;
     }
 
+    // Use redacted args for logging when the run carries the prompt text.
+    const logArgs = attempt === 0 || !useContinueOnRetry ? safeInitialArgs : currentArgs;
+
     if (attempt > 0) {
       const retryMode = useContinueOnRetry ? "--continue" : "fresh run";
       log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt (${retryMode})`);
@@ -304,7 +324,7 @@ async function main() {
       log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
     }
 
-    const result = await runProcess(command, currentArgs, attempt);
+    const result = await runProcess(command, currentArgs, attempt, logArgs);
     lastExitCode = result.exitCode;
 
     // Success — stop retrying
