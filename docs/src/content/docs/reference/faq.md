@@ -242,6 +242,31 @@ This approval is enforced by GitHub's infrastructure, not by workflow logic the 
 
 Note that the *policy* — which environments require approval, what safe outputs are configured — is defined by whoever controls the repository. The admission decision for each run can be external; the admission policy itself is internal to repository owners.
 
+**Fully off-platform admission control**
+
+If your threat model requires an authority completely outside GitHub's control plane — such as an external policy engine, a PAM/PIM system, or a compliance approval workflow — call that system from your gate job before it proceeds:
+
+```yaml wrap
+jobs:
+  external-admission:
+    runs-on: ubuntu-latest
+    needs: [agent, detection]        # waits for agent output and threat scanning to complete
+    environment: production-deploy   # optional: also adds GitHub-native reviewer gate
+    steps:
+      - name: Request admission from external authority
+        run: |
+          curl --fail -X POST https://YOUR_POLICY_ENGINE/v1/admit \
+            -H "Authorization: Bearer $POLICY_TOKEN" \
+            -d '{"workflow_run": "${{ github.run_id }}"}'
+        env:
+          POLICY_TOKEN: ${{ secrets.POLICY_TOKEN }}
+
+safe-outputs:
+  needs: [external-admission]   # write jobs don't run until external admission is granted
+```
+
+If the external call fails or is denied, the safe output jobs never run. This places the final admission decision in a system entirely independent of GitHub.
+
 ### How is my code and data processed?
 
 By default, your workflow is run on GitHub Actions, like any other GitHub Actions workflow, and as one if its jobs it invokes your nominated [AI Engine (coding agent)](/gh-aw/reference/engines/), run in a container. This engine may in turn make tool calls and MCP calls. When using the default **GitHub Copilot CLI**, the workflow is processed by the `copilot` CLI tool which uses GitHub Copilot's services and related AI models. The specifics depend on your engine choice:

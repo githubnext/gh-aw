@@ -56,7 +56,7 @@
 name: "Daily Skill Optimizer Improvements"
 "on":
   schedule:
-  - cron: "33 11 * * *"
+  - cron: "35 2 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

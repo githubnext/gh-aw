@@ -60,7 +60,7 @@
 name: "Daily Token Consumption Report (Sentry OTel)"
 "on":
   schedule:
-  - cron: "20 16 * * 1-5"
+  - cron: "51 11 * * 1-5"
     # Friendly format: daily on weekdays (scattered)
   workflow_dispatch:
     inputs:

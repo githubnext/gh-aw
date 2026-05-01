@@ -491,12 +491,28 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		// Sanitize memory ID for artifact naming (remove hyphens, lowercase)
 		sanitizedID := SanitizeWorkflowIDForCacheKey(memory.ID)
 
-		// Step: Upload repo-memory directory as artifact
+		// Determine the label for step names
+		memoryLabel := "repo-memory"
 		if memory.Wiki {
-			fmt.Fprintf(builder, "      - name: Upload wiki-memory artifact (%s)\n", memory.ID)
-		} else {
-			fmt.Fprintf(builder, "      - name: Upload repo-memory artifact (%s)\n", memory.ID)
+			memoryLabel = "wiki-memory"
 		}
+
+		// Step: Sanitize filenames before upload to prevent artifact upload failures.
+		// GitHub Actions artifacts are stored on NTFS-compatible filesystems, so filenames
+		// must not contain: ? : * | < > " (among other characters).
+		// The agent may create files with these characters (e.g. "Can-we-have-a-PR?.md"),
+		// which causes the upload-artifact action to fail with a hard error.
+		// The script uses git commands (git mv for tracked files, mv for untracked) since
+		// repo-memory is backed by a git working tree.
+		fmt.Fprintf(builder, "      - name: Sanitize %s filenames (%s)\n", memoryLabel, memory.ID)
+		builder.WriteString("        if: always()\n")
+		builder.WriteString("        continue-on-error: true\n")
+		builder.WriteString("        env:\n")
+		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
+		builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/sanitize_repo_memory_filenames.sh\"\n")
+
+		// Step: Upload repo-memory directory as artifact
+		fmt.Fprintf(builder, "      - name: Upload %s artifact (%s)\n", memoryLabel, memory.ID)
 		builder.WriteString("        if: always()\n")
 		fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/upload-artifact"))
 		builder.WriteString("        with:\n")

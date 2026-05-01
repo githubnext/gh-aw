@@ -15,7 +15,7 @@ func TestNewLogsCommand(t *testing.T) {
 	require.NotNil(t, cmd, "NewLogsCommand should not return nil")
 	assert.Equal(t, "logs [workflow]", cmd.Use, "Command use should be 'logs [workflow]'")
 	assert.Equal(t, "Download and analyze agentic workflow logs with aggregated metrics", cmd.Short, "Command short description should match")
-	assert.Contains(t, cmd.Long, "Download workflow run logs", "Command long description should contain expected text")
+	assert.Contains(t, cmd.Long, "Download and analyze agentic workflow logs", "Command long description should contain expected text")
 
 	// Verify flags are registered
 	flags := cmd.Flags()
@@ -251,7 +251,7 @@ func TestLogsCommandHelpText(t *testing.T) {
 
 	// Verify long description contains expected sections
 	expectedSections := []string{
-		"Download workflow run logs",
+		"Download and analyze agentic workflow logs",
 		"Downloaded artifacts include:",
 		"Examples:",
 		"gh aw logs",

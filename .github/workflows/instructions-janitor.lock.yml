@@ -52,7 +52,7 @@
 name: "Instructions Janitor"
 "on":
   schedule:
-  - cron: "47 7 * * *"
+  - cron: "25 8 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

@@ -56,7 +56,7 @@
 name: "Refactoring Cadence"
 "on":
   schedule:
-  - cron: "10 21 * * 1-5"
+  - cron: "21 3 * * 1-5"
     # Friendly format: daily on weekdays (scattered)
   # skip-if-match: is:issue is:open in:title "[refactoring-cadence]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:

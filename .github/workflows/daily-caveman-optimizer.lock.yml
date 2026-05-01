@@ -59,7 +59,7 @@
 name: "Daily Caveman Optimizer"
 "on":
   schedule:
-  - cron: "45 8 * * *"
+  - cron: "39 20 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

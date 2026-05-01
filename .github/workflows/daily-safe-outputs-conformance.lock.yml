@@ -58,7 +58,7 @@
 name: "Daily Safe Outputs Conformance Checker"
 "on":
   schedule:
-  - cron: "30 14 * * *"
+  - cron: "37 5 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

@@ -23,6 +23,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveRepoIssueTarget, loadTemporaryIdMapFromResolved } = require("./temporary_id.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
+const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 
 /**
  * Main handler factory for add_labels
@@ -167,12 +168,17 @@ const main = createCountGatedHandler({
       }
 
       try {
-        await githubClient.rest.issues.addLabels({
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          issue_number: itemNumber,
-          labels: uniqueLabels,
-        });
+        await withRetry(
+          () =>
+            githubClient.rest.issues.addLabels({
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              issue_number: itemNumber,
+              labels: uniqueLabels,
+            }),
+          RATE_LIMIT_RETRY_CONFIG,
+          `add_labels to ${contextType} #${itemNumber} in ${itemRepo}`
+        );
 
         core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
         return {

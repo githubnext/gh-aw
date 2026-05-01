@@ -10,7 +10,7 @@
 //   - Are used by multiple compile command variants (compile, watch, campaign)
 //   - Provide common compilation patterns and error handling
 //   - Have a clear domain focus (compilation operations)
-//   - Keep the main compile_command.go file focused on CLI interaction
+//   - Keep the compile orchestrator focused on CLI interaction
 //
 // This follows the helper file conventions documented in skills/developer/SKILL.md.
 //

@@ -17,7 +17,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw add` | `NewAddCommand` | Add remote or local workflows to the repository |
 | `gh aw add-wizard` | `NewAddWizardCommand` | Interactive wizard for adding workflows |
 | `gh aw new` | `newCmd` (main.go) | Create a new workflow file (supports `--force`, `--interactive`, `--engine`) |
-| `gh aw compile` | (compile_command.go) | Compile `.md` workflow files into GitHub Actions `.lock.yml` |
+| `gh aw compile` | Cobra `compileCmd` (`cmd/gh-aw/main.go`); orchestration via `CompileWorkflows` (`compile_orchestrator.go`) | Compile `.md` workflow files into GitHub Actions `.lock.yml` |
 | `gh aw enable` | `enableCmd` (main.go) | Enable a workflow |
 | `gh aw disable` | `disableCmd` (main.go) | Disable a workflow |
 | `gh aw run` | `RunWorkflowOnGitHub` (main.go) | Dispatch and monitor workflow runs |

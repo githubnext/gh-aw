@@ -49,7 +49,7 @@
 name: "Constraint Solving — Problem of the Day"
 "on":
   schedule:
-  - cron: "26 7 * * *"
+  - cron: "23 11 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

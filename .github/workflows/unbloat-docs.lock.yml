@@ -64,7 +64,7 @@ name: "Documentation Unbloat"
     - created
     - edited
   schedule:
-  - cron: "41 8 * * *"
+  - cron: "24 16 * * *"
   # skip-if-match: is:pr is:open is:draft label:doc-unbloat # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
     inputs:

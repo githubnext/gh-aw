@@ -14,7 +14,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
-const { withRetry } = require("./error_recovery.cjs");
+const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
@@ -585,7 +585,7 @@ async function main(config = {}) {
             labels,
             assignees,
           }),
-        { initialDelayMs: 15000, maxDelayMs: 45000, jitterMs: 10000 },
+        RATE_LIMIT_RETRY_CONFIG,
         `create_issue in ${qualifiedItemRepo}`
       );
 

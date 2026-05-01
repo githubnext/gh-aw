@@ -56,7 +56,7 @@
 name: "Daily AstroStyleLite Markdown Spellcheck"
 "on":
   schedule:
-  - cron: "23 8 * * *"
+  - cron: "9 3 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:

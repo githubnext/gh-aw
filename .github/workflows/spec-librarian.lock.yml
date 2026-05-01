@@ -59,7 +59,7 @@
 name: "Package Specification Librarian"
 "on":
   schedule:
-  - cron: "36 15 * * *"
+  - cron: "8 13 * * *"
     # Friendly format: daily (scattered)
   # skip-if-match: is:issue is:open in:title "[spec-librarian]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
