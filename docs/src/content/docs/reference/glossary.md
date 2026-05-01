@@ -89,6 +89,10 @@ Static Analysis Results Interchange Format - a standardized JSON format for repo
 
 Pre-approved actions the AI can take without elevated permissions. The AI generates structured output describing what to create (issues, comments, pull requests), processed by separate permission-controlled jobs. Configured via `safe-outputs:` section, letting AI agents create GitHub content without direct write access.
 
+### Pwn Request
+
+A critical security vulnerability that occurs when a `pull_request_target` workflow checks out and executes code from a fork PR. Because `pull_request_target` runs in the context of the target (base) branch with full write permissions and access to repository secrets, executing untrusted fork code grants an attacker the ability to exfiltrate secrets or make unauthorized changes. The compiler emits a warning (non-strict mode) or a hard error (strict mode) when `pull_request_target` is used without `checkout: false`. Add `checkout: false` to prevent the insecure checkout; use `pull_request` instead when you do not need write-back access. See the [GitHub Security Lab advisory on pwn requests](https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/).
+
 ### Threat Detection
 
 Automated security analysis that scans agent output and code changes for potential security issues before application. When safe outputs are configured, a threat detection job automatically runs between the agent job and safe output processing to identify prompt injection attempts, secret leaks, and malicious code patches. See [Threat Detection Reference](/gh-aw/reference/threat-detection/).
@@ -274,6 +278,10 @@ A pattern for `workflow_call` reuse where safe-output policy and list fields acc
 ### Activation Token (`on.github-token:`, `on.github-app:`)
 
 Custom GitHub token or GitHub App used by the activation job to post reactions and status comments on the triggering item. Configured via `github-token:` (for a PAT or token expression) or `github-app:` (to mint a short-lived installation token) inside the `on:` section. Affects only the activation job — agent job tokens are configured separately via `tools.github.github-token` or `safe-outputs.github-app`. See [Authentication Reference](/gh-aw/reference/auth/).
+
+### BYOK (Bring Your Own Key)
+
+A Copilot engine mode that routes AI requests to an external LLM provider (such as OpenAI, Anthropic, or a self-hosted Ollama/vLLM instance) instead of the default GitHub Copilot backend. Activated by setting `COPILOT_PROVIDER_BASE_URL` in `engine.env`. The three BYOK credential variables (`COPILOT_PROVIDER_BASE_URL`, `COPILOT_PROVIDER_API_KEY`, `COPILOT_PROVIDER_BEARER_TOKEN`) accept `${{ secrets.* }}` references under strict mode and are never exposed to the agent container. Use `COPILOT_MODEL` to specify the target model. See [AI Engines Reference](/gh-aw/reference/engines/#copilot-bring-your-own-key-byok-mode).
 
 ### Cron Schedule
 
@@ -604,7 +612,7 @@ Persistent file storage via Git branches with unlimited retention. Unlike cache-
 
 ### Sandbox
 
-Configuration for the AI agent execution environment, providing two isolation layers: the **Coding Agent Sandbox** ([AWF](#awf-agent-workflow-firewall) by default) for network egress control, and the **MCP Gateway** for routing MCP server calls through a unified HTTP endpoint. Configured via the `sandbox:` field in frontmatter. To disable only the agent firewall while keeping the MCP Gateway active, use `sandbox.agent: false`. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+Configuration for the AI agent execution environment, providing two isolation layers: the **Coding Agent Sandbox** ([AWF](#awf-agent-workflow-firewall) by default) for network egress control, and the **MCP Gateway** for routing MCP server calls through a unified HTTP endpoint. Configured via the `sandbox:` field in frontmatter. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
 ### Strict Mode
 

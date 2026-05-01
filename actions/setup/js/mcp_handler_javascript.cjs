@@ -7,7 +7,7 @@
  * It executes JavaScript handlers in a separate Node.js process for isolation.
  */
 
-const { execFile } = require("child_process");
+const { executeProcess } = require("./mcp_handler_process.cjs");
 
 /**
  * Create a JavaScript handler function that executes a .cjs file in a separate Node.js process.
@@ -32,78 +32,16 @@ function createJavaScriptHandler(server, toolName, scriptPath, timeoutSeconds = 
     const inputJson = JSON.stringify(args || {});
     server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
 
-    return new Promise((resolve, reject) => {
-      server.debug(`  [${toolName}] Executing JavaScript script in separate Node.js process...`);
-
-      const child = execFile(
-        process.execPath, // Use the same Node.js binary as the current process
-        [scriptPath],
-        {
-          env: process.env,
-          cwd: process.env.GITHUB_WORKSPACE || process.cwd(),
-          timeout: timeoutSeconds * 1000, // Convert to milliseconds
-          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-        },
-        (error, stdout, stderr) => {
-          // Log stdout and stderr
-          if (stdout) {
-            server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
-          }
-          if (stderr) {
-            server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
-          }
-
-          if (error) {
-            server.debugError(`  [${toolName}] JavaScript script error: `, error);
-
-            // Build an enhanced error message that includes stdout/stderr so the
-            // AI agent can see what actually went wrong (not just "Command failed").
-            const exitCode = typeof error.code === "number" ? error.code : 1;
-            const parts = [`Command failed: ${scriptPath} (exit code: ${exitCode})`];
-            if (stderr && stderr.trim()) {
-              parts.push(`stderr:\n${stderr.trim()}`);
-            }
-            if (stdout && stdout.trim()) {
-              parts.push(`stdout:\n${stdout.trim()}`);
-            }
-            const enhancedError = new Error(parts.join("\n"));
-            reject(enhancedError);
-            return;
-          }
-
-          // Parse output from stdout
-          let result;
-          try {
-            // Try to parse stdout as JSON
-            if (stdout && stdout.trim()) {
-              result = JSON.parse(stdout.trim());
-            } else {
-              result = { stdout: stdout || "", stderr: stderr || "" };
-            }
-          } catch (parseError) {
-            server.debug(`  [${toolName}] Output is not JSON, returning as text`);
-            result = { stdout: stdout || "", stderr: stderr || "" };
-          }
-
-          server.debug(`  [${toolName}] JavaScript handler completed successfully`);
-
-          // Return MCP format
-          resolve({
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(result),
-              },
-            ],
-          });
-        }
-      );
-
-      // Write input JSON to stdin
-      if (child.stdin) {
-        child.stdin.write(inputJson);
-        child.stdin.end();
-      }
+    return executeProcess({
+      server,
+      toolName,
+      languageLabel: "JavaScript",
+      command: process.execPath, // Use the same Node.js binary as the current process
+      args: [scriptPath],
+      env: process.env,
+      inputJson,
+      timeoutSeconds,
+      scriptPath,
     });
   };
 }

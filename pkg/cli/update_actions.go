@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
@@ -36,10 +37,13 @@ func isGhAwNativeAction(repo string) bool {
 // By default all actions are updated to the latest major version; pass disableReleaseBump=true
 // to revert to the old behaviour where only core (actions/*) actions bypass the --major flag.
 //
+// coolDown specifies the minimum age a release must have before it is applied. Repos under the
+// "actions/" and "github/" namespaces are always exempt from the cooldown.
+//
 // The ActionCache helpers from pkg/workflow are used so that cached inputs and descriptions
 // for safe-outputs.actions entries are preserved when their SHA is unchanged, and cleared
 // when the SHA changes (prompting a re-fetch on the next compile).
-func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump bool) error {
+func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump bool, coolDown time.Duration) error {
 	updateLog.Print("Starting action updates")
 
 	if verbose {
@@ -128,6 +132,21 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 			}
 		}
 
+		// Prevent downgrades: if the proposed version is older than the current, skip.
+		// This can happen when GitHub Releases do not include every tag
+		// (e.g., v1.1.3 was pushed as a tag-only release without a formal GitHub
+		// Release, so the Releases API only returns v1.1.0 as the latest).
+		currentVer := parseVersion(entry.Version)
+		latestVer := parseVersion(latestVersion)
+		if currentVer != nil && latestVer != nil && currentVer.IsNewer(latestVer) {
+			updateLog.Printf("Skipping %s: proposed version %s is older than current %s (would be a downgrade)", entry.Repo, latestVersion, entry.Version)
+			msg := fmt.Sprintf("%s: skipping proposed update from %s to %s (would be a downgrade)",
+				entry.Repo, entry.Version, latestVersion)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+			skippedActions = append(skippedActions, entry.Repo)
+			continue
+		}
+
 		// Check if update is available
 		if latestVersion == entry.Version && latestSHA == entry.SHA {
 			if verbose {
@@ -135,6 +154,27 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 			}
 			skippedActions = append(skippedActions, entry.Repo)
 			continue
+		}
+
+		// Apply cooldown: if the repo is not exempt and the release is too recent, skip.
+		if !isExemptFromCoolDown(entry.Repo) {
+			var coolDownResult coolDownCheckResult
+			if cachedDate, ok := actionCache.GetReleasedAt(entry.Repo, latestVersion); ok {
+				// Use cached release date to avoid an extra API call.
+				coolDownResult = checkReleaseCoolDownWithDate(entry.Repo, latestVersion, cachedDate, coolDown)
+			} else {
+				// Fetch from API and cache the date for future runs.
+				coolDownResult = checkReleaseCoolDown(ctx, entry.Repo, latestVersion, coolDown)
+				if !coolDownResult.PublishedAt.IsZero() {
+					actionCache.SetReleasedAt(entry.Repo, latestVersion, coolDownResult.PublishedAt)
+				}
+			}
+			if coolDownResult.InCoolDown {
+				cooldownLog.Printf("Action %s: %s", entry.Repo, coolDownResult.Message)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", entry.Repo, coolDownResult.Message)))
+				skippedActions = append(skippedActions, entry.Repo)
+				continue
+			}
 		}
 
 		// Update the entry using ActionCache.Set which:
@@ -540,7 +580,7 @@ type latestReleaseResult struct {
 // major version. Updated files are recompiled. By default all actions are updated to
 // the latest major version; pass disableReleaseBump=true to only update core
 // (actions/*) references.
-func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool) error {
+func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool, coolDown time.Duration) error {
 	if workflowsDir == "" {
 		workflowsDir = getWorkflowsDir()
 	}
@@ -549,6 +589,8 @@ func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverr
 
 	// Per-invocation cache: key = "repo@currentVersion", avoids repeated API calls
 	cache := make(map[string]latestReleaseResult)
+	// Per-invocation cooldown cache: key = "repo@tag", avoids redundant date API calls
+	coolDownCache := make(map[string]coolDownCheckResult)
 
 	var updatedFiles []string
 
@@ -571,7 +613,7 @@ func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverr
 			return nil
 		}
 
-		updated, newContent, err := updateActionRefsInContent(ctx, string(content), cache, !disableReleaseBump, verbose)
+		updated, newContent, err := updateActionRefsInContent(ctx, string(content), cache, coolDownCache, !disableReleaseBump, verbose, coolDown)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update action refs in %s: %v", path, err)))
@@ -614,10 +656,11 @@ func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverr
 // updateActionRefsInContent replaces outdated "uses: org/repo@version" references
 // in content with the latest major version and SHA. Returns (changed, newContent, error).
 // cache is keyed by "repo@currentVersion" and avoids redundant API calls across lines/files.
+// coolDownCache is keyed by "repo@tag" and avoids redundant cooldown date API calls.
 // When allowMajor is true (the default), all matched actions are updated to the latest
 // major version. When allowMajor is false (--disable-release-bump), non-core (non
 // actions/*) action refs are skipped; core actions are always updated.
-func updateActionRefsInContent(ctx context.Context, content string, cache map[string]latestReleaseResult, allowMajor, verbose bool) (bool, string, error) {
+func updateActionRefsInContent(ctx context.Context, content string, cache map[string]latestReleaseResult, coolDownCache map[string]coolDownCheckResult, allowMajor, verbose bool, coolDown time.Duration) (bool, string, error) {
 	changed := false
 	lines := strings.Split(content, "\n")
 
@@ -686,6 +729,23 @@ func updateActionRefsInContent(ctx context.Context, content string, cache map[st
 		} else {
 			if latestVersion == ref {
 				continue // Version tag unchanged
+			}
+		}
+
+		// Apply cooldown: if the repo is not exempt and the release is too recent, skip.
+		if !isExemptFromCoolDown(repo) {
+			coolDownKey := repo + "@" + latestVersion
+			coolDownResult, coolDownCached := coolDownCache[coolDownKey]
+			if !coolDownCached {
+				coolDownResult = checkReleaseCoolDown(ctx, repo, latestVersion, coolDown)
+				coolDownCache[coolDownKey] = coolDownResult
+			}
+			if coolDownResult.InCoolDown {
+				cooldownLog.Printf("Action ref %s in workflow: %s", repo, coolDownResult.Message)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", repo, coolDownResult.Message)))
+				}
+				continue
 			}
 		}
 

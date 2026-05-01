@@ -37,12 +37,16 @@ network:
     - github
 
 safe-outputs:
+  staged: true
   create-issue:
     expires: 2d
     title-prefix: "[Stale Repository] "
     labels: [stale-repository, automated-analysis, cookie]
     max: 10
     group: true
+  add-comment:
+    max: 5
+  noop:
   upload-artifact:
     max-uploads: 5
     retention-days: 30

@@ -252,6 +252,7 @@ constants.DefaultClaudeCodeVersion      // Claude Code CLI version
 constants.DefaultCodexVersion           // OpenAI Codex CLI version
 constants.DefaultGeminiVersion          // Google Gemini CLI version
 constants.DefaultCrushVersion           // Crush CLI version
+constants.DefaultOpenCodeVersion        // OpenCode CLI version
 
 // Infrastructure
 constants.DefaultGitHubMCPServerVersion // GitHub MCP server Docker image version

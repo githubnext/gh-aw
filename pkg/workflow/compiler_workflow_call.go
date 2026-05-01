@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"maps"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -228,4 +229,125 @@ func buildWorkflowCallOutputsMap(safeOutputs *SafeOutputsConfig) map[string]work
 	}
 
 	return outputs
+}
+
+// workflowCallSecretEntry represents a single on.workflow_call.secrets entry.
+type workflowCallSecretEntry struct {
+	Required bool `yaml:"required"`
+}
+
+// injectWorkflowCallSecretsSection adds on.workflow_call.secrets declarations for secrets
+// used by the workflow, so that callers can pass them explicitly instead of using
+// secrets: inherit. GITHUB_TOKEN is excluded because it is automatically provided by
+// GitHub Actions and cannot be passed as an explicit caller secret.
+//
+// Any secrets the user has already declared in the on.workflow_call.secrets section are
+// preserved and take precedence over the auto-generated entries.
+//
+// The function is a no-op if secrets is empty or workflow_call is not in the on section.
+func injectWorkflowCallSecretsSection(onSection string, secrets []string) string {
+	if len(secrets) == 0 || !strings.Contains(onSection, "workflow_call") {
+		return onSection
+	}
+
+	// Build the set of secrets to declare, excluding GITHUB_TOKEN (auto-provided).
+	secretsToInject := make([]string, 0, len(secrets))
+	for _, s := range secrets {
+		if s != "GITHUB_TOKEN" {
+			secretsToInject = append(secretsToInject, s)
+		}
+	}
+	if len(secretsToInject) == 0 {
+		return onSection
+	}
+	sort.Strings(secretsToInject)
+
+	workflowCallLog.Printf("Injecting %d workflow_call secrets declarations", len(secretsToInject))
+
+	// Parse the on section YAML.
+	var onData map[string]any
+	if err := yaml.Unmarshal([]byte(onSection), &onData); err != nil {
+		workflowCallLog.Printf("Warning: failed to parse on section for workflow_call secrets injection: %v", err)
+		return onSection
+	}
+
+	// Normalize onData["on"] to map[string]any, handling string and slice shorthand forms.
+	rawOn, hasOn := onData["on"]
+	if !hasOn {
+		return onSection
+	}
+	var onMap map[string]any
+	switch v := rawOn.(type) {
+	case map[string]any:
+		onMap = v
+	case string:
+		onMap = map[string]any{v: nil}
+	case []any:
+		onMap = make(map[string]any, len(v))
+		for _, event := range v {
+			if eventName, ok := event.(string); ok {
+				onMap[eventName] = nil
+			}
+		}
+	case []string:
+		onMap = make(map[string]any, len(v))
+		for _, eventName := range v {
+			onMap[eventName] = nil
+		}
+	default:
+		return onSection
+	}
+	onData["on"] = onMap
+
+	workflowCallVal, hasWorkflowCall := onMap["workflow_call"]
+	if !hasWorkflowCall {
+		return onSection
+	}
+
+	// Convert workflow_call to a map (it may be nil if declared without options).
+	var workflowCallMap map[string]any
+	if workflowCallVal == nil {
+		workflowCallMap = make(map[string]any)
+	} else if m, ok := workflowCallVal.(map[string]any); ok {
+		workflowCallMap = m
+	} else {
+		workflowCallMap = make(map[string]any)
+	}
+
+	// Build the auto-generated secrets map (required: false for all entries).
+	generatedSecrets := make(map[string]workflowCallSecretEntry, len(secretsToInject))
+	for _, name := range secretsToInject {
+		generatedSecrets[name] = workflowCallSecretEntry{Required: false}
+	}
+
+	// Merge: user-defined entries take precedence over generated ones.
+	if existingSecrets, hasSecrets := workflowCallMap["secrets"].(map[string]any); hasSecrets {
+		for k, v := range existingSecrets {
+			if entryMap, ok := v.(map[string]any); ok {
+				entry := workflowCallSecretEntry{}
+				if req, ok := entryMap["required"].(bool); ok {
+					entry.Required = req
+				}
+				generatedSecrets[k] = entry
+			}
+		}
+	}
+
+	// Convert to a plain map for marshaling.
+	secretsOut := make(map[string]any, len(generatedSecrets))
+	for k, v := range generatedSecrets {
+		secretsOut[k] = map[string]any{"required": v.Required}
+	}
+	workflowCallMap["secrets"] = secretsOut
+	onMap["workflow_call"] = workflowCallMap
+
+	// Re-marshal to YAML.
+	newOnData := map[string]any{"on": onMap}
+	newYAML, err := yaml.Marshal(newOnData)
+	if err != nil {
+		workflowCallLog.Printf("Warning: failed to marshal on section with workflow_call secrets: %v", err)
+		return onSection
+	}
+
+	return strings.TrimSuffix(string(newYAML), "\n")
 }

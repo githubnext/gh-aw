@@ -43,7 +43,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 	codemods := GetAllCodemods()
 
 	// Verify we have the expected number of codemods
-	expectedCount := 38
+	expectedCount := 41
 	assert.Len(t, codemods, expectedCount, "Should return all %d codemods", expectedCount)
 
 	// Verify all codemods have required fields
@@ -150,6 +150,9 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"features-cli-proxy-to-tools-github-mode",
 		"features-difc-proxy-to-tools-github",
 		"mount-as-clis-to-cli-proxy",
+		"sandbox-mcp-container-removal",
+		"sandbox-mcp-version-removal",
+		"sandbox-agent-false-removal",
 	}
 
 	require.Len(t, codemods, len(expectedOrder), "Should have expected number of codemods")

@@ -448,6 +448,7 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")))
 	ctx.steps = append(ctx.steps, "        with:\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          name: %s\n", activationArtifactName))
+	ctx.steps = append(ctx.steps, "          include-hidden-files: true\n")
 	ctx.steps = append(ctx.steps, "          path: |\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw_info.json\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt.txt\n")
