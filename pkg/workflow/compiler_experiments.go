@@ -246,7 +246,7 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 // When no config is available a bare variants array is emitted for backward compatibility.
 // Uses encoding/json for proper escaping of all special characters.
 // Caller is responsible for escaping single quotes when embedding the result in a YAML
-// single-quoted scalar (replace ' with ”).
+// single-quoted scalar (each ' must be doubled to ” per YAML spec §7.3.3).
 func buildExperimentSpecJSON(experiments map[string][]string, configs map[string]*ExperimentConfig, names []string) string {
 	var sb strings.Builder
 	sb.WriteString("{")

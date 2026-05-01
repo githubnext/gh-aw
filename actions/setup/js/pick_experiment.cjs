@@ -46,7 +46,7 @@ const path = require("path");
  */
 
 /**
- * Normalise a raw spec entry (either a legacy bare array or the new object form) into
+ * Normalize a raw spec entry (either a legacy bare array or the new object form) into
  * an ExperimentConfig object.
  *
  * @param {string[]|ExperimentConfig} raw
@@ -182,7 +182,7 @@ function recordVariant(name, variant, state) {
  * Append a Markdown step summary describing the experiment assignments.
  *
  * @param {Record<string, string>} assignments  - Maps experiment name → selected variant
- * @param {Record<string, ExperimentConfig>} configs - Normalised config per experiment
+ * @param {Record<string, ExperimentConfig>} configs - Normalized config per experiment
  * @param {ExperimentState} state               - Updated state (post-selection)
  * @param {any} core                            - @actions/core
  */
@@ -224,7 +224,7 @@ async function main() {
     return;
   }
 
-  // Normalise all spec entries to ExperimentConfig objects.
+  // Normalize all spec entries to ExperimentConfig objects.
   /** @type {Record<string, ExperimentConfig>} */
   const configs = {};
   for (const name of experimentNames) {
