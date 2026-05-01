@@ -9902,6 +9902,11 @@
                   "type": "string",
                   "description": "Session timeout for MCP gateway sessions as a Go duration string (e.g. \"30m\", \"4h\", \"24h\"). Must be at least 5m (no upper bound). Omitted or empty uses the effective gateway default (precedence: this field > MCP_GATEWAY_SESSION_TIMEOUT env var > built-in default 6h). Longer timeouts benefit multi-hour workflows such as large-scale migrations; shorter values free gateway resources sooner.",
                   "examples": ["30m", "1h", "4h", "6h", "12h"]
+                },
+                "tool-timeout": {
+                  "type": "string",
+                  "description": "Timeout for individual MCP tool calls as a Go duration string (e.g. \"30s\", \"2m\", \"10m\"). Must be between 10s and 600s inclusive. Omitted or empty uses the gateway built-in default (60s). Use a higher value for slow MCP backends such as full-text search over large indexes.",
+                  "examples": ["30s", "2m", "5m", "10m"]
                 }
               },
               "additionalProperties": false

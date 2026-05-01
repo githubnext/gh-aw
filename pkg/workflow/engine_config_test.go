@@ -925,3 +925,71 @@ func TestEngineMCPSessionTimeoutExtraction(t *testing.T) {
 		})
 	}
 }
+
+// TestEngineMCPToolTimeoutExtraction tests extraction of engine.mcp.tool-timeout.
+func TestEngineMCPToolTimeoutExtraction(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name            string
+		frontmatter     map[string]any
+		expectedTimeout string
+	}{
+		{
+			name: "extracts tool-timeout from engine.mcp",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+					"mcp": map[string]any{
+						"tool-timeout": "2m",
+					},
+				},
+			},
+			expectedTimeout: "2m",
+		},
+		{
+			name: "no mcp section - empty tool timeout",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+				},
+			},
+			expectedTimeout: "",
+		},
+		{
+			name: "mcp section without tool-timeout - empty",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":  "copilot",
+					"mcp": map[string]any{},
+				},
+			},
+			expectedTimeout: "",
+		},
+		{
+			name: "mcp section with both session-timeout and tool-timeout",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+					"mcp": map[string]any{
+						"session-timeout": "4h",
+						"tool-timeout":    "5m",
+					},
+				},
+			},
+			expectedTimeout: "5m",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, config := compiler.ExtractEngineConfig(tt.frontmatter)
+			if config == nil {
+				t.Fatal("Expected non-nil config")
+			}
+			if config.MCPToolTimeout != tt.expectedTimeout {
+				t.Errorf("MCPToolTimeout = %q, want %q", config.MCPToolTimeout, tt.expectedTimeout)
+			}
+		})
+	}
+}

@@ -225,6 +225,12 @@ const DefaultMCPStartupTimeout = 120 * time.Second
 // MCPSessionTimeoutMin is the minimum allowed value for engine.mcp.session-timeout (5 minutes).
 const MCPSessionTimeoutMin = 5 * time.Minute
 
+// MCPToolTimeoutMin is the minimum allowed value for engine.mcp.tool-timeout (10 seconds).
+const MCPToolTimeoutMin = 10 * time.Second
+
+// MCPToolTimeoutMax is the maximum allowed value for engine.mcp.tool-timeout (600 seconds).
+const MCPToolTimeoutMax = 600 * time.Second
+
 // DefaultActivationJobRunnerImage is the default runner image for activation and pre-activation jobs
 const DefaultActivationJobRunnerImage = "ubuntu-slim"
 

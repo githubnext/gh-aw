@@ -401,6 +401,44 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				SessionTimeout:       "",
 			},
 		},
+		{
+			name: "propagates tool-timeout from engine config",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:             "copilot",
+					MCPToolTimeout: "2m",
+				},
+				SandboxConfig: &SandboxConfig{},
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Port:                 int(DefaultMCPGatewayPort),
+				Domain:               "${MCP_GATEWAY_DOMAIN}",
+				APIKey:               "${MCP_GATEWAY_API_KEY}",
+				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
+				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
+				ToolTimeout:          "2m",
+			},
+		},
+		{
+			name: "propagates both session-timeout and tool-timeout from engine config",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:                "copilot",
+					MCPSessionTimeout: "4h",
+					MCPToolTimeout:    "5m",
+				},
+				SandboxConfig: &SandboxConfig{},
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Port:                 int(DefaultMCPGatewayPort),
+				Domain:               "${MCP_GATEWAY_DOMAIN}",
+				APIKey:               "${MCP_GATEWAY_API_KEY}",
+				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
+				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
+				SessionTimeout:       "4h",
+				ToolTimeout:          "5m",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -419,6 +457,7 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				assert.Equal(t, tt.expected.TrustedBots, result.TrustedBots, "TrustedBots should match")
 				assert.Equal(t, tt.expected.KeepaliveInterval, result.KeepaliveInterval, "KeepaliveInterval should match")
 				assert.Equal(t, tt.expected.SessionTimeout, result.SessionTimeout, "SessionTimeout should match")
+				assert.Equal(t, tt.expected.ToolTimeout, result.ToolTimeout, "ToolTimeout should match")
 			}
 		})
 	}
