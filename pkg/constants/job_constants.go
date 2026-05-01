@@ -133,6 +133,10 @@ const ArtifactPrefixOutputName = "artifact_prefix"
 // (aw_info.json and prompt.txt).
 const ActivationArtifactName = "activation"
 
+// ExperimentArtifactName is the artifact name for A/B experiment state
+// uploaded by the activation job when experiments are declared in the frontmatter.
+const ExperimentArtifactName = "experiment"
+
 // SafeOutputItemsArtifactName is the artifact name for the safe output items manifest.
 // This artifact contains the JSONL manifest of all items created by safe output handlers
 // and is uploaded by the safe_outputs job to avoid conflicting with the "agent" artifact

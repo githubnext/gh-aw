@@ -40,6 +40,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		return nil, err
 	}
 
+	// Generate experiment selection steps when experiments are declared in the frontmatter.
+	// These steps run before the prompt is built so that ${{ experiments.name }} placeholders
+	// can be resolved by the substitute_placeholders step.
+	if experimentSteps := c.generateExperimentSteps(data); len(experimentSteps) > 0 {
+		compilerActivationJobLog.Printf("Adding %d experiment step(s) for %d experiment(s)", len(experimentSteps), len(data.Experiments))
+		ctx.steps = append(ctx.steps, experimentSteps...)
+	}
+
 	c.configureActivationNeedsAndCondition(ctx)
 	compilerActivationJobLog.Print("Generating prompt in activation job")
 	c.generatePromptInActivationJob(&ctx.steps, data, preActivationJobCreated, ctx.customJobsBeforeActivation)

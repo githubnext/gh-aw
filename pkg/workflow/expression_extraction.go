@@ -76,6 +76,14 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 			content = transformedContent
 		}
 
+		// Detect experiments.NAME expressions and remap them to env.GH_AW_EXPERIMENTS_NAME
+		// so the substitution step reads the value set by the experiment selection step via GITHUB_ENV.
+		transformedContent = transformExperimentsExpression(content)
+		if transformedContent != content {
+			expressionExtractionLog.Printf("Transformed experiment expression: %s -> %s", content, transformedContent)
+			content = transformedContent
+		}
+
 		// Skip if we've already seen this expression (also prevents duplicate deprecation warnings)
 		if _, exists := e.mappings[originalExpr]; exists {
 			continue
@@ -187,6 +195,27 @@ func transformActivationOutputs(expr string) string {
 	}
 
 	return expr
+}
+
+// experimentNameRegex matches experiments.<name> expressions where name is a simple identifier.
+var experimentNameRegex = regexp.MustCompile(`^experiments\.([a-zA-Z_][a-zA-Z0-9_]*)$`)
+
+// ExperimentEnvVarName returns the GITHUB_ENV / GITHUB_OUTPUT variable name used by the
+// pick_experiment step for the given experiment name.
+// Example: "feature1" → "GH_AW_EXPERIMENTS_FEATURE1"
+func ExperimentEnvVarName(experimentName string) string {
+	return "GH_AW_EXPERIMENTS_" + strings.ToUpper(experimentName)
+}
+
+// transformExperimentsExpression detects expressions of the form "experiments.<name>"
+// and rewrites them to "env.GH_AW_EXPERIMENTS_<NAME>" so that the placeholder
+// substitution step reads the value that the pick_experiment step wrote to GITHUB_ENV.
+func transformExperimentsExpression(expr string) string {
+	m := experimentNameRegex.FindStringSubmatch(expr)
+	if m == nil {
+		return expr
+	}
+	return "env." + ExperimentEnvVarName(m[1])
 }
 
 // simpleIdentifierRegex matches simple JavaScript property access chains like

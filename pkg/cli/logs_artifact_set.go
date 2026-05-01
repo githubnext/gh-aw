@@ -58,6 +58,10 @@ const (
 	// logs (github_rate_limits.jsonl), which are included in both the activation and
 	// agent artifacts.
 	ArtifactSetGitHubAPI ArtifactSet = "github-api"
+
+	// ArtifactSetExperiment downloads the experiment artifact containing A/B experiment
+	// state (state.json) uploaded by the activation job when experiments are declared.
+	ArtifactSetExperiment ArtifactSet = "experiment"
 )
 
 // artifactSetArtifacts maps each named set to the list of artifact base names it includes.
@@ -73,6 +77,8 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetDetection:  {constants.DetectionArtifactName},
 	// github-api: both jobs upload github_rate_limits.jsonl; fetch both for a complete view.
 	ArtifactSetGitHubAPI: {constants.ActivationArtifactName, constants.AgentArtifactName},
+	// experiment: A/B experiment state uploaded by the activation job.
+	ArtifactSetExperiment: {constants.ExperimentArtifactName},
 }
 
 // ValidArtifactSetNames returns a sorted list of valid artifact set names,

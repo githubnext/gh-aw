@@ -207,6 +207,11 @@ type FrontmatterConfig struct {
 	SecretMasking *SecretMaskingConfig `json:"secret-masking,omitempty"`
 	Observability *ObservabilityConfig `json:"observability,omitempty"`
 
+	// A/B testing experiments: maps experiment name to a list of variant values.
+	// Variants are picked at runtime using actions/cache to maintain state across runs.
+	// Use ${{ experiments.name }} in the workflow prompt to reference the selected variant.
+	Experiments map[string][]string `json:"experiments,omitempty"`
+
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`
 
