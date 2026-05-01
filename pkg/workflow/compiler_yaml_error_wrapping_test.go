@@ -141,6 +141,25 @@ jobs:
 	assert.Greater(t, len(errMsg), 50, "Error message should be descriptive")
 }
 
+// TestGenerateYAML_FrontmatterHashFailure verifies that a failure to compute the
+// frontmatter hash is surfaced as a hard error instead of being silently swallowed.
+func TestGenerateYAML_FrontmatterHashFailure(t *testing.T) {
+	// Call generateYAML with RawMarkdown empty and a markdownPath that does not
+	// exist on disk. This forces the disk-read fallback in hash computation,
+	// which fails because the file is missing.
+	compiler := NewCompiler(WithVersion("1.0.0"))
+	data := &WorkflowData{
+		Name:        "test-workflow",
+		RawMarkdown: "", // empty → triggers disk-read fallback
+	}
+
+	_, _, _, err := compiler.generateYAML(data, "/nonexistent/path/to/workflow.md")
+
+	require.Error(t, err, "Expected error when frontmatter hash computation fails")
+	assert.Contains(t, err.Error(), "failed to compute frontmatter hash",
+		"Error should mention frontmatter hash failure")
+}
+
 // TestBuildJobsAndValidate_ErrorWrapping verifies that buildJobsAndValidate
 // properly wraps errors with context messages
 func TestBuildJobsAndValidate_ErrorWrapping(t *testing.T) {
