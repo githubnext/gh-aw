@@ -1319,7 +1319,7 @@ CI/CD Execution (gh-aw):
 #### 1. **Simplified Quickstart Experience** (Inspired by mdflow)
 - Create "basic mode" templates that hide complexity
 - Add `gh aw init --template mdflow-style` for familiar syntax
-- Provide sensible defaults that work out-of-the-box
+- Provide sensible defaults that require no additional configuration
 
 **Impact**: Lower barrier to entry, faster adoption
 
@@ -1361,7 +1361,7 @@ mdflow and gh-aw represent two philosophies of AI workflow automation:
 - **mdflow**: "Move fast, trust the user, maximize flexibility"
 - **gh-aw**: "Move carefully, verify everything, maximize safety"
 
-Neither is "superior"—they're optimized for different contexts. The opportunity for gh-aw is to learn from mdflow's simplicity and developer experience while maintaining its security guarantees. By adopting mdflow's proven patterns (templates, imports, fast iteration) and wrapping them in gh-aw's safety model, we can combine their strengths.
+Neither is "superior"—they're optimized for different contexts. The opportunity for gh-aw is to learn from mdflow's simplicity and developer experience while maintaining its security guarantees. By adopting mdflow's established patterns (templates, imports, fast iteration) and applying gh-aw's safety model, both approaches can address different use cases.
 
 ---
 
