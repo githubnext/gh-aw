@@ -2731,24 +2731,85 @@
       ]
     },
     "experiments": {
-      "description": "A/B testing experiments. Each key is an experiment name; the value is an array of two or more variant strings. At runtime the activation job picks a variant using actions/cache to maintain consistent assignment across runs. Use ${{ experiments.<name> }} in the workflow prompt to reference the selected variant. When multiple experiments are declared, assignments are statistically balanced using a counter that round-robins across variants.",
+      "description": "A/B testing experiments. Each key is an experiment name; the value is either an array of two or more variant strings (bare-array form) or an object with a 'variants' field plus optional metadata fields (description, metric, weight, issue, start_date, end_date). At runtime the activation job picks a variant using actions/cache to maintain consistent assignment across runs. Use ${{ experiments.<name> }} in the workflow prompt to reference the selected variant. When multiple experiments are declared, assignments are statistically balanced using a counter that round-robins across variants (or weighted when 'weight' is provided).",
       "type": "object",
       "propertyNames": {
         "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
         "description": "Experiment names must be valid identifiers: start with a letter or underscore, followed by letters, digits, or underscores."
       },
       "additionalProperties": {
-        "type": "array",
-        "items": { "type": "string" },
-        "minItems": 2,
-        "description": "Array of variant values for this experiment. Must contain at least two variants."
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "description": "Bare-array form: list of variant values for this experiment. Must contain at least two variants."
+          },
+          {
+            "type": "object",
+            "required": ["variants"],
+            "properties": {
+              "variants": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 2,
+                "description": "Array of variant values for this experiment. Must contain at least two variants."
+              },
+              "description": {
+                "type": "string",
+                "description": "Human-readable description of what this experiment tests."
+              },
+              "metric": {
+                "type": "string",
+                "description": "Primary metric to observe (e.g. 'effective_tokens')."
+              },
+              "weight": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Per-variant probability weights (relative, need not sum to 100). Length must equal the number of variants."
+              },
+              "issue": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "GitHub issue number tracking this experiment."
+              },
+              "start_date": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "ISO-8601 date (YYYY-MM-DD). Experiment is inactive before this date; control variant is used."
+              },
+              "end_date": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "ISO-8601 date (YYYY-MM-DD). Experiment is inactive after this date; control variant is used."
+              }
+            },
+            "additionalProperties": false,
+            "description": "Object form: experiment config with variants and optional metadata."
+          }
+        ]
       },
       "examples": [
         {
           "feature1": ["A", "B"]
         },
         {
-          "prompt_style": ["concise", "detailed", "structured"],
+          "prompt_style": {
+            "variants": ["concise", "verbose"],
+            "description": "Test whether concise vs verbose prompts reduce token consumption",
+            "metric": "effective_tokens",
+            "weight": [50, 50],
+            "issue": 1234,
+            "start_date": "2026-05-01",
+            "end_date": "2026-06-15"
+          },
           "model_temp": ["low", "high"]
         }
       ]

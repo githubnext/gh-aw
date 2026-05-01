@@ -105,6 +105,36 @@ type PermissionsConfig struct {
 	GitHubAppPermissionsConfig
 }
 
+// ExperimentConfig represents the rich metadata for a single A/B experiment.
+// The bare-array form (e.g. prompt_style: [concise, verbose]) is normalized to this
+// struct with only the Variants field populated.
+type ExperimentConfig struct {
+	// Variants is the ordered list of variant strings for this experiment (required, ≥ 2).
+	Variants []string `json:"variants"`
+
+	// Description is a human-readable explanation of what the experiment tests.
+	Description string `json:"description,omitempty"`
+
+	// Metric names the primary metric that should be observed (e.g. "effective_tokens").
+	Metric string `json:"metric,omitempty"`
+
+	// Weight holds an optional per-variant probability weight.  When provided its length
+	// must equal the length of Variants.  Values are relative (they need not sum to 100).
+	Weight []int `json:"weight,omitempty"`
+
+	// Issue is an optional GitHub issue number that tracks this experiment.
+	Issue int `json:"issue,omitempty"`
+
+	// StartDate is an optional ISO-8601 date (YYYY-MM-DD) before which the experiment
+	// is not active.  When today is before this date the control variant (first variant)
+	// is used.
+	StartDate string `json:"start_date,omitempty"`
+
+	// EndDate is an optional ISO-8601 date (YYYY-MM-DD) after which the experiment is
+	// no longer active.  When today is after this date the control variant is used.
+	EndDate string `json:"end_date,omitempty"`
+}
+
 // RateLimitConfig represents rate limiting configuration for workflow triggers
 // Limits how many times a user can trigger a workflow within a time window
 type RateLimitConfig struct {
@@ -211,6 +241,10 @@ type FrontmatterConfig struct {
 	// Variants are picked at runtime using actions/cache to maintain state across runs.
 	// Use ${{ experiments.name }} in the workflow prompt to reference the selected variant.
 	Experiments map[string][]string `json:"experiments,omitempty"`
+
+	// ExperimentConfigs holds the fully-typed experiment metadata, populated alongside
+	// Experiments during frontmatter parsing.  Keys match those of Experiments.
+	ExperimentConfigs map[string]*ExperimentConfig `json:"-"`
 
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`

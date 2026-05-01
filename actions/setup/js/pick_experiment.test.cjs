@@ -19,7 +19,7 @@ const mockCore = {
 
 global.core = mockCore;
 
-const { pickVariant, loadState, saveState, recordVariant, main } = await import("./pick_experiment.cjs");
+const { pickVariant, pickVariantWeighted, loadState, saveState, recordVariant, isWithinDateWindow, normalizeConfig, main } = await import("./pick_experiment.cjs");
 
 describe("pick_experiment", () => {
   /** @type {string} */
@@ -255,6 +255,133 @@ describe("pick_experiment", () => {
       await main();
 
       expect(mockCore.setFailed).toHaveBeenCalled();
+    });
+
+    it("accepts new object-form spec and picks variant", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        style: { variants: ["concise", "verbose"] },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("style", "concise");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("uses control variant when today is before start_date", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      // Use a far-future start_date to ensure we're always before it.
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        style: { variants: ["concise", "verbose"], start_date: "2099-01-01" },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      // Should use control variant (first: concise) without recording a count.
+      expect(mockCore.setOutput).toHaveBeenCalledWith("style", "concise");
+      // Counter for 'style' should NOT have been incremented.
+      const state = loadState(stateFile);
+      expect(state.counts["style"]).toBeUndefined();
+    });
+
+    it("uses control variant when today is after end_date", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        style: { variants: ["concise", "verbose"], end_date: "2000-01-01" },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("style", "concise");
+    });
+  });
+
+  // ── pickVariantWeighted ────────────────────────────────────────────────────
+
+  describe("pickVariantWeighted", () => {
+    it("always selects the only non-zero-weight variant when one weight is 100", () => {
+      // With weight [0, 100] the second variant must always be selected.
+      for (let i = 0; i < 20; i++) {
+        expect(pickVariantWeighted(["A", "B"], [0, 100])).toBe("B");
+      }
+    });
+
+    it("always selects the only non-zero-weight variant when one weight is 0", () => {
+      for (let i = 0; i < 20; i++) {
+        expect(pickVariantWeighted(["A", "B"], [100, 0])).toBe("A");
+      }
+    });
+
+    it("falls back to first variant when all weights are zero", () => {
+      expect(pickVariantWeighted(["A", "B"], [0, 0])).toBe("A");
+    });
+
+    it("distributes variants proportionally across many runs", () => {
+      const counts = { A: 0, B: 0 };
+      const N = 1000;
+      for (let i = 0; i < N; i++) {
+        const v = pickVariantWeighted(["A", "B"], [70, 30]);
+        counts[v]++;
+      }
+      // With weights 70:30 we expect ~70% A and ~30% B.  Allow 10% absolute tolerance.
+      expect(counts["A"] / N).toBeCloseTo(0.7, 1);
+      expect(counts["B"] / N).toBeCloseTo(0.3, 1);
+    });
+  });
+
+  // ── isWithinDateWindow ────────────────────────────────────────────────────
+
+  describe("isWithinDateWindow", () => {
+    it("returns true when no dates are specified", () => {
+      expect(isWithinDateWindow(undefined, undefined, "2026-06-01")).toBe(true);
+    });
+
+    it("returns true when today equals start_date", () => {
+      expect(isWithinDateWindow("2026-06-01", undefined, "2026-06-01")).toBe(true);
+    });
+
+    it("returns false when today is before start_date", () => {
+      expect(isWithinDateWindow("2026-06-01", undefined, "2026-05-31")).toBe(false);
+    });
+
+    it("returns true when today equals end_date", () => {
+      expect(isWithinDateWindow(undefined, "2026-06-30", "2026-06-30")).toBe(true);
+    });
+
+    it("returns false when today is after end_date", () => {
+      expect(isWithinDateWindow(undefined, "2026-06-30", "2026-07-01")).toBe(false);
+    });
+
+    it("returns true when today is within [start_date, end_date]", () => {
+      expect(isWithinDateWindow("2026-05-01", "2026-06-30", "2026-06-01")).toBe(true);
+    });
+
+    it("returns false when today is before the window", () => {
+      expect(isWithinDateWindow("2026-05-01", "2026-06-30", "2026-04-30")).toBe(false);
+    });
+
+    it("returns false when today is after the window", () => {
+      expect(isWithinDateWindow("2026-05-01", "2026-06-30", "2026-07-01")).toBe(false);
+    });
+  });
+
+  // ── normalizeConfig ───────────────────────────────────────────────────────
+
+  describe("normalizeConfig", () => {
+    it("wraps a bare array in a variants object", () => {
+      expect(normalizeConfig(["A", "B"])).toEqual({ variants: ["A", "B"] });
+    });
+
+    it("passes through an object-form config unchanged", () => {
+      const cfg = { variants: ["A", "B"], weight: [70, 30] };
+      expect(normalizeConfig(cfg)).toBe(cfg);
     });
   });
 });

@@ -100,6 +100,53 @@ func TestExtractExperimentsFromFrontmatter(t *testing.T) {
 			},
 			want: map[string][]string{"valid": {"X", "Y"}},
 		},
+		{
+			name: "new object form with variants only",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"style": map[string]any{
+						"variants": []any{"concise", "verbose"},
+					},
+				},
+			},
+			want: map[string][]string{"style": {"concise", "verbose"}},
+		},
+		{
+			name: "new object form with full metadata",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"prompt_style": map[string]any{
+						"variants":    []any{"concise", "verbose"},
+						"description": "Test prompt styles",
+						"weight":      []any{50.0, 50.0},
+						"start_date":  "2026-01-01",
+						"end_date":    "2026-12-31",
+						"issue":       float64(1234),
+					},
+				},
+			},
+			want: map[string][]string{"prompt_style": {"concise", "verbose"}},
+		},
+		{
+			name: "new object form skips when variants missing",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"bad":  map[string]any{"description": "no variants"},
+					"good": []any{"A", "B"},
+				},
+			},
+			want: map[string][]string{"good": {"A", "B"}},
+		},
+		{
+			name: "new object form skips when fewer than two variants",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"bad":  map[string]any{"variants": []any{"only-one"}},
+					"good": []any{"A", "B"},
+				},
+			},
+			want: map[string][]string{"good": {"A", "B"}},
+		},
 	}
 
 	for _, tt := range tests {
@@ -130,8 +177,32 @@ func TestBuildExperimentSpecJSON(t *testing.T) {
 		"style":    {"concise", "detailed"},
 	}
 	names := []string{"feature1", "style"}
-	got := buildExperimentSpecJSON(experiments, names)
+	// Without configs, bare-array fallback is used.
+	got := buildExperimentSpecJSON(experiments, nil, names)
 	assert.JSONEq(t, `{"feature1":["A","B"],"style":["concise","detailed"]}`, got, "JSON spec should match expected structure")
+}
+
+func TestBuildExperimentSpecJSONWithConfigs(t *testing.T) {
+	experiments := map[string][]string{
+		"style": {"concise", "detailed"},
+	}
+	configs := map[string]*ExperimentConfig{
+		"style": {
+			Variants:    []string{"concise", "detailed"},
+			Description: "Test prompt style",
+			Weight:      []int{70, 30},
+			StartDate:   "2026-01-01",
+			EndDate:     "2026-12-31",
+		},
+	}
+	names := []string{"style"}
+	got := buildExperimentSpecJSON(experiments, configs, names)
+	// Full config object should be embedded.
+	assert.Contains(t, got, `"variants"`, "should include variants key")
+	assert.Contains(t, got, `"weight"`, "should include weight key")
+	assert.Contains(t, got, `"start_date"`, "should include start_date key")
+	assert.Contains(t, got, `"end_date"`, "should include end_date key")
+	assert.Contains(t, got, "concise", "should include variant value")
 }
 
 func TestBuildExperimentSpecJSONEscaping(t *testing.T) {
@@ -139,7 +210,7 @@ func TestBuildExperimentSpecJSONEscaping(t *testing.T) {
 		`quote"test`: {`val"1`, `val\2`},
 	}
 	names := []string{`quote"test`}
-	got := buildExperimentSpecJSON(experiments, names)
+	got := buildExperimentSpecJSON(experiments, nil, names)
 	assert.Contains(t, got, `\"`, "double quotes should be escaped in JSON")
 }
 
@@ -250,4 +321,113 @@ func TestBuildExperimentArtifactDownloadStep_NoPrefix(t *testing.T) {
 	joined := strings.Join(steps, "")
 	// Artifact name should be just the base name (no prefix)
 	assert.Contains(t, joined, "          name: experiment\n", "artifact name should be unqualified for non-workflow_call")
+}
+
+// ── extractExperimentConfigsFromFrontmatter ───────────────────────────────
+
+func TestExtractExperimentConfigsFromFrontmatter(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		check       func(t *testing.T, got map[string]*ExperimentConfig)
+	}{
+		{
+			name:        "nil returns nil",
+			frontmatter: map[string]any{},
+			check: func(t *testing.T, got map[string]*ExperimentConfig) {
+				assert.Nil(t, got, "nil when no experiments")
+			},
+		},
+		{
+			name: "bare array form returns config with variants only",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"feature1": []any{"A", "B"},
+				},
+			},
+			check: func(t *testing.T, got map[string]*ExperimentConfig) {
+				require.NotNil(t, got, "config should exist")
+				cfg := got["feature1"]
+				require.NotNil(t, cfg, "feature1 config should exist")
+				assert.Equal(t, []string{"A", "B"}, cfg.Variants, "variants should match")
+				assert.Empty(t, cfg.Description, "no description")
+				assert.Nil(t, cfg.Weight, "no weight")
+			},
+		},
+		{
+			name: "object form with all metadata fields",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"prompt_style": map[string]any{
+						"variants":    []any{"concise", "verbose"},
+						"description": "Test prompt styles",
+						"metric":      "effective_tokens",
+						"weight":      []any{60.0, 40.0},
+						"issue":       float64(1234),
+						"start_date":  "2026-05-01",
+						"end_date":    "2026-06-15",
+					},
+				},
+			},
+			check: func(t *testing.T, got map[string]*ExperimentConfig) {
+				require.NotNil(t, got, "config should exist")
+				cfg := got["prompt_style"]
+				require.NotNil(t, cfg, "prompt_style config should exist")
+				assert.Equal(t, []string{"concise", "verbose"}, cfg.Variants, "variants should match")
+				assert.Equal(t, "Test prompt styles", cfg.Description, "description should match")
+				assert.Equal(t, "effective_tokens", cfg.Metric, "metric should match")
+				assert.Equal(t, []int{60, 40}, cfg.Weight, "weight should match")
+				assert.Equal(t, 1234, cfg.Issue, "issue should match")
+				assert.Equal(t, "2026-05-01", cfg.StartDate, "start_date should match")
+				assert.Equal(t, "2026-06-15", cfg.EndDate, "end_date should match")
+			},
+		},
+		{
+			name: "mixed bare array and object form in same map",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"bare":   []any{"X", "Y"},
+					"object": map[string]any{"variants": []any{"P", "Q"}, "weight": []any{30.0, 70.0}},
+				},
+			},
+			check: func(t *testing.T, got map[string]*ExperimentConfig) {
+				require.NotNil(t, got, "configs should exist")
+				require.Len(t, got, 2, "two experiments")
+				assert.Equal(t, []string{"X", "Y"}, got["bare"].Variants, "bare variants")
+				assert.Equal(t, []string{"P", "Q"}, got["object"].Variants, "object variants")
+				assert.Equal(t, []int{30, 70}, got["object"].Weight, "object weight")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractExperimentConfigsFromFrontmatter(tt.frontmatter)
+			tt.check(t, got)
+		})
+	}
+}
+
+// ── generateExperimentSteps with ExperimentConfigs ────────────────────────
+
+func TestGenerateExperimentSteps_WithConfigs(t *testing.T) {
+	c := &Compiler{}
+	data := &WorkflowData{
+		Experiments: map[string][]string{
+			"style": {"concise", "detailed"},
+		},
+		ExperimentConfigs: map[string]*ExperimentConfig{
+			"style": {
+				Variants:  []string{"concise", "detailed"},
+				Weight:    []int{70, 30},
+				StartDate: "2026-01-01",
+			},
+		},
+	}
+	steps := c.generateExperimentSteps(data)
+	joined := strings.Join(steps, "")
+	// The spec should embed the full config object.
+	assert.Contains(t, joined, `"variants"`, "spec should include variants key")
+	assert.Contains(t, joined, `"weight"`, "spec should include weight key")
+	assert.Contains(t, joined, `"start_date"`, "spec should include start_date key")
 }

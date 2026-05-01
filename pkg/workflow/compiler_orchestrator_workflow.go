@@ -385,6 +385,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 
 	// Extract experiments configuration
 	workflowData.Experiments = extractExperimentsFromFrontmatter(frontmatter)
+	workflowData.ExperimentConfigs = extractExperimentConfigsFromFrontmatter(frontmatter)
 
 	return nil
 }
