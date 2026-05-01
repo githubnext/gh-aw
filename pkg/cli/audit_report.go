@@ -51,6 +51,7 @@ type AuditData struct {
 	ToolUsage               []ToolUsageInfo          `json:"tool_usage,omitempty"`
 	MCPToolUsage            *MCPToolUsageData        `json:"mcp_tool_usage,omitempty"`
 	CreatedItems            []CreatedItemReport      `json:"created_items,omitempty"`
+	Experiments             *ExperimentData          `json:"experiments,omitempty"`
 }
 
 // Finding represents a key insight discovered during audit
@@ -415,6 +416,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		ToolUsage:               toolUsage,
 		MCPToolUsage:            mcpToolUsage,
 		CreatedItems:            createdItems,
+		Experiments:             extractExperimentData(run.LogsPath),
 	}
 }
 

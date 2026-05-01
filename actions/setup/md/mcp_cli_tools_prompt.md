@@ -44,9 +44,27 @@ mcpscripts --help                                  # list all script tools
 mcpscripts mcpscripts-gh --args "pr list --repo owner/repo --limit 5"
 ```
 
+### Multiline String Arguments (stdin piping)
+
+For parameters that contain multiline content (such as `--body` in `add_comment`), use `-` as the value and pipe the content via stdin. This avoids shell quoting and escaping issues:
+
+```bash
+# Write multiline content to a file and pipe it
+cat body.txt | safeoutputs add_comment --body -
+
+# Or use a here-doc / printf for inline multiline content
+printf '### Title\n\nBody paragraph one.\n\nBody paragraph two.' | safeoutputs add_comment --body -
+
+# Works with --key=- form too
+printf 'multiline\ncontent' | safeoutputs add_comment --body=-
+```
+
+> **Important**: Always use stdin piping (`--body -`) instead of command substitution (`--body "$(cat file)"`) when the content contains newlines. Command substitution can strip trailing newlines and cause other quoting problems.
+
 ### Notes
 
 - All parameters are passed as `--name value` pairs; boolean flags can be set with `--flag` (no value) to mean `true`
+- Use `-` as a value to read that parameter from stdin (useful for multiline content)
 - Output is printed to stdout; errors are printed to stderr with a non-zero exit code
 - Run the CLI commands inside a `bash` tool call — they are shell executables, not MCP tools
 - These CLI commands are read-only and cannot be modified by the agent

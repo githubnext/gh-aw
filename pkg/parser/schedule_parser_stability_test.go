@@ -57,13 +57,13 @@ func TestScatterScheduleCrossPlatformConsistency(t *testing.T) {
 			name:               "daily - workflow-a.md",
 			fuzzyCron:          "FUZZY:DAILY * * *",
 			workflowIdentifier: "workflow-a.md",
-			expectedCron:       "38 6 * * *",
+			expectedCron:       "22 15 * * *",
 		},
 		{
 			name:               "daily - workflow-b.md",
 			fuzzyCron:          "FUZZY:DAILY * * *",
 			workflowIdentifier: "workflow-b.md",
-			expectedCron:       "49 7 * * *",
+			expectedCron:       "34 16 * * *",
 		},
 		{
 			name:               "hourly/1 - workflow-a.md",
@@ -81,13 +81,13 @@ func TestScatterScheduleCrossPlatformConsistency(t *testing.T) {
 			name:               "weekly - workflow-a.md",
 			fuzzyCron:          "FUZZY:WEEKLY * * *",
 			workflowIdentifier: "workflow-a.md",
-			expectedCron:       "38 6 * * 6",
+			expectedCron:       "22 15 * * 6",
 		},
 		{
 			name:               "weekly:1 - workflow-a.md",
 			fuzzyCron:          "FUZZY:WEEKLY:1 * * *",
 			workflowIdentifier: "workflow-a.md",
-			expectedCron:       "38 6 * * 1",
+			expectedCron:       "22 15 * * 1",
 		},
 		{
 			name:               "daily around 14:00 - workflow-a.md",

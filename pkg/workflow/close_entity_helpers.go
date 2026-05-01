@@ -13,8 +13,21 @@
 //   - Follow a consistent entity registry pattern
 //   - Enable DRY principles for close operations
 //
-// This follows the helper file conventions documented in the developer instructions.
-// See skills/developer/SKILL.md#helper-file-conventions for details.
+// # Why Grouped Here vs. Split Like Update-Entity Files
+//
+// The update-entity operations (update_issue_helpers.go,
+// update_discussion_helpers.go, update_pull_request_helpers.go) are split
+// into one file per entity type because each file owns a distinct type
+// definition (UpdateIssuesConfig, UpdateDiscussionsConfig,
+// UpdatePullRequestsConfig) with different fields per entity.
+//
+// Close-entity operations share a single CloseEntityConfig struct and use
+// a registry pattern (closeEntityDefinition / closeEntityRegistry) to
+// express per-entity variation via data rather than per-entity functions.
+// Grouping all three entity parsers in one file therefore keeps the registry
+// and its consumers together, reducing indirection without sacrificing
+// clarity. If a future close-entity type requires a distinct config struct,
+// follow the update-entity convention and extract it to its own file.
 //
 // # Key Functions
 //

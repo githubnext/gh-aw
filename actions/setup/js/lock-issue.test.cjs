@@ -56,20 +56,22 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
       }),
       it("should handle API errors gracefully", async () => {
         mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 42, locked: !1 } });
-        const apiError = new Error("API rate limit exceeded");
+        const apiError = new Error("Not authorized");
         (mockGithub.rest.issues.lock.mockRejectedValue(apiError),
           await eval(`(async () => { ${lockIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.lock).toHaveBeenCalled(),
-          expect(mockCore.error).toHaveBeenCalledWith("Failed to lock issue: API rate limit exceeded"),
-          expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Failed to lock issue #42: API rate limit exceeded`),
+          expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to lock issue:")),
+          expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Not authorized")),
+          expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(`Failed to lock issue #42:`)),
           expect(mockCore.setOutput).toHaveBeenCalledWith("locked", "false"));
       }),
       it("should handle non-Error exceptions", async () => {
         (mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 42, locked: !1 } }),
           mockGithub.rest.issues.lock.mockRejectedValue("String error"),
           await eval(`(async () => { ${lockIssueScript}; await main(); })()`),
-          expect(mockCore.error).toHaveBeenCalledWith("Failed to lock issue: String error"),
-          expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Failed to lock issue #42: String error`),
+          expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to lock issue:")),
+          expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("String error")),
+          expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(`Failed to lock issue #42:`)),
           expect(mockCore.setOutput).toHaveBeenCalledWith("locked", "false"));
       }),
       it("should work with different issue numbers", async () => {

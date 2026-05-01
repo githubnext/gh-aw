@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.13.0  
+**Version**: 1.14.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -36,7 +36,8 @@ This document is governed by the GitHub Agentic Workflows project specifications
 7. [Authentication](#7-authentication)
 8. [Health Monitoring](#8-health-monitoring)
 9. [Error Handling](#9-error-handling)
-10. [Compliance Testing](#10-compliance-testing)
+10. [Guard Policy](#10-guard-policy)
+11. [Compliance Testing](#11-compliance-testing)
 
 ---
 
@@ -552,7 +553,7 @@ The gateway MUST NOT fail to start if the OpenTelemetry collector endpoint is un
 - Export failures MUST NOT propagate errors to MCP clients
 - `headers` MUST be a string when provided; object form is not supported
 
-**Compliance Test**: T-OTEL-001 through T-OTEL-010 (Section 10.1.10)
+**Compliance Test**: T-OTEL-001 through T-OTEL-010 (Section 11.1.10)
 
 #### 4.1.3a Top-Level Configuration Fields
 
@@ -1383,13 +1384,163 @@ The gateway SHOULD:
 
 ---
 
-## 10. Compliance Testing
+## 10. Guard Policy
 
-### 10.1 Test Suite Requirements
+### 10.1 Overview
+
+The guard policy controls which GitHub content the gateway exposes to the agent based on **integrity** — a trust level derived from the content author's association with the repository and the content's merge status. Guard policy configuration is specific to the GitHub MCP server and is passed to the gateway alongside the standard server configuration.
+
+This section specifies the guard policy fields supported by the gateway, their semantics, and the algorithm used to compute effective integrity for each item. For user-facing configuration documentation, see the [GitHub Integrity Filtering Reference](/gh-aw/reference/integrity/).
+
+### 10.2 Integrity Levels
+
+The gateway recognizes the following integrity levels, ordered from highest to lowest:
+
+```text
+merged > approved > unapproved > none > blocked
+```
+
+| Level | Meaning |
+|-------|---------|
+| `merged` | Pull requests merged into the target branch; commits reachable from the default branch |
+| `approved` | Content from `OWNER`, `MEMBER`, or `COLLABORATOR`; non-fork PRs on public repos; all items in private repos; recognized platform bots; users in `trusted-users` |
+| `unapproved` | Content from `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR` |
+| `none` | All other content, including `FIRST_TIMER` and users with no association |
+| `blocked` | Content from users in `blocked-users` — always denied, cannot be promoted |
+
+`blocked` is not a configurable `min-integrity` value. It is assigned automatically to items from users in `blocked-users` and is always denied regardless of the configured threshold.
+
+### 10.3 Guard Policy Fields
+
+Guard policy fields are passed to the gateway as part of the GitHub MCP server configuration under a dedicated guard policy object. The following fields are supported:
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `min-integrity` | string | Conditional | `approved` (public repos) | Minimum integrity threshold: `merged`, `approved`, `unapproved`, or `none`. Required when any other guard policy field is used. |
+| `allowed-repos` | string or array | No | `"all"` | Repository scope: `"all"`, `"public"`, or array of patterns (e.g., `["myorg/*"]`) |
+| `blocked-users` | array or expression | No | `[]` | GitHub usernames unconditionally denied, regardless of any other policy |
+| `trusted-users` | array or expression | No | `[]` | GitHub usernames elevated to `approved` integrity regardless of their author association |
+| `approval-labels` | array or expression | No | `[]` | GitHub label names that promote items to `approved` integrity |
+| `refusal-labels` | array or expression | No | `[]` | GitHub label names that downgrade items to `none` integrity, overriding any promotion |
+
+### 10.4 Effective Integrity Computation
+
+The gateway MUST compute each item's effective integrity in the following order:
+
+1. **Base integrity**: Derived from GitHub metadata (author association, merge status, repository visibility).
+2. **`blocked-users` check**: If the content author is listed in `blocked-users`, effective integrity → `blocked` (unconditionally denied; skip remaining steps).
+3. **`refusal-labels` check**: If the item carries any label present in `refusal-labels`, effective integrity → `none` (overrides any promotion from steps 4–5).
+4. **`trusted-users` check**: If the content author is listed in `trusted-users`, effective integrity → `max(base, approved)`.
+5. **`approval-labels` check**: If the item carries any label present in `approval-labels`, effective integrity → `max(base, approved)`.
+6. **Default**: effective integrity → base.
+
+The `min-integrity` threshold check is applied after step 6. Items whose effective integrity is below the threshold MUST be removed before the response is returned to the agent.
+
+**Key constraints**:
+
+- `blocked-users` MUST take precedence over all other policy fields. Blocked items MUST be denied even if they carry an `approval-labels` label or the author is in `trusted-users`.
+- `refusal-labels` MUST override promotion from `trusted-users` and `approval-labels`. An item bearing a refusal label and an approval label simultaneously MUST have effective integrity `none`.
+- `trusted-users` and `approval-labels` are **promotion only** — they MUST NOT lower integrity. `max(base, approved)` ensures existing higher integrity (`merged`) is preserved.
+- `refusal-labels` is **demotion only** — it sets integrity to `none` and MUST NOT affect `blocked` items.
+
+### 10.5 `approval-labels` Field
+
+`approval-labels` lists GitHub label names that promote items bearing any of those labels to `approved` integrity.
+
+**Semantics**:
+
+- When an item carries a label present in `approval-labels`, its effective integrity is set to `max(base, approved)`.
+- Promotion does not lower integrity: an item already at `merged` remains at `merged`.
+- `blocked-users` always takes precedence: a blocked user's items remain blocked even if labeled.
+- `refusal-labels` overrides `approval-labels`: an item with both an approval label and a refusal label has effective integrity `none`.
+
+**Use case**: Human-review gate workflows where a trusted reviewer adds a label to signal that an external contribution is safe for the agent.
+
+**Configuration Example**:
+
+```yaml
+tools:
+  github:
+    min-integrity: approved
+    approval-labels:
+      - "human-reviewed"
+      - "safe-for-agent"
+```
+
+**Compliance Test**: T-GP-003 — Approval label promotion
+
+### 10.6 `refusal-labels` Field
+
+`refusal-labels` is the inverse of `approval-labels`. Items bearing any listed GitHub label have their effective integrity downgraded to `none`, regardless of the author's association or any promotion from `trusted-users` or `approval-labels`.
+
+**Semantics**:
+
+- When an item carries a label present in `refusal-labels`, its effective integrity MUST be set to `none`.
+- `refusal-labels` overrides promotion: if both a refusal label and an approval label are present on the same item, the effective integrity MUST be `none`.
+- `refusal-labels` overrides `trusted-users`: if an author is in `trusted-users` but the item has a refusal label, the effective integrity MUST be `none`.
+- `blocked-users` still takes precedence: a blocked user's items remain `blocked` and are not affected by `refusal-labels`.
+- `refusal-labels` does not lower integrity below `none`; items from blocked users are not affected.
+
+**Use case**: Suppressing specific items from the agent — for example, issues flagged for security review or pull requests pending a manual compliance check — even when the workflow's `min-integrity` would otherwise allow them.
+
+**Configuration Example**:
+
+```yaml
+tools:
+  github:
+    min-integrity: approved
+    refusal-labels:
+      - "needs-security-review"
+      - "do-not-automate"
+```
+
+**Combined Example** (approval and refusal labels together):
+
+```yaml
+tools:
+  github:
+    min-integrity: approved
+    approval-labels:
+      - "human-reviewed"
+    refusal-labels:
+      - "needs-security-review"
+```
+
+In this configuration:
+- Items labeled `human-reviewed` (without `needs-security-review`) are promoted to `approved`.
+- Items labeled `needs-security-review` are downgraded to `none`, even if also labeled `human-reviewed`.
+
+**Requirements**:
+
+- The gateway MUST apply `refusal-labels` checks before `trusted-users` and `approval-labels` checks in the effective integrity computation.
+- The gateway MUST set effective integrity to `none` for any item bearing a label present in `refusal-labels`.
+- The `refusal-labels` value MUST support both a literal array of strings and a GitHub Actions expression resolving to a comma- or newline-separated list.
+- The gateway MUST treat an empty `refusal-labels` list as a no-op (no items are downgraded).
+
+**Compliance Tests**: T-GP-004 through T-GP-008
+
+### 10.7 Centralized Management via GitHub Variables
+
+Each guard policy list field (`blocked-users`, `trusted-users`, `approval-labels`, `refusal-labels`) MAY be extended centrally using GitHub repository or organization variables. The runtime MUST union the per-workflow values with the corresponding variable at runtime.
+
+| Workflow field | GitHub variable |
+|----------------|----------------|
+| `blocked-users` | `GH_AW_GITHUB_BLOCKED_USERS` |
+| `trusted-users` | `GH_AW_GITHUB_TRUSTED_USERS` |
+| `approval-labels` | `GH_AW_GITHUB_APPROVAL_LABELS` |
+| `refusal-labels` | `GH_AW_GITHUB_REFUSAL_LABELS` |
+
+Variables are split on commas and newlines, trimmed of whitespace, and deduplicated. The union of workflow-declared values and variable values forms the effective list used at runtime.
+
+---
+
+## 11. Compliance Testing
+
+### 11.1 Test Suite Requirements
 
 A conforming implementation MUST pass the following test categories:
 
-#### 10.1.1 Configuration Tests
+#### 11.1.1 Configuration Tests
 
 - **T-CFG-001**: Valid stdio server configuration
 - **T-CFG-002**: Valid HTTP server configuration
@@ -1411,7 +1562,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-CFG-018**: Multiple mounts for single stdio server
 - **T-CFG-019**: Reject mounts for HTTP servers (stdio only)
 
-#### 10.1.2 Protocol Translation Tests
+#### 11.1.2 Protocol Translation Tests
 
 - **T-PTL-001**: Stdio request/response cycle
 - **T-PTL-002**: HTTP passthrough
@@ -1422,7 +1573,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-PTL-007**: HTTP connection failure error response
 - **T-PTL-008**: HTTP connection failure is not silently ignored
 
-#### 10.1.3 Isolation Tests
+#### 11.1.3 Isolation Tests
 
 - **T-ISO-001**: Container isolation verification
 - **T-ISO-002**: Environment isolation verification
@@ -1433,7 +1584,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-ISO-007**: Volume mount access mode enforcement (ro vs rw)
 - **T-ISO-008**: Volume mount path independence between containers
 
-#### 10.1.4 Authentication Tests
+#### 11.1.4 Authentication Tests
 
 - **T-AUTH-001**: Valid token acceptance
 - **T-AUTH-002**: Invalid token rejection
@@ -1442,7 +1593,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-AUTH-005**: Token rotation support
 - **T-AUTH-006**: Trusted bot identity configuration — `trustedBots` entries are present in the generated gateway config and merged with the gateway's built-in list
 
-#### 10.1.5 Timeout Tests
+#### 11.1.5 Timeout Tests
 
 - **T-TMO-001**: Startup timeout enforcement
 - **T-TMO-002**: Tool timeout enforcement
@@ -1450,7 +1601,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-TMO-004**: Partial response timeout
 - **T-TMO-005**: Concurrent timeout handling
 
-#### 10.1.6 Health Monitoring Tests
+#### 11.1.6 Health Monitoring Tests
 
 - **T-HLT-001**: Health endpoint availability
 - **T-HLT-002**: Liveness probe accuracy
@@ -1462,7 +1613,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-HLT-008**: specVersion uses semantic versioning format
 - **T-HLT-009**: gatewayVersion uses semantic versioning format
 
-#### 10.1.7 Configuration Output Tests
+#### 11.1.7 Configuration Output Tests
 
 - **T-OUT-001**: Gateway outputs valid JSON configuration to stdout
 - **T-OUT-002**: Output configuration includes all configured servers
@@ -1472,7 +1623,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-OUT-006**: Authorization header is present when authentication is configured
 - **T-OUT-007**: Output configuration is complete before health endpoint becomes available
 
-#### 10.1.8 Error Handling Tests
+#### 11.1.8 Error Handling Tests
 
 - **T-ERR-001**: Startup failure reporting
 - **T-ERR-002**: Runtime error handling
@@ -1480,7 +1631,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-ERR-004**: Server crash recovery
 - **T-ERR-005**: Error message quality
 
-#### 10.1.9 Gateway Lifecycle Tests
+#### 11.1.9 Gateway Lifecycle Tests
 
 - **T-LIFE-001**: Close endpoint authentication
 - **T-LIFE-002**: Close endpoint success response
@@ -1490,7 +1641,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-LIFE-006**: In-flight request handling during shutdown
 - **T-LIFE-007**: New requests rejected after close initiated
 
-#### 10.1.10 OpenTelemetry Tests
+#### 11.1.10 OpenTelemetry Tests
 
 - **T-OTEL-001**: Gateway starts successfully when `opentelemetry` is omitted
 - **T-OTEL-002**: Gateway starts successfully when `opentelemetry` is configured with a valid endpoint
@@ -1503,7 +1654,20 @@ A conforming implementation MUST pass the following test categories:
 - **T-OTEL-009**: Export failure does not affect MCP request processing or gateway availability
 - **T-OTEL-010**: `serviceName` is reflected in `service.name` resource attribute of emitted spans
 
-### 10.2 Compliance Checklist
+#### 11.1.11 Guard Policy Tests
+
+- **T-GP-001**: Items from `blocked-users` are denied regardless of `min-integrity` setting
+- **T-GP-002**: Items from `trusted-users` receive effective integrity `approved` when base is lower
+- **T-GP-003**: Items bearing an `approval-labels` label receive effective integrity `approved` when base is lower
+- **T-GP-004**: Items bearing a `refusal-labels` label receive effective integrity `none`
+- **T-GP-005**: `refusal-labels` overrides `approval-labels` — an item with both a refusal label and an approval label has effective integrity `none`
+- **T-GP-006**: `refusal-labels` overrides `trusted-users` — an item from a trusted user with a refusal label has effective integrity `none`
+- **T-GP-007**: `blocked-users` takes precedence over `refusal-labels` — blocked items remain `blocked`
+- **T-GP-008**: Empty `refusal-labels` list results in no items being downgraded
+- **T-GP-009**: `refusal-labels` accepts a GitHub Actions expression (comma- or newline-separated list)
+- **T-GP-010**: `min-integrity: none` allows items at `none` integrity through; items downgraded by `refusal-labels` to `none` are visible when `min-integrity: none`
+
+### 11.2 Compliance Checklist
 
 | Requirement | Test ID | Level | Status |
 |-------------|---------|-------|--------|
@@ -1519,8 +1683,9 @@ A conforming implementation MUST pass the following test categories:
 | Error handling | T-ERR-* | 1 | Required |
 | Gateway lifecycle | T-LIFE-* | 2 | Standard |
 | OpenTelemetry | T-OTEL-* | 3 | Optional |
+| Guard policy | T-GP-* | 2 | Standard |
 
-### 10.3 Test Execution
+### 11.3 Test Execution
 
 Implementations SHOULD provide:
 
@@ -1853,6 +2018,28 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.14.0 (Draft)
+
+- **Added**: Section 10 — Guard Policy
+  - Formal specification of the guard policy mechanism for integrity-based content filtering on the GitHub MCP server
+  - Section 10.1 — Overview: describes the purpose and relationship to the integrity filtering reference
+  - Section 10.2 — Integrity Levels: defines `merged`, `approved`, `unapproved`, `none`, and `blocked` levels
+  - Section 10.3 — Guard Policy Fields: field reference table covering `min-integrity`, `allowed-repos`, `blocked-users`, `trusted-users`, `approval-labels`, and `refusal-labels`
+  - Section 10.4 — Effective Integrity Computation: normative 6-step algorithm with precedence rules
+  - Section 10.5 — `approval-labels` Field: semantics, constraints, and configuration example
+  - Section 10.6 — `refusal-labels` Field: new field; semantics, constraints, combined example, and requirements
+  - Section 10.7 — Centralized Management via GitHub Variables: `GH_AW_GITHUB_REFUSAL_LABELS` variable added
+- **Added**: `refusal-labels` guard policy field (Section 10.6)
+  - The inverse of `approval-labels`: items bearing any listed label have effective integrity downgraded to `none`
+  - Overrides `trusted-users` and `approval-labels` promotion; `blocked-users` still takes precedence
+  - Accepts a literal array or a GitHub Actions expression (comma- or newline-separated list)
+  - Empty list is a no-op
+- **Added**: Compliance test category 11.1.11 — Guard Policy Tests (T-GP-001 through T-GP-010)
+  - T-GP-004 through T-GP-008 specifically cover `refusal-labels` behavior
+- **Updated**: Compliance Checklist (Section 11.2) — added Guard Policy row (T-GP-*, Level 2, Standard)
+- **Renumbered**: Former Section 10 (Compliance Testing) is now Section 11; all subsection references updated accordingly
+- **Added**: `GH_AW_GITHUB_REFUSAL_LABELS` to the centralized management variables table (Section 10.7)
 
 ### Version 1.13.0 (Draft)
 

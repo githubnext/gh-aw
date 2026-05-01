@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
@@ -39,7 +40,7 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 	})
 
 	t.Run("follows redirect chain", func(t *testing.T) {
-		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool) (string, error) {
+		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (string, error) {
 			return currentRef, nil
 		}
 		downloadWorkflowContentFn = func(_ context.Context, repo, path, ref string, _ bool) ([]byte, error) {
@@ -64,6 +65,7 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 				false,
 				false,
 				false,
+				0,
 			)
 			require.NoError(t, err, "redirect chain should resolve")
 		})
@@ -75,7 +77,7 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 	})
 
 	t.Run("detects redirect loops", func(t *testing.T) {
-		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool) (string, error) {
+		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (string, error) {
 			return currentRef, nil
 		}
 		downloadWorkflowContentFn = func(_ context.Context, repo, path, ref string, _ bool) ([]byte, error) {
@@ -97,13 +99,14 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 			false,
 			false,
 			false,
+			0,
 		)
 		require.Error(t, err, "redirect loop should return an error")
 		assert.Contains(t, err.Error(), "redirect loop detected", "error should explain redirect loop")
 	})
 
 	t.Run("refuses redirect when no-redirect is enabled", func(t *testing.T) {
-		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool) (string, error) {
+		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (string, error) {
 			return currentRef, nil
 		}
 		downloadWorkflowContentFn = func(_ context.Context, repo, path, ref string, _ bool) ([]byte, error) {
@@ -123,6 +126,7 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 			false,
 			false,
 			true,
+			0,
 		)
 		require.Error(t, err, "redirect should be refused with --no-redirect")
 		assert.Contains(t, err.Error(), "redirect is disabled by --no-redirect", "error should explain redirect refusal")

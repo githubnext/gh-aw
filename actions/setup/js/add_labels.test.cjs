@@ -13,6 +13,7 @@ describe("add_labels", () => {
       info: () => {},
       warning: () => {},
       error: () => {},
+      debug: () => {},
       messages: [],
       infos: [],
       warnings: [],
@@ -314,7 +315,7 @@ describe("add_labels", () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error.includes("API Error")).toBe(true);
+      expect(result.error).toContain("API Error: Not found");
     });
 
     it("should deduplicate labels", async () => {

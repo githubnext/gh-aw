@@ -826,7 +826,7 @@ safe-outputs:
 
 ## 10. Implementation Recommendations for gh-aw
 
-Based on Gastown's proven patterns, here are recommended enhancements for gh-aw:
+Based on patterns from Gastown, here are recommended enhancements for gh-aw:
 
 ### 10.1 Short-Term Enhancements (Low Complexity)
 

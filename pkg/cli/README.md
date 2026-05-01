@@ -17,7 +17,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw add` | `NewAddCommand` | Add remote or local workflows to the repository |
 | `gh aw add-wizard` | `NewAddWizardCommand` | Interactive wizard for adding workflows |
 | `gh aw new` | `newCmd` (main.go) | Create a new workflow file (supports `--force`, `--interactive`, `--engine`) |
-| `gh aw compile` | (compile_command.go) | Compile `.md` workflow files into GitHub Actions `.lock.yml` |
+| `gh aw compile` | Cobra `compileCmd` (`cmd/gh-aw/main.go`); orchestration via `CompileWorkflows` (`compile_orchestrator.go`) | Compile `.md` workflow files into GitHub Actions `.lock.yml` |
 | `gh aw enable` | `enableCmd` (main.go) | Enable a workflow |
 | `gh aw disable` | `disableCmd` (main.go) | Disable a workflow |
 | `gh aw run` | `RunWorkflowOnGitHub` (main.go) | Dispatch and monitor workflow runs |
@@ -132,7 +132,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `AddMCPTool` | `func(string, string, ...) error` | Adds an MCP server to a workflow file |
 | `InspectWorkflowMCP` | `func(string, ...) error` | Inspects MCP server configurations |
 | `ListWorkflowMCP` | `func(string, bool) error` | Lists MCP server info for a workflow |
-| `UpdateActions` | `func(bool, bool, bool) error` | Bulk-updates GitHub Action versions in workflows |
+| `UpdateActions` | `func(bool, bool, bool, time.Duration) error` | Bulk-updates GitHub Action versions in workflows |
 | `ActionsBuildCommand` | `func() error` | Builds all custom actions in `actions/` |
 | `ActionsValidateCommand` | `func() error` | Validates all `action.yml` files under `actions/` |
 | `ActionsCleanCommand` | `func() error` | Removes generated action build artifacts |

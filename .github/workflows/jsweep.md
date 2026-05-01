@@ -60,16 +60,52 @@ You are an expert at:
 
 ## Workflow Process
 
-### 1. Find the Next File to Clean
+### 1. Load Cache State and Find the Next File to Clean
 
-Use cache-memory to track which files you've already cleaned. Look for:
-- Files in `/home/runner/work/gh-aw/gh-aw/actions/setup/js/*.cjs`
+Start by loading state from cache-memory. Run the following script exactly to load state, log what was found, and select the next file:
+
+```bash
+STATE_FILE="/tmp/gh-aw/cache-memory/jsweep-state.json"
+
+echo "=== Cache directory contents ==="
+ls -la /tmp/gh-aw/cache-memory/ 2>/dev/null || echo "(cache directory empty or missing)"
+
+if [ -f "$STATE_FILE" ]; then
+  echo "=== Cache HIT: loaded $STATE_FILE ==="
+  cat "$STATE_FILE"
+  CACHE_STATUS="hit"
+else
+  echo "=== Cache MISS: $STATE_FILE not found — cold start ==="
+  CACHE_STATUS="miss"
+fi
+```
+
+**State file format** (`/tmp/gh-aw/cache-memory/jsweep-state.json`):
+
+```json
+{
+  "cleaned_files": [
+    {"file": "cleanup_cache_memory.cjs", "cleaned_at": "2026-01-15"}
+  ],
+  "last_run": "2026-01-15",
+  "last_file": "cleanup_cache_memory.cjs",
+  "cache_hit_history": [
+    {"run_id": "25201936857", "date": "2026-01-15", "status": "hit"},
+    {"run_id": "25200000000", "date": "2026-01-14", "status": "miss"}
+  ]
+}
+```
+
+**On cold start** (state file missing): initialize to an empty `cleaned_files` list and note this as a cold start. Do not call `missing_data` — a cold start is expected on first run; simply proceed with an empty history.
+
+**Selecting the next file:**
+- Files to scan: `/home/runner/work/gh-aw/gh-aw/actions/setup/js/*.cjs`
 - Exclude test files (`*.test.cjs`)
-- Exclude files you've already cleaned (stored in cache-memory as `cleaned_files` array)
+- Exclude files already listed in `cleaned_files` in the loaded state
 - **Priority 1**: Pick files with `@ts-nocheck` or `// @ts-nocheck` comments (these need type checking enabled)
 - **Priority 2**: If no uncleaned files with `@ts-nocheck` remain, pick the **one file** with the earliest modification timestamp that hasn't been cleaned
 
-If no uncleaned files remain, start over with the oldest cleaned file.
+If no uncleaned files remain, start over with the oldest cleaned file (reset `cleaned_files` to only the one just chosen).
 
 ### 2. Analyze the File
 
@@ -244,15 +280,75 @@ Before returning to create the pull request, **you MUST complete all these valid
 
 **CRITICAL**: The code must pass ALL four checks above (format, lint, typecheck, and tests) before you create the pull request. If any check fails, fix the issues and re-run all checks until they all pass.
 
-### 7. Create Pull Request
+### 7. Save Cache State and Create Pull Request
 
 After cleaning the file, adding/improving tests, and **successfully passing all validation checks** (format, lint, typecheck, and tests):
-1. Update cache-memory to mark this file as cleaned (add to `cleaned_files` array with timestamp)
-2. Create a pull request with:
+
+1. **Write updated cache state** — save the state file before creating the PR so the next run always finds prior progress.
+
+   Set `CLEANED_FILE` to the basename of the file you just cleaned (e.g., `cleanup_cache_memory.cjs`) and `CACHE_STATUS` to `"hit"` or `"miss"` based on Step 1, then run:
+
+```bash
+STATE_FILE="/tmp/gh-aw/cache-memory/jsweep-state.json"
+TODAY=$(date +%Y-%m-%d)
+RUN_ID="${GITHUB_RUN_ID:-unknown}"
+# Set these two variables before running:
+CLEANED_FILE="<basename of cleaned file, e.g. cleanup_cache_memory.cjs>"
+CACHE_STATUS="<hit or miss from Step 1>"
+
+export STATE_FILE TODAY RUN_ID CLEANED_FILE CACHE_STATUS
+
+python3 - << 'PYEOF'
+import json, os
+
+state_file = os.environ["STATE_FILE"]
+cleaned_file = os.environ["CLEANED_FILE"]
+today = os.environ["TODAY"]
+run_id = os.environ["RUN_ID"]
+cache_status = os.environ["CACHE_STATUS"]
+
+try:
+    with open(state_file) as f:
+        state = json.load(f)
+except Exception:
+    state = {"cleaned_files": [], "last_run": "", "last_file": "", "cache_hit_history": []}
+
+# Add cleaned file entry if not already present
+names = [e["file"] for e in state["cleaned_files"]]
+if cleaned_file not in names:
+    state["cleaned_files"].append({"file": cleaned_file, "cleaned_at": today})
+
+state["last_run"] = today
+state["last_file"] = cleaned_file
+
+# Append hit/miss record and keep last 14 entries
+state.setdefault("cache_hit_history", []).append(
+    {"run_id": run_id, "date": today, "status": cache_status}
+)
+state["cache_hit_history"] = state["cache_hit_history"][-14:]
+
+with open(state_file, "w") as f:
+    json.dump(state, f, indent=2)
+
+print(f"Cache state written to {state_file}")
+print(json.dumps(state, indent=2))
+PYEOF
+```
+
+2. **Log final cache contents** to confirm the write succeeded:
+
+```bash
+echo "=== Final cache-memory directory ==="
+ls -la /tmp/gh-aw/cache-memory/
+echo "=== State file contents ==="
+cat /tmp/gh-aw/cache-memory/jsweep-state.json
+```
+
+3. Create a pull request with:
    - Title: `[jsweep] Clean <filename>`
    - Description explaining what was improved in the file
    - The `unbloat` and `automation` labels
-3. Include in the PR description:
+4. Include in the PR description:
    - Summary of changes for the file
    - Context type (github-script or Node.js) for the file
    - Test improvements (number of tests added, coverage improvements)
@@ -298,7 +394,8 @@ If the pull request cannot be created (e.g., one already exists, validation fail
 - **Repository**: ${{ github.repository }}
 - **Workflow Run**: ${{ github.run_id }}
 - **JavaScript Files Location**: `/home/runner/work/gh-aw/gh-aw/actions/setup/js/`
+- **Cache State File**: `/tmp/gh-aw/cache-memory/jsweep-state.json`
 
-Begin by checking cache-memory for previously cleaned files, then find and clean the next `.cjs` file!
+Begin by running the cache load script in **Step 1** to determine cold-start vs. cache-hit status, then find and clean the next `.cjs` file!
 
 {{#runtime-import shared/noop-reminder.md}}

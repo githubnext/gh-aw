@@ -9,8 +9,24 @@
 
 const fs = require("fs");
 const path = require("path");
-const { execFile } = require("child_process");
 const os = require("os");
+
+const { executeProcess } = require("./mcp_handler_process.cjs");
+
+/**
+ * Removes the specified temporary output file, suppressing any errors.
+ *
+ * @param {string} outputFile - Path to the file to remove
+ */
+function cleanupOutputFile(outputFile) {
+  try {
+    if (fs.existsSync(outputFile)) {
+      fs.unlinkSync(outputFile);
+    }
+  } catch {
+    // Ignore cleanup errors
+  }
+}
 
 /**
  * Create a shell script handler function that executes a .sh file.
@@ -47,108 +63,49 @@ function createShellHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
     // Create the output file (empty)
     fs.writeFileSync(outputFile, "");
 
-    return new Promise((resolve, reject) => {
-      server.debug(`  [${toolName}] Executing shell script...`);
+    return executeProcess({
+      server,
+      toolName,
+      languageLabel: "Shell",
+      command: scriptPath,
+      args: [],
+      env,
+      inputJson: null, // Shell uses env vars instead of stdin
+      timeoutSeconds,
+      scriptPath,
+      onError: () => cleanupOutputFile(outputFile),
+      buildResult: (stdout, stderr) => {
+        // Read outputs from the GITHUB_OUTPUT file
+        /** @type {Record<string, string>} */
+        const outputs = {};
+        try {
+          if (fs.existsSync(outputFile)) {
+            const outputContent = fs.readFileSync(outputFile, "utf-8");
+            server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
 
-      execFile(
-        scriptPath,
-        [],
-        {
-          env,
-          cwd: process.env.GITHUB_WORKSPACE || process.cwd(),
-          timeout: timeoutSeconds * 1000, // Convert to milliseconds
-          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-        },
-        (error, stdout, stderr) => {
-          // Log stdout and stderr
-          if (stdout) {
-            server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
-          }
-          if (stderr) {
-            server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
-          }
-
-          if (error) {
-            server.debugError(`  [${toolName}] Shell script error: `, error);
-
-            // Clean up output file
-            try {
-              if (fs.existsSync(outputFile)) {
-                fs.unlinkSync(outputFile);
-              }
-            } catch {
-              // Ignore cleanup errors
-            }
-
-            // Build an enhanced error message that includes stdout/stderr so the
-            // AI agent can see what actually went wrong (not just "Command failed").
-            const exitCode = typeof error.code === "number" ? error.code : 1;
-            const parts = [`Command failed: ${scriptPath} (exit code: ${exitCode})`];
-            if (stderr && stderr.trim()) {
-              parts.push(`stderr:\n${stderr.trim()}`);
-            }
-            if (stdout && stdout.trim()) {
-              parts.push(`stdout:\n${stdout.trim()}`);
-            }
-            const enhancedError = new Error(parts.join("\n"));
-            reject(enhancedError);
-            return;
-          }
-
-          // Read outputs from the GITHUB_OUTPUT file
-          /** @type {Record<string, string>} */
-          const outputs = {};
-          try {
-            if (fs.existsSync(outputFile)) {
-              const outputContent = fs.readFileSync(outputFile, "utf-8");
-              server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
-
-              // Parse outputs (key=value format, one per line)
-              const lines = outputContent.split("\n");
-              for (const line of lines) {
-                const trimmed = line.trim();
-                if (trimmed && trimmed.includes("=")) {
-                  const eqIndex = trimmed.indexOf("=");
-                  const key = trimmed.substring(0, eqIndex);
-                  const value = trimmed.substring(eqIndex + 1);
-                  outputs[key] = value;
-                  server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
-                }
+            // Parse outputs (key=value format, one per line)
+            const lines = outputContent.split("\n");
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (trimmed && trimmed.includes("=")) {
+                const eqIndex = trimmed.indexOf("=");
+                const key = trimmed.substring(0, eqIndex);
+                const value = trimmed.substring(eqIndex + 1);
+                outputs[key] = value;
+                server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
               }
             }
-          } catch (readError) {
-            server.debugError(`  [${toolName}] Error reading output file: `, readError);
           }
-
-          // Clean up output file
-          try {
-            if (fs.existsSync(outputFile)) {
-              fs.unlinkSync(outputFile);
-            }
-          } catch {
-            // Ignore cleanup errors
-          }
-
-          // Build the result
-          const result = {
-            stdout: stdout || "",
-            stderr: stderr || "",
-            outputs,
-          };
-
-          server.debug(`  [${toolName}] Shell handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
-
-          // Return MCP format
-          resolve({
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(result),
-              },
-            ],
-          });
+        } catch (readError) {
+          server.debugError(`  [${toolName}] Error reading output file: `, readError);
         }
-      );
+
+        cleanupOutputFile(outputFile);
+
+        server.debug(`  [${toolName}] Shell handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
+
+        return { stdout: stdout || "", stderr: stderr || "", outputs };
+      },
     });
   };
 }
