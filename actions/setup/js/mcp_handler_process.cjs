@@ -13,6 +13,8 @@ const { execFile } = require("child_process");
 /**
  * Builds an enhanced error message that includes stdout/stderr so the AI agent
  * can see what actually went wrong (not just "Command failed").
+ * Preserves exit code, signal, and the original error message so timeout and
+ * missing-interpreter failures remain accurately described.
  *
  * @param {Error} error - The original execution error
  * @param {string} scriptPath - Path to the script, used for context in the message
@@ -21,8 +23,19 @@ const { execFile } = require("child_process");
  * @returns {Error} Enhanced error with stdout/stderr context
  */
 function buildEnhancedError(error, scriptPath, stdout, stderr) {
-  const exitCode = typeof error.code === "number" ? error.code : 1;
-  const parts = [`Command failed: ${scriptPath} (exit code: ${exitCode})`];
+  const parts = [];
+
+  if (typeof error.code === "number") {
+    // Normal non-zero exit
+    parts.push(`Command failed: ${scriptPath} (exit code: ${error.code})`);
+  } else if (error.signal) {
+    // Killed by signal (e.g. SIGTERM on timeout)
+    parts.push(`Command failed: ${scriptPath} (signal: ${error.signal})`);
+  } else {
+    // Other OS-level failures (e.g. ENOENT for missing interpreter) — preserve original message
+    parts.push(`Command failed: ${scriptPath} — ${error.message}`);
+  }
+
   if (stderr && stderr.trim()) {
     parts.push(`stderr:\n${stderr.trim()}`);
   }
@@ -117,7 +130,11 @@ function executeProcess(opts) {
         if (error) {
           server.debugError(`  [${toolName}] ${languageLabel} script error: `, error);
           if (onError) {
-            onError(error, stdout, stderr);
+            try {
+              onError(error, stdout, stderr);
+            } catch (cleanupError) {
+              server.debugError(`  [${toolName}] onError cleanup threw: `, cleanupError);
+            }
           }
           reject(buildEnhancedError(error, scriptPath, stdout, stderr));
           return;
@@ -125,12 +142,17 @@ function executeProcess(opts) {
 
         // Build result using custom builder or default JSON parsing
         let result;
-        if (buildResult) {
-          result = buildResult(stdout, stderr);
-        } else {
-          result = parseStdoutAsJson(stdout, stderr, () => {
-            server.debug(`  [${toolName}] Output is not JSON, returning as text`);
-          });
+        try {
+          if (buildResult) {
+            result = buildResult(stdout, stderr);
+          } else {
+            result = parseStdoutAsJson(stdout, stderr, () => {
+              server.debug(`  [${toolName}] Output is not JSON, returning as text`);
+            });
+          }
+        } catch (buildError) {
+          server.debugError(`  [${toolName}] buildResult threw: `, buildError);
+          result = { stdout: stdout || "", stderr: stderr || "" };
         }
 
         server.debug(`  [${toolName}] ${languageLabel} handler completed successfully`);

@@ -4,11 +4,26 @@ import { describe, it, expect } from "vitest";
 import { buildEnhancedError, parseStdoutAsJson, wrapMCPContent, executeProcess } from "./mcp_handler_process.cjs";
 
 describe("buildEnhancedError", () => {
-  it("should include script path and exit code", () => {
+  it("should include script path and exit code for numeric code", () => {
     const error = Object.assign(new Error("Command failed"), { code: 2 });
     const result = buildEnhancedError(error, "/path/to/script.sh", "", "");
     expect(result.message).toContain("/path/to/script.sh");
     expect(result.message).toContain("exit code: 2");
+  });
+
+  it("should include signal when process was killed by a signal", () => {
+    const error = Object.assign(new Error("Command failed"), { code: null, signal: "SIGTERM" });
+    const result = buildEnhancedError(error, "script.sh", "", "");
+    expect(result.message).toContain("signal: SIGTERM");
+    expect(result.message).not.toContain("exit code:");
+  });
+
+  it("should preserve original error message for OS-level failures (e.g. ENOENT)", () => {
+    const error = Object.assign(new Error("spawn python3 ENOENT"), { code: "ENOENT" });
+    const result = buildEnhancedError(error, "script.py", "", "");
+    expect(result.message).toContain("spawn python3 ENOENT");
+    expect(result.message).not.toContain("exit code:");
+    expect(result.message).not.toContain("signal:");
   });
 
   it("should include stderr when present", () => {
@@ -37,12 +52,6 @@ describe("buildEnhancedError", () => {
     const result = buildEnhancedError(error, "script.sh", "   ", "  \n  ");
     expect(result.message).not.toContain("stdout:");
     expect(result.message).not.toContain("stderr:");
-  });
-
-  it("should fall back to exit code 1 for non-numeric error codes", () => {
-    const error = Object.assign(new Error("Command failed"), { code: "ETIMEDOUT" });
-    const result = buildEnhancedError(error, "script.sh", "", "");
-    expect(result.message).toContain("exit code: 1");
   });
 
   it("should include both stdout and stderr when both are present", () => {
@@ -271,6 +280,51 @@ describe("executeProcess", () => {
       })
     ).rejects.toThrow();
   }, 15000);
+
+  it("should still reject with the original error when onError itself throws", async () => {
+    let rejectedError;
+    try {
+      await executeProcess({
+        server: mockServer,
+        toolName: "throwing-hook-tool",
+        languageLabel: "Test",
+        command: process.execPath,
+        args: ["-e", "process.stderr.write('original'); process.exit(1)"],
+        env: process.env,
+        inputJson: null,
+        timeoutSeconds: 10,
+        scriptPath: "script.js",
+        onError: () => {
+          throw new Error("cleanup exploded");
+        },
+      });
+    } catch (e) {
+      rejectedError = e;
+    }
+    // The promise must still reject with the original execution error, not the cleanup error
+    expect(rejectedError).toBeDefined();
+    expect(rejectedError.message).toContain("original");
+    expect(rejectedError.message).not.toContain("cleanup exploded");
+  });
+
+  it("should fall back to { stdout, stderr } when buildResult throws", async () => {
+    const result = await executeProcess({
+      server: mockServer,
+      toolName: "broken-builder-tool",
+      languageLabel: "Test",
+      command: process.execPath,
+      args: ["-e", "process.stdout.write('some output')"],
+      env: process.env,
+      inputJson: null,
+      timeoutSeconds: 10,
+      scriptPath: "script.js",
+      buildResult: () => {
+        throw new Error("builder blew up");
+      },
+    });
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.stdout).toBe("some output");
+  });
 
   it("should use GITHUB_WORKSPACE as cwd when set", async () => {
     const originalWorkspace = process.env.GITHUB_WORKSPACE;
