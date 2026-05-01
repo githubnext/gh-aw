@@ -884,6 +884,33 @@
     }
   },
   {
+    "name": "edit_wiki",
+    "description": "Push committed changes to a repository wiki. Use this to add or update wiki pages by committing changes locally and then calling this tool. The changes are applied to the main branch of the wiki.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["message"],
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Commit message describing the wiki changes. Follow repository commit message conventions."
+        },
+        "secrecy": {
+          "type": "string",
+          "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
+        },
+        "integrity": {
+          "type": "string",
+          "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "wiki_dir": {
+          "type": "string",
+          "description": "Path to the local wiki repo clone (e.g., /tmp/gh-aw/wiki). Defaults to /tmp/gh-aw/wiki. Clone the wiki repo with git clone before calling this tool."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "upload_asset",
     "description": "Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content.",
     "inputSchema": {
