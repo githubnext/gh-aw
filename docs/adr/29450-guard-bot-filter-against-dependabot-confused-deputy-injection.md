@@ -2,7 +2,7 @@
 
 **Date**: 2026-05-01
 **Status**: Draft
-**Deciders**: copilot-swe-agent
+**Deciders**: pelikhan, Copilot
 
 ---
 
@@ -49,7 +49,7 @@ Tighten only the `"dependabot pull request"` compiled condition and make no runt
 #### Neutral
 - The guard runs exclusively in the `pre_activation` job; the agent execution job is structurally unchanged.
 - The `isConfusedDeputyAttack` function performs no network I/O and adds negligible latency to the pre-activation job.
-- Existing compiled workflows do not need to be recompiled; the protection is applied by the JavaScript helpers that are embedded at compile time, but the logic change takes effect on the next compile cycle.
+- Existing compiled workflows do not need to be recompiled; the protection takes effect as soon as the updated `actions/setup/js/` helpers are deployed, because the JavaScript files are copied to `/tmp/gh-aw/actions` at runtime rather than embedded in compiled lock files.
 
 ---
 
