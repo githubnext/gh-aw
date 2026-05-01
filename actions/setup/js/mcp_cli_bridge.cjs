@@ -544,7 +544,7 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
   const hasSchemaProperties = Object.keys(schemaProperties).length > 0;
   const { normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys } = buildNormalizedSchemaKeyMap(schemaProperties);
 
-  // JSON payload mode: when args is empty or ['.'} and stdinContent is available,
+  // JSON payload mode: when args is empty or ['.'] and stdinContent is available,
   // parse stdin as a JSON object and use its properties directly as tool arguments.
   if (stdinContent !== null && (args.length === 0 || (args.length === 1 && args[0] === "."))) {
     const trimmed = stdinContent.trim();
