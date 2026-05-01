@@ -78,7 +78,7 @@ await otlp.logSpan(toolName, attributes, options);
 | `options.parentSpanId` | `string` | Override parent span ID. Defaults to `GITHUB_AW_OTEL_PARENT_SPAN_ID`. |
 | `options.endpoint` | `string` | Override OTLP endpoint. Defaults to `OTEL_EXPORTER_OTLP_ENDPOINT`. |
 
-`logSpan` is non-fatal: export failures and invalid trace IDs are surfaced as `console.warn` messages and never throw.
+`logSpan` is non-fatal and never throws. Export failures are surfaced as `console.warn`. When `GITHUB_AW_OTEL_TRACE_ID` is missing or invalid, the call returns silently — no warning, no side-effects.
 
 ### Recording an error span
 
