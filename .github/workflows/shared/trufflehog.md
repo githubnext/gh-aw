@@ -3,7 +3,7 @@ jobs:
   trufflehog_scan:
     runs-on: ubuntu-latest
     needs: [agent, detection]
-    if: always() && needs.detection.result != 'skipped'
+    if: always() && needs.agent.result != 'skipped' && needs.detection.result != 'skipped'
     permissions:
       contents: read
     outputs:
@@ -50,7 +50,7 @@ jobs:
           mkdir -p /tmp/gh-aw/trufflehog
           SCAN_DIR="/tmp/gh-aw"
           OUTPUT_FILE="/tmp/gh-aw/trufflehog/agent-output-results.jsonl"
-          if [ -d "$SCAN_DIR" ] && [ -n "$(ls -A "$SCAN_DIR" 2>/dev/null)" ]; then
+          if [ -d "$SCAN_DIR" ] && find "$SCAN_DIR" -mindepth 1 -maxdepth 1 -quit 2>/dev/null | grep -q .; then
             echo "Scanning agent output in $SCAN_DIR"
             trufflehog filesystem "$SCAN_DIR" \
               --json --no-update --fail \
@@ -74,7 +74,7 @@ jobs:
           mkdir -p /tmp/gh-aw/trufflehog
           SCAN_DIR="/tmp/gh-aw/cache-memory"
           OUTPUT_FILE="/tmp/gh-aw/trufflehog/cache-memory-results.jsonl"
-          if [ -d "$SCAN_DIR" ] && [ -n "$(ls -A "$SCAN_DIR" 2>/dev/null)" ]; then
+          if [ -d "$SCAN_DIR" ] && find "$SCAN_DIR" -mindepth 1 -maxdepth 1 -quit 2>/dev/null | grep -q .; then
             echo "Scanning cache-memory in $SCAN_DIR"
             trufflehog filesystem "$SCAN_DIR" --json --no-update --fail 2>/dev/null | tee "$OUTPUT_FILE" || SCAN_EXIT=${PIPESTATUS[0]}
             SCAN_EXIT=${SCAN_EXIT:-0}
@@ -93,7 +93,7 @@ jobs:
           mkdir -p /tmp/gh-aw/trufflehog
           SCAN_DIR="/tmp/gh-aw/repo-memory"
           OUTPUT_FILE="/tmp/gh-aw/trufflehog/repo-memory-results.jsonl"
-          if [ -d "$SCAN_DIR" ] && [ -n "$(ls -A "$SCAN_DIR" 2>/dev/null)" ]; then
+          if [ -d "$SCAN_DIR" ] && find "$SCAN_DIR" -mindepth 1 -maxdepth 1 -quit 2>/dev/null | grep -q .; then
             echo "Scanning repo-memory in $SCAN_DIR"
             trufflehog filesystem "$SCAN_DIR" --json --no-update --fail 2>/dev/null | tee "$OUTPUT_FILE" || SCAN_EXIT=${PIPESTATUS[0]}
             SCAN_EXIT=${SCAN_EXIT:-0}
@@ -174,7 +174,8 @@ jobs:
               'Please review the `trufflehog-scan-results` artifact in the workflow run for details.',
               'Rotate any exposed credentials immediately.',
             ].join('\n');
-            await github.rest.issues.create({ owner, repo, title, body, labels: ['security'] });
+            const issue = await github.rest.issues.create({ owner, repo, title, body, labels: ['security'] });
+            core.info(`Created secret detection issue: ${issue.data.html_url}`);
 ---
 <!--
 # TruffleHog Secret Detection
