@@ -18,6 +18,7 @@ const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
+const { getBodyHeader } = require("./messages_header.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
@@ -1131,6 +1132,12 @@ async function main(config = {}) {
       // unshift(caution, "", "") places the caution alert at index 0 and two blank
       // separator lines so the main body content follows after a full empty line.
       bodyLines.unshift(detectionCaution, "", "");
+    }
+
+    // Inject body header after any caution alert, before user content
+    const bodyHeader = getBodyHeader({ workflowName, runUrl });
+    if (bodyHeader) {
+      bodyLines.unshift(...bodyHeader.split("\n"), "");
     }
 
     // Add fingerprint comment if present

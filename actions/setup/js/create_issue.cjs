@@ -5,6 +5,7 @@ const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
+const { getBodyHeader } = require("./messages_header.cjs");
 const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
@@ -451,6 +452,12 @@ async function main(config = {}) {
     const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
     if (detectionCaution) {
       bodyLines.unshift(...detectionCaution.split("\n"), "");
+    }
+
+    // Inject body header after any caution alert, before user content
+    const bodyHeader = getBodyHeader({ workflowName, runUrl });
+    if (bodyHeader) {
+      bodyLines.unshift(...bodyHeader.split("\n"), "");
     }
 
     // Add tracker-id comment if present
