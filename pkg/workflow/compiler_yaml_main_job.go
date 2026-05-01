@@ -313,7 +313,7 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	// Add Node.js setup if the engine requires it and it's not already set up in custom steps
 	engine, err := c.getAgenticEngine(data.AI)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get agentic engine: %w", err)
+		return nil, fmt.Errorf("failed to resolve agentic engine from AI configuration: %w", err)
 	}
 
 	// Ensure MCP gateway defaults are set before generating aw_info.json
