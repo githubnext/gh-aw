@@ -197,6 +197,34 @@ async function writeSummary(assignments, configs, state, core) {
     lines.push(`| \`${name}\` | **${selected}** | ${variants.join(", ")} | ${countsStr} |`);
   }
   lines.push("");
+
+  // Append optional description and issue link for experiments that declare them.
+  const repo = process.env.GITHUB_REPOSITORY || "";
+  const metadataNames = names.filter(name => configs[name]?.description || configs[name]?.issue);
+  if (metadataNames.length > 0) {
+    lines.push("### Experiment Details");
+    lines.push("");
+    for (const name of metadataNames) {
+      const cfg = configs[name];
+      const description = cfg?.description;
+      const issue = cfg?.issue;
+      lines.push(`**${name}**`);
+      if (description) {
+        lines.push("");
+        lines.push(`> ${description}`);
+      }
+      if (issue) {
+        lines.push("");
+        if (repo) {
+          lines.push(`Tracking issue: [#${issue}](https://github.com/${repo}/issues/${issue})`);
+        } else {
+          lines.push(`Tracking issue: #${issue}`);
+        }
+      }
+      lines.push("");
+    }
+  }
+
   lines.push("_Variants are selected by balanced round-robin (or weighted) to ensure statistical relevance across runs._");
   await core.summary.addRaw(lines.join("\n")).write();
 }
