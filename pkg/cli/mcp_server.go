@@ -82,5 +82,9 @@ func createMCPServer(cmdPath string, actor string, validateActor bool, manifestC
 	registerUpdateTool(server, execCmd)
 	registerFixTool(server, execCmd)
 
+	// Add receiving middleware to transform raw JSON-schema "additional properties"
+	// validation errors into helpful messages with "Did you mean?" suggestions.
+	server.AddReceivingMiddleware(argumentValidationMiddleware(mcpToolParams()))
+
 	return server
 }
