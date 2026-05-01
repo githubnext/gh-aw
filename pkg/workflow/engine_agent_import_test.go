@@ -146,9 +146,10 @@ func TestClaudeEngineWithAgentFromImports(t *testing.T) {
 		t.Errorf("Claude must NOT use a PROMPT_TEXT shell variable (found in step); the compiler handles it:\n%s", stepContent)
 	}
 
-	// The engine still reads the standard prompt.txt (which has agent content prepended by the compiler).
-	if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
-		t.Errorf("Expected standard prompt.txt reading in claude command, got:\n%s", stepContent)
+	// The engine still reads the standard prompt.txt (which has agent content prepended by the compiler)
+	// via --prompt-file passed to the harness.
+	if !strings.Contains(stepContent, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Errorf("Expected standard prompt.txt reading via --prompt-file in claude command, got:\n%s", stepContent)
 	}
 
 	// The engine reports that it does not support native agent file handling.
@@ -180,9 +181,9 @@ func TestClaudeEngineWithoutAgentFile(t *testing.T) {
 		t.Errorf("Did not expect AGENT_CONTENT when agent file is not specified, got:\n%s", stepContent)
 	}
 
-	// Should still have the standard prompt
-	if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
-		t.Errorf("Expected standard prompt reading in claude command, got:\n%s", stepContent)
+	// Should still have the standard prompt via --prompt-file
+	if !strings.Contains(stepContent, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Errorf("Expected standard prompt reading via --prompt-file in claude command, got:\n%s", stepContent)
 	}
 }
 

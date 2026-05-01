@@ -498,8 +498,8 @@ func TestClaudeEngineWithSafeOutputs(t *testing.T) {
 }
 
 // TestClaudeEngineNoDoubleEscapePrompt tests that the prompt argument is not double-escaped.
-// Claude always reads the prompt from prompt.txt; agent-file content is prepended there by
-// the compiler rather than being handled in the engine step.
+// Claude always reads the prompt from prompt.txt via --prompt-file passed to the harness;
+// agent-file content is prepended there by the compiler rather than being handled in the engine step.
 func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 	engine := NewClaudeEngine()
 
@@ -515,14 +515,19 @@ func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 		stepContent := strings.Join([]string(steps[0]), "\n")
 
-		// Should have single-quoted prompt, not double-quoted
-		if strings.Contains(stepContent, `""$(cat /tmp/gh-aw/aw-prompts/prompt.txt)""`) {
-			t.Errorf("Found double-escaped prompt argument (with double quotes), expected single quotes:\n%s", stepContent)
+		// Should NOT contain the old shell expansion form
+		if strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
+			t.Errorf("Found old shell expansion prompt form; harness should use --prompt-file:\n%s", stepContent)
 		}
 
-		// Should have correctly quoted prompt
-		if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
-			t.Errorf("Expected correctly quoted prompt argument, got:\n%s", stepContent)
+		// Harness reads prompt from --prompt-file flag
+		if !strings.Contains(stepContent, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
+			t.Errorf("Expected --prompt-file flag for harness prompt resolution, got:\n%s", stepContent)
+		}
+
+		// Harness script should be referenced
+		if !strings.Contains(stepContent, "claude_harness.cjs") {
+			t.Errorf("Expected claude_harness.cjs in step content, got:\n%s", stepContent)
 		}
 	})
 
@@ -540,9 +545,9 @@ func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 		stepContent := strings.Join([]string(steps[0]), "\n")
 
-		// Must still read from prompt.txt — not from a PROMPT_TEXT shell variable
-		if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
-			t.Errorf("Expected claude to read from prompt.txt even with agent file set, got:\n%s", stepContent)
+		// Must still use --prompt-file — not a shell expansion or PROMPT_TEXT variable
+		if !strings.Contains(stepContent, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
+			t.Errorf("Expected harness --prompt-file even with agent file set, got:\n%s", stepContent)
 		}
 		if strings.Contains(stepContent, "PROMPT_TEXT") {
 			t.Errorf("Claude must not use a PROMPT_TEXT shell variable when an agent file is set; compiler handles the prepending:\n%s", stepContent)
@@ -561,9 +566,8 @@ func TestClaudeEngineDoesNotSupportNativeAgentFile(t *testing.T) {
 }
 
 // TestClaudeEngineAWFWithAgentFileReadsPromptTxt verifies that when an agent file is used
-// with the firewall (AWF) enabled, the claude command reads from prompt.txt (not from a
-// PROMPT_TEXT shell variable).  The compiler prepends the agent file content to prompt.txt
-// in the activation job.
+// with the firewall (AWF) enabled, the claude command uses --prompt-file (not a shell expansion).
+// The compiler prepends the agent file content to prompt.txt in the activation job.
 func TestClaudeEngineAWFWithAgentFileReadsPromptTxt(t *testing.T) {
 	engine := NewClaudeEngine()
 
@@ -594,9 +598,12 @@ func TestClaudeEngineAWFWithAgentFileReadsPromptTxt(t *testing.T) {
 		t.Errorf("PROMPT_TEXT must not appear in the Claude AWF step; compiler handles agent file injection:\n%s", stepContent)
 	}
 
-	// The container command must still read from prompt.txt.
-	if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
-		t.Errorf("Expected claude to read from prompt.txt in AWF mode, got:\n%s", stepContent)
+	// The container command must use --prompt-file (not the old shell expansion).
+	if strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
+		t.Errorf("Found old shell expansion; harness should use --prompt-file in AWF mode:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Errorf("Expected --prompt-file in AWF mode, got:\n%s", stepContent)
 	}
 }
 

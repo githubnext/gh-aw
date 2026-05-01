@@ -36,6 +36,13 @@ func NewClaudeEngine() *ClaudeEngine {
 	}
 }
 
+// GetHarnessScriptName returns the filename of the JavaScript harness script that wraps
+// Claude Code CLI execution with retry and error classification logic.
+// Implements HarnessProvider so engineRequiresNodeHarness returns true for Claude.
+func (e *ClaudeEngine) GetHarnessScriptName() string {
+	return "claude_harness.cjs"
+}
+
 // GetModelEnvVarName returns the native environment variable name that the Claude Code CLI uses
 // for model selection. Setting ANTHROPIC_MODEL is equivalent to passing --model to the CLI.
 func (e *ClaudeEngine) GetModelEnvVarName() string {
@@ -203,13 +210,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, workflowData.EngineConfig.Args...)
 	}
 
-	// The prompt is always read from prompt.txt, which is assembled by the compiler in the
-	// activation job.  For engines that do not support native agent-file handling (including
-	// Claude), the compiler prepends the agent file content to prompt.txt so no special
-	// shell variable juggling is needed here.
-	promptCommand := `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`
-
-	// Build the command string with proper argument formatting
 	// Determine which command to use
 	var commandName string
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
@@ -220,19 +220,28 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		commandName = "claude"
 	}
 
-	commandParts := []string{commandName}
-	commandParts = append(commandParts, claudeArgs...)
+	// Determine harness script name; allow override via engine.harness config.
+	harnessScriptName := e.GetHarnessScriptName()
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.HarnessScript != "" {
+		harnessScriptName = workflowData.EngineConfig.HarnessScript
+	}
 
-	// Join command parts (excluding the prompt) with proper escaping.
-	// The prompt command is appended raw after shellJoinArgs because it contains
-	// shell variable references ("$(cat ...)") that must NOT be escaped —
-	// single-quoting them would prevent shell expansion at runtime.
-	claudeCommand := fmt.Sprintf("%s %s", shellJoinArgs(commandParts), promptCommand)
+	// Build the harness exec prefix: <node-exec> <harness-path> <commandName>
+	// nodeRuntimeResolutionCommand resolves the correct Node.js binary at runtime,
+	// preferring GH_AW_NODE_BIN (captured before AWF in PathSetup) over command -v node.
+	// This ensures the harness can start even when sudo's secure_path strips the toolcache.
+	execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, shellEscapeArg(commandName))
 
-	// When model is not configured, use the GH_AW_MODEL_AGENT_CLAUDE fallback env var
-	// via shell expansion so users can set a default via GitHub Actions variables.
-	// When model IS configured, ANTHROPIC_MODEL is set in the env block (see below) and the
-	// Claude CLI reads it natively - no --model flag in the shell command needed.
+	// Build claude command: <harness-prefix> <claudeArgs>
+	// The model fallback shell expansion and --prompt-file are appended raw (not via shellJoinArgs)
+	// because they contain shell variable references that must expand at runtime.
+	claudeCommand := fmt.Sprintf("%s %s", execPrefix, shellJoinArgs(claudeArgs))
+
+	// When model is not configured, append the GH_AW_MODEL fallback shell expansion
+	// BEFORE --prompt-file.  The expansion conditionally adds --model "<value>" only
+	// when the env var is non-empty, without embedding the value in the YAML.
+	// When model IS configured, ANTHROPIC_MODEL is set in the env block (see below)
+	// and the Claude CLI reads it natively — no --model flag in the command needed.
 	if !modelConfigured {
 		isDetectionJob := workflowData.SafeOutputs == nil
 		var modelEnvVar string
@@ -243,6 +252,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 		claudeCommand = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, claudeCommand, modelEnvVar, modelEnvVar)
 	}
+
+	// Append --prompt-file last.  The harness reads this file and passes its content as
+	// the final positional argument to claude for the initial run; for --continue retries
+	// the harness omits the prompt (Claude resumes from its internal session state).
+	// The prompt is always assembled by the activation job in prompt.txt.
+	claudeCommand = claudeCommand + " --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt"
 
 	// Build the full command based on whether firewall is enabled
 	var command string
@@ -275,21 +290,31 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			WorkflowData:   workflowData,
 			UsesTTY:        true, // Claude Code CLI requires TTY
 			AllowedDomains: allowedDomains,
-			PathSetup:      "touch " + AgentStepSummaryPath, // Runs BEFORE AWF on the host
+			// Capture the host node binary path before `sudo -E awf` runs.
+			// On GPU runners (e.g. aw-gpu-runner-T4) sudo resets PATH via sudoers
+			// secure_path, stripping the actions/setup-node directory.  By capturing
+			// the path here (where PATH is still intact) and exporting it, sudo -E
+			// preserves the variable and AWF's --env-all forwards it into the container,
+			// where nodeRuntimeResolutionCommand validates GH_AW_NODE_BIN and falls
+			// back to command -v node (reliably in PATH via GetNpmBinPathSetup above).
+			PathSetup: "touch " + AgentStepSummaryPath + "\n" +
+				"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
+				"export GH_AW_NODE_BIN",
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
 			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"ANTHROPIC_API_KEY"}),
 		})
 	} else {
-		// Run Claude command without AWF wrapper
-		// Note: Claude Code CLI writes debug logs to --debug-file and JSON output to stdout
-		// Use tee to capture stdout (stream-json output) to the log file while also displaying on console
-		// The combined output (debug logs + JSON) will be in the log file for parsing
-		// PATH is already set correctly by actions/setup-* steps which prepend to PATH
+		// Run Claude command without AWF wrapper.
+		// The harness wraps the claude subprocess, captures its output for error pattern
+		// detection, and retries with --continue on partial execution failures.
+		// Claude Code CLI writes debug logs to --debug-file; the harness stdout/stderr
+		// (forwarded from claude) is captured by tee so the log file gets both.
+		// PATH is already set correctly by actions/setup-* steps which prepend to PATH.
 		command = fmt.Sprintf(`set -o pipefail
           touch %s
           (umask 177 && touch %s)
-          # Execute Claude Code CLI with prompt from file
+          # Execute Claude Code CLI via harness with retry logic
           %s 2>&1 | tee -a %s`, AgentStepSummaryPath, logFile, claudeCommand, logFile)
 	}
 
