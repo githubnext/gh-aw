@@ -181,8 +181,10 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 	// Use the already-parsed frontmatter from WorkflowData (populated by ParseWorkflowFile /
 	// ParseWorkflowString) instead of re-reading and re-parsing the file on every compilation.
-	// The checks in buildPreActivationAndActivationJobs only inspect the "on" event keys,
-	// which are unaffected by preprocessScheduleFields or internal label-filter markers.
+	// Note: RawFrontmatter has already been through preprocessScheduleFields, so shorthand
+	// triggers (e.g. "on: daily") are already expanded into their structured form.
+	// The consumers (needsRoleCheck, hasWorkflowRunTrigger) only inspect event keys in the
+	// "on" field, which is exactly what we need here.
 	frontmatter := data.RawFrontmatter
 
 	// Extract lock filename for timestamp check

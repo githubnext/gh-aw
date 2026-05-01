@@ -152,11 +152,11 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 // If no markers exist (the common case for most workflows), the original map is returned as-is.
 func (c *Compiler) copyFrontmatterWithoutInternalMarkers(frontmatter map[string]any) map[string]any {
 	// Fast path: check if any internal markers are present before allocating a copy.
-	// Markers only appear in on.issues, on.pull_request, and on.discussion sub-maps.
+	// Markers may appear in on.issues, on.pull_request, on.discussion, and on.issue_comment sub-maps.
 	hasMarkers := false
 	if onValue, hasOn := frontmatter["on"]; hasOn {
 		if onMap, ok := onValue.(map[string]any); ok {
-			for _, eventKey := range []string{"issues", "pull_request", "discussion"} {
+			for _, eventKey := range []string{"issues", "pull_request", "discussion", "issue_comment"} {
 				if sectionValue, exists := onMap[eventKey]; exists {
 					if sectionMap, ok := sectionValue.(map[string]any); ok {
 						if _, hasMarker := sectionMap["__gh_aw_native_label_filter__"]; hasMarker {
@@ -182,7 +182,7 @@ func (c *Compiler) copyFrontmatterWithoutInternalMarkers(frontmatter map[string]
 			if onMap, ok := v.(map[string]any); ok {
 				onCopy := make(map[string]any, len(onMap))
 				for onKey, onValue := range onMap {
-					if onKey == "issues" || onKey == "pull_request" || onKey == "discussion" {
+					if onKey == "issues" || onKey == "pull_request" || onKey == "discussion" || onKey == "issue_comment" {
 						// Deep copy the section and remove marker
 						if sectionMap, ok := onValue.(map[string]any); ok {
 							sectionCopy := make(map[string]any, len(sectionMap))
