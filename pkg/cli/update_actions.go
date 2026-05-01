@@ -143,9 +143,20 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 
 		// Apply cooldown: if the repo is not exempt and the release is too recent, skip.
 		if !isExemptFromCoolDown(entry.Repo) {
-			if result := checkReleaseCoolDown(ctx, entry.Repo, latestVersion, coolDown); result.InCoolDown {
-				cooldownLog.Printf("Action %s: %s", entry.Repo, result.Message)
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", entry.Repo, result.Message)))
+			var coolDownResult coolDownCheckResult
+			if cachedDate, ok := actionCache.GetReleasedAt(entry.Repo, latestVersion); ok {
+				// Use cached release date to avoid an extra API call.
+				coolDownResult = checkReleaseCoolDownWithDate(entry.Repo, latestVersion, cachedDate, coolDown)
+			} else {
+				// Fetch from API and cache the date for future runs.
+				coolDownResult = checkReleaseCoolDown(ctx, entry.Repo, latestVersion, coolDown)
+				if !coolDownResult.PublishedAt.IsZero() {
+					actionCache.SetReleasedAt(entry.Repo, latestVersion, coolDownResult.PublishedAt)
+				}
+			}
+			if coolDownResult.InCoolDown {
+				cooldownLog.Printf("Action %s: %s", entry.Repo, coolDownResult.Message)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", entry.Repo, coolDownResult.Message)))
 				skippedActions = append(skippedActions, entry.Repo)
 				continue
 			}

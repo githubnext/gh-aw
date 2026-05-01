@@ -71,10 +71,34 @@ type coolDownCheckResult struct {
 	InCoolDown bool
 	// Message is a human-readable explanation when InCoolDown is true.
 	Message string
+	// PublishedAt is the fetched release publication date. It is populated when
+	// checkReleaseCoolDown makes an API call so callers can cache the date.
+	PublishedAt time.Time
+}
+
+// checkReleaseCoolDownWithDate checks cooldown using an already-known publication date.
+// This variant skips the API call and is used when the date is already cached locally.
+func checkReleaseCoolDownWithDate(repo, tag string, publishedAt time.Time, coolDown time.Duration) coolDownCheckResult {
+	if coolDown <= 0 {
+		return coolDownCheckResult{}
+	}
+	age := time.Since(publishedAt)
+	if age >= coolDown {
+		return coolDownCheckResult{}
+	}
+	remaining := coolDown - age
+	ageStr := formatCoolDownDuration(age)
+	remainingStr := formatCoolDownDuration(remaining)
+	periodStr := formatCoolDownDuration(coolDown)
+	msg := fmt.Sprintf("%s@%s was published %s ago and needs to cool down (%s remaining out of %s cooldown period)",
+		repo, tag, ageStr, remainingStr, periodStr)
+	return coolDownCheckResult{InCoolDown: true, Message: msg}
 }
 
 // checkReleaseCoolDown returns a result indicating whether a release tag is
 // within the cooldown window and should be skipped.
+// The result always includes the fetched PublishedAt date (when available) so that
+// callers can cache the date for future runs.
 //
 // The function is fail-open: if the publication date cannot be fetched (e.g.
 // due to network issues), the update is allowed and InCoolDown is false.
@@ -90,18 +114,9 @@ func checkReleaseCoolDown(ctx context.Context, repo, tag string, coolDown time.D
 		return coolDownCheckResult{}
 	}
 
-	age := time.Since(publishedAt)
-	if age >= coolDown {
-		return coolDownCheckResult{}
-	}
-
-	remaining := coolDown - age
-	ageStr := formatCoolDownDuration(age)
-	remainingStr := formatCoolDownDuration(remaining)
-	periodStr := formatCoolDownDuration(coolDown)
-	msg := fmt.Sprintf("%s@%s was published %s ago and needs to cool down (%s remaining out of %s cooldown period)",
-		repo, tag, ageStr, remainingStr, periodStr)
-	return coolDownCheckResult{InCoolDown: true, Message: msg}
+	r := checkReleaseCoolDownWithDate(repo, tag, publishedAt, coolDown)
+	r.PublishedAt = publishedAt
+	return r
 }
 
 // formatCoolDownDuration formats a duration for display in cooldown messages.

@@ -135,6 +135,40 @@ func TestCheckReleaseCoolDown_RecentRelease(t *testing.T) {
 	assert.True(t, result.InCoolDown, "release within cooldown period should be blocked")
 	assert.Contains(t, result.Message, "v1.2.0", "message should mention the release tag")
 	assert.Contains(t, result.Message, "cool down", "message should mention cooldown")
+	assert.False(t, result.PublishedAt.IsZero(), "PublishedAt should be populated for caching")
+}
+
+func TestCheckReleaseCoolDown_OldReleaseReturnsPublishedAt(t *testing.T) {
+	orig := getReleasePublishedAtFn
+	defer func() { getReleasePublishedAtFn = orig }()
+
+	published := time.Now().Add(-10 * 24 * time.Hour)
+	getReleasePublishedAtFn = func(_ context.Context, _, _ string) (time.Time, error) {
+		return published, nil
+	}
+
+	result := checkReleaseCoolDown(context.Background(), "owner/repo", "v1.2.0", 7*24*time.Hour)
+	assert.False(t, result.InCoolDown, "old release should not be blocked")
+	assert.True(t, result.PublishedAt.Equal(published), "PublishedAt should be populated even when not in cooldown")
+}
+
+func TestCheckReleaseCoolDownWithDate_InCoolDown(t *testing.T) {
+	publishedAt := time.Now().Add(-2 * 24 * time.Hour)
+	result := checkReleaseCoolDownWithDate("owner/repo", "v1.2.0", publishedAt, 7*24*time.Hour)
+	assert.True(t, result.InCoolDown, "release 2d old should be in cooldown with 7d window")
+	assert.Contains(t, result.Message, "v1.2.0", "message should mention the tag")
+}
+
+func TestCheckReleaseCoolDownWithDate_NotInCoolDown(t *testing.T) {
+	publishedAt := time.Now().Add(-10 * 24 * time.Hour)
+	result := checkReleaseCoolDownWithDate("owner/repo", "v1.2.0", publishedAt, 7*24*time.Hour)
+	assert.False(t, result.InCoolDown, "release 10d old should not be in cooldown with 7d window")
+}
+
+func TestCheckReleaseCoolDownWithDate_ZeroDuration(t *testing.T) {
+	publishedAt := time.Now()
+	result := checkReleaseCoolDownWithDate("owner/repo", "v1.2.0", publishedAt, 0)
+	assert.False(t, result.InCoolDown, "zero cooldown should always allow update")
 }
 
 func TestCheckReleaseCoolDown_FetchError(t *testing.T) {
