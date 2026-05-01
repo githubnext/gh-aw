@@ -15,9 +15,19 @@ func TestDomainAnalysisImplementsLogAnalysis(t *testing.T) {
 	var _ LogAnalysis = (*DomainAnalysis)(nil)
 }
 
+// Test that DomainAnalysis implements MutableLogAnalysis interface
+func TestDomainAnalysisImplementsMutableLogAnalysis(t *testing.T) {
+	var _ MutableLogAnalysis = (*DomainAnalysis)(nil)
+}
+
 // Test that FirewallAnalysis implements LogAnalysis interface
 func TestFirewallAnalysisImplementsLogAnalysis(t *testing.T) {
 	var _ LogAnalysis = (*FirewallAnalysis)(nil)
+}
+
+// Test that FirewallAnalysis implements MutableLogAnalysis interface
+func TestFirewallAnalysisImplementsMutableLogAnalysis(t *testing.T) {
+	var _ MutableLogAnalysis = (*FirewallAnalysis)(nil)
 }
 
 func TestDomainAnalysisGettersSetters(t *testing.T) {
