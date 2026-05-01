@@ -502,23 +502,13 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		// must not contain: ? : * | < > " (among other characters).
 		// The agent may create files with these characters (e.g. "Can-we-have-a-PR?.md"),
 		// which causes the upload-artifact action to fail with a hard error.
+		// The script uses git commands (git mv for tracked files, mv for untracked) since
+		// repo-memory is backed by a git working tree.
 		fmt.Fprintf(builder, "      - name: Sanitize %s filenames (%s)\n", memoryLabel, memory.ID)
 		builder.WriteString("        if: always()\n")
-		builder.WriteString("        shell: bash\n")
-		builder.WriteString("        run: |\n")
-		fmt.Fprintf(builder, "          find %s -depth -type f 2>/dev/null | while IFS= read -r f; do\n", memoryDir)
-		builder.WriteString("            dir=$(dirname \"$f\")\n")
-		builder.WriteString("            base=$(basename \"$f\")\n")
-		builder.WriteString("            safe=$(printf '%s' \"$base\" | sed 's/[?:*|<>\"]/-/g')\n")
-		builder.WriteString("            if [ \"$base\" != \"$safe\" ]; then\n")
-		builder.WriteString("              mv -- \"$f\" \"$dir/$safe\" && echo \"Renamed: $base -> $safe\"\n")
-		builder.WriteString("            fi\n")
-		builder.WriteString("          done\n")
-		// Ensure the step always exits 0: the while loop exits cleanly when
-		// find produces no output, but the `true` guards against edge cases
-		// (e.g. find returning non-zero for a missing directory) that could
-		// fail the step and block artifact upload.
-		builder.WriteString("          true\n")
+		builder.WriteString("        env:\n")
+		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
+		builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/sanitize_repo_memory_filenames.sh\"\n")
 
 		// Step: Upload repo-memory directory as artifact
 		fmt.Fprintf(builder, "      - name: Upload %s artifact (%s)\n", memoryLabel, memory.ID)
