@@ -153,6 +153,17 @@ func TestCrushEngine(t *testing.T) {
 func TestCrushEngineInstallation(t *testing.T) {
 	engine := NewCrushEngine()
 
+	// findInstallStep returns the "Install Crush CLI" step from the list, or nil.
+	findInstallStep := func(steps []GitHubActionStep) string {
+		for _, step := range steps {
+			content := strings.Join(step, "\n")
+			if strings.Contains(content, "Install Crush CLI") {
+				return content
+			}
+		}
+		return ""
+	}
+
 	t.Run("standard installation", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
@@ -163,6 +174,33 @@ func TestCrushEngineInstallation(t *testing.T) {
 
 		// Should have at least: Node.js setup + Install Crush
 		assert.GreaterOrEqual(t, len(steps), 2, "Should have at least 2 installation steps")
+
+		// Verify install step uses writable RUNNER_TEMP prefix to avoid EROFS errors
+		installStepContent := findInstallStep(steps)
+		require.NotEmpty(t, installStepContent, "Should have an 'Install Crush CLI' step")
+		assert.Contains(t, installStepContent, `${RUNNER_TEMP}/gh-aw/crush-global`, "Should install to writable RUNNER_TEMP directory")
+		assert.Contains(t, installStepContent, "--prefix", "Should use --prefix to redirect npm global install")
+		assert.Contains(t, installStepContent, "--ignore-scripts", "Should use --ignore-scripts for supply chain security")
+		assert.Contains(t, installStepContent, `${GITHUB_PATH}`, "Should add crush bin dir to GITHUB_PATH for subsequent steps")
+	})
+
+	t.Run("custom version", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Version: "1.2.3",
+			},
+		}
+
+		steps := engine.GetInstallationSteps(workflowData)
+		require.NotEmpty(t, steps, "Should generate installation steps")
+
+		installStepContent := findInstallStep(steps)
+		require.NotEmpty(t, installStepContent, "Should have an 'Install Crush CLI' step")
+		assert.Contains(t, installStepContent, "1.2.3", "Should use version from engine config")
+		assert.Contains(t, installStepContent, `${RUNNER_TEMP}/gh-aw/crush-global`, "Should still install to writable RUNNER_TEMP directory with custom version")
+		assert.Contains(t, installStepContent, "--prefix", "Should use --prefix with custom version")
+		assert.Contains(t, installStepContent, `${GITHUB_PATH}`, "Should add crush bin dir to GITHUB_PATH with custom version")
 	})
 
 	t.Run("custom command skips installation", func(t *testing.T) {
@@ -390,6 +428,8 @@ func TestCrushEngineFirewallIntegration(t *testing.T) {
 		assert.Contains(t, stepContent, "allowDomains", "Should include allowDomains in config JSON")
 		assert.Contains(t, stepContent, `"enabled":true`, "Should include apiProxy enabled in config JSON")
 		assert.Contains(t, stepContent, "GITHUB_COPILOT_BASE_URL: http://host.docker.internal:10002", "Should route copilot/* fallback through Copilot LLM gateway URL")
+		// Should include crush bin path setup so the binary is found inside the AWF container
+		assert.Contains(t, stepContent, `export PATH="${RUNNER_TEMP}/gh-aw/crush-global/bin:$PATH"`, "Should add writable crush bin directory to PATH inside AWF container")
 	})
 
 	t.Run("firewall enabled adds mounted MCP CLI path setup", func(t *testing.T) {

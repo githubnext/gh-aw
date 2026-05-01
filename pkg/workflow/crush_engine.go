@@ -10,6 +10,11 @@ import (
 
 var crushLog = logger.New("workflow:crush_engine")
 
+// crushGlobalPrefix is the writable npm install prefix used for the Crush CLI binary.
+// The default npm global prefix in hostedtoolcache is read-only on newer GitHub Actions
+// runners; ${RUNNER_TEMP}/gh-aw is always writable.
+const crushGlobalPrefix = `${RUNNER_TEMP}/gh-aw/crush-global`
+
 // CrushEngine represents the Crush CLI agentic engine.
 // Crush is a provider-agnostic, open-source AI coding agent with broader BYOK
 // (Bring Your Own Key) support, but gh-aw currently supports a subset of
@@ -59,14 +64,49 @@ func (e *CrushEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		return []GitHubActionStep{}
 	}
 
-	npmSteps := BuildStandardNpmEngineInstallSteps(
-		"@charmland/crush",
-		string(constants.DefaultCrushVersion),
-		"Install Crush CLI",
-		"crush",
-		workflowData,
-	)
+	// Use version from engine config if provided, otherwise default to pinned version
+	version := string(constants.DefaultCrushVersion)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		version = workflowData.EngineConfig.Version
+	}
+
+	npmSteps := []GitHubActionStep{
+		GenerateNodeJsSetupStep(),
+		e.buildCrushInstallStep(version),
+	}
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
+}
+
+// buildCrushInstallStep creates a GitHub Actions step that installs the Crush CLI
+// into a writable directory (crushGlobalPrefix) to avoid EROFS errors.
+//
+// @charmland/crush lazily installs its native binary to bin/ within the package
+// directory on first run. The default npm global prefix in hostedtoolcache
+// (/opt/hostedtoolcache/node/.../lib/node_modules) is read-only on newer GitHub
+// Actions runners, causing EROFS failures. Installing with an explicit --prefix
+// pointing to crushGlobalPrefix ensures the binary installation succeeds on a
+// writable filesystem, and the bin directory is added to $GITHUB_PATH for
+// subsequent steps.
+func (e *CrushEngine) buildCrushInstallStep(version string) GitHubActionStep {
+	var versionArg string
+	var env map[string]string
+
+	if ExpressionPattern.MatchString(version) {
+		// Version is a GitHub Actions expression — pass via env var to prevent injection.
+		versionArg = `@"${ENGINE_VERSION}"`
+		env = map[string]string{"ENGINE_VERSION": version}
+	} else {
+		versionArg = "@" + version
+	}
+
+	installCmd := fmt.Sprintf(`CRUSH_PREFIX="%s"
+mkdir -p "${CRUSH_PREFIX}"
+npm install --ignore-scripts --global --prefix "${CRUSH_PREFIX}" @charmland/crush%s
+echo "${CRUSH_PREFIX}/bin" >> "${GITHUB_PATH}"`, crushGlobalPrefix, versionArg)
+
+	stepLines := []string{"      - name: Install Crush CLI"}
+	stepLines = FormatStepWithCommandAndEnv(stepLines, installCmd, env)
+	return GitHubActionStep(stepLines)
 }
 
 // GetSecretValidationStep returns the secret validation step for the Crush engine.
@@ -154,7 +194,11 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		}
 
 		npmPathSetup := GetNpmBinPathSetup()
-		crushCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, crushCommand)
+		// Prepend the writable crush install directory to PATH inside the AWF container.
+		// sudo's secure_path can strip $GITHUB_PATH additions, so we set the path
+		// explicitly here (same pattern as GetMCPCLIPathSetup).
+		crushBinPathSetup := fmt.Sprintf(`export PATH="%s/bin:$PATH"`, crushGlobalPrefix)
+		crushCommandWithPath := fmt.Sprintf("%s && %s && %s", crushBinPathSetup, npmPathSetup, crushCommand)
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			crushCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, crushCommandWithPath)
 		}
