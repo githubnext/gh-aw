@@ -187,7 +187,7 @@ jobs:
         id: pick-experiment
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
-          GH_AW_EXPERIMENT_SPEC: '{"prompt_style":["concise","verbose"]}'
+          GH_AW_EXPERIMENT_SPEC: '{"prompt_style":{"variants":["concise","verbose"]}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
         with:
