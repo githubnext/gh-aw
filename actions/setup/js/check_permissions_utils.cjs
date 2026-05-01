@@ -66,13 +66,32 @@ function isAllowedBot(actor, allowedBots) {
 function isConfusedDeputyAttack(actor, eventName, payload) {
   if (!payload) return false;
 
-  // For pull_request, pull_request_review, and pull_request_review_comment events,
-  // the PR author must match the actor. @dependabot recreate triggers a synchronize
-  // event with actor=dependabot[bot] but pull_request.user = original human author.
-  const prEvents = ["pull_request", "pull_request_review", "pull_request_review_comment"];
-  if (prEvents.includes(eventName)) {
+  // For pull_request events, the PR author must match the actor.
+  // @dependabot recreate triggers a synchronize event with actor=dependabot[bot]
+  // but pull_request.user = original human author.
+  if (eventName === "pull_request") {
     const prAuthor = payload.pull_request?.user?.login;
     if (prAuthor !== undefined && prAuthor !== actor) {
+      return true;
+    }
+  }
+
+  // For pull_request_review events, the reviewer must match the actor.
+  // The PR author (pull_request.user.login) is irrelevant here — the actor
+  // is the person submitting the review, not the PR author.
+  if (eventName === "pull_request_review") {
+    const reviewAuthor = payload.review?.user?.login;
+    if (reviewAuthor !== undefined && reviewAuthor !== actor) {
+      return true;
+    }
+  }
+
+  // For pull_request_review_comment events, the comment author must match the actor.
+  // The PR author (pull_request.user.login) is irrelevant here — the actor
+  // is the person writing the review comment, not the PR author.
+  if (eventName === "pull_request_review_comment") {
+    const commentAuthor = payload.comment?.user?.login;
+    if (commentAuthor !== undefined && commentAuthor !== actor) {
       return true;
     }
   }

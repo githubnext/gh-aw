@@ -560,14 +560,54 @@ describe("check_permissions_utils", () => {
         expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request", payload)).toBe(false);
       });
 
-      it("should return true for pull_request_review when actor differs from PR author", () => {
-        const payload = { pull_request: { user: { login: "attacker" } } };
+      it("should return false for pull_request_review when actor matches review author (genuine review)", () => {
+        const payload = {
+          pull_request: { user: { login: "pr-author" } },
+          review: { user: { login: "dependabot[bot]" } },
+        };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_review", payload)).toBe(false);
+      });
+
+      it("should return true for pull_request_review when actor differs from review author", () => {
+        const payload = {
+          pull_request: { user: { login: "pr-author" } },
+          review: { user: { login: "attacker" } },
+        };
         expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_review", payload)).toBe(true);
       });
 
-      it("should return true for pull_request_review_comment when actor differs from PR author", () => {
-        const payload = { pull_request: { user: { login: "attacker" } } };
+      it("should return false for pull_request_review when actor is reviewer even if PR author differs", () => {
+        // Normal case: reviewer is different from PR author — must NOT be false positive
+        const payload = {
+          pull_request: { user: { login: "pr-author" } },
+          review: { user: { login: "dependabot[bot]" } },
+        };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_review", payload)).toBe(false);
+      });
+
+      it("should return false for pull_request_review_comment when actor matches comment author (genuine comment)", () => {
+        const payload = {
+          pull_request: { user: { login: "pr-author" } },
+          comment: { user: { login: "dependabot[bot]" } },
+        };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_review_comment", payload)).toBe(false);
+      });
+
+      it("should return true for pull_request_review_comment when actor differs from comment author", () => {
+        const payload = {
+          pull_request: { user: { login: "pr-author" } },
+          comment: { user: { login: "attacker" } },
+        };
         expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_review_comment", payload)).toBe(true);
+      });
+
+      it("should return false for pull_request_review_comment when actor is commenter even if PR author differs", () => {
+        // Normal case: commenter is different from PR author — must NOT be false positive
+        const payload = {
+          pull_request: { user: { login: "pr-author" } },
+          comment: { user: { login: "dependabot[bot]" } },
+        };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_review_comment", payload)).toBe(false);
       });
     });
 
