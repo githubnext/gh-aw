@@ -139,7 +139,7 @@ func TestOrchestratorCallsRenderConfig(t *testing.T) {
 
 	// Build a compiler whose registry contains the test engine.
 	registry := NewEngineRegistry()
-	registry.Register(testEngine)
+	require.NoError(t, registry.Register(testEngine), "test engine should register without error")
 	catalog := NewEngineCatalog(registry)
 
 	compiler := NewCompiler()

@@ -88,7 +88,8 @@ func TestEngineRegistry_Register(t *testing.T) {
 		registry := &EngineRegistry{engines: make(map[string]CodingAgentEngine)}
 		customEngine := NewCopilotEngine()
 
-		registry.Register(customEngine)
+		err := registry.Register(customEngine)
+		require.NoError(t, err, "registering a valid engine should not return an error")
 
 		engine, err := registry.GetEngine("copilot")
 		require.NoError(t, err, "registered custom engine should be retrievable")
@@ -101,10 +102,32 @@ func TestEngineRegistry_Register(t *testing.T) {
 		registry := &EngineRegistry{engines: make(map[string]CodingAgentEngine)}
 		assert.False(t, registry.IsValidEngine("claude"), "engine should not be valid before registration")
 
-		registry.Register(NewClaudeEngine())
+		err := registry.Register(NewClaudeEngine())
+		require.NoError(t, err, "registering a valid engine should not return an error")
 		assert.True(t, registry.IsValidEngine("claude"), "engine should be valid after registration")
 	})
+
+	t.Run("registering an engine with negative dedicatedLLMGatewayPort returns error", func(t *testing.T) {
+		registry := &EngineRegistry{engines: make(map[string]CodingAgentEngine)}
+
+		// negativePortEngine wraps ClaudeEngine and returns -1 from
+		// getDedicatedLLMGatewayPort, triggering the validation path in Register.
+		err := registry.Register(&negativePortEngine{CodingAgentEngine: NewClaudeEngine()})
+		require.Error(t, err, "registering an engine with dedicatedLLMGatewayPort = -1 should return an error")
+		assert.Contains(t, err.Error(), "dedicatedLLMGatewayPort must be >= 0", "error message should describe the constraint")
+		assert.False(t, registry.IsValidEngine("claude"), "invalid engine should not be registered on error")
+	})
 }
+
+// negativePortEngine wraps a CodingAgentEngine and always reports port -1 so
+// that tests can exercise the negative-port validation path in Register without
+// requiring a real misconfigured engine. It must be defined at package level
+// because Go only allows method declarations on package-level types.
+type negativePortEngine struct {
+	CodingAgentEngine
+}
+
+func (e *negativePortEngine) getDedicatedLLMGatewayPort() int { return -1 }
 
 func TestGetGlobalEngineRegistry(t *testing.T) {
 	t.Run("returns non-nil registry", func(t *testing.T) {

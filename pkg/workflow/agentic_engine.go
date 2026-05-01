@@ -460,12 +460,19 @@ func NewEngineRegistry() *EngineRegistry {
 	}
 
 	// Register built-in engines
-	registry.Register(NewClaudeEngine())
-	registry.Register(NewCodexEngine())
-	registry.Register(NewCopilotEngine())
-	registry.Register(NewGeminiEngine())
-	registry.Register(NewOpenCodeEngine())
-	registry.Register(NewCrushEngine())
+	builtins := []CodingAgentEngine{
+		NewClaudeEngine(),
+		NewCodexEngine(),
+		NewCopilotEngine(),
+		NewGeminiEngine(),
+		NewOpenCodeEngine(),
+		NewCrushEngine(),
+	}
+	for _, engine := range builtins {
+		if err := registry.Register(engine); err != nil {
+			panic(fmt.Sprintf("failed to register built-in engine: %v", err))
+		}
+	}
 
 	agenticEngineLog.Printf("Registered %d engines", len(registry.engines))
 
@@ -488,14 +495,16 @@ func GetGlobalEngineRegistry() *EngineRegistry {
 	return globalRegistry
 }
 
-// Register adds an engine to the registry
-func (r *EngineRegistry) Register(engine CodingAgentEngine) {
+// Register adds an engine to the registry. It returns an error if the engine
+// has an invalid configuration (e.g., dedicatedLLMGatewayPort < 0).
+func (r *EngineRegistry) Register(engine CodingAgentEngine) error {
 	type portProvider interface{ getDedicatedLLMGatewayPort() int }
 	if p, ok := engine.(portProvider); ok && p.getDedicatedLLMGatewayPort() < 0 {
-		panic(fmt.Sprintf("engine '%s': dedicatedLLMGatewayPort must be >= 0, got %d", engine.GetID(), p.getDedicatedLLMGatewayPort()))
+		return fmt.Errorf("engine '%s': dedicatedLLMGatewayPort must be >= 0, got %d", engine.GetID(), p.getDedicatedLLMGatewayPort())
 	}
 	agenticEngineLog.Printf("Registering engine: id=%s, name=%s", engine.GetID(), engine.GetDisplayName())
 	r.engines[engine.GetID()] = engine
+	return nil
 }
 
 // GetEngine retrieves an engine by ID

@@ -114,7 +114,7 @@ func TestEngineCatalog_Resolve_ConfigPassthrough(t *testing.T) {
 func TestEngineCatalog_Register_Custom(t *testing.T) {
 	registry := NewEngineRegistry()
 	// Register a test engine in the registry so the catalog can look it up
-	registry.Register(NewCopilotEngine()) // reuse copilot as the backing runtime
+	require.NoError(t, registry.Register(NewCopilotEngine()), "copilot engine should register without error") // reuse copilot as the backing runtime
 
 	catalog := NewEngineCatalog(registry)
 	catalog.Register(&EngineDefinition{
