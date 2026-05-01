@@ -126,6 +126,33 @@ You are the Copilot Token Optimizer. Pick one high-cost workflow, audit recent r
 3. Propose safe, high-impact optimizations with evidence.
 4. Publish one issue and update optimization history.
 
+## Data Access Guidelines
+
+All GitHub API access goes through the `gh` CLI via the cli-proxy — there are **no GitHub MCP tools** available. Always filter API responses with `--jq` or pipe through `jq` to extract only the fields you need. Loading full JSON payloads into context wastes tokens; every extra field is overhead.
+
+**Preferred patterns:**
+
+```bash
+REPO="${{ github.repository }}"
+
+# ✅ Extract only the fields you need from a file
+gh api "repos/$REPO/contents/.github/workflows/my-workflow.md" \
+  --jq '.content' | base64 -d
+
+# ✅ List workflow runs — keep only essential metadata
+gh api "repos/$REPO/actions/workflows/my-workflow.yml/runs?per_page=10" \
+  --jq '.workflow_runs[] | {id, name, conclusion, run_started_at}'
+
+# ✅ Combine multi-step reads into one bash block with pipes
+gh api "repos/$REPO/contents/.github/workflows/my-workflow.md" \
+  --jq '.content' | base64 -d | sed -n '1,/^---$/{ /^---$/d; p }' | head -40
+
+# ❌ Never load full unfiltered responses — drops everything into context
+gh api "repos/$REPO/actions/workflows/my-workflow.yml/runs"
+```
+
+Prefer `--jq` on `gh api` calls over a separate `| jq` step when the filter is simple — it avoids piping the full response through the shell. Use `| jq` for multi-step transformations or when chaining with other commands.
+
 ## Data Inputs
 
 - `/tmp/gh-aw/token-audit/all-runs.json`: full 7-day run data (`gh aw logs --json`).
@@ -157,7 +184,7 @@ Use this compact analysis matrix:
 
 | Area | Required checks | Output |
 |---|---|---|
-| Tool usage | Compare configured tools from workflow source (read via `gh api` through cli-proxy) vs observed usage across multiple runs | Keep / Consider removing / Remove |
+| Tool usage | Compare configured tools from workflow source (read with `gh api … --jq '.content' \| base64 -d \| sed -n …` to extract only the frontmatter) vs observed usage across multiple runs | Keep / Consider removing / Remove |
 | Token efficiency | Evaluate token totals, effective tokens, cache efficiency, turns | Top token waste drivers |
 | Reliability | Repeated errors, warnings, retries, missing tools | Token waste from failures |
 | Prompt efficiency | Redundant instructions, overlong sections, avoidable iteration | Prompt reduction opportunities |
@@ -180,7 +207,26 @@ Rules:
 
 ## Phase 3 — Read Workflow Source
 
-Use `gh` CLI requests (via cli-proxy) to read the target workflow `.md` source and validate. Run `gh` commands normally in bash steps; cli-proxy forwards them over its HTTP interface:
+Use `gh api` with `--jq` (via cli-proxy) to read the target workflow `.md` source. Extract only the sections you need — do not load the whole file if a targeted slice is sufficient.
+
+```bash
+REPO="${{ github.repository }}"
+# Replace <workflow-name> with the actual .md filename, e.g. "copilot-agent-analysis"
+WF_PATH=".github/workflows/<workflow-name>.md"
+
+# Read the full source (only when necessary — prefer targeted slices below)
+gh api "repos/$REPO/contents/$WF_PATH" --jq '.content' | base64 -d
+
+# Extract frontmatter only (tools, features, network, permissions)
+gh api "repos/$REPO/contents/$WF_PATH" --jq '.content' | base64 -d \
+  | awk '/^---$/{n++; if(n==2) exit} n==1'
+
+# Extract the prompt body only (everything after the closing ---)
+gh api "repos/$REPO/contents/$WF_PATH" --jq '.content' | base64 -d \
+  | awk 'f; /^---$/{f=1}'
+```
+
+Validate from the source:
 
 - configured tools and feature flags
 - imported shared components
