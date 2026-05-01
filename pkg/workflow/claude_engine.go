@@ -207,9 +207,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// activation job.  For engines that do not support native agent-file handling (including
 	// Claude), the compiler prepends the agent file content to prompt.txt so no special
 	// shell variable juggling is needed here.
-	promptCommand := `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`
 
-	// Build the command string with proper argument formatting
 	// Determine which command to use
 	var commandName string
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
@@ -220,14 +218,31 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		commandName = "claude"
 	}
 
-	commandParts := []string{commandName}
-	commandParts = append(commandParts, claudeArgs...)
+	// Determine harness script to wrap claude execution.
+	// The built-in harness provides retry logic for transient Anthropic API errors
+	// (overload, rate limit).  A custom engine.harness overrides the built-in one.
+	harnessScriptName := e.GetHarnessScriptName()
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.HarnessScript != "" {
+		harnessScriptName = workflowData.EngineConfig.HarnessScript
+		claudeLog.Printf("Using custom harness script: %s", harnessScriptName)
+	}
 
-	// Join command parts (excluding the prompt) with proper escaping.
-	// The prompt command is appended raw after shellJoinArgs because it contains
-	// shell variable references ("$(cat ...)") that must NOT be escaped —
-	// single-quoting them would prevent shell expansion at runtime.
-	claudeCommand := fmt.Sprintf("%s %s", shellJoinArgs(commandParts), promptCommand)
+	var claudeCommand string
+	if harnessScriptName != "" {
+		// Harness-wrapped execution: the harness reads --prompt-file and passes its content
+		// as the last positional arg on the initial run.  On --continue retries it omits the
+		// prompt so Claude Code resumes from its on-disk session state.
+		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
+		claudeCommand = fmt.Sprintf("%s %s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt", execPrefix, shellJoinArgs(claudeArgs))
+	} else {
+		// Without harness: use shell expansion for the prompt (no retry logic).
+		//
+		// The prompt command is appended raw after shellJoinArgs because it contains
+		// shell variable references ("$(cat ...)") that must NOT be escaped —
+		// single-quoting them would prevent shell expansion at runtime.
+		promptCommand := `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`
+		claudeCommand = fmt.Sprintf("%s %s", shellJoinArgs(append([]string{commandName}, claudeArgs...)), promptCommand)
+	}
 
 	// When model is not configured, use the GH_AW_MODEL_AGENT_CLAUDE fallback env var
 	// via shell expansion so users can set a default via GitHub Actions variables.
@@ -461,6 +476,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 // GetLogParserScriptId returns the JavaScript script name for parsing Claude logs
 func (e *ClaudeEngine) GetLogParserScriptId() string {
 	return "parse_claude_log"
+}
+
+// GetHarnessScriptName returns the filename of the JavaScript harness script that wraps
+// the Claude Code CLI with retry logic for transient Anthropic API errors (overload, rate limit).
+func (e *ClaudeEngine) GetHarnessScriptName() string {
+	return "claude_harness.cjs"
 }
 
 // GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
