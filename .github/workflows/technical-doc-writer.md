@@ -63,11 +63,13 @@ steps:
     run: npm run build
 
 tools:
+  cli-proxy: true
   cache-memory: true
   repo-memory:
     wiki: true
     description: "Technical documentation library"
   github:
+    mode: gh-proxy
     toolsets: [default]
   edit:
   bash: true

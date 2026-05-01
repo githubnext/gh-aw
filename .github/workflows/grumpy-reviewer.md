@@ -14,6 +14,8 @@ imports:
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
+tools:
+  cli-proxy: true
 safe-outputs:
   create-pull-request-review-comment:
     max: 5
@@ -58,10 +60,10 @@ Use the cache memory at `/tmp/gh-aw/cache-memory/` to:
 
 ### Step 2: Fetch Pull Request Details
 
-Use the GitHub tools to get the pull request details:
-- Get the PR with number `${{ github.event.issue.number }}` in repository `${{ github.repository }}`
-- Get the list of files changed in the PR
-- Review the diff for each changed file
+Use `gh` CLI to get the pull request details:
+- `gh pr view ${{ github.event.issue.number }} --repo ${{ github.repository }} --json number,title,body,headRefName`
+- `gh pr diff ${{ github.event.issue.number }} --repo ${{ github.repository }}`
+- `gh pr view ${{ github.event.issue.number }} --repo ${{ github.repository }} --json files`
 
 ### Step 3: Analyze the Code
 

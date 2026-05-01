@@ -12,7 +12,9 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 		return false
 	}
 
-	mcpDetectionLog.Printf("Checking for MCP servers in workflow '%s': tools=%d", workflowData.Name, len(workflowData.Tools))
+	if mcpDetectionLog.Enabled() {
+		mcpDetectionLog.Printf("Checking for MCP servers in workflow '%s': tools=%d", workflowData.Name, len(workflowData.Tools))
+	}
 	// Check for standard MCP tools
 	for toolName, toolValue := range workflowData.Tools {
 		// Skip if the tool is explicitly disabled (set to false)
@@ -20,13 +22,17 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 			continue
 		}
 		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
-			mcpDetectionLog.Printf("MCP server detected via built-in tool: %s", toolName)
+			if mcpDetectionLog.Enabled() {
+				mcpDetectionLog.Printf("MCP server detected via built-in tool: %s", toolName)
+			}
 			return true
 		}
 		// Check for custom MCP tools
 		if mcpConfig, ok := toolValue.(map[string]any); ok {
 			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
-				mcpDetectionLog.Printf("MCP server detected via custom tool config: %s", toolName)
+				if mcpDetectionLog.Enabled() {
+					mcpDetectionLog.Printf("MCP server detected via custom tool config: %s", toolName)
+				}
 				return true
 			}
 		}

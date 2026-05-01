@@ -101,10 +101,12 @@ function generateSafeOutputSummary(options) {
       if (message.title) {
         summary += `**Title:** ${message.title}\n\n`;
       }
-      if (message.body && typeof message.body === "string") {
+      // Prefer result.body (final posted body including footer) over message.body (submitted body)
+      const bodyToShow = result && typeof result.body === "string" ? result.body : message.body;
+      if (bodyToShow && typeof bodyToShow === "string") {
         // Truncate body if too long
         const maxBodyLength = 500;
-        const bodyPreview = message.body.length > maxBodyLength ? message.body.substring(0, maxBodyLength) + "..." : message.body;
+        const bodyPreview = bodyToShow.length > maxBodyLength ? bodyToShow.substring(0, maxBodyLength) + "..." : bodyToShow;
         summary += `**Body Preview:**\n\`\`\`\`\`\`\n${bodyPreview}\n\`\`\`\`\`\`\n\n`;
       }
       if (message.labels && Array.isArray(message.labels)) {

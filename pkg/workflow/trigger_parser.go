@@ -559,11 +559,14 @@ func parseSecurityTrigger(input string) (*TriggerIR, error) {
 	}
 
 	if tokens[0] == "dependabot" && len(tokens) >= 3 && tokens[1] == "pull" && tokens[2] == "request" {
-		// "dependabot pull request" - filter pull requests by Dependabot author
+		// "dependabot pull request" - filter pull requests by Dependabot author.
+		// Guard against the Dependabot Confused Deputy attack (@dependabot recreate) by
+		// requiring the PR author to also be dependabot[bot], not just the current actor.
+		// Reference: https://labs.boostsecurity.io/articles/weaponizing-dependabot-pwn-request-at-its-finest/
 		return &TriggerIR{
 			Event:      "pull_request",
 			Types:      []string{"opened", "synchronize", "reopened"},
-			Conditions: []string{"github.actor == 'dependabot[bot]'"},
+			Conditions: []string{"github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]'"},
 			AdditionalEvents: map[string]any{
 				"workflow_dispatch": nil,
 			},

@@ -521,9 +521,35 @@ describe("sanitize_content.cjs", () => {
       expect(result).toBe("Hello <br> world");
     });
 
-    it("should convert self-closing tags that are not allowed", () => {
+    it("should preserve self-closing img tags", () => {
       const result = sanitizeContent("Hello <img/> world");
-      expect(result).toBe("Hello (img/) world");
+      expect(result).toBe("Hello <img/> world");
+    });
+
+    it("should convert disallowed self-closing tags to parentheses", () => {
+      const result = sanitizeContent("Hello <div/> world");
+      expect(result).toBe("Hello (div/) world");
+    });
+
+    it("should preserve img tags with layout attributes", () => {
+      const input = '<img align="right" width="120" src="https://example.com/image.png" alt="Mascot" />';
+      const result = sanitizeContent(input);
+      expect(result).toContain("<img");
+      expect(result).toContain('align="right"');
+      expect(result).toContain('width="120"');
+      expect(result).toContain('alt="Mascot"');
+    });
+
+    it("should strip dangerous event-handler attributes from img tags", () => {
+      const result = sanitizeContent('<img src=x onerror="alert(1)">');
+      expect(result).toContain("<img");
+      expect(result).not.toContain("onerror");
+    });
+
+    it("should strip dangerous event-handler attributes from img tags even when slash-prefixed", () => {
+      const result = sanitizeContent("<img/onerror=alert(1) src=x>");
+      expect(result).toContain("<img");
+      expect(result).not.toContain("onerror");
     });
 
     it("should handle CDATA sections", () => {
@@ -764,8 +790,8 @@ describe("sanitize_content.cjs", () => {
       expect(result).toContain("(div)bad(/div)");
       // Code block: tags preserved
       expect(result).toContain("<div>safe code</div>");
-      // Regular text after block: tags converted
-      expect(result).toContain("(img src=x)");
+      // Regular text after block: img is allowed so tag is preserved
+      expect(result).toContain("<img src=x>");
     });
 
     it("should handle a fenced block with a language specifier", () => {
@@ -1561,15 +1587,22 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should handle malicious XSS attempts", () => {
-      const maliciousInputs = ['<img src=x onerror="alert(1)">', "javascript:alert(document.cookie)", '<svg onload="alert(1)">', "data:text/html,<script>alert(1)</script>"];
+      const maliciousInputs = ["javascript:alert(document.cookie)", '<svg onload="alert(1)">', "data:text/html,<script>alert(1)</script>"];
 
       maliciousInputs.forEach(input => {
         const result = sanitizeContent(input);
-        expect(result).not.toContain("<img");
         expect(result).not.toContain("javascript:");
         expect(result).not.toContain("<svg");
         expect(result).not.toContain("data:");
       });
+
+      // img is allowed but dangerous event-handler attributes must be stripped
+      const imgXss = sanitizeContent('<img src=x onerror="alert(1)">');
+      expect(imgXss).toContain("<img");
+      expect(imgXss).not.toContain("onerror");
+      const imgXss2 = sanitizeContent('<img src=x onload="steal()">');
+      expect(imgXss2).toContain("<img");
+      expect(imgXss2).not.toContain("onload");
     });
 
     it("should preserve allowed HTML in safe context", () => {

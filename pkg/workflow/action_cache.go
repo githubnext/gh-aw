@@ -304,6 +304,18 @@ func (c *ActionCache) Get(repo, version string) (string, bool) {
 	return entry.SHA, true
 }
 
+// GetByCacheKey retrieves a cached entry by its pre-computed key.
+// This avoids recomputing the cache key when the caller has already computed it.
+func (c *ActionCache) GetByCacheKey(key string) (string, bool) {
+	entry, exists := c.Entries[key]
+	if !exists {
+		actionCacheLog.Printf("Cache miss for key=%s", key)
+		return "", false
+	}
+	actionCacheLog.Printf("Cache hit for key=%s, sha=%s", key, entry.SHA)
+	return entry.SHA, true
+}
+
 // FindEntryBySHA finds a cache entry with the given repo and SHA
 // Returns the entry and true if found, or empty entry and false if not found
 func (c *ActionCache) FindEntryBySHA(repo, sha string) (ActionCacheEntry, bool) {

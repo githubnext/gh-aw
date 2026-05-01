@@ -257,6 +257,123 @@ describe("check_membership.cjs", () => {
     });
   });
 
+  describe("confused deputy attack protection", () => {
+    beforeEach(() => {
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+    });
+
+    it("should deny access when actor differs from PR author (pull_request synchronize event)", async () => {
+      mockContext.actor = "dependabot[bot]";
+      mockContext.eventName = "pull_request";
+      mockContext.payload = { action: "synchronize", pull_request: { user: { login: "attacker" } } };
+
+      await runScript();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Potential confused deputy attack detected"));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "confused_deputy");
+    });
+
+    it("should allow access when actor matches PR author (genuine dependabot PR synchronize)", async () => {
+      mockContext.actor = "dependabot[bot]";
+      mockContext.eventName = "pull_request";
+      mockContext.payload = { action: "synchronize", pull_request: { user: { login: "dependabot[bot]" } } };
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write" },
+      });
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
+    });
+
+    it("should deny access when actor differs from comment author (issue_comment event)", async () => {
+      mockContext.actor = "dependabot[bot]";
+      mockContext.eventName = "issue_comment";
+      mockContext.payload = { comment: { user: { login: "attacker" } } };
+
+      await runScript();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Potential confused deputy attack detected"));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "confused_deputy");
+    });
+
+    it("should not trigger confused deputy for pull_request:labeled even when actor differs from PR author", async () => {
+      // A team member labeling a PR is legitimate — confused deputy only fires on synchronize
+      mockContext.actor = "pelikhan";
+      mockContext.eventName = "pull_request";
+      mockContext.payload = { action: "labeled", pull_request: { user: { login: "copilot[bot]" } } };
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write" },
+      });
+
+      await runScript();
+
+      // Should NOT be denied as confused deputy — should proceed to normal permission check
+      expect(mockCore.setOutput).not.toHaveBeenCalledWith("result", "confused_deputy");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
+    });
+
+    it("should not trigger confused deputy check for safe events (schedule)", async () => {
+      mockContext.actor = "dependabot[bot]";
+      mockContext.eventName = "schedule";
+      mockContext.payload = { pull_request: { user: { login: "attacker" } } };
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "safe_event");
+    });
+
+    it("should not trigger confused deputy check for issues event (no PR/comment context)", async () => {
+      mockContext.actor = "dependabot[bot]";
+      mockContext.eventName = "issues";
+      mockContext.payload = { issue: { user: { login: "someone-else" } } };
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write" },
+      });
+
+      await runScript();
+
+      // issues events don't trigger confused deputy detection
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
+    });
+
+    it("should work correctly for workflow_call events with aw_context (no false positive)", async () => {
+      // In workflow_call, context.payload = { inputs: { aw_context: "..." } }
+      // The aw_context carries event_type but NOT pull_request.user.login
+      // Confused deputy check must NOT trigger - this is a legitimate reusable workflow call
+      mockContext.actor = "dependabot[bot]";
+      mockContext.eventName = "workflow_call";
+      mockContext.payload = {
+        inputs: {
+          aw_context: JSON.stringify({ event_type: "pull_request", item_number: "42", actor: "attacker" }),
+        },
+      };
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write" },
+      });
+
+      await runScript();
+
+      // workflow_call proceeds to normal permission check - no confused_deputy denial
+      expect(mockCore.setOutput).not.toHaveBeenCalledWith("result", "confused_deputy");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
+    });
+  });
+
   describe("API error handling", () => {
     beforeEach(() => {
       process.env.GH_AW_REQUIRED_ROLES = "admin";

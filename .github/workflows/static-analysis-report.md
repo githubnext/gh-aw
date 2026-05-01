@@ -15,7 +15,8 @@ tools:
   cli-proxy: true
   agentic-workflows:
   github:
-   toolsets:
+    mode: gh-proxy
+    toolsets:
       - default
       - actions
   cache-memory: true

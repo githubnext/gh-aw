@@ -19,10 +19,12 @@ sandbox:
   agent: awf
 
 tools:
+  cli-proxy: true
   agentic-workflows:
   edit:
   bash: ["*"]
   github:
+    mode: gh-proxy
     lockdown: false
     allowed-repos:
       - github/gh-aw

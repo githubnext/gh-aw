@@ -620,8 +620,9 @@ function neutralizeMarkdownLinkTitles(s) {
  */
 function convertXmlTags(s) {
   // Allow safe HTML tags supported by GitHub Flavored Markdown:
-  // b, blockquote, br, code, details, em, h1–h6, hr, i, li, ol, p, pre, strong, sub, summary, sup, table, tbody, td, th, thead, tr, ul
+  // b, blockquote, br, code, details, em, h1–h6, hr, i, img, li, ol, p, pre, strong, sub, summary, sup, table, tbody, td, th, thead, tr, ul
   // Plus GFM inline tags: abbr, del, ins, kbd, mark, s, span
+  // Note: img on* event handlers and style are stripped by stripDangerousAttributes(); src is covered by sanitizeUrlDomains()
   const allowedTags = [
     "abbr",
     "b",
@@ -639,6 +640,7 @@ function convertXmlTags(s) {
     "h6",
     "hr",
     "i",
+    "img",
     "ins",
     "kbd",
     "li",
@@ -684,11 +686,13 @@ function convertXmlTags(s) {
    * @returns {string} Tag content with dangerous attributes removed
    */
   function stripDangerousAttributes(tagContent) {
-    // Match: one-or-more whitespace + (on* | style) + optional =value
+    // Match: one-or-more whitespace-or-slash + (on* | style) + optional =value
     // Value forms: "...", '...', or unquoted (no whitespace / > / quote chars), or bare (no =)
     // The unquoted form excludes >, whitespace, and all quote characters (', ", `) so it
     // cannot consume the closing > of the tag or straddle other attribute values.
-    return tagContent.replace(/\s+(?:on\w+|style)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"'`]*))?/gi, "");
+    // Using [\s/]+ (instead of \s+) also strips dangerous attributes that are immediately
+    // preceded by a "/" with no space — e.g. the malformed <img/onerror=alert(1) src=x>.
+    return tagContent.replace(/[\s/]+(?:on\w+|style)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"'`]*))?/gi, "");
   }
 
   // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")

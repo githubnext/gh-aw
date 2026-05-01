@@ -26,6 +26,7 @@ imports:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets:
       - issues
     min-integrity: approved

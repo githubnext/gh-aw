@@ -136,9 +136,14 @@ func TestGetRequiredSecretNames_Copilot(t *testing.T) {
 
 		secrets := engine.GetRequiredSecretNames(workflowData)
 
-		// Should only include COPILOT_GITHUB_TOKEN
-		require.Len(t, secrets, 1)
+		// Should include COPILOT_GITHUB_TOKEN plus the three BYOK provider secret keys
+		// (COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_API_KEY, COPILOT_PROVIDER_BEARER_TOKEN)
+		// which are always listed so that strict-mode validation recognises them as engine credentials.
+		require.Len(t, secrets, 4)
 		assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN")
+		assert.Contains(t, secrets, "COPILOT_PROVIDER_BASE_URL")
+		assert.Contains(t, secrets, "COPILOT_PROVIDER_API_KEY")
+		assert.Contains(t, secrets, "COPILOT_PROVIDER_BEARER_TOKEN")
 	})
 
 	t.Run("includes MCP gateway API key when MCP servers present", func(t *testing.T) {

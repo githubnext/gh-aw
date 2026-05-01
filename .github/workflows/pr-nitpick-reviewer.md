@@ -12,6 +12,8 @@ engine: copilot
 imports:
   - uses: shared/pr-review-base.md
   - shared/reporting.md
+tools:
+  cli-proxy: true
 safe-outputs:
   create-discussion:
     expires: 1d

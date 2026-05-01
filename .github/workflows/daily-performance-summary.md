@@ -15,6 +15,7 @@ tracker-id: daily-performance-summary
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, discussions]
 safe-outputs:
   upload-asset:

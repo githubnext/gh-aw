@@ -131,6 +131,12 @@ const AWFAuditDir = "/tmp/gh-aw/sandbox/firewall/audit"
 // for post-run analysis without mixing path roots in the artifact.
 const AWFConfigFilePath = "/tmp/gh-aw/awf-config.json"
 
+// AWFReflectFilePath is the path where the AWF API proxy /reflect response is persisted
+// by the agent harness before exiting. It is co-located with other firewall observability
+// data under /tmp/gh-aw/sandbox/firewall/ so the existing chmod and artifact-upload steps
+// pick it up automatically.
+const AWFReflectFilePath = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json"
+
 // FirewallAuditArtifactName is the legacy artifact name that was previously used for dedicated
 // firewall audit log uploads. Firewall audit/observability logs are now included in the unified
 // agent artifact. This constant is retained for backward compatibility when downloading artifacts

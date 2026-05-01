@@ -521,6 +521,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.TokenUsageFilename)
 	}
 
+	// Append AWF API proxy reflection data (available endpoints and models) to step summary.
+	// This data is fetched from the /reflect endpoint by copilot_harness.cjs before the
+	// agent exits and persisted to /tmp/gh-aw/awf-reflect.json.
+	if isFirewallEnabled(data) {
+		c.generateAWFReflectSummary(yaml, data)
+	}
+
 	// Synthesize a compact observability section from runtime artifacts when OTLP is enabled.
 	c.generateObservabilitySummary(yaml, data)
 
@@ -621,6 +628,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		artifactPaths = append(artifactPaths, constants.AWFConfigFilePath)
 		artifactPaths = append(artifactPaths, constants.AWFProxyLogsDir+"/")
 		artifactPaths = append(artifactPaths, constants.AWFAuditDir+"/")
+		// Include the AWF /reflect payload persisted by the agent harness.
+		// Co-located under /tmp/gh-aw/sandbox/firewall/ so the existing
+		// chmod -R a+r step covers its permissions before upload.
+		artifactPaths = append(artifactPaths, constants.AWFReflectFilePath)
 	}
 
 	// Generate single unified artifact upload with all collected paths.

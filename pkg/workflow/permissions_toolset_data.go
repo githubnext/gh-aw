@@ -97,13 +97,17 @@ func (g *GitHubToolConfig) IsReadOnly() bool {
 
 // collectRequiredPermissions collects all required permissions for the given toolsets
 func collectRequiredPermissions(toolsets []string, readOnly bool) map[PermissionScope]PermissionLevel {
-	permissionsValidationLog.Printf("Collecting required permissions for %d toolsets, read_only=%t", len(toolsets), readOnly)
+	if permissionsValidationLog.Enabled() {
+		permissionsValidationLog.Printf("Collecting required permissions for %d toolsets, read_only=%t", len(toolsets), readOnly)
+	}
 	required := make(map[PermissionScope]PermissionLevel)
 
 	for _, toolset := range toolsets {
 		perms, exists := toolsetPermissionsMap[toolset]
 		if !exists {
-			permissionsValidationLog.Printf("Unknown toolset: %s", toolset)
+			if permissionsValidationLog.Enabled() {
+				permissionsValidationLog.Printf("Unknown toolset: %s", toolset)
+			}
 			continue
 		}
 
@@ -112,7 +116,9 @@ func collectRequiredPermissions(toolsets []string, readOnly bool) map[Permission
 			// Skip GitHub App-only permission scopes; these cannot be set via GITHUB_TOKEN
 			// and are validated separately in validateGitHubAppOnlyPermissions.
 			if IsGitHubAppOnlyScope(scope) {
-				permissionsValidationLog.Printf("Skipping GitHub App-only scope %s for toolset %s", scope, toolset)
+				if permissionsValidationLog.Enabled() {
+					permissionsValidationLog.Printf("Skipping GitHub App-only scope %s for toolset %s", scope, toolset)
+				}
 				continue
 			}
 			// Always require at least read access

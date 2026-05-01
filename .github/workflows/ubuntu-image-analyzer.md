@@ -28,7 +28,9 @@ network:
     - github
 
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, actions]
   edit:
   bash:
@@ -58,13 +60,11 @@ Analyze the software, tools, and configurations available in the default GitHub 
 
 **IMPORTANT**: Different tools must be used for different operations:
 
-### GitHub MCP Tools (Read-Only)
-Use these tools to read data from GitHub:
-- `list_workflow_runs` - List workflow runs to find logs
-- `get_job_logs` - Download workflow logs
-- `get_file_contents` - Read files from GitHub repositories
-
-**Note**: GitHub MCP is in READ-ONLY mode. Do NOT attempt to create, update, or modify GitHub resources (issues, PRs, etc.) using GitHub MCP tools.
+### GitHub CLI (`gh`) - For Reading from GitHub
+Use `gh` CLI to read data from GitHub:
+- `gh run list` - List workflow runs to find logs
+- `gh run view <id> --log` - Download workflow logs
+- `gh api repos/<owner>/<repo>/contents/<path>` - Read files from GitHub repositories
 
 ### File Editing Tools
 Use these tools to create or modify local files:
@@ -81,15 +81,15 @@ Use these tools to create GitHub resources:
 
 GitHub Actions runner logs include a reference to the "Included Software" documentation. Find this URL:
 
-1. **List recent workflow runs** to find a successful run using the GitHub MCP server:
-   - Use the `list_workflow_runs` tool from the `actions` toolset
-   - Filter for successful runs (conclusion: "success")
-   - Get the most recent run ID
+1. **List recent workflow runs** to find a successful run using `gh` CLI:
+   ```bash
+   gh run list --repo ${{ github.repository }} --workflow ci.yml --status success --limit 5 --json databaseId,conclusion,name
+   ```
 
 2. **Get the logs from a recent successful run**:
-   - Use the `get_job_logs` tool with the workflow run ID from step 1
-   - Set `failed_only: false` to get all job logs
-   - Request log content with `return_content: true`
+   ```bash
+   gh run view <run_id> --repo ${{ github.repository }} --log | head -200
+   ```
 
 3. **Search the logs for "Included Software"**:
    - Look for a line like: `Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20251215.174/images/ubuntu/Ubuntu2404-Readme.md`
@@ -104,20 +104,18 @@ Example URLs:
 - Ubuntu 24.04: `https://github.com/actions/runner-images/blob/ubuntu24/20251215.174/images/ubuntu/Ubuntu2404-Readme.md`
 - Ubuntu 22.04: `https://github.com/actions/runner-images/blob/ubuntu22/20251215.174/images/ubuntu/Ubuntu2204-Readme.md`
 
-**Example MCP Tool Usage**:
-```
+**Example `gh` CLI Usage**:
+```bash
 # Step 1: List recent workflow runs
-list_workflow_runs(owner="githubnext", repo="gh-aw", workflow="ci.yml", per_page=10)
+gh run list --repo ${{ github.repository }} --status success --limit 5
 
-# Step 2: Get logs for a specific run
-get_job_logs(owner="githubnext", repo="gh-aw", run_id=<run_id>, return_content=true, tail_lines=1000)
-
-# Step 3: Search the returned log content for "Included Software"
+# Step 2: Get logs for a specific run  
+gh run view <run_id> --repo ${{ github.repository }} --log 2>&1 | grep "Included Software"
 ```
 
 ### 2. Download Runner Image Documentation
 
-Use the GitHub MCP server's `get_file_contents` tool to download the runner image documentation:
+Use `gh api` to download the runner image documentation:
 
 **IMPORTANT**: The URL format from step 1 is:
 ```
@@ -130,16 +128,13 @@ Parse this URL to extract:
 - **ref**: `<branch>` (e.g., `ubuntu24`)
 - **path**: `images/ubuntu/Ubuntu<version>-Readme.md` (e.g., `images/ubuntu/Ubuntu2404-Readme.md`)
 
-Then use the `get_file_contents` tool:
+Then use `gh api` to fetch the file:
 
-```
-# Example MCP tool usage
-get_file_contents(
-  owner="actions",
-  repo="runner-images", 
-  ref="ubuntu24",
-  path="images/ubuntu/Ubuntu2404-Readme.md"
-)
+```bash
+# Example gh CLI usage
+gh api repos/actions/runner-images/contents/images/ubuntu/Ubuntu2404-Readme.md \
+  --header "Accept: application/vnd.github.raw" \
+  --header "X-GitHub-Api-Version: 2022-11-28"
 ```
 
 The documentation is a comprehensive markdown file that includes:
@@ -419,7 +414,7 @@ Note any aspects that cannot be perfectly replicated:
 
 **CRITICAL**: After creating or updating `research/ubuntulatest.md`, you MUST use the safe-outputs tool to create a pull request.
 
-**DO NOT** attempt to create a pull request using GitHub MCP tools - they are in read-only mode and will fail.
+**DO NOT** attempt to create a pull request using `gh` CLI directly - use the safe-outputs tool instead.
 
 1. Use the **safe-outputs `create_pull_request` tool** (this is the ONLY way to create PRs)
 2. Include a clear PR description:

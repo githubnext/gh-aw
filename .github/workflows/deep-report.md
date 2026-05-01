@@ -48,6 +48,7 @@ tools:
     file-glob: ["*.md"]
     max-file-size: 1048576  # 1MB
   github:
+    mode: gh-proxy
     toolsets:
       - all
   bash:

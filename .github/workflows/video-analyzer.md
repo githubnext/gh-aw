@@ -19,6 +19,7 @@ imports:
   - shared/ffmpeg.md
 
 tools:
+  cli-proxy: true
   bash: true
 
 safe-outputs:

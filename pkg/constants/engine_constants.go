@@ -212,6 +212,21 @@ const (
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	CopilotCLIModelEnvVar = "COPILOT_MODEL"
 
+	// COPILOT_PROVIDER_* environment variables activate Bring Your Own Key (BYOK) mode,
+	// routing Copilot CLI requests to an external LLM provider instead of GitHub's routing.
+	//
+	// CopilotProviderBaseURL (REQUIRED for BYOK) is the base URL of the external provider.
+	// Setting this variable activates BYOK mode. Example: https://api.openai.com/v1
+	CopilotProviderBaseURL = "COPILOT_PROVIDER_BASE_URL"
+
+	// CopilotProviderAPIKey (OPTIONAL) is the API key for authenticating to the external provider.
+	// Required for cloud APIs (e.g., OpenAI, Anthropic). Not needed for local providers (Ollama, vLLM).
+	CopilotProviderAPIKey = "COPILOT_PROVIDER_API_KEY"
+
+	// CopilotProviderBearerToken (OPTIONAL) is an alternative to CopilotProviderAPIKey.
+	// Sent as a Bearer token in the Authorization header. Takes precedence over COPILOT_PROVIDER_API_KEY.
+	CopilotProviderBearerToken = "COPILOT_PROVIDER_BEARER_TOKEN"
+
 	// CopilotCLIIntegrationIDEnvVar is the native environment variable name supported by the Copilot CLI
 	// for identifying the calling integration. This tells the Copilot CLI that it is being invoked
 	// by agentic workflows.

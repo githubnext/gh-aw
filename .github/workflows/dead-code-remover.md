@@ -25,6 +25,7 @@ tools:
   bash: true
   edit:
   github:
+    mode: gh-proxy
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [default, pull_requests]
   cache-memory: true

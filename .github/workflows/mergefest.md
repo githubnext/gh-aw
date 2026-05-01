@@ -36,6 +36,7 @@ tools:
     - "grep"
   edit:
   github:
+    mode: gh-proxy
     toolsets: [pull_requests, repos]
 safe-outputs:
   push-to-pull-request-branch:

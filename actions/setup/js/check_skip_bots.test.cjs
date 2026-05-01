@@ -141,4 +141,96 @@ describe("check_skip_bots.cjs", () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith("skip_bots_ok", "false");
     expect(mockCore.setOutput).toHaveBeenCalledWith("result", "skipped");
   });
+
+  describe("confused deputy attack protection", () => {
+    it("should not skip workflow when actor differs from PR author (pull_request synchronize event)", async () => {
+      process.env.GH_AW_SKIP_BOTS = "dependabot[bot]";
+      mockContext.actor = "dependabot[bot]";
+      mockContext.eventName = "pull_request";
+      mockContext.payload = { action: "synchronize", pull_request: { user: { login: "attacker" } } };
+
+      const { main } = await import("./check_skip_bots.cjs");
+      await main();
+
+      // Even though dependabot[bot] is in skip-bots, confused deputy prevents skipping
+      expect(mockCore.setOutput).toHaveBeenCalledWith("skip_bots_ok", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "not_skipped");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Potential confused deputy attack detected"));
+    });
+
+    it("should skip workflow when actor matches PR author (genuine dependabot PR synchronize)", async () => {
+      process.env.GH_AW_SKIP_BOTS = "dependabot[bot]";
+      mockContext.actor = "dependabot[bot]";
+      mockContext.eventName = "pull_request";
+      mockContext.payload = { action: "synchronize", pull_request: { user: { login: "dependabot[bot]" } } };
+
+      const { main } = await import("./check_skip_bots.cjs");
+      await main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("skip_bots_ok", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "skipped");
+    });
+
+    it("should not skip workflow when actor differs from comment author (issue_comment event)", async () => {
+      process.env.GH_AW_SKIP_BOTS = "dependabot[bot]";
+      mockContext.actor = "dependabot[bot]";
+      mockContext.eventName = "issue_comment";
+      mockContext.payload = { comment: { user: { login: "attacker" } } };
+
+      const { main } = await import("./check_skip_bots.cjs");
+      await main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("skip_bots_ok", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "not_skipped");
+    });
+
+    it("should skip workflow for pull_request:labeled even when actor differs from PR author", async () => {
+      // A team member labeling a PR is legitimate — confused deputy only fires on synchronize
+      process.env.GH_AW_SKIP_BOTS = "pelikhan";
+      mockContext.actor = "pelikhan";
+      mockContext.eventName = "pull_request";
+      mockContext.payload = { action: "labeled", pull_request: { user: { login: "copilot[bot]" } } };
+
+      const { main } = await import("./check_skip_bots.cjs");
+      await main();
+
+      // Not a confused deputy — apply skip-bots normally
+      expect(mockCore.setOutput).toHaveBeenCalledWith("skip_bots_ok", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "skipped");
+    });
+
+    it("should skip workflow normally when no payload (non-PR events)", async () => {
+      process.env.GH_AW_SKIP_BOTS = "dependabot[bot]";
+      mockContext.actor = "dependabot[bot]";
+      mockContext.eventName = "issues";
+      // No payload field (existing test behavior)
+
+      const { main } = await import("./check_skip_bots.cjs");
+      await main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("skip_bots_ok", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "skipped");
+    });
+
+    it("should apply skip-bots normally for workflow_call events (no false confused deputy positive)", async () => {
+      // In workflow_call, context.payload = { inputs: { aw_context: "..." } }
+      // aw_context carries event_type but NOT pull_request.user.login
+      // Confused deputy check must NOT trigger - apply skip-bots rule normally
+      process.env.GH_AW_SKIP_BOTS = "dependabot[bot]";
+      mockContext.actor = "dependabot[bot]";
+      mockContext.eventName = "workflow_call";
+      mockContext.payload = {
+        inputs: {
+          aw_context: JSON.stringify({ event_type: "pull_request", item_number: "42", actor: "attacker" }),
+        },
+      };
+
+      const { main } = await import("./check_skip_bots.cjs");
+      await main();
+
+      // workflow_call: no confused deputy - normal skip-bots logic applies
+      expect(mockCore.setOutput).toHaveBeenCalledWith("skip_bots_ok", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "skipped");
+    });
+  });
 });

@@ -15,6 +15,7 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
+  cli-proxy: true
   playwright:
     version: "v1.52.0"
   bash:
