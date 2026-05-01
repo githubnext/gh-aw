@@ -1,17 +1,33 @@
 ---
-safe-outputs:
-  threat-detection:
+jobs:
+  trufflehog_scan:
+    runs-on: ubuntu-latest
+    needs: [agent, detection]
+    if: always() && needs.detection.result != 'skipped'
+    permissions:
+      contents: read
+    outputs:
+      secrets_found: ${{ steps.evaluate.outputs.secrets_found }}
+      secrets_locations: ${{ steps.evaluate.outputs.secrets_locations }}
     steps:
-      - name: Download cache-memory artifact for TruffleHog scan
-        id: download-cache-memory-trufflehog
+      - name: Download agent output artifact
+        id: download-agent
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: agent
+          path: /tmp/gh-aw
+
+      - name: Download cache-memory artifact
+        id: download-cache-memory
         continue-on-error: true
         uses: actions/download-artifact@v8
         with:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
 
-      - name: Download repo-memory artifact for TruffleHog scan
-        id: download-repo-memory-trufflehog
+      - name: Download repo-memory artifact
+        id: download-repo-memory
         continue-on-error: true
         uses: actions/download-artifact@v8
         with:
@@ -26,106 +42,99 @@ safe-outputs:
           echo "Installing TruffleHog v${TRUFFLEHOG_VERSION}..."
           curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin "v${TRUFFLEHOG_VERSION}"
           trufflehog --version
-          echo "TruffleHog installed successfully"
 
-      - name: Run TruffleHog on safe outputs
-        id: trufflehog-safeoutputs
+      - name: Scan agent output for secrets
+        id: scan-agent-output
         continue-on-error: true
         run: |
           mkdir -p /tmp/gh-aw/trufflehog
-          SCAN_DIR="/tmp/gh-aw/threat-detection"
-          OUTPUT_FILE="/tmp/gh-aw/trufflehog/safeoutputs-results.jsonl"
-          if [ -d "$SCAN_DIR" ] && [ "$(ls -A "$SCAN_DIR" 2>/dev/null)" ]; then
-            echo "Scanning safe outputs in $SCAN_DIR"
-            trufflehog filesystem "$SCAN_DIR" --json --no-update --fail 2>/dev/null | tee "$OUTPUT_FILE" || SCAN_EXIT=${PIPESTATUS[0]}
+          SCAN_DIR="/tmp/gh-aw"
+          OUTPUT_FILE="/tmp/gh-aw/trufflehog/agent-output-results.jsonl"
+          if [ -d "$SCAN_DIR" ] && [ -n "$(ls -A "$SCAN_DIR" 2>/dev/null)" ]; then
+            echo "Scanning agent output in $SCAN_DIR"
+            trufflehog filesystem "$SCAN_DIR" \
+              --json --no-update --fail \
+              --exclude-paths /tmp/gh-aw/cache-memory \
+              --exclude-paths /tmp/gh-aw/repo-memory \
+              --exclude-paths /tmp/gh-aw/trufflehog \
+              2>/dev/null | tee "$OUTPUT_FILE" || SCAN_EXIT=${PIPESTATUS[0]}
             SCAN_EXIT=${SCAN_EXIT:-0}
           else
-            echo "Safe outputs directory is empty or missing, skipping scan"
+            echo "Agent output directory is empty or missing, skipping"
             SCAN_EXIT=0
           fi
           if [ "$SCAN_EXIT" -eq 183 ]; then
-            echo "safeoutputs_secrets_found=true" >> "$GITHUB_OUTPUT"
+            echo "secrets_found=true" >> "$GITHUB_OUTPUT"
           fi
-          echo "exit_code=${SCAN_EXIT}" >> "$GITHUB_OUTPUT"
 
-      - name: Run TruffleHog on cache-memory
-        id: trufflehog-cache-memory
+      - name: Scan cache-memory for secrets
+        id: scan-cache-memory
         continue-on-error: true
         run: |
           mkdir -p /tmp/gh-aw/trufflehog
           SCAN_DIR="/tmp/gh-aw/cache-memory"
           OUTPUT_FILE="/tmp/gh-aw/trufflehog/cache-memory-results.jsonl"
-          if [ -d "$SCAN_DIR" ] && [ "$(ls -A "$SCAN_DIR" 2>/dev/null)" ]; then
+          if [ -d "$SCAN_DIR" ] && [ -n "$(ls -A "$SCAN_DIR" 2>/dev/null)" ]; then
             echo "Scanning cache-memory in $SCAN_DIR"
             trufflehog filesystem "$SCAN_DIR" --json --no-update --fail 2>/dev/null | tee "$OUTPUT_FILE" || SCAN_EXIT=${PIPESTATUS[0]}
             SCAN_EXIT=${SCAN_EXIT:-0}
           else
-            echo "cache-memory directory is empty or missing, skipping scan"
+            echo "cache-memory directory is empty or missing, skipping"
             SCAN_EXIT=0
           fi
           if [ "$SCAN_EXIT" -eq 183 ]; then
-            echo "cache_memory_secrets_found=true" >> "$GITHUB_OUTPUT"
+            echo "secrets_found=true" >> "$GITHUB_OUTPUT"
           fi
-          echo "exit_code=${SCAN_EXIT}" >> "$GITHUB_OUTPUT"
 
-      - name: Run TruffleHog on repo-memory
-        id: trufflehog-repo-memory
+      - name: Scan repo-memory for secrets
+        id: scan-repo-memory
         continue-on-error: true
         run: |
           mkdir -p /tmp/gh-aw/trufflehog
           SCAN_DIR="/tmp/gh-aw/repo-memory"
           OUTPUT_FILE="/tmp/gh-aw/trufflehog/repo-memory-results.jsonl"
-          if [ -d "$SCAN_DIR" ] && [ "$(ls -A "$SCAN_DIR" 2>/dev/null)" ]; then
+          if [ -d "$SCAN_DIR" ] && [ -n "$(ls -A "$SCAN_DIR" 2>/dev/null)" ]; then
             echo "Scanning repo-memory in $SCAN_DIR"
             trufflehog filesystem "$SCAN_DIR" --json --no-update --fail 2>/dev/null | tee "$OUTPUT_FILE" || SCAN_EXIT=${PIPESTATUS[0]}
             SCAN_EXIT=${SCAN_EXIT:-0}
           else
-            echo "repo-memory directory is empty or missing, skipping scan"
+            echo "repo-memory directory is empty or missing, skipping"
             SCAN_EXIT=0
           fi
           if [ "$SCAN_EXIT" -eq 183 ]; then
-            echo "repo_memory_secrets_found=true" >> "$GITHUB_OUTPUT"
+            echo "secrets_found=true" >> "$GITHUB_OUTPUT"
           fi
-          echo "exit_code=${SCAN_EXIT}" >> "$GITHUB_OUTPUT"
 
       - name: Evaluate TruffleHog results
-        id: trufflehog-evaluate
+        id: evaluate
         if: always()
-        uses: actions/github-script@v9
         env:
-          SAFEOUTPUTS_SECRETS_FOUND: ${{ steps.trufflehog-safeoutputs.outputs.safeoutputs_secrets_found }}
-          CACHE_MEMORY_SECRETS_FOUND: ${{ steps.trufflehog-cache-memory.outputs.cache_memory_secrets_found }}
-          REPO_MEMORY_SECRETS_FOUND: ${{ steps.trufflehog-repo-memory.outputs.repo_memory_secrets_found }}
-        with:
-          script: |
-            const safeOutputs = process.env.SAFEOUTPUTS_SECRETS_FOUND === 'true';
-            const cacheMemory = process.env.CACHE_MEMORY_SECRETS_FOUND === 'true';
-            const repoMemory = process.env.REPO_MEMORY_SECRETS_FOUND === 'true';
+          AGENT_FOUND: ${{ steps.scan-agent-output.outputs.secrets_found }}
+          CACHE_FOUND: ${{ steps.scan-cache-memory.outputs.secrets_found }}
+          REPO_FOUND: ${{ steps.scan-repo-memory.outputs.secrets_found }}
+        run: |
+          echo "==================================="
+          echo "🔍 TruffleHog Scan Summary"
+          echo "==================================="
+          echo "Agent output:  ${AGENT_FOUND:-clean}"
+          echo "Cache-memory:  ${CACHE_FOUND:-clean}"
+          echo "Repo-memory:   ${REPO_FOUND:-clean}"
+          echo "==================================="
 
-            const secretsFound = safeOutputs || cacheMemory || repoMemory;
-
-            core.info('='.repeat(60));
-            core.info('🔍 TruffleHog Secret Scan Summary');
-            core.info('='.repeat(60));
-            core.info(`Safe outputs:  ${safeOutputs ? '❌ SECRETS FOUND' : '✅ clean'}`);
-            core.info(`Cache-memory:  ${cacheMemory ? '❌ SECRETS FOUND' : '✅ clean'}`);
-            core.info(`Repo-memory:   ${repoMemory ? '❌ SECRETS FOUND' : '✅ clean'}`);
-            core.info('='.repeat(60));
-
-            if (secretsFound) {
-              const locations = [
-                safeOutputs && 'safe outputs',
-                cacheMemory && 'cache-memory',
-                repoMemory && 'repo-memory',
-              ].filter(Boolean).join(', ');
-
-              core.setOutput('secrets_found', 'true');
-              core.setOutput('secrets_locations', locations);
-              core.setFailed(`❌ TruffleHog detected secrets in: ${locations}. Review the scan results artifacts for details.`);
-            } else {
-              core.setOutput('secrets_found', 'false');
-              core.info('✅ No secrets detected by TruffleHog');
-            }
+          if [[ "$AGENT_FOUND" == "true" || "$CACHE_FOUND" == "true" || "$REPO_FOUND" == "true" ]]; then
+            LOCATIONS=()
+            [[ "$AGENT_FOUND" == "true" ]] && LOCATIONS+=("agent output")
+            [[ "$CACHE_FOUND" == "true" ]] && LOCATIONS+=("cache-memory")
+            [[ "$REPO_FOUND" == "true" ]] && LOCATIONS+=("repo-memory")
+            LOCATIONS_STR=$(IFS=', '; echo "${LOCATIONS[*]}")
+            echo "secrets_found=true" >> "$GITHUB_OUTPUT"
+            echo "secrets_locations=${LOCATIONS_STR}" >> "$GITHUB_OUTPUT"
+            echo "::error::TruffleHog detected secrets in: ${LOCATIONS_STR}"
+            exit 1
+          else
+            echo "secrets_found=false" >> "$GITHUB_OUTPUT"
+            echo "✅ No secrets detected by TruffleHog"
+          fi
 
       - name: Upload TruffleHog scan results
         if: always()
@@ -134,30 +143,72 @@ safe-outputs:
           name: trufflehog-scan-results
           path: /tmp/gh-aw/trufflehog/
           if-no-files-found: ignore
----
 
+  conclusion:
+    pre-steps:
+      - name: Report TruffleHog secret scan failure
+        if: always() && needs.trufflehog_scan.result == 'failure' && needs.trufflehog_scan.outputs.secrets_found == 'true'
+        continue-on-error: true
+        uses: actions/github-script@v9
+        env:
+          GH_AW_TRUFFLEHOG_SECRETS_LOCATIONS: ${{ needs.trufflehog_scan.outputs.secrets_locations }}
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_WORKFLOW_NAME: ${{ github.workflow }}
+        with:
+          script: |
+            const locations = process.env.GH_AW_TRUFFLEHOG_SECRETS_LOCATIONS || 'unknown locations';
+            const runUrl = process.env.GH_AW_RUN_URL;
+            const workflowName = process.env.GH_AW_WORKFLOW_NAME;
+            const runNumber = context.runNumber;
+            const { owner, repo } = context.repo;
+            core.error(`🔐 TruffleHog detected secrets in: ${locations}`);
+            const title = `🔐 Secrets detected in workflow run: ${workflowName} #${runNumber}`;
+            const body = [
+              '> [!CAUTION]',
+              '> **TruffleHog detected secrets in the agentic workflow output.**',
+              '',
+              `**Locations:** \`${locations}\``,
+              '',
+              `**Workflow run:** [${workflowName} #${runNumber}](${runUrl})`,
+              '',
+              'Please review the `trufflehog-scan-results` artifact in the workflow run for details.',
+              'Rotate any exposed credentials immediately.',
+            ].join('\n');
+            await github.rest.issues.create({ owner, repo, title, body, labels: ['security'] });
+---
+<!--
 # TruffleHog Secret Detection
 
-This shared workflow adds [TruffleHog](https://github.com/trufflesecurity/trufflehog) secret scanning to the detection job. It scans the agent's safe outputs, cache-memory, and repo-memory for accidentally leaked secrets (API keys, tokens, credentials, etc.).
+This shared workflow adds [TruffleHog](https://github.com/trufflesecurity/trufflehog) secret scanning
+as a dedicated `trufflehog_scan` job that runs after the `detection` job. It scans the agent's output,
+cache-memory, and repo-memory for accidentally leaked secrets (API keys, tokens, credentials, etc.).
 
 ## How It Works
 
-1. **Download artifacts** — fetches `cache-memory` and `repo-memory` artifacts produced by the agent job (errors are non-fatal if the workflow doesn't use those features)
-2. **Install TruffleHog** — downloads and installs the latest TruffleHog binary
-3. **Scan safe outputs** — runs TruffleHog on `/tmp/gh-aw/threat-detection/` (agent output and any code patches)
-4. **Scan cache-memory** — runs TruffleHog on `/tmp/gh-aw/cache-memory/`
-5. **Scan repo-memory** — runs TruffleHog on `/tmp/gh-aw/repo-memory/`
-6. **Evaluate** — aggregates results; sets `secrets_found=true` output and fails the detection job if any secrets are detected
-7. **Upload results** — saves JSONL scan result files as `trufflehog-scan-results` artifact for review
+1. **Separate job** — `trufflehog_scan` runs after the `detection` job completes
+2. **Download artifacts** — fetches `agent`, `cache-memory`, and `repo-memory` artifacts (continue-on-error)
+3. **Install TruffleHog** — pinned to a specific version
+4. **Scan agent output** — scans `/tmp/gh-aw/` (agent output and code patches)
+5. **Scan cache-memory** — scans `/tmp/gh-aw/cache-memory/`
+6. **Scan repo-memory** — scans `/tmp/gh-aw/repo-memory/`
+7. **Evaluate** — aggregates results; sets `secrets_found=true` output and fails the job if secrets detected
+8. **Upload results** — saves JSONL scan result files as `trufflehog-scan-results` artifact for review
+9. **Failure report** — a `jobs.conclusion.pre-steps` entry creates a GitHub issue with the findings
+   when secrets are detected
 
-## Outputs
+## Job Outputs
 
-| Step ID | Output | Value |
-|---------|--------|-------|
-| `trufflehog-evaluate` | `secrets_found` | `true` or `false` |
-| `trufflehog-evaluate` | `secrets_locations` | Comma-separated list of locations where secrets were found |
+| Output | Value |
+|--------|-------|
+| `secrets_found` | `true` or `false` |
+| `secrets_locations` | Comma-separated list of locations where secrets were found |
 
-When `secrets_found=true` the step calls `core.setFailed()`, which fails the detection job and prevents safe outputs from being processed. The conclusion job will observe a failed `detection_conclusion` and respond accordingly.
+## Failure Reporting
+
+When `secrets_found=true` the `trufflehog_scan` job fails. The conclusion job (which automatically
+depends on all jobs) then runs the pre-step `Report TruffleHog secret scan failure`, which creates
+a GitHub issue titled `🔐 Secrets detected in workflow run: <name> #<run>` with details about the
+finding and a link to the `trufflehog-scan-results` artifact.
 
 ## Usage
 
@@ -167,7 +218,5 @@ imports:
   - shared/trufflehog.md
 ---
 ```
+-->
 
-## Scan Results
-
-Raw JSONL scan output is uploaded as the `trufflehog-scan-results` artifact and contains one JSON object per detected finding. Each finding includes the source type, file path, detector name, and the raw/redacted secret value.
