@@ -154,9 +154,11 @@ func parseRolesValue(rolesValue any, fieldName string) []string {
 	return nil
 }
 
-// extractBots extracts the 'bots' field from frontmatter to determine allowed bot identifiers
+// extractBots extracts the 'bots' field from frontmatter to determine allowed bot identifiers.
+// It checks on.bots first (canonical location), then falls back to a top-level bots field
+// (shorthand that mirrors on.bots for convenience).
 func (c *Compiler) extractBots(frontmatter map[string]any) []string {
-	// Check on.bots
+	// Check on.bots (canonical location)
 	if onValue, exists := frontmatter["on"]; exists {
 		if onMap, ok := onValue.(map[string]any); ok {
 			if botsValue, hasBots := onMap["bots"]; hasBots {
@@ -165,6 +167,15 @@ func (c *Compiler) extractBots(frontmatter map[string]any) []string {
 					return bots
 				}
 			}
+		}
+	}
+
+	// Fallback: check top-level bots field (shorthand for on.bots)
+	if botsValue, exists := frontmatter["bots"]; exists {
+		bots := parseBotsValue(botsValue, "bots")
+		if bots != nil {
+			roleLog.Print("Using top-level 'bots' field (equivalent to on.bots)")
+			return bots
 		}
 	}
 

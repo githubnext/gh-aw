@@ -67,6 +67,49 @@ Test workflow content.`,
 			filename:     "no-bots.md",
 			expectedBots: []string{},
 		},
+		{
+			name: "workflow with top-level bots array (shorthand for on.bots)",
+			frontmatter: `---
+bots: ["dependabot[bot]", "renovate[bot]"]
+on:
+  issues:
+    types: [opened]
+---
+
+# Test Workflow
+Test workflow content with top-level bots.`,
+			filename:     "top-level-bots-array.md",
+			expectedBots: []string{"dependabot[bot]", "renovate[bot]"},
+		},
+		{
+			name: "workflow with top-level single bot",
+			frontmatter: `---
+bots: ["github-actions[bot]"]
+on:
+  pull_request:
+    types: [opened]
+---
+
+# Test Workflow
+Test workflow content with top-level single bot.`,
+			filename:     "top-level-single-bot.md",
+			expectedBots: []string{"github-actions[bot]"},
+		},
+		{
+			name: "on.bots takes precedence over top-level bots",
+			frontmatter: `---
+bots: ["top-level-bot[bot]"]
+on:
+  issues:
+    types: [opened]
+  bots: ["on-bots-bot[bot]"]
+---
+
+# Test Workflow
+Test that on.bots takes precedence over top-level bots.`,
+			filename:     "on-bots-precedence.md",
+			expectedBots: []string{"on-bots-bot[bot]"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -151,7 +194,100 @@ Test workflow content.`
 	}
 }
 
-// TestBotsWithDefaultRoles tests that bots work with default roles
+// TestTopLevelBotsCompilation tests that top-level bots (shorthand for on.bots) are compiled correctly
+func TestTopLevelBotsCompilation(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "workflow-top-level-bots-test")
+
+	compiler := NewCompiler()
+
+	frontmatter := `---
+bots: ["dependabot[bot]", "renovate[bot]"]
+on:
+  issues:
+    types: [opened]
+  roles: [triage]
+---
+
+# Test Workflow with Top-Level Bots
+Test workflow content.`
+
+	workflowPath := filepath.Join(tmpDir, "workflow-top-level-bots.md")
+	err := os.WriteFile(workflowPath, []byte(frontmatter), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	err = compiler.CompileWorkflow(workflowPath)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the compiled workflow
+	outputPath := filepath.Join(tmpDir, "workflow-top-level-bots.lock.yml")
+	compiledContent, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	compiledStr := string(compiledContent)
+
+	// Verify that the top-level bots are picked up and produce the GH_AW_ALLOWED_BOTS env var
+	if !strings.Contains(compiledStr, `GH_AW_ALLOWED_BOTS: "dependabot[bot],renovate[bot]"`) {
+		t.Errorf("Expected compiled workflow to contain GH_AW_ALLOWED_BOTS with top-level bots; compiled output:\n%s", compiledStr)
+	}
+}
+
+// TestOnBotsPrecedenceOverTopLevelBots verifies that on.bots takes precedence over top-level bots
+// when both are present, ensuring backward compatibility.
+func TestOnBotsPrecedenceOverTopLevelBots(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "workflow-on-bots-precedence-test")
+
+	compiler := NewCompiler()
+
+	frontmatter := `---
+bots: ["top-level-bot[bot]"]
+on:
+  issues:
+    types: [opened]
+  bots: ["on-bots-bot[bot]"]
+---
+
+# Test Workflow on.bots Precedence
+Test that on.bots takes precedence over top-level bots.`
+
+	workflowPath := filepath.Join(tmpDir, "workflow-on-bots-precedence.md")
+	err := os.WriteFile(workflowPath, []byte(frontmatter), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	err = compiler.CompileWorkflow(workflowPath)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the compiled workflow
+	outputPath := filepath.Join(tmpDir, "workflow-on-bots-precedence.lock.yml")
+	compiledContent, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	compiledStr := string(compiledContent)
+
+	// Only on.bots value should appear in GH_AW_ALLOWED_BOTS
+	if !strings.Contains(compiledStr, `GH_AW_ALLOWED_BOTS: "on-bots-bot[bot]"`) {
+		t.Errorf("Expected GH_AW_ALLOWED_BOTS to contain only on.bots value; compiled output:\n%s", compiledStr)
+	}
+
+	// Top-level bot should NOT appear in GH_AW_ALLOWED_BOTS
+	if strings.Contains(compiledStr, "top-level-bot") {
+		t.Errorf("Expected top-level bots to be ignored when on.bots is present; compiled output:\n%s", compiledStr)
+	}
+}
+
 func TestBotsWithDefaultRoles(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-bots-default-roles-test")
 
