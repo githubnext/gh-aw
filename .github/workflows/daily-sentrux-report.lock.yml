@@ -909,6 +909,19 @@ jobs:
             echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
           fi
       # Upload repo memory as artifacts for push job
+      - name: Sanitize repo-memory filenames (default)
+        if: always()
+        shell: bash
+        run: |
+          find /tmp/gh-aw/repo-memory/default -depth -type f 2>/dev/null | while IFS= read -r f; do
+            dir=$(dirname "$f")
+            base=$(basename "$f")
+            safe=$(printf '%s' "$base" | sed 's/[?:*|<>"]/-/g')
+            if [ "$base" != "$safe" ]; then
+              mv -- "$f" "$dir/$safe" && echo "Renamed: $base -> $safe"
+            fi
+          done
+          true
       - name: Upload repo-memory artifact (default)
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
