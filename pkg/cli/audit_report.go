@@ -246,6 +246,10 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 
 	// Extract experiment data once so it can be used in both the overview and
 	// the dedicated Experiments section without reading the file twice.
+	// Note: AuditWorkflowRun may also call extractExperimentData earlier when an
+	// --experiment filter is active, but that read is guarded by the filter flag so
+	// it only occurs when filtering is requested. This call here is always required
+	// to populate the Experiments section of the report.
 	expData := extractExperimentData(run.LogsPath)
 
 	// Build overview

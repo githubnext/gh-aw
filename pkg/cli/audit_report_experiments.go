@@ -152,7 +152,7 @@ func formatExperimentSkipMessage(runID int64, experimentName, variant string) st
 	if variant != "" {
 		return fmt.Sprintf("Run %d skipped: experiment %q not assigned variant %q", runID, experimentName, variant)
 	}
-	return fmt.Sprintf("Run %d skipped: experiment %q not found in run artifacts", runID, experimentName)
+	return fmt.Sprintf("Run %d skipped: experiment %q not assigned (not found in run artifacts)", runID, experimentName)
 }
 
 // deriveLastSelectedVariant returns the variant selected on the last run based on the

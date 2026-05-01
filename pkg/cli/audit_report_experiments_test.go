@@ -257,7 +257,7 @@ func TestFormatExperimentSkipMessage(t *testing.T) {
 			runID:      12345,
 			experiment: "style",
 			variant:    "",
-			wantSubstr: `experiment "style" not found`,
+			wantSubstr: `experiment "style" not assigned`,
 		},
 		{
 			name:       "experiment and variant message",
