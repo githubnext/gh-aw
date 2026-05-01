@@ -367,7 +367,7 @@ function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
 async function enrichReflectModels(reflectData, timeoutMs, logger) {
   const endpoints = Array.isArray(reflectData.endpoints) ? reflectData.endpoints : [];
   const fetches = endpoints
-    .filter(ep => ep && ep.configured && ep.models == null && ep.models_url)
+    .filter(ep => ep && ep.configured && ep.models === null && ep.models_url)
     .map(async ep => {
       const models = await fetchModelsFromUrl(ep.models_url, timeoutMs, logger);
       if (models) {

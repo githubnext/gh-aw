@@ -783,8 +783,11 @@ describe("copilot_harness.cjs", () => {
         endpoints: [{ provider: "copilot", configured: true, models: null, models_url: `http://127.0.0.1:${port}/models` }],
       };
       const logs = [];
-      await enrichReflectModels(reflectData, 3000, msg => logs.push(msg));
-      server.close();
+      try {
+        await enrichReflectModels(reflectData, 3000, msg => logs.push(msg));
+      } finally {
+        server.close();
+      }
 
       expect(reflectData.endpoints[0].models).toEqual(["claude-sonnet-4.6", "gpt-4o"]);
       expect(logs.some(l => l.includes("fetched 2 model(s)"))).toBe(true);
@@ -837,18 +840,21 @@ describe("copilot_harness.cjs", () => {
       const outputPath = path.join(outputDir, "awf-reflect.json");
       const logs = [];
 
-      await fetchAWFReflect({
-        reflectUrl: `http://127.0.0.1:${port}/reflect`,
-        outputPath,
-        timeoutMs: 3000,
-        modelsTimeoutMs: 1000,
-        logger: msg => logs.push(msg),
-      });
-      server.close();
+      try {
+        await fetchAWFReflect({
+          reflectUrl: `http://127.0.0.1:${port}/reflect`,
+          outputPath,
+          timeoutMs: 3000,
+          modelsTimeoutMs: 1000,
+          logger: msg => logs.push(msg),
+        });
 
-      const saved = JSON.parse(fs.readFileSync(outputPath, "utf8"));
-      expect(saved.endpoints[0].models).toEqual(["gpt-4o", "gpt-4o-mini"]);
-      fs.rmSync(outputDir, { recursive: true, force: true });
+        const saved = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+        expect(saved.endpoints[0].models).toEqual(["gpt-4o", "gpt-4o-mini"]);
+      } finally {
+        server.close();
+        fs.rmSync(outputDir, { recursive: true, force: true });
+      }
     });
   });
 });
