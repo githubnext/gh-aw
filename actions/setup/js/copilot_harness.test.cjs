@@ -1,7 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { createRequire } from "module";
 import fs from "fs";
-import http from "http";
 import os from "os";
 import path from "path";
 
@@ -743,6 +742,10 @@ describe("copilot_harness.cjs", () => {
   });
 
   describe("enrichReflectModels", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
     it("does nothing when all configured endpoints already have models", async () => {
       const reflectData = {
         endpoints: [{ provider: "openai", configured: true, models: ["gpt-4o"], models_url: "http://api-proxy:10000/v1/models" }],
@@ -771,31 +774,24 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("fetches models from models_url for configured endpoints with null models", async () => {
-      // Start a mock HTTP server returning OpenAI-format models
-      const server = http.createServer((req, res) => {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ data: [{ id: "claude-sonnet-4.6" }, { id: "gpt-4o" }] }));
-      });
-      await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
-      const { port } = server.address();
+      const modelResponse = { data: [{ id: "claude-sonnet-4.6" }, { id: "gpt-4o" }] };
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => modelResponse }));
 
       const reflectData = {
-        endpoints: [{ provider: "copilot", configured: true, models: null, models_url: `http://127.0.0.1:${port}/models` }],
+        endpoints: [{ provider: "copilot", configured: true, models: null, models_url: "http://api-proxy:10002/models" }],
       };
       const logs = [];
-      try {
-        await enrichReflectModels(reflectData, 3000, msg => logs.push(msg));
-      } finally {
-        server.close();
-      }
+      await enrichReflectModels(reflectData, 3000, msg => logs.push(msg));
 
       expect(reflectData.endpoints[0].models).toEqual(["claude-sonnet-4.6", "gpt-4o"]);
       expect(logs.some(l => l.includes("fetched 2 model(s)"))).toBe(true);
     });
 
     it("leaves models null when models_url fetch fails", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+
       const reflectData = {
-        endpoints: [{ provider: "openai", configured: true, models: null, models_url: "http://127.0.0.1:1/v1/models" }],
+        endpoints: [{ provider: "openai", configured: true, models: null, models_url: "http://api-proxy:10000/v1/models" }],
       };
       const logs = [];
       await enrichReflectModels(reflectData, 500, msg => logs.push(msg));
@@ -805,36 +801,24 @@ describe("copilot_harness.cjs", () => {
   });
 
   describe("fetchAWFReflect enriches models via fallback", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
     it("saves enriched reflect data when api-proxy returns null models for configured provider", async () => {
-      // Serve the /reflect endpoint with null models for a configured provider
-      // and serve the models_url endpoint with actual model data
       const modelData = { data: [{ id: "gpt-4o" }, { id: "gpt-4o-mini" }] };
       const reflectPayload = {
-        endpoints: [
-          {
-            provider: "openai",
-            port: 10000,
-            configured: true,
-            models: null,
-            models_url: null, // set after server starts
-          },
-        ],
+        endpoints: [{ provider: "openai", port: 10000, configured: true, models: null, models_url: "http://api-proxy:10000/v1/models" }],
         models_fetch_complete: true,
       };
 
-      const server = http.createServer((req, res) => {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        if (req.url === "/reflect") {
-          res.end(JSON.stringify(reflectPayload));
-        } else {
-          res.end(JSON.stringify(modelData));
-        }
-      });
-      await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
-      const { port } = server.address();
-
-      // Point the models_url to our mock server
-      reflectPayload.endpoints[0].models_url = `http://127.0.0.1:${port}/v1/models`;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockImplementation(url => {
+          const body = String(url).includes("/reflect") ? reflectPayload : modelData;
+          return Promise.resolve({ ok: true, status: 200, json: async () => body });
+        })
+      );
 
       const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "awf-reflect-test-"));
       const outputPath = path.join(outputDir, "awf-reflect.json");
@@ -842,7 +826,7 @@ describe("copilot_harness.cjs", () => {
 
       try {
         await fetchAWFReflect({
-          reflectUrl: `http://127.0.0.1:${port}/reflect`,
+          reflectUrl: "http://api-proxy:10000/reflect",
           outputPath,
           timeoutMs: 3000,
           modelsTimeoutMs: 1000,
@@ -852,7 +836,6 @@ describe("copilot_harness.cjs", () => {
         const saved = JSON.parse(fs.readFileSync(outputPath, "utf8"));
         expect(saved.endpoints[0].models).toEqual(["gpt-4o", "gpt-4o-mini"]);
       } finally {
-        server.close();
         fs.rmSync(outputDir, { recursive: true, force: true });
       }
     });

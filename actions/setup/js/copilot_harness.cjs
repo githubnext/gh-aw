@@ -40,7 +40,6 @@
 
 const { spawn } = require("child_process");
 const fs = require("fs");
-const http = require("http");
 const path = require("path");
 
 // Maximum number of retry attempts after the initial run
@@ -312,45 +311,34 @@ function extractModelIds(json) {
  * @param {(msg: string) => void} logger
  * @returns {Promise<string[]|null>}
  */
-function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
-  return new Promise(resolve => {
-    const req = http.get(modelsUrl, res => {
-      let body = "";
-      res.on("data", chunk => {
-        body += chunk.toString();
-      });
-      res.on("end", () => {
-        const sc = res.statusCode ?? 0;
-        if (sc < 200 || sc >= 300) {
-          logger(`awf-reflect: models fetch returned ${sc} for ${modelsUrl}`);
-          resolve(null);
-          return;
-        }
-        try {
-          const json = JSON.parse(body);
-          const models = extractModelIds(json);
-          if (models) {
-            logger(`awf-reflect: fetched ${models.length} model(s) from ${modelsUrl}`);
-          }
-          resolve(models);
-        } catch {
-          logger(`awf-reflect: failed to parse models response from ${modelsUrl}`);
-          resolve(null);
-        }
-      });
-    });
-
-    req.on("error", err => {
-      logger(`awf-reflect: models fetch error for ${modelsUrl}: ${err.message}`);
-      resolve(null);
-    });
-
-    req.setTimeout(timeoutMs, () => {
-      logger(`awf-reflect: models fetch timed out for ${modelsUrl}`);
-      req.destroy();
-      resolve(null);
-    });
-  });
+async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
+  const ac = new AbortController();
+  const timer = setTimeout(() => {
+    logger(`awf-reflect: models fetch timed out for ${modelsUrl}`);
+    ac.abort();
+  }, timeoutMs);
+  try {
+    const res = await fetch(modelsUrl, { signal: ac.signal });
+    if (!res.ok) {
+      logger(`awf-reflect: models fetch returned ${res.status} for ${modelsUrl}`);
+      return null;
+    }
+    const json = await res.json();
+    const models = extractModelIds(json);
+    if (models) {
+      logger(`awf-reflect: fetched ${models.length} model(s) from ${modelsUrl}`);
+    }
+    return models;
+  } catch (err) {
+    const e = /** @type {Error} */ err;
+    if (e.name === "AbortError") {
+      return null; // already logged above
+    }
+    logger(`awf-reflect: models fetch error for ${modelsUrl}: ${e.message}`);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -416,48 +404,36 @@ async function fetchAWFReflect(options) {
 
   logger(`awf-reflect: fetching ${reflectUrl} (timeout=${timeoutMs}ms)`);
 
-  return new Promise(resolve => {
-    const req = http.get(reflectUrl, res => {
-      let body = "";
-      res.on("data", chunk => {
-        body += chunk.toString();
-      });
-      res.on("end", async () => {
-        if (res.statusCode !== 200) {
-          logger(`awf-reflect: unexpected status ${res.statusCode}, skipping`);
-          resolve();
-          return;
-        }
-        try {
-          // Validate that the body is parseable JSON before saving.
-          const reflectData = JSON.parse(body);
-          // Attempt to fill in null models for configured providers by fetching directly
-          // from each endpoint's models_url. The api-proxy injects auth headers when
-          // forwarding these requests, so this succeeds without needing the raw API keys.
-          await enrichReflectModels(reflectData, modelsTimeoutMs, logger);
-          const enrichedBody = JSON.stringify(reflectData);
-          fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-          writeFile(outputPath, enrichedBody, { encoding: "utf8" });
-          logger(`awf-reflect: saved ${enrichedBody.length}B to ${outputPath}`);
-        } catch (err) {
-          const e = /** @type {Error} */ err;
-          logger(`awf-reflect: failed to parse or write response: ${e.message}`);
-        }
-        resolve();
-      });
-    });
+  const ac = new AbortController();
+  const timer = setTimeout(() => {
+    logger(`awf-reflect: request timed out after ${timeoutMs}ms`);
+    ac.abort();
+  }, timeoutMs);
 
-    req.on("error", err => {
-      logger(`awf-reflect: request failed: ${err.message}`);
-      resolve();
-    });
-
-    req.setTimeout(timeoutMs, () => {
-      logger(`awf-reflect: request timed out after ${timeoutMs}ms`);
-      req.destroy();
-      resolve();
-    });
-  });
+  try {
+    const res = await fetch(reflectUrl, { signal: ac.signal });
+    if (!res.ok) {
+      logger(`awf-reflect: unexpected status ${res.status}, skipping`);
+      return;
+    }
+    const reflectData = await res.json();
+    // Attempt to fill in null models for configured providers by fetching directly
+    // from each endpoint's models_url. The api-proxy injects auth headers when
+    // forwarding these requests, so this succeeds without needing the raw API keys.
+    await enrichReflectModels(reflectData, modelsTimeoutMs, logger);
+    const enrichedBody = JSON.stringify(reflectData);
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+    writeFile(outputPath, enrichedBody, { encoding: "utf8" });
+    logger(`awf-reflect: saved ${enrichedBody.length}B to ${outputPath}`);
+  } catch (err) {
+    const e = /** @type {Error} */ err;
+    if (e.name === "AbortError") {
+      return; // already logged above
+    }
+    logger(`awf-reflect: request failed: ${e.message}`);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
