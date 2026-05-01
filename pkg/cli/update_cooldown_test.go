@@ -81,75 +81,97 @@ func TestParseCoolDownFlag(t *testing.T) {
 
 func TestIsExemptFromCoolDown(t *testing.T) {
 	tests := []struct {
+		name string
 		repo string
 		want bool
 	}{
-		{"actions/checkout", true},
-		{"actions/setup-node", true},
-		{"actions/cache/restore", true},
-		{"github/codeql-action", true},
-		{"github/gh-aw", true},
-		{"github/codeql-action/upload-sarif", true},
-		{"owner/repo", false},
-		{"myorg/my-action", false},
-		{"notactions/checkout", false},
-		{"notgithub/repo", false},
+		{name: "actions namespace", repo: "actions/checkout", want: true},
+		{name: "actions namespace with version", repo: "actions/setup-node", want: true},
+		{name: "actions namespace with subpath", repo: "actions/cache/restore", want: true},
+		{name: "github namespace", repo: "github/codeql-action", want: true},
+		{name: "github namespace own repo", repo: "github/gh-aw", want: true},
+		{name: "github namespace with subpath", repo: "github/codeql-action/upload-sarif", want: true},
+		{name: "unrecognized org", repo: "owner/repo", want: false},
+		{name: "custom org action", repo: "myorg/my-action", want: false},
+		{name: "not-actions prefix", repo: "notactions/checkout", want: false},
+		{name: "not-github prefix", repo: "notgithub/repo", want: false},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.repo, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			got := isExemptFromCoolDown(tt.repo)
 			assert.Equal(t, tt.want, got, "isExemptFromCoolDown(%q) result mismatch", tt.repo)
 		})
 	}
 }
 
-func TestCheckReleaseCoolDown_Disabled(t *testing.T) {
-	result := checkReleaseCoolDown(context.Background(), "owner/repo", "v1.2.0", 0)
-	assert.False(t, result.InCoolDown, "cooldown should be disabled when duration is 0")
-}
-
-func TestCheckReleaseCoolDown_OldRelease(t *testing.T) {
-	orig := getReleasePublishedAtFn
-	defer func() { getReleasePublishedAtFn = orig }()
-
-	// Simulate a release published 10 days ago (older than 7-day cooldown)
-	getReleasePublishedAtFn = func(_ context.Context, _, _ string) (time.Time, error) {
-		return time.Now().Add(-10 * 24 * time.Hour), nil
+func TestCheckReleaseCoolDown(t *testing.T) {
+	tests := []struct {
+		name            string
+		coolDown        time.Duration
+		publishedAgo    time.Duration
+		fetchErr        error
+		wantInCoolDown  bool
+		wantPublishedAt bool
+		wantMessage     string
+	}{
+		{
+			name:           "disabled when duration is 0",
+			coolDown:       0,
+			wantInCoolDown: false,
+		},
+		{
+			name:            "old release not in cooldown",
+			coolDown:        7 * 24 * time.Hour,
+			publishedAgo:    10 * 24 * time.Hour,
+			wantInCoolDown:  false,
+			wantPublishedAt: true,
+		},
+		{
+			name:            "recent release in cooldown",
+			coolDown:        7 * 24 * time.Hour,
+			publishedAgo:    2 * 24 * time.Hour,
+			wantInCoolDown:  true,
+			wantPublishedAt: true,
+			wantMessage:     "v1.2.0",
+		},
+		{
+			name:           "fetch error allows update",
+			coolDown:       7 * 24 * time.Hour,
+			fetchErr:       errors.New("network error"),
+			wantInCoolDown: false,
+		},
 	}
 
-	result := checkReleaseCoolDown(context.Background(), "owner/repo", "v1.2.0", 7*24*time.Hour)
-	assert.False(t, result.InCoolDown, "release older than cooldown period should not be blocked")
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			orig := getReleasePublishedAtFn
+			defer func() { getReleasePublishedAtFn = orig }()
 
-func TestCheckReleaseCoolDown_RecentRelease(t *testing.T) {
-	orig := getReleasePublishedAtFn
-	defer func() { getReleasePublishedAtFn = orig }()
+			var published time.Time
+			if tt.fetchErr != nil {
+				getReleasePublishedAtFn = func(_ context.Context, _, _ string) (time.Time, error) {
+					return time.Time{}, tt.fetchErr
+				}
+			} else if tt.coolDown > 0 {
+				published = time.Now().Add(-tt.publishedAgo)
+				getReleasePublishedAtFn = func(_ context.Context, _, _ string) (time.Time, error) {
+					return published, nil
+				}
+			}
 
-	// Simulate a release published 2 days ago (within 7-day cooldown)
-	getReleasePublishedAtFn = func(_ context.Context, _, _ string) (time.Time, error) {
-		return time.Now().Add(-2 * 24 * time.Hour), nil
+			result := checkReleaseCoolDown(context.Background(), "owner/repo", "v1.2.0", tt.coolDown)
+			assert.Equal(t, tt.wantInCoolDown, result.InCoolDown, "InCoolDown mismatch for %q", tt.name)
+			if tt.wantPublishedAt {
+				assert.True(t, result.PublishedAt.Equal(published), "PublishedAt should match the fetched value for %q", tt.name)
+			} else {
+				assert.True(t, result.PublishedAt.IsZero(), "PublishedAt should be zero for %q", tt.name)
+			}
+			if tt.wantMessage != "" {
+				assert.Contains(t, result.Message, tt.wantMessage, "message should contain %q for %q", tt.wantMessage, tt.name)
+			}
+		})
 	}
-
-	result := checkReleaseCoolDown(context.Background(), "owner/repo", "v1.2.0", 7*24*time.Hour)
-	assert.True(t, result.InCoolDown, "release within cooldown period should be blocked")
-	assert.Contains(t, result.Message, "v1.2.0", "message should mention the release tag")
-	assert.Contains(t, result.Message, "cool down", "message should mention cooldown")
-	assert.False(t, result.PublishedAt.IsZero(), "PublishedAt should be populated for caching")
-}
-
-func TestCheckReleaseCoolDown_OldReleaseReturnsPublishedAt(t *testing.T) {
-	orig := getReleasePublishedAtFn
-	defer func() { getReleasePublishedAtFn = orig }()
-
-	published := time.Now().Add(-10 * 24 * time.Hour)
-	getReleasePublishedAtFn = func(_ context.Context, _, _ string) (time.Time, error) {
-		return published, nil
-	}
-
-	result := checkReleaseCoolDown(context.Background(), "owner/repo", "v1.2.0", 7*24*time.Hour)
-	assert.False(t, result.InCoolDown, "old release should not be blocked")
-	assert.True(t, result.PublishedAt.Equal(published), "PublishedAt should be populated even when not in cooldown")
 }
 
 func TestCheckReleaseCoolDownWithDate_InCoolDown(t *testing.T) {
@@ -157,12 +179,17 @@ func TestCheckReleaseCoolDownWithDate_InCoolDown(t *testing.T) {
 	result := checkReleaseCoolDownWithDate("owner/repo", "v1.2.0", publishedAt, 7*24*time.Hour)
 	assert.True(t, result.InCoolDown, "release 2d old should be in cooldown with 7d window")
 	assert.Contains(t, result.Message, "v1.2.0", "message should mention the tag")
+	assert.Contains(t, result.Message, "cool down", "message should mention cooldown")
+	assert.Contains(t, result.Message, "remaining", "message should mention remaining time")
+	assert.Contains(t, result.Message, "owner/repo", "message should mention the repository")
 }
 
 func TestCheckReleaseCoolDownWithDate_NotInCoolDown(t *testing.T) {
 	publishedAt := time.Now().Add(-10 * 24 * time.Hour)
 	result := checkReleaseCoolDownWithDate("owner/repo", "v1.2.0", publishedAt, 7*24*time.Hour)
 	assert.False(t, result.InCoolDown, "release 10d old should not be in cooldown with 7d window")
+	assert.True(t, result.PublishedAt.IsZero(), "PublishedAt should be zero when not in cooldown")
+	assert.Empty(t, result.Message, "Message should be empty when not in cooldown")
 }
 
 func TestCheckReleaseCoolDownWithDate_ZeroDuration(t *testing.T) {
@@ -179,20 +206,6 @@ func TestCheckReleaseCoolDownWithDate_FutureTimestamp(t *testing.T) {
 	assert.True(t, result.InCoolDown, "future timestamp should be treated as just-published and kept in cooldown")
 }
 
-func TestCheckReleaseCoolDown_FetchError(t *testing.T) {
-	orig := getReleasePublishedAtFn
-	defer func() { getReleasePublishedAtFn = orig }()
-
-	// Simulate API error
-	getReleasePublishedAtFn = func(_ context.Context, _, _ string) (time.Time, error) {
-		return time.Time{}, errors.New("network error")
-	}
-
-	// Fail-open: when date can't be fetched, allow update
-	result := checkReleaseCoolDown(context.Background(), "owner/repo", "v1.2.0", 7*24*time.Hour)
-	assert.False(t, result.InCoolDown, "should allow update when published date cannot be fetched")
-}
-
 func TestFormatCoolDownDuration(t *testing.T) {
 	tests := []struct {
 		duration time.Duration
@@ -206,6 +219,7 @@ func TestFormatCoolDownDuration(t *testing.T) {
 		{1 * time.Hour, "1h"},
 		{30 * time.Minute, "< 1h"},
 		{0, "< 1h"},
+		{-1 * time.Hour, "< 1h"},
 	}
 
 	for _, tt := range tests {

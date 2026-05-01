@@ -1311,7 +1311,7 @@ jobs:
             }
 
   pre_activation:
-    if: "github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/mergefest ') || startsWith(github.event.comment.body, '/mergefest\n') || github.event.comment.body == '/mergefest') && github.event.issue.pull_request != null"
+    if: "(github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment' || contains(fromJSON('[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]'), github.event.comment.author_association)) && (github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/mergefest ') || startsWith(github.event.comment.body, '/mergefest\n') || github.event.comment.body == '/mergefest') && github.event.issue.pull_request != null)"
     runs-on: ubuntu-slim
     permissions:
       contents: read

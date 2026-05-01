@@ -1571,7 +1571,7 @@ jobs:
             }
 
   pre_activation:
-    if: "github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/unbloat ') || startsWith(github.event.comment.body, '/unbloat\n') || github.event.comment.body == '/unbloat') && github.event.issue.pull_request != null || !(github.event_name == 'issue_comment')"
+    if: "(github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment' || contains(fromJSON('[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]'), github.event.comment.author_association)) && (github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/unbloat ') || startsWith(github.event.comment.body, '/unbloat\n') || github.event.comment.body == '/unbloat') && github.event.issue.pull_request != null || !(github.event_name == 'issue_comment'))"
     runs-on: ubuntu-slim
     permissions:
       contents: read
