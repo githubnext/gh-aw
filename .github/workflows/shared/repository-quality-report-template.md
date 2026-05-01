@@ -5,7 +5,7 @@
 
 ## Report Template
 
-When generating the quality improvement report, use the structure below. **Use h3 (###) or lower for all headers** — the discussion title is h1.
+When generating the quality improvement report, use the structure below. **Use h3 (###) or lower for all headers in the report to maintain proper document hierarchy.** Never use h1 (#) or h2 (##) — the discussion title is h1 and the containing document uses h2. Start section headers at h3, subsections at h4.
 
 ```markdown
 ### 🎯 Repository Quality Improvement Report - [FOCUS AREA]

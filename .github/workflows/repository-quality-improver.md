@@ -111,7 +111,7 @@ Algorithm: generate a random 0–100 integer, then apply the table above. Record
 
 ### 0.3 Determine Tool Needs
 
-- Code/security analysis → use `bash` commands and optionally Serena MCP (if `serena` input is `true`)
+- Code/security analysis → use `bash` commands; Serena MCP is not configured by default (add `shared/mcp/serena-go.md` to imports and set `serena: true` on dispatch to opt in)
 - Documentation/usability → analysis-based, no special tools needed
 - All areas → use the reporting MCP for structured content
 
@@ -170,7 +170,7 @@ After generating the report, write updated run history to `/tmp/gh-aw/cache-memo
 
 ## Success Criteria
 
-- ✅ Read pre-computed context from `/tmp/gh-aw/agent/analysis-context.md` in turn 1
+- ✅ Read pre-computed context from `/tmp/gh-aw/agent/analysis-context.md` at the start (reading it early avoids spending turns on shell data-gathering, which is the main driver of token cost)
 - ✅ Focus area selected using the 60/30/10 diversity algorithm
 - ✅ Thorough analysis with custom commands when area is non-standard
 - ✅ Exactly one discussion created with the structured report
@@ -184,7 +184,7 @@ After generating the report, write updated run history to `/tmp/gh-aw/cache-memo
 - **Depth**: Provide exact file paths, line numbers, and code examples in findings
 - **Action-orientation**: Every finding must map to a concrete, independently actionable task
 - **Resource efficiency**: Start from pre-computed metrics; only run new bash commands when the pre-computed data is insufficient
-- **Serena MCP**: Only activate if the `serena` workflow input is `true` and deep static analysis adds value
+- **Serena MCP**: Not configured by default. If `serena` workflow input is `true`, add `shared/mcp/serena-go.md` to the workflow imports and re-run for deep static analysis.
 
 ## Output Requirements
 
