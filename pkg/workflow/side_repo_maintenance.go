@@ -11,7 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
-//go:embed assets/side_repo_maintenance_header.txt
+//go:embed assets/side_repo_maintenance_header.md
 var sideRepoMaintenanceHeaderTemplate string
 
 // SideRepoTarget represents a target repository inferred from a checkout block
