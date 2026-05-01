@@ -20,9 +20,11 @@ safe-outputs:
 
       - name: Install TruffleHog
         id: install-trufflehog
+        env:
+          TRUFFLEHOG_VERSION: "3.88.27"
         run: |
-          echo "Installing TruffleHog..."
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+          echo "Installing TruffleHog v${TRUFFLEHOG_VERSION}..."
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin "v${TRUFFLEHOG_VERSION}"
           trufflehog --version
           echo "TruffleHog installed successfully"
 
