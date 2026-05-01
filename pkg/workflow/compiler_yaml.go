@@ -526,6 +526,18 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	// referenced in activation's step env vars.
 	expressionMappings = filterExpressionsForActivation(expressionMappings, data.Jobs, beforeActivationJobs)
 
+	// Add expression mappings for declared experiments.
+	// These ensure the interpolation and substitution steps have GH_AW_EXPERIMENTS_* env vars
+	// set from pick-experiment step outputs, which is required for:
+	//   - Step 2.5 of interpolate_prompt.cjs: substitutes __GH_AW_EXPERIMENTS_*__ placeholders
+	//     produced by runtime_import.cjs from {{#if experiments.name}} template conditionals.
+	//   - The substitute_placeholders step: replaces any remaining occurrences.
+	if len(data.Experiments) > 0 {
+		experimentMappings := ExperimentExpressionMappings(data.Experiments)
+		compilerYamlLog.Printf("Adding %d experiment expression mapping(s)", len(experimentMappings))
+		expressionMappings = append(expressionMappings, experimentMappings...)
+	}
+
 	// Step 2: Add main workflow markdown content to the prompt
 	if c.inlinePrompt || data.InlinedImports {
 		// Inline mode (Wasm/browser): embed the markdown content directly in the YAML

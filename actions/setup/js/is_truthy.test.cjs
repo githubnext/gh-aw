@@ -39,6 +39,12 @@ describe("is_truthy.cjs", () => {
       expect(isTruthy("hello")).toBe(true);
     });
 
+    it('should return false for "no" (case-insensitive)', () => {
+      expect(isTruthy("no")).toBe(false);
+      expect(isTruthy("NO")).toBe(false);
+      expect(isTruthy("No")).toBe(false);
+    });
+
     it("should trim whitespace", () => {
       expect(isTruthy("  false  ")).toBe(false);
       expect(isTruthy("  true  ")).toBe(true);

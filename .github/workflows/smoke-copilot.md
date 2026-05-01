@@ -124,9 +124,15 @@ safe-outputs:
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 timeout-minutes: 15
 strict: false
+experiments:
+  caveman: [yes, no]
 ---
 
 # Smoke Test: Copilot Engine Validation
+
+{{#if experiments.caveman }}
+Talk like a caveman in all your responses and outputs. Use short, broken sentences. Me test. You run.
+{{/if}}
 
 **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 

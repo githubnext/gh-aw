@@ -237,6 +237,33 @@ async function main() {
       core.info("No expression variables found, skipping interpolation");
     }
 
+    // Step 2.5: Substitute experiment placeholders BEFORE template rendering.
+    // When the runtime-import step processes {{#if experiments.name}} conditionals,
+    // it converts them to __GH_AW_EXPERIMENTS_NAME__ placeholders. These must be
+    // resolved with the actual variant value before renderMarkdownTemplate() runs,
+    // otherwise the placeholder string is truthy and the block is always kept.
+    // The activation job exposes GH_AW_EXPERIMENTS_* env vars (from the pick-experiment
+    // step output via the step's env: block), so we can substitute them here.
+    core.info("\n========================================");
+    core.info("[main] STEP 2.5: Experiment Placeholder Substitution");
+    core.info("========================================");
+    let experimentSubCount = 0;
+    for (const [key, value] of Object.entries(process.env)) {
+      if (key.startsWith("GH_AW_EXPERIMENTS_")) {
+        const placeholder = `__${key}__`;
+        if (content.includes(placeholder)) {
+          content = content.split(placeholder).join(value || "");
+          experimentSubCount++;
+          core.info(`  Substituted ${placeholder} → "${value || ""}"`);
+        }
+      }
+    }
+    if (experimentSubCount > 0) {
+      core.info(`Substituted ${experimentSubCount} experiment placeholder(s)`);
+    } else {
+      core.info("No experiment placeholders found in prompt");
+    }
+
     // Step 3: Render template conditionals
     core.info("\n========================================");
     core.info("[main] STEP 3: Template Rendering");
