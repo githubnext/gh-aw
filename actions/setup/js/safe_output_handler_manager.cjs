@@ -24,6 +24,7 @@ const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult
 const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers, isStagedMode } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
 const { listCommentMemoryFiles, COMMENT_MEMORY_DIR } = require("./comment_memory_helpers.cjs");
+const { checkRateLimitHeadroom } = require("./rate_limit_helpers.cjs");
 const nodePath = require("path");
 const fs = require("fs");
 
@@ -1170,6 +1171,11 @@ async function main() {
     // createManifestLogger() touches the file immediately so it exists for artifact upload.
     // In staged mode, pass null so no items are logged (nothing is actually created).
     const logCreatedItem = isStaged ? null : createManifestLogger();
+
+    // Pre-check: log a warning when the installation token's rate-limit headroom is low.
+    // This surfaces quota pressure before writes start so it is visible in the job log
+    // even if no individual write fails.  The check is best-effort – failures are non-fatal.
+    await checkRateLimitHeadroom(github, "safe_outputs_pre_check");
 
     // Process all messages in order of appearance
     const processingResult = await processMessages(messageHandlers, allMessages, logCreatedItem);

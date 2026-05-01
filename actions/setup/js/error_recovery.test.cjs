@@ -10,7 +10,7 @@ global.core = {
   debug: vi.fn(),
 };
 
-import { withRetry, isTransientError, enhanceError, createValidationError, createOperationError, DEFAULT_RETRY_CONFIG } from "./error_recovery.cjs";
+import { withRetry, isTransientError, getRetryAfterMs, enhanceError, createValidationError, createOperationError, DEFAULT_RETRY_CONFIG, RATE_LIMIT_RETRY_CONFIG } from "./error_recovery.cjs";
 
 describe("error_recovery", () => {
   beforeEach(() => {
@@ -331,6 +331,93 @@ describe("error_recovery", () => {
       expect(DEFAULT_RETRY_CONFIG.backoffMultiplier).toBe(2);
       expect(DEFAULT_RETRY_CONFIG.jitterMs).toBe(100);
       expect(DEFAULT_RETRY_CONFIG.shouldRetry).toBe(isTransientError);
+    });
+  });
+
+  describe("RATE_LIMIT_RETRY_CONFIG", () => {
+    it("should have 5 retries", () => {
+      expect(RATE_LIMIT_RETRY_CONFIG.maxRetries).toBe(5);
+    });
+
+    it("should have initialDelayMs producing 30s first retry sleep", () => {
+      // First retry sleep = initialDelayMs * backoffMultiplier
+      const firstRetrySleep = RATE_LIMIT_RETRY_CONFIG.initialDelayMs * RATE_LIMIT_RETRY_CONFIG.backoffMultiplier;
+      expect(firstRetrySleep).toBe(30000);
+    });
+
+    it("should cap delay at 240s", () => {
+      expect(RATE_LIMIT_RETRY_CONFIG.maxDelayMs).toBe(240000);
+    });
+
+    it("should use isTransientError as shouldRetry", () => {
+      expect(RATE_LIMIT_RETRY_CONFIG.shouldRetry).toBe(isTransientError);
+    });
+  });
+
+  describe("getRetryAfterMs", () => {
+    it("should return null when error has no response headers", () => {
+      expect(getRetryAfterMs(new Error("Some error"))).toBeNull();
+      expect(getRetryAfterMs(null)).toBeNull();
+      expect(getRetryAfterMs(undefined)).toBeNull();
+    });
+
+    it("should extract retry-after seconds from response headers", () => {
+      const error = { response: { headers: { "retry-after": "60" } } };
+      expect(getRetryAfterMs(error)).toBe(60000);
+    });
+
+    it("should extract retry-after seconds from top-level headers", () => {
+      const error = { headers: { "retry-after": "30" } };
+      expect(getRetryAfterMs(error)).toBe(30000);
+    });
+
+    it("should prefer response.headers over top-level headers", () => {
+      const error = {
+        response: { headers: { "retry-after": "60" } },
+        headers: { "retry-after": "30" },
+      };
+      expect(getRetryAfterMs(error)).toBe(60000);
+    });
+
+    it("should return null for zero or negative retry-after", () => {
+      expect(getRetryAfterMs({ response: { headers: { "retry-after": "0" } } })).toBeNull();
+      expect(getRetryAfterMs({ response: { headers: { "retry-after": "-1" } } })).toBeNull();
+    });
+
+    it("should fall back to x-ratelimit-reset when retry-after is absent", () => {
+      const futureTimestamp = Math.floor((Date.now() + 120000) / 1000); // 2 min from now
+      const error = { response: { headers: { "x-ratelimit-reset": String(futureTimestamp) } } };
+      const result = getRetryAfterMs(error);
+      // Should be roughly 120s (allow ±5s for test timing)
+      expect(result).toBeGreaterThan(115000);
+      expect(result).toBeLessThan(125000);
+    });
+
+    it("should return null when x-ratelimit-reset is in the past", () => {
+      const pastTimestamp = Math.floor((Date.now() - 60000) / 1000);
+      const error = { response: { headers: { "x-ratelimit-reset": String(pastTimestamp) } } };
+      expect(getRetryAfterMs(error)).toBeNull();
+    });
+
+    it("should return null for non-numeric retry-after", () => {
+      const error = { response: { headers: { "retry-after": "not-a-number" } } };
+      expect(getRetryAfterMs(error)).toBeNull();
+    });
+  });
+
+  describe("withRetry with Retry-After header", () => {
+    it("should use Retry-After delay instead of backoff when header is present", async () => {
+      const retryAfterError = {
+        message: "rate limit exceeded",
+        response: { headers: { "retry-after": "1" } }, // 1s for test speed
+      };
+      const operation = vi.fn().mockRejectedValueOnce(retryAfterError).mockResolvedValue("success");
+
+      const result = await withRetry(operation, { maxRetries: 2, initialDelayMs: 10, backoffMultiplier: 2, jitterMs: 0 }, "test-operation");
+
+      expect(result).toBe("success");
+      // The delay used should be 1000ms (from Retry-After: 1) rather than 20ms (10 * 2)
+      expect(core.info).toHaveBeenCalledWith(expect.stringContaining("Retry-After header detected for test-operation: next retry will wait 1000ms"));
     });
   });
 });

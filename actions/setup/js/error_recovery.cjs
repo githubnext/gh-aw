@@ -34,6 +34,25 @@ const DEFAULT_RETRY_CONFIG = {
 };
 
 /**
+ * Retry configuration for GitHub API rate-limit scenarios.
+ * Uses longer delays to handle installation token exhaustion during burst windows.
+ *
+ * Backoff sequence (approximate — jitter of up to 5 s is added per retry):
+ *   ~30 s → ~60 s → ~120 s → ~240 s → ~240 s (capped)
+ *
+ * Note: The first actual retry sleep = initialDelayMs * backoffMultiplier = 15 000 * 2 = 30 000 ms.
+ * @type {RetryConfig}
+ */
+const RATE_LIMIT_RETRY_CONFIG = {
+  maxRetries: 5,
+  initialDelayMs: 15000, // 15 s × backoffMultiplier(2) = 30 s first retry
+  maxDelayMs: 240000, // 4-minute cap
+  backoffMultiplier: 2,
+  jitterMs: 5000, // Up to 5 s of jitter to spread concurrent retries
+  shouldRetry: isTransientError,
+};
+
+/**
  * Determine if an error is transient and worth retrying
  * @param {any} error - The error to check
  * @returns {boolean} True if the error is transient and should be retried
@@ -78,6 +97,45 @@ function isTransientError(error) {
  */
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Extract the Retry-After delay in milliseconds from a GitHub API rate-limit error.
+ *
+ * GitHub returns one of two headers on 429 / 403-rate-limit responses:
+ *   - `retry-after`       – integer seconds to wait (per RFC 6585)
+ *   - `x-ratelimit-reset` – Unix timestamp (seconds) when the quota resets
+ *
+ * @param {any} error - The error object from a failed GitHub API call
+ * @returns {number|null} Milliseconds to wait, or null if no header is present
+ */
+function getRetryAfterMs(error) {
+  // Octokit surfaces response headers via error.response.headers or error.headers
+  const headers = error?.response?.headers ?? error?.headers ?? null;
+  if (!headers) return null;
+
+  // retry-after: number of seconds (highest priority)
+  const retryAfter = headers["retry-after"];
+  if (retryAfter != null) {
+    const seconds = parseInt(retryAfter, 10);
+    if (!isNaN(seconds) && seconds > 0) {
+      return seconds * 1000;
+    }
+  }
+
+  // x-ratelimit-reset: Unix timestamp — derive wait time from clock delta
+  const resetAt = headers["x-ratelimit-reset"];
+  if (resetAt != null) {
+    const resetTimestampMs = parseInt(resetAt, 10) * 1000;
+    if (!isNaN(resetTimestampMs)) {
+      const waitMs = resetTimestampMs - Date.now();
+      if (waitMs > 0) {
+        return waitMs;
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -140,8 +198,21 @@ async function withRetry(operation, config = {}, operationName = "operation") {
       // Log the retry attempt
       core.warning(`${operationName} failed (attempt ${attempt + 1}/${fullConfig.maxRetries + 1}): ${errorMsg}`);
 
-      // Calculate next delay with exponential backoff
-      delay = Math.min(delay * fullConfig.backoffMultiplier, fullConfig.maxDelayMs);
+      // Calculate next delay: honour Retry-After header when present, otherwise
+      // use exponential backoff.  Either way the result is capped at maxDelayMs.
+      const retryAfterMs = getRetryAfterMs(error);
+      if (retryAfterMs !== null) {
+        const cappedDelay = Math.min(retryAfterMs, fullConfig.maxDelayMs);
+        if (cappedDelay < retryAfterMs) {
+          core.info(`Retry-After header detected for ${operationName}: server requested ${retryAfterMs}ms wait, capped to ${cappedDelay}ms (maxDelayMs)`);
+        } else {
+          core.info(`Retry-After header detected for ${operationName}: next retry will wait ${cappedDelay}ms`);
+        }
+        delay = cappedDelay;
+      } else {
+        // Calculate next delay with exponential backoff
+        delay = Math.min(delay * fullConfig.backoffMultiplier, fullConfig.maxDelayMs);
+      }
     }
   }
 
@@ -266,8 +337,10 @@ module.exports = {
   withRetry,
   sleep,
   isTransientError,
+  getRetryAfterMs,
   enhanceError,
   createValidationError,
   createOperationError,
   DEFAULT_RETRY_CONFIG,
+  RATE_LIMIT_RETRY_CONFIG,
 };

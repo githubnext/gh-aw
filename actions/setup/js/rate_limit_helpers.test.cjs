@@ -80,4 +80,62 @@ describe("rate_limit_helpers", () => {
       expect(MIN_RATE_LIMIT_REMAINING).toBe(100);
     });
   });
+
+  describe("LOW_RATE_LIMIT_THRESHOLD_PERCENT", () => {
+    it("should be 20", async () => {
+      const { LOW_RATE_LIMIT_THRESHOLD_PERCENT } = await import("./rate_limit_helpers.cjs");
+      expect(LOW_RATE_LIMIT_THRESHOLD_PERCENT).toBe(20);
+    });
+  });
+
+  describe("checkRateLimitHeadroom", () => {
+    it("should return remaining, limit, and percentRemaining", async () => {
+      const { checkRateLimitHeadroom } = await import("./rate_limit_helpers.cjs");
+      mockGithub.rest.rateLimit.get.mockResolvedValue({
+        data: {
+          rate: { remaining: 4000, limit: 5000, used: 1000 },
+          resources: {},
+        },
+      });
+      const result = await checkRateLimitHeadroom(mockGithub, "test");
+      expect(result.remaining).toBe(4000);
+      expect(result.limit).toBe(5000);
+      expect(result.percentRemaining).toBe(80);
+    });
+
+    it("should log info when headroom is above threshold", async () => {
+      const { checkRateLimitHeadroom } = await import("./rate_limit_helpers.cjs");
+      mockGithub.rest.rateLimit.get.mockResolvedValue({
+        data: {
+          rate: { remaining: 4000, limit: 5000, used: 1000 },
+          resources: {},
+        },
+      });
+      await checkRateLimitHeadroom(mockGithub, "test");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Rate-limit headroom: 4000/5000"));
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+
+    it("should emit warning when headroom is below threshold", async () => {
+      const { checkRateLimitHeadroom } = await import("./rate_limit_helpers.cjs");
+      mockGithub.rest.rateLimit.get.mockResolvedValue({
+        data: {
+          rate: { remaining: 500, limit: 5000, used: 4500 },
+          resources: {},
+        },
+      });
+      await checkRateLimitHeadroom(mockGithub, "test");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Rate-limit headroom low: 500/5000"));
+    });
+
+    it("should return -1 values and warn on error", async () => {
+      const { checkRateLimitHeadroom } = await import("./rate_limit_helpers.cjs");
+      mockGithub.rest.rateLimit.get.mockRejectedValue(new Error("API error"));
+      const result = await checkRateLimitHeadroom(mockGithub, "test");
+      expect(result.remaining).toBe(-1);
+      expect(result.limit).toBe(-1);
+      expect(result.percentRemaining).toBe(-1);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not check rate-limit headroom"));
+    });
+  });
 });
