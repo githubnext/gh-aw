@@ -20,6 +20,7 @@ imports:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [repos, issues]
   bash: true
   cache-memory: true

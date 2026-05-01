@@ -22,7 +22,9 @@ imports:
   - shared/mcp/serena-go.md
 
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [repos]
   edit:
   bash:

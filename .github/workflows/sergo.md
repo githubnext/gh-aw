@@ -29,8 +29,10 @@ imports:
   - shared/mcp/serena-go.md
 
 tools:
+  cli-proxy: true
   cache-memory: true
   github:
+    mode: gh-proxy
     toolsets: [default, issues]
   edit:
   bash:

@@ -13,6 +13,7 @@ engine:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [pull_requests]
   bash:
     - "git diff:*"

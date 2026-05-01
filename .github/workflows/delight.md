@@ -36,6 +36,7 @@ safe-outputs:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, discussions]
   bash:
     - "find docs/src/content/docs -name '*.md' -o -name '*.mdx'"
@@ -523,6 +524,7 @@ Configure MCP servers in your workflow frontmatter under the `tools` section. Fo
 \`\`\`yaml
 tools:
   github:
+    mode: gh-proxy
     toolsets: [default]
 \`\`\`
 

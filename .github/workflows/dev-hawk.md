@@ -19,6 +19,7 @@ tools:
   cli-proxy: true
   agentic-workflows:
   github:
+    mode: gh-proxy
     toolsets: [pull_requests, actions, repos]
   bash:
     - "gh agent-task create *"

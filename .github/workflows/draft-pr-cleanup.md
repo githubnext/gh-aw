@@ -13,6 +13,7 @@ strict: true
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [pull_requests, repos]
   bash:
     - "jq *"

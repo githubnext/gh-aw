@@ -26,7 +26,9 @@ network:
     - go
 
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default]
   cache-memory: true
   edit:
@@ -124,8 +126,7 @@ You MUST NOT:
    ```
 
 3. If `rotation.json` is missing or empty, recover round-robin state from the most recently merged PR with the `pkg-specifications` label:
-   - Use the GitHub MCP server (not direct `gh api` calls) to find the latest merged PR in this repository with a query equivalent to:
-     - `repo:${{ github.repository }} is:pr is:merged label:pkg-specifications sort:merged-desc`
+   - Use `gh pr list --repo ${{ github.repository }} --state merged --label pkg-specifications --limit 1 --json number,body` to find the latest merged PR in this repository
    - Parse this line from the PR body:
      - `- **Next packages in rotation**: <list>`
    - Use this matching pattern:

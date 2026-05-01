@@ -12,7 +12,9 @@ imports:
     with:
       min-integrity: approved
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [pull_requests, repos, issues]
 safe-outputs:
   create-pull-request:

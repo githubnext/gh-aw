@@ -18,6 +18,7 @@ tools:
   agentic-workflows:
   cache-memory: true
   github:
+    mode: gh-proxy
     toolsets: [default, actions]
 safe-outputs:
   create-issue:

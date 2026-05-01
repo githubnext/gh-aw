@@ -13,6 +13,7 @@ engine: copilot
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     min-integrity: approved
     toolsets:
       - repos

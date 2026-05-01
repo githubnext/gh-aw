@@ -17,7 +17,9 @@ network:
     - defaults
     - github
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default]
   bash:
     - "jq *"
@@ -66,7 +68,7 @@ These paths are populated by imported setup components:
 
 ## Hard Requirements
 
-0. **Never use direct GitHub CLI API reads** (`gh api`, `gh repo view`, `gh pr list`) in analysis steps. Use MCP `github` tools for GitHub reads.
+0. **Use `gh` CLI for GitHub reads** (`gh pr list`, `gh pr view`, `gh issue list`, etc.) in analysis steps. The `gh` CLI is pre-authenticated and is the primary tool for reading from GitHub.
 1. Process **all available sessions** in the last 14 days (deterministic; no sampling unless data is too large to load in one pass).
 2. Parse session event data from `events.jsonl` when available.
 3. Detect these classes of issues:
@@ -155,7 +157,7 @@ jq '[.[] | select(.state == "CLOSED" and .mergedAt == null)]
 For each topic with **two or more** closed-without-merge PRs (retry-blocked topics):
 
 1. Record the PR numbers, titles, and close dates.
-2. Use the GitHub MCP `get_pull_request` or `search_pull_requests` tool to read the most recent closed PR and identify the close reason (review comments, CI failures, or reviewer request).
+2. Use `gh pr view <number>` or `gh pr list --search` to read the most recent closed PR and identify the close reason (review comments, CI failures, or reviewer request).
 3. Classify the close reason into one of:
    - `ci-failure` — tests or lint failed
    - `reviewer-rejected` — maintainer closed without merging and left a reason

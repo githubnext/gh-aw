@@ -39,6 +39,7 @@ safe-outputs:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     min-integrity: approved
     toolsets: [default, discussions]
   bash:

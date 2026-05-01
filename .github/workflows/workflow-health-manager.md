@@ -8,9 +8,11 @@ permissions:
   actions: read
 engine: copilot
 tools:
+  cli-proxy: true
   bash: [":*"]
   edit:
   github:
+    mode: gh-proxy
     toolsets: [default, actions]
   repo-memory:
     branch-name: memory/meta-orchestrators

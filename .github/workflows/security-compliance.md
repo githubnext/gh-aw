@@ -33,7 +33,9 @@ safe-outputs:
     group: true
 
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [repos, search, code_security]
   repo-memory:
     branch-name: memory/campaigns

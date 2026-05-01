@@ -39,6 +39,7 @@ tools:
   bash:
     - "*"
   github:
+    mode: gh-proxy
     min-integrity: approved
     trusted-users:
       - pelikhan

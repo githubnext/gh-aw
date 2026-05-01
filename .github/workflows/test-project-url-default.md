@@ -4,6 +4,8 @@ engine: copilot
 on:
   workflow_dispatch:
 
+tools:
+  cli-proxy: true
 safe-outputs:
   update-project:
     max: 5

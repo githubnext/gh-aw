@@ -34,6 +34,7 @@ tools:
     - "wc*"
   edit:
   github:
+    mode: gh-proxy
     toolsets: [default, repos, pull_requests]
 
 timeout-minutes: 30

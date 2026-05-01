@@ -27,7 +27,9 @@ safe-outputs:
     max: 1
 
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, issues]
   edit:
 

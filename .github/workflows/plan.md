@@ -14,6 +14,7 @@ engine: copilot
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, discussions]
     allowed-repos: all
     min-integrity: none

@@ -15,6 +15,7 @@ tools:
   cli-proxy: true
   agentic-workflows:
   github:
+    mode: gh-proxy
     toolsets: [default, actions]
   bash: ["*"]
 safe-outputs:

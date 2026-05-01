@@ -19,6 +19,7 @@ engine:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [pull_requests, repos, issues]
     allowed-repos: all
     min-integrity: none

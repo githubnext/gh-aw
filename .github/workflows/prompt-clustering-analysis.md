@@ -40,6 +40,7 @@ tools:
   agentic-workflows:
   cache-memory: true
   github:
+    mode: gh-proxy
     toolsets: [repos, pull_requests]
   bash: ["*"]
 
