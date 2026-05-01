@@ -146,7 +146,7 @@ func TestUpdateActions_SafeOutputsInputsPreserved(t *testing.T) {
 		t.Fatalf("failed to chdir: %v", err)
 	}
 
-	if err := UpdateActions(context.Background(), false, false, false); err != nil {
+	if err := UpdateActions(context.Background(), false, false, false, 0); err != nil {
 		t.Fatalf("UpdateActions() error = %v", err)
 	}
 
@@ -353,7 +353,7 @@ func TestUpdateActionRefsInContent_NonCoreActionsUnchanged(t *testing.T) {
   - run: echo hello`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, newContent, err := updateActionRefsInContent(context.Background(), input, cache, false, false)
+	changed, newContent, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), false, false, 0)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -372,7 +372,7 @@ steps:
   - run: echo world`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, _, err := updateActionRefsInContent(context.Background(), input, cache, true, false)
+	changed, _, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), true, false, 0)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -408,7 +408,7 @@ func TestUpdateActionRefsInContent_VersionTagReplacement(t *testing.T) {
   - run: echo hello`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, got, err := updateActionRefsInContent(context.Background(), input, cache, true, false)
+	changed, got, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), true, false, 0)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -435,7 +435,7 @@ func TestUpdateActionRefsInContent_SHAPinnedReplacement(t *testing.T) {
 	want := "        uses: actions/checkout@" + newSHA + "  # v6.0.2"
 
 	cache := make(map[string]latestReleaseResult)
-	changed, got, err := updateActionRefsInContent(context.Background(), input, cache, true, false)
+	changed, got, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), true, false, 0)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -464,7 +464,7 @@ func TestUpdateActionRefsInContent_CacheReusedAcrossLines(t *testing.T) {
   - uses: actions/github-script@v7`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, _, err := updateActionRefsInContent(context.Background(), input, cache, true, false)
+	changed, _, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), true, false, 0)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -502,7 +502,7 @@ func TestUpdateActionRefsInContent_AllOrgsUpdatedWhenAllowMajor(t *testing.T) {
   - uses: github/codeql-action@v4`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, got, err := updateActionRefsInContent(context.Background(), input, cache, true, false)
+	changed, got, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), true, false, 0)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -665,7 +665,7 @@ func TestUpdateActions_GhAwNativeActionCappedAtCLIVersion(t *testing.T) {
 		t.Fatalf("failed to chdir: %v", err)
 	}
 
-	if err := UpdateActions(context.Background(), false, false, false); err != nil {
+	if err := UpdateActions(context.Background(), false, false, false, 0); err != nil {
 		t.Fatalf("UpdateActions() error = %v", err)
 	}
 
