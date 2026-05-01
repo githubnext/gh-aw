@@ -51,6 +51,7 @@ const HANDLER_MAP = {
   resolve_pull_request_review_thread: "./resolve_pr_review_thread.cjs",
   create_pull_request: "./create_pull_request.cjs",
   push_to_pull_request_branch: "./push_to_pull_request_branch.cjs",
+  edit_wiki: "./edit_wiki.cjs",
   update_pull_request: "./update_pull_request.cjs",
   merge_pull_request: "./merge_pull_request.cjs",
   close_pull_request: "./close_pull_request.cjs",

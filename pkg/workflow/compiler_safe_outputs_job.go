@@ -91,11 +91,11 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix)...)
 
-	// Add patch artifact download if create-pull-request or push-to-pull-request-branch is enabled
-	// Both of these safe outputs require the patch file to apply changes
+	// Add patch artifact download if create-pull-request, push-to-pull-request-branch, or edit-wiki is enabled.
+	// All of these safe outputs require the patch file to apply changes.
 	// Download from unified agent artifact (prefixed in workflow_call context)
 	if usesPatchesAndCheckouts(data.SafeOutputs) {
-		consolidatedSafeOutputsJobLog.Print("Adding patch artifact download for create-pull-request or push-to-pull-request-branch")
+		consolidatedSafeOutputsJobLog.Print("Adding patch artifact download for create-pull-request, push-to-pull-request-branch, or edit-wiki")
 		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
 			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
 			DownloadPath: "/tmp/gh-aw/",
@@ -104,10 +104,14 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 		})
 		steps = append(steps, patchDownloadSteps...)
 
-		// Add checkout and git config steps for PR operations
-		consolidatedSafeOutputsJobLog.Print("Adding shared checkout step for PR operations")
-		checkoutSteps := c.buildSharedPRCheckoutSteps(data)
-		steps = append(steps, checkoutSteps...)
+		// Add checkout and git config steps only for PR-based operations.
+		// edit-wiki clones the wiki repository at runtime in its handler and
+		// does not need a compile-time checkout of the source repository.
+		if usesPRCheckout(data.SafeOutputs) {
+			consolidatedSafeOutputsJobLog.Print("Adding shared checkout step for PR operations")
+			checkoutSteps := c.buildSharedPRCheckoutSteps(data)
+			steps = append(steps, checkoutSteps...)
+		}
 	}
 
 	// Configure GH_HOST for GHES/GHEC compatibility.
@@ -483,7 +487,7 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 	// "Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under .../actions/setup".
 	// We add a restore checkout step (if: always()) as the last step so the post-step
 	// can always find action.yml and complete its /tmp/gh-aw cleanup.
-	if c.actionMode.IsDev() && usesPatchesAndCheckouts(data.SafeOutputs) {
+	if c.actionMode.IsDev() && usesPRCheckout(data.SafeOutputs) {
 		steps = append(steps, c.generateRestoreActionsSetupStep())
 		consolidatedSafeOutputsJobLog.Print("Added restore actions folder step to safe_outputs job (dev mode with checkout)")
 	}

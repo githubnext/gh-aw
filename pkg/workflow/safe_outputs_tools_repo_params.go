@@ -35,6 +35,11 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 			hasAllowedRepos = len(config.AllowedRepos) > 0
 			targetRepoSlug = config.TargetRepoSlug
 		}
+	case "edit_wiki":
+		if config := safeOutputs.EditWiki; config != nil {
+			hasAllowedRepos = len(config.AllowedRepos) > 0
+			targetRepoSlug = config.TargetRepoSlug
+		}
 	case "create_pull_request_review_comment":
 		if config := safeOutputs.CreatePullRequestReviewComments; config != nil {
 			hasAllowedRepos = len(config.AllowedRepos) > 0

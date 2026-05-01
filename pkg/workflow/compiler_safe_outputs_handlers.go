@@ -455,6 +455,26 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddBoolPtr("check_branch_protection", c.CheckBranchProtection).
 			Build()
 	},
+	"edit_wiki": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.EditWiki == nil {
+			return nil
+		}
+		c := cfg.EditWiki
+		maxPatchSize := 1024 // default 1024 KB
+		if cfg.MaximumPatchSize > 0 {
+			maxPatchSize = cfg.MaximumPatchSize
+		}
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
+			AddIfNotEmpty("commit_title_suffix", c.CommitTitleSuffix).
+			AddDefault("max_patch_size", maxPatchSize).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("staged", c.Staged).
+			Build()
+	},
 	"update_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.UpdatePullRequests == nil {
 			return nil

@@ -271,6 +271,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.PushToPullRequestBranch = pushToBranchConfig
 			}
 
+			// Handle edit-wiki
+			editWikiConfig := c.parseEditWikiConfig(outputMap)
+			if editWikiConfig != nil {
+				config.EditWiki = editWikiConfig
+			}
+
 			// Handle upload-asset
 			uploadAssetsConfig := c.parseUploadAssetConfig(outputMap)
 			if uploadAssetsConfig != nil {

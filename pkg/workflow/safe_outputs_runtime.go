@@ -36,7 +36,7 @@ func (c *Compiler) formatFrameworkJobRunsOn(data *WorkflowData) string {
 }
 
 // usesPatchesAndCheckouts checks if the workflow uses safe outputs that require
-// git patches and checkouts (create-pull-request or push-to-pull-request-branch).
+// git patches and checkouts (create-pull-request, push-to-pull-request-branch, or edit-wiki).
 // Staged handlers are excluded because they only emit preview output and do not
 // perform real git operations or API calls.
 func usesPatchesAndCheckouts(safeOutputs *SafeOutputsConfig) bool {
@@ -45,8 +45,28 @@ func usesPatchesAndCheckouts(safeOutputs *SafeOutputsConfig) bool {
 	}
 	createPRNeedsCheckout := safeOutputs.CreatePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreatePullRequests.Staged)
 	pushToPRNeedsCheckout := safeOutputs.PushToPullRequestBranch != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.PushToPullRequestBranch.Staged)
+	editWikiNeedsCheckout := safeOutputs.EditWiki != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.EditWiki.Staged)
+	result := createPRNeedsCheckout || pushToPRNeedsCheckout || editWikiNeedsCheckout
+	safeOutputsRuntimeLog.Printf("usesPatchesAndCheckouts: createPR=%v(needsCheckout=%v), pushToPRBranch=%v(needsCheckout=%v), editWiki=%v(needsCheckout=%v), result=%v",
+		safeOutputs.CreatePullRequests != nil, createPRNeedsCheckout,
+		safeOutputs.PushToPullRequestBranch != nil, pushToPRNeedsCheckout,
+		safeOutputs.EditWiki != nil, editWikiNeedsCheckout,
+		result)
+	return result
+}
+
+// usesPRCheckout checks if the workflow uses safe outputs that require checking out
+// the repository and configuring git (create-pull-request or push-to-pull-request-branch).
+// edit-wiki is excluded because the edit-wiki handler clones the wiki repository at
+// runtime and does not need a compile-time checkout of the source repository.
+func usesPRCheckout(safeOutputs *SafeOutputsConfig) bool {
+	if safeOutputs == nil {
+		return false
+	}
+	createPRNeedsCheckout := safeOutputs.CreatePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreatePullRequests.Staged)
+	pushToPRNeedsCheckout := safeOutputs.PushToPullRequestBranch != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.PushToPullRequestBranch.Staged)
 	result := createPRNeedsCheckout || pushToPRNeedsCheckout
-	safeOutputsRuntimeLog.Printf("usesPatchesAndCheckouts: createPR=%v(needsCheckout=%v), pushToPRBranch=%v(needsCheckout=%v), result=%v",
+	safeOutputsRuntimeLog.Printf("usesPRCheckout: createPR=%v(needsCheckout=%v), pushToPRBranch=%v(needsCheckout=%v), result=%v",
 		safeOutputs.CreatePullRequests != nil, createPRNeedsCheckout,
 		safeOutputs.PushToPullRequestBranch != nil, pushToPRNeedsCheckout,
 		result)
