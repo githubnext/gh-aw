@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -133,40 +134,26 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 }
 
 // buildExperimentSpecJSON builds a compact JSON object from the experiments map.
-// The JSON is safe to embed in a YAML single-quoted scalar (no single quotes in output).
+// Uses encoding/json for proper escaping of all special characters.
+// The resulting JSON is safe to embed in a YAML single-quoted scalar (no single quotes in output).
 func buildExperimentSpecJSON(experiments map[string][]string, names []string) string {
+	// Build JSON manually with encoding/json for individual values to ensure
+	// correct escaping of all special characters.  We iterate names (a sorted slice)
+	// rather than the map directly to produce deterministic output.
 	var sb strings.Builder
 	sb.WriteString("{")
 	for i, name := range names {
 		if i > 0 {
 			sb.WriteString(",")
 		}
-		sb.WriteString("\"")
-		sb.WriteString(escapeJSONString(name))
-		sb.WriteString("\":[")
-		variants := experiments[name]
-		for j, v := range variants {
-			if j > 0 {
-				sb.WriteString(",")
-			}
-			sb.WriteString("\"")
-			sb.WriteString(escapeJSONString(v))
-			sb.WriteString("\"")
-		}
-		sb.WriteString("]")
+		keyBytes, _ := json.Marshal(name)
+		varBytes, _ := json.Marshal(experiments[name])
+		sb.Write(keyBytes)
+		sb.WriteString(":")
+		sb.Write(varBytes)
 	}
 	sb.WriteString("}")
 	return sb.String()
-}
-
-// escapeJSONString escapes a string for embedding in a JSON value.
-func escapeJSONString(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `"`, `\"`)
-	s = strings.ReplaceAll(s, "\n", `\n`)
-	s = strings.ReplaceAll(s, "\r", `\r`)
-	s = strings.ReplaceAll(s, "\t", `\t`)
-	return s
 }
 
 // sortedExperimentNames returns the experiment names in sorted order for deterministic output.

@@ -65,23 +65,22 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 
 		// Extract the content (without ${{ }})
 		content := strings.TrimSpace(match[1])
+		originalContent := content
 
 		// Apply activation output transformation for backward compatibility
 		// This transforms needs.activation.outputs.{text|title|body} to steps.sanitized.outputs.{text|title|body}
 		// Users should now use steps.sanitized.outputs.* directly; this transformation exists only for
 		// backward compatibility with existing workflows.
-		transformedContent := transformActivationOutputs(content)
-		if transformedContent != content {
-			expressionExtractionLog.Printf("Transformed expression: %s -> %s", content, transformedContent)
-			content = transformedContent
+		if t := transformActivationOutputs(content); t != content {
+			expressionExtractionLog.Printf("Transformed expression: %s -> %s", content, t)
+			content = t
 		}
 
 		// Detect experiments.NAME expressions and remap them to env.GH_AW_EXPERIMENTS_NAME
 		// so the substitution step reads the value set by the experiment selection step via GITHUB_ENV.
-		transformedContent = transformExperimentsExpression(content)
-		if transformedContent != content {
-			expressionExtractionLog.Printf("Transformed experiment expression: %s -> %s", content, transformedContent)
-			content = transformedContent
+		if t := transformExperimentsExpression(content); t != content {
+			expressionExtractionLog.Printf("Transformed experiment expression: %s -> %s", content, t)
+			content = t
 		}
 
 		// Skip if we've already seen this expression (also prevents duplicate deprecation warnings)
@@ -89,10 +88,10 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 			continue
 		}
 
-		// Emit deprecation warning once per unique deprecated expression
-		if transformedContent != strings.TrimSpace(match[1]) {
+		// Emit deprecation warning once per unique deprecated activation-output expression
+		if content != originalContent && strings.HasPrefix(content, "steps.sanitized.outputs.") {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-				fmt.Sprintf("Deprecated expression ${{ %s }}: use ${{ %s }} instead.", strings.TrimSpace(match[1]), transformedContent),
+				fmt.Sprintf("Deprecated expression ${{ %s }}: use ${{ %s }} instead.", originalContent, content),
 			))
 		}
 
@@ -202,9 +201,12 @@ var experimentNameRegex = regexp.MustCompile(`^experiments\.([a-zA-Z_][a-zA-Z0-9
 
 // ExperimentEnvVarName returns the GITHUB_ENV / GITHUB_OUTPUT variable name used by the
 // pick_experiment step for the given experiment name.
+// The name is uppercased and any character that is not A-Z, 0-9, or underscore is replaced
+// with underscore, matching the JavaScript normalization in pick_experiment.cjs.
 // Example: "feature1" → "GH_AW_EXPERIMENTS_FEATURE1"
+// Example: "my-flag"  → "GH_AW_EXPERIMENTS_MY_FLAG"
 func ExperimentEnvVarName(experimentName string) string {
-	return "GH_AW_EXPERIMENTS_" + strings.ToUpper(experimentName)
+	return "GH_AW_EXPERIMENTS_" + normalizeJobNameForEnvVar(experimentName)
 }
 
 // transformExperimentsExpression detects expressions of the form "experiments.<name>"
