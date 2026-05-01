@@ -24,6 +24,7 @@ imports:
   - shared/gh.md
   - shared/reporting-otlp.md
   - shared/mcp/serena-go.md
+  - shared/trufflehog.md
 network:
   allowed:
     - defaults
