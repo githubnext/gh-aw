@@ -97,8 +97,13 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 	// those platforms the first attempt would silently install an older stable
 	// release instead of the desired prerelease.  Skip directly to the pin-based
 	// install to ensure the exact target version is installed.
+	// Note: on Linux/Windows the binary is locked, so gh extension upgrade --force
+	// fails with ETXTBSY/Access-denied and we fall through to the rename+retry path
+	// which already uses pin-based install; the check below is only needed for
+	// platforms (e.g. macOS) where the first attempt would "succeed" with the wrong
+	// version.
 	if includePrereleases && !needsRenameWorkaround() {
-		updateExtensionCheckLog.Printf("Prerelease target on non-rename-workaround platform: skipping gh extension upgrade, using pin-based install for %s", latestVersion)
+		updateExtensionCheckLog.Printf("Prerelease upgrade on macOS: skipping gh extension upgrade (uses /releases/latest, ignores prereleases), using pin-based install for %s", latestVersion)
 		removeCmd := exec.Command("gh", "extension", "remove", extensionRepo)
 		removeCmd.Stdout = os.Stderr
 		removeCmd.Stderr = os.Stderr
@@ -174,7 +179,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 			if runtime.GOOS == "windows" {
 				tmpBackup := filepath.Join(os.TempDir(), filepath.Base(backupPath))
 				if moveErr := os.Rename(backupPath, tmpBackup); moveErr == nil {
-					updateExtensionCheckLog.Printf("Moved Windows backup %s → %s to free extension directory for removal", backupPath, tmpBackup)
+					updateExtensionCheckLog.Printf("Moved Windows backup %s -> %s to free extension directory for removal", backupPath, tmpBackup)
 					backupPath = tmpBackup
 				} else {
 					updateExtensionCheckLog.Printf("Could not move backup to temp directory (gh extension remove may fail): %v", moveErr)
