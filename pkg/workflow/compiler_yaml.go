@@ -317,7 +317,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 			hash, err = parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, data.RawFrontmatter, cache, parser.DefaultFileReader)
 		}
 		if err != nil {
-			return "", nil, nil, fmt.Errorf("failed to compute frontmatter hash (workflow will have non-deterministic delimiters): %w", err)
+			return "", nil, nil, fmt.Errorf("failed to generate workflow YAML: could not compute stable frontmatter hash for %q: %w", markdownPath, err)
 		}
 		frontmatterHash = hash
 		compilerYamlLog.Printf("Computed frontmatter hash: %s", hash)

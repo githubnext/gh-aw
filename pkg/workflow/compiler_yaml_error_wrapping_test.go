@@ -153,10 +153,13 @@ func TestGenerateYAML_FrontmatterHashFailure(t *testing.T) {
 		RawMarkdown: "", // empty → triggers disk-read fallback
 	}
 
-	_, _, _, err := compiler.generateYAML(data, "/nonexistent/path/to/workflow.md")
+	tmpDir := t.TempDir()
+	missingPath := filepath.Join(tmpDir, "workflow.md")
+
+	_, _, _, err := compiler.generateYAML(data, missingPath)
 
 	require.Error(t, err, "Expected error when frontmatter hash computation fails")
-	assert.Contains(t, err.Error(), "failed to compute frontmatter hash",
+	assert.Contains(t, err.Error(), "could not compute stable frontmatter hash",
 		"Error should mention frontmatter hash failure")
 }
 
