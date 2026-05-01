@@ -262,10 +262,10 @@ describe("check_membership.cjs", () => {
       process.env.GH_AW_REQUIRED_ROLES = "write";
     });
 
-    it("should deny access when actor differs from PR author (pull_request event)", async () => {
+    it("should deny access when actor differs from PR author (pull_request synchronize event)", async () => {
       mockContext.actor = "dependabot[bot]";
       mockContext.eventName = "pull_request";
-      mockContext.payload = { pull_request: { user: { login: "attacker" } } };
+      mockContext.payload = { action: "synchronize", pull_request: { user: { login: "attacker" } } };
 
       await runScript();
 
@@ -274,10 +274,10 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "confused_deputy");
     });
 
-    it("should allow access when actor matches PR author (genuine dependabot PR)", async () => {
+    it("should allow access when actor matches PR author (genuine dependabot PR synchronize)", async () => {
       mockContext.actor = "dependabot[bot]";
       mockContext.eventName = "pull_request";
-      mockContext.payload = { pull_request: { user: { login: "dependabot[bot]" } } };
+      mockContext.payload = { action: "synchronize", pull_request: { user: { login: "dependabot[bot]" } } };
 
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: { permission: "write" },
@@ -299,6 +299,25 @@ describe("check_membership.cjs", () => {
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Potential confused deputy attack detected"));
       expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "confused_deputy");
+    });
+
+    it("should not trigger confused deputy for pull_request:labeled even when actor differs from PR author", async () => {
+      // A team member labeling a PR is legitimate — confused deputy only fires on synchronize
+      mockContext.actor = "pelikhan";
+      mockContext.eventName = "pull_request";
+      mockContext.payload = { action: "labeled", pull_request: { user: { login: "copilot[bot]" } } };
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write" },
+      });
+
+      await runScript();
+
+      // Should NOT be denied as confused deputy — should proceed to normal permission check
+      expect(mockCore.setOutput).not.toHaveBeenCalledWith("result", "confused_deputy");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
     });
 
     it("should not trigger confused deputy check for safe events (schedule)", async () => {

@@ -66,10 +66,13 @@ function isAllowedBot(actor, allowedBots) {
 function isConfusedDeputyAttack(actor, eventName, payload) {
   if (!payload) return false;
 
-  // For pull_request events, the PR author must match the actor.
-  // @dependabot recreate triggers a synchronize event with actor=dependabot[bot]
-  // but pull_request.user = original human author.
-  if (eventName === "pull_request") {
+  // For pull_request events, only check on the `synchronize` action.
+  // The confused deputy attack (@dependabot recreate) triggers a synchronize event
+  // with actor=dependabot[bot] but pull_request.user = original human author.
+  // Other pull_request actions (labeled, unlabeled, assigned, review_requested, etc.)
+  // legitimately have actor != pr_author — the actor is whoever performed the action,
+  // not the PR author — so checking those would cause false positives.
+  if (eventName === "pull_request" && payload.action === "synchronize") {
     const prAuthor = payload.pull_request?.user?.login;
     if (prAuthor !== undefined && prAuthor !== actor) {
       return true;
