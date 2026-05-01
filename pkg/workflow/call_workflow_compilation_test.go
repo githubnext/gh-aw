@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -74,6 +75,16 @@ func compileAndReadLock(t *testing.T, gatewayFile, markdown string) string {
 	content, err := os.ReadFile(lockFile)
 	require.NoError(t, err, "Failed to read lock file")
 	return string(content)
+}
+
+// extractWorkflowCallSecretsFromParsedLock parses the compiled lock file YAML and returns
+// the secret names declared under on.workflow_call.secrets. Used by tests to assert on the
+// exact contents of the secrets section without relying on fragile string searches.
+func extractWorkflowCallSecretsFromParsedLock(t *testing.T, lockContent string) []string {
+	t.Helper()
+	var workflow map[string]any
+	require.NoError(t, yaml.Unmarshal([]byte(lockContent), &workflow), "Should parse lock file YAML")
+	return extractWorkflowCallSecretsFromParsed(workflow)
 }
 
 // TestCallWorkflowCompile_ArrayFormat tests compilation with the shorthand array format
@@ -939,7 +950,7 @@ func createWorkerWithSecrets(t *testing.T, workflowsDir, name string, secrets []
 	t.Helper()
 	content := workerLockYMLWithSecrets(secrets)
 	err := os.WriteFile(filepath.Join(workflowsDir, name+".lock.yml"), []byte(content), 0644)
-	require.NoError(t, err, "Failed to write worker %s with secrets", name)
+	require.NoErrorf(t, err, "Failed to write worker %s with secrets", name)
 }
 
 // TestCallWorkflowCompile_ExplicitSecretsWhenWorkerDeclaresThem verifies that when the worker
@@ -1047,17 +1058,12 @@ Use MY_CUSTOM_TOKEN from secrets.MY_CUSTOM_TOKEN when making API calls.
 	assert.Contains(t, lockContent, "COPILOT_GITHUB_TOKEN", "Should declare COPILOT_GITHUB_TOKEN")
 	assert.Contains(t, lockContent, "GH_AW_GITHUB_TOKEN", "Should declare GH_AW_GITHUB_TOKEN")
 
-	// GITHUB_TOKEN should NOT be in the on.workflow_call.secrets section.
-	// It may appear in job steps, so we check the on: section specifically.
-	// Verify the secrets block exists and GITHUB_TOKEN is absent from it by
-	// finding the secrets section between "workflow_call:" and "workflow_dispatch:".
-	workflowCallStart := strings.Index(lockContent, "workflow_call:")
-	workflowDispatchStart := strings.Index(lockContent, "workflow_dispatch:")
-	if workflowCallStart >= 0 && workflowDispatchStart > workflowCallStart {
-		onWorkflowCallSection := lockContent[workflowCallStart:workflowDispatchStart]
-		assert.NotContains(t, onWorkflowCallSection, "GITHUB_TOKEN",
-			"GITHUB_TOKEN should not be declared in on.workflow_call.secrets (auto-provided by GitHub Actions)")
-		assert.Contains(t, onWorkflowCallSection, "secrets:",
-			"Should have secrets section under workflow_call")
-	}
+	// GITHUB_TOKEN should NOT be declared in on.workflow_call.secrets.
+	// Parse the compiled YAML and inspect the secrets map directly to avoid
+	// any ambiguity from the string search approach.
+	declaredSecrets := extractWorkflowCallSecretsFromParsedLock(t, lockContent)
+	assert.NotContains(t, declaredSecrets, "GITHUB_TOKEN",
+		"GITHUB_TOKEN should not be in on.workflow_call.secrets (auto-provided by GitHub Actions)")
+	assert.Contains(t, declaredSecrets, "COPILOT_GITHUB_TOKEN",
+		"COPILOT_GITHUB_TOKEN should be declared in on.workflow_call.secrets")
 }

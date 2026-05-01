@@ -264,8 +264,11 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 					"Falling back to secrets: inherit.", jobName, secretsErr)
 				callJob.SecretsInherit = true
 			} else if len(workerSecrets) == 0 {
-				// No secrets declared in worker — fall back to secrets: inherit.
-				compilerSafeOutputJobsLog.Printf("Worker '%s' declares no workflow_call secrets; using secrets: inherit", workflowName)
+				// No secrets were extracted from the worker. This can mean either the
+				// worker declares no workflow_call secrets or its compiled file was not
+				// found yet. Fall back to secrets: inherit for backward compatibility.
+				compilerSafeOutputJobsLog.Printf("No workflow_call secrets could be extracted for worker '%s' "+
+					"(worker may declare none or its compiled file may not exist yet); using secrets: inherit", workflowName)
 				callJob.SecretsInherit = true
 			} else {
 				// Map each declared secret explicitly.

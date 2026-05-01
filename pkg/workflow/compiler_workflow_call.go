@@ -271,10 +271,33 @@ func injectWorkflowCallSecretsSection(onSection string, secrets []string) string
 		return onSection
 	}
 
-	onMap, ok := onData["on"].(map[string]any)
-	if !ok {
+	// Normalize onData["on"] to map[string]any, handling string and slice shorthand forms.
+	rawOn, hasOn := onData["on"]
+	if !hasOn {
 		return onSection
 	}
+	var onMap map[string]any
+	switch v := rawOn.(type) {
+	case map[string]any:
+		onMap = v
+	case string:
+		onMap = map[string]any{v: nil}
+	case []any:
+		onMap = make(map[string]any, len(v))
+		for _, event := range v {
+			if eventName, ok := event.(string); ok {
+				onMap[eventName] = nil
+			}
+		}
+	case []string:
+		onMap = make(map[string]any, len(v))
+		for _, eventName := range v {
+			onMap[eventName] = nil
+		}
+	default:
+		return onSection
+	}
+	onData["on"] = onMap
 
 	workflowCallVal, hasWorkflowCall := onMap["workflow_call"]
 	if !hasWorkflowCall {

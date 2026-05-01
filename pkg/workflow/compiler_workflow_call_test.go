@@ -421,6 +421,12 @@ func TestInjectWorkflowCallSecretsSection(t *testing.T) {
 			secrets:     []string{"AUTO_SECRET"},
 			wantContain: []string{"USER_SECRET", "AUTO_SECRET"},
 		},
+		{
+			name:        "handles string shorthand on: workflow_call",
+			onSection:   `"on": workflow_call`,
+			secrets:     []string{"MY_TOKEN"},
+			wantContain: []string{"MY_TOKEN", "required: false"},
+		},
 	}
 
 	for _, tt := range tests {
