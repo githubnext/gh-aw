@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -59,7 +60,7 @@ func getReleasePublishedAt(ctx context.Context, repo, tag string) (time.Time, er
 		return time.Time{}, fmt.Errorf("failed to create GitHub client: %w", err)
 	}
 	var release githubReleaseInfo
-	if err := client.Get(fmt.Sprintf("repos/%s/releases/tags/%s", repo, tag), &release); err != nil {
+	if err := client.Get(fmt.Sprintf("repos/%s/releases/tags/%s", repo, url.PathEscape(tag)), &release); err != nil {
 		return time.Time{}, fmt.Errorf("failed to fetch release info for %s@%s: %w", repo, tag, err)
 	}
 	return release.PublishedAt, nil
@@ -78,11 +79,13 @@ type coolDownCheckResult struct {
 
 // checkReleaseCoolDownWithDate checks cooldown using an already-known publication date.
 // This variant skips the API call and is used when the date is already cached locally.
+// A negative age (clock skew / future timestamp) is clamped to 0 so such releases
+// are treated as just-published rather than mistakenly allowed past the cooldown.
 func checkReleaseCoolDownWithDate(repo, tag string, publishedAt time.Time, coolDown time.Duration) coolDownCheckResult {
 	if coolDown <= 0 {
 		return coolDownCheckResult{}
 	}
-	age := time.Since(publishedAt)
+	age := max(time.Since(publishedAt), 0) // clamp to 0 for future timestamps (clock skew)
 	if age >= coolDown {
 		return coolDownCheckResult{}
 	}

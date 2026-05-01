@@ -171,6 +171,14 @@ func TestCheckReleaseCoolDownWithDate_ZeroDuration(t *testing.T) {
 	assert.False(t, result.InCoolDown, "zero cooldown should always allow update")
 }
 
+func TestCheckReleaseCoolDownWithDate_FutureTimestamp(t *testing.T) {
+	// Simulate a future published_at (clock skew / API returning future time).
+	// The release should be treated as just-published and kept in cooldown.
+	publishedAt := time.Now().Add(1 * time.Hour)
+	result := checkReleaseCoolDownWithDate("owner/repo", "v1.2.0", publishedAt, 7*24*time.Hour)
+	assert.True(t, result.InCoolDown, "future timestamp should be treated as just-published and kept in cooldown")
+}
+
 func TestCheckReleaseCoolDown_FetchError(t *testing.T) {
 	orig := getReleasePublishedAtFn
 	defer func() { getReleasePublishedAtFn = orig }()
