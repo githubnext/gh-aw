@@ -2,7 +2,7 @@
 description: Daily A/B testing advisor that picks a random agentic workflow without an experiments section, devises an experiment campaign to improve it, and creates a GitHub issue with the implementation task
 on:
   schedule:
-    - cron: "daily around 10:00"
+    - cron: "daily around 10:00"  # gh-aw friendly cron DSL, compiled to standard 5-field cron (e.g. "22 10 * * *")
   workflow_dispatch:
   skip-if-match:
     query: 'is:issue is:open in:title "[ab-advisor] " label:experiments'
@@ -115,10 +115,11 @@ Read the selected workflow file in full. Study:
 3. **Prompt design** — What instructions does the agent receive? How verbose/prescriptive are they?
 4. **Tool configuration** — Which tools and MCP servers are enabled?
 5. **Output structure** — What safe-outputs are configured? What does it produce?
-6. **Current performance characteristics** — Look at recent workflow run history using:
+6. **Current performance characteristics** — Look at recent workflow run history using the path returned by the `shuf` command above. For example, if the selected workflow is `.github/workflows/daily-news.md`, run:
    ```bash
-   # Check recent runs (last 10)
-   gh run list --workflow="$(basename <workflow_file> .md).lock.yml" --limit 10 --json conclusion,createdAt,displayTitle,durationMS
+   # Check recent runs (last 10) — replace WORKFLOW_BASENAME with the name from shuf output
+   SELECTED=$(grep -rL 'experiments:' .github/workflows/*.md 2>/dev/null | grep -v shared | shuf -n 1)
+   gh run list --workflow="$(basename "$SELECTED" .md).lock.yml" --limit 10 --json conclusion,createdAt,displayTitle,durationMS
    ```
 7. **Existing quality signals** — Are there any reported issues, quality labels, or patterns in runs?
 
