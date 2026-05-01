@@ -361,55 +361,77 @@ describe("error_recovery", () => {
       expect(getRetryAfterMs(undefined)).toBeNull();
     });
 
-    it("should extract retry-after seconds from response headers", () => {
-      const error = { response: { headers: { "retry-after": "60" } } };
+    it("should return null when status is not a rate-limit status", () => {
+      // 5xx errors should not use Retry-After from x-ratelimit-reset
+      const error502 = { response: { status: 502, headers: { "x-ratelimit-reset": String(Math.floor((Date.now() + 120000) / 1000)) } } };
+      expect(getRetryAfterMs(error502)).toBeNull();
+      // 403 without x-ratelimit-remaining: 0 is not a rate-limit response
+      const error403 = { response: { status: 403, headers: { "retry-after": "60", "x-ratelimit-remaining": "100" } } };
+      expect(getRetryAfterMs(error403)).toBeNull();
+    });
+
+    it("should extract retry-after seconds from response headers on 429", () => {
+      const error = { response: { status: 429, headers: { "retry-after": "60" } } };
       expect(getRetryAfterMs(error)).toBe(60000);
     });
 
-    it("should extract retry-after seconds from top-level headers", () => {
-      const error = { headers: { "retry-after": "30" } };
+    it("should extract retry-after seconds from top-level headers on 429", () => {
+      const error = { status: 429, headers: { "retry-after": "30" } };
       expect(getRetryAfterMs(error)).toBe(30000);
     });
 
-    it("should prefer response.headers over top-level headers", () => {
+    it("should prefer response.headers over top-level headers on 429", () => {
       const error = {
-        response: { headers: { "retry-after": "60" } },
+        response: { status: 429, headers: { "retry-after": "60" } },
         headers: { "retry-after": "30" },
       };
       expect(getRetryAfterMs(error)).toBe(60000);
     });
 
-    it("should return null for zero or negative retry-after", () => {
-      expect(getRetryAfterMs({ response: { headers: { "retry-after": "0" } } })).toBeNull();
-      expect(getRetryAfterMs({ response: { headers: { "retry-after": "-1" } } })).toBeNull();
+    it("should return null for zero or negative retry-after on 429", () => {
+      expect(getRetryAfterMs({ response: { status: 429, headers: { "retry-after": "0" } } })).toBeNull();
+      expect(getRetryAfterMs({ response: { status: 429, headers: { "retry-after": "-1" } } })).toBeNull();
     });
 
-    it("should fall back to x-ratelimit-reset when retry-after is absent", () => {
+    it("should fall back to x-ratelimit-reset when retry-after is absent on 429", () => {
       const futureTimestamp = Math.floor((Date.now() + 120000) / 1000); // 2 min from now
-      const error = { response: { headers: { "x-ratelimit-reset": String(futureTimestamp) } } };
+      const error = { response: { status: 429, headers: { "x-ratelimit-reset": String(futureTimestamp) } } };
       const result = getRetryAfterMs(error);
       // Should be roughly 120s (allow ±5s for test timing)
       expect(result).toBeGreaterThan(115000);
       expect(result).toBeLessThan(125000);
     });
 
-    it("should return null when x-ratelimit-reset is in the past", () => {
+    it("should use x-ratelimit-reset for 403 with x-ratelimit-remaining: 0 (secondary rate limit)", () => {
+      const futureTimestamp = Math.floor((Date.now() + 60000) / 1000); // 1 min from now
+      const error = {
+        response: {
+          status: 403,
+          headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(futureTimestamp) },
+        },
+      };
+      const result = getRetryAfterMs(error);
+      expect(result).toBeGreaterThan(55000);
+      expect(result).toBeLessThan(65000);
+    });
+
+    it("should return null when x-ratelimit-reset is in the past on 429", () => {
       const pastTimestamp = Math.floor((Date.now() - 60000) / 1000);
-      const error = { response: { headers: { "x-ratelimit-reset": String(pastTimestamp) } } };
+      const error = { response: { status: 429, headers: { "x-ratelimit-reset": String(pastTimestamp) } } };
       expect(getRetryAfterMs(error)).toBeNull();
     });
 
-    it("should return null for non-numeric retry-after", () => {
-      const error = { response: { headers: { "retry-after": "not-a-number" } } };
+    it("should return null for non-numeric retry-after on 429", () => {
+      const error = { response: { status: 429, headers: { "retry-after": "not-a-number" } } };
       expect(getRetryAfterMs(error)).toBeNull();
     });
   });
 
   describe("withRetry with Retry-After header", () => {
-    it("should use Retry-After delay instead of backoff when header is present", async () => {
+    it("should use Retry-After delay instead of backoff when header is present on 429", async () => {
       const retryAfterError = {
         message: "rate limit exceeded",
-        response: { headers: { "retry-after": "1" } }, // 1s for test speed
+        response: { status: 429, headers: { "retry-after": "1" } }, // 1s for test speed
       };
       const operation = vi.fn().mockRejectedValueOnce(retryAfterError).mockResolvedValue("success");
 
@@ -418,6 +440,21 @@ describe("error_recovery", () => {
       expect(result).toBe("success");
       // The delay used should be 1000ms (from Retry-After: 1) rather than 20ms (10 * 2)
       expect(core.info).toHaveBeenCalledWith(expect.stringContaining("Retry-After header detected for test-operation: next retry will wait 1000ms"));
+    });
+
+    it("should fall back to exponential backoff for non-rate-limit errors (502)", async () => {
+      const transientError = {
+        message: "502 bad gateway",
+        response: { status: 502, headers: { "x-ratelimit-reset": String(Math.floor((Date.now() + 120000) / 1000)) } },
+      };
+      const operation = vi.fn().mockRejectedValueOnce(transientError).mockResolvedValue("success");
+
+      const result = await withRetry(operation, { maxRetries: 2, initialDelayMs: 10, backoffMultiplier: 2, jitterMs: 0 }, "test-operation");
+
+      expect(result).toBe("success");
+      // Normal backoff: 10 * 2 = 20ms — NOT the 120s reset header
+      expect(core.info).toHaveBeenCalledWith(expect.stringContaining("after 20ms delay"));
+      expect(core.info).not.toHaveBeenCalledWith(expect.stringContaining("Retry-After header detected"));
     });
   });
 });

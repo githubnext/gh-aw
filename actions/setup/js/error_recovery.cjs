@@ -102,17 +102,33 @@ function sleep(ms) {
 /**
  * Extract the Retry-After delay in milliseconds from a GitHub API rate-limit error.
  *
- * GitHub returns one of two headers on 429 / 403-rate-limit responses:
+ * Only applies when the response status indicates a rate-limit condition:
+ *   - HTTP 429 (Too Many Requests)
+ *   - HTTP 403 with `x-ratelimit-remaining: 0` (GitHub secondary rate limit)
+ *
+ * In those cases GitHub returns one of two headers:
  *   - `retry-after`       – integer seconds to wait (per RFC 6585)
  *   - `x-ratelimit-reset` – Unix timestamp (seconds) when the quota resets
  *
+ * For any other status (5xx transient errors, etc.) returns null so normal
+ * exponential backoff applies.
+ *
  * @param {any} error - The error object from a failed GitHub API call
- * @returns {number|null} Milliseconds to wait, or null if no header is present
+ * @returns {number|null} Milliseconds to wait, or null if not a rate-limit response
  */
 function getRetryAfterMs(error) {
   // Octokit surfaces response headers via error.response.headers or error.headers
+  const status = error?.response?.status ?? error?.status ?? null;
   const headers = error?.response?.headers ?? error?.headers ?? null;
   if (!headers) return null;
+
+  // Only honour rate-limit headers for genuine rate-limit responses.
+  // GitHub uses 429 for primary rate limits and 403 for secondary rate limits
+  // (the latter always sets x-ratelimit-remaining to "0").
+  const remainingHeader = headers["x-ratelimit-remaining"];
+  const isRateLimitStatus = status === 429 || (status === 403 && remainingHeader != null && parseInt(remainingHeader, 10) === 0);
+
+  if (!isRateLimitStatus) return null;
 
   // retry-after: number of seconds (highest priority)
   const retryAfter = headers["retry-after"];

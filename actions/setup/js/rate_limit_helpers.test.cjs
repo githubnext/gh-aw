@@ -128,7 +128,7 @@ describe("rate_limit_helpers", () => {
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Rate-limit headroom low: 500/5000"));
     });
 
-    it("should return -1 values and warn on error", async () => {
+    it("should return -1 values and warn with error details on error", async () => {
       const { checkRateLimitHeadroom } = await import("./rate_limit_helpers.cjs");
       mockGithub.rest.rateLimit.get.mockRejectedValue(new Error("API error"));
       const result = await checkRateLimitHeadroom(mockGithub, "test");
@@ -136,6 +136,20 @@ describe("rate_limit_helpers", () => {
       expect(result.limit).toBe(-1);
       expect(result.percentRemaining).toBe(-1);
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not check rate-limit headroom"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("API error"));
+    });
+
+    it("should use Math.floor so 19.9% triggers warning (not Math.round which would give 20%)", async () => {
+      const { checkRateLimitHeadroom } = await import("./rate_limit_helpers.cjs");
+      // 199/1000 = 19.9% — Math.floor gives 19, Math.round would give 20 (and skip the warning)
+      mockGithub.rest.rateLimit.get.mockResolvedValue({
+        data: {
+          rate: { remaining: 199, limit: 1000, used: 801 },
+          resources: {},
+        },
+      });
+      await checkRateLimitHeadroom(mockGithub, "test");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Rate-limit headroom low:"));
     });
   });
 });

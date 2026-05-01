@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Minimum rate limit remaining before we skip further operations.
@@ -64,7 +65,7 @@ async function checkRateLimitHeadroom(github, operation = "rate_limit_headroom")
   try {
     const { data } = await github.rest.rateLimit.get();
     const { remaining, limit } = data.rate;
-    const percentRemaining = limit > 0 ? Math.round((remaining / limit) * 100) : 100;
+    const percentRemaining = limit > 0 ? Math.floor((remaining / limit) * 100) : 100;
 
     if (percentRemaining < LOW_RATE_LIMIT_THRESHOLD_PERCENT) {
       core.warning(`⚠️ Rate-limit headroom low: ${remaining}/${limit} requests remaining (${percentRemaining}%) [${operation}]. Safe-output writes may be rate-limited.`);
@@ -73,8 +74,8 @@ async function checkRateLimitHeadroom(github, operation = "rate_limit_headroom")
     }
 
     return { remaining, limit, percentRemaining };
-  } catch {
-    core.warning(`Could not check rate-limit headroom for ${operation}`);
+  } catch (err) {
+    core.warning(`Could not check rate-limit headroom for ${operation}: ${getErrorMessage(err)}`);
     return { remaining: -1, limit: -1, percentRemaining: -1 };
   }
 }
