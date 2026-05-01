@@ -269,3 +269,131 @@ func TestInferEventsFromTriggers(t *testing.T) {
 		})
 	}
 }
+
+// TestCommentAuthorAssociationConditionInPreActivation verifies that the compiler adds
+// an explicit author_association guard to the pre_activation job's if: condition when the
+// workflow is triggered by issue_comment or pull_request_review_comment events and permission
+// checks are enabled (i.e. roles is NOT set to "all").  This addresses the RGS-004 static
+// analysis finding.
+func TestCommentAuthorAssociationConditionInPreActivation(t *testing.T) {
+	tests := []struct {
+		name           string
+		frontmatter    string
+		wantAssocCheck bool
+	}{
+		{
+			name: "issue_comment trigger with default roles gets author_association check",
+			frontmatter: `---
+on:
+  issue_comment:
+    types: [created]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: true,
+		},
+		{
+			name: "slash_command trigger compiles to issue_comment and gets check",
+			frontmatter: `---
+on:
+  slash_command:
+    name: test
+    events: [issue_comment]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: true,
+		},
+		{
+			name: "pull_request_review_comment trigger gets author_association check",
+			frontmatter: `---
+on:
+  pull_request_review_comment:
+    types: [created]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: true,
+		},
+		{
+			name: "issue_comment trigger with roles:all does NOT get author_association check",
+			frontmatter: `---
+on:
+  roles: all
+  issue_comment:
+    types: [created]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: false,
+		},
+		{
+			name: "push trigger only does NOT get author_association check",
+			frontmatter: `---
+on:
+  push:
+    branches: [main]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: false,
+		},
+		{
+			name: "workflow_dispatch-only trigger does NOT get author_association check",
+			frontmatter: `---
+on:
+  workflow_dispatch:
+  roles: [write]
+engine: copilot
+---
+
+Test workflow
+`,
+			wantAssocCheck: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "comment-auth-test")
+			compiler := NewCompiler()
+
+			workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+			err := os.WriteFile(workflowPath, []byte(tt.frontmatter), 0644)
+			if err != nil {
+				t.Fatalf("Failed to write workflow file: %v", err)
+			}
+
+			err = compiler.CompileWorkflow(workflowPath)
+			if err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			outputPath := filepath.Join(tmpDir, "test-workflow.lock.yml")
+			compiledContent, err := os.ReadFile(outputPath)
+			if err != nil {
+				t.Fatalf("Failed to read compiled workflow: %v", err)
+			}
+
+			compiledStr := string(compiledContent)
+
+			hasCheck := strings.Contains(compiledStr, "author_association")
+			if tt.wantAssocCheck && !hasCheck {
+				t.Errorf("Expected compiled workflow to contain author_association check, but it was absent.\nWorkflow:\n%s", compiledStr)
+			}
+			if !tt.wantAssocCheck && hasCheck {
+				t.Errorf("Expected compiled workflow to NOT contain author_association check, but it was present.\nWorkflow:\n%s", compiledStr)
+			}
+		})
+	}
+}

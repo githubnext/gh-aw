@@ -437,6 +437,25 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		}
 	}
 
+	// For comment-triggered workflows that require permission checks, add an author_association
+	// guard to the job-level if: condition. This prevents the job from running at all for
+	// unauthorized commenters (skipped/gray ⊘ vs running and then denying inside check_membership).
+	// The guard only applies when:
+	//   - the workflow has permission checks enabled (needsPermissionCheck == true), AND
+	//   - the compiled on: section includes issue_comment or pull_request_review_comment events.
+	// Workflows with roles:all opt out of needsPermissionCheck and are intentionally unrestricted.
+	if needsPermissionCheck && hasCommentEventInOn(data.On) {
+		commentAuthCondition := RenderCondition(buildCommentAuthorAssociationCondition())
+		if jobIfCondition != "" {
+			jobIfCondition = RenderCondition(BuildAnd(
+				&ExpressionNode{Expression: commentAuthCondition},
+				&ExpressionNode{Expression: jobIfCondition},
+			))
+		} else {
+			jobIfCondition = commentAuthCondition
+		}
+	}
+
 	// In script mode, explicitly add a cleanup step (mirrors post.js in dev/release/action mode).
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
@@ -482,6 +501,43 @@ func buildLabelNamesCondition(labelNames []string) string {
 	}
 
 	return result.Render()
+}
+
+// hasCommentEventInOn reports whether the rendered on: section includes issue_comment or
+// pull_request_review_comment events. These are the events flagged by RGS-004 because
+// any GitHub user (including unaffiliated outsiders) can post a comment and trigger the workflow.
+func hasCommentEventInOn(on string) bool {
+	return strings.Contains(on, "issue_comment") || strings.Contains(on, "pull_request_review_comment")
+}
+
+// buildCommentAuthorAssociationCondition returns a ConditionNode that passes for non-comment
+// events and for comment events whose author is an OWNER, MEMBER, or COLLABORATOR.
+//
+// The generated expression is:
+//
+//	(github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment')
+//	|| contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+//
+// This satisfies the RGS-004 rule (explicit author_association check for comment-triggered
+// workflows) while remaining transparent to non-comment events such as push or schedule.
+func buildCommentAuthorAssociationCondition() ConditionNode {
+	notIssueComment := BuildNotEquals(
+		BuildPropertyAccess("github.event_name"),
+		BuildStringLiteral("issue_comment"),
+	)
+	notPRReviewComment := BuildNotEquals(
+		BuildPropertyAccess("github.event_name"),
+		BuildStringLiteral("pull_request_review_comment"),
+	)
+	notCommentEvent := BuildAnd(notIssueComment, notPRReviewComment)
+
+	authorizedAssoc := BuildFunctionCall(
+		"contains",
+		BuildFunctionCall("fromJSON", BuildStringLiteral(`["OWNER","MEMBER","COLLABORATOR"]`)),
+		BuildPropertyAccess("github.event.comment.author_association"),
+	)
+
+	return BuildOr(notCommentEvent, authorizedAssoc)
 }
 
 // generateReportSkipStep generates the "Report skip reason" step for the pre-activation job.
