@@ -10,6 +10,18 @@ import (
 
 var yamlUtilsLog = logger.New("cli:yaml_frontmatter_utils")
 
+// isFrontmatterStrictFalse returns true when the frontmatter explicitly sets strict: false.
+// These codemods only need to run in strict mode; if the workflow has opted out of strict
+// mode, the deprecated keys are still valid and should not be touched.
+func isFrontmatterStrictFalse(frontmatter map[string]any) bool {
+	strictVal, ok := frontmatter["strict"]
+	if !ok {
+		return false
+	}
+	strictBool, ok := strictVal.(bool)
+	return ok && !strictBool
+}
+
 // reconstructContent rebuilds the full markdown content from frontmatter lines and body
 func reconstructContent(frontmatterLines []string, markdown string) string {
 	var lines []string
