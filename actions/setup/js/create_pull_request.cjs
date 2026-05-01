@@ -1127,17 +1127,19 @@ async function main(config = {}) {
     // Prepend threat detection caution alert at the very top of the PR body so it is
     // immediately visible to reviewers. The caution is omitted from the footer to
     // avoid duplication (skipDetectionCaution is passed to generateFooterWithMessages).
+
+    // Inject body header before user content (unshifted first, so caution will appear before it)
+    const bodyHeader = getBodyHeader({ workflowName, runUrl });
+    if (bodyHeader) {
+      bodyLines.unshift(...bodyHeader.split("\n"), "");
+    }
+
+    // Inject CAUTION at top of body (unshifted after header so it appears first in the final output)
     const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
     if (detectionCaution) {
       // unshift(caution, "", "") places the caution alert at index 0 and two blank
       // separator lines so the main body content follows after a full empty line.
       bodyLines.unshift(detectionCaution, "", "");
-    }
-
-    // Inject body header after any caution alert, before user content
-    const bodyHeader = getBodyHeader({ workflowName, runUrl });
-    if (bodyHeader) {
-      bodyLines.unshift(...bodyHeader.split("\n"), "");
     }
 
     // Add fingerprint comment if present

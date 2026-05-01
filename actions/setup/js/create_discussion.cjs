@@ -516,16 +516,17 @@ async function main(config = {}) {
     const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
     const runUrl = buildWorkflowRunUrl(context, context.repo);
 
-    // Inject CAUTION at top of body if threat detection warning was raised
-    const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
-    if (detectionCaution) {
-      bodyLines.unshift(...detectionCaution.split("\n"), "");
-    }
-
-    // Inject body header after any caution alert, before user content
+    // Inject body header before user content (unshifted first, so caution will appear before it)
     const bodyHeader = getBodyHeader({ workflowName, runUrl });
     if (bodyHeader) {
       bodyLines.unshift(...bodyHeader.split("\n"), "");
+    }
+
+    // Inject CAUTION at top of body if threat detection warning was raised
+    // (unshifted after header so it appears first in the final output)
+    const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+    if (detectionCaution) {
+      bodyLines.unshift(...detectionCaution.split("\n"), "");
     }
 
     // Generate footer with expiration using helper
