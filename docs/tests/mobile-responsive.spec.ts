@@ -172,11 +172,12 @@ test.describe('Mobile and Responsive Layout', () => {
     });
     const page = await context.newPage();
 
-    // Simulate large OS-level font scaling by overriding the root font size.
-    await page.addStyleTag({ content: 'html { font-size: 20px !important; }' });
-
     await page.goto('/gh-aw/introduction/overview/');
     await page.waitForLoadState('networkidle');
+
+    // Simulate large OS-level font scaling by overriding the root font size.
+    // Done after navigation so the document exists and the style tag can attach.
+    await page.addStyleTag({ content: 'html { font-size: 20px !important; }' });
 
     // The hamburger wrapper should be visible on a narrow mobile viewport.
     const hamburgerBtn = page.locator('.hamburger-btn');

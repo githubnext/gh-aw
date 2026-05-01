@@ -153,11 +153,11 @@ const base = import.meta.env.BASE_URL;
 		 *  Chrome large-font mode). See: https://github.com/github/gh-aw/issues/29545 */
 		function positionDropdown() {
 			const VIEWPORT_EDGE_PADDING = 8; // px gap from viewport edges
-			// Keep this in sync with the CSS min-width on .tablet-dropdown (180px).
-			const MIN_DROPDOWN_WIDTH = 180;
+			// Read min-width from the computed style so this stays in sync with CSS.
+			const cssMinWidth = parseFloat(getComputedStyle(tabletDropdown).minWidth) || 0;
 
 			const rect = hamburgerBtn.getBoundingClientRect();
-			const dropdownWidth = Math.max(MIN_DROPDOWN_WIDTH, tabletDropdown.scrollWidth);
+			const dropdownWidth = Math.max(cssMinWidth, tabletDropdown.scrollWidth);
 			const viewportWidth = window.innerWidth;
 
 			// Align right edge of dropdown with right edge of button, then clamp.
