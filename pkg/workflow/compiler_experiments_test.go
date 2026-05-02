@@ -453,6 +453,29 @@ func TestExtractExperimentConfigsFromFrontmatter(t *testing.T) {
 				assert.Equal(t, "<=0.05", cfg.GuardrailMetrics[0].Threshold, "guardrail threshold")
 			},
 		},
+		{
+			// goccy/go-yaml returns YAML integers as uint64, not int/int64/float64.
+			// This test ensures min_samples and issue are parsed correctly from uint64 values.
+			name: "uint64 integer values for min_samples and issue are parsed correctly",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"exp": map[string]any{
+						"variants":    []any{"A", "B"},
+						"min_samples": uint64(30),
+						"issue":       uint64(999),
+						"weight":      []any{uint64(60), uint64(40)},
+					},
+				},
+			},
+			check: func(t *testing.T, got map[string]*ExperimentConfig) {
+				require.NotNil(t, got, "config should exist")
+				cfg := got["exp"]
+				require.NotNil(t, cfg, "exp config should exist")
+				assert.Equal(t, 30, cfg.MinSamples, "min_samples parsed from uint64")
+				assert.Equal(t, 999, cfg.Issue, "issue parsed from uint64")
+				assert.Equal(t, []int{60, 40}, cfg.Weight, "weight items parsed from uint64")
+			},
+		},
 	}
 
 	for _, tt := range tests {

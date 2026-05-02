@@ -133,6 +133,8 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 				cfg.Issue = n
 			case int64:
 				cfg.Issue = int(n)
+			case uint64:
+				cfg.Issue = int(n)
 			case float64:
 				cfg.Issue = int(n)
 			}
@@ -154,6 +156,8 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 			case int:
 				cfg.MinSamples = n
 			case int64:
+				cfg.MinSamples = int(n)
+			case uint64:
 				cfg.MinSamples = int(n)
 			case float64:
 				cfg.MinSamples = int(n)
@@ -219,6 +223,8 @@ func extractIntSlice(raw any) []int {
 			case int:
 				result = append(result, n)
 			case int64:
+				result = append(result, int(n))
+			case uint64:
 				result = append(result, int(n))
 			case float64:
 				result = append(result, int(n))
