@@ -172,10 +172,12 @@ func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConf
 		return sandboxConfig
 	}
 
-	// If sandbox.agent is configured but has no type/ID set (e.g., version-only object
-	// like { version: "v0.25.29" }), default the type to awf so the sandbox is always
-	// enabled. This prevents a bare sandbox.agent object from silently disabling the
-	// firewall by leaving the type empty.
+	// If sandbox.agent is configured but has no type/ID set (e.g., a version-only object
+	// like { version: "v0.25.29" } that reached here without a prior `return`), default
+	// the type to awf so the sandbox is always enabled.  This prevents a bare
+	// sandbox.agent object from silently disabling the firewall by leaving the type empty.
+	// Note: this block is only reached when Agent != nil and Disabled == false (the
+	// Disabled case returned early above).
 	if !isSupportedSandboxType(getAgentType(sandboxConfig.Agent)) {
 		sandboxLog.Print("Sandbox agent has no type/ID configured, defaulting to awf")
 		sandboxConfig.Agent.Type = SandboxTypeAWF
