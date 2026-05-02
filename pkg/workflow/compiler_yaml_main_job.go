@@ -222,7 +222,8 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 		compilerYamlLog.Printf("Adding %d runtime steps before custom steps (needsCheckout=%t, !customStepsContainCheckout=%t)", len(runtimeSetupSteps), needsCheckout, !customStepsContainCheckout)
 		for _, step := range runtimeSetupSteps {
 			for _, line := range step {
-				yaml.WriteString(line + "\n")
+				yaml.WriteString(line)
+				yaml.WriteByte('\n')
 			}
 		}
 
@@ -327,7 +328,8 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	compilerYamlLog.Printf("Adding %d engine installation steps for %s", len(installSteps), engine.GetID())
 	for _, step := range installSteps {
 		for _, line := range step {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 
@@ -479,7 +481,8 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	if _, ok := engine.(*CopilotEngine); ok {
 		detectionStep := generateCopilotErrorDetectionStep()
 		for _, line := range detectionStep {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 
@@ -501,7 +504,8 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	// Collect firewall logs BEFORE secret redaction so secrets in logs can be redacted
 	for _, step := range engine.GetFirewallLogsCollectionStep(data) {
 		for _, line := range step {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 
@@ -509,7 +513,8 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	// This ensures all artifact paths share a common ancestor under /tmp/gh-aw/.
 	for _, step := range engine.GetPreBundleSteps(data) {
 		for _, line := range step {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 
@@ -654,7 +659,8 @@ func (c *Compiler) generateSummarySteps(yaml *strings.Builder, data *WorkflowDat
 	if isFirewallEnabled(data) {
 		firewallLogParsing := generateFirewallLogParsingStep(data.Name)
 		for _, line := range firewallLogParsing {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 
@@ -708,7 +714,8 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	if copilotEngine, ok := engine.(*CopilotEngine); ok {
 		cleanupStep := copilotEngine.GetCleanupStep(data)
 		for _, line := range cleanupStep {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 
