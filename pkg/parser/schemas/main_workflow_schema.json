@@ -2813,7 +2813,7 @@
                     },
                     "threshold": {
                       "type": "string",
-                      "pattern": "^(>=|<=|==|>|<)\\S+$",
+                      "pattern": "^(>=|<=|==|>|<)-?\\d+(\\.\\d+)?$",
                       "description": "Threshold expression the metric must satisfy (e.g. '>=0.95', '==0', '<=0.05'). If any guardrail fails for any variant the experiment is automatically abandoned."
                     }
                   },
@@ -2824,6 +2824,7 @@
               "min_samples": {
                 "type": "integer",
                 "minimum": 1,
+                "default": 20,
                 "description": "Minimum number of runs required per variant before a PROMOTE recommendation is made. Defaults to 20 when not specified. Progress toward this target is shown in step summaries and daily reports."
               },
               "owner": {
