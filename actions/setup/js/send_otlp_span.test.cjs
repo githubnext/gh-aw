@@ -1596,6 +1596,7 @@ describe("sendJobSetupSpan", () => {
       expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_number", value: { stringValue: "42" } });
       const keys = span.attributes.map(a => a.key);
       expect(keys).not.toContain("gh-aw.trigger.label");
+      expect(keys).not.toContain("gh-aw.trigger.comment_id");
     });
 
     it("emits gh-aw.trigger.label when trigger_label is non-empty", async () => {
@@ -1620,6 +1621,26 @@ describe("sendJobSetupSpan", () => {
       expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.label", value: { stringValue: "copilot" } });
     });
 
+    it("emits gh-aw.trigger.comment_id when comment_id is non-empty", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ context: { item_type: "pull_request", item_number: "99", trigger_label: "copilot", comment_id: "123456789" } });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.comment_id", value: { stringValue: "123456789" } });
+    });
+
     it("omits trigger attributes when aw_info.json is absent", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
@@ -1634,6 +1655,7 @@ describe("sendJobSetupSpan", () => {
       expect(keys).not.toContain("gh-aw.trigger.item_type");
       expect(keys).not.toContain("gh-aw.trigger.item_number");
       expect(keys).not.toContain("gh-aw.trigger.label");
+      expect(keys).not.toContain("gh-aw.trigger.comment_id");
     });
   });
 
@@ -3484,6 +3506,7 @@ describe("sendJobConclusionSpan", () => {
       expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_number", value: { stringValue: "7" } });
       const keys = span.attributes.map(a => a.key);
       expect(keys).not.toContain("gh-aw.trigger.label");
+      expect(keys).not.toContain("gh-aw.trigger.comment_id");
     });
 
     it("emits gh-aw.trigger.label when trigger_label is non-empty", async () => {
@@ -3508,6 +3531,26 @@ describe("sendJobConclusionSpan", () => {
       expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.label", value: { stringValue: "bug" } });
     });
 
+    it("emits gh-aw.trigger.comment_id when comment_id is non-empty", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ context: { item_type: "pull_request", item_number: "456", trigger_label: "bug", comment_id: "987654321" } });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.comment_id", value: { stringValue: "987654321" } });
+    });
+
     it("omits trigger attributes when aw_info.json is absent", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
@@ -3522,6 +3565,7 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gh-aw.trigger.item_type");
       expect(keys).not.toContain("gh-aw.trigger.item_number");
       expect(keys).not.toContain("gh-aw.trigger.label");
+      expect(keys).not.toContain("gh-aw.trigger.comment_id");
     });
   });
 

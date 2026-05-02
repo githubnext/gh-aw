@@ -379,6 +379,115 @@ describe("pick_experiment", () => {
       expect(rawCall).toContain("Tracking issue: #7");
       expect(rawCall).not.toContain("https://github.com");
     });
+
+    it("renders hypothesis in step summary when hypothesis field is set", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        style: { variants: ["A", "B"], hypothesis: "H0: no change. H1: A is faster." },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      delete process.env.GITHUB_REPOSITORY;
+
+      await main();
+
+      const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
+      expect(rawCall).toContain("**Hypothesis:** H0: no change. H1: A is faster.");
+    });
+
+    it("renders guardrail metrics in step summary when guardrail_metrics field is set", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        style: {
+          variants: ["A", "B"],
+          guardrail_metrics: [
+            { name: "success_rate", threshold: ">=0.95" },
+            { name: "empty_output_rate", threshold: "==0" },
+          ],
+        },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      delete process.env.GITHUB_REPOSITORY;
+
+      await main();
+
+      const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
+      expect(rawCall).toContain("**Guardrail metrics:**");
+      expect(rawCall).toContain("`success_rate` >=0.95");
+      expect(rawCall).toContain("`empty_output_rate` ==0");
+    });
+
+    it("renders progress bar in step summary when min_samples field is set", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      // Pre-populate state to simulate 10 runs for variant A, 5 for B.
+      const state = { counts: { style: { A: 10, B: 5 } } };
+      const fs2 = require("fs");
+      fs2.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        style: { variants: ["A", "B"], min_samples: 20 },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      delete process.env.GITHUB_REPOSITORY;
+
+      await main();
+
+      const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
+      expect(rawCall).toContain("📊 Sampling Progress");
+      expect(rawCall).toContain("(target: 20 per variant)");
+      // Variant A has 11 runs (10 preloaded + 1 picked), variant B has 5 runs.
+      expect(rawCall).toContain("/20");
+    });
+
+    it("shows ready-for-analysis flag when all variants reach min_samples", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      // Pre-populate state so both variants are already at min_samples.
+      const state = { counts: { style: { A: 25, B: 25 } } };
+      const fs2 = require("fs");
+      fs2.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        style: { variants: ["A", "B"], min_samples: 25 },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      delete process.env.GITHUB_REPOSITORY;
+
+      await main();
+
+      const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
+      expect(rawCall).toContain("✅ Ready for analysis");
+    });
+
+    it("does not render a progress bar when min_samples is 0", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        style: { variants: ["A", "B"], min_samples: 0 },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      delete process.env.GITHUB_REPOSITORY;
+
+      await main();
+
+      const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
+      expect(rawCall).not.toContain("📊 Sampling Progress");
+    });
+
+    it("does not render a progress bar when min_samples is negative", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        style: { variants: ["A", "B"], min_samples: -5 },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      delete process.env.GITHUB_REPOSITORY;
+
+      await main();
+
+      const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
+      expect(rawCall).not.toContain("📊 Sampling Progress");
+    });
   });
 
   // ── pickVariantWeighted ────────────────────────────────────────────────────

@@ -58,6 +58,36 @@ Provide a detailed analysis with reasoning for each finding.
 
 ---
 
+## Object Form (Weighted Variants and Date Gating)
+
+The `experiments:` field also accepts an object form when you need non-uniform split probabilities, automatic deactivation after a date, or machine-readable governance metadata:
+
+```yaml
+experiments:
+  prompt_style:
+    variants: [concise, detailed, step_by_step]
+    weight: [2, 1, 1]           # 50% concise, 25% detailed, 25% step_by_step
+    description: "Verbosity A/B test"
+    metric: "effective_tokens"
+    issue: "42"
+    start_date: "2026-05-01"
+    end_date: "2026-06-01"
+```
+
+**Fields:**
+
+- `variants:` - Array of variant strings (required, ≥ 2 entries). Same constraints as bare-array form.
+- `weight:` - Array of non-negative integers, same length as `variants`. When set, weighted-random selection replaces round-robin. Weights of `[2, 1, 1]` mean 50/25/25 split. When all weights are zero, the first (control) variant is always returned. Omit to keep the default round-robin behavior.
+- `start_date:` - ISO-8601 date (`YYYY-MM-DD`). Before this date the control variant is returned and counters are not incremented. Useful for pre-scheduling an experiment.
+- `end_date:` - ISO-8601 date (`YYYY-MM-DD`). After this date the control variant is returned automatically. No manual intervention needed to wind down an experiment.
+- `description:` - Human-readable experiment description for governance tooling (no runtime effect).
+- `metric:` - Primary metric name for governance tooling (no runtime effect).
+- `issue:` - Linked tracking issue number for governance tooling (no runtime effect).
+
+**Bare array and object forms can be mixed** in the same `experiments:` map — each experiment is independent.
+
+---
+
 ## Referencing the Active Variant
 
 The selected variant is injected into the prompt in two ways:

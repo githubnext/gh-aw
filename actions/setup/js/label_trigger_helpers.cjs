@@ -1,6 +1,10 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+// @safe-outputs-exempt SEC-004 — this helper only reads the raw issue body from the GitHub event
+// payload and returns it as a plain string for callers to parse; it never writes body content to
+// any GitHub API, so no sanitization is required here.
+
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 

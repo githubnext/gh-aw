@@ -529,49 +529,117 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	return artifactPaths, logFileFull, nil
 }
 
-// generatePostAgentCollectionAndUpload emits all post-agent steps: engine output collection,
-// access log extraction/upload, log parsing, token usage/AWF reflect/observability summaries,
-// artifact path accumulation, safe-outputs agent output placeholder, Copilot engine cleanup,
-// repo-memory/cache-memory/staging artifact uploads, patch collection, post-steps, firewall
-// audit paths, the unified artifact upload, token invalidation steps, dev-mode actions restore,
-// and step-order validation.
-func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, artifactPaths []string, logFileFull string, checkoutMgr *CheckoutManager) error {
-	// Merge engine-declared output files into the unified artifact instead of creating a
-	// separate agent_outputs artifact. The cleanup step is still generated so workspace files
-	// are removed after collection.
-	if enginePaths := getEngineArtifactPaths(engine); len(enginePaths) > 0 {
-		artifactPaths = append(artifactPaths, enginePaths...)
-		c.generateEngineOutputCleanup(yaml, engine)
-	}
+// collectArtifactPaths gathers all paths for the unified artifact upload.
+// It starts from the initial paths already accumulated by generateAgentRunSteps and appends
+// engine-declared output paths, log directories, observability files, safe-outputs files,
+// patch/bundle paths, and firewall audit paths.
+func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEngine, logFileFull string, initialPaths []string) []string {
+	paths := initialPaths
 
-	// Extract and upload squid access logs (if any proxy tools were used)
-	c.generateExtractAccessLogs(yaml, data.Tools)
-	c.generateUploadAccessLogs(yaml, data.Tools)
+	// Merge engine-declared output files into the unified artifact instead of creating a
+	// separate agent_outputs artifact.
+	paths = append(paths, getEngineArtifactPaths(engine)...)
 
 	// Collect MCP logs path if any MCP tools were used
-	artifactPaths = append(artifactPaths, "/tmp/gh-aw/mcp-logs/")
+	paths = append(paths, "/tmp/gh-aw/mcp-logs/")
 
 	// Collect DIFC proxy logs (proxy-tls certs + container stderr) when proxy was injected
-	artifactPaths = append(artifactPaths, difcProxyLogPaths(data)...)
+	paths = append(paths, difcProxyLogPaths(data)...)
 
 	// Collect MCPScripts logs path if mcp-scripts is enabled
 	if IsMCPScriptsEnabled(data.MCPScripts) {
-		artifactPaths = append(artifactPaths, "/tmp/gh-aw/mcp-scripts/logs/")
+		paths = append(paths, "/tmp/gh-aw/mcp-scripts/logs/")
 	}
 
-	// parse agent logs for GITHUB_STEP_SUMMARY
+	// Include the aggregated agent_usage.json in the agent artifact so third-party
+	// tools can consume structured token data without parsing the step summary.
+	// Requires AWF v0.25.8+
+	if isFirewallEnabled(data) {
+		paths = append(paths, "/tmp/gh-aw/"+constants.TokenUsageFilename)
+	}
+
+	// Collect agent stdio logs path for unified upload
+	paths = append(paths, logFileFull)
+
+	// Collect agent-generated files path for unified upload
+	// This directory is used by workflows that instruct the agent to write files
+	// (e.g., smoke-claude status summaries)
+	paths = append(paths, "/tmp/gh-aw/agent/")
+
+	// Collect GitHub API rate-limit log for observability.
+	// Written by github_rate_limit_logger.cjs during REST API calls.
+	paths = append(paths, "/tmp/gh-aw/"+constants.GithubRateLimitsFilename)
+
+	// Collect OTLP span mirror — enables post-hoc trace debugging without a live collector.
+	// Written by send_otlp_span.cjs; each line is a full OTLP/HTTP JSON traces payload.
+	// Only included when OTLP is configured for this workflow.
+	if isOTLPEnabled(data) {
+		paths = append(paths, "/tmp/gh-aw/"+constants.OtelJsonlFilename)
+	}
+
+	// Collect safe outputs and agent output paths for the unified artifact.
+	// These were previously uploaded as separate safe-output and agent-output artifacts.
+	if data.SafeOutputs != nil {
+		// Raw safe-output NDJSON (copied to /tmp/gh-aw/ by generateOutputCollectionStep)
+		paths = append(paths, "/tmp/gh-aw/"+constants.SafeOutputsFilename)
+		// Processed agent output JSON produced by collect_ndjson_output.cjs
+		paths = append(paths, "/tmp/gh-aw/"+constants.AgentOutputFilename)
+		if data.SafeOutputs.CommentMemory != nil {
+			paths = append(paths, "/tmp/gh-aw/comment-memory/")
+		}
+	}
+
+	// Collect git patch path if safe-outputs with PR operations is configured.
+	// NOTE: Git patch generation has been moved to the safe-outputs MCP server.
+	// The patch is now generated when create_pull_request or push_to_pull_request_branch
+	// tools are called, providing immediate error feedback if no changes are present.
+	// Include patches in the artifact when:
+	// 1. Safe outputs needs them for checkout (non-staged create_pull_request/push_to_pull_request_branch)
+	// 2. Threat detection is enabled (detection job needs patches for security analysis, even when the
+	//    safe-output handler is staged and doesn't need checkout itself)
+	threatDetectionNeedsPatches := IsDetectionJobEnabled(data.SafeOutputs)
+	if usesPatchesAndCheckouts(data.SafeOutputs) || threatDetectionNeedsPatches {
+		paths = append(paths, "/tmp/gh-aw/aw-*.patch")
+		// Bundle files are generated when patch-format: bundle is configured.
+		// Both formats use the same download path in the safe_outputs job, so
+		// include the bundle glob unconditionally alongside the patch glob.
+		// The artifact upload step already sets if-no-files-found: ignore, so
+		// this is safe even when no bundle files exist.
+		paths = append(paths, "/tmp/gh-aw/aw-*.bundle")
+	}
+
+	// Include firewall audit/observability logs in the unified agent artifact
+	// so all agent job outputs ship as a single artifact (AWF v0.25.0+).
+	if isFirewallEnabled(data) {
+		paths = append(paths, constants.AWFConfigFilePath)
+		paths = append(paths, constants.AWFProxyLogsDir+"/")
+		paths = append(paths, constants.AWFAuditDir+"/")
+		// Include the AWF /reflect payload persisted by the agent harness.
+		// Co-located under /tmp/gh-aw/sandbox/firewall/ so the existing
+		// chmod -R a+r step covers its permissions before upload.
+		paths = append(paths, constants.AWFReflectFilePath)
+	}
+
+	return paths
+}
+
+// generateSummarySteps emits all GITHUB_STEP_SUMMARY log-parsing steps for the agent job.
+// It covers agent log parsing, MCP scripts, MCP gateway, firewall logs, token usage,
+// AWF reflect summary, and observability summary.
+func (c *Compiler) generateSummarySteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
+	// Parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, data, engine)
 
-	// parse mcp-scripts logs for GITHUB_STEP_SUMMARY (if mcp-scripts is enabled)
+	// Parse mcp-scripts logs for GITHUB_STEP_SUMMARY (if mcp-scripts is enabled)
 	if IsMCPScriptsEnabled(data.MCPScripts) {
 		c.generateMCPScriptsLogParsing(yaml, data)
 	}
 
-	// parse MCP gateway logs for GITHUB_STEP_SUMMARY
-	// The MCP gateway is always enabled, even when agent sandbox is disabled
+	// Parse MCP gateway logs for GITHUB_STEP_SUMMARY.
+	// The MCP gateway is always enabled, even when agent sandbox is disabled.
 	c.generateMCPGatewayLogParsing(yaml, data)
 
-	// Add firewall log parsing and dedicated audit upload for all firewall-enabled engines.
+	// Add firewall log parsing for all firewall-enabled engines.
 	// This replaces the previous per-engine blocks (Copilot, Codex, Claude) and extends
 	// support to all engines (including Gemini) so every agentic workflow uploads audit logs.
 	if isFirewallEnabled(data) {
@@ -584,9 +652,6 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	// Parse token-usage.jsonl and append to step summary (requires AWF v0.25.8+)
 	if isFirewallEnabled(data) {
 		c.generateTokenUsageSummary(yaml, data)
-		// Include the aggregated agent_usage.json in the agent artifact so third-party
-		// tools can consume structured token data without parsing the step summary.
-		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.TokenUsageFilename)
 	}
 
 	// Append AWF API proxy reflection data (available endpoints and models) to step summary.
@@ -598,41 +663,35 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 
 	// Synthesize a compact observability section from runtime artifacts when OTLP is enabled.
 	c.generateObservabilitySummary(yaml, data)
+}
 
-	// Collect agent stdio logs path for unified upload
-	artifactPaths = append(artifactPaths, logFileFull)
-
-	// Collect agent-generated files path for unified upload
-	// This directory is used by workflows that instruct the agent to write files
-	// (e.g., smoke-claude status summaries)
-	artifactPaths = append(artifactPaths, "/tmp/gh-aw/agent/")
-
-	// Collect GitHub API rate-limit log for observability.
-	// Written by github_rate_limit_logger.cjs during REST API calls.
-	artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.GithubRateLimitsFilename)
-
-	// Collect OTLP span mirror — enables post-hoc trace debugging without a live collector.
-	// Written by send_otlp_span.cjs; each line is a full OTLP/HTTP JSON traces payload.
-	// Only included when OTLP is configured for this workflow.
-	if isOTLPEnabled(data) {
-		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.OtelJsonlFilename)
+// generatePostAgentCollectionAndUpload orchestrates the post-agent phase:
+// engine output cleanup, access log collection, artifact path accumulation via collectArtifactPaths,
+// step-summary generation via generateSummarySteps, safe-outputs/memory/staging artifact uploads,
+// post-steps, the unified artifact upload, token invalidation, dev-mode actions restore,
+// and step-order validation.
+func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, artifactPaths []string, logFileFull string, checkoutMgr *CheckoutManager) error {
+	// Generate engine output cleanup step so workspace files are removed after collection.
+	// The engine-declared output paths are gathered by collectArtifactPaths below.
+	if len(getEngineArtifactPaths(engine)) > 0 {
+		c.generateEngineOutputCleanup(yaml, engine)
 	}
 
-	// Collect safe outputs and agent output paths for the unified artifact.
-	// These were previously uploaded as separate safe-output and agent-output artifacts.
-	if data.SafeOutputs != nil {
-		// Raw safe-output NDJSON (copied to /tmp/gh-aw/ by generateOutputCollectionStep)
-		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.SafeOutputsFilename)
-		// Processed agent output JSON produced by collect_ndjson_output.cjs
-		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.AgentOutputFilename)
-		if data.SafeOutputs.CommentMemory != nil {
-			artifactPaths = append(artifactPaths, "/tmp/gh-aw/comment-memory/")
-		}
+	// Extract and upload squid access logs (if any proxy tools were used)
+	c.generateExtractAccessLogs(yaml, data.Tools)
+	c.generateUploadAccessLogs(yaml, data.Tools)
 
-		// Write a minimal agent_output.json placeholder when the engine fails before
-		// producing any safe outputs, so downstream safe_outputs and conclusion jobs
-		// receive a valid (empty) JSON file instead of an ENOENT error.
-		// The placeholder is only written if the engine did not already write the file.
+	// Collect all artifact paths for the unified upload.
+	artifactPaths = c.collectArtifactPaths(data, engine, logFileFull, artifactPaths)
+
+	// Emit all GITHUB_STEP_SUMMARY log-parsing steps.
+	c.generateSummarySteps(yaml, data, engine)
+
+	// Write a minimal agent_output.json placeholder when the engine fails before
+	// producing any safe outputs, so downstream safe_outputs and conclusion jobs
+	// receive a valid (empty) JSON file instead of an ENOENT error.
+	// The placeholder is only written if the engine did not already write the file.
+	if data.SafeOutputs != nil {
 		c.generateAgentOutputPlaceholderStep(yaml)
 	}
 
@@ -668,39 +727,8 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	// to be downloaded and processed by the upload_artifact job
 	generateSafeOutputsArtifactStagingUpload(yaml, data)
 
-	// Collect git patch path if safe-outputs with PR operations is configured
-	// NOTE: Git patch generation has been moved to the safe-outputs MCP server
-	// The patch is now generated when create_pull_request or push_to_pull_request_branch
-	// tools are called, providing immediate error feedback if no changes are present.
-	// Include patches in the artifact when:
-	// 1. Safe outputs needs them for checkout (non-staged create_pull_request/push_to_pull_request_branch)
-	// 2. Threat detection is enabled (detection job needs patches for security analysis, even when the
-	//    safe-output handler is staged and doesn't need checkout itself)
-	threatDetectionNeedsPatches := IsDetectionJobEnabled(data.SafeOutputs)
-	if usesPatchesAndCheckouts(data.SafeOutputs) || threatDetectionNeedsPatches {
-		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.patch")
-		// Bundle files are generated when patch-format: bundle is configured.
-		// Both formats use the same download path in the safe_outputs job, so
-		// include the bundle glob unconditionally alongside the patch glob.
-		// The artifact upload step already sets if-no-files-found: ignore, so
-		// this is safe even when no bundle files exist.
-		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.bundle")
-	}
-
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
-
-	// Include firewall audit/observability logs in the unified agent artifact
-	// so all agent job outputs ship as a single artifact (AWF v0.25.0+).
-	if isFirewallEnabled(data) {
-		artifactPaths = append(artifactPaths, constants.AWFConfigFilePath)
-		artifactPaths = append(artifactPaths, constants.AWFProxyLogsDir+"/")
-		artifactPaths = append(artifactPaths, constants.AWFAuditDir+"/")
-		// Include the AWF /reflect payload persisted by the agent harness.
-		// Co-located under /tmp/gh-aw/sandbox/firewall/ so the existing
-		// chmod -R a+r step covers its permissions before upload.
-		artifactPaths = append(artifactPaths, constants.AWFReflectFilePath)
-	}
 
 	// Generate single unified artifact upload with all collected paths.
 	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.

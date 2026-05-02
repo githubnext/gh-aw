@@ -40,6 +40,7 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 	config.CommitPushed = extractStringFromMap(messagesMap, "commit-pushed", nil)
 	config.AgentFailureIssue = extractStringFromMap(messagesMap, "agent-failure-issue", nil)
 	config.AgentFailureComment = extractStringFromMap(messagesMap, "agent-failure-comment", nil)
+	config.BodyHeader = extractStringFromMap(messagesMap, "body-header", nil)
 
 	return config
 }

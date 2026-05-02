@@ -161,8 +161,32 @@ func TestCrushEngineInstallation(t *testing.T) {
 		steps := engine.GetInstallationSteps(workflowData)
 		require.NotEmpty(t, steps, "Should generate installation steps")
 
-		// Should have at least: Node.js setup + Install Crush
-		assert.GreaterOrEqual(t, len(steps), 2, "Should have at least 2 installation steps")
+		// Should have at least: Node.js setup + Install Crush + Verify Crush CLI installation
+		assert.GreaterOrEqual(t, len(steps), 3, "Should have at least 3 installation steps")
+
+		// Find install step and verify --ignore-scripts is NOT present (Crush needs post-install scripts for native binaries)
+		var installStep string
+		for _, step := range steps {
+			content := strings.Join(step, "\n")
+			if strings.Contains(content, "@charmland/crush@") {
+				installStep = content
+				break
+			}
+		}
+		require.NotEmpty(t, installStep, "Should find a step installing @charmland/crush")
+		assert.NotContains(t, installStep, "--ignore-scripts", "Should not use --ignore-scripts for Crush (requires post-install scripts for native binaries)")
+
+		// Find crush --version step to confirm binary download is forced
+		var versionStep string
+		for _, step := range steps {
+			content := strings.Join(step, "\n")
+			if strings.Contains(content, "crush --version") {
+				versionStep = content
+				break
+			}
+		}
+		require.NotEmpty(t, versionStep, "Should find crush --version step to force binary download")
+		assert.Contains(t, versionStep, "Verify Crush CLI installation", "Should have a descriptive step name")
 	})
 
 	t.Run("custom command skips installation", func(t *testing.T) {
