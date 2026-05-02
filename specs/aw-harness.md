@@ -1,100 +1,156 @@
-# AW Harness Design Plan
+# AW Harness Specification
 
-## Problem Statement
+---
 
-Design a **replacement for `copilot_harness.cjs`** — the Node.js wrapper that gh-aw uses to launch coding agent CLIs inside the GitHub Actions container. Today's harness is a thin retry loop around a single CLI invocation. The new harness — called **"aw"** — adds **multi-step orchestration**, **multi-agent**, **multi-model**, **context engineering**, **cost tracking**, and **observability**.
+**Title:** AW Harness — Multi-Step Agentic Workflow Execution Engine
 
-The harness is **built on top of the Pi agent ecosystem** (`@mariozechner/pi-coding-agent`, `pi-agent-core`, `pi-ai`). All gh-aw-specific capabilities — safe outputs, MCP gateway bridging, cost tracking, steering, observability — are implemented as **Pi extensions** using Pi's native extensibility mechanism (`ExtensionAPI`). This means the extensions are reusable with standalone Pi and the OpenClaw ecosystem.
+**Status:** Unofficial Draft
 
-### What this IS
+**Date:** 2025-07-14
 
-- A new `engine: aw` option (registered via `harness: aw_harness.cjs` in frontmatter)
-- A Pi SDK application with gh-aw-specific Pi extensions
-- Optimized for execution inside the gh-aw Action container (firewall, api-proxy, MCP gateway)
-- TypeScript compiled for Node.js 24, bundled as a single `.cjs` in `actions/setup/js/`
-- **`gh-proxy` and `cli-proxy` are always enabled** — Pi SDK does not support MCP natively; these are mandatory for the MCP bridge to work and cannot be turned off
+**Editor:** GitHub gh-aw Team
 
-### What this is NOT
+---
 
-- NOT a reimplementation of gh-aw (compilation, triggers, safe-outputs post-processing, threat detection stay as-is)
-- NOT a CLI spawner — no `copilot` / `claude` / `codex` CLI processes are spawned
-- NOT interactive (no TUI — pure headless CI execution via Pi SDK mode)
-- NOT a replacement for existing engines — `engine: copilot`, `engine: claude`, `engine: codex` continue to work via their current harnesses
+## Abstract
 
-## Model Resolution: api-proxy Integration
+This document specifies the **AW Harness** (`aw_harness.cjs`), a Node.js execution engine for the `engine: aw` mode of GitHub Agentic Workflows (gh-aw). The harness provides multi-step orchestration, multi-agent coordination, context engineering, cost tracking, and observability, built on top of the Pi agent SDK ecosystem. All gh-aw-specific capabilities are implemented as Pi extensions using Pi's native `ExtensionAPI` extensibility mechanism.
 
-The harness does **not** do provider inference or model routing. That is handled by the **api-proxy** (`gh-aw-firewall/containers/api-proxy/model-resolver.js`), which already runs in the container.
+## Status of This Document
 
-### How model resolution works
+This is an internal design specification for the GitHub gh-aw project. It is not a W3C standard, nor is it on the W3C standards track. The document describes the intended architecture, contracts, and implementation plan for `aw_harness.cjs`. Feedback and corrections **SHOULD** be submitted via the project's standard pull request process.
 
-The api-proxy accepts model names (aliases or explicit `provider/model` refs) and resolves them against available models per provider:
+---
 
-```
-Harness (Pi SDK) → api-proxy → LLM provider
-  model: "sonnet"           resolves to copilot/claude-sonnet-4.6
-  model: "gpt-5-codex"      resolves to copilot/gpt-5.3-codex
-  model: "copilot/gpt-4.1"  passes through as-is
-```
+## Table of Contents
 
-**Alias config** (via `AWF_MODEL_ALIASES` env var):
+1. [Introduction](#1-introduction)
+2. [Conformance](#2-conformance)
+3. [Terminology and Definitions](#3-terminology-and-definitions)
+4. [Architecture](#4-architecture)
+5. [Harness Invocation Contract](#5-harness-invocation-contract)
+6. [Workflow Definition](#6-workflow-definition)
+7. [DAG Execution Model](#7-dag-execution-model)
+8. [Extensions](#8-extensions)
+9. [Model Resolution](#9-model-resolution)
+10. [Build and Deployment](#10-build-and-deployment)
+11. [Security Considerations](#11-security-considerations)
+12. [Privacy Considerations](#12-privacy-considerations)
+13. [References](#13-references)
 
-```json
-{
-  "models": {
-    "sonnet": ["copilot/*sonnet*", "anthropic/*sonnet*"],
-    "gpt-5-codex": ["copilot/gpt-5*-codex", "openai/gpt-5*-codex"],
-    "": ["sonnet", "gpt-5*-codex"]
-  }
-}
-```
+---
 
-**Key properties**:
+## 1. Introduction
 
-- `providerid/modelid` syntax with `*` wildcards
-- Recursive alias resolution with loop detection
-- Case-insensitive matching
-- Semver sorting (highest version first among candidates)
-- Default policy via `""` key (used when no model is specified)
+*(This section is non-normative.)*
 
-### What this means for the harness
+The existing gh-aw harnesses (`copilot_harness.cjs`, `claude_harness.cjs`) are thin retry loops around a single CLI invocation. As workflow complexity grows, authors need multi-step orchestration, parallel agent execution, per-step model selection, budget management, and structured observability — none of which the current harnesses provide.
 
-- Pi SDK's `pi-ai` is configured with the api-proxy as an **OpenAI-compatible custom provider** (using `pi.registerProvider()` or `models.json` configuration)
-- The harness just passes model names through — aliases like `"sonnet"` work out of the box
-- No `provider:` field needed in frontmatter — the proxy handles routing
-- Per-step/per-agent model selection is just setting a different model name string
-- The harness inherits the api-proxy's full model catalog without maintaining its own
+The AW Harness introduces `engine: aw` as a new opt-in execution engine. It does not replace existing engines; `engine: copilot`, `engine: claude`, and `engine: codex` continue to operate unchanged via their current harnesses. The AW Harness is a Pi SDK application: it creates one `AgentSession` per workflow step, loads a fixed set of gh-aw Pi extensions into each session, and orchestrates sessions according to a DAG derived from the workflow's `harness:` frontmatter block and Markdown heading structure.
 
-## Architecture: Pi SDK + Extensions
+The harness is designed exclusively for the gh-aw Actions container environment. It assumes the firewall, api-proxy, and MCP gateway are already running. It performs no direct LLM API calls and requires no additional authentication setup beyond what the container already provides.
 
-### Core Principle: Everything is a Pi Extension
+### 1.1 Scope
 
-The harness is a thin orchestration layer that creates Pi `AgentSession` instances (via `createAgentSession()` from the Pi SDK). All gh-aw-specific capabilities are implemented as **Pi extensions** using the `ExtensionAPI` interface:
+This specification covers:
 
-```typescript
-// Each gh-aw capability is a Pi extension
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+- The entry-point invocation contract for `aw_harness.cjs`.
+- The frontmatter schema for `engine: aw` workflows.
+- The step-extraction and DAG-construction algorithms.
+- The normative requirements for each of the eight gh-aw Pi extensions.
+- The model resolution contract via the api-proxy.
+- The build and deployment configuration.
 
-export default function safeOutputsExtension(pi: ExtensionAPI) {
-  // Register safe-output tools the LLM can call
-  pi.registerTool({ name: "create_issue", ... });
-  pi.registerTool({ name: "create_pull_request", ... });
-  pi.registerTool({ name: "add_comment", ... });
+This specification does not cover:
 
-  // Hook into agent events for observability
-  pi.on("tool_call", async (event, ctx) => { ... });
-  pi.on("agent_end", async (event, ctx) => { ... });
-}
-```
+- The compilation of workflow Markdown to GitHub Actions YAML (handled by `gh-aw` proper).
+- Safe-outputs post-processing and threat detection (handled by post-agent jobs, unchanged).
+- The Pi SDK internals (`pi-agent-core`, `pi-ai`).
+- The api-proxy internals (`model-resolver.js`).
 
-**Why Pi extensions instead of custom code?**
+### 1.2 Background and Motivation
 
-1. **Reusable** — Extensions work with standalone Pi CLI, OpenClaw, and any Pi SDK app
-2. **Composable** — Users can add their own extensions alongside gh-aw ones
-3. **Standard lifecycle** — Pi handles extension loading, event dispatch, tool registration
-4. **Testable** — Extensions can be tested independently with Pi's SDK test harness
-5. **Ecosystem-compatible** — Can be published as Pi packages (`pi install npm:@github/aw-extensions`)
+The Pi agent ecosystem (`@mariozechner/pi-coding-agent`, `pi-agent-core`, `pi-ai`) provides a composable, extension-based SDK for building agentic applications. By implementing all gh-aw-specific capabilities as Pi extensions, those extensions become:
 
-### How It Fits in the gh-aw Stack
+- **Reusable** — They work with standalone Pi CLI and any Pi SDK application.
+- **Composable** — Users can add their own extensions alongside the provided set.
+- **Ecosystem-compatible** — They can be published as Pi packages.
+
+---
+
+## 2. Conformance
+
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** in this document are to be interpreted as described in [RFC 2119].
+
+| Keyword | Meaning |
+|---------|---------|
+| **MUST** / **REQUIRED** / **SHALL** | Absolute requirement |
+| **MUST NOT** / **SHALL NOT** | Absolute prohibition |
+| **SHOULD** / **RECOMMENDED** | Strong recommendation; deviation requires documented justification |
+| **SHOULD NOT** | Strong recommendation against; deviation requires documented justification |
+| **MAY** / **OPTIONAL** | Permitted but not required |
+
+A **conforming implementation** is one that satisfies all **MUST** and **MUST NOT** requirements in this specification.
+
+---
+
+## 3. Terminology and Definitions
+
+**AW Harness**
+: The execution engine implemented in `aw_harness.cjs`, invoked when a workflow declares `engine: aw`. It is responsible for parsing the workflow, constructing the DAG, and orchestrating one `AgentSession` per step.
+
+**AgentSession**
+: A Pi SDK session object, obtained via `createAgentSession()`, that manages a single agent's message loop, tool calls, and event stream.
+
+**api-proxy**
+: A sidecar process (`gh-aw-firewall/containers/api-proxy/model-resolver.js`) running in the gh-aw container. It accepts OpenAI-compatible API requests, resolves model aliases, and routes calls to the appropriate LLM provider. The harness communicates with it at `http://localhost:8080/v1` by default.
+
+**cli-proxy**
+: A feature that mounts MCP servers as CLI tools on `PATH`, making them callable as ordinary shell commands within agent sessions.
+
+**DAG (Directed Acyclic Graph)**
+: The execution graph derived from the workflow's `harness.steps` declarations and implicit document-order dependencies. Nodes are steps; directed edges encode `depends` relationships. Cycles are prohibited.
+
+**ExtensionAPI**
+: The Pi SDK interface (`ExtensionAPI` from `@mariozechner/pi-coding-agent`) that a Pi extension receives as its sole argument. Provides `pi.registerTool()`, `pi.registerProvider()`, and `pi.on()`.
+
+**gh-proxy**
+: A feature that provides a pre-authenticated `gh` CLI binary in the agent's bash environment, enabling direct GitHub API access without separate token management.
+
+**harness step**
+: A unit of work within an `engine: aw` workflow. Each step is assigned one `AgentSession`, a prompt derived from the corresponding Markdown section, and optionally a named agent definition.
+
+**MCP Gateway**
+: The gh-aw MCP gateway process that exposes GitHub tools and custom MCP server tools. It runs independently of the harness in the same container.
+
+**MCP bridge**
+: The `mcp-bridge` Pi extension (Extension 2) that translates MCP gateway tool definitions into Pi `AgentTool` instances, making them available to agent sessions without native MCP support in the Pi SDK.
+
+**model alias**
+: A short name (e.g., `"sonnet"`, `"gpt-5-codex"`) resolved by the api-proxy to a fully-qualified `provider/model` string. The harness passes aliases through without resolution.
+
+**Pi extension**
+: A TypeScript module that exports a default function with signature `(pi: ExtensionAPI) => void | Promise<void>`. Loaded into an `AgentSession` to register tools, subscribe to events, or register providers.
+
+**safe output**
+: A deferred GitHub action (create issue, create pull request, add comment, etc.) expressed as an artifact file written during agent execution and processed by the post-agent job.
+
+**step annotation**
+: An HTML comment of the form `<!-- harness-step: <name> -->` embedded in a Markdown section to associate that section with a named entry in `harness.steps`.
+
+**transcript**
+: The complete message history of a completed `AgentSession`, optionally summarized, passed as context to downstream steps.
+
+**workflow document**
+: A Markdown file with YAML frontmatter that declares an `engine: aw` workflow. The frontmatter **MUST** conform to the schema in [Section 6](#6-workflow-definition).
+
+---
+
+## 4. Architecture
+
+### 4.1 Stack Overview
+
+The AW Harness is the topmost layer within the gh-aw container. The following ASCII diagram illustrates the component relationships.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -148,172 +204,327 @@ export default function safeOutputsExtension(pi: ExtensionAPI) {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Design Principles
+### 4.2 Design Principles
 
-1. **Built on Pi ecosystem** — Uses Pi SDK (`createAgentSession()`, `Agent`, `AgentTool`) as the runtime. All gh-aw capabilities are Pi extensions, not custom plumbing.
-2. **Extensions-first** — Every gh-aw feature is a proper Pi extension using `ExtensionAPI`. Extensions use `pi.registerTool()` for tools, `pi.on()` for events, `pi.registerProvider()` for model routing. This makes them reusable outside gh-aw.
-3. **api-proxy for model resolution** — Pi's `pi-ai` talks to the api-proxy as an OpenAI-compatible provider. Model names (aliases or explicit) pass through — the proxy resolves.
-4. **Optimized for gh-aw container** — Assumes firewall, api-proxy, MCP gateway are running. No redundant auth, no direct LLM API calls, no network configuration.
-5. **`gh-proxy` and `cli-proxy` always on** — The Pi SDK does not support MCP natively. GitHub and other MCP server tools are bridged into Pi via the `mcp-bridge` extension, which requires `gh-proxy` (pre-authenticated `gh` CLI in bash) and `cli-proxy` (MCP servers mounted as CLI tools on `PATH`) to be active. These features are **always enabled** when `engine: aw` is selected and **cannot be disabled**.
-5. **TypeScript → Node 24** — Source is TypeScript, compiled to ES2024, bundled via esbuild to a single `.cjs`. Leverages Node 24 features (native fetch, structuredClone, AbortSignal.any).
-6. **Output in `actions/setup/js/`** — The bundled `aw_harness.cjs` lives alongside `copilot_harness.cjs` and `claude_harness.cjs`. Same deployment mechanism, same runtime contract.
-7. **New opt-in engine** — `engine: aw` is a new choice. Existing engines are untouched.
-8. **Markdown-native steps** — `## Heading` = step boundary. HTML comments carry metadata.
-9. **Observable** — JSONL event stream + OTel spans, all via the observability extension.
+1. **Built on Pi ecosystem.** A conforming implementation **MUST** use the Pi SDK (`createAgentSession()`, `Agent`, `AgentTool`) as the agent runtime. All gh-aw capabilities **MUST** be Pi extensions, not custom plumbing.
 
-## Pi Provider Configuration for api-proxy
+2. **Extensions-first.** Every gh-aw feature **MUST** be implemented as a proper Pi extension using `ExtensionAPI`. Extensions **MUST** use `pi.registerTool()` for tools, `pi.on()` for events, and `pi.registerProvider()` for model routing, making them reusable outside gh-aw.
 
-The harness registers the api-proxy as a custom Pi provider at startup, using Pi's `registerProvider()` mechanism:
+3. **api-proxy for model resolution.** Pi's `pi-ai` **MUST** be configured to communicate with the api-proxy as an OpenAI-compatible provider. Model names (aliases or explicit) **MUST** be passed through to the proxy without local resolution.
 
-```typescript
-export default async function apiProxyProvider(pi: ExtensionAPI) {
-  const proxyUrl = process.env.AWF_API_PROXY_URL || "http://localhost:8080/v1";
+4. **Optimized for gh-aw container.** The harness **MUST** assume that the firewall, api-proxy, and MCP gateway are already running. It **MUST NOT** perform direct LLM API calls, redundant authentication, or network configuration.
 
-  pi.registerProvider("aw-proxy", {
-    baseUrl: proxyUrl,
-    apiKey: "AW_PROXY_API_KEY",   // env var name — Pi resolves it
-    api: "openai-completions",     // api-proxy speaks OpenAI protocol
-    models: await fetchAvailableModels(proxyUrl),
-  });
-}
-```
+5. **`gh-proxy` and `cli-proxy` always on.** The Pi SDK does not support MCP natively. GitHub and other MCP server tools are bridged into Pi via the `mcp-bridge` extension. This bridge **REQUIRES** both `gh-proxy` (pre-authenticated `gh` CLI in bash) and `cli-proxy` (MCP servers mounted as CLI tools on `PATH`). A conforming implementation **MUST** enable both `gh-proxy` and `cli-proxy` when `engine: aw` is selected. An implementation **MUST NOT** allow these features to be disabled for `engine: aw`, regardless of the values specified in the workflow frontmatter (see [Section 6.2](#62-overrides-and-fixed-settings)).
 
-This means:
+6. **TypeScript → Node 24.** Source **MUST** be TypeScript, compiled to ES2024, bundled via esbuild to a single `.cjs`. Leverages Node 24 features (native fetch, `structuredClone`, `AbortSignal.any`).
 
-- Pi treats the api-proxy as a standard OpenAI-compatible provider
-- Model aliases (`sonnet`, `gpt-5-codex`) are sent as-is to the proxy
-- The proxy resolves aliases, routes to the actual provider, returns the response
-- Pi's token counting, cost tracking, and streaming all work transparently
+7. **Output in `actions/setup/js/`.** The bundled `aw_harness.cjs` **MUST** be placed in `actions/setup/js/aw_harness.cjs`, alongside `copilot_harness.cjs` and `claude_harness.cjs`. The same deployment mechanism and runtime contract apply.
 
-## Workflow Definition Format
+8. **New opt-in engine.** `engine: aw` is an independent opt-in. Existing engines **MUST** be untouched.
 
-Uses the **existing gh-aw frontmatter** with `engine: aw` and a new optional `harness:` block.
+9. **Markdown-native steps.** `## Heading` or `### Heading` elements **MUST** be recognized as step boundaries. HTML comments carry step metadata.
 
-> **Constraint:** `gh-proxy` and `cli-proxy` are always enabled for `engine: aw` (Pi SDK does not support MCP natively). They are shown explicitly below but are enforced by the compiler regardless of whether the author includes them.
+10. **Observable.** All implementations **MUST** emit a JSONL event stream to stderr and **SHOULD** generate OTel spans when an OTLP endpoint is configured.
 
-```markdown
----
-on:
-  schedule:
-    - cron: "0 9 * * 1-5"
-
-engine:
-  id: aw
-  model: sonnet                  # Model alias — api-proxy resolves
-  harness: aw_harness.cjs
-
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-
-# gh-proxy and cli-proxy are ALWAYS enabled for engine: aw.
-# Pi SDK does not support MCP natively; the mcp-bridge extension
-# requires both features to bridge gateway tools into Pi AgentTools.
-cli-proxy: true
-
-tools:
-  github:
-    mode: gh-proxy               # Always gh-proxy for engine: aw
-    toolsets: [issues, pull_requests, code_search]
-  bash: [grep, find, wc, git, jq]
-
-safe-outputs:
-  create-issue:
-    title-prefix: "[review] "
-    labels: [automated-review]
-    max-count: 3
-
-timeout-minutes: 30
-
-observability:
-  otlp:
-    endpoint: ${{ secrets.OTLP_ENDPOINT }}
-    headers:
-      Authorization: ${{ secrets.OTLP_TOKEN }}
-
-# ── Harness config (optional) ───────────────────────────────
-harness:
-  budget:
-    max-cost-usd: 5.00
-    warn-at-percent: 80
-
-  context:
-    compaction: summarize
-    compaction-threshold: 0.75
-    transcript-mode: summary
-
-  agents:
-    reviewer:
-      model: sonnet
-      system: |
-        You are a senior code reviewer. Focus on correctness, security,
-        and maintainability.
-    scanner:
-      model: gpt-5-codex
-      system: |
-        You are a security specialist. Focus on vulnerabilities,
-        injection risks, and credential exposure.
-    synthesizer:
-      model: copilot/gpt-4.1
-      system: |
-        You synthesize multiple review perspectives into a single,
-        prioritized action list.
-
-  steps:
-    parallel-review:
-      agents: [reviewer, scanner]
-      parallel: true
-    synthesize:
-      agent: synthesizer
-      depends: [parallel-review]
-
-  steering:
-    time-warning-minutes: 5
-    time-critical-minutes: 2
-    budget-warn-percent: 75
-    budget-critical-percent: 90
-
-  checkpoint: true
 ---
 
-## Daily Code Review
+## 5. Harness Invocation Contract
 
-Review all changes pushed to the default branch in the last 24 hours.
+### 5.1 Entry Point
 
-### Gather Changes
-<!-- harness-step: gather -->
-Use `git log --since="24 hours ago"` and `git diff` to collect all
-recent changes. Summarize the scope.
+The AW Harness **MUST** be invocable as a Node.js CommonJS module from the command line. A conforming invocation has the form:
 
-### Parallel Review
-<!-- harness-step: parallel-review -->
-Each reviewer examines the changes independently.
-
-### Synthesize
-<!-- harness-step: synthesize -->
-Read outputs from both reviewers. Produce a prioritized findings list.
-
-### Report
-Create a GitHub issue with the synthesized review.
+```
+node aw_harness.cjs <workflow-path>
 ```
 
-### How Steps Work
+where `<workflow-path>` is the absolute or relative path to the workflow Markdown file.
 
-**Step extraction**: Each `## Heading` or `### Heading` is a potential step. Linked to `harness.steps` via `<!-- harness-step: name -->` HTML comments.
+### 5.2 Environment Variables
 
-**Implicit behavior**:
+A conforming implementation **MUST** read the following environment variables:
 
-- No `<!-- harness-step -->` → sequential by default (document order)
-- With annotation → follows `harness.steps` config (parallel, depends, agent)
-- No `harness:` block → entire body = single Pi session prompt
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `AWF_API_PROXY_URL` | Base URL of the api-proxy OpenAI-compatible endpoint | `http://localhost:8080/v1` |
+| `AWF_API_PROXY_TOKEN` | Bearer token for api-proxy authentication | *(required; no default)* |
+| `AWF_MODEL_ALIASES` | JSON string containing model alias configuration | *(empty; aliases resolved by proxy)* |
 
-**Step execution**:
+A conforming implementation **SHOULD** read additional standard GitHub Actions environment variables (`GITHUB_REPOSITORY`, `GITHUB_RUN_ID`, etc.) for use in observability spans and checkpoint keys.
+
+### 5.3 Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | All steps completed successfully |
+| `1` | One or more steps failed (non-recoverable error) |
+| `2` | Invocation error (missing workflow path, invalid frontmatter) |
+
+A conforming implementation **MUST** exit with code `0` if and only if all DAG steps complete without error. It **MUST** exit with a non-zero code on any unrecovered failure.
+
+### 5.4 Standard Streams
+
+- **stdout**: Reserved for structured output (e.g., JSON summaries). A conforming implementation **SHOULD NOT** write diagnostic messages to stdout.
+- **stderr**: All diagnostic messages, JSONL event stream, and debug output **MUST** be written to stderr.
+
+---
+
+## 6. Workflow Definition
+
+### 6.1 Frontmatter Schema
+
+An `engine: aw` workflow document **MUST** include a YAML frontmatter block conforming to the existing gh-aw frontmatter schema, extended with the optional `harness:` key described below.
+
+> [!NOTE] Non-normative example.
+>
+> The following is a complete example of an `engine: aw` workflow document illustrating all supported frontmatter keys.
+>
+> ```markdown
+> ---
+> on:
+>   schedule:
+>     - cron: "0 9 * * 1-5"
+>
+> engine:
+>   id: aw
+>   model: sonnet                  # Model alias — api-proxy resolves
+>   harness: aw_harness.cjs
+>
+> permissions:
+>   contents: read
+>   issues: read
+>   pull-requests: read
+>
+> # gh-proxy and cli-proxy are ALWAYS enabled for engine: aw.
+> # Pi SDK does not support MCP natively; the mcp-bridge extension
+> # requires both features to bridge gateway tools into Pi AgentTools.
+> cli-proxy: true
+>
+> tools:
+>   github:
+>     mode: gh-proxy               # Always gh-proxy for engine: aw
+>     toolsets: [issues, pull_requests, code_search]
+>   bash: [grep, find, wc, git, jq]
+>
+> safe-outputs:
+>   create-issue:
+>     title-prefix: "[review] "
+>     labels: [automated-review]
+>     max-count: 3
+>
+> timeout-minutes: 30
+>
+> observability:
+>   otlp:
+>     endpoint: ${{ secrets.OTLP_ENDPOINT }}
+>     headers:
+>       Authorization: ${{ secrets.OTLP_TOKEN }}
+>
+> # ── Harness config (optional) ───────────────────────────────
+> harness:
+>   budget:
+>     max-cost-usd: 5.00
+>     warn-at-percent: 80
+>
+>   context:
+>     compaction: summarize
+>     compaction-threshold: 0.75
+>     transcript-mode: summary
+>
+>   agents:
+>     reviewer:
+>       model: sonnet
+>       system: |
+>         You are a senior code reviewer. Focus on correctness, security,
+>         and maintainability.
+>     scanner:
+>       model: gpt-5-codex
+>       system: |
+>         You are a security specialist. Focus on vulnerabilities,
+>         injection risks, and credential exposure.
+>     synthesizer:
+>       model: copilot/gpt-4.1
+>       system: |
+>         You synthesize multiple review perspectives into a single,
+>         prioritized action list.
+>
+>   steps:
+>     parallel-review:
+>       agents: [reviewer, scanner]
+>       parallel: true
+>     synthesize:
+>       agent: synthesizer
+>       depends: [parallel-review]
+>
+>   steering:
+>     time-warning-minutes: 5
+>     time-critical-minutes: 2
+>     budget-warn-percent: 75
+>     budget-critical-percent: 90
+>
+>   checkpoint: true
+> ---
+>
+> ## Daily Code Review
+>
+> Review all changes pushed to the default branch in the last 24 hours.
+>
+> ### Gather Changes
+> <!-- harness-step: gather -->
+> Use `git log --since="24 hours ago"` and `git diff` to collect all
+> recent changes. Summarize the scope.
+>
+> ### Parallel Review
+> <!-- harness-step: parallel-review -->
+> Each reviewer examines the changes independently.
+>
+> ### Synthesize
+> <!-- harness-step: synthesize -->
+> Read outputs from both reviewers. Produce a prioritized findings list.
+>
+> ### Report
+> Create a GitHub issue with the synthesized review.
+> ```
+
+#### 6.1.1 `harness.budget`
+
+The `harness.budget` key is **OPTIONAL**. When present, it **MUST** contain:
+
+- `max-cost-usd` (number): Maximum total cost in USD for the run. The cost-tracker extension **MUST** abort the current session if this limit is exceeded.
+- `warn-at-percent` (number, 0–100): Percentage of `max-cost-usd` at which a steering warning **MUST** be injected.
+
+#### 6.1.2 `harness.context`
+
+The `harness.context` key is **OPTIONAL**. When present, it **MAY** contain:
+
+- `compaction` (string): One of `none`, `sliding-window`, or `summarize`. Default: `none`.
+- `compaction-threshold` (number, 0–1): Context fill fraction at which compaction triggers. Default: `0.75`.
+- `transcript-mode` (string): One of `full` or `summary`. Controls how upstream step transcripts are included in downstream prompts. Default: `full`.
+
+#### 6.1.3 `harness.agents`
+
+The `harness.agents` key is **OPTIONAL**. Each entry defines a named agent with:
+
+- `model` (string, **REQUIRED**): Model alias or fully-qualified `provider/model` string.
+- `system` (string, **OPTIONAL**): System prompt override for this agent.
+
+#### 6.1.4 `harness.steps`
+
+The `harness.steps` key is **OPTIONAL**. Each entry defines a named step with:
+
+- `agent` (string, **OPTIONAL**): Name of an agent defined in `harness.agents`. Mutually exclusive with `agents`.
+- `agents` (array of strings, **OPTIONAL**): Names of agents to run in parallel for this step. Mutually exclusive with `agent`.
+- `parallel` (boolean, **OPTIONAL**): When `true` and `agents` is provided, all listed agents execute in parallel. Default: `false`.
+- `depends` (array of strings, **OPTIONAL**): Names of steps that **MUST** complete before this step begins.
+
+#### 6.1.5 `harness.steering`
+
+The `harness.steering` key is **OPTIONAL**. When present, it **MAY** contain:
+
+- `time-warning-minutes` (number): Minutes before timeout at which a warning **SHOULD** be injected. Default: `5`.
+- `time-critical-minutes` (number): Minutes before timeout at which a critical message **MUST** be injected. Default: `2`.
+- `budget-warn-percent` (number): Budget percentage at which a warning **SHOULD** be injected. Default: `75`.
+- `budget-critical-percent` (number): Budget percentage at which the session **MUST** be aborted. Default: `90`.
+
+#### 6.1.6 `harness.checkpoint`
+
+The `harness.checkpoint` key is **OPTIONAL**. When set to `true`, the checkpoint extension **MUST** persist step state on `agent_end`.
+
+### 6.2 Overrides and Fixed Settings
+
+A conforming implementation **MUST** apply the following overrides regardless of values specified in the workflow frontmatter:
+
+| Setting | Enforced value | Reason |
+|---------|----------------|--------|
+| `cli-proxy` | `true` | Required for MCP bridge functionality |
+| `tools.github.mode` | `gh-proxy` | Pi SDK requires `gh-proxy`; `remote` mode is not supported |
+
+A conforming implementation **MUST NOT** honor `cli-proxy: false` or `tools.github.mode: remote` when `engine: aw` is active. These settings **MUST** be silently overridden.
+
+### 6.3 Step Extraction Algorithm
+
+A conforming implementation **MUST** extract steps from the workflow document body using the following algorithm:
+
+1. Split the document body on ATX heading boundaries (`##` or `###` level).
+2. For each section, scan for an HTML comment matching `<!-- harness-step: <name> -->`. If found, record `name` as the step annotation.
+3. If a step annotation matches a key in `harness.steps`, apply the corresponding step configuration (agent, parallel, depends).
+4. Steps without a `<!-- harness-step -->` annotation are treated as sequential steps in document order.
+5. If no `harness:` block is present in the frontmatter, the entire document body **MUST** be treated as a single step with no explicit agent or dependency.
+
+---
+
+## 7. DAG Execution Model
+
+### 7.1 DAG Construction
+
+A conforming implementation **MUST** construct a DAG from the extracted steps as follows:
+
+1. Create one node per extracted step.
+2. For each step with a `depends` list, add a directed edge from each named dependency to that step.
+3. Perform a cycle check. If a cycle is detected, the implementation **MUST** abort with exit code `2` and emit a diagnostic to stderr identifying the cycle.
+4. Compute a topological order. Steps at the same depth **MAY** be executed in parallel.
+
+### 7.2 Execution Algorithm
+
+A conforming implementation **MUST** execute the DAG as follows:
+
+> [!NOTE] Non-normative example illustrating the orchestration entry point.
+>
+> ```typescript
+> // index.ts — entry point
+> import { createAgentSession, SessionManager } from "@mariozechner/pi-coding-agent";
+>
+> async function main() {
+>   const workflow = parseWorkflow(process.argv[2]);
+>   const dag = buildDAG(workflow);
+>   const extensions = [
+>     apiProxyProvider,
+>     mcpBridgeExtension,
+>     safeOutputsExtension,
+>     costTrackerExtension,
+>     steeringExtension,
+>     repairExtension,
+>     observabilityExtension,
+>     checkpointExtension,
+>   ];
+>
+>   for (const stepGroup of dag.executionOrder()) {
+>     await Promise.all(stepGroup.map(async (step) => {
+>       const { session } = await createAgentSession({
+>         sessionManager: SessionManager.inMemory(),
+>         extensions,
+>         model: resolveModel(step.agent?.model || workflow.defaultModel),
+>         systemPrompt: buildSystemPrompt(step),
+>       });
+>
+>       const prompt = buildStepPrompt(step, transcripts);
+>       await session.prompt(prompt);
+>
+>       transcripts[step.name] = captureTranscript(session);
+>       session.dispose();
+>     }));
+>   }
+> }
+> ```
+
+For each execution group in topological order:
+
+1. The implementation **MUST** invoke `createAgentSession()` once per step (or once per agent for steps with `agents: [...]`).
+2. The prompt passed to `session.prompt()` **MUST** be assembled from: (a) the step's Markdown body, (b) transcripts from all upstream steps, and (c) the agent's system prompt, if defined.
+3. The implementation **MUST** load all eight gh-aw Pi extensions (see [Section 8](#8-extensions)) into each session.
+4. Steps within the same parallel group **MUST** be executed concurrently using `Promise.all()`.
+5. After each session completes, the implementation **MUST** capture the session transcript for use by downstream steps.
+6. After capturing the transcript, the implementation **MUST** call `session.dispose()`.
+7. If the budget gate has been triggered (via the cost-tracker extension), the implementation **MUST NOT** launch further sessions and **MUST** exit with code `1`.
+
+### 7.3 Step Execution Summary
+
+The per-step execution sequence is:
 
 ```
 For each step (respecting DAG order):
   1. Build prompt = step markdown + upstream transcripts + system prompt
-  2. Create Pi AgentSession with gh-aw extensions:
+  2. Create Pi AgentSession with all gh-aw extensions:
      - api-proxy provider registered
      - MCP bridge tools registered
      - Safe-output tools registered
@@ -324,330 +535,405 @@ For each step (respecting DAG order):
   6. Budget gate check, checkpoint state
 ```
 
-## gh-aw Pi Extensions
+---
 
-All gh-aw-specific behavior is packaged as Pi extensions. Each extension is a standalone TypeScript module that exports a default function receiving `ExtensionAPI`.
+## 8. Extensions
 
-### Extension 1: api-proxy Provider
+All gh-aw-specific behavior **MUST** be packaged as Pi extensions. Each extension **MUST** be a standalone TypeScript module that exports a default function with signature `(pi: ExtensionAPI) => void | Promise<void>`.
 
-Registers the gh-aw api-proxy as a custom Pi provider.
+The following eight extensions **MUST** be loaded into every `AgentSession` created by the harness.
 
-```typescript
-export default async function(pi: ExtensionAPI) {
-  const proxyUrl = process.env.AWF_API_PROXY_URL || "http://localhost:8080/v1";
-  const models = await fetchModelsFromProxy(proxyUrl);
+### 8.1 Extension 1: api-proxy Provider
 
-  pi.registerProvider("aw-proxy", {
-    baseUrl: proxyUrl,
-    apiKey: "AWF_API_PROXY_TOKEN",
-    api: "openai-completions",
-    models,
-  });
-}
+**Purpose:** Registers the gh-aw api-proxy as a custom Pi provider.
+
+**Requirements:**
+
+- The extension **MUST** call `pi.registerProvider()` with the api-proxy base URL and the `AWF_API_PROXY_TOKEN` environment variable as the API key reference.
+- The extension **MUST** fetch the available model list from the api-proxy at startup, before any session begins.
+- The extension **MUST** use `"openai-completions"` as the API type, as the api-proxy speaks the OpenAI completions protocol.
+- The `AWF_API_PROXY_URL` environment variable **MUST** be used as the base URL, defaulting to `http://localhost:8080/v1`.
+
+> [!NOTE] Non-normative example.
+>
+> ```typescript
+> export default async function(pi: ExtensionAPI) {
+>   const proxyUrl = process.env.AWF_API_PROXY_URL || "http://localhost:8080/v1";
+>   const models = await fetchModelsFromProxy(proxyUrl);
+>
+>   pi.registerProvider("aw-proxy", {
+>     baseUrl: proxyUrl,
+>     apiKey: "AWF_API_PROXY_TOKEN",
+>     api: "openai-completions",
+>     models,
+>   });
+> }
+> ```
+
+### 8.2 Extension 2: MCP Gateway Bridge
+
+**Purpose:** Bridges gh-aw's MCP gateway tools into Pi's tool system as `AgentTool` instances.
+
+**Requirements:**
+
+- The extension **MUST** read the MCP gateway configuration and register each MCP tool as a Pi `AgentTool` via `pi.registerTool()`.
+- Tool names **MUST** be namespaced as `<serverName>_<toolName>` to avoid collisions.
+- The `execute` handler **MUST** delegate to the MCP gateway via the existing gateway IPC mechanism.
+- `gh-proxy` and `cli-proxy` **MUST** be active in the container when this extension executes. The extension **MAY** assert their presence at startup and **MUST** fail with a descriptive error if they are absent.
+
+> [!NOTE] Non-normative example.
+>
+> ```typescript
+> export default function(pi: ExtensionAPI) {
+>   const gatewayConfig = loadMCPGatewayConfig();
+>
+>   for (const [serverName, tools] of Object.entries(gatewayConfig)) {
+>     for (const tool of tools) {
+>       pi.registerTool({
+>         name: `${serverName}_${tool.name}`,
+>         description: tool.description,
+>         parameters: tool.inputSchema,
+>         async execute(toolCallId, params, signal) {
+>           return await callMCPGateway(serverName, tool.name, params);
+>         },
+>       });
+>     }
+>   }
+> }
+> ```
+
+### 8.3 Extension 3: Safe Outputs
+
+**Purpose:** Registers safe-output tools (create-issue, create-pull-request, add-comment, etc.) and writes artifact files in the gh-aw safe-outputs format.
+
+**Requirements:**
+
+- The extension **MUST** register at minimum the `create_issue`, `create_pull_request`, and `add_comment` tools via `pi.registerTool()`.
+- Each `execute` handler **MUST** write a safe-output artifact file in the format expected by the post-agent job, without performing any live GitHub API calls.
+- The extension **MUST** subscribe to the `agent_end` Pi event to finalize the safe-output manifest.
+- The extension **MUST** enforce any `max-count` limit declared in the workflow's `safe-outputs` frontmatter.
+
+> [!NOTE] Non-normative example.
+>
+> ```typescript
+> export default function(pi: ExtensionAPI) {
+>   const config = loadSafeOutputsConfig();
+>
+>   pi.registerTool({
+>     name: "create_issue",
+>     description: "Create a GitHub issue (safe output)",
+>     parameters: Type.Object({
+>       title: Type.String(),
+>       body: Type.String(),
+>       labels: Type.Optional(Type.Array(Type.String())),
+>     }),
+>     async execute(toolCallId, params, signal) {
+>       const artifact = buildSafeOutputArtifact("create-issue", params, config);
+>       await writeSafeOutputArtifact(artifact);
+>       return { content: [{ type: "text", text: `Issue queued: ${params.title}` }] };
+>     },
+>   });
+>
+>   // ... register other safe-output tools
+>
+>   pi.on("agent_end", async (event, ctx) => {
+>     await finalizeSafeOutputManifest();
+>   });
+> }
+> ```
+
+### 8.4 Extension 4: Cost Tracker
+
+**Purpose:** Monitors token usage and cost via Pi's event stream and enforces budget gates.
+
+**Requirements:**
+
+- The extension **MUST** subscribe to `turn_end` events and accumulate total cost from each turn.
+- When accumulated cost reaches or exceeds `harness.budget.warn-at-percent`, the extension **MUST** inject a steering message via `ctx.agent.steer()` warning the agent to be concise.
+- When accumulated cost reaches or exceeds the value corresponding to `harness.steering.budget-critical-percent`, the extension **MUST** call `ctx.agent.abort()`.
+- The extension **MUST** subscribe to `agent_end` and emit a cost summary to the JSONL event stream.
+
+> [!NOTE] Non-normative example.
+>
+> ```typescript
+> export default function(pi: ExtensionAPI) {
+>   const budget = loadBudgetConfig();
+>   let totalCost = 0;
+>
+>   pi.on("turn_end", async (event, ctx) => {
+>     totalCost += extractCostFromTurn(event);
+>
+>     const percent = (totalCost / budget.maxCostUsd) * 100;
+>     if (percent >= budget.budgetCriticalPercent) {
+>       ctx.agent.abort();
+>     } else if (percent >= budget.budgetWarnPercent) {
+>       ctx.agent.steer({
+>         role: "user",
+>         content: `⚠️ Budget: ${percent.toFixed(0)}% used. Be concise.`,
+>         timestamp: Date.now(),
+>       });
+>     }
+>   });
+>
+>   pi.on("agent_end", async () => {
+>     emitCostSummary(totalCost);
+>   });
+> }
+> ```
+
+### 8.5 Extension 5: Steering (Resource Pressure)
+
+**Purpose:** Monitors time remaining and budget, and injects steering messages via Pi's native `session.steer()`.
+
+**Requirements:**
+
+- The extension **MUST** subscribe to `agent_start` to record the session start time.
+- The extension **MUST** subscribe to `turn_end` and compute elapsed time after each turn.
+- When time remaining falls below `harness.steering.time-warning-minutes`, the extension **MUST** inject a warning steering message.
+- When time remaining falls below `harness.steering.time-critical-minutes`, the extension **MUST** inject a critical steering message directing the agent to produce final output immediately.
+
+> [!NOTE] Non-normative example.
+>
+> ```typescript
+> export default function(pi: ExtensionAPI) {
+>   const config = loadSteeringConfig();
+>   let startTime: number;
+>
+>   pi.on("agent_start", async () => {
+>     startTime = Date.now();
+>   });
+>
+>   pi.on("turn_end", async (event, ctx) => {
+>     const elapsed = (Date.now() - startTime) / 60000;
+>     const remaining = config.timeoutMinutes - elapsed;
+>
+>     if (remaining <= config.timeCriticalMinutes) {
+>       ctx.agent.steer({
+>         role: "user",
+>         content: `⚠️ CRITICAL: ${remaining.toFixed(0)}min left. Write final output NOW.`,
+>         timestamp: Date.now(),
+>       });
+>     } else if (remaining <= config.timeWarningMinutes) {
+>       ctx.agent.steer({
+>         role: "user",
+>         content: `⚠️ ${remaining.toFixed(0)}min remaining. Wrap up.`,
+>         timestamp: Date.now(),
+>       });
+>     }
+>   });
+> }
+> ```
+
+### 8.6 Extension 6: Session Repair
+
+**Purpose:** Detects broken tool calls and repairs the session via Pi's message history manipulation.
+
+**Requirements:**
+
+- The extension **MUST** subscribe to `tool_result` events and inspect results for corruption indicators.
+- On detection of a corrupted tool result, the extension **MUST** truncate the broken messages from `ctx.agent.state.messages` and emit a repair event to the JSONL stream.
+- The extension **MUST** subscribe to `agent_end` and attempt recovery if the error is classified as recoverable, by injecting a follow-up message containing a summary of prior progress.
+
+> [!NOTE] Non-normative example.
+>
+> ```typescript
+> export default function(pi: ExtensionAPI) {
+>   pi.on("tool_result", async (event, ctx) => {
+>     if (isCorruptedToolResult(event)) {
+>       const messages = ctx.agent.state.messages;
+>       const repaired = truncateBrokenMessages(messages);
+>       ctx.agent.state.messages = repaired;
+>       emitRepairEvent("truncate_and_resume", event.toolName);
+>     }
+>   });
+>
+>   pi.on("agent_end", async (event, ctx) => {
+>     if (event.error && isRecoverableError(event.error)) {
+>       const summary = await summarizeTranscript(ctx.agent.state.messages);
+>       ctx.agent.followUp({
+>         role: "user",
+>         content: `Previous progress: ${summary}\nContinue from here.`,
+>         timestamp: Date.now(),
+>       });
+>     }
+>   });
+> }
+> ```
+
+### 8.7 Extension 7: Observability
+
+**Purpose:** Emits JSONL events to stderr and generates OTel spans.
+
+**Requirements:**
+
+- The extension **MUST** subscribe to `agent_start`, `turn_end`, `tool_execution_end`, and `agent_end` events.
+- On each event, the extension **MUST** emit a corresponding JSONL record to stderr.
+- If `observability.otlp.endpoint` is configured in the workflow frontmatter, the extension **MUST** create and close OTel spans for each step.
+- OTel span attributes **MUST** include at minimum: step name, model, token counts, and cost.
+
+> [!NOTE] Non-normative example.
+>
+> ```typescript
+> export default function(pi: ExtensionAPI) {
+>   pi.on("agent_start", async (event) => {
+>     emitJsonl({ event: "step_start", step: currentStep, model: currentModel });
+>     startOtelSpan(currentStep);
+>   });
+>
+>   pi.on("turn_end", async (event) => {
+>     recordOtelAttributes(event);
+>   });
+>
+>   pi.on("tool_execution_end", async (event) => {
+>     emitJsonl({ event: "tool_end", tool: event.toolName, duration: event.duration });
+>   });
+>
+>   pi.on("agent_end", async (event) => {
+>     emitJsonl({ event: "step_end", step: currentStep, tokens: event.tokens, cost: event.cost });
+>     endOtelSpan(currentStep);
+>   });
+> }
+> ```
+
+### 8.8 Extension 8: Checkpoint
+
+**Purpose:** Persists run state for long workflows, enabling resume from a prior checkpoint.
+
+**Requirements:**
+
+- When `harness.checkpoint: true` is set, the extension **MUST** subscribe to `agent_end` and persist the step name, completion status, session transcript, and accumulated cost.
+- Checkpoint data **MUST** be stored in a location accessible across job retries (e.g., a Actions cache or artifact).
+- An implementation **SHOULD** support a `--continue` invocation flag that resumes from the last successful checkpoint, skipping already-completed steps.
+
+> [!NOTE] Non-normative example.
+>
+> ```typescript
+> export default function(pi: ExtensionAPI) {
+>   pi.on("agent_end", async (event, ctx) => {
+>     await saveCheckpoint({
+>       step: currentStep,
+>       status: event.error ? "failed" : "done",
+>       transcript: ctx.agent.state.messages,
+>       cost: totalCost,
+>     });
+>   });
+> }
+> ```
+
+---
+
+## 9. Model Resolution
+
+*(This section is non-normative.)*
+
+The harness does not perform provider inference or model routing. That responsibility belongs to the api-proxy (`gh-aw-firewall/containers/api-proxy/model-resolver.js`), which runs as a sidecar in the gh-aw container.
+
+### 9.1 Alias Resolution Flow
+
+```
+Harness (Pi SDK) → api-proxy → LLM provider
+  model: "sonnet"           resolves to copilot/claude-sonnet-4.6
+  model: "gpt-5-codex"      resolves to copilot/gpt-5.3-codex
+  model: "copilot/gpt-4.1"  passes through as-is
 ```
 
-**Why an extension**: Pi's `registerProvider()` is designed exactly for this. Async factory support means we can fetch the model list at startup before any session begins.
+### 9.2 Alias Configuration
 
-### Extension 2: MCP Gateway Bridge
+Model aliases are configured in the api-proxy via the `AWF_MODEL_ALIASES` environment variable.
 
-Bridges gh-aw's MCP gateway tools into Pi's tool system as `AgentTool` instances.
+> [!NOTE] Non-normative example of alias configuration JSON.
+>
+> ```json
+> {
+>   "models": {
+>     "sonnet": ["copilot/*sonnet*", "anthropic/*sonnet*"],
+>     "gpt-5-codex": ["copilot/gpt-5*-codex", "openai/gpt-5*-codex"],
+>     "": ["sonnet", "gpt-5*-codex"]
+>   }
+> }
+> ```
 
-> **Note:** The Pi SDK does not support MCP natively. `gh-proxy` (pre-authenticated `gh` CLI in bash) and `cli-proxy` (MCP servers mounted as CLI tools on `PATH`) are **always enabled** when `engine: aw` is selected and **cannot be disabled**. These are mandatory prerequisites for the MCP bridge to function.
+**Key properties of the alias resolver:**
 
-```typescript
-export default function(pi: ExtensionAPI) {
-  const gatewayConfig = loadMCPGatewayConfig();
+- `providerid/modelid` syntax with `*` wildcards.
+- Recursive alias resolution with loop detection.
+- Case-insensitive matching.
+- Semver sorting (highest version first among candidates).
+- Default policy via `""` key (applied when no model is specified in the workflow).
 
-  for (const [serverName, tools] of Object.entries(gatewayConfig)) {
-    for (const tool of tools) {
-      pi.registerTool({
-        name: `${serverName}_${tool.name}`,
-        description: tool.description,
-        parameters: tool.inputSchema,
-        async execute(toolCallId, params, signal) {
-          return await callMCPGateway(serverName, tool.name, params);
-        },
-      });
-    }
-  }
-}
-```
+### 9.3 Implications for the Harness
 
-**Why an extension**: Pi's `pi.registerTool()` is the standard way to add tools. MCP gateway tools become first-class Pi tools — visible in sessions, tracked in events, subject to `beforeToolCall`/`afterToolCall` hooks.
+- Pi SDK's `pi-ai` is configured with the api-proxy as an OpenAI-compatible custom provider (via `pi.registerProvider()` in Extension 1).
+- The harness passes model name strings through as-is — aliases such as `"sonnet"` work without any harness-side resolution.
+- No `provider:` field is needed in frontmatter — the proxy handles all routing.
+- Per-step and per-agent model selection is accomplished by passing a different model name string to `createAgentSession()`.
+- The harness inherits the api-proxy's full model catalog without maintaining its own.
 
-### Extension 3: Safe Outputs
+> [!NOTE] Non-normative example of provider registration.
+>
+> ```typescript
+> export default async function apiProxyProvider(pi: ExtensionAPI) {
+>   const proxyUrl = process.env.AWF_API_PROXY_URL || "http://localhost:8080/v1";
+>
+>   pi.registerProvider("aw-proxy", {
+>     baseUrl: proxyUrl,
+>     apiKey: "AWF_API_PROXY_TOKEN",
+>     api: "openai-completions",
+>     models: await fetchAvailableModels(proxyUrl),
+>   });
+> }
+> ```
 
-Registers safe-output tools (create-issue, create-pull-request, add-comment, etc.) and writes artifact files in gh-aw's expected format.
+---
 
-```typescript
-export default function(pi: ExtensionAPI) {
-  const config = loadSafeOutputsConfig();
+## 10. Build and Deployment
 
-  pi.registerTool({
-    name: "create_issue",
-    description: "Create a GitHub issue (safe output)",
-    parameters: Type.Object({
-      title: Type.String(),
-      body: Type.String(),
-      labels: Type.Optional(Type.Array(Type.String())),
-    }),
-    async execute(toolCallId, params, signal) {
-      const artifact = buildSafeOutputArtifact("create-issue", params, config);
-      await writeSafeOutputArtifact(artifact);
-      return { content: [{ type: "text", text: `Issue queued: ${params.title}` }] };
-    },
-  });
+*(This section is non-normative.)*
 
-  // ... register other safe-output tools
+### 10.1 TypeScript Configuration
 
-  pi.on("agent_end", async (event, ctx) => {
-    await finalizeSafeOutputManifest();
-  });
-}
-```
+> [!NOTE] Non-normative example.
+>
+> ```jsonc
+> // tsconfig.json
+> {
+>   "compilerOptions": {
+>     "target": "es2024",           // Node 24 supports ES2024
+>     "module": "es2022",
+>     "lib": ["es2024"],
+>     "moduleResolution": "bundler",
+>     "strict": true,
+>     "skipLibCheck": true,
+>     "outDir": "dist",
+>     "declaration": false
+>   }
+> }
+> ```
 
-**Why an extension**: Tool registration + lifecycle hooks. The `agent_end` event is the right place to finalize artifacts.
+### 10.2 Bundle Configuration
 
-### Extension 4: Cost Tracker
+> [!NOTE] Non-normative example.
+>
+> ```typescript
+> // build.ts — esbuild config
+> import { build } from "esbuild";
+>
+> await build({
+>   entryPoints: ["src/index.ts"],
+>   bundle: true,
+>   platform: "node",
+>   target: "node24",
+>   format: "cjs",                  // .cjs required by gh-aw harness validation
+>   outfile: "dist/aw_harness.cjs",
+>   external: [],                   // Bundle everything (no runtime npm install)
+>   minify: false,                  // Keep readable for debugging in Actions logs
+>   sourcemap: "inline",            // Debugging in CI
+> });
+> ```
 
-Monitors token usage and cost via Pi's event stream. Enforces budget gates.
+### 10.3 Output Location
 
-```typescript
-export default function(pi: ExtensionAPI) {
-  const budget = loadBudgetConfig();
-  let totalCost = 0;
-
-  pi.on("turn_end", async (event, ctx) => {
-    totalCost += extractCostFromTurn(event);
-
-    const percent = (totalCost / budget.maxCostUsd) * 100;
-    if (percent >= budget.budgetCriticalPercent) {
-      ctx.agent.abort();
-    } else if (percent >= budget.budgetWarnPercent) {
-      ctx.agent.steer({
-        role: "user",
-        content: `⚠️ Budget: ${percent.toFixed(0)}% used. Be concise.`,
-        timestamp: Date.now(),
-      });
-    }
-  });
-
-  pi.on("agent_end", async () => {
-    emitCostSummary(totalCost);
-  });
-}
-```
-
-**Why an extension**: Pi's event stream (`turn_end`) provides token/cost data per turn. The `steer()` API injects budget warnings naturally.
-
-### Extension 5: Steering (Resource Pressure)
-
-Monitors time remaining and budget, injects steering messages via Pi's native `session.steer()`.
-
-```typescript
-export default function(pi: ExtensionAPI) {
-  const config = loadSteeringConfig();
-  let startTime: number;
-
-  pi.on("agent_start", async () => {
-    startTime = Date.now();
-  });
-
-  pi.on("turn_end", async (event, ctx) => {
-    const elapsed = (Date.now() - startTime) / 60000;
-    const remaining = config.timeoutMinutes - elapsed;
-
-    if (remaining <= config.timeCriticalMinutes) {
-      ctx.agent.steer({
-        role: "user",
-        content: `⚠️ CRITICAL: ${remaining.toFixed(0)}min left. Write final output NOW.`,
-        timestamp: Date.now(),
-      });
-    } else if (remaining <= config.timeWarningMinutes) {
-      ctx.agent.steer({
-        role: "user",
-        content: `⚠️ ${remaining.toFixed(0)}min remaining. Wrap up.`,
-        timestamp: Date.now(),
-      });
-    }
-  });
-}
-```
-
-**Why an extension**: Pi's `turn_end` event fires after each tool execution cycle. Perfect timing for resource checks. `steer()` delivers the message before the next LLM call.
-
-### Extension 6: Session Repair
-
-Detects broken tool calls and repairs the session via Pi's message history manipulation.
-
-```typescript
-export default function(pi: ExtensionAPI) {
-  pi.on("tool_result", async (event, ctx) => {
-    if (isCorruptedToolResult(event)) {
-      const messages = ctx.agent.state.messages;
-      const repaired = truncateBrokenMessages(messages);
-      ctx.agent.state.messages = repaired;
-      emitRepairEvent("truncate_and_resume", event.toolName);
-    }
-  });
-
-  pi.on("agent_end", async (event, ctx) => {
-    if (event.error && isRecoverableError(event.error)) {
-      const summary = await summarizeTranscript(ctx.agent.state.messages);
-      ctx.agent.followUp({
-        role: "user",
-        content: `Previous progress: ${summary}\nContinue from here.`,
-        timestamp: Date.now(),
-      });
-    }
-  });
-}
-```
-
-**Why an extension**: Pi exposes `agent.state.messages` for manipulation and `tool_result` events for interception.
-
-### Extension 7: Observability
-
-Emits JSONL events to stderr and generates OTel spans.
-
-```typescript
-export default function(pi: ExtensionAPI) {
-  pi.on("agent_start", async (event) => {
-    emitJsonl({ event: "step_start", step: currentStep, model: currentModel });
-    startOtelSpan(currentStep);
-  });
-
-  pi.on("turn_end", async (event) => {
-    recordOtelAttributes(event);
-  });
-
-  pi.on("tool_execution_end", async (event) => {
-    emitJsonl({ event: "tool_end", tool: event.toolName, duration: event.duration });
-  });
-
-  pi.on("agent_end", async (event) => {
-    emitJsonl({ event: "step_end", step: currentStep, tokens: event.tokens, cost: event.cost });
-    endOtelSpan(currentStep);
-  });
-}
-```
-
-**Why an extension**: Pi's full event stream provides exactly the data needed for JSONL and OTel.
-
-### Extension 8: Checkpoint
-
-Persists run state for long workflows.
-
-```typescript
-export default function(pi: ExtensionAPI) {
-  pi.on("agent_end", async (event, ctx) => {
-    await saveCheckpoint({
-      step: currentStep,
-      status: event.error ? "failed" : "done",
-      transcript: ctx.agent.state.messages,
-      cost: totalCost,
-    });
-  });
-}
-```
-
-## Orchestration Layer (Not an Extension)
-
-The multi-step DAG orchestration is the **harness entry point** — it sits above the Pi SDK and creates/manages multiple `AgentSession` instances. This is NOT a Pi extension because it manages session lifecycles rather than extending a single session.
-
-```typescript
-// index.ts — entry point
-import { createAgentSession, SessionManager } from "@mariozechner/pi-coding-agent";
-
-async function main() {
-  const workflow = parseWorkflow(process.argv[2]);
-  const dag = buildDAG(workflow);
-  const extensions = [
-    apiProxyProvider,
-    mcpBridgeExtension,
-    safeOutputsExtension,
-    costTrackerExtension,
-    steeringExtension,
-    repairExtension,
-    observabilityExtension,
-    checkpointExtension,
-  ];
-
-  for (const stepGroup of dag.executionOrder()) {
-    await Promise.all(stepGroup.map(async (step) => {
-      const { session } = await createAgentSession({
-        sessionManager: SessionManager.inMemory(),
-        extensions,
-        model: resolveModel(step.agent?.model || workflow.defaultModel),
-        systemPrompt: buildSystemPrompt(step),
-      });
-
-      const prompt = buildStepPrompt(step, transcripts);
-      await session.prompt(prompt);
-
-      transcripts[step.name] = captureTranscript(session);
-      session.dispose();
-    }));
-  }
-}
-```
-
-## Backwards Compatibility
-
-| Scenario | Behavior |
-|----------|----------|
-| `engine: copilot` (existing) | Uses current `copilot_harness.cjs` — unchanged |
-| `engine: claude` (existing) | Uses current Claude Code flow — unchanged |
-| `engine: codex` (existing) | Uses current Codex flow — unchanged |
-| `engine: aw` without `harness:` block | Single-step: entire body = one Pi session prompt |
-| `engine: aw` with `harness:` block | Multi-step orchestration mode |
-| `engine: aw` with `harness.steps` | Explicit DAG (parallel, depends, agent assignment) |
-| `engine: aw` without `harness.agents` | All steps use `engine.model` |
-| `engine: aw` + `cli-proxy: false` | **Ignored** — `cli-proxy` is always on for `engine: aw` |
-| `engine: aw` + `tools.github.mode: remote` | **Overridden to `gh-proxy`** — Pi SDK requires `gh-proxy`; `remote` mode is not supported |
-
-## Build & Deployment
-
-### TypeScript Configuration
-
-```jsonc
-// tsconfig.json
-{
-  "compilerOptions": {
-    "target": "es2024",           // Node 24 supports ES2024
-    "module": "es2022",
-    "lib": ["es2024"],
-    "moduleResolution": "bundler",
-    "strict": true,
-    "skipLibCheck": true,
-    "outDir": "dist",
-    "declaration": false
-  }
-}
-```
-
-### Bundle Configuration
-
-```typescript
-// build.ts — esbuild config
-import { build } from "esbuild";
-
-await build({
-  entryPoints: ["src/index.ts"],
-  bundle: true,
-  platform: "node",
-  target: "node24",
-  format: "cjs",                  // .cjs required by gh-aw harness validation
-  outfile: "dist/aw_harness.cjs",
-  external: [],                   // Bundle everything (no runtime npm install)
-  minify: false,                  // Keep readable for debugging in Actions logs
-  sourcemap: "inline",            // Debugging in CI
-});
-```
-
-### Output Location
-
-The bundled `aw_harness.cjs` is copied to `actions/setup/js/aw_harness.cjs` — alongside existing harnesses:
+The bundled `aw_harness.cjs` is placed in `actions/setup/js/aw_harness.cjs`, alongside existing harnesses:
 
 ```
 actions/setup/js/
@@ -658,15 +944,7 @@ actions/setup/js/
 └── *.test.cjs                # Tests
 ```
 
-### Testing
-
-Tests use the same Vitest setup as the existing `actions/setup/js/` scripts:
-
-- Unit tests for parser, planner, each extension
-- Integration tests with mock Pi sessions (in-memory session manager)
-- Tests co-located: `aw_harness.test.cjs` or in a `test/` subdirectory
-
-## Project Structure
+### 10.4 Project Structure
 
 ```
 aw-harness/
@@ -703,7 +981,35 @@ aw-harness/
     └── aw_harness.cjs            # → copied to actions/setup/js/
 ```
 
-## Todos
+### 10.5 Testing
+
+Tests use the same Vitest setup as the existing `actions/setup/js/` scripts:
+
+- Unit tests for parser, planner, and each extension.
+- Integration tests with mock Pi sessions (`SessionManager.inMemory()`).
+- Tests co-located: `aw_harness.test.cjs` or in a `test/` subdirectory.
+
+### 10.6 Build Integration
+
+A `make aw-harness` Makefile target **SHOULD** be added that runs esbuild and copies the output to `actions/setup/js/aw_harness.cjs`.
+
+### 10.7 Backwards Compatibility
+
+| Scenario | Behavior |
+|----------|----------|
+| `engine: copilot` (existing) | Uses current `copilot_harness.cjs` — unchanged |
+| `engine: claude` (existing) | Uses current Claude Code flow — unchanged |
+| `engine: codex` (existing) | Uses current Codex flow — unchanged |
+| `engine: aw` without `harness:` block | Single-step: entire body = one Pi session prompt |
+| `engine: aw` with `harness:` block | Multi-step orchestration mode |
+| `engine: aw` with `harness.steps` | Explicit DAG (parallel, depends, agent assignment) |
+| `engine: aw` without `harness.agents` | All steps use `engine.model` |
+| `engine: aw` + `cli-proxy: false` | **Ignored** — `cli-proxy` is always on for `engine: aw` |
+| `engine: aw` + `tools.github.mode: remote` | **Overridden to `gh-proxy`** — Pi SDK requires `gh-proxy`; `remote` mode is not supported |
+
+### 10.8 Implementation Plan
+
+The following ordered work items describe the implementation sequence:
 
 1. **Scaffold project** — Initialize TypeScript project in `aw-harness/`. Configure package.json with Pi SDK deps (`@mariozechner/pi-coding-agent`, `pi-agent-core`, `pi-ai`). Set up tsconfig for ES2024/Node 24. Configure esbuild bundle → `dist/aw_harness.cjs`.
 
@@ -735,6 +1041,65 @@ aw-harness/
 
 15. **Write tests** — Unit tests for parser, planner, each extension (mock `ExtensionAPI`). Integration tests with `createAgentSession()` + `SessionManager.inMemory()`.
 
-16. **Write example workflows** — 3 examples: single-step, multi-step sequential, multi-agent parallel with different models.
+16. **Write example workflows** — Three examples: single-step, multi-step sequential, multi-agent parallel with different models.
 
 17. **Add build to Makefile** — Add `make aw-harness` target that runs esbuild and copies `aw_harness.cjs` to `actions/setup/js/`.
+
+---
+
+## 11. Security Considerations
+
+**Mandatory proxy features.** The `gh-proxy` and `cli-proxy` features **MUST** always be active for `engine: aw`. Disabling them would leave MCP gateway tools inaccessible to agent sessions, and any attempt by a workflow author to disable them **MUST** be silently overridden (see [Section 6.2](#62-overrides-and-fixed-settings)).
+
+**No direct LLM access.** The harness **MUST NOT** make direct calls to LLM provider APIs. All model requests **MUST** pass through the api-proxy, which enforces rate limits, budget caps, and access controls at the container boundary.
+
+**Safe outputs isolation.** The safe-outputs extension **MUST NOT** perform live GitHub API calls during agent execution. All GitHub mutations **MUST** be expressed as artifact files processed by the post-agent job, which applies threat detection and validation before acting.
+
+**Budget enforcement.** The cost-tracker extension provides a hard budget gate. A conforming implementation **MUST** abort the session if the cost exceeds the configured maximum, preventing runaway spending from misbehaving agents.
+
+**Transcript confidentiality.** Transcripts captured for inter-step context **SHOULD** be stored only in memory or in ephemeral container storage. Implementations **SHOULD NOT** persist transcripts to external storage unless checkpointing is explicitly enabled.
+
+**Token and secret handling.** The `AWF_API_PROXY_TOKEN` value **MUST NOT** be logged to stderr or embedded in JSONL events. Implementations **MUST** treat it as an opaque secret.
+
+---
+
+## 12. Privacy Considerations
+
+*(This section is non-normative.)*
+
+**Data residency.** All agent execution occurs within the gh-aw Actions container. No workflow content, prompts, or transcripts leave the container except via the api-proxy to the configured LLM provider endpoint, or via OTLP to the configured telemetry endpoint.
+
+**Transcript retention.** Step transcripts held in memory for inter-step context are discarded when the harness process exits. If checkpointing is enabled, transcript data may be persisted to GitHub Actions artifacts; workflow authors **SHOULD** evaluate the sensitivity of transcript content before enabling checkpointing.
+
+**Telemetry scope.** When `observability.otlp` is configured, OTel spans contain step names, model names, token counts, and cost data. They **SHOULD NOT** contain raw prompt or response text. Implementations **SHOULD** redact sensitive content from span attributes.
+
+**Model provider data handling.** Prompt content is transmitted to the LLM provider as configured in the api-proxy. Workflow authors are responsible for ensuring that content transmitted to LLM providers complies with applicable data handling policies.
+
+---
+
+## 13. References
+
+### 13.1 Normative References
+
+**[RFC 2119]**
+Bradner, S., "Key words for use in RFCs to Indicate Requirement Levels", BCP 14, RFC 2119, March 1997. <https://www.rfc-editor.org/rfc/rfc2119>
+
+### 13.2 Informative References
+
+**[Pi SDK]**
+`@mariozechner/pi-coding-agent` — Pi agent SDK providing `createAgentSession()`, `Agent`, `AgentTool`, and `ExtensionAPI`.
+
+**[pi-agent-core]**
+Core agent loop, event dispatch, and message history management for Pi SDK.
+
+**[pi-ai]**
+Pi AI provider abstraction layer, supporting OpenAI-compatible backends.
+
+**[esbuild]**
+JavaScript/TypeScript bundler. <https://esbuild.github.io>
+
+**[OpenTelemetry]**
+OpenTelemetry specification for distributed tracing. <https://opentelemetry.io/docs/>
+
+**[gh-aw]**
+GitHub Agentic Workflows — the gh-aw CLI extension that compiles Markdown workflow files to GitHub Actions YAML. <https://github.com/github/gh-aw>
