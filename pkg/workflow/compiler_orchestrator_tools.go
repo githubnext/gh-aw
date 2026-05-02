@@ -56,11 +56,15 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	// include expansion, name extraction, or prompt generation at compile time.
 	// The actual writing of agent files happens at runtime in JavaScript (interpolate_prompt.cjs)
 	// after {{#runtime-import}} macros have been fully inlined.
-	effectiveMarkdown, _, err := parser.ExtractInlineSubAgents(result.Markdown)
+	effectiveMarkdown, subAgents, err := parser.ExtractInlineSubAgents(result.Markdown)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract inline sub-agents: %w", err)
 	}
 	orchestratorToolsLog.Printf("Effective markdown after stripping sub-agent sections: %d bytes", len(effectiveMarkdown))
+	if len(subAgents) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: inline-sub-agents"))
+		c.IncrementWarningCount()
+	}
 
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
