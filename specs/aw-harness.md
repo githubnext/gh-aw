@@ -46,7 +46,7 @@ This is an internal design specification for the GitHub gh-aw project. It is not
 
 The existing gh-aw harnesses (`copilot_harness.cjs`, `claude_harness.cjs`) are thin retry loops around a single CLI invocation. As workflow complexity grows, authors need structured budget management, cost tracking, time steering, and structured observability — none of which the current harnesses provide.
 
-The AW Harness introduces `engine: aw` as a new opt-in execution engine. It does not replace existing engines; `engine: copilot`, `engine: claude`, and `engine: codex` continue to operate unchanged via their current harnesses. The AW Harness is a Pi SDK application: it creates a single `AgentSession` and runs the compiled prompt through it, with gh-aw Pi extensions providing budget gating, steering, safe outputs, and observability.
+The AW Harness introduces `engine: aw` as a new opt-in execution engine. It does not replace existing engines; `engine: copilot`, `engine: claude`, and `engine: codex` continue to operate unchanged via their current harnesses. The AW Harness is a Pi SDK application: it creates a single `AgentSession` and runs the compiled prompt through it, with gh-aw Pi extensions providing budget gating, steering, and observability. Safe-output tools are CLI commands provided by `cli-proxy` and require no special Pi-level extension.
 
 The harness is designed exclusively for the gh-aw Actions container environment. It assumes the firewall and MCP gateway are already running. AWF injects provider credentials into the container environment; the harness reads these credentials and passes them to Pi SDK directly.
 
@@ -161,7 +161,7 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 │  │  │  ┌──────────────────────────────────────────┐   │ │   │
 │  │  │  │  gh-aw Pi Extensions (loaded into the    │   │ │   │
 │  │  │  │  AgentSession via ExtensionAPI):          │   │ │   │
-│  │  │  │  ├─ safe-outputs (tools + artifact write) │   │ │   │
+│  │  │  │  ├─ cost-tracker (budget gates)              │   │ │   │
 │  │  │  │  ├─ cost-tracker (budget gates + events)  │   │ │   │
 │  │  │  │  ├─ steering (time/budget pressure)       │   │ │   │
 │  │  │  │  ├─ repair (broken session recovery)      │   │ │   │
@@ -303,8 +303,7 @@ An `engine: aw` workflow document **MUST** include a YAML frontmatter block conf
 > # ── Harness config (optional) ───────────────────────────────
 > harness:
 >   budget:
->     max-cost-usd: 5.00
->     warn-at-percent: 80
+>     max-effective-tokens: 100000
 >
 >   context:
 >     compaction: summarize
@@ -332,8 +331,7 @@ An `engine: aw` workflow document **MUST** include a YAML frontmatter block conf
 
 The `harness.budget` key is **OPTIONAL**. When present, it **MUST** contain:
 
-- `max-cost-usd` (number): Maximum total cost in USD for the run. The cost-tracker extension **MUST** abort the current session if this limit is exceeded.
-- `warn-at-percent` (number, 0–100): Percentage of `max-cost-usd` at which a steering warning **MUST** be injected.
+- `max-effective-tokens` (number): Maximum effective token count for the run. The cost-tracker extension **MUST** abort the current session if this limit is exceeded. Using token count rather than cost makes this budget reliable across providers where pricing is unknown.
 
 #### 6.1.2 `harness.context`
 
@@ -379,7 +377,7 @@ A conforming implementation **MUST NOT** allow user extensions to override or re
 > ```yaml
 > harness:
 >   budget:
->     max-cost-usd: 5.00
+>     max-effective-tokens: 100000
 >   extensions:
 >     - ./extensions/custom-tool.cjs       # Local compiled extension
 >     - @my-org/pi-extension-rate-limiter  # npm package extension
@@ -448,7 +446,6 @@ The AW Harness **MUST NOT** inject any predefined or ambient context into the ag
 A conforming implementation **MUST** source every item included in the session's initial prompt from one of the following explicitly declared origins:
 
 - The Markdown body from `prompt.txt` (loaded per [Section 6.3](#63-prompt-loading)).
-- The `harness.system` prompt if declared in the `harness:` frontmatter block.
 - Files, skills, and sub-workflows declared via the `imports:` frontmatter key (see [Section 6.1.5](#615-imports)) and resolved by the compiler into inputs passed at invocation time.
 
 A conforming implementation **MUST NOT** automatically load AGENTS.md files, `.github/agents/` entries, skills directories, or any other ambient repository files unless they are explicitly listed in `imports:`. This behavior is a deliberate divergence from engines such as `engine: copilot` that inject ambient context automatically.
@@ -491,7 +488,6 @@ A conforming implementation **MUST** execute the workflow as follows:
 >
 >   const extensions = [
 >     providerSetupExtension,
->     safeOutputsExtension,
 >     costTrackerExtension,
 >     steeringExtension,
 >     repairExtension,
@@ -503,7 +499,6 @@ A conforming implementation **MUST** execute the workflow as follows:
 >     sessionManager: SessionManager.inMemory(),
 >     extensions,
 >     model: config.model,
->     systemPrompt: config.harness?.system,
 >   });
 >
 >   await session.prompt(prompt);
@@ -513,7 +508,7 @@ A conforming implementation **MUST** execute the workflow as follows:
 
 1. The implementation **MUST** invoke `createAgentSession()` exactly once per harness invocation.
 2. The prompt passed to `session.prompt()` **MUST** be the full contents of `prompt.txt` as loaded per [Section 6.3](#63-prompt-loading).
-3. The implementation **MUST** load all six gh-aw Pi extensions (see [Section 8](#8-extensions)) into the session. If `harness.extensions` is declared in the configuration, the implementation **MUST** also load each user-declared extension after the built-in extensions (see [Section 6.1.4](#614-harness-extensions)).
+3. The implementation **MUST** load all five gh-aw Pi extensions (see [Section 8](#8-extensions)) into the session. If `harness.extensions` is declared in the configuration, the implementation **MUST** also load each user-declared extension after the built-in extensions (see [Section 6.1.4](#614-harness-extensions)).
 4. After the session completes (success or failure), the implementation **MUST** call `session.dispose()`.
 5. If the budget gate has been triggered (via the cost-tracker extension), the implementation **MUST** exit with code `1`.
 
@@ -523,9 +518,8 @@ A conforming implementation **MUST** execute the workflow as follows:
 1. Load config.json + prompt.txt
 2. Create single Pi AgentSession with gh-aw extensions:
    - Provider setup registered
-   - Safe-output tools registered
    - Steering, repair, cost, observability extensions active
-   (MCP tools available as bash CLI commands via cli-proxy — no bridging needed)
+   (MCP tools and safe-output tools available as bash CLI commands via cli-proxy — no bridging needed)
    - User extensions (from harness.extensions) loaded and registered after built-ins
 3. session.prompt(promptText) → Pi agent loop runs
 4. Extensions handle events (cost tracking, steering, observability)
@@ -538,7 +532,7 @@ A conforming implementation **MUST** execute the workflow as follows:
 
 All gh-aw-specific behavior **MUST** be packaged as Pi extensions. Each extension **MUST** be a standalone TypeScript module that exports a default function with signature `(pi: ExtensionAPI) => void | Promise<void>`.
 
-The following six extensions **MUST** be loaded into the `AgentSession` created by the harness.
+The following five extensions **MUST** be loaded into the `AgentSession` created by the harness.
 
 ### 8.1 Extension 1: Provider Setup
 
@@ -547,6 +541,7 @@ The following six extensions **MUST** be loaded into the `AgentSession` created 
 **Requirements:**
 
 - The extension **MUST** call `pi.registerProvider()` for each LLM provider whose credentials are present in the environment (e.g., `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GITHUB_TOKEN`).
+- The extension **MUST** also check for provider-specific base URL environment variables (e.g., `ANTHROPIC_BASE_URL`, `OPENAI_BASE_URL`) and, when present, use them as the endpoint for the corresponding provider.
 - The extension **MUST NOT** hard-code provider URLs or API keys; all credentials **MUST** come from environment variables injected by AWF.
 - The extension **MUST** register at least one provider before any session begins; if no provider credentials are found, the extension **MUST** fail with a descriptive error.
 
@@ -558,98 +553,55 @@ The following six extensions **MUST** be loaded into the `AgentSession` created 
 >     pi.registerProvider("anthropic", {
 >       apiKey: process.env.ANTHROPIC_API_KEY,
 >       api: "anthropic",
+>       ...(process.env.ANTHROPIC_BASE_URL ? { baseUrl: process.env.ANTHROPIC_BASE_URL } : {}),
 >     });
 >   }
 >   if (process.env.OPENAI_API_KEY) {
 >     pi.registerProvider("openai", {
 >       apiKey: process.env.OPENAI_API_KEY,
 >       api: "openai-completions",
+>       ...(process.env.OPENAI_BASE_URL ? { baseUrl: process.env.OPENAI_BASE_URL } : {}),
 >     });
 >   }
 >   // Additional providers registered as their env vars are present
 > }
 > ```
 
-### 8.2 Extension 2: Safe Outputs
+### 8.2 Extension 2: Cost Tracker
 
-**Purpose:** Registers safe-output tools (create-issue, create-pull-request, add-comment, etc.) and writes artifact files in the gh-aw safe-outputs format.
-
-**Requirements:**
-
-- The extension **MUST** register at minimum the `create_issue`, `create_pull_request`, and `add_comment` tools via `pi.registerTool()`.
-- Each `execute` handler **MUST** write a safe-output artifact file in the format expected by the post-agent job, without performing any live GitHub API calls.
-- The extension **MUST** subscribe to the `agent_end` Pi event to finalize the safe-output manifest.
-- The extension **MUST** enforce any `max-count` limit declared in the workflow's `safe-outputs` frontmatter.
-
-> [!NOTE] Non-normative example.
->
-> ```typescript
-> export default function(pi: ExtensionAPI) {
->   const config = loadSafeOutputsConfig();
->
->   pi.registerTool({
->     name: "create_issue",
->     description: "Create a GitHub issue (safe output)",
->     parameters: Type.Object({
->       title: Type.String(),
->       body: Type.String(),
->       labels: Type.Optional(Type.Array(Type.String())),
->     }),
->     async execute(toolCallId, params, signal) {
->       const artifact = buildSafeOutputArtifact("create-issue", params, config);
->       await writeSafeOutputArtifact(artifact);
->       return { content: [{ type: "text", text: `Issue queued: ${params.title}` }] };
->     },
->   });
->
->   // ... register other safe-output tools
->
->   pi.on("agent_end", async (event, ctx) => {
->     await finalizeSafeOutputManifest();
->   });
-> }
-> ```
-
-### 8.3 Extension 3: Cost Tracker
-
-**Purpose:** Monitors token usage and cost via Pi's event stream and enforces budget gates.
+**Purpose:** Monitors token usage via Pi's event stream and enforces budget gates.
 
 **Requirements:**
 
-- The extension **MUST** subscribe to `turn_end` events and accumulate total cost from each turn.
-- When accumulated cost reaches or exceeds `harness.budget.warn-at-percent`, the extension **MUST** inject a steering message via `ctx.agent.steer()` warning the agent to be concise.
-- When accumulated cost reaches or exceeds the value corresponding to `harness.steering.budget-critical-percent`, the extension **MUST** call `ctx.agent.abort()`.
-- The extension **MUST** subscribe to `agent_end` and emit a cost summary to the JSONL event stream.
+- The extension **MUST** subscribe to `turn_end` events and accumulate total token usage from each turn.
+- When accumulated tokens reach or exceed `harness.steering.budget-warn-percent` of `harness.budget.max-effective-tokens`, the extension **MUST** inject a steering message via `ctx.agent.steer()` warning the agent to be concise.
+- When accumulated tokens reach or exceed `harness.steering.budget-critical-percent` of `harness.budget.max-effective-tokens`, the extension **MUST** call `ctx.agent.abort()`.
 
 > [!NOTE] Non-normative example.
 >
 > ```typescript
 > export default function(pi: ExtensionAPI) {
 >   const budget = loadBudgetConfig();
->   let totalCost = 0;
+>   let totalTokens = 0;
 >
 >   pi.on("turn_end", async (event, ctx) => {
->     totalCost += extractCostFromTurn(event);
+>     totalTokens += extractTokensFromTurn(event);
 >
->     const percent = (totalCost / budget.maxCostUsd) * 100;
+>     const percent = (totalTokens / budget.maxEffectiveTokens) * 100;
 >     if (percent >= budget.budgetCriticalPercent) {
 >       ctx.agent.abort();
 >     } else if (percent >= budget.budgetWarnPercent) {
 >       ctx.agent.steer({
 >         role: "user",
->         content: `⚠️ Budget: ${percent.toFixed(0)}% used. Be concise.`,
+>         content: `⚠️ Token budget: ${percent.toFixed(0)}% used (${totalTokens}/${budget.maxEffectiveTokens}). Be concise.`,
 >         timestamp: Date.now(),
 >       });
 >     }
 >   });
->
->   pi.on("agent_end", async () => {
->     emitCostSummary(totalCost);
->   });
 > }
 > ```
 
-### 8.4 Extension 4: Steering (Resource Pressure)
+### 8.3 Extension 3: Steering (Resource Pressure)
 
 **Purpose:** Monitors time remaining and budget, and injects steering messages via Pi's native `session.steer()`.
 
@@ -692,7 +644,7 @@ The following six extensions **MUST** be loaded into the `AgentSession` created 
 > }
 > ```
 
-### 8.5 Extension 5: Session Repair
+### 8.4 Extension 4: Session Repair
 
 **Purpose:** Detects broken tool calls and repairs the session via Pi's message history manipulation.
 
@@ -728,32 +680,31 @@ The following six extensions **MUST** be loaded into the `AgentSession` created 
 > }
 > ```
 
-### 8.6 Extension 6: Observability
+### 8.5 Extension 5: Observability
 
 **Purpose:** Emits structured event streams to stderr, writes a context provenance file for downstream analysis, renders a Markdown step summary, and reports per-turn token consumption.
 
 **Requirements:**
 
-#### 8.6.1 JSONL Event Stream
+#### 8.5.1 JSONL Event Stream
 
-- The extension **MUST** subscribe to `agent_start`, `turn_end`, `tool_execution_end`, and `agent_end` events.
-- On each event, the extension **MUST** emit a corresponding JSONL record to stderr.
+- The extension **MUST** subscribe to all Pi SDK agent events and, on each event, emit a corresponding JSONL record to stderr.
 - If `observability.otlp.endpoint` is configured in the workflow frontmatter, the extension **MUST** create and close OTel spans for the session.
 - OTel span attributes **MUST** include at minimum: model, token counts, and cost.
 
-#### 8.6.2 Context Provenance File
+#### 8.5.2 Context Provenance File
 
 - The extension **MUST** produce a context provenance file at a well-known path (e.g., `/tmp/gh-aw/context-provenance.jsonl`) when the session completes.
 - The file **MUST** contain one JSON record per context entry added to the session, in chronological order. Each record **MUST** include:
   - `timestamp` (ISO 8601 string): When the entry was added.
-  - `source` (string): The declared origin of the text — one of `"prompt"` (from `prompt.txt`), `"import"` (from an `imports:` file, with `path` sub-field), or `"system"` (from `harness.system`).
+  - `source` (string): The declared origin of the text — one of `"prompt"` (from `prompt.txt`) or `"import"` (from an `imports:` file, with `path` sub-field).
   - `path` (string, **OPTIONAL**): Repository-relative path for `"import"` entries.
   - `tokens` (number): Estimated token count for this entry at the time it was added.
   - `cumulative_tokens` (number): Running total of tokens in the context window at the time of this entry.
   - `role` (string): The message role — `"user"`, `"assistant"`, or `"system"`.
 - The purpose of this file is to allow downstream tools (e.g., `gh aw audit`) to perform deep analysis of context growth, identify which imports consumed the most token budget, and diagnose context-window pressure.
 
-#### 8.6.3 GitHub Actions Step Summary
+#### 8.5.3 GitHub Actions Step Summary
 
 - When the `GITHUB_STEP_SUMMARY` environment variable is set, the extension **MUST** write a Markdown-formatted execution summary to the file at that path.
 - The summary **MUST** be valid GitHub-flavored Markdown so that it renders correctly in the GitHub Actions step summary UI.
@@ -763,7 +714,7 @@ The following six extensions **MUST** be loaded into the `AgentSession` created 
   - A final row with session totals (total tokens, total cost, elapsed time).
   - A context provenance section listing each `imports:` file with its token contribution.
 
-#### 8.6.4 Per-Turn Token Consumption Output
+#### 8.5.4 Per-Turn Token Consumption Output
 
 - The extension **MUST** subscribe to `turn_end` events and emit a human-readable token consumption line to stderr after each turn.
 - The line **MUST** report: turn number, input tokens, output tokens, cumulative total tokens, and estimated cumulative cost.
@@ -949,7 +900,6 @@ aw-harness/
 │   ├── context.ts                # Prompt assembly, compaction
 │   └── extensions/               # gh-aw Pi extensions
 │       ├── provider-setup.ts     # Register LLM providers from env vars
-│       ├── safe-outputs.ts       # Safe-output tools + artifact writing
 │       ├── cost-tracker.ts       # Budget gates via turn_end events
 │       ├── steering.ts           # Time/budget pressure via session.steer()
 │       ├── repair.ts             # Broken session recovery
@@ -1000,36 +950,34 @@ The following ordered work items describe the implementation sequence:
 
 1. **Scaffold project** — Initialize TypeScript project in `aw-harness/`. Configure package.json with Pi SDK deps (`@mariozechner/pi-coding-agent`, `pi-agent-core`, `pi-ai`). Set up tsconfig for ES2024/Node 24. Configure esbuild bundle → `dist/aw_harness.cjs`.
 
-2. **Implement provider setup extension** — Pi extension that registers LLM providers via `pi.registerProvider()` using provider credentials injected by AWF into the container environment.
+2. **Implement provider setup extension** — Pi extension that registers LLM providers via `pi.registerProvider()` using provider credentials injected by AWF into the container environment. Also detects provider-specific base URL env vars (e.g., `ANTHROPIC_BASE_URL`, `OPENAI_BASE_URL`) and uses them as the provider endpoint when present.
 
 3. **Implement loader** — Read `config.json` (compiler-generated harness config) and `prompt.txt` (compiler-generated prompt body). Return config and prompt string to the entry point.
 
-4. **Implement safe-outputs extension** — Pi extension that registers safe-output tools (create-issue, create-pull-request, add-comment, etc.). Uses `pi.on("agent_end")` to finalize artifact manifest.
+4. **Implement entry point** — Create a single `createAgentSession()` with gh-aw extensions loaded. Pass `prompt.txt` contents as the prompt. Dispose session on completion.
 
-5. **Implement entry point** — Create a single `createAgentSession()` with gh-aw extensions loaded. Pass `prompt.txt` contents as the prompt. Dispose session on completion.
+4a. **Implement user extension loader** — Read `harness.extensions` from `config.json`. For each entry: resolve repository-relative paths from the harness working directory; load npm package names via `require()`. Verify each loaded module exports a default function of type `(pi: ExtensionAPI) => void`. Emit a stderr warning for each failed load; abort only if `harness.extensions-required: true` is set. Append loaded extensions to the session extension list after built-ins.
 
-5a. **Implement user extension loader** — Read `harness.extensions` from `config.json`. For each entry: resolve repository-relative paths from the harness working directory; load npm package names via `require()`. Verify each loaded module exports a default function of type `(pi: ExtensionAPI) => void`. Emit a stderr warning for each failed load; abort only if `harness.extensions-required: true` is set. Append loaded extensions to the session extension list after built-ins.
+5. **Implement context engine** — Prompt assembly with priority ordering. Compaction via `none`, `sliding-window`, or `summarize`.
 
-6. **Implement context engine** — Prompt assembly with priority ordering. Compaction via `none`, `sliding-window`, or `summarize`.
+6. **Implement cost tracker extension** — Pi extension that monitors `turn_end` events for effective token usage. Enforces soft (steer warning) and hard (abort) budget gates against `harness.budget.max-effective-tokens`.
 
-7. **Implement cost tracker extension** — Pi extension that monitors `turn_end` events for token/cost data. Enforces soft (steer warning) and hard (abort) budget gates.
+7. **Implement steering extension** — Pi extension that monitors time/budget and injects user messages via `session.steer()` on `turn_end`.
 
-8. **Implement steering extension** — Pi extension that monitors time/budget and injects user messages via `session.steer()` on `turn_end`.
+8. **Implement repair extension** — Pi extension that detects broken tool calls via `tool_result` events. Repairs via message truncation or summarize-and-restart.
 
-9. **Implement repair extension** — Pi extension that detects broken tool calls via `tool_result` events. Repairs via message truncation or summarize-and-restart.
-
-10. **Implement observability extension** — Pi extension that:
-    - Emits JSONL to stderr on agent/tool events (§8.6.1).
-    - Writes a context provenance file (`/tmp/gh-aw/context-provenance.jsonl`) on `agent_end` recording the source and token cost of every context entry (§8.6.2).
-    - Appends a Markdown execution summary table (per-turn tokens + context provenance) to `$GITHUB_STEP_SUMMARY` when that env var is set (§8.6.3).
-    - Emits a human-readable per-turn token consumption line to stderr after each `turn_end` (§8.6.4).
+9. **Implement observability extension** — Pi extension that:
+    - Emits JSONL to stderr on all agent events (§8.5.1).
+    - Writes a context provenance file (`/tmp/gh-aw/context-provenance.jsonl`) on `agent_end` recording the source and token cost of every context entry (§8.5.2).
+    - Appends a Markdown execution summary table (per-turn tokens + context provenance) to `$GITHUB_STEP_SUMMARY` when that env var is set (§8.5.3).
+    - Emits a human-readable per-turn token consumption line to stderr after each `turn_end` (§8.5.4).
     - Generates OTel spans using `observability.otlp` config.
 
-11. **Write tests** — Unit tests for loader, each extension (mock `ExtensionAPI`). Integration tests with `createAgentSession()` + `SessionManager.inMemory()`.
+10. **Write tests** — Unit tests for loader, each extension (mock `ExtensionAPI`). Integration tests with `createAgentSession()` + `SessionManager.inMemory()`.
 
-12. **Write example workflows** — Single-task examples demonstrating `engine: aw` with various tools and safe outputs.
+11. **Write example workflows** — Single-task examples demonstrating `engine: aw` with various tools.
 
-13. **Add build to Makefile** — Add `make aw-harness` target that runs esbuild and copies `aw_harness.cjs` to `actions/setup/js/`.
+12. **Add build to Makefile** — Add `make aw-harness` target that runs esbuild and copies `aw_harness.cjs` to `actions/setup/js/`.
 
 ---
 
@@ -1039,11 +987,9 @@ The following ordered work items describe the implementation sequence:
 
 **No direct LLM routing by harness.** The harness delegates all LLM routing to Pi SDK and the provider credentials injected by AWF. It **MUST NOT** perform additional proxy interception or credential manipulation.
 
-**Safe outputs isolation.** The safe-outputs extension **MUST NOT** perform live GitHub API calls during agent execution. All GitHub mutations **MUST** be expressed as artifact files processed by the post-agent job, which applies threat detection and validation before acting.
+**User extension isolation.** Extensions declared via `harness.extensions` run inside the same Node.js process as the built-in extensions. A conforming implementation **MUST NOT** execute user extensions with elevated privileges. Extension authors are responsible for ensuring that their extensions do not exfiltrate credentials or subvert built-in budget behavior. Workflow authors are responsible for auditing third-party npm extension packages before referencing them in `harness.extensions`.
 
-**User extension isolation.** Extensions declared via `harness.extensions` run inside the same Node.js process as the built-in extensions. A conforming implementation **MUST NOT** execute user extensions with elevated privileges. Extension authors are responsible for ensuring that their extensions do not exfiltrate credentials or subvert built-in budget or safe-outputs behavior. Workflow authors are responsible for auditing third-party npm extension packages before referencing them in `harness.extensions`.
-
-**Budget enforcement.** The cost-tracker extension provides a hard budget gate. A conforming implementation **MUST** abort the session if the cost exceeds the configured maximum, preventing runaway spending from misbehaving agents.
+**Budget enforcement.** The cost-tracker extension provides a hard budget gate. A conforming implementation **MUST** abort the session if the effective token count exceeds `harness.budget.max-effective-tokens`, preventing runaway usage from misbehaving agents.
 
 **Token and secret handling.** Provider credentials (e.g., `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GITHUB_TOKEN`) **MUST NOT** be logged to stderr or embedded in JSONL events. Implementations **MUST** treat all credential env vars as opaque secrets.
 
