@@ -117,6 +117,11 @@ func TestCompileExperimentsRichSchema(t *testing.T) {
 	require.NoError(t, json.Unmarshal(cfg["min_samples"], &minSamples), "min_samples should parse")
 	assert.Equal(t, 25, minSamples, "min_samples should be 25")
 
+	// issue: should be 1234 (integer round-trips correctly from YAML uint64)
+	var issue int
+	require.NoError(t, json.Unmarshal(cfg["issue"], &issue), "issue should parse")
+	assert.Equal(t, 1234, issue, "issue should be 1234")
+
 	// variants
 	var variants []string
 	require.NoError(t, json.Unmarshal(cfg["variants"], &variants), "variants should parse")
