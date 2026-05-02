@@ -55,7 +55,6 @@ func (c *Compiler) buildInitialWorkflowData(
 		EngineConfig:          engineSetup.engineConfig,
 		AgentFile:             agentFile,
 		AgentImportSpec:       agentImportSpec,
-		InlineSubAgents:       toolsResult.inlineSubAgents,
 		RepositoryImports:     importsResult.RepositoryImports,
 		NetworkPermissions:    engineSetup.networkPermissions,
 		SandboxConfig:         applySandboxDefaults(engineSetup.sandboxConfig, engineSetup.engineConfig),

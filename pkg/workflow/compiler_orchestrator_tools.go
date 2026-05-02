@@ -34,8 +34,7 @@ type toolsProcessingResult struct {
 	safeOutputs           *SafeOutputsConfig
 	secretMasking         *SecretMaskingConfig
 	parsedFrontmatter     *FrontmatterConfig
-	hasExplicitGitHubTool bool                    // true if tools.github was explicitly configured in frontmatter
-	inlineSubAgents       []parser.InlineSubAgent // sub-agents extracted from inline separator syntax
+	hasExplicitGitHubTool bool // true if tools.github was explicitly configured in frontmatter
 }
 
 // processToolsAndMarkdown processes tools configuration, runtimes, and markdown content.
@@ -53,13 +52,15 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	log.Print("Processing tools and includes...")
 
 	// Extract inline sub-agents from the markdown body before any other processing.
-	// This removes sub-agent sections from the main content so they do not affect
-	// include expansion, name extraction, or prompt generation.
-	effectiveMarkdown, inlineSubAgents, err := parser.ExtractInlineSubAgents(result.Markdown)
+	// This strips sub-agent sections from the effective markdown so they do not affect
+	// include expansion, name extraction, or prompt generation at compile time.
+	// The actual writing of agent files happens at runtime in JavaScript (interpolate_prompt.cjs)
+	// after {{#runtime-import}} macros have been fully inlined.
+	effectiveMarkdown, _, err := parser.ExtractInlineSubAgents(result.Markdown)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract inline sub-agents: %w", err)
 	}
-	orchestratorToolsLog.Printf("Inline sub-agents: count=%d, effectiveMarkdown=%d bytes", len(inlineSubAgents), len(effectiveMarkdown))
+	orchestratorToolsLog.Printf("Effective markdown after stripping sub-agent sections: %d bytes", len(effectiveMarkdown))
 
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
@@ -353,7 +354,6 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		secretMasking:         secretMasking,
 		parsedFrontmatter:     parsedFrontmatter,
 		hasExplicitGitHubTool: hasExplicitGitHubTool,
-		inlineSubAgents:       inlineSubAgents,
 	}, nil
 }
 
