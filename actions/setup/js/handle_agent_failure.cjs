@@ -556,20 +556,25 @@ function buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryP
 
 /**
  * Load missing_data messages from agent output
+ * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {Array<{data_type: string, reason: string, context?: string, alternatives?: string}>} Array of missing data messages
  */
-function loadMissingDataMessages() {
+function loadMissingDataMessages(items) {
   try {
-    const { loadAgentOutput } = require("./load_agent_output.cjs");
-    const agentOutputResult = loadAgentOutput();
-
-    if (!agentOutputResult.success || !agentOutputResult.items) {
-      return [];
+    /** @type {Array<any>} */
+    let resolvedItems = items;
+    if (!resolvedItems) {
+      const { loadAgentOutput } = require("./load_agent_output.cjs");
+      const agentOutputResult = loadAgentOutput();
+      if (!agentOutputResult.success || !agentOutputResult.items) {
+        return [];
+      }
+      resolvedItems = agentOutputResult.items;
     }
 
     // Extract missing_data messages from agent output
     const missingDataMessages = [];
-    for (const item of agentOutputResult.items) {
+    for (const item of resolvedItems) {
       if (item.type === "missing_data") {
         // Accept items with at least a reason; data_type may be absent for cache-miss signals
         if (item.reason) {
@@ -595,10 +600,11 @@ function loadMissingDataMessages() {
  * When cache-memory is enabled and a cache_miss is detected, appends a
  * configuration-problem warning to the context.
  * @param {boolean} cacheMemoryEnabled - Whether cache-memory is configured for this workflow
+ * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {string} Formatted missing data context
  */
-function buildMissingDataContext(cacheMemoryEnabled) {
-  const missingDataMessages = loadMissingDataMessages();
+function buildMissingDataContext(cacheMemoryEnabled, items) {
+  const missingDataMessages = loadMissingDataMessages(items);
 
   if (missingDataMessages.length === 0) {
     return "";
@@ -628,19 +634,24 @@ function buildMissingDataContext(cacheMemoryEnabled) {
 /**
  * Load missing_tool messages from agent output.
  * Returns an empty array when the output file doesn't exist, cannot be parsed, or has no missing_tool items.
+ * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {Array<{tool: string|null, reason: string, alternatives?: string|null}>} Array of missing tool messages
  */
-function loadMissingToolMessages() {
+function loadMissingToolMessages(items) {
   try {
-    const { loadAgentOutput } = require("./load_agent_output.cjs");
-    const agentOutputResult = loadAgentOutput();
-
-    if (!agentOutputResult.success || !agentOutputResult.items) {
-      return [];
+    /** @type {Array<any>} */
+    let resolvedItems = items;
+    if (!resolvedItems) {
+      const { loadAgentOutput } = require("./load_agent_output.cjs");
+      const agentOutputResult = loadAgentOutput();
+      if (!agentOutputResult.success || !agentOutputResult.items) {
+        return [];
+      }
+      resolvedItems = agentOutputResult.items;
     }
 
     const missingToolMessages = [];
-    for (const item of agentOutputResult.items) {
+    for (const item of resolvedItems) {
       if (item.type === "missing_tool") {
         if (item.reason) {
           missingToolMessages.push({
@@ -661,10 +672,11 @@ function loadMissingToolMessages() {
 
 /**
  * Build missing_tool context string for display in failure issues/comments.
+ * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {string} Formatted missing tool context
  */
-function buildMissingToolContext() {
-  const missingToolMessages = loadMissingToolMessages();
+function buildMissingToolContext(items) {
+  const missingToolMessages = loadMissingToolMessages(items);
 
   if (missingToolMessages.length === 0) {
     return "";
@@ -683,19 +695,24 @@ function buildMissingToolContext() {
 
 /**
  * Load report_incomplete messages from agent output
+ * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {Array<{reason: string, details?: string}>} Array of report_incomplete messages
  */
-function loadReportIncompleteMessages() {
+function loadReportIncompleteMessages(items) {
   try {
-    const { loadAgentOutput } = require("./load_agent_output.cjs");
-    const agentOutputResult = loadAgentOutput();
-
-    if (!agentOutputResult.success || !agentOutputResult.items) {
-      return [];
+    /** @type {Array<any>} */
+    let resolvedItems = items;
+    if (!resolvedItems) {
+      const { loadAgentOutput } = require("./load_agent_output.cjs");
+      const agentOutputResult = loadAgentOutput();
+      if (!agentOutputResult.success || !agentOutputResult.items) {
+        return [];
+      }
+      resolvedItems = agentOutputResult.items;
     }
 
     const messages = [];
-    for (const item of agentOutputResult.items) {
+    for (const item of resolvedItems) {
       if (item.type === "report_incomplete" && item.reason) {
         messages.push({
           reason: item.reason,
@@ -715,10 +732,11 @@ function loadReportIncompleteMessages() {
  * Build report_incomplete context string for display in failure issues/comments.
  * This surfaces the agent's structured incompletion signal so maintainers can
  * distinguish a tool-failure report from a real task outcome.
+ * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {string} Formatted report_incomplete context
  */
-function buildReportIncompleteContext() {
-  const messages = loadReportIncompleteMessages();
+function buildReportIncompleteContext(items) {
+  const messages = loadReportIncompleteMessages(items);
 
   if (messages.length === 0) {
     return "";
@@ -1649,14 +1667,14 @@ async function main() {
         // Build push_repo_memory job failure context
         const pushRepoMemoryFailureContext = buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryPatchSizeExceededIDs, runUrl);
 
-        // Build missing_data context
-        const missingDataContext = buildMissingDataContext(cacheMemoryEnabled);
+        // Build missing_data context (only when report-as-failure is enabled for this signal type)
+        const missingDataContext = missingDataReportAsFailure ? buildMissingDataContext(cacheMemoryEnabled, agentOutputResult.items) : "";
 
-        // Build missing_tool context
-        const missingToolContext = buildMissingToolContext();
+        // Build missing_tool context (only when report-as-failure is enabled for this signal type)
+        const missingToolContext = missingToolReportAsFailure ? buildMissingToolContext(agentOutputResult.items) : "";
 
         // Build report_incomplete context
-        const reportIncompleteContext = buildReportIncompleteContext();
+        const reportIncompleteContext = buildReportIncompleteContext(agentOutputResult.items);
 
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
@@ -1818,14 +1836,14 @@ async function main() {
         // Build push_repo_memory job failure context
         const pushRepoMemoryFailureContext = buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryPatchSizeExceededIDs, runUrl);
 
-        // Build missing_data context
-        const missingDataContext = buildMissingDataContext(cacheMemoryEnabled);
+        // Build missing_data context (only when report-as-failure is enabled for this signal type)
+        const missingDataContext = missingDataReportAsFailure ? buildMissingDataContext(cacheMemoryEnabled, agentOutputResult.items) : "";
 
-        // Build missing_tool context
-        const missingToolContext = buildMissingToolContext();
+        // Build missing_tool context (only when report-as-failure is enabled for this signal type)
+        const missingToolContext = missingToolReportAsFailure ? buildMissingToolContext(agentOutputResult.items) : "";
 
         // Build report_incomplete context
-        const reportIncompleteContext = buildReportIncompleteContext();
+        const reportIncompleteContext = buildReportIncompleteContext(agentOutputResult.items);
 
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
