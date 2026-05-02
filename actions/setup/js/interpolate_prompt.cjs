@@ -1,6 +1,9 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+// @safe-outputs-exempt SEC-004 — no issue body is read or reflected; the only "body" occurrence is
+// a literal log string ("body") used to describe a template branch, not user-controlled content.
+
 // interpolate_prompt.cjs
 // Interpolates GitHub Actions expressions and renders template conditionals in the prompt file.
 // This combines variable interpolation and template filtering into a single step.
