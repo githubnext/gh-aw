@@ -72,6 +72,19 @@ The **markdown body** is loaded at runtime and can be edited directly on GitHub.
 
 See [Editing Workflows](/gh-aw/guides/editing-workflows/) for complete guidance on when and how to recompile workflows.
 
+## Inline Sub-Agent Blocks
+
+A workflow file may optionally include one or more inline sub-agent definitions after the main markdown body. Each block begins with a `## agent: \`name\`` heading and is extracted at runtime to `.agents/agents/<name>.agent.md`. See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for details.
+
+```markdown
+## agent: `file-summarizer`
+---
+model: claude-haiku-4.5
+description: Summarizes a file in a few sentences
+---
+You are a file summarization assistant. Return a brief summary of the given file.
+```
+
 ## Best Practices
 
 - Use descriptive names: `issue-responder.md`, `pr-reviewer.md`
