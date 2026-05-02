@@ -61,13 +61,13 @@ const H2_HEADING_RE = /^##[ \t]/gm;
 function filterSubAgentFrontmatter(content, agentName) {
   // A YAML frontmatter block must start immediately at the beginning of the
   // content (after trimming performed by the caller).
-  if (!content.startsWith("---\n") && content !== "---") {
+  if (!content.startsWith("---\n")) {
     return content;
   }
 
   // Locate the closing delimiter.  We search for "\n---" starting after the
-  // opening "---\n" (offset 4).
-  const closeIdx = content.indexOf("\n---", 3);
+  // complete opening "---\n" (offset 4) to avoid matching the opening itself.
+  const closeIdx = content.indexOf("\n---", 4);
   if (closeIdx === -1) {
     return content;
   }
@@ -81,8 +81,9 @@ function filterSubAgentFrontmatter(content, agentName) {
   const stripped = [];
 
   for (const line of fmLines) {
-    // Match a YAML key at the start of the line (simple scalar values only).
-    const keyMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_-]*)[ \t]*:/);
+    // Match a simple scalar YAML key at the start of the line.
+    // YAML keys for description and model are plain identifiers (no hyphens).
+    const keyMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)[ \t]*:/);
     if (keyMatch) {
       const key = keyMatch[1];
       if (SUPPORTED_FRONTMATTER_FIELDS.includes(key)) {
@@ -92,8 +93,8 @@ function filterSubAgentFrontmatter(content, agentName) {
       }
     } else {
       // Continuation / comment / blank line — keep only when at least one
-      // supported key has been accepted (avoids orphaned comments after a
-      // stripped key).
+      // supported key has already been accepted, so multi-line values (e.g.
+      // `description: |`) are preserved correctly.
       if (kept.length > 0) {
         kept.push(line);
       }
