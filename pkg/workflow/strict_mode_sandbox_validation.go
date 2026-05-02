@@ -25,6 +25,9 @@ func internalSandboxFieldError(fieldPath string) error {
 //   - sandbox.agent.command, sandbox.agent.args, sandbox.agent.env  (AWF customization)
 //   - sandbox.mcp.container, sandbox.mcp.version, sandbox.mcp.entrypoint,
 //     sandbox.mcp.args, sandbox.mcp.entrypointArgs  (MCP gateway customization)
+//
+// Additionally, a sandbox.agent object without an explicit 'id' field is rejected in
+// strict mode: users must be unambiguous about which sandbox they are enabling.
 func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConfig) error {
 	if !c.strictMode {
 		strictModeValidationLog.Printf("Strict mode disabled, skipping sandbox customization validation")
@@ -37,6 +40,19 @@ func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConf
 
 	// Check agent sandbox internal fields
 	if agent := sandboxConfig.Agent; agent != nil {
+		// In strict mode, sandbox.agent must carry an explicit type/id so the sandbox
+		// configuration is unambiguous.  A bare object (e.g. { version: "v0.25.29" }
+		// with no id) would silently default to AWF in non-strict builds but that
+		// implicit defaulting is not acceptable in strict mode.
+		if !agent.Disabled && !isSupportedSandboxType(getAgentType(agent)) {
+			return fmt.Errorf(
+				"strict mode: 'sandbox.agent' must specify an explicit 'id' (e.g., id: awf). " +
+					"A sandbox agent without an 'id' is ambiguous and not allowed in strict mode. " +
+					"Add 'id: awf' to your sandbox.agent configuration. " +
+					"See: https://github.github.com/gh-aw/reference/sandbox/",
+			)
+		}
+
 		if agent.Command != "" {
 			return internalSandboxFieldError("sandbox.agent.command")
 		}

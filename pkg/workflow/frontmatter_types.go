@@ -105,6 +105,16 @@ type PermissionsConfig struct {
 	GitHubAppPermissionsConfig
 }
 
+// GuardrailMetric defines a metric threshold that must not degrade during an experiment.
+// If the threshold is violated the experiment should be aborted regardless of primary metric outcome.
+type GuardrailMetric struct {
+	// Name is the metric to guard (e.g. "success_rate", "empty_output_rate").
+	Name string `json:"name"`
+
+	// Threshold is a comparison expression (e.g. ">=0.95", "==0").
+	Threshold string `json:"threshold"`
+}
+
 // ExperimentConfig represents the rich metadata for a single A/B experiment.
 // The bare-array form (e.g. prompt_style: [concise, verbose]) is normalized to this
 // struct with only the Variants field populated.
@@ -115,8 +125,26 @@ type ExperimentConfig struct {
 	// Description is a human-readable explanation of what the experiment tests.
 	Description string `json:"description,omitempty"`
 
+	// Hypothesis states the null and alternative hypotheses for the experiment.
+	// e.g. "H0: no change in effective_tokens. H1: concise reduces tokens by >=15%"
+	Hypothesis string `json:"hypothesis,omitempty"`
+
 	// Metric names the primary metric that should be observed (e.g. "effective_tokens").
 	Metric string `json:"metric,omitempty"`
+
+	// SecondaryMetrics lists additional metrics to track alongside the primary metric.
+	SecondaryMetrics []string `json:"secondary_metrics,omitempty"`
+
+	// GuardrailMetrics defines thresholds that must not degrade during the experiment.
+	// If any guardrail is violated the experiment should be aborted.
+	GuardrailMetrics []GuardrailMetric `json:"guardrail_metrics,omitempty"`
+
+	// MinSamples is the minimum number of runs required per variant before
+	// statistical analysis is considered reliable.
+	MinSamples int `json:"min_samples,omitempty"`
+
+	// Owner tags the team or person responsible for this experiment (e.g. "@team-agents").
+	Owner string `json:"owner,omitempty"`
 
 	// Weight holds an optional per-variant probability weight.  When provided its length
 	// must equal the length of Variants.  Values are relative (they need not sum to 100).

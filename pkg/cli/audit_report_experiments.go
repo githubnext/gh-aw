@@ -14,7 +14,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var experimentDataLog = logger.New("cli:audit_report_experiments")
 
 // ExperimentData represents the A/B experiment assignments for a single workflow run.
 type ExperimentData struct {
@@ -61,11 +64,15 @@ func extractExperimentData(logsPath string) *ExperimentData {
 		return nil
 	}
 
+	experimentDataLog.Printf("Extracting experiment data from: %s", logsPath)
+
 	statePath := findExperimentStatePath(logsPath)
 	if statePath == "" {
+		experimentDataLog.Print("No experiment state file found")
 		return nil
 	}
 
+	experimentDataLog.Printf("Reading experiment state from: %s", statePath)
 	raw, err := os.ReadFile(statePath)
 	if err != nil {
 		return nil
@@ -75,6 +82,8 @@ func extractExperimentData(logsPath string) *ExperimentData {
 	if err := json.Unmarshal(raw, &state); err != nil || len(state.Counts) == 0 {
 		return nil
 	}
+
+	experimentDataLog.Printf("Found %d experiment(s) in state file", len(state.Counts))
 
 	// Derive this-run assignments: the variant selected on the most-recent run is
 	// the one with the maximum count (ties resolved by sorted order).
@@ -89,6 +98,7 @@ func extractExperimentData(logsPath string) *ExperimentData {
 		variantCounts := state.Counts[name]
 		selected := deriveLastSelectedVariant(variantCounts)
 		assignments[name] = selected
+		experimentDataLog.Printf("Experiment %q: selected variant=%q", name, selected)
 	}
 
 	return &ExperimentData{

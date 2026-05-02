@@ -133,6 +133,8 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 				cfg.Issue = n
 			case int64:
 				cfg.Issue = int(n)
+			case uint64:
+				cfg.Issue = int(n)
 			case float64:
 				cfg.Issue = int(n)
 			}
@@ -140,9 +142,73 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 		if weightRaw, ok := v["weight"]; ok {
 			cfg.Weight = extractIntSlice(weightRaw)
 		}
+		if h, ok := v["hypothesis"].(string); ok {
+			cfg.Hypothesis = h
+		}
+		if smRaw, ok := v["secondary_metrics"]; ok {
+			cfg.SecondaryMetrics = extractStringSlice(smRaw)
+		}
+		if gmRaw, ok := v["guardrail_metrics"]; ok {
+			cfg.GuardrailMetrics = extractGuardrailMetrics(gmRaw)
+		}
+		if ms, ok := v["min_samples"]; ok {
+			switch n := ms.(type) {
+			case int:
+				cfg.MinSamples = n
+			case int64:
+				cfg.MinSamples = int(n)
+			case uint64:
+				cfg.MinSamples = int(n)
+			case float64:
+				cfg.MinSamples = int(n)
+			}
+		}
+		if owner, ok := v["owner"].(string); ok {
+			cfg.Owner = owner
+		}
 		return cfg
 	}
 	return nil
+}
+
+// extractStringSlice converts a raw value to a []string, accepting []any of string values.
+func extractStringSlice(raw any) []string {
+	switch v := raw.(type) {
+	case []string:
+		return v
+	case []any:
+		var result []string
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				result = append(result, s)
+			}
+		}
+		return result
+	}
+	return nil
+}
+
+// extractGuardrailMetrics converts a raw guardrail_metrics value into a []GuardrailMetric.
+// Each entry must be a map with "name" and "threshold" string fields.
+func extractGuardrailMetrics(raw any) []GuardrailMetric {
+	items, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+	var result []GuardrailMetric
+	for _, item := range items {
+		m, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		name, _ := m["name"].(string)
+		threshold, _ := m["threshold"].(string)
+		if name == "" || threshold == "" {
+			continue
+		}
+		result = append(result, GuardrailMetric{Name: name, Threshold: threshold})
+	}
+	return result
 }
 
 // extractIntSlice converts a raw value to a []int, accepting []any of numeric values.
@@ -157,6 +223,8 @@ func extractIntSlice(raw any) []int {
 			case int:
 				result = append(result, n)
 			case int64:
+				result = append(result, int(n))
+			case uint64:
 				result = append(result, int(n))
 			case float64:
 				result = append(result, int(n))

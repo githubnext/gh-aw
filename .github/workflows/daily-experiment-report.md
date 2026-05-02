@@ -1,5 +1,5 @@
 ---
-description: Daily statistical report that aggregates experiment-state artifacts across recent runs, computes per-variant statistics (mean, variance, 95% CI, success rate), detects significance via Welch t-test or two-proportion z-test (p < 0.05), renders bar charts and an ASCII comparison table per experiment, and posts a discussion with a promote/extend/abandon recommendation
+description: Daily statistical report that aggregates experiment-state artifacts across recent runs, computes per-variant statistics (mean, variance, 95% CI, success rate), detects significance via Welch t-test or two-proportion z-test (p < 0.05), checks guardrail metric thresholds, renders bar charts and an ASCII comparison table per experiment, and posts a discussion with a promote/extend/abandon recommendation; notifies tracking issues when experiments reach statistical significance or min_samples
 name: daily-experiment-report
 on:
   schedule: daily around 8:00
@@ -26,6 +26,10 @@ safe-outputs:
   upload-asset:
     max: 10
     allowed-exts: [.png, .jpg, .jpeg, .svg]
+  add-comment:
+    max: 10
+  add-labels:
+    max: 10
   mentions: false
   allowed-github-references: []
   max-bot-mentions: 1
@@ -51,6 +55,12 @@ read its frontmatter and identify those that declare an `experiments:` section. 
 - Workflow file name (e.g. `daily-report.lock.yml`)
 - Each experiment name (e.g. `prompt_style`)
 - Variants (e.g. `[concise, detailed]`)
+- Primary metric (`metric:` field), if set
+- Secondary metrics (`secondary_metrics:` list), if set
+- Guardrail metric thresholds (`guardrail_metrics:` list), if set — each entry has `name` and `threshold`
+- `min_samples` per variant, if set (defaults to 20 when not specified)
+- `hypothesis` text, if set
+- `owner`, if set
 - Tracking issue number, if an `issue:` field is set for that experiment
 
 If no workflows declare `experiments:`, append the following to `$GITHUB_STEP_SUMMARY` and exit:
@@ -137,6 +147,23 @@ For unlisted values interpolate linearly between the two nearest entries.
 - If n < 2 for a variant, variance and CI cannot be computed — show `N/A` in those columns and
   exclude that variant from the Welch t-test comparison.
 
+### Guardrail Metric Evaluation
+
+For each experiment that declares `guardrail_metrics:`, evaluate each threshold against the
+current data and record a pass/fail status:
+
+| Guardrail        | How to evaluate                                                   |
+|------------------|-------------------------------------------------------------------|
+| `>=0.95`         | Compute the metric value for this run window; check if ≥ 0.95   |
+| `==0`            | Check if the metric equals exactly 0 for all variants            |
+| `<=X`            | Check if the metric does not exceed X                             |
+
+For `success_rate` guardrails: use the computed `success_rate` per variant.
+For `empty_output_rate` and other binary metrics: infer from run conclusions where applicable.
+
+If **any guardrail fails for any variant**, mark the experiment as `GUARDRAIL_FAILED` and use
+`ABANDON` as the recommendation regardless of the primary metric significance.
+
 ## Step 4 — Detect Statistical Significance (p < 0.05)
 
 Compare each variant against the first (control) variant using the appropriate test:
@@ -168,6 +195,11 @@ For precise p-values use `scipy.stats.t.sf(abs(t), df=df) * 2` if Python is avai
 Welch t-test cannot be applied — show `N/A` for p-value and note "zero variance" in the table.
 
 The significance threshold is **p < 0.05**.
+
+**`min_samples` gate:** An experiment is only eligible for a `PROMOTE` recommendation when
+**all** variants have `n >= min_samples` (use the value from the experiment's `min_samples:`
+field, defaulting to 20 if not declared). When any variant is below `min_samples`, always use
+`EXTEND` regardless of p-value, and include the progress toward `min_samples` in the table.
 
 ## Step 5 — Generate Bar Charts
 
@@ -248,16 +280,26 @@ For each experiment, produce an ASCII table inside a fenced code block:
 ```
 Experiment : <experiment_name>
 Workflow   : <workflow_file_name>
+Hypothesis : <hypothesis text if declared, else "(not specified)">
+Owner      : <owner if declared, else "(not specified)">
 Window     : last 30 runs  |  Analysed: <count> runs with artifacts
+min_samples: <min_samples> per variant
 
-+------------------+------+----------+----------------+--------------------+-----------+
-| Variant          |  n   | Succ %   | Mean dur (s)   | 95% CI (s)         |  p-value  |
-+------------------+------+----------+----------------+--------------------+-----------+
-| <control>        |  ##  |  ##.#%   |    ###.#       | [###.# , ###.#]    |  (ref)    |
-| <variant_B>      |  ##  |  ##.#%   |    ###.#       | [###.# , ###.#]    |  0.0XX *  |
-+------------------+------+----------+----------------+--------------------+-----------+
++------------------+------+----------+----------------+--------------------+-----------+---------------+
+| Variant          |  n   | Succ %   | Mean dur (s)   | 95% CI (s)         |  p-value  | min_samples   |
++------------------+------+----------+----------------+--------------------+-----------+---------------+
+| <control>        |  ##  |  ##.#%   |    ###.#       | [###.# , ###.#]    |  (ref)    | ##/## (##%)   |
+| <variant_B>      |  ##  |  ##.#%   |    ###.#       | [###.# , ###.#]    |  0.0XX *  | ##/## (##%)   |
++------------------+------+----------+----------------+--------------------+-----------+---------------+
 Significance: * p<0.05   ** p<0.01   *** p<0.001
 p-value is two-tailed, compared against the control (first) variant.
+
+Guardrails:
+  success_rate >=0.95 : PASS (control=0.97, variant_B=0.96)
+  empty_output_rate ==0 : FAIL (variant_B=0.02) ← ABORT
+  
+For multi-variant experiments show pass/fail per variant per guardrail:
+  success_rate >=0.95 : control=PASS(0.97), variant_B=FAIL(0.92), variant_C=PASS(0.96)
 
 Recommendation: <PROMOTE | EXTEND | ABANDON>
 Rationale     : <one sentence>
@@ -265,17 +307,17 @@ Rationale     : <one sentence>
 
 **Recommendation rules** (evaluated for the best-performing non-control variant):
 
-| Condition                                                      | Decision       |
-|----------------------------------------------------------------|----------------|
-| p < 0.05 AND variant improves success rate vs. control        | **PROMOTE**    |
-| p ≥ 0.05 AND n < 20 per variant (more data needed)            | **EXTEND**     |
-| p ≥ 0.05 AND n ≥ 20 per variant (no detectable effect)        | **ABANDON**    |
-| p < 0.05 AND variant degrades success rate vs. control        | **ABANDON**    |
-| Any variant has n < 5 (insufficient data)                     | **EXTEND** (note insufficient data) |
+| Condition                                                                              | Decision       |
+|----------------------------------------------------------------------------------------|----------------|
+| Any guardrail metric fails for any variant                                             | **ABANDON**    |
+| p < 0.05 AND all variants have n ≥ min_samples AND variant improves success rate      | **PROMOTE**    |
+| p < 0.05 AND variant degrades success rate vs. control                                | **ABANDON**    |
+| p ≥ 0.05 AND any variant has n < min_samples (more data needed)                       | **EXTEND**     |
+| p ≥ 0.05 AND all variants have n ≥ min_samples (no detectable effect)                 | **ABANDON**    |
+| Any variant has n < 5 (insufficient data)                                              | **EXTEND** (note insufficient data) |
 
-> **Note on statistical power:** With n < 20 per variant, tests have low power to detect small
-> effects. Even a non-significant result at this sample size does not rule out a meaningful
-> difference — use the **EXTEND** recommendation to gather more data before drawing conclusions.
+> **Note on statistical power:** Until all variants reach `min_samples`, tests have low power to
+> detect small effects. Use **EXTEND** to gather more data before drawing conclusions.
 
 ## Step 7 — Post Discussion
 
@@ -298,6 +340,9 @@ title-prefix `[experiments]`, category `audits`, and automatic cleanup of older 
 #### `<experiment_name>` · `<workflow_basename>`
 
 > **Variants**: `<v1>` vs `<v2>` · **Window**: last 30 runs · **Analysed**: N runs with artifacts
+> **min_samples**: <min_samples> per variant · **Owner**: <owner or "(not specified)">
+
+<hypothesis if declared>
 
 ![Success Rate Chart](<ASSET_URL_success_rate>)
 
@@ -313,9 +358,9 @@ title-prefix `[experiments]`, category `audits`, and automatic cleanup of older 
 
 ### 📊 Summary
 
-| Experiment | Workflow | Control | Best variant | p-value | Recommendation |
-|-----------|---------|---------|-------------|---------|----------------|
-| ... | ... | ... | ... | ... | ... |
+| Experiment | Workflow | Control | Best variant | p-value | Guardrails | Recommendation |
+|-----------|---------|---------|-------------|---------|-----------|----------------|
+| ... | ... | ... | ... | ... | PASS/FAIL | ... |
 
 > Analysis window: last 30 runs per workflow · Significance threshold: p < 0.05 (two-tailed)
 > Run: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
@@ -336,3 +381,65 @@ After the discussion is created, also write a one-line summary to `$GITHUB_STEP_
 ```
 Daily experiment report: N experiments analysed, M reached significance (p < 0.05). Discussion: <url>
 ```
+
+## Step 8 — Notify Tracking Issues
+
+For each experiment that has a `issue:` field set, post a comment to that tracking issue when any
+of the following conditions are met **for the first time today**:
+
+**Condition A — All variants reached `min_samples`:**
+Post a comment:
+```
+🧪 **Experiment `<name>` is ready for analysis!**
+
+All variants have reached the minimum sample size of `<min_samples>` runs:
+<variant>: <n>/<min_samples>
+...
+
+View the latest statistics in the [Daily Experiment Report](<discussion_url>).
+```
+
+**Condition B — Experiment reached statistical significance (p < 0.05) with all guardrails
+passing:**
+Post a comment:
+```
+📊 **Experiment `<name>` has reached statistical significance (p = <p_value>)**
+
+Recommendation: **<PROMOTE | EXTEND | ABANDON>**
+<one sentence rationale>
+
+View the full report: [Daily Experiment Report](<discussion_url>)
+```
+
+**Condition C — A guardrail metric failed:**
+Post a comment:
+```
+⚠️ **Guardrail violation in experiment `<name>`**
+
+The following guardrail metric failed:
+- `<metric_name>` expected `<threshold>`, got `<actual_value>` for variant `<variant>`
+
+Recommendation: **ABANDON** — investigate immediately.
+```
+
+Use the `add-comment` safe-output tool to post comments. Skip experiments with no
+`issue:` field. Do not post duplicate comments if the same condition was already reported in a
+previous run today.
+
+## Step 9 — Update Experiment Lifecycle Labels
+
+For each experiment with a tracking `issue:` field, apply the following GitHub labels on the
+tracking issue when the corresponding condition is met. Create the label first if it does not
+already exist (use a neutral gray color). Labels are **additive only** — once applied they are
+not removed automatically; the person concluding the experiment can remove them manually.
+
+| Label                           | Apply when                                                                   |
+|--------------------------------|------------------------------------------------------------------------------|
+| `experiment:active`            | `start_date <= today <= end_date` (or no dates declared)                    |
+| `experiment:ready-for-analysis`| All variants have `n >= min_samples`                                         |
+| `experiment:concluded`         | Recommendation is PROMOTE or ABANDON after reaching statistical significance |
+
+Use the `add-labels` safe-output tool to apply labels to the tracking issue.
+If a label does not exist in the repository, create it with `create_label` GitHub MCP tool
+before applying it, using a neutral gray color (e.g. `#808080`) and a short description.
+

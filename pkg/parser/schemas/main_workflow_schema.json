@@ -2731,7 +2731,7 @@
       ]
     },
     "experiments": {
-      "description": "A/B testing experiments. Each key is an experiment name; the value is either an array of two or more variant strings (bare-array form) or an object with a 'variants' field plus optional metadata fields (description, metric, weight, issue, start_date, end_date). At runtime the activation job picks a variant using actions/cache to maintain consistent assignment across runs. Use ${{ experiments.<name> }} in the workflow prompt to reference the selected variant. When multiple experiments are declared, assignments are statistically balanced using a counter that round-robins across variants (or weighted when 'weight' is provided).",
+      "description": "A/B testing experiments. Each key is an experiment name; the value is either an array of two or more variant strings (bare-array form) or an object with a 'variants' field plus optional metadata fields (description, metric, weight, issue, start_date, end_date, hypothesis, secondary_metrics, guardrail_metrics, min_samples, owner). At runtime the activation job picks a variant using actions/cache to maintain consistent assignment across runs. Use ${{ experiments.<name> }} in the workflow prompt to reference the selected variant. When multiple experiments are declared, assignments are statistically balanced using a counter that round-robins across variants (or weighted when 'weight' is provided).",
       "type": "object",
       "propertyNames": {
         "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
@@ -2789,6 +2789,47 @@
                 "type": "string",
                 "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                 "description": "ISO-8601 date (YYYY-MM-DD). Experiment is inactive after this date; control variant is used."
+              },
+              "hypothesis": {
+                "type": "string",
+                "description": "Hypothesis statement for this experiment (e.g. 'H0: no change in tokens. H1: concise reduces by >=15%'). Surfaced in step summaries and daily reports."
+              },
+              "secondary_metrics": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Additional metrics to collect and report alongside the primary metric (e.g. ['duration_ms', 'discussion_word_count'])."
+              },
+              "guardrail_metrics": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["name", "threshold"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Name of the guardrail metric (e.g. 'success_rate', 'empty_output_rate')."
+                    },
+                    "threshold": {
+                      "type": "string",
+                      "pattern": "^(>=|<=|==|>|<)-?\\d+(\\.\\d+)?$",
+                      "description": "Threshold expression the metric must satisfy (e.g. '>=0.95', '==0', '<=0.05'). If any guardrail fails for any variant the experiment is automatically abandoned."
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "description": "Guardrail metrics that must pass for all variants. If any guardrail fails the recommendation is forced to ABANDON regardless of p-value."
+              },
+              "min_samples": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 20,
+                "description": "Minimum number of runs required per variant before a PROMOTE recommendation is made. Defaults to 20 when not specified. Progress toward this target is shown in step summaries and daily reports."
+              },
+              "owner": {
+                "type": "string",
+                "description": "Owner or team responsible for this experiment (e.g. '@team-agents'). Shown in step summaries and daily reports."
               }
             },
             "additionalProperties": false,
@@ -2804,7 +2845,15 @@
           "prompt_style": {
             "variants": ["concise", "verbose"],
             "description": "Test whether concise vs verbose prompts reduce token consumption",
+            "hypothesis": "H0: no change in tokens. H1: concise reduces by >=15%",
             "metric": "effective_tokens",
+            "secondary_metrics": ["duration_ms", "discussion_word_count"],
+            "guardrail_metrics": [
+              { "name": "success_rate", "threshold": ">=0.95" },
+              { "name": "empty_output_rate", "threshold": "==0" }
+            ],
+            "min_samples": 25,
+            "owner": "@team-agents",
             "weight": [50, 50],
             "issue": 1234,
             "start_date": "2026-05-01",
