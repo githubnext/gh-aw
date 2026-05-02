@@ -165,7 +165,11 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	// The prompt is piped from a file via stdin substitution.
 	// The built-in steering extension is automatically loaded so that every Pi session
 	// receives time-pressure steering messages without requiring workflow configuration.
-	// ${RUNNER_TEMP} is expanded by the shell at runtime.
+	// Pi CLI supports multiple --extension flags; user-specified extensions (via engine.args)
+	// are appended before this flag so the built-in extension loads last, consistent with the
+	// aw-harness spec's "built-in extensions after user extensions" ordering.
+	// ${RUNNER_TEMP} is a Linux shell variable expanded by bash at runtime; gh-aw container
+	// environments are Linux-only so this is safe across all supported runner configurations.
 	piCommand := fmt.Sprintf(
 		`cat /tmp/gh-aw/aw-prompts/prompt.txt | %s %s --extension "${RUNNER_TEMP}/gh-aw/actions/pi_steering_extension.cjs"`,
 		commandName, shellJoinArgs(piArgs))
