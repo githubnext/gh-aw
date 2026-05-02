@@ -222,7 +222,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		markdownDir,
 		workflowData,
 		engineSetup.importsResult,
-		result.Markdown,
+		toolsResult.rawMainMarkdown,
 		toolsResult.safeOutputs,
 	); err != nil {
 		return nil, err

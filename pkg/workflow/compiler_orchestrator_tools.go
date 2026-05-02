@@ -25,6 +25,7 @@ type toolsProcessingResult struct {
 	importedMarkdown      string   // Only imports WITH inputs (for compile-time substitution)
 	importPaths           []string // Import paths for runtime-import macro generation (imports without inputs)
 	mainWorkflowMarkdown  string   // main workflow markdown without imports (for runtime-import)
+	rawMainMarkdown       string   // raw main markdown before include expansion, without inline sub-agent sections
 	allIncludedFiles      []string
 	workflowName          string
 	frontmatterName       string
@@ -33,7 +34,8 @@ type toolsProcessingResult struct {
 	safeOutputs           *SafeOutputsConfig
 	secretMasking         *SecretMaskingConfig
 	parsedFrontmatter     *FrontmatterConfig
-	hasExplicitGitHubTool bool // true if tools.github was explicitly configured in frontmatter
+	hasExplicitGitHubTool bool                    // true if tools.github was explicitly configured in frontmatter
+	inlineSubAgents       []parser.InlineSubAgent // sub-agents extracted from inline separator syntax
 }
 
 // processToolsAndMarkdown processes tools configuration, runtimes, and markdown content.
@@ -49,6 +51,15 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 
 	orchestratorToolsLog.Printf("Processing tools and markdown")
 	log.Print("Processing tools and includes...")
+
+	// Extract inline sub-agents from the markdown body before any other processing.
+	// This removes sub-agent sections from the main content so they do not affect
+	// include expansion, name extraction, or prompt generation.
+	effectiveMarkdown, inlineSubAgents, err := parser.ExtractInlineSubAgents(result.Markdown)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract inline sub-agents: %w", err)
+	}
+	orchestratorToolsLog.Printf("Inline sub-agents: count=%d, effectiveMarkdown=%d bytes", len(inlineSubAgents), len(effectiveMarkdown))
 
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
@@ -83,7 +94,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 
 	// Process @include directives to extract additional tools
 	orchestratorToolsLog.Printf("Expanding includes for tools")
-	includedTools, includedToolFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, true)
+	includedTools, includedToolFiles, err := parser.ExpandIncludesWithManifest(effectiveMarkdown, markdownDir, true)
 	if err != nil {
 		orchestratorToolsLog.Printf("Failed to expand includes for tools: %v", err)
 		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
@@ -218,7 +229,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	c.validateBareModeSupport(result.Frontmatter, agenticEngine)
 
 	// Process @include directives in markdown content
-	markdownContent, includedMarkdownFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, false)
+	markdownContent, includedMarkdownFiles, err := parser.ExpandIncludesWithManifest(effectiveMarkdown, markdownDir, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand includes in markdown: %w", err)
 	}
@@ -240,7 +251,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	// fetched before the main workflow body is processed.
 	// At runtime, runtime_import.cjs deduplicates via an importedFiles Set, so files listed
 	// here won't be imported a second time when the main workflow file body is processed.
-	bodyImports := parser.ExtractBodyLevelImportPaths(result.Markdown, markdownDir)
+	bodyImports := parser.ExtractBodyLevelImportPaths(effectiveMarkdown, markdownDir)
 	if len(bodyImports) > 0 {
 		orchestratorToolsLog.Printf("Found %d body-level {{#runtime-import}} directive(s) to promote to lock-file macros", len(bodyImports))
 		for _, bi := range bodyImports {
@@ -283,7 +294,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		workflowName, err = parser.ExtractWorkflowNameFromContent(c.contentOverride, cleanPath)
 	} else {
 		// Use the already-parsed markdown body to avoid a redundant file read and YAML parse.
-		workflowName, err = parser.ExtractWorkflowNameFromMarkdownBody(result.Markdown, cleanPath)
+		workflowName, err = parser.ExtractWorkflowNameFromMarkdownBody(effectiveMarkdown, cleanPath)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract workflow name: %w", err)
@@ -332,6 +343,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		importedMarkdown:      importedMarkdown, // Only imports WITH inputs
 		importPaths:           importPaths,      // Import paths for runtime-import macros (imports without inputs)
 		mainWorkflowMarkdown:  mainWorkflowMarkdown,
+		rawMainMarkdown:       effectiveMarkdown, // raw main markdown before include expansion, without sub-agents
 		allIncludedFiles:      allIncludedFiles,
 		workflowName:          workflowName,
 		frontmatterName:       frontmatterName,
@@ -341,6 +353,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		secretMasking:         secretMasking,
 		parsedFrontmatter:     parsedFrontmatter,
 		hasExplicitGitHubTool: hasExplicitGitHubTool,
+		inlineSubAgents:       inlineSubAgents,
 	}, nil
 }
 

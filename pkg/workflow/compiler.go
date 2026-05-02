@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/goccy/go-yaml"
 )
@@ -295,7 +296,66 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 	return nil
 }
 
-// validateTemplateInjection checks compiled YAML for template injection vulnerabilities
+// writeInlineSubAgentFiles writes extracted inline sub-agent definitions to the
+// .github/agents/ directory. Each agent is written as <name>.md alongside any
+// existing agent files in the repository.
+//
+// For the copilot engine this makes the sub-agent available via --agent <name>.
+// The format of the content is intentionally left unprocessed — it is written
+// verbatim so that any engine-specific frontmatter is preserved.
+func (c *Compiler) writeInlineSubAgentFiles(agents []parser.InlineSubAgent, markdownPath string) error {
+	agentsDir, err := c.resolveAgentsDir(markdownPath)
+	if err != nil {
+		return formatCompilerError(markdownPath, "error",
+			fmt.Sprintf("failed to resolve .github/agents directory: %v", err), err)
+	}
+
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		return formatCompilerError(markdownPath, "error",
+			fmt.Sprintf("failed to create .github/agents directory: %v", err), err)
+	}
+
+	for _, agent := range agents {
+		agentPath := filepath.Join(agentsDir, agent.Name+".md")
+		agentContent := agent.Content
+		if !strings.HasSuffix(agentContent, "\n") {
+			agentContent += "\n"
+		}
+		if err := os.WriteFile(agentPath, []byte(agentContent), 0644); err != nil {
+			return formatCompilerError(markdownPath, "error",
+				fmt.Sprintf("failed to write sub-agent file %q: %v", agentPath, err), err)
+		}
+		if c.fileTracker != nil {
+			c.fileTracker.TrackCreated(agentPath)
+		}
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("✓ Sub-agent written: "+console.ToRelativePath(agentPath)))
+		}
+		log.Printf("Sub-agent written: %s", agentPath)
+	}
+
+	return nil
+}
+
+// resolveAgentsDir returns the absolute path to the .github/agents/ directory
+// for the repository that contains markdownPath.
+//
+// Resolution order:
+//  1. c.gitRoot (auto-detected at compiler creation) — most reliable
+//  2. Two-level parent of markdownPath — fallback for workflows stored in
+//     .github/workflows/ (the standard location)
+func (c *Compiler) resolveAgentsDir(markdownPath string) (string, error) {
+	if c.gitRoot != "" {
+		return filepath.Join(c.gitRoot, ".github", "agents"), nil
+	}
+
+	// Fall back to navigating up two directories from the workflow file's directory.
+	// This assumes the workflow is under .github/workflows/ which is standard.
+	markdownDir := filepath.Dir(markdownPath)
+	repoRoot := filepath.Clean(filepath.Join(markdownDir, "..", ".."))
+	return filepath.Join(repoRoot, ".github", "agents"), nil
+}
+
 // (unsafe GitHub Actions expressions used directly in run: blocks).
 //
 // When parsedWorkflow is non-nil the YAML was already parsed for schema validation;
@@ -492,7 +552,18 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	}
 
 	// Write output
-	return c.writeWorkflowOutput(lockFile, yamlContent, markdownPath)
+	if err := c.writeWorkflowOutput(lockFile, yamlContent, markdownPath); err != nil {
+		return err
+	}
+
+	// Write any inline sub-agent files extracted from the workflow markdown.
+	if !c.noEmit && len(workflowData.InlineSubAgents) > 0 {
+		if err := c.writeInlineSubAgentFiles(workflowData.InlineSubAgents, markdownPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ParseWorkflowFile parses a markdown workflow file and extracts all necessary data
