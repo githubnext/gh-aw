@@ -535,6 +535,25 @@ index abc..def 100644
       expect(result.action).toBe("allow");
     });
 
+    it("should deny when a top-level .md file is in the protected_files list", () => {
+      const result = checkFileProtection(makePatch("README.md"), {
+        protected_files: ["README.md"],
+        protected_path_prefixes: [],
+      });
+      expect(result.action).toBe("deny");
+      expect(result.source).toBe("protected");
+      expect(result.files).toContain("README.md");
+    });
+
+    it("should allow .md files in subdirectories even when their basename is in protected_files", () => {
+      // protected_files uses basename matching — docs/guide.md has basename guide.md, not README.md
+      const result = checkFileProtection(makePatch("docs/guide.md"), {
+        protected_files: ["README.md", "CONTRIBUTING.md"],
+        protected_path_prefixes: [],
+      });
+      expect(result.action).toBe("allow");
+    });
+
     it("should deny allowlist violation before checking protected-files (deny on first failure)", () => {
       // file is outside allowlist AND would be protected — allowlist check fires first
       const result = checkFileProtection(makePatch("src/outside.js"), {

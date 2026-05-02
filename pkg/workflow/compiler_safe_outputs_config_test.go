@@ -2552,9 +2552,11 @@ func TestGetDotFolderExcludes(t *testing.T) {
 	}
 }
 
-// TestProtectTopLevelDotFolders verifies that protect_top_level_dot_folders is always
-// set to true in both create_pull_request and push_to_pull_request_branch handler configs.
-func TestProtectTopLevelDotFolders(t *testing.T) {
+// extractHandlerManagerConfigJSON compiles a minimal workflow with both
+// create_pull_request and push_to_pull_request_branch handlers and returns the
+// decoded handler-config map, ready for per-handler assertions.
+func extractHandlerManagerConfigJSON(t *testing.T) map[string]map[string]any {
+	t.Helper()
 	compiler := NewCompiler()
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
@@ -2584,6 +2586,13 @@ func TestProtectTopLevelDotFolders(t *testing.T) {
 
 	var config map[string]map[string]any
 	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+	return config
+}
+
+// TestProtectTopLevelDotFolders verifies that protect_top_level_dot_folders is always
+// set to true in both create_pull_request and push_to_pull_request_branch handler configs.
+func TestProtectTopLevelDotFolders(t *testing.T) {
+	config := extractHandlerManagerConfigJSON(t)
 
 	for _, handlerName := range []string{"create_pull_request", "push_to_pull_request_branch"} {
 		handlerCfg, ok := config[handlerName]
@@ -2591,6 +2600,32 @@ func TestProtectTopLevelDotFolders(t *testing.T) {
 		val, exists := handlerCfg["protect_top_level_dot_folders"]
 		assert.True(t, exists, "%s: protect_top_level_dot_folders should be present", handlerName)
 		assert.Equal(t, true, val, "%s: protect_top_level_dot_folders should be true", handlerName)
+	}
+}
+
+// TestProtectTopLevelMdFiles verifies that well-known top-level Markdown files
+// (README.md, CONTRIBUTING.md, CHANGELOG.md, SECURITY.md, CODE_OF_CONDUCT.md) are
+// always included in the protected_files list in both handler configs.
+func TestProtectTopLevelMdFiles(t *testing.T) {
+	config := extractHandlerManagerConfigJSON(t)
+
+	expectedFiles := []string{"README.md", "CONTRIBUTING.md", "CHANGELOG.md", "SECURITY.md", "CODE_OF_CONDUCT.md"}
+	for _, handlerName := range []string{"create_pull_request", "push_to_pull_request_branch"} {
+		handlerCfg, ok := config[handlerName]
+		require.True(t, ok, "%s handler should be present", handlerName)
+		rawFiles, exists := handlerCfg["protected_files"]
+		require.True(t, exists, "%s: protected_files should be present", handlerName)
+		filesSlice, ok := rawFiles.([]any)
+		require.True(t, ok, "%s: protected_files should be a slice", handlerName)
+		fileSet := make(map[string]bool, len(filesSlice))
+		for _, f := range filesSlice {
+			if s, ok := f.(string); ok {
+				fileSet[s] = true
+			}
+		}
+		for _, expectedFile := range expectedFiles {
+			assert.True(t, fileSet[expectedFile], "%s: protected_files should contain %s", handlerName, expectedFile)
+		}
 	}
 }
 

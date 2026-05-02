@@ -1,8 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import fs from "fs";
 
 // resolveItemContext does not depend on global context — it only operates on
 // the plain payload object, so we can test it directly without any mocking.
 const { resolveItemContext } = await import("./aw_context.cjs");
+const { EXPERIMENT_ASSIGNMENTS_PATH } = await import("./experiment_helpers.cjs");
 
 describe("resolveItemContext", () => {
   it("returns issue type and number for issues events", () => {
@@ -91,5 +93,60 @@ describe("resolveItemContext", () => {
   it("returns empty item_number when number is null", () => {
     const payload = { issue: { number: null } };
     expect(resolveItemContext(payload)).toEqual({ item_type: "issue", item_number: "", comment_id: "", comment_node_id: "" });
+  });
+});
+
+describe("buildAwContext experiments field", () => {
+  let readFileSpy;
+  const savedStateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR;
+
+  beforeEach(() => {
+    delete process.env.GH_AW_EXPERIMENT_STATE_DIR;
+    // Set up a minimal global context required by buildAwContext
+    global.context = {
+      repo: { owner: "test-owner", repo: "test-repo" },
+      runId: 12345,
+      actor: "octocat",
+      eventName: "issues",
+      payload: { issue: { number: 1 } },
+    };
+    readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+  });
+
+  afterEach(() => {
+    readFileSpy.mockRestore();
+    if (savedStateDir !== undefined) {
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = savedStateDir;
+    } else {
+      delete process.env.GH_AW_EXPERIMENT_STATE_DIR;
+    }
+    delete global.context;
+  });
+
+  it("includes experiments as empty string when no assignments file exists", async () => {
+    const { buildAwContext } = await import("./aw_context.cjs");
+    const result = buildAwContext();
+    expect(result.experiments).toBe("");
+  });
+
+  it("includes experiments as compact JSON string when assignments file exists", async () => {
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === EXPERIMENT_ASSIGNMENTS_PATH) {
+        return JSON.stringify({ caveman: "yes", style: "detailed" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    const { buildAwContext } = await import("./aw_context.cjs");
+    const result = buildAwContext();
+    expect(result.experiments).toBe(JSON.stringify({ caveman: "yes", style: "detailed" }));
+  });
+
+  it("experiments is a string primitive (not an object) to satisfy aw_context validation", async () => {
+    readFileSpy.mockReturnValue(JSON.stringify({ feature: "beta" }));
+    const { buildAwContext } = await import("./aw_context.cjs");
+    const result = buildAwContext();
+    expect(typeof result.experiments).toBe("string");
   });
 });
