@@ -337,13 +337,11 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	}
 
 	// Pre-allocate builder capacity based on estimated workflow size.
-	// Benchmark measurements show simple workflows compile to ~60 KB and
-	// Copilot/Claude workflows with safe-outputs reach ~70–90 KB.
-	// 64 KB covers the common simple-workflow case without a reallocation;
-	// larger workflows will trigger a single grow (to ~128 KB) which is
-	// acceptable given the reduction in baseline allocation compared to the
-	// previous 96 KB constant.
-	const initialBuilderCapacity = 64 * 1024
+	// Copilot/Claude workflows with safe-outputs typically compile to ~70–90 KB.
+	// 96 KB avoids the first reallocation for the common case. The performance
+	// benefit of this function comes from eliminating the intermediate copies
+	// that RenderToYAML + WriteString used to incur, not from capacity reduction.
+	const initialBuilderCapacity = 96 * 1024
 	var yaml strings.Builder
 	yaml.Grow(initialBuilderCapacity)
 

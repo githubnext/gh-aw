@@ -178,6 +178,9 @@ func (jm *JobManager) WriteJobsYAML(b *strings.Builder) {
 // an extra allocation.
 func (jm *JobManager) RenderToYAML() string {
 	var yaml strings.Builder
+	// Pre-size so the builder avoids reallocation for typical workflows.
+	// All jobs combined are usually ~48–60 KB; 64 KB covers that range.
+	yaml.Grow(64 * 1024)
 	jm.WriteJobsYAML(&yaml)
 	return yaml.String()
 }
