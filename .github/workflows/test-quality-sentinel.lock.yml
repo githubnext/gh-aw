@@ -137,12 +137,13 @@ jobs:
             .crush
             .gemini
             .opencode
+            .pi
           sparse-checkout-cone-mode: true
           fetch-depth: 1
       - name: Save agent config folders for base branch restoration
         env:
-          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode"
-          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md opencode.jsonc"
+          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode .pi"
+          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md PI.md opencode.jsonc"
         # poutine:ignore untrusted_checkout_exec
         run: bash "${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh"
       - name: Check workflow lock file
@@ -433,8 +434,8 @@ jobs:
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
-          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode"
-          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md opencode.jsonc"
+          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode .pi"
+          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md PI.md opencode.jsonc"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh"
       - name: Download container images
         run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.29@sha256:e68f37e36962dcb3f3d1de680a49bc2302cefd001b941a7dc377155ec7ce42f4 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.29@sha256:d1219e4110684402aabbeb5a43858f26790c9d0be210581cf3f7a521bd2c87b6 ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.29@sha256:29917488eb90a01ff9544ffeeb5cc26434a8ea16d69ae8972f5f6be0e567e276 ghcr.io/github/gh-aw-firewall/squid:0.25.29@sha256:8a71ad9e40454051672312917e51567abfb8251d7c294d086c48f63d84e4cb53 ghcr.io/github/gh-aw-mcpg:v0.3.3 ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959 node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f

@@ -104,12 +104,13 @@ jobs:
             .crush
             .gemini
             .opencode
+            .pi
           sparse-checkout-cone-mode: true
           fetch-depth: 1
       - name: Save agent config folders for base branch restoration
         env:
-          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode"
-          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md opencode.jsonc"
+          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode .pi"
+          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md PI.md opencode.jsonc"
         # poutine:ignore untrusted_checkout_exec
         run: bash "${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh"
       - name: Check workflow lock file
@@ -485,8 +486,8 @@ jobs:
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
-          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode"
-          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md opencode.jsonc"
+          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode .pi"
+          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md PI.md opencode.jsonc"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh"
       - name: Download container images
         run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.29 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.29 ghcr.io/github/gh-aw-firewall/squid:0.25.29 ghcr.io/github/gh-aw-mcpg:v0.3.3 ghcr.io/github/github-mcp-server:v1.0.3 ghcr.io/github/serena-mcp-server:latest mcr.microsoft.com/playwright/mcp

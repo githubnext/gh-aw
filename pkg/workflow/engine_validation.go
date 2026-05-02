@@ -364,3 +364,38 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 
 	return "", fmt.Errorf("invalid engine configuration in included file, missing or invalid 'id' field. Expected string, object with 'id' field, or inline definition with 'runtime.id'.\n\nExample (string):\nengine: copilot\n\nExample (object with id):\nengine:\n  id: copilot\n  model: gpt-4\n\nExample (inline runtime definition):\nengine:\n  runtime:\n    id: codex\n\nSee: %s", constants.DocsEnginesURL)
 }
+
+// validatePiEngineRequirements validates that workflows using the Pi engine have
+// the required configuration: gh-proxy mode and CLI proxy must both be enabled.
+//
+// Pi's API integration requires:
+//   - tools.github.mode: gh-proxy — the pre-authenticated gh CLI must be available
+//   - tools.cli-proxy: true — MCP servers must be mounted as CLI tools on PATH
+//
+// This requirement cannot be relaxed; the Pi engine communicates with GitHub via
+// the gh CLI rather than the GitHub MCP protocol.
+func (c *Compiler) validatePiEngineRequirements(workflowData *WorkflowData) error {
+	if workflowData.EngineConfig == nil || workflowData.EngineConfig.ID != string(constants.PiEngine) {
+		return nil
+	}
+
+	engineValidationLog.Print("Validating Pi engine requirements: gh-proxy and cli-proxy")
+
+	ghProxyEnabled := isGitHubCLIModeEnabled(workflowData)
+	cliProxyEnabled := workflowData.ParsedTools != nil && workflowData.ParsedTools.CLIProxy
+
+	if !ghProxyEnabled && !cliProxyEnabled {
+		return fmt.Errorf("the Pi engine requires gh-proxy and CLI proxy to be enabled.\n\nAdd the following to your workflow frontmatter:\n\n  tools:\n    github:\n      mode: gh-proxy\n    cli-proxy: true\n\nSee: %s", constants.DocsEnginesURL)
+	}
+
+	if !ghProxyEnabled {
+		return fmt.Errorf("the Pi engine requires gh-proxy to be enabled.\n\nAdd the following to your workflow frontmatter:\n\n  tools:\n    github:\n      mode: gh-proxy\n\nSee: %s", constants.DocsEnginesURL)
+	}
+
+	if !cliProxyEnabled {
+		return fmt.Errorf("the Pi engine requires CLI proxy to be enabled.\n\nAdd the following to your workflow frontmatter:\n\n  tools:\n    cli-proxy: true\n\nSee: %s", constants.DocsEnginesURL)
+	}
+
+	engineValidationLog.Print("Pi engine requirements satisfied: gh-proxy and cli-proxy are enabled")
+	return nil
+}
