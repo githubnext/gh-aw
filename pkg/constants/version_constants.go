@@ -39,7 +39,7 @@ const DefaultClaudeCodeVersion Version = "2.1.126"
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.39"
+const DefaultCopilotVersion Version = "1.0.40"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion Version = "0.128.0"
@@ -89,7 +89,7 @@ const DefaultMCPGatewayVersion Version = "v0.3.3"
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.72"
+const DefaultPlaywrightMCPVersion Version = "0.0.73"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.59.1"
