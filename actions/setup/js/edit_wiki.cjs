@@ -10,6 +10,8 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getGitAuthEnv } = require("./git_helpers.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { pushSignedCommits } = require("./push_signed_commits.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -34,6 +36,10 @@ async function main(config = {}) {
 
   // Build git auth env once for all network operations in this handler.
   const gitAuthEnv = getGitAuthEnv(config["github-token"]);
+
+  // Create authenticated GitHub client (same pattern as push_to_pull_request_branch).
+  // Used by pushSignedCommits for the signed-commit GraphQL path and fallback git push.
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
@@ -286,29 +292,61 @@ async function main(config = {}) {
 
       core.info("Patch applied to wiki successfully");
 
-      // Push to the wiki branch
-      core.info(`Pushing wiki changes to: ${wikiBranch}`);
-      const pushResult = await exec.getExecOutput("git", ["push", "origin", `HEAD:refs/heads/${wikiBranch}`], {
-        cwd: wikiCloneDir,
-        env: { ...process.env, ...gitAuthEnv },
-        ignoreReturnCode: true,
-      });
-
-      if (pushResult.exitCode !== 0) {
-        const pushError = (pushResult.stderr || pushResult.stdout || "").trim();
-        core.error(`Failed to push wiki changes: ${pushError}`);
-        return { success: false, error: `Failed to push wiki changes: ${pushError || "git push failed"}` };
+      // Configure an authenticated remote URL before pushing so that git push
+      // works reliably from a fresh clone. This mirrors what actions/checkout does
+      // internally (https://x-access-token:TOKEN@...) and ensures the push succeeds
+      // even when GIT_CONFIG_* environment variables are not propagated correctly to
+      // child processes in the github-script execution environment.
+      const authToken = config["github-token"] || process.env.GITHUB_TOKEN;
+      if (authToken) {
+        core.setSecret(authToken);
+        const serverUrlHost = serverUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+        const authWikiUrl = `https://x-access-token:${authToken}@${serverUrlHost}/${repoParts.owner}/${repoParts.repo}.wiki.git`;
+        // Use silent: true to suppress any command logging that could expose the token
+        // (core.setSecret also masks the value, but defense-in-depth)
+        const setUrlResult = await exec.getExecOutput("git", ["remote", "set-url", "origin", authWikiUrl], {
+          cwd: wikiCloneDir,
+          silent: true,
+          ignoreReturnCode: true,
+        });
+        if (setUrlResult.exitCode !== 0) {
+          core.warning(`Failed to set authenticated remote URL: ${(setUrlResult.stderr || "").trim()}`);
+        }
       }
 
-      core.info("Wiki changes pushed successfully");
-
-      // Get the commit SHA for the activation comment update
+      // Push commits using pushSignedCommits (the same helper used by push_to_pull_request_branch).
+      // Wiki repos are not accessible via the GitHub GraphQL createCommitOnBranch mutation,
+      // so the GraphQL path will fail gracefully and the fallback git push will be used.
+      core.info(`Pushing wiki changes to: ${wikiBranch}`);
       let commitSha = "";
       try {
-        const shaResult = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { cwd: wikiCloneDir });
-        commitSha = shaResult.stdout.trim();
-      } catch {
-        // Non-fatal
+        const pushedSha = await pushSignedCommits({
+          githubClient,
+          owner: repoParts.owner,
+          repo: `${repoParts.repo}.wiki`,
+          branch: wikiBranch,
+          baseRef: `origin/${wikiBranch}`,
+          cwd: wikiCloneDir,
+          gitAuthEnv,
+        });
+        if (pushedSha) {
+          commitSha = pushedSha;
+        }
+        core.info("Wiki changes pushed successfully");
+      } catch (pushError) {
+        const pushErrorMessage = getErrorMessage(pushError);
+        core.error(`Failed to push wiki changes: ${pushErrorMessage}`);
+        return { success: false, error: `Failed to push wiki changes: ${pushErrorMessage}` };
+      }
+
+      // Get the commit SHA for the activation comment update if not set by pushSignedCommits
+      if (!commitSha) {
+        try {
+          const shaResult = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { cwd: wikiCloneDir });
+          commitSha = shaResult.stdout.trim();
+        } catch {
+          // Non-fatal
+        }
       }
 
       const wikiUrl = `${serverUrl}/${repoParts.owner}/${repoParts.repo}/wiki`;
