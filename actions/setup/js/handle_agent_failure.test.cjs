@@ -1304,6 +1304,70 @@ describe("handle_agent_failure", () => {
   });
 
   // ──────────────────────────────────────────────────────
+  // report-as-failure feature flags (GH_AW_MISSING_TOOL_REPORT_AS_FAILURE / GH_AW_MISSING_DATA_REPORT_AS_FAILURE)
+  // ──────────────────────────────────────────────────────
+
+  describe("missing_tool and missing_data report-as-failure flags", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-report-as-failure-"));
+      process.env.RUNNER_TEMP = tmpDir;
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      // Write agent output with both missing_tool and missing_data items
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [
+            { type: "missing_tool", tool: "bash", reason: "not available" },
+            { type: "missing_data", data_type: "config", reason: "file not found" },
+          ],
+        })
+      );
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      delete process.env.GH_AW_MISSING_TOOL_REPORT_AS_FAILURE;
+      delete process.env.GH_AW_MISSING_DATA_REPORT_AS_FAILURE;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("buildMissingToolContext returns context when GH_AW_MISSING_TOOL_REPORT_AS_FAILURE is not set (default true)", () => {
+      const { buildMissingToolContext } = require("./handle_agent_failure.cjs");
+      const result = buildMissingToolContext();
+      expect(result).toContain("Missing Tools Reported");
+    });
+
+    it("buildMissingToolContext returns context when GH_AW_MISSING_TOOL_REPORT_AS_FAILURE is true", () => {
+      process.env.GH_AW_MISSING_TOOL_REPORT_AS_FAILURE = "true";
+      vi.resetModules();
+      const { buildMissingToolContext } = require("./handle_agent_failure.cjs");
+      const result = buildMissingToolContext();
+      expect(result).toContain("Missing Tools Reported");
+    });
+
+    it("buildMissingToolContext still returns context when GH_AW_MISSING_TOOL_REPORT_AS_FAILURE is false (context building is independent of flag)", () => {
+      // buildMissingToolContext always builds context; the flag controls hasMissingTool in main()
+      process.env.GH_AW_MISSING_TOOL_REPORT_AS_FAILURE = "false";
+      vi.resetModules();
+      const { buildMissingToolContext } = require("./handle_agent_failure.cjs");
+      const result = buildMissingToolContext();
+      // buildMissingToolContext reads agent output directly, not the env flag
+      expect(result).toContain("Missing Tools Reported");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // hasAgentTerminalReasonCompleted
   // ──────────────────────────────────────────────────────
 

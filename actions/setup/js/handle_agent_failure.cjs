@@ -1284,6 +1284,11 @@ async function main() {
     const modelNotSupportedError = process.env.GH_AW_MODEL_NOT_SUPPORTED_ERROR === "true";
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
     const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
+    // Feature flags: control whether missing_tool/missing_data signals trigger agent failure handling.
+    // Defaults to true (new behavior); set to false to restore pre-2026 behavior where these signals
+    // are only shown in output footers / separate issues without activating the failure code path.
+    const missingToolReportAsFailure = process.env.GH_AW_MISSING_TOOL_REPORT_AS_FAILURE !== "false";
+    const missingDataReportAsFailure = process.env.GH_AW_MISSING_DATA_REPORT_AS_FAILURE !== "false";
     // GitHub App token minting failures from the safe_outputs job, conclusion job, and activation job.
     // Any of these being "true" indicates a GitHub App authentication configuration error.
     const safeOutputsAppTokenMintingFailed = process.env.GH_AW_SAFE_OUTPUTS_APP_TOKEN_MINTING_FAILED === "true";
@@ -1340,6 +1345,8 @@ async function main() {
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
     core.info(`Stale lock file check failed: ${hasStaleLockFileFailed}`);
     core.info(`Cache memory enabled: ${cacheMemoryEnabled}`);
+    core.info(`Missing tool report-as-failure: ${missingToolReportAsFailure}`);
+    core.info(`Missing data report-as-failure: ${missingDataReportAsFailure}`);
 
     // Check if the agent timed out.
     // A job-level timeout sets agentConclusion to "timed_out".
@@ -1429,23 +1436,27 @@ async function main() {
     // Check if the agent emitted missing_tool messages — treated as agent failures so they
     // are surfaced in the failure issue comment rather than only in the output footer.
     let hasMissingTool = false;
-    if (agentOutputResult.items) {
+    if (missingToolReportAsFailure && agentOutputResult.items) {
       const missingToolItems = agentOutputResult.items.filter(item => item.type === "missing_tool" && item.reason);
       if (missingToolItems.length > 0) {
         hasMissingTool = true;
         core.info(`Agent emitted ${missingToolItems.length} missing_tool message(s) - activating failure handling`);
       }
+    } else if (!missingToolReportAsFailure) {
+      core.info("Missing tool report-as-failure is disabled - missing_tool signals will not trigger failure handling");
     }
 
     // Check if the agent emitted missing_data messages — treated as agent failures so they
     // are surfaced in the failure issue comment rather than only in the output footer.
     let hasMissingData = false;
-    if (agentOutputResult.items) {
+    if (missingDataReportAsFailure && agentOutputResult.items) {
       const missingDataItems = agentOutputResult.items.filter(item => item.type === "missing_data" && item.reason);
       if (missingDataItems.length > 0) {
         hasMissingData = true;
         core.info(`Agent emitted ${missingDataItems.length} missing_data message(s) - activating failure handling`);
       }
+    } else if (!missingDataReportAsFailure) {
+      core.info("Missing data report-as-failure is disabled - missing_data signals will not trigger failure handling");
     }
 
     // Detect cache-miss misconfiguration: the agent reported a missing_data with reason

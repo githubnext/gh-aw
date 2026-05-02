@@ -15,9 +15,10 @@ var reportIncompleteLog = logger.New("workflow:report_incomplete")
 // parent struct fields give them their distinct YAML keys.
 type IssueReportingConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	CreateIssue          *string  `yaml:"create-issue,omitempty"` // Whether to create/update issues. Defaults to false for missing-tool/missing-data (treated as agent failures), true for report-incomplete. Supports literal bool or GitHub Actions expression.
-	TitlePrefix          string   `yaml:"title-prefix,omitempty"` // Prefix for issue titles
-	Labels               []string `yaml:"labels,omitempty"`       // Labels to add to created issues
+	CreateIssue          *string  `yaml:"create-issue,omitempty"`      // Whether to create/update issues. Defaults to false for missing-tool/missing-data (treated as agent failures), true for report-incomplete. Supports literal bool or GitHub Actions expression.
+	ReportAsFailure      *string  `yaml:"report-as-failure,omitempty"` // Whether to surface these signals as agent failures (default: true). Set to false to revert to old behavior. Supports literal bool or GitHub Actions expression.
+	TitlePrefix          string   `yaml:"title-prefix,omitempty"`      // Prefix for issue titles
+	Labels               []string `yaml:"labels,omitempty"`            // Labels to add to created issues
 }
 
 // Type aliases so existing code (compiler_types.go, tests, etc.) continues to compile unchanged.
@@ -41,19 +42,19 @@ type MissingToolConfig = IssueReportingConfig
 type ReportIncompleteConfig = IssueReportingConfig
 
 func (c *Compiler) parseMissingDataConfig(outputMap map[string]any) *MissingDataConfig {
-	return c.parseIssueReportingConfig(outputMap, "missing-data", "[missing data]", false, missingDataLog)
+	return c.parseIssueReportingConfig(outputMap, "missing-data", "[missing data]", false, true, missingDataLog)
 }
 
 func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingToolConfig {
-	return c.parseIssueReportingConfig(outputMap, "missing-tool", "[missing tool]", false, missingToolLog)
+	return c.parseIssueReportingConfig(outputMap, "missing-tool", "[missing tool]", false, true, missingToolLog)
 }
 
 // parseReportIncompleteConfig handles report_incomplete configuration.
 func (c *Compiler) parseReportIncompleteConfig(outputMap map[string]any) *ReportIncompleteConfig {
-	return c.parseIssueReportingConfig(outputMap, "report-incomplete", "[incomplete]", true, reportIncompleteLog)
+	return c.parseIssueReportingConfig(outputMap, "report-incomplete", "[incomplete]", true, false, reportIncompleteLog)
 }
 
-func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, defaultTitle string, defaultCreateIssue bool, log *logger.Logger) *IssueReportingConfig {
+func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, defaultTitle string, defaultCreateIssue bool, parseReportAsFailure bool, log *logger.Logger) *IssueReportingConfig {
 	configData, exists := outputMap[yamlKey]
 	if !exists {
 		return nil
@@ -72,6 +73,10 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 		log.Printf("%s configuration enabled with defaults", yamlKey)
 		createIssueStr := strconv.FormatBool(defaultCreateIssue)
 		cfg.CreateIssue = &createIssueStr
+		if parseReportAsFailure {
+			trueVal := "true"
+			cfg.ReportAsFailure = &trueVal
+		}
 		cfg.TitlePrefix = defaultTitle
 		cfg.Labels = []string{}
 		return cfg
@@ -95,6 +100,23 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 		} else {
 			createIssueStr := strconv.FormatBool(defaultCreateIssue)
 			cfg.CreateIssue = &createIssueStr
+		}
+
+		// Parse report-as-failure field (only for missing-tool and missing-data, not report-incomplete)
+		if parseReportAsFailure {
+			if err := preprocessBoolFieldAsString(configMap, "report-as-failure", log); err != nil {
+				log.Printf("Invalid report-as-failure value for %s: %v", yamlKey, err)
+				return nil
+			}
+			if reportAsFailureVal, exists := configMap["report-as-failure"]; exists {
+				if reportAsFailureStr, ok := reportAsFailureVal.(string); ok {
+					cfg.ReportAsFailure = &reportAsFailureStr
+					log.Printf("report-as-failure: %s", reportAsFailureStr)
+				}
+			} else {
+				trueVal := "true"
+				cfg.ReportAsFailure = &trueVal
+			}
 		}
 
 		if titlePrefix, exists := configMap["title-prefix"]; exists {
