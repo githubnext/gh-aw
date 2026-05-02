@@ -8,7 +8,7 @@ const { renderTemplate, renderTemplateFromFile, getPromptPath } = require("./mes
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
-const { formatMissingData } = require("./missing_info_formatter.cjs");
+const { formatMissingData, formatMissingTools } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const fs = require("fs");
@@ -556,20 +556,25 @@ function buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryP
 
 /**
  * Load missing_data messages from agent output
+ * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {Array<{data_type: string, reason: string, context?: string, alternatives?: string}>} Array of missing data messages
  */
-function loadMissingDataMessages() {
+function loadMissingDataMessages(items) {
   try {
-    const { loadAgentOutput } = require("./load_agent_output.cjs");
-    const agentOutputResult = loadAgentOutput();
-
-    if (!agentOutputResult.success || !agentOutputResult.items) {
-      return [];
+    /** @type {Array<any>} */
+    let resolvedItems = items;
+    if (!resolvedItems) {
+      const { loadAgentOutput } = require("./load_agent_output.cjs");
+      const agentOutputResult = loadAgentOutput();
+      if (!agentOutputResult.success || !agentOutputResult.items) {
+        return [];
+      }
+      resolvedItems = agentOutputResult.items;
     }
 
     // Extract missing_data messages from agent output
     const missingDataMessages = [];
-    for (const item of agentOutputResult.items) {
+    for (const item of resolvedItems) {
       if (item.type === "missing_data") {
         // Accept items with at least a reason; data_type may be absent for cache-miss signals
         if (item.reason) {
@@ -595,10 +600,11 @@ function loadMissingDataMessages() {
  * When cache-memory is enabled and a cache_miss is detected, appends a
  * configuration-problem warning to the context.
  * @param {boolean} cacheMemoryEnabled - Whether cache-memory is configured for this workflow
+ * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {string} Formatted missing data context
  */
-function buildMissingDataContext(cacheMemoryEnabled) {
-  const missingDataMessages = loadMissingDataMessages();
+function buildMissingDataContext(cacheMemoryEnabled, items) {
+  const missingDataMessages = loadMissingDataMessages(items);
 
   if (missingDataMessages.length === 0) {
     return "";
@@ -626,20 +632,87 @@ function buildMissingDataContext(cacheMemoryEnabled) {
 }
 
 /**
+ * Load missing_tool messages from agent output.
+ * Returns an empty array when the output file doesn't exist, cannot be parsed, or has no missing_tool items.
+ * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
+ * @returns {Array<{tool: string|null, reason: string, alternatives?: string|null}>} Array of missing tool messages
+ */
+function loadMissingToolMessages(items) {
+  try {
+    /** @type {Array<any>} */
+    let resolvedItems = items;
+    if (!resolvedItems) {
+      const { loadAgentOutput } = require("./load_agent_output.cjs");
+      const agentOutputResult = loadAgentOutput();
+      if (!agentOutputResult.success || !agentOutputResult.items) {
+        return [];
+      }
+      resolvedItems = agentOutputResult.items;
+    }
+
+    const missingToolMessages = [];
+    for (const item of resolvedItems) {
+      if (item.type === "missing_tool") {
+        if (item.reason) {
+          missingToolMessages.push({
+            tool: item.tool || null,
+            reason: item.reason,
+            alternatives: item.alternatives || null,
+          });
+        }
+      }
+    }
+
+    return missingToolMessages;
+  } catch (error) {
+    core.warning(`Failed to load missing_tool messages: ${getErrorMessage(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Build missing_tool context string for display in failure issues/comments.
+ * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
+ * @returns {string} Formatted missing tool context
+ */
+function buildMissingToolContext(items) {
+  const missingToolMessages = loadMissingToolMessages(items);
+
+  if (missingToolMessages.length === 0) {
+    return "";
+  }
+
+  core.info(`Found ${missingToolMessages.length} missing_tool message(s)`);
+
+  const formattedList = formatMissingTools(missingToolMessages);
+
+  let context = "\n**⚠️ Missing Tools Reported**: The agent reported missing tools during execution.\n\n**Missing Tools:**\n";
+  context += formattedList;
+  context += "\n\n";
+
+  return context;
+}
+
+/**
  * Load report_incomplete messages from agent output
+ * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {Array<{reason: string, details?: string}>} Array of report_incomplete messages
  */
-function loadReportIncompleteMessages() {
+function loadReportIncompleteMessages(items) {
   try {
-    const { loadAgentOutput } = require("./load_agent_output.cjs");
-    const agentOutputResult = loadAgentOutput();
-
-    if (!agentOutputResult.success || !agentOutputResult.items) {
-      return [];
+    /** @type {Array<any>} */
+    let resolvedItems = items;
+    if (!resolvedItems) {
+      const { loadAgentOutput } = require("./load_agent_output.cjs");
+      const agentOutputResult = loadAgentOutput();
+      if (!agentOutputResult.success || !agentOutputResult.items) {
+        return [];
+      }
+      resolvedItems = agentOutputResult.items;
     }
 
     const messages = [];
-    for (const item of agentOutputResult.items) {
+    for (const item of resolvedItems) {
       if (item.type === "report_incomplete" && item.reason) {
         messages.push({
           reason: item.reason,
@@ -659,10 +732,11 @@ function loadReportIncompleteMessages() {
  * Build report_incomplete context string for display in failure issues/comments.
  * This surfaces the agent's structured incompletion signal so maintainers can
  * distinguish a tool-failure report from a real task outcome.
+ * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {string} Formatted report_incomplete context
  */
-function buildReportIncompleteContext() {
-  const messages = loadReportIncompleteMessages();
+function buildReportIncompleteContext(items) {
+  const messages = loadReportIncompleteMessages(items);
 
   if (messages.length === 0) {
     return "";
@@ -1228,6 +1302,11 @@ async function main() {
     const modelNotSupportedError = process.env.GH_AW_MODEL_NOT_SUPPORTED_ERROR === "true";
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
     const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
+    // Feature flags: control whether missing_tool/missing_data signals trigger agent failure handling.
+    // Defaults to true (new behavior); set to false to restore pre-2026 behavior where these signals
+    // are only shown in output footers / separate issues without activating the failure code path.
+    const missingToolReportAsFailure = process.env.GH_AW_MISSING_TOOL_REPORT_AS_FAILURE !== "false";
+    const missingDataReportAsFailure = process.env.GH_AW_MISSING_DATA_REPORT_AS_FAILURE !== "false";
     // GitHub App token minting failures from the safe_outputs job, conclusion job, and activation job.
     // Any of these being "true" indicates a GitHub App authentication configuration error.
     const safeOutputsAppTokenMintingFailed = process.env.GH_AW_SAFE_OUTPUTS_APP_TOKEN_MINTING_FAILED === "true";
@@ -1284,6 +1363,8 @@ async function main() {
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
     core.info(`Stale lock file check failed: ${hasStaleLockFileFailed}`);
     core.info(`Cache memory enabled: ${cacheMemoryEnabled}`);
+    core.info(`Missing tool report-as-failure: ${missingToolReportAsFailure}`);
+    core.info(`Missing data report-as-failure: ${missingDataReportAsFailure}`);
 
     // Check if the agent timed out.
     // A job-level timeout sets agentConclusion to "timed_out".
@@ -1370,6 +1451,32 @@ async function main() {
       }
     }
 
+    // Check if the agent emitted missing_tool messages — treated as agent failures so they
+    // are surfaced in the failure issue comment rather than only in the output footer.
+    let hasMissingTool = false;
+    if (missingToolReportAsFailure && agentOutputResult.items) {
+      const missingToolItems = agentOutputResult.items.filter(item => item.type === "missing_tool" && item.reason);
+      if (missingToolItems.length > 0) {
+        hasMissingTool = true;
+        core.info(`Agent emitted ${missingToolItems.length} missing_tool message(s) - activating failure handling`);
+      }
+    } else if (!missingToolReportAsFailure) {
+      core.info("Missing tool report-as-failure is disabled - missing_tool signals will not trigger failure handling");
+    }
+
+    // Check if the agent emitted missing_data messages — treated as agent failures so they
+    // are surfaced in the failure issue comment rather than only in the output footer.
+    let hasMissingData = false;
+    if (missingDataReportAsFailure && agentOutputResult.items) {
+      const missingDataItems = agentOutputResult.items.filter(item => item.type === "missing_data" && item.reason);
+      if (missingDataItems.length > 0) {
+        hasMissingData = true;
+        core.info(`Agent emitted ${missingDataItems.length} missing_data message(s) - activating failure handling`);
+      }
+    } else if (!missingDataReportAsFailure) {
+      core.info("Missing data report-as-failure is disabled - missing_data signals will not trigger failure handling");
+    }
+
     // Detect cache-miss misconfiguration: the agent reported a missing_data with reason
     // "cache_memory_miss" while cache-memory was configured and available.  This indicates the
     // prompt is referencing an incorrect path inside the cache directory.
@@ -1388,7 +1495,8 @@ async function main() {
     // create_discussion errors OR code-push failures OR push_repo_memory failed OR missing safe outputs
     // OR a GitHub App token minting step failed OR the lockdown check failed OR copilot assignment failed
     // OR the stale lock file check failed OR the agent reported task incompletion via report_incomplete
-    // OR a cache-miss was detected despite cache-memory being available (configuration problem).
+    // OR a cache-miss was detected despite cache-memory being available (configuration problem)
+    // OR the agent reported missing tools or missing data (treated as agent failures by default).
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
     if (
       agentConclusion !== "failure" &&
@@ -1403,16 +1511,18 @@ async function main() {
       !hasLockdownCheckFailed &&
       !hasStaleLockFileFailed &&
       !hasReportIncomplete &&
-      !hasCacheMissMisconfiguration
+      !hasCacheMissMisconfiguration &&
+      !hasMissingTool &&
+      !hasMissingData
     ) {
       core.info(
-        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/report-incomplete/cache-miss errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
+        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/report-incomplete/cache-miss/missing-tool/missing-data errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
       );
       return;
     }
 
-    // If we only have noop outputs (and no report_incomplete or cache-miss), skip failure handling
-    if (hasOnlyNoopOutputs && !hasReportIncomplete && !hasCacheMissMisconfiguration) {
+    // If we only have noop outputs (and no report_incomplete or cache-miss or missing-tool/data), skip failure handling
+    if (hasOnlyNoopOutputs && !hasReportIncomplete && !hasCacheMissMisconfiguration && !hasMissingTool && !hasMissingData) {
       core.info("Agent completed with only noop outputs - skipping failure handling");
       return;
     }
@@ -1557,11 +1667,14 @@ async function main() {
         // Build push_repo_memory job failure context
         const pushRepoMemoryFailureContext = buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryPatchSizeExceededIDs, runUrl);
 
-        // Build missing_data context
-        const missingDataContext = buildMissingDataContext(cacheMemoryEnabled);
+        // Build missing_data context (only when report-as-failure is enabled for this signal type)
+        const missingDataContext = missingDataReportAsFailure ? buildMissingDataContext(cacheMemoryEnabled, agentOutputResult.items) : "";
+
+        // Build missing_tool context (only when report-as-failure is enabled for this signal type)
+        const missingToolContext = missingToolReportAsFailure ? buildMissingToolContext(agentOutputResult.items) : "";
 
         // Build report_incomplete context
-        const reportIncompleteContext = buildReportIncompleteContext();
+        const reportIncompleteContext = buildReportIncompleteContext(agentOutputResult.items);
 
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
@@ -1629,6 +1742,7 @@ async function main() {
           repo_memory_validation_context: repoMemoryValidationContext,
           push_repo_memory_failure_context: pushRepoMemoryFailureContext,
           missing_data_context: missingDataContext,
+          missing_tool_context: missingToolContext,
           report_incomplete_context: reportIncompleteContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           engine_failure_context: engineFailureContext,
@@ -1722,11 +1836,14 @@ async function main() {
         // Build push_repo_memory job failure context
         const pushRepoMemoryFailureContext = buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryPatchSizeExceededIDs, runUrl);
 
-        // Build missing_data context
-        const missingDataContext = buildMissingDataContext(cacheMemoryEnabled);
+        // Build missing_data context (only when report-as-failure is enabled for this signal type)
+        const missingDataContext = missingDataReportAsFailure ? buildMissingDataContext(cacheMemoryEnabled, agentOutputResult.items) : "";
+
+        // Build missing_tool context (only when report-as-failure is enabled for this signal type)
+        const missingToolContext = missingToolReportAsFailure ? buildMissingToolContext(agentOutputResult.items) : "";
 
         // Build report_incomplete context
-        const reportIncompleteContext = buildReportIncompleteContext();
+        const reportIncompleteContext = buildReportIncompleteContext(agentOutputResult.items);
 
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
@@ -1795,6 +1912,7 @@ async function main() {
           repo_memory_validation_context: repoMemoryValidationContext,
           push_repo_memory_failure_context: pushRepoMemoryFailureContext,
           missing_data_context: missingDataContext,
+          missing_tool_context: missingToolContext,
           report_incomplete_context: reportIncompleteContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           engine_failure_context: engineFailureContext,
@@ -1879,6 +1997,7 @@ module.exports = {
   buildMCPPolicyErrorContext,
   buildModelNotSupportedErrorContext,
   buildMissingDataContext,
+  buildMissingToolContext,
   buildCredentialAuthErrorContext,
   parseFirewallAuthErrors,
   getActionFailureIssueExpiresHours,

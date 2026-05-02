@@ -1055,6 +1055,8 @@ jobs:
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🏛️ *Architecture report by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"footerWorkflowRecompile\":\"\\u003e 🛠️ *Workflow maintenance by [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"🏛️ Architecture Guardian online! [{workflow_name}]({run_url}) is scanning code structure on this {event_type}...\",\"runSuccess\":\"✅ Architecture scan complete! [{workflow_name}]({run_url}) has reviewed code structure. Report delivered! 📋\",\"runFailure\":\"🏛️ Architecture scan failed! [{workflow_name}]({run_url}) {status}. Structure status unknown...\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
+          GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"
+          GH_AW_MISSING_DATA_REPORT_AS_FAILURE: "true"
           GH_AW_TIMEOUT_MINUTES: "20"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

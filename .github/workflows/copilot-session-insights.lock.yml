@@ -1247,6 +1247,8 @@ jobs:
           GH_AW_REPO_MEMORY_PATCH_SIZE_EXCEEDED_default: ${{ needs.push_repo_memory.outputs.patch_size_exceeded_default }}
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
+          GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"
+          GH_AW_MISSING_DATA_REPORT_AS_FAILURE: "true"
           GH_AW_TIMEOUT_MINUTES: "45"
           GH_AW_CACHE_MEMORY_ENABLED: "true"
         with:

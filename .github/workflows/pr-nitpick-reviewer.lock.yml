@@ -1172,6 +1172,8 @@ jobs:
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"runSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"runFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
+          GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"
+          GH_AW_MISSING_DATA_REPORT_AS_FAILURE: "true"
           GH_AW_TIMEOUT_MINUTES: "15"
           GH_AW_CACHE_MEMORY_ENABLED: "true"
         with:

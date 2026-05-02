@@ -1152,6 +1152,8 @@ jobs:
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Approach validated by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is analyzing the proposed approach on this {event_type}...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed the approach validation. Review the report and react with ✅ or ❌.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status} during approach validation.\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
+          GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"
+          GH_AW_MISSING_DATA_REPORT_AS_FAILURE: "true"
           GH_AW_TIMEOUT_MINUTES: "30"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

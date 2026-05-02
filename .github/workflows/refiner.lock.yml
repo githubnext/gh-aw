@@ -1179,6 +1179,8 @@ jobs:
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🔍 Starting code refinement... [{workflow_name}]({run_url}) is analyzing PR #${{ github.event.pull_request.number }} for style alignment and security issues\",\"runSuccess\":\"✅ Refinement complete! [{workflow_name}]({run_url}) has created a PR with improvements for PR #${{ github.event.pull_request.number }}\",\"runFailure\":\"❌ Refinement failed! [{workflow_name}]({run_url}) {status} while processing PR #${{ github.event.pull_request.number }}\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
+          GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"
+          GH_AW_MISSING_DATA_REPORT_AS_FAILURE: "true"
           GH_AW_TIMEOUT_MINUTES: "30"
           GH_AW_CACHE_MEMORY_ENABLED: "true"
         with:

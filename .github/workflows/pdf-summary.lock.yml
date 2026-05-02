@@ -1179,6 +1179,8 @@ jobs:
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📄 *Summary compiled by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"📖 Page by page! [{workflow_name}]({run_url}) is reading through this {event_type}...\",\"runSuccess\":\"📚 TL;DR ready! [{workflow_name}]({run_url}) has distilled the essence. Knowledge condensed! ✨\",\"runFailure\":\"📖 Reading interrupted! [{workflow_name}]({run_url}) {status}. The document remains unsummarized...\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
+          GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"
+          GH_AW_MISSING_DATA_REPORT_AS_FAILURE: "true"
           GH_AW_TIMEOUT_MINUTES: "15"
           GH_AW_CACHE_MEMORY_ENABLED: "true"
         with:

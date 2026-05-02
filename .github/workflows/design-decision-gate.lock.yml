@@ -1205,6 +1205,8 @@ jobs:
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🏗️ *ADR gate enforced by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"🔍 [{workflow_name}]({run_url}) is checking for design decision records on this {event_type}...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed the design decision gate check.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status} during design decision gate check.\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
+          GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"
+          GH_AW_MISSING_DATA_REPORT_AS_FAILURE: "true"
           GH_AW_TIMEOUT_MINUTES: "15"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
