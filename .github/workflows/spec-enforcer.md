@@ -4,6 +4,12 @@ description: Generates and maintains specification-driven test suites for each G
 on:
   schedule: daily
   workflow_dispatch:
+    inputs:
+      enforce_all:
+        description: "Process all eligible packages in a single run instead of the normal 2-3 per run batch"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -157,9 +163,14 @@ You MUST NOT:
      }
      ```
 
-## Phase 1: Select Packages (Round Robin)
+## Phase 1: Select Packages
 
-Select **2-3 packages** that have README.md specifications:
+**Dispatch input**: `enforce_all` = `${{ github.event.inputs.enforce_all }}` (empty/false for scheduled runs)
+
+Determine the run mode first:
+
+- **Full-sweep mode** (`enforce_all=true`): Process **all eligible packages** in a single run, in alphabetical order. Rotation state tracking is bypassed — every package with a README.md is selected.
+- **Round-robin mode** (default, `enforce_all=false` or scheduled): Select **2-3 packages** using the normal priority selection logic.
 
 1. **Find packages with specifications**:
    ```bash
@@ -171,7 +182,13 @@ Select **2-3 packages** that have README.md specifications:
    git log --oneline --since='7 days ago' -- pkg/*/README.md
    ```
 
-3. **Priority selection**:
+3. **Package selection**:
+
+   **If `enforce_all=true`** (full-sweep mode):
+   - Select all packages that have a `README.md`, sorted alphabetically.
+   - Rotation state from `rotation.json` is ignored for selection purposes.
+
+   **Otherwise** (round-robin mode):
    - **Priority 1**: Packages whose README.md changed since last enforcement
    - **Priority 2**: Packages without specification tests (`spec_test.go`)
    - **Priority 3**: Next packages in round-robin rotation
@@ -369,6 +386,7 @@ All tests are derived from README.md specifications, not from implementation sou
 
 ### Round-Robin State
 
+- **Run mode**: ${{ github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin' }}
 - **Packages processed this run**: <list>
 - **Next packages in rotation**: <list>
 - **Total eligible packages**: N (with README.md)
@@ -399,7 +417,7 @@ All tests are derived from README.md specifications, not from implementation sou
 
 ## Success Criteria
 
-- ✅ 2-3 packages with specifications processed per run
+- ✅ All packages processed in a single run when `enforce_all=true`; otherwise 2-3 packages per run
 - ✅ `spec_test.go` created or updated for each package that needs changes
 - ✅ All tests derived from README.md content
 - ✅ Tests compile and pass (or mismatches documented)
