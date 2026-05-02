@@ -27,6 +27,10 @@ strict: true
 features:
   inline-agents: true
 
+runtimes:
+  node:
+    version: "22"
+
 # AI engine configuration
 engine:
   id: claude
@@ -164,6 +168,37 @@ pre-agent-steps:
 
       echo "Pre-flight passed: $UNCLEANED uncleaned candidates out of $TOTAL eligible files"
       echo "Candidate files written to /tmp/gh-aw/agent/candidate-files.txt"
+
+  - name: Start documentation dev server
+    run: |
+      cd docs
+      nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/preview.log 2>&1 &
+      PID=$!
+      echo $PID > /tmp/server.pid
+      echo "Dev server started (PID: $PID)"
+
+  - name: Wait for documentation server readiness
+    run: |
+      STATUS=""
+      for i in $(seq 1 45); do
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/gh-aw/)
+        [ "$STATUS" = "200" ] && echo "Server ready at http://localhost:4321/gh-aw/" && break
+        echo "Waiting for server... ($i/45) (status: $STATUS)" && sleep 3
+      done
+      if [ "$STATUS" != "200" ]; then
+        echo "Dev server failed to start after 135 seconds:"
+        cat /tmp/preview.log || true
+        exit 1
+      fi
+
+  - name: Capture Playwright base URL
+    run: |
+      SERVER_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
+      if [ -z "$SERVER_IP" ]; then
+        SERVER_IP=$(hostname -I | awk '{print $1}')
+      fi
+      echo "http://${SERVER_IP}:4321/gh-aw/" > /tmp/gh-aw/agent/playwright-base-url.txt
+      echo "Playwright base URL: http://${SERVER_IP}:4321/gh-aw/"
 
 # Build steps for documentation
 steps:
@@ -351,38 +386,42 @@ This helps future runs avoid re-cleaning the same files.
 
 ### 9. Take Screenshots of Modified Documentation
 
-After making changes to a documentation file, take screenshots of the rendered page in the Astro Starlight website:
+After making changes to a documentation file, take a screenshot of the rendered page using the `doc-page-screenshotter` sub-agent. The documentation server is already running — no setup is needed.
 
-#### Build and Start Documentation Server
+#### Determine the Page URL
 
-Follow the shared **Documentation Server Lifecycle Management** instructions:
-1. Start the preview server (section "Starting the Documentation Preview Server")
-2. Wait for readiness (section "Waiting for Server Readiness")
-3. Optionally verify accessibility (section "Verifying Server Accessibility")
+Read the Playwright base URL written by the pre-agent setup step:
+```bash
+cat /tmp/gh-aw/agent/playwright-base-url.txt
+```
 
-#### Take Screenshots with Playwright
+Convert the modified file path to a page URL path:
+- Strip the `docs/src/content/docs/` prefix and the `.md` suffix, then append `/`
+- Example: `docs/src/content/docs/guides/ephemerals.md` → `guides/ephemerals/`
 
-For the modified documentation file(s):
+Append that page path to the base URL (e.g., `http://172.30.0.20:4321/gh-aw/guides/ephemerals/`).
 
-1. Determine the URL path for the modified file (e.g., if you modified `docs/src/content/docs/guides/getting-started.md`, the URL would be `http://localhost:4321/gh-aw/guides/getting-started/`)
-2. Use Playwright to navigate to the documentation page URL
-3. Wait for the page to fully load (including all CSS, fonts, and images)
-4. Take a full-page HD screenshot of the documentation page (1920x1080 viewport is configured)
-5. The screenshot will be saved in `/tmp/gh-aw/mcp-logs/playwright/` by Playwright (e.g., `/tmp/gh-aw/mcp-logs/playwright/getting-started.png`)
+#### Capture Screenshots via Sub-Agent
+
+Use the `doc-page-screenshotter` agent, passing the full page URL as input. The sub-agent handles all Playwright interactions and returns a structured JSON result:
+
+```json
+{
+  "success": true,
+  "screenshots": ["/tmp/gh-aw/mcp-logs/playwright/doc-screenshot.png"],
+  "blocked_domains": [],
+  "error": null
+}
+```
 
 #### Verify Screenshots Were Saved
 
-**IMPORTANT**: Before uploading, verify that Playwright successfully saved the screenshots:
+Check the `screenshots` array returned by the `doc-page-screenshotter` sub-agent:
 
-```bash
-# List files in the output directory to confirm screenshots were saved
-ls -lh /tmp/gh-aw/mcp-logs/playwright/
-```
-
-**If no screenshot files are found:**
+**If `screenshots` is empty or `success` is `false`:**
 - Report this in the PR description under an "Issues" section
-- Include the error message or reason why screenshots couldn't be captured
-- Do not proceed with upload-asset if no files exist
+- Include the `error` value from the sub-agent result
+- Do not proceed with upload-asset
 
 #### Upload Screenshots
 
@@ -391,15 +430,9 @@ ls -lh /tmp/gh-aw/mcp-logs/playwright/
 
 #### Report Blocked Domains
 
-While taking screenshots, monitor the browser console for any blocked network requests:
-- Look for CSS files that failed to load
-- Look for font files that failed to load
-- Look for any other resources that were blocked by network policies
-
-If you encounter any blocked domains:
-1. Note the domain names and resource types (CSS, fonts, images, etc.)
-2. Include this information in the PR description under a "Blocked Domains" section
-3. Example format: "Blocked: fonts.googleapis.com (fonts), cdn.example.com (CSS)"
+The `doc-page-screenshotter` sub-agent returns `blocked_domains` in its result. If any domains are listed:
+1. Include this information in the PR description under a "Blocked Domains" section
+2. Example format: "Blocked: fonts.googleapis.com (fonts), cdn.example.com (CSS)"
 
 #### Cleanup Server
 
@@ -500,3 +533,49 @@ Return a JSON object only — no prose, no extra text:
   "top_bloat_reason": "Excessive bullet lists in Tool Configuration and Features sections with repetitive What/Why/How patterns."
 }
 ```
+
+## agent: `doc-page-screenshotter`
+---
+model: claude-haiku-4.5
+description: Navigates to a documentation page URL using Playwright and captures a full-page screenshot, returning a structured JSON result with screenshot paths and any blocked domains
+---
+You are a documentation screenshot agent. Your input is a full page URL to screenshot (e.g., `http://172.30.0.20:4321/gh-aw/guides/ephemerals/`).
+
+1. Navigate to the URL using the `playwright` CLI tool. Use `browser_navigate` with the URL. If navigation times out (Vite dev server can be slow with the default `load` wait), fall back to `browser_run_code_unsafe` with `waitUntil: 'domcontentloaded'`:
+   ```bash
+   # Primary: direct navigation
+   playwright browser_navigate --url "<URL>"
+   ```
+   If the above times out, use this fallback instead:
+   ```bash
+   playwright browser_run_code_unsafe --code "async (page) => { await page.goto('<URL>', { waitUntil: 'domcontentloaded', timeout: 30000 }); return { url: page.url(), title: await page.title() }; }"
+   ```
+
+2. Take a full-page screenshot:
+   ```bash
+   playwright browser_take_screenshot --filename /tmp/gh-aw/mcp-logs/playwright/doc-screenshot.png --full-page true
+   ```
+
+3. Check the browser console for blocked network requests:
+   ```bash
+   playwright browser_console_messages
+   ```
+   Look for errors mentioning blocked CSS, font, or image domains.
+
+4. Verify the screenshot was saved:
+   ```bash
+   ls -lh /tmp/gh-aw/mcp-logs/playwright/
+   ```
+
+Return a JSON object only — no prose, no extra text:
+
+```json
+{
+  "success": true,
+  "screenshots": ["/tmp/gh-aw/mcp-logs/playwright/doc-screenshot.png"],
+  "blocked_domains": [],
+  "error": null
+}
+```
+
+If navigation or screenshot fails (timeout, connection error, file not written), set `"success": false`, `"screenshots": []`, and describe the failure in `"error"`.
