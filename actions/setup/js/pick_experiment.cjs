@@ -210,7 +210,10 @@ async function writeSummary(assignments, configs, state, core) {
   lines.push("");
 
   // Progress bars and ready-for-analysis flags when min_samples is a positive integer.
-  const progressNames = names.filter(name => Number.isInteger(configs[name]?.min_samples) && configs[name].min_samples > 0);
+  const progressNames = names.filter(name => {
+    const ms = configs[name]?.min_samples;
+    return Number.isInteger(ms) && ms > 0;
+  });
   if (progressNames.length > 0) {
     lines.push("### 📊 Sampling Progress");
     lines.push("");
