@@ -12,6 +12,7 @@ The harness is **built on top of the Pi agent ecosystem** (`@mariozechner/pi-cod
 - A Pi SDK application with gh-aw-specific Pi extensions
 - Optimized for execution inside the gh-aw Action container (firewall, api-proxy, MCP gateway)
 - TypeScript compiled for Node.js 24, bundled as a single `.cjs` in `actions/setup/js/`
+- **`gh-proxy` and `cli-proxy` are always enabled** — Pi SDK does not support MCP natively; these are mandatory for the MCP bridge to work and cannot be turned off
 
 ### What this is NOT
 
@@ -153,6 +154,7 @@ export default function safeOutputsExtension(pi: ExtensionAPI) {
 2. **Extensions-first** — Every gh-aw feature is a proper Pi extension using `ExtensionAPI`. Extensions use `pi.registerTool()` for tools, `pi.on()` for events, `pi.registerProvider()` for model routing. This makes them reusable outside gh-aw.
 3. **api-proxy for model resolution** — Pi's `pi-ai` talks to the api-proxy as an OpenAI-compatible provider. Model names (aliases or explicit) pass through — the proxy resolves.
 4. **Optimized for gh-aw container** — Assumes firewall, api-proxy, MCP gateway are running. No redundant auth, no direct LLM API calls, no network configuration.
+5. **`gh-proxy` and `cli-proxy` always on** — The Pi SDK does not support MCP natively. GitHub and other MCP server tools are bridged into Pi via the `mcp-bridge` extension, which requires `gh-proxy` (pre-authenticated `gh` CLI in bash) and `cli-proxy` (MCP servers mounted as CLI tools on `PATH`) to be active. These features are **always enabled** when `engine: aw` is selected and **cannot be disabled**.
 5. **TypeScript → Node 24** — Source is TypeScript, compiled to ES2024, bundled via esbuild to a single `.cjs`. Leverages Node 24 features (native fetch, structuredClone, AbortSignal.any).
 6. **Output in `actions/setup/js/`** — The bundled `aw_harness.cjs` lives alongside `copilot_harness.cjs` and `claude_harness.cjs`. Same deployment mechanism, same runtime contract.
 7. **New opt-in engine** — `engine: aw` is a new choice. Existing engines are untouched.
@@ -187,6 +189,8 @@ This means:
 
 Uses the **existing gh-aw frontmatter** with `engine: aw` and a new optional `harness:` block.
 
+> **Constraint:** `gh-proxy` and `cli-proxy` are always enabled for `engine: aw` (Pi SDK does not support MCP natively). They are shown explicitly below but are enforced by the compiler regardless of whether the author includes them.
+
 ```markdown
 ---
 on:
@@ -203,8 +207,14 @@ permissions:
   issues: read
   pull-requests: read
 
+# gh-proxy and cli-proxy are ALWAYS enabled for engine: aw.
+# Pi SDK does not support MCP natively; the mcp-bridge extension
+# requires both features to bridge gateway tools into Pi AgentTools.
+cli-proxy: true
+
 tools:
   github:
+    mode: gh-proxy               # Always gh-proxy for engine: aw
     toolsets: [issues, pull_requests, code_search]
   bash: [grep, find, wc, git, jq]
 
@@ -341,6 +351,8 @@ export default async function(pi: ExtensionAPI) {
 ### Extension 2: MCP Gateway Bridge
 
 Bridges gh-aw's MCP gateway tools into Pi's tool system as `AgentTool` instances.
+
+> **Note:** The Pi SDK does not support MCP natively. `gh-proxy` (pre-authenticated `gh` CLI in bash) and `cli-proxy` (MCP servers mounted as CLI tools on `PATH`) are **always enabled** when `engine: aw` is selected and **cannot be disabled**. These are mandatory prerequisites for the MCP bridge to function.
 
 ```typescript
 export default function(pi: ExtensionAPI) {
@@ -591,6 +603,8 @@ async function main() {
 | `engine: aw` with `harness:` block | Multi-step orchestration mode |
 | `engine: aw` with `harness.steps` | Explicit DAG (parallel, depends, agent assignment) |
 | `engine: aw` without `harness.agents` | All steps use `engine.model` |
+| `engine: aw` + `cli-proxy: false` | **Ignored** — `cli-proxy` is always on for `engine: aw` |
+| `engine: aw` + `tools.github.mode: remote` | **Overridden to `gh-proxy`** — Pi SDK requires `gh-proxy`; `remote` mode is not supported |
 
 ## Build & Deployment
 
