@@ -434,7 +434,8 @@ function parseBridgeArgs(argv) {
 
 /**
  * Check whether any of the user args use '-' as a stdin placeholder value.
- * Recognizes both '--key -' and '--key=-' forms.
+ * Only recognizes the '--key -' (space-separated) form; '--key=-' is not
+ * treated as a stdin placeholder to avoid ambiguity with literal hyphen values.
  *
  * @param {string[]} args - User arguments after the tool name
  * @returns {boolean}
@@ -445,10 +446,7 @@ function hasStdinPlaceholder(args) {
     if (typeof arg !== "string" || !arg.startsWith("--")) continue;
     const raw = arg.slice(2);
     const eqIdx = raw.indexOf("=");
-    if (eqIdx >= 0) {
-      // --key=value form: check if value is '-'
-      if (raw.slice(eqIdx + 1) === "-") return true;
-    } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+    if (eqIdx < 0 && i + 1 < args.length && !args[i + 1].startsWith("--")) {
       // --key value form: check if value is '-'
       if (args[i + 1] === "-") return true;
       i++; // skip value so we don't misidentify it as a flag
@@ -522,9 +520,12 @@ function readStdinSync() {
  * Supports both --key value and --key=value styles.
  * Boolean flags (--key without a value) are set to true.
  *
- * When `stdinContent` is provided and a value is exactly '-', the stdin
- * content is substituted in place of that value. This allows multiline
- * strings to be piped safely: `printf 'line1\nline2' | cmd --body -`
+ * When `stdinContent` is provided and a value is exactly '-' in the
+ * '--key -' (space-separated) form, the stdin content is substituted in
+ * place of that value. This allows multiline strings to be piped safely:
+ *   `printf 'line1\nline2' | cmd --body -`
+ * Note: the '--key=-' (equals) form does NOT trigger stdin substitution —
+ * it passes the literal string '-' as the value.
  *
  * When `stdinContent` is provided and args is empty or `['.']`, the stdin
  * content is parsed as a JSON object and its properties are used as tool
@@ -534,7 +535,7 @@ function readStdinSync() {
  *
  * @param {string[]} args - User arguments after the tool name
  * @param {Record<string, {type?: string|string[]}>} [schemaProperties] - Tool input schema properties
- * @param {string | null} [stdinContent] - Pre-read stdin content; substituted when value is '-'
+ * @param {string | null} [stdinContent] - Pre-read stdin content; substituted when '--key -' value is '-'
  * @returns {{args: Record<string, unknown>, json: boolean}}
  */
 function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
@@ -576,8 +577,7 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
         } else {
           const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
           const rawValue = raw.slice(eqIdx + 1);
-          const effectiveValue = rawValue === "-" && stdinContent !== null ? stdinContent : rawValue;
-          result[canonicalKey] = coerceToolArgValue(canonicalKey, effectiveValue, schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
+          result[canonicalKey] = coerceToolArgValue(canonicalKey, rawValue, schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
         }
       } else if (raw === "json") {
         jsonOutput = true;
@@ -815,7 +815,7 @@ function showHelp(serverName, tools) {
  *
  * @param {string} serverName - Server name
  * @param {string} toolName - Tool name
- * @param {Array<{name: string, description?: string, inputSchema?: {properties?: Record<string, {description?: string, type?: string}>, required?: string[]}}>} tools
+ * @param {Array<{name: string, description?: string, inputSchema?: {properties?: Record<string, {description?: string, type?: string|string[]}>, required?: string[]}}>} tools
  */
 function showToolHelp(serverName, toolName, tools) {
   const tool = tools.find(t => t.name === toolName);
@@ -829,23 +829,37 @@ function showToolHelp(serverName, toolName, tools) {
   const lines = [`Command: ${toolName}`, `Description: ${tool.description || "No description"}`];
 
   const props = tool.inputSchema?.properties;
+  const required = new Set(tool.inputSchema?.required || []);
   if (props && Object.keys(props).length > 0) {
     lines.push("");
     lines.push("Options:");
     const maxKeyLen = Math.max(...Object.keys(props).map(k => k.length));
     for (const [key, val] of Object.entries(props)) {
-      const padded = `--${key}`.padEnd(maxKeyLen + 4);
-      lines.push(`  ${padded}${val.description || val.type || "string"}`);
+      const flagPad = `--${key}`.padEnd(maxKeyLen + 4);
+      const typeStr = getTypeStr(val.type);
+      const requiredTag = required.has(key) ? " (required)" : "";
+      const desc = val.description ? `  ${val.description}` : "";
+      lines.push(`  ${flagPad}${typeStr}${requiredTag}${desc}`);
     }
 
-    const required = tool.inputSchema?.required;
-    if (required && required.length > 0) {
-      lines.push("");
-      lines.push(`Required: ${required.join(", ")}`);
-    }
+    lines.push("");
+    lines.push(`Usage: ${serverName} ${toolName} [--param value ...]`);
+    lines.push(`  or:  printf '{"param":"value",...}' | ${serverName} ${toolName} .`);
   }
 
   process.stdout.write(lines.join("\n") + "\n");
+}
+
+/**
+ * Format a JSON schema type value as a short bracketed string.
+ *
+ * @param {string|string[]|undefined} type
+ * @returns {string}
+ */
+function getTypeStr(type) {
+  if (!type) return "(string)";
+  const types = Array.isArray(type) ? type.filter(t => t !== "null") : [type];
+  return `(${types.join("|") || "string"})`;
 }
 
 // ---------------------------------------------------------------------------

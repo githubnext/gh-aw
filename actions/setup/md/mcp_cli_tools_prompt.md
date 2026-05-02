@@ -17,7 +17,7 @@ Each server is a standalone executable on your `PATH`. Invoke it from bash like 
 # Discover what tools a server provides
 <server-name> --help
 
-# Get detailed help for a specific tool (description + parameters)
+# Get detailed help for a specific tool (type, required status, description)
 <server-name> <tool-name> --help
 
 # Call a tool — pass arguments as --name value pairs
@@ -34,8 +34,8 @@ playwright browser_snapshot                        # capture page accessibility 
 **Example** — using the `safeoutputs` CLI (safe outputs):
 ```bash
 safeoutputs --help                                 # list all safe-output tools
-safeoutputs add_comment --body "Analysis complete"
-safeoutputs upload_artifact --path "report.json"
+safeoutputs add_comment --help                     # show types and required params
+safeoutputs add_comment --issue_number 42 --body "Analysis complete"
 ```
 
 **Example** — using the `mcpscripts` CLI (mcp-scripts):
@@ -44,7 +44,7 @@ mcpscripts --help                                  # list all script tools
 mcpscripts mcpscripts-gh --args "pr list --repo owner/repo --limit 5"
 ```
 
-### Multiline and Multi-Argument Payloads (JSON stdin)
+### Passing Multiple or Complex Arguments (Preferred)
 
 **Preferred approach for any tool call with multiple or complex arguments**: supply a JSON object on stdin using `.` as the sentinel. The bridge parses stdin as the argument object, preserving all native types (numbers, booleans, arrays) without shell-quoting issues.
 
@@ -76,13 +76,9 @@ safeoutputs add_comment . < /tmp/comment.json
 > - Agents can construct the payload as a structured object before emitting the command
 > - File redirection (`< file`) works even when pipes (`|`) are restricted
 
-Key normalisation rules apply: parameter names with hyphens or underscores are interchangeable (e.g. `issue-number` and `issue_number` both work).
-
-> **Important**: Do **not** use `--body - < file` to pass a multi-field JSON payload — `--body -` reads stdin as a raw string and will pass the entire JSON object as the body. Use `. < file` (dot sentinel) to parse stdin as JSON and distribute all fields across their respective parameters.
-
 ### Single-Parameter stdin Substitution
 
-For the case where only **one** parameter needs multiline content, use `-` as its value:
+For the case where only **one** parameter needs multiline content, use `-` (space-separated from the flag name) as its value:
 
 ```bash
 # Write multiline content to a file and redirect it
@@ -91,19 +87,19 @@ safeoutputs add_comment --issue_number 42 --body - < body.txt
 # Or use printf for inline multiline content
 printf '### Title\n\nBody paragraph one.\n\nBody paragraph two.' \
   | safeoutputs add_comment --issue_number 42 --body -
-
-# Works with --key=- form too
-printf 'multiline\ncontent' | safeoutputs add_comment --issue_number 42 --body=-
 ```
 
-> **Important**: Always use stdin substitution (`--body -`) instead of command substitution (`--body "$(cat file)"`) when the content contains newlines. Command substitution can strip trailing newlines and cause other quoting problems.
+> **Important**: Use `--body -` (space before `-`) — the `--body=-` form is **not** supported for stdin substitution and will pass the literal string `-` as the body value.
+
+> **Important**: Do **not** use `--body - < file` to pass a multi-field JSON payload — `--body -` reads stdin as a raw string and will pass the entire JSON object as the body. Use `. < file` (dot sentinel) to parse stdin as JSON and distribute all fields across their respective parameters.
 
 ### Notes
 
 - **Prefer JSON payload mode** (`. < file` or `printf '{...}' | server tool .`) for any call with multiple arguments or complex values
 - All parameters can also be passed as `--name value` pairs; boolean flags can be set with `--flag` (no value) to mean `true`
 - Use `.` as the only argument to parse stdin as a JSON object (all parameters supplied at once)
-- Use `-` as a single value to read one parameter from stdin (single-field substitution)
+- Use `-` as the value in `--key -` form to read one parameter from stdin (space before `-` required)
+- Parameter names with hyphens or underscores are interchangeable (e.g. `issue-number` and `issue_number` both work)
 - Output is printed to stdout; errors are printed to stderr with a non-zero exit code
 - Run the CLI commands inside a `bash` tool call — they are shell executables, not MCP tools
 - These CLI commands are read-only and cannot be modified by the agent

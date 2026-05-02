@@ -222,13 +222,13 @@ describe("mcp_cli_bridge.cjs", () => {
       expect(args).toEqual({ body: stdinContent });
     });
 
-    it("substitutes stdin content for '-' value in --key=value form", () => {
+    it("does not substitute stdin content for '-' value in --key=value form", () => {
       const schemaProperties = { body: { type: "string" } };
       const stdinContent = "multiline\ncontent\nhere";
 
       const { args } = parseToolArgs(["--body=-"], schemaProperties, stdinContent);
 
-      expect(args).toEqual({ body: stdinContent });
+      expect(args).toEqual({ body: "-" });
     });
 
     it("does not substitute '-' when stdinContent is null", () => {
@@ -267,8 +267,8 @@ describe("mcp_cli_bridge.cjs", () => {
       expect(hasStdinPlaceholder(["--body", "-"])).toBe(true);
     });
 
-    it("detects stdin placeholder in --key=value form", () => {
-      expect(hasStdinPlaceholder(["--body=-"])).toBe(true);
+    it("does not detect stdin placeholder in --key=value form", () => {
+      expect(hasStdinPlaceholder(["--body=-"])).toBe(false);
     });
 
     it("returns false when no stdin placeholder is present", () => {
