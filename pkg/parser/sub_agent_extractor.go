@@ -68,6 +68,42 @@ import (
 	"strings"
 )
 
+// GetEngineSubAgentDir returns the relative directory (from repo root / tmp base) used
+// to store inline sub-agent files for a given engine.
+//
+// Each engine has a dedicated config directory:
+//
+//	claude   → .claude/agents
+//	codex    → .codex/agents
+//	gemini   → .gemini/agents
+//	others   → .agents/agents  (Copilot default)
+func GetEngineSubAgentDir(engineID string) string {
+	switch strings.ToLower(engineID) {
+	case "claude":
+		return ".claude/agents"
+	case "codex":
+		return ".codex/agents"
+	case "gemini":
+		return ".gemini/agents"
+	default:
+		return ".agents/agents"
+	}
+}
+
+// GetEngineSubAgentExt returns the file extension used for inline sub-agent files
+// for a given engine.
+//
+//	claude / codex / gemini → .md
+//	others                  → .agent.md  (Copilot default)
+func GetEngineSubAgentExt(engineID string) string {
+	switch strings.ToLower(engineID) {
+	case "claude", "codex", "gemini":
+		return ".md"
+	default:
+		return ".agent.md"
+	}
+}
+
 // InlineSubAgent holds a single sub-agent definition extracted from a workflow
 // markdown file's body using the ## agent: `name` syntax.
 type InlineSubAgent struct {

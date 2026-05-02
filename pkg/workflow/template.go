@@ -100,6 +100,9 @@ func (c *Compiler) generateInterpolationAndTemplateStep(yaml *strings.Builder, e
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		fmt.Fprintf(yaml, "          GH_AW_ENGINE_ID: \"%s\"\n", data.EngineConfig.ID)
+	}
 
 	// Add environment variables for extracted expressions (deduplicated by EnvVar)
 	seen := make(map[string]bool)

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -454,7 +455,14 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/"+constants.GithubRateLimitsFilename+"\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/base\n")
-	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/.agents\n")
+	// Include the engine-specific sub-agents staging directory so inline sub-agent
+	// files written during the activation job are available to the agent job.
+	engineID := ""
+	if ctx.data.EngineConfig != nil {
+		engineID = ctx.data.EngineConfig.ID
+	}
+	subAgentDir := parser.GetEngineSubAgentDir(engineID)
+	ctx.steps = append(ctx.steps, fmt.Sprintf("            /tmp/gh-aw/%s\n", subAgentDir))
 	ctx.steps = append(ctx.steps, "          if-no-files-found: ignore\n")
 	ctx.steps = append(ctx.steps, "          retention-days: 1\n")
 }

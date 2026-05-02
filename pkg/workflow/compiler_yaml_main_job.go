@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/parser"
 )
 
 // generateMainJobSteps generates the complete sequence of steps for the main agent execution job
@@ -369,14 +370,20 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	yaml.WriteString("          path: /tmp/gh-aw\n")
 
 	// Restore inline sub-agents written during the activation job.
-	// The activation job writes sub-agent files to /tmp/gh-aw/.agents/agents/ and
+	// The activation job writes sub-agent files to /tmp/gh-aw/<engine-dir>/ and
 	// uploads them as part of the activation artifact. Copying them into the checkout
-	// workspace makes them discoverable by the Copilot CLI via --add-dir "${GITHUB_WORKSPACE}".
+	// workspace makes them discoverable by the engine CLI.
+	engineID := ""
+	if data.EngineConfig != nil {
+		engineID = data.EngineConfig.ID
+	}
+	subAgentDir := parser.GetEngineSubAgentDir(engineID)
+	subAgentExt := parser.GetEngineSubAgentExt(engineID)
 	yaml.WriteString("      - name: Restore inline sub-agents from activation artifact\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          if [ -d \"/tmp/gh-aw/.agents/agents\" ]; then\n")
-	yaml.WriteString("            mkdir -p \"${GITHUB_WORKSPACE}/.agents/agents\"\n")
-	yaml.WriteString("            cp /tmp/gh-aw/.agents/agents/*.agent.md \"${GITHUB_WORKSPACE}/.agents/agents/\" 2>/dev/null || true\n")
+	fmt.Fprintf(yaml, "          if [ -d \"/tmp/gh-aw/%s\" ]; then\n", subAgentDir)
+	fmt.Fprintf(yaml, "            mkdir -p \"${GITHUB_WORKSPACE}/%s\"\n", subAgentDir)
+	fmt.Fprintf(yaml, "            cp \"/tmp/gh-aw/%s/\"*\"%s\" \"${GITHUB_WORKSPACE}/%s/\" 2>/dev/null || true\n", subAgentDir, subAgentExt, subAgentDir)
 	yaml.WriteString("          fi\n")
 
 	// Materialize comment-memory safe outputs as editable markdown files for the agent.

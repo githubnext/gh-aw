@@ -103,7 +103,7 @@ Create a report based on repository analysis.`
 			t.Error("Expected compiled workflow to contain text output referencing sanitized step")
 		}
 		// Check that JavaScript is inlined instead of using shared action
-		if !strings.Contains(lockStr, "uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553") {
+		if !strings.Contains(lockStr, "uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3") {
 			t.Error("Expected sanitized step to use inlined JavaScript")
 		}
 		// Check that it does NOT use the old shared action path

@@ -83,8 +83,41 @@ function extractInlineSubAgents(content) {
 }
 
 /**
- * Extracts inline sub-agents from content and writes each one to
- * <workspaceDir>/.agents/agents/<name>.agent.md.
+ * Returns the target directory (relative to agentsBaseDir) and filename extension
+ * for inline sub-agent files based on the engine ID.
+ *
+ * Each AI engine stores its sub-agent definitions in a different location:
+ *   claude   → .claude/agents/<name>.md
+ *   codex    → .codex/agents/<name>.md
+ *   gemini   → .gemini/agents/<name>.md
+ *   copilot  → .agents/agents/<name>.agent.md  (default)
+ *   others   → .agents/agents/<name>.agent.md  (fallback)
+ *
+ * @param {string} [engineId] - The engine identifier (e.g. "claude", "copilot").
+ * @returns {{ dir: string, ext: string }}
+ */
+function getEngineSubAgentTarget(engineId) {
+  switch ((engineId || "").toLowerCase()) {
+    case "claude":
+      return { dir: ".claude/agents", ext: ".md" };
+    case "codex":
+      return { dir: ".codex/agents", ext: ".md" };
+    case "gemini":
+      return { dir: ".gemini/agents", ext: ".md" };
+    default:
+      return { dir: ".agents/agents", ext: ".agent.md" };
+  }
+}
+
+/**
+ * Extracts inline sub-agents from content and writes each one to the
+ * engine-appropriate location under agentsBaseDir.
+ *
+ * The target directory and filename extension are determined by engineId:
+ *   - claude  → <base>/.claude/agents/<name>.md
+ *   - codex   → <base>/.codex/agents/<name>.md
+ *   - gemini  → <base>/.gemini/agents/<name>.md
+ *   - default → <base>/.agents/agents/<name>.agent.md
  *
  * Returns the main content (before the first ## agent: marker) after stripping
  * all agent blocks.  When no agent markers are found the original content is
@@ -92,16 +125,18 @@ function extractInlineSubAgents(content) {
  *
  * Agent files are written relative to `agentsBaseDir` (defaults to `workspaceDir`).
  * Pass the gh-aw tmp directory (`/tmp/gh-aw`) as `agentsBaseDir` in production so
- * the files land in `/tmp/gh-aw/.agents/agents/` — which is included in the
+ * the files land under `/tmp/gh-aw/<engine-dir>/` — which is included in the
  * activation artifact and therefore available to the downstream agent job.
  *
  * @param {string} content - Markdown with potential inline sub-agent blocks.
  * @param {string} workspaceDir - GITHUB_WORKSPACE (repository root).
- * @param {string} [agentsBaseDir] - Root directory for `.agents/agents/` output.
+ * @param {string} [agentsBaseDir] - Root directory for agent output.
  *   Defaults to `workspaceDir` when omitted (for tests and legacy callers).
+ * @param {string} [engineId] - The engine ID (e.g. "claude", "copilot").
+ *   Defaults to "copilot" behavior when omitted.
  * @returns {string} Main content with sub-agent sections removed.
  */
-function writeInlineSubAgents(content, workspaceDir, agentsBaseDir) {
+function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
   const { mainContent, agents } = extractInlineSubAgents(content);
 
   if (agents.length === 0) {
@@ -109,17 +144,18 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir) {
   }
 
   const baseDir = agentsBaseDir || workspaceDir;
-  const agentsDir = path.join(baseDir, ".agents", "agents");
+  const { dir, ext } = getEngineSubAgentTarget(engineId);
+  const agentsDir = path.join(baseDir, dir);
   fs.mkdirSync(agentsDir, { recursive: true });
 
   for (const agent of agents) {
-    const agentPath = path.join(agentsDir, agent.name + ".agent.md");
+    const agentPath = path.join(agentsDir, agent.name + ext);
     const agentContent = agent.content.endsWith("\n") ? agent.content : agent.content + "\n";
     fs.writeFileSync(agentPath, agentContent, "utf8");
-    core.info(`[extractInlineSubAgents] Written sub-agent: .agents/agents/${agent.name}.agent.md`);
+    core.info(`[extractInlineSubAgents] Written sub-agent: ${dir}/${agent.name}${ext}`);
   }
 
   return mainContent;
 }
 
-module.exports = { extractInlineSubAgents, writeInlineSubAgents };
+module.exports = { extractInlineSubAgents, writeInlineSubAgents, getEngineSubAgentTarget };

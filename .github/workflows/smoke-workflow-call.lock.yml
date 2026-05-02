@@ -291,6 +291,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_ENGINE_ID: "copilot"
           GH_AW_EXPR_B3924FAD: ${{ inputs.task-description }}
         with:
           script: |
@@ -358,7 +359,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/base
-            /tmp/gh-aw/.agents
+            /tmp/gh-aw/.agents/agents
           if-no-files-found: ignore
           retention-days: 1
 
@@ -473,7 +474,7 @@ jobs:
         run: |
           if [ -d "/tmp/gh-aw/.agents/agents" ]; then
             mkdir -p "${GITHUB_WORKSPACE}/.agents/agents"
-            cp /tmp/gh-aw/.agents/agents/*.agent.md "${GITHUB_WORKSPACE}/.agents/agents/" 2>/dev/null || true
+            cp "/tmp/gh-aw/.agents/agents/"*".agent.md" "${GITHUB_WORKSPACE}/.agents/agents/" 2>/dev/null || true
           fi
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
