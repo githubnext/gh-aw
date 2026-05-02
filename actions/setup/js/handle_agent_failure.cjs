@@ -8,7 +8,7 @@ const { renderTemplate, renderTemplateFromFile, getPromptPath } = require("./mes
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
-const { formatMissingData } = require("./missing_info_formatter.cjs");
+const { formatMissingData, formatMissingTools } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const fs = require("fs");
@@ -621,6 +621,61 @@ function buildMissingDataContext(cacheMemoryEnabled) {
     const templatePath = getPromptPath("cache_memory_miss.md");
     context += "\n" + renderTemplateFromFile(templatePath, {}) + "\n";
   }
+
+  return context;
+}
+
+/**
+ * Load missing_tool messages from agent output
+ * @returns {Array<{tool: string|null, reason: string, alternatives?: string|null}>} Array of missing tool messages
+ */
+function loadMissingToolMessages() {
+  try {
+    const { loadAgentOutput } = require("./load_agent_output.cjs");
+    const agentOutputResult = loadAgentOutput();
+
+    if (!agentOutputResult.success || !agentOutputResult.items) {
+      return [];
+    }
+
+    const missingToolMessages = [];
+    for (const item of agentOutputResult.items) {
+      if (item.type === "missing_tool") {
+        if (item.reason) {
+          missingToolMessages.push({
+            tool: item.tool || null,
+            reason: item.reason,
+            alternatives: item.alternatives || null,
+          });
+        }
+      }
+    }
+
+    return missingToolMessages;
+  } catch (error) {
+    core.warning(`Failed to load missing_tool messages: ${getErrorMessage(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Build missing_tool context string for display in failure issues/comments.
+ * @returns {string} Formatted missing tool context
+ */
+function buildMissingToolContext() {
+  const missingToolMessages = loadMissingToolMessages();
+
+  if (missingToolMessages.length === 0) {
+    return "";
+  }
+
+  core.info(`Found ${missingToolMessages.length} missing_tool message(s)`);
+
+  const formattedList = formatMissingTools(missingToolMessages);
+
+  let context = "\n**⚠️ Missing Tools Reported**: The agent reported missing tools during execution.\n\n**Missing Tools:**\n";
+  context += formattedList;
+  context += "\n\n";
 
   return context;
 }
@@ -1370,6 +1425,28 @@ async function main() {
       }
     }
 
+    // Check if the agent emitted missing_tool messages — treated as agent failures so they
+    // are surfaced in the failure issue comment rather than only in the output footer.
+    let hasMissingTool = false;
+    if (agentOutputResult.items) {
+      const missingToolItems = agentOutputResult.items.filter(item => item.type === "missing_tool" && item.reason);
+      if (missingToolItems.length > 0) {
+        hasMissingTool = true;
+        core.info(`Agent emitted ${missingToolItems.length} missing_tool message(s) - activating failure handling`);
+      }
+    }
+
+    // Check if the agent emitted missing_data messages — treated as agent failures so they
+    // are surfaced in the failure issue comment rather than only in the output footer.
+    let hasMissingData = false;
+    if (agentOutputResult.items) {
+      const missingDataItems = agentOutputResult.items.filter(item => item.type === "missing_data" && item.reason);
+      if (missingDataItems.length > 0) {
+        hasMissingData = true;
+        core.info(`Agent emitted ${missingDataItems.length} missing_data message(s) - activating failure handling`);
+      }
+    }
+
     // Detect cache-miss misconfiguration: the agent reported a missing_data with reason
     // "cache_memory_miss" while cache-memory was configured and available.  This indicates the
     // prompt is referencing an incorrect path inside the cache directory.
@@ -1388,7 +1465,8 @@ async function main() {
     // create_discussion errors OR code-push failures OR push_repo_memory failed OR missing safe outputs
     // OR a GitHub App token minting step failed OR the lockdown check failed OR copilot assignment failed
     // OR the stale lock file check failed OR the agent reported task incompletion via report_incomplete
-    // OR a cache-miss was detected despite cache-memory being available (configuration problem).
+    // OR a cache-miss was detected despite cache-memory being available (configuration problem)
+    // OR the agent reported missing tools or missing data (treated as agent failures by default).
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
     if (
       agentConclusion !== "failure" &&
@@ -1403,16 +1481,18 @@ async function main() {
       !hasLockdownCheckFailed &&
       !hasStaleLockFileFailed &&
       !hasReportIncomplete &&
-      !hasCacheMissMisconfiguration
+      !hasCacheMissMisconfiguration &&
+      !hasMissingTool &&
+      !hasMissingData
     ) {
       core.info(
-        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/report-incomplete/cache-miss errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
+        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/report-incomplete/cache-miss/missing-tool/missing-data errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
       );
       return;
     }
 
-    // If we only have noop outputs (and no report_incomplete or cache-miss), skip failure handling
-    if (hasOnlyNoopOutputs && !hasReportIncomplete && !hasCacheMissMisconfiguration) {
+    // If we only have noop outputs (and no report_incomplete or cache-miss or missing-tool/data), skip failure handling
+    if (hasOnlyNoopOutputs && !hasReportIncomplete && !hasCacheMissMisconfiguration && !hasMissingTool && !hasMissingData) {
       core.info("Agent completed with only noop outputs - skipping failure handling");
       return;
     }
@@ -1560,6 +1640,9 @@ async function main() {
         // Build missing_data context
         const missingDataContext = buildMissingDataContext(cacheMemoryEnabled);
 
+        // Build missing_tool context
+        const missingToolContext = buildMissingToolContext();
+
         // Build report_incomplete context
         const reportIncompleteContext = buildReportIncompleteContext();
 
@@ -1629,6 +1712,7 @@ async function main() {
           repo_memory_validation_context: repoMemoryValidationContext,
           push_repo_memory_failure_context: pushRepoMemoryFailureContext,
           missing_data_context: missingDataContext,
+          missing_tool_context: missingToolContext,
           report_incomplete_context: reportIncompleteContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           engine_failure_context: engineFailureContext,
@@ -1725,6 +1809,9 @@ async function main() {
         // Build missing_data context
         const missingDataContext = buildMissingDataContext(cacheMemoryEnabled);
 
+        // Build missing_tool context
+        const missingToolContext = buildMissingToolContext();
+
         // Build report_incomplete context
         const reportIncompleteContext = buildReportIncompleteContext();
 
@@ -1795,6 +1882,7 @@ async function main() {
           repo_memory_validation_context: repoMemoryValidationContext,
           push_repo_memory_failure_context: pushRepoMemoryFailureContext,
           missing_data_context: missingDataContext,
+          missing_tool_context: missingToolContext,
           report_incomplete_context: reportIncompleteContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           engine_failure_context: engineFailureContext,
@@ -1879,6 +1967,7 @@ module.exports = {
   buildMCPPolicyErrorContext,
   buildModelNotSupportedErrorContext,
   buildMissingDataContext,
+  buildMissingToolContext,
   buildCredentialAuthErrorContext,
   parseFirewallAuthErrors,
   getActionFailureIssueExpiresHours,

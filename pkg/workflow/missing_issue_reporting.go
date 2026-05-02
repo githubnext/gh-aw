@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"strconv"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -13,7 +15,7 @@ var reportIncompleteLog = logger.New("workflow:report_incomplete")
 // parent struct fields give them their distinct YAML keys.
 type IssueReportingConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	CreateIssue          *string  `yaml:"create-issue,omitempty"` // Whether to create/update issues (default: true). Supports literal bool or GitHub Actions expression.
+	CreateIssue          *string  `yaml:"create-issue,omitempty"` // Whether to create/update issues. Defaults to false for missing-tool/missing-data (treated as agent failures), true for report-incomplete. Supports literal bool or GitHub Actions expression.
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"` // Prefix for issue titles
 	Labels               []string `yaml:"labels,omitempty"`       // Labels to add to created issues
 }
@@ -39,19 +41,19 @@ type MissingToolConfig = IssueReportingConfig
 type ReportIncompleteConfig = IssueReportingConfig
 
 func (c *Compiler) parseMissingDataConfig(outputMap map[string]any) *MissingDataConfig {
-	return c.parseIssueReportingConfig(outputMap, "missing-data", "[missing data]", missingDataLog)
+	return c.parseIssueReportingConfig(outputMap, "missing-data", "[missing data]", false, missingDataLog)
 }
 
 func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingToolConfig {
-	return c.parseIssueReportingConfig(outputMap, "missing-tool", "[missing tool]", missingToolLog)
+	return c.parseIssueReportingConfig(outputMap, "missing-tool", "[missing tool]", false, missingToolLog)
 }
 
 // parseReportIncompleteConfig handles report_incomplete configuration.
 func (c *Compiler) parseReportIncompleteConfig(outputMap map[string]any) *ReportIncompleteConfig {
-	return c.parseIssueReportingConfig(outputMap, "report-incomplete", "[incomplete]", reportIncompleteLog)
+	return c.parseIssueReportingConfig(outputMap, "report-incomplete", "[incomplete]", true, reportIncompleteLog)
 }
 
-func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, defaultTitle string, log *logger.Logger) *IssueReportingConfig {
+func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, defaultTitle string, defaultCreateIssue bool, log *logger.Logger) *IssueReportingConfig {
 	configData, exists := outputMap[yamlKey]
 	if !exists {
 		return nil
@@ -68,8 +70,8 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 	// Enabled with no value: missing-data: (nil)
 	if configData == nil {
 		log.Printf("%s configuration enabled with defaults", yamlKey)
-		trueVal := "true"
-		cfg.CreateIssue = &trueVal
+		createIssueStr := strconv.FormatBool(defaultCreateIssue)
+		cfg.CreateIssue = &createIssueStr
 		cfg.TitlePrefix = defaultTitle
 		cfg.Labels = []string{}
 		return cfg
@@ -91,8 +93,8 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 				log.Printf("create-issue: %s", createIssueStr)
 			}
 		} else {
-			trueVal := "true"
-			cfg.CreateIssue = &trueVal
+			createIssueStr := strconv.FormatBool(defaultCreateIssue)
+			cfg.CreateIssue = &createIssueStr
 		}
 
 		if titlePrefix, exists := configMap["title-prefix"]; exists {
