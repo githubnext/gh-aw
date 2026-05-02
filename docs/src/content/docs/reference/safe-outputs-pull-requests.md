@@ -359,6 +359,7 @@ The following are always protected regardless of policy (unless explicitly exclu
 - **Agent instruction files**: `AGENTS.md`, `CLAUDE.md`, and other engine-specific instruction files.
 - **Specific protected directories**: `.github/`, `.agents/`, `.githooks/`, `.husky/`.
 - **Any top-level directory starting with `.`**: for example `.cursor/`, `.vscode/`, `.devcontainer/`, or any other hidden configuration directory at the repository root. This rule catches newly-created dot-directories without requiring an explicit list update.
+- **Any top-level `.md` file**: for example `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, or any other Markdown file at the repository root. Agents can import root-level `.md` files as context or instructions at any time, so all such files are protected by default. Markdown files in subdirectories (e.g. `docs/guide.md`, `.github/PULL_REQUEST_TEMPLATE.md`) are unaffected.
 
 ### Policy Options
 
@@ -381,11 +382,25 @@ safe-outputs:
       policy: fallback-to-issue   # same values as string form (default: blocked)
       exclude:
         - AGENTS.md               # allow the agent to update its own instruction file
+        - CHANGELOG.md            # allow the agent to update the changelog
         - .agents/                # allow updates to the .agents/ directory
         - .cursor/                # allow updates to the .cursor/ directory
 ```
 
-The `exclude` list names files by **basename** (e.g., `AGENTS.md`) or **path prefix** (e.g., `.agents/`) to remove from the default protected set. Dot-folder path prefixes in the `exclude` list (e.g. `.cursor/`) also opt that directory out of the general top-level-dot-folder protection rule. The remaining protected files still enforce the configured policy. This is useful when a workflow is explicitly designed to manage one specific instruction file or configuration directory without disabling all protection.
+The `exclude` list names files by **basename** (e.g., `AGENTS.md`) or **path prefix** (e.g., `.agents/`) to remove from the default protected set. Dot-folder path prefixes in the `exclude` list (e.g. `.cursor/`) also opt that directory out of the general top-level-dot-folder protection rule. Top-level `.md` basenames in the `exclude` list (e.g. `CHANGELOG.md`) opt that file out of the top-level-md-files protection rule. The remaining protected files still enforce the configured policy. This is useful when a workflow is explicitly designed to manage one specific instruction file or configuration directory without disabling all protection.
+
+:::tip[Workflows that update top-level Markdown files]
+If your workflow is explicitly designed to modify a root-level Markdown file (e.g. `CHANGELOG.md`, `README.md`), add it to the `exclude` list so the agent can commit the change. Files in subdirectories are never affected by this rule.
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+    protected-files:
+      policy: blocked
+      exclude:
+        - CHANGELOG.md   # this workflow updates the changelog
+```
+:::
 
 **`create-pull-request` with `fallback-to-issue`**: the branch is pushed normally, then a review issue is created with a PR creation intent link, a `[!WARNING]` banner explaining why the fallback was triggered, and instructions to review carefully before creating the PR.
 

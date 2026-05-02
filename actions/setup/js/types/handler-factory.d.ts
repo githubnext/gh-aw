@@ -20,6 +20,8 @@ interface HandlerConfig {
   protect_top_level_dot_folders?: boolean;
   /** List of top-level dot-folder prefixes (e.g. [".agents/"]) excluded from the dot-folder protection rule */
   protected_dot_folder_excludes?: string[];
+  /** When true (default), protect any top-level .md file (e.g. README.md, CONTRIBUTING.md) */
+  protect_top_level_md_files?: boolean;
   /** Policy for how protected file matches are handled: "blocked" (default), "fallback-to-issue", or "allowed" */
   protected_files_policy?: string;
   /** When true (default), create a fallback pull request if direct push to PR branch fails with non-fast-forward/diverged branch. */

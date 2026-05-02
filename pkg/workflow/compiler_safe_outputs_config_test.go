@@ -2552,9 +2552,11 @@ func TestGetDotFolderExcludes(t *testing.T) {
 	}
 }
 
-// TestProtectTopLevelDotFolders verifies that protect_top_level_dot_folders is always
-// set to true in both create_pull_request and push_to_pull_request_branch handler configs.
-func TestProtectTopLevelDotFolders(t *testing.T) {
+// extractHandlerManagerConfigJSON compiles a minimal workflow with both
+// create_pull_request and push_to_pull_request_branch handlers and returns the
+// decoded handler-config map, ready for per-handler assertions.
+func extractHandlerManagerConfigJSON(t *testing.T) map[string]map[string]any {
+	t.Helper()
 	compiler := NewCompiler()
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
@@ -2584,6 +2586,13 @@ func TestProtectTopLevelDotFolders(t *testing.T) {
 
 	var config map[string]map[string]any
 	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+	return config
+}
+
+// TestProtectTopLevelDotFolders verifies that protect_top_level_dot_folders is always
+// set to true in both create_pull_request and push_to_pull_request_branch handler configs.
+func TestProtectTopLevelDotFolders(t *testing.T) {
+	config := extractHandlerManagerConfigJSON(t)
 
 	for _, handlerName := range []string{"create_pull_request", "push_to_pull_request_branch"} {
 		handlerCfg, ok := config[handlerName]
@@ -2597,35 +2606,7 @@ func TestProtectTopLevelDotFolders(t *testing.T) {
 // TestProtectTopLevelMdFiles verifies that protect_top_level_md_files is always
 // set to true in both create_pull_request and push_to_pull_request_branch handler configs.
 func TestProtectTopLevelMdFiles(t *testing.T) {
-	compiler := NewCompiler()
-	workflowData := &WorkflowData{
-		Name: "Test Workflow",
-		SafeOutputs: &SafeOutputsConfig{
-			CreatePullRequests: &CreatePullRequestsConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
-			},
-			PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
-		},
-	}
-
-	var steps []string
-	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
-	require.NotEmpty(t, steps, "should produce config steps")
-
-	var configJSON string
-	for _, step := range steps {
-		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
-			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
-			require.Len(t, parts, 2, "should split env var line")
-			configJSON = strings.TrimSpace(parts[1])
-			configJSON = strings.Trim(configJSON, "\"")
-			configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
-		}
-	}
-	require.NotEmpty(t, configJSON, "should have extracted JSON")
-
-	var config map[string]map[string]any
-	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+	config := extractHandlerManagerConfigJSON(t)
 
 	for _, handlerName := range []string{"create_pull_request", "push_to_pull_request_branch"} {
 		handlerCfg, ok := config[handlerName]
