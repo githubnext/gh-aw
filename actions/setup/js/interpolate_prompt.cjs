@@ -230,7 +230,10 @@ async function main() {
     const hasAgentMarkers = /^##[ \t]+agent:[ \t]+`[a-z]/m.test(content);
     if (hasAgentMarkers) {
       const beforeExtraction = content.length;
-      content = writeInlineSubAgents(content, workspaceDir);
+      // Write agents to /tmp/gh-aw/.agents/agents/ so the files are included in the
+      // activation artifact and available to the downstream agent job.
+      const agentsBaseDir = "/tmp/gh-aw";
+      content = writeInlineSubAgents(content, workspaceDir, agentsBaseDir);
       const afterExtraction = content.length;
       core.info(`Inline sub-agents extracted and written`);
       core.info(`Content length change: ${beforeExtraction} -> ${afterExtraction} (${afterExtraction > beforeExtraction ? "+" : ""}${afterExtraction - beforeExtraction})`);

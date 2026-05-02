@@ -90,18 +90,26 @@ function extractInlineSubAgents(content) {
  * all agent blocks.  When no agent markers are found the original content is
  * returned unchanged.
  *
+ * Agent files are written relative to `agentsBaseDir` (defaults to `workspaceDir`).
+ * Pass the gh-aw tmp directory (`/tmp/gh-aw`) as `agentsBaseDir` in production so
+ * the files land in `/tmp/gh-aw/.agents/agents/` — which is included in the
+ * activation artifact and therefore available to the downstream agent job.
+ *
  * @param {string} content - Markdown with potential inline sub-agent blocks.
  * @param {string} workspaceDir - GITHUB_WORKSPACE (repository root).
+ * @param {string} [agentsBaseDir] - Root directory for `.agents/agents/` output.
+ *   Defaults to `workspaceDir` when omitted (for tests and legacy callers).
  * @returns {string} Main content with sub-agent sections removed.
  */
-function writeInlineSubAgents(content, workspaceDir) {
+function writeInlineSubAgents(content, workspaceDir, agentsBaseDir) {
   const { mainContent, agents } = extractInlineSubAgents(content);
 
   if (agents.length === 0) {
     return content;
   }
 
-  const agentsDir = path.join(workspaceDir, ".agents", "agents");
+  const baseDir = agentsBaseDir || workspaceDir;
+  const agentsDir = path.join(baseDir, ".agents", "agents");
   fs.mkdirSync(agentsDir, { recursive: true });
 
   for (const agent of agents) {

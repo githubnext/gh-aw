@@ -368,6 +368,17 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
 	yaml.WriteString("          path: /tmp/gh-aw\n")
 
+	// Restore inline sub-agents written during the activation job.
+	// The activation job writes sub-agent files to /tmp/gh-aw/.agents/agents/ and
+	// uploads them as part of the activation artifact. Copying them into the checkout
+	// workspace makes them discoverable by the Copilot CLI via --add-dir "${GITHUB_WORKSPACE}".
+	yaml.WriteString("      - name: Restore inline sub-agents from activation artifact\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          if [ -d \"/tmp/gh-aw/.agents/agents\" ]; then\n")
+	yaml.WriteString("            mkdir -p \"${GITHUB_WORKSPACE}/.agents/agents\"\n")
+	yaml.WriteString("            cp /tmp/gh-aw/.agents/agents/*.agent.md \"${GITHUB_WORKSPACE}/.agents/agents/\" 2>/dev/null || true\n")
+	yaml.WriteString("          fi\n")
+
 	// Materialize comment-memory safe outputs as editable markdown files for the agent.
 	// This prepares /tmp/gh-aw/comment-memory/*.md and injects prompt guidance so the agent
 	// can edit memory content directly and persist it via comment_memory safe outputs.
