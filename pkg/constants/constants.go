@@ -103,9 +103,6 @@ const (
 
 	// GeminiLLMGatewayPort is the port for the Gemini LLM gateway
 	GeminiLLMGatewayPort = 10003
-
-	// PiLLMGatewayPort is the port for the Pi LLM gateway
-	PiLLMGatewayPort = 10004
 )
 
 // DefaultGitHubLockdown is the default value for the GitHub MCP server lockdown setting.

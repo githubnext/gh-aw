@@ -36,7 +36,6 @@ func NewPiEngine() *PiEngine {
 			supportsMaxContinuations: false,
 			supportsWebSearch:        false,
 			supportsNativeAgentFile:  false,
-			dedicatedLLMGatewayPort:  constants.PiLLMGatewayPort,
 		},
 	}
 }
@@ -218,9 +217,9 @@ touch %s
 		env["GH_AW_VERSION"] = "dev"
 	}
 
-	// When the AWF firewall is enabled, route Pi API calls through the LLM gateway.
+	// When the AWF firewall is enabled, Pi routes its API calls through the
+	// copilot/claude/codex LLM gateway ports rather than a dedicated Pi port.
 	if firewallEnabled {
-		env["PI_API_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d", constants.PiLLMGatewayPort)
 		maps.Copy(env, getGitIdentityEnvVars())
 	}
 
