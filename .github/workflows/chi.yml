@@ -65,7 +65,7 @@ jobs:
           echo "## Pi Steering Extension Integration Test" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          LOG_FILE=/tmp/pi-streaming.json
+          LOG_FILE=/tmp/pi-streaming.jsonl
 
           echo "Say 'Hello from Pi — steering extension loaded.' in exactly one sentence." | \
             pi run \
@@ -73,19 +73,18 @@ jobs:
               --extension "${{ github.workspace }}/actions/setup/js/pi_steering_extension.cjs" \
               2>&1 | tee /tmp/pi-output.log
 
+          echo "ran=true" >> "$GITHUB_OUTPUT"
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Pi ran successfully with the steering extension loaded" >> $GITHUB_STEP_SUMMARY
 
       - name: Verify steering extension was loaded
-        if: ${{ env.ANTHROPIC_API_KEY != '' }}
+        if: ${{ steps.pi_integration.outputs.ran == 'true' }}
         run: |
           if grep -q "\[gh-aw/steering\]" /tmp/pi-output.log; then
             echo "✅ Steering extension initialized (found [gh-aw/steering] in output)" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ [gh-aw/steering] marker not found in output — extension may not have been loaded" >> $GITHUB_STEP_SUMMARY
           fi
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Upload Pi logs
         if: always()
@@ -94,5 +93,5 @@ jobs:
           name: pi-extension-logs
           path: |
             /tmp/pi-output.log
-            /tmp/pi-streaming.json
+            /tmp/pi-streaming.jsonl
           if-no-files-found: ignore
