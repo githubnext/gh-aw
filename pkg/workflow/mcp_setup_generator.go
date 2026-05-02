@@ -140,6 +140,11 @@ func collectMCPTools(workflowData *WorkflowData) []string {
 			continue
 		}
 		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
+			// Playwright in CLI mode is not an MCP server; skip it here.
+			if toolName == "playwright" && isPlaywrightCLIMode(workflowData.Tools) {
+				mcpSetupGeneratorLog.Print("Skipping playwright MCP registration: tools.playwright.mode is cli")
+				continue
+			}
 			mcpTools = append(mcpTools, toolName)
 			continue
 		}

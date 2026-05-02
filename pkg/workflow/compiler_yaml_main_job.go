@@ -333,6 +333,15 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 		}
 	}
 
+	// Add Playwright CLI install steps when playwright is configured in CLI mode.
+	// These run after Node.js is available (set up by the engine install steps above).
+	for _, step := range generatePlaywrightCLIInstallSteps(data) {
+		for _, line := range step {
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
+		}
+	}
+
 	// GH_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
 
 	// Mint the GitHub MCP App token directly in the agent job.

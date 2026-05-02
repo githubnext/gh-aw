@@ -4054,6 +4054,11 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "mode": {
+                  "type": "string",
+                  "description": "Integration mode: 'mcp' (default) runs a Docker-based MCP server; 'cli' installs @playwright/cli via npm for token-efficient CLI invocations.",
+                  "enum": ["mcp", "cli"]
                 }
               },
               "additionalProperties": false
