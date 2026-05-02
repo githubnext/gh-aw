@@ -217,8 +217,9 @@ touch %s
 		env["GH_AW_VERSION"] = "dev"
 	}
 
-	// When the AWF firewall is enabled, Pi routes its API calls through the
-	// copilot/claude/codex LLM gateway ports rather than a dedicated Pi port.
+	// When the AWF firewall is enabled, set git identity environment variables
+	// for commit authorship. Pi uses the copilot/claude/codex LLM gateway ports
+	// directly (no dedicated Pi gateway port).
 	if firewallEnabled {
 		maps.Copy(env, getGitIdentityEnvVars())
 	}
