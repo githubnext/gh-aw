@@ -1,6 +1,46 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const fs = require("fs");
+const path = require("path");
+
+/**
+ * Path to the experiment assignments file written by pick_experiment.cjs.
+ * Contains a JSON object mapping experiment name → selected variant for the
+ * current workflow run.  Example: `{"caveman":"yes","style":"detailed"}`.
+ *
+ * Used as the default fallback when `GH_AW_EXPERIMENT_STATE_DIR` is not set.
+ * @type {string}
+ */
+const EXPERIMENT_ASSIGNMENTS_PATH = "/tmp/gh-aw/experiments/assignments.json";
+
+/**
+ * Read the experiment assignments written by pick_experiment.cjs.
+ * Returns `null` when the file is absent (no experiments declared) or cannot
+ * be parsed.  Errors are silently swallowed — this is a context enrichment
+ * and must never break the workflow.
+ *
+ * The path is derived from `GH_AW_EXPERIMENT_STATE_DIR` so it stays in sync
+ * with pick_experiment.cjs, which writes to `<GH_AW_EXPERIMENT_STATE_DIR>/assignments.json`.
+ * Falls back to {@link EXPERIMENT_ASSIGNMENTS_PATH} when the env var is absent.
+ *
+ * @returns {Record<string, string> | null}
+ */
+function readExperimentAssignments() {
+  const stateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR || "";
+  const filePath = stateDir ? path.join(stateDir, "assignments.json") : EXPERIMENT_ASSIGNMENTS_PATH;
+  try {
+    const raw = fs.readFileSync(filePath, "utf8");
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Resolves the item type, item number, and comment id from the GitHub Actions
  * event payload, covering issues, pull requests, discussions, check runs,
@@ -111,7 +151,8 @@ function resolveItemContext(payload) {
  *   workflow_run_conclusion: string,
  *   otel_trace_id: string,
  *   otel_parent_span_id: string,
- *   trigger_label: string
+ *   trigger_label: string,
+ *   experiments: string
  * }}
  * Properties:
  *   - item_type: Kind of entity that triggered the workflow (issue, pull_request,
@@ -144,6 +185,11 @@ function resolveItemContext(payload) {
  *   - trigger_label: Name of the label that triggered the workflow for labeled/unlabeled
  *     events (e.g. pull_request_target, issues, pull_request with labeled type).
  *     Empty string for events that do not carry label information.
+ *   - experiments: Compact JSON string of the experiment variant assignments picked by
+ *     pick_experiment.cjs for the current workflow run (e.g. `{"caveman":"yes"}`).
+ *     Empty string when no experiments are declared or the assignments file cannot be read.
+ *     Propagated to dispatched child workflows so they can identify which variants the
+ *     parent workflow was running.
  */
 function buildAwContext() {
   const { item_type, item_number, comment_id, comment_node_id } = resolveItemContext(context.payload);
@@ -184,7 +230,15 @@ function buildAwContext() {
     // issues, pull_request, etc.). Empty string for events without label data such as
     // workflow_dispatch, push, or schedule.
     trigger_label: context.payload?.label?.name ?? "",
+    // experiments is a compact JSON string of the A/B experiment variant assignments
+    // picked by pick_experiment.cjs for the current workflow run (e.g. {"caveman":"yes"}).
+    // Empty string when no experiments are declared or the assignments file cannot be read.
+    // Propagated to dispatched child workflows for experiment context continuity.
+    experiments: (() => {
+      const assignments = readExperimentAssignments();
+      return assignments ? JSON.stringify(assignments) : "";
+    })(),
   };
 }
 
-module.exports = { buildAwContext, resolveItemContext };
+module.exports = { buildAwContext, resolveItemContext, readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH };
