@@ -211,6 +211,99 @@ func TestExtractInlineSubAgents_ContentTrimmed(t *testing.T) {
 	assert.Equal(t, "Agent content here.", agents[0].Content, "agent content should be trimmed")
 }
 
+func TestExtractInlineSubAgents_EndMarker(t *testing.T) {
+	// Content after the end marker should NOT be included in the agent's content.
+	markdown := `# Main workflow
+
+Main prompt.
+
+## agent: planner
+---
+engine: copilot
+---
+You are a planner.
+## end: planner
+
+This content is outside any agent block.`
+
+	mainMarkdown, agents, err := ExtractInlineSubAgents(markdown)
+
+	require.NoError(t, err, "end marker should parse without error")
+	assert.Equal(t, "# Main workflow\n\nMain prompt.", mainMarkdown, "main markdown should exclude agent sections")
+	require.Len(t, agents, 1, "should extract one sub-agent")
+	assert.Equal(t, "planner", agents[0].Name, "agent name should be 'planner'")
+	assert.Contains(t, agents[0].Content, "You are a planner.", "agent content should contain prompt")
+	assert.NotContains(t, agents[0].Content, "outside any agent block", "content after end marker must not appear in agent")
+}
+
+func TestExtractInlineSubAgents_EndMarkerMultipleAgents(t *testing.T) {
+	// With end markers, content between agent blocks is excluded from both agents.
+	markdown := `Main.
+
+## agent: planner
+Planner prompt.
+## end: planner
+
+Inserted content between agents.
+
+## agent: executor
+Executor prompt.
+## end: executor`
+
+	_, agents, err := ExtractInlineSubAgents(markdown)
+
+	require.NoError(t, err, "multiple agents with end markers should parse without error")
+	require.Len(t, agents, 2, "should extract two sub-agents")
+
+	assert.Equal(t, "planner", agents[0].Name)
+	assert.Equal(t, "Planner prompt.", agents[0].Content, "planner content must stop at end marker")
+
+	assert.Equal(t, "executor", agents[1].Name)
+	assert.Equal(t, "Executor prompt.", agents[1].Content, "executor content must stop at end marker")
+}
+
+func TestExtractInlineSubAgents_EndMarkerMismatch(t *testing.T) {
+	// An end marker whose name does not match the open agent is treated as plain
+	// text and included in the current agent's content.
+	markdown := `Main.
+
+## agent: planner
+Planner content.
+## end: executor
+More planner content.`
+
+	_, agents, err := ExtractInlineSubAgents(markdown)
+
+	require.NoError(t, err, "mismatched end marker should not cause an error")
+	require.Len(t, agents, 1, "should still extract one sub-agent")
+	assert.Contains(t, agents[0].Content, "Planner content.", "content before mismatched end marker should be included")
+	assert.Contains(t, agents[0].Content, "More planner content.", "content after mismatched end marker should also be included")
+}
+
+func TestExtractInlineSubAgents_EndMarkerWithoutOpenAgent(t *testing.T) {
+	// An end marker that appears before any agent (or after all agents are closed)
+	// is treated as plain text and does not affect parsing.
+	markdown := `Main content.
+## end: nobody
+More main content.`
+
+	mainMarkdown, agents, err := ExtractInlineSubAgents(markdown)
+
+	require.NoError(t, err, "orphan end marker should not cause an error")
+	assert.Equal(t, markdown, mainMarkdown, "markdown should be returned unchanged when no start markers present")
+	assert.Nil(t, agents, "no agents should be produced")
+}
+
+func TestExtractInlineSubAgents_EndMarkerWithTrailingWhitespace(t *testing.T) {
+	markdown := "Main.\n\n## agent: a\nContent.\n## end: a   \nTrailing."
+
+	_, agents, err := ExtractInlineSubAgents(markdown)
+
+	require.NoError(t, err, "end marker with trailing whitespace should be recognized")
+	require.Len(t, agents, 1, "should extract one sub-agent")
+	assert.Equal(t, "Content.", agents[0].Content, "content should stop at the end marker")
+}
+
 func TestExtractInlineSubAgents_MainMarkdownTrailingNewlinesStripped(t *testing.T) {
 	markdown := "Line 1.\nLine 2.\n\n\n## agent: a\nContent."
 
