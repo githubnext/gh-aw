@@ -86,6 +86,7 @@ safe-outputs:
       footer: true
     resolve-pull-request-review-thread:
       max: 5
+      warn-on-error: true
     push-to-pull-request-branch:
       staged: true
       target: "*"

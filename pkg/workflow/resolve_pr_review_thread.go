@@ -12,6 +12,7 @@ var resolvePRReviewThreadLog = logger.New("workflow:resolve_pr_review_thread")
 type ResolvePullRequestReviewThreadConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
+	WarnOnError            bool `yaml:"warn-on-error,omitempty"` // If true, errors are treated as warnings instead of failures
 }
 
 // parseResolvePullRequestReviewThreadConfig handles resolve-pull-request-review-thread configuration
@@ -30,7 +31,15 @@ func (c *Compiler) parseResolvePullRequestReviewThreadConfig(outputMap map[strin
 			targetConfig, _ := ParseTargetConfig(configMap)
 			config.SafeOutputTargetConfig = targetConfig
 
-			resolvePRReviewThreadLog.Printf("Parsed resolve-pull-request-review-thread config: max=%d, target_repo=%s", templatableIntValue(config.Max), config.TargetRepoSlug)
+			// Parse warn-on-error: when true, API errors are treated as non-fatal warnings
+			if warnOnError, exists := configMap["warn-on-error"]; exists {
+				if warnOnErrorBool, ok := warnOnError.(bool); ok {
+					config.WarnOnError = warnOnErrorBool
+					resolvePRReviewThreadLog.Printf("Parsed warn-on-error: %t", config.WarnOnError)
+				}
+			}
+
+			resolvePRReviewThreadLog.Printf("Parsed resolve-pull-request-review-thread config: max=%d, target_repo=%s, warn-on-error=%t", templatableIntValue(config.Max), config.TargetRepoSlug, config.WarnOnError)
 		} else {
 			// If configData is nil or not a map, still set the default max
 			config.Max = defaultIntStr(10)

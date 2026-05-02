@@ -323,6 +323,45 @@ describe("resolve_pr_review_thread", () => {
     expect(result.error).toContain("Could not resolve");
   });
 
+  it("should treat API errors as non-fatal when warn_on_error is true", async () => {
+    mockGraphql.mockRejectedValue(new Error("Resource not accessible by integration"));
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const warnOnErrorHandler = await main({ max: 10, warn_on_error: true });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOABCD123456",
+    };
+
+    const result = await warnOnErrorHandler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.skipped).toBe(true);
+    expect(result.error).toContain("Resource not accessible by integration");
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("warn-on-error"));
+    expect(mockCore.error).not.toHaveBeenCalled();
+  });
+
+  it("should still fail hard when warn_on_error is false and an API error occurs", async () => {
+    mockGraphql.mockRejectedValue(new Error("Resource not accessible by integration"));
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const strictHandler = await main({ max: 10, warn_on_error: false });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOABCD123456",
+    };
+
+    const result = await strictHandler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.skipped).toBeUndefined();
+    expect(result.error).toContain("Resource not accessible by integration");
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to resolve review thread"));
+  });
+
   it("should handle unexpected resolve failure", async () => {
     mockGraphql.mockImplementation(query => {
       if (query.includes("resolveReviewThread")) {

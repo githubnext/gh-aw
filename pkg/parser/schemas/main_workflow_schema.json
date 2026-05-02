@@ -6464,6 +6464,11 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "warn-on-error": {
+                  "type": "boolean",
+                  "description": "If true, API errors (e.g. permission errors) are treated as non-fatal warnings rather than job failures. Useful for smoke tests where token scope may be limited.",
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false

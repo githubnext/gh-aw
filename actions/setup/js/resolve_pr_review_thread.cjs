@@ -98,6 +98,11 @@ async function main(config = {}) {
   // the raw config keys to distinguish user-configured from default.
   const hasExplicitTargetConfig = !!(config["target-repo"] || config.allowed_repos?.length > 0);
 
+  // When warn_on_error is true, API errors are treated as non-fatal warnings
+  // instead of hard failures. Useful in smoke tests where the operation may be
+  // blocked by token scope limitations outside the workflow's control.
+  const warnOnError = config.warn_on_error === true;
+
   const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Determine the triggering PR number from context
@@ -106,7 +111,7 @@ async function main(config = {}) {
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
 
-  core.info(`Resolve PR review thread configuration: max=${maxCount}, target=${resolveTarget}, triggeringPR=${triggeringPRNumber || "none"}`);
+  core.info(`Resolve PR review thread configuration: max=${maxCount}, target=${resolveTarget}, triggeringPR=${triggeringPRNumber || "none"}, warn-on-error=${warnOnError}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
@@ -281,6 +286,14 @@ async function main(config = {}) {
       }
     } catch (error) {
       const errorMessage = getErrorMessage(error);
+      if (warnOnError) {
+        core.warning(`resolve_pull_request_review_thread: ${errorMessage} (warn-on-error: treating as non-fatal)`);
+        return {
+          success: false,
+          skipped: true,
+          error: errorMessage,
+        };
+      }
       core.error(`Failed to resolve review thread: ${errorMessage}`);
       return {
         success: false,
