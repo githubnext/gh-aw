@@ -2,7 +2,7 @@
 
 ---
 
-**Title:** AW Harness — Multi-Task Agentic Workflow Execution Engine
+**Title:** AW Harness — Single-Session Agentic Workflow Execution Engine
 
 **Status:** Unofficial Draft
 
@@ -14,7 +14,7 @@
 
 ## Abstract
 
-This document specifies the **AW Harness** (`aw_harness.cjs`), a Node.js execution engine for the `engine: aw` mode of GitHub Agentic Workflows (gh-aw). The harness provides multi-task orchestration, multi-agent coordination, context engineering, cost tracking, and observability, built on top of the Pi agent SDK ecosystem. All gh-aw-specific capabilities are implemented as Pi extensions using Pi's native `ExtensionAPI` extensibility mechanism.
+This document specifies the **AW Harness** (`aw_harness.cjs`), a Node.js execution engine for the `engine: aw` mode of GitHub Agentic Workflows (gh-aw). The harness runs a single Pi `AgentSession` with a compiled prompt, budget management, steering, and observability. All gh-aw-specific capabilities are implemented as Pi extensions using Pi's native `ExtensionAPI` extensibility mechanism.
 
 ## Status of This Document
 
@@ -30,7 +30,7 @@ This is an internal design specification for the GitHub gh-aw project. It is not
 4. [Architecture](#4-architecture)
 5. [Harness Invocation Contract](#5-harness-invocation-contract)
 6. [Workflow Definition](#6-workflow-definition)
-7. [DAG Execution Model](#7-dag-execution-model)
+7. [Single-Session Execution Model](#7-single-session-execution-model)
 8. [Extensions](#8-extensions)
 9. [Model Resolution](#9-model-resolution)
 10. [Build and Deployment](#10-build-and-deployment)
@@ -44,9 +44,9 @@ This is an internal design specification for the GitHub gh-aw project. It is not
 
 *(This section is non-normative.)*
 
-The existing gh-aw harnesses (`copilot_harness.cjs`, `claude_harness.cjs`) are thin retry loops around a single CLI invocation. As workflow complexity grows, authors need multi-task orchestration, parallel agent execution, per-task model selection, budget management, and structured observability — none of which the current harnesses provide.
+The existing gh-aw harnesses (`copilot_harness.cjs`, `claude_harness.cjs`) are thin retry loops around a single CLI invocation. As workflow complexity grows, authors need structured budget management, cost tracking, time steering, and structured observability — none of which the current harnesses provide.
 
-The AW Harness introduces `engine: aw` as a new opt-in execution engine. It does not replace existing engines; `engine: copilot`, `engine: claude`, and `engine: codex` continue to operate unchanged via their current harnesses. The AW Harness is a Pi SDK application: it creates one `AgentSession` per workflow task, loads a fixed set of gh-aw Pi extensions into each session, and orchestrates sessions according to a DAG derived from the workflow's `harness:` frontmatter block and Markdown heading structure.
+The AW Harness introduces `engine: aw` as a new opt-in execution engine. It does not replace existing engines; `engine: copilot`, `engine: claude`, and `engine: codex` continue to operate unchanged via their current harnesses. The AW Harness is a Pi SDK application: it creates a single `AgentSession` and runs the compiled prompt through it, with gh-aw Pi extensions providing budget gating, steering, safe outputs, and observability.
 
 The harness is designed exclusively for the gh-aw Actions container environment. It assumes the firewall and MCP gateway are already running. AWF injects provider credentials into the container environment; the harness reads these credentials and passes them to Pi SDK directly.
 
@@ -56,8 +56,8 @@ This specification covers:
 
 - The entry-point invocation contract for `aw_harness.cjs`.
 - The frontmatter schema for `engine: aw` workflows.
-- The task-extraction and DAG-construction algorithms.
-- The normative requirements for each of the seven gh-aw Pi extensions.
+- The prompt loading and session execution algorithm.
+- The normative requirements for each of the six gh-aw Pi extensions.
 - The model connection contract via provider environment variables.
 - The build and deployment configuration.
 
@@ -97,7 +97,7 @@ A **conforming implementation** is one that satisfies all **MUST** and **MUST NO
 ## 3. Terminology and Definitions
 
 **AW Harness**
-: The execution engine implemented in `aw_harness.cjs`, invoked when a workflow declares `engine: aw`. It is responsible for parsing the workflow, constructing the DAG, and orchestrating one `AgentSession` per task.
+: The execution engine implemented in `aw_harness.cjs`, invoked when a workflow declares `engine: aw`. It is responsible for loading the compiled prompt, creating a single Pi `AgentSession`, and running that session to completion.
 
 **AgentSession**
 : A Pi SDK session object, obtained via `createAgentSession()`, that manages a single agent's message loop, tool calls, and event stream.
@@ -106,19 +106,13 @@ A **conforming implementation** is one that satisfies all **MUST** and **MUST NO
 : A sidecar process in the gh-aw container used by other engines for model routing. The AW Harness does **not** use the api-proxy; it connects to LLM providers directly via environment variables.
 
 **cli-proxy**
-: A feature that mounts MCP servers as CLI tools on `PATH`, making them callable as ordinary shell commands within agent sessions.
-
-**DAG (Directed Acyclic Graph)**
-: The execution graph derived from the workflow's `harness.tasks` declarations and implicit document-order dependencies. Nodes are tasks; directed edges encode `depends` relationships. Cycles are prohibited.
+: A feature that mounts MCP servers as CLI tools on `PATH`, making them callable as ordinary shell commands within the agent session.
 
 **ExtensionAPI**
 : The Pi SDK interface (`ExtensionAPI` from `@mariozechner/pi-coding-agent`) that a Pi extension receives as its sole argument. Provides `pi.registerTool()`, `pi.registerProvider()`, and `pi.on()`.
 
 **gh-proxy**
 : A feature that provides a pre-authenticated `gh` CLI binary in the agent's bash environment, enabling direct GitHub API access without separate token management.
-
-**harness task**
-: A unit of work within an `engine: aw` workflow. Each task is assigned one `AgentSession`, a prompt derived from the corresponding Markdown section, and optionally a named agent definition.
 
 **MCP Gateway**
 : The gh-aw MCP gateway process that exposes GitHub tools and custom MCP server tools as CLI commands (via `cli-proxy`) in the agent's bash environment. It runs independently of the harness in the same container.
@@ -132,14 +126,8 @@ A **conforming implementation** is one that satisfies all **MUST** and **MUST NO
 **safe output**
 : A deferred GitHub action (create issue, create pull request, add comment, etc.) expressed as an artifact file written during agent execution and processed by the post-agent job.
 
-**task annotation**
-: An HTML comment of the form `<!-- harness-task: <name> -->` embedded in a Markdown section to associate that section with a named entry in `harness.tasks`.
-
-**transcript**
-: The complete message history of a completed `AgentSession`, optionally summarized, passed as context to downstream tasks.
-
 **workflow document**
-: A Markdown file with YAML frontmatter that declares an `engine: aw` workflow. The frontmatter is parsed by the gh-aw compiler at compile time; the harness itself never reads the raw Markdown file. Instead, the compiler provides the harness with pre-processed inputs: `config.json` (harness configuration), `prompt.txt` (extracted prompt body), and any referenced agent files.
+: A Markdown file with YAML frontmatter that declares an `engine: aw` workflow. The frontmatter is parsed by the gh-aw compiler at compile time; the harness itself never reads the raw Markdown file. Instead, the compiler provides the harness with pre-processed inputs: `config.json` (harness configuration) and `prompt.txt` (extracted prompt body).
 
 ---
 
@@ -160,11 +148,9 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 │  │  │  aw_harness.cjs (entry point)                   │ │   │
 │  │  │                                                  │ │   │
 │  │  │  1. Reads config.json + prompt.txt (pre-parsed by compiler) │ │   │
-│  │  │  2. Parses tasks from task config + prompt text            │ │   │
-│  │  │  3. Builds execution DAG                                   │ │   │
-│  │  │  4. For each task: creates Pi AgentSession                 │ │   │
+│  │  │  2. Creates a single Pi AgentSession                       │ │   │
 │  │  │     with gh-aw extensions loaded                           │ │   │
-│  │  │  5. session.prompt() → Pi drives the agent                 │ │   │
+│  │  │  3. session.prompt() → Pi drives the agent                 │ │   │
 │  │  │                                                  │ │   │
 │  │  │  ┌──────────────────────────────────────────┐   │ │   │
 │  │  │  │  Pi SDK (createAgentSession)             │   │ │   │
@@ -173,14 +159,13 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 │  │  │  │  └─ compaction, steering, auto-retry      │   │ │   │
 │  │  │  └──────────────────────────────────────────┘   │ │   │
 │  │  │  ┌──────────────────────────────────────────┐   │ │   │
-│  │  │  │  gh-aw Pi Extensions (loaded into each   │   │ │   │
+│  │  │  │  gh-aw Pi Extensions (loaded into the    │   │ │   │
 │  │  │  │  AgentSession via ExtensionAPI):          │   │ │   │
 │  │  │  │  ├─ safe-outputs (tools + artifact write) │   │ │   │
 │  │  │  │  ├─ cost-tracker (budget gates + events)  │   │ │   │
 │  │  │  │  ├─ steering (time/budget pressure)       │   │ │   │
 │  │  │  │  ├─ repair (broken session recovery)      │   │ │   │
-│  │  │  │  ├─ observability (JSONL + OTel)          │   │ │   │
-│  │  │  │  └─ checkpoint (persist/resume state)     │   │ │   │
+│  │  │  │  └─ observability (JSONL + OTel)          │   │ │   │
 │  │  │  └──────────────────────────────────────────┘   │ │   │
 │  │  │  ┌──────────────────────────────────────────┐   │ │   │
 │  │  │  │  MCP Gateway (gh-aw, already running)    │   │ │   │
@@ -214,9 +199,7 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 
 8. **New opt-in engine.** `engine: aw` is an independent opt-in. Existing engines **MUST** be untouched.
 
-9. **Markdown-native tasks.** `## Heading` or `### Heading` elements **MUST** be recognized as task boundaries. HTML comments carry task metadata.
-
-10. **Observable.** All implementations **MUST** emit a JSONL event stream to stderr and **SHOULD** generate OTel spans when an OTLP endpoint is configured.
+9. **Observable.** All implementations **MUST** emit a JSONL event stream to stderr and **SHOULD** generate OTel spans when an OTLP endpoint is configured.
 
 ---
 
@@ -240,17 +223,17 @@ A conforming implementation **MUST NOT** read or parse workflow Markdown files d
 
 A conforming implementation **MUST** read LLM provider credentials from the container environment. AWF sets up the appropriate provider-specific environment variables (e.g., `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GITHUB_TOKEN`) for whichever providers are enabled in the workflow configuration. The harness **MUST NOT** hard-code any provider URL or token; it **MUST** rely exclusively on the environment injected by AWF.
 
-A conforming implementation **SHOULD** read standard GitHub Actions environment variables (`GITHUB_REPOSITORY`, `GITHUB_RUN_ID`, etc.) for use in observability spans and checkpoint keys.
+A conforming implementation **SHOULD** read standard GitHub Actions environment variables (`GITHUB_REPOSITORY`, `GITHUB_RUN_ID`, etc.) for use in observability spans.
 
 ### 5.3 Exit Codes
 
 | Code | Meaning |
 |------|---------|
-| `0` | All tasks completed successfully |
-| `1` | One or more tasks failed (non-recoverable error) |
+| `0` | Prompt completed successfully |
+| `1` | Session failed (non-recoverable error) |
 | `2` | Invocation error (missing config path, unreadable config file) |
 
-A conforming implementation **MUST** exit with code `0` if and only if all DAG tasks complete without error. It **MUST** exit with a non-zero code on any unrecovered failure.
+A conforming implementation **MUST** exit with code `0` if and only if the agent session completes without error. It **MUST** exit with a non-zero code on any unrecovered failure.
 
 ### 5.4 Standard Streams
 
@@ -325,61 +308,18 @@ An `engine: aw` workflow document **MUST** include a YAML frontmatter block conf
 >   context:
 >     compaction: summarize
 >     compaction-threshold: 0.75
->     transcript-mode: summary
->
->   agents:
->     reviewer:
->       model: sonnet
->       system: |
->         You are a senior code reviewer. Focus on correctness, security,
->         and maintainability.
->     scanner:
->       model: gpt-5-codex
->       system: |
->         You are a security specialist. Focus on vulnerabilities,
->         injection risks, and credential exposure.
->     synthesizer:
->       model: copilot/gpt-4.1
->       system: |
->         You synthesize multiple review perspectives into a single,
->         prioritized action list.
->
->   tasks:
->     parallel-review:
->       agents: [reviewer, scanner]
->       parallel: true
->     synthesize:
->       agent: synthesizer
->       depends: [parallel-review]
 >
 >   steering:
 >     time-warning-minutes: 5
 >     time-critical-minutes: 2
 >     budget-warn-percent: 75
 >     budget-critical-percent: 90
->
->   checkpoint: true
 > ---
 >
-> ## Daily Code Review
->
 > Review all changes pushed to the default branch in the last 24 hours.
->
-> ### Gather Changes
-> <!-- harness-task: gather -->
-> Use `git log --since="24 hours ago"` and `git diff` to collect all
-> recent changes. Summarize the scope.
->
-> ### Parallel Review
-> <!-- harness-task: parallel-review -->
-> Each reviewer examines the changes independently.
->
-> ### Synthesize
-> <!-- harness-task: synthesize -->
-> Read outputs from both reviewers. Produce a prioritized findings list.
->
-> ### Report
-> Create a GitHub issue with the synthesized review.
+> Use `git log --since="24 hours ago"` and `git diff` to collect changes,
+> review them for correctness, security, and maintainability, then create
+> a GitHub issue with a prioritized findings list.
 > ```
 
 #### 6.1.1 `harness.budget`
@@ -395,25 +335,8 @@ The `harness.context` key is **OPTIONAL**. When present, it **MAY** contain:
 
 - `compaction` (string): One of `none`, `sliding-window`, or `summarize`. Default: `none`.
 - `compaction-threshold` (number, 0–1): Context fill fraction at which compaction triggers. Default: `0.75`.
-- `transcript-mode` (string): One of `full` or `summary`. Controls how upstream task transcripts are included in downstream prompts. Default: `full`.
 
-#### 6.1.3 `harness.agents`
-
-The `harness.agents` key is **OPTIONAL**. Each entry defines a named agent with:
-
-- `model` (string, **REQUIRED**): Model alias or fully-qualified `provider/model` string.
-- `system` (string, **OPTIONAL**): System prompt override for this agent.
-
-#### 6.1.4 `harness.tasks`
-
-The `harness.tasks` key is **OPTIONAL**. Each entry defines a named task with:
-
-- `agent` (string, **OPTIONAL**): Name of an agent defined in `harness.agents`. Mutually exclusive with `agents`.
-- `agents` (array of strings, **OPTIONAL**): Names of agents to run in parallel for this task. Mutually exclusive with `agent`.
-- `parallel` (boolean, **OPTIONAL**): When `true` and `agents` is provided, all listed agents execute in parallel. Default: `false`.
-- `depends` (array of strings, **OPTIONAL**): Names of tasks that **MUST** complete before this task begins.
-
-#### 6.1.5 `harness.steering`
+#### 6.1.3 `harness.steering`
 
 The `harness.steering` key is **OPTIONAL**. When present, it **MAY** contain:
 
@@ -422,11 +345,7 @@ The `harness.steering` key is **OPTIONAL**. When present, it **MAY** contain:
 - `budget-warn-percent` (number): Budget percentage at which a warning **SHOULD** be injected. Default: `75`.
 - `budget-critical-percent` (number): Budget percentage at which the session **MUST** be aborted. Default: `90`.
 
-#### 6.1.6 `harness.checkpoint`
-
-The `harness.checkpoint` key is **OPTIONAL**. When set to `true`, the checkpoint extension **MUST** persist task state on `agent_end`.
-
-#### 6.1.7 `imports:`
+#### 6.1.4 `imports:`
 
 The `imports:` key is **OPTIONAL**. It is a standard gh-aw frontmatter key that lists the paths of files whose contents **MUST** be resolved by the compiler and made available to the harness as part of the compiled inputs.
 
@@ -458,25 +377,25 @@ A conforming implementation **MUST** apply the following overrides regardless of
 
 A conforming implementation **MUST NOT** honor attempts to disable `cli-proxy` or set `tools.github.mode: remote` when `engine: aw` is active. These settings **MUST** be overridden. A conforming implementation **MUST** emit a warning to stderr when either override is applied, so that workflow authors can diagnose unexpected configuration behaviour.
 
-### 6.3 Task Extraction Algorithm
+### 6.3 Prompt Loading
 
-A conforming implementation **MUST** extract tasks from the compiler-provided inputs as follows:
+A conforming implementation **MUST** load the prompt from the compiler-provided inputs as follows:
 
-1. Read `harness.tasks` from `config.json`. If present, each entry defines a named task with its agent assignment, parallel flag, and dependency list.
-2. Read the prompt body from `prompt.txt`. The compiler splits the body on ATX heading boundaries (`##` or `###` level) and associates each section with a named task via `<!-- harness-task: <name> -->` annotations before writing `prompt.txt`; the harness consumes the resulting sections.
-3. If `harness.tasks` is absent or empty, the entire prompt body **MUST** be treated as a single task with no explicit agent or dependency.
-4. Tasks without a named entry in `harness.tasks` are treated as sequential tasks in document order.
+1. Read `config.json` to obtain the harness configuration (budget, context, steering settings).
+2. Read the prompt body from `prompt.txt`. The entire contents of `prompt.txt` constitute the initial user message passed to the single `AgentSession`.
+3. Prepend the contents of any files resolved from `imports:` (as declared in the workflow frontmatter and compiled into the inputs) to the prompt body or supply them as system context, in the order declared.
+
+A conforming implementation **MUST NOT** split or subdivide `prompt.txt` into sub-tasks. The prompt is treated as a single, atomic instruction to the agent.
 
 ### 6.4 Initial Prompt Context
 
-The AW Harness **MUST NOT** inject any predefined or ambient context into agent sessions. There are no implicit files, skills, or instruction documents automatically added to a session's initial prompt.
+The AW Harness **MUST NOT** inject any predefined or ambient context into the agent session. There are no implicit files, skills, or instruction documents automatically added to the session's initial prompt.
 
-A conforming implementation **MUST** source every item included in a session's initial prompt from one of the following explicitly declared origins:
+A conforming implementation **MUST** source every item included in the session's initial prompt from one of the following explicitly declared origins:
 
-- The task's own Markdown body (extracted per [Section 6.3](#63-task-extraction-algorithm)).
-- Transcripts from upstream tasks (passed via the DAG execution model in [Section 7](#7-dag-execution-model)).
-- The agent's `system` prompt as declared under `harness.agents` in the frontmatter.
-- Files, skills, and sub-workflows declared via the `imports:` frontmatter key (see [Section 6.1.7](#617-imports)) and resolved by the compiler into inputs passed at invocation time.
+- The Markdown body from `prompt.txt` (loaded per [Section 6.3](#63-prompt-loading)).
+- The `harness.system` prompt if declared in the `harness:` frontmatter block.
+- Files, skills, and sub-workflows declared via the `imports:` frontmatter key (see [Section 6.1.4](#614-imports)) and resolved by the compiler into inputs passed at invocation time.
 
 A conforming implementation **MUST NOT** automatically load AGENTS.md files, `.github/agents/` entries, skills directories, or any other ambient repository files unless they are explicitly listed in `imports:`. This behavior is a deliberate divergence from engines such as `engine: copilot` that inject ambient context automatically.
 
@@ -497,22 +416,13 @@ Skills **MUST** be treated as ordinary imported files: they carry no special run
 
 ---
 
-## 7. DAG Execution Model
+## 7. Single-Session Execution Model
 
-### 7.1 DAG Construction
+### 7.1 Execution Algorithm
 
-A conforming implementation **MUST** construct a DAG from the extracted tasks as follows:
+A conforming implementation **MUST** execute the workflow as follows:
 
-1. Create one node per extracted task.
-2. For each task with a `depends` list, add a directed edge from each named dependency to that task.
-3. Perform a cycle check. If a cycle is detected, the implementation **MUST** abort with exit code `2` and emit a diagnostic to stderr identifying the cycle.
-4. Compute a topological order. Tasks at the same depth **MAY** be executed in parallel.
-
-### 7.2 Execution Algorithm
-
-A conforming implementation **MUST** execute the DAG as follows:
-
-> [!NOTE] Non-normative example illustrating the orchestration entry point.
+> [!NOTE] Non-normative example illustrating the execution entry point.
 >
 > ```typescript
 > // index.ts — entry point
@@ -520,8 +430,7 @@ A conforming implementation **MUST** execute the DAG as follows:
 >
 > async function main() {
 >   const { configPath, promptPath } = parseArgs(process.argv);
->   const workflow = loadWorkflow(configPath, promptPath);
->   const dag = buildDAG(workflow);
+>   const { config, prompt } = loadInputs(configPath, promptPath);
 >   const extensions = [
 >     providerSetupExtension,
 >     safeOutputsExtension,
@@ -529,54 +438,38 @@ A conforming implementation **MUST** execute the DAG as follows:
 >     steeringExtension,
 >     repairExtension,
 >     observabilityExtension,
->     checkpointExtension,
 >   ];
 >
->   for (const taskGroup of dag.executionOrder()) {
->     await Promise.all(taskGroup.map(async (task) => {
->       const { session } = await createAgentSession({
->         sessionManager: SessionManager.inMemory(),
->         extensions,
->         model: resolveModel(task.agent?.model || workflow.defaultModel),
->         systemPrompt: buildSystemPrompt(task),
->       });
+>   const { session } = await createAgentSession({
+>     sessionManager: SessionManager.inMemory(),
+>     extensions,
+>     model: config.model,
+>     systemPrompt: config.harness?.system,
+>   });
 >
->       const prompt = buildTaskPrompt(task, transcripts);
->       await session.prompt(prompt);
->
->       transcripts[task.name] = captureTranscript(session);
->       session.dispose();
->     }));
->   }
+>   await session.prompt(prompt);
+>   session.dispose();
 > }
 > ```
 
-For each execution group in topological order:
+1. The implementation **MUST** invoke `createAgentSession()` exactly once per harness invocation.
+2. The prompt passed to `session.prompt()` **MUST** be the full contents of `prompt.txt` as loaded per [Section 6.3](#63-prompt-loading).
+3. The implementation **MUST** load all six gh-aw Pi extensions (see [Section 8](#8-extensions)) into the session.
+4. After the session completes (success or failure), the implementation **MUST** call `session.dispose()`.
+5. If the budget gate has been triggered (via the cost-tracker extension), the implementation **MUST** exit with code `1`.
 
-1. The implementation **MUST** invoke `createAgentSession()` once per task (or once per agent for tasks with `agents: [...]`).
-2. The prompt passed to `session.prompt()` **MUST** be assembled from: (a) the task's prompt text (from `prompt.txt`), (b) transcripts from all upstream tasks, and (c) the agent's system prompt, if defined.
-3. The implementation **MUST** load all seven gh-aw Pi extensions (see [Section 8](#8-extensions)) into each session.
-4. Tasks within the same parallel group **MUST** be executed concurrently using `Promise.all()`.
-5. After each session completes, the implementation **MUST** capture the session transcript for use by downstream tasks.
-6. After capturing the transcript, the implementation **MUST** call `session.dispose()`.
-7. If the budget gate has been triggered (via the cost-tracker extension), the implementation **MUST NOT** launch further sessions and **MUST** exit with code `1`.
-
-### 7.3 Task Execution Summary
-
-The per-task execution sequence is:
+### 7.2 Execution Summary
 
 ```
-For each task (respecting DAG order):
-  1. Build prompt = task text (from prompt.txt) + upstream transcripts + system prompt
-  2. Create Pi AgentSession with gh-aw extensions:
-     - Provider setup registered
-     - Safe-output tools registered
-     - Steering, repair, cost, observability extensions active
-     (MCP tools available as bash CLI commands via cli-proxy — no bridging needed)
-  3. session.prompt() → Pi agent loop runs
-  4. Extensions handle events (cost tracking, steering, observability)
-  5. Capture transcript for downstream tasks
-  6. Budget gate check, checkpoint state
+1. Load config.json + prompt.txt
+2. Create single Pi AgentSession with gh-aw extensions:
+   - Provider setup registered
+   - Safe-output tools registered
+   - Steering, repair, cost, observability extensions active
+   (MCP tools available as bash CLI commands via cli-proxy — no bridging needed)
+3. session.prompt(promptText) → Pi agent loop runs
+4. Extensions handle events (cost tracking, steering, observability)
+5. session.dispose()
 ```
 
 ---
@@ -585,7 +478,7 @@ For each task (respecting DAG order):
 
 All gh-aw-specific behavior **MUST** be packaged as Pi extensions. Each extension **MUST** be a standalone TypeScript module that exports a default function with signature `(pi: ExtensionAPI) => void | Promise<void>`.
 
-The following seven extensions **MUST** be loaded into every `AgentSession` created by the harness.
+The following six extensions **MUST** be loaded into the `AgentSession` created by the harness.
 
 ### 8.1 Extension 1: Provider Setup
 
@@ -784,15 +677,15 @@ The following seven extensions **MUST** be loaded into every `AgentSession` crea
 - The extension **MUST** subscribe to `agent_start`, `turn_end`, `tool_execution_end`, and `agent_end` events.
 - On each event, the extension **MUST** emit a corresponding JSONL record to stderr.
 - If `observability.otlp.endpoint` is configured in the workflow frontmatter, the extension **MUST** create and close OTel spans for each task.
-- OTel span attributes **MUST** include at minimum: task name, model, token counts, and cost.
+- OTel span attributes **MUST** include at minimum: model, token counts, and cost.
 
 > [!NOTE] Non-normative example.
 >
 > ```typescript
 > export default function(pi: ExtensionAPI) {
 >   pi.on("agent_start", async (event) => {
->     emitJsonl({ event: "task_start", task: currentTask, model: currentModel });
->     startOtelSpan(currentTask);
+>     emitJsonl({ event: "session_start", model: currentModel });
+>     startOtelSpan("aw_session");
 >   });
 >
 >   pi.on("turn_end", async (event) => {
@@ -804,33 +697,8 @@ The following seven extensions **MUST** be loaded into every `AgentSession` crea
 >   });
 >
 >   pi.on("agent_end", async (event) => {
->     emitJsonl({ event: "task_end", task: currentTask, tokens: event.tokens, cost: event.cost });
->     endOtelSpan(currentTask);
->   });
-> }
-> ```
-
-### 8.7 Extension 7: Checkpoint
-
-**Purpose:** Persists run state for long workflows, enabling resume from a prior checkpoint.
-
-**Requirements:**
-
-- When `harness.checkpoint: true` is set, the extension **MUST** subscribe to `agent_end` and persist the task name, completion status, session transcript, and accumulated cost.
-- Checkpoint data **MUST** be stored in a location accessible across job retries (e.g., a Actions cache or artifact).
-- An implementation **SHOULD** support a `--continue` invocation flag that resumes from the last successful checkpoint, skipping already-completed tasks.
-
-> [!NOTE] Non-normative example.
->
-> ```typescript
-> export default function(pi: ExtensionAPI) {
->   pi.on("agent_end", async (event, ctx) => {
->     await saveCheckpoint({
->       task: currentTask,
->       status: event.error ? "failed" : "done",
->       transcript: ctx.agent.state.messages,
->       cost: totalCost,
->     });
+>     emitJsonl({ event: "session_end", tokens: event.tokens, cost: event.cost });
+>     endOtelSpan("aw_session");
 >   });
 > }
 > ```
@@ -852,9 +720,9 @@ Harness (Pi SDK) → Registered provider → LLM provider API
   model: "copilot/gpt-4.1"     → Copilot (via GITHUB_TOKEN)
 ```
 
-### 9.2 Per-Task Model Selection
+### 9.2 Model Selection
 
-Per-task and per-agent model selection is accomplished by passing a different model name string to `createAgentSession()`. The harness reads the model name from `config.json` (compiled from `harness.agents[*].model` or the top-level `engine.model` field in the workflow frontmatter).
+The model name is read from `config.json` (compiled from the top-level `engine.model` field in the workflow frontmatter) and passed as-is to `createAgentSession()`.
 
 ### 9.3 Implications for the Harness
 
@@ -930,11 +798,8 @@ aw-harness/
 ├── tsconfig.json                 # target: es2024, module: es2022
 ├── build.ts                      # esbuild → dist/aw_harness.cjs
 ├── src/
-│   ├── index.ts                  # Entry point: read config.json + prompt.txt → buildDAG → run sessions
-│   ├── parser.ts                 # config.json + prompt.txt → tasks + config
-│   ├── planner.ts                # DAG construction, topological sort
-│   ├── dag-runner.ts             # Orchestrate sessions (sequential + parallel)
-│   ├── transcript.ts             # Inter-task data flow (save/load/summarize)
+│   ├── index.ts                  # Entry point: read config.json + prompt.txt → create session → run
+│   ├── loader.ts                 # config.json + prompt.txt → config + prompt string
 │   ├── context.ts                # Prompt assembly, compaction
 │   └── extensions/               # gh-aw Pi extensions
 │       ├── provider-setup.ts     # Register LLM providers from env vars
@@ -942,18 +807,16 @@ aw-harness/
 │       ├── cost-tracker.ts       # Budget gates via turn_end events
 │       ├── steering.ts           # Time/budget pressure via session.steer()
 │       ├── repair.ts             # Broken session recovery
-│       ├── observability.ts      # JSONL events + OTel spans
-│       └── checkpoint.ts         # Persist/resume run state
+│       └── observability.ts      # JSONL events + OTel spans
 ├── test/
-│   ├── parser.test.ts
-│   ├── planner.test.ts
+│   ├── loader.test.ts
 │   ├── extensions/
 │   │   ├── cost-tracker.test.ts
 │   │   ├── steering.test.ts
 │   │   ├── repair.test.ts
 │   │   └── ...
 │   └── integration/
-│       └── dag-runner.test.ts
+│       └── harness.test.ts
 └── dist/
     └── aw_harness.cjs            # → copied to actions/setup/js/
 ```
@@ -962,7 +825,7 @@ aw-harness/
 
 Tests use the same Vitest setup as the existing `actions/setup/js/` scripts:
 
-- Unit tests for parser, planner, and each extension.
+- Unit tests for loader and each extension.
 - Integration tests with mock Pi sessions (`SessionManager.inMemory()`).
 - Tests co-located: `aw_harness.test.cjs` or in a `test/` subdirectory.
 
@@ -977,10 +840,11 @@ A `make aw-harness` Makefile target **SHOULD** be added that runs esbuild and co
 | `engine: copilot` (existing) | Uses current `copilot_harness.cjs` — unchanged |
 | `engine: claude` (existing) | Uses current Claude Code flow — unchanged |
 | `engine: codex` (existing) | Uses current Codex flow — unchanged |
-| `engine: aw` without `harness:` block | Single-task: entire body = one Pi session prompt |
-| `engine: aw` with `harness:` block | Multi-task orchestration mode |
-| `engine: aw` with `harness.tasks` | Explicit DAG (parallel, depends, agent assignment) |
-| `engine: aw` without `harness.agents` | All tasks use `engine.model` |
+| `engine: gemini` (existing) | Uses current Gemini flow — unchanged |
+| `engine: opencode` (existing) | Uses current OpenCode flow — unchanged |
+| `engine: crush` (existing) | Uses current Crush flow — unchanged |
+| `engine: aw` | Single-session: entire `prompt.txt` = one Pi session prompt |
+| `engine: aw` without `harness:` block | Uses defaults for budget/steering/compaction |
 | `engine: aw` + `cli-proxy: false` | **Ignored** — `cli-proxy` is always on for `engine: aw` |
 | `engine: aw` + `tools.github.mode: remote` | **Overridden to `gh-proxy`** — Pi SDK requires `gh-proxy`; `remote` mode is not supported |
 
@@ -992,33 +856,27 @@ The following ordered work items describe the implementation sequence:
 
 2. **Implement provider setup extension** — Pi extension that registers LLM providers via `pi.registerProvider()` using provider credentials injected by AWF into the container environment.
 
-3. **Implement parser** — Read `config.json` (compiler-generated harness config) and `prompt.txt` (compiler-generated prompt body). Parse task sections from prompt text; resolve task configuration from `harness.tasks`. Fall back to single-task mode when no task config is present.
+3. **Implement loader** — Read `config.json` (compiler-generated harness config) and `prompt.txt` (compiler-generated prompt body). Return config and prompt string to the entry point.
 
-4. **Implement DAG planner** — Topological sort, parallel group detection, sequential fallback. Validate no cycles, all agent/task references resolve.
+4. **Implement safe-outputs extension** — Pi extension that registers safe-output tools (create-issue, create-pull-request, add-comment, etc.). Uses `pi.on("agent_end")` to finalize artifact manifest.
 
-5. **Implement safe-outputs extension** — Pi extension that registers safe-output tools (create-issue, create-pull-request, add-comment, etc.). Uses `pi.on("agent_end")` to finalize artifact manifest.
+5. **Implement entry point** — Create a single `createAgentSession()` with gh-aw extensions loaded. Pass `prompt.txt` contents as the prompt. Dispose session on completion.
 
-6. **Implement DAG runner** — Orchestrates multiple `createAgentSession()` calls. Sequential tasks + `Promise.all()` for parallel groups. Passes gh-aw extensions to each session. Manages transcript flow between tasks.
+6. **Implement context engine** — Prompt assembly with priority ordering. Compaction via `none`, `sliding-window`, or `summarize`.
 
-7. **Implement transcript manager** — Save task output to disk. Load for downstream tasks. Support `summary` mode (use a Pi session to summarize) and `full` mode.
+7. **Implement cost tracker extension** — Pi extension that monitors `turn_end` events for token/cost data. Enforces soft (steer warning) and hard (abort) budget gates.
 
-8. **Implement context engine** — Prompt assembly with priority ordering. Compaction via `none`, `sliding-window`, or `summarize`.
+8. **Implement steering extension** — Pi extension that monitors time/budget and injects user messages via `session.steer()` on `turn_end`.
 
-9. **Implement cost tracker extension** — Pi extension that monitors `turn_end` events for token/cost data. Enforces soft (steer warning) and hard (abort) budget gates.
+9. **Implement repair extension** — Pi extension that detects broken tool calls via `tool_result` events. Repairs via message truncation or summarize-and-restart.
 
-10. **Implement steering extension** — Pi extension that monitors time/budget and injects user messages via `session.steer()` on `turn_end`.
+10. **Implement observability extension** — Pi extension that emits JSONL to stderr on agent/tool events. Generates OTel spans using `observability.otlp` config.
 
-11. **Implement repair extension** — Pi extension that detects broken tool calls via `tool_result` events. Repairs via message truncation or summarize-and-restart.
+11. **Write tests** — Unit tests for loader, each extension (mock `ExtensionAPI`). Integration tests with `createAgentSession()` + `SessionManager.inMemory()`.
 
-12. **Implement checkpoint extension** — Pi extension that persists task completion state on `agent_end`. Resume from checkpoint on `--continue`.
+12. **Write example workflows** — Single-task examples demonstrating `engine: aw` with various tools and safe outputs.
 
-13. **Implement observability extension** — Pi extension that emits JSONL to stderr on agent/tool events. Generates OTel spans using `observability.otlp` config.
-
-14. **Write tests** — Unit tests for parser, planner, each extension (mock `ExtensionAPI`). Integration tests with `createAgentSession()` + `SessionManager.inMemory()`.
-
-15. **Write example workflows** — Three examples: single-task, multi-task sequential, multi-agent parallel with different models.
-
-17. **Add build to Makefile** — Add `make aw-harness` target that runs esbuild and copies `aw_harness.cjs` to `actions/setup/js/`.
+13. **Add build to Makefile** — Add `make aw-harness` target that runs esbuild and copies `aw_harness.cjs` to `actions/setup/js/`.
 
 ---
 
@@ -1032,8 +890,6 @@ The following ordered work items describe the implementation sequence:
 
 **Budget enforcement.** The cost-tracker extension provides a hard budget gate. A conforming implementation **MUST** abort the session if the cost exceeds the configured maximum, preventing runaway spending from misbehaving agents.
 
-**Transcript confidentiality.** Transcripts captured for inter-task context **SHOULD** be stored only in memory or in ephemeral container storage. Implementations **SHOULD NOT** persist transcripts to external storage unless checkpointing is explicitly enabled.
-
 **Token and secret handling.** Provider credentials (e.g., `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GITHUB_TOKEN`) **MUST NOT** be logged to stderr or embedded in JSONL events. Implementations **MUST** treat all credential env vars as opaque secrets.
 
 ---
@@ -1042,11 +898,9 @@ The following ordered work items describe the implementation sequence:
 
 *(This section is non-normative.)*
 
-**Data residency.** All agent execution occurs within the gh-aw Actions container. No workflow content, prompts, or transcripts leave the container except via the Pi SDK to the configured LLM provider endpoint, or via OTLP to the configured telemetry endpoint.
+**Data residency.** All agent execution occurs within the gh-aw Actions container. No workflow content, prompts, or session data leave the container except via the Pi SDK to the configured LLM provider endpoint, or via OTLP to the configured telemetry endpoint.
 
-**Transcript retention.** Task transcripts held in memory for inter-task context are discarded when the harness process exits. If checkpointing is enabled, transcript data may be persisted to GitHub Actions artifacts; workflow authors **SHOULD** evaluate the sensitivity of transcript content before enabling checkpointing.
-
-**Telemetry scope.** When `observability.otlp` is configured, OTel spans contain task names, model names, token counts, and cost data. They **SHOULD NOT** contain raw prompt or response text. Implementations **SHOULD** redact sensitive content from span attributes.
+**Telemetry scope.** When `observability.otlp` is configured, OTel spans contain model names, token counts, and cost data. They **SHOULD NOT** contain raw prompt or response text. Implementations **SHOULD** redact sensitive content from span attributes.
 
 **Model provider data handling.** Prompt content is transmitted to the LLM provider using the credentials AWF injects into the container. Workflow authors are responsible for ensuring that content transmitted to LLM providers complies with applicable data handling policies.
 
