@@ -433,29 +433,6 @@ function parseBridgeArgs(argv) {
 }
 
 /**
- * Check whether any of the user args use '-' as a stdin placeholder value.
- * Only recognizes the '--key -' (space-separated) form; '--key=-' is not
- * treated as a stdin placeholder to avoid ambiguity with literal hyphen values.
- *
- * @param {string[]} args - User arguments after the tool name
- * @returns {boolean}
- */
-function hasStdinPlaceholder(args) {
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (typeof arg !== "string" || !arg.startsWith("--")) continue;
-    const raw = arg.slice(2);
-    const eqIdx = raw.indexOf("=");
-    if (eqIdx < 0 && i + 1 < args.length && !args[i + 1].startsWith("--")) {
-      // --key value form: check if value is '-'
-      if (args[i + 1] === "-") return true;
-      i++; // skip value so we don't misidentify it as a flag
-    }
-  }
-  return false;
-}
-
-/**
  * Check whether stdin should be read and parsed as a JSON payload for tool arguments.
  * Returns true when the '.' sentinel is the only argument, or when no arguments are
  * provided and stdin is not connected to a terminal (i.e. data is being piped).
@@ -520,13 +497,6 @@ function readStdinSync() {
  * Supports both --key value and --key=value styles.
  * Boolean flags (--key without a value) are set to true.
  *
- * When `stdinContent` is provided and a value is exactly '-' in the
- * '--key -' (space-separated) form, the stdin content is substituted in
- * place of that value. This allows multiline strings to be piped safely:
- *   `printf 'line1\nline2' | cmd --body -`
- * Note: the '--key=-' (equals) form does NOT trigger stdin substitution —
- * it passes the literal string '-' as the value.
- *
  * When `stdinContent` is provided and args is empty or `['.']`, the stdin
  * content is parsed as a JSON object and its properties are used as tool
  * arguments directly (JSON payload mode). This enables agents to pipe
@@ -535,7 +505,7 @@ function readStdinSync() {
  *
  * @param {string[]} args - User arguments after the tool name
  * @param {Record<string, {type?: string|string[]}>} [schemaProperties] - Tool input schema properties
- * @param {string | null} [stdinContent] - Pre-read stdin content; substituted when '--key -' value is '-'
+ * @param {string | null} [stdinContent] - Pre-read stdin content for JSON payload mode
  * @returns {{args: Record<string, unknown>, json: boolean}}
  */
 function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
@@ -584,8 +554,7 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
       } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
         const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
         const rawValue = args[i + 1];
-        const effectiveValue = rawValue === "-" && stdinContent !== null ? stdinContent : rawValue;
-        result[canonicalKey] = coerceToolArgValue(canonicalKey, effectiveValue, schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
+        result[canonicalKey] = coerceToolArgValue(canonicalKey, rawValue, schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
         i++;
       } else {
         const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
@@ -1100,12 +1069,8 @@ async function main() {
   const matchedTool = tools.find(tool => tool && typeof tool === "object" && tool.name === toolName);
   const schemaProperties = matchedTool && matchedTool.inputSchema && matchedTool.inputSchema.properties ? matchedTool.inputSchema.properties : {};
 
-  // Pre-read stdin once when any argument uses '-' as a stdin placeholder, or when
-  // the JSON payload mode is triggered ('.' sentinel or no args with piped stdin).
-  // This avoids shell escaping issues with multiline strings:
-  //   printf 'line1\nline2' | safeoutputs add_comment --body -
-  //   printf '{"issue_number":42,"body":"hello"}' | safeoutputs add_comment .
-  const stdinContent = hasStdinPlaceholder(toolUserArgs) || hasStdinJsonPayload(toolUserArgs) ? readStdinSync() : null;
+  // Pre-read stdin when JSON payload mode is triggered ('.' sentinel or no args with piped stdin).
+  const stdinContent = hasStdinJsonPayload(toolUserArgs) ? readStdinSync() : null;
   const { args: toolArgs, json: jsonOutput } = parseToolArgs(toolUserArgs, schemaProperties, stdinContent);
 
   core.info(`[${serverName}] Calling tool '${toolName}' with args: ${JSON.stringify(toolArgs)}${jsonOutput ? " (--json)" : ""}`);
@@ -1164,7 +1129,6 @@ module.exports = {
   extractJSONRPCMessages,
   renderProgressMessages,
   formatResponse,
-  hasStdinPlaceholder,
   hasStdinJsonPayload,
   readStdinSync,
   main,

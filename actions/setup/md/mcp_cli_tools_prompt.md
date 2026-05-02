@@ -76,29 +76,11 @@ safeoutputs add_comment . < /tmp/comment.json
 > - Agents can construct the payload as a structured object before emitting the command
 > - File redirection (`< file`) works even when pipes (`|`) are restricted
 
-### Single-Parameter stdin Substitution
-
-For the case where only **one** parameter needs multiline content, use `-` (space-separated from the flag name) as its value:
-
-```bash
-# Write multiline content to a file and redirect it
-safeoutputs add_comment --issue_number 42 --body - < body.txt
-
-# Or use printf for inline multiline content
-printf '### Title\n\nBody paragraph one.\n\nBody paragraph two.' \
-  | safeoutputs add_comment --issue_number 42 --body -
-```
-
-> **Important**: Use `--body -` (space before `-`) — the `--body=-` form is **not** supported for stdin substitution and will pass the literal string `-` as the body value.
-
-> **Important**: Do **not** use `--body - < file` to pass a multi-field JSON payload — `--body -` reads stdin as a raw string and will pass the entire JSON object as the body. Use `. < file` (dot sentinel) to parse stdin as JSON and distribute all fields across their respective parameters.
-
 ### Notes
 
 - **Prefer JSON payload mode** (`. < file` or `printf '{...}' | server tool .`) for any call with multiple arguments or complex values
 - All parameters can also be passed as `--name value` pairs; boolean flags can be set with `--flag` (no value) to mean `true`
 - Use `.` as the only argument to parse stdin as a JSON object (all parameters supplied at once)
-- Use `-` as the value in `--key -` form to read one parameter from stdin (space before `-` required)
 - Parameter names with hyphens or underscores are interchangeable (e.g. `issue-number` and `issue_number` both work)
 - Output is printed to stdout; errors are printed to stderr with a non-zero exit code
 - Run the CLI commands inside a `bash` tool call — they are shell executables, not MCP tools
