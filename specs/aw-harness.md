@@ -239,6 +239,7 @@ A conforming implementation **MUST** exit with code `0` if and only if the agent
 
 - **stdout**: Reserved for structured output (e.g., JSON summaries). A conforming implementation **SHOULD NOT** write diagnostic messages to stdout.
 - **stderr**: All diagnostic messages, JSONL event stream, and debug output **MUST** be written to stderr.
+- **GitHub Actions step summary** (`$GITHUB_STEP_SUMMARY`): The harness **MUST** write a Markdown-formatted execution summary to the file path indicated by the `GITHUB_STEP_SUMMARY` environment variable when that variable is set. The summary **MUST** be valid GitHub-flavored Markdown so that it renders correctly in the GitHub Actions step summary UI.
 
 ---
 
@@ -670,25 +671,109 @@ The following six extensions **MUST** be loaded into the `AgentSession` created 
 
 ### 8.6 Extension 6: Observability
 
-**Purpose:** Emits JSONL events to stderr and generates OTel spans.
+**Purpose:** Emits structured event streams to stderr, writes a context provenance file for downstream analysis, renders a Markdown step summary, and reports per-turn token consumption.
 
 **Requirements:**
 
+#### 8.6.1 JSONL Event Stream
+
 - The extension **MUST** subscribe to `agent_start`, `turn_end`, `tool_execution_end`, and `agent_end` events.
 - On each event, the extension **MUST** emit a corresponding JSONL record to stderr.
-- If `observability.otlp.endpoint` is configured in the workflow frontmatter, the extension **MUST** create and close OTel spans for each task.
+- If `observability.otlp.endpoint` is configured in the workflow frontmatter, the extension **MUST** create and close OTel spans for the session.
 - OTel span attributes **MUST** include at minimum: model, token counts, and cost.
 
-> [!NOTE] Non-normative example.
+#### 8.6.2 Context Provenance File
+
+- The extension **MUST** produce a context provenance file at a well-known path (e.g., `/tmp/gh-aw/context-provenance.jsonl`) when the session completes.
+- The file **MUST** contain one JSON record per context entry added to the session, in chronological order. Each record **MUST** include:
+  - `timestamp` (ISO 8601 string): When the entry was added.
+  - `source` (string): The declared origin of the text — one of `"prompt"` (from `prompt.txt`), `"import"` (from an `imports:` file, with `path` sub-field), or `"system"` (from `harness.system`).
+  - `path` (string, **OPTIONAL**): Repository-relative path for `"import"` entries.
+  - `tokens` (number): Estimated token count for this entry at the time it was added.
+  - `cumulative_tokens` (number): Running total of tokens in the context window at the time of this entry.
+  - `role` (string): The message role — `"user"`, `"assistant"`, or `"system"`.
+- The purpose of this file is to allow downstream tools (e.g., `gh aw audit`) to perform deep analysis of context growth, identify which imports consumed the most token budget, and diagnose context-window pressure.
+
+#### 8.6.3 GitHub Actions Step Summary
+
+- When the `GITHUB_STEP_SUMMARY` environment variable is set, the extension **MUST** write a Markdown-formatted execution summary to the file at that path.
+- The summary **MUST** be valid GitHub-flavored Markdown so that it renders correctly in the GitHub Actions step summary UI.
+- The summary **MUST** include at minimum:
+  - A header identifying the workflow and model used.
+  - A table showing per-turn token consumption (input tokens, output tokens, cumulative total, and estimated cost).
+  - A final row with session totals (total tokens, total cost, elapsed time).
+  - A context provenance section listing each `imports:` file with its token contribution.
+
+#### 8.6.4 Per-Turn Token Consumption Output
+
+- The extension **MUST** subscribe to `turn_end` events and emit a human-readable token consumption line to stderr after each turn.
+- The line **MUST** report: turn number, input tokens, output tokens, cumulative total tokens, and estimated cumulative cost.
+- The line **MUST** be formatted as valid GitHub-flavored Markdown (e.g., using a `>` blockquote prefix) so that it renders correctly when appended to the step summary.
+
+> [!NOTE] Non-normative examples.
+>
+> **JSONL event (turn_end):**
+> ```json
+> {"event":"turn_end","turn":3,"input_tokens":4200,"output_tokens":850,"cumulative_tokens":15320,"cumulative_cost_usd":0.0412,"model":"claude-sonnet-4.6","ts":"2026-05-02T10:30:00.000Z"}
+> ```
+>
+> **Context provenance record:**
+> ```json
+> {"timestamp":"2026-05-02T10:29:00.000Z","source":"import","path":"skills/reporting/SKILL.md","tokens":1240,"cumulative_tokens":1240,"role":"user"}
+> {"timestamp":"2026-05-02T10:29:00.001Z","source":"prompt","tokens":520,"cumulative_tokens":1760,"role":"user"}
+> ```
+>
+> **Step summary (excerpt):**
+> ```markdown
+> ## AW Harness Run — `claude-sonnet-4.6`
+>
+> | Turn | Input Tokens | Output Tokens | Cumulative | Est. Cost |
+> |------|-------------|---------------|------------|-----------|
+> | 1    | 1,760       | 420           | 2,180      | $0.0058   |
+> | 2    | 2,180       | 640           | 2,820      | $0.0076   |
+> | **Total** | | | **2,820** | **$0.0076** |
+>
+> ### Context Provenance
+> | Source | Path | Tokens |
+> |--------|------|--------|
+> | import | skills/reporting/SKILL.md | 1,240 |
+> | prompt | _(prompt.txt)_ | 520 |
+> ```
+>
+> **Implementation sketch:**
 >
 > ```typescript
 > export default function(pi: ExtensionAPI) {
+>   let turnCount = 0;
+>   let cumulativeTokens = 0;
+>   let cumulativeCost = 0;
+>   const provenanceLog: ProvenanceEntry[] = [];
+>
 >   pi.on("agent_start", async (event) => {
 >     emitJsonl({ event: "session_start", model: currentModel });
 >     startOtelSpan("aw_session");
+>     recordContextProvenance(provenanceLog); // records imports + prompt entries
 >   });
 >
->   pi.on("turn_end", async (event) => {
+>   pi.on("turn_end", async (event, ctx) => {
+>     turnCount++;
+>     cumulativeTokens += event.inputTokens + event.outputTokens;
+>     cumulativeCost += event.costUsd ?? 0;
+>     emitJsonl({
+>       event: "turn_end",
+>       turn: turnCount,
+>       input_tokens: event.inputTokens,
+>       output_tokens: event.outputTokens,
+>       cumulative_tokens: cumulativeTokens,
+>       cumulative_cost_usd: cumulativeCost,
+>       model: currentModel,
+>       ts: new Date().toISOString(),
+>     });
+>     // Human-readable per-turn line to stderr (markdown blockquote)
+>     process.stderr.write(
+>       `> **Turn ${turnCount}**: ${event.inputTokens} in / ${event.outputTokens} out ` +
+>       `| cumulative ${cumulativeTokens.toLocaleString()} tokens ($${cumulativeCost.toFixed(4)})\n`
+>     );
 >     recordOtelAttributes(event);
 >   });
 >
@@ -697,8 +782,10 @@ The following six extensions **MUST** be loaded into the `AgentSession` created 
 >   });
 >
 >   pi.on("agent_end", async (event) => {
->     emitJsonl({ event: "session_end", tokens: event.tokens, cost: event.cost });
+>     emitJsonl({ event: "session_end", tokens: cumulativeTokens, cost: cumulativeCost });
 >     endOtelSpan("aw_session");
+>     await writeContextProvenanceFile(provenanceLog);
+>     await writeStepSummary({ turnCount, cumulativeTokens, cumulativeCost, provenanceLog });
 >   });
 > }
 > ```
@@ -870,7 +957,12 @@ The following ordered work items describe the implementation sequence:
 
 9. **Implement repair extension** — Pi extension that detects broken tool calls via `tool_result` events. Repairs via message truncation or summarize-and-restart.
 
-10. **Implement observability extension** — Pi extension that emits JSONL to stderr on agent/tool events. Generates OTel spans using `observability.otlp` config.
+10. **Implement observability extension** — Pi extension that:
+    - Emits JSONL to stderr on agent/tool events (§8.6.1).
+    - Writes a context provenance file (`/tmp/gh-aw/context-provenance.jsonl`) on `agent_end` recording the source and token cost of every context entry (§8.6.2).
+    - Appends a Markdown execution summary table (per-turn tokens + context provenance) to `$GITHUB_STEP_SUMMARY` when that env var is set (§8.6.3).
+    - Emits a human-readable per-turn token consumption line to stderr after each `turn_end` (§8.6.4).
+    - Generates OTel spans using `observability.otlp` config.
 
 11. **Write tests** — Unit tests for loader, each extension (mock `ExtensionAPI`). Integration tests with `createAgentSession()` + `SessionManager.inMemory()`.
 
@@ -901,6 +993,8 @@ The following ordered work items describe the implementation sequence:
 **Data residency.** All agent execution occurs within the gh-aw Actions container. No workflow content, prompts, or session data leave the container except via the Pi SDK to the configured LLM provider endpoint, or via OTLP to the configured telemetry endpoint.
 
 **Telemetry scope.** When `observability.otlp` is configured, OTel spans contain model names, token counts, and cost data. They **SHOULD NOT** contain raw prompt or response text. Implementations **SHOULD** redact sensitive content from span attributes.
+
+**Context provenance file.** The context provenance file (`/tmp/gh-aw/context-provenance.jsonl`) records the source path and token count of every context entry added to the session. It **MUST NOT** include raw prompt or response text; only metadata (source type, path, token counts) is recorded. Workflow authors **SHOULD** evaluate the sensitivity of file paths before enabling downstream analysis tools that read this file.
 
 **Model provider data handling.** Prompt content is transmitted to the LLM provider using the credentials AWF injects into the container. Workflow authors are responsible for ensuring that content transmitted to LLM providers complies with applicable data handling policies.
 
