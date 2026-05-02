@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 8.3
-**Last Updated**: 2026-05-01
+**Version**: 8.4
+**Last Updated**: 2026-05-02
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2932,6 +2932,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v8.4 (2026-05-02): Maintenance tone scan — fixed 6 tone issues across 3 spec files: `gastown.md` (1 fix: "mature, battle-tested architecture"→"mature architecture with established patterns"), `oh-my-code.md` (4 fixes: "Zero config: Works out of box with sensible defaults"→"Zero configuration: Works with sensible defaults", "Battery included: All tools, agents, hooks pre-configured"→"Pre-configured: All tools, agents, and hooks included", "Magic word: Just type `ultrawork` for full power"→"Simple invocation: Type `ultrawork` to run all agents", "zero learning"→"no configuration required"), `mdflow-comparison.md` (1 fix: "Batteries included - Built-in defaults"→"Pre-configured defaults - Built-in defaults"). Coverage: 64 spec files (no new files).
 - v8.3 (2026-05-01): Maintenance tone scan — fixed 3 tone issues across 2 spec files: `gastown.md` (1 fix: "Based on Gastown's proven patterns"→"Based on patterns from Gastown"), `mdflow.md` (2 fixes: "sensible defaults that work out-of-the-box"→"sensible defaults that require no additional configuration", "By adopting mdflow's proven patterns...we can combine their strengths"→"By adopting mdflow's established patterns...both approaches can address different use cases"). Coverage: 64 spec files (no new files).
 - v8.2 (2026-04-27): Maintenance tone scan — fixed 2 tone issues across 2 spec files: `validation-architecture.md` (1 fix: "Developer-friendly warnings"→"Non-critical diagnostic warnings"), `oh-my-code.md` (1 fix: "Developers who want \"coding on steroids\""→"Developers who want high-throughput automated code assistance"). Coverage: 64 spec files (no new files).
 - v8.1 (2026-04-26): Maintenance tone scan — fixed 4 tone issues across 2 spec files: `oh-my-code.md` (3 fixes: "Smart search with relevance ranking"→"Search with relevance ranking", "**Best of both**: Power of oh-my-opencode..."→"**Combined use**: oh-my-opencode for development, gh-aw for automated workflows", "Best of both worlds"→"Combines local development with automated workflows"), `engine-architecture-review.md` (1 fix: "**Significantly improved**"→"**Improved**"). Coverage: 64 spec files (no new files).

@@ -949,15 +949,15 @@ User: "ultrawork - Refactor authentication to use OAuth2"
 ```
 
 **Key Features**:
-- **Zero config**: Works out of box with sensible defaults
-- **Battery included**: All tools, agents, hooks pre-configured
-- **Magic word**: Just type `ultrawork` for full power
+- **Zero configuration**: Works with sensible defaults
+- **Pre-configured**: All tools, agents, and hooks included
+- **Simple invocation**: Type `ultrawork` to run all agents
 - **Real-time**: See agents working in parallel
 - **Interactive**: Ask questions, get design feedback
 - **Persistent**: Work continues across sessions
 
 **Learning Curve**: 
-- Beginner: Use magic word `ultrawork` (zero learning)
+- Beginner: Type `ultrawork` (no configuration required)
 - Intermediate: Configure agents, models (30 minutes)
 - Advanced: Custom agents, hooks, MCPs (1-2 hours)
 
