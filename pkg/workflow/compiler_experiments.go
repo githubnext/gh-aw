@@ -285,8 +285,12 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 		// Pass the incoming aw_context so the pick-experiment step can inherit
 		// parent experiment assignments instead of re-picking independently.
 		// For workflow_dispatch: aw_context is a direct input (inputs.aw_context).
-		// For workflow_call: aw_context is embedded in the payload JSON by the call_workflow handler.
-		// The combined expression handles both cases transparently.
+		// For workflow_call: aw_context is embedded in the payload JSON by the call_workflow handler;
+		//   inputs.aw_context is not declared so it evaluates to '' in GitHub Actions expressions.
+		// The combined expression handles both cases. GitHub Actions does not short-circuit ||,
+		// so fromJSON is always evaluated; for dispatch fromJSON('{}').aw_context is undefined
+		// (treated as '') which is a safe no-op. payload is always valid JSON since it is
+		// produced by JSON.stringify in the call_workflow handler.
 		// Empty string when the workflow was not triggered by a parent agentic workflow.
 		"          GH_AW_EXPERIMENT_CONTEXT: ${{ inputs.aw_context || fromJSON(inputs.payload || '{}').aw_context || '' }}\n",
 		"        with:\n",

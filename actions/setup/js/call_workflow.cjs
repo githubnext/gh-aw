@@ -89,6 +89,10 @@ async function main(config = {}) {
       const inputs = message.inputs && typeof message.inputs === "object" ? message.inputs : {};
       // Embed aw_context inside the payload JSON so the called workflow can inherit caller
       // metadata and experiment assignments without requiring an additional workflow_call input.
+      // aw_context is serialised as a JSON string (not a nested object) to preserve the
+      // flat-object constraint that generate_aw_info.cjs enforces when validating aw_context
+      // (all values must be primitives). The called workflow's pick_experiment step calls
+      // JSON.parse() on this string to extract the aw_context object.
       const payloadJson = JSON.stringify({ ...inputs, aw_context: JSON.stringify(buildAwContext()) });
 
       // If in staged mode, preview the workflow call without executing it

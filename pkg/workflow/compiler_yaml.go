@@ -830,7 +830,9 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString("          GH_AW_INFO_TARGET_REPO: ${{ steps.resolve-host-repo.outputs.target_repo }}\n")
 		// For workflow_call workflows, extract aw_context from the payload JSON so generate_aw_info.cjs
 		// can populate the context field in aw_info.json (same as for workflow_dispatch).
-		// aw_context is embedded in the payload by the call_workflow handler.
+		// aw_context is embedded in the payload by the call_workflow handler using JSON.stringify,
+		// so inputs.payload is always valid JSON. The || '{}' guard handles the case where the
+		// workflow is invoked by a non-gh-aw caller that omits the payload input.
 		yaml.WriteString("          GH_AW_INPUT_AW_CONTEXT: ${{ fromJSON(inputs.payload || '{}').aw_context || '' }}\n")
 	}
 	// Include lockdown validation env vars when lockdown is explicitly enabled.
