@@ -9,7 +9,7 @@
 // block plus a prompt body. Sub-agents appear after the main workflow body and
 // are delimited by level-2 Markdown headings:
 //
-//## agent: `name`        ← opens a sub-agent block
+//	## agent: `name`        ← opens a sub-agent block
 //
 // An agent block ends at the next level-2 Markdown heading (## ...) or end
 // of file. The name must be a lowercase identifier (letters, digits, hyphens,
@@ -18,34 +18,38 @@
 // Both the agent marker and any subsequent H2 section heading render as visible
 // section headings in any Markdown preview (GitHub, VS Code, etc.).
 //
+// # Supported Frontmatter Fields
+//
+// Only the following fields are valid in a sub-agent frontmatter block.
+// Any other field is stripped at runtime with a warning.
+//
+//   - description: Human-readable description of the sub-agent's role.
+//   - model: AI model to use.  Default is "inherited" (uses the parent
+//     workflow's model when not set).
+//
 // # Example
 //
-//---
-//engine: copilot
-//on:
-//  issues:
-//    types: [opened]
-//---
-//# Handle issue
-//Triage the issue and delegate work to sub-agents.
+//	---
+//	engine: copilot
+//	on:
+//	  issues:
+//	    types: [opened]
+//	---
+//	# Handle issue
+//	Triage the issue and delegate work to sub-agents.
 //
-//## agent: `planner`
-//---
-//engine: copilot
-//tools:
-//  github:
-//    toolsets: [issues, pull_requests]
-//---
-//You are a planning specialist.
+//	## agent: `planner`
+//	---
+//	model: claude-haiku-4.5
+//	description: Plans the work for the issue
+//	---
+//	You are a planning specialist.
 //
-//## agent: `executor`
-//---
-//engine: copilot
-//tools:
-//  github:
-//    toolsets: [pull_requests]
-//---
-//You are an execution specialist.
+//	## agent: `executor`
+//	---
+//	description: Executes the plan
+//	---
+//	You are an execution specialist.
 //
 // # Compilation Output
 //

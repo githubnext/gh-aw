@@ -19,11 +19,21 @@
 // An agent block ends at the next level-2 Markdown heading (## ...) or EOF.
 // There is no explicit end marker — any H2 heading closes the agent block.
 //
+// Supported frontmatter fields (all others are stripped with a warning)
+// ─────────────────────────────────────────────────────────────────────
+//   description   Human-readable description of the sub-agent's role.
+//   model         AI model to use.  Default is "inherited" (uses the parent
+//                 workflow's model when not set).
+//
 // If no ## agent: markers are present the content is returned unchanged and no
 // files are written.
 
 const fs = require("fs");
 const path = require("path");
+
+// Supported frontmatter fields for inline sub-agents.
+// Any other field is stripped with a warning.
+const SUPPORTED_FRONTMATTER_FIELDS = ["description", "model"];
 
 // Regex for the start marker: ## agent: `name` (lowercase identifier)
 const START_MARKER_RE = /^##[ \t]+agent:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$/gm;
@@ -31,6 +41,76 @@ const START_MARKER_RE = /^##[ \t]+agent:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$/gm;
 // Regex that matches the start of any level-2 Markdown heading (## ).
 // Used to find the boundary where each agent block ends.
 const H2_HEADING_RE = /^##[ \t]/gm;
+
+/**
+ * Filters sub-agent frontmatter to only retain supported fields.
+ *
+ * Only `description` and `model` are valid fields in a sub-agent frontmatter
+ * block.  Any other top-level key is stripped and a warning is emitted.
+ * If `model` is not present its implicit default is "inherited" (the sub-agent
+ * uses the parent workflow's model), but the key is NOT written unless the
+ * workflow author explicitly sets it.
+ *
+ * When no YAML frontmatter delimiter (`---`) is found at the start of the
+ * content, the content is returned unchanged.
+ *
+ * @param {string} content   - Raw agent block content (frontmatter + prompt).
+ * @param {string} agentName - Agent name used in log messages.
+ * @returns {string} Content with only supported frontmatter fields retained.
+ */
+function filterSubAgentFrontmatter(content, agentName) {
+  // A YAML frontmatter block must start immediately at the beginning of the
+  // content (after trimming performed by the caller).
+  if (!content.startsWith("---\n") && content !== "---") {
+    return content;
+  }
+
+  // Locate the closing delimiter.  We search for "\n---" starting after the
+  // opening "---\n" (offset 4).
+  const closeIdx = content.indexOf("\n---", 3);
+  if (closeIdx === -1) {
+    return content;
+  }
+
+  // Lines between the opening and closing "---".
+  const fmLines = content.slice(4, closeIdx).split("\n");
+  // Everything after the closing "\n---" (including the optional newline).
+  const body = content.slice(closeIdx + 4);
+
+  const kept = [];
+  const stripped = [];
+
+  for (const line of fmLines) {
+    // Match a YAML key at the start of the line (simple scalar values only).
+    const keyMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_-]*)[ \t]*:/);
+    if (keyMatch) {
+      const key = keyMatch[1];
+      if (SUPPORTED_FRONTMATTER_FIELDS.includes(key)) {
+        kept.push(line);
+      } else {
+        stripped.push(key);
+      }
+    } else {
+      // Continuation / comment / blank line — keep only when at least one
+      // supported key has been accepted (avoids orphaned comments after a
+      // stripped key).
+      if (kept.length > 0) {
+        kept.push(line);
+      }
+    }
+  }
+
+  if (stripped.length > 0) {
+    core.warning(`[extractInlineSubAgents] sub-agent "${agentName}": unsupported frontmatter field(s) stripped: ${stripped.join(", ")} (only "description" and "model" are supported)`);
+  }
+
+  // If no supported fields remain, omit the frontmatter block entirely.
+  if (kept.length === 0) {
+    return body.replace(/^\n/, "");
+  }
+
+  return `---\n${kept.join("\n")}\n---${body}`;
+}
 
 /**
  * Extracts inline sub-agents from markdown content.
@@ -152,7 +232,8 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
 
   for (const agent of agents) {
     const agentPath = path.join(agentsDir, agent.name + ext);
-    const agentContent = agent.content.endsWith("\n") ? agent.content : agent.content + "\n";
+    const filteredContent = filterSubAgentFrontmatter(agent.content, agent.name);
+    const agentContent = filteredContent.endsWith("\n") ? filteredContent : filteredContent + "\n";
     fs.writeFileSync(agentPath, agentContent, "utf8");
     core.info(`[extractInlineSubAgents] Written sub-agent: ${agentPath} (${agentContent.length} bytes)`);
   }
@@ -161,4 +242,4 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
   return mainContent;
 }
 
-module.exports = { extractInlineSubAgents, writeInlineSubAgents, getEngineSubAgentTarget };
+module.exports = { extractInlineSubAgents, writeInlineSubAgents, getEngineSubAgentTarget, filterSubAgentFrontmatter };
