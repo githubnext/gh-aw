@@ -114,7 +114,7 @@ var GeminiDefaultDomains = []string{
 
 // PiDefaultDomains are the default domains required for the Pi CLI to operate.
 // Pi routes its API calls through the AWF LLM gateway (host.docker.internal) when
-// the firewall is enabled. The pi.dev domain covers the Pi API endpoint.
+// the firewall is enabled. The api.pi.ai domain covers the Pi API endpoint.
 var PiDefaultDomains = []string{
 	"api.pi.ai",
 	"host.docker.internal",

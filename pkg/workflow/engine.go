@@ -348,14 +348,25 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 
 			// Extract optional 'extensions' field (array of strings; used by the Pi engine)
 			if extVal, hasExt := engineObj["extensions"]; hasExt {
-				if extArray, ok := extVal.([]any); ok {
-					config.Extensions = make([]string, 0, len(extArray))
-					for _, ext := range extArray {
+				switch v := extVal.(type) {
+				case []any:
+					config.Extensions = make([]string, 0, len(v))
+					for _, ext := range v {
 						if extStr, ok := ext.(string); ok && extStr != "" {
 							config.Extensions = append(config.Extensions, extStr)
 						}
 					}
 					engineLog.Printf("Extracted engine.extensions: %v", config.Extensions)
+				case []string:
+					config.Extensions = make([]string, 0, len(v))
+					for _, ext := range v {
+						if ext != "" {
+							config.Extensions = append(config.Extensions, ext)
+						}
+					}
+					engineLog.Printf("Extracted engine.extensions ([]string): %v", config.Extensions)
+				default:
+					engineLog.Printf("Unexpected type for engine.extensions: %T, ignoring", extVal)
 				}
 			}
 

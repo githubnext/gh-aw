@@ -59,6 +59,20 @@ func TestAgentVersionInAwInfo(t *testing.T) {
 			expectedAgentVersion: string(constants.DefaultCodexVersion),
 			description:          "Should use default version when not provided",
 		},
+		{
+			name:                 "Pi with explicit version",
+			engineID:             "pi",
+			explicitVersion:      "0.2.0",
+			expectedAgentVersion: "0.2.0",
+			description:          "Should use explicit version when provided",
+		},
+		{
+			name:                 "Pi with default version",
+			engineID:             "pi",
+			explicitVersion:      "",
+			expectedAgentVersion: string(constants.DefaultPiVersion),
+			description:          "Should use default version when not provided",
+		},
 	}
 
 	for _, tt := range tests {
@@ -151,6 +165,18 @@ func TestGetInstallationVersion(t *testing.T) {
 			engineID:        "codex",
 			explicitVersion: "",
 			expectedVersion: string(constants.DefaultCodexVersion),
+		},
+		{
+			name:            "Pi with explicit version",
+			engineID:        "pi",
+			explicitVersion: "0.2.0",
+			expectedVersion: "0.2.0",
+		},
+		{
+			name:            "Pi without explicit version",
+			engineID:        "pi",
+			explicitVersion: "",
+			expectedVersion: string(constants.DefaultPiVersion),
 		},
 	}
 
