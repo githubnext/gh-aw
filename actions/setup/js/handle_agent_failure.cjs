@@ -626,7 +626,8 @@ function buildMissingDataContext(cacheMemoryEnabled) {
 }
 
 /**
- * Load missing_tool messages from agent output
+ * Load missing_tool messages from agent output.
+ * Returns an empty array when the output file doesn't exist, cannot be parsed, or has no missing_tool items.
  * @returns {Array<{tool: string|null, reason: string, alternatives?: string|null}>} Array of missing tool messages
  */
 function loadMissingToolMessages() {
