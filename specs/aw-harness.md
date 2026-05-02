@@ -214,7 +214,7 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 
 4. **Optimized for gh-aw container.** The harness **MUST** assume that the firewall, api-proxy, and MCP gateway are already running. It **MUST NOT** perform direct LLM API calls, redundant authentication, or network configuration.
 
-5. **`gh-proxy` and `cli-proxy` always on.** The Pi SDK does not support MCP natively. GitHub and other MCP server tools are bridged into Pi via the `mcp-bridge` extension. This bridge **REQUIRES** both `gh-proxy` (pre-authenticated `gh` CLI in bash) and `cli-proxy` (MCP servers mounted as CLI tools on `PATH`). A conforming implementation **MUST** enable both `gh-proxy` and `cli-proxy` when `engine: aw` is selected. An implementation **MUST NOT** allow these features to be disabled for `engine: aw`, regardless of the values specified in the workflow frontmatter (see [Section 6.2](#62-overrides-and-fixed-settings)).
+5. **`gh-proxy` and `cli-proxy` always on.** The Pi SDK does not support MCP natively. GitHub and other MCP server tools are bridged into Pi via the `mcp-bridge` extension. This bridge **REQUIRES** both `gh-proxy` (pre-authenticated `gh` CLI in bash) and `cli-proxy` (MCP servers mounted as CLI tools on `PATH`). A conforming implementation **MUST** enable both `gh-proxy` and `cli-proxy` when `engine: aw` is selected. A conforming implementation **MUST NOT** honor attempts to disable these features for `engine: aw`, regardless of the values specified in the workflow frontmatter (see [Section 6.2](#62-overrides-and-fixed-settings)).
 
 6. **TypeScript → Node 24.** Source **MUST** be TypeScript, compiled to ES2024, bundled via esbuild to a single `.cjs`. Leverages Node 24 features (native fetch, `structuredClone`, `AbortSignal.any`).
 
@@ -439,7 +439,7 @@ A conforming implementation **MUST** apply the following overrides regardless of
 | `cli-proxy` | `true` | Required for MCP bridge functionality |
 | `tools.github.mode` | `gh-proxy` | Pi SDK requires `gh-proxy`; `remote` mode is not supported |
 
-A conforming implementation **MUST NOT** honor `cli-proxy: false` or `tools.github.mode: remote` when `engine: aw` is active. These settings **MUST** be silently overridden.
+A conforming implementation **MUST NOT** honor attempts to disable `cli-proxy` or set `tools.github.mode: remote` when `engine: aw` is active. These settings **MUST** be overridden. A conforming implementation **MUST** emit a warning to stderr when either override is applied, so that workflow authors can diagnose unexpected configuration behaviour.
 
 ### 6.3 Step Extraction Algorithm
 
