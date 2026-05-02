@@ -352,6 +352,7 @@ export default defineConfig({
 						{ label: 'Imports', link: '/reference/imports/' },
 						{ label: 'Imports (APM)', link: '/reference/dependencies/' },
 						{ label: 'Imports (Copilot Agent Files)', link: '/reference/copilot-custom-agents/' },
+						{ label: 'Inline Sub-Agents', link: '/reference/inline-sub-agents/' },
 						{ label: 'Imports (Dependabot)', link: '/reference/dependabot/' },
 						{ label: 'Indexing (QMD)', link: '/reference/qmd/' },
 						{ label: 'Markdown', link: '/reference/markdown/' },

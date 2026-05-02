@@ -124,6 +124,8 @@ safe-outputs:
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 timeout-minutes: 15
 strict: false
+features:
+  inline-agents: true
 experiments:
   caveman: [yes, no]
 ---
@@ -173,6 +175,7 @@ These are **not** MCP protocol tools — they are bash executables. Call them wi
 12. **Workflow Dispatch Testing**: Use the `dispatch_workflow` safe output tool to trigger the `haiku-printer` workflow with a haiku as the message input. Create an original, creative haiku about software testing or automation.
 13. **PR Review Testing**: Review the diff of the current pull request. Leave 1-2 inline `create_pull_request_review_comment` comments on specific lines, then call `submit_pull_request_review` with a brief body summarizing your review and event `COMMENT`. To test `reply_to_pull_request_review_comment`: use the `pull_request_read` tool (with `method: "get_review_comments"` and `pullNumber: ${{ github.event.pull_request.number }}`) to fetch the PR's existing review comments, then reply to the most recent one using `reply_to_pull_request_review_comment` with its actual numeric `id` as the `comment_id`. Note: `create_pull_request_review_comment` does not return a `comment_id` — you must fetch existing comment IDs from the GitHub API. If the PR has no existing review comments, skip the reply sub-test.
 14. **Comment Memory Testing**: Append an original 3-line haiku to the comment-memory markdown file(s) in `/tmp/gh-aw/comment-memory/*.md` without removing existing content.
+15. **Sub-Agent Testing**: Use the `file-summarizer` agent to summarize `README.md`. Mark this test as ❌ if the sub-agent is unavailable or returns an error.
 
 ## Output
 
@@ -203,3 +206,11 @@ If all tests pass and this workflow was triggered by a pull_request event:
 - Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request (omit the `item_number` parameter to auto-target the triggering PR)
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `file-summarizer`
+---
+model: claude-haiku-4.5
+description: Summarizes the content of a file in a few concise sentences
+---
+You are a file summarization assistant. When given a file path, read the file and return a brief summary (2–4 sentences) describing its purpose and key contents. Be concise and factual.
+

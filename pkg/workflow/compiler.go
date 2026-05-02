@@ -492,7 +492,11 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	}
 
 	// Write output
-	return c.writeWorkflowOutput(lockFile, yamlContent, markdownPath)
+	if err := c.writeWorkflowOutput(lockFile, yamlContent, markdownPath); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ParseWorkflowFile parses a markdown workflow file and extracts all necessary data

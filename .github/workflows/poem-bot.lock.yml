@@ -306,6 +306,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_ENGINE_ID: "copilot"
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_INPUTS_POEM_THEME: ${{ github.event.inputs.poem_theme }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}

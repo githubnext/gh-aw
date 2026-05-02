@@ -72,4 +72,14 @@ const (
 	//	features:
 	//	  integrity-reactions: true
 	IntegrityReactionsFeatureFlag FeatureFlag = "integrity-reactions"
+	// InlineAgentsFeatureFlag enables the generation of inline sub-agent extraction and
+	// restoration steps in the compiled workflow. When enabled, the compiler adds a runtime
+	// step to extract `## agent: \`name\`` sections from the workflow markdown and write them
+	// to the engine-specific agents directory after the base branch restore step.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  inline-agents: true
+	InlineAgentsFeatureFlag FeatureFlag = "inline-agents"
 )

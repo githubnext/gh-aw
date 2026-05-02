@@ -11,6 +11,7 @@
 const fs = require("fs");
 const { isTruthy } = require("./is_truthy.cjs");
 const { processRuntimeImports } = require("./runtime_import.cjs");
+const { writeInlineSubAgents } = require("./extract_inline_sub_agents.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 
@@ -220,6 +221,28 @@ async function main() {
       core.info(`Content length change: ${beforeImports} -> ${afterImports} (${afterImports > beforeImports ? "+" : ""}${afterImports - beforeImports})`);
     } else {
       core.info("No runtime import macros found, skipping runtime import processing");
+    }
+
+    // Step 1.5: Extract and write inline sub-agents
+    // ## agent: name / ## end: name blocks are written to .github/agents/<name>.md.
+    // This happens after runtime imports so that any {{#runtime-import}} macros
+    // inside an agent block have already been resolved.
+    core.info("\n========================================");
+    core.info("[main] STEP 1.5: Inline Sub-Agent Extraction");
+    core.info("========================================");
+    const hasAgentMarkers = /^##[ \t]+agent:[ \t]+`[a-z]/m.test(content);
+    if (hasAgentMarkers) {
+      const beforeExtraction = content.length;
+      // Write agents to /tmp/gh-aw/<engine-dir>/ so the files are included in the
+      // activation artifact and available to the downstream agent job.
+      const agentsBaseDir = "/tmp/gh-aw";
+      const engineId = process.env.GH_AW_ENGINE_ID || "";
+      content = writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId);
+      const afterExtraction = content.length;
+      core.info(`Inline sub-agents extracted and written`);
+      core.info(`Content length change: ${beforeExtraction} -> ${afterExtraction} (${afterExtraction > beforeExtraction ? "+" : ""}${afterExtraction - beforeExtraction})`);
+    } else {
+      core.info("No inline sub-agent markers found, skipping");
     }
 
     // Step 2: Interpolate variables
