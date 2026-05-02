@@ -900,8 +900,9 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 		// Enumerate created files (shallow + summary) for immediate visibility
 		var fileCount int
 		var firstFiles []string
-		_ = filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+		if walkErr := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
+				logsDownloadLog.Printf("walk error at %s: %v", path, err)
 				return nil
 			}
 			if info.IsDir() {
@@ -915,7 +916,9 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 				}
 			}
 			return nil
-		})
+		}); walkErr != nil {
+			logsDownloadLog.Printf("filepath.Walk failed for %s: %v", outputDir, walkErr)
+		}
 		if fileCount == 0 {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Download completed but no artifact files were created (empty run)"))
 		} else {

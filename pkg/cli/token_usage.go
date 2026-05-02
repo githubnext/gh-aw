@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -268,8 +269,12 @@ func findTokenUsageFile(runDir string) string {
 	}
 
 	// Walk sandbox directory for any token-usage.jsonl
-	_ = filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			tokenUsageLog.Printf("walk error at %s: %v", path, err)
+			return nil
+		}
+		if info == nil || info.IsDir() {
 			return nil
 		}
 		if info.Name() == "token-usage.jsonl" {
@@ -277,7 +282,9 @@ func findTokenUsageFile(runDir string) string {
 			return filepath.SkipAll
 		}
 		return nil
-	})
+	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
+		tokenUsageLog.Printf("filepath.Walk failed for %s: %v", runDir, walkErr)
+	}
 	if primary != filepath.Join(runDir, "sandbox", "firewall", "logs", tokenUsageJSONLPath) {
 		tokenUsageLog.Printf("Found token usage file via walk: %s", primary)
 		return primary
@@ -296,8 +303,12 @@ func findAgentUsageFile(runDir string) string {
 	}
 
 	var found string
-	_ = filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() {
+	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			tokenUsageLog.Printf("walk error at %s: %v", path, err)
+			return nil
+		}
+		if info == nil || info.IsDir() {
 			return nil
 		}
 		if info.Name() == agentUsageJSONPath {
@@ -305,7 +316,9 @@ func findAgentUsageFile(runDir string) string {
 			return filepath.SkipAll
 		}
 		return nil
-	})
+	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
+		tokenUsageLog.Printf("filepath.Walk failed for %s: %v", runDir, walkErr)
+	}
 
 	if found != "" {
 		tokenUsageLog.Printf("Found agent usage file via walk: %s", found)
