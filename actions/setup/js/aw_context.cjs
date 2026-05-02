@@ -155,6 +155,8 @@ function resolveItemContext(payload) {
  */
 function buildAwContext() {
   const { item_type, item_number, comment_id, comment_node_id } = resolveItemContext(context.payload);
+  const assignments = readExperimentAssignments();
+  const experimentAssignments = assignments ? JSON.stringify(assignments) : "";
 
   return {
     repo: `${context.repo.owner}/${context.repo.repo}`,
@@ -196,10 +198,7 @@ function buildAwContext() {
     // picked by pick_experiment.cjs for the current workflow run (e.g. {"caveman":"yes"}).
     // Empty string when no experiments are declared or the assignments file cannot be read.
     // Propagated to dispatched child workflows for experiment context continuity.
-    experiments: (() => {
-      const assignments = readExperimentAssignments();
-      return assignments ? JSON.stringify(assignments) : "";
-    })(),
+    experiments: experimentAssignments,
   };
 }
 
