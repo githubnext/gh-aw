@@ -342,8 +342,9 @@ func (c *Compiler) writeInlineSubAgentFiles(agents []parser.InlineSubAgent, mark
 //
 // Resolution order:
 //  1. c.gitRoot (auto-detected at compiler creation) — most reliable
-//  2. Two-level parent of markdownPath — fallback for workflows stored in
-//     .github/workflows/ (the standard location)
+//  2. Parent's parent directory of markdownPath — fallback for workflows stored
+//     in .github/workflows/ (the standard location: going up from the workflow
+//     file's directory to .github/, then up again to the repository root)
 func (c *Compiler) resolveAgentsDir(markdownPath string) (string, error) {
 	if c.gitRoot != "" {
 		return filepath.Join(c.gitRoot, ".github", "agents"), nil
@@ -356,6 +357,7 @@ func (c *Compiler) resolveAgentsDir(markdownPath string) (string, error) {
 	return filepath.Join(repoRoot, ".github", "agents"), nil
 }
 
+// validateTemplateInjection checks compiled YAML for template injection vulnerabilities
 // (unsafe GitHub Actions expressions used directly in run: blocks).
 //
 // When parsedWorkflow is non-nil the YAML was already parsed for schema validation;
