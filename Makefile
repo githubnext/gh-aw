@@ -19,7 +19,7 @@ all: build
 
 # Build the binary, run make deps before this
 .PHONY: build
-build: sync-action-pins sync-action-scripts
+build: sync-action-pins sync-action-scripts aw-harness
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build for all platforms
@@ -232,6 +232,35 @@ bundle-js:
 	@go build -o bundle-js ./cmd/bundle-js
 	@echo "✓ bundle-js tool built"
 	@echo "To bundle a JavaScript file: ./bundle-js <input-file> [output-file]"
+
+# ── AW Harness (EXPERIMENTAL) ─────────────────────────────────────────────────
+
+# Install aw-harness dependencies
+.PHONY: deps-aw-harness
+deps-aw-harness: check-node-version
+	@echo "Installing aw-harness dependencies..."
+	cd aw-harness && npm ci
+	@echo "✓ aw-harness dependencies installed"
+
+# Build the aw-harness TypeScript project and copy bundle to actions/setup/js/
+# EXPERIMENTAL: engine: aw is experimental and subject to breaking changes
+.PHONY: aw-harness
+aw-harness: deps-aw-harness
+	@echo "Building aw-harness (EXPERIMENTAL)..."
+	cd aw-harness && npm run typecheck && node --experimental-strip-types build.ts
+	@echo "✓ aw-harness built → actions/setup/js/aw_harness.cjs"
+
+# Run aw-harness tests
+.PHONY: test-aw-harness
+test-aw-harness: deps-aw-harness
+	cd aw-harness && npx vitest run
+
+# Lint aw-harness TypeScript sources (typecheck + prettier)
+.PHONY: lint-aw-harness
+lint-aw-harness: deps-aw-harness
+	@echo "Linting aw-harness..."
+	cd aw-harness && npm run typecheck
+	@echo "✓ aw-harness lint passed"
 
 # Test all code (Go, JavaScript, and wasm golden)
 .PHONY: test-all
@@ -609,7 +638,7 @@ check-validator-sizes:
 
 # Validate all project files
 .PHONY: lint
-lint: fmt-check fmt-check-json lint-cjs golint
+lint: fmt-check fmt-check-json lint-cjs lint-aw-harness golint
 	@echo "✓ All validations passed"
 
 # Install the binary locally

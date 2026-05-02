@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "es2022",
+    "lib": ["es2024"],
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "declaration": false
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "build.ts", "vitest.config.ts"]
+}
