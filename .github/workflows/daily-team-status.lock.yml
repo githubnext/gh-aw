@@ -322,7 +322,6 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/base
-            /tmp/gh-aw/.agents/agents
           if-no-files-found: ignore
           retention-days: 1
 
@@ -437,21 +436,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      - name: Restore inline sub-agents from activation artifact
-        run: |
-          SRC="/tmp/gh-aw/.agents/agents"
-          DST="${GITHUB_WORKSPACE}/.agents/agents"
-          echo "[restore-sub-agents] source: $SRC"
-          if [ -d "$SRC" ]; then
-            echo "[restore-sub-agents] found $(ls "$SRC"/*".agent.md" 2>/dev/null | wc -l) *.agent.md file(s) in source"
-            ls -la "$SRC"/*".agent.md" 2>/dev/null || echo "[restore-sub-agents] no *.agent.md files in source"
-            mkdir -p "$DST"
-            cp "$SRC/"*".agent.md" "$DST/" 2>/dev/null || echo "[restore-sub-agents] cp failed or no files to copy"
-            echo "[restore-sub-agents] destination ($DST) after copy:"
-            ls -la "$DST" 2>/dev/null || echo "[restore-sub-agents] destination directory is empty or missing"
-          else
-            echo "[restore-sub-agents] source directory not found — no inline sub-agents to restore"
-          fi
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:

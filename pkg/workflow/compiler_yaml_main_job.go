@@ -8,7 +8,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/parser"
 )
 
 // generateMainJobSteps generates the complete sequence of steps for the main agent execution job
@@ -369,32 +368,6 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
 	yaml.WriteString("          path: /tmp/gh-aw\n")
 
-	// Restore inline sub-agents written during the activation job.
-	// The activation job writes sub-agent files to /tmp/gh-aw/<engine-dir>/ and
-	// uploads them as part of the activation artifact. Copying them into the checkout
-	// workspace makes them discoverable by the engine CLI.
-	engineID := ""
-	if data.EngineConfig != nil {
-		engineID = data.EngineConfig.ID
-	}
-	subAgentDir := parser.GetEngineSubAgentDir(engineID)
-	subAgentExt := parser.GetEngineSubAgentExt(engineID)
-	yaml.WriteString("      - name: Restore inline sub-agents from activation artifact\n")
-	yaml.WriteString("        run: |\n")
-	fmt.Fprintf(yaml, "          SRC=\"/tmp/gh-aw/%s\"\n", subAgentDir)
-	fmt.Fprintf(yaml, "          DST=\"${GITHUB_WORKSPACE}/%s\"\n", subAgentDir)
-	yaml.WriteString("          echo \"[restore-sub-agents] source: $SRC\"\n")
-	yaml.WriteString("          if [ -d \"$SRC\" ]; then\n")
-	fmt.Fprintf(yaml, "            echo \"[restore-sub-agents] found $(ls \"$SRC\"/*\"%s\" 2>/dev/null | wc -l) *%s file(s) in source\"\n", subAgentExt, subAgentExt)
-	fmt.Fprintf(yaml, "            ls -la \"$SRC\"/*\"%s\" 2>/dev/null || echo \"[restore-sub-agents] no *%s files in source\"\n", subAgentExt, subAgentExt)
-	yaml.WriteString("            mkdir -p \"$DST\"\n")
-	fmt.Fprintf(yaml, "            cp \"$SRC/\"*\"%s\" \"$DST/\" 2>/dev/null || echo \"[restore-sub-agents] cp failed or no files to copy\"\n", subAgentExt)
-	fmt.Fprintf(yaml, "            echo \"[restore-sub-agents] destination ($DST) after copy:\"\n")
-	fmt.Fprintf(yaml, "            ls -la \"$DST\" 2>/dev/null || echo \"[restore-sub-agents] destination directory is empty or missing\"\n")
-	yaml.WriteString("          else\n")
-	yaml.WriteString("            echo \"[restore-sub-agents] source directory not found — no inline sub-agents to restore\"\n")
-	yaml.WriteString("          fi\n")
-
 	// Materialize comment-memory safe outputs as editable markdown files for the agent.
 	// This prepares /tmp/gh-aw/comment-memory/*.md and injects prompt guidance so the agent
 	// can edit memory content directly and persist it via comment_memory safe outputs.
@@ -424,6 +397,15 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 			registry.GetAllAgentManifestFolders(),
 			registry.GetAllAgentManifestFiles(),
 		)
+	}
+
+	// Restore inline sub-agents written during the activation job.
+	// This step runs AFTER the base-branch restore so the engine-specific agent directory
+	// is not clobbered. It is guarded by the features.inline-agents flag.
+	if v, ok := data.Features[string(constants.InlineAgentsFeatureFlag)]; ok {
+		if enabled, isBool := v.(bool); isBool && enabled {
+			generateRestoreInlineSubAgentsStep(yaml, data)
+		}
 	}
 
 	// Add pre-agent-steps (if any) after base-branch restore but before MCP setup.
