@@ -3,129 +3,35 @@
 package workflow
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-// ── injectAwContextIntoWorkflowCallYAML ───────────────────────────────────
+// ── injectAwContextIntoOnYAML ─────────────────────────────────────────────
 
-func TestInjectAwContextIntoWorkflowCallYAML(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		wantSubs []string // substrings that must appear in result
-		noSubs   []string // substrings that must NOT appear in result
-	}{
-		{
-			name: "no workflow_call trigger – no injection",
-			input: `on:
-  workflow_dispatch:
-    inputs:
-      foo:
-        type: string`,
-			noSubs: []string{"workflow_call"},
-		},
-		{
-			name: "bare workflow_call – adds inputs and aw_context",
-			input: `on:
-  workflow_call:`,
-			wantSubs: []string{
-				"workflow_call:",
-				"inputs:",
-				AwContextInputName + ":",
-				"type: string",
-				"required: false",
-			},
-		},
-		{
-			name: "workflow_call with null value – adds inputs and aw_context",
-			input: `on:
-  workflow_call: null`,
-			wantSubs: []string{
-				"inputs:",
-				AwContextInputName + ":",
-			},
-		},
-		{
-			name: "workflow_call with existing inputs – aw_context added first",
-			input: `on:
-  workflow_call:
-    inputs:
-      payload:
-        type: string
-        required: false`,
-			wantSubs: []string{
-				AwContextInputName + ":",
-				"payload:",
-				"type: string",
-			},
-		},
-		{
-			name: "idempotent – aw_context not duplicated on second call",
-			input: `on:
-  workflow_call:
-    inputs:
-      aw_context:
-        default: ""
-        type: string`,
-			// No duplicate should be added
-			wantSubs: []string{AwContextInputName + ":"},
-		},
-		{
-			name: "both workflow_dispatch and workflow_call – both injected",
-			input: `on:
-  workflow_dispatch:
-  workflow_call:`,
-			wantSubs: []string{
-				"workflow_dispatch:",
-				"workflow_call:",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := injectAwContextIntoWorkflowCallYAML(tt.input)
-
-			for _, sub := range tt.wantSubs {
-				assert.Contains(t, result, sub,
-					"expected %q to contain %q", tt.name, sub)
-			}
-			for _, sub := range tt.noSubs {
-				assert.NotContains(t, result, sub,
-					"expected %q NOT to contain %q", tt.name, sub)
-			}
-		})
-	}
+func TestInjectAwContextIntoOnYAML_BasicInjection(t *testing.T) {
+	input := `on:
+  workflow_dispatch:`
+	result := injectAwContextIntoOnYAML(input)
+	assert.Contains(t, result, AwContextInputName+":", "aw_context input should be injected")
+	assert.Contains(t, result, "inputs:", "inputs block should be added")
+	assert.Contains(t, result, "type: string", "type should be set")
 }
 
-func TestInjectAwContextIntoWorkflowCallYAML_Idempotent(t *testing.T) {
+func TestInjectAwContextIntoOnYAML_NoWorkflowDispatch(t *testing.T) {
+	input := `on:
+  push:
+    branches: [main]`
+	result := injectAwContextIntoOnYAML(input)
+	assert.Equal(t, input, result, "should be unchanged when no workflow_dispatch")
+}
+
+func TestInjectAwContextIntoOnYAML_WorkflowCallUnchanged(t *testing.T) {
+	// workflow_call should NOT get aw_context injected via this function
 	input := `on:
   workflow_call:`
-	first := injectAwContextIntoWorkflowCallYAML(input)
-	second := injectAwContextIntoWorkflowCallYAML(first)
-	assert.Equal(t, first, second, "calling injection twice should be idempotent")
-	// aw_context: should appear exactly once
-	count := strings.Count(second, AwContextInputName+":")
-	assert.Equal(t, 1, count, "aw_context: should appear exactly once after double injection")
-}
-
-func TestInjectAwContextIntoWorkflowCallYAML_PreservesExisting(t *testing.T) {
-	input := `on:
-  workflow_call:
-    inputs:
-      payload:
-        description: The agent payload
-        type: string
-        required: false`
-	result := injectAwContextIntoWorkflowCallYAML(input)
-
-	// Original inputs preserved
-	assert.Contains(t, result, "payload:", "original payload input should be preserved")
-	assert.Contains(t, result, "The agent payload", "original description should be preserved")
-
-	// aw_context added
-	assert.Contains(t, result, AwContextInputName+":", "aw_context input should be injected")
+	result := injectAwContextIntoOnYAML(input)
+	assert.NotContains(t, result, AwContextInputName+":",
+		"workflow_call should not get aw_context injected by injectAwContextIntoOnYAML")
 }

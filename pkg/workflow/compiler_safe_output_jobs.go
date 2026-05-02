@@ -162,8 +162,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 // framework and must not be forwarded from the agent payload to called workflows.
 // These inputs are always populated by the framework, not from the agent's payload JSON.
 var reservedCallWorkflowInputs = map[string]bool{
-	"payload":    true,
-	"aw_context": true,
+	"payload": true,
 }
 
 // buildCallWorkflowJobs generates one conditional `uses:` job per workflow in the
@@ -212,11 +211,10 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 		// then add per-input entries derived from the payload for every declared
 		// workflow_call input on the worker (except 'payload' itself) so that
 		// worker steps can reference inputs.<name> directly without parsing JSON.
-		// Also forward the aw_context so the called workflow can inherit the caller's
-		// experiment assignments and propagate caller metadata.
+		// aw_context is embedded inside the payload JSON by the call_workflow handler
+		// and is extracted from there by the called workflow's pick-experiment step.
 		with := map[string]any{
-			"payload":    "${{ needs.safe_outputs.outputs.call_workflow_payload }}",
-			"aw_context": "${{ needs.safe_outputs.outputs.call_workflow_aw_context || '' }}",
+			"payload": "${{ needs.safe_outputs.outputs.call_workflow_payload }}",
 		}
 
 		if markdownPath != "" {

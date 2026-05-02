@@ -244,7 +244,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"caveman":{"variants":["yes","no"]}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
-          GH_AW_EXPERIMENT_CONTEXT: ${{ inputs.aw_context || '' }}
+          GH_AW_EXPERIMENT_CONTEXT: ${{ inputs.aw_context || fromJSON(inputs.payload || '{}').aw_context || '' }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

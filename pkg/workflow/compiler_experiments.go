@@ -284,10 +284,11 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_DIR: %s\n", experimentsCacheDir),
 		// Pass the incoming aw_context so the pick-experiment step can inherit
 		// parent experiment assignments instead of re-picking independently.
-		// Available as ${{ inputs.aw_context }} for both workflow_dispatch and
-		// workflow_call triggers (aw_context is injected into both by the compiler).
+		// For workflow_dispatch: aw_context is a direct input (inputs.aw_context).
+		// For workflow_call: aw_context is embedded in the payload JSON by the call_workflow handler.
+		// The combined expression handles both cases transparently.
 		// Empty string when the workflow was not triggered by a parent agentic workflow.
-		"          GH_AW_EXPERIMENT_CONTEXT: ${{ inputs.aw_context || '' }}\n",
+		"          GH_AW_EXPERIMENT_CONTEXT: ${{ inputs.aw_context || fromJSON(inputs.payload || '{}').aw_context || '' }}\n",
 		"        with:\n",
 		"          script: |\n",
 		"            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n",

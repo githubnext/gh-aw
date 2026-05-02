@@ -87,7 +87,9 @@ async function main(config = {}) {
       // through a single `payload` input to the called workflow.
       /** @type {Record<string, unknown>} */
       const inputs = message.inputs && typeof message.inputs === "object" ? message.inputs : {};
-      const payloadJson = JSON.stringify(inputs);
+      // Embed aw_context inside the payload JSON so the called workflow can inherit caller
+      // metadata and experiment assignments without requiring an additional workflow_call input.
+      const payloadJson = JSON.stringify({ ...inputs, aw_context: JSON.stringify(buildAwContext()) });
 
       // If in staged mode, preview the workflow call without executing it
       if (isStaged) {
@@ -103,9 +105,6 @@ async function main(config = {}) {
       // Set the step outputs that the conditional `uses:` jobs check
       core.setOutput("call_workflow_name", workflowName);
       core.setOutput("call_workflow_payload", payloadJson);
-      // Set the aw_context output so call-* fan-out jobs can forward it as a workflow_call input.
-      // This propagates the current experiment assignments and caller metadata to the called workflow.
-      core.setOutput("call_workflow_aw_context", JSON.stringify(buildAwContext()));
 
       core.info(`✓ Selected workflow: ${workflowName}`);
       core.info(`  Payload: ${payloadJson}`);

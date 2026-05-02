@@ -51,7 +51,14 @@ describe("call_workflow handler factory", () => {
     expect(result.success).toBe(true);
     expect(result.workflow_name).toBe("spring-boot-bugfix");
     expect(core.setOutput).toHaveBeenCalledWith("call_workflow_name", "spring-boot-bugfix");
-    expect(core.setOutput).toHaveBeenCalledWith("call_workflow_payload", JSON.stringify({ environment: "staging", version: "1.2.3" }));
+
+    // payload should contain the inputs AND the embedded aw_context
+    const payloadCall = core.setOutput.mock.calls.find(([name]) => name === "call_workflow_payload");
+    expect(payloadCall).toBeDefined();
+    const payload = JSON.parse(payloadCall[1]);
+    expect(payload.environment).toBe("staging");
+    expect(payload.version).toBe("1.2.3");
+    expect(payload).toHaveProperty("aw_context");
   });
 
   it("should reject unknown workflow names", async () => {
@@ -111,7 +118,7 @@ describe("call_workflow handler factory", () => {
     expect(result2.error).toContain("Max count");
   });
 
-  it("should serialise inputs as JSON payload", async () => {
+  it("should serialise inputs as JSON payload including embedded aw_context", async () => {
     const config = {
       workflows: ["worker-a"],
       max: 1,
@@ -126,8 +133,14 @@ describe("call_workflow handler factory", () => {
 
     await handler({ workflow_name: "worker-a", inputs });
 
-    const expectedPayload = JSON.stringify(inputs);
-    expect(core.setOutput).toHaveBeenCalledWith("call_workflow_payload", expectedPayload);
+    const payloadCall = core.setOutput.mock.calls.find(([name]) => name === "call_workflow_payload");
+    expect(payloadCall).toBeDefined();
+    const payload = JSON.parse(payloadCall[1]);
+    expect(payload.package_manager).toBe("npm");
+    expect(payload.dry_run).toBe(true);
+    expect(payload.count).toBe(42);
+    // aw_context is always embedded in the payload
+    expect(payload).toHaveProperty("aw_context");
   });
 
   it("should allow any workflow when allowed list is empty", async () => {
@@ -155,25 +168,27 @@ describe("call_workflow handler factory", () => {
     const result = await handler({ workflow_name: "worker-a" });
 
     expect(result.success).toBe(true);
-    expect(core.setOutput).toHaveBeenCalledWith("call_workflow_payload", "{}");
+    // Even with no inputs, payload should still have embedded aw_context
+    const payloadCall = core.setOutput.mock.calls.find(([name]) => name === "call_workflow_payload");
+    expect(payloadCall).toBeDefined();
+    const payload = JSON.parse(payloadCall[1]);
+    expect(payload).toHaveProperty("aw_context");
   });
 
-  it("should set call_workflow_aw_context output with aw_context JSON", async () => {
+  it("should embed aw_context in payload including standard fields", async () => {
     const config = { workflows: ["worker-a"], max: 1 };
     const handler = await main(config);
 
     const result = await handler({ workflow_name: "worker-a", inputs: {} });
 
     expect(result.success).toBe(true);
-    // call_workflow_aw_context should be set
-    const setOutputCalls = core.setOutput.mock.calls;
-    const awContextCall = setOutputCalls.find(([name]) => name === "call_workflow_aw_context");
-    expect(awContextCall).toBeDefined();
+    const payloadCall = core.setOutput.mock.calls.find(([name]) => name === "call_workflow_payload");
+    expect(payloadCall).toBeDefined();
+    const payload = JSON.parse(payloadCall[1]);
 
-    // The value should be valid JSON containing standard aw_context fields
-    const awContextJson = awContextCall[1];
-    expect(() => JSON.parse(awContextJson)).not.toThrow();
-    const awContext = JSON.parse(awContextJson);
+    // aw_context is a JSON string embedded in the payload
+    expect(typeof payload.aw_context).toBe("string");
+    const awContext = JSON.parse(payload.aw_context);
     expect(awContext).toHaveProperty("repo");
     expect(awContext).toHaveProperty("run_id");
     expect(awContext).toHaveProperty("workflow_id");
@@ -181,7 +196,7 @@ describe("call_workflow handler factory", () => {
     expect(awContext).toHaveProperty("experiments");
   });
 
-  it("should include experiment assignments in call_workflow_aw_context when GH_AW_EXPERIMENTS_JSON is set", async () => {
+  it("should include experiment assignments in embedded aw_context when GH_AW_EXPERIMENTS_JSON is set", async () => {
     process.env.GH_AW_EXPERIMENTS_JSON = '{"feature1":"A","style":"concise"}';
     const config = { workflows: ["worker-a"], max: 1 };
     const handler = await main(config);
@@ -189,11 +204,10 @@ describe("call_workflow handler factory", () => {
     const result = await handler({ workflow_name: "worker-a", inputs: {} });
 
     expect(result.success).toBe(true);
-    const setOutputCalls = core.setOutput.mock.calls;
-    const awContextCall = setOutputCalls.find(([name]) => name === "call_workflow_aw_context");
-    expect(awContextCall).toBeDefined();
-
-    const awContext = JSON.parse(awContextCall[1]);
+    const payloadCall = core.setOutput.mock.calls.find(([name]) => name === "call_workflow_payload");
+    expect(payloadCall).toBeDefined();
+    const payload = JSON.parse(payloadCall[1]);
+    const awContext = JSON.parse(payload.aw_context);
     expect(awContext.experiments).toBe('{"feature1":"A","style":"concise"}');
 
     delete process.env.GH_AW_EXPERIMENTS_JSON;
