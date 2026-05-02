@@ -428,14 +428,16 @@ previous run today.
 
 ## Step 9 — Update Experiment Lifecycle Labels
 
-For each experiment with a tracking `issue:` field, manage the following GitHub labels on the
-tracking issue. Create the label first if it does not already exist (use a neutral gray color).
+For each experiment with a tracking `issue:` field, apply the following GitHub labels on the
+tracking issue when the corresponding condition is met. Create the label first if it does not
+already exist (use a neutral gray color). Labels are **additive only** — once applied they are
+not removed automatically; the person concluding the experiment can remove them manually.
 
-| Label                           | Apply when                                                                   | Remove when                                    |
-|--------------------------------|------------------------------------------------------------------------------|------------------------------------------------|
-| `experiment:active`            | `start_date <= today <= end_date` (or no dates declared)                    | `end_date` has passed                          |
-| `experiment:ready-for-analysis`| All variants have `n >= min_samples`                                         | Experiment is concluded or abandoned           |
-| `experiment:concluded`         | Recommendation is PROMOTE or ABANDON after reaching statistical significance | Never (permanent conclusion label)             |
+| Label                           | Apply when                                                                   |
+|--------------------------------|------------------------------------------------------------------------------|
+| `experiment:active`            | `start_date <= today <= end_date` (or no dates declared)                    |
+| `experiment:ready-for-analysis`| All variants have `n >= min_samples`                                         |
+| `experiment:concluded`         | Recommendation is PROMOTE or ABANDON after reaching statistical significance |
 
 Use the `add-labels` safe-output tool to apply labels to the tracking issue.
 If a label does not exist in the repository, create it with `create_label` GitHub MCP tool

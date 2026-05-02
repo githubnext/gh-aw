@@ -209,17 +209,17 @@ async function writeSummary(assignments, configs, state, core) {
   }
   lines.push("");
 
-  // Progress bars and ready-for-analysis flags when min_samples is declared.
-  const progressNames = names.filter(name => configs[name]?.min_samples);
+  // Progress bars and ready-for-analysis flags when min_samples is a positive integer.
+  const progressNames = names.filter(name => Number.isInteger(configs[name]?.min_samples) && configs[name].min_samples > 0);
   if (progressNames.length > 0) {
     lines.push("### 📊 Sampling Progress");
     lines.push("");
     for (const name of progressNames) {
       const cfg = configs[name];
-      const minSamples = cfg.min_samples || 0;
+      const minSamples = cfg.min_samples;
       const variants = cfg.variants || [];
       const counts = state.counts[name] || {};
-      const allReady = minSamples > 0 && variants.every(v => (counts[v] || 0) >= minSamples);
+      const allReady = variants.every(v => (counts[v] || 0) >= minSamples);
       if (allReady) {
         lines.push(`**${name}** ✅ Ready for analysis`);
       } else {
@@ -227,7 +227,7 @@ async function writeSummary(assignments, configs, state, core) {
       }
       for (const variant of variants) {
         const n = counts[variant] || 0;
-        const pct = minSamples > 0 ? Math.min(100, Math.round((n / minSamples) * 100)) : 0;
+        const pct = Math.min(100, Math.round((n / minSamples) * 100));
         const filled = Math.round(pct / 5); // 20-char bar
         const bar = "█".repeat(filled) + "░".repeat(20 - filled);
         lines.push(`  ${variant}: ${bar} ${n}/${minSamples} (${pct}%)`);

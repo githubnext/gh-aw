@@ -199,7 +199,7 @@ func extractGuardrailMetrics(raw any) []GuardrailMetric {
 		}
 		name, _ := m["name"].(string)
 		threshold, _ := m["threshold"].(string)
-		if name == "" {
+		if name == "" || threshold == "" {
 			continue
 		}
 		result = append(result, GuardrailMetric{Name: name, Threshold: threshold})

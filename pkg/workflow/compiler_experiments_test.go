@@ -430,6 +430,29 @@ func TestExtractExperimentConfigsFromFrontmatter(t *testing.T) {
 				assert.Equal(t, []int{30, 70}, got["object"].Weight, "object weight")
 			},
 		},
+		{
+			name: "guardrail entry with empty threshold is skipped",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"exp": map[string]any{
+						"variants": []any{"A", "B"},
+						"guardrail_metrics": []any{
+							map[string]any{"name": "success_rate"},                      // missing threshold — should be skipped
+							map[string]any{"name": "success_rate", "threshold": ""},     // empty threshold — should be skipped
+							map[string]any{"name": "error_rate", "threshold": "<=0.05"}, // valid
+						},
+					},
+				},
+			},
+			check: func(t *testing.T, got map[string]*ExperimentConfig) {
+				require.NotNil(t, got, "config should exist")
+				cfg := got["exp"]
+				require.NotNil(t, cfg, "exp config should exist")
+				require.Len(t, cfg.GuardrailMetrics, 1, "only the valid guardrail entry should be kept")
+				assert.Equal(t, "error_rate", cfg.GuardrailMetrics[0].Name, "guardrail name")
+				assert.Equal(t, "<=0.05", cfg.GuardrailMetrics[0].Threshold, "guardrail threshold")
+			},
+		},
 	}
 
 	for _, tt := range tests {

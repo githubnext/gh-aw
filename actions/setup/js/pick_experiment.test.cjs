@@ -458,6 +458,36 @@ describe("pick_experiment", () => {
       const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
       expect(rawCall).toContain("✅ Ready for analysis");
     });
+
+    it("does not render a progress bar when min_samples is 0", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        style: { variants: ["A", "B"], min_samples: 0 },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      delete process.env.GITHUB_REPOSITORY;
+
+      await main();
+
+      const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
+      expect(rawCall).not.toContain("📊 Sampling Progress");
+    });
+
+    it("does not render a progress bar when min_samples is negative", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        style: { variants: ["A", "B"], min_samples: -5 },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      delete process.env.GITHUB_REPOSITORY;
+
+      await main();
+
+      const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
+      expect(rawCall).not.toContain("📊 Sampling Progress");
+    });
   });
 
   // ── pickVariantWeighted ────────────────────────────────────────────────────
