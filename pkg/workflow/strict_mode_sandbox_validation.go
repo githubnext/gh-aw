@@ -44,15 +44,13 @@ func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConf
 		// configuration is unambiguous.  A bare object (e.g. { version: "v0.25.29" }
 		// with no id) would silently default to AWF in non-strict builds but that
 		// implicit defaulting is not acceptable in strict mode.
-		if !agent.Disabled {
-			if !isSupportedSandboxType(getAgentType(agent)) {
-				return fmt.Errorf(
-					"strict mode: 'sandbox.agent' must specify an explicit 'id' (e.g., id: awf). " +
-						"A sandbox agent without an 'id' is ambiguous and not allowed in strict mode. " +
-						"Add 'id: awf' to your sandbox.agent configuration. " +
-						"See: https://github.github.com/gh-aw/reference/sandbox/",
-				)
-			}
+		if !agent.Disabled && !isSupportedSandboxType(getAgentType(agent)) {
+			return fmt.Errorf(
+				"strict mode: 'sandbox.agent' must specify an explicit 'id' (e.g., id: awf). " +
+					"A sandbox agent without an 'id' is ambiguous and not allowed in strict mode. " +
+					"Add 'id: awf' to your sandbox.agent configuration. " +
+					"See: https://github.github.com/gh-aw/reference/sandbox/",
+			)
 		}
 
 		if agent.Command != "" {
