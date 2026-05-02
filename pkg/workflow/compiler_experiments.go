@@ -397,7 +397,10 @@ func sortedExperimentNames(experiments map[string][]string) []string {
 // experimentArtifactUploadName returns the artifact name used when uploading the experiment
 // artifact from the activation job.
 // For workflow_call workflows the runtime prefix expression is prepended.
-// For regular workflows the sanitized workflow ID is used as a prefix.
+// For regular workflows the sanitized workflow ID is used as a prefix so the artifact name
+// uniquely identifies the producing workflow (e.g. "smokecopilot-experiment").
+// An empty sanitizedID falls back to the base name for defensive compatibility; in practice
+// the compiler always sets a non-empty WorkflowID before this function is called.
 func experimentArtifactUploadName(data *WorkflowData, sanitizedID string) string {
 	if hasWorkflowCallTrigger(data.On) {
 		return artifactPrefixExprForActivationJob(data) + constants.ExperimentArtifactName
@@ -411,7 +414,10 @@ func experimentArtifactUploadName(data *WorkflowData, sanitizedID string) string
 // experimentArtifactDownloadName returns the artifact name used when downloading the experiment
 // artifact from a downstream job.
 // For workflow_call workflows the runtime prefix expression is prepended.
-// For regular workflows the sanitized workflow ID is used as a prefix.
+// For regular workflows the sanitized workflow ID is used as a prefix, matching the name
+// produced by experimentArtifactUploadName.
+// An empty sanitizedID falls back to the base name for defensive compatibility; in practice
+// the compiler always sets a non-empty WorkflowID before this function is called.
 func experimentArtifactDownloadName(data *WorkflowData) string {
 	if hasWorkflowCallTrigger(data.On) {
 		return artifactPrefixExprForDownstreamJob(data) + constants.ExperimentArtifactName
