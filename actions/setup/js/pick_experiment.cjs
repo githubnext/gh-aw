@@ -319,6 +319,8 @@ function parseParentExperimentAssignments() {
     for (const [k, v] of Object.entries(experiments)) {
       if (typeof v === "string") {
         result[k] = v;
+      } else {
+        core.warning(`Experiment "${k}" in parent aw_context has non-string value (${typeof v}), skipping`);
       }
     }
     return result;
@@ -388,7 +390,7 @@ async function main() {
     // Inherit parent assignment when available.  The parent variant is used as-is
     // without updating state counters since the experiment was already counted
     // in the parent workflow's activation job.
-    if (Object.prototype.hasOwnProperty.call(parentAssignments, name)) {
+    if (Object.hasOwn(parentAssignments, name)) {
       const inherited = parentAssignments[name];
       // Validate: the inherited variant must be one of the locally declared variants.
       // If not (e.g. variants changed since the parent ran), fall through to normal picking.

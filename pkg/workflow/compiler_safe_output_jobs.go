@@ -158,6 +158,14 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	return nil
 }
 
+// reservedCallWorkflowInputs is the set of workflow_call inputs that are managed by the
+// framework and must not be forwarded from the agent payload to called workflows.
+// These inputs are always populated by the framework, not from the agent's payload JSON.
+var reservedCallWorkflowInputs = map[string]bool{
+	"payload":    true,
+	"aw_context": true,
+}
+
 // buildCallWorkflowJobs generates one conditional `uses:` job per workflow in the
 // call-workflow allowlist. Each job:
 //   - depends on safe_outputs
@@ -236,7 +244,7 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 				} else if workflowInputs != nil {
 					typedInputCount := 0
 					for inputName := range workflowInputs {
-						if inputName == "payload" || inputName == "aw_context" {
+						if reservedCallWorkflowInputs[inputName] {
 							continue
 						}
 						with[inputName] = fmt.Sprintf("${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).%s }}", inputName)

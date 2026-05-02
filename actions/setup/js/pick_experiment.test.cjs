@@ -618,12 +618,15 @@ describe("pick_experiment", () => {
       expect(parseParentExperimentAssignments()).toEqual({ feature1: "A", style: "concise" });
     });
 
-    it("filters out non-string experiment values", () => {
+    it("filters out non-string experiment values and emits warnings", () => {
       const awContext = {
         experiments: JSON.stringify({ feature1: "A", bad: 42, alsobad: null }),
       };
       process.env.GH_AW_EXPERIMENT_CONTEXT = JSON.stringify(awContext);
       expect(parseParentExperimentAssignments()).toEqual({ feature1: "A" });
+      // Warnings should have been emitted for the non-string values
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('"bad"'));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('"alsobad"'));
     });
   });
 
