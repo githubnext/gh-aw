@@ -31,7 +31,7 @@ func TestExtractInlineSubAgents_SingleAgent(t *testing.T) {
 
 Handle the issue.
 
-<!-- @agent: planner -->
+## @agent: planner
 ---
 engine: copilot
 ---
@@ -51,13 +51,13 @@ func TestExtractInlineSubAgents_MultipleAgents(t *testing.T) {
 
 Main prompt.
 
-<!-- @agent: planner -->
+## @agent: planner
 ---
 engine: copilot
 ---
 You are a planner.
 
-<!-- @agent: executor -->
+## @agent: executor
 ---
 engine: copilot
 ---
@@ -77,7 +77,7 @@ You are an executor.`
 }
 
 func TestExtractInlineSubAgents_AgentAtStartOfFile(t *testing.T) {
-	markdown := `<!-- @agent: only-agent -->
+	markdown := `## @agent: only-agent
 ---
 engine: copilot
 ---
@@ -94,7 +94,7 @@ Agent prompt.`
 func TestExtractInlineSubAgents_AgentWithoutFrontmatter(t *testing.T) {
 	markdown := `Main workflow.
 
-<!-- @agent: simple -->
+## @agent: simple
 Just a prompt, no frontmatter.`
 
 	_, agents, err := ExtractInlineSubAgents(markdown)
@@ -105,13 +105,13 @@ Just a prompt, no frontmatter.`
 	assert.Equal(t, "Just a prompt, no frontmatter.", agents[0].Content, "agent content should be the prompt")
 }
 
-func TestExtractInlineSubAgents_SeparatorWithWhitespace(t *testing.T) {
-	// Leading and trailing whitespace around the separator should be tolerated
-	markdown := "Main.\n\n  <!-- @agent: padded -->  \nAgent content."
+func TestExtractInlineSubAgents_SeparatorWithTrailingWhitespace(t *testing.T) {
+	// Trailing whitespace after the name should be tolerated
+	markdown := "Main.\n\n## @agent: padded   \nAgent content."
 
 	_, agents, err := ExtractInlineSubAgents(markdown)
 
-	require.NoError(t, err, "separator with surrounding whitespace should be recognized")
+	require.NoError(t, err, "separator with trailing whitespace should be recognized")
 	require.Len(t, agents, 1, "should extract one sub-agent")
 	assert.Equal(t, "padded", agents[0].Name, "agent name should be 'padded'")
 }
@@ -123,19 +123,27 @@ func TestExtractInlineSubAgents_InvalidNameNotRecognized(t *testing.T) {
 	}{
 		{
 			name:      "name starts with digit",
-			separator: "<!-- @agent: 1agent -->",
+			separator: "## @agent: 1agent",
 		},
 		{
 			name:      "name contains spaces",
-			separator: "<!-- @agent: my agent -->",
+			separator: "## @agent: my agent",
 		},
 		{
 			name:      "name contains slash",
-			separator: "<!-- @agent: my/agent -->",
+			separator: "## @agent: my/agent",
 		},
 		{
 			name:      "missing name",
-			separator: "<!-- @agent:  -->",
+			separator: "## @agent:",
+		},
+		{
+			name:      "wrong heading level (H1)",
+			separator: "# @agent: myagent",
+		},
+		{
+			name:      "wrong heading level (H3)",
+			separator: "### @agent: myagent",
 		},
 	}
 
@@ -154,10 +162,10 @@ func TestExtractInlineSubAgents_InvalidNameNotRecognized(t *testing.T) {
 func TestExtractInlineSubAgents_DuplicateNameError(t *testing.T) {
 	markdown := `Main.
 
-<!-- @agent: planner -->
+## @agent: planner
 Content 1.
 
-<!-- @agent: planner -->
+## @agent: planner
 Content 2.`
 
 	_, _, err := ExtractInlineSubAgents(markdown)
@@ -173,11 +181,11 @@ func TestExtractInlineSubAgents_NameVariants(t *testing.T) {
 		separator string
 		agentName string
 	}{
-		{"with hyphens", "<!-- @agent: my-agent -->", "my-agent"},
-		{"with underscores", "<!-- @agent: my_agent -->", "my_agent"},
-		{"with digits", "<!-- @agent: agent1 -->", "agent1"},
-		{"mixed case", "<!-- @agent: MyAgent -->", "MyAgent"},
-		{"single letter", "<!-- @agent: a -->", "a"},
+		{"with hyphens", "## @agent: my-agent", "my-agent"},
+		{"with underscores", "## @agent: my_agent", "my_agent"},
+		{"with digits", "## @agent: agent1", "agent1"},
+		{"mixed case", "## @agent: MyAgent", "MyAgent"},
+		{"single letter", "## @agent: a", "a"},
 	}
 
 	for _, tt := range tests {
@@ -194,7 +202,7 @@ func TestExtractInlineSubAgents_NameVariants(t *testing.T) {
 
 func TestExtractInlineSubAgents_ContentTrimmed(t *testing.T) {
 	// Content after the separator should have leading/trailing whitespace trimmed
-	markdown := "Main.\n\n<!-- @agent: trim-test -->\n\n\n  Agent content here.  \n\n"
+	markdown := "Main.\n\n## @agent: trim-test\n\n\n  Agent content here.  \n\n"
 
 	_, agents, err := ExtractInlineSubAgents(markdown)
 
@@ -204,7 +212,7 @@ func TestExtractInlineSubAgents_ContentTrimmed(t *testing.T) {
 }
 
 func TestExtractInlineSubAgents_MainMarkdownTrailingNewlinesStripped(t *testing.T) {
-	markdown := "Line 1.\nLine 2.\n\n\n<!-- @agent: a -->\nContent."
+	markdown := "Line 1.\nLine 2.\n\n\n## @agent: a\nContent."
 
 	mainMarkdown, _, err := ExtractInlineSubAgents(markdown)
 

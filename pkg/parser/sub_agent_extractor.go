@@ -9,11 +9,13 @@
 // block plus a prompt body. Sub-agents appear after the main workflow body and
 // are separated from it (and from each other) by the special separator line:
 //
-//	<!-- @agent: name -->
+//	## @agent: name
 //
-// The separator must appear on its own line (optional surrounding whitespace is
-// allowed). The agent name must start with a letter and contain only
-// alphanumeric characters, hyphens, and underscores.
+// The separator is a level-2 Markdown heading using the @agent: keyword. It
+// renders as a visible section heading in any Markdown preview (GitHub, VS Code,
+// etc.) while remaining clearly distinguishable from regular document headings.
+// The agent name must start with a letter and contain only alphanumeric
+// characters, hyphens, and underscores.
 //
 // # Example
 //
@@ -26,7 +28,7 @@
 //	# Handle issue
 //	Triage the issue and delegate work to sub-agents.
 //
-//	<!-- @agent: planner -->
+//	## @agent: planner
 //	---
 //	engine: copilot
 //	tools:
@@ -35,7 +37,7 @@
 //	---
 //	You are a planning specialist.
 //
-//	<!-- @agent: executor -->
+//	## @agent: executor
 //	---
 //	engine: copilot
 //	tools:
@@ -66,7 +68,7 @@ import (
 )
 
 // InlineSubAgent holds a single sub-agent definition extracted from a workflow
-// markdown file's body using the <!-- @agent: name --> separator syntax.
+// markdown file's body using the ## @agent: name separator syntax.
 type InlineSubAgent struct {
 	// Name is the identifier taken from the separator line.
 	// It is safe to use as a filename (alphanumeric, hyphens, underscores).
@@ -83,19 +85,20 @@ type InlineSubAgent struct {
 //
 // Format (anchored to line boundaries via (?m)):
 //
-//	<!-- @agent: name -->
+//	## @agent: name
 //
 // Rules:
-//   - Optional horizontal whitespace before and after the comment
+//   - A level-2 Markdown heading (##)
+//   - One or more whitespace characters between "##" and "@agent:"
 //   - Exactly one or more whitespace characters between "@agent:" and the name
 //   - Agent name: starts with a letter, followed by alphanumeric / hyphen / underscore
-//   - Optional horizontal whitespace after the name before "-->"
-var subAgentSeparatorRegex = regexp.MustCompile(`(?m)^[ \t]*<!-- @agent:\s+([a-zA-Z][a-zA-Z0-9_-]*)\s*-->[ \t]*$`)
+//   - Optional trailing whitespace
+var subAgentSeparatorRegex = regexp.MustCompile(`(?m)^##[ \t]+@agent:[ \t]+([a-zA-Z][a-zA-Z0-9_-]*)[ \t]*$`)
 
 // ExtractInlineSubAgents splits markdown into the main workflow section and any
 // inline sub-agent definitions.
 //
-// It scans the markdown body for <!-- @agent: name --> separator lines. Content
+// It scans the markdown body for ## @agent: name separator lines. Content
 // before the first separator is returned as mainMarkdown (trimmed of trailing
 // newlines). Each separator starts a new sub-agent whose content spans until
 // the next separator or the end of the file.
