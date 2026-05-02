@@ -121,10 +121,7 @@ A **conforming implementation** is one that satisfies all **MUST** and **MUST NO
 : A unit of work within an `engine: aw` workflow. Each step is assigned one `AgentSession`, a prompt derived from the corresponding Markdown section, and optionally a named agent definition.
 
 **MCP Gateway**
-: The gh-aw MCP gateway process that exposes GitHub tools and custom MCP server tools. It runs independently of the harness in the same container.
-
-**MCP bridge**
-: The `mcp-bridge` Pi extension (Extension 2) that translates MCP gateway tool definitions into Pi `AgentTool` instances, making them available to agent sessions without native MCP support in the Pi SDK.
+: The gh-aw MCP gateway process that exposes GitHub tools and custom MCP server tools as CLI commands (via `cli-proxy`) in the agent's bash environment. It runs independently of the harness in the same container.
 
 **model alias**
 : A short name (e.g., `"sonnet"`, `"gpt-5-codex"`) resolved by the api-proxy to a fully-qualified `provider/model` string. The harness passes aliases through without resolution.
@@ -142,7 +139,7 @@ A **conforming implementation** is one that satisfies all **MUST** and **MUST NO
 : The complete message history of a completed `AgentSession`, optionally summarized, passed as context to downstream steps.
 
 **workflow document**
-: A Markdown file with YAML frontmatter that declares an `engine: aw` workflow. The frontmatter **MUST** conform to the schema in [Section 6](#6-workflow-definition).
+: A Markdown file with YAML frontmatter that declares an `engine: aw` workflow. The frontmatter is parsed by the gh-aw compiler at compile time; the harness itself never reads the raw Markdown file. Instead, the compiler provides the harness with pre-processed inputs: `config.json` (harness configuration), `prompt.txt` (extracted prompt body), and any referenced agent files.
 
 ---
 
@@ -162,12 +159,12 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 │  │  ┌─────────────────────────────────────────────────┐ │   │
 │  │  │  aw_harness.cjs (entry point)                   │ │   │
 │  │  │                                                  │ │   │
-│  │  │  1. Reads workflow.md (frontmatter + body)       │ │   │
-│  │  │  2. Parses steps from markdown headings          │ │   │
-│  │  │  3. Builds execution DAG                         │ │   │
-│  │  │  4. For each step: creates Pi AgentSession       │ │   │
-│  │  │     with gh-aw extensions loaded                 │ │   │
-│  │  │  5. session.prompt() → Pi drives the agent       │ │   │
+│  │  │  1. Reads config.json + prompt.txt (pre-parsed by compiler) │ │   │
+│  │  │  2. Parses steps from step config + prompt text            │ │   │
+│  │  │  3. Builds execution DAG                                   │ │   │
+│  │  │  4. For each step: creates Pi AgentSession                 │ │   │
+│  │  │     with gh-aw extensions loaded                           │ │   │
+│  │  │  5. session.prompt() → Pi drives the agent                 │ │   │
 │  │  │                                                  │ │   │
 │  │  │  ┌──────────────────────────────────────────┐   │ │   │
 │  │  │  │  Pi SDK (createAgentSession)             │   │ │   │
@@ -179,7 +176,6 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 │  │  │  │  gh-aw Pi Extensions (loaded into each   │   │ │   │
 │  │  │  │  AgentSession via ExtensionAPI):          │   │ │   │
 │  │  │  │  ├─ safe-outputs (tools + artifact write) │   │ │   │
-│  │  │  │  ├─ mcp-bridge (gateway tools → Pi tools) │   │ │   │
 │  │  │  │  ├─ cost-tracker (budget gates + events)  │   │ │   │
 │  │  │  │  ├─ steering (time/budget pressure)       │   │ │   │
 │  │  │  │  ├─ repair (broken session recovery)      │   │ │   │
@@ -212,9 +208,9 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 
 3. **api-proxy for model resolution.** Pi's `pi-ai` **MUST** be configured to communicate with the api-proxy as an OpenAI-compatible provider. Model names (aliases or explicit) **MUST** be passed through to the proxy without local resolution.
 
-4. **Optimized for gh-aw container.** The harness **MUST** assume that the firewall, api-proxy, and MCP gateway are already running. It **MUST NOT** perform direct LLM API calls, redundant authentication, or network configuration.
+4. **Optimized for gh-aw container.** The harness **MUST** assume that the firewall, api-proxy, and MCP gateway are already running. It **MUST NOT** perform direct LLM API calls, redundant authentication, or network configuration. MCP tools are available to agent sessions as bash CLI tools via `cli-proxy` — no additional bridging is required.
 
-5. **`gh-proxy` and `cli-proxy` always on.** The Pi SDK does not support MCP natively. GitHub and other MCP server tools are bridged into Pi via the `mcp-bridge` extension. This bridge **REQUIRES** both `gh-proxy` (pre-authenticated `gh` CLI in bash) and `cli-proxy` (MCP servers mounted as CLI tools on `PATH`). A conforming implementation **MUST** enable both `gh-proxy` and `cli-proxy` when `engine: aw` is selected. A conforming implementation **MUST NOT** honor attempts to disable these features for `engine: aw`, regardless of the values specified in the workflow frontmatter (see [Section 6.2](#62-overrides-and-fixed-settings)).
+5. **`gh-proxy` and `cli-proxy` always on.** GitHub and other MCP server tools are available to the agent as CLI commands on `PATH` (via `cli-proxy`) and via the pre-authenticated `gh` binary (via `gh-proxy`). A conforming implementation **MUST** enable both `gh-proxy` and `cli-proxy` when `engine: aw` is selected. A conforming implementation **MUST NOT** honor attempts to disable these features for `engine: aw`, regardless of the values specified in the workflow frontmatter (see [Section 6.2](#62-overrides-and-fixed-settings)).
 
 6. **TypeScript → Node 24.** Source **MUST** be TypeScript, compiled to ES2024, bundled via esbuild to a single `.cjs`. Leverages Node 24 features (native fetch, `structuredClone`, `AbortSignal.any`).
 
@@ -232,13 +228,18 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 
 ### 5.1 Entry Point
 
-The AW Harness **MUST** be invocable as a Node.js CommonJS module from the command line. A conforming invocation has the form:
+The AW Harness **MUST** be invocable as a Node.js CommonJS module from the command line. The gh-aw compiler pre-processes the workflow markdown (parsing frontmatter, extracting the prompt body, resolving imports) and provides the harness with pre-built input files. A conforming invocation has the form:
 
 ```
-node aw_harness.cjs <workflow-path>
+node aw_harness.cjs --config <config-path> --prompt <prompt-path> [--agent-file <agent-path>]
 ```
 
-where `<workflow-path>` is the absolute or relative path to the workflow Markdown file.
+where:
+- `<config-path>` is the path to the compiler-generated `config.json` file containing the parsed harness configuration.
+- `<prompt-path>` is the path to the compiler-generated `prompt.txt` file containing the extracted prompt body.
+- `<agent-path>` is the optional path to a compiled agent file (`.md` with frontmatter stripped), provided when the workflow references an agent via `imports:`.
+
+A conforming implementation **MUST NOT** read or parse workflow Markdown files directly; all configuration and prompt content **MUST** be consumed from the pre-processed input files provided by the compiler.
 
 ### 5.2 Environment Variables
 
@@ -258,7 +259,7 @@ A conforming implementation **SHOULD** read additional standard GitHub Actions e
 |------|---------|
 | `0` | All steps completed successfully |
 | `1` | One or more steps failed (non-recoverable error) |
-| `2` | Invocation error (missing workflow path, invalid frontmatter) |
+| `2` | Invocation error (missing config path, unreadable config file) |
 
 A conforming implementation **MUST** exit with code `0` if and only if all DAG steps complete without error. It **MUST** exit with a non-zero code on any unrecovered failure.
 
@@ -273,7 +274,7 @@ A conforming implementation **MUST** exit with code `0` if and only if all DAG s
 
 ### 6.1 Frontmatter Schema
 
-An `engine: aw` workflow document **MUST** include a YAML frontmatter block conforming to the existing gh-aw frontmatter schema, extended with the optional `harness:` key described below.
+An `engine: aw` workflow document **MUST** include a YAML frontmatter block conforming to the existing gh-aw frontmatter schema, extended with the optional `harness:` key described below. The gh-aw compiler parses this frontmatter at compile time and emits a `config.json` file consumed by the harness at runtime; the harness itself **MUST NOT** re-parse the raw Markdown frontmatter.
 
 > [!NOTE] Non-normative example.
 >
@@ -296,8 +297,8 @@ An `engine: aw` workflow document **MUST** include a YAML frontmatter block conf
 >   pull-requests: read
 >
 > # gh-proxy and cli-proxy are ALWAYS enabled for engine: aw.
-> # Pi SDK does not support MCP natively; the mcp-bridge extension
-> # requires both features to bridge gateway tools into Pi AgentTools.
+> # MCP tools are available as CLI commands on PATH (via cli-proxy) and
+> # via the pre-authenticated `gh` binary (via gh-proxy).
 > cli-proxy: true
 >
 > tools:
@@ -436,20 +437,19 @@ A conforming implementation **MUST** apply the following overrides regardless of
 
 | Setting | Enforced value | Reason |
 |---------|----------------|--------|
-| `cli-proxy` | `true` | Required for MCP bridge functionality |
+| `cli-proxy` | `true` | Required: MCP tools are exposed as CLI tools on `PATH` |
 | `tools.github.mode` | `gh-proxy` | Pi SDK requires `gh-proxy`; `remote` mode is not supported |
 
 A conforming implementation **MUST NOT** honor attempts to disable `cli-proxy` or set `tools.github.mode: remote` when `engine: aw` is active. These settings **MUST** be overridden. A conforming implementation **MUST** emit a warning to stderr when either override is applied, so that workflow authors can diagnose unexpected configuration behaviour.
 
 ### 6.3 Step Extraction Algorithm
 
-A conforming implementation **MUST** extract steps from the workflow document body using the following algorithm:
+A conforming implementation **MUST** extract steps from the compiler-provided inputs as follows:
 
-1. Split the document body on ATX heading boundaries (`##` or `###` level).
-2. For each section, scan for an HTML comment matching `<!-- harness-step: <name> -->`. If found, record `name` as the step annotation.
-3. If a step annotation matches a key in `harness.steps`, apply the corresponding step configuration (agent, parallel, depends).
-4. Steps without a `<!-- harness-step -->` annotation are treated as sequential steps in document order.
-5. If no `harness:` block is present in the frontmatter, the entire document body **MUST** be treated as a single step with no explicit agent or dependency.
+1. Read `harness.steps` from `config.json`. If present, each entry defines a named step with its agent assignment, parallel flag, and dependency list.
+2. Read the prompt body from `prompt.txt`. The compiler splits the body on ATX heading boundaries (`##` or `###` level) and associates each section with a named step via `<!-- harness-step: <name> -->` annotations before writing `prompt.txt`; the harness consumes the resulting sections.
+3. If `harness.steps` is absent or empty, the entire prompt body **MUST** be treated as a single step with no explicit agent or dependency.
+4. Steps without a named entry in `harness.steps` are treated as sequential steps in document order.
 
 ### 6.4 Initial Prompt Context
 
@@ -460,7 +460,7 @@ A conforming implementation **MUST** source every item included in a session's i
 - The step's own Markdown body (extracted per [Section 6.3](#63-step-extraction-algorithm)).
 - Transcripts from upstream steps (passed via the DAG execution model in [Section 7](#7-dag-execution-model)).
 - The agent's `system` prompt as declared under `harness.agents` in the frontmatter.
-- Files or sub-workflows declared via the standard `imports:` frontmatter key.
+- Files or sub-workflows declared via the standard `imports:` frontmatter key and resolved by the compiler into agent files passed at invocation time.
 
 A conforming implementation **MUST NOT** automatically load AGENTS.md files, `.github/agents/` entries, skills directories, or any other ambient repository files unless they are explicitly listed in `imports:`. This behavior is a deliberate divergence from engines such as `engine: copilot` that inject ambient context automatically.
 
@@ -491,11 +491,11 @@ A conforming implementation **MUST** execute the DAG as follows:
 > import { createAgentSession, SessionManager } from "@mariozechner/pi-coding-agent";
 >
 > async function main() {
->   const workflow = parseWorkflow(process.argv[2]);
+>   const { configPath, promptPath } = parseArgs(process.argv);
+>   const workflow = loadWorkflow(configPath, promptPath);
 >   const dag = buildDAG(workflow);
 >   const extensions = [
 >     apiProxyProvider,
->     mcpBridgeExtension,
 >     safeOutputsExtension,
 >     costTrackerExtension,
 >     steeringExtension,
@@ -526,8 +526,8 @@ A conforming implementation **MUST** execute the DAG as follows:
 For each execution group in topological order:
 
 1. The implementation **MUST** invoke `createAgentSession()` once per step (or once per agent for steps with `agents: [...]`).
-2. The prompt passed to `session.prompt()` **MUST** be assembled from: (a) the step's Markdown body, (b) transcripts from all upstream steps, and (c) the agent's system prompt, if defined.
-3. The implementation **MUST** load all eight gh-aw Pi extensions (see [Section 8](#8-extensions)) into each session.
+2. The prompt passed to `session.prompt()` **MUST** be assembled from: (a) the step's prompt text (from `prompt.txt`), (b) transcripts from all upstream steps, and (c) the agent's system prompt, if defined.
+3. The implementation **MUST** load all seven gh-aw Pi extensions (see [Section 8](#8-extensions)) into each session.
 4. Steps within the same parallel group **MUST** be executed concurrently using `Promise.all()`.
 5. After each session completes, the implementation **MUST** capture the session transcript for use by downstream steps.
 6. After capturing the transcript, the implementation **MUST** call `session.dispose()`.
@@ -539,12 +539,12 @@ The per-step execution sequence is:
 
 ```
 For each step (respecting DAG order):
-  1. Build prompt = step markdown + upstream transcripts + system prompt
-  2. Create Pi AgentSession with all gh-aw extensions:
+  1. Build prompt = step text (from prompt.txt) + upstream transcripts + system prompt
+  2. Create Pi AgentSession with gh-aw extensions:
      - api-proxy provider registered
-     - MCP bridge tools registered
      - Safe-output tools registered
      - Steering, repair, cost, observability extensions active
+     (MCP tools available as bash CLI commands via cli-proxy — no bridging needed)
   3. session.prompt() → Pi agent loop runs
   4. Extensions handle events (cost tracking, steering, observability)
   5. Capture transcript for downstream steps
@@ -557,7 +557,7 @@ For each step (respecting DAG order):
 
 All gh-aw-specific behavior **MUST** be packaged as Pi extensions. Each extension **MUST** be a standalone TypeScript module that exports a default function with signature `(pi: ExtensionAPI) => void | Promise<void>`.
 
-The following eight extensions **MUST** be loaded into every `AgentSession` created by the harness.
+The following seven extensions **MUST** be loaded into every `AgentSession` created by the harness.
 
 ### 8.1 Extension 1: api-proxy Provider
 
@@ -586,39 +586,7 @@ The following eight extensions **MUST** be loaded into every `AgentSession` crea
 > }
 > ```
 
-### 8.2 Extension 2: MCP Gateway Bridge
-
-**Purpose:** Bridges gh-aw's MCP gateway tools into Pi's tool system as `AgentTool` instances.
-
-**Requirements:**
-
-- The extension **MUST** read the MCP gateway configuration and register each MCP tool as a Pi `AgentTool` via `pi.registerTool()`.
-- Tool names **MUST** be namespaced as `<serverName>_<toolName>` to avoid collisions.
-- The `execute` handler **MUST** delegate to the MCP gateway via the existing gateway IPC mechanism.
-- `gh-proxy` and `cli-proxy` **MUST** be active in the container when this extension executes. The extension **MAY** assert their presence at startup and **MUST** fail with a descriptive error if they are absent.
-
-> [!NOTE] Non-normative example.
->
-> ```typescript
-> export default function(pi: ExtensionAPI) {
->   const gatewayConfig = loadMCPGatewayConfig();
->
->   for (const [serverName, tools] of Object.entries(gatewayConfig)) {
->     for (const tool of tools) {
->       pi.registerTool({
->         name: `${serverName}_${tool.name}`,
->         description: tool.description,
->         parameters: tool.inputSchema,
->         async execute(toolCallId, params, signal) {
->           return await callMCPGateway(serverName, tool.name, params);
->         },
->       });
->     }
->   }
-> }
-> ```
-
-### 8.3 Extension 3: Safe Outputs
+### 8.2 Extension 2: Safe Outputs
 
 **Purpose:** Registers safe-output tools (create-issue, create-pull-request, add-comment, etc.) and writes artifact files in the gh-aw safe-outputs format.
 
@@ -658,7 +626,7 @@ The following eight extensions **MUST** be loaded into every `AgentSession` crea
 > }
 > ```
 
-### 8.4 Extension 4: Cost Tracker
+### 8.3 Extension 3: Cost Tracker
 
 **Purpose:** Monitors token usage and cost via Pi's event stream and enforces budget gates.
 
@@ -697,7 +665,7 @@ The following eight extensions **MUST** be loaded into every `AgentSession` crea
 > }
 > ```
 
-### 8.5 Extension 5: Steering (Resource Pressure)
+### 8.4 Extension 4: Steering (Resource Pressure)
 
 **Purpose:** Monitors time remaining and budget, and injects steering messages via Pi's native `session.steer()`.
 
@@ -740,7 +708,7 @@ The following eight extensions **MUST** be loaded into every `AgentSession` crea
 > }
 > ```
 
-### 8.6 Extension 6: Session Repair
+### 8.5 Extension 5: Session Repair
 
 **Purpose:** Detects broken tool calls and repairs the session via Pi's message history manipulation.
 
@@ -776,7 +744,7 @@ The following eight extensions **MUST** be loaded into every `AgentSession` crea
 > }
 > ```
 
-### 8.7 Extension 7: Observability
+### 8.6 Extension 6: Observability
 
 **Purpose:** Emits JSONL events to stderr and generates OTel spans.
 
@@ -811,7 +779,7 @@ The following eight extensions **MUST** be loaded into every `AgentSession` crea
 > }
 > ```
 
-### 8.8 Extension 8: Checkpoint
+### 8.7 Extension 7: Checkpoint
 
 **Purpose:** Persists run state for long workflows, enabling resume from a prior checkpoint.
 
@@ -968,15 +936,14 @@ aw-harness/
 ├── tsconfig.json                 # target: es2024, module: es2022
 ├── build.ts                      # esbuild → dist/aw_harness.cjs
 ├── src/
-│   ├── index.ts                  # Entry point: parseWorkflow → buildDAG → run sessions
-│   ├── parser.ts                 # Workflow markdown → steps + config
+│   ├── index.ts                  # Entry point: read config.json + prompt.txt → buildDAG → run sessions
+│   ├── parser.ts                 # config.json + prompt.txt → steps + config
 │   ├── planner.ts                # DAG construction, topological sort
 │   ├── dag-runner.ts             # Orchestrate sessions (sequential + parallel)
 │   ├── transcript.ts             # Inter-step data flow (save/load/summarize)
 │   ├── context.ts                # Prompt assembly, compaction
 │   └── extensions/               # gh-aw Pi extensions
 │       ├── api-proxy-provider.ts # Register api-proxy as Pi provider
-│       ├── mcp-bridge.ts         # MCP gateway tools → Pi AgentTool
 │       ├── safe-outputs.ts       # Safe-output tools + artifact writing
 │       ├── cost-tracker.ts       # Budget gates via turn_end events
 │       ├── steering.ts           # Time/budget pressure via session.steer()
@@ -1031,33 +998,31 @@ The following ordered work items describe the implementation sequence:
 
 2. **Implement api-proxy provider extension** — Pi extension that registers the api-proxy as a custom provider via `pi.registerProvider()`. Async factory fetches available models at startup. All model requests route through the proxy.
 
-3. **Implement parser** — Read workflow markdown, extract frontmatter, parse `harness:` block, extract steps from heading boundaries and `<!-- harness-step -->` annotations. Fall back to single-step mode.
+3. **Implement parser** — Read `config.json` (compiler-generated harness config) and `prompt.txt` (compiler-generated prompt body). Parse step sections from prompt text; resolve step configuration from `harness.steps`. Fall back to single-step mode when no step config is present.
 
 4. **Implement DAG planner** — Topological sort, parallel group detection, sequential fallback. Validate no cycles, all agent/step references resolve.
 
-5. **Implement MCP bridge extension** — Pi extension that reads MCP gateway config and registers each MCP tool as a Pi `AgentTool` via `pi.registerTool()`.
+5. **Implement safe-outputs extension** — Pi extension that registers safe-output tools (create-issue, create-pull-request, add-comment, etc.). Uses `pi.on("agent_end")` to finalize artifact manifest.
 
-6. **Implement safe-outputs extension** — Pi extension that registers safe-output tools (create-issue, create-pull-request, add-comment, etc.). Uses `pi.on("agent_end")` to finalize artifact manifest.
+6. **Implement DAG runner** — Orchestrates multiple `createAgentSession()` calls. Sequential steps + `Promise.all()` for parallel groups. Passes gh-aw extensions to each session. Manages transcript flow between steps.
 
-7. **Implement DAG runner** — Orchestrates multiple `createAgentSession()` calls. Sequential steps + `Promise.all()` for parallel groups. Passes gh-aw extensions to each session. Manages transcript flow between steps.
+7. **Implement transcript manager** — Save step output to disk. Load for downstream steps. Support `summary` mode (use a Pi session to summarize) and `full` mode.
 
-8. **Implement transcript manager** — Save step output to disk. Load for downstream steps. Support `summary` mode (use a Pi session to summarize) and `full` mode.
+8. **Implement context engine** — Prompt assembly with priority ordering. Compaction via `none`, `sliding-window`, or `summarize`.
 
-9. **Implement context engine** — Prompt assembly with priority ordering. Compaction via `none`, `sliding-window`, or `summarize`.
+9. **Implement cost tracker extension** — Pi extension that monitors `turn_end` events for token/cost data. Enforces soft (steer warning) and hard (abort) budget gates.
 
-10. **Implement cost tracker extension** — Pi extension that monitors `turn_end` events for token/cost data. Enforces soft (steer warning) and hard (abort) budget gates.
+10. **Implement steering extension** — Pi extension that monitors time/budget and injects user messages via `session.steer()` on `turn_end`.
 
-11. **Implement steering extension** — Pi extension that monitors time/budget and injects user messages via `session.steer()` on `turn_end`.
+11. **Implement repair extension** — Pi extension that detects broken tool calls via `tool_result` events. Repairs via message truncation or summarize-and-restart.
 
-12. **Implement repair extension** — Pi extension that detects broken tool calls via `tool_result` events. Repairs via message truncation or summarize-and-restart.
+12. **Implement checkpoint extension** — Pi extension that persists step completion state on `agent_end`. Resume from checkpoint on `--continue`.
 
-13. **Implement checkpoint extension** — Pi extension that persists step completion state on `agent_end`. Resume from checkpoint on `--continue`.
+13. **Implement observability extension** — Pi extension that emits JSONL to stderr on agent/tool events. Generates OTel spans using `observability.otlp` config.
 
-14. **Implement observability extension** — Pi extension that emits JSONL to stderr on agent/tool events. Generates OTel spans using `observability.otlp` config.
+14. **Write tests** — Unit tests for parser, planner, each extension (mock `ExtensionAPI`). Integration tests with `createAgentSession()` + `SessionManager.inMemory()`.
 
-15. **Write tests** — Unit tests for parser, planner, each extension (mock `ExtensionAPI`). Integration tests with `createAgentSession()` + `SessionManager.inMemory()`.
-
-16. **Write example workflows** — Three examples: single-step, multi-step sequential, multi-agent parallel with different models.
+15. **Write example workflows** — Three examples: single-step, multi-step sequential, multi-agent parallel with different models.
 
 17. **Add build to Makefile** — Add `make aw-harness` target that runs esbuild and copies `aw_harness.cjs` to `actions/setup/js/`.
 
@@ -1065,7 +1030,7 @@ The following ordered work items describe the implementation sequence:
 
 ## 11. Security Considerations
 
-**Mandatory proxy features.** The `gh-proxy` and `cli-proxy` features **MUST** always be active for `engine: aw`. Disabling them would leave MCP gateway tools inaccessible to agent sessions, and any attempt by a workflow author to disable them **MUST** be silently overridden (see [Section 6.2](#62-overrides-and-fixed-settings)).
+**Mandatory proxy features.** The `gh-proxy` and `cli-proxy` features **MUST** always be active for `engine: aw`. MCP tools are available to agent sessions as CLI commands via `cli-proxy`; disabling it would make those tools inaccessible. Any attempt by a workflow author to disable either feature **MUST** be silently overridden (see [Section 6.2](#62-overrides-and-fixed-settings)).
 
 **No direct LLM access.** The harness **MUST NOT** make direct calls to LLM provider APIs. All model requests **MUST** pass through the api-proxy, which enforces rate limits, budget caps, and access controls at the container boundary.
 
