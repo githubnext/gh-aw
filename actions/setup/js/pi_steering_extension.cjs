@@ -63,7 +63,7 @@ function piSteeringExtension(pi) {
 
   pi.on("agent_start", async () => {
     startTime = Date.now();
-    process.stderr.write(`[gh-aw/steering] Session started. ` + `timeout=${config.timeoutMinutes}min, ` + `warn<${config.timeWarningMinutes}min, ` + `critical<${config.timeCriticalMinutes}min\n`);
+    process.stderr.write(`[gh-aw/steering] Session started. timeout=${config.timeoutMinutes}min, warn<${config.timeWarningMinutes}min, critical<${config.timeCriticalMinutes}min\n`);
   });
 
   pi.on("turn_end", async (/** @type {any} */ _event, /** @type {any} */ ctx) => {
@@ -97,9 +97,4 @@ function piSteeringExtension(pi) {
 }
 
 module.exports = piSteeringExtension;
-
-// Export helpers for testing
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = piSteeringExtension;
-  module.exports.loadSteeringConfig = loadSteeringConfig;
-}
+module.exports.loadSteeringConfig = loadSteeringConfig;
