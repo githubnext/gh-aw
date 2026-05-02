@@ -90,12 +90,12 @@ func TestInjectAwContextIntoWorkflowCallYAML(t *testing.T) {
 			result := injectAwContextIntoWorkflowCallYAML(tt.input)
 
 			for _, sub := range tt.wantSubs {
-				assert.True(t, strings.Contains(result, sub),
-					"expected %q to contain %q, got:\n%s", tt.name, sub, result)
+				assert.Contains(t, result, sub,
+					"expected %q to contain %q", tt.name, sub)
 			}
 			for _, sub := range tt.noSubs {
-				assert.False(t, strings.Contains(result, sub),
-					"expected %q NOT to contain %q, got:\n%s", tt.name, sub, result)
+				assert.NotContains(t, result, sub,
+					"expected %q NOT to contain %q", tt.name, sub)
 			}
 		})
 	}

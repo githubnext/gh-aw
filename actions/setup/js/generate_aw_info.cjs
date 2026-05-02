@@ -121,9 +121,10 @@ async function main(core, ctx) {
   }
 
   // Include aw_context when the workflow was triggered via workflow_dispatch with
-  // the aw_context input set by a calling agentic workflow's dispatch_workflow handler.
+  // the aw_context input set by a calling agentic workflow's dispatch_workflow handler,
+  // or via workflow_call forwarded by a call-workflow handler (GH_AW_INPUT_AW_CONTEXT).
   // Validates JSON format and structure before populating the context key in aw_info.json.
-  const awContextRaw = ctx.payload?.inputs?.aw_context;
+  const awContextRaw = ctx.payload?.inputs?.aw_context || process.env.GH_AW_INPUT_AW_CONTEXT || "";
   if (awContextRaw && typeof awContextRaw === "string" && awContextRaw.trim() !== "") {
     try {
       const parsed = JSON.parse(awContextRaw);

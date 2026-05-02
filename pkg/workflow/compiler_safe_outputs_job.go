@@ -382,6 +382,7 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 	if data.SafeOutputs.CallWorkflow != nil {
 		outputs["call_workflow_name"] = "${{ steps.process_safe_outputs.outputs.call_workflow_name }}"
 		outputs["call_workflow_payload"] = "${{ steps.process_safe_outputs.outputs.call_workflow_payload }}"
+		outputs["call_workflow_aw_context"] = "${{ steps.process_safe_outputs.outputs.call_workflow_aw_context }}"
 	}
 
 	return steps, outputs, safeOutputStepNames, nil

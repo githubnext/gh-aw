@@ -284,6 +284,50 @@ async function writeSummary(assignments, configs, state, core) {
 }
 
 /**
+ * Parse the parent workflow's experiment assignments from GH_AW_EXPERIMENT_CONTEXT.
+ *
+ * GH_AW_EXPERIMENT_CONTEXT contains the raw JSON string of the aw_context object
+ * received via the `aw_context` workflow input (workflow_dispatch or workflow_call).
+ * The `experiments` field inside aw_context is itself a JSON string mapping
+ * experiment name → selected variant (e.g. '{"feature1":"A","style":"concise"}').
+ *
+ * Returns an empty object when the env var is absent, empty, or cannot be parsed.
+ *
+ * @returns {Record<string, string>} Parent experiment assignments (name → variant)
+ */
+function parseParentExperimentAssignments() {
+  const contextRaw = process.env.GH_AW_EXPERIMENT_CONTEXT;
+  if (!contextRaw || !contextRaw.trim()) {
+    return {};
+  }
+  try {
+    const awContext = JSON.parse(contextRaw);
+    if (!awContext || typeof awContext !== "object" || Array.isArray(awContext)) {
+      return {};
+    }
+    const experimentsRaw = awContext.experiments;
+    if (!experimentsRaw || typeof experimentsRaw !== "string" || !experimentsRaw.trim()) {
+      return {};
+    }
+    const experiments = JSON.parse(experimentsRaw);
+    if (!experiments || typeof experiments !== "object" || Array.isArray(experiments)) {
+      return {};
+    }
+    // Filter to string-valued entries only (variant assignments are strings)
+    /** @type {Record<string, string>} */
+    const result = {};
+    for (const [k, v] of Object.entries(experiments)) {
+      if (typeof v === "string") {
+        result[k] = v;
+      }
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Main entry point called by the actions/github-script step.
  */
 async function main() {
@@ -318,6 +362,18 @@ async function main() {
 
   const state = loadState(stateFile);
 
+  // Load parent experiment assignments from the incoming aw_context.
+  // When a parent workflow calls or dispatches this workflow, it encodes its
+  // current experiment assignments in the aw_context input.  For experiments
+  // that exist both locally and in the parent context, the parent's assignment
+  // is reused so the same variant is active throughout the workflow chain.
+  // For locally-declared experiments not present in the parent context, the
+  // variant is picked normally using the state-based selection algorithm.
+  const parentAssignments = parseParentExperimentAssignments();
+  if (Object.keys(parentAssignments).length > 0) {
+    core.info(`Received parent experiment assignments: ${JSON.stringify(parentAssignments)}`);
+  }
+
   /** @type {Record<string, string>} */
   const assignments = {};
 
@@ -327,6 +383,22 @@ async function main() {
     if (!Array.isArray(variants) || variants.length < 2) {
       core.warning(`Experiment "${name}" has fewer than 2 variants – skipping.`);
       continue;
+    }
+
+    // Inherit parent assignment when available.  The parent variant is used as-is
+    // without updating state counters since the experiment was already counted
+    // in the parent workflow's activation job.
+    if (Object.prototype.hasOwnProperty.call(parentAssignments, name)) {
+      const inherited = parentAssignments[name];
+      // Validate: the inherited variant must be one of the locally declared variants.
+      // If not (e.g. variants changed since the parent ran), fall through to normal picking.
+      if (variants.includes(inherited)) {
+        assignments[name] = inherited;
+        core.setOutput(name, inherited);
+        core.info(`Experiment "${name}": inherited variant "${inherited}" from parent context`);
+        continue;
+      }
+      core.info(`Experiment "${name}": parent variant "${inherited}" not in local variants ${JSON.stringify(variants)} – picking normally`);
     }
 
     // Date-window check: use control variant (first variant) when outside the window.
@@ -376,4 +448,4 @@ async function main() {
   await writeSummary(assignments, configs, state, core);
 }
 
-module.exports = { main, pickVariant, pickVariantWeighted, loadState, saveState, recordVariant, isWithinDateWindow, normalizeConfig };
+module.exports = { main, pickVariant, pickVariantWeighted, loadState, saveState, recordVariant, isWithinDateWindow, normalizeConfig, parseParentExperimentAssignments };

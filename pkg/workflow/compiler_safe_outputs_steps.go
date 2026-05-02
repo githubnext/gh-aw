@@ -181,6 +181,16 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	steps = append(steps, "          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 	steps = append(steps, "          GITHUB_API_URL: ${{ github.api_url }}\n")
 
+	// Pass experiment assignments so buildAwContext() in dispatch_workflow and call_workflow
+	// handlers can include them in the aw_context forwarded to dispatched/called workflows.
+	// The value comes from the activation job's pick-experiment step output (a JSON string
+	// mapping experiment name → selected variant).  Empty string when no experiments are
+	// configured or the activation job did not pick any variants.
+	if len(data.Experiments) > 0 {
+		steps = append(steps, "          GH_AW_EXPERIMENTS_JSON: ${{ needs.activation.outputs.experiments || '' }}\n")
+		consolidatedSafeOutputsStepsLog.Print("Added GH_AW_EXPERIMENTS_JSON env var for experiment propagation to called workflows")
+	}
+
 	// Note: The project handler manager has been removed.
 	// All project-related operations are now handled by the unified handler.
 

@@ -184,6 +184,13 @@ function buildAwContext() {
     // issues, pull_request, etc.). Empty string for events without label data such as
     // workflow_dispatch, push, or schedule.
     trigger_label: context.payload?.label?.name ?? "",
+    // experiments carries the current workflow's A/B experiment assignments as a JSON
+    // string (e.g. '{"feature1":"A","style":"concise"}').  Stored as a primitive string
+    // so the flat-object constraint on aw_context is preserved.  Called workflows use this
+    // to inherit parent experiment assignments instead of re-picking their own variants.
+    // Populated from GH_AW_EXPERIMENTS_JSON, which is set from the activation job's
+    // pick-experiment step output.  Empty string when no experiments are configured.
+    experiments: process.env.GH_AW_EXPERIMENTS_JSON || "",
   };
 }
 

@@ -268,6 +268,9 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	// can receive caller metadata (repo, run_id, actor, etc.) from dispatch_workflow.
 	// String-based injection preserves existing YAML comments and formatting.
 	onSection = injectAwContextIntoOnYAML(onSection)
+	// Inject aw_context input into workflow_call triggers so called workflows
+	// can inherit the caller's experiment assignments and metadata via call-workflow.
+	onSection = injectAwContextIntoWorkflowCallYAML(onSection)
 	yaml.WriteString(onSection + "\n\n")
 
 	// Note: GitHub Actions doesn't support workflow-level if conditions
@@ -828,6 +831,9 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	// resolve-host-repo step so it can be stored in aw_info.json for observability.
 	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		yaml.WriteString("          GH_AW_INFO_TARGET_REPO: ${{ steps.resolve-host-repo.outputs.target_repo }}\n")
+		// Also pass the aw_context input for workflow_call workflows so generate_aw_info.cjs
+		// can populate the context field in aw_info.json (same as for workflow_dispatch).
+		yaml.WriteString("          GH_AW_INPUT_AW_CONTEXT: ${{ inputs.aw_context || '' }}\n")
 	}
 	// Include lockdown validation env vars when lockdown is explicitly enabled.
 	// validateLockdownRequirements is called from generate_aw_info.cjs and uses these vars.

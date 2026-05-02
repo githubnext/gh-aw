@@ -123,6 +123,7 @@ describe("dispatch_workflow handler factory", () => {
     expect(awContext).toHaveProperty("time");
     expect(awContext).toHaveProperty("actor");
     expect(awContext).toHaveProperty("event_type");
+    expect(awContext).toHaveProperty("experiments");
     // Validate time is a valid ISO 8601 timestamp
     expect(() => new Date(awContext.time)).not.toThrow();
     expect(new Date(awContext.time).toISOString()).toBe(awContext.time);
@@ -132,6 +133,45 @@ describe("dispatch_workflow handler factory", () => {
     expect(awContext.workflow_id).toBe("test-owner/test-repo/.github/workflows/dispatcher.yml@refs/heads/main");
     // workflow_call_id combines run_id and run_attempt for uniqueness
     expect(awContext.workflow_call_id).toBe("99999-2");
+  });
+
+  it("should include experiment assignments in aw_context when GH_AW_EXPERIMENTS_JSON is set", async () => {
+    process.env.GH_AW_EXPERIMENTS_JSON = '{"feature1":"A","style":"concise"}';
+
+    const config = {
+      workflows: ["test-workflow"],
+      workflow_files: { "test-workflow": ".lock.yml" },
+      aw_context_workflows: ["test-workflow"],
+      max: 5,
+    };
+    const handler = await main(config);
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    expect(result.success).toBe(true);
+    const callArgs = github.rest.actions.createWorkflowDispatch.mock.calls[0][0];
+    const awContext = JSON.parse(callArgs.inputs["aw_context"]);
+    expect(awContext.experiments).toBe('{"feature1":"A","style":"concise"}');
+
+    delete process.env.GH_AW_EXPERIMENTS_JSON;
+  });
+
+  it("should include empty string for experiments when GH_AW_EXPERIMENTS_JSON is not set", async () => {
+    delete process.env.GH_AW_EXPERIMENTS_JSON;
+
+    const config = {
+      workflows: ["test-workflow"],
+      workflow_files: { "test-workflow": ".lock.yml" },
+      aw_context_workflows: ["test-workflow"],
+      max: 5,
+    };
+    const handler = await main(config);
+
+    await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    const callArgs = github.rest.actions.createWorkflowDispatch.mock.calls[0][0];
+    const awContext = JSON.parse(callArgs.inputs["aw_context"]);
+    expect(awContext.experiments).toBe("");
   });
 
   it("should reject workflows not in allowed list", async () => {

@@ -11,6 +11,7 @@ const HANDLER_TYPE = "call_workflow";
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { buildAwContext } = require("./aw_context.cjs");
 
 /**
  * Main handler factory for call_workflow.
@@ -102,6 +103,9 @@ async function main(config = {}) {
       // Set the step outputs that the conditional `uses:` jobs check
       core.setOutput("call_workflow_name", workflowName);
       core.setOutput("call_workflow_payload", payloadJson);
+      // Set the aw_context output so call-* fan-out jobs can forward it as a workflow_call input.
+      // This propagates the current experiment assignments and caller metadata to the called workflow.
+      core.setOutput("call_workflow_aw_context", JSON.stringify(buildAwContext()));
 
       core.info(`✓ Selected workflow: ${workflowName}`);
       core.info(`  Payload: ${payloadJson}`);

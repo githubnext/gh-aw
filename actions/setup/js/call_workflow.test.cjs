@@ -10,6 +10,16 @@ global.core = {
   setOutput: vi.fn(),
 };
 
+// Mock GitHub Actions context required by buildAwContext (imported via aw_context.cjs)
+global.context = {
+  repo: { owner: "test-owner", repo: "test-repo" },
+  runId: 1,
+  actor: "test-actor",
+  eventName: "issues",
+  ref: "refs/heads/main",
+  payload: {},
+};
+
 describe("call_workflow handler factory", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -146,5 +156,46 @@ describe("call_workflow handler factory", () => {
 
     expect(result.success).toBe(true);
     expect(core.setOutput).toHaveBeenCalledWith("call_workflow_payload", "{}");
+  });
+
+  it("should set call_workflow_aw_context output with aw_context JSON", async () => {
+    const config = { workflows: ["worker-a"], max: 1 };
+    const handler = await main(config);
+
+    const result = await handler({ workflow_name: "worker-a", inputs: {} });
+
+    expect(result.success).toBe(true);
+    // call_workflow_aw_context should be set
+    const setOutputCalls = core.setOutput.mock.calls;
+    const awContextCall = setOutputCalls.find(([name]) => name === "call_workflow_aw_context");
+    expect(awContextCall).toBeDefined();
+
+    // The value should be valid JSON containing standard aw_context fields
+    const awContextJson = awContextCall[1];
+    expect(() => JSON.parse(awContextJson)).not.toThrow();
+    const awContext = JSON.parse(awContextJson);
+    expect(awContext).toHaveProperty("repo");
+    expect(awContext).toHaveProperty("run_id");
+    expect(awContext).toHaveProperty("workflow_id");
+    expect(awContext).toHaveProperty("time");
+    expect(awContext).toHaveProperty("experiments");
+  });
+
+  it("should include experiment assignments in call_workflow_aw_context when GH_AW_EXPERIMENTS_JSON is set", async () => {
+    process.env.GH_AW_EXPERIMENTS_JSON = '{"feature1":"A","style":"concise"}';
+    const config = { workflows: ["worker-a"], max: 1 };
+    const handler = await main(config);
+
+    const result = await handler({ workflow_name: "worker-a", inputs: {} });
+
+    expect(result.success).toBe(true);
+    const setOutputCalls = core.setOutput.mock.calls;
+    const awContextCall = setOutputCalls.find(([name]) => name === "call_workflow_aw_context");
+    expect(awContextCall).toBeDefined();
+
+    const awContext = JSON.parse(awContextCall[1]);
+    expect(awContext.experiments).toBe('{"feature1":"A","style":"concise"}');
+
+    delete process.env.GH_AW_EXPERIMENTS_JSON;
   });
 });

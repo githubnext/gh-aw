@@ -204,8 +204,11 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 		// then add per-input entries derived from the payload for every declared
 		// workflow_call input on the worker (except 'payload' itself) so that
 		// worker steps can reference inputs.<name> directly without parsing JSON.
+		// Also forward the aw_context so the called workflow can inherit the caller's
+		// experiment assignments and propagate caller metadata.
 		with := map[string]any{
-			"payload": "${{ needs.safe_outputs.outputs.call_workflow_payload }}",
+			"payload":    "${{ needs.safe_outputs.outputs.call_workflow_payload }}",
+			"aw_context": "${{ needs.safe_outputs.outputs.call_workflow_aw_context || '' }}",
 		}
 
 		if markdownPath != "" {
@@ -233,7 +236,7 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 				} else if workflowInputs != nil {
 					typedInputCount := 0
 					for inputName := range workflowInputs {
-						if inputName == "payload" {
+						if inputName == "payload" || inputName == "aw_context" {
 							continue
 						}
 						with[inputName] = fmt.Sprintf("${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).%s }}", inputName)

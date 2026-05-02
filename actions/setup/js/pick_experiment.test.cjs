@@ -19,7 +19,7 @@ const mockCore = {
 
 global.core = mockCore;
 
-const { pickVariant, pickVariantWeighted, loadState, saveState, recordVariant, isWithinDateWindow, normalizeConfig, main } = await import("./pick_experiment.cjs");
+const { pickVariant, pickVariantWeighted, loadState, saveState, recordVariant, isWithinDateWindow, normalizeConfig, parseParentExperimentAssignments, main } = await import("./pick_experiment.cjs");
 
 describe("pick_experiment", () => {
   /** @type {string} */
@@ -569,6 +569,166 @@ describe("pick_experiment", () => {
     it("passes through an object-form config unchanged", () => {
       const cfg = { variants: ["A", "B"], weight: [70, 30] };
       expect(normalizeConfig(cfg)).toBe(cfg);
+    });
+  });
+
+  // ── parseParentExperimentAssignments ─────────────────────────────────────
+
+  describe("parseParentExperimentAssignments", () => {
+    beforeEach(() => {
+      delete process.env.GH_AW_EXPERIMENT_CONTEXT;
+    });
+
+    it("returns empty object when env var is not set", () => {
+      expect(parseParentExperimentAssignments()).toEqual({});
+    });
+
+    it("returns empty object when env var is empty string", () => {
+      process.env.GH_AW_EXPERIMENT_CONTEXT = "";
+      expect(parseParentExperimentAssignments()).toEqual({});
+    });
+
+    it("returns empty object when env var is invalid JSON", () => {
+      process.env.GH_AW_EXPERIMENT_CONTEXT = "not-json";
+      expect(parseParentExperimentAssignments()).toEqual({});
+    });
+
+    it("returns empty object when aw_context has no experiments field", () => {
+      process.env.GH_AW_EXPERIMENT_CONTEXT = JSON.stringify({ repo: "owner/repo", run_id: "1" });
+      expect(parseParentExperimentAssignments()).toEqual({});
+    });
+
+    it("returns empty object when experiments field is empty string", () => {
+      process.env.GH_AW_EXPERIMENT_CONTEXT = JSON.stringify({ experiments: "" });
+      expect(parseParentExperimentAssignments()).toEqual({});
+    });
+
+    it("returns empty object when experiments field is invalid JSON", () => {
+      process.env.GH_AW_EXPERIMENT_CONTEXT = JSON.stringify({ experiments: "not-json" });
+      expect(parseParentExperimentAssignments()).toEqual({});
+    });
+
+    it("returns parsed assignments from valid aw_context", () => {
+      const awContext = {
+        repo: "owner/repo",
+        run_id: "123",
+        experiments: JSON.stringify({ feature1: "A", style: "concise" }),
+      };
+      process.env.GH_AW_EXPERIMENT_CONTEXT = JSON.stringify(awContext);
+      expect(parseParentExperimentAssignments()).toEqual({ feature1: "A", style: "concise" });
+    });
+
+    it("filters out non-string experiment values", () => {
+      const awContext = {
+        experiments: JSON.stringify({ feature1: "A", bad: 42, alsobad: null }),
+      };
+      process.env.GH_AW_EXPERIMENT_CONTEXT = JSON.stringify(awContext);
+      expect(parseParentExperimentAssignments()).toEqual({ feature1: "A" });
+    });
+  });
+
+  // ── main with parent context ──────────────────────────────────────────────
+
+  describe("main – parent context inheritance", () => {
+    beforeEach(() => {
+      delete process.env.GH_AW_EXPERIMENT_CONTEXT;
+      delete process.env.GH_AW_EXPERIMENT_SPEC;
+    });
+
+    it("uses parent assignment when variant is in local spec", async () => {
+      const awContext = {
+        repo: "owner/repo",
+        run_id: "1",
+        experiments: JSON.stringify({ feature1: "B" }),
+      };
+      process.env.GH_AW_EXPERIMENT_CONTEXT = JSON.stringify(awContext);
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feature1: ["A", "B"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      // Should use parent's assignment "B", not pick
+      expect(mockCore.setOutput).toHaveBeenCalledWith("feature1", "B");
+      // State should NOT be updated since the variant was inherited
+      const state = loadState(path.join(tmpDir, "state.json"));
+      expect(state.counts["feature1"]).toBeUndefined();
+    });
+
+    it("picks normally when parent assignment is not in local spec's variants", async () => {
+      const awContext = {
+        repo: "owner/repo",
+        run_id: "1",
+        experiments: JSON.stringify({ feature1: "C" }), // "C" not in ["A","B"]
+      };
+      process.env.GH_AW_EXPERIMENT_CONTEXT = JSON.stringify(awContext);
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feature1: ["A", "B"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      // Should fall through to normal picking (either "A" or "B")
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const feature1Call = setOutputCalls.find(([name]) => name === "feature1");
+      expect(feature1Call).toBeDefined();
+      expect(["A", "B"]).toContain(feature1Call[1]);
+      // State SHOULD be updated since normal picking was used
+      const state = loadState(path.join(tmpDir, "state.json"));
+      expect(state.counts["feature1"]).toBeDefined();
+    });
+
+    it("mixes inherited and locally-picked experiments", async () => {
+      const awContext = {
+        repo: "owner/repo",
+        run_id: "1",
+        experiments: JSON.stringify({ shared: "X" }), // only shared is in parent context
+      };
+      process.env.GH_AW_EXPERIMENT_CONTEXT = JSON.stringify(awContext);
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        shared: ["X", "Y"],
+        local_only: ["P", "Q"],
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+
+      // shared should use parent's "X"
+      const sharedCall = setOutputCalls.find(([name]) => name === "shared");
+      expect(sharedCall?.[1]).toBe("X");
+
+      // local_only should be picked normally
+      const localCall = setOutputCalls.find(([name]) => name === "local_only");
+      expect(localCall).toBeDefined();
+      expect(["P", "Q"]).toContain(localCall?.[1]);
+
+      // Only local_only should have state updated
+      const state = loadState(path.join(tmpDir, "state.json"));
+      expect(state.counts["shared"]).toBeUndefined();
+      expect(state.counts["local_only"]).toBeDefined();
+    });
+
+    it("inherited variants appear in the experiments JSON output", async () => {
+      const awContext = {
+        repo: "owner/repo",
+        run_id: "1",
+        experiments: JSON.stringify({ feature1: "B" }),
+      };
+      process.env.GH_AW_EXPERIMENT_CONTEXT = JSON.stringify(awContext);
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feature1: ["A", "B"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const experimentsCall = setOutputCalls.find(([name]) => name === "experiments");
+      expect(experimentsCall).toBeDefined();
+      const assignments = JSON.parse(experimentsCall[1]);
+      expect(assignments.feature1).toBe("B");
     });
   });
 });
