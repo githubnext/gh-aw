@@ -1,20 +1,20 @@
 ---
-description: Smoke test workflow that validates OpenCode engine functionality
+description: Smoke test workflow that validates Pi engine functionality
 on:
   workflow_dispatch:
   pull_request:
     types: [labeled]
-    names: ["water"]
+    names: ["smoke"]
   reaction: "rocket"
   status-comment: true
 permissions:
   contents: read
   issues: read
   pull-requests: read
-name: Smoke OpenCode
+name: Smoke Pi
 engine:
-  id: opencode
-  model: copilot/gpt-5
+  id: pi
+  model: claude-sonnet-4-20250514
 strict: true
 imports:
   - shared/gh.md
@@ -27,10 +27,12 @@ tools:
   cache-memory: true
   github:
     toolsets: [repos, pull_requests]
+    mode: gh-proxy
   edit:
   bash:
     - "*"
   web-fetch:
+  cli-proxy: true
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     add-comment:
@@ -39,19 +41,19 @@ safe-outputs:
     create-issue:
       expires: 2h
       close-older-issues: true
-      close-older-key: "smoke-opencode"
+      close-older-key: "smoke-pi"
       labels: [automation, testing]
     add-labels:
-      allowed: [smoke-opencode]
+      allowed: [smoke-pi]
     messages:
-      footer: "> 🔥 *[{workflow_name}]({run_url}) — Powered by OpenCode*{effective_tokens_suffix}{history_link}"
-      run-started: "🔥 OpenCode initializing... [{workflow_name}]({run_url}) begins on this {event_type}..."
-      run-success: "🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** OpenCode delivered. 🔥"
-      run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. OpenCode encountered unexpected challenges..."
+      footer: "> 🥧 *[{workflow_name}]({run_url}) — Powered by Pi*{effective_tokens_suffix}{history_link}"
+      run-started: "🥧 Pi initializing... [{workflow_name}]({run_url}) begins on this {event_type}..."
+      run-success: "🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Pi delivered. 🥧"
+      run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. Pi encountered unexpected challenges..."
 timeout-minutes: 10
 ---
 
-# Smoke Test: OpenCode Engine Validation
+# Smoke Test: Pi Engine Validation
 
 **CRITICAL EFFICIENCY REQUIREMENTS:**
 - Keep ALL outputs extremely short and concise. Use single-line responses.
@@ -62,14 +64,14 @@ timeout-minutes: 10
 
 1. **GitHub MCP Testing**: Use GitHub MCP tools to fetch details of exactly 2 merged pull requests from ${{ github.repository }} (title and number only)
 2. **Web Fetch Testing**: Use the web-fetch MCP tool to fetch https://github.com and verify the response contains "GitHub" (do NOT use bash or playwright for this test - use the web-fetch MCP tool directly)
-3. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-opencode-${{ github.run_id }}.txt` with content "Smoke test passed for OpenCode at $(date)" (create the directory if it doesn't exist)
+3. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-pi-${{ github.run_id }}.txt` with content "Smoke test passed for Pi at $(date)" (create the directory if it doesn't exist)
 4. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 5. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project. If the command fails, mark this test as ❌ and report the failure.
 
 ## Output
 
 **ALWAYS create an issue** with a summary of the smoke test run:
-- Title: "Smoke Test: OpenCode - ${{ github.run_id }}"
+- Title: "Smoke Test: Pi - ${{ github.run_id }}"
 - Body should include:
   - Test results (✅ or ❌ for each test)
   - Overall status: PASS or FAIL
@@ -80,6 +82,6 @@ timeout-minutes: 10
 - ✅ or ❌ for each test result
 - Overall status: PASS or FAIL
 
-If all tests pass and this workflow was triggered by a pull_request event, use the `add_labels` safe-output tool to add the label `smoke-opencode` to the pull request (omit the `item_number` parameter to auto-target the triggering PR).
+If all tests pass and this workflow was triggered by a pull_request event, use the `add_labels` safe-output tool to add the label `smoke-pi` to the pull request (omit the `item_number` parameter to auto-target the triggering PR).
 
 {{#runtime-import shared/noop-reminder.md}}
