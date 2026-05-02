@@ -35,7 +35,6 @@ func (c *Compiler) parseResolvePullRequestReviewThreadConfig(outputMap map[strin
 			if warnOnError, exists := configMap["warn-on-error"]; exists {
 				if warnOnErrorBool, ok := warnOnError.(bool); ok {
 					config.WarnOnError = warnOnErrorBool
-					resolvePRReviewThreadLog.Printf("Parsed warn-on-error: %t", config.WarnOnError)
 				}
 			}
 
