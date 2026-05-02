@@ -59,13 +59,34 @@ func (e *CrushEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		return []GitHubActionStep{}
 	}
 
-	npmSteps := BuildStandardNpmEngineInstallSteps(
+	// Use version from engine config if provided, otherwise default to pinned version
+	version := string(constants.DefaultCrushVersion)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		version = workflowData.EngineConfig.Version
+	}
+
+	// Crush requires post-install scripts (native binaries) so --ignore-scripts must
+	// NOT be passed. This is intentionally different from other engine installs.
+	npmSteps := GenerateNpmInstallSteps(
 		"@charmland/crush",
-		string(constants.DefaultCrushVersion),
+		version,
 		"Install Crush CLI",
 		"crush",
-		workflowData,
+		true, // Include Node.js setup
+		true, // Crush requires post-install scripts for native binaries
 	)
+
+	// Run crush --version to verify the installation and force any deferred binary downloads
+	commandName := "crush"
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		commandName = workflowData.EngineConfig.Command
+	}
+	versionStep := GitHubActionStep{
+		"      - name: Verify Crush CLI installation",
+		"        run: " + commandName + " --version",
+	}
+	npmSteps = append(npmSteps, versionStep)
+
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
 
