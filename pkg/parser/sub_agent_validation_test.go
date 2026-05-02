@@ -169,3 +169,50 @@ func TestValidateInlineSubAgentsFrontmatter_TopLevelFrontmatterNotValidated(t *t
 	warnings := ValidateInlineSubAgentsFrontmatter(markdown)
 	assert.Empty(t, warnings, "top-level frontmatter fields must not trigger sub-agent warnings")
 }
+
+// TestValidateInlineSubAgentsFrontmatter_DuplicateAgentNames verifies that when
+// ExtractInlineSubAgents fails (e.g. duplicate agent names), a warning is returned
+// instead of silently returning nil.
+func TestValidateInlineSubAgentsFrontmatter_DuplicateAgentNames(t *testing.T) {
+	markdown := strings.Join([]string{
+		"# Main workflow",
+		"",
+		agentLine("helper"),
+		"---",
+		"description: First helper",
+		"---",
+		"First helper content.",
+		"",
+		agentLine("helper"),
+		"---",
+		"description: Duplicate name",
+		"---",
+		"Second helper content.",
+	}, "\n")
+
+	warnings := ValidateInlineSubAgentsFrontmatter(markdown)
+	assert.NotEmpty(t, warnings, "duplicate agent names should produce a warning")
+	assert.Contains(t, warnings[0], "helper", "warning should mention the duplicate agent name")
+}
+
+// TestValidateInlineSubAgentsFrontmatter_FieldFormat verifies that unknown fields are
+// formatted with comma separation rather than Go slice notation.
+func TestValidateInlineSubAgentsFrontmatter_FieldFormat(t *testing.T) {
+	markdown := strings.Join([]string{
+		"# Main workflow",
+		"",
+		agentLine("worker"),
+		"---",
+		"engine: copilot",
+		"on:",
+		"  workflow_dispatch:",
+		"---",
+		"Do work.",
+	}, "\n")
+
+	warnings := ValidateInlineSubAgentsFrontmatter(markdown)
+	assert.Len(t, warnings, 1, "should produce one warning")
+	// Fields should be comma-separated, not formatted as a Go slice [engine on]
+	assert.NotContains(t, warnings[0], "[", "warning should not use Go slice notation")
+	assert.NotContains(t, warnings[0], "]", "warning should not use Go slice notation")
+}

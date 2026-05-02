@@ -104,9 +104,26 @@ func ValidateInlineSubAgentsFrontmatter(markdown string) []string {
 	} else {
 		body = markdown
 	}
+	return ValidateInlineSubAgentsInBody(body)
+}
 
+// ValidateInlineSubAgentsInBody performs best-effort frontmatter validation on
+// inline sub-agent sections found in an already-stripped markdown body.
+// Unlike ValidateInlineSubAgentsFrontmatter, it does not strip a top-level
+// frontmatter block, making it suitable for callers that have already parsed
+// the file and hold the markdown body separately.
+//
+// All issues are returned as human-readable warning strings (best-effort,
+// never abort compilation). If no sub-agents are found or no issues are
+// detected, nil is returned.
+func ValidateInlineSubAgentsInBody(body string) []string {
 	_, subAgents, err := ExtractInlineSubAgents(body)
-	if err != nil || len(subAgents) == 0 {
+	if err != nil {
+		// Surface extraction errors (e.g. duplicate agent names) as a warning
+		// rather than silently skipping validation.
+		return []string{fmt.Sprintf("could not extract inline sub-agents: %v", err)}
+	}
+	if len(subAgents) == 0 {
 		return nil
 	}
 
@@ -140,8 +157,8 @@ func validateSubAgentFrontmatterFields(agent InlineSubAgent) []string {
 
 	sort.Strings(unknown) // deterministic order
 	return []string{fmt.Sprintf(
-		"sub-agent %q: unknown frontmatter field(s) %v (valid fields: description, model)",
-		agent.Name, unknown,
+		"sub-agent %q: unknown frontmatter field(s): %s (valid fields: description, model)",
+		agent.Name, strings.Join(unknown, ", "),
 	)}
 }
 

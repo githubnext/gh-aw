@@ -125,12 +125,24 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	// Best-effort: detect and validate inline sub-agent frontmatter in the imported file.
 	// Unknown fields in sub-agent frontmatter blocks are surfaced as advisory warnings.
 	// Validation failures never abort the import — they are accumulated for later display.
-	if agentWarnings := ValidateInlineSubAgentsFrontmatter(rawContent); len(agentWarnings) > 0 {
-		for _, w := range agentWarnings {
-			msg := fmt.Sprintf("import '%s': %s", item.importPath, w)
-			acc.warnings = append(acc.warnings, msg)
-			log.Printf("%s", msg)
-		}
+	//
+	// When content was NOT substituted we reuse origParsed.Markdown (already parsed above)
+	// to avoid a redundant YAML parse. When content was substituted we pass the full
+	// substituted content so ValidateInlineSubAgentsFrontmatter can extract the body itself.
+	var bodyForValidation string
+	if !wasSubstituted && origParseErr == nil {
+		bodyForValidation = origParsed.Markdown
+	}
+	var agentWarnings []string
+	if bodyForValidation != "" {
+		agentWarnings = ValidateInlineSubAgentsInBody(bodyForValidation)
+	} else {
+		agentWarnings = ValidateInlineSubAgentsFrontmatter(rawContent)
+	}
+	for _, w := range agentWarnings {
+		msg := fmt.Sprintf("import '%s': %s", item.importPath, w)
+		acc.warnings = append(acc.warnings, msg)
+		log.Printf("%s", msg)
 	}
 
 	// Extract tools from imported file.
