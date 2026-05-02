@@ -21,7 +21,7 @@ on:
 Do some work.
 `
 	warnings := ValidateInlineSubAgentsFrontmatter(markdown)
-	assert.Nil(t, warnings, "no sub-agents should produce no warnings")
+	assert.Empty(t, warnings, "no sub-agents should produce no warnings")
 }
 
 // TestValidateInlineSubAgentsFrontmatter_ValidFields verifies that known fields
@@ -44,7 +44,7 @@ func TestValidateInlineSubAgentsFrontmatter_ValidFields(t *testing.T) {
 	}, "\n")
 
 	warnings := ValidateInlineSubAgentsFrontmatter(markdown)
-	assert.Nil(t, warnings, "only valid fields should produce no warnings")
+	assert.Empty(t, warnings, "only valid fields should produce no warnings")
 }
 
 // TestValidateInlineSubAgentsFrontmatter_UnknownField verifies that an unknown
@@ -135,14 +135,14 @@ func TestValidateInlineSubAgentsFrontmatter_NoFrontmatter(t *testing.T) {
 	}, "\n")
 
 	warnings := ValidateInlineSubAgentsFrontmatter(markdown)
-	assert.Nil(t, warnings, "sub-agent without frontmatter should produce no warnings")
+	assert.Empty(t, warnings, "sub-agent without frontmatter should produce no warnings")
 }
 
 // TestValidateInlineSubAgentsFrontmatter_EmptyContent verifies that empty input
 // produces no warnings.
 func TestValidateInlineSubAgentsFrontmatter_EmptyContent(t *testing.T) {
 	warnings := ValidateInlineSubAgentsFrontmatter("")
-	assert.Nil(t, warnings, "empty content should produce no warnings")
+	assert.Empty(t, warnings, "empty content should produce no warnings")
 }
 
 // TestValidateInlineSubAgentsFrontmatter_TopLevelFrontmatterNotValidated verifies
@@ -167,5 +167,5 @@ func TestValidateInlineSubAgentsFrontmatter_TopLevelFrontmatterNotValidated(t *t
 	}, "\n")
 
 	warnings := ValidateInlineSubAgentsFrontmatter(markdown)
-	assert.Nil(t, warnings, "top-level frontmatter fields must not trigger sub-agent warnings")
+	assert.Empty(t, warnings, "top-level frontmatter fields must not trigger sub-agent warnings")
 }
