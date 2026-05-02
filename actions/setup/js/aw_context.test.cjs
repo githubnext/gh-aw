@@ -3,7 +3,8 @@ import fs from "fs";
 
 // resolveItemContext does not depend on global context — it only operates on
 // the plain payload object, so we can test it directly without any mocking.
-const { resolveItemContext, readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = await import("./aw_context.cjs");
+const { resolveItemContext } = await import("./aw_context.cjs");
+const { EXPERIMENT_ASSIGNMENTS_PATH } = await import("./experiment_helpers.cjs");
 
 describe("resolveItemContext", () => {
   it("returns issue type and number for issues events", () => {
@@ -92,62 +93,6 @@ describe("resolveItemContext", () => {
   it("returns empty item_number when number is null", () => {
     const payload = { issue: { number: null } };
     expect(resolveItemContext(payload)).toEqual({ item_type: "issue", item_number: "", comment_id: "", comment_node_id: "" });
-  });
-});
-
-describe("readExperimentAssignments", () => {
-  let readFileSpy;
-  const savedStateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR;
-
-  beforeEach(() => {
-    delete process.env.GH_AW_EXPERIMENT_STATE_DIR;
-    readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
-      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
-    });
-  });
-
-  afterEach(() => {
-    readFileSpy.mockRestore();
-    if (savedStateDir !== undefined) {
-      process.env.GH_AW_EXPERIMENT_STATE_DIR = savedStateDir;
-    } else {
-      delete process.env.GH_AW_EXPERIMENT_STATE_DIR;
-    }
-  });
-
-  it("returns null when the assignments file does not exist", () => {
-    expect(readExperimentAssignments()).toBeNull();
-  });
-
-  it("returns null when the assignments file contains invalid JSON", () => {
-    readFileSpy.mockReturnValue("not-valid-json");
-    expect(readExperimentAssignments()).toBeNull();
-  });
-
-  it("returns null when the assignments file contains a non-object value", () => {
-    readFileSpy.mockReturnValue(JSON.stringify(["A", "B"]));
-    expect(readExperimentAssignments()).toBeNull();
-  });
-
-  it("returns the parsed assignments object when the file is valid", () => {
-    readFileSpy.mockImplementation(filePath => {
-      if (filePath === EXPERIMENT_ASSIGNMENTS_PATH) {
-        return JSON.stringify({ caveman: "yes", style: "detailed" });
-      }
-      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
-    });
-    expect(readExperimentAssignments()).toEqual({ caveman: "yes", style: "detailed" });
-  });
-
-  it("reads from GH_AW_EXPERIMENT_STATE_DIR/assignments.json when env var is set", () => {
-    process.env.GH_AW_EXPERIMENT_STATE_DIR = "/custom/experiments";
-    readFileSpy.mockImplementation(filePath => {
-      if (filePath === "/custom/experiments/assignments.json") {
-        return JSON.stringify({ feature: "on" });
-      }
-      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
-    });
-    expect(readExperimentAssignments()).toEqual({ feature: "on" });
   });
 });
 

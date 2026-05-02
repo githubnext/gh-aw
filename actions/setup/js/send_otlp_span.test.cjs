@@ -24,10 +24,10 @@ const {
   appendToOTLPJSONL,
   SPAN_KIND_INTERNAL,
   SPAN_KIND_SERVER,
-  readExperimentAssignments,
   buildExperimentAttributes,
-  EXPERIMENT_ASSIGNMENTS_PATH,
 } = await import("./send_otlp_span.cjs");
+
+const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = await import("./experiment_helpers.cjs");
 
 // ---------------------------------------------------------------------------
 // isValidTraceId
