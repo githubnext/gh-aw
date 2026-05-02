@@ -774,10 +774,12 @@ jobs:
       run: chmod +x ./gh-aw
 
     - name: Clone github/gh-aw-marketplace repository
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         echo "Cloning github/gh-aw-marketplace repository..."
         cd /tmp
-        AUTH_HEADER=$(printf 'x-access-token:%s' '${{ github.token }}' | base64 | tr -d '\n')
+        AUTH_HEADER=$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')
         git -c http.https://github.com/.extraheader="Authorization: Basic ${AUTH_HEADER}" clone --depth 1 https://github.com/github/gh-aw-marketplace.git
         echo "✅ Repository cloned successfully"
 
