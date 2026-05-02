@@ -494,6 +494,20 @@ func TestSpec_PublicAPI_Miner_ClusterCount_SPEC_MISMATCH(t *testing.T) {
 	assert.Len(t, miner.Clusters(), 1, "cluster count should be 1 after training one unique event")
 }
 
+// TestSpec_PublicAPI_Miner_Train validates that Miner.Train processes a raw log line.
+// Spec: "Process a raw log line (training + matching in one step)"
+func TestSpec_PublicAPI_Miner_Train(t *testing.T) {
+	cfg := agentdrain.DefaultConfig()
+	miner, err := agentdrain.NewMiner(cfg)
+	require.NoError(t, err)
+
+	result, err := miner.Train("user action completed step 1 successfully")
+	require.NoError(t, err, "Train should not error on a valid raw log line")
+	assert.NotNil(t, result, "Train should return a non-nil MatchResult")
+	assert.Positive(t, result.ClusterID, "Train result ClusterID should be positive")
+	assert.NotEmpty(t, result.Template, "Train result Template should be a non-empty space-joined string")
+}
+
 // TestSpec_Types_Snapshot validates the documented Snapshot/SnapshotCluster type structures.
 // Spec: Snapshot{Config, Clusters []SnapshotCluster, NextID}, SnapshotCluster{ID, Template, Size, Stage}.
 func TestSpec_Types_Snapshot(t *testing.T) {
