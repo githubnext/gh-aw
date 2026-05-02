@@ -505,7 +505,8 @@ function readStdinSync() {
  *
  * @param {string[]} args - User arguments after the tool name
  * @param {Record<string, {type?: string|string[]}>} [schemaProperties] - Tool input schema properties
- * @param {string | null} [stdinContent] - Pre-read stdin content for JSON payload mode
+ * @param {string | null} [stdinContent] - Pre-read stdin content; used only when args is empty
+ *   or `['.']` (JSON payload mode). Ignored for all other argument forms.
  * @returns {{args: Record<string, unknown>, json: boolean}}
  */
 function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
