@@ -489,6 +489,29 @@ func TestExtractExperimentConfigsFromFrontmatter(t *testing.T) {
 				assert.Equal(t, []int{60, 40}, cfg.Weight, "weight items parsed from uint64")
 			},
 		},
+		{
+			name: "new conclusion fields: tags, auto_conclude, conclusion_action, baseline_variant",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"prompt_style": map[string]any{
+						"variants":          []any{"concise", "detailed"},
+						"tags":              []any{"cost", "prompt-engineering"},
+						"auto_conclude":     true,
+						"conclusion_action": "promote_winner",
+						"baseline_variant":  "detailed",
+					},
+				},
+			},
+			check: func(t *testing.T, got map[string]*ExperimentConfig) {
+				require.NotNil(t, got, "config should exist")
+				cfg := got["prompt_style"]
+				require.NotNil(t, cfg, "prompt_style config should exist")
+				assert.Equal(t, []string{"cost", "prompt-engineering"}, cfg.Tags, "tags should match")
+				assert.True(t, cfg.AutoConclude, "auto_conclude should be true")
+				assert.Equal(t, "promote_winner", cfg.ConclusionAction, "conclusion_action should match")
+				assert.Equal(t, "detailed", cfg.BaselineVariant, "baseline_variant should match")
+			},
+		},
 	}
 
 	for _, tt := range tests {

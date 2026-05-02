@@ -161,6 +161,23 @@ type ExperimentConfig struct {
 	// EndDate is an optional ISO-8601 date (YYYY-MM-DD) after which the experiment is
 	// no longer active.  When today is after this date the control variant is used.
 	EndDate string `json:"end_date,omitempty"`
+
+	// Tags holds free-form labels used for filtering experiments in dashboards
+	// (e.g. ["cost", "prompt-engineering"]).
+	Tags []string `json:"tags,omitempty"`
+
+	// AutoConclude indicates that conclusion logic should be triggered automatically
+	// once MinSamples is reached for all variants.
+	AutoConclude bool `json:"auto_conclude,omitempty"`
+
+	// ConclusionAction specifies the action to take when the experiment concludes.
+	// Valid values: "promote_winner", "notify_only", "open_pr".
+	// Unknown values are passed through and logged by conclusion tooling.
+	ConclusionAction string `json:"conclusion_action,omitempty"`
+
+	// BaselineVariant is the explicit name of the control variant.
+	// When empty the first entry in Variants is used as the control.
+	BaselineVariant string `json:"baseline_variant,omitempty"`
 }
 
 // RateLimitConfig represents rate limiting configuration for workflow triggers

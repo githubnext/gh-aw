@@ -55,6 +55,10 @@ experiments:
     end_date: "2026-07-25"
     issue: 1234
     owner: "@team-agents"
+    tags: [cost, prompt-engineering]
+    auto_conclude: true
+    conclusion_action: promote_winner
+    baseline_variant: detailed
 ---
 
 Summarize the findings in a **${{ experiments.prompt_style }}** way.
@@ -181,9 +185,13 @@ Tracking issue: [#1234](https://github.com/owner/repo/issues/1234)
 | `secondary_metrics` | `string[]` | | Additional metrics to track alongside the primary metric |
 | `guardrail_metrics` | `object[]` | | List of `{name, threshold}` pairs that must not degrade. Threshold is a comparison expression like `>=0.95` or `==0` |
 | `min_samples` | `integer` | | Minimum runs per variant required before statistical analysis is considered reliable. The step summary shows a progress bar toward this target. |
-| `owner` | `string` | | Team or person responsible for this experiment (e.g. `@team-agents`) |
+| `owner` | `string` | | Team or person responsible for this experiment (e.g. `@team-agents`). Shown in the step summary. |
 | `weight` | `integer[]` | | Per-variant probability weights (same length as `variants`). Enables weighted-random selection; values are relative and need not sum to 100. |
 | `issue` | `integer` | | GitHub issue number that tracks this experiment's lifecycle |
 | `start_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) before which the experiment is inactive. The control variant is returned before this date without incrementing any counter. |
 | `end_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) after which the experiment is inactive. The control variant is returned after this date without incrementing any counter. |
+| `tags` | `string[]` | | Free-form labels for filtering experiments in dashboards (e.g. `[cost, prompt-engineering]`) |
+| `auto_conclude` | `boolean` | | When `true` and `min_samples` is reached for all variants, triggers conclusion logic |
+| `conclusion_action` | `string` | | Action to take when the experiment concludes. One of `promote_winner`, `notify_only`, or `open_pr` |
+| `baseline_variant` | `string` | | Explicit name of the control variant. When omitted the first entry in `variants` is used. |
 

@@ -166,6 +166,18 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 		if owner, ok := v["owner"].(string); ok {
 			cfg.Owner = owner
 		}
+		if tagsRaw, ok := v["tags"]; ok {
+			cfg.Tags = extractStringSlice(tagsRaw)
+		}
+		if ac, ok := v["auto_conclude"].(bool); ok {
+			cfg.AutoConclude = ac
+		}
+		if ca, ok := v["conclusion_action"].(string); ok {
+			cfg.ConclusionAction = ca
+		}
+		if bv, ok := v["baseline_variant"].(string); ok {
+			cfg.BaselineVariant = bv
+		}
 		return cfg
 	}
 	return nil

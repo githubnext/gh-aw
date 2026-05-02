@@ -132,6 +132,22 @@ func TestCompileExperimentsRichSchema(t *testing.T) {
 	require.NoError(t, json.Unmarshal(cfg["weight"], &weights), "weight should parse")
 	assert.Equal(t, []int{60, 40}, weights, "weight should match")
 
+	// tags
+	var tags []string
+	require.NoError(t, json.Unmarshal(cfg["tags"], &tags), "tags should parse")
+	assert.Equal(t, []string{"cost", "prompt-engineering"}, tags, "tags should match")
+
+	// auto_conclude
+	var autoConclude bool
+	require.NoError(t, json.Unmarshal(cfg["auto_conclude"], &autoConclude), "auto_conclude should parse")
+	assert.True(t, autoConclude, "auto_conclude should be true")
+
+	// conclusion_action
+	assertJSONStringField(t, cfg, "conclusion_action", "promote_winner")
+
+	// baseline_variant
+	assertJSONStringField(t, cfg, "baseline_variant", "detailed")
+
 	t.Logf("Rich-schema experiment workflow compiled successfully to %s", lockPath)
 }
 

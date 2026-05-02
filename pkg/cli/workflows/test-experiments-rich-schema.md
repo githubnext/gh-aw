@@ -25,6 +25,10 @@ experiments:
     issue: 1234
     start_date: "2026-01-01"
     end_date: "2026-12-31"
+    tags: [cost, prompt-engineering]
+    auto_conclude: true
+    conclusion_action: promote_winner
+    baseline_variant: detailed
 ---
 
 Rich schema experiment test.

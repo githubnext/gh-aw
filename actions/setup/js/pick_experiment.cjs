@@ -54,6 +54,10 @@ const path = require("path");
  * @property {number} [min_samples]                 - Minimum runs per variant for reliable analysis
  * @property {string} [owner]                       - Team or person responsible
  * @property {number} [issue]
+ * @property {string[]} [tags]                      - Free-form labels for filtering in dashboards
+ * @property {boolean} [auto_conclude]              - Trigger conclusion logic when min_samples reached
+ * @property {string} [conclusion_action]           - Action on conclusion: "promote_winner" | "notify_only" | "open_pr"
+ * @property {string} [baseline_variant]            - Explicit control variant name (default: first in list)
  */
 
 /**
@@ -233,15 +237,20 @@ async function writeSummary(assignments, configs, state, core) {
         const pct = Math.min(100, Math.round((n / minSamples) * 100));
         const filled = Math.round(pct / 5); // 20-char bar
         const bar = "█".repeat(filled) + "░".repeat(20 - filled);
-        lines.push(`  ${variant}: ${bar} ${n}/${minSamples} (${pct}%)`);
+        const remaining = Math.max(0, minSamples - n);
+        const remainingStr = remaining > 0 ? ` (${remaining} runs remaining)` : "";
+        lines.push(`  ${variant}: ${bar} ${n}/${minSamples} (${pct}%)${remainingStr}`);
       }
       lines.push("");
     }
   }
 
-  // Append optional description, hypothesis, guardrail metrics, and issue link.
+  // Append optional description, hypothesis, owner, guardrail metrics, and issue link.
   const repo = process.env.GITHUB_REPOSITORY || "";
-  const metadataNames = names.filter(name => configs[name]?.description || configs[name]?.hypothesis || configs[name]?.guardrail_metrics?.length || configs[name]?.issue);
+  const metadataNames = names.filter(name => {
+    const cfg = configs[name];
+    return cfg?.description || cfg?.hypothesis || cfg?.owner || cfg?.guardrail_metrics?.length || cfg?.issue;
+  });
   if (metadataNames.length > 0) {
     lines.push("### Experiment Details");
     lines.push("");
@@ -249,6 +258,7 @@ async function writeSummary(assignments, configs, state, core) {
       const cfg = configs[name];
       const description = cfg?.description;
       const hypothesis = cfg?.hypothesis;
+      const owner = cfg?.owner;
       const guardrails = cfg?.guardrail_metrics;
       const issue = cfg?.issue;
       lines.push(`**${name}**`);
@@ -259,6 +269,10 @@ async function writeSummary(assignments, configs, state, core) {
       if (hypothesis) {
         lines.push("");
         lines.push(`**Hypothesis:** ${hypothesis}`);
+      }
+      if (owner) {
+        lines.push("");
+        lines.push(`**Owner:** ${owner}`);
       }
       if (guardrails && guardrails.length > 0) {
         lines.push("");
