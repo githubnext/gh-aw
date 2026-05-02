@@ -226,6 +226,7 @@ func TestGenerateExperimentSteps_Empty(t *testing.T) {
 func TestGenerateExperimentSteps_Generated(t *testing.T) {
 	c := &Compiler{}
 	data := &WorkflowData{
+		WorkflowID: "my-workflow",
 		Experiments: map[string][]string{
 			"feature1": {"A", "B"},
 		},
@@ -239,7 +240,10 @@ func TestGenerateExperimentSteps_Generated(t *testing.T) {
 	assert.Contains(t, joined, "pick_experiment.cjs", "should reference pick_experiment.cjs")
 	assert.Contains(t, joined, "Save experiment state", "should include cache save step")
 	assert.Contains(t, joined, "Upload experiment artifact", "should include artifact upload step")
-	assert.Contains(t, joined, "experiment", "artifact name should include 'experiment'")
+	assert.Contains(t, joined, "myworkflow-experiment", "artifact name should include sanitized workflow ID and 'experiment'")
+	// Cache key must embed the literal sanitized workflow ID, not the env var.
+	assert.Contains(t, joined, "experiments-myworkflow-", "cache key should include the sanitized workflow ID")
+	assert.NotContains(t, joined, "GH_AW_WORKFLOW_ID_SANITIZED", "cache key must not reference unset env var")
 }
 
 func TestGenerateExperimentSteps_SpecJSON(t *testing.T) {
@@ -295,32 +299,41 @@ func TestExperimentExpressionMappings(t *testing.T) {
 // ── buildExperimentArtifactDownloadSteps ──────────────────────────────────
 
 func TestBuildExperimentArtifactDownloadStep_Empty(t *testing.T) {
-	steps := buildExperimentArtifactDownloadSteps("prefix-", nil)
+	steps := buildExperimentArtifactDownloadSteps(&WorkflowData{WorkflowID: "test-wf"})
 	assert.Empty(t, steps, "no steps when experiments is nil")
 
-	steps = buildExperimentArtifactDownloadSteps("prefix-", map[string][]string{})
+	steps = buildExperimentArtifactDownloadSteps(&WorkflowData{WorkflowID: "test-wf", Experiments: map[string][]string{}})
 	assert.Empty(t, steps, "no steps when experiments is empty")
 }
 
 func TestBuildExperimentArtifactDownloadStep_Generated(t *testing.T) {
-	experiments := map[string][]string{"caveman": {"yes", "no"}}
-	steps := buildExperimentArtifactDownloadSteps("${{ needs.activation.outputs.artifact_prefix }}", experiments)
+	// workflow_call trigger: artifact name uses the runtime prefix expression.
+	data := &WorkflowData{
+		WorkflowID:  "my-wf",
+		Experiments: map[string][]string{"caveman": {"yes", "no"}},
+		On:          "workflow_call:",
+	}
+	steps := buildExperimentArtifactDownloadSteps(data)
 	require.NotEmpty(t, steps, "steps should be generated when experiments are declared")
 	joined := strings.Join(steps, "")
 	assert.Contains(t, joined, "Download experiment artifact", "should include download step name")
 	assert.Contains(t, joined, "experiment", "should reference experiment artifact")
 	assert.Contains(t, joined, experimentsCacheDir, "should download to experiments cache dir")
 	assert.Contains(t, joined, "actions/download-artifact", "should use download-artifact action")
+	assert.Contains(t, joined, "${{ needs.activation.outputs.artifact_prefix }}", "workflow_call should use runtime prefix")
 }
 
 func TestBuildExperimentArtifactDownloadStep_NoPrefix(t *testing.T) {
-	// Non-workflow_call workflows use empty prefix
-	experiments := map[string][]string{"style": {"A", "B"}}
-	steps := buildExperimentArtifactDownloadSteps("", experiments)
+	// Non-workflow_call workflows use the sanitized workflow ID as prefix.
+	data := &WorkflowData{
+		WorkflowID:  "smoke-copilot",
+		Experiments: map[string][]string{"style": {"A", "B"}},
+	}
+	steps := buildExperimentArtifactDownloadSteps(data)
 	require.NotEmpty(t, steps, "steps should be generated")
 	joined := strings.Join(steps, "")
-	// Artifact name should be just the base name (no prefix)
-	assert.Contains(t, joined, "          name: experiment\n", "artifact name should be unqualified for non-workflow_call")
+	// Artifact name should include the sanitized workflow ID as prefix.
+	assert.Contains(t, joined, "          name: smokecopilot-experiment\n", "artifact name should include sanitized workflow ID")
 }
 
 // ── extractExperimentConfigsFromFrontmatter ───────────────────────────────
