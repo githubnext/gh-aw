@@ -22,6 +22,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/parser"
 )
 
 // runtimeImportMacroRe matches {{#runtime-import filepath}} or {{#runtime-import? filepath}}.
@@ -142,6 +145,17 @@ func validateRuntimeImportFiles(markdownContent string, workspaceDir string) err
 			validationErrors = append(validationErrors, fmt.Sprintf("%s: %v", filePath, err))
 		} else {
 			expressionValidationLog.Printf("✓ Validated expressions in %s", filePath)
+		}
+
+		// Best-effort: detect and validate inline sub-agent frontmatter in the
+		// runtime-imported file. Unknown fields are surfaced as warnings and must
+		// not abort compilation.
+		if agentWarnings := parser.ValidateInlineSubAgentsFrontmatter(string(content)); len(agentWarnings) > 0 {
+			for _, w := range agentWarnings {
+				msg := fmt.Sprintf("runtime-import '%s': %s", filePath, w)
+				expressionValidationLog.Printf("%s", msg)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+			}
 		}
 	}
 

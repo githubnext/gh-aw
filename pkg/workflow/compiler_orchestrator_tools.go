@@ -66,6 +66,12 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		c.IncrementWarningCount()
 	}
 
+	// Surface best-effort sub-agent frontmatter warnings collected during import BFS traversal.
+	for _, w := range importsResult.Warnings {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+		c.IncrementWarningCount()
+	}
+
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
 
