@@ -3,8 +3,8 @@
 
 // extract_inline_sub_agents.cjs
 //
-// Parses ## agent: name / ## end: name markers from workflow markdown and
-// writes each agent block as a separate .md file under .github/agents/.
+// Parses ## agent: `name` markers from workflow markdown and writes each agent
+// block as a separate .md file under .github/agents/.
 //
 // This step runs AFTER {{#runtime-import}} macros have been fully inlined by
 // processRuntimeImports() in interpolate_prompt.cjs, ensuring that any imports
@@ -12,15 +12,12 @@
 //
 // Marker syntax
 // ─────────────
-//   ## agent: name          Opens an agent block.  name must start with a
-//                           letter and contain only alphanumeric chars, hyphens,
-//                           or underscores (safe for filenames).
+//   ## agent: `name`       Opens an agent block.  name must start with a
+//                          lowercase letter and contain only lowercase letters,
+//                          digits, hyphens, or underscores (safe for filenames).
 //
-//   ## end: name            Optionally closes the named agent block.  When the
-//                           name matches the currently-open agent the block is
-//                           terminated; content after the marker is excluded
-//                           from the agent file.  A mismatched name or an end
-//                           marker with no open agent is treated as plain text.
+// An agent block ends at the next level-2 Markdown heading (## ...) or EOF.
+// There is no explicit end marker — any H2 heading closes the agent block.
 //
 // If no ## agent: markers are present the content is returned unchanged and no
 // files are written.
@@ -28,11 +25,12 @@
 const fs = require("fs");
 const path = require("path");
 
-// Regex for the start marker: ## agent: name
-const START_MARKER_RE = /^##[ \t]+agent:[ \t]+([a-zA-Z][a-zA-Z0-9_-]*)[ \t]*$/gm;
+// Regex for the start marker: ## agent: `name` (lowercase identifier)
+const START_MARKER_RE = /^##[ \t]+agent:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$/gm;
 
-// Regex for the optional end marker: ## end: name
-const END_MARKER_RE = /^##[ \t]+end:[ \t]+([a-zA-Z][a-zA-Z0-9_-]*)[ \t]*$/gm;
+// Regex that matches the start of any level-2 Markdown heading (## ).
+// Used to find the boundary where each agent block ends.
+const H2_HEADING_RE = /^##[ \t]/gm;
 
 /**
  * Extracts inline sub-agents from markdown content.
@@ -40,66 +38,45 @@ const END_MARKER_RE = /^##[ \t]+end:[ \t]+([a-zA-Z][a-zA-Z0-9_-]*)[ \t]*$/gm;
  * Returns the main content (everything before the first ## agent: marker, with
  * trailing newlines stripped) and an array of extracted agents.
  *
+ * An agent block extends from its start marker to the next H2 heading or EOF.
+ *
  * @param {string} content - Markdown with potential inline sub-agent blocks.
  * @returns {{ mainContent: string, agents: Array<{name: string, content: string}> }}
  */
 function extractInlineSubAgents(content) {
-  /** @type {Array<{kind: "start"|"end", name: string, lineStart: number, lineEnd: number}>} */
-  const markers = [];
+  const startMatches = [...content.matchAll(START_MARKER_RE)];
 
-  for (const m of content.matchAll(START_MARKER_RE)) {
-    if (m.index === undefined) continue;
-    let lineEnd = m.index + m[0].length;
-    if (lineEnd < content.length && content[lineEnd] === "\n") lineEnd++;
-    markers.push({ kind: "start", name: m[1], lineStart: m.index, lineEnd });
-  }
-
-  for (const m of content.matchAll(END_MARKER_RE)) {
-    if (m.index === undefined) continue;
-    let lineEnd = m.index + m[0].length;
-    if (lineEnd < content.length && content[lineEnd] === "\n") lineEnd++;
-    markers.push({ kind: "end", name: m[1], lineStart: m.index, lineEnd });
-  }
-
-  // Sort all markers by their position in the document.
-  markers.sort((a, b) => a.lineStart - b.lineStart);
-
-  // Find the first start marker.
-  const firstStartIdx = markers.findIndex(m => m.kind === "start");
-  if (firstStartIdx === -1) {
+  if (startMatches.length === 0) {
     return { mainContent: content, agents: [] };
   }
 
   // Main content is everything before the first start marker (trailing newlines stripped).
-  const mainContent = content.slice(0, markers[firstStartIdx].lineStart).replace(/\n+$/, "");
+  const firstMatch = startMatches[0];
+  if (firstMatch.index === undefined) {
+    return { mainContent: content, agents: [] };
+  }
+  const mainContent = content.slice(0, firstMatch.index).replace(/\n+$/, "");
+
+  // Collect all H2 heading positions for block boundary detection.
+  const h2Positions = [...content.matchAll(H2_HEADING_RE)].map(m => m.index).filter(i => i !== undefined);
 
   /** @type {Array<{name: string, content: string}>} */
   const agents = [];
-  let currentName = /** @type {string | null} */ null;
-  let contentStart = 0;
 
-  for (let i = firstStartIdx; i < markers.length; i++) {
-    const m = markers[i];
+  for (const m of startMatches) {
+    if (m.index === undefined) continue;
 
-    if (m.kind === "start") {
-      // Close any currently open agent.
-      if (currentName !== null) {
-        agents.push({ name: currentName, content: content.slice(contentStart, m.lineStart).trim() });
-      }
-      // Open the new agent.
-      currentName = m.name;
-      contentStart = m.lineEnd;
-    } else if (m.kind === "end" && m.name === currentName) {
-      // Matching end marker — close the agent.
-      agents.push({ name: currentName, content: content.slice(contentStart, m.lineStart).trim() });
-      currentName = null;
-    }
-    // Mismatched end markers (name doesn't match open agent) are plain text — no action.
-  }
+    const name = m[1];
 
-  // Close any agent still open at EOF.
-  if (currentName !== null) {
-    agents.push({ name: currentName, content: content.slice(contentStart).trim() });
+    // Content starts on the line after the start marker.
+    let lineEnd = m.index + m[0].length;
+    if (lineEnd < content.length && content[lineEnd] === "\n") lineEnd++;
+
+    // Content ends at the next H2 heading after the start marker line, or EOF.
+    const contentEnd = h2Positions.find(pos => pos >= lineEnd) ?? content.length;
+
+    const agentContent = content.slice(lineEnd, contentEnd).trim();
+    agents.push({ name, content: agentContent });
   }
 
   return { mainContent, agents };

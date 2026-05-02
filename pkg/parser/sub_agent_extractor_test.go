@@ -3,11 +3,18 @@
 package parser
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// agentLine returns a ## agent: `name` start marker line for use in test fixtures.
+func agentLine(name string) string {
+	return fmt.Sprintf("## agent: `%s`", name)
+}
 
 func TestExtractInlineSubAgents_NoSeparators(t *testing.T) {
 	markdown := "# Hello\n\nThis is a workflow."
@@ -27,15 +34,17 @@ func TestExtractInlineSubAgents_EmptyMarkdown(t *testing.T) {
 }
 
 func TestExtractInlineSubAgents_SingleAgent(t *testing.T) {
-	markdown := `# Main workflow
-
-Handle the issue.
-
-## agent: planner
----
-engine: copilot
----
-You are a planning assistant.`
+	markdown := strings.Join([]string{
+		"# Main workflow",
+		"",
+		"Handle the issue.",
+		"",
+		agentLine("planner"),
+		"---",
+		"engine: copilot",
+		"---",
+		"You are a planning assistant.",
+	}, "\n")
 
 	mainMarkdown, agents, err := ExtractInlineSubAgents(markdown)
 
@@ -47,21 +56,23 @@ You are a planning assistant.`
 }
 
 func TestExtractInlineSubAgents_MultipleAgents(t *testing.T) {
-	markdown := `# Main workflow
-
-Main prompt.
-
-## agent: planner
----
-engine: copilot
----
-You are a planner.
-
-## agent: executor
----
-engine: copilot
----
-You are an executor.`
+	markdown := strings.Join([]string{
+		"# Main workflow",
+		"",
+		"Main prompt.",
+		"",
+		agentLine("planner"),
+		"---",
+		"engine: copilot",
+		"---",
+		"You are a planner.",
+		"",
+		agentLine("executor"),
+		"---",
+		"engine: copilot",
+		"---",
+		"You are an executor.",
+	}, "\n")
 
 	mainMarkdown, agents, err := ExtractInlineSubAgents(markdown)
 
@@ -77,11 +88,7 @@ You are an executor.`
 }
 
 func TestExtractInlineSubAgents_AgentAtStartOfFile(t *testing.T) {
-	markdown := `## agent: only-agent
----
-engine: copilot
----
-Agent prompt.`
+	markdown := agentLine("only-agent") + "\n---\nengine: copilot\n---\nAgent prompt."
 
 	mainMarkdown, agents, err := ExtractInlineSubAgents(markdown)
 
@@ -92,10 +99,7 @@ Agent prompt.`
 }
 
 func TestExtractInlineSubAgents_AgentWithoutFrontmatter(t *testing.T) {
-	markdown := `Main workflow.
-
-## agent: simple
-Just a prompt, no frontmatter.`
+	markdown := "Main workflow.\n\n" + agentLine("simple") + "\nJust a prompt, no frontmatter."
 
 	_, agents, err := ExtractInlineSubAgents(markdown)
 
@@ -106,8 +110,8 @@ Just a prompt, no frontmatter.`
 }
 
 func TestExtractInlineSubAgents_SeparatorWithTrailingWhitespace(t *testing.T) {
-	// Trailing whitespace after the name should be tolerated
-	markdown := "Main.\n\n## agent: padded   \nAgent content."
+	// Trailing whitespace after the closing backtick should be tolerated
+	markdown := "Main.\n\n" + agentLine("padded") + "   \nAgent content."
 
 	_, agents, err := ExtractInlineSubAgents(markdown)
 
@@ -123,27 +127,35 @@ func TestExtractInlineSubAgents_InvalidNameNotRecognized(t *testing.T) {
 	}{
 		{
 			name:      "name starts with digit",
-			separator: "## agent: 1agent",
+			separator: "## agent: `1agent`",
 		},
 		{
 			name:      "name contains spaces",
-			separator: "## agent: my agent",
+			separator: "## agent: `my agent`",
 		},
 		{
 			name:      "name contains slash",
-			separator: "## agent: my/agent",
+			separator: "## agent: `my/agent`",
 		},
 		{
 			name:      "missing name",
 			separator: "## agent:",
 		},
 		{
+			name:      "name not in backticks",
+			separator: "## agent: myagent",
+		},
+		{
+			name:      "name uppercase",
+			separator: "## agent: `MyAgent`",
+		},
+		{
 			name:      "wrong heading level (H1)",
-			separator: "# agent: myagent",
+			separator: "# agent: `myagent`",
 		},
 		{
 			name:      "wrong heading level (H3)",
-			separator: "### agent: myagent",
+			separator: "### agent: `myagent`",
 		},
 	}
 
@@ -160,13 +172,7 @@ func TestExtractInlineSubAgents_InvalidNameNotRecognized(t *testing.T) {
 }
 
 func TestExtractInlineSubAgents_DuplicateNameError(t *testing.T) {
-	markdown := `Main.
-
-## agent: planner
-Content 1.
-
-## agent: planner
-Content 2.`
+	markdown := "Main.\n\n" + agentLine("planner") + "\nContent 1.\n\n" + agentLine("planner") + "\nContent 2."
 
 	_, _, err := ExtractInlineSubAgents(markdown)
 
@@ -178,19 +184,18 @@ Content 2.`
 func TestExtractInlineSubAgents_NameVariants(t *testing.T) {
 	tests := []struct {
 		name      string
-		separator string
 		agentName string
 	}{
-		{"with hyphens", "## agent: my-agent", "my-agent"},
-		{"with underscores", "## agent: my_agent", "my_agent"},
-		{"with digits", "## agent: agent1", "agent1"},
-		{"mixed case", "## agent: MyAgent", "MyAgent"},
-		{"single letter", "## agent: a", "a"},
+		{"with hyphens", "my-agent"},
+		{"with underscores", "my_agent"},
+		{"with digits", "agent1"},
+		{"single letter", "a"},
+		{"mixed pattern", "planner-v2"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			markdown := "Main.\n\n" + tt.separator + "\nContent."
+			markdown := "Main.\n\n" + agentLine(tt.agentName) + "\nContent."
 			_, agents, err := ExtractInlineSubAgents(markdown)
 
 			require.NoError(t, err, "valid agent name %q should parse without error", tt.agentName)
@@ -202,7 +207,7 @@ func TestExtractInlineSubAgents_NameVariants(t *testing.T) {
 
 func TestExtractInlineSubAgents_ContentTrimmed(t *testing.T) {
 	// Content after the separator should have leading/trailing whitespace trimmed
-	markdown := "Main.\n\n## agent: trim-test\n\n\n  Agent content here.  \n\n"
+	markdown := "Main.\n\n" + agentLine("trim-test") + "\n\n\n  Agent content here.  \n\n"
 
 	_, agents, err := ExtractInlineSubAgents(markdown)
 
@@ -211,101 +216,58 @@ func TestExtractInlineSubAgents_ContentTrimmed(t *testing.T) {
 	assert.Equal(t, "Agent content here.", agents[0].Content, "agent content should be trimmed")
 }
 
-func TestExtractInlineSubAgents_EndMarker(t *testing.T) {
-	// Content after the end marker should NOT be included in the agent's content.
-	markdown := `# Main workflow
-
-Main prompt.
-
-## agent: planner
----
-engine: copilot
----
-You are a planner.
-## end: planner
-
-This content is outside any agent block.`
+func TestExtractInlineSubAgents_AgentEndsAtNextH2(t *testing.T) {
+	// An agent block must end at the next H2 heading (any ##), not just ## agent:.
+	markdown := strings.Join([]string{
+		"# Main workflow",
+		"",
+		"Main prompt.",
+		"",
+		agentLine("planner"),
+		"---",
+		"engine: copilot",
+		"---",
+		"You are a planner.",
+		"",
+		"## Summary",
+		"This content is outside the agent block.",
+	}, "\n")
 
 	mainMarkdown, agents, err := ExtractInlineSubAgents(markdown)
 
-	require.NoError(t, err, "end marker should parse without error")
-	assert.Equal(t, "# Main workflow\n\nMain prompt.", mainMarkdown, "main markdown should exclude agent sections")
-	require.Len(t, agents, 1, "should extract one sub-agent")
-	assert.Equal(t, "planner", agents[0].Name, "agent name should be 'planner'")
-	assert.Contains(t, agents[0].Content, "You are a planner.", "agent content should contain prompt")
-	assert.NotContains(t, agents[0].Content, "outside any agent block", "content after end marker must not appear in agent")
-}
-
-func TestExtractInlineSubAgents_EndMarkerMultipleAgents(t *testing.T) {
-	// With end markers, content between agent blocks is excluded from both agents.
-	markdown := `Main.
-
-## agent: planner
-Planner prompt.
-## end: planner
-
-Inserted content between agents.
-
-## agent: executor
-Executor prompt.
-## end: executor`
-
-	_, agents, err := ExtractInlineSubAgents(markdown)
-
-	require.NoError(t, err, "multiple agents with end markers should parse without error")
-	require.Len(t, agents, 2, "should extract two sub-agents")
-
+	require.NoError(t, err, "H2 ending should parse without error")
+	assert.Equal(t, "# Main workflow\n\nMain prompt.", mainMarkdown, "main markdown should exclude agent section")
+	require.Len(t, agents, 1, "should extract one agent")
 	assert.Equal(t, "planner", agents[0].Name)
-	assert.Equal(t, "Planner prompt.", agents[0].Content, "planner content must stop at end marker")
+	assert.Contains(t, agents[0].Content, "You are a planner.", "agent content should contain prompt")
+	assert.NotContains(t, agents[0].Content, "Summary", "content after H2 must not appear in agent")
+	assert.NotContains(t, agents[0].Content, "outside the agent block", "content after H2 must not appear in agent")
+}
 
+func TestExtractInlineSubAgents_AgentEndsAtNextAgentH2(t *testing.T) {
+	// A new ## agent: `name` marker (which is itself an H2) also ends the previous agent.
+	markdown := strings.Join([]string{
+		"Main.",
+		"",
+		agentLine("planner"),
+		"Planner prompt.",
+		"",
+		agentLine("executor"),
+		"Executor prompt.",
+	}, "\n")
+
+	_, agents, err := ExtractInlineSubAgents(markdown)
+
+	require.NoError(t, err, "multiple agents should parse without error")
+	require.Len(t, agents, 2, "should extract two agents")
+	assert.Equal(t, "planner", agents[0].Name)
+	assert.Equal(t, "Planner prompt.", agents[0].Content, "planner content must stop at next agent marker")
 	assert.Equal(t, "executor", agents[1].Name)
-	assert.Equal(t, "Executor prompt.", agents[1].Content, "executor content must stop at end marker")
-}
-
-func TestExtractInlineSubAgents_EndMarkerMismatch(t *testing.T) {
-	// An end marker whose name does not match the open agent is treated as plain
-	// text and included in the current agent's content.
-	markdown := `Main.
-
-## agent: planner
-Planner content.
-## end: executor
-More planner content.`
-
-	_, agents, err := ExtractInlineSubAgents(markdown)
-
-	require.NoError(t, err, "mismatched end marker should not cause an error")
-	require.Len(t, agents, 1, "should still extract one sub-agent")
-	assert.Contains(t, agents[0].Content, "Planner content.", "content before mismatched end marker should be included")
-	assert.Contains(t, agents[0].Content, "More planner content.", "content after mismatched end marker should also be included")
-}
-
-func TestExtractInlineSubAgents_EndMarkerWithoutOpenAgent(t *testing.T) {
-	// An end marker that appears before any agent (or after all agents are closed)
-	// is treated as plain text and does not affect parsing.
-	markdown := `Main content.
-## end: nobody
-More main content.`
-
-	mainMarkdown, agents, err := ExtractInlineSubAgents(markdown)
-
-	require.NoError(t, err, "orphan end marker should not cause an error")
-	assert.Equal(t, markdown, mainMarkdown, "markdown should be returned unchanged when no start markers present")
-	assert.Nil(t, agents, "no agents should be produced")
-}
-
-func TestExtractInlineSubAgents_EndMarkerWithTrailingWhitespace(t *testing.T) {
-	markdown := "Main.\n\n## agent: a\nContent.\n## end: a   \nTrailing."
-
-	_, agents, err := ExtractInlineSubAgents(markdown)
-
-	require.NoError(t, err, "end marker with trailing whitespace should be recognized")
-	require.Len(t, agents, 1, "should extract one sub-agent")
-	assert.Equal(t, "Content.", agents[0].Content, "content should stop at the end marker")
+	assert.Equal(t, "Executor prompt.", agents[1].Content)
 }
 
 func TestExtractInlineSubAgents_MainMarkdownTrailingNewlinesStripped(t *testing.T) {
-	markdown := "Line 1.\nLine 2.\n\n\n## agent: a\nContent."
+	markdown := "Line 1.\nLine 2.\n\n\n" + agentLine("a") + "\nContent."
 
 	mainMarkdown, _, err := ExtractInlineSubAgents(markdown)
 

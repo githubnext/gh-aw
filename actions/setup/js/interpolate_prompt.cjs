@@ -227,7 +227,7 @@ async function main() {
     core.info("\n========================================");
     core.info("[main] STEP 1.5: Inline Sub-Agent Extraction");
     core.info("========================================");
-    const hasAgentMarkers = /^##[ \t]+agent:[ \t]+[a-zA-Z]/m.test(content);
+    const hasAgentMarkers = /^##[ \t]+agent:[ \t]+`[a-z]/m.test(content);
     if (hasAgentMarkers) {
       const beforeExtraction = content.length;
       content = writeInlineSubAgents(content, workspaceDir);

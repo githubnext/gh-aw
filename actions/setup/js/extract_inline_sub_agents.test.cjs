@@ -16,6 +16,9 @@ global.core = {
 
 const { extractInlineSubAgents, writeInlineSubAgents } = require("./extract_inline_sub_agents.cjs");
 
+// Helper: returns a ## agent: `name` start marker line.
+const agentMarker = name => `## agent: \`${name}\``;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // extractInlineSubAgents — unit tests
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,15 +38,7 @@ describe("extractInlineSubAgents", () => {
   });
 
   it("extracts a single agent block", () => {
-    const content = `# Main workflow
-
-Handle the issue.
-
-## agent: planner
----
-engine: copilot
----
-You are a planning assistant.`;
+    const content = ["# Main workflow", "", "Handle the issue.", "", agentMarker("planner"), "---", "engine: copilot", "---", "You are a planning assistant."].join("\n");
 
     const { mainContent, agents } = extractInlineSubAgents(content);
 
@@ -55,13 +50,7 @@ You are a planning assistant.`;
   });
 
   it("extracts multiple agent blocks", () => {
-    const content = `Main prompt.
-
-## agent: planner
-Planner prompt.
-
-## agent: executor
-Executor prompt.`;
+    const content = ["Main prompt.", "", agentMarker("planner"), "Planner prompt.", "", agentMarker("executor"), "Executor prompt."].join("\n");
 
     const { mainContent, agents } = extractInlineSubAgents(content);
 
@@ -73,14 +62,8 @@ Executor prompt.`;
     expect(agents[1].content).toBe("Executor prompt.");
   });
 
-  it("respects ## end: name marker", () => {
-    const content = `Main prompt.
-
-## agent: planner
-Planner content.
-## end: planner
-
-This content is outside any agent block.`;
+  it("agent block ends at next H2 heading", () => {
+    const content = ["Main prompt.", "", agentMarker("planner"), "Planner content.", "", "## Summary", "This content is outside the agent block."].join("\n");
 
     const { mainContent, agents } = extractInlineSubAgents(content);
 
@@ -88,21 +71,12 @@ This content is outside any agent block.`;
     expect(agents).toHaveLength(1);
     expect(agents[0].name).toBe("planner");
     expect(agents[0].content).toBe("Planner content.");
-    expect(agents[0].content).not.toContain("outside any agent block");
+    expect(agents[0].content).not.toContain("Summary");
+    expect(agents[0].content).not.toContain("outside the agent block");
   });
 
-  it("end marker stops agent block; content between blocks is excluded", () => {
-    const content = `Main.
-
-## agent: planner
-Planner.
-## end: planner
-
-Between-agents content.
-
-## agent: executor
-Executor.
-## end: executor`;
+  it("next agent marker (H2) ends the previous agent block", () => {
+    const content = ["Main.", "", agentMarker("planner"), "Planner.", "", agentMarker("executor"), "Executor."].join("\n");
 
     const { agents } = extractInlineSubAgents(content);
 
@@ -111,38 +85,8 @@ Executor.
     expect(agents[1].content).toBe("Executor.");
   });
 
-  it("mismatched end marker is treated as plain text", () => {
-    const content = `Main.
-
-## agent: planner
-Planner content.
-## end: executor
-More planner content.`;
-
-    const { agents } = extractInlineSubAgents(content);
-
-    expect(agents).toHaveLength(1);
-    expect(agents[0].content).toContain("Planner content.");
-    expect(agents[0].content).toContain("More planner content.");
-  });
-
-  it("orphan end marker (no open agent) is treated as plain text", () => {
-    const content = "Main.\n## end: nobody\nMore main.";
-    const { mainContent, agents } = extractInlineSubAgents(content);
-    expect(mainContent).toBe(content);
-    expect(agents).toHaveLength(0);
-  });
-
-  it("end marker with trailing whitespace is recognised", () => {
-    const content = "Main.\n\n## agent: a\nContent.\n## end: a   \nTrailing.";
-    const { agents } = extractInlineSubAgents(content);
-    expect(agents).toHaveLength(1);
-    expect(agents[0].content).toBe("Content.");
-  });
-
   it("agent at start of file produces empty main content", () => {
-    const content = `## agent: only
-Agent content.`;
+    const content = agentMarker("only") + "\nAgent content.";
     const { mainContent, agents } = extractInlineSubAgents(content);
     expect(mainContent).toBe("");
     expect(agents).toHaveLength(1);
@@ -150,34 +94,28 @@ Agent content.`;
   });
 
   it("agent content is trimmed", () => {
-    const content = "Main.\n\n## agent: a\n\n\n  Trimmed.  \n\n";
+    const content = "Main.\n\n" + agentMarker("a") + "\n\n\n  Trimmed.  \n\n";
     const { agents } = extractInlineSubAgents(content);
     expect(agents[0].content).toBe("Trimmed.");
   });
 
   it("trailing newlines are stripped from main content", () => {
-    const content = "Line 1.\nLine 2.\n\n\n## agent: a\nContent.";
+    const content = "Line 1.\nLine 2.\n\n\n" + agentMarker("a") + "\nContent.";
     const { mainContent } = extractInlineSubAgents(content);
     expect(mainContent).toBe("Line 1.\nLine 2.");
   });
 
-  it("accepts valid name variants", () => {
-    const cases = [
-      { sep: "## agent: my-agent", name: "my-agent" },
-      { sep: "## agent: my_agent", name: "my_agent" },
-      { sep: "## agent: agent1", name: "agent1" },
-      { sep: "## agent: MyAgent", name: "MyAgent" },
-      { sep: "## agent: a", name: "a" },
-    ];
-    for (const { sep, name } of cases) {
-      const { agents } = extractInlineSubAgents(`Main.\n\n${sep}\nContent.`);
+  it("accepts valid lowercase name variants", () => {
+    const cases = [{ name: "my-agent" }, { name: "my_agent" }, { name: "agent1" }, { name: "a" }, { name: "planner-v2" }];
+    for (const { name } of cases) {
+      const { agents } = extractInlineSubAgents("Main.\n\n" + agentMarker(name) + "\nContent.");
       expect(agents).toHaveLength(1);
       expect(agents[0].name).toBe(name);
     }
   });
 
   it("does not recognize invalid separator forms", () => {
-    const invalids = ["## agent: 1agent", "## agent: my agent", "## agent: my/agent", "## agent:", "# agent: myagent", "### agent: myagent"];
+    const invalids = ["## agent: `1agent`", "## agent: `my agent`", "## agent: `my/agent`", "## agent:", "## agent: myagent", "## agent: `MyAgent`", "# agent: `myagent`", "### agent: `myagent`"];
     for (const sep of invalids) {
       const content = `Main.\n\n${sep}\nContent.`;
       const { mainContent, agents } = extractInlineSubAgents(content);
@@ -213,15 +151,7 @@ describe("writeInlineSubAgents", () => {
   });
 
   it("writes a single agent file and returns main content", () => {
-    const content = `# Workflow
-
-Main prompt.
-
-## agent: helper
----
-engine: copilot
----
-You are a helper.`;
+    const content = ["# Workflow", "", "Main prompt.", "", agentMarker("helper"), "---", "engine: copilot", "---", "You are a helper."].join("\n");
 
     const result = writeInlineSubAgents(content, tmpDir);
 
@@ -235,13 +165,7 @@ You are a helper.`;
   });
 
   it("writes multiple agent files", () => {
-    const content = `Main.
-
-## agent: planner
-Planner.
-
-## agent: executor
-Executor.`;
+    const content = ["Main.", "", agentMarker("planner"), "Planner.", "", agentMarker("executor"), "Executor."].join("\n");
 
     writeInlineSubAgents(content, tmpDir);
 
@@ -250,28 +174,22 @@ Executor.`;
   });
 
   it("agent file content ends with a newline", () => {
-    const content = "Main.\n\n## agent: a\nContent without trailing newline";
+    const content = "Main.\n\n" + agentMarker("a") + "\nContent without trailing newline";
     writeInlineSubAgents(content, tmpDir);
     const written = fs.readFileSync(path.join(tmpDir, ".github", "agents", "a.md"), "utf8");
     expect(written.endsWith("\n")).toBe(true);
   });
 
   it("creates .github/agents directory if it does not exist", () => {
-    const content = "Main.\n\n## agent: new\nContent.";
+    const content = "Main.\n\n" + agentMarker("new") + "\nContent.";
     const agentsDir = path.join(tmpDir, ".github", "agents");
     expect(fs.existsSync(agentsDir)).toBe(false);
     writeInlineSubAgents(content, tmpDir);
     expect(fs.existsSync(agentsDir)).toBe(true);
   });
 
-  it("strips agent blocks but content after end marker stays out of agent file", () => {
-    const content = `Main.
-
-## agent: a
-Agent body.
-## end: a
-
-Footer content that should not appear in the agent file.`;
+  it("agent block ends at H2 — content after is not written to agent file", () => {
+    const content = ["Main.", "", agentMarker("a"), "Agent body.", "", "## Notes", "Footer content that should not appear in the agent file."].join("\n");
 
     const result = writeInlineSubAgents(content, tmpDir);
 
