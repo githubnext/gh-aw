@@ -163,7 +163,11 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	}
 
 	// The prompt is piped from a file via stdin substitution.
-	piCommand := fmt.Sprintf("cat /tmp/gh-aw/aw-prompts/prompt.txt | %s %s",
+	// The built-in steering extension is automatically loaded so that every Pi session
+	// receives time-pressure steering messages without requiring workflow configuration.
+	// ${RUNNER_TEMP} is expanded by the shell at runtime.
+	piCommand := fmt.Sprintf(
+		`cat /tmp/gh-aw/aw-prompts/prompt.txt | %s %s --extension "${RUNNER_TEMP}/gh-aw/actions/pi_steering_extension.cjs"`,
 		commandName, shellJoinArgs(piArgs))
 
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""

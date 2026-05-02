@@ -7,13 +7,8 @@
  * when remaining time falls below configured thresholds. Implements the
  * steering extension described in the aw-harness specification §8.3.
  *
- * Load this extension by passing it to `pi run` via `engine.args`:
- *
- *   engine:
- *     id: pi
- *     args:
- *       - --extension
- *       - /tmp/gh-aw/actions/pi_steering_extension.cjs
+ * This extension is automatically added to every Pi agent invocation by the
+ * gh-aw compiler. No workflow frontmatter configuration is required.
  *
  * Configuration (read from environment variables):
  *   GH_AW_TIMEOUT_MINUTES               Total allowed runtime in minutes (default: 30)
