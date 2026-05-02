@@ -31,6 +31,7 @@ tools:
   edit:
 sandbox:
   agent:
+    id: awf
     mounts:
       - "/usr/bin/make:/usr/bin/make:ro"
       - "/usr/bin/go:/usr/bin/go:ro"

@@ -135,6 +135,7 @@ func migrateSRTToAWF(sandboxConfig *SandboxConfig) *SandboxConfig {
 // applySandboxDefaults applies default values to sandbox configuration
 // If no sandbox config exists, creates one with awf as default agent
 // If sandbox config exists but has no agent, sets agent to awf (unless agent is explicitly disabled)
+// If sandbox.agent is an object with no id/type (e.g., version-only), defaults the type to awf
 func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConfig) *SandboxConfig {
 	// First, migrate any SRT references to AWF (codemod)
 	sandboxConfig = migrateSRTToAWF(sandboxConfig)
@@ -168,6 +169,16 @@ func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConf
 		sandboxConfig.Agent = &AgentSandboxConfig{
 			Type: SandboxTypeAWF,
 		}
+		return sandboxConfig
+	}
+
+	// If sandbox.agent is configured but has no type/ID set (e.g., version-only object
+	// like { version: "v0.25.29" }), default the type to awf so the sandbox is always
+	// enabled. This prevents a bare sandbox.agent object from silently disabling the
+	// firewall by leaving the type empty.
+	if !isSupportedSandboxType(getAgentType(sandboxConfig.Agent)) {
+		sandboxLog.Print("Sandbox agent has no type/ID configured, defaulting to awf")
+		sandboxConfig.Agent.Type = SandboxTypeAWF
 	}
 
 	return sandboxConfig
