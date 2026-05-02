@@ -7,7 +7,10 @@ import (
 	"strconv"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var safeOutputChainsLog = logger.New("cli:logs_safe_output_chains")
 
 const (
 	temporaryIDMapStatusLoaded  = "loaded"
@@ -42,12 +45,16 @@ func buildSafeOutputChainMetrics(logsPath string) SafeOutputChainMetrics {
 		return metrics
 	}
 	if !safeOutputArtifactsPresent(logsPath) {
+		safeOutputChainsLog.Print("No safe output artifacts present, skipping chain metrics")
 		return metrics
 	}
+
+	safeOutputChainsLog.Printf("Building safe output chain metrics: manifest_entries=%d", len(items))
 
 	resolvedTargets, tempIDMapStatus := loadResolvedTemporaryIDTargets(logsPath)
 	metrics.TemporaryIDMapStatus = tempIDMapStatus
 	metrics.TemporaryIDMappings = len(resolvedTargets)
+	safeOutputChainsLog.Printf("Temporary ID map status=%s, mappings=%d", tempIDMapStatus, len(resolvedTargets))
 	if len(items) == 0 || len(resolvedTargets) == 0 {
 		return metrics
 	}
@@ -84,6 +91,8 @@ func buildSafeOutputChainMetrics(logsPath string) SafeOutputChainMetrics {
 		}
 	}
 
+	safeOutputChainsLog.Printf("Chain metrics computed: chained_targets=%d, followup_actions=%d, delegated=%d, closed=%d",
+		metrics.ChainedTargetCount, metrics.ChainedFollowupActionCount, metrics.DelegatedTempTargetCount, metrics.ClosedTempTargetCount)
 	return metrics
 }
 

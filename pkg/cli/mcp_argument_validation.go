@@ -20,8 +20,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+var mcpArgValidationLog = logger.New("cli:mcp_argument_validation")
 
 // toolParamEntry holds the valid parameter names for a single MCP tool.
 type toolParamEntry = []string
@@ -71,6 +74,8 @@ func argumentValidationMiddleware(toolParams map[string]toolParamEntry) mcp.Midd
 			// Determine the tool name from the request so we can look up valid params.
 			toolName := extractMCPToolName(req)
 			validParams := toolParams[toolName]
+
+			mcpArgValidationLog.Printf("Intercepted unknown param error: tool=%s, unknown_params=%v", toolName, unknownParams)
 
 			// Build a helpful replacement message.
 			helpMsg := buildHelpfulParamError(toolName, unknownParams, validParams)
@@ -156,6 +161,8 @@ func findSimilarParam(unknown string, validParams []string) string {
 		return ""
 	}
 
+	mcpArgValidationLog.Printf("Finding similar param for %q among %d candidates", unknown, len(validParams))
+
 	normUnknown := normalizeParamName(unknown)
 
 	type candidate struct {
@@ -185,8 +192,10 @@ func findSimilarParam(unknown string, validParams []string) string {
 
 	const threshold = 0.7
 	if best.score >= threshold {
+		mcpArgValidationLog.Printf("Found similar param: %q -> %q (score=%.2f)", unknown, best.name, best.score)
 		return best.name
 	}
+	mcpArgValidationLog.Printf("No similar param found for %q (best score=%.2f, threshold=%.2f)", unknown, best.score, threshold)
 	return ""
 }
 

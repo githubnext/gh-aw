@@ -299,6 +299,7 @@ SAFE_OUTPUTS_FILES=(
   "messages.cjs"
   "messages_core.cjs"
   "messages_footer.cjs"
+  "messages_header.cjs"
   "messages_run_status.cjs"
   "messages_staged.cjs"
   "messages_close_discussion.cjs"

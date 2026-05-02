@@ -288,6 +288,26 @@ The YAML frontmatter supports these fields:
     - `integrity-reactions: true` - Enable reaction-based integrity promotion/demotion. Maintainers can use 👍/❤️ reactions to promote content to `approved` and 👎/😕 to demote it to `none`. Compiler automatically enables `cli-proxy`. Requires `tools.github.min-integrity` to be set and MCPG >= v0.2.18. Defaults: endorsement reactions THUMBS_UP/HEART, disapproval reactions THUMBS_DOWN/CONFUSED, endorser-min-integrity: approved, disapproval-integrity: none.
     - `mcp-cli: true` - Deprecated. This flag has been removed; MCP CLI mounting is now always enabled when `tools.cli-proxy: true` is set.
 
+- **`experiments:`** - A/B testing experiments for balanced variant selection (object)
+  - Maps experiment names to variant lists (bare array) or full config objects
+  - Bare array form: `prompt_style: [concise, detailed]` — round-robin balanced across runs
+  - Object form for weighted/gated experiments:
+
+    ```yaml
+    experiments:
+      prompt_style:
+        variants: [concise, detailed, step_by_step]
+        weight: [2, 1, 1]           # Optional: proportional weights (defaults to round-robin)
+        start_date: "2026-05-01"    # Optional: ISO-8601; returns control variant before this date
+        end_date: "2026-06-01"      # Optional: ISO-8601; returns control variant after this date
+        description: "Verbosity test"  # Optional: experiment description
+        metric: "token_count"       # Optional: primary metric name
+        issue: "42"                 # Optional: linked tracking issue number
+    ```
+
+  - Selected variant available as `${{ experiments.<name> }}` and in `{{#if experiments.<name> }}` template blocks
+  - See [A/B Testing Experiments](experiments.md) for full design guidance
+
 - **`imports:`** - Array of workflow specifications to import (array)
   - Format: `owner/repo/path@ref` or local paths like `shared/common.md`
   - Markdown files under `.github/agents/` are treated as custom agent files
@@ -436,6 +456,7 @@ The YAML frontmatter supports these fields:
     - `sparse-checkout:` - Newline-separated glob patterns for sparse checkout
     - `submodules:` - Submodule handling: `"recursive"`, `"true"`, or `"false"`
     - `lfs:` - Download Git LFS objects (boolean, default: `false`)
+    - `wiki:` - Check out the repository's wiki (boolean, default: `false`). When `true`, automatically appends `.wiki` to the repository name. Combine with `repository:` to check out a different repo's wiki.
     - `github-token:` - Token for authentication (`${{ secrets.MY_PAT }}`); credentials removed after checkout
 
 - **`jobs:`** - Groups together all the jobs that run in the workflow (object)
@@ -523,12 +544,23 @@ The YAML frontmatter supports these fields:
 
 - **`sandbox:`** - Sandbox configuration for AI engines (string or object)
   - String format: `"default"` (default sandbox), `"awf"` (Agent Workflow Firewall)
-  - Object format: use `agent: false` to disable the agent firewall while keeping the MCP gateway enabled (not allowed in strict mode):
+  - Object format to pin an AWF version (strict mode requires explicit `id: awf`):
+
+    ```yaml
+    sandbox:
+      agent:
+        id: awf                     # Required in strict mode
+        version: "v0.25.29"         # Optional: pin AWF version
+    ```
+
+  - To disable the agent firewall while keeping MCP gateway enabled (not allowed in strict mode):
 
     ```yaml
     sandbox:
       agent: false
     ```
+
+  - **Strict mode**: `sandbox.agent` blocks without an explicit `id: awf` are rejected in strict mode. Any non-nil, non-disabled agent config without `id`/`type` defaults to AWF at runtime.
 
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
@@ -1461,6 +1493,7 @@ The YAML frontmatter supports these fields:
       - `pull-request-created:` - Custom message when a PR is created. Placeholders: `{item_number}`, `{item_url}`
       - `issue-created:` - Custom message when an issue is created. Placeholders: `{item_number}`, `{item_url}`
       - `commit-pushed:` - Custom message when a commit is pushed. Placeholders: `{commit_sha}`, `{short_sha}`, `{commit_url}`
+      - `body-header:` - Custom header text prepended to every message body (issues, comments, PRs, discussions). Placeholders: `{workflow_name}`, `{run_url}`
     - Example:
 
       ```yaml

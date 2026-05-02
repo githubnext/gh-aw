@@ -46,36 +46,47 @@ mcpscripts mcpscripts-gh --args "pr list --repo owner/repo --limit 5"
 
 ### Multiline and Multi-Argument Payloads (JSON stdin)
 
-**Preferred approach for any tool call with multiple or complex arguments**: pipe a JSON object to the CLI using `.` as the sentinel. The bridge parses stdin as the argument object, preserving all native types (numbers, booleans, arrays) without shell-quoting issues.
+**Preferred approach for any tool call with multiple or complex arguments**: supply a JSON object on stdin using `.` as the sentinel. The bridge parses stdin as the argument object, preserving all native types (numbers, booleans, arrays) without shell-quoting issues.
 
 ```bash
-# Full argument payload as JSON — preferred for multi-argument calls
+# Full argument payload as JSON via printf pipe
 printf '{"issue_number":42,"body":"### Title\n\nBody paragraph one.\n\nBody paragraph two."}' \
   | safeoutputs add_comment .
 
 # Works with any tool — just match the parameter names from <server> <tool> --help
 printf '{"title":"Fix: something","body":"Details here","labels":["bug","priority-high"]}' \
   | safeoutputs create_issue .
+```
 
-# Pipe from a file
-cat payload.json | safeoutputs add_comment .
+**When pipes are blocked by the bash security policy**, write the payload to a file first and use **file redirection** with the `.` sentinel instead:
+
+```bash
+# Step 1 — write the JSON payload to a file using the Write tool or a bash heredoc
+# Step 2 — redirect the file into the CLI command using '<'
+safeoutputs create_pull_request . < /tmp/payload.json
+
+# This is equivalent to piping but does not require a separate command before '|'
+safeoutputs add_comment . < /tmp/comment.json
 ```
 
 > **Why prefer JSON payload mode?**
-> - Single pipe operation for any number of arguments — no repeated `--key value` flags
+> - Single operation for any number of arguments — no repeated `--key value` flags
 > - Native types (integers, booleans, arrays) are preserved exactly as specified
 > - No shell quoting or escaping needed for newlines, quotes, or special characters
 > - Agents can construct the payload as a structured object before emitting the command
+> - File redirection (`< file`) works even when pipes (`|`) are restricted
 
 Key normalisation rules apply: parameter names with hyphens or underscores are interchangeable (e.g. `issue-number` and `issue_number` both work).
+
+> **Important**: Do **not** use `--body - < file` to pass a multi-field JSON payload — `--body -` reads stdin as a raw string and will pass the entire JSON object as the body. Use `. < file` (dot sentinel) to parse stdin as JSON and distribute all fields across their respective parameters.
 
 ### Single-Parameter stdin Substitution
 
 For the case where only **one** parameter needs multiline content, use `-` as its value:
 
 ```bash
-# Write multiline content to a file and pipe it
-cat body.txt | safeoutputs add_comment --issue_number 42 --body -
+# Write multiline content to a file and redirect it
+safeoutputs add_comment --issue_number 42 --body - < body.txt
 
 # Or use printf for inline multiline content
 printf '### Title\n\nBody paragraph one.\n\nBody paragraph two.' \
@@ -85,11 +96,11 @@ printf '### Title\n\nBody paragraph one.\n\nBody paragraph two.' \
 printf 'multiline\ncontent' | safeoutputs add_comment --issue_number 42 --body=-
 ```
 
-> **Important**: Always use stdin piping (`--body -`) instead of command substitution (`--body "$(cat file)"`) when the content contains newlines. Command substitution can strip trailing newlines and cause other quoting problems.
+> **Important**: Always use stdin substitution (`--body -`) instead of command substitution (`--body "$(cat file)"`) when the content contains newlines. Command substitution can strip trailing newlines and cause other quoting problems.
 
 ### Notes
 
-- **Prefer JSON payload mode** (`printf '{...}' | server tool .`) for any call with multiple arguments or complex values
+- **Prefer JSON payload mode** (`. < file` or `printf '{...}' | server tool .`) for any call with multiple arguments or complex values
 - All parameters can also be passed as `--name value` pairs; boolean flags can be set with `--flag` (no value) to mean `true`
 - Use `.` as the only argument to parse stdin as a JSON object (all parameters supplied at once)
 - Use `-` as a single value to read one parameter from stdin (single-field substitution)

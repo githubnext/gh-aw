@@ -89,16 +89,63 @@ func TestApplySandboxDefaults(t *testing.T) {
 				},
 			},
 		},
+		{
+			// version-only object (no id/type) must default to AWF so the sandbox is
+			// always enabled, matching the previous analysis of the smoke-gemini bug.
+			name: "version-only agent defaults to AWF",
+			config: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Version: "v0.25.29",
+				},
+			},
+			engine: &EngineConfig{ID: "gemini"},
+			expected: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type:    SandboxTypeAWF,
+					Version: "v0.25.29",
+				},
+			},
+		},
+		{
+			// An agent object with only an empty string ID must also default to AWF.
+			name: "empty ID agent defaults to AWF",
+			config: &SandboxConfig{
+				Agent: &AgentSandboxConfig{},
+			},
+			engine: &EngineConfig{ID: "copilot"},
+			expected: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
+				},
+			},
+		},
+		{
+			// Explicitly disabled agent must never be overridden.
+			name: "disabled agent is preserved",
+			config: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Disabled: true,
+				},
+			},
+			engine: nil,
+			expected: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Disabled: true,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := applySandboxDefaults(tt.config, tt.engine)
-			if tt.expected != nil {
-				require.NotNil(t, result)
-				require.NotNil(t, result.Agent)
-				assert.Equal(t, tt.expected.Agent.Type, result.Agent.Type)
+			require.NotNil(t, result)
+			require.NotNil(t, result.Agent)
+			assert.Equal(t, tt.expected.Agent.Type, result.Agent.Type, "agent type")
+			if tt.expected.Agent.Version != "" {
+				assert.Equal(t, tt.expected.Agent.Version, result.Agent.Version, "agent version")
 			}
+			assert.Equal(t, tt.expected.Agent.Disabled, result.Agent.Disabled, "agent disabled flag")
 		})
 	}
 }

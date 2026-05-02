@@ -536,9 +536,10 @@ function isValidSpanId(id) {
  *   trace ID so that dispatched child workflows share the parent's OTLP trace;
  *   `context.otel_parent_span_id` is used as the parent span ID so the child's setup span
  *   is properly nested under the parent's setup span in the trace hierarchy; and
- *   `context.item_type`, `context.item_number`, and `context.trigger_label` are emitted as
- *   `gh-aw.trigger.item_type`, `gh-aw.trigger.item_number`, and `gh-aw.trigger.label`
- *   attributes so every span can be linked back to the GitHub item that triggered the workflow
+ *   `context.item_type`, `context.item_number`, `context.trigger_label`, and `context.comment_id`
+ *   are emitted as `gh-aw.trigger.item_type`, `gh-aw.trigger.item_number`, `gh-aw.trigger.label`,
+ *   and `gh-aw.trigger.comment_id` attributes so every span can be linked back to the GitHub item
+ *   (and specific comment) that triggered the workflow
  *
  * @param {SendJobSetupSpanOptions} [options]
  * @returns {Promise<{ traceId: string, spanId: string }>} The trace and span IDs used.
@@ -574,6 +575,7 @@ async function sendJobSetupSpan(options = {}) {
   const itemType = typeof awInfo.context?.item_type === "string" ? awInfo.context.item_type : "";
   const itemNumber = typeof awInfo.context?.item_number === "string" ? awInfo.context.item_number : "";
   const triggerLabel = typeof awInfo.context?.trigger_label === "string" ? awInfo.context.trigger_label : "";
+  const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
 
   const traceId = optionsTraceId || inputTraceId || contextTraceId || generateTraceId();
 
@@ -633,6 +635,7 @@ async function sendJobSetupSpan(options = {}) {
   if (itemType) attributes.push(buildAttr("gh-aw.trigger.item_type", itemType));
   if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
   if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
+  if (commentId) attributes.push(buildAttr("gh-aw.trigger.comment_id", commentId));
 
   // Include experiment assignments so each span can be correlated with the
   // A/B variant selected for this run (written by pick_experiment.cjs).
@@ -832,6 +835,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const itemType = typeof awInfo.context?.item_type === "string" ? awInfo.context.item_type : "";
   const itemNumber = typeof awInfo.context?.item_number === "string" ? awInfo.context.item_number : "";
   const triggerLabel = typeof awInfo.context?.trigger_label === "string" ? awInfo.context.trigger_label : "";
+  const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
   const jobName = process.env.INPUT_JOB_NAME || "";
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = awInfo.run_attempt || process.env.GITHUB_RUN_ATTEMPT || "1";
@@ -893,6 +897,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (itemType) attributes.push(buildAttr("gh-aw.trigger.item_type", itemType));
   if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
   if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
+  if (commentId) attributes.push(buildAttr("gh-aw.trigger.comment_id", commentId));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
   }

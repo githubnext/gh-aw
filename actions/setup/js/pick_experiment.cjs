@@ -35,14 +35,25 @@ const path = require("path");
  */
 
 /**
+ * @typedef {Object} GuardrailMetric
+ * @property {string} name      - Metric name (e.g. "success_rate")
+ * @property {string} threshold - Comparison expression (e.g. ">=0.95")
+ */
+
+/**
  * @typedef {Object} ExperimentConfig
- * @property {string[]} variants     - Array of variant values (length >= 2)
- * @property {number[]|undefined} weight   - Optional per-variant weights (same length as variants)
- * @property {string|undefined} start_date - ISO-8601 date; inactive before this date
- * @property {string|undefined} end_date   - ISO-8601 date; inactive after this date
- * @property {string|undefined} description
- * @property {string|undefined} metric
- * @property {number|undefined} issue
+ * @property {string[]} variants                    - Array of variant values (length >= 2)
+ * @property {number[]} [weight]                    - Optional per-variant weights (same length as variants)
+ * @property {string} [start_date]                  - ISO-8601 date; inactive before this date
+ * @property {string} [end_date]                    - ISO-8601 date; inactive after this date
+ * @property {string} [description]
+ * @property {string} [hypothesis]                  - Null and alternative hypothesis text
+ * @property {string} [metric]                      - Primary metric name
+ * @property {string[]} [secondary_metrics]         - Additional metrics to track
+ * @property {GuardrailMetric[]} [guardrail_metrics] - Thresholds that must not degrade
+ * @property {number} [min_samples]                 - Minimum runs per variant for reliable analysis
+ * @property {string} [owner]                       - Team or person responsible
+ * @property {number} [issue]
  */
 
 /**
@@ -198,20 +209,63 @@ async function writeSummary(assignments, configs, state, core) {
   }
   lines.push("");
 
-  // Append optional description and issue link for experiments that declare them.
+  // Progress bars and ready-for-analysis flags when min_samples is a positive integer.
+  const progressNames = names.filter(name => {
+    const ms = configs[name]?.min_samples;
+    return Number.isInteger(ms) && ms > 0;
+  });
+  if (progressNames.length > 0) {
+    lines.push("### 📊 Sampling Progress");
+    lines.push("");
+    for (const name of progressNames) {
+      const cfg = configs[name];
+      const minSamples = cfg.min_samples;
+      const variants = cfg.variants || [];
+      const counts = state.counts[name] || {};
+      const allReady = variants.every(v => (counts[v] || 0) >= minSamples);
+      if (allReady) {
+        lines.push(`**${name}** ✅ Ready for analysis`);
+      } else {
+        lines.push(`**${name}** (target: ${minSamples} per variant)`);
+      }
+      for (const variant of variants) {
+        const n = counts[variant] || 0;
+        const pct = Math.min(100, Math.round((n / minSamples) * 100));
+        const filled = Math.round(pct / 5); // 20-char bar
+        const bar = "█".repeat(filled) + "░".repeat(20 - filled);
+        lines.push(`  ${variant}: ${bar} ${n}/${minSamples} (${pct}%)`);
+      }
+      lines.push("");
+    }
+  }
+
+  // Append optional description, hypothesis, guardrail metrics, and issue link.
   const repo = process.env.GITHUB_REPOSITORY || "";
-  const metadataNames = names.filter(name => configs[name]?.description || configs[name]?.issue);
+  const metadataNames = names.filter(name => configs[name]?.description || configs[name]?.hypothesis || configs[name]?.guardrail_metrics?.length || configs[name]?.issue);
   if (metadataNames.length > 0) {
     lines.push("### Experiment Details");
     lines.push("");
     for (const name of metadataNames) {
       const cfg = configs[name];
       const description = cfg?.description;
+      const hypothesis = cfg?.hypothesis;
+      const guardrails = cfg?.guardrail_metrics;
       const issue = cfg?.issue;
       lines.push(`**${name}**`);
       if (description) {
         lines.push("");
         lines.push(`> ${description}`);
+      }
+      if (hypothesis) {
+        lines.push("");
+        lines.push(`**Hypothesis:** ${hypothesis}`);
+      }
+      if (guardrails && guardrails.length > 0) {
+        lines.push("");
+        lines.push("**Guardrail metrics:**");
+        for (const g of guardrails) {
+          lines.push(`- \`${g.name}\` ${g.threshold}`);
+        }
       }
       if (issue) {
         lines.push("");

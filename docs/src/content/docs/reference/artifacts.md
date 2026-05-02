@@ -19,6 +19,7 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 | `agent-output` | `constants.AgentOutputArtifactName` | Legacy/back-compat | Historical standalone agent output artifact (`agent_output.json`); in current compiled workflows this content is included in the unified `agent` artifact instead |
 | `aw-info` | — | Single-file | Engine configuration (`aw_info.json`) |
 | `prompt` | — | Single-file | Generated prompt (`prompt.txt`) |
+| `experiment` | `constants.ExperimentArtifactName` | Multi-file | A/B experiment state (`state.json`) uploaded by the activation job when experiments are declared in the frontmatter |
 | `safe-outputs-items` | `constants.SafeOutputItemsArtifactName` | Single-file | Safe output items manifest |
 | `code-scanning-sarif` | `constants.SarifArtifactName` | Single-file | SARIF file for code scanning results |
 
@@ -34,6 +35,7 @@ The `gh aw logs` and `gh aw audit` commands support `--artifacts` to download on
 | `firewall` | `firewall-audit-logs` | Network policy and firewall audit data |
 | `mcp` | `firewall-audit-logs` | MCP gateway traffic logs |
 | `detection` | `detection` | Threat detection output |
+| `experiment` | `experiment` | A/B experiment state (only present when experiments are declared) |
 | `github-api` | `activation`, `agent` | GitHub API rate limit logs |
 
 ```bash
@@ -141,6 +143,33 @@ The `detection` artifact contains threat detection output.
 
 Legacy name: `threat-detection.log` (still supported for backward compatibility).
 
+## `experiment`
+
+The `experiment` artifact is uploaded by the **activation job** only when the workflow frontmatter declares one or more `experiments` entries. It is not present on runs without experiments.
+
+### Contents
+
+- `state.json` — Cumulative per-variant invocation counters used to balance A/B assignments across runs
+
+### Accessing experiment data
+
+```bash
+# Download the experiment artifact for a specific run
+gh aw audit <run-id> --artifacts experiment
+
+# Display the A/B experiment section in the audit report
+gh aw audit <run-id>
+```
+
+The `🧪 A/B Experiments` section of the audit report shows the variant chosen for the run and the cumulative counts:
+
+```
+🧪 A/B Experiments
+  • style = concise (cumulative: concise:5, detailed:4)
+```
+
+See [A/B Experiments](/gh-aw/guides/experiments/) for how to declare experiments in workflow frontmatter.
+
 ## Naming Compatibility
 
 Artifact names changed between upload-artifact v4 and v5. The `gh aw logs` and `gh aw audit` commands handle both naming schemes transparently:
@@ -153,7 +182,7 @@ Artifact names changed between upload-artifact v4 and v5. The `gh aw logs` and `
 | `prompt.txt` | `prompt` | `prompt.txt` |
 | `threat-detection.log` | `detection` | `detection.log` |
 
-Single-file artifacts are automatically flattened to root level regardless of their artifact directory name. Multi-file artifacts (`firewall-audit-logs`, `agent`, `activation`) retain their directory structure.
+Single-file artifacts are automatically flattened to root level regardless of their artifact directory name. Multi-file artifacts (`firewall-audit-logs`, `agent`, `activation`, `experiment`) retain their directory structure.
 
 ## Workflow Call Prefixes
 

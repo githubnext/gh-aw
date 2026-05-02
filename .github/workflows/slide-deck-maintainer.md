@@ -156,24 +156,85 @@ Focus on:
 
 ## Step 4: Scan Repository Content (Round Robin)
 
-Use your cache-memory to track which sources you've reviewed recently. Rotate through:
+### 4a: Load Round-Robin State from Cache
 
-### A. Source Code (25% of time)
+The state file is at **`/tmp/gh-aw/cache-memory/slide-deck-maintainer/state.json`**.
+
+Check whether the file exists, then read it:
+
+```bash
+if [ -f /tmp/gh-aw/cache-memory/slide-deck-maintainer/state.json ]; then
+  cat /tmp/gh-aw/cache-memory/slide-deck-maintainer/state.json
+else
+  echo "NOT_FOUND"
+fi
+```
+
+**If the file does NOT exist** (first run or cold cache): start with category `documentation`.
+
+**If the file exists**, read it and extract `last_category` to determine the next category using round-robin:
+- `source-code` → next is `agentic-workflows`
+- `agentic-workflows` → next is `documentation`
+- `documentation` → next is `source-code`
+- Any other/missing value → use `documentation`
+
+If the file exists but is malformed or unreadable, call `missing_data` with `data_type: "cache_memory"` and `reason: "cache_memory_miss"`, then default to `documentation`.
+
+The schema is:
+```json
+{
+  "last_category": "documentation",
+  "last_run": "2026-05-01",
+  "run_history": [
+    {"category": "documentation", "run_date": "2026-05-01", "changes_made": false}
+  ]
+}
+```
+
+### 4b: Scan the Selected Category
+
+Based on the selected category, scan the corresponding sources:
+
+#### source-code (25% of time)
 - Scan `cmd/gh-aw/` for CLI commands
 - Check `pkg/` for core features and capabilities
 - Look for new tools, engines, or major functionality
 
-### B. Agentic Workflows (25% of time)
+#### agentic-workflows (25% of time)
 - Review `.github/workflows/*.md` for interesting use cases
 - Identify common patterns and best practices
 - Find examples worth highlighting
 
-### C. Documentation (50% of time)
+#### documentation (50% of time)
 - Check `docs/src/content/docs/` for updated features
 - Review API reference changes
 - Look for new guides or tutorials
 
-**Round robin strategy**: Keep track of what you've scanned in previous runs using cache-memory. Cycle through different sections to ensure comprehensive coverage over multiple runs.
+### 4c: Save Round-Robin State to Cache
+
+After scanning, **always write the updated state file** regardless of whether changes were made:
+
+```bash
+mkdir -p /tmp/gh-aw/cache-memory/slide-deck-maintainer
+```
+
+Write `/tmp/gh-aw/cache-memory/slide-deck-maintainer/state.json` with:
+- `last_category`: the category you just scanned
+- `last_run`: today's date in `YYYY-MM-DD` format (filesystem-safe — no colons or special characters)
+- `run_history`: append this run's entry (keep at most the last 10 entries)
+
+Example for a run that scanned `documentation`:
+```json
+{
+  "last_category": "documentation",
+  "last_run": "2026-05-01",
+  "run_history": [
+    {"category": "documentation", "run_date": "2026-05-01", "changes_made": false}
+  ]
+}
+```
+
+**This write is mandatory** — it is what allows future runs to rotate through categories instead of always starting cold.
 
 ## Step 5: Decide on Changes
 
