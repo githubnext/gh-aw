@@ -146,15 +146,18 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
   const baseDir = agentsBaseDir || workspaceDir;
   const { dir, ext } = getEngineSubAgentTarget(engineId);
   const agentsDir = path.join(baseDir, dir);
+  core.info(`[extractInlineSubAgents] Engine: "${engineId || "(default)"}" → dir="${dir}" ext="${ext}"`);
+  core.info(`[extractInlineSubAgents] Writing ${agents.length} sub-agent(s) to: ${agentsDir}`);
   fs.mkdirSync(agentsDir, { recursive: true });
 
   for (const agent of agents) {
     const agentPath = path.join(agentsDir, agent.name + ext);
     const agentContent = agent.content.endsWith("\n") ? agent.content : agent.content + "\n";
     fs.writeFileSync(agentPath, agentContent, "utf8");
-    core.info(`[extractInlineSubAgents] Written sub-agent: ${dir}/${agent.name}${ext}`);
+    core.info(`[extractInlineSubAgents] Written sub-agent: ${agentPath} (${agentContent.length} bytes)`);
   }
 
+  core.info(`[extractInlineSubAgents] Done — ${agents.length} file(s) written to ${agentsDir}`);
   return mainContent;
 }
 
