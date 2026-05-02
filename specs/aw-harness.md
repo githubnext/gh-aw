@@ -161,7 +161,6 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 │  │  │  ┌──────────────────────────────────────────┐   │ │   │
 │  │  │  │  gh-aw Pi Extensions (loaded into the    │   │ │   │
 │  │  │  │  AgentSession via ExtensionAPI):          │   │ │   │
-│  │  │  │  ├─ cost-tracker (budget gates)              │   │ │   │
 │  │  │  │  ├─ cost-tracker (budget gates + events)  │   │ │   │
 │  │  │  │  ├─ steering (time/budget pressure)       │   │ │   │
 │  │  │  │  ├─ repair (broken session recovery)      │   │ │   │
@@ -956,28 +955,28 @@ The following ordered work items describe the implementation sequence:
 
 4. **Implement entry point** — Create a single `createAgentSession()` with gh-aw extensions loaded. Pass `prompt.txt` contents as the prompt. Dispose session on completion.
 
-4a. **Implement user extension loader** — Read `harness.extensions` from `config.json`. For each entry: resolve repository-relative paths from the harness working directory; load npm package names via `require()`. Verify each loaded module exports a default function of type `(pi: ExtensionAPI) => void`. Emit a stderr warning for each failed load; abort only if `harness.extensions-required: true` is set. Append loaded extensions to the session extension list after built-ins.
+5. **Implement user extension loader** — Read `harness.extensions` from `config.json`. For each entry: resolve repository-relative paths from the harness working directory; load npm package names via `require()`. Verify each loaded module exports a default function of type `(pi: ExtensionAPI) => void`. Emit a stderr warning for each failed load; abort only if `harness.extensions-required: true` is set. Append loaded extensions to the session extension list after built-ins.
 
-5. **Implement context engine** — Prompt assembly with priority ordering. Compaction via `none`, `sliding-window`, or `summarize`.
+6. **Implement context engine** — Prompt assembly with priority ordering. Compaction via `none`, `sliding-window`, or `summarize`.
 
-6. **Implement cost tracker extension** — Pi extension that monitors `turn_end` events for effective token usage. Enforces soft (steer warning) and hard (abort) budget gates against `harness.budget.max-effective-tokens`.
+7. **Implement cost tracker extension** — Pi extension that monitors `turn_end` events for effective token usage. Enforces soft (steer warning) and hard (abort) budget gates against `harness.budget.max-effective-tokens`.
 
-7. **Implement steering extension** — Pi extension that monitors time/budget and injects user messages via `session.steer()` on `turn_end`.
+8. **Implement steering extension** — Pi extension that monitors time/budget and injects user messages via `session.steer()` on `turn_end`.
 
-8. **Implement repair extension** — Pi extension that detects broken tool calls via `tool_result` events. Repairs via message truncation or summarize-and-restart.
+9. **Implement repair extension** — Pi extension that detects broken tool calls via `tool_result` events. Repairs via message truncation or summarize-and-restart.
 
-9. **Implement observability extension** — Pi extension that:
+10. **Implement observability extension** — Pi extension that:
     - Emits JSONL to stderr on all agent events (§8.5.1).
     - Writes a context provenance file (`/tmp/gh-aw/context-provenance.jsonl`) on `agent_end` recording the source and token cost of every context entry (§8.5.2).
     - Appends a Markdown execution summary table (per-turn tokens + context provenance) to `$GITHUB_STEP_SUMMARY` when that env var is set (§8.5.3).
     - Emits a human-readable per-turn token consumption line to stderr after each `turn_end` (§8.5.4).
     - Generates OTel spans using `observability.otlp` config.
 
-10. **Write tests** — Unit tests for loader, each extension (mock `ExtensionAPI`). Integration tests with `createAgentSession()` + `SessionManager.inMemory()`.
+11. **Write tests** — Unit tests for loader, each extension (mock `ExtensionAPI`). Integration tests with `createAgentSession()` + `SessionManager.inMemory()`.
 
-11. **Write example workflows** — Single-task examples demonstrating `engine: aw` with various tools.
+12. **Write example workflows** — Single-task examples demonstrating `engine: aw` with various tools.
 
-12. **Add build to Makefile** — Add `make aw-harness` target that runs esbuild and copies `aw_harness.cjs` to `actions/setup/js/`.
+13. **Add build to Makefile** — Add `make aw-harness` target that runs esbuild and copies `aw_harness.cjs` to `actions/setup/js/`.
 
 ---
 
