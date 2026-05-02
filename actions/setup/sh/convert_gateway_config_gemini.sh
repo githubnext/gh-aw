@@ -21,9 +21,11 @@ umask 077
 
 # Required environment variables:
 # - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
-# - MCP_GATEWAY_HOST_DOMAIN: Domain for MCP server URLs from host runner (e.g., localhost)
 # - MCP_GATEWAY_PORT: Port for MCP gateway (e.g., 80)
 # - GITHUB_WORKSPACE: Workspace directory for project-level settings
+#
+# Optional environment variables:
+# - MCP_GATEWAY_HOST_DOMAIN: Host-side domain for Gemini MCP URLs (default: localhost)
 
 if [ -z "$MCP_GATEWAY_OUTPUT" ]; then
   echo "ERROR: MCP_GATEWAY_OUTPUT environment variable is required"

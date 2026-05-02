@@ -21,12 +21,12 @@ require("./shim.cjs");
  *
  * Required environment variables:
  * - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
- * - MCP_GATEWAY_HOST_DOMAIN: Domain for MCP server URLs from host runner (e.g., localhost)
+ * - MCP_GATEWAY_DOMAIN: Domain for MCP server URLs (required by loadGatewayContext)
+ * - MCP_GATEWAY_HOST_DOMAIN: Host-side domain for Gemini MCP URLs (e.g., localhost)
  * - MCP_GATEWAY_PORT: Port for MCP gateway (e.g., 80)
  * - GITHUB_WORKSPACE: Workspace directory for project-level settings
  *
  * Optional:
- * - MCP_GATEWAY_DOMAIN: Container-side domain (e.g., host.docker.internal) - not used for Gemini
  * - GH_AW_MCP_CLI_SERVERS: JSON array of server names to exclude from agent config
  */
 
