@@ -143,7 +143,7 @@ Talk like a caveman in all your responses and outputs. Use short, broken sentenc
 
 This workflow uses `cli-proxy: true`. The following MCP servers are **NOT available as MCP tools** — they are mounted exclusively as **shell CLI commands** (see `<mcp-clis>` section above). You **must** use them via the `bash` tool:
 
-- **`playwright`** — installed as `@playwright/cli`, use `playwright-cli <command>` in bash (e.g. `playwright-cli open https://github.com`, `playwright-cli screenshot`);
+- **`playwright`** — installed as `@playwright/cli`, use `playwright-cli <command>` in bash (e.g. `playwright-cli open https://github.com`, `playwright-cli screenshot`)
 - **`serena`** — use `serena <tool> [--param value...]` in bash (e.g. `serena activate_project --path ...`)
 - **`agenticworkflows`** — use `agenticworkflows <tool> [--param value...]` in bash
 - **`safeoutputs`** — use `safeoutputs <tool> [--param value...]` in bash (e.g. `safeoutputs add_comment --body "..."`)
