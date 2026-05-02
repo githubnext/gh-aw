@@ -24,9 +24,6 @@ permissions:
 
 strict: true
 
-features:
-  inline-agents: true
-
 # AI engine configuration
 engine:
   id: claude
@@ -158,12 +155,37 @@ pre-agent-steps:
         -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print \
         | xargs grep -rL 'disable-agentic-editing: true' 2>/dev/null \
         > /tmp/gh-aw/agent/candidate-files.txt
-      printf '{"pass":true,"reason":"All pre-flight checks passed. %d uncleaned candidates available.","uncleaned":%d,"total":%d}\n' \
-        "$UNCLEANED" "$UNCLEANED" "$TOTAL" \
+
+      # Pre-select the best candidate: largest uncleaned file (by line count)
+      SELECTED=""
+      while IFS= read -r f; do
+        [ -f "$f" ] || continue
+        # Skip if recently cleaned (match against full path to avoid basename collisions)
+        if awk -v cutoff="$RECENT_CUTOFF" -v fpath="$f" \
+          'NF>0 && $1>=cutoff && index($0,fpath)>0{found=1}END{exit !found}' \
+          /tmp/gh-aw/cache-memory/cleaned-files.txt 2>/dev/null; then
+          continue
+        fi
+        LINES=$(wc -l < "$f" 2>/dev/null || echo 0)
+        printf '%06d %s\n' "$LINES" "$f"
+      done < /tmp/gh-aw/agent/candidate-files.txt 2>/dev/null \
+        | sort -rn | head -1 | awk '{$1=""; print substr($0,2)}' \
+        > /tmp/gh-aw/agent/selected-file.txt || true
+
+      SELECTED=$(cat /tmp/gh-aw/agent/selected-file.txt 2>/dev/null | xargs)
+      if [ -z "$SELECTED" ] || [ ! -f "$SELECTED" ]; then
+        # Fallback: first file in candidate list
+        head -1 /tmp/gh-aw/agent/candidate-files.txt > /tmp/gh-aw/agent/selected-file.txt || true
+        SELECTED=$(cat /tmp/gh-aw/agent/selected-file.txt 2>/dev/null | xargs)
+      fi
+
+      printf '{"pass":true,"reason":"All pre-flight checks passed. %d uncleaned candidates available.","uncleaned":%d,"total":%d,"selected_file":"%s"}\n' \
+        "$UNCLEANED" "$UNCLEANED" "$TOTAL" "$SELECTED" \
         > /tmp/gh-aw/agent/preflight.json
 
       echo "Pre-flight passed: $UNCLEANED uncleaned candidates out of $TOTAL eligible files"
       echo "Candidate files written to /tmp/gh-aw/agent/candidate-files.txt"
+      echo "Pre-selected file: $SELECTED ($(wc -l < "$SELECTED" 2>/dev/null) lines)"
 
 # Build steps for documentation
 steps:
@@ -199,8 +221,6 @@ You are a technical documentation editor focused on **clarity and conciseness**.
 Read `/tmp/gh-aw/agent/preflight.json`. If `"pass"` is `false`, call `noop` with the `"reason"` value and stop.
 Only proceed if `"pass"` is `true`.
 
-The list of candidate files is already available at `/tmp/gh-aw/agent/candidate-files.txt` (one path per line).
-
 ---
 
 ## Context
@@ -220,79 +240,27 @@ Documentation bloat includes:
 
 ## Your Task
 
-Analyze documentation files in the `docs/` directory and make targeted improvements:
+### 1. Read Your Pre-selected File
 
-### 1. Check Cache Memory for Previous Cleanups
+The pre-flight step has already selected the best candidate file for you. Read the file path:
 
-First, check the cache folder for notes about previous cleanups:
 ```bash
-find /tmp/gh-aw/cache-memory/ -maxdepth 1 -ls
-cat /tmp/gh-aw/cache-memory/cleaned-files.txt 2>/dev/null || echo "No previous cleanups found"
+cat /tmp/gh-aw/agent/selected-file.txt
 ```
 
-This will help you avoid re-cleaning files that were recently processed.
+Then read the file itself:
 
-### 2. Find Documentation Files
-
-Use `search` to semantically search for documentation files that may contain bloat (verbose descriptions, repetitive patterns, excessive bullet points). This is faster and more targeted than listing all files:
-
-- Query for areas known to accumulate bloat: `search("verbose documentation long examples repeated patterns")`
-- Query for specific topics recently added: `search("recently added feature documentation")`
-- Read the returned file paths to assess their content
-
-Then scan the `docs/` directory for all markdown files, excluding code-generated files and blog posts:
 ```bash
-find docs/src/content/docs -path 'docs/src/content/docs/blog' -prune -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print
+cat <file_path_from_above>
 ```
-
-**IMPORTANT**: Exclude these directories and files:
-- `docs/src/content/docs/blog/` - Blog posts have a different writing style and purpose
-- `frontmatter-full.md` - Automatically generated from the JSON schema by `scripts/generate-schema-docs.js` and should not be manually edited
-- **Files with `disable-agentic-editing: true` in frontmatter** - These files are protected from automated editing
-
-Focus on files that were recently modified or are in the `docs/src/content/docs/` directory (excluding blog).
 
 {{#if ${{ github.event.pull_request.number }}}}
-**Pull Request Context**: Since this workflow is running in the context of PR #${{ github.event.pull_request.number }}, prioritize reviewing the documentation files that were modified in this pull request. Use the GitHub API to get the list of changed files:
-
-```bash
-# Get PR file changes using the pull_request_read tool
-```
-
-Focus on markdown files in the `docs/` directory that appear in the PR's changed files list.
+**Pull Request Context**: This workflow was triggered by PR #${{ github.event.pull_request.number }}. Use the GitHub MCP `pull_request_read` tool to get changed files. If any `docs/` markdown files appear in the PR's changed files list, use that file instead of the pre-selected file. Otherwise proceed with the pre-selected file.
 {{/if}}
 
-### 3. Select ONE File to Improve
+Scan the file for bloat: count bullet points per section, identify repeated "What it does" / "Why it's valuable" patterns, and note sections with 5+ consecutive bullets that could become prose.
 
-**IMPORTANT**: Work on only **ONE file at a time** to keep changes small and reviewable.
-
-**NEVER select these directories or code-generated files**:
-- `docs/src/content/docs/blog/` - Blog posts have a different writing style and should not be unbloated
-- `docs/src/content/docs/reference/frontmatter-full.md` - Auto-generated from JSON schema
-- **Files with `disable-agentic-editing: true` in frontmatter** - These files are explicitly protected from automated editing
-
-Before selecting a file, check its frontmatter to ensure it doesn't have `disable-agentic-editing: true`:
-```bash
-# Check if a file has disable-agentic-editing set to true
-head -20 <filename> | grep -A1 "^---" | grep "disable-agentic-editing: true"
-# If this returns a match, SKIP this file - it's protected
-```
-
-Choose the file most in need of improvement based on:
-- Recent modification date
-- File size (larger files may have more bloat)
-- Number of bullet points or repetitive patterns
-- **Files NOT in the cleaned-files.txt cache** (avoid duplicating recent work)
-- **Files NOT in the exclusion list above** (avoid editing generated files)
-- **Files WITHOUT `disable-agentic-editing: true` in frontmatter** (respect protection flag)
-
-### 4. Analyze the File
-
-Use the `file-bloat-analyzer` agent, passing the selected file path as the input, to get a structured bloat inventory.
-Review the returned JSON to plan targeted edits: focus on `heavy_bullet_sections`,
-`duplicate_headings`, and high `repetitive_pattern_count`.
-
-### 5. Remove Bloat
+### 2. Remove Bloat
 
 Make targeted edits to improve clarity:
 
@@ -320,7 +288,7 @@ Make targeted edits to improve clarity:
 - Keep examples minimal yet complete
 - Use realistic but simple scenarios
 
-### 6. Preserve Essential Content
+### 3. Preserve Essential Content
 
 **DO NOT REMOVE**:
 - Technical accuracy or specific details
@@ -329,7 +297,7 @@ Make targeted edits to improve clarity:
 - Critical warnings or notes
 - Frontmatter metadata
 
-### 7. Create a Branch for Your Changes
+### 4. Create a Branch for Your Changes
 
 Before making changes, create a new branch with a descriptive name:
 ```bash
@@ -340,16 +308,14 @@ For example, if you're cleaning `validation-timing.md`, create branch `docs/unbl
 
 **IMPORTANT**: Remember this exact branch name - you'll need it when creating the pull request!
 
-### 8. Update Cache Memory
+### 5. Update Cache Memory
 
-After improving the file, update the cache memory to track the cleanup:
+After improving the file, update the cache memory to track the cleanup (use the full file path so future runs can match it correctly):
 ```bash
-echo "$(date -u +%Y-%m-%d) - Cleaned: <filename>" >> /tmp/gh-aw/cache-memory/cleaned-files.txt
+echo "$(date -u +%Y-%m-%d) - Cleaned: <full_file_path>" >> /tmp/gh-aw/cache-memory/cleaned-files.txt
 ```
 
-This helps future runs avoid re-cleaning the same files.
-
-### 9. Take Screenshots of Modified Documentation
+### 6. Take Screenshots of Modified Documentation
 
 After making changes to a documentation file, take screenshots of the rendered page in the Astro Starlight website:
 
@@ -405,7 +371,7 @@ If you encounter any blocked domains:
 
 After taking screenshots, follow the shared **Documentation Server Lifecycle Management** instructions for cleanup (section "Stopping the Documentation Server").
 
-### 10. Create Pull Request
+### 7. Create Pull Request
 
 After improving ONE file:
 1. Verify your changes preserve all essential information
@@ -466,37 +432,6 @@ A successful run:
 - ✅ Includes HD screenshots (1920x1080) of the modified documentation page(s) in the Astro Starlight website
 - ✅ Reports any blocked domains for CSS/fonts (if encountered)
 
-Begin by scanning the docs directory and selecting the best candidate for improvement!
+Begin by reading your pre-selected file and improving it!
 
 {{#runtime-import shared/noop-reminder.md}}
-
-## agent: `file-bloat-analyzer`
----
-model: claude-haiku-4.5
-description: Reads a single documentation file and returns a structured inventory of bloat indicators
----
-You are a documentation bloat analysis agent. The file path to analyze is provided as the first line of your input (or as the argument you are invoked with). Read that file using the `bash` tool (`cat <file_path>`) and return a structured JSON inventory of bloat indicators.
-
-Analyze the file for:
-- **bullet_count**: Total number of bullet/list items in the file
-- **heavy_bullet_sections**: Array of section headings that contain 5 or more consecutive bullet points (5+ is the threshold for sections likely to benefit from prose consolidation)
-- **duplicate_headings**: Array of heading texts that appear more than once
-- **repetitive_pattern_count**: Count of occurrences of repetitive "What it does" / "Why it's valuable" / "How to use" patterns
-- **estimated_line_count**: Total number of lines in the file
-- **bloat_score**: A score from 0–10 estimating overall bloat severity (0 = clean, 10 = extremely bloated)
-- **top_bloat_reason**: One-sentence summary of the primary bloat issue found
-
-Return a JSON object only — no prose, no extra text:
-
-```json
-{
-  "file": "<file path>",
-  "bullet_count": 42,
-  "heavy_bullet_sections": ["### Tool Configuration", "## Features"],
-  "duplicate_headings": ["## Overview"],
-  "repetitive_pattern_count": 7,
-  "estimated_line_count": 320,
-  "bloat_score": 7,
-  "top_bloat_reason": "Excessive bullet lists in Tool Configuration and Features sections with repetitive What/Why/How patterns."
-}
-```
