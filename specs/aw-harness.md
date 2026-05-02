@@ -28,7 +28,6 @@ This is an internal design specification for the GitHub gh-aw project. It is not
 2. [Conformance](#2-conformance)
 3. [Terminology and Definitions](#3-terminology-and-definitions)
 4. [Architecture](#4-architecture)
-   - [4.3 Pi SDK and OpenClaw Extension Format Compatibility](#43-pi-sdk-and-openclaw-extension-format-compatibility)
 5. [Harness Invocation Contract](#5-harness-invocation-contract)
 6. [Workflow Definition](#6-workflow-definition)
 7. [Single-Session Execution Model](#7-single-session-execution-model)
@@ -202,43 +201,6 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 
 9. **Observable.** All implementations **MUST** emit a JSONL event stream to stderr and **SHOULD** generate OTel spans when an OTLP endpoint is configured.
 
-### 4.3 Pi SDK and OpenClaw Extension Format Compatibility
-
-*(This section is non-normative.)*
-
-The AW Harness uses Pi SDK's `ExtensionAPI` as its native extension mechanism. OpenClaw (a separate open-source agent runtime at `openclaw/openclaw`) uses a structurally similar but distinct plugin API (`OpenClawPluginApi`). This section documents the relationship between the two APIs and the compatibility requirements that apply.
-
-#### 4.3.1 API Surface Comparison
-
-| Pi SDK (`ExtensionAPI`) | OpenClaw (`OpenClawPluginApi`) | Notes |
-|-------------------------|-------------------------------|-------|
-| `pi.registerTool(tool)` | `api.registerTool(tool, opts?)` | Semantically equivalent; parameter schema shapes may differ (Pi uses Pi-native schema; OpenClaw uses TypeBox `Type.Object(...)`) |
-| `pi.on(event, handler)` | `api.on(hookName, handler, opts?)` | Event names differ between the two runtimes (e.g., Pi `"turn_end"` vs. OpenClaw `"after_agent_turn"`) |
-| `pi.registerProvider(id, config)` | `api.registerProvider(...)` | Config shape differs; OpenClaw providers declared in `openclaw.plugin.json` manifest |
-| `(no direct equivalent)` | `api.registerAgentHarness(...)` | OpenClaw's experimental low-level agent executor seam; Pi SDK exposes the session directly instead |
-| `(lifecycle via pi.on)` | `api.registerHook(events, handler)` | OpenClaw has a separate lifecycle hook registry distinct from its agent event hooks |
-| `(no equivalent)` | `api.registerSessionExtension(...)` | OpenClaw-specific: plugin-owned session state projected through Gateway sessions |
-
-#### 4.3.2 Manifest Requirements (OpenClaw Only)
-
-OpenClaw plugins **MUST** ship an `openclaw.plugin.json` manifest in the plugin root. Pi SDK does not use a manifest file; extensions are registered programmatically. The two formats are **not interchangeable**:
-
-- A Pi extension is a TypeScript function `(pi: ExtensionAPI) => void`.
-- An OpenClaw plugin is a package exporting `definePluginEntry({ id, name, description, register(api) { ... } })` with an accompanying `openclaw.plugin.json`.
-
-#### 4.3.3 Compatibility Requirements
-
-The gh-aw extensions in this specification target Pi SDK only. However, to facilitate future portability to OpenClaw:
-
-- Extensions **SHOULD** keep Pi SDK dependencies isolated to the entry function boundary rather than scattered across extension modules.
-- Tool definitions (name, description, parameter schema, and `execute` function) **SHOULD** be expressed as plain objects so they can be adapted to either `pi.registerTool()` or `api.registerTool()` without rewriting tool logic.
-- Event handler functions **SHOULD** treat the event source (Pi `"turn_end"` vs. OpenClaw `"after_agent_turn"`) as a configuration layer, not embedded constants, to ease future porting.
-- Extensions **MUST NOT** use Pi-internal APIs that have no OpenClaw equivalent (e.g., direct `AgentSession` handle manipulation outside the `ExtensionAPI` surface).
-
-#### 4.3.4 `registerAgentHarness` Consideration
-
-OpenClaw exposes an experimental `api.registerAgentHarness(...)` method that provides a low-level agent executor seam. This seam could in principle host the AW Harness loop within an OpenClaw gateway. The gh-aw aw harness **does not** require or target this seam; it runs standalone via Pi SDK. If a future integration with OpenClaw's gateway is desired, `registerAgentHarness` is the appropriate OpenClaw extension point to evaluate at that time.
-
 ---
 
 ## 5. Harness Invocation Contract
@@ -353,6 +315,11 @@ An `engine: aw` workflow document **MUST** include a YAML frontmatter block conf
 >     time-critical-minutes: 2
 >     budget-warn-percent: 75
 >     budget-critical-percent: 90
+>
+>   # Optional: Pi SDK-compatible extensions to load alongside built-in gh-aw extensions.
+>   # Each entry is a repo-relative path to a compiled .cjs file or an npm package name.
+>   extensions:
+>     - ./extensions/custom-tool.cjs
 > ---
 >
 > Review all changes pushed to the default branch in the last 24 hours.
@@ -384,7 +351,55 @@ The `harness.steering` key is **OPTIONAL**. When present, it **MAY** contain:
 - `budget-warn-percent` (number): Budget percentage at which a warning **SHOULD** be injected. Default: `75`.
 - `budget-critical-percent` (number): Budget percentage at which the session **MUST** be aborted. Default: `90`.
 
-#### 6.1.4 `imports:`
+#### 6.1.4 `harness.extensions`
+
+The `harness.extensions` key is **OPTIONAL**. When present, it **MUST** be a list of Pi SDK-compatible extension references that the harness loads and registers into the `AgentSession` at runtime, in addition to the built-in gh-aw extensions.
+
+Each entry is a string in one of the following forms:
+
+- **Repository-relative path** — a path starting with `./` or `../` pointing to a compiled CommonJS file (`.cjs`) co-located with the workflow (e.g., `./extensions/my-tool.cjs`).
+- **npm package name** — a bare or scoped npm package name (e.g., `@my-org/my-pi-extension`) that is available in the container `node_modules` at runtime.
+
+Each referenced module **MUST** export a default function with the Pi SDK `ExtensionAPI` signature:
+
+```typescript
+export default function(pi: ExtensionAPI): void | Promise<void>;
+```
+
+A conforming implementation **MUST**:
+
+- Dynamically load each extension using `require()` (for local paths) or `require()` / `import()` (for npm packages).
+- Register each user extension into the `AgentSession` alongside the built-in gh-aw extensions, after all built-in extensions have been registered.
+- Emit a warning to stderr if an extension fails to load, and **MUST NOT** abort the session for a failed user extension unless `harness.extensions-required: true` is set.
+
+A conforming implementation **MUST NOT** allow user extensions to override or replace the built-in gh-aw extensions. User extensions run after all built-in extensions and **MUST NOT** be able to unregister or intercept built-in extension behavior.
+
+> [!NOTE] Non-normative example.
+>
+> ```yaml
+> harness:
+>   budget:
+>     max-cost-usd: 5.00
+>   extensions:
+>     - ./extensions/custom-tool.cjs       # Local compiled extension
+>     - @my-org/pi-extension-rate-limiter  # npm package extension
+> ```
+>
+> Each extension module exports a Pi SDK-compatible function:
+>
+> ```typescript
+> // extensions/custom-tool.cjs (compiled from TypeScript)
+> module.exports = function(pi) {
+>   pi.registerTool({
+>     name: "my_custom_tool",
+>     description: "Does something custom",
+>     parameters: { type: "object", properties: { input: { type: "string" } } },
+>     execute: async (_id, params) => ({ content: [{ type: "text", text: params.input }] }),
+>   });
+> };
+> ```
+
+#### 6.1.5 `imports:`
 
 The `imports:` key is **OPTIONAL**. It is a standard gh-aw frontmatter key that lists the paths of files whose contents **MUST** be resolved by the compiler and made available to the harness as part of the compiled inputs.
 
@@ -434,7 +449,7 @@ A conforming implementation **MUST** source every item included in the session's
 
 - The Markdown body from `prompt.txt` (loaded per [Section 6.3](#63-prompt-loading)).
 - The `harness.system` prompt if declared in the `harness:` frontmatter block.
-- Files, skills, and sub-workflows declared via the `imports:` frontmatter key (see [Section 6.1.4](#614-imports)) and resolved by the compiler into inputs passed at invocation time.
+- Files, skills, and sub-workflows declared via the `imports:` frontmatter key (see [Section 6.1.5](#615-imports)) and resolved by the compiler into inputs passed at invocation time.
 
 A conforming implementation **MUST NOT** automatically load AGENTS.md files, `.github/agents/` entries, skills directories, or any other ambient repository files unless they are explicitly listed in `imports:`. This behavior is a deliberate divergence from engines such as `engine: copilot` that inject ambient context automatically.
 
@@ -470,6 +485,10 @@ A conforming implementation **MUST** execute the workflow as follows:
 > async function main() {
 >   const { configPath, promptPath } = parseArgs(process.argv);
 >   const { config, prompt } = loadInputs(configPath, promptPath);
+>
+>   // Load user-declared extensions from harness.extensions
+>   const userExtensions = await loadUserExtensions(config.harness?.extensions ?? []);
+>
 >   const extensions = [
 >     providerSetupExtension,
 >     safeOutputsExtension,
@@ -477,6 +496,7 @@ A conforming implementation **MUST** execute the workflow as follows:
 >     steeringExtension,
 >     repairExtension,
 >     observabilityExtension,
+>     ...userExtensions,  // User extensions run after built-in extensions
 >   ];
 >
 >   const { session } = await createAgentSession({
@@ -493,7 +513,7 @@ A conforming implementation **MUST** execute the workflow as follows:
 
 1. The implementation **MUST** invoke `createAgentSession()` exactly once per harness invocation.
 2. The prompt passed to `session.prompt()` **MUST** be the full contents of `prompt.txt` as loaded per [Section 6.3](#63-prompt-loading).
-3. The implementation **MUST** load all six gh-aw Pi extensions (see [Section 8](#8-extensions)) into the session.
+3. The implementation **MUST** load all six gh-aw Pi extensions (see [Section 8](#8-extensions)) into the session. If `harness.extensions` is declared in the configuration, the implementation **MUST** also load each user-declared extension after the built-in extensions (see [Section 6.1.4](#614-harness-extensions)).
 4. After the session completes (success or failure), the implementation **MUST** call `session.dispose()`.
 5. If the budget gate has been triggered (via the cost-tracker extension), the implementation **MUST** exit with code `1`.
 
@@ -506,6 +526,7 @@ A conforming implementation **MUST** execute the workflow as follows:
    - Safe-output tools registered
    - Steering, repair, cost, observability extensions active
    (MCP tools available as bash CLI commands via cli-proxy — no bridging needed)
+   - User extensions (from harness.extensions) loaded and registered after built-ins
 3. session.prompt(promptText) → Pi agent loop runs
 4. Extensions handle events (cost tracking, steering, observability)
 5. session.dispose()
@@ -515,7 +536,7 @@ A conforming implementation **MUST** execute the workflow as follows:
 
 ## 8. Extensions
 
-All gh-aw-specific behavior **MUST** be packaged as Pi extensions. Each extension **MUST** be a standalone TypeScript module that exports a default function with signature `(pi: ExtensionAPI) => void | Promise<void>`. For compatibility guidance between Pi's `ExtensionAPI` and OpenClaw's `OpenClawPluginApi`, see [§4.3](#43-pi-sdk-and-openclaw-extension-format-compatibility).
+All gh-aw-specific behavior **MUST** be packaged as Pi extensions. Each extension **MUST** be a standalone TypeScript module that exports a default function with signature `(pi: ExtensionAPI) => void | Promise<void>`.
 
 The following six extensions **MUST** be loaded into the `AgentSession` created by the harness.
 
@@ -987,6 +1008,8 @@ The following ordered work items describe the implementation sequence:
 
 5. **Implement entry point** — Create a single `createAgentSession()` with gh-aw extensions loaded. Pass `prompt.txt` contents as the prompt. Dispose session on completion.
 
+5a. **Implement user extension loader** — Read `harness.extensions` from `config.json`. For each entry: resolve repository-relative paths from the harness working directory; load npm package names via `require()`. Verify each loaded module exports a default function of type `(pi: ExtensionAPI) => void`. Emit a stderr warning for each failed load; abort only if `harness.extensions-required: true` is set. Append loaded extensions to the session extension list after built-ins.
+
 6. **Implement context engine** — Prompt assembly with priority ordering. Compaction via `none`, `sliding-window`, or `summarize`.
 
 7. **Implement cost tracker extension** — Pi extension that monitors `turn_end` events for token/cost data. Enforces soft (steer warning) and hard (abort) budget gates.
@@ -1017,6 +1040,8 @@ The following ordered work items describe the implementation sequence:
 **No direct LLM routing by harness.** The harness delegates all LLM routing to Pi SDK and the provider credentials injected by AWF. It **MUST NOT** perform additional proxy interception or credential manipulation.
 
 **Safe outputs isolation.** The safe-outputs extension **MUST NOT** perform live GitHub API calls during agent execution. All GitHub mutations **MUST** be expressed as artifact files processed by the post-agent job, which applies threat detection and validation before acting.
+
+**User extension isolation.** Extensions declared via `harness.extensions` run inside the same Node.js process as the built-in extensions. A conforming implementation **MUST NOT** execute user extensions with elevated privileges. Extension authors are responsible for ensuring that their extensions do not exfiltrate credentials or subvert built-in budget or safe-outputs behavior. Workflow authors are responsible for auditing third-party npm extension packages before referencing them in `harness.extensions`.
 
 **Budget enforcement.** The cost-tracker extension provides a hard budget gate. A conforming implementation **MUST** abort the session if the cost exceeds the configured maximum, preventing runaway spending from misbehaving agents.
 
@@ -1064,6 +1089,3 @@ OpenTelemetry specification for distributed tracing. <https://opentelemetry.io/d
 
 **[gh-aw]**
 GitHub Agentic Workflows — the gh-aw CLI extension that compiles Markdown workflow files to GitHub Actions YAML. <https://github.com/github/gh-aw>
-
-**[OpenClaw]**
-OpenClaw — open-source agent runtime with a plugin SDK (`OpenClawPluginApi`) that is structurally related to but distinct from Pi SDK's `ExtensionAPI`. See §4.3 for API compatibility notes. <https://github.com/openclaw/openclaw>
