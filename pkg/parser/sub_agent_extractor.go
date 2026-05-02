@@ -69,8 +69,98 @@ package parser
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
+
+// validSubAgentFrontmatterFields is the set of permitted keys in a sub-agent
+// frontmatter block. Any key not in this set will produce a warning when
+// ValidateInlineSubAgentsFrontmatter is called.
+var validSubAgentFrontmatterFields = map[string]bool{
+	"description": true,
+	"model":       true,
+}
+
+// ValidateInlineSubAgentsFrontmatter performs best-effort frontmatter validation
+// on every inline sub-agent section found in markdown.
+//
+// markdown should be the full content of a workflow file (including any
+// top-level frontmatter block). The function strips the top-level frontmatter
+// before scanning for ## agent: `name` markers so that the file-level
+// frontmatter is not mistaken for sub-agent content.
+//
+// For each detected sub-agent the function:
+//  1. Attempts to parse its embedded frontmatter block (--- … ---).
+//  2. Reports unknown fields (anything other than "description" or "model").
+//
+// All issues are returned as human-readable warning strings. Callers must not
+// fail compilation based on these messages — they are advisory only (best effort).
+// If no sub-agents are found, or if no issues are detected, nil is returned.
+func ValidateInlineSubAgentsFrontmatter(markdown string) []string {
+	// Strip the top-level frontmatter to obtain only the markdown body.
+	var body string
+	if parsed, err := ExtractFrontmatterFromContent(markdown); err == nil {
+		body = parsed.Markdown
+	} else {
+		body = markdown
+	}
+	return ValidateInlineSubAgentsInBody(body)
+}
+
+// ValidateInlineSubAgentsInBody performs best-effort frontmatter validation on
+// inline sub-agent sections found in an already-stripped markdown body.
+// Unlike ValidateInlineSubAgentsFrontmatter, it does not strip a top-level
+// frontmatter block, making it suitable for callers that have already parsed
+// the file and hold the markdown body separately.
+//
+// All issues are returned as human-readable warning strings (best-effort,
+// never abort compilation). If no sub-agents are found or no issues are
+// detected, nil is returned.
+func ValidateInlineSubAgentsInBody(body string) []string {
+	_, subAgents, err := ExtractInlineSubAgents(body)
+	if err != nil {
+		// Surface extraction errors (e.g. duplicate agent names) as a warning
+		// rather than silently skipping validation.
+		return []string{fmt.Sprintf("could not extract inline sub-agents: %v", err)}
+	}
+	if len(subAgents) == 0 {
+		return nil
+	}
+
+	var warnings []string
+	for _, agent := range subAgents {
+		warnings = append(warnings, validateSubAgentFrontmatterFields(agent)...)
+	}
+	return warnings
+}
+
+// validateSubAgentFrontmatterFields parses the frontmatter block embedded in a
+// single InlineSubAgent.Content and returns warning messages for any unknown fields.
+func validateSubAgentFrontmatterFields(agent InlineSubAgent) []string {
+	parsed, err := ExtractFrontmatterFromContent(agent.Content)
+	if err != nil {
+		return []string{fmt.Sprintf("sub-agent %q: could not parse frontmatter: %v", agent.Name, err)}
+	}
+	if len(parsed.Frontmatter) == 0 {
+		return nil
+	}
+
+	var unknown []string
+	for key := range parsed.Frontmatter {
+		if !validSubAgentFrontmatterFields[key] {
+			unknown = append(unknown, key)
+		}
+	}
+	if len(unknown) == 0 {
+		return nil
+	}
+
+	sort.Strings(unknown) // deterministic order
+	return []string{fmt.Sprintf(
+		"sub-agent %q: unknown frontmatter field(s): %s (valid fields: description, model)",
+		agent.Name, strings.Join(unknown, ", "),
+	)}
+}
 
 // GetEngineSubAgentDir returns the relative directory (from repo root / tmp base) used
 // to store inline sub-agent files for a given engine.

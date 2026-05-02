@@ -149,12 +149,13 @@ jobs:
             .crush
             .gemini
             .opencode
+            .pi
           sparse-checkout-cone-mode: true
           fetch-depth: 1
       - name: Save agent config folders for base branch restoration
         env:
-          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode"
-          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md opencode.jsonc"
+          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode .pi"
+          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md PI.md opencode.jsonc"
         # poutine:ignore untrusted_checkout_exec
         run: bash "${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh"
       - name: Check workflow lock file
@@ -449,8 +450,8 @@ jobs:
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
-          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode"
-          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md opencode.jsonc"
+          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode .pi"
+          GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md PI.md opencode.jsonc"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh"
       - name: Sample files and load memory
         run: "mkdir -p /tmp/gh-aw/agent\n# Sample documentation files (eliminates agent exploratory find turns)\nfind docs/src/content/docs \\( -name '*.md' -o -name '*.mdx' \\) | shuf -n 2 > /tmp/gh-aw/agent/doc-samples.txt\n# Sample workflows with messages (pre-compute instead of agent grep)\ngrep -rl \"messages:\" .github/workflows/ --include=\"*.md\" | shuf -n 2 > /tmp/gh-aw/agent/workflow-samples.txt\n# Sample validation files\nfind pkg -name '*validation*.go' | shuf -n 1 > /tmp/gh-aw/agent/validation-sample.txt || echo \"No validation files found\" > /tmp/gh-aw/agent/validation-sample.txt\n# Load historical memory (eliminates agent memory-read turns)\ncat memory/delight/previous-findings.json 2>/dev/null > /tmp/gh-aw/agent/previous-findings.json || echo \"[]\" > /tmp/gh-aw/agent/previous-findings.json\ncat memory/delight/improvement-themes.json 2>/dev/null > /tmp/gh-aw/agent/improvement-themes.json || echo \"[]\" > /tmp/gh-aw/agent/improvement-themes.json\n"

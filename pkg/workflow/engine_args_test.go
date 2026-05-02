@@ -113,6 +113,83 @@ func TestEngineArgsFieldExtraction(t *testing.T) {
 	})
 }
 
+func TestEngineExtensionsFieldExtraction(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("Extensions field extraction with []any", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"engine": map[string]any{
+				"id":         "pi",
+				"extensions": []any{"@pi/web-search", "@pi/file-browser"},
+			},
+		}
+
+		_, config := compiler.ExtractEngineConfig(frontmatter)
+		if config == nil {
+			t.Fatal("Expected config to be non-nil")
+		}
+		if len(config.Extensions) != 2 {
+			t.Errorf("Expected 2 extensions, got %d", len(config.Extensions))
+		}
+		if config.Extensions[0] != "@pi/web-search" || config.Extensions[1] != "@pi/file-browser" {
+			t.Errorf("Expected [@pi/web-search @pi/file-browser], got %v", config.Extensions)
+		}
+	})
+
+	t.Run("Extensions field extraction with []string", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"engine": map[string]any{
+				"id":         "pi",
+				"extensions": []string{"@pi/web-search", "@pi/file-browser"},
+			},
+		}
+
+		_, config := compiler.ExtractEngineConfig(frontmatter)
+		if config == nil {
+			t.Fatal("Expected config to be non-nil")
+		}
+		if len(config.Extensions) != 2 {
+			t.Errorf("Expected 2 extensions, got %d", len(config.Extensions))
+		}
+		if config.Extensions[0] != "@pi/web-search" || config.Extensions[1] != "@pi/file-browser" {
+			t.Errorf("Expected [@pi/web-search @pi/file-browser], got %v", config.Extensions)
+		}
+	})
+
+	t.Run("Extensions field not present", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"engine": map[string]any{
+				"id": "pi",
+			},
+		}
+
+		_, config := compiler.ExtractEngineConfig(frontmatter)
+		if config == nil {
+			t.Fatal("Expected config to be non-nil")
+		}
+		if config.Extensions != nil {
+			t.Errorf("Expected Extensions to be nil, got %v", config.Extensions)
+		}
+	})
+
+	t.Run("Extensions field with unexpected type is ignored", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"engine": map[string]any{
+				"id":         "pi",
+				"extensions": "not-an-array",
+			},
+		}
+
+		_, config := compiler.ExtractEngineConfig(frontmatter)
+		if config == nil {
+			t.Fatal("Expected config to be non-nil")
+		}
+		if config.Extensions != nil {
+			t.Errorf("Expected Extensions to be nil for unexpected type, got %v", config.Extensions)
+		}
+	})
+}
+
 func TestCopilotEngineArgsInjection(t *testing.T) {
 	engine := NewCopilotEngine()
 

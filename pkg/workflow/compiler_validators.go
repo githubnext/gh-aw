@@ -30,7 +30,15 @@ func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath 
 		workflowDir := filepath.Dir(markdownPath) // .github/workflows
 		githubDir := filepath.Dir(workflowDir)    // .github
 		workspaceDir := filepath.Dir(githubDir)   // repo root
-		if err := validateRuntimeImportFiles(workflowData.MarkdownContent, workspaceDir); err != nil {
+		subAgentWarnings, err := validateRuntimeImportFiles(workflowData.MarkdownContent, workspaceDir)
+		// Emit best-effort sub-agent frontmatter warnings through the normal warning path
+		// so they are counted and consistently formatted with all other warnings.
+		for _, w := range subAgentWarnings {
+			expressionValidationLog.Printf("%s", w)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+			c.IncrementWarningCount()
+		}
+		if err != nil {
 			return formatCompilerError(markdownPath, "error", err.Error(), err)
 		}
 	}

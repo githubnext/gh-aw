@@ -164,7 +164,7 @@ ${{ github.actor
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateRuntimeImportFiles(tt.markdown, tmpDir)
+			_, err := validateRuntimeImportFiles(tt.markdown, tmpDir)
 
 			if tt.expectError {
 				require.Error(t, err, "Expected an error")
@@ -215,7 +215,7 @@ func TestValidateRuntimeImportFiles_PathNormalization(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateRuntimeImportFiles(tt.markdown, tmpDir)
+			_, err := validateRuntimeImportFiles(tt.markdown, tmpDir)
 
 			if tt.expectError {
 				assert.Error(t, err)

@@ -50,6 +50,9 @@ const DefaultGeminiVersion Version = "0.39.1"
 // DefaultCrushVersion is the default version of the Crush CLI
 const DefaultCrushVersion Version = "0.59.0"
 
+// DefaultPiVersion is the default version of the Pi CLI
+const DefaultPiVersion Version = "0.0.1"
+
 // DefaultOpenCodeVersion is the default version of the OpenCode CLI
 const DefaultOpenCodeVersion Version = "1.2.14"
 
