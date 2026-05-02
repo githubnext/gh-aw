@@ -411,7 +411,7 @@ func enrichWithPolicyRules(entries []AuditLogEntry, manifest *PolicyManifest) *P
 //  2. agent/sandbox/firewall/audit/ — non-flattened unified agent artifact (new structure)
 //  3. agent/tmp/gh-aw/sandbox/firewall/audit/ — non-flattened unified agent artifact (old structure)
 //  4. firewall-audit*/ — legacy separate firewall-audit-logs artifact (backward compat)
-func detectFirewallAuditArtifacts(runDir string) (manifestPath, auditJSONLPath string) {
+func detectFirewallAuditArtifacts(runDir string) (manifestPath, auditJSONLPath string, err error) {
 	firewallPolicyLog.Printf("Detecting firewall audit artifacts in: %s", runDir)
 
 	// checkDir probes dir for policy-manifest.json and audit.jsonl, populating the
@@ -456,15 +456,16 @@ func detectFirewallAuditArtifacts(runDir string) (manifestPath, auditJSONLPath s
 				checkDir(filepath.Join(agentDir, "tmp", "gh-aw", "sandbox", "firewall", "audit"), agentBase+"/tmp/gh-aw/sandbox/firewall/audit")
 			}
 			if manifestPath != "" && auditJSONLPath != "" {
-				return
+				return manifestPath, auditJSONLPath, nil
 			}
 		}
 	}
 
 	// 4. Legacy separate firewall-audit-logs artifact (backward compat for older runs that
 	// uploaded the audit directory as a standalone artifact named firewall-audit-logs).
-	entries, err := os.ReadDir(runDir)
-	if err != nil {
+	entries, readErr := os.ReadDir(runDir)
+	if readErr != nil {
+		err = fmt.Errorf("detectFirewallAuditArtifacts: reading run dir %s: %w", runDir, readErr)
 		return
 	}
 	for _, entry := range entries {
@@ -477,13 +478,16 @@ func detectFirewallAuditArtifacts(runDir string) (manifestPath, auditJSONLPath s
 		}
 	}
 
-	return manifestPath, auditJSONLPath
+	return manifestPath, auditJSONLPath, nil
 }
 
 // analyzeFirewallPolicy loads policy manifest and audit JSONL, then enriches with rule attribution.
 // Returns nil if no policy artifacts are found (graceful fallback to basic analysis).
 func analyzeFirewallPolicy(runDir string, verbose bool) (*PolicyAnalysis, error) {
-	manifestPath, auditJSONLPath := detectFirewallAuditArtifacts(runDir)
+	manifestPath, auditJSONLPath, err := detectFirewallAuditArtifacts(runDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect firewall audit artifacts: %w", err)
+	}
 
 	if manifestPath == "" {
 		firewallPolicyLog.Print("No policy manifest found, skipping policy analysis")

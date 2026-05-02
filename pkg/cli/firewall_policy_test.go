@@ -561,7 +561,8 @@ func TestDetectFirewallAuditArtifacts(t *testing.T) {
 		require.NoError(t, os.WriteFile(manifestPath, []byte("{}"), 0644))
 		require.NoError(t, os.WriteFile(auditPath, []byte(""), 0644))
 
-		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		foundManifest, foundAudit, err := detectFirewallAuditArtifacts(dir)
+		require.NoError(t, err, "Should not error with valid run dir")
 		assert.Equal(t, manifestPath, foundManifest, "Should find policy manifest")
 		assert.Equal(t, auditPath, foundAudit, "Should find audit JSONL")
 	})
@@ -579,7 +580,8 @@ func TestDetectFirewallAuditArtifacts(t *testing.T) {
 		require.NoError(t, os.WriteFile(manifestPath, []byte("{}"), 0644))
 		require.NoError(t, os.WriteFile(auditPath, []byte(""), 0644))
 
-		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		foundManifest, foundAudit, err := detectFirewallAuditArtifacts(dir)
+		require.NoError(t, err, "Should not error with valid run dir")
 		assert.Equal(t, manifestPath, foundManifest, "Should find policy manifest in agent/sandbox/firewall/audit")
 		assert.Equal(t, auditPath, foundAudit, "Should find audit JSONL in agent/sandbox/firewall/audit")
 	})
@@ -596,7 +598,8 @@ func TestDetectFirewallAuditArtifacts(t *testing.T) {
 		require.NoError(t, os.WriteFile(manifestPath, []byte("{}"), 0644))
 		require.NoError(t, os.WriteFile(auditPath, []byte(""), 0644))
 
-		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		foundManifest, foundAudit, err := detectFirewallAuditArtifacts(dir)
+		require.NoError(t, err, "Should not error with valid run dir")
 		assert.Equal(t, manifestPath, foundManifest, "Should find policy manifest in agent/tmp/gh-aw/sandbox/firewall/audit")
 		assert.Equal(t, auditPath, foundAudit, "Should find audit JSONL in agent/tmp/gh-aw/sandbox/firewall/audit")
 	})
@@ -612,7 +615,8 @@ func TestDetectFirewallAuditArtifacts(t *testing.T) {
 		require.NoError(t, os.WriteFile(manifestPath, []byte("{}"), 0644))
 		require.NoError(t, os.WriteFile(auditPath, []byte(""), 0644))
 
-		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		foundManifest, foundAudit, err := detectFirewallAuditArtifacts(dir)
+		require.NoError(t, err, "Should not error with valid run dir")
 		assert.Equal(t, manifestPath, foundManifest, "Should find policy manifest in agent-artifacts/sandbox/firewall/audit")
 		assert.Equal(t, auditPath, foundAudit, "Should find audit JSONL in agent-artifacts/sandbox/firewall/audit")
 	})
@@ -629,7 +633,8 @@ func TestDetectFirewallAuditArtifacts(t *testing.T) {
 		require.NoError(t, os.WriteFile(manifestPath, []byte("{}"), 0644))
 		require.NoError(t, os.WriteFile(auditPath, []byte(""), 0644))
 
-		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		foundManifest, foundAudit, err := detectFirewallAuditArtifacts(dir)
+		require.NoError(t, err, "Should not error with valid run dir")
 		assert.Equal(t, manifestPath, foundManifest, "Should find policy manifest in prefixed-agent/sandbox/firewall/audit")
 		assert.Equal(t, auditPath, foundAudit, "Should find audit JSONL in prefixed-agent/sandbox/firewall/audit")
 	})
@@ -644,14 +649,16 @@ func TestDetectFirewallAuditArtifacts(t *testing.T) {
 		require.NoError(t, os.WriteFile(manifestPath, []byte("{}"), 0644))
 		require.NoError(t, os.WriteFile(auditPath, []byte(""), 0644))
 
-		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		foundManifest, foundAudit, err := detectFirewallAuditArtifacts(dir)
+		require.NoError(t, err, "Should not error with valid run dir")
 		assert.Equal(t, manifestPath, foundManifest, "Should find policy manifest in firewall-audit-logs")
 		assert.Equal(t, auditPath, foundAudit, "Should find audit JSONL in firewall-audit-logs")
 	})
 
 	t.Run("no artifacts", func(t *testing.T) {
 		dir := t.TempDir()
-		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		foundManifest, foundAudit, err := detectFirewallAuditArtifacts(dir)
+		require.NoError(t, err, "Should not error with empty run dir")
 		assert.Empty(t, foundManifest, "Should not find manifest")
 		assert.Empty(t, foundAudit, "Should not find audit JSONL")
 	})
@@ -662,9 +669,23 @@ func TestDetectFirewallAuditArtifacts(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "agent"), []byte("not a directory"), 0644))
 
-		foundManifest, foundAudit := detectFirewallAuditArtifacts(dir)
+		foundManifest, foundAudit, err := detectFirewallAuditArtifacts(dir)
+		require.NoError(t, err, "Should not error when 'agent' is a file")
 		assert.Empty(t, foundManifest, "Should not find manifest when 'agent' is a file")
 		assert.Empty(t, foundAudit, "Should not find audit JSONL when 'agent' is a file")
+	})
+
+	t.Run("unreadable run directory returns error", func(t *testing.T) {
+		if os.Getuid() == 0 {
+			t.Skip("root can read any directory; skipping permission test")
+		}
+		dir := t.TempDir()
+		require.NoError(t, os.Chmod(dir, 0000), "Should be able to remove read permission")
+		t.Cleanup(func() { _ = os.Chmod(dir, 0755) })
+
+		_, _, err := detectFirewallAuditArtifacts(dir)
+		require.Error(t, err, "Should return an error when run dir is unreadable")
+		assert.Contains(t, err.Error(), "detectFirewallAuditArtifacts", "Error should identify the function")
 	})
 }
 
