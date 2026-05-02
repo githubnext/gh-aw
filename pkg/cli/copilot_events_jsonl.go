@@ -123,7 +123,7 @@ func findEventsJSONLFile(logDir string) string {
 		}
 		return nil
 	}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
-		copilotEventsJSONLLog.Printf("filepath.Walk failed for %s: %v", logDir, walkErr)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", logDir, walkErr)))
 	}
 
 	if foundPath != "" {
@@ -152,7 +152,7 @@ func findFileInDir(dir, name string) string {
 		}
 		return nil
 	}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
-		copilotEventsJSONLLog.Printf("filepath.Walk failed for %s: %v", dir, walkErr)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", dir, walkErr)))
 	}
 	return found
 }

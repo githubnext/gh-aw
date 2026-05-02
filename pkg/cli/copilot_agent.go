@@ -140,7 +140,7 @@ func (d *CopilotCodingAgentDetector) hasAgentLogPatterns() bool {
 
 		return nil
 	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
-		copilotCodingAgentLog.Printf("filepath.Walk failed for %s: %v", d.runDir, walkErr)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", d.runDir, walkErr)))
 	}
 
 	return found

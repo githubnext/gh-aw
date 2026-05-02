@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
 	"github.com/github/gh-aw/pkg/types"
@@ -283,7 +284,7 @@ func findTokenUsageFile(runDir string) string {
 		}
 		return nil
 	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
-		tokenUsageLog.Printf("filepath.Walk failed for %s: %v", runDir, walkErr)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", runDir, walkErr)))
 	}
 	if primary != filepath.Join(runDir, "sandbox", "firewall", "logs", tokenUsageJSONLPath) {
 		tokenUsageLog.Printf("Found token usage file via walk: %s", primary)
@@ -317,7 +318,7 @@ func findAgentUsageFile(runDir string) string {
 		}
 		return nil
 	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
-		tokenUsageLog.Printf("filepath.Walk failed for %s: %v", runDir, walkErr)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", runDir, walkErr)))
 	}
 
 	if found != "" {

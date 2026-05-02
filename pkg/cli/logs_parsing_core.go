@@ -130,7 +130,7 @@ func findAgentOutputFile(logDir string) (string, bool) {
 		}
 		return nil
 	}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
-		logsParsingCoreLog.Printf("filepath.Walk failed for %s: %v", logDir, walkErr)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", logDir, walkErr)))
 	}
 	if foundPath == "" {
 		return "", false
@@ -172,7 +172,7 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 				}
 				return nil
 			}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
-				logsParsingCoreLog.Printf("filepath.Walk failed for %s: %v", agentOutputDir, walkErr)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", agentOutputDir, walkErr)))
 			}
 			if foundFile != "" {
 				return foundFile, true
@@ -213,7 +213,7 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 					}
 					return nil
 				}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
-					logsParsingCoreLog.Printf("filepath.Walk failed for %s: %v", flattenedDir, walkErr)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", flattenedDir, walkErr)))
 				}
 				if foundEventsJsonl != "" {
 					return foundEventsJsonl, true
@@ -250,7 +250,7 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 			}
 			return nil
 		}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
-			logsParsingCoreLog.Printf("filepath.Walk failed for %s: %v", logDir, walkErr)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", logDir, walkErr)))
 		}
 		if foundEventsJsonl != "" {
 			return foundEventsJsonl, true
@@ -282,7 +282,7 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 		}
 		return nil
 	}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
-		logsParsingCoreLog.Printf("filepath.Walk failed for %s: %v", logDir, walkErr)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", logDir, walkErr)))
 	}
 	if foundPath != "" {
 		return foundPath, true

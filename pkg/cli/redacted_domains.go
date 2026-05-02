@@ -135,7 +135,7 @@ func analyzeRedactedDomains(runDir string, verbose bool) (*RedactedDomainsAnalys
 		}
 		return nil
 	}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
-		redactedDomainsLog.Printf("filepath.Walk failed for %s: %v", runDir, walkErr)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", runDir, walkErr)))
 	}
 
 	if foundPath != "" {

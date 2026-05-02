@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -100,7 +101,7 @@ func findGitHubRateLimitsFile(runDir string) string {
 		}
 		return nil
 	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
-		gitHubRateLimitUsageLog.Printf("filepath.Walk failed for %s: %v", runDir, walkErr)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", runDir, walkErr)))
 	}
 	if found != "" {
 		gitHubRateLimitUsageLog.Printf("Found rate limits file via walk: %s", found)
