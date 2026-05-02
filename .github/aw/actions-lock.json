@@ -148,6 +148,11 @@
       "version": "v4.35.3",
       "sha": "e46ed2cbd01164d986452f91f178727624ae40d7"
     },
+    "github/stale-repos@v9.0.8": {
+      "repo": "github/stale-repos",
+      "version": "v9.0.8",
+      "sha": "5f2e18fc5432823f96c1feb69327f665c2acab59"
+    },
     "github/stale-repos@v9.0.9": {
       "repo": "github/stale-repos",
       "version": "v9.0.9",
@@ -157,6 +162,11 @@
       "repo": "haskell-actions/setup",
       "version": "v2.11.0",
       "sha": "cd0d9bdd65b20557f41bea4dbe43d0b5fbbfe553"
+    },
+    "microsoft/apm-action@v1.5.0": {
+      "repo": "microsoft/apm-action",
+      "version": "v1.5.0",
+      "sha": "4489b4be0069e2c8c4d44305c3d273fb9d50e647"
     },
     "microsoft/apm-action@v1.5.1": {
       "repo": "microsoft/apm-action",
