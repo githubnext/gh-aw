@@ -836,10 +836,10 @@ function showToolHelp(serverName, toolName, tools) {
     const maxKeyLen = Math.max(...Object.keys(props).map(k => k.length));
     for (const [key, val] of Object.entries(props)) {
       const flagPad = `--${key}`.padEnd(maxKeyLen + 4);
-      const typeStr = getTypeStr(val.type);
-      const requiredTag = required.has(key) ? " (required)" : "";
-      const desc = val.description ? `  ${val.description}` : "";
-      lines.push(`  ${flagPad}${typeStr}${requiredTag}${desc}`);
+      const parts = [getTypeStr(val.type)];
+      if (required.has(key)) parts.push("(required)");
+      if (val.description) parts.push(val.description);
+      lines.push(`  ${flagPad}${parts.join(" ")}`);
     }
 
     lines.push("");
@@ -859,7 +859,7 @@ function showToolHelp(serverName, toolName, tools) {
 function getTypeStr(type) {
   if (!type) return "(string)";
   const types = Array.isArray(type) ? type.filter(t => t !== "null") : [type];
-  return `(${types.join("|") || "string"})`;
+  return `(${types.length > 0 ? types.join("|") : "null"})`;
 }
 
 // ---------------------------------------------------------------------------
