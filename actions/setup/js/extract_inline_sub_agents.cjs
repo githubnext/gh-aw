@@ -4,7 +4,7 @@
 // extract_inline_sub_agents.cjs
 //
 // Parses ## agent: `name` markers from workflow markdown and writes each agent
-// block as a separate .md file under .github/agents/.
+// block as a separate .agent.md file under .agents/agents/.
 //
 // This step runs AFTER {{#runtime-import}} macros have been fully inlined by
 // processRuntimeImports() in interpolate_prompt.cjs, ensuring that any imports
@@ -84,7 +84,7 @@ function extractInlineSubAgents(content) {
 
 /**
  * Extracts inline sub-agents from content and writes each one to
- * <workspaceDir>/.github/agents/<name>.md.
+ * <workspaceDir>/.agents/agents/<name>.agent.md.
  *
  * Returns the main content (before the first ## agent: marker) after stripping
  * all agent blocks.  When no agent markers are found the original content is
@@ -101,14 +101,14 @@ function writeInlineSubAgents(content, workspaceDir) {
     return content;
   }
 
-  const agentsDir = path.join(workspaceDir, ".github", "agents");
+  const agentsDir = path.join(workspaceDir, ".agents", "agents");
   fs.mkdirSync(agentsDir, { recursive: true });
 
   for (const agent of agents) {
-    const agentPath = path.join(agentsDir, agent.name + ".md");
+    const agentPath = path.join(agentsDir, agent.name + ".agent.md");
     const agentContent = agent.content.endsWith("\n") ? agent.content : agent.content + "\n";
     fs.writeFileSync(agentPath, agentContent, "utf8");
-    core.info(`[extractInlineSubAgents] Written sub-agent: .github/agents/${agent.name}.md`);
+    core.info(`[extractInlineSubAgents] Written sub-agent: .agents/agents/${agent.name}.agent.md`);
   }
 
   return mainContent;
