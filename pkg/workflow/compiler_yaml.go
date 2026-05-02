@@ -317,12 +317,10 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 			hash, err = parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, data.RawFrontmatter, cache, parser.DefaultFileReader)
 		}
 		if err != nil {
-			compilerYamlLog.Printf("Warning: failed to compute frontmatter hash: %v", err)
-			// Continue without hash - non-fatal error
-		} else {
-			frontmatterHash = hash
-			compilerYamlLog.Printf("Computed frontmatter hash: %s", hash)
+			return "", nil, nil, fmt.Errorf("failed to generate workflow YAML: could not compute stable frontmatter hash for %q: %w", markdownPath, err)
 		}
+		frontmatterHash = hash
+		compilerYamlLog.Printf("Computed frontmatter hash: %s", hash)
 	}
 	// Store hash on WorkflowData so job-building helpers (MCP renderers, prompt
 	// step generators, etc.) can derive stable heredoc delimiters from it.

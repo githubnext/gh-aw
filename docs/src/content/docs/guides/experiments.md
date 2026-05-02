@@ -9,7 +9,9 @@ The `experiments` section of the workflow frontmatter enables statistical A/B te
 
 ## Declaring experiments
 
-Add an `experiments` map to the workflow frontmatter. Each key names an experiment; the value is an array of two or more variant strings.
+Add an `experiments` map to the workflow frontmatter. Each key names an experiment; the value is either a simple array of variants (bare-array form) or a rich object with additional metadata fields.
+
+### Bare-array form
 
 ```aw wrap
 ---
@@ -23,6 +25,39 @@ experiments:
 ---
 
 Summarize this issue in a **${{ experiments.style }}** way.
+```
+
+### Rich object form
+
+Use the object form to attach metadata that drives automated reporting, guardrail enforcement, and lifecycle tracking:
+
+```aw wrap
+---
+on:
+  schedule: daily on weekdays
+engine: copilot
+
+experiments:
+  prompt_style:
+    variants: [concise, detailed]
+    description: "Test whether a concise prompt reduces token cost without quality loss"
+    hypothesis: "H0: no change in effective_tokens. H1: concise reduces tokens by >=15%"
+    metric: effective_tokens
+    secondary_metrics: [duration_ms, discussion_word_count]
+    guardrail_metrics:
+      - name: success_rate
+        threshold: ">=0.95"
+      - name: empty_output_rate
+        threshold: "==0"
+    weight: [50, 50]
+    min_samples: 25
+    start_date: "2026-05-05"
+    end_date: "2026-07-25"
+    issue: 1234
+    owner: "@team-agents"
+---
+
+Summarize the findings in a **${{ experiments.prompt_style }}** way.
 ```
 
 > [!NOTE]
@@ -52,6 +87,8 @@ Address the issue described above.
 The activation job maintains a per-variant invocation counter in an `actions/cache` entry keyed by workflow ID. The variant with the lowest cumulative count is selected on each run; ties are broken by variant order. Over N runs every variant is used approximately N/K times (K = variant count), providing basic A/B balance with no configuration.
 
 The counter persists across workflow runs via the GitHub Actions cache. A fresh repository starts from zero counts.
+
+When a `weight` array is provided, weighted-random selection is used instead of round-robin. Each variant is chosen with probability proportional to its weight (e.g. `[70, 30]` gives the first variant a 70% probability). When `start_date` or `end_date` is set and today falls outside the window, the control variant (first entry) is returned without incrementing any counter.
 
 ## Accessing assignments downstream
 
@@ -84,9 +121,69 @@ The `🧪 A/B Experiments` section of the audit report shows the variant chosen 
   • style = concise (cumulative: concise:5, detailed:4)
 ```
 
+### Filtering audit results by variant
+
+Use `--experiment` and `--variant` to filter audit runs to a specific variant:
+
+```bash
+gh aw audit <run-id> --experiment prompt_style --variant concise
+```
+
+### Step summary
+
+Each activation job writes a Markdown step summary that shows variant assignments, cumulative counts, and — when the rich object form is used — progress toward `min_samples`:
+
+```
+## 🧪 A/B Experiment Assignments
+
+| Experiment   | Selected Variant | All Variants      | Cumulative Counts      |
+| ---          | ---              | ---               | ---                    |
+| prompt_style | concise          | concise, detailed | concise: 8, detailed: 7|
+
+### 📊 Sampling Progress
+
+prompt_style (target: 25 per variant)
+  concise: ████████░░░░░░░░░░░░ 8/25 (32%)
+  detailed: ███████░░░░░░░░░░░░░ 7/25 (28%)
+
+### Experiment Details
+
+**prompt_style**
+
+> Test whether a concise prompt reduces token cost without quality loss
+
+**Hypothesis:** H0: no change in effective_tokens. H1: concise reduces tokens by >=15%
+
+**Guardrail metrics:**
+- `success_rate` >=0.95
+- `empty_output_rate` ==0
+
+Tracking issue: [#1234](https://github.com/owner/repo/issues/1234)
+```
+
 ## Frontmatter reference
+
+### Bare-array form
 
 | Field | Type | Description |
 |---|---|---|
-| `experiments` | `object` | Map of experiment name → variant array |
+| `experiments` | `object` | Map of experiment name → variant array or config object |
 | `experiments.<name>` | `string[]` | Array of two or more variant strings for one experiment |
+
+### Object form fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `variants` | `string[]` | ✅ | Array of two or more variant strings |
+| `description` | `string` | | Human-readable explanation of what the experiment tests |
+| `hypothesis` | `string` | | Null and alternative hypothesis (e.g. `"H0: no change. H1: concise reduces tokens by >=15%"`) |
+| `metric` | `string` | | Primary metric to observe (e.g. `effective_tokens`, `duration_ms`) |
+| `secondary_metrics` | `string[]` | | Additional metrics to track alongside the primary metric |
+| `guardrail_metrics` | `object[]` | | List of `{name, threshold}` pairs that must not degrade. Threshold is a comparison expression like `>=0.95` or `==0` |
+| `min_samples` | `integer` | | Minimum runs per variant required before statistical analysis is considered reliable. The step summary shows a progress bar toward this target. |
+| `owner` | `string` | | Team or person responsible for this experiment (e.g. `@team-agents`) |
+| `weight` | `integer[]` | | Per-variant probability weights (same length as `variants`). Enables weighted-random selection; values are relative and need not sum to 100. |
+| `issue` | `integer` | | GitHub issue number that tracks this experiment's lifecycle |
+| `start_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) before which the experiment is inactive. The control variant is returned before this date without incrementing any counter. |
+| `end_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) after which the experiment is inactive. The control variant is returned after this date without incrementing any counter. |
+

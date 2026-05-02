@@ -7,12 +7,17 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var experimentDataLog = logger.New("cli:audit_report_experiments")
 
 // ExperimentData represents the A/B experiment assignments for a single workflow run.
 type ExperimentData struct {
@@ -59,11 +64,15 @@ func extractExperimentData(logsPath string) *ExperimentData {
 		return nil
 	}
 
+	experimentDataLog.Printf("Extracting experiment data from: %s", logsPath)
+
 	statePath := findExperimentStatePath(logsPath)
 	if statePath == "" {
+		experimentDataLog.Print("No experiment state file found")
 		return nil
 	}
 
+	experimentDataLog.Printf("Reading experiment state from: %s", statePath)
 	raw, err := os.ReadFile(statePath)
 	if err != nil {
 		return nil
@@ -73,6 +82,8 @@ func extractExperimentData(logsPath string) *ExperimentData {
 	if err := json.Unmarshal(raw, &state); err != nil || len(state.Counts) == 0 {
 		return nil
 	}
+
+	experimentDataLog.Printf("Found %d experiment(s) in state file", len(state.Counts))
 
 	// Derive this-run assignments: the variant selected on the most-recent run is
 	// the one with the maximum count (ties resolved by sorted order).
@@ -87,12 +98,71 @@ func extractExperimentData(logsPath string) *ExperimentData {
 		variantCounts := state.Counts[name]
 		selected := deriveLastSelectedVariant(variantCounts)
 		assignments[name] = selected
+		experimentDataLog.Printf("Experiment %q: selected variant=%q", name, selected)
 	}
 
 	return &ExperimentData{
 		Assignments:      assignments,
 		CumulativeCounts: state.Counts,
 	}
+}
+
+// formatExperimentLabel returns a compact, human-readable label summarising the
+// experiment assignments for a single run. It is used in the Overview section of
+// the audit report to surface experiment context alongside the run header.
+//
+// Examples:
+//
+//	one experiment:  "style=concise"
+//	two experiments: "caveman=yes, style=concise"
+//	nil/empty:       ""
+func formatExperimentLabel(exp *ExperimentData) string {
+	if exp == nil || len(exp.Assignments) == 0 {
+		return ""
+	}
+
+	names := make([]string, 0, len(exp.Assignments))
+	for name := range exp.Assignments {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	parts := make([]string, 0, len(names))
+	for _, name := range names {
+		parts = append(parts, name+"="+exp.Assignments[name])
+	}
+	return strings.Join(parts, ", ")
+}
+
+// experimentMatchesFilter reports whether exp satisfies the given experiment/variant
+// filter pair. Rules:
+//   - If experimentName is empty, every run passes (no filter active).
+//   - If experimentName is set but exp is nil or lacks that experiment, the run fails.
+//   - If variant is also set, the assigned variant must equal variant.
+func experimentMatchesFilter(exp *ExperimentData, experimentName, variant string) bool {
+	if experimentName == "" {
+		return true
+	}
+	if exp == nil {
+		return false
+	}
+	assigned, ok := exp.Assignments[experimentName]
+	if !ok {
+		return false
+	}
+	if variant != "" && assigned != variant {
+		return false
+	}
+	return true
+}
+
+// formatExperimentSkipMessage returns the informational message emitted when a run
+// is skipped because its experiment data does not satisfy the active filter.
+func formatExperimentSkipMessage(runID int64, experimentName, variant string) string {
+	if variant != "" {
+		return fmt.Sprintf("Run %d skipped: experiment %q not assigned variant %q", runID, experimentName, variant)
+	}
+	return fmt.Sprintf("Run %d skipped: experiment %q not assigned (not found in run artifacts)", runID, experimentName)
 }
 
 // deriveLastSelectedVariant returns the variant selected on the last run based on the

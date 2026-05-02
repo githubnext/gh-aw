@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,9 @@ import (
 
 	"github.com/github/gh-aw/pkg/stringutil"
 )
+
+//go:embed assets/side_repo_maintenance_header.md
+var sideRepoMaintenanceHeaderTemplate string
 
 // SideRepoTarget represents a target repository inferred from a checkout block
 // with current: true in a compiled workflow. It is used to generate a
@@ -157,16 +161,7 @@ func generateSideRepoMaintenanceWorkflow(
 
 	var yaml strings.Builder
 
-	customInstructions := `Alternative regeneration methods:
-  make recompile
-
-Or use the gh-aw CLI directly:
-  ./gh-aw compile --validate --verbose
-
-This workflow is generated for the SideRepoOps target repository "` + repoSlug + `".
-It can be triggered via workflow_dispatch or called via workflow_call to run maintenance
-operations (safe-outputs replay, label creation, validation, expired-entity cleanup)
-against the target repository.`
+	customInstructions := strings.ReplaceAll(sideRepoMaintenanceHeaderTemplate, "{REPO_SLUG}", repoSlug)
 
 	header := GenerateWorkflowHeader("", "pkg/workflow/side_repo_maintenance.go", customInstructions)
 	yaml.WriteString(header)

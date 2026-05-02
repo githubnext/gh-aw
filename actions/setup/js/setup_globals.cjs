@@ -26,6 +26,14 @@ const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs")
  */
 function setupGlobals(coreModule, githubModule, contextModule, execModule, ioModule, getOctokitFn) {
   global.core = coreModule;
+  // Inject X-GitHub-Api-Version header on every request to suppress the
+  // "@octokit/request: endpoint is deprecated" warning that fires when the
+  // unversioned GitHub REST API is used.
+  githubModule.hook.before("request", options => {
+    if (!options.headers["X-GitHub-Api-Version"]) {
+      options.headers["X-GitHub-Api-Version"] = "2022-11-28";
+    }
+  });
   // @ts-expect-error - Assigning to global properties that are declared as const
   // Wrap the github object so every github.rest.*.*() call automatically logs
   // x-ratelimit-* headers to github_rate_limits.jsonl for observability.
@@ -35,7 +43,17 @@ function setupGlobals(coreModule, githubModule, contextModule, execModule, ioMod
   global.exec = execModule;
   // @ts-expect-error - Assigning to global properties that are declared as const
   global.io = ioModule;
-  global.getOctokit = getOctokitFn;
+  // Wrap getOctokit so every client created via global.getOctokit(token) also
+  // carries X-GitHub-Api-Version, suppressing the deprecation warning for
+  // per-handler authenticated clients (cross-repo PAT operations, etc.).
+  global.getOctokit = (token, options = {}) =>
+    getOctokitFn(token, {
+      ...options,
+      headers: {
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...(options.headers || {}),
+      },
+    });
 }
 
 module.exports = { setupGlobals };

@@ -602,30 +602,32 @@ Test workflow with non-api prefix api-target.
 			}
 			lockStr := string(lockContent)
 
-			// Check --allow-domains in AWF command contains expected domains
-			allowDomainsIdx := strings.Index(lockStr, "--allow-domains")
+			// Check allowDomains in AWF JSON config contains expected domains.
+			// Network settings are now expressed via --config JSON file instead of
+			// --allow-domains CLI flag (see BuildAWFConfigJSON).
+			allowDomainsPrefix := `"allowDomains":[`
+			allowDomainsIdx := strings.Index(lockStr, allowDomainsPrefix)
 			if allowDomainsIdx < 0 {
-				t.Fatal("--allow-domains flag not found in compiled lock file")
+				t.Fatal("allowDomains key not found in compiled lock file")
 			}
-			// Extract the line with --allow-domains for more targeted checking
-			allowDomainsEnd := strings.Index(lockStr[allowDomainsIdx:], "\n")
+			// Extract the JSON array content for more targeted checking.
+			arrayStart := allowDomainsIdx + len(allowDomainsPrefix)
+			allowDomainsEnd := strings.Index(lockStr[arrayStart:], "]")
 			if allowDomainsEnd < 0 {
-				allowDomainsEnd = len(lockStr) - allowDomainsIdx
+				allowDomainsEnd = len(lockStr) - arrayStart
 			}
-			allowDomainsLine := lockStr[allowDomainsIdx : allowDomainsIdx+allowDomainsEnd]
+			allowDomainsSection := lockStr[arrayStart : arrayStart+allowDomainsEnd]
 
 			for _, domain := range tt.expectedDomains {
-				if !strings.Contains(allowDomainsLine, domain) {
-					t.Errorf("Expected domain %q not found in --allow-domains.\nLine: %s", domain, allowDomainsLine)
+				if !strings.Contains(allowDomainsSection, `"`+domain+`"`) {
+					t.Errorf("Expected domain %q not found in allowDomains.\nSection: %s", domain, allowDomainsSection)
 				}
 			}
-			// Use exact CSV membership for "not present" checks to avoid false positives
-			// (e.g. "corp.example.com" would substring-match "copilot.corp.example.com")
-			allowedDomainsCSV := extractQuotedCSV(allowDomainsLine)
-			allowedParts := strings.Split(allowedDomainsCSV, ",")
+			// Use exact JSON string matching for "not present" checks to avoid false positives
+			// (e.g. "corp.example.com" would substring-match "copilot.corp.example.com").
 			for _, domain := range tt.unexpectedDomains {
-				if slices.Contains(allowedParts, domain) {
-					t.Errorf("Unexpected domain %q found in --allow-domains.\nLine: %s", domain, allowDomainsLine)
+				if strings.Contains(allowDomainsSection, `"`+domain+`"`) {
+					t.Errorf("Unexpected domain %q found in allowDomains.\nSection: %s", domain, allowDomainsSection)
 				}
 			}
 
@@ -788,40 +790,44 @@ Test workflow with GHE data residency api-target and threat detection.
 	}
 	lockStr := string(lockContent)
 
-	// Verify --copilot-api-target appears at least twice:
+	// Verify copilot api-target appears at least twice in the AWF JSON config:
 	// once for the main agent AWF run and once for the threat detection AWF run.
-	apiTargetCount := strings.Count(lockStr, "--copilot-api-target api.contoso-aw.ghe.com")
+	// API proxy settings are now expressed via --config JSON file instead of
+	// --copilot-api-target CLI flag (see BuildAWFConfigJSON).
+	apiTargetCount := strings.Count(lockStr, `"copilot":{"host":"api.contoso-aw.ghe.com"}`)
 	if apiTargetCount < 2 {
-		t.Errorf("Expected --copilot-api-target to appear in both the main agent and threat detection AWF invocations (at least 2 times), but found %d occurrence(s).", apiTargetCount)
+		t.Errorf("Expected copilot api-target to appear in both the main agent and threat detection AWF JSON configs (at least 2 times), but found %d occurrence(s).", apiTargetCount)
 	}
 
-	// Find all --allow-domains occurrences and verify each contains the GHE domains.
+	// Find all allowDomains occurrences in AWF JSON config and verify each contains the GHE domains.
 	// api.contoso-aw.ghe.com triggers base-domain derivation, so both the API domain
 	// and the base domain (contoso-aw.ghe.com) must appear in each AWF invocation.
 	requiredDomains := []string{"api.contoso-aw.ghe.com", "contoso-aw.ghe.com"}
+	allowDomainsPrefix := `"allowDomains":[`
 	remaining := lockStr
 	occurrenceIdx := 0
 	for {
-		idx := strings.Index(remaining, "--allow-domains")
+		idx := strings.Index(remaining, allowDomainsPrefix)
 		if idx < 0 {
 			break
 		}
 		occurrenceIdx++
-		lineEnd := strings.Index(remaining[idx:], "\n")
-		if lineEnd < 0 {
-			lineEnd = len(remaining) - idx
+		arrayStart := idx + len(allowDomainsPrefix)
+		arrayEnd := strings.Index(remaining[arrayStart:], "]")
+		if arrayEnd < 0 {
+			arrayEnd = len(remaining) - arrayStart
 		}
-		line := remaining[idx : idx+lineEnd]
+		section := remaining[arrayStart : arrayStart+arrayEnd]
 		for _, domain := range requiredDomains {
-			if !strings.Contains(line, domain) {
-				t.Errorf("--allow-domains occurrence #%d is missing GHE domain %q.\nLine: %s", occurrenceIdx, domain, line)
+			if !strings.Contains(section, `"`+domain+`"`) {
+				t.Errorf("allowDomains occurrence #%d is missing GHE domain %q.\nSection: %s", occurrenceIdx, domain, section)
 			}
 		}
-		remaining = remaining[idx+lineEnd:]
+		remaining = remaining[arrayStart+arrayEnd:]
 	}
 
 	if occurrenceIdx < 2 {
-		t.Errorf("Expected at least 2 --allow-domains occurrences (main agent + threat detection), found %d", occurrenceIdx)
+		t.Errorf("Expected at least 2 allowDomains occurrences (main agent + threat detection), found %d", occurrenceIdx)
 	}
 }
 

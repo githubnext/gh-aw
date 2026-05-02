@@ -1,6 +1,10 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+// @safe-outputs-exempt SEC-004 — the issue body is only parsed for structured XML comment markers
+// (<!-- gh-aw-agentic-workflow: ..., run: ... --> / <!-- gh-aw-run-url: ... -->); all
+// createComment bodies are hardcoded template strings and never reflect raw user-controlled content.
+
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { ensureLabelExists, validateLabeledIssueEvent, removeLabelSafely } = require("./label_trigger_helpers.cjs");

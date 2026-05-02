@@ -288,6 +288,26 @@ The YAML frontmatter supports these fields:
     - `integrity-reactions: true` - Enable reaction-based integrity promotion/demotion. Maintainers can use 👍/❤️ reactions to promote content to `approved` and 👎/😕 to demote it to `none`. Compiler automatically enables `cli-proxy`. Requires `tools.github.min-integrity` to be set and MCPG >= v0.2.18. Defaults: endorsement reactions THUMBS_UP/HEART, disapproval reactions THUMBS_DOWN/CONFUSED, endorser-min-integrity: approved, disapproval-integrity: none.
     - `mcp-cli: true` - Deprecated. This flag has been removed; MCP CLI mounting is now always enabled when `tools.cli-proxy: true` is set.
 
+- **`experiments:`** - A/B testing experiments for balanced variant selection (object)
+  - Maps experiment names to variant lists (bare array) or full config objects
+  - Bare array form: `prompt_style: [concise, detailed]` — round-robin balanced across runs
+  - Object form for weighted/gated experiments:
+
+    ```yaml
+    experiments:
+      prompt_style:
+        variants: [concise, detailed, step_by_step]
+        weight: [2, 1, 1]           # Optional: proportional weights (defaults to round-robin)
+        start_date: "2026-05-01"    # Optional: ISO-8601; returns control variant before this date
+        end_date: "2026-06-01"      # Optional: ISO-8601; returns control variant after this date
+        description: "Verbosity test"  # Optional: experiment description
+        metric: "token_count"       # Optional: primary metric name
+        issue: "42"                 # Optional: linked tracking issue number
+    ```
+
+  - Selected variant available as `${{ experiments.<name> }}` and in `{{#if experiments.<name> }}` template blocks
+  - See [A/B Testing Experiments](experiments.md) for full design guidance
+
 - **`imports:`** - Array of workflow specifications to import (array)
   - Format: `owner/repo/path@ref` or local paths like `shared/common.md`
   - Markdown files under `.github/agents/` are treated as custom agent files
@@ -436,6 +456,7 @@ The YAML frontmatter supports these fields:
     - `sparse-checkout:` - Newline-separated glob patterns for sparse checkout
     - `submodules:` - Submodule handling: `"recursive"`, `"true"`, or `"false"`
     - `lfs:` - Download Git LFS objects (boolean, default: `false`)
+    - `wiki:` - Check out the repository's wiki (boolean, default: `false`). When `true`, automatically appends `.wiki` to the repository name. Combine with `repository:` to check out a different repo's wiki.
     - `github-token:` - Token for authentication (`${{ secrets.MY_PAT }}`); credentials removed after checkout
 
 - **`jobs:`** - Groups together all the jobs that run in the workflow (object)
@@ -523,12 +544,23 @@ The YAML frontmatter supports these fields:
 
 - **`sandbox:`** - Sandbox configuration for AI engines (string or object)
   - String format: `"default"` (default sandbox), `"awf"` (Agent Workflow Firewall)
-  - Object format: use `agent: false` to disable the agent firewall while keeping the MCP gateway enabled (not allowed in strict mode):
+  - Object format to pin an AWF version (strict mode requires explicit `id: awf`):
+
+    ```yaml
+    sandbox:
+      agent:
+        id: awf                     # Required in strict mode
+        version: "v0.25.29"         # Optional: pin AWF version
+    ```
+
+  - To disable the agent firewall while keeping MCP gateway enabled (not allowed in strict mode):
 
     ```yaml
     sandbox:
       agent: false
     ```
+
+  - **Strict mode**: `sandbox.agent` blocks without an explicit `id: awf` are rejected in strict mode. Any non-nil, non-disabled agent config without `id`/`type` defaults to AWF at runtime.
 
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
@@ -1461,6 +1493,7 @@ The YAML frontmatter supports these fields:
       - `pull-request-created:` - Custom message when a PR is created. Placeholders: `{item_number}`, `{item_url}`
       - `issue-created:` - Custom message when an issue is created. Placeholders: `{item_number}`, `{item_url}`
       - `commit-pushed:` - Custom message when a commit is pushed. Placeholders: `{commit_sha}`, `{short_sha}`, `{commit_url}`
+      - `body-header:` - Custom header text prepended to every message body (issues, comments, PRs, discussions). Placeholders: `{workflow_name}`, `{run_url}`
     - Example:
 
       ```yaml
@@ -2135,6 +2168,66 @@ Deploy to environment: "${{ github.event.inputs.environment }}"
 # Environment: ${{ env.MY_VAR }}
 # Complex: ${{ toJson(github.workflow) }}
 ```
+
+## Prompt Template Conditionals (`{{#if}}`)
+
+The workflow markdown body supports a lightweight template language for conditional blocks. Template tags are resolved **at runtime, before the agent receives the prompt** — the agent always sees the final resolved text.
+
+### Syntax
+
+```
+{{#if <condition>}}
+...true branch content...
+{{#else}}
+...false branch content (optional)...
+{{#endif}}
+```
+
+- **`{{#if <condition>}}`** — opens a conditional block; the content is included only when `<condition>` is truthy
+- **`{{#else}}`** — optional separator; splits the block into a true branch and a false branch
+- **`{{#endif}}`** — closes the block (**primary closing tag**; preferred)
+- **`{{/if}}`** — alternate closing tag (both forms are permanently supported; `{{#endif}}` is preferred for consistency)
+
+Tags may appear on their own line (block form) or inline. Block form (tag on its own line) is recommended for readability.
+
+### Supported Conditions
+
+| Form | Example | Truthy when |
+|---|---|---|
+| Bare value | `{{#if experiments.flag }}` | value is non-empty and not `"false"` |
+| Equality | `{{#if experiments.style == "concise" }}` | value equals the quoted string |
+| Inequality | `{{#if experiments.style != "verbose" }}` | value does not equal the quoted string |
+| Strict equality | `{{#if experiments.style === "concise" }}` | value strictly equals the quoted string |
+| Strict inequality | `{{#if experiments.style !== "verbose" }}` | value strictly differs from the quoted string |
+
+### Example: Conditional Without Else
+
+```markdown
+{{#if experiments.skill_hint == "enabled" }}
+Check `skills/` for SKILL.md files relevant to this task and apply their guidance.
+{{#endif}}
+```
+
+### Example: Conditional With Else
+
+```markdown
+{{#if experiments.output_style == "concise" }}
+Write a maximum of 5 bullet points. Each bullet is one sentence.
+{{#else}}
+Write a structured report with sections for new features, bug fixes, and refactors.
+Include a one-paragraph executive summary at the top.
+{{#endif}}
+```
+
+### Integration with Experiments
+
+When the `experiments:` frontmatter field is set, the selected variant value is substituted into `{{#if experiments.<name> == "..." }}` conditions before template rendering. See [A/B Testing Experiments](../aw/experiments.md) for full experiment design guidance.
+
+### Notes
+
+- **Fenced code blocks are preserved** — `{{#if}}` tags inside `` ``` `` blocks are never processed; they appear verbatim in the output.
+- **Nested conditionals are not supported** — do not place `{{#if}}` inside another `{{#if}}` block; the inner tags will be treated as literal text and appear verbatim in the agent prompt.
+- **Template tags are not visible to the agent** — all `{{#if}}` / `{{#else}}` / `{{#endif}}` tags are stripped from the prompt before the agent runs.
 
 ## Tool Configuration
 

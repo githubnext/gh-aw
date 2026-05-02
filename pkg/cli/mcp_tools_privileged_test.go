@@ -400,6 +400,67 @@ func TestAuditTool_FailsWhenNoRunIDProvided(t *testing.T) {
 		"audit tool should return an error when no run ID is provided")
 }
 
+// TestAuditTool_ExperimentVariantFlags verifies that --experiment and --variant
+// are forwarded as CLI flags when provided via the MCP tool arguments.
+func TestAuditTool_ExperimentVariantFlags(t *testing.T) {
+	const expectedStdout = `{"overview":{"run_id":"1234567890"}}`
+
+	var capturedArgs []string
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		capturedArgs = slices.Clone(args)
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", expectedStdout)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditTool should succeed")
+
+	session := connectInMemory(t, server)
+	_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "audit",
+		Arguments: map[string]any{
+			"run_ids_or_urls": []string{"1234567890"},
+			"experiment":      "style",
+			"variant":         "concise",
+		},
+	})
+	require.NoError(t, err, "audit tool should succeed with experiment/variant flags")
+
+	joined := strings.Join(capturedArgs, " ")
+	assert.Contains(t, joined, "--experiment style", "audit command should include --experiment flag")
+	assert.Contains(t, joined, "--variant concise", "audit command should include --variant flag")
+}
+
+// TestAuditTool_ExperimentFlagWithoutVariant verifies that --experiment is forwarded
+// even when --variant is not provided.
+func TestAuditTool_ExperimentFlagWithoutVariant(t *testing.T) {
+	const expectedStdout = `{"overview":{"run_id":"9999"}}`
+
+	var capturedArgs []string
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		capturedArgs = slices.Clone(args)
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", expectedStdout)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditTool should succeed")
+
+	session := connectInMemory(t, server)
+	_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "audit",
+		Arguments: map[string]any{
+			"run_ids_or_urls": []string{"9999"},
+			"experiment":      "caveman",
+		},
+	})
+	require.NoError(t, err, "audit tool should succeed with experiment flag only")
+
+	joined := strings.Join(capturedArgs, " ")
+	assert.Contains(t, joined, "--experiment caveman", "audit command should include --experiment flag")
+	assert.NotContains(t, joined, "--variant", "audit command should not include --variant when not set")
+}
+
 func TestAuditDiffToolErrorEnvelopeSetsIsErrorFalse(t *testing.T) {
 	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
 		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestAuditDiffToolErrorEnvelopeHelperProcess")

@@ -970,28 +970,13 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### ⚠️ Attribution Candidates Need Review
 
-The following community issues were closed during this period but could not
-be automatically linked to a specific merged PR. Please verify whether they
-should be credited:
+The following community issues were closed during this period but could not be automatically linked to a specific merged PR. Please verify whether they should be credited:
 
-- **@Henry-Shan** for Add agentic workflow: Proactive Dependency Auto-Remediation ([#23268](https://github.com/github/gh-aw/issues/23268)) — closed 2026-03-28, NOT_PLANNED
-- **@haritha-px** for Model version generation issue ([#21871](https://github.com/github/gh-aw/issues/21871)) — closed 2026-03-25, NOT_PLANNED
-- **@inigohidalgo** for Support `engine: claude` with `COPILOT_GITHUB_TOKEN` (Copilot-hosted model backend) ([#20961](https://github.com/github/gh-aw/issues/20961)) — closed 2026-03-15, NOT_PLANNED
-- **@porada** for Support `.lock.yaml` files ([#21828](https://github.com/github/gh-aw/issues/21828)) — closed 2026-03-25, NOT_PLANNED
-- **@grahame-white** for CI Coach workflow uses invalid 'copilot-requests' permission ([#20717](https://github.com/github/gh-aw/issues/20717)) — closed 2026-04-10, NOT_PLANNED
-- **@justinhuangai** for Problem using GitHub Apps to auth writes to discussions ([#19380](https://github.com/github/gh-aw/issues/19380)) — closed 2026-04-15, DUPLICATE
-- **@strawgate** for Report errors for git patch types which are not valid ([#18801](https://github.com/github/gh-aw/issues/18801)) — closed 2026-04-15, NOT_PLANNED
-- **@dsyme** for Allow push-to-pull-request-branch to optionally update the pull request title ([#18148](https://github.com/github/gh-aw/issues/18148)) — closed 2026-04-15, NOT_PLANNED
-- **@tinytelly** for Network issues with push-to-pull-request-branch ([#20005](https://github.com/github/gh-aw/issues/20005)) — closed 2026-03-15, NOT_PLANNED
-- **@johnwilliams-12** for Bug: Activation checkout resolves wrong repo/ref in caller-hosted event-driven relays ([#20696](https://github.com/github/gh-aw/issues/20696)) — closed 2026-03-12, DUPLICATE
-- **@dulalbert** for Azure MCP tool calls fail with 'invalid character' via MCP gateway ([#18636](https://github.com/github/gh-aw/issues/18636)) — closed 2026-02-27, NOT_PLANNED
-- **@strawgate** for bug(safe-inputs): script: return value is silently dropped ([#18534](https://github.com/github/gh-aw/issues/18534)) — closed 2026-03-01, NOT_PLANNED
-- **@jeremiah-snee-openx** for Enhance Daily Documentation Updater ([#18204](https://github.com/github/gh-aw/issues/18204)) — closed 2026-02-25, NOT_PLANNED
-- **@Ray961123** for Question: Why do some GitHub Actions steps intermittently have no logs ([#26175](https://github.com/github/gh-aw/issues/26175)) — closed 2026-04-19, NOT_PLANNED
-- **@viktoriyabogdanova** for [aw-failures] Workflow timing out at 40min — MCP get_file_contents 37–71s per call ([#27556](https://github.com/github/gh-aw/issues/27556)) — closed 2026-04-22, NOT_PLANNED
-- **@askpaisa** for create_pull_request returns patch file instead of creating PR when multiple PRs exist ([#28389](https://github.com/github/gh-aw/issues/28389)) — closed 2026-04-25, NOT_PLANNED
-- **@samuelkahessay** for Feature request: force-rerun semantic for workflow_dispatch against the same bound issue ([#22585](https://github.com/github/gh-aw/issues/22585)) — closed 2026-04-23, NOT_PLANNED
-- **@pelikhan** for Trolql ([#19851](https://github.com/github/gh-aw/issues/19851)) — closed 2026-03-06, NOT_PLANNED
+- **@JamesNK** for Hang and timeout while running workflow ([#28868](https://github.com/github/gh-aw/issues/28868)) — closed 2026-04-30, no confirmed PR linkage found
+- **@askpaisa** for create_pull_request returns patch file instead of creating PR when multiple PRs exist ([#28389](https://github.com/github/gh-aw/issues/28389)) — closed 2026-04-25, no confirmed PR linkage found
+- **@viktoriyabogdanova** for [aw-failures] Workflow timing out at 40min — MCP get_file_contents 37–71s per call, LLM turns 4–10min ([#27556](https://github.com/github/gh-aw/issues/27556)) — closed 2026-04-22, no confirmed PR linkage found
+- **@Ray961123** for Question: Why do some GitHub Actions steps intermittently have no logs (data-log-url) after completion? ([#26175](https://github.com/github/gh-aw/issues/26175)) — closed 2026-04-19, no confirmed PR linkage found
+- **@Henry-Shan** for Add agentic workflow: Proactive Dependency Auto-Remediation for Dependabot PRs ([#23268](https://github.com/github/gh-aw/issues/23268)) — closed 2026-03-28, no confirmed PR linkage found
 
 ## Share Feedback
 

@@ -89,6 +89,31 @@ describe("interpolate_prompt", () => {
         it("should collapse multiple false blocks without excessive empty lines", () => {
           const output = renderMarkdownTemplate("Start\n\n{{#if false}}\nBlock 1\n{{/if}}\n\n{{#if false}}\nBlock 2\n{{/if}}\n\n{{#if false}}\nBlock 3\n{{/if}}\n\nEnd");
           (expect(output).not.toMatch(/\n{3,}/), expect(output).toContain("Start"), expect(output).toContain("End"));
+        }),
+        it("should keep true branch of {{#else}} block when condition is truthy", () => {
+          const output = renderMarkdownTemplate("{{#if true}}\nTrue branch\n{{#else}}\nFalse branch\n{{#endif}}");
+          expect(output).toContain("True branch");
+          expect(output).not.toContain("False branch");
+          expect(output).not.toContain("{{#else}}");
+        }),
+        it("should keep false branch of {{#else}} block when condition is falsy", () => {
+          const output = renderMarkdownTemplate("{{#if false}}\nTrue branch\n{{#else}}\nFalse branch\n{{#endif}}");
+          expect(output).toContain("False branch");
+          expect(output).not.toContain("True branch");
+          expect(output).not.toContain("{{#else}}");
+        }),
+        it("should handle {{#else}} with GitHub Actions style equality condition matching", () => {
+          // Simulates what happens after experiment substitution: concise == "concise"
+          const conciseOutput = renderMarkdownTemplate('{{#if concise == "concise"}}\nConcise content\n{{#else}}\nVerbose content\n{{#endif}}');
+          expect(conciseOutput).toContain("Concise content");
+          expect(conciseOutput).not.toContain("Verbose content");
+          const verboseOutput = renderMarkdownTemplate('{{#if verbose == "concise"}}\nConcise content\n{{#else}}\nVerbose content\n{{#endif}}');
+          expect(verboseOutput).toContain("Verbose content");
+          expect(verboseOutput).not.toContain("Concise content");
+        }),
+        it("should support {{/if}} as alternate closing tag", () => {
+          const output = renderMarkdownTemplate("{{#if true}}\nKeep\n{{/if}}");
+          expect(output).toContain("Keep");
         }));
     }),
     describe("combined interpolation and template rendering", () => {

@@ -109,16 +109,22 @@ func findEventsJSONLFile(logDir string) string {
 
 	// Fall back to a recursive search of the full log directory
 	var foundPath string
-	_ = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil {
+	if walkErr := filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			copilotEventsJSONLLog.Printf("walk error at %s: %v", path, err)
+			return nil
+		}
+		if info == nil {
 			return nil
 		}
 		if !info.IsDir() && info.Name() == "events.jsonl" && foundPath == "" {
 			foundPath = path
-			return errors.New("stop") // sentinel to stop walking
+			return errWalkStop
 		}
 		return nil
-	})
+	}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", logDir, walkErr)))
+	}
 
 	if foundPath != "" {
 		copilotEventsJSONLLog.Printf("Found events.jsonl via recursive search: %s", foundPath)
@@ -132,16 +138,22 @@ func findEventsJSONLFile(logDir string) string {
 // Returns the first matching path, or empty string if not found.
 func findFileInDir(dir, name string) string {
 	var found string
-	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil {
+	if walkErr := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			copilotEventsJSONLLog.Printf("walk error at %s: %v", path, err)
+			return nil
+		}
+		if info == nil {
 			return nil
 		}
 		if !info.IsDir() && info.Name() == name && found == "" {
 			found = path
-			return errors.New("stop")
+			return errWalkStop
 		}
 		return nil
-	})
+	}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", dir, walkErr)))
+	}
 	return found
 }
 

@@ -18,6 +18,7 @@ const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
+const { getBodyHeader } = require("./messages_header.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
@@ -1126,6 +1127,14 @@ async function main(config = {}) {
     // Prepend threat detection caution alert at the very top of the PR body so it is
     // immediately visible to reviewers. The caution is omitted from the footer to
     // avoid duplication (skipDetectionCaution is passed to generateFooterWithMessages).
+
+    // Inject body header before user content (unshifted first, so caution will appear before it)
+    const bodyHeader = getBodyHeader({ workflowName, runUrl });
+    if (bodyHeader) {
+      bodyLines.unshift(...bodyHeader.split("\n"), "");
+    }
+
+    // Inject CAUTION at top of body (unshifted after header so it appears first in the final output)
     const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
     if (detectionCaution) {
       // unshift(caution, "", "") places the caution alert at index 0 and two blank

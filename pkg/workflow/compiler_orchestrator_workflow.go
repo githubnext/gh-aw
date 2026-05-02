@@ -86,6 +86,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
+	// Validate optional engine.mcp.tool-timeout configuration.
+	if err := c.validateEngineMCPToolTimeout(workflowData); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
 	// Validate that inlined-imports is not used with agent file imports.
 	// Agent files require runtime access and cannot be resolved without sources.
 	if workflowData.InlinedImports && engineSetup.importsResult.AgentFile != "" {
@@ -206,6 +211,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Process and merge services
 	c.processAndMergeServices(result.Frontmatter, workflowData, engineSetup.importsResult)
 
+	// Detect known credential-leaking actions in all merged step collections so that the
+	// compiler can inject a targeted cleanup step before the agentic engine executes.
+	workflowData.KnownActionCredentialEnvVars = DetectKnownCredentialLeakingActionsFromWorkflowData(workflowData)
+
 	// Extract additional configurations (cache, mcp-scripts, safe-outputs, etc.)
 	if err := c.extractAdditionalConfigurations(
 		result.Frontmatter,
@@ -213,7 +222,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		markdownDir,
 		workflowData,
 		engineSetup.importsResult,
-		result.Markdown,
+		toolsResult.rawMainMarkdown,
 		toolsResult.safeOutputs,
 	); err != nil {
 		return nil, err
@@ -379,8 +388,9 @@ func (c *Compiler) extractAdditionalConfigurations(
 	// This runs last so that all section-specific configurations have been resolved first.
 	applyTopLevelGitHubAppFallbacks(workflowData)
 
-	// Extract experiments configuration
-	workflowData.Experiments = extractExperimentsFromFrontmatter(frontmatter)
+	// Extract experiments configuration once; derive the simple variants map from the configs.
+	workflowData.ExperimentConfigs = extractExperimentConfigsFromFrontmatter(frontmatter)
+	workflowData.Experiments = experimentVariantsFromConfigs(workflowData.ExperimentConfigs)
 
 	return nil
 }

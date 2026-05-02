@@ -69,6 +69,11 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 		}
 	}
 
+	// Populate typed ExperimentConfigs from the raw frontmatter map so that both the
+	// legacy bare-array form and the new object form are available as ExperimentConfig
+	// structs without callers needing to type-assert config.Experiments entries.
+	config.ExperimentConfigs = extractExperimentConfigsFromFrontmatter(frontmatter)
+
 	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%v", config.Name, config.Engine)
 	return &config, nil
 }

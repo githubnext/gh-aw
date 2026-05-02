@@ -900,8 +900,11 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 		// Enumerate created files (shallow + summary) for immediate visibility
 		var fileCount int
 		var firstFiles []string
-		_ = filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+		var walkFailed bool
+		if walkErr := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
+				logsDownloadLog.Printf("walk error at %s: %v", path, err)
+				walkFailed = true
 				return nil
 			}
 			if info.IsDir() {
@@ -915,9 +918,15 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 				}
 			}
 			return nil
-		})
+		}); walkErr != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error enumerating artifacts in %s: %v", outputDir, walkErr)))
+		}
 		if fileCount == 0 {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Download completed but no artifact files were created (empty run)"))
+			if walkFailed {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Download completed but artifact files could not be enumerated (filesystem error)"))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Download completed but no artifact files were created (empty run)"))
+			}
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Artifact file count: %d", fileCount)))
 			for _, f := range firstFiles {

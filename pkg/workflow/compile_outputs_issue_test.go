@@ -397,7 +397,7 @@ This workflow tests the create-issue job generation.
 	}
 
 	// Verify the job uses github-script
-	if !strings.Contains(lockContent, "uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553") {
+	if !strings.Contains(lockContent, "uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3") {
 		t.Error("Expected github-script action to be used in safe_outputs job")
 	}
 

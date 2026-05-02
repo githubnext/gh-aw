@@ -53,6 +53,9 @@ safe-outputs:
     group-by-day: true
     expires: 7d
 
+experiments:
+  prompt_style: [concise, verbose]
+
 imports:
   - shared/community-attribution.md
   - shared/observability-otlp.md
@@ -263,6 +266,14 @@ cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md 2>/dev/null || echo
 
 ## Workflow
 
+{{#if experiments.prompt_style == "concise"}}
+### 1. Attribute Issues
+
+Read `pre_attributed.json` (Tier 0–2, pre-computed — do not re-derive). For each
+entry in `tier3_candidates_capped.json` (≤5), apply Tier 3 (one `issue_read` call per
+issue). Anything unresolved → Tier 4. Issues beyond the first 5 in
+`tier3_candidates.json` are deferred to the next run — do not process them.
+{{#else}}
 ### 1. Attribute All Resolved Community Issues
 
 **Tier 0, 1, and 2 attributions are already pre-computed** in
@@ -276,7 +287,17 @@ look for indirect linkage via follow-up or split issues).
 Any candidate still unresolved after Tier 3 becomes a **Tier 4**
 "needs review" item. Issues in `tier3_candidates.json` beyond the first 5
 are deferred to the next run — do not attempt to process them.
+{{#endif}}
 
+{{#if experiments.prompt_style == "concise"}}
+### 2. Update Wiki Page
+
+Read the existing wiki at `/tmp/gh-aw/repo-memory-default/Community-Contributors.md`
+(empty/missing on first run). Merge all confirmed attributions without duplicating
+entries. Group by author (alphabetical), issues descending. Keep under 9 KB (remove
+oldest entries from most-prolific author if needed). Format:
+`- [#N](url) Title — YYYY-MM-DD — attribution_type`. Write back with edit tool.
+{{#else}}
 ### 2. Update the Community Contributors Wiki Page
 
 Read the existing wiki page at
@@ -317,7 +338,17 @@ The wiki page format:
 
 Write the updated content back to
 `/tmp/gh-aw/repo-memory-default/Community-Contributors.md` using the edit tool.
+{{#endif}}
 
+{{#if experiments.prompt_style == "concise"}}
+### 3. Build Community Section
+
+Produce a `## 🌍 Community Contributions` `<details>` block. One bullet per
+author (alphabetical), issues descending. Use `#N` refs (no full URLs). Suffixes:
+`_(direct issue)_` (T0), none (T1/2), `_(via follow-up #M)_` (T3). Append
+`### ⚠️ Attribution Candidates Need Review` section for Tier 4 items. Leave a
+blank line after `</details>`.
+{{#else}}
 ### 3. Build the Community Contributions Section
 
 Produce a compact section of attributed community contributors for
@@ -360,7 +391,14 @@ linked to a specific merged PR. Please verify whether they should be credited:
 
 - **@author** for [Issue title](#N) — closed DATE
 ```
+{{#endif}}
 
+{{#if experiments.prompt_style == "concise"}}
+### 4. Update README.md
+
+Replace `## 🌍 Community Contributions` in `README.md` with the new content
+(or append after `## Contributing` if absent). Use edit tool.
+{{#else}}
 ### 4. Update README.md
 
 Replace the existing `## 🌍 Community Contributions` section in `README.md`
@@ -368,7 +406,15 @@ with the newly generated content, or append it after the `## Contributing`
 section if it does not yet exist.
 
 Use the edit tool to make the change in-place.
+{{#endif}}
 
+{{#if experiments.prompt_style == "concise"}}
+### 5. Open Pull Request
+
+If `README.md` or wiki changed: call `create_pull_request` with title
+`[community] Update community contributions in README`. If no changes:
+call `noop`.
+{{#else}}
 ### 5. Open a Pull Request
 
 If `README.md` **or** the wiki page changed, call the `create_pull_request`
@@ -398,7 +444,18 @@ and the Community Contributors wiki page.
 ```json
 {"noop": {"message": "No action needed: [brief explanation]"}}
 ```
+{{#endif}}
 
+{{#if experiments.prompt_style == "concise"}}
+## Token Budget
+
+- Read each data file once only
+- Process only `tier3_candidates_capped.json` (≤5 issues)
+- One `issue_read` per Tier 3 candidate
+- Stop after safe-output call
+- PR body under 400 words
+- Do not access external URLs; use only GitHub MCP `issue_read` for GitHub data
+{{#else}}
 ## Token Budget Guidelines
 
 This workflow uses the Copilot engine — max-turns is not available. Follow these rules to avoid runaway token consumption:
@@ -409,7 +466,14 @@ This workflow uses the Copilot engine — max-turns is not available. Follow the
 - **Stop immediately after the safe-output call** — once `create_pull_request` or `noop` is called, halt without any further tool calls or reasoning
 - **Keep the PR body under 400 words** — use `<details>` for any extended attribution summary
 - **Do not access any external URLs** — use only GitHub MCP `issue_read` for GitHub data; do not call `gh api` or any external HTTP endpoints directly
+{{#endif}}
 
+{{#if experiments.prompt_style == "concise"}}
+### 6. Report Failures
+
+On error: call `create_issue` safe-output tool with a brief title and body.
+Do not use GitHub MCP `create_issue` directly.
+{{#else}}
 ### 6. Report Failures
 
 If you encounter a genuine error that prevents completion (e.g., data fetch failure, unexpected error), report it using the `create_issue` safe-output tool — **never use the GitHub MCP `create_issue` tool directly**. The safe-output tool has built-in deduplication (`group-by-day` and `close-older-issues`) that prevents duplicate failure issues from accumulating.
@@ -417,3 +481,4 @@ If you encounter a genuine error that prevents completion (e.g., data fetch fail
 ```json
 {"create_issue": {"title": "Brief description of the failure", "body": "### What failed\n\nDescribe the specific step or data source that failed.\n\n### Error details\n\n(Include the error message or unexpected output here)\n\n### Steps to investigate\n\n1. Check the workflow run logs for the full error message\n2. Verify that community_issues.json and pull_requests.json were fetched successfully\n3. Re-run the workflow manually via workflow_dispatch to see if the failure is transient"}}
 ```
+{{#endif}}

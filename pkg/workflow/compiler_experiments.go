@@ -19,15 +19,29 @@ const experimentsCacheDir = "/tmp/gh-aw/experiments"
 // experimentStateFile is the path to the experiment state JSON written by pick_experiment.cjs.
 const experimentStateFile = experimentsCacheDir + "/state.json"
 
-// extractExperimentsFromFrontmatter reads the "experiments" map from a raw frontmatter map.
-// Each key is an experiment name; each value must be a []string (or []any of strings) of
-// variant values.  Invalid entries are silently skipped.
-// Experiment names must match [a-zA-Z_][a-zA-Z0-9_]* (identifier style) so they can be used
+// experimentNamePattern validates experiment names as identifier-style keys.
+// Experiment names must match [a-zA-Z_][a-zA-Z0-9_]* so they can be used
 // as GitHub Actions step output names and in ${{ experiments.<name> }} expressions without
 // bracket notation.  Names that do not match are skipped with a warning.
 var experimentNamePattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
-func extractExperimentsFromFrontmatter(frontmatter map[string]any) map[string][]string {
+// experimentVariantsFromConfigs derives the simple name→variants map from a configs map.
+// Returns nil when configs is empty so callers can use len-checks without special-casing.
+func experimentVariantsFromConfigs(configs map[string]*ExperimentConfig) map[string][]string {
+	if len(configs) == 0 {
+		return nil
+	}
+	result := make(map[string][]string, len(configs))
+	for name, cfg := range configs {
+		result[name] = cfg.Variants
+	}
+	return result
+}
+
+// extractExperimentConfigsFromFrontmatter reads the "experiments" map and returns
+// fully-typed ExperimentConfig objects.  Both the bare-array form and the new object
+// form are accepted.
+func extractExperimentConfigsFromFrontmatter(frontmatter map[string]any) map[string]*ExperimentConfig {
 	raw, ok := frontmatter["experiments"]
 	if !ok || raw == nil {
 		return nil
@@ -36,33 +50,181 @@ func extractExperimentsFromFrontmatter(frontmatter map[string]any) map[string][]
 	if !ok {
 		return nil
 	}
-	result := make(map[string][]string, len(rawMap))
+	result := make(map[string]*ExperimentConfig, len(rawMap))
 	for name, val := range rawMap {
 		if !experimentNamePattern.MatchString(name) {
 			experimentsLog.Printf("Skipping experiment %q: name must match [a-zA-Z_][a-zA-Z0-9_]*", name)
 			continue
 		}
-		switch v := val.(type) {
-		case []string:
-			if len(v) >= 2 {
-				result[name] = v
-			}
-		case []any:
-			var variants []string
-			for _, item := range v {
-				if s, ok := item.(string); ok {
-					variants = append(variants, s)
-				}
-			}
-			if len(variants) >= 2 {
-				result[name] = variants
-			}
+		cfg := extractOneExperimentConfig(name, val)
+		if cfg != nil {
+			result[name] = cfg
 		}
 	}
 	if len(result) == 0 {
 		return nil
 	}
 	return result
+}
+
+// extractOneExperimentConfig converts a single raw experiment value into an ExperimentConfig.
+// Returns nil when the value is invalid (e.g. fewer than two variants).
+func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
+	switch v := val.(type) {
+	case []string:
+		if len(v) >= 2 {
+			return &ExperimentConfig{Variants: v}
+		}
+	case []any:
+		var variants []string
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				variants = append(variants, s)
+			}
+		}
+		if len(variants) >= 2 {
+			return &ExperimentConfig{Variants: variants}
+		}
+	case map[string]any:
+		// New object form: extract variants and optional metadata fields.
+		cfg := &ExperimentConfig{}
+		varRaw, ok := v["variants"]
+		if !ok {
+			experimentsLog.Printf("Skipping experiment %q: object form requires 'variants' field", name)
+			return nil
+		}
+		switch vv := varRaw.(type) {
+		case []string:
+			cfg.Variants = vv
+		case []any:
+			for _, item := range vv {
+				if s, ok := item.(string); ok {
+					cfg.Variants = append(cfg.Variants, s)
+				}
+			}
+		}
+		if len(cfg.Variants) < 2 {
+			experimentsLog.Printf("Skipping experiment %q: must have at least 2 variants", name)
+			return nil
+		}
+		if d, ok := v["description"].(string); ok {
+			cfg.Description = d
+		}
+		if m, ok := v["metric"].(string); ok {
+			cfg.Metric = m
+		}
+		if sd, ok := v["start_date"].(string); ok {
+			cfg.StartDate = sd
+		}
+		if ed, ok := v["end_date"].(string); ok {
+			cfg.EndDate = ed
+		}
+		if issue, ok := v["issue"]; ok {
+			switch n := issue.(type) {
+			case int:
+				cfg.Issue = n
+			case int64:
+				cfg.Issue = int(n)
+			case uint64:
+				cfg.Issue = int(n)
+			case float64:
+				cfg.Issue = int(n)
+			}
+		}
+		if weightRaw, ok := v["weight"]; ok {
+			cfg.Weight = extractIntSlice(weightRaw)
+		}
+		if h, ok := v["hypothesis"].(string); ok {
+			cfg.Hypothesis = h
+		}
+		if smRaw, ok := v["secondary_metrics"]; ok {
+			cfg.SecondaryMetrics = extractStringSlice(smRaw)
+		}
+		if gmRaw, ok := v["guardrail_metrics"]; ok {
+			cfg.GuardrailMetrics = extractGuardrailMetrics(gmRaw)
+		}
+		if ms, ok := v["min_samples"]; ok {
+			switch n := ms.(type) {
+			case int:
+				cfg.MinSamples = n
+			case int64:
+				cfg.MinSamples = int(n)
+			case uint64:
+				cfg.MinSamples = int(n)
+			case float64:
+				cfg.MinSamples = int(n)
+			}
+		}
+		if owner, ok := v["owner"].(string); ok {
+			cfg.Owner = owner
+		}
+		return cfg
+	}
+	return nil
+}
+
+// extractStringSlice converts a raw value to a []string, accepting []any of string values.
+func extractStringSlice(raw any) []string {
+	switch v := raw.(type) {
+	case []string:
+		return v
+	case []any:
+		var result []string
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				result = append(result, s)
+			}
+		}
+		return result
+	}
+	return nil
+}
+
+// extractGuardrailMetrics converts a raw guardrail_metrics value into a []GuardrailMetric.
+// Each entry must be a map with "name" and "threshold" string fields.
+func extractGuardrailMetrics(raw any) []GuardrailMetric {
+	items, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+	var result []GuardrailMetric
+	for _, item := range items {
+		m, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		name, _ := m["name"].(string)
+		threshold, _ := m["threshold"].(string)
+		if name == "" || threshold == "" {
+			continue
+		}
+		result = append(result, GuardrailMetric{Name: name, Threshold: threshold})
+	}
+	return result
+}
+
+// extractIntSlice converts a raw value to a []int, accepting []any of numeric values.
+func extractIntSlice(raw any) []int {
+	switch v := raw.(type) {
+	case []int:
+		return v
+	case []any:
+		var result []int
+		for _, item := range v {
+			switch n := item.(type) {
+			case int:
+				result = append(result, n)
+			case int64:
+				result = append(result, int(n))
+			case uint64:
+				result = append(result, int(n))
+			case float64:
+				result = append(result, int(n))
+			}
+		}
+		return result
+	}
+	return nil
 }
 
 // generateExperimentSteps creates the steps that pick and upload A/B experiment variants.
@@ -72,7 +234,7 @@ func extractExperimentsFromFrontmatter(frontmatter map[string]any) map[string][]
 //  2. Pick variants              – pick_experiment.cjs (reads/writes state.json, sets step outputs,
 //     writes a Markdown step summary); outputs: one per experiment (e.g. "caveman=yes") + "experiments" JSON blob
 //  3. Save experiment cache      – actions/cache/save keyed by workflow ID
-//  4. Upload experiment artifact – actions/upload-artifact named "experiment"
+//  4. Upload experiment artifact – actions/upload-artifact named "{workflowID}-experiment"
 func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 	if len(data.Experiments) == 0 {
 		return nil
@@ -81,8 +243,11 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 	experimentNames := sortedExperimentNames(data.Experiments)
 	experimentsLog.Printf("Generating experiment steps for %d experiment(s): %v", len(experimentNames), experimentNames)
 
-	cacheKey := "experiments-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}"
-	restoreKey := "experiments-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-"
+	// Use the literal sanitized workflow ID in the cache key so it is correct in the
+	// activation job, which does not have GH_AW_WORKFLOW_ID_SANITIZED in its environment.
+	sanitizedID := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+	cacheKey := fmt.Sprintf("experiments-%s-${{ github.run_id }}", sanitizedID)
+	restoreKey := fmt.Sprintf("experiments-%s-", sanitizedID)
 
 	var steps []string
 
@@ -98,8 +263,8 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 	)
 
 	// ── Step 2: Pick experiment variants ──────────────────────────────────────
-	// Build the JSON spec: {"feature1":["A","B"],...}
-	specJSON := buildExperimentSpecJSON(data.Experiments, experimentNames)
+	// Build the JSON spec including full metadata when available.
+	specJSON := buildExperimentSpecJSON(data.Experiments, data.ExperimentConfigs, experimentNames)
 
 	steps = append(steps,
 		"      - name: Pick experiment variants\n",
@@ -128,7 +293,10 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 	)
 
 	// ── Step 4: Upload experiment artifact ────────────────────────────────────
-	experimentArtifactName := artifactPrefixExprForActivationJob(data) + constants.ExperimentArtifactName
+	// For workflow_call the artifact prefix expression is prepended at runtime.
+	// For regular workflows the sanitized workflow ID is used as a prefix so the
+	// artifact name uniquely identifies which workflow produced it.
+	experimentArtifactName := experimentArtifactUploadName(data, sanitizedID)
 	steps = append(steps,
 		"      - name: Upload experiment artifact\n",
 		"        if: always()\n",
@@ -144,14 +312,14 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 }
 
 // buildExperimentSpecJSON builds a compact JSON object from the experiments map.
+// When configs is non-nil and contains an entry for a name, the full ExperimentConfig
+// (variants + metadata) is embedded so that pick_experiment.cjs can use weighted
+// selection, date-range gating, and other metadata.
+// When no config is available a bare variants array is emitted for backward compatibility.
 // Uses encoding/json for proper escaping of all special characters.
-// Caller is responsible for escaping single quotes (” in YAML) when embedding the
-// result in a YAML single-quoted scalar, since JSON string values may contain literal
-// single quotes (e.g. "Bob's").
-func buildExperimentSpecJSON(experiments map[string][]string, names []string) string {
-	// Build JSON manually with encoding/json for individual values to ensure
-	// correct escaping of all special characters.  We iterate names (a sorted slice)
-	// rather than the map directly to produce deterministic output.
+// Caller is responsible for escaping single quotes when embedding the result in a YAML
+// single-quoted scalar (each ' must be doubled to ” per YAML spec §7.3.3).
+func buildExperimentSpecJSON(experiments map[string][]string, configs map[string]*ExperimentConfig, names []string) string {
 	var sb strings.Builder
 	sb.WriteString("{")
 	for i, name := range names {
@@ -159,10 +327,18 @@ func buildExperimentSpecJSON(experiments map[string][]string, names []string) st
 			sb.WriteString(",")
 		}
 		keyBytes, _ := json.Marshal(name)
-		varBytes, _ := json.Marshal(experiments[name])
 		sb.Write(keyBytes)
 		sb.WriteString(":")
-		sb.Write(varBytes)
+
+		// Use the full config when available so the JS can consume metadata.
+		if cfg, ok := configs[name]; ok && cfg != nil {
+			cfgBytes, _ := json.Marshal(cfg)
+			sb.Write(cfgBytes)
+		} else {
+			// Fallback: bare variants array (legacy behaviour).
+			varBytes, _ := json.Marshal(experiments[name])
+			sb.Write(varBytes)
+		}
 	}
 	sb.WriteString("}")
 	return sb.String()
@@ -210,17 +386,50 @@ func sortedExperimentNames(experiments map[string][]string) []string {
 	return names
 }
 
+// experimentArtifactUploadName returns the artifact name used when uploading the experiment
+// artifact from the activation job.
+// For workflow_call workflows the runtime prefix expression is prepended.
+// For regular workflows the sanitized workflow ID is used as a prefix so the artifact name
+// uniquely identifies the producing workflow (e.g. "smokecopilot-experiment").
+// An empty sanitizedID falls back to the base name for defensive compatibility; in practice
+// the compiler always sets a non-empty WorkflowID before this function is called.
+func experimentArtifactUploadName(data *WorkflowData, sanitizedID string) string {
+	if hasWorkflowCallTrigger(data.On) {
+		return artifactPrefixExprForActivationJob(data) + constants.ExperimentArtifactName
+	}
+	if sanitizedID == "" {
+		return constants.ExperimentArtifactName
+	}
+	return sanitizedID + "-" + constants.ExperimentArtifactName
+}
+
+// experimentArtifactDownloadName returns the artifact name used when downloading the experiment
+// artifact from a downstream job.
+// For workflow_call workflows the runtime prefix expression is prepended.
+// For regular workflows the sanitized workflow ID is used as a prefix, matching the name
+// produced by experimentArtifactUploadName.
+// An empty sanitizedID falls back to the base name for defensive compatibility; in practice
+// the compiler always sets a non-empty WorkflowID before this function is called.
+func experimentArtifactDownloadName(data *WorkflowData) string {
+	if hasWorkflowCallTrigger(data.On) {
+		return artifactPrefixExprForDownstreamJob(data) + constants.ExperimentArtifactName
+	}
+	sanitizedID := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+	if sanitizedID == "" {
+		return constants.ExperimentArtifactName
+	}
+	return sanitizedID + "-" + constants.ExperimentArtifactName
+}
+
 // buildExperimentArtifactDownloadSteps creates a download step for the experiment artifact.
 // The artifact is downloaded to experimentsCacheDir so the detection agent can read the
 // current variant assignments from state.json.
-// prefix must be the artifact prefix expression for a job that directly depends on the
-// activation job (i.e. artifactPrefixExprForDownstreamJob).
 // The step is a no-op when no experiments are declared.
-func buildExperimentArtifactDownloadSteps(prefix string, experiments map[string][]string) []string {
-	if len(experiments) == 0 {
+func buildExperimentArtifactDownloadSteps(data *WorkflowData) []string {
+	if len(data.Experiments) == 0 {
 		return nil
 	}
-	artifactName := prefix + constants.ExperimentArtifactName
+	artifactName := experimentArtifactDownloadName(data)
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName: artifactName,
 		DownloadPath: experimentsCacheDir + "/",

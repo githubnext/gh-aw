@@ -285,6 +285,7 @@ export default defineConfig({
 						{ label: 'Ephemerals', link: '/guides/ephemerals/' },
 						{ label: 'Web Search', link: '/guides/web-search/' },
 						{ label: 'Audit Reports', link: '/guides/audit-with-agents/' },
+						{ label: 'Custom OTLP Attributes', link: '/guides/custom-otlp-attributes/' },
 					],
 				},
 				{
@@ -297,6 +298,7 @@ export default defineConfig({
 						{ label: 'DailyOps', link: '/patterns/daily-ops/' },
 						{ label: 'DataOps', link: '/patterns/data-ops/' },
 						{ label: 'DispatchOps', link: '/patterns/dispatch-ops/' },
+						{ label: 'ExpertOps', link: '/patterns/expert-ops/' },
 						{ label: 'IssueOps', link: '/patterns/issue-ops/' },
 						{ label: 'LabelOps', link: '/patterns/label-ops/' },
 						{ label: 'MemoryOps', link: '/guides/memoryops/' },
@@ -350,6 +352,7 @@ export default defineConfig({
 						{ label: 'Imports', link: '/reference/imports/' },
 						{ label: 'Imports (APM)', link: '/reference/dependencies/' },
 						{ label: 'Imports (Copilot Agent Files)', link: '/reference/copilot-custom-agents/' },
+						{ label: 'Inline Sub-Agents', link: '/reference/inline-sub-agents/' },
 						{ label: 'Imports (Dependabot)', link: '/reference/dependabot/' },
 						{ label: 'Indexing (QMD)', link: '/reference/qmd/' },
 						{ label: 'Markdown', link: '/reference/markdown/' },

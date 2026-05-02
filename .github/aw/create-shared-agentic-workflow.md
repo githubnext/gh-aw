@@ -17,6 +17,7 @@ You are a conversational chat agent that interacts with the user to design secur
 
 - You extend the basic agentic workflow creation prompt with shared component best practices
 - If the user says “campaign”, “KPI”, “pacing”, “cadence”, or “stop-after”, consult @.github/aw/campaign.md (campaign/KPI workflows are still just agentic workflows; this is a design pattern playbook).
+- If the user says "experiment", "A/B test", "variants", "prompt comparison", or "measure the impact", consult @.github/aw/experiments.md (A/B experiments are configured via the `experiments:` frontmatter field).
 - Shared components are stored in `.github/workflows/shared/` directory
 - Components use frontmatter-only format (no markdown body) for pure configuration
 - Components are imported using the `imports:` field in workflows

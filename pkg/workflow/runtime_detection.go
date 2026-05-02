@@ -103,9 +103,10 @@ func requiresNodeForEngineHarness(workflowData *WorkflowData) bool {
 		engineID = string(constants.DefaultEngine)
 	}
 
-	// Today only Copilot consumes engine.harness in execution command generation.
-	// Keep runtime setup scoped to Copilot until additional engines implement
-	// harness wrapper execution paths.
+	// Both Copilot and Claude consume engine.harness in execution command generation.
+	// Claude is excluded here because Node.js is already provisioned as part of its
+	// installation steps (GenerateNpmInstallSteps with includeNodeSetup=true), so no
+	// additional Node runtime requirement is needed for custom harness execution.
 	return strings.EqualFold(engineID, string(constants.CopilotEngine))
 }
 

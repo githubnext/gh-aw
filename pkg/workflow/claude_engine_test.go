@@ -515,14 +515,14 @@ func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 		stepContent := strings.Join([]string(steps[0]), "\n")
 
-		// Should have single-quoted prompt, not double-quoted
-		if strings.Contains(stepContent, `""$(cat /tmp/gh-aw/aw-prompts/prompt.txt)""`) {
-			t.Errorf("Found double-escaped prompt argument (with double quotes), expected single quotes:\n%s", stepContent)
+		// With harness: prompt is passed via --prompt-file, not via shell expansion.
+		if strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
+			t.Errorf("Found old shell-expansion prompt argument (harness should use --prompt-file instead):\n%s", stepContent)
 		}
 
-		// Should have correctly quoted prompt
-		if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
-			t.Errorf("Expected correctly quoted prompt argument, got:\n%s", stepContent)
+		// The harness reads the prompt file via --prompt-file.
+		if !strings.Contains(stepContent, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
+			t.Errorf("Expected --prompt-file argument for harness execution, got:\n%s", stepContent)
 		}
 	})
 
@@ -540,8 +540,8 @@ func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 		stepContent := strings.Join([]string(steps[0]), "\n")
 
-		// Must still read from prompt.txt — not from a PROMPT_TEXT shell variable
-		if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
+		// Must still read from prompt.txt via --prompt-file — not from a PROMPT_TEXT shell variable
+		if !strings.Contains(stepContent, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
 			t.Errorf("Expected claude to read from prompt.txt even with agent file set, got:\n%s", stepContent)
 		}
 		if strings.Contains(stepContent, "PROMPT_TEXT") {
@@ -557,6 +557,74 @@ func TestClaudeEngineDoesNotSupportNativeAgentFile(t *testing.T) {
 	engine := NewClaudeEngine()
 	if engine.SupportsNativeAgentFile() {
 		t.Errorf("Claude engine should return false for SupportsNativeAgentFile(); the compiler handles agent file injection")
+	}
+}
+
+// TestClaudeEngineGetHarnessScriptName verifies that the Claude engine returns the built-in
+// harness script name, which wraps Claude Code CLI execution with retry logic for transient
+// Anthropic API errors (overload, rate limit).
+func TestClaudeEngineGetHarnessScriptName(t *testing.T) {
+	engine := NewClaudeEngine()
+	harnessName := engine.GetHarnessScriptName()
+	if harnessName != "claude_harness.cjs" {
+		t.Errorf("Expected 'claude_harness.cjs', got %q", harnessName)
+	}
+}
+
+// TestClaudeEngineHarnessUsesPromptFile verifies that when the built-in harness is used,
+// the execution step passes --prompt-file instead of inline shell expansion.
+func TestClaudeEngineHarnessUsesPromptFile(t *testing.T) {
+	engine := NewClaudeEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Harness-based execution uses --prompt-file, not "$(cat ...)".
+	if strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
+		t.Errorf("Found old shell-expansion prompt: harness should use --prompt-file:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Errorf("Expected --prompt-file in harness-wrapped execution:\n%s", stepContent)
+	}
+
+	// The harness script name must appear in the command.
+	if !strings.Contains(stepContent, "claude_harness.cjs") {
+		t.Errorf("Expected claude_harness.cjs in execution step:\n%s", stepContent)
+	}
+}
+
+// TestClaudeEngineCustomHarnessOverridesBuiltIn verifies that engine.harness overrides
+// the built-in claude_harness.cjs.
+func TestClaudeEngineCustomHarnessOverridesBuiltIn(t *testing.T) {
+	engine := NewClaudeEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:            "claude",
+			HarnessScript: "my_custom_harness.cjs",
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	if !strings.Contains(stepContent, "my_custom_harness.cjs") {
+		t.Errorf("Expected custom harness script in execution step:\n%s", stepContent)
+	}
+	if strings.Contains(stepContent, "claude_harness.cjs") {
+		t.Errorf("Built-in harness should be replaced by custom harness:\n%s", stepContent)
 	}
 }
 
@@ -594,8 +662,8 @@ func TestClaudeEngineAWFWithAgentFileReadsPromptTxt(t *testing.T) {
 		t.Errorf("PROMPT_TEXT must not appear in the Claude AWF step; compiler handles agent file injection:\n%s", stepContent)
 	}
 
-	// The container command must still read from prompt.txt.
-	if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
+	// The container command must still read from prompt.txt via --prompt-file (harness resolves it).
+	if !strings.Contains(stepContent, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
 		t.Errorf("Expected claude to read from prompt.txt in AWF mode, got:\n%s", stepContent)
 	}
 }

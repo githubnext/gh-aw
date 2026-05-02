@@ -122,6 +122,167 @@ func TestExtractExperimentData(t *testing.T) {
 	})
 }
 
+func TestFormatExperimentLabel(t *testing.T) {
+	tests := []struct {
+		name     string
+		exp      *ExperimentData
+		expected string
+	}{
+		{
+			name:     "nil returns empty string",
+			exp:      nil,
+			expected: "",
+		},
+		{
+			name:     "empty assignments returns empty string",
+			exp:      &ExperimentData{Assignments: map[string]string{}},
+			expected: "",
+		},
+		{
+			name:     "single experiment",
+			exp:      &ExperimentData{Assignments: map[string]string{"style": "concise"}},
+			expected: "style=concise",
+		},
+		{
+			name:     "multiple experiments sorted alphabetically",
+			exp:      &ExperimentData{Assignments: map[string]string{"style": "concise", "caveman": "yes"}},
+			expected: "caveman=yes, style=concise",
+		},
+		{
+			name:     "three experiments sorted",
+			exp:      &ExperimentData{Assignments: map[string]string{"z": "1", "a": "2", "m": "3"}},
+			expected: "a=2, m=3, z=1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatExperimentLabel(tt.exp)
+			assert.Equal(t, tt.expected, got, "formatExperimentLabel result mismatch")
+		})
+	}
+}
+
+func TestExperimentMatchesFilter(t *testing.T) {
+	exp := &ExperimentData{
+		Assignments: map[string]string{
+			"style":   "concise",
+			"caveman": "yes",
+		},
+	}
+
+	tests := []struct {
+		name           string
+		exp            *ExperimentData
+		experimentName string
+		variant        string
+		want           bool
+	}{
+		{
+			name:           "no filter passes nil exp",
+			exp:            nil,
+			experimentName: "",
+			variant:        "",
+			want:           true,
+		},
+		{
+			name:           "no filter passes non-nil exp",
+			exp:            exp,
+			experimentName: "",
+			variant:        "",
+			want:           true,
+		},
+		{
+			name:           "experiment filter passes when experiment present",
+			exp:            exp,
+			experimentName: "style",
+			variant:        "",
+			want:           true,
+		},
+		{
+			name:           "experiment filter fails when experiment absent",
+			exp:            exp,
+			experimentName: "missing-experiment",
+			variant:        "",
+			want:           false,
+		},
+		{
+			name:           "experiment filter fails when exp is nil",
+			exp:            nil,
+			experimentName: "style",
+			variant:        "",
+			want:           false,
+		},
+		{
+			name:           "variant filter passes when variant matches",
+			exp:            exp,
+			experimentName: "style",
+			variant:        "concise",
+			want:           true,
+		},
+		{
+			name:           "variant filter fails when variant does not match",
+			exp:            exp,
+			experimentName: "style",
+			variant:        "verbose",
+			want:           false,
+		},
+		{
+			name:           "variant filter fails when experiment absent",
+			exp:            exp,
+			experimentName: "missing-experiment",
+			variant:        "concise",
+			want:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := experimentMatchesFilter(tt.exp, tt.experimentName, tt.variant)
+			assert.Equal(t, tt.want, got, "experimentMatchesFilter result mismatch")
+		})
+	}
+}
+
+func TestFormatExperimentSkipMessage(t *testing.T) {
+	tests := []struct {
+		name       string
+		runID      int64
+		experiment string
+		variant    string
+		wantSubstr string
+	}{
+		{
+			name:       "experiment only message",
+			runID:      12345,
+			experiment: "style",
+			variant:    "",
+			wantSubstr: `experiment "style" not assigned`,
+		},
+		{
+			name:       "experiment and variant message",
+			runID:      12345,
+			experiment: "style",
+			variant:    "concise",
+			wantSubstr: `not assigned variant "concise"`,
+		},
+		{
+			name:       "run id is included",
+			runID:      99999,
+			experiment: "caveman",
+			variant:    "",
+			wantSubstr: "99999",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatExperimentSkipMessage(tt.runID, tt.experiment, tt.variant)
+			assert.Contains(t, got, tt.wantSubstr, "formatExperimentSkipMessage output mismatch")
+		})
+	}
+}
+
 func TestDeriveLastSelectedVariant(t *testing.T) {
 	tests := []struct {
 		name     string

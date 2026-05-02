@@ -84,7 +84,7 @@ func TestAuditWorkflowRunWithCancellation(t *testing.T) {
 	cancel()
 
 	// Try to audit a run with a cancelled context
-	err := AuditWorkflowRun(ctx, 123456, "", "", "", "/tmp/test-audit", false, false, false, 0, 0, nil)
+	err := AuditWorkflowRun(ctx, 123456, "", "", "", "/tmp/test-audit", false, false, false, 0, 0, nil, "", "")
 
 	// Should return context.Canceled error
 	assert.ErrorIs(t, err, context.Canceled, "Should return context.Canceled error when context is cancelled")
