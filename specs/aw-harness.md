@@ -284,6 +284,13 @@ An `engine: aw` workflow document **MUST** include a YAML frontmatter block conf
 >   issues: read
 >   pull-requests: read
 >
+> # All files and skills the agent may reference MUST be declared here.
+> # The compiler resolves each path and passes the contents to the harness.
+> # Skills are files under skills/ and must be listed explicitly.
+> imports:
+>   - skills/reporting/SKILL.md    # Skill: formatting guidelines for reports
+>   - shared/review-criteria.md    # Shared context: review checklist
+>
 > # gh-proxy and cli-proxy are ALWAYS enabled for engine: aw.
 > # MCP tools are available as CLI commands on PATH (via cli-proxy) and
 > # via the pre-authenticated `gh` binary (via gh-proxy).
@@ -419,6 +426,27 @@ The `harness.steering` key is **OPTIONAL**. When present, it **MAY** contain:
 
 The `harness.checkpoint` key is **OPTIONAL**. When set to `true`, the checkpoint extension **MUST** persist task state on `agent_end`.
 
+#### 6.1.7 `imports:`
+
+The `imports:` key is **OPTIONAL**. It is a standard gh-aw frontmatter key that lists the paths of files whose contents **MUST** be resolved by the compiler and made available to the harness as part of the compiled inputs.
+
+Each entry is a repository-relative path (string). Entries **MAY** point to:
+
+- **Skill files** — files under `skills/` (e.g., `skills/reporting/SKILL.md`).
+- **Shared context files** — markdown or text files shared across workflows (e.g., `shared/review-criteria.md`).
+- **Agent files** — custom agent `.yml` files (resolved and embedded by the compiler).
+
+A conforming implementation **MUST NOT** treat any skill, shared file, or agent file as implicitly available unless it appears in `imports:`. Skills directories are **NOT** auto-discovered or auto-loaded.
+
+> [!NOTE] Non-normative example.
+>
+> ```yaml
+> imports:
+>   - skills/reporting/SKILL.md        # Skill: formatting guidelines
+>   - skills/github-issue-query/SKILL.md  # Skill: querying GitHub issues
+>   - shared/review-criteria.md        # Shared review checklist
+> ```
+
 ### 6.2 Overrides and Fixed Settings
 
 A conforming implementation **MUST** apply the following overrides regardless of values specified in the workflow frontmatter:
@@ -448,12 +476,24 @@ A conforming implementation **MUST** source every item included in a session's i
 - The task's own Markdown body (extracted per [Section 6.3](#63-task-extraction-algorithm)).
 - Transcripts from upstream tasks (passed via the DAG execution model in [Section 7](#7-dag-execution-model)).
 - The agent's `system` prompt as declared under `harness.agents` in the frontmatter.
-- Files or sub-workflows declared via the standard `imports:` frontmatter key and resolved by the compiler into agent files passed at invocation time.
+- Files, skills, and sub-workflows declared via the `imports:` frontmatter key (see [Section 6.1.7](#617-imports)) and resolved by the compiler into inputs passed at invocation time.
 
 A conforming implementation **MUST NOT** automatically load AGENTS.md files, `.github/agents/` entries, skills directories, or any other ambient repository files unless they are explicitly listed in `imports:`. This behavior is a deliberate divergence from engines such as `engine: copilot` that inject ambient context automatically.
 
+Skills **MUST** be treated as ordinary imported files: they carry no special runtime status and **MUST** be listed individually under `imports:` just like any other resource. There is no automatic discovery of skills based on directory presence or workflow content.
+
 > [!IMPORTANT]
-> Workflow authors **MUST** explicitly declare every file or skill they wish the agent to reference using the `imports:` frontmatter key. Relying on ambient context that is auto-injected by other engines will produce a missing-context failure when running with `engine: aw`.
+> Workflow authors **MUST** explicitly declare every file and skill they wish the agent to reference using the `imports:` frontmatter key. Relying on ambient context that is auto-injected by other engines will produce a missing-context failure when running with `engine: aw`.
+
+> [!NOTE] Non-normative example.
+>
+> ```yaml
+> # All skills and files must be declared explicitly.
+> imports:
+>   - skills/reporting/SKILL.md          # Skill: formatting guidelines
+>   - skills/github-issue-query/SKILL.md # Skill: querying issues
+>   - shared/pr-review-criteria.md       # Shared context: review checklist
+> ```
 
 ---
 
