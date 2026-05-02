@@ -28,6 +28,7 @@ This is an internal design specification for the GitHub gh-aw project. It is not
 2. [Conformance](#2-conformance)
 3. [Terminology and Definitions](#3-terminology-and-definitions)
 4. [Architecture](#4-architecture)
+   - [4.3 Pi SDK and OpenClaw Extension Format Compatibility](#43-pi-sdk-and-openclaw-extension-format-compatibility)
 5. [Harness Invocation Contract](#5-harness-invocation-contract)
 6. [Workflow Definition](#6-workflow-definition)
 7. [Single-Session Execution Model](#7-single-session-execution-model)
@@ -200,6 +201,43 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 8. **New opt-in engine.** `engine: aw` is an independent opt-in. Existing engines **MUST** be untouched.
 
 9. **Observable.** All implementations **MUST** emit a JSONL event stream to stderr and **SHOULD** generate OTel spans when an OTLP endpoint is configured.
+
+### 4.3 Pi SDK and OpenClaw Extension Format Compatibility
+
+*(This section is non-normative.)*
+
+The AW Harness uses Pi SDK's `ExtensionAPI` as its native extension mechanism. OpenClaw (a separate open-source agent runtime at `openclaw/openclaw`) uses a structurally similar but distinct plugin API (`OpenClawPluginApi`). This section documents the relationship between the two APIs and the compatibility requirements that apply.
+
+#### 4.3.1 API Surface Comparison
+
+| Pi SDK (`ExtensionAPI`) | OpenClaw (`OpenClawPluginApi`) | Notes |
+|-------------------------|-------------------------------|-------|
+| `pi.registerTool(tool)` | `api.registerTool(tool, opts?)` | Semantically equivalent; parameter schema shapes may differ (Pi uses Pi-native schema; OpenClaw uses TypeBox `Type.Object(...)`) |
+| `pi.on(event, handler)` | `api.on(hookName, handler, opts?)` | Event names differ between the two runtimes (e.g., Pi `"turn_end"` vs. OpenClaw `"after_agent_turn"`) |
+| `pi.registerProvider(id, config)` | `api.registerProvider(...)` | Config shape differs; OpenClaw providers declared in `openclaw.plugin.json` manifest |
+| `(no direct equivalent)` | `api.registerAgentHarness(...)` | OpenClaw's experimental low-level agent executor seam; Pi SDK exposes the session directly instead |
+| `(lifecycle via pi.on)` | `api.registerHook(events, handler)` | OpenClaw has a separate lifecycle hook registry distinct from its agent event hooks |
+| `(no equivalent)` | `api.registerSessionExtension(...)` | OpenClaw-specific: plugin-owned session state projected through Gateway sessions |
+
+#### 4.3.2 Manifest Requirements (OpenClaw Only)
+
+OpenClaw plugins **MUST** ship an `openclaw.plugin.json` manifest in the plugin root. Pi SDK does not use a manifest file; extensions are registered programmatically. The two formats are **not interchangeable**:
+
+- A Pi extension is a TypeScript function `(pi: ExtensionAPI) => void`.
+- An OpenClaw plugin is a package exporting `definePluginEntry({ id, name, description, register(api) { ... } })` with an accompanying `openclaw.plugin.json`.
+
+#### 4.3.3 Compatibility Requirements
+
+The gh-aw extensions in this specification target Pi SDK only. However, to facilitate future portability to OpenClaw:
+
+- Extensions **SHOULD** keep Pi SDK dependencies isolated to the entry function boundary rather than scattered across extension modules.
+- Tool definitions (name, description, parameter schema, and `execute` function) **SHOULD** be expressed as plain objects so they can be adapted to either `pi.registerTool()` or `api.registerTool()` without rewriting tool logic.
+- Event handler functions **SHOULD** treat the event source (Pi `"turn_end"` vs. OpenClaw `"after_agent_turn"`) as a configuration layer, not embedded constants, to ease future porting.
+- Extensions **MUST NOT** use Pi-internal APIs that have no OpenClaw equivalent (e.g., direct `AgentSession` handle manipulation outside the `ExtensionAPI` surface).
+
+#### 4.3.4 `registerAgentHarness` Consideration
+
+OpenClaw exposes an experimental `api.registerAgentHarness(...)` method that provides a low-level agent executor seam. This seam could in principle host the AW Harness loop within an OpenClaw gateway. The gh-aw aw harness **does not** require or target this seam; it runs standalone via Pi SDK. If a future integration with OpenClaw's gateway is desired, `registerAgentHarness` is the appropriate OpenClaw extension point to evaluate at that time.
 
 ---
 
@@ -477,7 +515,7 @@ A conforming implementation **MUST** execute the workflow as follows:
 
 ## 8. Extensions
 
-All gh-aw-specific behavior **MUST** be packaged as Pi extensions. Each extension **MUST** be a standalone TypeScript module that exports a default function with signature `(pi: ExtensionAPI) => void | Promise<void>`.
+All gh-aw-specific behavior **MUST** be packaged as Pi extensions. Each extension **MUST** be a standalone TypeScript module that exports a default function with signature `(pi: ExtensionAPI) => void | Promise<void>`. For compatibility guidance between Pi's `ExtensionAPI` and OpenClaw's `OpenClawPluginApi`, see [§4.3](#43-pi-sdk-and-openclaw-extension-format-compatibility).
 
 The following six extensions **MUST** be loaded into the `AgentSession` created by the harness.
 
@@ -1026,3 +1064,6 @@ OpenTelemetry specification for distributed tracing. <https://opentelemetry.io/d
 
 **[gh-aw]**
 GitHub Agentic Workflows — the gh-aw CLI extension that compiles Markdown workflow files to GitHub Actions YAML. <https://github.com/github/gh-aw>
+
+**[OpenClaw]**
+OpenClaw — open-source agent runtime with a plugin SDK (`OpenClawPluginApi`) that is structurally related to but distinct from Pi SDK's `ExtensionAPI`. See §4.3 for API compatibility notes. <https://github.com/openclaw/openclaw>
