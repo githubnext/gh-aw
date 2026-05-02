@@ -387,8 +387,8 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 }
 
 // renderJob renders a single job to a new string.
-// Prefer renderJobTo when writing to an existing *strings.Builder to avoid the
-// intermediate allocation.
+// Prefer renderJobTo when an existing *strings.Builder is available to avoid
+// the intermediate allocation.
 func (jm *JobManager) renderJob(job *Job) string {
 	var b strings.Builder
 	jm.renderJobTo(&b, job)
