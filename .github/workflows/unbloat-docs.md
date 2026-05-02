@@ -24,6 +24,9 @@ permissions:
 
 strict: true
 
+features:
+  inline-agents: true
+
 # AI engine configuration
 engine:
   id: claude
@@ -111,6 +114,57 @@ safe-outputs:
 # Timeout (increased from 12min after timeout issues; aligns with similar doc workflows)
 timeout-minutes: 30
 
+# Pre-agent steps: deterministic precomputation before the AI engine starts
+pre-agent-steps:
+  - name: Pre-flight checks
+    run: |
+      mkdir -p /tmp/gh-aw/agent
+
+      # Check 1: verify docs directory structure exists
+      DIR_COUNT=$(find docs/src/content/docs -maxdepth 1 -type d 2>/dev/null | wc -l)
+      if [ "$DIR_COUNT" -eq 0 ]; then
+        echo '{"pass":false,"reason":"Pre-flight failed: docs/src/content/docs directory not found — documentation structure is missing or repository is not set up correctly."}' \
+          > /tmp/gh-aw/agent/preflight.json
+        exit 0
+      fi
+
+      # Check 2: count editable markdown files
+      TOTAL=$(find docs/src/content/docs -path '*/blog*' -prune \
+        -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print \
+        | xargs grep -rL 'disable-agentic-editing: true' 2>/dev/null \
+        | wc -l)
+      if [ "$TOTAL" -eq 0 ]; then
+        echo '{"pass":false,"reason":"Pre-flight failed: no editable markdown files found in docs/src/content/docs (all files may be protected or excluded)."}' \
+          > /tmp/gh-aw/agent/preflight.json
+        exit 0
+      fi
+
+      # Check 3: count uncleaned candidates (not cleaned in the past 7 days)
+      RECENT_CUTOFF=$(date -d '7 days ago' '+%Y-%m-%d' 2>/dev/null \
+        || date -v-7d '+%Y-%m-%d' 2>/dev/null \
+        || echo "0000-00-00")
+      CLEANED=$(awk -v cutoff="$RECENT_CUTOFF" \
+        'NF>0 && $1>=cutoff{count++} END{print count+0}' \
+        /tmp/gh-aw/cache-memory/cleaned-files.txt 2>/dev/null || echo "0")
+      UNCLEANED=$(( TOTAL - CLEANED ))
+      if [ "$UNCLEANED" -le 0 ]; then
+        echo '{"pass":false,"reason":"Pre-flight check: all eligible documentation files were cleaned recently — nothing to do this run."}' \
+          > /tmp/gh-aw/agent/preflight.json
+        exit 0
+      fi
+
+      # All checks passed — write candidate file list and preflight result
+      find docs/src/content/docs -path '*/blog*' -prune \
+        -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print \
+        | xargs grep -rL 'disable-agentic-editing: true' 2>/dev/null \
+        > /tmp/gh-aw/agent/candidate-files.txt
+      printf '{"pass":true,"reason":"All pre-flight checks passed. %d uncleaned candidates available.","uncleaned":%d,"total":%d}\n' \
+        "$UNCLEANED" "$UNCLEANED" "$TOTAL" \
+        > /tmp/gh-aw/agent/preflight.json
+
+      echo "Pre-flight passed: $UNCLEANED uncleaned candidates out of $TOTAL eligible files"
+      echo "Candidate files written to /tmp/gh-aw/agent/candidate-files.txt"
+
 # Build steps for documentation
 steps:
   - name: Checkout repository
@@ -142,70 +196,10 @@ You are a technical documentation editor focused on **clarity and conciseness**.
 
 ## 0. Pre-flight Validation
 
-**Run this check FIRST before any other steps.** These fast checks let you exit early and avoid wasting compute on runs where nothing useful can be done.
+Read `/tmp/gh-aw/agent/preflight.json`. If `"pass"` is `false`, call `noop` with the `"reason"` value and stop.
+Only proceed if `"pass"` is `true`.
 
-### 0.1 Verify documentation structure exists
-
-```bash
-find docs/src/content/docs -maxdepth 1 -type d 2>/dev/null | wc -l
-```
-
-If this returns `0` or the command fails (directory does not exist), call `noop` immediately:
-
-```json
-{"noop": {"message": "Pre-flight failed: docs/src/content/docs directory not found — documentation structure is missing or repository is not set up correctly."}}
-```
-
-### 0.2 Count editable candidate files
-
-Count markdown files that are eligible for unbloating (excluding blog, generated files, and protected files):
-
-```bash
-find docs/src/content/docs -path '*/blog*' -prune \
-  -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print \
-  | xargs grep -rL 'disable-agentic-editing: true' 2>/dev/null \
-  | wc -l
-```
-
-If this returns `0`, call `noop` immediately:
-
-```json
-{"noop": {"message": "Pre-flight failed: no editable markdown files found in docs/src/content/docs (all files may be protected or excluded)."}}
-```
-
-### 0.3 Check cache for recently cleaned files
-
-```bash
-find /tmp/gh-aw/cache-memory/ -maxdepth 1 -ls 2>/dev/null
-cat /tmp/gh-aw/cache-memory/cleaned-files.txt 2>/dev/null || echo "No previous cleanups found"
-```
-
-Then count candidates that have NOT been cleaned in the past 7 days:
-
-```bash
-# Get total eligible files
-TOTAL=$(find docs/src/content/docs -path '*/blog*' -prune \
-  -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print \
-  | xargs grep -rL 'disable-agentic-editing: true' 2>/dev/null \
-  | wc -l)
-
-# Count recently cleaned files (last 7 days from cache)
-# Cache lines are in format: "YYYY-MM-DD - Cleaned: <filename>"
-RECENT_CUTOFF=$(date -d '7 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-7d '+%Y-%m-%d' 2>/dev/null || echo "0000-00-00")
-CLEANED=$(awk -v cutoff="$RECENT_CUTOFF" 'NF>0 && $1>=cutoff{count++} END{print count+0}' \
-  /tmp/gh-aw/cache-memory/cleaned-files.txt 2>/dev/null || echo "0")
-UNCLEANED=$(( TOTAL - CLEANED ))
-
-echo "Total eligible: $TOTAL, Recently cleaned: $CLEANED, Uncleaned candidates: $UNCLEANED"
-```
-
-If there are no uncleaned candidates (i.e., `UNCLEANED` ≤ `0`), call `noop`:
-
-```json
-{"noop": {"message": "Pre-flight check: all eligible documentation files were cleaned recently — nothing to do this run."}}
-```
-
-**Only proceed to the steps below if pre-flight checks pass.**
+The list of candidate files is already available at `/tmp/gh-aw/agent/candidate-files.txt` (one path per line).
 
 ---
 
@@ -294,20 +288,9 @@ Choose the file most in need of improvement based on:
 
 ### 4. Analyze the File
 
-**First, verify the file is editable**:
-```bash
-# Check frontmatter for disable-agentic-editing flag
-head -20 <filename> | grep -A1 "^---" | grep "disable-agentic-editing: true"
-```
-
-If this command returns a match, **STOP** - the file is protected. Select a different file.
-
-Once you've confirmed the file is editable, read it and identify bloat:
-- Count bullet points - are there excessive lists?
-- Look for duplicate information
-- Check for repetitive "What it does" / "Why it's valuable" patterns
-- Identify verbose or wordy sections
-- Find redundant examples
+Use the `file-bloat-analyzer` agent, passing the selected file path as the input, to get a structured bloat inventory.
+Review the returned JSON to plan targeted edits: focus on `heavy_bullet_sections`,
+`duplicate_headings`, and high `repetitive_pattern_count`.
 
 ### 5. Remove Bloat
 
@@ -486,3 +469,34 @@ A successful run:
 Begin by scanning the docs directory and selecting the best candidate for improvement!
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `file-bloat-analyzer`
+---
+model: claude-haiku-4.5
+description: Reads a single documentation file and returns a structured inventory of bloat indicators
+---
+You are a documentation bloat analysis agent. The file path to analyze is provided as the first line of your input (or as the argument you are invoked with). Read that file using the `bash` tool (`cat <file_path>`) and return a structured JSON inventory of bloat indicators.
+
+Analyze the file for:
+- **bullet_count**: Total number of bullet/list items in the file
+- **heavy_bullet_sections**: Array of section headings that contain 5 or more consecutive bullet points (5+ is the threshold for sections likely to benefit from prose consolidation)
+- **duplicate_headings**: Array of heading texts that appear more than once
+- **repetitive_pattern_count**: Count of occurrences of repetitive "What it does" / "Why it's valuable" / "How to use" patterns
+- **estimated_line_count**: Total number of lines in the file
+- **bloat_score**: A score from 0–10 estimating overall bloat severity (0 = clean, 10 = extremely bloated)
+- **top_bloat_reason**: One-sentence summary of the primary bloat issue found
+
+Return a JSON object only — no prose, no extra text:
+
+```json
+{
+  "file": "<file path>",
+  "bullet_count": 42,
+  "heavy_bullet_sections": ["### Tool Configuration", "## Features"],
+  "duplicate_headings": ["## Overview"],
+  "repetitive_pattern_count": 7,
+  "estimated_line_count": 320,
+  "bloat_score": 7,
+  "top_bloat_reason": "Excessive bullet lists in Tool Configuration and Features sections with repetitive What/Why/How patterns."
+}
+```
