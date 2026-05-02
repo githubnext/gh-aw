@@ -451,6 +451,22 @@ A conforming implementation **MUST** extract steps from the workflow document bo
 4. Steps without a `<!-- harness-step -->` annotation are treated as sequential steps in document order.
 5. If no `harness:` block is present in the frontmatter, the entire document body **MUST** be treated as a single step with no explicit agent or dependency.
 
+### 6.4 Initial Prompt Context
+
+The AW Harness **MUST NOT** inject any predefined or ambient context into agent sessions. There are no implicit files, skills, or instruction documents automatically added to a session's initial prompt.
+
+A conforming implementation **MUST** source every item included in a session's initial prompt from one of the following explicitly declared origins:
+
+- The step's own Markdown body (extracted per [Section 6.3](#63-step-extraction-algorithm)).
+- Transcripts from upstream steps (passed via the DAG execution model in [Section 7](#7-dag-execution-model)).
+- The agent's `system` prompt as declared under `harness.agents` in the frontmatter.
+- Files or sub-workflows declared via the standard `imports:` frontmatter key.
+
+A conforming implementation **MUST NOT** automatically load AGENTS.md files, `.github/agents/` entries, skills directories, or any other ambient repository files unless they are explicitly listed in `imports:`. This behavior is a deliberate divergence from engines such as `engine: copilot` that inject ambient context automatically.
+
+> [!IMPORTANT]
+> Workflow authors **MUST** explicitly declare every file or skill they wish the agent to reference using the `imports:` frontmatter key. Relying on ambient context that is auto-injected by other engines will produce a missing-context failure when running with `engine: aw`.
+
 ---
 
 ## 7. DAG Execution Model
