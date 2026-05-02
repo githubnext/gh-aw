@@ -152,6 +152,24 @@ function checkExcludedFiles(patchContent, excludedFilePatterns) {
 }
 
 /**
+ * Checks whether any files modified in the patch are top-level Markdown files
+ * (i.e. `.md` files at the root of the repository, with no directory component).
+ * For example, `README.md`, `CONTRIBUTING.md`, or `AGENTS.md` would all match,
+ * but `docs/guide.md` or `.github/PULL_REQUEST_TEMPLATE.md` would not.
+ *
+ * Agents may import any top-level `.md` file as context, so all such files
+ * should be treated as protected instruction/documentation sources.
+ *
+ * @param {string} patchContent - The git patch content
+ * @returns {{ hasTopLevelMdFiles: boolean, topLevelMdFilesFound: string[] }}
+ */
+function checkForTopLevelMdFiles(patchContent) {
+  const changedPaths = extractPathsFromPatch(patchContent);
+  const found = changedPaths.filter(p => !p.includes("/") && p.toLowerCase().endsWith(".md"));
+  return { hasTopLevelMdFiles: found.length > 0, topLevelMdFilesFound: found };
+}
+
+/**
  * Checks whether any files modified in the patch reside inside a top-level
  * directory whose name starts with ".".  For example, `.cursor/settings.json`
  * or `.vscode/extensions.json` would both match.
@@ -220,7 +238,8 @@ function checkFileProtection(patchContent, config) {
   const { protectedPathsFound } = checkForProtectedPaths(patchContent, prefixes);
   const dotFolderExcludes = Array.isArray(config.protected_dot_folder_excludes) ? config.protected_dot_folder_excludes : [];
   const { topLevelDotFoldersFound } = config.protect_top_level_dot_folders ? checkForTopLevelDotFolders(patchContent, dotFolderExcludes) : { topLevelDotFoldersFound: [] };
-  const allFound = [...new Set([...manifestFilesFound, ...protectedPathsFound, ...topLevelDotFoldersFound])];
+  const { topLevelMdFilesFound } = config.protect_top_level_md_files ? checkForTopLevelMdFiles(patchContent) : { topLevelMdFilesFound: [] };
+  const allFound = [...new Set([...manifestFilesFound, ...protectedPathsFound, ...topLevelDotFoldersFound, ...topLevelMdFilesFound])];
 
   if (allFound.length === 0) {
     return { action: "allow" };
@@ -229,4 +248,4 @@ function checkFileProtection(patchContent, config) {
   return config.protected_files_policy === "fallback-to-issue" ? { action: "fallback", files: allFound } : { action: "deny", source: "protected", files: allFound };
 }
 
-module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkForTopLevelDotFolders, checkAllowedFiles, checkExcludedFiles, checkFileProtection };
+module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkForTopLevelDotFolders, checkForTopLevelMdFiles, checkAllowedFiles, checkExcludedFiles, checkFileProtection };

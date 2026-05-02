@@ -2594,6 +2594,48 @@ func TestProtectTopLevelDotFolders(t *testing.T) {
 	}
 }
 
+// TestProtectTopLevelMdFiles verifies that protect_top_level_md_files is always
+// set to true in both create_pull_request and push_to_pull_request_branch handler configs.
+func TestProtectTopLevelMdFiles(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			},
+			PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "should produce config steps")
+
+	var configJSON string
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			require.Len(t, parts, 2, "should split env var line")
+			configJSON = strings.TrimSpace(parts[1])
+			configJSON = strings.Trim(configJSON, "\"")
+			configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+		}
+	}
+	require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+	var config map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+	for _, handlerName := range []string{"create_pull_request", "push_to_pull_request_branch"} {
+		handlerCfg, ok := config[handlerName]
+		require.True(t, ok, "%s handler should be present", handlerName)
+		val, exists := handlerCfg["protect_top_level_md_files"]
+		assert.True(t, exists, "%s: protect_top_level_md_files should be present", handlerName)
+		assert.Equal(t, true, val, "%s: protect_top_level_md_files should be true", handlerName)
+	}
+}
+
 // TestProtectedDotFolderExcludes verifies that when a dot-folder prefix is excluded via
 // ProtectedFilesExclude, the runtime config receives a protected_dot_folder_excludes list.
 func TestProtectedDotFolderExcludes(t *testing.T) {

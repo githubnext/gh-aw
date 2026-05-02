@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { extractFilenamesFromPatch, checkForManifestFiles, checkAllowedFiles, checkExcludedFiles, checkFileProtection, checkForTopLevelDotFolders } = require("./manifest_file_helpers.cjs");
+const { extractFilenamesFromPatch, checkForManifestFiles, checkAllowedFiles, checkExcludedFiles, checkFileProtection, checkForTopLevelDotFolders, checkForTopLevelMdFiles } = require("./manifest_file_helpers.cjs");
 
 describe("manifest_file_helpers", () => {
   describe("extractFilenamesFromPatch", () => {
@@ -335,6 +335,65 @@ index abc..def 100644
     });
   });
 
+  describe("checkForTopLevelMdFiles", () => {
+    it("should return empty result for empty patch", () => {
+      const result = checkForTopLevelMdFiles("");
+      expect(result.hasTopLevelMdFiles).toBe(false);
+      expect(result.topLevelMdFilesFound).toEqual([]);
+    });
+
+    it("should detect a top-level .md file", () => {
+      const patch = `diff --git a/README.md b/README.md\nindex abc..def 100644\n`;
+      const result = checkForTopLevelMdFiles(patch);
+      expect(result.hasTopLevelMdFiles).toBe(true);
+      expect(result.topLevelMdFilesFound).toContain("README.md");
+    });
+
+    it("should detect AGENTS.md at root", () => {
+      const patch = `diff --git a/AGENTS.md b/AGENTS.md\nindex abc..def 100644\n`;
+      const result = checkForTopLevelMdFiles(patch);
+      expect(result.hasTopLevelMdFiles).toBe(true);
+      expect(result.topLevelMdFilesFound).toContain("AGENTS.md");
+    });
+
+    it("should not flag .md files in subdirectories", () => {
+      const patch = `diff --git a/docs/guide.md b/docs/guide.md\nindex abc..def 100644\n`;
+      const result = checkForTopLevelMdFiles(patch);
+      expect(result.hasTopLevelMdFiles).toBe(false);
+      expect(result.topLevelMdFilesFound).toEqual([]);
+    });
+
+    it("should not flag .md files in dot-folder subdirectories", () => {
+      const patch = `diff --git a/.github/PULL_REQUEST_TEMPLATE.md b/.github/PULL_REQUEST_TEMPLATE.md\nindex abc..def 100644\n`;
+      const result = checkForTopLevelMdFiles(patch);
+      expect(result.hasTopLevelMdFiles).toBe(false);
+      expect(result.topLevelMdFilesFound).toEqual([]);
+    });
+
+    it("should not flag non-.md top-level files", () => {
+      const patch = `diff --git a/README.txt b/README.txt\nindex abc..def 100644\n`;
+      const result = checkForTopLevelMdFiles(patch);
+      expect(result.hasTopLevelMdFiles).toBe(false);
+      expect(result.topLevelMdFilesFound).toEqual([]);
+    });
+
+    it("should detect multiple top-level .md files", () => {
+      const patch = [`diff --git a/README.md b/README.md`, `index abc..def 100644`, `diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md`, `index abc..def 100644`].join("\n");
+      const result = checkForTopLevelMdFiles(patch);
+      expect(result.hasTopLevelMdFiles).toBe(true);
+      expect(result.topLevelMdFilesFound).toContain("README.md");
+      expect(result.topLevelMdFilesFound).toContain("CONTRIBUTING.md");
+    });
+
+    it("should detect top-level .md but not subdirectory .md in mixed patch", () => {
+      const patch = [`diff --git a/README.md b/README.md`, `index abc..def 100644`, `diff --git a/docs/guide.md b/docs/guide.md`, `index abc..def 100644`].join("\n");
+      const result = checkForTopLevelMdFiles(patch);
+      expect(result.hasTopLevelMdFiles).toBe(true);
+      expect(result.topLevelMdFilesFound).toContain("README.md");
+      expect(result.topLevelMdFilesFound).not.toContain("docs/guide.md");
+    });
+  });
+
   describe("checkAllowedFiles", () => {
     it("should return no disallowed files when patterns is empty", () => {
       const patch = `diff --git a/src/index.js b/src/index.js\n`;
@@ -529,6 +588,35 @@ index abc..def 100644
     it("should not flag a root-level dot-file via dot-folder check", () => {
       const result = checkFileProtection(makePatch(".env"), {
         protect_top_level_dot_folders: true,
+        protected_files: [],
+        protected_path_prefixes: [],
+      });
+      expect(result.action).toBe("allow");
+    });
+
+    it("should deny when a top-level .md file is changed and protect_top_level_md_files is true", () => {
+      const result = checkFileProtection(makePatch("README.md"), {
+        protect_top_level_md_files: true,
+        protected_files: [],
+        protected_path_prefixes: [],
+      });
+      expect(result.action).toBe("deny");
+      expect(result.source).toBe("protected");
+      expect(result.files).toContain("README.md");
+    });
+
+    it("should allow .md files in subdirectories even when protect_top_level_md_files is true", () => {
+      const result = checkFileProtection(makePatch("docs/guide.md"), {
+        protect_top_level_md_files: true,
+        protected_files: [],
+        protected_path_prefixes: [],
+      });
+      expect(result.action).toBe("allow");
+    });
+
+    it("should not apply top-level md check when protect_top_level_md_files is false", () => {
+      const result = checkFileProtection(makePatch("README.md"), {
+        protect_top_level_md_files: false,
         protected_files: [],
         protected_path_prefixes: [],
       });

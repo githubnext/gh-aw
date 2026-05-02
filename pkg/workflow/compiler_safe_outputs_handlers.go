@@ -412,6 +412,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("protected_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
 			AddDefault("protect_top_level_dot_folders", true).
+			AddDefault("protect_top_level_md_files", true).
 			AddStringSlice("_protected_files_exclude", c.ProtectedFilesExclude).
 			AddStringSlice("allowed_files", c.AllowedFiles).
 			AddStringSlice("excluded_files", c.ExcludedFiles).
@@ -447,6 +448,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("protected_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
 			AddDefault("protect_top_level_dot_folders", true).
+			AddDefault("protect_top_level_md_files", true).
 			AddStringSlice("_protected_files_exclude", c.ProtectedFilesExclude).
 			AddStringSlice("allowed_files", c.AllowedFiles).
 			AddStringSlice("excluded_files", c.ExcludedFiles).
