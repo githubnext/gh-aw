@@ -36,7 +36,7 @@ on:
 
 Triage the issue.
 
-## @agent: planner
+## agent: planner
 ---
 engine: copilot
 tools:
@@ -45,7 +45,7 @@ tools:
 ---
 You are a planning assistant.
 
-## @agent: executor
+## agent: executor
 ---
 engine: copilot
 tools:
@@ -84,7 +84,7 @@ You are an execution specialist.
 	lockPath := workflowPath[:len(workflowPath)-len(".md")] + ".lock.yml"
 	lockContent, err := os.ReadFile(lockPath)
 	require.NoError(t, err, "lock file should be generated")
-	assert.NotContains(t, string(lockContent), "## @agent:", "lock file should not expose separator syntax")
+	assert.NotContains(t, string(lockContent), "## agent:", "lock file should not expose separator syntax")
 }
 
 // TestCompileWorkflow_InlineSubAgents_NoEmit verifies that sub-agent files are NOT
@@ -104,7 +104,7 @@ on:
 
 Main content.
 
-## @agent: helper
+## agent: helper
 ---
 engine: copilot
 ---
@@ -144,7 +144,7 @@ on:
 
 Main workflow prompt.
 
-## @agent: sidecar
+## agent: sidecar
 ---
 engine: copilot
 ---
@@ -168,7 +168,7 @@ Sub-agent prompt content.
 	require.NoError(t, err, "lock file should exist")
 
 	lockStr := string(lockContent)
-	assert.NotContains(t, lockStr, "## @agent:", "separator syntax must not be hardcoded in lock file")
+	assert.NotContains(t, lockStr, "## agent:", "separator syntax must not be hardcoded in lock file")
 
 	// The lock file should reference the workflow file via runtime-import
 	assert.Contains(t, lockStr, "content-test.md", "lock file should reference the workflow file")
