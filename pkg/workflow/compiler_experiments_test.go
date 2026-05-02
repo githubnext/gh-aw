@@ -383,6 +383,38 @@ func TestExtractExperimentConfigsFromFrontmatter(t *testing.T) {
 			},
 		},
 		{
+			name: "object form with new extended metadata fields",
+			frontmatter: map[string]any{
+				"experiments": map[string]any{
+					"prompt_style": map[string]any{
+						"variants":          []any{"concise", "detailed"},
+						"hypothesis":        "H0: no change. H1: concise reduces tokens by >=15%",
+						"secondary_metrics": []any{"duration_ms", "discussion_word_count"},
+						"guardrail_metrics": []any{
+							map[string]any{"name": "success_rate", "threshold": ">=0.95"},
+							map[string]any{"name": "empty_output_rate", "threshold": "==0"},
+						},
+						"min_samples": float64(25),
+						"owner":       "@team-agents",
+					},
+				},
+			},
+			check: func(t *testing.T, got map[string]*ExperimentConfig) {
+				require.NotNil(t, got, "config should exist")
+				cfg := got["prompt_style"]
+				require.NotNil(t, cfg, "prompt_style config should exist")
+				assert.Equal(t, "H0: no change. H1: concise reduces tokens by >=15%", cfg.Hypothesis, "hypothesis should match")
+				assert.Equal(t, []string{"duration_ms", "discussion_word_count"}, cfg.SecondaryMetrics, "secondary_metrics should match")
+				require.Len(t, cfg.GuardrailMetrics, 2, "guardrail_metrics should have 2 entries")
+				assert.Equal(t, "success_rate", cfg.GuardrailMetrics[0].Name, "first guardrail name")
+				assert.Equal(t, ">=0.95", cfg.GuardrailMetrics[0].Threshold, "first guardrail threshold")
+				assert.Equal(t, "empty_output_rate", cfg.GuardrailMetrics[1].Name, "second guardrail name")
+				assert.Equal(t, "==0", cfg.GuardrailMetrics[1].Threshold, "second guardrail threshold")
+				assert.Equal(t, 25, cfg.MinSamples, "min_samples should match")
+				assert.Equal(t, "@team-agents", cfg.Owner, "owner should match")
+			},
+		},
+		{
 			name: "mixed bare array and object form in same map",
 			frontmatter: map[string]any{
 				"experiments": map[string]any{
