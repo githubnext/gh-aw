@@ -156,6 +156,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  process.stderr.write(`[aw-harness] ✗ Unhandled error: ${(err as Error).message ?? String(err)}\n`);
+  const msg = err instanceof Error ? err.message : String(err);
+  process.stderr.write(`[aw-harness] ✗ Unhandled error: ${msg}\n`);
   process.exit(1);
 });

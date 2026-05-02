@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -90,9 +90,19 @@ describe("parseConfig", () => {
     expect(config.budget?.maxEffectiveTokens).toBe(100_000);
   });
 
-  it("ignores invalid budget (negative tokens)", () => {
-    const config = parseConfig({ model: "sonnet", budget: { maxEffectiveTokens: -1 } });
-    expect(config.budget).toBeUndefined();
+  it("ignores invalid budget (negative tokens) and emits a warning to stderr", () => {
+    const warnLines: string[] = [];
+    const spy = vi.spyOn(process.stderr, "write").mockImplementation((msg: unknown) => {
+      warnLines.push(String(msg));
+      return true;
+    });
+    try {
+      const config = parseConfig({ model: "sonnet", budget: { maxEffectiveTokens: -1 } });
+      expect(config.budget).toBeUndefined();
+      expect(warnLines.some((l) => l.includes("Ignoring invalid budget"))).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("parses context config", () => {

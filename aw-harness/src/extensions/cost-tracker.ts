@@ -50,9 +50,11 @@ export function createCostTrackerExtension(
         sharedState.cumulativeTokens += turnTokens;
         sharedState.cumulativeCostUsd += turnCost;
       } else {
-        // Fallback: use context window percentage as a proxy for token usage
+        // Fallback: use context window token count as a proxy for cumulative usage.
+        // This replaces the running total (not a delta) so we only update if the
+        // reported value is higher than what we already have.
         const ctxUsage = ctx.getContextUsage();
-        if (ctxUsage?.tokens != null) {
+        if (ctxUsage?.tokens != null && ctxUsage.tokens > sharedState.cumulativeTokens) {
           sharedState.cumulativeTokens = ctxUsage.tokens;
         }
       }

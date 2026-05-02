@@ -151,4 +151,24 @@ describe("createSteeringExtension", () => {
     const warnMessages = sentMessages.filter((m) => !m.content.toUpperCase().includes("CRITICAL"));
     expect(warnMessages).toHaveLength(1);
   });
+
+  it("sends the critical message only once even across multiple turns", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+
+    const state = createSharedState("sonnet");
+    const { pi, handlers, sentMessages } = buildMockPi();
+    createSteeringExtension(60, defaultSteering, state)(pi);
+
+    handlers["agent_start"]?.({});
+    // 59 minutes elapsed → 1 min remaining (< 2 min critical threshold)
+    vi.advanceTimersByTime(59 * 60 * 1000);
+
+    handlers["turn_end"]?.({});
+    handlers["turn_end"]?.({});
+    handlers["turn_end"]?.({});
+
+    const criticalMessages = sentMessages.filter((m) => m.content.toUpperCase().includes("CRITICAL"));
+    expect(criticalMessages).toHaveLength(1);
+  });
 });

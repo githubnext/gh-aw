@@ -58,6 +58,12 @@ export function parseConfig(raw: unknown): HarnessConfig {
     const b = r["budget"] as Record<string, unknown>;
     if (typeof b["maxEffectiveTokens"] === "number" && b["maxEffectiveTokens"] > 0) {
       budget = { maxEffectiveTokens: b["maxEffectiveTokens"] };
+    } else {
+      // Log a warning so workflow authors understand why budget was ignored
+      process.stderr.write(
+        `[aw-harness] ⚠️ Ignoring invalid budget configuration: ` +
+          `maxEffectiveTokens must be a positive number (got: ${JSON.stringify(b["maxEffectiveTokens"])})\n`,
+      );
     }
   }
 

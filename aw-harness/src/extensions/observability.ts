@@ -129,12 +129,10 @@ export function createObservabilityExtension(
 
       let inputTokens = 0;
       let outputTokens = 0;
-      let turnCostUsd = 0;
 
       if (msg.role === "assistant" && msg.usage) {
         inputTokens = msg.usage.input ?? 0;
         outputTokens = msg.usage.output ?? 0;
-        turnCostUsd = msg.usage.cost?.total ?? 0;
       }
 
       const turnRecord: TurnRecord = {
@@ -145,8 +143,6 @@ export function createObservabilityExtension(
         estimatedCostUsd: sharedState.cumulativeCostUsd,
       };
       turnRecords.push(turnRecord);
-
-      // Structured JSONL event
       emitJsonl({
         event: "turn_end",
         turn: sharedState.turnCount,
@@ -165,8 +161,6 @@ export function createObservabilityExtension(
           ` | cumulative ${sharedState.cumulativeTokens.toLocaleString()} tokens` +
           ` ($${sharedState.cumulativeCostUsd.toFixed(4)})\n`,
       );
-
-      void turnCostUsd; // used indirectly via sharedState
     });
 
     // ── tool_execution_end ───────────────────────────────────────────────────
