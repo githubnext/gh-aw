@@ -765,6 +765,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	checksCmd := cli.NewChecksCommand()
 	validateCmd := cli.NewValidateCommand(validateEngine)
 	domainsCmd := cli.NewDomainsCommand()
+	experimentsCmd := cli.NewExperimentsCommand()
 
 	// Assign commands to groups
 	// Setup Commands
@@ -797,6 +798,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	auditCmd.GroupID = "analysis"
 	healthCmd.GroupID = "analysis"
 	checksCmd.GroupID = "analysis"
+	experimentsCmd.GroupID = "analysis"
 
 	// Utilities
 	mcpServerCmd.GroupID = "utilities"
@@ -837,6 +839,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(hashCmd)
 	rootCmd.AddCommand(projectCmd)
 	rootCmd.AddCommand(domainsCmd)
+	rootCmd.AddCommand(experimentsCmd)
 
 	// Fix help flag descriptions for all subcommands to be consistent with the
 	// root command ("Show help for gh aw" vs the Cobra default "help for [cmd]").
