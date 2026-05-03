@@ -36,9 +36,14 @@ describe("convert_gateway_config_gemini", () => {
       expect(result.tools).toEqual(["read", "write"]);
     });
 
-    it("does not mutate the original entry", () => {
-      const entry = { type: "http", url: "http://old/mcp/github" };
-      const original = { ...entry };
+    it("does not mutate the original entry (including nested fields)", () => {
+      const entry = {
+        type: "http",
+        url: "http://old/mcp/github",
+        headers: { Authorization: "Bearer token", "X-Custom": "value" },
+        tools: ["read", "write"],
+      };
+      const original = JSON.parse(JSON.stringify(entry));
       transformGeminiEntry(entry, urlPrefix);
       expect(entry).toEqual(original);
     });
@@ -117,6 +122,14 @@ describe("convert_gateway_config_gemini", () => {
      */
     function writeGatewayOutput(mcpServers) {
       writeFileSync(gatewayOutputFile, JSON.stringify({ mcpServers }));
+      process.env.MCP_GATEWAY_OUTPUT = gatewayOutputFile;
+    }
+
+    /**
+     * @param {unknown} payload - Raw payload to write to the gateway output
+     */
+    function writeRawGatewayOutput(payload) {
+      writeFileSync(gatewayOutputFile, JSON.stringify(payload));
       process.env.MCP_GATEWAY_OUTPUT = gatewayOutputFile;
     }
 
@@ -204,6 +217,33 @@ describe("convert_gateway_config_gemini", () => {
       const settings = JSON.parse(readFileSync(join(workspace, ".gemini", "settings.json"), "utf8"));
       expect(settings.mcpServers).toEqual({});
       expect(settings.context.includeDirectories).toContain("/tmp/");
+    });
+
+    it("handles missing mcpServers key in gateway payload", () => {
+      writeRawGatewayOutput({});
+
+      main();
+
+      const settings = JSON.parse(readFileSync(join(workspace, ".gemini", "settings.json"), "utf8"));
+      expect(settings.mcpServers).toEqual({});
+    });
+
+    it("handles null mcpServers in gateway payload", () => {
+      writeRawGatewayOutput({ mcpServers: null });
+
+      main();
+
+      const settings = JSON.parse(readFileSync(join(workspace, ".gemini", "settings.json"), "utf8"));
+      expect(settings.mcpServers).toEqual({});
+    });
+
+    it("handles array mcpServers in gateway payload", () => {
+      writeRawGatewayOutput({ mcpServers: ["server1", "server2"] });
+
+      main();
+
+      const settings = JSON.parse(readFileSync(join(workspace, ".gemini", "settings.json"), "utf8"));
+      expect(settings.mcpServers).toEqual({});
     });
   });
 });
