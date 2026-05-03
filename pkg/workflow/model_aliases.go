@@ -31,15 +31,23 @@ import "maps"
 // model families supported by gh-aw.  The returned map is a freshly allocated
 // copy so callers may freely modify it.
 //
-// Builtin aliases (vendor-prefixed patterns use * as a wildcard):
-//   - "sonnet"      → Anthropic Sonnet family (Copilot gateway and Anthropic direct)
-//   - "haiku"       → Anthropic Haiku family
-//   - "opus"        → Anthropic Opus family
-//   - "gpt-5"       → OpenAI GPT-5 family
-//   - "gpt-5-mini"  → OpenAI GPT-5-mini family
-//   - "gpt-5-codex" → OpenAI GPT-5-Codex family
+// Vendor aliases (patterns use * as a glob wildcard, prefer copilot gateway first):
+//   - "sonnet"       → Anthropic Sonnet family
+//   - "haiku"        → Anthropic Haiku family
+//   - "opus"         → Anthropic Opus family
+//   - "gpt-5"        → OpenAI GPT-5 family
+//   - "gpt-5-mini"   → OpenAI GPT-5-mini family
+//   - "gpt-5-codex"  → OpenAI GPT-5-Codex family
+//   - "gemini-flash" → Google Gemini Flash family (fast/lightweight)
+//   - "gemini-pro"   → Google Gemini Pro family (full-capability)
+//
+// Meta-aliases (reference other aliases; resolved recursively by AWF):
+//   - "mini"  → haiku, gpt-5-mini, gemini-flash
+//   - "large" → sonnet, gpt-5, gemini-pro
+//   - "auto"  → large (convenience alias for the default capable tier)
 func BuiltinModelAliases() map[string][]string {
 	return map[string][]string{
+		// ── Anthropic ────────────────────────────────────────────────────────
 		"sonnet": {
 			"copilot/*sonnet*",
 			"anthropic/*sonnet*",
@@ -52,6 +60,7 @@ func BuiltinModelAliases() map[string][]string {
 			"copilot/*opus*",
 			"anthropic/*opus*",
 		},
+		// ── OpenAI ───────────────────────────────────────────────────────────
 		"gpt-5": {
 			"copilot/gpt-5*",
 			"openai/gpt-5*",
@@ -64,16 +73,32 @@ func BuiltinModelAliases() map[string][]string {
 			"copilot/gpt-5*codex*",
 			"openai/gpt-5*codex*",
 		},
-		// Meta-aliases: reference other aliases; AWF resolves them recursively.
-		// "mini"  covers lightweight/fast models across vendors.
-		// "large" covers full-capability models across vendors.
+		// ── Google ───────────────────────────────────────────────────────────
+		"gemini-flash": {
+			"copilot/gemini-*flash*",
+			"google/gemini-*flash*",
+		},
+		"gemini-pro": {
+			"copilot/gemini-*pro*",
+			"google/gemini-*pro*",
+		},
+		// ── Meta-aliases ─────────────────────────────────────────────────────
+		// These reference other aliases; AWF resolves them recursively.
+		// "mini"  — lightweight/fast models across all supported vendors.
+		// "large" — full-capability models across all supported vendors.
+		// "auto"  — convenience alias that resolves to the "large" tier.
 		"mini": {
 			"haiku",
 			"gpt-5-mini",
+			"gemini-flash",
 		},
 		"large": {
 			"sonnet",
 			"gpt-5",
+			"gemini-pro",
+		},
+		"auto": {
+			"large",
 		},
 	}
 }

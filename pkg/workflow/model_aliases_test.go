@@ -15,7 +15,12 @@ import (
 func TestBuiltinModelAliases(t *testing.T) {
 	aliases := BuiltinModelAliases()
 
-	expectedFamilies := []string{"sonnet", "haiku", "opus", "gpt-5", "gpt-5-mini", "gpt-5-codex", "mini", "large"}
+	expectedFamilies := []string{
+		"sonnet", "haiku", "opus",
+		"gpt-5", "gpt-5-mini", "gpt-5-codex",
+		"gemini-flash", "gemini-pro",
+		"mini", "large", "auto",
+	}
 	for _, family := range expectedFamilies {
 		patterns, ok := aliases[family]
 		assert.True(t, ok, "expected builtin alias for family %q", family)
@@ -23,8 +28,8 @@ func TestBuiltinModelAliases(t *testing.T) {
 	}
 
 	// Vendor aliases should include at least one copilot/* pattern.
-	// Meta-aliases (mini, large) reference other alias names and are excluded here.
-	vendorFamilies := []string{"sonnet", "haiku", "opus", "gpt-5", "gpt-5-mini", "gpt-5-codex"}
+	// Meta-aliases (mini, large, auto) reference other alias names and are excluded here.
+	vendorFamilies := []string{"sonnet", "haiku", "opus", "gpt-5", "gpt-5-mini", "gpt-5-codex", "gemini-flash", "gemini-pro"}
 	for _, family := range vendorFamilies {
 		patterns := aliases[family]
 		hasCopilot := false
@@ -38,8 +43,9 @@ func TestBuiltinModelAliases(t *testing.T) {
 	}
 
 	// Meta-aliases reference other alias names (resolved recursively by AWF).
-	assert.Equal(t, []string{"haiku", "gpt-5-mini"}, aliases["mini"], "mini should reference haiku and gpt-5-mini")
-	assert.Equal(t, []string{"sonnet", "gpt-5"}, aliases["large"], "large should reference sonnet and gpt-5")
+	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gemini-flash"}, aliases["mini"], "mini should reference haiku, gpt-5-mini, and gemini-flash")
+	assert.Equal(t, []string{"sonnet", "gpt-5", "gemini-pro"}, aliases["large"], "large should reference sonnet, gpt-5, and gemini-pro")
+	assert.Equal(t, []string{"large"}, aliases["auto"], "auto should fall back to large")
 
 	// Returns a fresh copy — mutating one call's map must not affect another call.
 	aliases["sonnet"] = []string{"custom/model"}
@@ -129,6 +135,11 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 		assert.Contains(t, modelsMap, "gpt-5", "models should include gpt-5 alias")
 		assert.Contains(t, modelsMap, "gpt-5-mini", "models should include gpt-5-mini alias")
 		assert.Contains(t, modelsMap, "gpt-5-codex", "models should include gpt-5-codex alias")
+		assert.Contains(t, modelsMap, "gemini-flash", "models should include gemini-flash alias")
+		assert.Contains(t, modelsMap, "gemini-pro", "models should include gemini-pro alias")
+		assert.Contains(t, modelsMap, "mini", "models should include mini alias")
+		assert.Contains(t, modelsMap, "large", "models should include large alias")
+		assert.Contains(t, modelsMap, "auto", "models should include auto alias")
 	})
 
 	t.Run("frontmatter override is reflected in AWF config JSON", func(t *testing.T) {
