@@ -55,8 +55,13 @@ function uniqueCreatedItemTypes(items) {
   return [...types].sort();
 }
 
+function readContextString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function collectObservabilityData() {
   const awInfo = readJSONIfExists(AW_INFO_PATH) || {};
+  const context = awInfo.context && typeof awInfo.context === "object" ? awInfo.context : {};
   const agentOutput = readJSONIfExists(AGENT_OUTPUT_PATH) || { items: [], errors: [] };
   const items = Array.isArray(agentOutput.items) ? agentOutput.items : [];
   const errors = Array.isArray(agentOutput.errors) ? agentOutput.errors : [];
@@ -64,12 +69,18 @@ function collectObservabilityData() {
   // so the summary always shows the trace ID that is actually present in the OTLP backend.
   // Fall back to context.otel_trace_id for cross-workflow traces propagated from a parent.
   // Do NOT fall back to workflow_call_id — it is not a valid OTLP trace ID.
-  const traceId = process.env.GITHUB_AW_OTEL_TRACE_ID || (awInfo.context ? awInfo.context.otel_trace_id || "" : "");
+  const traceId = process.env.GITHUB_AW_OTEL_TRACE_ID || readContextString(context.otel_trace_id);
 
   return {
     workflowName: awInfo.workflow_name || "",
     engineId: awInfo.engine_id || "",
     traceId,
+    episodeId: readContextString(context.episode_id) || readContextString(context.workflow_call_id),
+    hopId: readContextString(context.hop_id) || readContextString(context.workflow_call_id),
+    parentHopId: readContextString(context.parent_hop_id),
+    originEvent: readContextString(context.origin_event) || readContextString(context.event_type),
+    rootRepo: readContextString(context.root_repo) || readContextString(context.repo),
+    rootWorkflowId: readContextString(context.root_workflow_id) || readContextString(context.workflow_id),
     staged: awInfo.staged === true,
     firewallEnabled: awInfo.firewall_enabled === true,
     createdItemCount: items.length,
@@ -95,6 +106,24 @@ function buildObservabilitySummary(data) {
   }
   if (data.traceId) {
     lines.push(`- **trace id**: ${data.traceId}`);
+  }
+  if (data.episodeId) {
+    lines.push(`- **episode**: ${data.episodeId}`);
+  }
+  if (data.hopId) {
+    lines.push(`- **hop**: ${data.hopId}`);
+  }
+  if (data.parentHopId) {
+    lines.push(`- **parent hop**: ${data.parentHopId}`);
+  }
+  if (data.originEvent) {
+    lines.push(`- **origin event**: ${data.originEvent}`);
+  }
+  if (data.rootRepo) {
+    lines.push(`- **root repo**: ${data.rootRepo}`);
+  }
+  if (data.rootWorkflowId) {
+    lines.push(`- **root workflow**: ${data.rootWorkflowId}`);
   }
 
   lines.push(`- **posture**: ${posture}`);

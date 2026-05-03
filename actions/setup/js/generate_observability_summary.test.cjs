@@ -36,7 +36,16 @@ describe("generate_observability_summary.cjs", () => {
         engine_id: "copilot",
         staged: false,
         firewall_enabled: true,
-        context: { workflow_call_id: "12345678901-1", otel_trace_id: "a3f2c8d1e4b7091f6a5c2e3d8f401b72" },
+        context: {
+          episode_id: "episode-42",
+          hop_id: "hop-2",
+          parent_hop_id: "hop-1",
+          origin_event: "workflow_run",
+          root_repo: "owner/repo",
+          root_workflow_id: "owner/repo/.github/workflows/root.yml@refs/heads/main",
+          workflow_call_id: "12345678901-1",
+          otel_trace_id: "a3f2c8d1e4b7091f6a5c2e3d8f401b72",
+        },
       })
     );
     fs.writeFileSync(
@@ -56,6 +65,12 @@ describe("generate_observability_summary.cjs", () => {
     expect(summary).toContain("- **workflow**: triage-workflow");
     expect(summary).toContain("- **engine**: copilot");
     expect(summary).toContain("- **trace id**: a3f2c8d1e4b7091f6a5c2e3d8f401b72");
+    expect(summary).toContain("- **episode**: episode-42");
+    expect(summary).toContain("- **hop**: hop-2");
+    expect(summary).toContain("- **parent hop**: hop-1");
+    expect(summary).toContain("- **origin event**: workflow_run");
+    expect(summary).toContain("- **root repo**: owner/repo");
+    expect(summary).toContain("- **root workflow**: owner/repo/.github/workflows/root.yml@refs/heads/main");
     expect(summary).not.toContain("12345678901-1");
     expect(summary).toContain("- **posture**: write-capable");
     expect(summary).toContain("- **created items**: 2");
@@ -86,7 +101,9 @@ describe("generate_observability_summary.cjs", () => {
     expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
     const summary = mockCore.summary.addRaw.mock.calls[0][0];
     expect(summary).toContain("- **trace id**: deadbeef01234567deadbeef01234567");
-    expect(summary).not.toContain("12345678901-1");
+    expect(summary).not.toContain("- **trace id**: 12345678901-1");
+    expect(summary).toContain("- **episode**: 12345678901-1");
+    expect(summary).toContain("- **hop**: 12345678901-1");
   });
 
   it("does not show workflow_call_id as trace id when no OTLP trace ID is available", async () => {
@@ -106,7 +123,29 @@ describe("generate_observability_summary.cjs", () => {
     expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
     const summary = mockCore.summary.addRaw.mock.calls[0][0];
     expect(summary).not.toContain("trace id");
-    expect(summary).not.toContain("12345678901-1");
+    expect(summary).toContain("- **episode**: 12345678901-1");
+    expect(summary).toContain("- **hop**: 12345678901-1");
+  });
+
+  it("falls back to legacy workflow_call_id for lineage when canonical fields are absent", async () => {
+    fs.writeFileSync(
+      "/tmp/gh-aw/aw_info.json",
+      JSON.stringify({
+        workflow_name: "triage-workflow",
+        engine_id: "copilot",
+        staged: false,
+        firewall_enabled: false,
+        context: { workflow_call_id: "legacy-hop-1", repo: "owner/repo", workflow_id: "owner/repo/.github/workflows/legacy.yml@refs/heads/main" },
+      })
+    );
+
+    await module.main(mockCore);
+
+    const summary = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summary).toContain("- **episode**: legacy-hop-1");
+    expect(summary).toContain("- **hop**: legacy-hop-1");
+    expect(summary).toContain("- **root repo**: owner/repo");
+    expect(summary).toContain("- **root workflow**: owner/repo/.github/workflows/legacy.yml@refs/heads/main");
   });
 
   it("always generates summary regardless of env vars", async () => {

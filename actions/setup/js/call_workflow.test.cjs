@@ -155,6 +155,13 @@ describe("call_workflow handler factory", () => {
     expect(typeof payload.aw_context).toBe("string");
 
     const awContext = JSON.parse(payload.aw_context);
+    expect(awContext.episode_id).toBe("99999-2:github/gh-aw/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/otel-for-episodes");
+    expect(awContext.hop_id).toBe("99999-2:github/gh-aw/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/otel-for-episodes");
+    expect(awContext.parent_hop_id).toBe("");
+    expect(awContext.origin_event).toBe("workflow_dispatch");
+    expect(awContext.root_repo).toBe("github/gh-aw");
+    expect(awContext.root_workflow_id).toBe("github/gh-aw/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/otel-for-episodes");
+    expect(awContext.root_run_id).toBe("99999");
     expect(awContext.workflow_call_id).toBe("99999-2:github/gh-aw/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/otel-for-episodes");
     expect(awContext.otel_trace_id).toBe("f".repeat(32));
     expect(awContext.otel_parent_span_id).toBe("abcdef1234567890");

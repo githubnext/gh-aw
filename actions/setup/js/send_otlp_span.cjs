@@ -106,13 +106,22 @@ function buildCurrentWorkflowCallId(runId, runAttempt, workflowRef = process.env
 }
 
 /**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function readContextString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/**
  * Resolve live episode correlation attributes directly from runtime context.
  *
- * For dispatched child workflows, aw_context.workflow_call_id is the stable
- * episode identifier shared across the workflow chain. For standalone runs we
- * fall back to the current run's run_id-run_attempt pair so every live span is
- * queryable as part of an episode-like execution unit without offline logs
- * reconstruction.
+ * Prefer the canonical lineage fields propagated in aw_context: episode_id for
+ * the full automation session, hop_id for the current workflow invocation, and
+ * parent_hop_id for the immediate caller. Legacy workflow_call_id is accepted
+ * only as a compatibility fallback when the canonical fields are absent. For
+ * standalone runs we fall back to the current run's run_id-run_attempt pair so
+ * every live span is still queryable as a bounded execution unit.
  *
  * @param {object} awInfo
  * @param {string} runId
@@ -120,21 +129,36 @@ function buildCurrentWorkflowCallId(runId, runAttempt, workflowRef = process.env
  * @returns {Array<{key: string, value: object}>}
  */
 function buildEpisodeAttributesFromContext(awInfo, runId, runAttempt) {
-  const currentWorkflowCallId = buildCurrentWorkflowCallId(runId, runAttempt);
-  const inheritedWorkflowCallId = typeof awInfo.context?.workflow_call_id === "string" ? awInfo.context.workflow_call_id.trim() : "";
-  const episodeId = inheritedWorkflowCallId || currentWorkflowCallId;
+  const currentHopId = buildCurrentWorkflowCallId(runId, runAttempt);
+  const inheritedHopId = readContextString(awInfo.context?.hop_id) || readContextString(awInfo.context?.workflow_call_id);
+  const episodeId = readContextString(awInfo.context?.episode_id) || inheritedHopId || currentHopId;
+  const parentHopId = readContextString(awInfo.context?.parent_hop_id) || (inheritedHopId && inheritedHopId !== currentHopId ? inheritedHopId : "");
+  const originEvent = readContextString(awInfo.context?.origin_event) || readContextString(awInfo.context?.event_type);
+  const rootRepo = readContextString(awInfo.context?.root_repo) || readContextString(awInfo.context?.repo);
+  const rootWorkflowId = readContextString(awInfo.context?.root_workflow_id) || readContextString(awInfo.context?.workflow_id);
 
   if (!episodeId) {
     return [];
   }
 
-  const attributes = [buildAttr("gh-aw.episode.id", episodeId), buildAttr("gh-aw.episode.kind", inheritedWorkflowCallId && inheritedWorkflowCallId !== currentWorkflowCallId ? "workflow_call" : "run")];
+  const attributes = [buildAttr("gh-aw.episode.id", episodeId), buildAttr("gh-aw.episode.kind", parentHopId ? "workflow_call" : "run")];
 
-  if (currentWorkflowCallId) {
-    attributes.push(buildAttr("gh-aw.workflow_call.id", currentWorkflowCallId));
+  if (currentHopId) {
+    attributes.push(buildAttr("gh-aw.hop.id", currentHopId));
+    attributes.push(buildAttr("gh-aw.workflow_call.id", currentHopId));
   }
-  if (inheritedWorkflowCallId && inheritedWorkflowCallId !== currentWorkflowCallId) {
-    attributes.push(buildAttr("gh-aw.workflow_call.parent_id", inheritedWorkflowCallId));
+  if (parentHopId) {
+    attributes.push(buildAttr("gh-aw.hop.parent_id", parentHopId));
+    attributes.push(buildAttr("gh-aw.workflow_call.parent_id", parentHopId));
+  }
+  if (originEvent) {
+    attributes.push(buildAttr("gh-aw.origin.event", originEvent));
+  }
+  if (rootRepo) {
+    attributes.push(buildAttr("gh-aw.root.repo", rootRepo));
+  }
+  if (rootWorkflowId) {
+    attributes.push(buildAttr("gh-aw.root.workflow_id", rootWorkflowId));
   }
 
   return attributes;
@@ -858,13 +882,16 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const version = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
 
   // Prefer GITHUB_AW_OTEL_TRACE_ID (written to GITHUB_ENV by this job's setup step) so
-  // all spans in the same job share one trace.  Fall back to the workflow_call_id
-  // from aw_info for cross-job correlation, then generate a fresh ID.
+  // all spans in the same job share one trace.  Fall back to aw_context.otel_trace_id
+  // for cross-job correlation, then try the legacy workflow_call_id fallback.
   const envTraceId = (process.env.GITHUB_AW_OTEL_TRACE_ID || "").trim().toLowerCase();
+  const inheritedTraceId = readContextString(awInfo.context?.otel_trace_id).toLowerCase();
   const awTraceId = typeof awInfo.context?.workflow_call_id === "string" ? awInfo.context.workflow_call_id.replace(/-/g, "") : "";
   let traceId = generateTraceId();
   if (isValidTraceId(envTraceId)) {
     traceId = envTraceId;
+  } else if (isValidTraceId(inheritedTraceId)) {
+    traceId = inheritedTraceId;
   } else if (awTraceId && isValidTraceId(awTraceId)) {
     traceId = awTraceId;
   }

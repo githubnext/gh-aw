@@ -1,6 +1,27 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const fs = require("fs");
+
+const AW_INFO_PATH = "/tmp/gh-aw/aw_info.json";
+
+function readContextString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function readAwInfoContext() {
+  if (!fs.existsSync(AW_INFO_PATH)) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(AW_INFO_PATH, "utf8"));
+    return parsed && typeof parsed.context === "object" && parsed.context !== null ? parsed.context : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Generates a standalone workflow-id XML comment marker for searchability.
  * This marker enables finding all items (issues, discussions, PRs, comments)
@@ -58,6 +79,13 @@ function generateXMLMarker(workflowName, runUrl) {
   const trackerId = process.env.GH_AW_TRACKER_ID || "";
   const runId = process.env.GITHUB_RUN_ID || "";
   const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
+  const awContext = readAwInfoContext();
+  const episodeId = readContextString(awContext?.episode_id) || readContextString(awContext?.workflow_call_id);
+  const hopId = readContextString(awContext?.hop_id) || readContextString(awContext?.workflow_call_id);
+  const parentHopId = readContextString(awContext?.parent_hop_id);
+  const originEvent = readContextString(awContext?.origin_event) || readContextString(awContext?.event_type);
+  const rootRepo = readContextString(awContext?.root_repo) || readContextString(awContext?.repo);
+  const rootWorkflowId = readContextString(awContext?.root_workflow_id) || readContextString(awContext?.workflow_id);
 
   // Build the key-value pairs for the marker
   const parts = [];
@@ -93,6 +121,30 @@ function generateXMLMarker(workflowName, runUrl) {
   // Add workflow identifier if available
   if (workflowId) {
     parts.push(`workflow_id: ${workflowId}`);
+  }
+
+  if (episodeId) {
+    parts.push(`episode_id: ${episodeId}`);
+  }
+
+  if (hopId) {
+    parts.push(`hop_id: ${hopId}`);
+  }
+
+  if (parentHopId) {
+    parts.push(`parent_hop_id: ${parentHopId}`);
+  }
+
+  if (originEvent) {
+    parts.push(`origin_event: ${originEvent}`);
+  }
+
+  if (rootRepo) {
+    parts.push(`root_repo: ${rootRepo}`);
+  }
+
+  if (rootWorkflowId) {
+    parts.push(`root_workflow_id: ${rootWorkflowId}`);
   }
 
   // Always include run URL
