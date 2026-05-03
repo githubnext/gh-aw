@@ -519,6 +519,7 @@ type WorkflowData struct {
 	CachedAllowedDomainsStr       string                          // cached allowed-domains string for sanitization (for performance optimization); computed once and reused across multiple compilation steps
 	CachedAllowedDomainsComputed  bool                            // true once CachedAllowedDomainsStr has been set; distinguishes "computed empty" from "not yet computed"
 	KnownActionCredentialEnvVars  map[string]bool                 // env vars for clean_known_action_credentials.sh; keyed by GH_AW_CLEAN_* names; nil when no known credential-leaking actions are detected
+	ModelMappings                 map[string][]string             // merged model alias map (builtins + imported workflow aliases + main frontmatter overrides, in priority order); NOT yet emitted to AWF config JSON — pending AWF firewall support (config.models)
 }
 
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.

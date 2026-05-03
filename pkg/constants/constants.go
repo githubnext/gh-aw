@@ -123,6 +123,12 @@ const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 // needed by the `awf logs audit` command for enriching log entries with policy rule matching.
 const AWFAuditDir = "/tmp/gh-aw/sandbox/firewall/audit"
 
+// PreAgentAuditFilePath is the path where the pre-agent workspace audit report is saved.
+// The audit step runs after all pre-agent preparation (skills, agents, MCP servers) is
+// complete, capturing a file listing of agent-related directories before the AI engine
+// starts. This file is included in the agent artifact for post-run inspection.
+const PreAgentAuditFilePath = "/tmp/gh-aw/pre-agent-audit.txt"
+
 // AWFConfigFilePath is the path inside the /tmp/gh-aw tree where the AWF config file
 // is copied so it can be included in the unified agent artifact.
 // AWF itself reads the config from ${RUNNER_TEMP}/gh-aw/awf-config.json (host-side),
