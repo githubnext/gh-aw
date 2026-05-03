@@ -4,7 +4,8 @@
 // extract_inline_sub_agents.cjs
 //
 // Parses ## agent: `name` markers from workflow markdown and writes each agent
-// block as a separate .agent.md file under .agents/agents/.
+// block as a separate .agent.md file under .github/agents/ (Copilot) or the
+// engine-appropriate directory.
 //
 // This step runs AFTER {{#runtime-import}} macros have been fully inlined by
 // processRuntimeImports() in interpolate_prompt.cjs, ensuring that any imports
@@ -171,8 +172,8 @@ function extractInlineSubAgents(content) {
  *   claude   → .claude/agents/<name>.md
  *   codex    → .codex/agents/<name>.md
  *   gemini   → .gemini/agents/<name>.md
- *   copilot  → .agents/agents/<name>.agent.md  (default)
- *   others   → .agents/agents/<name>.agent.md  (fallback)
+ *   copilot  → .github/agents/<name>.agent.md  (default)
+ *   others   → .github/agents/<name>.agent.md  (fallback)
  *
  * @param {string} [engineId] - The engine identifier (e.g. "claude", "copilot").
  * @returns {{ dir: string, ext: string }}
@@ -186,7 +187,7 @@ function getEngineSubAgentTarget(engineId) {
     case "gemini":
       return { dir: ".gemini/agents", ext: ".md" };
     default:
-      return { dir: ".agents/agents", ext: ".agent.md" };
+      return { dir: ".github/agents", ext: ".agent.md" };
   }
 }
 
@@ -198,7 +199,7 @@ function getEngineSubAgentTarget(engineId) {
  *   - claude  → <base>/.claude/agents/<name>.md
  *   - codex   → <base>/.codex/agents/<name>.md
  *   - gemini  → <base>/.gemini/agents/<name>.md
- *   - default → <base>/.agents/agents/<name>.agent.md
+ *   - default → <base>/.github/agents/<name>.agent.md
  *
  * Returns the main content (before the first ## agent: marker) after stripping
  * all agent blocks.  When no agent markers are found the original content is
