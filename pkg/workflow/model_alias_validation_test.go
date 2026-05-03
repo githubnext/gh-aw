@@ -514,3 +514,174 @@ func TestIsAliasReference(t *testing.T) {
 	assert.False(t, isAliasReference("copilot/*sonnet*", aliasMap), "glob entry should not be alias reference")
 	assert.False(t, isAliasReference("unknown", aliasMap), "unknown bare name is not an alias reference")
 }
+
+// ─── Expression skip tests for validateModelIdentifierStrings ─────────────────
+
+// TestValidateModelIdentifierStrings_ExpressionForms covers every expression
+// form that must be silently skipped by validateModelIdentifierStrings.
+func TestValidateModelIdentifierStrings_ExpressionForms(t *testing.T) {
+	tests := []struct {
+		name        string
+		identifiers []string
+		wantErrs    bool
+	}{
+		// Whole-string expression (original supported form).
+		{
+			name:        "whole-string expression",
+			identifiers: []string{"${{ inputs.model }}"},
+			wantErrs:    false,
+		},
+		// Expression with trailing query params — new form supported after this change.
+		{
+			name:        "expression with effort param",
+			identifiers: []string{"${{ inputs.model }}?effort=high"},
+			wantErrs:    false,
+		},
+		{
+			name:        "expression with temperature param",
+			identifiers: []string{"${{ inputs.model }}?temperature=0.7"},
+			wantErrs:    false,
+		},
+		{
+			name:        "expression with multiple params",
+			identifiers: []string{"${{ inputs.model }}?effort=high&temperature=0.5"},
+			wantErrs:    false,
+		},
+		// Expression embedded inside a provider-scoped identifier — new form.
+		{
+			name:        "expression as model token in provider-scoped identifier",
+			identifiers: []string{"copilot/${{ inputs.model_token }}"},
+			wantErrs:    false,
+		},
+		// Multiple expressions in the same list — each entry evaluated independently.
+		{
+			name: "multiple expression entries",
+			identifiers: []string{
+				"${{ inputs.primary }}",
+				"${{ inputs.fallback }}",
+			},
+			wantErrs: false,
+		},
+		// Mix of expression and valid literal — literal must still be validated.
+		{
+			name: "mix of expression and valid literal",
+			identifiers: []string{
+				"${{ inputs.model }}",
+				"opus",
+			},
+			wantErrs: false,
+		},
+		// Mix of expression and invalid literal — literal error must still be reported.
+		{
+			name: "mix of expression and invalid literal",
+			identifiers: []string{
+				"${{ inputs.model }}",
+				"invalid identifier!",
+			},
+			wantErrs: true,
+		},
+		// Expression with compact (no-space) syntax.
+		{
+			name:        "compact expression syntax",
+			identifiers: []string{"${{inputs.model}}"},
+			wantErrs:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateModelIdentifierStrings(tt.identifiers, "test context")
+			if tt.wantErrs {
+				assert.NotEmpty(t, errs, "expected validation errors but got none")
+			} else {
+				assert.Empty(t, errs, "expected no validation errors but got: %v", errs)
+			}
+		})
+	}
+}
+
+// ─── Expression skip tests for warnUnrecognizedModelParams ────────────────────
+
+// TestWarnUnrecognizedModelParams_ExpressionSkipped verifies that
+// expression-containing identifiers do not trigger V-MAF-011 warnings.
+func TestWarnUnrecognizedModelParams_ExpressionSkipped(t *testing.T) {
+	tests := []struct {
+		name        string
+		identifiers []string
+		wantWarning bool
+	}{
+		{
+			name:        "whole-string expression emits no warning",
+			identifiers: []string{"${{ inputs.model }}"},
+			wantWarning: false,
+		},
+		{
+			name:        "partial expression emits no warning",
+			identifiers: []string{"${{ inputs.model }}?unknownparam=value"},
+			wantWarning: false,
+		},
+		{
+			name:        "provider-scoped expression emits no warning",
+			identifiers: []string{"copilot/${{ inputs.model }}?unknownparam=value"},
+			wantWarning: false,
+		},
+		{
+			name:        "non-expression with unknown param emits warning",
+			identifiers: []string{"opus?unknownparam=value"},
+			wantWarning: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.warnUnrecognizedModelParams(tt.identifiers, "/fake/path.md")
+			if tt.wantWarning {
+				assert.Positive(t, compiler.GetWarningCount(),
+					"expected V-MAF-011 warning but warning counter is zero")
+			} else {
+				assert.Zero(t, compiler.GetWarningCount(),
+					"expected no V-MAF-011 warning for expression-containing identifier")
+			}
+		})
+	}
+}
+
+// ─── Engine.model table-driven expression tests ───────────────────────────────
+
+// TestValidateModelAliasMap_EngineModelExpressionForms covers every expression
+// form allowed in engine.model (resolved at runtime, exempt from compile-time checks).
+func TestValidateModelAliasMap_EngineModelExpressionForms(t *testing.T) {
+	tests := []struct {
+		name        string
+		engineModel string
+		wantErr     bool
+	}{
+		{"whole-string expression", "${{ inputs.model }}", false},
+		{"expression with effort param", "${{ inputs.model }}?effort=high", false},
+		{"expression with temperature param", "${{ inputs.model }}?temperature=0.5", false},
+		{"expression with multiple params", "${{ inputs.model }}?effort=low&temperature=0.3", false},
+		{"expression with unknown param — no error (no static parse)", "${{ inputs.model }}?unknownparam=x", false},
+		{"compact expression syntax", "${{inputs.model}}", false},
+		// Non-expression values are still validated normally.
+		{"valid literal is accepted", "copilot/gpt-5", false},
+		{"glob in engine.model is still rejected (V-MAF-004)", "copilot/*gpt*", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			err := compiler.validateModelAliasMap(
+				BuiltinModelAliases(),
+				nil,
+				tt.engineModel,
+				"/fake/path/workflow.md",
+			)
+			if tt.wantErr {
+				assert.Error(t, err, "engine.model=%q should be rejected", tt.engineModel)
+			} else {
+				assert.NoError(t, err, "engine.model=%q should be accepted", tt.engineModel)
+			}
+		})
+	}
+}
