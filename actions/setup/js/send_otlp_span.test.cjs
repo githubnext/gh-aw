@@ -12,6 +12,9 @@ const {
   generateSpanId,
   toNanoString,
   buildAttr,
+  buildOTLPSpan,
+  buildOTLPBatchPayload,
+  buildOTLPBatchPayloads,
   buildOTLPPayload,
   sanitizeOTLPPayload,
   parseOTLPHeaders,
@@ -24,6 +27,8 @@ const {
   appendToOTLPJSONL,
   SPAN_KIND_INTERNAL,
   SPAN_KIND_SERVER,
+  buildCurrentWorkflowCallId,
+  buildEpisodeAttributesFromContext,
   buildExperimentAttributes,
 } = await import("./send_otlp_span.cjs");
 
@@ -161,6 +166,69 @@ describe("buildAttr", () => {
   it("coerces non-string non-number non-boolean to stringValue", () => {
     // @ts-expect-error intentional type violation for coverage
     expect(buildAttr("k", null).value).toHaveProperty("stringValue");
+  });
+});
+
+describe("buildCurrentWorkflowCallId", () => {
+  it("includes workflow ref so reusable workflow invocations in one run stay distinct", () => {
+    expect(buildCurrentWorkflowCallId("12345", "2", "owner/repo/.github/workflows/test.yml@refs/heads/main")).toBe("12345-2:owner/repo/.github/workflows/test.yml@refs/heads/main");
+  });
+
+  it("defaults the attempt to 1 when omitted", () => {
+    expect(buildCurrentWorkflowCallId("12345", "", "owner/repo/.github/workflows/test.yml@refs/heads/main")).toBe("12345-1:owner/repo/.github/workflows/test.yml@refs/heads/main");
+  });
+
+  it("returns empty string when run id is unavailable", () => {
+    expect(buildCurrentWorkflowCallId("", "2")).toBe("");
+  });
+});
+
+describe("buildEpisodeAttributesFromContext", () => {
+  it("prefers canonical lineage fields and keeps workflow_call aliases for compatibility", () => {
+    process.env.GITHUB_WORKFLOW_REF = "owner/repo/.github/workflows/child.yml@refs/heads/main";
+    const attrs = buildEpisodeAttributesFromContext(
+      {
+        context: {
+          episode_id: "episode-42",
+          hop_id: "200-3:owner/repo/.github/workflows/parent.yml@refs/heads/main",
+          parent_hop_id: "199-1:owner/repo/.github/workflows/root.yml@refs/heads/main",
+          origin_event: "workflow_run",
+          root_repo: "owner/repo",
+          root_workflow_id: "owner/repo/.github/workflows/root.yml@refs/heads/main",
+          workflow_call_id: "200-3:owner/repo/.github/workflows/parent.yml@refs/heads/main",
+        },
+      },
+      "200",
+      "3"
+    );
+    expect(attrs).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "episode-42" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.episode.kind", value: { stringValue: "workflow_call" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.hop.id", value: { stringValue: "200-3:owner/repo/.github/workflows/child.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.hop.parent_id", value: { stringValue: "199-1:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.origin.event", value: { stringValue: "workflow_run" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.root.repo", value: { stringValue: "owner/repo" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.root.workflow_id", value: { stringValue: "owner/repo/.github/workflows/root.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "200-3:owner/repo/.github/workflows/child.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.workflow_call.parent_id", value: { stringValue: "199-1:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
+  });
+
+  it("falls back to legacy workflow_call_id when canonical lineage fields are absent", () => {
+    process.env.GITHUB_WORKFLOW_REF = "owner/repo/.github/workflows/child.yml@refs/heads/main";
+    const attrs = buildEpisodeAttributesFromContext({ context: { workflow_call_id: "200-3:owner/repo/.github/workflows/parent.yml@refs/heads/main" } }, "200", "3");
+    expect(attrs).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "200-3:owner/repo/.github/workflows/parent.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.hop.id", value: { stringValue: "200-3:owner/repo/.github/workflows/child.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.hop.parent_id", value: { stringValue: "200-3:owner/repo/.github/workflows/parent.yml@refs/heads/main" } });
+  });
+
+  it("falls back to the current run when no inherited lineage exists", () => {
+    process.env.GITHUB_WORKFLOW_REF = "owner/repo/.github/workflows/root.yml@refs/heads/main";
+    const attrs = buildEpisodeAttributesFromContext({}, "300", "4");
+    expect(attrs).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "300-4:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.episode.kind", value: { stringValue: "run" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.hop.id", value: { stringValue: "300-4:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "300-4:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
+    const keys = attrs.map(attr => attr.key);
+    expect(keys).not.toContain("gh-aw.workflow_call.parent_id");
   });
 });
 
@@ -397,6 +465,72 @@ describe("buildOTLPPayload", () => {
     });
     const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
     expect(span.events).toBeUndefined();
+  });
+});
+
+describe("buildOTLPBatchPayload", () => {
+  it("wraps multiple spans in a single OTLP payload", () => {
+    const spans = [
+      buildOTLPSpan({
+        traceId: "a".repeat(32),
+        spanId: "b".repeat(16),
+        spanName: "span.one",
+        startMs: 1000,
+        endMs: 1001,
+        attributes: [buildAttr("k1", "v1")],
+      }),
+      buildOTLPSpan({
+        traceId: "a".repeat(32),
+        spanId: "c".repeat(16),
+        parentSpanId: "b".repeat(16),
+        spanName: "span.two",
+        startMs: 1002,
+        endMs: 1003,
+        attributes: [buildAttr("k2", "v2")],
+      }),
+    ];
+
+    const payload = buildOTLPBatchPayload({
+      serviceName: "gh-aw-batch",
+      scopeVersion: "v1.0.0",
+      resourceAttributes: [buildAttr("github.repository", "owner/repo")],
+      spans,
+    });
+
+    expect(payload.resourceSpans).toHaveLength(1);
+    expect(payload.resourceSpans[0].scopeSpans).toHaveLength(1);
+    expect(payload.resourceSpans[0].scopeSpans[0].spans).toHaveLength(2);
+    expect(payload.resourceSpans[0].scopeSpans[0].spans[1].parentSpanId).toBe("b".repeat(16));
+    expect(payload.resourceSpans[0].resource.attributes).toContainEqual({
+      key: "github.repository",
+      value: { stringValue: "owner/repo" },
+    });
+  });
+});
+
+describe("buildOTLPBatchPayloads", () => {
+  it("chunks spans into multiple payloads when maxSpansPerPayload is exceeded", () => {
+    const spans = Array.from({ length: 5 }, (_, index) =>
+      buildOTLPSpan({
+        traceId: "d".repeat(32),
+        spanId: `${index + 1}`.padStart(16, "0"),
+        spanName: `span.${index + 1}`,
+        startMs: 1000 + index,
+        endMs: 1001 + index,
+        attributes: [],
+      })
+    );
+
+    const payloads = buildOTLPBatchPayloads({
+      serviceName: "gh-aw-batch",
+      spans,
+      maxSpansPerPayload: 2,
+    });
+
+    expect(payloads).toHaveLength(3);
+    expect(payloads[0].resourceSpans[0].scopeSpans[0].spans).toHaveLength(2);
+    expect(payloads[1].resourceSpans[0].scopeSpans[0].spans).toHaveLength(2);
+    expect(payloads[2].resourceSpans[0].scopeSpans[0].spans).toHaveLength(1);
   });
 });
 
@@ -913,6 +1047,9 @@ describe("sendJobSetupSpan", () => {
     "OTEL_SERVICE_NAME",
     "INPUT_JOB_NAME",
     "INPUT_TRACE_ID",
+    "GH_AW_SETUP_WORKFLOW_NAME",
+    "GH_AW_CURRENT_WORKFLOW_REF",
+    "GH_AW_SETUP_AW_CONTEXT",
     "GH_AW_INFO_WORKFLOW_NAME",
     "GH_AW_INFO_ENGINE_ID",
     "GITHUB_RUN_ID",
@@ -1046,6 +1183,49 @@ describe("sendJobSetupSpan", () => {
     expect(attrs["gh-aw.run.attempt"]).toBe("2");
     expect(attrs["gh-aw.run.actor"]).toBe("octocat");
     expect(attrs["gh-aw.repository"]).toBe("owner/repo");
+  });
+
+  it("uses setup workflow identity and inbound aw_context when aw_info.json is not available yet", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.INPUT_JOB_NAME = "agent";
+    process.env.GITHUB_RUN_ID = "25280567207";
+    process.env.GITHUB_RUN_ATTEMPT = "1";
+    process.env.GITHUB_WORKFLOW = "Smoke Call Workflow";
+    process.env.GITHUB_WORKFLOW_REF = "owner/repo/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/main";
+    process.env.GH_AW_SETUP_WORKFLOW_NAME = "Smoke Workflow Call";
+    process.env.GH_AW_CURRENT_WORKFLOW_REF = "owner/repo/.github/workflows/smoke-workflow-call.lock.yml@refs/heads/main";
+    process.env.GH_AW_SETUP_AW_CONTEXT = JSON.stringify({
+      episode_id: "25280567207-1:owner/repo/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/main",
+      hop_id: "25280567207-1:owner/repo/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/main",
+      parent_hop_id: "parent-hop-root",
+      origin_event: "workflow_dispatch",
+      root_repo: "owner/repo",
+      root_workflow_id: "owner/repo/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/main",
+    });
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobSetupSpan();
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, attrValue(a)]));
+    expect(attrs["gh-aw.workflow.name"]).toBe("Smoke Workflow Call");
+    expect(attrs["gh-aw.episode.id"]).toBe("25280567207-1:owner/repo/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/main");
+    expect(attrs["gh-aw.hop.id"]).toBe("25280567207-1:owner/repo/.github/workflows/smoke-workflow-call.lock.yml@refs/heads/main");
+    expect(attrs["gh-aw.hop.parent_id"]).toBe("parent-hop-root");
+
+    const resourceAttrs = Object.fromEntries(body.resourceSpans[0].resource.attributes.map(a => [a.key, attrValue(a)]));
+    expect(resourceAttrs["github.workflow_ref"]).toBe("owner/repo/.github/workflows/smoke-workflow-call.lock.yml@refs/heads/main");
   });
 
   it("defaults gh-aw.run.attempt to '1' when GITHUB_RUN_ATTEMPT is not set", async () => {
@@ -1646,6 +1826,8 @@ describe("sendJobSetupSpan", () => {
       vi.stubGlobal("fetch", mockFetch);
 
       process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GITHUB_RUN_ID = "555";
+      process.env.GITHUB_RUN_ATTEMPT = "2";
 
       await sendJobSetupSpan();
 
@@ -1656,6 +1838,50 @@ describe("sendJobSetupSpan", () => {
       expect(keys).not.toContain("gh-aw.trigger.item_number");
       expect(keys).not.toContain("gh-aw.trigger.label");
       expect(keys).not.toContain("gh-aw.trigger.comment_id");
+      expect(span.attributes).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "555-2" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.episode.kind", value: { stringValue: "run" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "555-2" } });
+    });
+
+    it("uses aw_info context lineage fields as the live episode id for child workflows", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GITHUB_RUN_ID = "777";
+      process.env.GITHUB_RUN_ATTEMPT = "3";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({
+            context: {
+              episode_id: "episode-99",
+              hop_id: "123-1",
+              parent_hop_id: "122-1",
+              origin_event: "workflow_run",
+              root_repo: "owner/repo",
+              root_workflow_id: "owner/repo/.github/workflows/root.yml@refs/heads/main",
+              workflow_call_id: "123-1",
+              item_type: "issue",
+              item_number: "42",
+            },
+          });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.attributes).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "episode-99" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.episode.kind", value: { stringValue: "workflow_call" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.hop.id", value: { stringValue: "777-3" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.hop.parent_id", value: { stringValue: "122-1" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.origin.event", value: { stringValue: "workflow_run" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.root.repo", value: { stringValue: "owner/repo" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "777-3" } });
+      expect(span.attributes).toContainEqual({ key: "gh-aw.workflow_call.parent_id", value: { stringValue: "122-1" } });
     });
   });
 
@@ -1897,6 +2123,37 @@ describe("sendJobConclusionSpan", () => {
     expect(span.name).toBe("gh-aw.job.safe-outputs");
     expect(span.traceId).toMatch(/^[0-9a-f]{32}$/);
     expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it("emits live episode attributes on conclusion spans from aw_info workflow_call context", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_RUN_ID = "888";
+    process.env.GITHUB_RUN_ATTEMPT = "4";
+    process.env.GITHUB_REPOSITORY = "owner/repo";
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        return JSON.stringify({ context: { episode_id: "episode-123", hop_id: "123-1", parent_hop_id: "122-1", workflow_call_id: "123-1", otel_trace_id: "a".repeat(32) } });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.attributes).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "episode-123" } });
+    expect(span.attributes).toContainEqual({ key: "gh-aw.episode.kind", value: { stringValue: "workflow_call" } });
+    expect(span.attributes).toContainEqual({ key: "gh-aw.hop.id", value: { stringValue: "888-4" } });
+    expect(span.attributes).toContainEqual({ key: "gh-aw.hop.parent_id", value: { stringValue: "122-1" } });
+    expect(span.attributes).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "888-4" } });
+    expect(span.attributes).toContainEqual({ key: "gh-aw.workflow_call.parent_id", value: { stringValue: "122-1" } });
+    expect(span.traceId).toBe("a".repeat(32));
   });
 
   it("emits a dedicated gh-aw.<job>.agent span when startMs and agent_output mtime are available", async () => {
@@ -2191,7 +2448,15 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
 
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
     await sendJobConclusionSpan("gh-aw.job.conclusion");
+    readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -2261,7 +2526,15 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_INFO_WORKFLOW_NAME = "env-workflow";
     process.env.GITHUB_WORKFLOW = "github-workflow";
 
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
     await sendJobConclusionSpan("gh-aw.job.conclusion");
+    readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];

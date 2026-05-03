@@ -204,6 +204,7 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 		// then add per-input entries derived from the payload for every declared
 		// workflow_call input on the worker (except 'payload' itself) so that
 		// worker steps can reference inputs.<name> directly without parsing JSON.
+		jobNeeds := []string{"safe_outputs"}
 		with := map[string]any{
 			"payload": "${{ needs.safe_outputs.outputs.call_workflow_payload }}",
 		}
@@ -246,7 +247,7 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 
 		callJob := &Job{
 			Name:  jobName,
-			Needs: []string{"safe_outputs"},
+			Needs: jobNeeds,
 			If:    fmt.Sprintf("needs.safe_outputs.outputs.call_workflow_name == '%s'", workflowName),
 			Uses:  workflowPath,
 			With:  with,

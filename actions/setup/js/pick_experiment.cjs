@@ -20,7 +20,8 @@
  * Algorithm:
  *   When weight is provided the variant is chosen by weighted-random selection.
  *   Otherwise the variant with the lowest invocation count is selected next (ties are
- *   broken by variant order, yielding a deterministic round-robin across runs).
+ *   broken by random selection, ensuring no variant is systematically favoured on the
+ *   first run or whenever counts are equal).
  *   When start_date or end_date is provided and today falls outside that window the
  *   control variant (first variant) is used and no counter is incremented.
  */
@@ -124,8 +125,10 @@ function isWithinDateWindow(startDate, endDate, todayOverride) {
 
 /**
  * Pick the variant for one experiment using a balanced least-used selection.
- * The variant with the lowest cumulative count is chosen; ties are broken by
- * the order of the variants array so selection is deterministic.
+ * The variant with the lowest cumulative count is chosen; when multiple variants
+ * share the lowest count (including the initial empty-cache state where all counts
+ * are zero), one is selected at random to avoid systematically favouring the first
+ * declared variant.
  *
  * @param {string} name       - Experiment name
  * @param {string[]} variants - Array of variant values (length >= 2)
@@ -135,15 +138,17 @@ function isWithinDateWindow(startDate, endDate, todayOverride) {
 function pickVariant(name, variants, state) {
   const counts = state.counts[name] || {};
   let minCount = Infinity;
-  let selected = variants[0];
+  let tied = [];
   for (const variant of variants) {
     const c = counts[variant] || 0;
     if (c < minCount) {
       minCount = c;
-      selected = variant;
+      tied = [variant];
+    } else if (c === minCount) {
+      tied.push(variant);
     }
   }
-  return selected;
+  return tied[Math.floor(Math.random() * tied.length)];
 }
 
 /**
@@ -279,7 +284,7 @@ async function writeSummary(assignments, configs, state, core) {
     }
   }
 
-  lines.push("_Variants are selected by balanced round-robin (or weighted) to ensure statistical relevance across runs._");
+  lines.push("_Variants are selected by balanced round-robin (or weighted) to ensure statistical relevance across runs. Ties are broken randomly so no variant is systematically favoured on the first run._");
   await core.summary.addRaw(lines.join("\n")).write();
 }
 

@@ -114,7 +114,14 @@ func (c *Compiler) generateRestoreActionsSetupStep() string {
 //   - traceID: Optional OTLP trace ID expression for cross-job span correlation (e.g., "${{ needs.activation.outputs.setup-trace-id }}"). Empty string means a new trace ID is generated.
 //
 // Returns a slice of strings representing the YAML lines for the setup step.
-func (c *Compiler) generateSetupStep(setupActionRef string, destination string, enableArtifactClient bool, traceID string) []string {
+func buildSetupWorkflowRefExpr(data *WorkflowData) string {
+	if data == nil || data.WorkflowID == "" {
+		return "${{ github.repository }}/.github/workflows/unknown.lock.yml@${{ github.ref }}"
+	}
+	return fmt.Sprintf("${{ github.repository }}/.github/workflows/%s.lock.yml@${{ github.ref }}", data.WorkflowID)
+}
+
+func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, destination string, enableArtifactClient bool, traceID string) []string {
 	// Script mode: run the setup.sh script directly
 	if c.actionMode.IsScript() {
 		lines := []string{
@@ -125,6 +132,12 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 			"        env:\n",
 			fmt.Sprintf("          INPUT_DESTINATION: %s\n", destination),
 			"          INPUT_JOB_NAME: ${{ github.job }}\n",
+		}
+		if data != nil {
+			lines = append(lines,
+				fmt.Sprintf("          GH_AW_SETUP_WORKFLOW_NAME: %q\n", data.Name),
+				fmt.Sprintf("          GH_AW_CURRENT_WORKFLOW_REF: %s\n", buildSetupWorkflowRefExpr(data)),
+			)
 		}
 		if traceID != "" {
 			lines = append(lines, fmt.Sprintf("          INPUT_TRACE_ID: %s\n", traceID))
@@ -150,6 +163,14 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 	}
 	if enableArtifactClient {
 		lines = append(lines, "          safe-output-artifact-client: 'true'\n")
+	}
+	lines = append(lines,
+		"        env:\n",
+		fmt.Sprintf("          GH_AW_SETUP_WORKFLOW_NAME: %q\n", data.Name),
+		fmt.Sprintf("          GH_AW_CURRENT_WORKFLOW_REF: %s\n", buildSetupWorkflowRefExpr(data)),
+	)
+	if hasWorkflowCallTrigger(data.On) {
+		lines = append(lines, "          GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}\n")
 	}
 	return lines
 }

@@ -91,6 +91,75 @@ function resolveItemContext(payload) {
 }
 
 /**
+ * Builds a workflow-call identifier for the current workflow invocation.
+ *
+ * GitHub reusable workflows share the same run ID as their caller, so the
+ * workflow ref is appended when available to distinguish parent and child
+ * workflow invocations inside a single run.
+ *
+ * @param {string | number | null | undefined} runId
+ * @param {string | number | null | undefined} runAttempt
+ * @param {string | null | undefined} workflowRef
+ * @returns {string}
+ */
+function buildWorkflowCallId(runId, runAttempt, workflowRef) {
+  const normalizedRunId = String(runId ?? "").trim();
+  if (!normalizedRunId) {
+    return "";
+  }
+
+  const normalizedRunAttempt = String(runAttempt ?? "").trim() || "1";
+  const normalizedWorkflowRef = typeof workflowRef === "string" ? workflowRef.trim() : "";
+  const baseId = `${normalizedRunId}-${normalizedRunAttempt}`;
+
+  return normalizedWorkflowRef ? `${baseId}:${normalizedWorkflowRef}` : baseId;
+}
+
+/**
+ * Parse inbound aw_context from workflow inputs or repository_dispatch payload.
+ *
+ * Callers may deliver aw_context as a JSON string (workflow_call/workflow_dispatch)
+ * or as a plain object (repository_dispatch client_payload).
+ *
+ * @param {unknown} raw
+ * @returns {Record<string, unknown> | null}
+ */
+function parseInboundAwContext(raw) {
+  if (raw == null) {
+    return null;
+  }
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    return /** @type {Record<string, unknown>} */ raw;
+  }
+  return null;
+}
+
+/**
+ * Resolve inbound aw_context from the current GitHub payload, if any.
+ *
+ * @param {object | null | undefined} payload
+ * @returns {Record<string, unknown> | null}
+ */
+function readInboundAwContext(payload) {
+  return parseInboundAwContext(payload?.inputs?.aw_context) || parseInboundAwContext(payload?.client_payload?.aw_context);
+}
+
+/**
  * Builds the aw_context object that identifies the calling workflow run.
  * This metadata is injected into dispatched workflows that declare an
  * aw_context input, allowing them to trace back to their caller and
@@ -100,7 +169,15 @@ function resolveItemContext(payload) {
  * @returns {{
  *   repo: string,
  *   run_id: string,
+ *   run_attempt: string,
  *   workflow_id: string,
+ *   episode_id: string,
+ *   hop_id: string,
+ *   parent_hop_id: string,
+ *   origin_event: string,
+ *   root_repo: string,
+ *   root_workflow_id: string,
+ *   root_run_id: string,
  *   workflow_call_id: string,
  *   time: string,
  *   actor: string,
@@ -155,18 +232,66 @@ function resolveItemContext(payload) {
  */
 function buildAwContext() {
   const { item_type, item_number, comment_id, comment_node_id } = resolveItemContext(context.payload);
+  const workflowRef = process.env.GITHUB_WORKFLOW_REF ?? "";
+  const currentRepo = `${context.repo.owner}/${context.repo.repo}`;
+  const currentRunId = String(process.env.GITHUB_RUN_ID ?? context.runId ?? "");
+  const currentRunAttempt = String(process.env.GITHUB_RUN_ATTEMPT ?? "1");
+  const currentHopId = buildWorkflowCallId(currentRunId, currentRunAttempt, workflowRef);
+  const inheritedContext = readInboundAwContext(context.payload);
+  const inheritedHopId = typeof inheritedContext?.hop_id === "string" ? inheritedContext.hop_id.trim() : typeof inheritedContext?.workflow_call_id === "string" ? inheritedContext.workflow_call_id.trim() : "";
+  const parentHopId = typeof inheritedContext?.parent_hop_id === "string" && inheritedContext.parent_hop_id.trim() ? inheritedContext.parent_hop_id.trim() : inheritedHopId;
+  const episodeId = typeof inheritedContext?.episode_id === "string" && inheritedContext.episode_id.trim() ? inheritedContext.episode_id.trim() : inheritedHopId || currentHopId;
+  const originEvent =
+    typeof inheritedContext?.origin_event === "string" && inheritedContext.origin_event.trim()
+      ? inheritedContext.origin_event.trim()
+      : typeof inheritedContext?.event_type === "string" && inheritedContext.event_type.trim()
+        ? inheritedContext.event_type.trim()
+        : (context.eventName ?? "");
+  const rootRepo =
+    typeof inheritedContext?.root_repo === "string" && inheritedContext.root_repo.trim()
+      ? inheritedContext.root_repo.trim()
+      : typeof inheritedContext?.repo === "string" && inheritedContext.repo.trim()
+        ? inheritedContext.repo.trim()
+        : currentRepo;
+  const rootWorkflowId =
+    typeof inheritedContext?.root_workflow_id === "string" && inheritedContext.root_workflow_id.trim()
+      ? inheritedContext.root_workflow_id.trim()
+      : typeof inheritedContext?.workflow_id === "string" && inheritedContext.workflow_id.trim()
+        ? inheritedContext.workflow_id.trim()
+        : workflowRef;
+  const rootRunId =
+    typeof inheritedContext?.root_run_id === "string" && inheritedContext.root_run_id.trim()
+      ? inheritedContext.root_run_id.trim()
+      : typeof inheritedContext?.run_id === "string" && inheritedContext.run_id.trim()
+        ? inheritedContext.run_id.trim()
+        : currentRunId;
   const assignments = readExperimentAssignments();
   const experimentAssignments = assignments ? JSON.stringify(assignments) : "";
 
   return {
-    repo: `${context.repo.owner}/${context.repo.repo}`,
+    repo: currentRepo,
     run_id: String(context.runId ?? ""),
+    run_attempt: currentRunAttempt,
     // GITHUB_WORKFLOW_REF provides the full workflow file path including the ref,
     // e.g. "owner/repo/.github/workflows/dispatcher.yml@refs/heads/main"
-    workflow_id: process.env.GITHUB_WORKFLOW_REF ?? "",
-    // workflow_call_id uniquely identifies this specific call attempt:
-    // combine run_id with run_attempt (GITHUB_RUN_ATTEMPT) so re-runs produce different IDs.
-    workflow_call_id: `${process.env.GITHUB_RUN_ID ?? context.runId ?? ""}-${process.env.GITHUB_RUN_ATTEMPT ?? "1"}`,
+    workflow_id: workflowRef,
+    // episode_id identifies the full automation session across workflow hops.
+    episode_id: episodeId,
+    // hop_id uniquely identifies this specific workflow invocation.
+    hop_id: currentHopId,
+    // parent_hop_id identifies the immediate caller when a workflow was spawned
+    // by a previous automation hop.
+    parent_hop_id: parentHopId,
+    // origin_event captures the original GitHub event that started the episode.
+    origin_event: originEvent,
+    // root_* fields stay stable across all child workflow hops in the episode.
+    root_repo: rootRepo,
+    root_workflow_id: rootWorkflowId,
+    root_run_id: rootRunId,
+    // workflow_call_id uniquely identifies this specific workflow invocation,
+    // including the workflow file when GitHub reuses a single run for caller
+    // and callee workflow_call executions. Kept as a legacy alias of hop_id.
+    workflow_call_id: currentHopId,
     time: new Date().toISOString(),
     actor: context.actor ?? "",
     event_type: context.eventName ?? "",
@@ -202,4 +327,4 @@ function buildAwContext() {
   };
 }
 
-module.exports = { buildAwContext, resolveItemContext };
+module.exports = { buildAwContext, buildWorkflowCallId, resolveItemContext };
