@@ -176,7 +176,9 @@ experiments:
   tone: [formal, casual]
 ```
 
-Use `{{#if experiments.prompt_style }}` to swap the corresponding instructions in the prompt body.
+Use `{{#if experiments.prompt_style == "concise" }}` / `{{#else}}` / `{{/if}}` to swap the corresponding instructions in the prompt body. Always compare against a specific variant value — never reference the bare variable name as a boolean flag when variants carry meaning.
+
+> ⚠️ **Do not use internal env-var expansion syntax** (`__GH_AW_EXPERIMENTS__PROMPT_STYLE___detailed`). The compiler automatically expands `experiments.<name>` references — write `experiments.prompt_style == "concise"` and let the compiler handle the rest.
 
 **Typical metrics**: output quality score (human-rated), effective token count, action success rate, output length.
 
@@ -333,7 +335,7 @@ All three variants are independently balanced. The prompt receives all three act
 ## Lifecycle of an Experiment
 
 1. **Design** — write hypothesis, pick dimension, define primary + guardrail metrics.
-2. **Instrument** — add `experiments:` to frontmatter and `{{#if experiments.<name> }}` blocks to the prompt.
+2. **Instrument** — add `experiments:` to frontmatter and `{{#if experiments.<name> == "<variant>" }}` blocks to the prompt. Always compare against a specific variant string — never use the internal env-var form `__GH_AW_EXPERIMENTS__*`.
 3. **Compile** — `gh aw compile <workflow-name>` to regenerate the lock file.
 4. **Run** — let the workflow accumulate runs. Check the step summary in each run's activation job to confirm the variant assignment.
 5. **Analyse** — once the minimum sample size per variant is reached, compare metric distributions across variants.
@@ -349,3 +351,4 @@ All three variants are independently balanced. The prompt receives all three act
 - ❌ **Do not use experiments for feature flags** — use the `features:` frontmatter field for deterministic on/off switches that are not under statistical test.
 - ❌ **Do not run engine experiments from a single workflow file** — engine switches require a different `engine:` frontmatter value, which means a separate compiled file. Use two parallel workflow files and compare their GitHub Actions run metrics instead.
 - ❌ **Do not nest `{{#if experiments.<name> }}` inside `{{#runtime-import? }}` blocks** — expression evaluation order is not guaranteed across import boundaries; keep experiment conditionals in the top-level workflow body.
+- ❌ **Do not write the internal env-var expansion form** — the compiler internally expands `experiments.prompt_style == "concise"` into `__GH_AW_EXPERIMENTS__PROMPT_STYLE___concise`. Never write this `__GH_AW_EXPERIMENTS__*` form directly; it is an implementation detail and the format may change.

@@ -239,7 +239,9 @@ experiments:
 
 ### Workflow Changes Required
 
-List the exact changes needed in the workflow markdown body to implement the experiment, using `{{#if experiments.<name> }}...{{/if}}` handlebars blocks. Show the concrete before/after diff.
+List the exact changes needed in the workflow markdown body to implement the experiment using handlebars conditional blocks. **Always compare against a specific variant value** — the correct syntax is `{{#if experiments.<name> == "<variant>" }}...{{else}}...{{/if}}`. The compiler automatically expands `experiments.<name>` references at compile time; never write the internal env-var form (`__GH_AW_EXPERIMENTS__<NAME>___<variant>`) directly.
+
+Show the concrete before/after diff.
 
 ### Success Metrics
 
@@ -260,7 +262,7 @@ List the exact changes needed in the workflow markdown body to implement the exp
 ### Implementation Steps
 
 - [ ] Add `experiments:` section to frontmatter
-- [ ] Add conditional blocks to workflow prompt body using `{{#if experiments.<name> }}`
+- [ ] Add conditional blocks to workflow prompt body using `{{#if experiments.<name> == "<variant>" }}` (value-comparison form — never use the internal `__GH_AW_EXPERIMENTS__` env-var syntax)
 - [ ] Run `gh aw compile <workflow-name>` to regenerate lock file
 - [ ] Monitor experiment artifact uploaded per run to `/tmp/gh-aw/experiments/state.json`
 - [ ] After sufficient runs, analyze variant distribution via workflow run artifacts
