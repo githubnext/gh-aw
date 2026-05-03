@@ -46,8 +46,6 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) successfully validated workflow_call checkout."
     run-failure: "❌ [{workflow_name}]({run_url}) failed to validate workflow_call checkout. Check the logs."
 timeout-minutes: 10
-imports:
-  - shared/observability-otlp.md
 ---
 
 # Smoke Test: Workflow Call Checkout Validation
@@ -71,4 +69,4 @@ Add a comment summarizing the checkout validation results:
 - Whether the checkout succeeded (based on git commands working without errors)
 - Overall status: ✅ PASS or ❌ FAIL
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}
