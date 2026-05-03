@@ -219,7 +219,8 @@ async function writeSummary(assignments, configs, state, core) {
     const selected = assignments[name];
     const counts = state.counts[name] || {};
     const thisCount = counts[selected] || 0;
-    const totalCount = Object.values(counts).reduce((/** @type {number} */ a, /** @type {number} */ b) => a + b, 0);
+    const countValues = /** @type {number[]} */ Object.values(counts);
+    const totalCount = countValues.reduce((a, b) => a + b, 0);
     lines.push(`| \`${name}\` | **${selected}** | ${thisCount} / ${totalCount} |`);
   }
   lines.push("");

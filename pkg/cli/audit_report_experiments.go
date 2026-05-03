@@ -31,7 +31,7 @@ type ExperimentData struct {
 }
 
 // experimentStateJSON matches the shape of the state.json written by pick_experiment.cjs:
-// { "counts": { "<name>": { "<variant>": <count> } }, "runs": [ { "run_id": "...", ... } ] }
+// { "counts": { "<name>": { "<variant>": <count> } }, "runs": [ { "run_id": "...", "timestamp": "...", "assignments": {"<name>": "<variant>"} } ] }
 type experimentStateJSON struct {
 	Counts map[string]map[string]int `json:"counts"`
 	Runs   []experimentRunRecord     `json:"runs,omitempty"`

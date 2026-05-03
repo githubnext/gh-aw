@@ -119,17 +119,8 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 		if ed, ok := v["end_date"].(string); ok {
 			cfg.EndDate = ed
 		}
-		if issue, ok := v["issue"]; ok {
-			switch n := issue.(type) {
-			case int:
-				cfg.Issue = n
-			case int64:
-				cfg.Issue = int(n)
-			case uint64:
-				cfg.Issue = int(n)
-			case float64:
-				cfg.Issue = int(n)
-			}
+		if n, ok := extractIntField(v["issue"]); ok {
+			cfg.Issue = n
 		}
 		if weightRaw, ok := v["weight"]; ok {
 			cfg.Weight = extractIntSlice(weightRaw)
@@ -143,17 +134,8 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 		if gmRaw, ok := v["guardrail_metrics"]; ok {
 			cfg.GuardrailMetrics = extractGuardrailMetrics(gmRaw)
 		}
-		if ms, ok := v["min_samples"]; ok {
-			switch n := ms.(type) {
-			case int:
-				cfg.MinSamples = n
-			case int64:
-				cfg.MinSamples = int(n)
-			case uint64:
-				cfg.MinSamples = int(n)
-			case float64:
-				cfg.MinSamples = int(n)
-			}
+		if n, ok := extractIntField(v["min_samples"]); ok {
+			cfg.MinSamples = n
 		}
 		if owner, ok := v["owner"].(string); ok {
 			cfg.Owner = owner
@@ -168,37 +150,13 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 			if notifyMap, ok := notifyRaw.(map[string]any); ok {
 				notify := &ExperimentNotify{}
 				hasNotify := false
-				if d, ok := notifyMap["discussion"]; ok {
-					switch n := d.(type) {
-					case int:
-						notify.Discussion = n
-						hasNotify = true
-					case int64:
-						notify.Discussion = int(n)
-						hasNotify = true
-					case uint64:
-						notify.Discussion = int(n)
-						hasNotify = true
-					case float64:
-						notify.Discussion = int(n)
-						hasNotify = true
-					}
+				if n, ok := extractIntField(notifyMap["discussion"]); ok {
+					notify.Discussion = n
+					hasNotify = true
 				}
-				if i, ok := notifyMap["issue"]; ok {
-					switch n := i.(type) {
-					case int:
-						notify.Issue = n
-						hasNotify = true
-					case int64:
-						notify.Issue = int(n)
-						hasNotify = true
-					case uint64:
-						notify.Issue = int(n)
-						hasNotify = true
-					case float64:
-						notify.Issue = int(n)
-						hasNotify = true
-					}
+				if n, ok := extractIntField(notifyMap["issue"]); ok {
+					notify.Issue = n
+					hasNotify = true
 				}
 				if hasNotify {
 					cfg.Notify = notify
@@ -208,6 +166,22 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 		return cfg
 	}
 	return nil
+}
+
+// extractIntField converts a numeric any value to int.
+// Returns (int(value), true) on success; (0, false) when val is nil or not a supported numeric type.
+func extractIntField(val any) (int, bool) {
+	switch n := val.(type) {
+	case int:
+		return n, true
+	case int64:
+		return int(n), true
+	case uint64:
+		return int(n), true
+	case float64:
+		return int(n), true
+	}
+	return 0, false
 }
 
 // extractStringSlice converts a raw value to a []string, accepting []any of string values.
