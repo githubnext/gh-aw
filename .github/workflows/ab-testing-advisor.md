@@ -123,7 +123,11 @@ From the list of workflows **without** an `experiments:` section, pick one at ra
 grep -rL 'experiments:' .github/workflows/*.md 2>/dev/null | grep -v shared | shuf -n 1
 ```
 
-If after filtering out recently-analyzed workflows the candidate list is empty, fall back to any eligible workflow (the dedup window has been exhausted).
+If after filtering out recently-analyzed workflows the candidate list is empty, fall back to any eligible workflow (the dedup window has been exhausted):
+
+```bash
+grep -rL 'experiments:' .github/workflows/*.md 2>/dev/null | grep -v shared | shuf -n 1
+```
 
 ### Step 2 — Analyze the Selected Workflow
 
