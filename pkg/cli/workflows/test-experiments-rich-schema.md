@@ -28,7 +28,7 @@ experiments:
     analysis_type: t_test
     tags: [cost, prompting]
     notify:
-      discussion: 5678
+      issue: 5678
 ---
 
 Rich schema experiment test.

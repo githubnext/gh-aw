@@ -642,6 +642,8 @@ describe("pick_experiment", () => {
   describe("per-run metadata", () => {
     it("appends a run record to state.runs after picking variants", async () => {
       const stateFile = path.join(tmpDir, "state.json");
+      // Pre-populate counts so Y is the deterministic least-used pick (avoids random tie-break).
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { feat: { X: 1, Y: 0 } }, runs: [] }), "utf8");
       process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
@@ -652,7 +654,7 @@ describe("pick_experiment", () => {
       const state = loadState(stateFile);
       expect(state.runs).toHaveLength(1);
       expect(state.runs[0].run_id).toBe("42");
-      expect(state.runs[0].assignments).toEqual({ feat: "X" });
+      expect(state.runs[0].assignments).toEqual({ feat: "Y" });
       expect(typeof state.runs[0].timestamp).toBe("string");
     });
 
@@ -686,6 +688,28 @@ describe("pick_experiment", () => {
       // state.json is not written when no experiments are declared
       expect(fs.existsSync(stateFile)).toBe(false);
     });
+
+    it("prunes runs to last MAX_RUN_HISTORY when run history exceeds the cap", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      // Pre-populate with 101 fake runs (above MAX_RUN_HISTORY = 100).
+      const existingRuns = Array.from({ length: 101 }, (_, i) => ({
+        run_id: String(i),
+        timestamp: "2026-01-01T00:00:00.000Z",
+        assignments: { feat: "X" },
+      }));
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { feat: { X: 101, Y: 0 } }, runs: existingRuns }), "utf8");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      const state = loadState(stateFile);
+      // 101 existing + 1 new = 102, pruned to last 100.
+      expect(state.runs).toHaveLength(100);
+      // The most recent run is always last.
+      expect(state.runs[state.runs.length - 1].assignments).toEqual({ feat: "Y" });
+    });
   });
 
   // ── OTEL resource attributes ──────────────────────────────────────────────
@@ -693,6 +717,8 @@ describe("pick_experiment", () => {
   describe("OTEL resource attributes", () => {
     it("exports OTEL_RESOURCE_ATTRIBUTES with experiment assignments", async () => {
       const stateFile = path.join(tmpDir, "state.json");
+      // Pre-populate so Y is the deterministic least-used pick.
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { feat: { X: 1, Y: 0 } }, runs: [] }), "utf8");
       process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
@@ -700,11 +726,13 @@ describe("pick_experiment", () => {
 
       await main();
 
-      expect(mockCore.exportVariable).toHaveBeenCalledWith("OTEL_RESOURCE_ATTRIBUTES", "experiment.feat=X");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("OTEL_RESOURCE_ATTRIBUTES", "experiment.feat=Y");
     });
 
     it("appends to existing OTEL_RESOURCE_ATTRIBUTES", async () => {
       const stateFile = path.join(tmpDir, "state.json");
+      // Pre-populate so Y is the deterministic least-used pick.
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { feat: { X: 1, Y: 0 } }, runs: [] }), "utf8");
       process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
@@ -712,7 +740,7 @@ describe("pick_experiment", () => {
 
       await main();
 
-      expect(mockCore.exportVariable).toHaveBeenCalledWith("OTEL_RESOURCE_ATTRIBUTES", "service.name=myservice,experiment.feat=X");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("OTEL_RESOURCE_ATTRIBUTES", "service.name=myservice,experiment.feat=Y");
     });
 
     it("does not export OTEL_RESOURCE_ATTRIBUTES when no experiments are assigned", async () => {

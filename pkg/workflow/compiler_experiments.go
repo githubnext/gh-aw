@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strings"
@@ -169,18 +170,31 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 }
 
 // extractIntField converts a numeric any value to int.
-// Returns (int(value), true) on success; (0, false) when val is nil or not a supported numeric type.
-// Note: uint64 values larger than math.MaxInt are truncated on 32-bit systems (int is 32-bit there).
-// Experiment counts and IDs are expected to be well within int range, so this is acceptable.
+// Returns (int(value), true) on success; (0, false) when val is nil, not a supported
+// numeric type, negative, or out of int range.
+// float64 values that are not integral (e.g. 12.9) are rejected.
 func extractIntField(val any) (int, bool) {
 	switch n := val.(type) {
 	case int:
+		if n < 0 {
+			return 0, false
+		}
 		return n, true
 	case int64:
+		if n < 0 || n > math.MaxInt {
+			return 0, false
+		}
 		return int(n), true
 	case uint64:
+		if n > uint64(math.MaxInt) {
+			return 0, false
+		}
 		return int(n), true
 	case float64:
+		// Reject non-integral or out-of-range float64 values.
+		if n < 0 || n > float64(math.MaxInt) || n != math.Trunc(n) {
+			return 0, false
+		}
 		return int(n), true
 	}
 	return 0, false

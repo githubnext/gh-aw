@@ -65,9 +65,11 @@ func findExperimentStatePath(logsPath string) string {
 // logsPath and returns a populated ExperimentData or nil when no experiment artifact
 // is present.
 //
-// The state.json only contains the cumulative counters; it does not record which variant
-// was chosen for *this* run. The selected variant is derived by applying the same
-// least-used selection rule (lowest count wins; ties broken by the sorted variant order).
+// When the state file contains a non-empty "runs" array (written by pick_experiment.cjs
+// v2+), the assignments of the most recent run record are returned directly.
+// For legacy state files that only contain "counts" (no "runs" field), the selected
+// variant is inferred by the max-count heuristic: the variant with the highest cumulative
+// count is assumed to have been selected last (ties broken by sorted variant order).
 func extractExperimentData(logsPath string) *ExperimentData {
 	if logsPath == "" {
 		return nil

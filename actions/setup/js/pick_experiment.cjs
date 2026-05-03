@@ -29,6 +29,9 @@
 const fs = require("fs");
 const path = require("path");
 
+/** Maximum number of per-run records retained in state.runs. Older entries are pruned to keep state.json small. */
+const MAX_RUN_HISTORY = 100;
+
 /**
  * @typedef {Object} ExperimentRunRecord
  * @property {string} run_id       - GitHub Actions run ID (GITHUB_RUN_ID)
@@ -224,9 +227,10 @@ async function writeSummary(assignments, configs, state, core) {
     const selected = assignments[name];
     const counts = state.counts[name] || {};
     const thisCount = counts[selected] || 0;
-    // counts values are always numbers (set by recordVariant which uses integer arithmetic).
-    const countValues = /** @type {number[]} */ Object.values(counts);
-    const totalCount = countValues.reduce((a, b) => a + b, 0);
+    // Prefer counting actual run records for the total when the runs array is present;
+    // fall back to summing incremented counts (which excludes date-window gated runs).
+    const runsForExp = state.runs ? state.runs.filter(r => r.assignments && name in r.assignments) : null;
+    const totalCount = runsForExp !== null && runsForExp.length > 0 ? runsForExp.length : Object.values(/** @type {number[]} */ counts).reduce((a, b) => a + b, 0);
     lines.push(`| \`${name}\` | **${selected}** | ${thisCount} / ${totalCount} |`);
   }
   lines.push("");
@@ -389,6 +393,10 @@ async function main() {
       state.runs = [];
     }
     state.runs.push({ run_id: runId, timestamp, assignments: { ...assignments } });
+    // Prune run history to avoid state.json growing without bound over many runs.
+    if (state.runs.length > MAX_RUN_HISTORY) {
+      state.runs = state.runs.slice(-MAX_RUN_HISTORY);
+    }
   }
 
   // Persist updated counts and run history.

@@ -140,12 +140,12 @@ func TestCompileExperimentsRichSchema(t *testing.T) {
 	require.NoError(t, json.Unmarshal(cfg["tags"], &tags), "tags should parse")
 	assert.Equal(t, []string{"cost", "prompting"}, tags, "tags should match")
 
-	// notify.discussion
+	// notify.issue
 	var notify struct {
-		Discussion int `json:"discussion"`
+		Issue int `json:"issue"`
 	}
 	require.NoError(t, json.Unmarshal(cfg["notify"], &notify), "notify should parse")
-	assert.Equal(t, 5678, notify.Discussion, "notify.discussion should be 5678")
+	assert.Equal(t, 5678, notify.Issue, "notify.issue should be 5678")
 
 	t.Logf("Rich-schema experiment workflow compiled successfully to %s", lockPath)
 }

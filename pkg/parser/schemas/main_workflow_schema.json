@@ -2907,7 +2907,7 @@
             "end_date": "2026-06-15",
             "analysis_type": "t_test",
             "tags": ["cost", "prompting"],
-            "notify": { "discussion": 1234 }
+            "notify": { "issue": 1234 }
           },
           "model_temp": ["low", "high"]
         }
