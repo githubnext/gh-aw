@@ -1263,9 +1263,7 @@ func TestInjectOTLPConfig_MultipleEndpoints(t *testing.T) {
 		}
 		c.injectOTLPConfig(wd)
 
-		if wd.NetworkPermissions != nil {
-			assert.Empty(t, wd.NetworkPermissions.Allowed, "expression endpoints should not add to firewall")
-		}
+		assert.Nil(t, wd.NetworkPermissions, "expression endpoints should not add to firewall (NetworkPermissions should be nil)")
 	})
 }
 

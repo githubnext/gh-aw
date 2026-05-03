@@ -641,7 +641,7 @@ async function sendOTLPToAllEndpoints(endpoints, payload, opts = {}) {
  * @param {{ maxRetries?: number, baseDelayMs?: number, skipJSONL?: boolean, headersOverride?: string }} [opts]
  * @returns {Promise<void>}
  */
-async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 100, skipJSONL = false, headersOverride } = {}) {
+async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 100, skipJSONL = false, headersOverride = undefined } = {}) {
   // Mirror payload locally so it survives even when the collector is unreachable.
   // Callers that already wrote the JSONL mirror pass skipJSONL: true to avoid a
   // duplicate line.
@@ -650,8 +650,10 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
   }
 
   const url = endpoint.replace(/\/$/, "") + "/v1/traces";
-  // Use headersOverride when provided (per-endpoint headers in multi-endpoint mode),
-  // otherwise fall back to the OTEL_EXPORTER_OTLP_HEADERS environment variable.
+  // Use headersOverride when explicitly provided (including empty string, which means
+  // "this endpoint has no configured headers" in the multi-endpoint fan-out path).
+  // Fall back to OTEL_EXPORTER_OTLP_HEADERS only when headersOverride is absent
+  // (undefined), which is the legacy single-endpoint case.
   const rawHeaders = headersOverride !== undefined ? headersOverride : process.env.OTEL_EXPORTER_OTLP_HEADERS || "";
   const extraHeaders = parseOTLPHeaders(rawHeaders);
   const headers = { "Content-Type": "application/json", ...extraHeaders };
