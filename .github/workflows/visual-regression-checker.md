@@ -17,7 +17,7 @@ engine: copilot
 tools:
   cli-proxy: true
   playwright:
-    version: "v1.52.0"
+    mode: cli
   bash:
     - "npm *"
     - "npx *"
@@ -74,15 +74,15 @@ steps:
 
 # Visual Regression Checker
 
-You are a visual quality agent. The documentation site has been checked out, built, and the dev server is already running at `http://localhost:4321/gh-aw/`. For this pull request, use Playwright to capture screenshots of key pages and report any visual differences.
+You are a visual quality agent. The documentation site has been checked out, built, and the dev server is already running at `http://localhost:4321/gh-aw/`. For this pull request, use playwright-cli commands in bash to capture screenshots of key pages and report any visual differences.
 
 ## Steps
 
-1. **Capture screenshots** — Use Playwright to take full-page screenshots of the key pages at the following viewports:
-   - **Mobile**: 375 × 812
-   - **Tablet**: 768 × 1024
-   - **Desktop**: 1440 × 900
-2. **Accessibility snapshot** — For each page, run an accessibility snapshot and note any violations.
+1. **Capture screenshots** — Use `playwright-cli` to resize the viewport and take full-page screenshots of the key pages:
+   - **Mobile**: `playwright-cli browser_resize --width 375 --height 812 && playwright-cli browser_navigate --url "http://localhost:4321/gh-aw/" && playwright-cli browser_take_screenshot --filename /tmp/screenshot-mobile.png --full-page true`
+   - **Tablet**: resize to 768 × 1024, navigate, screenshot
+   - **Desktop**: resize to 1440 × 900, navigate, screenshot
+2. **Accessibility snapshot** — For each page, run `playwright-cli browser_snapshot` and note any violations.
 3. **Report** — Post a summary comment with:
    - A table listing each page, viewport, and screenshot status (unchanged / changed / error)
    - Any accessibility issues found

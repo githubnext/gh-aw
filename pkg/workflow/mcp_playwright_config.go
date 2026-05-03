@@ -46,19 +46,12 @@ func extractExpressionsFromPlaywrightArgs(customArgs []string) map[string]string
 
 // replaceExpressionsInPlaywrightArgs replaces all GitHub Actions expressions with environment variable references
 // This prevents any expressions from being exposed in GitHub Actions logs
-func replaceExpressionsInPlaywrightArgs(args []string, expressions map[string]string) []string {
-	if len(expressions) == 0 {
+func replaceExpressionsInPlaywrightArgs(args []string) []string {
+	combined := strings.Join(args, "\n")
+	if !strings.Contains(combined, "${{") {
 		return args
 	}
-
-	// Create a temporary extractor with the same mappings
-	combined := strings.Join(args, "\n")
 	extractor := NewExpressionExtractor()
 	_, _ = extractor.ExtractExpressions(combined)
-
-	// Replace expressions in the combined string
-	replaced := extractor.ReplaceExpressionsWithEnvVars(combined)
-
-	// Split back into individual arguments
-	return strings.Split(replaced, "\n")
+	return strings.Split(extractor.ReplaceExpressionsWithEnvVars(combined), "\n")
 }

@@ -10,153 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ── extractExperimentsFromFrontmatter ─────────────────────────────────────
-
-func TestExtractExperimentsFromFrontmatter(t *testing.T) {
-	tests := []struct {
-		name        string
-		frontmatter map[string]any
-		want        map[string][]string
-	}{
-		{
-			name:        "nil frontmatter returns nil",
-			frontmatter: map[string]any{},
-			want:        nil,
-		},
-		{
-			name: "basic two-variant experiment",
-			frontmatter: map[string]any{
-				"experiments": map[string]any{
-					"feature1": []any{"A", "B"},
-				},
-			},
-			want: map[string][]string{"feature1": {"A", "B"}},
-		},
-		{
-			name: "three variants",
-			frontmatter: map[string]any{
-				"experiments": map[string]any{
-					"style": []any{"concise", "detailed", "structured"},
-				},
-			},
-			want: map[string][]string{"style": {"concise", "detailed", "structured"}},
-		},
-		{
-			name: "skips experiment with fewer than two variants",
-			frontmatter: map[string]any{
-				"experiments": map[string]any{
-					"bad":  []any{"only-one"},
-					"good": []any{"A", "B"},
-				},
-			},
-			want: map[string][]string{"good": {"A", "B"}},
-		},
-		{
-			name: "multiple experiments",
-			frontmatter: map[string]any{
-				"experiments": map[string]any{
-					"feat1": []any{"X", "Y"},
-					"feat2": []any{"P", "Q", "R"},
-				},
-			},
-			want: map[string][]string{
-				"feat1": {"X", "Y"},
-				"feat2": {"P", "Q", "R"},
-			},
-		},
-		{
-			name: "returns nil when experiments map is empty",
-			frontmatter: map[string]any{
-				"experiments": map[string]any{},
-			},
-			want: nil,
-		},
-		{
-			name: "handles native []string slice",
-			frontmatter: map[string]any{
-				"experiments": map[string]any{
-					"feature1": []string{"A", "B"},
-				},
-			},
-			want: map[string][]string{"feature1": {"A", "B"}},
-		},
-		{
-			name: "skips experiment with invalid name (hyphen)",
-			frontmatter: map[string]any{
-				"experiments": map[string]any{
-					"my-flag": []any{"A", "B"},
-					"valid":   []any{"X", "Y"},
-				},
-			},
-			want: map[string][]string{"valid": {"X", "Y"}},
-		},
-		{
-			name: "skips experiment with name starting with digit",
-			frontmatter: map[string]any{
-				"experiments": map[string]any{
-					"1invalid": []any{"A", "B"},
-					"valid":    []any{"X", "Y"},
-				},
-			},
-			want: map[string][]string{"valid": {"X", "Y"}},
-		},
-		{
-			name: "new object form with variants only",
-			frontmatter: map[string]any{
-				"experiments": map[string]any{
-					"style": map[string]any{
-						"variants": []any{"concise", "verbose"},
-					},
-				},
-			},
-			want: map[string][]string{"style": {"concise", "verbose"}},
-		},
-		{
-			name: "new object form with full metadata",
-			frontmatter: map[string]any{
-				"experiments": map[string]any{
-					"prompt_style": map[string]any{
-						"variants":    []any{"concise", "verbose"},
-						"description": "Test prompt styles",
-						"weight":      []any{50.0, 50.0},
-						"start_date":  "2026-01-01",
-						"end_date":    "2026-12-31",
-						"issue":       float64(1234),
-					},
-				},
-			},
-			want: map[string][]string{"prompt_style": {"concise", "verbose"}},
-		},
-		{
-			name: "new object form skips when variants missing",
-			frontmatter: map[string]any{
-				"experiments": map[string]any{
-					"bad":  map[string]any{"description": "no variants"},
-					"good": []any{"A", "B"},
-				},
-			},
-			want: map[string][]string{"good": {"A", "B"}},
-		},
-		{
-			name: "new object form skips when fewer than two variants",
-			frontmatter: map[string]any{
-				"experiments": map[string]any{
-					"bad":  map[string]any{"variants": []any{"only-one"}},
-					"good": []any{"A", "B"},
-				},
-			},
-			want: map[string][]string{"good": {"A", "B"}},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractExperimentsFromFrontmatter(tt.frontmatter)
-			assert.Equal(t, tt.want, got, "extracted experiments should match")
-		})
-	}
-}
-
 // ── sortedExperimentNames ─────────────────────────────────────────────────
 
 func TestSortedExperimentNames(t *testing.T) {
@@ -226,6 +79,7 @@ func TestGenerateExperimentSteps_Empty(t *testing.T) {
 func TestGenerateExperimentSteps_Generated(t *testing.T) {
 	c := &Compiler{}
 	data := &WorkflowData{
+		WorkflowID: "my-workflow",
 		Experiments: map[string][]string{
 			"feature1": {"A", "B"},
 		},
@@ -239,7 +93,10 @@ func TestGenerateExperimentSteps_Generated(t *testing.T) {
 	assert.Contains(t, joined, "pick_experiment.cjs", "should reference pick_experiment.cjs")
 	assert.Contains(t, joined, "Save experiment state", "should include cache save step")
 	assert.Contains(t, joined, "Upload experiment artifact", "should include artifact upload step")
-	assert.Contains(t, joined, "experiment", "artifact name should include 'experiment'")
+	assert.Contains(t, joined, "myworkflow-experiment", "artifact name should include sanitized workflow ID and 'experiment'")
+	// Cache key must embed the literal sanitized workflow ID, not the env var.
+	assert.Contains(t, joined, "experiments-myworkflow-", "cache key should include the sanitized workflow ID")
+	assert.NotContains(t, joined, "GH_AW_WORKFLOW_ID_SANITIZED", "cache key must not reference unset env var")
 }
 
 func TestGenerateExperimentSteps_SpecJSON(t *testing.T) {
@@ -295,32 +152,41 @@ func TestExperimentExpressionMappings(t *testing.T) {
 // ── buildExperimentArtifactDownloadSteps ──────────────────────────────────
 
 func TestBuildExperimentArtifactDownloadStep_Empty(t *testing.T) {
-	steps := buildExperimentArtifactDownloadSteps("prefix-", nil)
+	steps := buildExperimentArtifactDownloadSteps(&WorkflowData{WorkflowID: "test-wf"})
 	assert.Empty(t, steps, "no steps when experiments is nil")
 
-	steps = buildExperimentArtifactDownloadSteps("prefix-", map[string][]string{})
+	steps = buildExperimentArtifactDownloadSteps(&WorkflowData{WorkflowID: "test-wf", Experiments: map[string][]string{}})
 	assert.Empty(t, steps, "no steps when experiments is empty")
 }
 
 func TestBuildExperimentArtifactDownloadStep_Generated(t *testing.T) {
-	experiments := map[string][]string{"caveman": {"yes", "no"}}
-	steps := buildExperimentArtifactDownloadSteps("${{ needs.activation.outputs.artifact_prefix }}", experiments)
+	// workflow_call trigger: artifact name uses the runtime prefix expression.
+	data := &WorkflowData{
+		WorkflowID:  "my-wf",
+		Experiments: map[string][]string{"caveman": {"yes", "no"}},
+		On:          "workflow_call:",
+	}
+	steps := buildExperimentArtifactDownloadSteps(data)
 	require.NotEmpty(t, steps, "steps should be generated when experiments are declared")
 	joined := strings.Join(steps, "")
 	assert.Contains(t, joined, "Download experiment artifact", "should include download step name")
 	assert.Contains(t, joined, "experiment", "should reference experiment artifact")
 	assert.Contains(t, joined, experimentsCacheDir, "should download to experiments cache dir")
 	assert.Contains(t, joined, "actions/download-artifact", "should use download-artifact action")
+	assert.Contains(t, joined, "${{ needs.activation.outputs.artifact_prefix }}", "workflow_call should use runtime prefix")
 }
 
 func TestBuildExperimentArtifactDownloadStep_NoPrefix(t *testing.T) {
-	// Non-workflow_call workflows use empty prefix
-	experiments := map[string][]string{"style": {"A", "B"}}
-	steps := buildExperimentArtifactDownloadSteps("", experiments)
+	// Non-workflow_call workflows use the sanitized workflow ID as prefix.
+	data := &WorkflowData{
+		WorkflowID:  "smoke-copilot",
+		Experiments: map[string][]string{"style": {"A", "B"}},
+	}
+	steps := buildExperimentArtifactDownloadSteps(data)
 	require.NotEmpty(t, steps, "steps should be generated")
 	joined := strings.Join(steps, "")
-	// Artifact name should be just the base name (no prefix)
-	assert.Contains(t, joined, "          name: experiment\n", "artifact name should be unqualified for non-workflow_call")
+	// Artifact name should include the sanitized workflow ID as prefix.
+	assert.Contains(t, joined, "          name: smokecopilot-experiment\n", "artifact name should include sanitized workflow ID")
 }
 
 // ── extractExperimentConfigsFromFrontmatter ───────────────────────────────

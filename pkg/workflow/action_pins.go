@@ -75,9 +75,9 @@ func getCachedActionPinFromResolver(repo string, resolver ActionSHAResolver) str
 // Package-private API — delegates to pkg/actionpins with a PinContext from WorkflowData
 // --------------------------------------------------------------------------
 
-// getActionPinByRepo returns the latest ActionPin for a given repository, if any.
-func getActionPinByRepo(repo string) (ActionPin, bool) {
-	return actionpins.GetActionPinByRepo(repo)
+// getLatestActionPinByRepo returns the latest ActionPin for a given repository, if any.
+func getLatestActionPinByRepo(repo string) (ActionPin, bool) {
+	return actionpins.GetLatestActionPinByRepo(repo)
 }
 
 // getEmbeddedContainerPin returns the pinned container image for a given image reference.

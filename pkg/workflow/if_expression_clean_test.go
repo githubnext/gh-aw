@@ -63,7 +63,9 @@ github.event_name == 'issue_comment'`,
 				t.Fatalf("Failed to add job: %v", err)
 			}
 
-			yaml := jm.renderJob(job)
+			var yamlBuf strings.Builder
+			jm.renderJobTo(&yamlBuf, job)
+			yaml := yamlBuf.String()
 
 			if tt.expression == "" {
 				// Empty expressions should not render if condition
@@ -126,7 +128,9 @@ func TestMultilineExpressionYAMLFolding(t *testing.T) {
 		t.Fatalf("Failed to add job: %v", err)
 	}
 
-	yaml := jm.renderJob(job)
+	var yamlBuf strings.Builder
+	jm.renderJobTo(&yamlBuf, job)
+	yaml := yamlBuf.String()
 
 	// Should use folded style for multiline
 	if !strings.Contains(yaml, "if: >") {
@@ -232,7 +236,9 @@ func TestCustomJobIfConditionHandling(t *testing.T) {
 				t.Fatalf("Failed to add job: %v", err)
 			}
 
-			yaml := jm.renderJob(job)
+			var yamlBuf strings.Builder
+			jm.renderJobTo(&yamlBuf, job)
+			yaml := yamlBuf.String()
 
 			// Ensure we don't have double prefixes in the rendered YAML
 			if strings.Contains(yaml, "if: if:") {
@@ -313,7 +319,9 @@ func TestLongExpressionBreaking(t *testing.T) {
 				t.Fatalf("Failed to add job: %v", err)
 			}
 
-			yaml := jm.renderJob(job)
+			var yamlBuf strings.Builder
+			jm.renderJobTo(&yamlBuf, job)
+			yaml := yamlBuf.String()
 			t.Logf("Generated YAML:\n%s", yaml)
 
 			// Check expected content

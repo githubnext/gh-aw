@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatResponse, hasStdinPlaceholder, hasStdinJsonPayload, parseToolArgs, readStdinSync } from "./mcp_cli_bridge.cjs";
+import { formatResponse, hasStdinJsonPayload, parseToolArgs, readStdinSync } from "./mcp_cli_bridge.cjs";
 
 describe("mcp_cli_bridge.cjs", () => {
   let originalCore;
@@ -212,76 +212,23 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(process.exitCode).toBe(0);
   });
 
-  describe("stdin placeholder support", () => {
-    it("substitutes stdin content for '-' value in --key value form", () => {
+  describe("stdin placeholder removed — '-' is always a literal value", () => {
+    it("passes '--key -' as literal '-' (space-separated form)", () => {
       const schemaProperties = { body: { type: "string" } };
-      const stdinContent = "### Title\n\nBody paragraph one.\n\nBody paragraph two.";
+      const stdinContent = "some stdin content";
 
       const { args } = parseToolArgs(["--body", "-"], schemaProperties, stdinContent);
-
-      expect(args).toEqual({ body: stdinContent });
-    });
-
-    it("substitutes stdin content for '-' value in --key=value form", () => {
-      const schemaProperties = { body: { type: "string" } };
-      const stdinContent = "multiline\ncontent\nhere";
-
-      const { args } = parseToolArgs(["--body=-"], schemaProperties, stdinContent);
-
-      expect(args).toEqual({ body: stdinContent });
-    });
-
-    it("does not substitute '-' when stdinContent is null", () => {
-      const schemaProperties = { body: { type: "string" } };
-
-      const { args } = parseToolArgs(["--body", "-"], schemaProperties, null);
 
       expect(args).toEqual({ body: "-" });
     });
 
-    it("substitutes stdin only for the '-' placeholder, leaves other args unchanged", () => {
-      const schemaProperties = {
-        issue_number: { type: "integer" },
-        body: { type: "string" },
-      };
-      const stdinContent = "### Title\n\nFull body content.";
+    it("passes '--key=-' as literal '-' (equals form)", () => {
+      const schemaProperties = { body: { type: "string" } };
+      const stdinContent = "some stdin content";
 
-      const { args } = parseToolArgs(["--issue_number", "42", "--body", "-"], schemaProperties, stdinContent);
+      const { args } = parseToolArgs(["--body=-"], schemaProperties, stdinContent);
 
-      expect(args).toEqual({ issue_number: 42, body: stdinContent });
-    });
-
-    it("uses same stdinContent for multiple '-' placeholders", () => {
-      const schemaProperties = {
-        title: { type: "string" },
-        body: { type: "string" },
-      };
-      const stdinContent = "shared content";
-
-      const { args } = parseToolArgs(["--title", "-", "--body", "-"], schemaProperties, stdinContent);
-
-      expect(args).toEqual({ title: stdinContent, body: stdinContent });
-    });
-
-    it("detects stdin placeholder in --key value form", () => {
-      expect(hasStdinPlaceholder(["--body", "-"])).toBe(true);
-    });
-
-    it("detects stdin placeholder in --key=value form", () => {
-      expect(hasStdinPlaceholder(["--body=-"])).toBe(true);
-    });
-
-    it("returns false when no stdin placeholder is present", () => {
-      expect(hasStdinPlaceholder(["--body", "normal value", "--count", "3"])).toBe(false);
-    });
-
-    it("returns false for empty args", () => {
-      expect(hasStdinPlaceholder([])).toBe(false);
-    });
-
-    it("does not treat '-' after a non-flag arg as a placeholder", () => {
-      // positional '-' not preceded by '--flag' should not trigger stdin detection
-      expect(hasStdinPlaceholder(["-", "--body", "value"])).toBe(false);
+      expect(args).toEqual({ body: "-" });
     });
 
     it("throws when stdin exceeds maximum allowed size", () => {

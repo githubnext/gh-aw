@@ -50,6 +50,10 @@ type EngineConfig struct {
 	// MCP gateway configuration from engine.mcp sub-object
 	MCPSessionTimeout string // session-timeout: Go duration string for MCP gateway sessions (e.g. "4h", "30m")
 	MCPToolTimeout    string // tool-timeout: Go duration string for individual MCP tool calls (e.g. "2m", "30s")
+
+	// Extensions is a list of engine-specific plugin names to install before launching the engine.
+	// Currently used by the Pi engine: each entry is passed to `pi install <extension>`.
+	Extensions []string
 }
 
 // NetworkPermissions represents network access permissions for workflow execution
@@ -339,6 +343,30 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 							engineLog.Printf("Extracted engine.mcp.tool-timeout: %s", config.MCPToolTimeout)
 						}
 					}
+				}
+			}
+
+			// Extract optional 'extensions' field (array of strings; used by the Pi engine)
+			if extVal, hasExt := engineObj["extensions"]; hasExt {
+				switch v := extVal.(type) {
+				case []any:
+					config.Extensions = make([]string, 0, len(v))
+					for _, ext := range v {
+						if extStr, ok := ext.(string); ok && extStr != "" {
+							config.Extensions = append(config.Extensions, extStr)
+						}
+					}
+					engineLog.Printf("Extracted engine.extensions: %v", config.Extensions)
+				case []string:
+					config.Extensions = make([]string, 0, len(v))
+					for _, ext := range v {
+						if ext != "" {
+							config.Extensions = append(config.Extensions, ext)
+						}
+					}
+					engineLog.Printf("Extracted engine.extensions ([]string): %v", config.Extensions)
+				default:
+					engineLog.Printf("Unexpected type for engine.extensions: %T, ignoring", extVal)
 				}
 			}
 

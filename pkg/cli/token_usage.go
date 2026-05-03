@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
 	"github.com/github/gh-aw/pkg/types"
@@ -19,6 +21,7 @@ var tokenUsageLog = logger.New("cli:token_usage")
 
 // TokenUsageEntry represents a single line from token-usage.jsonl
 type TokenUsageEntry struct {
+	Schema           string `json:"_schema,omitempty"` // Self-describing record type, e.g. "token-usage/v0.26.0"
 	Timestamp        string `json:"timestamp"`
 	RequestID        string `json:"request_id"`
 	Provider         string `json:"provider"`
@@ -268,8 +271,12 @@ func findTokenUsageFile(runDir string) string {
 	}
 
 	// Walk sandbox directory for any token-usage.jsonl
-	_ = filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			tokenUsageLog.Printf("walk error at %s: %v", path, err)
+			return nil
+		}
+		if info == nil || info.IsDir() {
 			return nil
 		}
 		if info.Name() == "token-usage.jsonl" {
@@ -277,7 +284,9 @@ func findTokenUsageFile(runDir string) string {
 			return filepath.SkipAll
 		}
 		return nil
-	})
+	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", runDir, walkErr)))
+	}
 	if primary != filepath.Join(runDir, "sandbox", "firewall", "logs", tokenUsageJSONLPath) {
 		tokenUsageLog.Printf("Found token usage file via walk: %s", primary)
 		return primary
@@ -296,8 +305,12 @@ func findAgentUsageFile(runDir string) string {
 	}
 
 	var found string
-	_ = filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() {
+	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			tokenUsageLog.Printf("walk error at %s: %v", path, err)
+			return nil
+		}
+		if info == nil || info.IsDir() {
 			return nil
 		}
 		if info.Name() == agentUsageJSONPath {
@@ -305,7 +318,9 @@ func findAgentUsageFile(runDir string) string {
 			return filepath.SkipAll
 		}
 		return nil
-	})
+	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", runDir, walkErr)))
+	}
 
 	if found != "" {
 		tokenUsageLog.Printf("Found agent usage file via walk: %s", found)

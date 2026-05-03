@@ -186,8 +186,13 @@ func init() {
 // These complement the path-prefix protection (e.g. ".github/") and ensure
 // that files placed at the repo root or in "docs/" are equally protected.
 var securityConfigFiles = []string{
-	"CODEOWNERS", // Governs required reviewers; valid at repo root, .github/, or docs/
-	"DESIGN.md",  // Captures design-system source of truth consumed by coding agents
+	"CODEOWNERS",         // Governs required reviewers; valid at repo root, .github/, or docs/
+	"DESIGN.md",          // Captures design-system source of truth consumed by coding agents
+	"README.md",          // Primary documentation file often imported by agents as context
+	"CONTRIBUTING.md",    // Contribution guidelines; modifying could mislead contributors or agents
+	"CHANGELOG.md",       // Release history; modification could misrepresent project state
+	"SECURITY.md",        // Security policy; tampering could suppress vulnerability disclosure
+	"CODE_OF_CONDUCT.md", // Community conduct policy
 }
 
 // getAllManifestFiles returns the deduplicated union of all manifest file names

@@ -17,6 +17,7 @@ tools:
   cli-proxy: true
   timeout: 120  # Playwright navigation on Astro dev server can take >60s; increase to 120s
   playwright:
+    mode: cli
   edit:
   bash:
     - "*"
@@ -69,13 +70,11 @@ pre-agent-steps:
         sleep 3
       done
       echo "Server ready at http://localhost:4321/gh-aw/!"
-  - name: Detect bridge IP and write server URL
+  - name: Write server URL for agent
     run: |
-      SERVER_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
-      if [ -z "$SERVER_IP" ]; then SERVER_IP=$(hostname -I | awk '{print $1}'); fi
       mkdir -p /tmp/gh-aw/agent
-      echo "http://${SERVER_IP}:4321/gh-aw/" > /tmp/gh-aw/agent/server-url.txt
-      echo "Playwright server URL: http://${SERVER_IP}:4321/gh-aw/"
+      echo "http://localhost:4321/gh-aw/" > /tmp/gh-aw/agent/server-url.txt
+      echo "Server URL: http://localhost:4321/gh-aw/"
 features:
   copilot-requests: true
 ---
@@ -94,28 +93,31 @@ You are a brand new user trying to get started with GitHub Agentic Workflows for
 
 Act as a complete beginner who has never used GitHub Agentic Workflows before. Navigate the documentation site, follow tutorials step-by-step, and document any issues you encounter.
 
-> The documentation server is already running. Read the Playwright server URL from `/tmp/gh-aw/agent/server-url.txt`:
-> ```bash
-> cat /tmp/gh-aw/agent/server-url.txt
-> ```
+> The documentation server is already running at `http://localhost:4321/gh-aw/`.
 
 ## Step 1: Navigate Documentation as a Noob
 
-**IMPORTANT: Using Playwright in gh-aw Workflows**
+**Using Playwright CLI in gh-aw Workflows**
 
-- ✅ **Correct**: Read the URL from the file then navigate: `SERVER_URL=$(cat /tmp/gh-aw/agent/server-url.txt)` and use `browser_run_code` with `page.goto(SERVER_URL, { waitUntil: 'domcontentloaded', timeout: 30000 })`
-- ❌ **Incorrect**: Using `http://localhost:4321/...` — use the bridge IP from `/tmp/gh-aw/agent/server-url.txt`
+- ✅ **Correct**: Use `playwright-cli browser_navigate --url "http://localhost:4321/gh-aw/"` to navigate
+- ✅ **Correct**: Use `playwright-cli browser_run_code --code "async (page) => { await page.goto('http://localhost:4321/gh-aw/', { waitUntil: 'domcontentloaded', timeout: 30000 }); ... }"` for custom code
+- ❌ **Incorrect**: Using bridge IP detection — in CLI mode, `localhost` reaches the dev server directly
 
-**⚠️ CRITICAL: Navigation Timeout Prevention** — Always use `waitUntil: 'domcontentloaded'` to prevent timeout on the Astro development server. If Playwright connectivity fails, see the shared **Documentation Server Lifecycle Management** fallback instructions.
+**⚠️ CRITICAL: Navigation Timeout Prevention** — Always use `waitUntil: 'domcontentloaded'` to prevent timeout on the Astro development server.
 
-Using Playwright, visit exactly these 3 pages and stop (use the Playwright server URL read from `/tmp/gh-aw/agent/server-url.txt`):
+Using Playwright, visit exactly these 3 pages and stop:
 
-1. **Visit the home page** (e.g. `http://<BRIDGE_IP>:4321/gh-aw/`)
-   - Take a screenshot
+Before taking screenshots, create the screenshots directory:
+```bash
+mkdir -p /tmp/gh-aw/screenshots
+```
+
+1. **Visit the home page** (`http://localhost:4321/gh-aw/`)
+   - Take a screenshot: `playwright-cli browser_navigate --url "http://localhost:4321/gh-aw/" && playwright-cli browser_take_screenshot --filename /tmp/gh-aw/screenshots/home.png`
    - Note: Is it immediately clear what this tool does?
    - Note: Can you quickly find the "Get Started" or "Quick Start" link?
 
-2. **Follow the Quick Start Guide** (e.g. `http://<BRIDGE_IP>:4321/gh-aw/setup/quick-start/`)
+2. **Follow the Quick Start Guide** (`http://localhost:4321/gh-aw/setup/quick-start/`)
    - Take screenshots of each major section
    - Try to understand each step from a beginner's perspective
    - Questions to consider:
@@ -125,7 +127,7 @@ Using Playwright, visit exactly these 3 pages and stop (use the Playwright serve
      - Do code examples work as shown?
      - Are error messages explained?
 
-3. **Check the CLI Commands page** (e.g. `http://<BRIDGE_IP>:4321/gh-aw/setup/cli/`)
+3. **Check the CLI Commands page** (`http://localhost:4321/gh-aw/setup/cli/`)
    - Take a screenshot
    - Note: Are the most important commands highlighted?
    - Note: Are examples provided for common use cases?

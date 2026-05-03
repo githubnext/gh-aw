@@ -222,7 +222,8 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 		compilerYamlLog.Printf("Adding %d runtime steps before custom steps (needsCheckout=%t, !customStepsContainCheckout=%t)", len(runtimeSetupSteps), needsCheckout, !customStepsContainCheckout)
 		for _, step := range runtimeSetupSteps {
 			for _, line := range step {
-				yaml.WriteString(line + "\n")
+				yaml.WriteString(line)
+				yaml.WriteByte('\n')
 			}
 		}
 
@@ -327,7 +328,17 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	compilerYamlLog.Printf("Adding %d engine installation steps for %s", len(installSteps), engine.GetID())
 	for _, step := range installSteps {
 		for _, line := range step {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
+		}
+	}
+
+	// Add Playwright CLI install steps when playwright is configured in CLI mode.
+	// These run after Node.js is available (set up by the engine install steps above).
+	for _, step := range generatePlaywrightCLIInstallSteps(data) {
+		for _, line := range step {
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 
@@ -397,6 +408,15 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 			registry.GetAllAgentManifestFolders(),
 			registry.GetAllAgentManifestFiles(),
 		)
+	}
+
+	// Restore inline sub-agents written during the activation job.
+	// This step runs AFTER the base-branch restore so the engine-specific agent directory
+	// is not clobbered. It is guarded by the features.inline-agents flag.
+	if v, ok := data.Features[string(constants.InlineAgentsFeatureFlag)]; ok {
+		if enabled, isBool := v.(bool); isBool && enabled {
+			generateRestoreInlineSubAgentsStep(yaml, data)
+		}
 	}
 
 	// Add pre-agent-steps (if any) after base-branch restore but before MCP setup.
@@ -470,7 +490,8 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	if _, ok := engine.(*CopilotEngine); ok {
 		detectionStep := generateCopilotErrorDetectionStep()
 		for _, line := range detectionStep {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 
@@ -492,7 +513,8 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	// Collect firewall logs BEFORE secret redaction so secrets in logs can be redacted
 	for _, step := range engine.GetFirewallLogsCollectionStep(data) {
 		for _, line := range step {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 
@@ -500,7 +522,8 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	// This ensures all artifact paths share a common ancestor under /tmp/gh-aw/.
 	for _, step := range engine.GetPreBundleSteps(data) {
 		for _, line := range step {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 
@@ -645,7 +668,8 @@ func (c *Compiler) generateSummarySteps(yaml *strings.Builder, data *WorkflowDat
 	if isFirewallEnabled(data) {
 		firewallLogParsing := generateFirewallLogParsingStep(data.Name)
 		for _, line := range firewallLogParsing {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 
@@ -699,7 +723,8 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	if copilotEngine, ok := engine.(*CopilotEngine); ok {
 		cleanupStep := copilotEngine.GetCleanupStep(data)
 		for _, line := range cleanupStep {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 

@@ -62,6 +62,8 @@ type importAccumulator struct {
 	topLevelGitHubApp string // JSON-encoded GitHubAppConfig
 	// Checkout configs from all imported files (append in order; main workflow's checkouts take precedence)
 	checkouts []string // JSON-encoded checkout values, one per import
+	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
+	warnings []string
 }
 
 // newImportAccumulator creates and initializes a new importAccumulator.
@@ -119,6 +121,29 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		maps.Copy(acc.importInputs, inputsWithDefaults)
 	}
 	wasSubstituted := rawContent != origContent
+
+	// Best-effort: detect and validate inline sub-agent frontmatter in the imported file.
+	// Unknown fields in sub-agent frontmatter blocks are surfaced as advisory warnings.
+	// Validation failures never abort the import — they are accumulated for later display.
+	//
+	// When content was NOT substituted we reuse origParsed.Markdown (already parsed above)
+	// to avoid a redundant YAML parse. When content was substituted we pass the full
+	// substituted content so ValidateInlineSubAgentsFrontmatter can extract the body itself.
+	var bodyForValidation string
+	if !wasSubstituted && origParseErr == nil {
+		bodyForValidation = origParsed.Markdown
+	}
+	var agentWarnings []string
+	if bodyForValidation != "" {
+		agentWarnings = ValidateInlineSubAgentsInBody(bodyForValidation)
+	} else {
+		agentWarnings = ValidateInlineSubAgentsFrontmatter(rawContent)
+	}
+	for _, w := range agentWarnings {
+		msg := fmt.Sprintf("import '%s': %s", item.importPath, w)
+		acc.warnings = append(acc.warnings, msg)
+		log.Printf("%s", msg)
+	}
 
 	// Extract tools from imported file.
 	// When content was modified by substitution (either explicit inputs or schema defaults),
@@ -495,6 +520,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedActivationGitHubApp:   acc.activationGitHubApp,
 		MergedTopLevelGitHubApp:     acc.topLevelGitHubApp,
 		MergedCheckout:              strings.Join(acc.checkouts, "\n"),
+		Warnings:                    acc.warnings,
 	}
 }
 

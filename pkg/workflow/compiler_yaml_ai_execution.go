@@ -15,7 +15,8 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 
 	for _, step := range steps {
 		for _, line := range step {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 }

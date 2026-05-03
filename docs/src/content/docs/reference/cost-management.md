@@ -99,12 +99,6 @@ When that happens, `.runs[]` shows the cost of each individual execution, while 
 
 Use `.edges[]` when you need to inspect why runs were grouped together. Each edge records the inferred parent-child relationship and the confidence of that relationship.
 
-Practical guidance:
-
-- Use `.runs[]` to find expensive individual runs.
-- Use `.episodes[]` to find expensive logical jobs that fan out across multiple runs.
-- Use `.edges[]` to debug unexpected lineage or confirm that the grouping reflects the orchestration you intended.
-
 Useful episode fields for cost analysis:
 
 - `total_runs` — how many workflow runs were part of the same logical execution
@@ -128,18 +122,7 @@ Useful run-level fields in `gh aw logs --json`:
 - `delegated_temp_target_count` — how many temp-ID targets were later delegated with `assign_to_agent` or `create_agent_session`
 - `closed_temp_target_count` — how many temp-ID targets were later closed or merged
 
-Useful repo-level summary fields in `gh aw logs --json`:
-
-- `runs_with_temporary_id_chains`
-- `runs_with_delegated_temp_targets`
-- `runs_with_missing_temporary_id_map`
-- `runs_with_invalid_temporary_id_map`
-- `total_temporary_id_mappings`
-- `total_chained_targets`
-- `total_chained_followup_actions`
-- `total_closed_temp_targets`
-
-The episode view also rolls these metrics up onto `.episodes[]`, so you can inspect chain intensity per logical execution rather than only per raw run.
+Repo-level aggregate fields available: `runs_with_temporary_id_chains`, `runs_with_delegated_temp_targets`, `runs_with_missing_temporary_id_map`, `runs_with_invalid_temporary_id_map`, `total_temporary_id_mappings`, `total_chained_targets`, `total_chained_followup_actions`, and `total_closed_temp_targets`. These also roll up onto `.episodes[]` for per-execution chain intensity analysis.
 
 In `gh aw audit <run-id>`, the same metrics appear under `safe_output_summary`, alongside the per-type safe-output counts.
 

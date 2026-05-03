@@ -221,25 +221,45 @@ The `cli` package exports many types used across its command implementations. Th
 | `ActionlintStats` | struct | Static-analysis statistics from an actionlint run |
 | `AddInteractiveConfig` | struct | Configuration for the interactive `add-wizard` command |
 | `AgenticAssessment` | struct | Agentic behavior assessment derived from audit logs |
+| `AmbientContextMetrics` | struct | Token metrics for ambient context (input, cached, effective token counts) |
+| `Argument` | struct | A command-line argument definition from the MCP registry API |
 | `ArtifactSet` | string alias | Named set of artifacts (e.g. `"agent"`, `"detection"`) |
+| `AuditComparisonClassification` | struct | A classification label and reason codes for an audit comparison |
 | `AuditComparisonData` | struct | Full comparison between two audit runs |
 | `AuditComparisonBaseline` | struct | Baseline metrics for an audit comparison |
 | `AuditComparisonDelta` | struct | Numeric delta between baseline and compare run |
+| `AuditComparisonIntDelta` | struct | Integer-valued delta in an audit comparison |
+| `AuditComparisonMCPFailureDelta` | struct | MCP failure count delta in an audit comparison |
+| `AuditComparisonRecommendation` | struct | A recommendation produced by an audit comparison |
+| `AuditComparisonStringDelta` | struct | String-valued delta in an audit comparison |
 | `AuditEngineConfig` | struct | Engine configuration captured in an audit run |
 | `AuditLogEntry` | struct | A structured entry from the agent audit log |
 | `AwContext` | struct | Agentic workflow context parsed from the run |
 | `AwInfo` | struct | Top-level `gh-aw` metadata block from an audit artifact |
+| `AwInfoSteps` | struct | Step-level metadata in `aw_info.json` (e.g. firewall type) |
+| `BashCommandsDiff` | struct | Per-command diff of bash tool calls between two audit runs |
 | `BehaviorFingerprint` | struct | Pattern fingerprint of agent behavior across turns |
 | `CheckState` | string alias | CI check state (`"success"`, `"failure"`, `"pending"`, ...) |
 | `CodemodResult` | struct | Result of a single codemod transformation |
+| `CommandProvider` | interface | Interface implemented by Cobra root commands for shell-completion helpers |
 | `CompilationStats` | struct | Statistics from a compilation run (files, errors, warnings) |
 | `CompileValidationError` | struct | A validation error emitted during compilation |
 | `CombinedTrialResult` | struct | Combined results from multiple trial runs |
 | `ContinuationData` | struct | State for multi-turn agent continuations |
 | `CopilotCodingAgentDetector` | struct | Detector for Copilot coding-agent log patterns |
+| `CopilotWorkflowStep` | struct | A single step from a Copilot setup-steps YAML file |
+| `CreatedItemReport` | struct | Report of an item created by a safe-output action (type, URL, number, repo) |
 | `CrossRunSummary` | struct | Summary of cross-run metrics across multiple workflow runs |
 | `DependencyInfo` | struct | Metadata for a single dependency in `go.mod` or `package.json` |
+| `DependencyInfoWithIndirect` | struct | `DependencyInfo` extended with an `Indirect` flag |
+| `DevcontainerBuild` | struct | Build configuration section of `devcontainer.json` |
+| `DevcontainerCodespaces` | struct | GitHub Codespaces-specific settings in `devcontainer.json` |
 | `DevcontainerConfig` | struct | Parsed `.devcontainer/devcontainer.json` configuration |
+| `DevcontainerCustomizations` | struct | VSCode customizations block in `devcontainer.json` |
+| `DevcontainerRepoPermissions` | struct | Repository permissions block in `devcontainer.json` |
+| `DevcontainerVSCode` | struct | VSCode-specific settings block in `devcontainer.json` |
+| `DifcFilteredEvent` | struct | A DIFC-filtered event from the MCP gateway log |
+| `DockerUnavailableError` | struct | Error returned when the Docker daemon is not reachable |
 | `DomainAnalysis` | struct | Aggregated per-domain network request analysis |
 | `DomainBuckets` | struct | Domain requests bucketed by category (allow, deny, unknown) |
 | `DomainDiffEntry` | struct | Per-domain diff between two runs |
@@ -251,15 +271,22 @@ The `cli` package exports many types used across its command implementations. Th
 | `FileInfo` | struct | File metadata captured during a workflow run |
 | `Finding` | struct | A finding from a security scanner (Zizmor/Poutine/Actionlint) |
 | `FirewallAnalysis` | struct | Analysis of AWF network firewall logs |
+| `FirewallDiff` | struct | Diff of firewall domain access between two audit runs |
+| `FirewallDiffSummary` | struct | Summary statistics for a firewall diff |
 | `FirewallLogEntry` | struct | A single entry from the AWF firewall log |
 | `GatewayLogEntry` | struct | A log entry from the MCP gateway proxy |
 | `GatewayMetrics` | struct | Aggregate metrics from MCP gateway logs |
+| `GatewayServerMetrics` | struct | Per-server metrics from the MCP gateway |
+| `GatewayToolMetrics` | struct | Per-tool metrics from the MCP gateway |
+| `GitHubRateLimitDiff` | struct | Diff of GitHub API rate-limit consumption between two audit runs |
 | `GitHubRateLimitEntry` | struct | A GitHub API rate-limit snapshot from the agent run |
 | `GitHubWorkflow` | struct | Minimal GitHub Actions workflow metadata |
+| `GuardPolicyEvent` | struct | A single guard-policy evaluation event from the MCP gateway log |
 | `GuardPolicySummary` | struct | Summary of guard-policy evaluations during a run |
 | `InitOptions` | struct | Options for `InitRepository` |
 | `JobData` | struct | Data for a single GitHub Actions job |
 | `JobInfo` | struct | Metadata for a GitHub Actions job |
+| `JobInfoWithDuration` | struct | `JobInfo` extended with a human-readable duration string |
 | `ListWorkflowRunsOptions` | struct | Options for listing workflow runs |
 | `LockFileStatus` | struct | Status of a compiled `.lock.yml` file |
 | `LogsData` | struct | Full log data downloaded for a workflow run |
@@ -270,43 +297,72 @@ The `cli` package exports many types used across its command implementations. Th
 | `MCPPackage` | struct | An npm/pip package entry used by an MCP server |
 | `MCPRegistryServerForProcessing` | struct | Server entry retrieved from the MCP registry |
 | `MCPServerHealth` | struct | Health metrics for a single MCP server |
+| `MCPServerHealthDetail` | struct | Detailed health breakdown for a single MCP server |
 | `MCPSlowestToolCall` | struct | The slowest tool call recorded for an MCP server |
 | `MCPToolCall` | struct | A single MCP tool invocation from an agent turn |
+| `MCPToolDiffEntry` | struct | Per-tool diff entry between two audit runs |
 | `MCPToolSummary` | struct | Aggregated MCP tool usage summary |
 | `MCPToolUsageData` | struct | Per-tool usage counts and latencies |
+| `MCPToolUsageSummary` | struct | Aggregate MCP tool usage summary for a run |
+| `MCPToolsDiff` | struct | Full diff of MCP tool calls between two audit runs |
+| `MCPToolsDiffSummary` | struct | Summary statistics for an MCP tools diff |
 | `MetricsData` | struct | Core performance metrics for a workflow run |
 | `MetricsTrendData` | struct | Trend data for a metric across multiple runs |
+| `MissingDataReport` | struct | Report of missing expected data in a run |
+| `MissingDataSummary` | struct | Aggregated summary of missing-data reports |
+| `MissingToolReport` | struct | Report of a missing MCP tool during a run |
+| `MissingToolSummary` | struct | Aggregated summary of missing-tool reports |
 | `ModelTokenUsage` | struct | Token usage for a single AI model |
+| `ModelTokenUsageRow` | struct | A single row in a model token usage table |
 | `NoopReport` | struct | Report for a noop safe-output event |
 | `ObservabilityInsight` | struct | An insight derived from observability data |
 | `OverviewData` | struct | High-level overview data for a workflow run |
 | `PRCheckRun` | struct | A single CI check run attached to a pull request |
 | `PRCommitStatus` | struct | A commit status context for a pull request |
 | `PRInfo` | struct | Pull-request metadata used by `gh aw pr` commands |
+| `PerRunFirewallBreakdown` | struct | Per-run firewall domain breakdown in a cross-run report |
 | `PerformanceMetrics` | struct | Performance counters for a workflow run |
 | `PolicyAnalysis` | struct | Analysis of guard-policy evaluation results |
 | `PolicyManifest` | struct | A manifest of guard policies applied during a run |
+| `PolicyRule` | struct | A single firewall policy rule from the policy manifest |
+| `PolicySummaryDisplay` | struct | Display-friendly summary of policy evaluation results |
+| `PollResult` | int alias | Result code returned by `PollWithSignalHandling` |
 | `ProcessedRun` | struct | A fully-processed workflow run with parsed artifacts |
 | `ProjectConfig` | struct | Configuration for `gh aw project new` |
 | `PromptAnalysis` | struct | Analysis of the prompt sent to the agent |
+| `ProxyInfo` | struct | Proxy server configuration for network requests |
+| `PullRequest` | struct | A GitHub pull request |
 | `RPCMessageEntry` | struct | A single RPC message from MCP gateway logs |
 | `Recommendation` | struct | An actionable recommendation derived from audit data |
 | `RedactedDomainsAnalysis` | struct | Analysis of redacted domain entries in firewall logs |
+| `RedactedDomainsLogSummary` | struct | Summarised redacted-domain log data |
 | `Release` | struct | A GitHub release entry |
 | `Remote` | struct | A Git remote |
 | `RepoSpec` | struct | A parsed repository specifier (`owner/repo[@ref]`) |
 | `Repository` | struct | A GitHub repository |
 | `RuleHitStats` | struct | Statistics for a single AWF firewall rule |
 | `RunData` | struct | All data collected for a single workflow run |
+| `RunMetricsDiff` | struct | Diff of core metrics between two audit runs |
 | `RunSummary` | struct | Summary of a workflow run |
+| `SafeOutputChainMetrics` | struct | Metrics for safe-output action chains in a run |
 | `SafeOutputSummary` | struct | Summary of safe-output events in a run |
+| `SafeOutputTypeDetail` | struct | Detailed information for a single safe-output type |
 | `SecretInfo` | struct | Metadata for a configured repository secret |
 | `SecretRequirement` | struct | A required secret for a workflow |
+| `ServerDetail` | struct | Full details for a server from the MCP registry API |
+| `ServerListResponse` | struct | Response envelope from the MCP registry `/v0.1/servers` endpoint |
+| `ServerResponse` | struct | Response envelope wrapping server data and registry metadata |
 | `SessionAnalysis` | struct | Analysis of agent session metadata |
 | `ShellType` | string alias | Shell type detected by `DetectShell` (e.g. `"bash"`, `"zsh"`) |
 | `SourceSpec` | struct | A parsed workflow source specifier (local, remote, or registry) |
+| `TaskDomainInfo` | struct | Domain information associated with a specific agent task |
+| `TokenUsageDiff` | struct | Diff of token usage between two audit runs |
 | `TokenUsageEntry` | struct | Per-request token usage from the agent |
 | `TokenUsageSummary` | struct | Aggregated token usage for a workflow run |
+| `ToolCallDiffEntry` | struct | Per-tool-call diff entry between two audit runs |
+| `ToolCallInfo` | type alias | Alias for `workflow.ToolCallInfo` — a single tool call record |
+| `ToolCallsDiff` | struct | Full diff of tool calls between two audit runs |
+| `ToolCallsDiffSummary` | struct | Summary statistics for a tool calls diff |
 | `ToolTransition` | struct | A transition between tool calls in an agent episode |
 | `ToolUsageInfo` | struct | Usage information for a single tool |
 | `ToolUsageSummary` | struct | Aggregated tool usage statistics |
@@ -316,6 +372,7 @@ The `cli` package exports many types used across its command implementations. Th
 | `TrialRepoContext` | struct | Repository context used during a trial run |
 | `VSCodeMCPServer` | struct | An MCP server entry in `.vscode/mcp.json` |
 | `VSCodeSettings` | struct | Parsed `.vscode/settings.json` |
+| `ValidationResult` | struct | Result of a workflow compilation validation pass |
 | `Workflow` | struct | Minimal workflow metadata used in list operations |
 | `WorkflowDomainsDetail` | struct | Detailed per-workflow domain information |
 | `WorkflowDomainsSummary` | struct | Summary of domains used across workflows |
@@ -326,6 +383,7 @@ The `cli` package exports many types used across its command implementations. Th
 | `WorkflowMCPMetadata` | struct | MCP server metadata scanned from a workflow file |
 | `WorkflowNode` | struct | A node in the workflow dependency graph |
 | `WorkflowOption` | struct | A selectable workflow option for interactive prompts |
+| `WorkflowRun` | struct | A GitHub Actions workflow run record |
 | `WorkflowRunInfo` | struct | Summary of a workflow run from the GitHub API |
 | `WorkflowSpec` | struct | A fully resolved workflow specification with source metadata |
 | `WorkflowStats` | struct | Aggregate statistics for a workflow |

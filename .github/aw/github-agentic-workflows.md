@@ -624,7 +624,14 @@ The YAML frontmatter supports these fields:
       tools:
         bash: ["*"]
       ```
-  - `playwright:` - Browser automation tools for visual regression, accessibility testing, and end-to-end testing. Pin a specific version with `version:` and restrict network access to `local` + `playwright` for security. See [`visual-regression-checker.md`](../../.github/workflows/visual-regression-checker.md) for a minimal pull-request example.
+  - `playwright:` - Browser automation tools for visual regression, accessibility testing, and end-to-end testing. Use `mode: cli` (recommended) — no Docker, runs `playwright-cli <command>` in bash, `localhost` reaches local servers directly. `mode: mcp` is deprecated (Docker-based; requires bridge IP detection for local server access). Pin a specific version with `version:` and restrict network access to `local` + `playwright` for security. See [`visual-regression-checker.md`](../../.github/workflows/visual-regression-checker.md) for a minimal pull-request example.
+
+    ```yaml
+    tools:
+      playwright:
+        mode: cli          # recommended: token-efficient CLI mode
+        version: "0.1.11"  # optional: @playwright/cli npm package version
+    ```
   - Custom tool names for MCP servers
   - `timeout:` - Per-operation timeout in seconds for all tool and MCP server calls (integer or GitHub Actions expression). Defaults vary by engine (Claude: 60 s, Codex: 120 s).
   - `startup-timeout:` - Timeout in seconds for MCP server initialization (integer or GitHub Actions expression, default: 120). Useful in `workflow_call` reusable workflows: `startup-timeout: ${{ inputs.startup-timeout }}`

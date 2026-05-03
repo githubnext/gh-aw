@@ -38,9 +38,9 @@
 
 "use strict";
 
-const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -164,15 +164,6 @@ function isNullTypeToolCallError(output) {
 }
 
 /**
- * Sleep for a specified duration
- * @param {number} ms - Duration in milliseconds
- * @returns {Promise<void>}
- */
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
  * Build a structured report_incomplete payload for infrastructure failures.
  * @param {string} details
  * @returns {string}
@@ -245,102 +236,6 @@ async function checkCommandAccessible(command) {
     log(`pre-flight: command exists but is not executable: ${command} (X_OK check failed — permission denied)`);
     return false;
   }
-}
-
-/**
- * Format elapsed milliseconds as a human-readable string (e.g. "3m 12s").
- * @param {number} ms
- * @returns {string}
- */
-function formatDuration(ms) {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  if (minutes > 0) {
-    return `${minutes}m ${seconds}s`;
-  }
-  return `${seconds}s`;
-}
-
-/**
- * Run a command with the given arguments, transparently forwarding stdin/stdout/stderr.
- * Also collects output for error pattern detection.
- *
- * @param {string} command - The executable to run
- * @param {string[]} args - Arguments to pass to the command
- * @param {number} attempt - Current attempt index (0-based), used for logging
- * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
- */
-function runProcess(command, args, attempt) {
-  return new Promise(resolve => {
-    const startTime = Date.now();
-    // Redact --prompt value from logs to avoid leaking prompt content
-    const safeArgs = args.map((arg, i) => (args[i - 1] === "--prompt" || args[i - 1] === "-p" ? "<redacted>" : arg));
-    log(`attempt ${attempt + 1}: spawning: ${command} ${safeArgs.join(" ")}`);
-
-    const child = spawn(command, args, {
-      stdio: ["inherit", "pipe", "pipe"],
-      env: process.env,
-    });
-
-    log(`attempt ${attempt + 1}: process started (pid=${child.pid ?? "unknown"})`);
-
-    let collectedOutput = "";
-    let hasOutput = false;
-    let stdoutBytes = 0;
-    let stderrBytes = 0;
-
-    child.stdout.on(
-      "data",
-      /** @param {Buffer} data */ data => {
-        hasOutput = true;
-        stdoutBytes += data.length;
-        collectedOutput += data.toString();
-        process.stdout.write(data);
-      }
-    );
-
-    child.stderr.on(
-      "data",
-      /** @param {Buffer} data */ data => {
-        hasOutput = true;
-        stderrBytes += data.length;
-        collectedOutput += data.toString();
-        process.stderr.write(data);
-      }
-    );
-
-    child.on("exit", (code, signal) => {
-      // Log the exit event early; the promise is resolved in 'close' (see below) once stdio
-      // streams are fully drained so that collectedOutput and hasOutput are complete.
-      log(`attempt ${attempt + 1}: process exit event` + ` exitCode=${code ?? 1}` + (signal ? ` signal=${signal}` : ""));
-    });
-
-    // Resolve on 'close', not 'exit'.  'close' fires after stdio streams are fully drained,
-    // guaranteeing that collectedOutput and hasOutput are complete before we make the retry
-    // decision and that the final exit code is faithfully propagated.
-    child.on("close", (code, signal) => {
-      const durationMs = Date.now() - startTime;
-      const exitCode = code ?? 1;
-      log(`attempt ${attempt + 1}: process closed` + ` exitCode=${exitCode}` + (signal ? ` signal=${signal}` : "") + ` duration=${formatDuration(durationMs)}` + ` stdout=${stdoutBytes}B stderr=${stderrBytes}B hasOutput=${hasOutput}`);
-      resolve({ exitCode, output: collectedOutput, hasOutput, durationMs });
-    });
-
-    child.on("error", err => {
-      const durationMs = Date.now() - startTime;
-      // prettier-ignore
-      const errno = /** @type {NodeJS.ErrnoException} */ (err);
-      const errCode = errno.code ?? "unknown";
-      const errSyscall = errno.syscall ?? "unknown";
-      log(`attempt ${attempt + 1}: failed to start process '${command}': ${err.message}` + ` (code=${errCode} syscall=${errSyscall})`);
-      resolve({
-        exitCode: 1,
-        output: collectedOutput,
-        hasOutput,
-        durationMs,
-      });
-    });
-  });
 }
 
 /**
@@ -439,7 +334,9 @@ async function main() {
       log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
     }
 
-    const result = await runProcess(command, currentArgs, attempt);
+    // Redact --prompt / -p value from logs to avoid leaking prompt content
+    const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
+    const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs });
     lastExitCode = result.exitCode;
 
     // Success — record exit code and stop retrying

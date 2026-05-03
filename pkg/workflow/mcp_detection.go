@@ -22,6 +22,11 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 			continue
 		}
 		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
+			// Playwright in CLI mode is not an MCP server; skip it
+			if toolName == "playwright" && isPlaywrightCLIMode(workflowData.Tools) {
+				mcpDetectionLog.Print("Skipping playwright MCP detection: tools.playwright.mode is cli")
+				continue
+			}
 			if mcpDetectionLog.Enabled() {
 				mcpDetectionLog.Printf("MCP server detected via built-in tool: %s", toolName)
 			}

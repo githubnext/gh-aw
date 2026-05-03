@@ -18,6 +18,7 @@ network:
 tools:
   cli-proxy: true
   playwright:
+    mode: cli
   bash:
     - "date *"
     - "echo *"
@@ -54,8 +55,8 @@ Verify that the GitHub Next Agentic Workflows blog page is available, accessible
 
 Use Playwright to navigate to the target URL and capture the accessibility snapshot:
 
-1. **Navigate to URL**: Use `browser_navigate` to load https://githubnext.com/projects/agentic-workflows/
-2. **Capture Accessibility Snapshot**: Use `browser_snapshot` to get the accessibility tree representation of the page
+1. **Navigate to URL**: Run `playwright-cli browser_navigate --url https://githubnext.com/projects/agentic-workflows/` to load the page
+2. **Capture Accessibility Snapshot**: Run `playwright-cli browser_snapshot` to get the accessibility tree representation of the page
    - This provides a text-only version of the page as screen readers would see it
    - Captures the semantic structure and content without styling
 3. **Extract Metrics**: From the navigation and snapshot, capture:
@@ -95,7 +96,7 @@ Perform the following validations:
 
 Extract code snippets from the blog page and validate them against the latest agentic workflow schema:
 
-1. **Extract Code Snippets**: Use Playwright's `browser_evaluate` to extract all code blocks from the page
+1. **Extract Code Snippets**: Use `playwright-cli browser_evaluate` to extract all code blocks from the page
    - Look for `<code>` elements with language hints for YAML or markdown
    - Extract the text content of each code block
    - Filter to only workflow-related snippets (those containing frontmatter with `---` markers AND at least one of these workflow fields: `on:`, `engine:`, `tools:`, `permissions:`, `safe-outputs:`)

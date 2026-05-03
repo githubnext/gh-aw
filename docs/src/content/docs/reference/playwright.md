@@ -7,21 +7,90 @@ sidebar:
 
 Configure Playwright for browser automation and testing in your agentic workflows. Playwright enables headless browser control for accessibility testing, visual regression detection, end-to-end testing, and web scraping.
 
-## Configuration Options
+## Modes
 
-### Version
+Playwright supports two integration modes. **CLI mode is recommended** for all new workflows.
 
-Pin to a specific version or use the latest:
+### CLI Mode (Recommended)
 
 ```yaml wrap
 tools:
   playwright:
-    version: "1.56.1"  # Pin to specific version (default)
-  playwright:
-    version: "latest"  # Use latest available version
+    mode: cli
 ```
 
-**Default**: `1.56.1` (when `version` is not specified)
+CLI mode installs `@playwright/cli` as a global npm package on the runner before the agent starts. The agent uses `playwright-cli <command>` in bash to automate the browser — no Docker container is required.
+
+**Benefits of CLI mode:**
+- **Token-efficient** — no large MCP tool schemas loaded into the model context
+- **No Docker overhead** — playwright runs directly on the runner
+- **Use `localhost` directly** — no bridge IP detection needed when accessing local dev servers
+- **Same commands** — all `browser_*` commands are available (e.g. `playwright-cli browser_navigate --url ...`)
+
+```bash wrap
+# Navigate to a page
+playwright-cli browser_navigate --url "https://example.com"
+
+# Take a screenshot
+playwright-cli browser_take_screenshot --filename /tmp/screenshot.png --full-page true
+
+# Get the accessibility tree
+playwright-cli browser_snapshot
+
+# Evaluate JavaScript
+playwright-cli browser_evaluate --expression "document.title"
+
+# Run arbitrary Playwright code
+playwright-cli browser_run_code --code "async (page) => { await page.goto('https://example.com'); return await page.title(); }"
+```
+
+### MCP Mode (Deprecated)
+
+:::caution[Deprecated]
+MCP mode is deprecated. Migrate to CLI mode (`mode: cli`) for better token efficiency and simpler local server access. MCP mode will emit a deprecation warning during compilation.
+:::
+
+```yaml wrap
+tools:
+  playwright:
+    mode: mcp  # deprecated — use mode: cli instead
+```
+
+MCP mode starts a Docker-based `mcr.microsoft.com/playwright/mcp` container and exposes browser tools via the Model Context Protocol. Because the browser runs in Docker with `--network host`, agents cannot use `localhost` to reach local dev servers and must detect the container bridge IP.
+
+**Why migrate away from MCP mode:**
+- Large MCP tool schemas consume significant model context tokens
+- Requires Docker container startup time
+- Local server access requires bridge IP detection instead of `localhost`
+- CLI mode provides the same browser automation capabilities with less overhead
+
+## Configuration Options
+
+### Version
+
+The `version` field controls different things depending on the mode:
+
+**CLI mode** (`mode: cli`, recommended) — pins the `@playwright/cli` npm package version:
+
+```yaml wrap
+tools:
+  playwright:
+    mode: cli
+    version: "0.1.11"  # @playwright/cli npm package version (default)
+```
+
+**Default** (CLI mode): `0.1.11`
+
+**MCP mode** (deprecated) — pins the Playwright browser Docker image version:
+
+```yaml wrap
+tools:
+  playwright:
+    mode: mcp  # deprecated
+    version: "v1.56.1"  # Browser Docker image version
+```
+
+When `version` is not specified, the compiler uses the built-in default for the active mode.
 
 ## Network Access Configuration
 
@@ -55,11 +124,13 @@ network:
 
 ## GitHub Actions Compatibility
 
-Playwright runs in a Docker container on GitHub Actions runners. gh-aw automatically applies `--security-opt seccomp=unconfined` and `--ipc=host` (required for Chromium) starting with version 0.41.0. No manual configuration is needed.
+In CLI mode, `playwright-cli` runs directly on the GitHub Actions runner — no Docker container is involved. The runner's Node.js environment is used, and `localhost` connects directly to any server running on the runner.
+
+In MCP mode (deprecated), Playwright runs in a Docker container with `--security-opt seccomp=unconfined` and `--ipc=host` (required for Chromium). Because the container uses `--network host`, its `localhost` resolves to the Docker host rather than the agent container, requiring bridge IP detection to reach local servers.
 
 ## Browser Support
 
-Playwright includes three browser engines: **Chromium** (Chrome/Edge, most commonly used), **Firefox**, and **WebKit** (Safari). All three are available in the Playwright Docker container.
+Playwright includes three browser engines: **Chromium** (Chrome/Edge, most commonly used), **Firefox**, and **WebKit** (Safari). All three are available in both CLI mode and MCP mode.
 
 ## Common Use Cases
 
@@ -73,6 +144,7 @@ on:
 
 tools:
   playwright:
+    mode: cli
 
 network:
   allowed:
@@ -93,6 +165,12 @@ safe-outputs:
 # Accessibility Audit
 
 Use Playwright to check docs.example.com for WCAG 2.1 Level AA compliance.
+
+Navigate to the site and capture the accessibility snapshot:
+```bash
+playwright-cli browser_navigate --url "https://docs.example.com"
+playwright-cli browser_snapshot
+```
 
 Run automated accessibility checks using axe-core and report:
 - Missing alt text on images
@@ -144,6 +222,7 @@ steps:
 
 tools:
   playwright:
+    mode: cli
     version: "v1.52.0"
   bash:
     - "npm *"
@@ -176,6 +255,13 @@ Test on multiple viewports:
 - Tablet: 768×1024
 - Desktop: 1440×900
 
+For each viewport, resize the browser and take a screenshot:
+```bash
+playwright-cli browser_resize --width 375 --height 812
+playwright-cli browser_navigate --url "http://localhost:4321/"
+playwright-cli browser_take_screenshot --filename /tmp/mobile-screenshot.png --full-page true
+```
+
 Take screenshots at each viewport and compare against baseline. Report any visual differences as a pull request comment, including screenshots. If there are no regressions, call noop.
 ```
 
@@ -184,7 +270,7 @@ Take screenshots at each viewport and compare against baseline. Report any visua
 - **Path filter** — restricts the trigger to runs affecting frontend assets, avoiding noise on unrelated changes.
 - **`steps:`** — run before the agent. Use them to install dependencies, build, start the server, and poll until it is ready. The agent only starts after all steps succeed.
 - **Version pin** — pin Playwright to a specific version (`v1.52.0`) to prevent baseline drift from browser engine upgrades mid-test.
-- **`local` network identifier** — allows the Playwright container to reach `localhost`/`127.0.0.1` where the dev server runs. Required when testing local servers.
+- **`mode: cli`** — playwright-cli runs on the runner; use `localhost` to reach the dev server directly.
 - **`bash` allowlist** — restricts the `bash` tool to `npm *` and `curl http://localhost:*` only, keeping the tool surface minimal.
 
 ### End-to-End Testing
@@ -196,6 +282,7 @@ on:
 
 tools:
   playwright:
+    mode: cli
   bash: [":*"]
 
 network:
@@ -213,8 +300,9 @@ permissions:
 Start the development server locally and run end-to-end tests with Playwright.
 
 1. Start the dev server on localhost:3000
-2. Test the complete user journey
-3. Report any failures with screenshots
+2. Navigate with playwright-cli: `playwright-cli browser_navigate --url "http://localhost:3000"`
+3. Test the complete user journey
+4. Report any failures with screenshots
 ```
 
 ## Related Documentation

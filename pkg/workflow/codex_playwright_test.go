@@ -102,3 +102,50 @@ func TestCodexEnginePlaywrightToolsExpansion(t *testing.T) {
 		})
 	}
 }
+
+// TestCodexEnginePlaywrightCLIMode verifies that expandNeutralToolsToCodexTools preserves
+// the Mode field and does not add an MCP raw entry for playwright in CLI mode.
+func TestCodexEnginePlaywrightCLIMode(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("CLI mode preserves Mode field and skips MCP raw entry", func(t *testing.T) {
+		input := map[string]any{
+			"playwright": map[string]any{
+				"mode":    "cli",
+				"version": "0.1.11",
+			},
+		}
+		result := engine.expandNeutralToolsToCodexToolsFromMap(input)
+
+		// In CLI mode, playwright should NOT appear in the raw map as an MCP config
+		if playwrightRaw, hasPlaywright := result["playwright"]; hasPlaywright {
+			t.Errorf("Expected playwright to be absent from raw map in CLI mode, but got: %v", playwrightRaw)
+		}
+	})
+
+	t.Run("MCP mode (explicit) still adds MCP raw entry", func(t *testing.T) {
+		input := map[string]any{
+			"playwright": map[string]any{
+				"mode": "mcp",
+			},
+		}
+		result := engine.expandNeutralToolsToCodexToolsFromMap(input)
+
+		if _, hasPlaywright := result["playwright"]; !hasPlaywright {
+			t.Error("Expected playwright MCP config to be present in raw map for mcp mode")
+		}
+	})
+
+	t.Run("default mode (no mode field) still adds MCP raw entry", func(t *testing.T) {
+		input := map[string]any{
+			"playwright": map[string]any{
+				"version": "v1.41.0",
+			},
+		}
+		result := engine.expandNeutralToolsToCodexToolsFromMap(input)
+
+		if _, hasPlaywright := result["playwright"]; !hasPlaywright {
+			t.Error("Expected playwright MCP config to be present in raw map for default mode")
+		}
+	})
+}

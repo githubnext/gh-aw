@@ -37,6 +37,8 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 		return string(constants.DefaultOpenCodeVersion)
 	case "crush":
 		return string(constants.DefaultCrushVersion)
+	case "pi":
+		return string(constants.DefaultPiVersion)
 	default:
 		// Custom or unknown engines don't have a default version
 		compilerYamlLookupsLog.Printf("No default version for custom engine: %s", engineID)
@@ -53,7 +55,7 @@ func getDefaultAgentModel(engineID string) string {
 	switch engineID {
 	case "copilot":
 		return constants.CopilotBYOKDefaultModel
-	case "claude", "codex", "gemini", "opencode", "crush":
+	case "claude", "codex", "gemini", "opencode", "crush", "pi":
 		return "auto"
 	default:
 		return ""

@@ -555,7 +555,7 @@ commands:
 3. **Composable** - Chain agents together
 4. **Transparent** - See what runs in logs
 5. **Convention over configuration** - Filename determines command
-6. **Batteries included** - Built-in defaults for common cases
+6. **Pre-configured defaults** - Built-in defaults for common cases
 
 **Target User**: Developer working locally, wants quick AI assistance
 

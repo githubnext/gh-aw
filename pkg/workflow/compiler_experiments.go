@@ -25,14 +25,6 @@ const experimentStateFile = experimentsCacheDir + "/state.json"
 // bracket notation.  Names that do not match are skipped with a warning.
 var experimentNamePattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
-// extractExperimentsFromFrontmatter reads the "experiments" map from a raw frontmatter map.
-// Both the bare-array form and the new object form with metadata fields are accepted.
-// Invalid entries (bad name pattern, missing/insufficient variants) are skipped with a
-// warning logged to the debug logger.
-func extractExperimentsFromFrontmatter(frontmatter map[string]any) map[string][]string {
-	return experimentVariantsFromConfigs(extractExperimentConfigsFromFrontmatter(frontmatter))
-}
-
 // experimentVariantsFromConfigs derives the simple name→variants map from a configs map.
 // Returns nil when configs is empty so callers can use len-checks without special-casing.
 func experimentVariantsFromConfigs(configs map[string]*ExperimentConfig) map[string][]string {
@@ -242,7 +234,7 @@ func extractIntSlice(raw any) []int {
 //  2. Pick variants              – pick_experiment.cjs (reads/writes state.json, sets step outputs,
 //     writes a Markdown step summary); outputs: one per experiment (e.g. "caveman=yes") + "experiments" JSON blob
 //  3. Save experiment cache      – actions/cache/save keyed by workflow ID
-//  4. Upload experiment artifact – actions/upload-artifact named "experiment"
+//  4. Upload experiment artifact – actions/upload-artifact named "{workflowID}-experiment"
 func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 	if len(data.Experiments) == 0 {
 		return nil
@@ -251,8 +243,11 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 	experimentNames := sortedExperimentNames(data.Experiments)
 	experimentsLog.Printf("Generating experiment steps for %d experiment(s): %v", len(experimentNames), experimentNames)
 
-	cacheKey := "experiments-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}"
-	restoreKey := "experiments-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-"
+	// Use the literal sanitized workflow ID in the cache key so it is correct in the
+	// activation job, which does not have GH_AW_WORKFLOW_ID_SANITIZED in its environment.
+	sanitizedID := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+	cacheKey := fmt.Sprintf("experiments-%s-${{ github.run_id }}", sanitizedID)
+	restoreKey := fmt.Sprintf("experiments-%s-", sanitizedID)
 
 	var steps []string
 
@@ -298,7 +293,10 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 	)
 
 	// ── Step 4: Upload experiment artifact ────────────────────────────────────
-	experimentArtifactName := artifactPrefixExprForActivationJob(data) + constants.ExperimentArtifactName
+	// For workflow_call the artifact prefix expression is prepended at runtime.
+	// For regular workflows the sanitized workflow ID is used as a prefix so the
+	// artifact name uniquely identifies which workflow produced it.
+	experimentArtifactName := experimentArtifactUploadName(data, sanitizedID)
 	steps = append(steps,
 		"      - name: Upload experiment artifact\n",
 		"        if: always()\n",
@@ -388,17 +386,50 @@ func sortedExperimentNames(experiments map[string][]string) []string {
 	return names
 }
 
+// experimentArtifactUploadName returns the artifact name used when uploading the experiment
+// artifact from the activation job.
+// For workflow_call workflows the runtime prefix expression is prepended.
+// For regular workflows the sanitized workflow ID is used as a prefix so the artifact name
+// uniquely identifies the producing workflow (e.g. "smokecopilot-experiment").
+// An empty sanitizedID falls back to the base name for defensive compatibility; in practice
+// the compiler always sets a non-empty WorkflowID before this function is called.
+func experimentArtifactUploadName(data *WorkflowData, sanitizedID string) string {
+	if hasWorkflowCallTrigger(data.On) {
+		return artifactPrefixExprForActivationJob(data) + constants.ExperimentArtifactName
+	}
+	if sanitizedID == "" {
+		return constants.ExperimentArtifactName
+	}
+	return sanitizedID + "-" + constants.ExperimentArtifactName
+}
+
+// experimentArtifactDownloadName returns the artifact name used when downloading the experiment
+// artifact from a downstream job.
+// For workflow_call workflows the runtime prefix expression is prepended.
+// For regular workflows the sanitized workflow ID is used as a prefix, matching the name
+// produced by experimentArtifactUploadName.
+// An empty sanitizedID falls back to the base name for defensive compatibility; in practice
+// the compiler always sets a non-empty WorkflowID before this function is called.
+func experimentArtifactDownloadName(data *WorkflowData) string {
+	if hasWorkflowCallTrigger(data.On) {
+		return artifactPrefixExprForDownstreamJob(data) + constants.ExperimentArtifactName
+	}
+	sanitizedID := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+	if sanitizedID == "" {
+		return constants.ExperimentArtifactName
+	}
+	return sanitizedID + "-" + constants.ExperimentArtifactName
+}
+
 // buildExperimentArtifactDownloadSteps creates a download step for the experiment artifact.
 // The artifact is downloaded to experimentsCacheDir so the detection agent can read the
 // current variant assignments from state.json.
-// prefix must be the artifact prefix expression for a job that directly depends on the
-// activation job (i.e. artifactPrefixExprForDownstreamJob).
 // The step is a no-op when no experiments are declared.
-func buildExperimentArtifactDownloadSteps(prefix string, experiments map[string][]string) []string {
-	if len(experiments) == 0 {
+func buildExperimentArtifactDownloadSteps(data *WorkflowData) []string {
+	if len(data.Experiments) == 0 {
 		return nil
 	}
-	artifactName := prefix + constants.ExperimentArtifactName
+	artifactName := experimentArtifactDownloadName(data)
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName: artifactName,
 		DownloadPath: experimentsCacheDir + "/",

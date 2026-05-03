@@ -39,7 +39,7 @@ const DefaultClaudeCodeVersion Version = "2.1.126"
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.39"
+const DefaultCopilotVersion Version = "1.0.40"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion Version = "0.128.0"
@@ -50,6 +50,9 @@ const DefaultGeminiVersion Version = "0.39.1"
 // DefaultCrushVersion is the default version of the Crush CLI
 const DefaultCrushVersion Version = "0.59.0"
 
+// DefaultPiVersion is the default version of the Pi CLI
+const DefaultPiVersion Version = "0.0.1"
+
 // DefaultOpenCodeVersion is the default version of the OpenCode CLI
 const DefaultOpenCodeVersion Version = "1.2.14"
 
@@ -57,7 +60,7 @@ const DefaultOpenCodeVersion Version = "1.2.14"
 const DefaultGitHubMCPServerVersion Version = "v1.0.3"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.25.29"
+const DefaultFirewallVersion Version = "v0.25.35"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -86,7 +89,11 @@ const DefaultMCPGatewayVersion Version = "v0.3.3"
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.72"
+const DefaultPlaywrightMCPVersion Version = "0.0.73"
+
+// DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package
+// Used when tools.playwright.mode is "cli" to install the CLI tool instead of the MCP server.
+const DefaultPlaywrightCLIVersion Version = "0.1.11"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.59.1"

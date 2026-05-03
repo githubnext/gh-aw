@@ -211,7 +211,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 				fmt.Sprintf("workflow lock file '%s' not found in .github/workflows", lockFileName),
 				suggestions,
 			)
-			return fmt.Errorf("%s", errMsg)
+			return errors.New(errMsg)
 		}
 		executionLog.Printf("Found lock file: %s", lockFilePath)
 	}

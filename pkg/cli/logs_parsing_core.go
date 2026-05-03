@@ -26,6 +26,10 @@ import (
 
 var logsParsingCoreLog = logger.New("cli:logs_parsing_core")
 
+// errWalkStop is a sentinel returned from filepath.Walk callbacks to stop traversal early.
+// It is shared across all walk-based file-search functions in this package.
+var errWalkStop = errors.New("stop")
+
 // parseAwInfo reads and parses aw_info.json file, returning the parsed data
 // Handles cases where aw_info.json is a file or a directory containing the actual file
 func parseAwInfo(infoFilePath string, verbose bool) (*AwInfo, error) {
@@ -112,16 +116,22 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 // Returns the first path found (depth-first) and a boolean indicating success.
 func findAgentOutputFile(logDir string) (string, bool) {
 	var foundPath string
-	_ = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil {
+	if walkErr := filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			logsParsingCoreLog.Printf("walk error at %s: %v", path, err)
+			return nil
+		}
+		if info == nil {
 			return nil
 		}
 		if !info.IsDir() && strings.EqualFold(info.Name(), constants.AgentOutputArtifactName) {
 			foundPath = path
-			return errors.New("stop") // sentinel to stop walking early
+			return errWalkStop
 		}
 		return nil
-	})
+	}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", logDir, walkErr)))
+	}
 	if foundPath == "" {
 		return "", false
 	}
@@ -148,16 +158,22 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 		if fileutil.DirExists(agentOutputDir) {
 			// Find the first file in this directory
 			var foundFile string
-			_ = filepath.Walk(agentOutputDir, func(path string, info os.FileInfo, err error) error {
-				if err != nil || info == nil {
+			if walkErr := filepath.Walk(agentOutputDir, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					logsParsingCoreLog.Printf("walk error at %s: %v", path, err)
+					return nil
+				}
+				if info == nil {
 					return nil
 				}
 				if !info.IsDir() && foundFile == "" {
 					foundFile = path
-					return errors.New("stop") // sentinel to stop walking early
+					return errWalkStop
 				}
 				return nil
-			})
+			}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", agentOutputDir, walkErr)))
+			}
 			if foundFile != "" {
 				return foundFile, true
 			}
@@ -177,22 +193,28 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 				// Walk the full tree: stop immediately when events.jsonl is found (preferred),
 				// but keep walking after a .log match in case events.jsonl appears later.
 				var foundEventsJsonl, foundLogFile string
-				_ = filepath.Walk(flattenedDir, func(path string, info os.FileInfo, err error) error {
-					if err != nil || info == nil {
+				if walkErr := filepath.Walk(flattenedDir, func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						logsParsingCoreLog.Printf("walk error at %s: %v", path, err)
+						return nil
+					}
+					if info == nil {
 						return nil
 					}
 					if !info.IsDir() {
 						if info.Name() == "events.jsonl" && foundEventsJsonl == "" {
 							foundEventsJsonl = path
 							logsParsingCoreLog.Printf("Found events.jsonl file: %s", path)
-							return errors.New("stop") // sentinel to stop walking early
+							return errWalkStop
 						} else if strings.HasSuffix(info.Name(), ".log") && foundLogFile == "" {
 							foundLogFile = path
 							logsParsingCoreLog.Printf("Found session log file: %s", path)
 						}
 					}
 					return nil
-				})
+				}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", flattenedDir, walkErr)))
+				}
 				if foundEventsJsonl != "" {
 					return foundEventsJsonl, true
 				}
@@ -207,8 +229,12 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 		// Note: Copilot changed from session-*.log to process-*.log naming convention
 		logsParsingCoreLog.Printf("Searching recursively in %s for events.jsonl, session*.log or process*.log files", logDir)
 		var foundEventsJsonl, foundLogFile string
-		_ = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info == nil {
+		if walkErr := filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				logsParsingCoreLog.Printf("walk error at %s: %v", path, err)
+				return nil
+			}
+			if info == nil {
 				return nil
 			}
 			fileName := info.Name()
@@ -216,14 +242,16 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 				if fileName == "events.jsonl" && foundEventsJsonl == "" {
 					foundEventsJsonl = path
 					logsParsingCoreLog.Printf("Found events.jsonl via recursive search: %s", path)
-					return errors.New("stop") // sentinel to stop walking early
+					return errWalkStop
 				} else if (strings.HasPrefix(fileName, "session") || strings.HasPrefix(fileName, "process")) && strings.HasSuffix(fileName, ".log") && foundLogFile == "" {
 					foundLogFile = path
 					logsParsingCoreLog.Printf("Found Copilot log file via recursive search: %s", path)
 				}
 			}
 			return nil
-		})
+		}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", logDir, walkErr)))
+		}
 		if foundEventsJsonl != "" {
 			return foundEventsJsonl, true
 		}
@@ -240,16 +268,22 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 
 	// Also check for nested agent-stdio.log in case it's in a subdirectory
 	var foundPath string
-	_ = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil {
+	if walkErr := filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			logsParsingCoreLog.Printf("walk error at %s: %v", path, err)
+			return nil
+		}
+		if info == nil {
 			return nil
 		}
 		if !info.IsDir() && info.Name() == "agent-stdio.log" {
 			foundPath = path
-			return errors.New("stop") // sentinel to stop walking early
+			return errWalkStop
 		}
 		return nil
-	})
+	}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", logDir, walkErr)))
+	}
 	if foundPath != "" {
 		return foundPath, true
 	}
