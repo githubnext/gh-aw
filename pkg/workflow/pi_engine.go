@@ -181,7 +181,14 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	var command string
 	firewallEnabled := isFirewallEnabled(workflowData)
 	if firewallEnabled {
-		allowedDomains := GetPiAllowedDomains(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		// Get allowed domains: prefer the pre-warmed cache on WorkflowData to avoid
+		// re-running the expensive map+sort operation.
+		var allowedDomains string
+		if workflowData.CachedAllowedDomainsComputed {
+			allowedDomains = workflowData.CachedAllowedDomainsStr
+		} else {
+			allowedDomains = GetPiAllowedDomains(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		}
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
 			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
 		}
