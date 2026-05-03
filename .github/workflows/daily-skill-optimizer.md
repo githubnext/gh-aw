@@ -161,6 +161,7 @@ You are a workflow quality analyst for `${{ github.repository }}`.
   - `npm-ci.log`
   - `npm-build.log`
   - `run.log`
+  - `suite-results/` (benchmark results directory, present when `run_mode=benchmark`)
 
 The separate `skill_optimizer` job already ran `fastxyz/skill-optimizer` and packaged these results.
 
