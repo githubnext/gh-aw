@@ -44,6 +44,7 @@ tools:
     trusted-users:
       - pelikhan
   playwright:
+    mode: cli
   web-fetch:
   cli-proxy: true
 runtimes:
@@ -142,7 +143,7 @@ Talk like a caveman in all your responses and outputs. Use short, broken sentenc
 
 This workflow uses `cli-proxy: true`. The following MCP servers are **NOT available as MCP tools** — they are mounted exclusively as **shell CLI commands** (see `<mcp-clis>` section above). You **must** use them via the `bash` tool:
 
-- **`playwright`** — use `playwright <tool> [--param value...]` in bash (e.g. `playwright browser_navigate --url ...`)
+- **`playwright`** — installed as `@playwright/cli`, use `playwright-cli <command>` in bash (e.g. `playwright-cli open https://github.com`, `playwright-cli screenshot`)
 - **`serena`** — use `serena <tool> [--param value...]` in bash (e.g. `serena activate_project --path ...`)
 - **`agenticworkflows`** — use `agenticworkflows <tool> [--param value...]` in bash
 - **`safeoutputs`** — use `safeoutputs <tool> [--param value...]` in bash (e.g. `safeoutputs add_comment --body "..."`)
@@ -161,7 +162,7 @@ These are **not** MCP protocol tools — they are bash executables. Call them wi
 3. **Serena CLI Testing**: 
    - Use bash to run `serena activate_project --path ${{ github.workspace }}` to initialize the workspace and verify it succeeds (do NOT use bash to run go commands - use the serena CLI only)
    - After initialization, use bash to run `serena find_symbol --name_path <symbol>` to search for symbols and verify that at least 3 symbols are found in the results
-4. **Playwright CLI Testing**: Use bash to run `playwright browser_navigate --url https://github.com` to navigate to <https://github.com>, then `playwright browser_snapshot` to capture the page and verify the title contains "GitHub" (do NOT try to install playwright - use the `playwright` CLI command via bash only)
+4. **Playwright CLI Testing**: Use bash to run `playwright-cli open https://github.com` to navigate to <https://github.com>, then `playwright-cli screenshot` to take a screenshot and verify that the output indicates a successful navigation to "GitHub" (do NOT try to install playwright - use the `playwright-cli` command via bash only)
 5. **Web Fetch Testing**: Use the web-fetch tool to fetch https://github.com and verify the response contains "GitHub" (do NOT use bash or playwright for this test - use the web-fetch tool directly)
 6. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
 7. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)

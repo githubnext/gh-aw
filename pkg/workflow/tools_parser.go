@@ -472,6 +472,11 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 			}
 		}
 
+		// Handle mode field
+		if mode, ok := configMap["mode"].(string); ok {
+			config.Mode = mode
+		}
+
 		return config
 	}
 
