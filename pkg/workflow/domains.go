@@ -104,6 +104,7 @@ var ClaudeDefaultDomains = []string{
 
 // GeminiDefaultDomains are the default domains required for Google Gemini CLI authentication and operation
 var GeminiDefaultDomains = []string{
+	constants.AWFAPIProxyContainerIP, // AWF API proxy sidecar IP — Gemini resolves host.docker.internal to this IP inside the AWF network
 	"*.googleapis.com",
 	"generativelanguage.googleapis.com",
 	"github.com",

@@ -568,12 +568,22 @@ func writeMCPGatewayExports(yaml *strings.Builder, tools map[string]any, engine 
 	yaml.WriteString("          # Export gateway environment variables for MCP config and gateway script\n")
 	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + strconv.Itoa(port) + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
-	// MCP_GATEWAY_HOST_DOMAIN is the domain used by host-side clients (e.g. Gemini CLI).
-	// When MCP_GATEWAY_DOMAIN is host.docker.internal (only reachable from containers),
-	// use localhost instead; otherwise inherit the configured domain as-is.
+	// MCP_GATEWAY_HOST_DOMAIN is the domain the agent uses to reach the MCP gateway.
+	// When MCP_GATEWAY_DOMAIN is host.docker.internal (reachable only from containers),
+	// choose the correct host based on where the engine runs:
+	//   - Gemini+firewall: Gemini runs inside the AWF container, so it must use
+	//     host.docker.internal to reach the host MCP gateway (localhost does not
+	//     resolve to the host from inside the container).
+	//   - All other cases: the engine runs on the host runner, so localhost is correct.
 	hostDomain := domain
 	if domain == "host.docker.internal" {
-		hostDomain = "localhost"
+		if engine.GetID() == "gemini" && isFirewallEnabled(workflowData) {
+			// Gemini CLI runs inside the AWF container; keep host.docker.internal so
+			// the container can route to the MCP gateway on the host.
+			hostDomain = "host.docker.internal"
+		} else {
+			hostDomain = "localhost"
+		}
 	}
 	yaml.WriteString("          export MCP_GATEWAY_HOST_DOMAIN=\"" + hostDomain + "\"\n")
 	if gatewayConfig.APIKey == "" {

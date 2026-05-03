@@ -775,3 +775,135 @@ Test that OIDC env vars are NOT added when no server uses github-oidc auth.
 	assert.NotContains(t, yamlStr, "-e ACTIONS_ID_TOKEN_REQUEST_TOKEN",
 		"ACTIONS_ID_TOKEN_REQUEST_TOKEN should NOT be in docker command without github-oidc auth")
 }
+
+// TestGeminiMCPHostDomainWithFirewall verifies that MCP_GATEWAY_HOST_DOMAIN is set to
+// host.docker.internal (not localhost) when the Gemini engine runs with the AWF firewall enabled.
+//
+// When the firewall is enabled, Gemini CLI runs inside the AWF container. In that context,
+// the host MCP gateway is reachable only via host.docker.internal — localhost resolves to
+// the container's own loopback interface, where the MCP gateway is not running.
+func TestGeminiMCPHostDomainWithFirewall(t *testing.T) {
+	t.Run("gemini with firewall enabled (default) uses host.docker.internal", func(t *testing.T) {
+		// AWF is enabled by default for all engines (SandboxType: awf).
+		// Without explicit sandbox.agent: false, Gemini runs inside the AWF container and
+		// must use host.docker.internal to reach the host MCP gateway.
+		frontmatter := `---
+on: workflow_dispatch
+engine: gemini
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+tools:
+  github:
+    toolsets: [repos, pull_requests]
+---
+
+# Test Gemini MCP host domain with firewall
+
+Test that MCP_GATEWAY_HOST_DOMAIN is host.docker.internal when the firewall is enabled.
+`
+		compiler := NewCompiler()
+
+		tmpDir := t.TempDir()
+		inputFile := filepath.Join(tmpDir, "test.md")
+
+		err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+		require.NoError(t, err, "Failed to write test input file")
+
+		err = compiler.CompileWorkflow(inputFile)
+		require.NoError(t, err, "Compilation should succeed")
+
+		outputFile := stringutil.MarkdownToLockFile(inputFile)
+		content, err := os.ReadFile(outputFile)
+		require.NoError(t, err, "Failed to read output file")
+		yamlStr := string(content)
+
+		assert.Contains(t, yamlStr, `export MCP_GATEWAY_HOST_DOMAIN="host.docker.internal"`,
+			"Gemini with firewall enabled should use host.docker.internal for MCP_GATEWAY_HOST_DOMAIN so the container can reach the host MCP gateway")
+		assert.NotContains(t, yamlStr, `export MCP_GATEWAY_HOST_DOMAIN="localhost"`,
+			"Gemini with firewall enabled should not use localhost (unreachable from inside the AWF container)")
+	})
+
+	t.Run("gemini with firewall disabled (sandbox.agent: false) uses localhost", func(t *testing.T) {
+		// When sandbox.agent: false, the firewall is disabled and Gemini runs directly
+		// on the host runner. In that case, the domain is always "localhost" since the
+		// resolveMCPGatewayValues function returns "localhost" for disabled sandboxes.
+		frontmatter := `---
+on: workflow_dispatch
+engine: gemini
+strict: false
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+sandbox:
+  agent: false
+tools:
+  github:
+    toolsets: [repos, pull_requests]
+---
+
+# Test Gemini MCP host domain without firewall
+
+Test that MCP_GATEWAY_HOST_DOMAIN is localhost when the firewall is disabled via sandbox.agent: false.
+`
+		compiler := NewCompiler()
+
+		tmpDir := t.TempDir()
+		inputFile := filepath.Join(tmpDir, "test.md")
+
+		err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+		require.NoError(t, err, "Failed to write test input file")
+
+		err = compiler.CompileWorkflow(inputFile)
+		require.NoError(t, err, "Compilation should succeed")
+
+		outputFile := stringutil.MarkdownToLockFile(inputFile)
+		content, err := os.ReadFile(outputFile)
+		require.NoError(t, err, "Failed to read output file")
+		yamlStr := string(content)
+
+		assert.Contains(t, yamlStr, `export MCP_GATEWAY_HOST_DOMAIN="localhost"`,
+			"Gemini without firewall (sandbox.agent: false) should use localhost for MCP_GATEWAY_HOST_DOMAIN")
+	})
+
+	t.Run("copilot with firewall enabled (default) uses localhost", func(t *testing.T) {
+		// Only Gemini changes MCP_GATEWAY_HOST_DOMAIN to host.docker.internal when the firewall
+		// is enabled. Other engines (like Copilot) still use localhost.
+		frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+tools:
+  github:
+    toolsets: [repos, pull_requests]
+---
+
+# Test Copilot MCP host domain with firewall
+
+Test that only Gemini changes host domain, not other engines.
+`
+		compiler := NewCompiler()
+
+		tmpDir := t.TempDir()
+		inputFile := filepath.Join(tmpDir, "test.md")
+
+		err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+		require.NoError(t, err, "Failed to write test input file")
+
+		err = compiler.CompileWorkflow(inputFile)
+		require.NoError(t, err, "Compilation should succeed")
+
+		outputFile := stringutil.MarkdownToLockFile(inputFile)
+		content, err := os.ReadFile(outputFile)
+		require.NoError(t, err, "Failed to read output file")
+		yamlStr := string(content)
+
+		assert.Contains(t, yamlStr, `export MCP_GATEWAY_HOST_DOMAIN="localhost"`,
+			"Copilot with firewall enabled should still use localhost (only Gemini+firewall uses host.docker.internal)")
+	})
+}
