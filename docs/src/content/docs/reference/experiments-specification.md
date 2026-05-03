@@ -20,7 +20,7 @@ This specification defines the A/B experiment system for GitHub Agentic Workflow
 It covers the `experiments:` frontmatter schema, variant selection algorithms, state persistence
 backends, expression and template integration, activation job structure, audit CLI integration,
 and statistical analysis requirements. Conforming implementations provide operators with a
-zero-infrastructure mechanism to conduct controlled experiments on agentic workflow behaviour
+zero-infrastructure mechanism to conduct controlled experiments on agentic workflow behavior
 using only workflow frontmatter declarations, without any external service dependency.
 
 This document consolidates and supersedes the normative sections of ADR-29534,
@@ -277,7 +277,7 @@ selected variant before persisting state.
 > "MUST NOT increment any variant counter." This rule is hereby superseded. Counter increments
 > for weighted selection are required to enable `min_samples` progress tracking and accurate
 > per-run history. The reference implementation (`pick_experiment.cjs`) already implements
-> this correct behaviour by calling `recordVariant` unconditionally after both selection paths.
+> this correct behavior by calling `recordVariant` unconditionally after both selection paths.
 
 **R-SELECT-007**: When `weight` is provided but its length does not equal the length of
 `variants`, implementations **MUST** treat `weight` as absent and fall back to round-robin
@@ -472,7 +472,7 @@ string `"no"` as falsy, in addition to the standard falsy values `""`, `"false"`
 `undefined`, and `null`. This enables yes/no flag experiments where
 `{{#if experiments.feature }}` evaluates to false when the `no` variant is active.
 
-> **Note (informative)**: The `"no"` falsy behaviour is a deliberate design choice that enables
+> **Note (informative)**: The `"no"` falsy behavior is a deliberate design choice that enables
 > simple boolean-flag experiments (`feature: [yes, no]`). It differs from standard JavaScript
 > truthiness and should be clearly documented for contributors.
 
@@ -571,7 +571,7 @@ broken by sorted variant order.
 any report-rendering code. A filtered-out run **MUST** return `nil`, not an error.
 
 **R-AUDIT-011**: Implementations **MUST** apply the filter in both the cached-summary path and
-the fresh-processing path for consistent behaviour.
+the fresh-processing path for consistent behavior.
 
 **R-AUDIT-012**: Implementations **SHOULD** extract experiment data at most once per
 `AuditWorkflowRun` invocation to avoid redundant artifact reads.
@@ -968,7 +968,7 @@ approximate minimum runs per variant are:
 ### Version 1.0.0 (Draft) — 2026-05-03
 
 - **Initial publication** consolidating ADR-29534, ADR-29618, ADR-29628, ADR-29985, and ADR-29996.
-- **Correction**: R-SELECT-006 supersedes ADR-29618 Rule 9 — weighted selection MUST increment invocation counters (was incorrectly stated as MUST NOT; the reference implementation already implements the correct behaviour).
+- **Correction**: R-SELECT-006 supersedes ADR-29618 Rule 9 — weighted selection MUST increment invocation counters (was incorrectly stated as MUST NOT; the reference implementation already implements the correct behavior).
 - **Added**: R-STAT-001/R-STAT-002 — reporting tools MUST use `state.runs` for per-run assignment lookup, not the fragile delta-count inference method.
 - **Added**: R-STAT-005/R-STAT-006 — Bonferroni correction SHOULD be applied for K ≥ 3 variants to control family-wise error rate.
 - **Added**: R-STAT-008 — `min_samples` applies to the smallest expected group when weights are non-uniform.
