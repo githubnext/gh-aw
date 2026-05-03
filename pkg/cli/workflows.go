@@ -362,14 +362,57 @@ func fastParseTitle(content string) (string, error) {
 	return "", nil
 }
 
-// extractWorkflowNameFromFile extracts the workflow name from a file's H1 header
-func extractWorkflowNameFromFile(filePath string) (string, error) {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
+// fastParseTitleFromReader scans lines from r for the first H1 header, skipping
+// an optional frontmatter block, without reading the entire file into memory.
+// This is more efficient than fastParseTitle for file-based callers because it
+// stops reading as soon as the title is found.
+//
+// Frontmatter is recognised only when "---" appears on the very first line.
+// Returns the H1 title text, or ("", nil) when no H1 header is present.
+// Returns an error if frontmatter is opened but never closed.
+func fastParseTitleFromReader(r io.Reader) (string, error) {
+	scanner := bufio.NewScanner(r)
+	firstLine := true
+	inFrontmatter := false
+	for scanner.Scan() {
+		trimmed := strings.TrimSpace(scanner.Text())
+		if firstLine {
+			firstLine = false
+			if trimmed == "---" {
+				inFrontmatter = true
+				continue
+			}
+		} else if inFrontmatter {
+			if trimmed == "---" {
+				inFrontmatter = false
+			}
+			continue
+		}
+		if strings.HasPrefix(trimmed, "# ") {
+			return trimmed[2:], nil
+		}
+	}
+	if err := scanner.Err(); err != nil {
 		return "", err
 	}
 
-	title, err := fastParseTitle(string(content))
+	// Unclosed frontmatter is an error (consistent with ExtractFrontmatterFromContent).
+	if inFrontmatter {
+		return "", errors.New("frontmatter not properly closed")
+	}
+
+	return "", nil
+}
+
+// extractWorkflowNameFromFile extracts the workflow name from a file's H1 header
+func extractWorkflowNameFromFile(filePath string) (string, error) {
+	fd, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer fd.Close()
+
+	title, err := fastParseTitleFromReader(fd)
 	if err != nil {
 		return "", err
 	}
