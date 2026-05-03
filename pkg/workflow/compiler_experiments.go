@@ -191,9 +191,6 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 		if n, ok := extractIntField(v["min_samples"]); ok {
 			cfg.MinSamples = n
 		}
-		if owner, ok := v["owner"].(string); ok {
-			cfg.Owner = owner
-		}
 		if at, ok := v["analysis_type"].(string); ok {
 			cfg.AnalysisType = at
 		}

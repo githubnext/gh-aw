@@ -290,7 +290,6 @@ func TestExtractExperimentConfigsFromFrontmatter(t *testing.T) {
 							map[string]any{"name": "empty_output_rate", "threshold": "==0"},
 						},
 						"min_samples": float64(25),
-						"owner":       "@team-agents",
 					},
 				},
 			},
@@ -306,7 +305,6 @@ func TestExtractExperimentConfigsFromFrontmatter(t *testing.T) {
 				assert.Equal(t, "empty_output_rate", cfg.GuardrailMetrics[1].Name, "second guardrail name")
 				assert.Equal(t, "==0", cfg.GuardrailMetrics[1].Threshold, "second guardrail threshold")
 				assert.Equal(t, 25, cfg.MinSamples, "min_samples should match")
-				assert.Equal(t, "@team-agents", cfg.Owner, "owner should match")
 			},
 		},
 		{

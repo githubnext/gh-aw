@@ -54,7 +54,6 @@ experiments:
     start_date: "2026-05-05"
     end_date: "2026-07-25"
     issue: 1234
-    owner: "@team-agents"
 ---
 
 Summarize the findings in a **${{ experiments.prompt_style }}** way.
@@ -196,7 +195,6 @@ Tracking issue: [#1234](https://github.com/owner/repo/issues/1234)
 | `secondary_metrics` | `string[]` | | Additional metrics to track alongside the primary metric |
 | `guardrail_metrics` | `object[]` | | List of `{name, threshold}` pairs that must not degrade. Threshold is a comparison expression like `>=0.95` or `==0` |
 | `min_samples` | `integer` | | Minimum runs per variant required before statistical analysis is considered reliable. The step summary shows a progress bar toward this target. |
-| `owner` | `string` | | Team or person responsible for this experiment (e.g. `@team-agents`) |
 | `weight` | `integer[]` | | Per-variant probability weights (same length as `variants`). Enables weighted-random selection; values are relative and need not sum to 100. |
 | `issue` | `integer` | | GitHub issue number that tracks this experiment's lifecycle |
 | `start_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) before which the experiment is inactive. The control variant is returned before this date without incrementing any counter. |

@@ -153,9 +153,6 @@ type ExperimentConfig struct {
 	// statistical analysis is considered reliable.
 	MinSamples int `json:"min_samples,omitempty"`
 
-	// Owner tags the team or person responsible for this experiment (e.g. "@team-agents").
-	Owner string `json:"owner,omitempty"`
-
 	// Weight holds an optional per-variant probability weight.  When provided its length
 	// must equal the length of Variants.  Values are relative (they need not sum to 100).
 	Weight []int `json:"weight,omitempty"`

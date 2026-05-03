@@ -57,7 +57,7 @@ func TestCompileExperimentsBareArrayForm(t *testing.T) {
 }
 
 // TestCompileExperimentsRichSchema verifies that the rich object-form experiment fields
-// (hypothesis, secondary_metrics, guardrail_metrics, min_samples, owner) are all
+// (hypothesis, secondary_metrics, guardrail_metrics, min_samples) are all
 // serialised into GH_AW_EXPERIMENT_SPEC in the compiled lock file.
 func TestCompileExperimentsRichSchema(t *testing.T) {
 	setup := setupIntegrationTest(t)
@@ -93,7 +93,6 @@ func TestCompileExperimentsRichSchema(t *testing.T) {
 
 	// Verify all new fields are present and have correct values.
 	assertJSONStringField(t, cfg, "hypothesis", "H0: no change in tokens. H1: concise reduces by >=15%")
-	assertJSONStringField(t, cfg, "owner", "@team-agents")
 
 	// secondary_metrics
 	var secondaryMetrics []string

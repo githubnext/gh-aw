@@ -2853,10 +2853,6 @@
                 "default": 20,
                 "description": "Minimum number of runs required per variant before a PROMOTE recommendation is made. Defaults to 20 when not specified. Progress toward this target is shown in step summaries and daily reports."
               },
-              "owner": {
-                "type": "string",
-                "description": "Owner or team responsible for this experiment (e.g. '@team-agents'). Shown in step summaries and daily reports."
-              },
               "analysis_type": {
                 "type": "string",
                 "enum": ["t_test", "mann_whitney", "proportion_test", "bayesian_ab"],
@@ -2914,7 +2910,6 @@
               }
             ],
             "min_samples": 25,
-            "owner": "@team-agents",
             "weight": [50, 50],
             "issue": 1234,
             "start_date": "2026-05-01",
