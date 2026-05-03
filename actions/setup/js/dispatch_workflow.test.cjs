@@ -130,8 +130,8 @@ describe("dispatch_workflow handler factory", () => {
     expect(awContext.repo).toBe("test-owner/test-repo");
     // workflow_id uses GITHUB_WORKFLOW_REF (full workflow file path)
     expect(awContext.workflow_id).toBe("test-owner/test-repo/.github/workflows/dispatcher.yml@refs/heads/main");
-    // workflow_call_id combines run_id and run_attempt for uniqueness
-    expect(awContext.workflow_call_id).toBe("99999-2");
+    // workflow_call_id includes the workflow ref so reusable workflows in the same run stay distinct
+    expect(awContext.workflow_call_id).toBe("99999-2:test-owner/test-repo/.github/workflows/dispatcher.yml@refs/heads/main");
   });
 
   it("should reject workflows not in allowed list", async () => {

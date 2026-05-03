@@ -89,6 +89,31 @@ function resolveItemContext(payload) {
 }
 
 /**
+ * Builds a workflow-call identifier for the current workflow invocation.
+ *
+ * GitHub reusable workflows share the same run ID as their caller, so the
+ * workflow ref is appended when available to distinguish parent and child
+ * workflow invocations inside a single run.
+ *
+ * @param {string | number | null | undefined} runId
+ * @param {string | number | null | undefined} runAttempt
+ * @param {string | null | undefined} workflowRef
+ * @returns {string}
+ */
+function buildWorkflowCallId(runId, runAttempt, workflowRef) {
+  const normalizedRunId = String(runId ?? "").trim();
+  if (!normalizedRunId) {
+    return "";
+  }
+
+  const normalizedRunAttempt = String(runAttempt ?? "").trim() || "1";
+  const normalizedWorkflowRef = typeof workflowRef === "string" ? workflowRef.trim() : "";
+  const baseId = `${normalizedRunId}-${normalizedRunAttempt}`;
+
+  return normalizedWorkflowRef ? `${baseId}:${normalizedWorkflowRef}` : baseId;
+}
+
+/**
  * Builds the aw_context object that identifies the calling workflow run.
  * This metadata is injected into dispatched workflows that declare an
  * aw_context input, allowing them to trace back to their caller and
@@ -147,16 +172,18 @@ function resolveItemContext(payload) {
  */
 function buildAwContext() {
   const { item_type, item_number, comment_id, comment_node_id } = resolveItemContext(context.payload);
+  const workflowRef = process.env.GITHUB_WORKFLOW_REF ?? "";
 
   return {
     repo: `${context.repo.owner}/${context.repo.repo}`,
     run_id: String(context.runId ?? ""),
     // GITHUB_WORKFLOW_REF provides the full workflow file path including the ref,
     // e.g. "owner/repo/.github/workflows/dispatcher.yml@refs/heads/main"
-    workflow_id: process.env.GITHUB_WORKFLOW_REF ?? "",
-    // workflow_call_id uniquely identifies this specific call attempt:
-    // combine run_id with run_attempt (GITHUB_RUN_ATTEMPT) so re-runs produce different IDs.
-    workflow_call_id: `${process.env.GITHUB_RUN_ID ?? context.runId ?? ""}-${process.env.GITHUB_RUN_ATTEMPT ?? "1"}`,
+    workflow_id: workflowRef,
+    // workflow_call_id uniquely identifies this specific workflow invocation,
+    // including the workflow file when GitHub reuses a single run for caller
+    // and callee workflow_call executions.
+    workflow_call_id: buildWorkflowCallId(process.env.GITHUB_RUN_ID ?? context.runId ?? "", process.env.GITHUB_RUN_ATTEMPT ?? "1", workflowRef),
     time: new Date().toISOString(),
     actor: context.actor ?? "",
     event_type: context.eventName ?? "",
@@ -187,4 +214,4 @@ function buildAwContext() {
   };
 }
 
-module.exports = { buildAwContext, resolveItemContext };
+module.exports = { buildAwContext, buildWorkflowCallId, resolveItemContext };

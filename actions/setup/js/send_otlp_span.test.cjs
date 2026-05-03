@@ -167,12 +167,12 @@ describe("buildAttr", () => {
 });
 
 describe("buildCurrentWorkflowCallId", () => {
-  it("builds a run-scoped workflow_call identifier from run id and attempt", () => {
-    expect(buildCurrentWorkflowCallId("12345", "2")).toBe("12345-2");
+  it("includes workflow ref so reusable workflow invocations in one run stay distinct", () => {
+    expect(buildCurrentWorkflowCallId("12345", "2", "owner/repo/.github/workflows/test.yml@refs/heads/main")).toBe("12345-2:owner/repo/.github/workflows/test.yml@refs/heads/main");
   });
 
   it("defaults the attempt to 1 when omitted", () => {
-    expect(buildCurrentWorkflowCallId("12345", "")).toBe("12345-1");
+    expect(buildCurrentWorkflowCallId("12345", "", "owner/repo/.github/workflows/test.yml@refs/heads/main")).toBe("12345-1:owner/repo/.github/workflows/test.yml@refs/heads/main");
   });
 
   it("returns empty string when run id is unavailable", () => {
@@ -182,18 +182,20 @@ describe("buildCurrentWorkflowCallId", () => {
 
 describe("buildEpisodeAttributesFromContext", () => {
   it("uses the inherited workflow_call_id as the episode id for dispatched children", () => {
-    const attrs = buildEpisodeAttributesFromContext({ context: { workflow_call_id: "root-episode-1" } }, "200", "3");
-    expect(attrs).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "root-episode-1" } });
+    process.env.GITHUB_WORKFLOW_REF = "owner/repo/.github/workflows/child.yml@refs/heads/main";
+    const attrs = buildEpisodeAttributesFromContext({ context: { workflow_call_id: "200-3:owner/repo/.github/workflows/parent.yml@refs/heads/main" } }, "200", "3");
+    expect(attrs).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "200-3:owner/repo/.github/workflows/parent.yml@refs/heads/main" } });
     expect(attrs).toContainEqual({ key: "gh-aw.episode.kind", value: { stringValue: "workflow_call" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "200-3" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.workflow_call.parent_id", value: { stringValue: "root-episode-1" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "200-3:owner/repo/.github/workflows/child.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.workflow_call.parent_id", value: { stringValue: "200-3:owner/repo/.github/workflows/parent.yml@refs/heads/main" } });
   });
 
   it("falls back to the current run when no inherited workflow_call_id exists", () => {
+    process.env.GITHUB_WORKFLOW_REF = "owner/repo/.github/workflows/root.yml@refs/heads/main";
     const attrs = buildEpisodeAttributesFromContext({}, "300", "4");
-    expect(attrs).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "300-4" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "300-4:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
     expect(attrs).toContainEqual({ key: "gh-aw.episode.kind", value: { stringValue: "run" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "300-4" } });
+    expect(attrs).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "300-4:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
     const keys = attrs.map(attr => attr.key);
     expect(keys).not.toContain("gh-aw.workflow_call.parent_id");
   });

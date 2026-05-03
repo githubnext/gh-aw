@@ -3,6 +3,7 @@
 
 const { randomBytes } = require("crypto");
 const fs = require("fs");
+const { buildWorkflowCallId } = require("./aw_context.cjs");
 const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -97,13 +98,11 @@ function buildAttr(key, value) {
  *
  * @param {string} runId
  * @param {string} runAttempt
+ * @param {string} [workflowRef]
  * @returns {string}
  */
-function buildCurrentWorkflowCallId(runId, runAttempt) {
-  if (!runId) {
-    return "";
-  }
-  return `${runId}-${runAttempt || "1"}`;
+function buildCurrentWorkflowCallId(runId, runAttempt, workflowRef = process.env.GITHUB_WORKFLOW_REF || "") {
+  return buildWorkflowCallId(runId, runAttempt, workflowRef);
 }
 
 /**

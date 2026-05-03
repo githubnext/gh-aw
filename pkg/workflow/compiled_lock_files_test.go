@@ -395,3 +395,18 @@ func TestCompiledLockFiles_SmokeWorkflowCallHasExpectedOutputs(t *testing.T) {
 			"safe_outputs job output should reference process_safe_outputs step")
 	})
 }
+
+func TestCompiledLockFiles_SmokeCallWorkflowForwardsAwContext(t *testing.T) {
+	lockPath := filepath.Join(workflowsDir, "smoke-call-workflow.lock.yml")
+
+	lockBytes, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "smoke-call-workflow.lock.yml should be readable")
+	lockContent := string(lockBytes)
+
+	t.Run("CallWorkflowJobForwardsGeneratedAwContext", func(t *testing.T) {
+		assert.Contains(t, lockContent, "call-smoke-workflow-call:", "lock file should contain the call-workflow job")
+		assert.Contains(t, lockContent, "- activation", "call-workflow job should depend on activation for trace context")
+		assert.Contains(t, lockContent, "aw_context: ${{ format(", "call-workflow job should synthesize aw_context directly in YAML")
+		assert.Contains(t, lockContent, "needs.activation.outputs.setup-trace-id", "aw_context should propagate the activation trace id")
+	})
+}
