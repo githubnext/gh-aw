@@ -157,20 +157,27 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 		}
 
 		// Check for flattened location (after flattening)
-		// The engine's log path is absolute (e.g., /tmp/gh-aw/sandbox/agent/logs/)
-		// After flattening, it's at logDir/sandbox/agent/logs/
+		// The engine's log path is absolute (e.g., /tmp/gh-aw/sandbox/agent/logs/ for a
+		// directory, or /tmp/gh-aw/pi-streaming.jsonl for a direct file).
+		// After flattening, it's at logDir/<relative-path>.
 		// Strip /tmp/gh-aw/ prefix to get the relative path
 		const tmpGhAwPrefix = "/tmp/gh-aw/"
 		if after, ok := strings.CutPrefix(logFileForParsing, tmpGhAwPrefix); ok {
 			relPath := after
-			flattenedDir := filepath.Join(logDir, relPath)
-			logsUtilsLog.Printf("Checking flattened location for logs: %s", flattenedDir)
-			if fileutil.DirExists(flattenedDir) {
+			flattenedPath := filepath.Join(logDir, relPath)
+			logsUtilsLog.Printf("Checking flattened location for logs: %s", flattenedPath)
+			// Case 1: the engine log path points to a specific file (e.g. pi-streaming.jsonl)
+			if fileutil.FileExists(flattenedPath) {
+				logsUtilsLog.Printf("Found engine log file at flattened path: %s", flattenedPath)
+				return flattenedPath, true
+			}
+			// Case 2: the engine log path points to a directory — walk it for known log formats
+			if fileutil.DirExists(flattenedPath) {
 				// Prefer events.jsonl (structured Copilot session format) over debug .log files.
 				// Walk the full tree: stop immediately when events.jsonl is found (preferred),
 				// but keep walking after a .log match in case events.jsonl appears later.
 				var foundEventsJsonl, foundLogFile string
-				if walkErr := filepath.Walk(flattenedDir, func(path string, info os.FileInfo, err error) error {
+				if walkErr := filepath.Walk(flattenedPath, func(path string, info os.FileInfo, err error) error {
 					if err != nil {
 						logsUtilsLog.Printf("walk error at %s: %v", path, err)
 						return nil
@@ -190,7 +197,7 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 					}
 					return nil
 				}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", flattenedDir, walkErr)))
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", flattenedPath, walkErr)))
 				}
 				if foundEventsJsonl != "" {
 					return foundEventsJsonl, true
@@ -198,6 +205,31 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 				if foundLogFile != "" {
 					return foundLogFile, true
 				}
+			}
+			// Case 3: fall back to searching logDir for a file whose base name matches
+			// the engine's log file name (handles unusual artifact layouts)
+			targetBase := filepath.Base(logFileForParsing)
+			logsUtilsLog.Printf("Searching logDir %s for engine log file by base name: %s", logDir, targetBase)
+			var foundByBase string
+			if walkErr := filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					logsUtilsLog.Printf("walk error at %s: %v", path, err)
+					return nil
+				}
+				if info == nil {
+					return nil
+				}
+				if !info.IsDir() && info.Name() == targetBase && foundByBase == "" {
+					foundByBase = path
+					return errWalkStop
+				}
+				return nil
+			}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", logDir, walkErr)))
+			}
+			if foundByBase != "" {
+				logsUtilsLog.Printf("Found engine log file by base name: %s", foundByBase)
+				return foundByBase, true
 			}
 		}
 

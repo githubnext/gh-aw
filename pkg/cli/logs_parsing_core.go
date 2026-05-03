@@ -1,11 +1,10 @@
 // This file provides command-line interface functionality for gh-aw.
 // This file (logs_parsing_core.go) contains core log parsing functions
-// for locating and extracting engine configuration from workflow logs.
+// for extracting engine configuration from workflow logs.
 //
 // Key responsibilities:
 //   - Parsing aw_info.json to extract engine configuration
-//   - Locating agent log files and output artifacts
-//   - Supporting multiple artifact layouts (before/after flattening)
+//   - Registering the errWalkStop sentinel used by walk-based helpers in this package
 
 package cli
 
