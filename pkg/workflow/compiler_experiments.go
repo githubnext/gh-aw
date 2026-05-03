@@ -596,7 +596,7 @@ func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error
 	if setupActionRef != "" || c.actionMode.IsScript() {
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 		traceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, traceID)...)
+		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, traceID)...)
 	}
 
 	// Checkout step – configure git credentials without downloading workspace files.
