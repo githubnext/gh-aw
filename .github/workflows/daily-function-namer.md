@@ -85,6 +85,11 @@ else:
 mapfile -t ALL_PKGS < <(find pkg -name '*.go' ! -name '*_test.go' -type f | xargs -I{} dirname {} | sort -u)
 TOTAL=${#ALL_PKGS[@]}
 
+if [ "$TOTAL" -eq 0 ]; then
+  echo "ERROR: no Go packages found in pkg/" >&2
+  exit 1
+fi
+
 # On cache miss, start at a random position so repeated cold starts don't always hit the same package
 if [ "$LAST_INDEX" -eq -1 ]; then
   LAST_INDEX=$(( RANDOM % TOTAL ))
