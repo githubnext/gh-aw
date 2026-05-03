@@ -76,6 +76,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
+	// Validate playwright tool mode: warn when MCP mode is used (deprecated in favour of CLI mode)
+	if err := c.validatePlaywrightMode(workflowData); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
 	// Validate optional custom engine harness script configuration.
 	if err := c.validateEngineHarnessScript(workflowData); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)

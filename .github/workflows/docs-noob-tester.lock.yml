@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"d59b60188a65d046d5064e3ad3877eddb04259f30af4b8b4755ce48791ceb185","strict":true,"agent_id":"copilot"}
-# gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.35"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.35"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.35"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.3"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"mcr.microsoft.com/playwright/mcp","digest":"sha256:7b82f29c6ef83480a97f612d53ac3fd5f30a32df3fea1e06923d4204d3532bb2","pinned_image":"mcr.microsoft.com/playwright/mcp@sha256:7b82f29c6ef83480a97f612d53ac3fd5f30a32df3fea1e06923d4204d3532bb2"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"ffe0f07abcaea90386293130cd8039dbc68349bae4371be2c4b1a620e82dd2af","strict":true,"agent_id":"copilot"}
+# gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.35"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.35"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.35"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.3"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -54,7 +54,6 @@
 #   - ghcr.io/github/gh-aw-firewall/squid:0.25.35
 #   - ghcr.io/github/gh-aw-mcpg:v0.3.3
 #   - ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959
-#   - mcr.microsoft.com/playwright/mcp@sha256:7b82f29c6ef83480a97f612d53ac3fd5f30a32df3fea1e06923d4204d3532bb2
 #   - node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
 
 name: "Documentation Noob Tester"
@@ -187,23 +186,23 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_f108143180cedb5e_EOF'
+          cat << 'GH_AW_PROMPT_f86d11b096eb9276_EOF'
           <system>
-          GH_AW_PROMPT_f108143180cedb5e_EOF
+          GH_AW_PROMPT_f86d11b096eb9276_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/playwright_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_f108143180cedb5e_EOF'
+          cat << 'GH_AW_PROMPT_f86d11b096eb9276_EOF'
           <safe-output-tools>
           Tools: create_discussion, upload_asset(max:10), missing_tool, missing_data, noop
           
           upload_asset: provide a file path; returns a URL; assets are published after the workflow completes (safeoutputs).
           </safe-output-tools>
-          GH_AW_PROMPT_f108143180cedb5e_EOF
+          GH_AW_PROMPT_f86d11b096eb9276_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_f108143180cedb5e_EOF'
+          cat << 'GH_AW_PROMPT_f86d11b096eb9276_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -232,9 +231,9 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_f108143180cedb5e_EOF
+          GH_AW_PROMPT_f86d11b096eb9276_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_f108143180cedb5e_EOF'
+          cat << 'GH_AW_PROMPT_f86d11b096eb9276_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/docs-server-lifecycle.md}}
           {{#runtime-import .github/workflows/shared/keep-it-short.md}}
@@ -242,7 +241,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/docs-noob-tester.md}}
-          GH_AW_PROMPT_f108143180cedb5e_EOF
+          GH_AW_PROMPT_f86d11b096eb9276_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -269,7 +268,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_MCP_CLI_SERVERS_LIST: "- `playwright` — run `playwright --help` to see available tools\n- `safeoutputs` — run `safeoutputs --help` to see available tools"
+          GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -418,6 +417,10 @@ jobs:
           GH_HOST: github.com
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.35
+      - name: Install Playwright CLI
+        run: npm install -g @playwright/cli@0.1.11
+      - name: Install Playwright CLI skills
+        run: playwright-cli install --skills
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
@@ -447,11 +450,11 @@ jobs:
         run: "cd \"${{ github.workspace }}/docs\"\nnohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/preview.log 2>&1 &\nPID=$!\necho $PID > /tmp/server.pid\necho \"Server PID: $PID\"\n"
       - name: Wait for server readiness
         run: "MAX_WAIT=135  # 45 attempts × 3s = 135s max wait\nWAITED=0\nuntil curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; do\n  # Check if the server process has already died\n  if [ -f /tmp/server.pid ] && ! kill -0 \"$(cat /tmp/server.pid)\" 2>/dev/null; then\n    echo \"::error::Documentation server process died before becoming ready. Server log:\"\n    cat /tmp/preview.log\n    exit 1\n  fi\n  WAITED=$((WAITED + 3))\n  if [ $WAITED -ge $MAX_WAIT ]; then\n    echo \"::error::Documentation server did not start after ${MAX_WAIT}s. Server log:\"\n    cat /tmp/preview.log\n    exit 1\n  fi\n  echo \"Waiting for server... ($WAITED/${MAX_WAIT}s)\"\n  sleep 3\ndone\necho \"Server ready at http://localhost:4321/gh-aw/!\"\n"
-      - name: Detect bridge IP and write server URL
-        run: "SERVER_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')\nif [ -z \"$SERVER_IP\" ]; then SERVER_IP=$(hostname -I | awk '{print $1}'); fi\nmkdir -p /tmp/gh-aw/agent\necho \"http://${SERVER_IP}:4321/gh-aw/\" > /tmp/gh-aw/agent/server-url.txt\necho \"Playwright server URL: http://${SERVER_IP}:4321/gh-aw/\"\n"
+      - name: Write server URL for agent
+        run: "mkdir -p /tmp/gh-aw/agent\necho \"http://localhost:4321/gh-aw/\" > /tmp/gh-aw/agent/server-url.txt\necho \"Server URL: http://localhost:4321/gh-aw/\"\n"
 
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.35 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.35 ghcr.io/github/gh-aw-firewall/squid:0.25.35 ghcr.io/github/gh-aw-mcpg:v0.3.3 ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959 mcr.microsoft.com/playwright/mcp@sha256:7b82f29c6ef83480a97f612d53ac3fd5f30a32df3fea1e06923d4204d3532bb2 node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.35 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.35 ghcr.io/github/gh-aw-firewall/squid:0.25.35 ghcr.io/github/gh-aw-mcpg:v0.3.3 ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959 node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
       - name: Write Safe Outputs Config
         env:
           GITHUB_WORKFLOW: ${{ github.workflow }}
@@ -459,9 +462,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << GH_AW_SAFE_OUTPUTS_CONFIG_f13510c105ca03cf_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << GH_AW_SAFE_OUTPUTS_CONFIG_a3c26868ae5d6b98_EOF
           {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1,"title_prefix":"[docs-noob-tester] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"upload_asset":{"allowed-exts":[".png",".jpg",".jpeg",".svg"],"branch":"assets/${GITHUB_WORKFLOW}","max":10,"max-size":10240}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_f13510c105ca03cf_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_a3c26868ae5d6b98_EOF
       - name: Write Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -646,8 +649,6 @@ jobs:
         run: |
           set -eo pipefail
           mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-config"
-          mkdir -p /tmp/gh-aw/mcp-logs/playwright
-          chmod 777 /tmp/gh-aw/mcp-logs/playwright
           
           # Export gateway environment variables for MCP config and gateway script
           export MCP_GATEWAY_PORT="8080"
@@ -662,8 +663,8 @@ jobs:
           export DEBUG="*"
           
           export GH_AW_ENGINE="copilot"
-          export GH_AW_MCP_CLI_SERVERS='["playwright","safeoutputs"]'
-          echo 'GH_AW_MCP_CLI_SERVERS=["playwright","safeoutputs"]' >> "$GITHUB_ENV"
+          export GH_AW_MCP_CLI_SERVERS='["safeoutputs"]'
+          echo 'GH_AW_MCP_CLI_SERVERS=["safeoutputs"]' >> "$GITHUB_ENV"
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')
@@ -671,7 +672,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_c217feb9a26d8b74_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_2aca3fe70976cf49_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -687,20 +688,6 @@ jobs:
                   "allow-only": {
                     "min-integrity": "$GITHUB_MCP_GUARD_MIN_INTEGRITY",
                     "repos": "$GITHUB_MCP_GUARD_REPOS"
-                  }
-                }
-              },
-              "playwright": {
-                "type": "stdio",
-                "container": "mcr.microsoft.com/playwright/mcp",
-                "args": ["--init", "--network", "host", "--security-opt", "seccomp=unconfined", "--ipc=host"],
-                "entrypointArgs": ["--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--no-sandbox"],
-                "mounts": ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw"],
-                "guard-policies": {
-                  "write-sink": {
-                    "accept": [
-                      "*"
-                    ]
                   }
                 }
               },
@@ -732,7 +719,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_c217feb9a26d8b74_EOF
+          GH_AW_MCP_CONFIG_2aca3fe70976cf49_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

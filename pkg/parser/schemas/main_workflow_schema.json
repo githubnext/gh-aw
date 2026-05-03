@@ -4057,8 +4057,8 @@
                 },
                 "mode": {
                   "type": "string",
-                  "description": "Integration mode: 'mcp' (default) runs a Docker-based MCP server; 'cli' installs @playwright/cli via npm for token-efficient CLI invocations.",
-                  "enum": ["mcp", "cli"]
+                  "description": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations — use playwright-cli commands in bash and localhost to reach local servers; 'mcp' (deprecated) runs a Docker-based MCP server.",
+                  "enum": ["cli", "mcp"]
                 }
               },
               "additionalProperties": false
