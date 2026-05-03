@@ -2,7 +2,7 @@
 
 **Source**: [github/github-mcp-server](https://github.com/github/github-mcp-server/tree/main/pkg/github)
 **Mapping File**: [pkg/workflow/data/github_toolsets_permissions.json](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json)
-**Last Updated**: 2026-03-01
+**Last Updated**: 2026-05-03
 
 ## Overview
 
@@ -64,10 +64,13 @@ The following toolsets are recommended as defaults for typical agentic workflows
 |---------|---------------|
 | `actions` | Workflow introspection, triggering runs |
 | `code_security` | Code scanning alert management |
+| `copilot_spaces` | GitHub Copilot Spaces (remote mode only) |
 | `dependabot` | Dependency vulnerability management |
 | `discussions` | Community discussion workflows |
 | `experiments` | Dynamic toolset management |
 | `gists` | Gist creation and management |
+| `git` | Git API operations (tree, refs) |
+| `github_support_docs_search` | GitHub support documentation search (remote mode only) |
 | `labels` | Label management automation |
 | `notifications` | Notification processing agents |
 | `orgs` | Organization-level security advisories |
@@ -92,6 +95,19 @@ The following toolsets are recommended as defaults for typical agentic workflows
 
 ---
 
+### copilot_spaces
+**Description**: GitHub Copilot Spaces (remote-only)
+**Source**: [`pkg/github/copilot_spaces.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/copilot_spaces.go)
+
+> **Note**: Remote-only toolset — only available when using the GitHub MCP server in remote mode (`https://api.githubcopilot.com/mcp/`). Not available with the local `gh mcp` mode.
+
+| Tool | Purpose | Key Parameters |
+|------|---------|----------------|
+| `get_copilot_space` | Get details of a specific Copilot Space | `owner`, `name` |
+| `list_copilot_spaces` | List Copilot Spaces for a user or organization | `owner` |
+
+---
+
 ### repos
 **Description**: Repository operations
 **Source**: [`pkg/github/repositories.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/repositories.go)
@@ -113,6 +129,28 @@ The following toolsets are recommended as defaults for typical agentic workflows
 | `list_releases` | List all releases for a repository | `owner`, `repo`, `page`, `per_page` |
 | `list_tags` | List tags in a repository | `owner`, `repo`, `page`, `per_page` |
 | `push_files` | Push multiple files in a single commit | `owner`, `repo`, `branch`, `files`, `message` |
+
+---
+
+### git
+**Description**: Git API operations (tree, refs)
+**Source**: [`pkg/github/git.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/git.go)
+
+| Tool | Purpose | Key Parameters |
+|------|---------|----------------|
+| `get_repository_tree` | Get the file tree of a repository | `owner`, `repo`, `sha`, `recursive` |
+
+---
+
+### github_support_docs_search
+**Description**: GitHub support documentation search (remote-only)
+**Source**: [`pkg/github/github_support_docs_search.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/github_support_docs_search.go)
+
+> **Note**: Remote-only toolset — only available when using the GitHub MCP server in remote mode (`https://api.githubcopilot.com/mcp/`). Not available with the local `gh mcp` mode.
+
+| Tool | Purpose | Key Parameters |
+|------|---------|----------------|
+| `github_support_docs_search` | Search GitHub support documentation | `query` |
 
 ---
 
@@ -283,6 +321,8 @@ The following toolsets are recommended as defaults for typical agentic workflows
 | `search_orgs` | Search GitHub organizations | `query`, `page`, `per_page` |
 | `search_repositories` | Search for repositories | `query`, `page`, `per_page` |
 | `search_users` | Search GitHub users | `query`, `page`, `per_page` |
+| `semantic_issue_similarity_search` | Find GitHub issues semantically similar to a given issue | `owner`, `repo`, `issue_number` |
+| `semantic_issues_search` | Search issues using natural language queries | `query`, `owner`, `repo` |
 
 ---
 
@@ -294,6 +334,7 @@ The following toolsets are recommended as defaults for typical agentic workflows
 |------|---------|----------------|
 | `get_secret_scanning_alert` | Get details of a specific secret scanning alert | `owner`, `repo`, `alert_number` |
 | `list_secret_scanning_alerts` | List secret scanning alerts for a repository | `owner`, `repo`, `state` |
+| `run_secret_scanning` | Scan file contents or diffs for exposed secrets | `content` |
 
 ---
 
@@ -363,10 +404,13 @@ When using remote mode with a PAT:
 | actions | 4 |
 | code_security | 2 |
 | context | 3 |
+| copilot_spaces | 2 |
 | dependabot | 2 |
 | discussions | 4 |
 | experiments | 3 |
 | gists | 4 |
+| git | 1 |
+| github_support_docs_search | 1 |
 | issues | 7 |
 | labels | 3 |
 | notifications | 6 |
@@ -374,9 +418,9 @@ When using remote mode with a PAT:
 | projects | 3 |
 | pull_requests | 10 |
 | repos | 15 |
-| search | 4 |
-| secret_protection | 2 |
+| search | 6 |
+| secret_protection | 3 |
 | security_advisories | 3 |
 | stargazers | 3 |
 | users | 0 |
-| **Total** | **79** |
+| **Total** | **86** |
