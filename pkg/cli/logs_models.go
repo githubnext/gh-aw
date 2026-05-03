@@ -276,15 +276,7 @@ type AwInfoSteps struct {
 type AwContext struct {
 	Repo           string `json:"repo"`                       // "owner/repo" of the calling workflow
 	RunID          string `json:"run_id"`                     // GitHub Actions run ID of the calling workflow
-	RunAttempt     string `json:"run_attempt,omitempty"`      // GitHub Actions run attempt of the calling workflow
 	WorkflowID     string `json:"workflow_id"`                // Full workflow ref, e.g. "owner/repo/.github/workflows/foo.yml@refs/heads/main"
-	EpisodeID      string `json:"episode_id,omitempty"`       // Stable orchestration session ID across workflow hops
-	HopID          string `json:"hop_id,omitempty"`           // Unique identifier for the current workflow invocation
-	ParentHopID    string `json:"parent_hop_id,omitempty"`    // Identifier for the immediate caller workflow hop
-	OriginEvent    string `json:"origin_event,omitempty"`     // Original GitHub event that started the orchestration session
-	RootRepo       string `json:"root_repo,omitempty"`        // Root repository where the orchestration session started
-	RootWorkflowID string `json:"root_workflow_id,omitempty"` // Root workflow ref where the orchestration session started
-	RootRunID      string `json:"root_run_id,omitempty"`      // Root GitHub Actions run ID where the orchestration session started
 	WorkflowCallID string `json:"workflow_call_id,omitempty"` // Unique call attempt ID (run_id + run_attempt)
 	Time           string `json:"time,omitempty"`             // ISO 8601 timestamp of the dispatch
 	Actor          string `json:"actor,omitempty"`            // GitHub actor that triggered the calling workflow

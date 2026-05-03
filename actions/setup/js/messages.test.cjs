@@ -10,7 +10,6 @@
  * - Run status messages (started, success, failure)
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import fs from "fs";
 
 // Mock core for GitHub Actions environment
 const mockCore = {
@@ -533,37 +532,6 @@ describe("messages.cjs", () => {
       delete process.env.GH_AW_ENGINE_VERSION;
       delete process.env.GH_AW_ENGINE_MODEL;
       delete process.env.GH_AW_TRACKER_ID;
-    });
-
-    it("should include canonical lineage metadata from aw_info context when available", async () => {
-      fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-      fs.writeFileSync(
-        "/tmp/gh-aw/aw_info.json",
-        JSON.stringify({
-          context: {
-            episode_id: "episode-42",
-            hop_id: "hop-2",
-            parent_hop_id: "hop-1",
-            origin_event: "workflow_run",
-            root_repo: "owner/repo",
-            root_workflow_id: "owner/repo/.github/workflows/root.yml@refs/heads/main",
-          },
-        })
-      );
-
-      vi.resetModules();
-      const { generateXMLMarker } = await import("./messages.cjs");
-
-      const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
-
-      expect(result).toContain("episode_id: episode-42");
-      expect(result).toContain("hop_id: hop-2");
-      expect(result).toContain("parent_hop_id: hop-1");
-      expect(result).toContain("origin_event: workflow_run");
-      expect(result).toContain("root_repo: owner/repo");
-      expect(result).toContain("root_workflow_id: owner/repo/.github/workflows/root.yml@refs/heads/main");
-
-      fs.unlinkSync("/tmp/gh-aw/aw_info.json");
     });
   });
 

@@ -1,27 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const fs = require("fs");
-
-const AW_INFO_PATH = "/tmp/gh-aw/aw_info.json";
-
-function readContextString(value) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function readAwInfoContext() {
-  if (!fs.existsSync(AW_INFO_PATH)) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(fs.readFileSync(AW_INFO_PATH, "utf8"));
-    return parsed && typeof parsed.context === "object" && parsed.context !== null ? parsed.context : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Generates a standalone workflow-id XML comment marker for searchability.
  * This marker enables finding all items (issues, discussions, PRs, comments)
@@ -79,13 +58,6 @@ function generateXMLMarker(workflowName, runUrl) {
   const trackerId = process.env.GH_AW_TRACKER_ID || "";
   const runId = process.env.GITHUB_RUN_ID || "";
   const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-  const awContext = readAwInfoContext();
-  const episodeId = readContextString(awContext?.episode_id) || readContextString(awContext?.workflow_call_id);
-  const hopId = readContextString(awContext?.hop_id) || readContextString(awContext?.workflow_call_id);
-  const parentHopId = readContextString(awContext?.parent_hop_id);
-  const originEvent = readContextString(awContext?.origin_event) || readContextString(awContext?.event_type);
-  const rootRepo = readContextString(awContext?.root_repo) || readContextString(awContext?.repo);
-  const rootWorkflowId = readContextString(awContext?.root_workflow_id) || readContextString(awContext?.workflow_id);
 
   // Build the key-value pairs for the marker
   const parts = [];
@@ -121,30 +93,6 @@ function generateXMLMarker(workflowName, runUrl) {
   // Add workflow identifier if available
   if (workflowId) {
     parts.push(`workflow_id: ${workflowId}`);
-  }
-
-  if (episodeId) {
-    parts.push(`episode_id: ${episodeId}`);
-  }
-
-  if (hopId) {
-    parts.push(`hop_id: ${hopId}`);
-  }
-
-  if (parentHopId) {
-    parts.push(`parent_hop_id: ${parentHopId}`);
-  }
-
-  if (originEvent) {
-    parts.push(`origin_event: ${originEvent}`);
-  }
-
-  if (rootRepo) {
-    parts.push(`root_repo: ${rootRepo}`);
-  }
-
-  if (rootWorkflowId) {
-    parts.push(`root_workflow_id: ${rootWorkflowId}`);
   }
 
   // Always include run URL
@@ -267,12 +215,90 @@ function getCloseKeyMarkerContent(closeKey) {
   return `gh-aw-close-key: ${closeKey}`;
 }
 
+/**
+ * Validate that an extracted workflow ID has a safe, expected format.
+ * Workflow IDs are file basenames (without .md) and must not contain
+ * path traversal sequences or other shell-unsafe characters.
+ *
+ * @param {string} id - Candidate workflow ID
+ * @returns {boolean} True if the ID is safe to use
+ */
+function isValidWorkflowId(id) {
+  // Allow alphanumeric characters, hyphens, underscores, and dots.
+  // Reject anything else, as well as path traversal sequences like "..".
+  return id.length > 0 && id.length <= 100 && /^[\w.-]+$/.test(id) && !id.includes("..");
+}
+
+/**
+ * Extract the workflow_id from an issue body using XML comment markers.
+ *
+ * Looks for (in priority order):
+ * 1. Standalone marker: <!-- gh-aw-workflow-id: my-workflow -->
+ * 2. Combined marker: <!-- gh-aw-agentic-workflow: ..., workflow_id: my-workflow, ... -->
+ * 3. Workflow-call-id marker: <!-- gh-aw-workflow-call-id: owner/repo/my-workflow -->
+ *    (extracts the last path segment to get the workflow ID)
+ *
+ * The combined and call-id markers are only searched within actual HTML comment blocks
+ * to prevent unintended matches in user-provided content.
+ *
+ * Any `.yml`, `.yaml`, or `.lock.yml` extension in the extracted ID is stripped so the
+ * result is always a bare workflow identifier (filename without extension).
+ *
+ * @param {string|null|undefined} body - Issue body
+ * @returns {string|null} Workflow ID or null if not found or invalid
+ */
+function extractWorkflowId(body) {
+  if (!body) return null;
+
+  // Try standalone marker: <!-- gh-aw-workflow-id: my-workflow -->
+  const standaloneMatch = body.match(/<!--\s*gh-aw-workflow-id:\s*([\w.-]+)\s*-->/);
+  if (standaloneMatch) {
+    const id = normalizeWorkflowId(standaloneMatch[1].trim());
+    return isValidWorkflowId(id) ? id : null;
+  }
+
+  // Try combined marker, but only within HTML comment blocks that contain
+  // gh-aw-agentic-workflow: to avoid matching user content.
+  const commentMatch = body.match(/<!--\s*gh-aw-agentic-workflow:[^>]*?workflow_id:\s*([\w.-]+)[\s,>]/s);
+  if (commentMatch) {
+    const id = normalizeWorkflowId(commentMatch[1].trim());
+    return isValidWorkflowId(id) ? id : null;
+  }
+
+  // Try workflow-call-id marker (handles workflow_dispatch): <!-- gh-aw-workflow-call-id: owner/repo/my-workflow -->
+  // The call-id has the form "owner/repo/workflow-id"; extract the last non-empty path segment.
+  const callIdMatch = body.match(/<!--\s*gh-aw-workflow-call-id:\s*([^\s>][^>]*?)\s*-->/);
+  if (callIdMatch) {
+    const segments = callIdMatch[1].trim().split("/");
+    const raw = segments[segments.length - 1].trim();
+    if (raw.length === 0) return null;
+    const id = normalizeWorkflowId(raw);
+    return isValidWorkflowId(id) ? id : null;
+  }
+
+  return null;
+}
+
+/**
+ * Strip workflow file extension (.yml, .yaml, .lock.yml) from a workflow identifier.
+ * This ensures we always work with the bare workflow ID (basename without extension).
+ *
+ * @param {string} id - Raw workflow identifier
+ * @returns {string} Bare workflow identifier
+ */
+function normalizeWorkflowId(id) {
+  return id.replace(/\.(lock\.yml|yml|yaml)$/i, "");
+}
+
 module.exports = {
   generateXMLMarker,
   generateWorkflowIdMarker,
   generateWorkflowCallIdMarker,
   getWorkflowIdMarkerContent,
   matchesWorkflowId,
+  isValidWorkflowId,
+  extractWorkflowId,
+  normalizeWorkflowId,
   generateExpiredEntityFooter,
   getExpiredEntityCautionAlert,
   normalizeCloseOlderKey,

@@ -377,9 +377,6 @@ func seedConfidenceRank(confidence string) int {
 func classifyEpisode(run RunData) (string, string, string, []string) {
 	logsEpisodeLog.Printf("Classifying episode for run: id=%d event=%s", run.RunID, run.Event)
 	if run.AwContext != nil {
-		if episodeID := strings.TrimSpace(run.AwContext.EpisodeID); episodeID != "" {
-			return "dispatch:" + episodeID, "dispatch_workflow", "high", []string{"context.episode_id"}
-		}
 		if run.AwContext.WorkflowCallID != "" {
 			return "dispatch:" + run.AwContext.WorkflowCallID, "dispatch_workflow", "high", []string{"context.workflow_call_id"}
 		}
@@ -425,18 +422,8 @@ func buildDispatchEpisodeEdge(run RunData, runsByID map[int64]RunData) (EpisodeE
 	logsEpisodeLog.Printf("Building dispatch episode edge: target_run=%d source_run=%d", run.RunID, sourceRunID)
 	confidence := "medium"
 	reasons := []string{"context.run_id"}
-	if strings.TrimSpace(run.AwContext.HopID) != "" {
-		confidence = "high"
-		reasons = append(reasons, "context.hop_id")
-	}
-	if strings.TrimSpace(run.AwContext.ParentHopID) != "" {
-		confidence = "high"
-		reasons = append(reasons, "context.parent_hop_id")
-	}
 	if run.AwContext.WorkflowCallID != "" {
-		if confidence != "high" {
-			confidence = "high"
-		}
+		confidence = "high"
 		reasons = append(reasons, "context.workflow_call_id")
 	}
 	if run.AwContext.WorkflowID != "" {

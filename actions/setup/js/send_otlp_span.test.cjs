@@ -2221,7 +2221,15 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
 
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
     await sendJobConclusionSpan("gh-aw.job.conclusion");
+    readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];

@@ -200,7 +200,7 @@ func TestBuildEpisodeDataAggregatesEffectiveTokens(t *testing.T) {
 
 func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
 	// Two runs belonging to the same episode (via dispatch)
-	episodeID := "dispatch:episode-42"
+	workflowCallID := "dispatch:wc-42"
 	runs := []RunData{
 		{
 			RunID:        301,
@@ -208,7 +208,6 @@ func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
 			Status:       "completed",
 			CreatedAt:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
 			AwContext: &AwContext{
-				EpisodeID:      "episode-42",
 				WorkflowCallID: "wc-42",
 			},
 		},
@@ -218,7 +217,6 @@ func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
 			Status:       "completed",
 			CreatedAt:    time.Date(2024, 1, 1, 12, 1, 0, 0, time.UTC),
 			AwContext: &AwContext{
-				EpisodeID:      "episode-42",
 				WorkflowCallID: "wc-42",
 			},
 		},
@@ -260,52 +258,8 @@ func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
 	require.Len(t, episodes, 1, "expected one merged episode from two dispatch runs")
 
 	ep := episodes[0]
-	assert.Equal(t, episodeID, ep.EpisodeID, "episode id should reflect canonical dispatch episode id")
+	assert.Equal(t, workflowCallID, ep.EpisodeID, "episode id should reflect dispatch call id")
 	assert.Len(t, ep.ToolCalls, 2, "tool_calls should include calls from both runs")
-}
-
-func TestClassifyEpisodePrefersCanonicalEpisodeID(t *testing.T) {
-	run := RunData{
-		RunID: 777,
-		AwContext: &AwContext{
-			EpisodeID:      "episode-777",
-			WorkflowCallID: "legacy-777",
-		},
-	}
-
-	episodeID, kind, confidence, reasons := classifyEpisode(run)
-
-	assert.Equal(t, "dispatch:episode-777", episodeID, "canonical episode_id should win over legacy workflow_call_id")
-	assert.Equal(t, "dispatch_workflow", kind, "dispatch runs should keep dispatch_workflow kind")
-	assert.Equal(t, "high", confidence, "canonical episode id should classify with high confidence")
-	assert.Equal(t, []string{"context.episode_id"}, reasons, "reasons should point to canonical lineage")
-}
-
-func TestBuildDispatchEpisodeEdgePrefersCanonicalHopConfidence(t *testing.T) {
-	run := RunData{
-		RunID: 600,
-		AwContext: &AwContext{
-			RunID:          "500",
-			Repo:           "owner/repo",
-			WorkflowID:     "owner/repo/.github/workflows/worker.yml@refs/heads/main",
-			HopID:          "hop-600",
-			ParentHopID:    "hop-500",
-			WorkflowCallID: "legacy-500",
-			EventType:      "workflow_dispatch",
-		},
-	}
-	runsByID := map[int64]RunData{
-		500: {RunID: 500},
-		600: run,
-	}
-
-	edge, ok := buildDispatchEpisodeEdge(run, runsByID)
-
-	require.True(t, ok, "dispatch edge should be created when the parent run exists")
-	assert.Equal(t, int64(500), edge.SourceRunID, "edge should point at the source run from context.run_id")
-	assert.Equal(t, "high", edge.Confidence, "canonical hop lineage should produce high confidence")
-	assert.Contains(t, edge.Reasons, "context.hop_id", "reasons should include canonical hop_id")
-	assert.Contains(t, edge.Reasons, "context.parent_hop_id", "reasons should include canonical parent_hop_id")
 }
 
 func TestMCPToolCallToEpisodeToolCall(t *testing.T) {

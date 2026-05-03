@@ -1,5 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import fs from "fs";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -59,13 +58,6 @@ describe("generate_footer.cjs", () => {
     generateWorkflowCallIdMarker = module.generateWorkflowCallIdMarker;
     getWorkflowIdMarkerContent = module.getWorkflowIdMarkerContent;
     normalizeCloseOlderKey = module.normalizeCloseOlderKey;
-  });
-
-  afterEach(() => {
-    const awInfoPath = "/tmp/gh-aw/aw_info.json";
-    if (fs.existsSync(awInfoPath)) {
-      fs.unlinkSync(awInfoPath);
-    }
   });
 
   describe("generateXMLMarker", () => {
@@ -176,35 +168,6 @@ describe("generate_footer.cjs", () => {
       const result = freshModule.generateXMLMarker("My Workflow", "https://github.com/test/repo/actions/runs/12345");
 
       expect(result).toBe("<!-- gh-aw-agentic-workflow: My Workflow, gh-aw-tracker-id: tracker-abc, engine: copilot, id: 12345, workflow_id: my-workflow, run: https://github.com/test/repo/actions/runs/12345 -->");
-    });
-
-    it("should include canonical lineage metadata from aw_info context when available", async () => {
-      fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-      fs.writeFileSync(
-        "/tmp/gh-aw/aw_info.json",
-        JSON.stringify({
-          context: {
-            episode_id: "episode-42",
-            hop_id: "hop-2",
-            parent_hop_id: "hop-1",
-            origin_event: "workflow_run",
-            root_repo: "owner/repo",
-            root_workflow_id: "owner/repo/.github/workflows/root.yml@refs/heads/main",
-          },
-        })
-      );
-
-      vi.resetModules();
-      const freshModule = await import("./generate_footer.cjs");
-
-      const result = freshModule.generateXMLMarker("My Workflow", "https://github.com/test/repo/actions/runs/12345");
-
-      expect(result).toContain("episode_id: episode-42");
-      expect(result).toContain("hop_id: hop-2");
-      expect(result).toContain("parent_hop_id: hop-1");
-      expect(result).toContain("origin_event: workflow_run");
-      expect(result).toContain("root_repo: owner/repo");
-      expect(result).toContain("root_workflow_id: owner/repo/.github/workflows/root.yml@refs/heads/main");
     });
   });
 
