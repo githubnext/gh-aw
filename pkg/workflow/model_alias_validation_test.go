@@ -210,6 +210,12 @@ func TestValidateTemperatureParam(t *testing.T) {
 		{"3.0", true},
 		{"abc", true},
 		{"", true},
+		// NaN and Inf must be rejected (strconv.ParseFloat accepts them)
+		{"NaN", true},
+		{"nan", true},
+		{"+Inf", true},
+		{"-Inf", true},
+		{"Inf", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.value, func(t *testing.T) {
@@ -442,6 +448,20 @@ func TestValidateModelAliasMap_BuiltinCyclePreventedBySpec(t *testing.T) {
 		"/fake/path/workflow.md",
 	)
 	assert.NoError(t, err, "builtin alias map must be acyclic")
+}
+
+func TestValidateModelAliasMap_EngineModelUnknownParamEmitsWarning(t *testing.T) {
+	// V-MAF-011: engine.model with an unrecognised query parameter should not cause an
+	// error but should increment the warning counter.
+	compiler := NewCompiler()
+	err := compiler.validateModelAliasMap(
+		BuiltinModelAliases(),
+		nil,
+		"opus?unknownparam=value",
+		"/fake/path/workflow.md",
+	)
+	require.NoError(t, err, "unknown param in engine.model should not be a hard error")
+	assert.Positive(t, compiler.GetWarningCount(), "unknown param in engine.model should emit a V-MAF-011 warning")
 }
 
 // isAliasReference helper tests.

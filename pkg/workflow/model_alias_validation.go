@@ -62,6 +62,8 @@ func (c *Compiler) validateModelAliasMap(
 		if errs := validateModelIdentifierStrings([]string{engineModel}, "engine.model"); len(errs) > 0 {
 			return formatCompilerError(markdownPath, "error", errs[0], nil)
 		}
+		// V-MAF-011: warn about unrecognised parameter keys in engine.model.
+		c.warnUnrecognizedModelParams([]string{engineModel}, markdownPath)
 	}
 
 	// Validate user-supplied frontmatter aliases only (builtins are pre-validated).

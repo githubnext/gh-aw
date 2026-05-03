@@ -47,6 +47,7 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -292,8 +293,8 @@ func validateBareName(name string) error {
 // ─── Parameter parsing ────────────────────────────────────────────────────────
 
 // parseQueryString parses a query string of the form "key=value&key=value…".
-// Returns an error if any key or value violates the grammar or if known parameters
-// have invalid values.
+// Returns an error if any key or value violates the grammar (syntax only).
+// Known-parameter value validation is performed separately by ValidateKnownParams.
 func parseQueryString(raw string) (map[string]string, error) {
 	params := map[string]string{}
 	for pair := range strings.SplitSeq(raw, "&") {
@@ -358,11 +359,14 @@ func ValidateEffortParam(value string) error {
 }
 
 // ValidateTemperatureParam validates the "temperature" parameter value (V-MAF-003).
-// Must be a decimal float in [0.0, 2.0].
+// Must be a finite decimal float in [0.0, 2.0].
 func ValidateTemperatureParam(value string) error {
 	f, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		return fmt.Errorf("model parameter 'temperature': value %q cannot be parsed as a decimal float (V-MAF-003)", value)
+	}
+	if math.IsNaN(f) || math.IsInf(f, 0) {
+		return fmt.Errorf("model parameter 'temperature': value %q is not a finite number (V-MAF-003)", value)
 	}
 	if f < 0.0 || f > 2.0 {
 		return fmt.Errorf("model parameter 'temperature': value %q is out of range; must be in [0.0, 2.0] (V-MAF-003)", value)
