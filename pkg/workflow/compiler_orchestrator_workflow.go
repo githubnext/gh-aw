@@ -66,6 +66,27 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Store a stable workflow identifier derived from the file name.
 	workflowData.WorkflowID = GetWorkflowIDFromPath(cleanPath)
 
+	// Validate model alias map: identifier syntax, parameter values, glob-in-engine.model,
+	// alias key format, and circular references (V-MAF-001..006, V-MAF-010, V-MAF-011).
+	{
+		var frontmatterModels map[string][]string
+		if toolsResult.parsedFrontmatter != nil {
+			frontmatterModels = toolsResult.parsedFrontmatter.Models
+		}
+		var engineModel string
+		if workflowData.EngineConfig != nil {
+			engineModel = workflowData.EngineConfig.Model
+		}
+		if err := c.validateModelAliasMap(
+			workflowData.ModelMappings,
+			frontmatterModels,
+			engineModel,
+			cleanPath,
+		); err != nil {
+			return nil, err
+		}
+	}
+
 	// Validate run-install-scripts setting (warning in non-strict mode, error in strict mode)
 	if err := c.validateRunInstallScripts(workflowData); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
