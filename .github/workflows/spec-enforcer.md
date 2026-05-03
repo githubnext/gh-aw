@@ -386,7 +386,7 @@ All tests are derived from README.md specifications, not from implementation sou
 
 ### Round-Robin State
 
-- **Run mode**: ${{ github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin' }}
+- **Run mode**: ${{ github.event.inputs.enforce_all || 'round-robin' }}
 - **Packages processed this run**: <list>
 - **Next packages in rotation**: <list>
 - **Total eligible packages**: N (with README.md)

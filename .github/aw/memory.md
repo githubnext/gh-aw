@@ -1,5 +1,5 @@
 ---
-description: Guide for choosing the right persistent memory strategy in agentic workflows — cache-memory, repo-memory, and repo-memory with wiki. cache-memory is the first choice. Includes a stateful scanning pattern (load baseline → scan → diff → write) for "alert on new X" workflows.
+description: Guide for choosing the right persistent memory strategy in agentic workflows — cache-memory, repo-memory, and repo-memory with wiki. Covers deduplication, stateful baseline comparison (metrics/coverage), and stateful scanning ("alert on new X").
 ---
 
 # Persistent Memory in Agentic Workflows
@@ -17,7 +17,9 @@ Consult this file when designing a workflow that needs to **persist state across
 | Skip already-processed items (deduplication) | `cache-memory` ✅ first choice |
 | Round-robin processing across runs | `cache-memory` ✅ first choice |
 | Store ephemeral run state, analysis notes, or intermediate results | `cache-memory` ✅ first choice |
+| Track a numeric metric and compare current vs. baseline (runs at least every 7 days) | `cache-memory` ✅ first choice |
 | Long-lived knowledge base visible in PRs and code reviews | `repo-memory` |
+| Baselines that must survive cache expiry (e.g. security findings, dedup lists) | `repo-memory` |
 | Human-readable wiki pages for knowledge accumulation | `repo-memory` with `wiki: true` |
 
 **Default to `cache-memory` unless you have a specific reason to use `repo-memory`.**
@@ -33,6 +35,7 @@ Uses GitHub Actions cache (`actions/cache`) to persist a local filesystem direct
 - **Deduplication**: Track which items (issues, PRs, URLs, IDs) have already been processed
 - **Round-robin / incremental processing**: Remember where you left off across scheduled runs
 - **Ephemeral structured state**: JSON blobs, processing queues, intermediate analysis results
+- **Metric baseline comparison**: Store a coverage %, score, or count and compare on the next run (see [Stateful Analysis / Baseline Comparison](#stateful-analysis--baseline-comparison) below)
 - **Visual regression baselines**: Store screenshots between PR runs (see `visual-regression.md`)
 - **Tool call caching**: Avoid redundant expensive API calls across runs
 
@@ -107,6 +110,71 @@ Before finishing, write the updated full list of processed issue numbers back to
 `/tmp/gh-aw/cache-memory/processed.json` using a filesystem-safe timestamp:
 `YYYY-MM-DD-HH-MM-SS` (no colons, no `T`, no `Z`).
 ```
+
+### Stateful Analysis / Baseline Comparison
+
+Use `cache-memory` to persist a baseline metric between runs and detect regressions. This pattern is well-suited for any "compare current vs. previous" scenario — test coverage, build duration, benchmark scores, audit counts — where runs happen at least once every 7 days (the default cache retention).
+
+**When to use this pattern**
+
+- Tracking a numeric metric (coverage %, build time, test count, score) across scheduled or PR runs
+- Alerting when a metric regresses by more than an acceptable threshold
+- Any "tell me when X drops by more than Y" workflow where losing the baseline for a cycle is tolerable (the next run simply re-establishes it)
+
+**When to use `repo-memory` instead**
+
+If a lost baseline would cause serious side-effects — e.g. a security-finding baseline where "cache miss" floods the repo with duplicate issues — use `repo-memory`. See [Stateful Scanning Pattern (repo-memory)](#stateful-scanning-pattern-repo-memory) below.
+
+**Worked example: coverage delta on every PR**
+
+```markdown
+---
+description: Post a PR comment when test coverage drops by more than 1 percentage point
+on:
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  pull-requests: read
+  contents: read
+engine: copilot
+tools:
+  github:
+    toolsets: [pull_requests]
+  cache-memory: true
+safe-outputs:
+  add-pr-comment:
+    max: 1
+timeout-minutes: 15
+---
+
+Run the test suite and collect the overall line-coverage percentage as a
+single float (e.g. `82.5`).
+
+Load `/tmp/gh-aw/cache-memory/coverage-baseline.json` if it exists.
+The file stores: `{ "coverage": 82.5, "updated": "2026-05-01-09-00-00" }`.
+
+**First run** (file missing): write the current coverage to the file and use
+the `noop` safe output — no comment is needed yet.
+
+**Subsequent runs** (baseline found): compute `delta = current − baseline`.
+
+- If `delta >= −1.0` (coverage held or improved), use the `noop` safe output.
+- If `delta < −1.0` (coverage fell by more than 1 pp), post an `add-pr-comment`
+  that includes:
+  - Baseline coverage, current coverage, and delta (e.g. "82.5% → 79.3% (−3.2 pp)")
+  - Which files lost the most coverage
+
+Regardless of the outcome, overwrite `/tmp/gh-aw/cache-memory/coverage-baseline.json`
+with the current coverage and a filesystem-safe timestamp `YYYY-MM-DD-HH-MM-SS`
+(no colons, no `T`, no `Z`).
+```
+
+**Key design decisions**
+
+- **`cache-memory` not `repo-memory`** — coverage deltas are short-lived quality gates; a cache miss just means "no comparison this run" and the baseline is silently refreshed — no false-positive flood
+- **First-run handling** — treat a missing baseline as "no data yet": write it and skip the comparison; the second run is the first real gate
+- **Threshold guard** — ignore sub-1 pp fluctuations to reduce noise; tune the threshold to your team's standards
+- **Filename safety** — use `YYYY-MM-DD-HH-MM-SS` (no colons) in any timestamped filenames written to `cache-memory`; see [Filename safety](#filename-safety) below
 
 ### Tradeoffs
 

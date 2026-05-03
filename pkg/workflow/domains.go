@@ -277,12 +277,20 @@ var PlaywrightDomains = []string{
 	"playwright.download.prss.microsoft.com",
 }
 
-// init loads the ecosystem domains from the embedded JSON
+// init loads the ecosystem domains from the embedded JSON and pre-sorts each list.
+// Pre-sorting at startup avoids the per-call sort.Strings in getEcosystemDomains,
+// which is called on every compilation and previously allocated + sorted each list
+// on every invocation.
 func init() {
 	domainsLog.Print("Loading ecosystem domains from embedded JSON")
 
 	if err := json.Unmarshal(ecosystemDomainsJSON, &ecosystemDomains); err != nil {
 		panic(fmt.Sprintf("failed to load ecosystem domains from JSON: %v", err))
+	}
+
+	// Pre-sort all domain lists once so getEcosystemDomains only needs to copy, not sort.
+	for key := range ecosystemDomains {
+		sort.Strings(ecosystemDomains[key])
 	}
 
 	domainsLog.Printf("Loaded %d ecosystem categories", len(ecosystemDomains))
@@ -319,10 +327,10 @@ func getEcosystemDomains(category string) []string {
 	if !exists {
 		return []string{}
 	}
-	// Return a sorted copy to avoid external modification
+	// Return a copy to avoid external modification. The underlying list is already
+	// sorted once at init() time so no per-call sort.Strings is needed.
 	result := make([]string, len(domains))
 	copy(result, domains)
-	sort.Strings(result)
 	return result
 }
 
