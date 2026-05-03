@@ -420,27 +420,35 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 
 	// Handle playwright tool by converting it to an MCP tool configuration with copilot agent tools
 	if toolsConfig.Playwright != nil {
-		// Create an updated Playwright config with the allowed tools
+		// Create an updated Playwright config preserving all fields including Mode
 		playwrightConfig := &PlaywrightToolConfig{
 			Version: toolsConfig.Playwright.Version,
 			Args:    toolsConfig.Playwright.Args,
+			Mode:    toolsConfig.Playwright.Mode,
 		}
 
 		result.Playwright = playwrightConfig
 
-		// Also update the Custom map entry for playwright with allowed tools list
-		playwrightMCP := map[string]any{
-			"allowed": GetPlaywrightTools(),
-		}
-		if playwrightConfig.Version != "" {
-			playwrightMCP["version"] = playwrightConfig.Version
-		}
-		if len(playwrightConfig.Args) > 0 {
-			playwrightMCP["args"] = playwrightConfig.Args
-		}
+		// In CLI mode, playwright is not an MCP server — remove from raw map and skip MCP config entry.
+		// result.raw is populated by maps.Copy(result.raw, toolsConfig.raw) earlier in this function,
+		// so delete is safe regardless of whether the key was originally present.
+		if playwrightConfig.IsCLIMode() {
+			delete(result.raw, "playwright")
+		} else {
+			// Also update the Custom map entry for playwright with allowed tools list
+			playwrightMCP := map[string]any{
+				"allowed": GetPlaywrightTools(),
+			}
+			if playwrightConfig.Version != "" {
+				playwrightMCP["version"] = playwrightConfig.Version
+			}
+			if len(playwrightConfig.Args) > 0 {
+				playwrightMCP["args"] = playwrightConfig.Args
+			}
 
-		// Update raw map for backward compatibility
-		result.raw["playwright"] = playwrightMCP
+			// Update raw map for backward compatibility
+			result.raw["playwright"] = playwrightMCP
+		}
 	}
 
 	return result

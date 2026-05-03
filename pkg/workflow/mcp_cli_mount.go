@@ -62,7 +62,13 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 			// Only include tools that have MCP servers (skip bash, web-fetch, web-search, edit, cache-memory, etc.)
 			// Note: "github" is excluded — it is handled differently and should not be CLI-mounted.
 			switch toolName {
-			case "playwright", "qmd":
+			case "playwright":
+				// In CLI mode, playwright is installed as @playwright/cli via npm and is NOT
+				// an MCP server, so it must not appear in the CLI-mounted servers list.
+				if !isPlaywrightCLIMode(data.Tools) {
+					servers = append(servers, toolName)
+				}
+			case "qmd":
 				servers = append(servers, toolName)
 			case "agentic-workflows":
 				// The gateway and manifest use "agenticworkflows" (no hyphen) as the server ID.

@@ -268,7 +268,8 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	// can receive caller metadata (repo, run_id, actor, etc.) from dispatch_workflow.
 	// String-based injection preserves existing YAML comments and formatting.
 	onSection = injectAwContextIntoOnYAML(onSection)
-	yaml.WriteString(onSection + "\n\n")
+	yaml.WriteString(onSection)
+	yaml.WriteString("\n\n")
 
 	// Note: GitHub Actions doesn't support workflow-level if conditions
 	// The workflow_run safety check is added to individual jobs instead
@@ -277,12 +278,15 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	// Agent permissions are applied only to the agent job
 	yaml.WriteString("permissions: {}\n\n")
 
-	yaml.WriteString(data.Concurrency + "\n\n")
-	yaml.WriteString(data.RunName + "\n\n")
+	yaml.WriteString(data.Concurrency)
+	yaml.WriteString("\n\n")
+	yaml.WriteString(data.RunName)
+	yaml.WriteString("\n\n")
 
 	// Add env section if present
 	if data.Env != "" {
-		yaml.WriteString(data.Env + "\n\n")
+		yaml.WriteString(data.Env)
+		yaml.WriteString("\n\n")
 	}
 
 	// Add cache comment if cache configuration was provided
@@ -290,8 +294,9 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString("# Cache configuration from frontmatter was processed and added to the main job steps\n\n")
 	}
 
-	// Generate jobs section using JobManager
-	yaml.WriteString(c.jobManager.RenderToYAML())
+	// Generate jobs section using JobManager — write directly to avoid an
+	// intermediate string allocation.
+	c.jobManager.WriteJobsYAML(yaml)
 }
 
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, []string, []string, error) {
@@ -332,9 +337,10 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	}
 
 	// Pre-allocate builder capacity based on estimated workflow size.
-	// Copilot / Claude workflows with safe-outputs typically compile to ~70–90 KB.
-	// 96 KB avoids the first reallocation for the common case while keeping memory
-	// waste acceptable for small workflows (only ~32 KB extra for a 64 KB output).
+	// Copilot/Claude workflows with safe-outputs typically compile to ~70–90 KB.
+	// 96 KB avoids the first reallocation for the common case. The performance
+	// benefit of this function comes from eliminating the intermediate copies
+	// that RenderToYAML + WriteString used to incur, not from capacity reduction.
 	const initialBuilderCapacity = 96 * 1024
 	var yaml strings.Builder
 	yaml.Grow(initialBuilderCapacity)

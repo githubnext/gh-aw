@@ -46,6 +46,9 @@ safe-outputs:
     labels: [community, automation]
     reviewers: []
     draft: true
+    protected-files:
+      exclude:
+        - README.md    # this workflow updates the Community Contributions section in README.md
   create-issue:
     title-prefix: "[community-attribution] "
     labels: [community, automation]

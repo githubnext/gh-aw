@@ -341,6 +341,100 @@ func TestJobManager_RenderToYAML(t *testing.T) {
 	}
 }
 
+// TestJobManager_WriteJobsYAML verifies that WriteJobsYAML correctly appends
+// the jobs section to an already-populated builder (mimicking generateWorkflowBody)
+// and that the output is identical to RenderToYAML() prepended with the same prefix.
+func TestJobManager_WriteJobsYAML(t *testing.T) {
+	tests := []struct {
+		name     string
+		prefix   string
+		jobs     []*Job
+		expected []string
+	}{
+		{
+			name:     "appends to non-empty builder",
+			prefix:   "name: \"my-workflow\"\non: issues\npermissions: {}\n\n",
+			jobs:     []*Job{},
+			expected: []string{"name: \"my-workflow\"", "jobs:"},
+		},
+		{
+			name:   "jobs follow existing header content",
+			prefix: "name: \"test\"\n",
+			jobs: []*Job{
+				{
+					Name:    "build",
+					RunsOn:  "runs-on: ubuntu-latest",
+					Steps:   []string{"      - name: Build\n        run: make build\n"},
+					Outputs: map[string]string{"sha": "${{ steps.build.outputs.sha }}"},
+				},
+			},
+			expected: []string{
+				"name: \"test\"",
+				"jobs:",
+				"  build:",
+				"    runs-on: ubuntu-latest",
+				"    outputs:",
+				"      sha: ${{ steps.build.outputs.sha }}",
+				"    steps:",
+				"      - name: Build",
+				"        run: make build",
+			},
+		},
+		{
+			name:   "multiple jobs appended to header - order and separators correct",
+			prefix: "on: push\n\n",
+			jobs: []*Job{
+				{
+					Name:   "test",
+					RunsOn: "runs-on: ubuntu-latest",
+					Steps:  []string{"      - name: Test\n        run: echo test\n"},
+				},
+				{
+					Name:   "deploy",
+					RunsOn: "runs-on: ubuntu-latest",
+					Needs:  []string{"test"},
+					Steps:  []string{"      - name: Deploy\n        run: echo deploy\n"},
+				},
+			},
+			expected: []string{
+				"on: push",
+				"jobs:",
+				"  deploy:",
+				"    needs: test",
+				"  test:",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jm := NewJobManager()
+			for _, job := range tt.jobs {
+				if err := jm.AddJob(job); err != nil {
+					t.Fatalf("Failed to add job %s: %v", job.Name, err)
+				}
+			}
+
+			// Write to a builder that already has content.
+			var b strings.Builder
+			b.WriteString(tt.prefix)
+			jm.WriteJobsYAML(&b)
+			result := b.String()
+
+			for _, expected := range tt.expected {
+				if !strings.Contains(result, expected) {
+					t.Errorf("WriteJobsYAML() result does not contain %q\nFull result:\n%s", expected, result)
+				}
+			}
+
+			// WriteJobsYAML and RenderToYAML must produce the same jobs section.
+			if !strings.HasSuffix(result, jm.RenderToYAML()) {
+				t.Errorf("WriteJobsYAML() jobs section differs from RenderToYAML().\nRenderToYAML:\n%s\nWriteJobsYAML result (full):\n%s", jm.RenderToYAML(), result)
+			}
+		})
+	}
+}
+
 func TestJobManager_GetJob(t *testing.T) {
 	jm := NewJobManager()
 

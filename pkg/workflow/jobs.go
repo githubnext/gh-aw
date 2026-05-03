@@ -154,58 +154,60 @@ func (jm *JobManager) dfsVisit(jobName string, visitState map[string]int) error 
 	return nil
 }
 
-// RenderToYAML generates the jobs section of a GitHub Actions workflow
-func (jm *JobManager) RenderToYAML() string {
+// WriteJobsYAML writes the jobs section of a GitHub Actions workflow directly
+// to b, avoiding an intermediate string copy.  Callers that already hold a
+// *strings.Builder (e.g. generateWorkflowBody) should prefer this method over
+// RenderToYAML to reduce allocations.
+func (jm *JobManager) WriteJobsYAML(b *strings.Builder) {
 	jobLog.Printf("Rendering %d jobs to YAML", len(jm.jobs))
 	if len(jm.jobs) == 0 {
-		return "jobs:\n"
+		b.WriteString("jobs:\n")
+		return
 	}
 
-	var yaml strings.Builder
-	// Pre-allocate capacity: "jobs:\n" header + estimated size per job.
-	// A typical compiled workflow has 3-5 jobs; each agent job can be ~30 KB.
-	// 96 KB avoids the first reallocation for most workflows.
-	yaml.Grow(96 * 1024)
-	yaml.WriteString("jobs:\n")
+	b.WriteString("jobs:\n")
 
 	// jobOrder is kept sorted alphabetically by AddJob
 	for _, jobName := range jm.jobOrder {
-		job := jm.jobs[jobName]
-		yaml.WriteString(jm.renderJob(job))
+		jm.renderJobTo(b, jm.jobs[jobName])
 	}
+}
 
+// RenderToYAML generates the jobs section of a GitHub Actions workflow.
+// Prefer WriteJobsYAML when an existing *strings.Builder is available to avoid
+// an extra allocation.
+func (jm *JobManager) RenderToYAML() string {
+	var yaml strings.Builder
+	// Pre-size so the builder avoids reallocation for typical workflows.
+	// All jobs combined are usually ~48–60 KB; 64 KB covers that range.
+	yaml.Grow(64 * 1024)
+	jm.WriteJobsYAML(&yaml)
 	return yaml.String()
 }
 
-// renderJob renders a single job to YAML
-func (jm *JobManager) renderJob(job *Job) string {
+// renderJobTo writes a single job to b directly, with no intermediate string allocation.
+func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 	jobLog.Printf("Rendering job: %s (steps=%d, needs=%d, reusable=%t)", job.Name, len(job.Steps), len(job.Needs), job.Uses != "")
-	var yaml strings.Builder
-	// Pre-allocate capacity for a typical job.
-	// Agent jobs can be very large (~30 KB); smaller jobs like activation are ~2 KB.
-	// 8 KB is a reasonable default that avoids most reallocations without over-allocating
-	// for activation/conclusion jobs while keeping the reallocation count low for main jobs.
-	yaml.Grow(8 * 1024)
 
-	fmt.Fprintf(&yaml, "  %s:\n", job.Name)
+	fmt.Fprintf(b, "  %s:\n", job.Name)
 
 	// Add display name if present
 	if job.DisplayName != "" {
-		fmt.Fprintf(&yaml, "    name: %s\n", job.DisplayName)
+		fmt.Fprintf(b, "    name: %s\n", job.DisplayName)
 	}
 
 	// Add needs clause if there are dependencies
 	if len(job.Needs) > 0 {
 		if len(job.Needs) == 1 {
-			fmt.Fprintf(&yaml, "    needs: %s\n", job.Needs[0])
+			fmt.Fprintf(b, "    needs: %s\n", job.Needs[0])
 		} else {
-			yaml.WriteString("    needs:\n")
+			b.WriteString("    needs:\n")
 			// Sort needs for consistent output
 			sortedNeeds := make([]string, len(job.Needs))
 			copy(sortedNeeds, job.Needs)
 			sort.Strings(sortedNeeds)
 			for _, dep := range sortedNeeds {
-				fmt.Fprintf(&yaml, "      - %s\n", dep)
+				fmt.Fprintf(b, "      - %s\n", dep)
 			}
 		}
 	}
@@ -214,7 +216,7 @@ func (jm *JobManager) renderJob(job *Job) string {
 	if job.If != "" {
 		// Add zizmor ignore comment if this job has workflow_run safety checks
 		if job.HasWorkflowRunSafetyChecks {
-			yaml.WriteString("    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation\n")
+			b.WriteString("    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation\n")
 		}
 
 		// Check if expression is multiline or longer than MaxExpressionLineLength characters
@@ -223,80 +225,80 @@ func (jm *JobManager) renderJob(job *Job) string {
 			// (e.g. startsWith(body, '/command\n') for matching bot comments with attribution metadata).
 			// Use a YAML double-quoted scalar so the \n escape is preserved as a real newline after
 			// YAML parsing, which GitHub Actions then evaluates correctly.
-			fmt.Fprintf(&yaml, "    if: \"%s\"\n", escapeForYAMLDoubleQuoted(job.If))
+			fmt.Fprintf(b, "    if: \"%s\"\n", escapeForYAMLDoubleQuoted(job.If))
 		} else if strings.Contains(job.If, "\n") || len(job.If) > int(constants.MaxExpressionLineLength) {
 			// Use YAML folded style for multiline expressions or long expressions
-			yaml.WriteString("    if: >\n")
+			b.WriteString("    if: >\n")
 
 			if strings.Contains(job.If, "\n") {
 				// Already has newlines, use existing logic
 				lines := strings.SplitSeq(job.If, "\n")
 				for line := range lines {
 					if strings.TrimSpace(line) != "" {
-						fmt.Fprintf(&yaml, "      %s\n", strings.TrimSpace(line))
+						fmt.Fprintf(b, "      %s\n", strings.TrimSpace(line))
 					}
 				}
 			} else {
 				// Long single-line expression, break it into logical lines
 				lines := BreakLongExpression(job.If)
 				for _, line := range lines {
-					fmt.Fprintf(&yaml, "      %s\n", strings.TrimSpace(line))
+					fmt.Fprintf(b, "      %s\n", strings.TrimSpace(line))
 				}
 			}
 		} else {
 			// Single line expression that's not too long
-			fmt.Fprintf(&yaml, "    if: %s\n", job.If)
+			fmt.Fprintf(b, "    if: %s\n", job.If)
 		}
 	}
 
 	// Add runs-on
 	if job.RunsOn != "" {
-		fmt.Fprintf(&yaml, "    %s\n", job.RunsOn)
+		fmt.Fprintf(b, "    %s\n", job.RunsOn)
 	}
 
 	// Add strategy section
 	if job.Strategy != "" {
-		fmt.Fprintf(&yaml, "    %s\n", strings.TrimRight(job.Strategy, "\n"))
+		fmt.Fprintf(b, "    %s\n", strings.TrimRight(job.Strategy, "\n"))
 	}
 
 	// Add environment section
 	if job.Environment != "" {
-		fmt.Fprintf(&yaml, "    %s\n", job.Environment)
+		fmt.Fprintf(b, "    %s\n", job.Environment)
 	}
 
 	// Add container section
 	if job.Container != "" {
-		fmt.Fprintf(&yaml, "    %s\n", job.Container)
+		fmt.Fprintf(b, "    %s\n", job.Container)
 	}
 
 	// Add services section
 	if job.Services != "" {
-		fmt.Fprintf(&yaml, "    %s\n", job.Services)
+		fmt.Fprintf(b, "    %s\n", job.Services)
 	}
 
 	// Add permissions section
 	if job.Permissions != "" {
-		fmt.Fprintf(&yaml, "    %s\n", job.Permissions)
+		fmt.Fprintf(b, "    %s\n", job.Permissions)
 	}
 
 	// Add concurrency section
 	if job.Concurrency != "" {
-		fmt.Fprintf(&yaml, "    %s\n", job.Concurrency)
+		fmt.Fprintf(b, "    %s\n", job.Concurrency)
 	}
 
 	// Add timeout-minutes if specified
 	if job.TimeoutMinutes > 0 {
-		fmt.Fprintf(&yaml, "    timeout-minutes: %d\n", job.TimeoutMinutes)
+		fmt.Fprintf(b, "    timeout-minutes: %d\n", job.TimeoutMinutes)
 	}
 
 	// Add continue-on-error only when explicitly set
 	if job.ContinueOnError != nil {
-		fmt.Fprintf(&yaml, "    continue-on-error: %t\n", *job.ContinueOnError)
+		fmt.Fprintf(b, "    continue-on-error: %t\n", *job.ContinueOnError)
 	}
 
 	// Add environment variables section
 	if len(job.Env) > 0 {
-		yaml.WriteString("    env:\n")
+		b.WriteString("    env:\n")
 		// Sort environment variable keys for consistent output
 		envKeys := make([]string, 0, len(job.Env))
 		for key := range job.Env {
@@ -305,13 +307,13 @@ func (jm *JobManager) renderJob(job *Job) string {
 		sort.Strings(envKeys)
 
 		for _, key := range envKeys {
-			fmt.Fprintf(&yaml, "      %s: %s\n", key, job.Env[key])
+			fmt.Fprintf(b, "      %s: %s\n", key, job.Env[key])
 		}
 	}
 
 	// Add outputs section
 	if len(job.Outputs) > 0 {
-		yaml.WriteString("    outputs:\n")
+		b.WriteString("    outputs:\n")
 		// Sort output keys for consistent output
 		outputKeys := make([]string, 0, len(job.Outputs))
 		for key := range job.Outputs {
@@ -320,7 +322,7 @@ func (jm *JobManager) renderJob(job *Job) string {
 		sort.Strings(outputKeys)
 
 		for _, key := range outputKeys {
-			fmt.Fprintf(&yaml, "      %s: %s\n", key, job.Outputs[key])
+			fmt.Fprintf(b, "      %s: %s\n", key, job.Outputs[key])
 		}
 	}
 
@@ -328,11 +330,11 @@ func (jm *JobManager) renderJob(job *Job) string {
 	if job.Uses != "" {
 		jobLog.Printf("Rendering reusable workflow call: %s uses=%s with=%d secrets=%d", job.Name, job.Uses, len(job.With), len(job.Secrets))
 		// Add uses directive for reusable workflow
-		fmt.Fprintf(&yaml, "    uses: %s\n", job.Uses)
+		fmt.Fprintf(b, "    uses: %s\n", job.Uses)
 
 		// Add with parameters if present
 		if len(job.With) > 0 {
-			yaml.WriteString("    with:\n")
+			b.WriteString("    with:\n")
 			// Sort keys for consistent output
 			withKeys := make([]string, 0, len(job.With))
 			for key := range job.With {
@@ -345,22 +347,22 @@ func (jm *JobManager) renderJob(job *Job) string {
 				// Format the value based on its type
 				switch v := value.(type) {
 				case string:
-					fmt.Fprintf(&yaml, "      %s: %s\n", key, v)
+					fmt.Fprintf(b, "      %s: %s\n", key, v)
 				case int, int64, float64:
-					fmt.Fprintf(&yaml, "      %s: %v\n", key, v)
+					fmt.Fprintf(b, "      %s: %v\n", key, v)
 				case bool:
-					fmt.Fprintf(&yaml, "      %s: %t\n", key, v)
+					fmt.Fprintf(b, "      %s: %t\n", key, v)
 				default:
-					fmt.Fprintf(&yaml, "      %s: %v\n", key, v)
+					fmt.Fprintf(b, "      %s: %v\n", key, v)
 				}
 			}
 		}
 
 		// Add secrets if present
 		if job.SecretsInherit {
-			yaml.WriteString("    secrets: inherit\n")
+			b.WriteString("    secrets: inherit\n")
 		} else if len(job.Secrets) > 0 {
-			yaml.WriteString("    secrets:\n")
+			b.WriteString("    secrets:\n")
 			// Sort secret keys for consistent output
 			secretKeys := make([]string, 0, len(job.Secrets))
 			for key := range job.Secrets {
@@ -369,22 +371,29 @@ func (jm *JobManager) renderJob(job *Job) string {
 			sort.Strings(secretKeys)
 
 			for _, key := range secretKeys {
-				fmt.Fprintf(&yaml, "      %s: %s\n", key, job.Secrets[key])
+				fmt.Fprintf(b, "      %s: %s\n", key, job.Secrets[key])
 			}
 		}
 	} else {
 		// Add steps section (only for non-reusable workflow jobs)
 		if len(job.Steps) > 0 {
-			yaml.WriteString("    steps:\n")
+			b.WriteString("    steps:\n")
 			for _, step := range job.Steps {
 				// Each step is already formatted with proper indentation
-				yaml.WriteString(step)
+				b.WriteString(step)
 			}
 		}
 	}
 
 	// Add newline after each job for proper formatting
-	yaml.WriteString("\n")
+	b.WriteString("\n")
+}
 
-	return yaml.String()
+// renderJob renders a single job to a new string.
+// Prefer renderJobTo when an existing *strings.Builder is available to avoid
+// the intermediate allocation.
+func (jm *JobManager) renderJob(job *Job) string {
+	var b strings.Builder
+	jm.renderJobTo(&b, job)
+	return b.String()
 }

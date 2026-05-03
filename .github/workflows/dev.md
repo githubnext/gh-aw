@@ -8,7 +8,7 @@ name: Dev
 description: Daily status report for gh-aw project
 timeout-minutes: 30
 strict: false
-engine: copilot
+engine: pi
 
 permissions:
   contents: read
@@ -19,12 +19,35 @@ safe-outputs:
   create-issue:
     expires: 7d
     title-prefix: "[Daily Report] "
-features:
-  copilot-requests: true
 
 tools:
+  github:
+    mode: gh-proxy
   cli-proxy: true
 ---
+
+<!--
+# GitHub Agentic Workflows — README Summary
+
+Write agentic workflows in natural language markdown and run them in GitHub Actions.
+
+## Key Concepts
+- **Quick Start**: Step-by-step guide at https://github.github.com/gh-aw/setup/quick-start/
+- **Overview**: Agentic workflows let AI automate repository tasks using natural language prompts.
+  See https://github.github.com/gh-aw/introduction/how-they-work/
+- **Guardrails**: Workflows run with read-only permissions by default. Write operations require
+  sanitized `safe-outputs`. Security layers include sandboxed execution, input sanitization,
+  network isolation, SHA-pinned supply chain, tool allow-listing, and compile-time validation.
+  Human approval gates are available for critical operations.
+  See https://github.github.com/gh-aw/introduction/architecture/
+- **Documentation**: https://github.github.com/gh-aw/ — machine-readable llms.txt also available.
+- **Contributing**: See CONTRIBUTING.md for development setup and contribution guidelines.
+
+## Related Projects
+- **AWF** (Agent Workflow Firewall): network egress control — https://github.com/github/gh-aw-firewall
+- **MCP Gateway**: unified HTTP gateway for MCP server calls — https://github.com/github/gh-aw-mcpg
+- **gh-aw-actions**: shared GitHub Actions library — https://github.com/github/gh-aw-actions
+-->
 
 # Daily Status Report
 

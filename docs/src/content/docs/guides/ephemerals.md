@@ -5,11 +5,7 @@ sidebar:
   order: 9
 ---
 
-GitHub Agentic Workflows includes several features designed to automatically expire resources and reduce noise in your repositories. These "ephemeral" features help keep your repository clean by automatically cleaning up temporary issues, discussions, pull requests, and workflow runs after they've served their purpose.
-
-## Why Use Ephemerals?
-
-Ephemerals control costs by stopping scheduled workflows at deadlines, reduce clutter by auto-expiring issues and discussions, keep status timelines clean by hiding older comments, and isolate automation via the SideRepoOps pattern.
+GitHub Agentic Workflows includes several "ephemeral" features that automatically expire resources and reduce noise in your repositories. They control costs by stopping scheduled workflows at deadlines, auto-close issues and discussions, hide older comments, and isolate automation via the [SideRepoOps](/gh-aw/patterns/side-repo-ops/) pattern.
 
 ## Expiration Features
 
@@ -113,13 +109,12 @@ Available operations:
 | `validate` | Run full workflow validation with all linters and file an issue if findings are detected |
 | `activity_report` | Generate a repository activity report for the last 24 hours, week, and month, and create an issue with the results |
 
-**Operation details:**
+**Details for select operations:**
 
 - **`update` / `upgrade`**: Runs `gh aw update` or `gh aw upgrade`, stages changed files, and opens a pull request for review. After merging, recompile lock files with `gh aw compile`. See [Upgrading Agentic Workflows](/gh-aw/guides/upgrading/) for the manual upgrade process.
 - **`safe_outputs`**: Replays safe output processing from a previous workflow run. Provide a run URL or numeric run ID in the `run_url` input field. Useful when safe outputs were not applied correctly on the original run.
 - **`create_labels`**: Runs `gh aw compile --json --no-emit`, collects all unique label names across workflows, and creates missing ones with deterministic pastel colors. Requires `issues: write` permission.
 - **`validate`**: Runs `gh aw compile --validate --no-emit --zizmor --actionlint --poutine --verbose`. If errors or warnings are found, creates or updates a GitHub issue titled `[aw] workflow validation findings` with the full output.
-- **`clean_cache_memories`**: Lists all caches with the `memory-` prefix, groups them by workflow, keeps the latest per group, and deletes older entries.
 - **`activity_report`**: Runs `gh aw logs --format markdown` for the last 24 hours, 7 days, and 30 days (up to 1000 runs each), then creates an issue titled `[aw] agentic status report` with all three time-range sections as collapsible `<details>` blocks. Downloaded logs are cached under `./.cache/gh-aw/activity-report-logs`. The job has a 2-hour timeout and skips the 30-day query when the GitHub API is rate-limited.
 
 ### Maintenance Configuration
@@ -181,7 +176,7 @@ safe-outputs:
     allowed-reasons: [outdated]  # Optional: restrict hiding reasons
 ```
 
-Before posting, the system finds and minimizes previous comments from the same workflow (identified by `GITHUB_WORKFLOW`). Comments are hidden, not deleted. Use `allowed-reasons` to restrict which minimization reason is applied: `spam`, `abuse`, `off_topic`, `outdated` (default), `resolved`, or `low_quality`. Useful for status updates, build notifications, and health checks where only the latest result matters.
+Before posting, the system finds and minimizes previous comments from the same workflow (identified by `GITHUB_WORKFLOW`). Comments are hidden, not deleted. Use `allowed-reasons` to restrict which minimization reason is applied: `spam`, `abuse`, `off_topic`, `outdated` (default), `resolved`, or `low_quality`.
 
 See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#hide-older-comments) for complete documentation.
 
@@ -206,29 +201,7 @@ See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete docume
 
 ### Use Discussions Instead of Issues
 
-For ephemeral content, use GitHub discussions instead of issues. Discussions are better suited for temporary content, questions, and updates that don't require long-term tracking.
-
-```yaml wrap
-safe-outputs:
-  create-discussion:
-    category: "general"
-    expires: 7  # Auto-close after 7 days
-    close-older-discussions: true
-```
-
-**Why discussions for ephemeral content?**
-
-| Feature | Issues | Discussions |
-|---------|--------|-------------|
-| **Purpose** | Long-term tracking | Conversations & updates |
-| **Searchability** | High priority in search | Lower search weight |
-| **Project boards** | Native integration | Limited integration |
-| **Auto-close** | Supported with maintenance workflow | Supported with maintenance workflow |
-| **Timeline noise** | Can clutter project tracking | Separate from development work |
-
-Ephemeral discussions work well for weekly reports, periodic analyses, temporary announcements, time-bound Q&A, and community updates.
-
-**Combining features**:
+For ephemeral content, use discussions instead of issues. They have lower search weight and don't clutter project boards, making them ideal for recurring reports and status updates.
 
 ```yaml wrap
 safe-outputs:
@@ -238,12 +211,8 @@ safe-outputs:
     close-older-discussions: true  # Replace previous reports
 ```
 
-This keeps the "Status Updates" category clean: previous reports are closed on creation and all discussions auto-close after 14 days.
-
 ## Related Documentation
 
 - [Triggers Reference](/gh-aw/reference/triggers/) - Complete trigger configuration including `stop-after`
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - All safe output types and expiration options
 - [SideRepoOps](/gh-aw/patterns/side-repo-ops/) - Complete setup for side repository operations
-- [Authentication](/gh-aw/reference/auth/) - Authentication and security considerations
-- [Orchestration](/gh-aw/patterns/orchestration/) - Orchestrating multi-workflow initiatives

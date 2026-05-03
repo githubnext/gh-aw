@@ -24,6 +24,8 @@ const (
 	OpenCodeEngine EngineName = "opencode"
 	// CrushEngine is the Crush engine identifier
 	CrushEngine EngineName = "crush"
+	// PiEngine is the Pi engine identifier (experimental)
+	PiEngine EngineName = "pi"
 
 	// DefaultEngine is the default agentic engine used when no engine is explicitly specified.
 	// Currently defaults to CopilotEngine.
@@ -34,7 +36,7 @@ const (
 // Deprecated: Use workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs() for a
 // catalog-derived list. This slice is maintained for backward compatibility and must
 // stay in sync with the built-in engines registered in NewEngineCatalog.
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(OpenCodeEngine), string(CrushEngine)}
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(OpenCodeEngine), string(CrushEngine), string(PiEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
@@ -104,6 +106,14 @@ var EngineOptions = []EngineOption{
 		AlternativeSecrets: []string{"ANTHROPIC_API_KEY", "GEMINI_API_KEY"},
 		KeyURL:             "https://github.com/charmbracelet/crush#installation",
 		WhenNeeded:         "Crush engine workflows (default: Copilot routing)",
+	},
+	{
+		Value:       string(PiEngine),
+		Label:       "Pi",
+		Description: "Pi AI coding agent (experimental)",
+		SecretName:  "PI_API_KEY",
+		KeyURL:      "https://pi.dev/docs/latest/usage",
+		WhenNeeded:  "Pi engine workflows",
 	},
 }
 
@@ -207,6 +217,8 @@ const (
 	EnvVarModelAgentCrush = "GH_AW_MODEL_AGENT_CRUSH"
 	// EnvVarModelDetectionCrush configures the default Crush model for detection
 	EnvVarModelDetectionCrush = "GH_AW_MODEL_DETECTION_CRUSH"
+	// EnvVarModelAgentPi configures the default Pi model for agent execution
+	EnvVarModelAgentPi = "GH_AW_MODEL_AGENT_PI"
 
 	// CopilotCLIModelEnvVar is the native environment variable name supported by the Copilot CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
@@ -260,6 +272,10 @@ const (
 	// OpenCodeCLIModelEnvVar is the native environment variable name for OpenCode model selection.
 	// OpenCode uses provider/model format (e.g., "anthropic/claude-sonnet-4-20250514").
 	OpenCodeCLIModelEnvVar = "OPENCODE_MODEL"
+
+	// PiCLIModelEnvVar is the native environment variable name for Pi model selection.
+	// Setting PI_MODEL is equivalent to passing --model to the Pi CLI.
+	PiCLIModelEnvVar = "PI_MODEL"
 
 	// Common environment variable names used across all engines
 

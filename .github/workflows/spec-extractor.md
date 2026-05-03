@@ -143,6 +143,9 @@ safe-outputs:
     title-prefix: "[spec-extractor] "
     labels: [pkg-specifications, documentation, automation]
     draft: false
+    protected-files:
+      exclude:
+        - README.md    # this workflow writes pkg/*/README.md specification files
 
 timeout-minutes: 30
 features:

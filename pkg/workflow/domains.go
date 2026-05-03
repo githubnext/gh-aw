@@ -112,6 +112,17 @@ var GeminiDefaultDomains = []string{
 	"registry.npmjs.org",
 }
 
+// PiDefaultDomains are the default domains required for the Pi CLI to operate.
+// Pi routes its API calls through the AWF LLM gateway (host.docker.internal) when
+// the firewall is enabled. The api.pi.ai domain covers the Pi API endpoint.
+var PiDefaultDomains = []string{
+	"api.pi.ai",
+	"host.docker.internal",
+	"github.com",
+	"raw.githubusercontent.com",
+	"registry.npmjs.org",
+}
+
 // CrushBaseDefaultDomains are the default domains required for Crush CLI operation.
 // Crush is BYOK (any provider), so provider-specific domains are added dynamically
 // based on the model prefix via GetCrushDefaultDomains().
@@ -683,6 +694,7 @@ var engineDefaultDomains = map[constants.EngineName][]string{
 	constants.ClaudeEngine:  ClaudeDefaultDomains,
 	constants.CodexEngine:   CodexDefaultDomains,
 	constants.GeminiEngine:  GeminiDefaultDomains,
+	constants.PiEngine:      PiDefaultDomains,
 }
 
 // getDefaultDomainsForEngine returns the engine's default required domains.
@@ -765,6 +777,13 @@ func GetClaudeAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, to
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetGeminiAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
 	return GetAllowedDomainsForEngine(constants.GeminiEngine, network, tools, runtimes)
+}
+
+// GetPiAllowedDomains merges Pi default domains with NetworkPermissions, HTTP MCP server domains,
+// and runtime ecosystem domains.
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
+func GetPiAllowedDomains(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	return GetAllowedDomainsForEngine(constants.PiEngine, network, tools, runtimes)
 }
 
 // GetBlockedDomains returns the blocked domains from network permissions
@@ -906,6 +925,8 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 		base = GetClaudeAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	case "gemini":
 		base = GetGeminiAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
+	case "pi":
+		base = GetPiAllowedDomains(data.NetworkPermissions, data.Tools, data.Runtimes)
 	case "opencode":
 		model := ""
 		if data.EngineConfig != nil {

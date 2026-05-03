@@ -34,6 +34,7 @@ safe-outputs:
 timeout-minutes: 30
 features:
   copilot-requests: true
+  inline-agents: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -239,13 +240,18 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
 ### Phase 1: Data Collection (10 minutes)
 
 1. **Load historical metrics from shared storage:**
-   - Read latest metrics from: `/tmp/gh-aw/repo-memory/default/metrics/latest.json`
-   - Load daily metrics for trend analysis from: `/tmp/gh-aw/repo-memory/default/metrics/daily/`
-   - Extract per-workflow metrics:
-     - Safe output counts (issues, PRs, comments, discussions)
-     - Workflow run statistics (total, successful, failed, success_rate)
-     - Engagement metrics (reactions, comments, replies)
-     - Quality indicators (merge rates, close times)
+
+   Use the `metrics-extractor` sub-agent to read all shared repo-memory files and return structured JSON. Invoke it with the following newline-separated list of paths:
+   ```
+   /tmp/gh-aw/repo-memory/default/metrics/latest.json
+   /tmp/gh-aw/repo-memory/default/metrics/daily/
+   /tmp/gh-aw/repo-memory/default/agent-performance-latest.md
+   /tmp/gh-aw/repo-memory/default/campaign-manager-latest.md
+   /tmp/gh-aw/repo-memory/default/workflow-health-latest.md
+   /tmp/gh-aw/repo-memory/default/shared-alerts.md
+   ```
+
+   The sub-agent returns a single JSON object; use it as your source of truth for all metrics data in subsequent phases.
 
 2. **Gather agent outputs:**
    - Query recent issues/PRs/comments with agent attribution
@@ -297,10 +303,12 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
 ### Phase 3: Pattern Detection (5 minutes)
 
 7. **Identify behavioral patterns:**
-   - Detect over/under-creation patterns
-   - Find repetition or duplication
-   - Identify scope creep instances
-   - Flag inconsistent behavior
+
+   Use the `pattern-detector` sub-agent to classify agent behavioral patterns from the profiles you built in Phase 1. Pass the agent profiles as an inline JSON object. It will return a structured classification of:
+   - Over/under-creation patterns
+   - Repetition or duplication
+   - Scope creep instances
+   - Inconsistent behavior flags
 
 8. **Analyze collaboration:**
    - Map agent interactions
@@ -578,3 +586,40 @@ Your effectiveness is measured by:
 Execute all phases systematically and maintain an objective, data-driven approach to agent performance analysis.
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `metrics-extractor`
+---
+model: claude-haiku-4.5
+description: Reads shared repo-memory metric files and returns structured JSON with all relevant performance data
+---
+You are a metrics extraction assistant. When given a newline-separated list of file paths (one path per line), read each file using bash and return a single JSON object containing all data found.
+
+For JSON files, parse and include the full content under a key matching the file's basename (without extension). For a directory path, list and read all files within it, using their basenames as keys. For markdown files, include the raw text under a key matching the filename.
+
+If a file does not exist or cannot be read, include `null` for that key.
+
+Return the result as a single valid JSON object with no additional commentary.
+
+## agent: `pattern-detector`
+---
+model: claude-haiku-4.5
+description: Classifies agent behavioral patterns from profiles and returns a structured categorization of issues found
+---
+You are an agent behavior classification assistant. When given a JSON object containing agent profiles (with fields such as output counts, types, success rates, and resource usage), classify each agent's behavioral patterns.
+
+For each agent, identify which of the following patterns apply:
+- **over-creation**: Output count significantly above expected baseline
+- **under-creation**: Output count significantly below expected baseline or zero
+- **repetition**: Duplicate or near-duplicate outputs detected
+- **scope-creep**: Outputs outside the agent's defined responsibility area
+- **inconsistency**: High variance in output counts or quality across runs
+
+Return a JSON object where each key is the agent name and the value is an array of detected pattern strings (empty array if none detected). Example:
+
+```json
+{
+  "agent-a": ["over-creation", "inconsistency"],
+  "agent-b": [],
+  "agent-c": ["under-creation"]
+}
+```

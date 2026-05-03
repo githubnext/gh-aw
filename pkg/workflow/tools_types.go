@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"maps"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/types"
@@ -357,6 +358,14 @@ type GitHubToolConfig struct {
 type PlaywrightToolConfig struct {
 	Version string   `yaml:"version,omitempty"`
 	Args    []string `yaml:"args,omitempty"`
+	// Mode selects the integration approach: "mcp" (default) runs a Docker-based MCP
+	// server; "cli" installs @playwright/cli via npm for token-efficient CLI invocations.
+	Mode string `yaml:"mode,omitempty"`
+}
+
+// IsCLIMode returns true when the playwright tool is configured in CLI mode (mode: cli).
+func (p *PlaywrightToolConfig) IsCLIMode() bool {
+	return p != nil && strings.EqualFold(p.Mode, "cli")
 }
 
 // BashToolConfig represents the configuration for the Bash tool
