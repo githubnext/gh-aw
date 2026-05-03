@@ -620,6 +620,10 @@ func buildMCPGatewayContainerCommand(engine CodingAgentEngine, workflowData *Wor
 		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
 	}
 	var containerCmd strings.Builder
+	// Pre-size the builder to avoid reallocations. The base flags from
+	// appendMCPGatewayBaseEnvFlags alone write ~2KB of -e flags; allocating
+	// 2048 bytes upfront covers the common case without overcommitting.
+	containerCmd.Grow(2048)
 	containerCmd.WriteString("docker run -i --rm --network host")
 	containerCmd.WriteString(" --add-host host.docker.internal:127.0.0.1")
 	containerCmd.WriteString(" --user ${MCP_GATEWAY_UID}:${MCP_GATEWAY_GID}")

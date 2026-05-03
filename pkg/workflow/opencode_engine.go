@@ -119,17 +119,26 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 		if modelConfigured {
 			model = workflowData.EngineConfig.Model
 		}
-		// The model was validated by validateUniversalLLMConsumerModel before reaching here,
-		// so a malformed model (e.g. leading slash) must never occur. Panic is the correct
-		// response to an internal invariant violation.
-		allowedDomains, err := GetOpenCodeAllowedDomainsWithToolsAndRuntimes(
-			model,
-			workflowData.NetworkPermissions,
-			workflowData.Tools,
-			workflowData.Runtimes,
-		)
-		if err != nil {
-			panic(fmt.Sprintf("BUG: invalid model %q reached domain computation (should have been caught by validation): %v", model, err))
+		// Get allowed domains: prefer the pre-warmed cache on WorkflowData to avoid
+		// re-running the expensive map+sort operation. Note: opencode uses model-specific
+		// domains; the cache is populated with the same model during compilation.
+		var allowedDomains string
+		if workflowData.CachedAllowedDomainsComputed {
+			allowedDomains = workflowData.CachedAllowedDomainsStr
+		} else {
+			// The model was validated by validateUniversalLLMConsumerModel before reaching here,
+			// so a malformed model (e.g. leading slash) must never occur. Panic is the correct
+			// response to an internal invariant violation.
+			var err error
+			allowedDomains, err = GetOpenCodeAllowedDomainsWithToolsAndRuntimes(
+				model,
+				workflowData.NetworkPermissions,
+				workflowData.Tools,
+				workflowData.Runtimes,
+			)
+			if err != nil {
+				panic(fmt.Sprintf("BUG: invalid model %q reached domain computation (should have been caught by validation): %v", model, err))
+			}
 		}
 
 		npmPathSetup := GetNpmBinPathSetup()

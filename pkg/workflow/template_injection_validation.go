@@ -85,11 +85,12 @@ func hasUnsafeExpressionInRunContent(yamlContent string) bool {
 
 	// Unsafe expressions exist somewhere; scan for any that appear inside a run: block
 	// without doing a full YAML parse.
-	lines := strings.Split(yamlContent, "\n")
+	// Use SplitSeq to iterate over lines lazily, avoiding the up-front allocation of the
+	// full []string slice that strings.Split would create for large YAML content.
 	inRunBlock := false
 	runBlockIndent := 0
 
-	for _, line := range lines {
+	for line := range strings.SplitSeq(yamlContent, "\n") {
 		// Compute indentation first; skip blank and all-whitespace lines in one step.
 		trimmed := strings.TrimLeft(line, " \t")
 		if len(trimmed) == 0 {

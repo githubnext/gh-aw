@@ -218,15 +218,23 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	var command string
 	firewallEnabled := isFirewallEnabled(workflowData)
 	if firewallEnabled {
-		model := ""
-		if modelConfigured {
-			model = workflowData.EngineConfig.Model
-		}
-		// The model was validated before reaching here; a malformed model (leading slash)
-		// must never occur at this point — panic is the correct invariant guard.
-		allowedDomains, err := GetPiAllowedDomainsWithModel(model, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
-		if err != nil {
-			panic(fmt.Sprintf("BUG: invalid Pi model %q reached domain computation (should have been caught by validation): %v", model, err))
+		// Get allowed domains: prefer the pre-warmed cache on WorkflowData to avoid
+		// re-running the expensive map+sort operation.
+		var allowedDomains string
+		if workflowData.CachedAllowedDomainsComputed {
+			allowedDomains = workflowData.CachedAllowedDomainsStr
+		} else {
+			model := ""
+			if modelConfigured {
+				model = workflowData.EngineConfig.Model
+			}
+			// The model was validated before reaching here; a malformed model (leading slash)
+			// must never occur at this point — panic is the correct invariant guard.
+			var err error
+			allowedDomains, err = GetPiAllowedDomainsWithModel(model, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+			if err != nil {
+				panic(fmt.Sprintf("BUG: invalid Pi model %q reached domain computation (should have been caught by validation): %v", model, err))
+			}
 		}
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
 			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
