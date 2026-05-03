@@ -173,7 +173,7 @@ detailed prompt
 			errContains: "pre-expanded experiment placeholder",
 		},
 		{
-			name: "invalid workflow with double-underscore variant form",
+			name: "invalid workflow with pre-expanded placeholder alongside github expression",
 			content: `---
 on: issues
 permissions:
@@ -181,11 +181,25 @@ permissions:
 strict: false
 ---
 
-{{#if __GH_AW_EXPERIMENTS__PROMPT_STYLE___detailed}}
+{{#if __GH_AW_EXPERIMENTS_PROMPT_STYLE__ }}
 detailed prompt
 {{/if}}`,
 			shouldError: true,
-			errContains: "use experiments.<name> instead",
+			errContains: "pre-expanded experiment placeholder",
+		},
+		{
+			name: "valid workflow with github expression in condition",
+			content: `---
+on: issues
+permissions:
+  issues: read
+strict: false
+---
+
+{{#if ${{ github.actor }} != ""}}
+some content
+{{/if}}`,
+			shouldError: false,
 		},
 	}
 

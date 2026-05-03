@@ -8,7 +8,7 @@
 // # Validation Functions
 //
 //   - validateNoIncludesInTemplateRegions() - Validates that imports are not inside template blocks
-//   - validateNoPreExpandedExperimentPlaceholders() - Validates that pre-expanded __GH_AW_EXPERIMENTS__*__ placeholders are not used in template conditions
+//   - validateNoPreExpandedExperimentPlaceholders() - Validates that pre-expanded __GH_AW_EXPERIMENTS_*__ placeholders are not used in template conditions
 //
 // # Validation Pattern: Structure Validation
 //
@@ -46,10 +46,6 @@ var (
 	// templateRegionPattern matches template conditional blocks with their content
 	// Uses (?s) for dotall mode, .*? (non-greedy) with \s* to handle expressions with or without trailing spaces
 	templateRegionPattern = regexp.MustCompile(`(?s)\{\{#if\s+.*?\s*\}\}(.*?)\{\{/if\}\}`)
-
-	// templateIfConditionPattern matches the condition expression inside {{#if ...}} tags.
-	// Captures the condition string between #if and the closing }}.
-	templateIfConditionPattern = regexp.MustCompile(`\{\{#if\s+(.*?)\s*\}\}`)
 
 	// preExpandedExperimentPattern matches the internal __GH_AW_EXPERIMENTS_*__ placeholder form
 	// that is produced by the runtime and must never be written manually in workflow markdown.
@@ -107,7 +103,8 @@ func validateNoIncludesInTemplateRegions(markdown string) error {
 func validateNoPreExpandedExperimentPlaceholders(markdown string) error {
 	templateValidationLog.Print("Validating that pre-expanded experiment placeholders are not used in template conditions")
 
-	conditions := templateIfConditionPattern.FindAllStringSubmatch(markdown, -1)
+	// Use TemplateIfPattern which correctly handles embedded ${{ ... }} blocks inside conditions
+	conditions := TemplateIfPattern.FindAllStringSubmatch(markdown, -1)
 	templateValidationLog.Printf("Found %d template condition(s) to validate", len(conditions))
 
 	var errs []error

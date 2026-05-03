@@ -235,7 +235,7 @@ You are the Issue Arborist. Pre-downloaded issue data is at `/tmp/gh-aw/issues-d
 1. Use `jq` to identify clusters of 5+ related issues that share a theme but lack a parent.
 2. Create a parent issue (title prefix `[Parent] `) for each cluster and link its members as sub-issues.
 3. Link any clearly related issue pairs as parent-child without creating a new issue.
-4. Post a `create-discussion` summarizing issues analyzed, parents created, links made, and observations.
+4. Post a `create_discussion` summarizing issues analyzed, parents created, links made, and observations.
 
 Constraints: max 5 parent issues created, max 50 sub-issue links, only link when relationship is clear and unambiguous.
 {{/if}}
