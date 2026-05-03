@@ -23,6 +23,7 @@ network:
   allowed:
     - defaults
     - github
+    - generativelanguage.googleapis.com
 tools:
   cache-memory: true
   github:
