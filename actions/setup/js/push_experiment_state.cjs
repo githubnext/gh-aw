@@ -191,7 +191,7 @@ async function main() {
             try {
               execGitSync(["fetch", "origin", `refs/heads/${branchName}`], { stdio: "pipe", cwd: workspaceDir, suppressLogs: true });
             } catch (fetchErr) {
-              core.info(`Fetch on retry failed (non-fatal): ${getErrorMessage(fetchErr)}`);
+              core.info(`Fetch of branch "${branchName}" on retry failed (non-fatal): ${getErrorMessage(fetchErr)}`);
             }
           }
         } catch {
