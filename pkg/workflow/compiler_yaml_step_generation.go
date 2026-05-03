@@ -132,10 +132,14 @@ func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, 
 			"        env:\n",
 			fmt.Sprintf("          INPUT_DESTINATION: %s\n", destination),
 			"          INPUT_JOB_NAME: ${{ github.job }}\n",
-			fmt.Sprintf("          GH_AW_SETUP_WORKFLOW_NAME: %q\n", data.Name),
-			fmt.Sprintf("          GH_AW_CURRENT_WORKFLOW_REF: %s\n", buildSetupWorkflowRefExpr(data)),
 		}
-		if hasWorkflowCallTrigger(data.On) {
+		if data != nil {
+			lines = append(lines,
+				fmt.Sprintf("          GH_AW_SETUP_WORKFLOW_NAME: %q\n", data.Name),
+				fmt.Sprintf("          GH_AW_CURRENT_WORKFLOW_REF: %s\n", buildSetupWorkflowRefExpr(data)),
+			)
+		}
+		if traceID != "" {
 			lines = append(lines, fmt.Sprintf("          INPUT_TRACE_ID: %s\n", traceID))
 		}
 		if enableArtifactClient {
