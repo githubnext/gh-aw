@@ -180,8 +180,8 @@ After moving computation into `steps:`, the next optimization is to delegate nar
 
 ```
 steps:          → deterministic shell commands (fast, reproducible, zero AI cost)
-sub-agents:     → small-model agents for per-item analysis  (cheap, parallelisable)
-main agent:     → orchestrates sub-agents, synthesises final report (high-reasoning)
+sub-agents:     → small-model agents for per-item analysis  (cheap, parallelizable)
+main agent:     → orchestrates sub-agents, synthesizes final report (high-reasoning)
 ```
 
 ### Enabling inline sub-agents
@@ -275,7 +275,7 @@ agent to classify it. Write the result to `/tmp/gh-aw/triage/category-<number>.j
 For every issue file, use the `issue-summarizer` agent to produce a one-sentence
 summary. Write the result to `/tmp/gh-aw/triage/summary-<number>.json`.
 
-## Step 3 — synthesise triage report
+## Step 3 — synthesize triage report
 
 Read all category and summary files, then create a discussion that groups issues
 by category, lists each with its one-sentence summary and a link to the issue,
@@ -319,7 +319,7 @@ For 50 issues the sub-agents consume roughly 50 × (200 + 150) = **17,500 tokens
 - **Return structured JSON** – instruct sub-agents to return a compact JSON object; parsing prose costs extra tokens downstream.
 - **Choose the right model** – classification and summarization rarely need chain-of-thought reasoning; a haiku-size model is sufficient and 10–20× cheaper.
 - **Keep sub-agent prompts short** – sub-agent system prompts are loaded per invocation; shorter prompts reduce overhead for high-volume loops.
-- **Let the main agent synthesise** – reserve the full-size model for the step that requires judgment: ranking, prioritisation, generating actionable recommendations.
+- **Let the main agent synthesize** – reserve the full-size model for the step that requires judgment: ranking, prioritization, generating actionable recommendations.
 
 ## Best Practices
 
