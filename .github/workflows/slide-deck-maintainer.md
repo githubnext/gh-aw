@@ -164,7 +164,7 @@ else
 fi
 ```
 
-**If the file does NOT exist** (first run or cold cache): start with category `documentation`.
+**If the file does NOT exist** (first run or cold cache): randomly pick a starting category using `shuf -n1 -e source-code agentic-workflows documentation` (or equivalent) so that repeated cold starts don't always begin with the same category.
 
 **If the file exists**, read it and extract `last_category` to determine the next category using round-robin:
 - `source-code` → next is `agentic-workflows`
