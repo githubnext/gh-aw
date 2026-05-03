@@ -91,7 +91,7 @@ func TestRuntimeImportExpressionValidation(t *testing.T) {
 			expectSafe:  false,
 			description: "Variables not allowed",
 		},
-		// Compound expression forms — spec-enforcer fix
+		// Compound expression forms added by spec-enforcer fix
 		{
 			name:        "standalone string literal",
 			expression:  "'full-sweep (enforce_all)'",
@@ -111,16 +111,40 @@ func TestRuntimeImportExpressionValidation(t *testing.T) {
 			description: "Comparison with safe LHS property is allowed",
 		},
 		{
-			name:        "AND compound with comparison and literal",
-			expression:  "github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)'",
+			name:        "AND compound safe × safe (no literals)",
+			expression:  "github.actor && github.repository",
 			expectSafe:  true,
-			description: "AND compound: comparison && literal is allowed",
+			description: "AND compound: both sides are safe properties",
 		},
 		{
-			name:        "ternary-style AND/OR chain (spec-enforcer pattern)",
+			name:        "AND compound with literal RHS is now refused",
+			expression:  "github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)'",
+			expectSafe:  false,
+			description: "AND with literal operand is refused (literal sub-expression in conjunction)",
+		},
+		{
+			name:        "AND compound with literal LHS is refused",
+			expression:  "'prefix' && github.actor",
+			expectSafe:  false,
+			description: "AND with literal on left is refused",
+		},
+		{
+			name:        "ternary-style AND/OR chain is refused (literal in AND)",
 			expression:  "github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin'",
+			expectSafe:  false,
+			description: "Ternary-style AND/OR chain with literal operand is refused",
+		},
+		{
+			name:        "OR fallback pattern is still allowed",
+			expression:  "github.event.inputs.enforce_all || 'round-robin'",
 			expectSafe:  true,
-			description: "Ternary-style AND/OR chain with safe LHS is allowed",
+			description: "OR fallback: safe property || literal is allowed",
+		},
+		{
+			name:        "literal on left of OR is refused",
+			expression:  "'default' || github.actor",
+			expectSafe:  false,
+			description: "Literal on left of OR is refused (always truthy, dead right side)",
 		},
 		{
 			name:        "unsafe AND compound with secrets on right",
@@ -135,10 +159,10 @@ func TestRuntimeImportExpressionValidation(t *testing.T) {
 			description: "secrets.TOKEN in OR right side must be blocked",
 		},
 		{
-			name:        "unsafe ternary with secrets in condition",
-			expression:  "secrets.TOKEN == 'x' && 'yes' || 'no'",
+			name:        "unsafe compound with secrets",
+			expression:  "secrets.TOKEN == 'x' && github.actor || github.repository",
 			expectSafe:  false,
-			description: "Ternary with secrets in condition must be blocked",
+			description: "secrets.TOKEN in compound expression must be blocked",
 		},
 	}
 

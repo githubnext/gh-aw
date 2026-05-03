@@ -98,10 +98,10 @@ describe("fuzz_is_safe_expression – comparisons (unsafe left side blocked)", (
 });
 
 // ---------------------------------------------------------------------------
-// AND compound expressions — safe × safe → allowed
+// AND compound expressions — safe × safe → allowed (no literal operands)
 // ---------------------------------------------------------------------------
 
-describe("fuzz_is_safe_expression – AND (safe × safe)", () => {
+describe("fuzz_is_safe_expression – AND (safe × safe, no literals)", () => {
   // Spot-check a representative subset of pairs to keep test count manageable
   const pairs = SAFE_LEAVES.slice(0, 4).flatMap(a => SAFE_LEAVES.slice(0, 4).map(b => [a, b]));
   for (const [a, b] of pairs) {
@@ -113,14 +113,31 @@ describe("fuzz_is_safe_expression – AND (safe × safe)", () => {
     });
   }
 
-  it("should allow comparison && literal", () => {
-    expect(testIsSafeExpression("github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)'").safe).toBe(true);
+  it("should allow comparison && safe property (no literal in operand)", () => {
+    expect(testIsSafeExpression("github.event.inputs.enforce_all == 'true' && github.event.inputs.enforce_all").safe).toBe(true);
   });
+});
 
-  it("should allow safe && safe for all leaf combinations (first 3)", () => {
+// ---------------------------------------------------------------------------
+// AND compound expressions — literal operands refused
+// ---------------------------------------------------------------------------
+
+describe("fuzz_is_safe_expression – AND (literal operand blocked)", () => {
+  for (const lit of SAFE_LITERALS) {
+    it(`should block github.actor && ${lit} (literal RHS)`, () => {
+      expect(testIsSafeExpression(`github.actor && ${lit}`).safe).toBe(false);
+    });
+
+    it(`should block ${lit} && github.actor (literal LHS)`, () => {
+      expect(testIsSafeExpression(`${lit} && github.actor`).safe).toBe(false);
+    });
+  }
+
+  it("should block all SAFE_LEAVES && literal combinations (first 3)", () => {
     for (const leaf of SAFE_LEAVES.slice(0, 3)) {
       for (const lit of SAFE_LITERALS.slice(0, 3)) {
-        expect(testIsSafeExpression(`${leaf} && ${lit}`).safe).toBe(true);
+        expect(testIsSafeExpression(`${leaf} && ${lit}`).safe).toBe(false);
+        expect(testIsSafeExpression(`${lit} && ${leaf}`).safe).toBe(false);
       }
     }
   });
@@ -132,12 +149,28 @@ describe("fuzz_is_safe_expression – AND (safe × safe)", () => {
 
 describe("fuzz_is_safe_expression – AND (unsafe side blocked)", () => {
   for (const unsafe of UNSAFE_LEAVES) {
-    it(`should block ${unsafe} && 'safe-value'`, () => {
-      expect(testIsSafeExpression(`${unsafe} && 'safe-value'`).safe).toBe(false);
+    it(`should block ${unsafe} && github.actor`, () => {
+      expect(testIsSafeExpression(`${unsafe} && github.actor`).safe).toBe(false);
     });
 
     it(`should block github.actor && ${unsafe}`, () => {
       expect(testIsSafeExpression(`github.actor && ${unsafe}`).safe).toBe(false);
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// OR compound expressions — literal on LEFT side refused
+// ---------------------------------------------------------------------------
+
+describe("fuzz_is_safe_expression – OR (literal left side blocked)", () => {
+  for (const lit of SAFE_LITERALS) {
+    it(`should block ${lit} || github.actor (literal on left)`, () => {
+      expect(testIsSafeExpression(`${lit} || github.actor`).safe).toBe(false);
+    });
+
+    it(`should block ${lit} || inputs.branch (literal on left)`, () => {
+      expect(testIsSafeExpression(`${lit} || inputs.branch`).safe).toBe(false);
     });
   }
 });
@@ -159,91 +192,44 @@ describe("fuzz_is_safe_expression – OR (unsafe right side blocked)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Ternary-style AND/OR chains
+// Ternary-style AND/OR chains — all refused (literal in AND operand)
 // ---------------------------------------------------------------------------
 
-describe("fuzz_is_safe_expression – ternary-style (allowed)", () => {
-  it("should allow condition && consequent || alternate (the spec-enforcer pattern)", () => {
-    expect(testIsSafeExpression("github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin'").safe).toBe(true);
+describe("fuzz_is_safe_expression – ternary-style (all refused — literal in AND operand)", () => {
+  it("should refuse condition && literal || literal (the former spec-enforcer pattern)", () => {
+    expect(testIsSafeExpression("github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin'").safe).toBe(false);
+    expect(testIsSafeExpression("inputs.mode == 'fast' && 'fast-mode' || 'normal-mode'").safe).toBe(false);
+    expect(testIsSafeExpression("'yes' && github.actor || 'no'").safe).toBe(false);
   });
 
-  it("should allow safe_expr && 'value' || 'default' for all safe leaves", () => {
+  it("should refuse safe_expr && literal || literal for all safe leaves", () => {
     for (const leaf of SAFE_LEAVES.slice(0, 5)) {
-      const { safe, error } = testIsSafeExpression(`${leaf} && 'yes' || 'no'`);
-      expect(error).toBeNull();
-      expect(safe).toBe(true);
+      expect(testIsSafeExpression(`${leaf} && 'yes' || 'no'`).safe).toBe(false);
     }
   });
 
-  it("should allow comparison && literal || literal", () => {
+  it("should refuse comparison && literal || literal for all operators", () => {
     for (const op of COMPARISON_OPS) {
       const expr = `github.event.inputs.enforce_all ${op} 'x' && 'yes' || 'no'`;
-      expect(testIsSafeExpression(expr).safe).toBe(true);
+      expect(testIsSafeExpression(expr).safe).toBe(false);
     }
   });
 });
 
-describe("fuzz_is_safe_expression – ternary-style (unsafe blocked)", () => {
+describe("fuzz_is_safe_expression – ternary-style (unsafe in any position blocked)", () => {
   for (const unsafe of UNSAFE_LEAVES) {
-    it(`should block ${unsafe} == 'x' && 'yes' || 'no'`, () => {
-      expect(testIsSafeExpression(`${unsafe} == 'x' && 'yes' || 'no'`).safe).toBe(false);
+    it(`should block ${unsafe} == 'x' && github.actor || github.repository`, () => {
+      expect(testIsSafeExpression(`${unsafe} == 'x' && github.actor || github.repository`).safe).toBe(false);
     });
 
-    it(`should block true && ${unsafe} || 'no'`, () => {
-      expect(testIsSafeExpression(`true && ${unsafe} || 'no'`).safe).toBe(false);
+    it(`should block github.actor && ${unsafe} || github.repository`, () => {
+      expect(testIsSafeExpression(`github.actor && ${unsafe} || github.repository`).safe).toBe(false);
     });
 
     it(`should block github.actor == 'value' || ${unsafe}`, () => {
       expect(testIsSafeExpression(`github.actor == 'value' || ${unsafe}`).safe).toBe(false);
     });
   }
-});
-
-// ---------------------------------------------------------------------------
-// Security invariant: secrets.*/vars.*/runner.* are NEVER safe regardless of
-// the surrounding expression structure
-// ---------------------------------------------------------------------------
-
-describe("fuzz_is_safe_expression – security invariants", () => {
-  /** Wrap an unsafe expression in progressively more complex compound forms. */
-  const wrappers = [
-    u => u,
-    u => `${u} && 'value'`,
-    u => `'value' && ${u}`,
-    u => `${u} || 'value'`,
-    u => `'value' || ${u}`,
-    u => `${u} == 'x'`,
-    u => `github.actor && ${u}`,
-    u => `${u} && github.actor`,
-    u => `${u} == 'x' && 'yes' || 'no'`,
-    u => `true && ${u} || 'no'`,
-    u => `github.actor == 'value' || ${u}`,
-  ];
-
-  for (const unsafe of UNSAFE_LEAVES) {
-    for (const wrap of wrappers) {
-      const expr = wrap(unsafe);
-      it(`should block: ${expr}`, () => {
-        expect(testIsSafeExpression(expr).safe).toBe(false);
-      });
-    }
-  }
-
-  it("should never mark any expression containing secrets. as safe", () => {
-    const secretExprs = ["secrets.TOKEN", "secrets.GITHUB_TOKEN", "secrets.TOKEN == 'x'", "github.actor && secrets.TOKEN", "secrets.TOKEN || 'fallback'", "secrets.TOKEN == 'x' && 'yes' || 'no'"];
-    for (const expr of secretExprs) {
-      expect(testIsSafeExpression(expr).safe).toBe(false);
-    }
-  });
-
-  it("should never mark any expression with a dangerous property name as safe", () => {
-    const dangerous = ["constructor", "__proto__", "prototype", "hasOwnProperty", "valueOf"];
-    for (const prop of dangerous) {
-      expect(testIsSafeExpression(`github.${prop}`).safe).toBe(false);
-      expect(testIsSafeExpression(`inputs.${prop}`).safe).toBe(false);
-      expect(testIsSafeExpression(`github.${prop} == 'x'`).safe).toBe(false);
-    }
-  });
 });
 
 // ---------------------------------------------------------------------------

@@ -176,7 +176,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl
-          GH_AW_EXPR_FE0C1E5E: ${{ github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin' }}
+          GH_AW_EXPR_5A79780F: ${{ github.event.inputs.enforce_all || 'round-robin' }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
@@ -250,7 +250,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_ENGINE_ID: "claude"
-          GH_AW_EXPR_FE0C1E5E: ${{ github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin' }}
+          GH_AW_EXPR_5A79780F: ${{ github.event.inputs.enforce_all || 'round-robin' }}
           GH_AW_GITHUB_EVENT_INPUTS_ENFORCE_ALL: ${{ github.event.inputs.enforce_all }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
@@ -267,7 +267,7 @@ jobs:
           GH_AW_ALLOWED_EXTENSIONS: ''
           GH_AW_CACHE_DESCRIPTION: ''
           GH_AW_CACHE_DIR: '/tmp/gh-aw/cache-memory/'
-          GH_AW_EXPR_FE0C1E5E: ${{ github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin' }}
+          GH_AW_EXPR_5A79780F: ${{ github.event.inputs.enforce_all || 'round-robin' }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
@@ -292,7 +292,7 @@ jobs:
                 GH_AW_ALLOWED_EXTENSIONS: process.env.GH_AW_ALLOWED_EXTENSIONS,
                 GH_AW_CACHE_DESCRIPTION: process.env.GH_AW_CACHE_DESCRIPTION,
                 GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR,
-                GH_AW_EXPR_FE0C1E5E: process.env.GH_AW_EXPR_FE0C1E5E,
+                GH_AW_EXPR_5A79780F: process.env.GH_AW_EXPR_5A79780F,
                 GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
                 GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
                 GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,

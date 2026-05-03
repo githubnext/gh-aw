@@ -332,10 +332,20 @@ describe("runtime_import", () => {
         expect(isSafeExpression("secrets.TOKEN == 'value'")).toBe(!1);
         expect(isSafeExpression("vars.SECRET == 'value'")).toBe(!1);
       });
-      it("should allow AND compound expressions", () => {
-        expect(isSafeExpression("github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)'")).toBe(!0);
+      it("should allow AND compound expressions without literals", () => {
         expect(isSafeExpression("github.actor && github.repository")).toBe(!0);
-        expect(isSafeExpression("inputs.flag && 'enabled'")).toBe(!0);
+        expect(isSafeExpression("inputs.flag && github.event.inputs.mode")).toBe(!0);
+        expect(isSafeExpression("github.event.inputs.enforce_all == 'true' && github.event.inputs.enforce_all")).toBe(!0);
+      });
+      it("should reject AND compound expressions where either side is a literal", () => {
+        // literal RHS — the ternary pattern is now refused
+        expect(isSafeExpression("github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)'")).toBe(!1);
+        expect(isSafeExpression("inputs.flag && 'enabled'")).toBe(!1);
+        expect(isSafeExpression("github.actor && 42")).toBe(!1);
+        expect(isSafeExpression("github.actor && true")).toBe(!1);
+        // literal LHS
+        expect(isSafeExpression("'prefix' && github.actor")).toBe(!1);
+        expect(isSafeExpression("true && github.repository")).toBe(!1);
       });
       it("should reject AND compound expressions with unsafe side", () => {
         expect(isSafeExpression("secrets.TOKEN && 'safe'")).toBe(!1);
@@ -343,10 +353,20 @@ describe("runtime_import", () => {
         // comparison AND unsafe — must not leak via the comparison check
         expect(isSafeExpression("github.actor == 'x' && secrets.TOKEN")).toBe(!1);
       });
-      it("should allow ternary-style AND/OR expressions", () => {
-        // The canonical spec-enforcer expression that triggered this bug fix
-        expect(isSafeExpression("github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin'")).toBe(!0);
-        expect(isSafeExpression("inputs.mode == 'fast' && 'fast-mode' || 'normal-mode'")).toBe(!0);
+      it("should reject literal on the left side of a disjunction", () => {
+        // A literal on the left of || is always truthy — the right side would be dead code.
+        expect(isSafeExpression("'prefix' || github.actor")).toBe(!1);
+        expect(isSafeExpression("'default' || inputs.branch")).toBe(!1);
+        expect(isSafeExpression("true || github.repository")).toBe(!1);
+        expect(isSafeExpression("42 || inputs.count")).toBe(!1);
+      });
+      it("should reject ternary-style AND/OR expressions (literal in AND operand)", () => {
+        // The ternary emulation pattern uses a literal as the AND right-hand side, which is
+        // now refused as a literal sub-expression in a conjunction.
+        expect(isSafeExpression("github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin'")).toBe(!1);
+        expect(isSafeExpression("inputs.mode == 'fast' && 'fast-mode' || 'normal-mode'")).toBe(!1);
+        // literal on LHS of AND is equally refused
+        expect(isSafeExpression("'yes' && github.actor || 'no'")).toBe(!1);
       });
       it("should reject ternary-style expressions with unsafe properties", () => {
         expect(isSafeExpression("secrets.TOKEN == 'x' && 'yes' || 'no'")).toBe(!1);
