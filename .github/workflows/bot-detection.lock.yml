@@ -96,6 +96,9 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Bot Detection"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/bot-detection.lock.yml@${{ github.ref }}
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -360,6 +363,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Bot Detection"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/bot-detection.lock.yml@${{ github.ref }}
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -992,6 +998,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Bot Detection"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/bot-detection.lock.yml@${{ github.ref }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1934,6 +1943,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Bot Detection"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/bot-detection.lock.yml@${{ github.ref }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true

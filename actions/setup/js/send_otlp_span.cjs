@@ -3,6 +3,7 @@
 
 const { randomBytes } = require("crypto");
 const fs = require("fs");
+const { buildWorkflowCallId } = require("./aw_context.cjs");
 const path = require("path");
 const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
@@ -93,6 +94,96 @@ function buildAttr(key, value) {
   return { key, value: { stringValue: String(value) } };
 }
 
+/**
+ * Build the workflow-call identifier for the current run when enough GitHub
+ * context is available.
+ *
+ * @param {string} runId
+ * @param {string} runAttempt
+ * @param {string} [workflowRef]
+ * @returns {string}
+ */
+function buildCurrentWorkflowCallId(runId, runAttempt, workflowRef = process.env.GH_AW_CURRENT_WORKFLOW_REF || process.env.GITHUB_WORKFLOW_REF || "") {
+  return buildWorkflowCallId(runId, runAttempt, workflowRef);
+}
+
+/**
+ * Parse setup-time aw_context passed via environment before aw_info.json exists.
+ *
+ * @param {string | undefined} raw
+ * @returns {Record<string, unknown>}
+ */
+function parseSetupAwContext(raw) {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function readContextString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * Resolve live episode correlation attributes directly from runtime context.
+ *
+ * Prefer the canonical lineage fields propagated in aw_context: episode_id for
+ * the full automation session, hop_id for the current workflow invocation, and
+ * parent_hop_id for the immediate caller. Legacy workflow_call_id is accepted
+ * only as a compatibility fallback when the canonical fields are absent. For
+ * standalone runs we fall back to the current run's run_id-run_attempt pair so
+ * every live span is still queryable as a bounded execution unit.
+ *
+ * @param {object} awInfo
+ * @param {string} runId
+ * @param {string} runAttempt
+ * @returns {Array<{key: string, value: object}>}
+ */
+function buildEpisodeAttributesFromContext(awInfo, runId, runAttempt) {
+  const currentHopId = buildCurrentWorkflowCallId(runId, runAttempt);
+  const inheritedHopId = readContextString(awInfo.context?.hop_id) || readContextString(awInfo.context?.workflow_call_id);
+  const episodeId = readContextString(awInfo.context?.episode_id) || inheritedHopId || currentHopId;
+  const parentHopId = readContextString(awInfo.context?.parent_hop_id) || (inheritedHopId && inheritedHopId !== currentHopId ? inheritedHopId : "");
+  const originEvent = readContextString(awInfo.context?.origin_event) || readContextString(awInfo.context?.event_type);
+  const rootRepo = readContextString(awInfo.context?.root_repo) || readContextString(awInfo.context?.repo);
+  const rootWorkflowId = readContextString(awInfo.context?.root_workflow_id) || readContextString(awInfo.context?.workflow_id);
+
+  if (!episodeId) {
+    return [];
+  }
+
+  const attributes = [buildAttr("gh-aw.episode.id", episodeId), buildAttr("gh-aw.episode.kind", parentHopId ? "workflow_call" : "run")];
+
+  if (currentHopId) {
+    attributes.push(buildAttr("gh-aw.hop.id", currentHopId));
+    attributes.push(buildAttr("gh-aw.workflow_call.id", currentHopId));
+  }
+  if (parentHopId) {
+    attributes.push(buildAttr("gh-aw.hop.parent_id", parentHopId));
+    attributes.push(buildAttr("gh-aw.workflow_call.parent_id", parentHopId));
+  }
+  if (originEvent) {
+    attributes.push(buildAttr("gh-aw.origin.event", originEvent));
+  }
+  if (rootRepo) {
+    attributes.push(buildAttr("gh-aw.root.repo", rootRepo));
+  }
+  if (rootWorkflowId) {
+    attributes.push(buildAttr("gh-aw.root.workflow_id", rootWorkflowId));
+  }
+
+  return attributes;
+}
+
 // ---------------------------------------------------------------------------
 // OTLP SpanKind constants
 // ---------------------------------------------------------------------------
@@ -131,51 +222,134 @@ const SPAN_KIND_CONSUMER = 5;
  */
 
 /**
- * Build an OTLP/HTTP JSON traces payload wrapping a single span.
- *
- * @param {OTLPSpanOptions} opts
- * @returns {object} - Ready to be serialised as JSON and POSTed to `/v1/traces`
+ * @typedef {Object} OTLPSpanRecordOptions
+ * @property {string} traceId
+ * @property {string} spanId
+ * @property {string} [parentSpanId]
+ * @property {string} spanName
+ * @property {number} startMs
+ * @property {number} endMs
+ * @property {Array<{key: string, value: object}>} attributes
+ * @property {number} [statusCode]
+ * @property {string} [statusMessage]
+ * @property {number} [kind]
+ * @property {Array<{timeUnixNano: string, name: string, attributes: Array<{key: string, value: object}>}>} [events]
  */
-function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes, resourceAttributes, statusCode, statusMessage, kind = SPAN_KIND_INTERNAL, events }) {
+
+/**
+ * Build the OTLP span object nested under `scopeSpans[].spans[]`.
+ *
+ * @param {OTLPSpanRecordOptions} opts
+ * @returns {object}
+ */
+function buildOTLPSpan({ traceId, spanId, parentSpanId, spanName, startMs, endMs, attributes, statusCode, statusMessage, kind = SPAN_KIND_INTERNAL, events }) {
   const code = typeof statusCode === "number" ? statusCode : 1; // STATUS_CODE_OK
   /** @type {{ code: number, message?: string }} */
   const status = { code };
   if (statusMessage) {
     status.message = statusMessage;
   }
+  return {
+    traceId,
+    spanId,
+    ...(parentSpanId ? { parentSpanId } : {}),
+    name: spanName,
+    kind,
+    startTimeUnixNano: toNanoString(startMs),
+    endTimeUnixNano: toNanoString(endMs),
+    status,
+    attributes,
+    ...(events && events.length > 0 ? { events } : {}),
+  };
+}
+
+/**
+ * Build resource attributes for an OTLP traces payload.
+ *
+ * @param {string} serviceName
+ * @param {string | undefined} scopeVersion
+ * @param {Array<{key: string, value: object}> | undefined} resourceAttributes
+ * @returns {Array<{key: string, value: object}>}
+ */
+function buildOTLPResourceAttributes(serviceName, scopeVersion, resourceAttributes) {
   const baseResourceAttrs = [buildAttr("service.name", serviceName)];
   if (scopeVersion && scopeVersion !== "unknown") {
     baseResourceAttrs.push(buildAttr("service.version", scopeVersion));
   }
-  const allResourceAttrs = resourceAttributes ? [...baseResourceAttrs, ...resourceAttributes] : baseResourceAttrs;
+  return resourceAttributes ? [...baseResourceAttrs, ...resourceAttributes] : baseResourceAttrs;
+}
+
+/**
+ * Wrap one or more OTLP span objects in a single traces payload.
+ *
+ * @param {{
+ *   serviceName: string,
+ *   scopeVersion?: string,
+ *   resourceAttributes?: Array<{key: string, value: object}>,
+ *   spans: object[]
+ * }} opts
+ * @returns {object}
+ */
+function buildOTLPBatchPayload({ serviceName, scopeVersion, resourceAttributes, spans }) {
   return {
     resourceSpans: [
       {
         resource: {
-          attributes: allResourceAttrs,
+          attributes: buildOTLPResourceAttributes(serviceName, scopeVersion, resourceAttributes),
         },
         scopeSpans: [
           {
             scope: { name: "gh-aw", version: scopeVersion || "unknown" },
-            spans: [
-              {
-                traceId,
-                spanId,
-                ...(parentSpanId ? { parentSpanId } : {}),
-                name: spanName,
-                kind,
-                startTimeUnixNano: toNanoString(startMs),
-                endTimeUnixNano: toNanoString(endMs),
-                status,
-                attributes,
-                ...(events && events.length > 0 ? { events } : {}),
-              },
-            ],
+            spans,
           },
         ],
       },
     ],
   };
+}
+
+/**
+ * Split a large span set into chunked OTLP payloads so high-volume exporters
+ * can amortize HTTP request overhead without creating oversized requests.
+ *
+ * @param {{
+ *   serviceName: string,
+ *   scopeVersion?: string,
+ *   resourceAttributes?: Array<{key: string, value: object}>,
+ *   spans: object[],
+ *   maxSpansPerPayload?: number
+ * }} opts
+ * @returns {object[]}
+ */
+function buildOTLPBatchPayloads({ serviceName, scopeVersion, resourceAttributes, spans, maxSpansPerPayload = 100 }) {
+  const normalizedMax = Number.isInteger(maxSpansPerPayload) && maxSpansPerPayload > 0 ? maxSpansPerPayload : 100;
+  const payloads = [];
+  for (let index = 0; index < spans.length; index += normalizedMax) {
+    payloads.push(
+      buildOTLPBatchPayload({
+        serviceName,
+        scopeVersion,
+        resourceAttributes,
+        spans: spans.slice(index, index + normalizedMax),
+      })
+    );
+  }
+  return payloads;
+}
+
+/**
+ * Build an OTLP/HTTP JSON traces payload wrapping a single span.
+ *
+ * @param {OTLPSpanOptions} opts
+ * @returns {object} - Ready to be serialised as JSON and POSTed to `/v1/traces`
+ */
+function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes, resourceAttributes, statusCode, statusMessage, kind = SPAN_KIND_INTERNAL, events }) {
+  return buildOTLPBatchPayload({
+    serviceName,
+    scopeVersion,
+    resourceAttributes,
+    spans: [buildOTLPSpan({ traceId, spanId, parentSpanId, spanName, startMs, endMs, attributes, statusCode, statusMessage, kind, events })],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -530,6 +704,10 @@ async function sendJobSetupSpan(options = {}) {
   // propagated via aw_context.otel_trace_id → aw_info.context.otel_trace_id so that
   // composite-action spans share a single trace with their caller.
   const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
+  const setupAwContext = parseSetupAwContext(process.env.GH_AW_SETUP_AW_CONTEXT);
+  if ((!awInfo.context || typeof awInfo.context !== "object") && Object.keys(setupAwContext).length > 0) {
+    awInfo.context = setupAwContext;
+  }
   const rawContextTraceId = typeof awInfo.context?.otel_trace_id === "string" ? awInfo.context.otel_trace_id.trim().toLowerCase() : "";
   const contextTraceId = isValidTraceId(rawContextTraceId) ? rawContextTraceId : "";
   // When this job was dispatched by a parent workflow, the parent's setup span ID is
@@ -557,7 +735,7 @@ async function sendJobSetupSpan(options = {}) {
 
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
   const jobName = process.env.INPUT_JOB_NAME || "";
-  const workflowName = process.env.GH_AW_INFO_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "";
+  const workflowName = process.env.GH_AW_INFO_WORKFLOW_NAME || process.env.GH_AW_SETUP_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "";
   const engineId = process.env.GH_AW_INFO_ENGINE_ID || "";
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = process.env.GITHUB_RUN_ATTEMPT || "1";
@@ -568,7 +746,7 @@ async function sendJobSetupSpan(options = {}) {
   const refName = process.env.GITHUB_REF_NAME || "";
   const headRef = process.env.GITHUB_HEAD_REF || "";
   const sha = process.env.GITHUB_SHA || "";
-  const workflowRef = process.env.GITHUB_WORKFLOW_REF || "";
+  const workflowRef = process.env.GH_AW_CURRENT_WORKFLOW_REF || process.env.GITHUB_WORKFLOW_REF || "";
 
   const attributes = [
     buildAttr("gh-aw.job.name", jobName),
@@ -607,6 +785,7 @@ async function sendJobSetupSpan(options = {}) {
   // A/B variant selected for this run (written by pick_experiment.cjs).
   const experimentAssignments = readExperimentAssignments();
   attributes.push(...buildExperimentAttributes(experimentAssignments));
+  attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
 
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
   if (repository && runId) {
@@ -778,13 +957,16 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const version = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
 
   // Prefer GITHUB_AW_OTEL_TRACE_ID (written to GITHUB_ENV by this job's setup step) so
-  // all spans in the same job share one trace.  Fall back to the workflow_call_id
-  // from aw_info for cross-job correlation, then generate a fresh ID.
+  // all spans in the same job share one trace.  Fall back to aw_context.otel_trace_id
+  // for cross-job correlation, then try the legacy workflow_call_id fallback.
   const envTraceId = (process.env.GITHUB_AW_OTEL_TRACE_ID || "").trim().toLowerCase();
+  const inheritedTraceId = readContextString(awInfo.context?.otel_trace_id).toLowerCase();
   const awTraceId = typeof awInfo.context?.workflow_call_id === "string" ? awInfo.context.workflow_call_id.replace(/-/g, "") : "";
   let traceId = generateTraceId();
   if (isValidTraceId(envTraceId)) {
     traceId = envTraceId;
+  } else if (isValidTraceId(inheritedTraceId)) {
+    traceId = inheritedTraceId;
   } else if (awTraceId && isValidTraceId(awTraceId)) {
     traceId = awTraceId;
   }
@@ -864,6 +1046,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
   if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
   if (commentId) attributes.push(buildAttr("gh-aw.trigger.comment_id", commentId));
+  attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
   }
@@ -1078,12 +1261,17 @@ module.exports = {
   generateSpanId,
   toNanoString,
   buildAttr,
+  buildOTLPSpan,
+  buildOTLPBatchPayload,
+  buildOTLPBatchPayloads,
   buildOTLPPayload,
   sanitizeOTLPPayload,
   parseOTLPHeaders,
   sendOTLPSpan,
   readJSONIfExists,
   readLastRateLimitEntry,
+  buildCurrentWorkflowCallId,
+  buildEpisodeAttributesFromContext,
   GITHUB_RATE_LIMITS_JSONL_PATH,
   sendJobSetupSpan,
   sendJobConclusionSpan,

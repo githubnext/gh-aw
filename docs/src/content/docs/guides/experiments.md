@@ -84,7 +84,7 @@ Address the issue described above.
 
 ## Statistical balancing
 
-The activation job maintains a per-variant invocation counter in an `actions/cache` entry keyed by workflow ID. The variant with the lowest cumulative count is selected on each run; ties are broken by variant order. Over N runs every variant is used approximately N/K times (K = variant count), providing basic A/B balance with no configuration.
+The activation job maintains a per-variant invocation counter in an `actions/cache` entry keyed by workflow ID. The variant with the lowest cumulative count is selected on each run; when multiple variants share the lowest count (including the very first run when the cache is empty), one is chosen at random so no variant is systematically favoured. Over N runs every variant is used approximately N/K times (K = variant count), providing basic A/B balance with no configuration.
 
 The counter persists across workflow runs via the GitHub Actions cache. A fresh repository starts from zero counts.
 

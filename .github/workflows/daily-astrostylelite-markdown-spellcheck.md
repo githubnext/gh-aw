@@ -259,6 +259,21 @@ tools:
   bash: true
   edit:
 
+experiments:
+  prompt_style:
+    variants: [concise, detailed]
+    description: "Test whether a concise agent prompt achieves the same fix quality as the current detailed prompt while reducing token usage"
+    hypothesis: "Concise prompt reduces token consumption ≥20% without degrading fix precision. H0: no difference in fix rate."
+    metric: effective_tokens
+    secondary_metrics: [pr_acceptance_rate, output_length_chars]
+    guardrail_metrics:
+      - name: empty_output_rate
+        threshold: "<0.10"
+      - name: run_success_rate
+        threshold: ">=0.90"
+    min_samples: 30
+    weight: [50, 50]
+
 imports:
   - shared/otel.md
 
@@ -307,6 +322,13 @@ Spellcheck summary:
 This workflow is intentionally gated so the agent path only runs when `needs.spellcheck.outputs.has_findings == 'true'`.
 When no findings exist, the workflow stops after spellcheck and skips agent execution.
 
+{{#if experiments.prompt_style == "concise"}}
+Fix spelling errors in `docs/src/content/` markdown files.
+
+Inputs: `/tmp/gh-aw/spellcheck/findings.ndjson` and `summary.json`.
+Preserve technical terms, product names, and code symbols.
+Branch: `spellcheck/YYYY-MM-DD`. Call `noop` if no safe fixes exist.
+{{#else}}
 ## Task
 
 1. Read `/tmp/gh-aw/spellcheck/summary.json` and `/tmp/gh-aw/spellcheck/findings.ndjson`.
@@ -338,3 +360,4 @@ If no action is needed, call:
 ```json
 {"noop": {"message": "No valid markdown spellcheck fixes needed for docs/src/content/."}}
 ```
+{{#endif}}
