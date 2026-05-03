@@ -372,6 +372,9 @@ func fastParseTitle(content string) (string, error) {
 // Returns an error if frontmatter is opened but never closed.
 func fastParseTitleFromReader(r io.Reader) (string, error) {
 	scanner := bufio.NewScanner(r)
+	// Increase the max token size beyond the default 64 KB to handle files with
+	// large frontmatter values or long base64-encoded lines.
+	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	firstLine := true
 	inFrontmatter := false
 	for scanner.Scan() {
@@ -389,7 +392,7 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 			continue
 		}
 		if strings.HasPrefix(trimmed, "# ") {
-			return trimmed[2:], nil
+			return strings.TrimSpace(trimmed[2:]), nil
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -410,11 +413,14 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer fd.Close()
 
 	title, err := fastParseTitleFromReader(fd)
+	closeErr := fd.Close()
 	if err != nil {
 		return "", err
+	}
+	if closeErr != nil {
+		return "", fmt.Errorf("failed to close workflow file %s: %w", filePath, closeErr)
 	}
 	if title != "" {
 		return title, nil
