@@ -554,7 +554,7 @@ func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error
 
 	var steps []string
 
-	// Setup step so the push_repo_memory.cjs script is available.
+	// Setup step so the push_experiment_state.cjs script is available.
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" || c.actionMode.IsScript() {
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
@@ -585,9 +585,9 @@ func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error
 	fmt.Fprintf(&downloadStep, "          path: %s\n", experimentsCacheDir)
 	steps = append(steps, downloadStep.String())
 
-	// Push experiment state to the git branch via push_repo_memory.cjs.
+	// Push experiment state to the git branch via push_experiment_state.cjs.
+	// This helper uses pushSignedCommits to create verified (signed) commits.
 	branchName := experimentsBranchName(data.WorkflowID)
-	allowedExtsJSON := `[".json"]`
 
 	var pushStep strings.Builder
 	pushStep.WriteString("      - name: Push experiment state to git\n")
@@ -598,18 +598,13 @@ func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error
 	pushStep.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 	pushStep.WriteString("          GITHUB_RUN_ID: ${{ github.run_id }}\n")
 	pushStep.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
-	fmt.Fprintf(&pushStep, "          ARTIFACT_DIR: %s\n", experimentsCacheDir)
-	pushStep.WriteString("          MEMORY_ID: experiments\n")
-	pushStep.WriteString("          TARGET_REPO: ${{ github.repository }}\n")
-	fmt.Fprintf(&pushStep, "          BRANCH_NAME: %s\n", branchName)
-	fmt.Fprintf(&pushStep, "          ALLOWED_EXTENSIONS: '%s'\n", allowedExtsJSON)
-	// Limit files to state.json and assignments.json only.
-	pushStep.WriteString("          FILE_GLOB_FILTER: \"*.json\"\n")
+	fmt.Fprintf(&pushStep, "          GH_AW_EXPERIMENT_STATE_DIR: %s\n", experimentsCacheDir)
+	fmt.Fprintf(&pushStep, "          GH_AW_EXPERIMENT_BRANCH: %s\n", branchName)
 	pushStep.WriteString("        with:\n")
 	pushStep.WriteString("          script: |\n")
 	pushStep.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	pushStep.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-	pushStep.WriteString("            const { main } = require('" + SetupActionDestination + "/push_repo_memory.cjs');\n")
+	pushStep.WriteString("            const { main } = require('" + SetupActionDestination + "/push_experiment_state.cjs');\n")
 	pushStep.WriteString("            await main();\n")
 	steps = append(steps, pushStep.String())
 

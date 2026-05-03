@@ -2458,17 +2458,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
-          ARTIFACT_DIR: /tmp/gh-aw/experiments
-          MEMORY_ID: experiments
-          TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: experiments/smokecopilot
-          ALLOWED_EXTENSIONS: '[".json"]'
-          FILE_GLOB_FILTER: "*.json"
+          GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_EXPERIMENT_BRANCH: experiments/smokecopilot
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/push_repo_memory.cjs');
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/push_experiment_state.cjs');
             await main();
       - name: Restore actions folder
         if: always()
