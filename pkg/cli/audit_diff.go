@@ -7,7 +7,6 @@ import (
 	"math"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -213,18 +212,6 @@ func classifyFirewallDomainStatus(stats DomainRequestStats) string {
 		return "mixed"
 	}
 	return "unknown"
-}
-
-// formatVolumeChange formats the volume change as a human-readable string
-func formatVolumeChange(total1, total2 int) string {
-	if total1 == 0 {
-		return "+∞"
-	}
-	pctChange := (float64(total2-total1) / float64(total1)) * 100
-	if pctChange >= 0 {
-		return "+" + formatPercent(pctChange)
-	}
-	return formatPercent(pctChange)
 }
 
 // MCPToolDiffEntry represents the diff for a single MCP tool between two runs
@@ -937,25 +924,6 @@ func computeTokenUsageDiff(tu1, tu2 *TokenUsageSummary) *TokenUsageDiff {
 	}
 
 	return diff
-}
-
-// formatPercentagePointChange formats the change between two ratio values (0.0-1.0) as a
-// percentage-point delta (e.g. "+1.5pp", "-2.3pp")
-func formatPercentagePointChange(ratio1, ratio2 float64) string {
-	delta := (ratio2 - ratio1) * 100
-	if delta >= 0 {
-		return fmt.Sprintf("+%.1fpp", delta)
-	}
-	return fmt.Sprintf("%.1fpp", delta)
-}
-
-// formatCountChange formats the absolute change in a count value (e.g. "+3", "-1")
-func formatCountChange(count1, count2 int) string {
-	delta := count2 - count1
-	if delta >= 0 {
-		return fmt.Sprintf("+%d", delta)
-	}
-	return strconv.Itoa(delta)
 }
 
 // loadRunSummaryForDiff loads or builds a RunSummary for a given run for use in diffing.

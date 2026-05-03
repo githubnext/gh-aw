@@ -16,6 +16,9 @@ permissions:
 engine: claude
 strict: true
 
+features:
+  inline-agents: true
+
 network:
   allowed:
     - defaults
@@ -98,110 +101,13 @@ If there's a previous run's data, load it to understand historical context:
 
 ## Phase 1: Discovery and Initial Analysis
 
-### 1. Identify All Markdown Files
-
-Use `search` to discover relevant documentation and spec files before listing files with bash:
-
-```bash
-# Use search first to find semantically relevant files
-# Example: search("developer instructions code organization")
-# Example: search("project architecture patterns")
-# Then read the returned file paths to get full content
-```
-
-Find all `.md` files in the `scratchpad/` directory:
-
-```bash
-find specs -name "*.md"
-```
-
-### 2. Read and Catalog Files
-
-For each markdown file found:
-- Read the content
-- Note the file path
-- Identify the general topic/purpose
-- Check file size and complexity
-
-Create an inventory of files:
-```
-File: scratchpad/README.md
-Purpose: Overview and index
-Lines: 50
-Status: To be analyzed
-
-File: scratchpad/code-organization.md  
-Purpose: Code organization guidelines
-Lines: 350
-Status: To be analyzed
-```
-
-### 3. Analyze with Serena MCP
-
-Use Serena's static analysis to:
-- Check for inconsistent terminology
-- Identify tone variations (promotional vs technical)
-- Detect formatting inconsistencies
-- Find areas needing clarification
-
-For each file, get Serena's analysis on:
-- Code quality (if examples present)
-- Documentation clarity
-- Consistency with project patterns
+Invoke the `file-cataloger` agent (no arguments needed). It will discover and catalog all markdown files in `specs/` and `scratchpad/` and return a markdown table. Use that inventory table as the file list for all subsequent phases.
 
 ## Phase 2: Tone and Consistency Analysis
 
-### 1. Check Technical Tone
-
-For each markdown file, analyze:
-
-**Tone Issues to Identify:**
-- ❌ Marketing language ("great", "easy", "powerful", "amazing")
-- ❌ Subjective adjectives without technical basis
-- ❌ Promotional content
-- ❌ Vague descriptions
-- ✅ Clear, direct technical language
-- ✅ Specific, factual descriptions
-- ✅ Neutral terminology
-- ✅ Precise technical details
-
-**Examples:**
-
-**BAD (Marketing Tone):**
-```markdown
-Our amazing workflow system makes it super easy to create powerful automations!
-```
-
-**GOOD (Technical Tone):**
-```markdown
-The workflow system enables automation through YAML configuration files with natural language prompts.
-```
-
-### 2. Check Formatting Consistency
-
-Verify formatting standards:
-- Headings use markdown syntax (`#`, `##`), not bold text
-- Code blocks have language tags
-- Lists are properly formatted
-- No excessive bullet points (prefer prose)
-- Tables used appropriately
-- Proper use of emphasis (bold/italic)
-
-### 3. Check for Mermaid Diagram Opportunities
-
-Identify concepts that would benefit from Mermaid diagrams:
-- Process flows
-- Architecture diagrams
-- State machines
-- Sequence diagrams
-- Relationship diagrams
-
-**When to Add Mermaid:**
-- Complex processes with multiple steps
-- System architecture explanations
-- Data flow descriptions
-- Decision trees
-- Component relationships
+For each file in the inventory, invoke the `tone-analyzer` agent with the file path as the sole input.
+Collect all returned JSON objects into a combined issues list for Phase 3.
+Also note any sections the agent flags as candidates for Mermaid diagrams.
 
 ## Phase 3: Content Adjustment
 
@@ -627,3 +533,45 @@ A successful consolidation run:
 Begin the consolidation process now. Use Serena for analysis, **directly apply changes** to adjust tone and formatting, add helpful Mermaid diagrams, consolidate into the instructions file, and report your findings through both a discussion and pull request.
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `file-cataloger`
+---
+description: Discover and catalog all markdown files in specs/ and scratchpad/
+model: claude-haiku-4.5
+---
+You receive no arguments. Discover all markdown files in the `specs/` and `scratchpad/` directories using bash:
+
+```bash
+find specs scratchpad -name "*.md" 2>/dev/null
+```
+
+For each file found:
+1. Read the file content
+2. Identify its general topic/purpose in 5–10 words
+3. Count the lines
+4. Assign status: "To be analyzed"
+
+Output a markdown table:
+| File | Purpose | Lines | Status |
+|------|---------|-------|--------|
+
+One row per file. Purpose should be 5–10 words max.
+Return only the table, no other commentary.
+
+## agent: `tone-analyzer`
+---
+description: Scan a markdown file for marketing language and formatting violations
+model: claude-haiku-4.5
+---
+You receive a single file path as your input. Read the file and perform two scans:
+
+1. **Tone scan**: Find marketing/subjective language: "great", "easy", "powerful",
+   "amazing", "simple", "seamless", "intuitive", or subjective adjectives without
+   technical basis. For each: record line number, exact text, and a neutral replacement.
+
+2. **Formatting scan**: Find code blocks without language tags, bold-style headings
+   that should use `##` syntax, and lists longer than 5 items that could be prose.
+
+Output JSON only:
+{"file":"<path>","tone_issues":[{"line":N,"text":"...","suggestion":"..."}],
+"formatting_issues":[{"line":N,"type":"...","context":"..."}]}
