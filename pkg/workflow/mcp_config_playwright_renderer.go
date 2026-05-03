@@ -65,6 +65,32 @@ import (
 
 var mcpPlaywrightLog = logger.New("workflow:mcp_config_playwright_renderer")
 
+// writeJSONStringArray writes a JSON key-value pair where the value is a string array.
+// If inline is true, it writes on a single line; otherwise uses multi-line formatting.
+// Always appends a trailing comma after the closing bracket.
+func writeJSONStringArray(b *strings.Builder, indent, key string, values []string, inline bool) {
+	if inline {
+		b.WriteString(indent + "\"" + key + "\": [")
+		for i, v := range values {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString("\"" + v + "\"")
+		}
+		b.WriteString("],\n")
+	} else {
+		b.WriteString(indent + "\"" + key + "\": [\n")
+		for i, v := range values {
+			b.WriteString(indent + "  \"" + v + "\"")
+			if i < len(values)-1 {
+				b.WriteString(",")
+			}
+			b.WriteString("\n")
+		}
+		b.WriteString(indent + "],\n")
+	}
+}
+
 // renderPlaywrightMCPConfigWithOptions generates the Playwright MCP server configuration with engine-specific options
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
@@ -78,7 +104,7 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 	// Replace expressions in custom args
 	if len(customArgs) > 0 {
 		mcpPlaywrightLog.Printf("Applying %d custom Playwright args with %d extracted expressions", len(customArgs), len(expressions))
-		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
+		customArgs = replaceExpressionsInPlaywrightArgs(customArgs)
 	}
 
 	// Use official Playwright MCP Docker image (no version tag - only one image)
@@ -99,27 +125,13 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 	// Add security-opt and ipc flags for Chromium browser compatibility in GitHub Actions
 	// --security-opt seccomp=unconfined: Required for Chromium sandbox to function properly
 	// --ipc=host: Provides shared memory access required by Chromium
+	// Docker runtime args (goes before container image in docker run command)
+	// These are additional flags for docker run like --init and --network
+	// Add security-opt and ipc flags for Chromium browser compatibility in GitHub Actions
+	// --security-opt seccomp=unconfined: Required for Chromium sandbox to function properly
+	// --ipc=host: Provides shared memory access required by Chromium
 	dockerArgs := []string{"--init", "--network", "host", "--security-opt", "seccomp=unconfined", "--ipc=host"}
-	if inlineArgs {
-		yaml.WriteString("                \"args\": [")
-		for i, arg := range dockerArgs {
-			if i > 0 {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("\"" + arg + "\"")
-		}
-		yaml.WriteString("],\n")
-	} else {
-		yaml.WriteString("                \"args\": [\n")
-		for i, arg := range dockerArgs {
-			yaml.WriteString("                  \"" + arg + "\"")
-			if i < len(dockerArgs)-1 {
-				yaml.WriteString(",")
-			}
-			yaml.WriteString("\n")
-		}
-		yaml.WriteString("                ],\n")
-	}
+	writeJSONStringArray(yaml, "                ", "args", dockerArgs, inlineArgs)
 
 	// Build entrypoint args for Playwright MCP server (goes after container image)
 	// --no-sandbox: Disables Chromium's process sandbox, which otherwise
@@ -127,32 +139,10 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 	// This is required for screenshot workflows that serve docs on localhost.
 	// Note: as of @playwright/mcp v0.0.26+, --no-sandbox is a direct top-level flag.
 	entrypointArgs := []string{"--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--no-sandbox"}
-	// Append custom args if present
 	if len(customArgs) > 0 {
 		entrypointArgs = append(entrypointArgs, customArgs...)
 	}
-
-	// Render entrypointArgs
-	if inlineArgs {
-		yaml.WriteString("                \"entrypointArgs\": [")
-		for i, arg := range entrypointArgs {
-			if i > 0 {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("\"" + arg + "\"")
-		}
-		yaml.WriteString("],\n")
-	} else {
-		yaml.WriteString("                \"entrypointArgs\": [\n")
-		for i, arg := range entrypointArgs {
-			yaml.WriteString("                  \"" + arg + "\"")
-			if i < len(entrypointArgs)-1 {
-				yaml.WriteString(",")
-			}
-			yaml.WriteString("\n")
-		}
-		yaml.WriteString("                ],\n")
-	}
+	writeJSONStringArray(yaml, "                ", "entrypointArgs", entrypointArgs, inlineArgs)
 
 	// Add volume mounts
 	// When guard policies follow, mounts is not the last field (add trailing comma)

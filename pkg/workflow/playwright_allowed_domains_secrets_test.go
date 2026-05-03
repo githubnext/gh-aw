@@ -62,7 +62,7 @@ func TestReplaceExpressionsInPlaywrightArgs(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        []string
-		expressions map[string]string
+		expressions map[string]string // kept for documentation; function now derives expressions internally
 		validate    func(t *testing.T, result []string)
 	}{
 		{
@@ -132,7 +132,7 @@ func TestReplaceExpressionsInPlaywrightArgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := replaceExpressionsInPlaywrightArgs(tt.args, tt.expressions)
+			result := replaceExpressionsInPlaywrightArgs(tt.args)
 			tt.validate(t, result)
 		})
 	}
