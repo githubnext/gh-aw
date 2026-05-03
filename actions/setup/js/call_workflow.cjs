@@ -89,6 +89,8 @@ async function main(config = {}) {
       const inputs = message.inputs && typeof message.inputs === "object" ? { ...message.inputs } : {};
       if (!("aw_context" in inputs)) {
         inputs.aw_context = JSON.stringify(buildAwContext());
+      } else if (typeof inputs.aw_context !== "string" || inputs.aw_context === "") {
+        inputs.aw_context = JSON.stringify(inputs.aw_context);
       }
       const payloadJson = JSON.stringify(inputs);
 
