@@ -62,6 +62,7 @@ func TestPiEngine_GetRequiredSecretNames_CodexProvider(t *testing.T) {
 	}
 	secrets := engine.GetRequiredSecretNames(workflowData)
 	assert.Contains(t, secrets, "CODEX_API_KEY", "codex/ prefix should require CODEX_API_KEY")
+	assert.Contains(t, secrets, "OPENAI_API_KEY", "codex/ prefix should also require OPENAI_API_KEY (from Codex backend profile)")
 }
 
 func TestPiEngine_GetRequiredSecretNames_NoPrefix(t *testing.T) {
@@ -172,8 +173,10 @@ func TestPiEngine_GetExecutionSteps_Basic(t *testing.T) {
 
 	stepText := strings.Join(steps[0], "\n")
 	assert.Contains(t, stepText, "Execute Pi CLI", "Step should be named 'Execute Pi CLI'")
-	assert.Contains(t, stepText, "pi run", "Step should run `pi run`")
-	assert.Contains(t, stepText, "json-log", "Step should include JSON log flag")
+	assert.Contains(t, stepText, "--print", "Step should use --print flag (non-interactive mode)")
+	assert.Contains(t, stepText, "--mode json", "Step should use --mode json for structured JSONL output")
+	assert.NotContains(t, stepText, "pi run", "Step should not use the removed 'pi run' subcommand")
+	assert.NotContains(t, stepText, "--json-log", "Step should not use the removed --json-log flag")
 	assert.Contains(t, stepText, "agentic_execution", "Step should have agentic_execution id")
 	assert.Contains(t, stepText, "pi_provider.cjs", "Step should load the provider extension")
 	assert.Contains(t, stepText, "pi_steering_extension.cjs", "Step should automatically load the steering extension")

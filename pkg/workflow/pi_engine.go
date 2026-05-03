@@ -189,8 +189,11 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 		commandName = workflowData.EngineConfig.Command
 	}
 
-	// Build the pi run command. Prompt is piped via stdin.
-	piArgs := []string{"run", "--json-log", PiStreamingLogFile}
+	// Build the pi command.  Pi v0.72+ uses flags-only syntax (no "run" subcommand).
+	// --print: non-interactive, process prompt from stdin and exit.
+	// --mode json: emit structured JSONL events to stdout.
+	// --no-session: don't persist a session file (appropriate for CI).
+	piArgs := []string{"--print", "--mode", "json", "--no-session"}
 
 	// Append any user-supplied extra args from engine.args
 	if workflowData.EngineConfig != nil {
@@ -205,9 +208,11 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	// user-specified extensions (via engine.args) so the built-in behaviour wins.
 	// ${RUNNER_TEMP} is a Linux shell variable expanded by bash at runtime; gh-aw
 	// container environments are Linux-only so this is safe across all runners.
+	// stdout (JSONL) and stderr are both piped through tee so that PiStreamingLogFile
+	// captures all structured events while agent-stdio.log captures the same output.
 	piCommand := fmt.Sprintf(
-		`cat /tmp/gh-aw/aw-prompts/prompt.txt | %s %s --extension "${RUNNER_TEMP}/gh-aw/actions/pi_provider.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_steering_extension.cjs"`,
-		commandName, shellJoinArgs(piArgs))
+		`cat /tmp/gh-aw/aw-prompts/prompt.txt | %s %s --extension "${RUNNER_TEMP}/gh-aw/actions/pi_provider.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_steering_extension.cjs" 2>&1 | tee %s`,
+		commandName, shellJoinArgs(piArgs), PiStreamingLogFile)
 
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
 
