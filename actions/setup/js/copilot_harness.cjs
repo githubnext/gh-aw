@@ -311,6 +311,10 @@ async function main() {
   await checkCommandAccessible(command);
   const resolvedArgs = resolvePromptFileArgs(args);
 
+  // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
+  // This is best-effort: failures are logged but do not affect the agent run.
+  await fetchAWFReflect({ logger: log });
+
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;
   const isScheduledRun = process.env.GITHUB_EVENT_NAME === "schedule";

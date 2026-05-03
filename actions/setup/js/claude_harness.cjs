@@ -218,6 +218,10 @@ async function main() {
   // task instructions are never written to stderr or captured in agent logs.
   const safeInitialArgs = hadPromptFile && initialArgs.length > 0 ? [...initialArgs.slice(0, -1), "<prompt omitted>"] : initialArgs;
 
+  // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
+  // This is best-effort: failures are logged but do not affect the agent run.
+  await fetchAWFReflect({ logger: log });
+
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;
   let useContinueOnRetry = false;
