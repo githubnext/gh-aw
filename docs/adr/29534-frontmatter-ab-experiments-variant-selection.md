@@ -24,7 +24,7 @@ An external feature-flag service would provide a mature A/B testing API with das
 
 #### Alternative 2: Random Per-Run Variant Selection Without State Persistence
 
-Selecting a variant randomly on each run (e.g., `Math.random()`) requires no cache and no persistent state. This was rejected because it does not guarantee balance: over N runs, some variants may appear much more (or less) often than `N/K`, making statistically meaningful comparisons impossible without a large number of runs. The least-used counter approach achieves approximate balance in far fewer runs.
+Selecting a variant randomly on each run (e.g., `Math.random()`) requires no cache and no persistent state. This was rejected as the sole selection strategy because it does not guarantee balance: over N runs, some variants may appear much more (or less) often than `N/K`, making statistically meaningful comparisons impossible without a large number of runs. The least-used counter approach achieves approximate balance in far fewer runs. However, random selection is retained as the tie-breaking strategy within the least-used algorithm — when multiple variants share the minimum count (including the initial empty-cache state), one is chosen at random to avoid systematically favouring the first declared variant.
 
 #### Alternative 3: CI/CD Environment Variables Set Externally
 
@@ -65,7 +65,7 @@ Teams could manually pass variant values as repository variables or dispatch inp
 ### Variant Selection
 
 5. Implementations **MUST** select the variant with the lowest cumulative invocation count across all previous runs (least-used selection).
-6. When two or more variants share the lowest count (including the initial state where all counts are zero), implementations **MUST** break ties by selecting the variant appearing earliest in the declared list.
+6. When two or more variants share the lowest count (including the initial state where all counts are zero), implementations **MUST** break ties by selecting uniformly at random from the tied variants, so no variant is systematically favoured on the first run or whenever counts are equal.
 7. Variant counts **MUST** be persisted between workflow runs using the GitHub Actions cache, keyed by a combination of the sanitized workflow ID and the current run ID, with a restore-key prefix that matches any prior run for that workflow ID.
 8. Implementations **MUST** expose each selected variant as a named step output (`steps.pick-experiment.outputs.<experiment-name>`) and **MUST** also set a combined JSON output (`steps.pick-experiment.outputs.experiments`) containing all variant assignments.
 9. Implementations **MUST** upload the experiment state directory as an artifact named `experiment` (using `if: always()`) so that assignments are available for post-run analysis even when subsequent steps fail.

@@ -33,9 +33,15 @@ describe("pick_experiment", () => {
   // ── pickVariant ────────────────────────────────────────────────────────────
 
   describe("pickVariant", () => {
-    it("selects the first variant when counts are equal", () => {
+    it("selects one of the tied variants randomly when counts are equal", () => {
       const state = { counts: {} };
-      expect(pickVariant("f", ["A", "B"], state)).toBe("A");
+      // Run many times and verify both variants are eventually selected.
+      const results = new Set();
+      for (let i = 0; i < 100; i++) {
+        results.add(pickVariant("f", ["A", "B"], state));
+      }
+      expect(results).toContain("A");
+      expect(results).toContain("B");
     });
 
     it("selects the least-used variant", () => {
@@ -48,14 +54,27 @@ describe("pick_experiment", () => {
       expect(pickVariant("f", ["A", "B", "C"], state)).toBe("C");
     });
 
-    it("returns the first variant when all counts are equal (tie-break by order)", () => {
+    it("randomly selects from all tied variants when all counts are equal", () => {
       const state = { counts: { f: { A: 1, B: 1, C: 1 } } };
-      expect(pickVariant("f", ["A", "B", "C"], state)).toBe("A");
+      // Run many times and verify all three variants are selected.
+      const results = new Set();
+      for (let i = 0; i < 200; i++) {
+        results.add(pickVariant("f", ["A", "B", "C"], state));
+      }
+      expect(results).toContain("A");
+      expect(results).toContain("B");
+      expect(results).toContain("C");
     });
 
-    it("handles unknown experiment name (no counts yet)", () => {
+    it("handles unknown experiment name (no counts yet) by picking randomly", () => {
       const state = { counts: {} };
-      expect(pickVariant("new", ["X", "Y"], state)).toBe("X");
+      // Both variants must be reachable from an empty state.
+      const results = new Set();
+      for (let i = 0; i < 100; i++) {
+        results.add(pickVariant("new", ["X", "Y"], state));
+      }
+      expect(results).toContain("X");
+      expect(results).toContain("Y");
     });
   });
 
@@ -147,6 +166,9 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant ("A") is selected.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       await main();
 
       // Individual output per experiment
@@ -154,6 +176,8 @@ describe("pick_experiment", () => {
       // Combined JSON output
       expect(mockCore.setOutput).toHaveBeenCalledWith("experiments", JSON.stringify({ feature1: "A" }));
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      vi.restoreAllMocks();
     });
 
     it("persists state between calls to simulate multi-run balance", async () => {
@@ -164,14 +188,18 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant ("X") is selected on the first run.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       // First run → X
       await main();
       const firstCall = mockCore.setOutput.mock.calls.find(c => c[0] === "feat");
       expect(firstCall?.[1]).toBe("X");
 
+      vi.restoreAllMocks();
       vi.clearAllMocks();
 
-      // Second run → Y (state persisted from first call)
+      // Second run → Y (state persisted from first call; Y has the lower count)
       await main();
       const secondCall = mockCore.setOutput.mock.calls.find(c => c[0] === "feat");
       expect(secondCall?.[1]).toBe("Y");
@@ -198,12 +226,17 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant is chosen for each experiment.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       await main();
 
       const assignmentsFile = path.join(tmpDir, "assignments.json");
       expect(fs.existsSync(assignmentsFile)).toBe(true);
       const assignments = JSON.parse(fs.readFileSync(assignmentsFile, "utf8"));
       expect(assignments).toEqual({ feature1: "A", style: "concise" });
+
+      vi.restoreAllMocks();
     });
 
     it("overwrites assignments.json on successive runs reflecting the current variant", async () => {
@@ -212,14 +245,18 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant ("X") is chosen on the first run.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       // First run → X
       await main();
       const assignmentsFile = path.join(tmpDir, "assignments.json");
       expect(JSON.parse(fs.readFileSync(assignmentsFile, "utf8"))).toEqual({ feat: "X" });
 
+      vi.restoreAllMocks();
       vi.clearAllMocks();
 
-      // Second run → Y
+      // Second run → Y (Y has the lower count after first run recorded X)
       await main();
       expect(JSON.parse(fs.readFileSync(assignmentsFile, "utf8"))).toEqual({ feat: "Y" });
     });
@@ -265,10 +302,15 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant ("concise") is chosen.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       await main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("style", "concise");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      vi.restoreAllMocks();
     });
 
     it("uses control variant when today is before start_date", async () => {
