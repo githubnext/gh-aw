@@ -440,6 +440,11 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	// Mount MCP servers as CLI tools (runs after gateway is started)
 	c.generateMCPCLIMountStep(yaml, data)
 
+	// Emit an audit step after all pre-agent preparation (skills, agents, MCP servers)
+	// is complete but before the agent begins execution. This captures a file listing of
+	// agent-related directories so the state is visible in the agent artifact.
+	c.generatePreAgentAuditStep(yaml)
+
 	return engine, nil
 }
 
@@ -589,6 +594,10 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 
 	// Collect agent stdio logs path for unified upload
 	paths = append(paths, logFileFull)
+
+	// Include the pre-agent audit file (file listing of agent-related directories captured
+	// before agent execution) so it is available in the agent artifact for post-run inspection.
+	paths = append(paths, constants.PreAgentAuditFilePath)
 
 	// Collect agent-generated files path for unified upload
 	// This directory is used by workflows that instruct the agent to write files
