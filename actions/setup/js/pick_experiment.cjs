@@ -65,7 +65,6 @@ const MAX_RUN_HISTORY = 512;
  * @property {string[]} [secondary_metrics]         - Additional metrics to track
  * @property {GuardrailMetric[]} [guardrail_metrics] - Thresholds that must not degrade
  * @property {number} [min_samples]                 - Minimum runs per variant for reliable analysis
- * @property {string} [owner]                       - Team or person responsible
  * @property {number} [issue]
  * @property {string} [analysis_type]               - Statistical test: t_test | mann_whitney | proportion_test | bayesian_ab
  * @property {string[]} [tags]                      - Free-form labels for dashboard filtering

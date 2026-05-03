@@ -60,7 +60,6 @@ read its frontmatter and identify those that declare an `experiments:` section. 
 - Guardrail metric thresholds (`guardrail_metrics:` list), if set — each entry has `name` and `threshold`
 - `min_samples` per variant, if set (defaults to 20 when not specified)
 - `hypothesis` text, if set
-- `owner`, if set
 - Tracking issue number, if an `issue:` field is set for that experiment
 
 If no workflows declare `experiments:`, append the following to `$GITHUB_STEP_SUMMARY` and exit:
@@ -281,7 +280,6 @@ For each experiment, produce an ASCII table inside a fenced code block:
 Experiment : <experiment_name>
 Workflow   : <workflow_file_name>
 Hypothesis : <hypothesis text if declared, else "(not specified)">
-Owner      : <owner if declared, else "(not specified)">
 Window     : last 30 runs  |  Analysed: <count> runs with artifacts
 min_samples: <min_samples> per variant
 
@@ -340,7 +338,7 @@ title-prefix `[experiments]`, category `audits`, and automatic cleanup of older 
 #### `<experiment_name>` · `<workflow_basename>`
 
 > **Variants**: `<v1>` vs `<v2>` · **Window**: last 30 runs · **Analysed**: N runs with artifacts
-> **min_samples**: <min_samples> per variant · **Owner**: <owner or "(not specified)">
+> **min_samples**: <min_samples> per variant
 
 <hypothesis if declared>
 
