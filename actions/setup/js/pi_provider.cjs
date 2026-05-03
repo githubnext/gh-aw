@@ -66,10 +66,16 @@ function resolveGatewayUrl(provider) {
 /**
  * Pi provider extension for gh-aw.
  *
- * Subscribes to the `agent_start` Pi SDK event and calls the AWF /reflect
- * endpoint to discover and log the open LLM inference paths before the agent
- * begins its first turn.  This is best-effort: any network or parse error is
- * logged but does not abort the agent session.
+ * Subscribes to the `agent_start` Pi SDK event to log the active provider and
+ * gateway URL.  Registers a `process.once('beforeExit')` handler to fetch the
+ * AWF /reflect endpoint after the agent finishes its last turn — matching the
+ * timing used by copilot_harness.cjs and claude_harness.cjs, which call
+ * fetchAWFReflect after the agent subprocess exits.  Calling /reflect at
+ * agent_start is too early: the api-proxy management endpoint may not yet be
+ * serving the full /reflect response before the first LLM turn completes.
+ *
+ * The reflect fetch is best-effort: any network or parse error is logged but
+ * does not abort the agent session or affect the process exit code.
  *
  * @param {any} pi - Pi ExtensionAPI instance
  * @returns {void}
@@ -91,9 +97,18 @@ function piProviderExtension(pi) {
     } else {
       log(`model=${model || "(not set)"} (no provider prefix — defaulting to Copilot gateway)`);
     }
+  });
 
-    // Fetch AWF API proxy reflection data and persist to disk so the post-run
-    // step summary (awf_reflect_summary.cjs) can include provider and model info.
+  // Fetch AWF API proxy reflection data after Pi finishes all turns.
+  // beforeExit fires when the Node.js event loop is draining (Pi is done),
+  // while the AWF container is still running — the same lifecycle point at
+  // which copilot_harness.cjs and claude_harness.cjs call fetchAWFReflect.
+  // Scheduling the async fetch here keeps the event loop alive until the
+  // request completes (or times out), then the process exits normally.
+  // Note: if Pi calls process.exit() directly, beforeExit will not fire and
+  // the reflect file will simply not be written (same as the previous
+  // agent_start failure path — the step summary will show no provider data).
+  process.once("beforeExit", async () => {
     await fetchAWFReflect({
       reflectUrl: AWF_API_PROXY_REFLECT_URL,
       outputPath: AWF_REFLECT_OUTPUT_PATH,
