@@ -6,6 +6,7 @@ package actionpins
 
 import (
 	"cmp"
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -56,7 +57,7 @@ type ActionPinsData struct {
 
 // SHAResolver resolves a GitHub Action's commit SHA for a given version tag.
 type SHAResolver interface {
-	ResolveSHA(repo, version string) (string, error)
+	ResolveSHA(ctx context.Context, repo, version string) (string, error)
 }
 
 // ResolutionErrorType classifies unresolved action-ref pinning outcomes for auditing.
@@ -80,6 +81,9 @@ type ResolutionFailure struct {
 // Callers construct one from their own state (e.g. WorkflowData fields).
 // The Warnings map is mutated in place to deduplicate warning output.
 type PinContext struct {
+	// Ctx is the context to propagate into dynamic SHA resolution calls.
+	// When nil, context.Background() is used as a fallback.
+	Ctx context.Context
 	// Resolver resolves SHAs dynamically via GitHub CLI. May be nil.
 	Resolver SHAResolver
 	// StrictMode controls how resolution failures are handled.
@@ -295,7 +299,7 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 
 	if ctx.Resolver != nil && !isAlreadySHA {
 		log.Printf("Attempting dynamic resolution for %s@%s", actionRepo, version)
-		sha, err := ctx.Resolver.ResolveSHA(actionRepo, version)
+		sha, err := ctx.Resolver.ResolveSHA(cmp.Or(ctx.Ctx, context.Background()), actionRepo, version)
 		if err == nil && sha != "" {
 			log.Printf("Dynamic resolution succeeded: %s@%s → %s", actionRepo, version, sha)
 			result := FormatPinnedActionReference(actionRepo, sha, version)

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,7 +21,7 @@ var copilotSetupLog = logger.New("cli:copilot_setup")
 func getActionRef(actionMode workflow.ActionMode, version string, resolver workflow.ActionSHAResolver) string {
 	if actionMode.IsRelease() && version != "" && version != "dev" {
 		if resolver != nil {
-			sha, err := resolver.ResolveSHA("github/gh-aw/actions/setup-cli", version)
+			sha, err := resolver.ResolveSHA(context.Background(), "github/gh-aw/actions/setup-cli", version)
 			if err == nil && sha != "" {
 				return fmt.Sprintf("@%s # %s", sha, version)
 			}
@@ -30,7 +31,7 @@ func getActionRef(actionMode workflow.ActionMode, version string, resolver workf
 	}
 	if actionMode.IsAction() && version != "" && version != "dev" {
 		if resolver != nil {
-			sha, err := resolver.ResolveSHA("github/gh-aw-actions/setup-cli", version)
+			sha, err := resolver.ResolveSHA(context.Background(), "github/gh-aw-actions/setup-cli", version)
 			if err == nil && sha != "" {
 				return fmt.Sprintf("@%s # %s", sha, version)
 			}

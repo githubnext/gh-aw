@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -118,7 +119,7 @@ func CheckActionSHAUpdates(actions []ActionUsage, resolver *ActionResolver) []Ac
 		}
 
 		// Resolve the latest SHA for this version
-		latestSHA, err := resolver.ResolveSHA(action.Repo, action.Version)
+		latestSHA, err := resolver.ResolveSHA(context.Background(), action.Repo, action.Version)
 		if err != nil {
 			actionSHACheckerLog.Printf("Failed to resolve %s@%s: %v", action.Repo, action.Version, err)
 			check.Message = fmt.Sprintf("Unable to check for updates: %v", err)

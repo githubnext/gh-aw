@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -58,7 +59,7 @@ func TestActionResolverCache(t *testing.T) {
 	cache.Set("actions/checkout", "v5", "test-sha-123")
 
 	// Resolve should return cached value without making API call
-	sha, err := resolver.ResolveSHA("actions/checkout", "v5")
+	sha, err := resolver.ResolveSHA(context.Background(), "actions/checkout", "v5")
 	if err != nil {
 		t.Errorf("Expected no error for cached entry, got: %v", err)
 	}
@@ -79,7 +80,7 @@ func TestActionResolverFailedResolutionCache(t *testing.T) {
 	version := "v999.999.999"
 
 	// First attempt should try to resolve
-	_, err1 := resolver.ResolveSHA(repo, version)
+	_, err1 := resolver.ResolveSHA(context.Background(), repo, version)
 	if err1 == nil {
 		t.Error("Expected error for non-existent action on first attempt")
 	}
@@ -91,7 +92,7 @@ func TestActionResolverFailedResolutionCache(t *testing.T) {
 	}
 
 	// Second attempt should be skipped and return error immediately
-	_, err2 := resolver.ResolveSHA(repo, version)
+	_, err2 := resolver.ResolveSHA(context.Background(), repo, version)
 	if err2 == nil {
 		t.Error("Expected error for non-existent action on second attempt")
 	}
