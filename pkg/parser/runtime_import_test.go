@@ -91,6 +91,55 @@ func TestRuntimeImportExpressionValidation(t *testing.T) {
 			expectSafe:  false,
 			description: "Variables not allowed",
 		},
+		// Compound expression forms — spec-enforcer fix
+		{
+			name:        "standalone string literal",
+			expression:  "'full-sweep (enforce_all)'",
+			expectSafe:  true,
+			description: "Standalone string literal is safe",
+		},
+		{
+			name:        "standalone boolean literal",
+			expression:  "true",
+			expectSafe:  true,
+			description: "Standalone boolean literal is safe",
+		},
+		{
+			name:        "comparison expression with safe property",
+			expression:  "github.event.inputs.enforce_all == 'true'",
+			expectSafe:  true,
+			description: "Comparison with safe LHS property is allowed",
+		},
+		{
+			name:        "AND compound with comparison and literal",
+			expression:  "github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)'",
+			expectSafe:  true,
+			description: "AND compound: comparison && literal is allowed",
+		},
+		{
+			name:        "ternary-style AND/OR chain (spec-enforcer pattern)",
+			expression:  "github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin'",
+			expectSafe:  true,
+			description: "Ternary-style AND/OR chain with safe LHS is allowed",
+		},
+		{
+			name:        "unsafe AND compound with secrets on right",
+			expression:  "github.actor && secrets.TOKEN",
+			expectSafe:  false,
+			description: "secrets.TOKEN in AND right side must be blocked",
+		},
+		{
+			name:        "unsafe OR compound with secrets on right",
+			expression:  "github.actor == 'value' || secrets.TOKEN",
+			expectSafe:  false,
+			description: "secrets.TOKEN in OR right side must be blocked",
+		},
+		{
+			name:        "unsafe ternary with secrets in condition",
+			expression:  "secrets.TOKEN == 'x' && 'yes' || 'no'",
+			expectSafe:  false,
+			description: "Ternary with secrets in condition must be blocked",
+		},
 	}
 
 	// Find node executable

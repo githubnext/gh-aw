@@ -59,6 +59,32 @@ func FuzzRuntimeImportExpressionValidation(f *testing.F) {
 	f.Add("github.event.release.assets[0].id")    // array access
 	f.Add("github" + strings.Repeat(".prop", 50)) // very long chain
 
+	// Seed corpus with compound expression forms (spec-enforcer fix)
+	// Standalone literals
+	f.Add("'full-sweep (enforce_all)'")
+	f.Add("'round-robin'")
+	f.Add("true")
+	f.Add("false")
+	f.Add("42")
+	// Comparison expressions
+	f.Add("github.actor == 'octocat'")
+	f.Add("github.event.inputs.enforce_all == 'true'")
+	f.Add("inputs.mode != 'dry-run'")
+	f.Add("github.run_id >= 1000")
+	// AND compound expressions
+	f.Add("github.actor && github.repository")
+	f.Add("inputs.flag && 'enabled'")
+	f.Add("github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)'")
+	// Ternary-style AND/OR chains (the spec-enforcer pattern)
+	f.Add("github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin'")
+	f.Add("inputs.mode == 'fast' && 'fast-mode' || 'normal-mode'")
+	// Unsafe compound expressions — must be rejected
+	f.Add("secrets.TOKEN && 'safe'")
+	f.Add("github.actor && secrets.TOKEN")
+	f.Add("secrets.TOKEN == 'x' && 'yes' || 'no'")
+	f.Add("github.actor == 'value' || secrets.TOKEN")
+	f.Add("true && secrets.TOKEN || 'no'")
+
 	// Find node executable
 	nodePath, err := exec.LookPath("node")
 	if err != nil {
@@ -143,6 +169,16 @@ try {
 			if strings.Contains(expression, "\n") && result.Safe {
 				t.Errorf("Expression with newline was marked as safe: %q", expression)
 			}
+
+			// Compound expressions whose first token is an unsafe namespace must not be safe.
+			// We check for a leading unsafe namespace to avoid false positives on safe
+			// sub-expressions that happen to contain "secrets" as a literal string value.
+			unsafeLeadingPatterns := []string{"secrets.", "runner.", "vars."}
+			for _, prefix := range unsafeLeadingPatterns {
+				if strings.HasPrefix(strings.TrimSpace(expression), prefix) && result.Safe {
+					t.Errorf("Compound expression starting with %q was marked as safe: %q", prefix, expression)
+				}
+			}
 		}
 	})
 }
@@ -170,6 +206,17 @@ func FuzzRuntimeImportProcessExpressions(f *testing.F) {
 	f.Add("Text ${{ github.actor")                        // unclosed
 	f.Add("Text }} github.actor }}")                      // unbalanced
 	f.Add(strings.Repeat("${{ github.actor }} ", 100))    // many expressions
+
+	// Seed corpus with compound expression forms (spec-enforcer fix)
+	f.Add("Mode: ${{ github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin' }}")
+	f.Add("Flag: ${{ inputs.mode == 'fast' && 'fast-mode' || 'normal-mode' }}")
+	f.Add("Cond: ${{ github.actor == 'octocat' }}")
+	f.Add("Literal: ${{ 'static-value' }}")
+	f.Add("AND: ${{ github.actor && github.repository }}")
+	// Unsafe compound patterns — must be rejected
+	f.Add("Bad: ${{ secrets.TOKEN && 'safe' }}")
+	f.Add("Bad: ${{ github.actor && secrets.TOKEN }}")
+	f.Add("Bad: ${{ github.actor == 'value' || secrets.TOKEN }}")
 
 	nodePath, err := exec.LookPath("node")
 	if err != nil {
