@@ -53,7 +53,7 @@ func (c *Compiler) validateModelAliasMap(
 		len(mergedAliasMap), len(frontmatterModels), engineModel)
 
 	// V-MAF-004: engine.model MUST NOT be a glob pattern.
-	// GitHub Actions expressions (${{ … }}) are exempt from syntax checks,
+	// GitHub Actions expressions (${{ ... }}) are exempt from syntax checks,
 	// including partial expressions such as "${{ inputs.model }}?effort=high".
 	if engineModel != "" && !containsExpression(engineModel) {
 		if err := validateEngineModelNotGlob(engineModel, markdownPath); err != nil {
