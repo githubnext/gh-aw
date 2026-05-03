@@ -210,8 +210,14 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	var command string
 	if firewallEnabled {
 		// Build AWF-wrapped command using helper function
-		// Get allowed domains (Codex defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
-		allowedDomains := GetCodexAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		// Get allowed domains: prefer the pre-warmed cache on WorkflowData to avoid
+		// re-running the expensive map+sort operation.
+		var allowedDomains string
+		if workflowData.CachedAllowedDomainsComputed {
+			allowedDomains = workflowData.CachedAllowedDomainsStr
+		} else {
+			allowedDomains = GetCodexAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		}
 		// Add GHES/custom API target domains to the firewall allow-list when engine.api-target is set
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
 			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)

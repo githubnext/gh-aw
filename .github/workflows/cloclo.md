@@ -25,6 +25,7 @@ tools:
   agentic-workflows:
   edit:
   playwright:
+    mode: cli
   bash: true
   cache-memory:
     key: cloclo-memory-${{ github.workflow }}
@@ -99,7 +100,7 @@ ${{ steps.sanitized.outputs.text }}
 You have access to:
 1. **Serena MCP**: Static analysis and code intelligence capabilities
 2. **gh-aw MCP**: GitHub Agentic Workflows introspection and management
-3. **Playwright**: Browser automation for web interaction
+3. **Playwright**: Browser automation via CLI (`playwright-cli <command>` in bash)
 4. **JQ Schema**: JSON structure discovery tool at `/tmp/gh-aw/jqschema.sh`
 5. **Cache Memory**: Persistent memory storage at `/tmp/gh-aw/cache-memory/` for multi-step reasoning
 6. **Edit Tool**: For file creation and modification
@@ -117,7 +118,7 @@ Analyze the comment content above and determine what action the user is requesti
 5. **ALWAYS add a glamorous comment** on the original conversation thread with a summary of changes made (using the `add-comment` safe output)
 
 ### If Web Automation Is Needed:
-1. Use **Playwright** to interact with web pages
+1. Use **Playwright CLI** (`playwright-cli` in bash) to interact with web pages
 2. Gather required information
 3. **ALWAYS add a comment** with your findings and summary
 

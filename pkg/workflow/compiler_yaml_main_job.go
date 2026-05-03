@@ -31,6 +31,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		return err
 	}
 
+	// Pre-warm the allowed domains cache so that engine execution steps (GetExecutionSteps)
+	// can reuse the pre-computed value instead of re-running the expensive map+sort
+	// operation inside each engine's domain helper.  The result is stored on WorkflowData
+	// and is also used later by generateOutputCollectionStep.
+	_, _ = c.computeAllowedDomainsForSanitization(data)
+
 	// Phase 4: Agent execution and immediate post-agent steps
 	artifactPaths, logFileFull, err := c.generateAgentRunSteps(yaml, data, engine, needsGitConfig)
 	if err != nil {

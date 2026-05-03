@@ -36,6 +36,7 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `ScheduleParser` | struct | Converts natural-language schedules to cron expressions |
 | `DeprecatedField` | struct | A deprecated frontmatter field with migration guidance |
 | `FileReader` | func type | `func(filePath string) ([]byte, error)` — abstraction for file reading |
+| `InlineSubAgent` | struct | A single inline sub-agent definition extracted via the `## agent: \`name\`` syntax |
 
 ### Functions
 
@@ -147,6 +148,18 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 |----------|-----------|-------------|
 | `IsLabelOnlyEvent` | `func(eventValue any) bool` | Detects whether a trigger only activates on label events |
 | `IsNonConflictingCommandEvent` | `func(eventValue any) bool` | Detects whether a trigger is a non-conflicting slash command |
+
+#### Inline Sub-Agent Processing
+
+Inline sub-agents are secondary agent definitions embedded in the same markdown file as the primary workflow, delimited by `## agent: \`name\`` level-2 headings. Each sub-agent may carry its own frontmatter block (only `description` and `model` are valid fields) plus a prompt body.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ExtractInlineSubAgents` | `func(markdown string) (mainMarkdown string, agents []InlineSubAgent, err error)` | Splits markdown into the main workflow section and any inline sub-agent definitions |
+| `ValidateInlineSubAgentsFrontmatter` | `func(markdown string) []string` | Validates inline sub-agent frontmatter in a full workflow file (strips top-level frontmatter first); returns advisory warning strings |
+| `ValidateInlineSubAgentsInBody` | `func(body string) []string` | Validates inline sub-agent frontmatter in an already-stripped markdown body |
+| `GetEngineSubAgentDir` | `func(engineID string) string` | Returns the relative directory used for sub-agent files for a given engine (`claude` → `.claude/agents`, etc.) |
+| `GetEngineSubAgentExt` | `func(engineID string) string` | Returns the file extension for sub-agent files for a given engine (`.md` for `claude`/`codex`/`gemini`, `.agent.md` otherwise) |
 
 #### Virtual Filesystem and Workflow Update Helpers
 

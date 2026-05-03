@@ -272,7 +272,7 @@ func validateWorkflowInputs(markdownPath string, providedInputs []string) error 
 			errorParts = append(errorParts, validInputsMsg)
 		}
 
-		return fmt.Errorf("%s", strings.Join(errorParts, "\n\n"))
+		return errors.New(strings.Join(errorParts, "\n\n"))
 	}
 
 	return nil

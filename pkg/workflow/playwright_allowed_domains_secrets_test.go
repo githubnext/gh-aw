@@ -60,18 +60,14 @@ func TestExtractExpressionsFromPlaywrightArgs(t *testing.T) {
 // TestReplaceExpressionsInPlaywrightArgs tests the helper function
 func TestReplaceExpressionsInPlaywrightArgs(t *testing.T) {
 	tests := []struct {
-		name        string
-		args        []string
-		expressions map[string]string
-		validate    func(t *testing.T, result []string)
+		name     string
+		args     []string
+		validate func(t *testing.T, result []string)
 	}{
 		{
 			name: "Replace single expression",
 			args: []string{
 				"${{ secrets.TEST_DOMAIN }}",
-			},
-			expressions: map[string]string{
-				"GH_AW_SECRETS_TEST_DOMAIN": "${{ secrets.TEST_DOMAIN }}",
 			},
 			validate: func(t *testing.T, result []string) {
 				if len(result) != 1 {
@@ -91,10 +87,6 @@ func TestReplaceExpressionsInPlaywrightArgs(t *testing.T) {
 				"${{ secrets.API_KEY }}",
 				"example.com",
 				"${{ secrets.ANOTHER_SECRET }}",
-			},
-			expressions: map[string]string{
-				"GH_AW_SECRETS_API_KEY":        "${{ secrets.API_KEY }}",
-				"GH_AW_SECRETS_ANOTHER_SECRET": "${{ secrets.ANOTHER_SECRET }}",
 			},
 			validate: func(t *testing.T, result []string) {
 				if len(result) != 3 {
@@ -118,7 +110,6 @@ func TestReplaceExpressionsInPlaywrightArgs(t *testing.T) {
 				"example.com",
 				"test.org",
 			},
-			expressions: map[string]string{},
 			validate: func(t *testing.T, result []string) {
 				if len(result) != 2 {
 					t.Errorf("Expected 2 results, got %d", len(result))
@@ -132,7 +123,7 @@ func TestReplaceExpressionsInPlaywrightArgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := replaceExpressionsInPlaywrightArgs(tt.args, tt.expressions)
+			result := replaceExpressionsInPlaywrightArgs(tt.args)
 			tt.validate(t, result)
 		})
 	}

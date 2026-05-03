@@ -196,11 +196,18 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	var command string
 	firewallEnabled := isFirewallEnabled(workflowData)
 	if firewallEnabled {
-		allowedDomains := GetGeminiAllowedDomainsWithToolsAndRuntimes(
-			workflowData.NetworkPermissions,
-			workflowData.Tools,
-			workflowData.Runtimes,
-		)
+		// Get allowed domains: prefer the pre-warmed cache on WorkflowData to avoid
+		// re-running the expensive map+sort operation.
+		var allowedDomains string
+		if workflowData.CachedAllowedDomainsComputed {
+			allowedDomains = workflowData.CachedAllowedDomainsStr
+		} else {
+			allowedDomains = GetGeminiAllowedDomainsWithToolsAndRuntimes(
+				workflowData.NetworkPermissions,
+				workflowData.Tools,
+				workflowData.Runtimes,
+			)
+		}
 		// Add GHES/custom API target domains to the firewall allow-list when engine.api-target is set
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
 			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -74,7 +75,7 @@ func resolveSetupActionRef(actionMode ActionMode, version string, actionTag stri
 
 		// If a resolver is available, try to resolve the SHA
 		if resolver != nil {
-			sha, err := resolver.ResolveSHA(actionRepo, tag)
+			sha, err := resolver.ResolveSHA(context.Background(), actionRepo, tag)
 			if err == nil && sha != "" {
 				pinnedRef := formatActionReference(actionRepo, sha, tag)
 				actionRefLog.Printf("Action mode: resolved %s to SHA-pinned reference: %s", remoteRef, pinnedRef)
@@ -112,7 +113,7 @@ func resolveSetupActionRef(actionMode ActionMode, version string, actionTag stri
 
 		// If a resolver is available, try to resolve the SHA
 		if resolver != nil {
-			sha, err := resolver.ResolveSHA(actionRepo, tag)
+			sha, err := resolver.ResolveSHA(context.Background(), actionRepo, tag)
 			if err == nil && sha != "" {
 				pinnedRef := formatActionReference(actionRepo, sha, tag)
 				actionRefLog.Printf("Release mode: resolved %s to SHA-pinned reference: %s", remoteRef, pinnedRef)

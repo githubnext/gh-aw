@@ -173,18 +173,6 @@ func (jm *JobManager) WriteJobsYAML(b *strings.Builder) {
 	}
 }
 
-// RenderToYAML generates the jobs section of a GitHub Actions workflow.
-// Prefer WriteJobsYAML when an existing *strings.Builder is available to avoid
-// an extra allocation.
-func (jm *JobManager) RenderToYAML() string {
-	var yaml strings.Builder
-	// Pre-size so the builder avoids reallocation for typical workflows.
-	// All jobs combined are usually ~48–60 KB; 64 KB covers that range.
-	yaml.Grow(64 * 1024)
-	jm.WriteJobsYAML(&yaml)
-	return yaml.String()
-}
-
 // renderJobTo writes a single job to b directly, with no intermediate string allocation.
 func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 	jobLog.Printf("Rendering job: %s (steps=%d, needs=%d, reusable=%t)", job.Name, len(job.Steps), len(job.Needs), job.Uses != "")
@@ -387,13 +375,4 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 
 	// Add newline after each job for proper formatting
 	b.WriteString("\n")
-}
-
-// renderJob renders a single job to a new string.
-// Prefer renderJobTo when an existing *strings.Builder is available to avoid
-// the intermediate allocation.
-func (jm *JobManager) renderJob(job *Job) string {
-	var b strings.Builder
-	jm.renderJobTo(&b, job)
-	return b.String()
 }

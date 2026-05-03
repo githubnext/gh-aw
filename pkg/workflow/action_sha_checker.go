@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -73,7 +74,7 @@ func ExtractActionsFromLockFile(lockFilePath string) ([]ActionUsage, error) {
 				actionSHACheckerLog.Printf("Found action: %s@%s (version: %s)", repo, sha, version)
 			} else {
 				// Fallback: try to determine the version tag from action_pins.json
-				if pin, found := getActionPinByRepo(repo); found {
+				if pin, found := getLatestActionPinByRepo(repo); found {
 					version = pin.Version
 					actionSHACheckerLog.Printf("Found action: %s@%s (version from pins: %s)", repo, sha, version)
 				} else {
@@ -118,7 +119,7 @@ func CheckActionSHAUpdates(actions []ActionUsage, resolver *ActionResolver) []Ac
 		}
 
 		// Resolve the latest SHA for this version
-		latestSHA, err := resolver.ResolveSHA(action.Repo, action.Version)
+		latestSHA, err := resolver.ResolveSHA(context.Background(), action.Repo, action.Version)
 		if err != nil {
 			actionSHACheckerLog.Printf("Failed to resolve %s@%s: %v", action.Repo, action.Version, err)
 			check.Message = fmt.Sprintf("Unable to check for updates: %v", err)

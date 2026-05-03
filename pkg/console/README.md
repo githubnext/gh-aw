@@ -91,6 +91,14 @@ gh aw compile workflow.md > log.txt # Spinner disabled
 
 The `ProgressBar` component provides a reusable progress bar with TTY detection and graceful fallback for non-TTY environments.
 
+### Public API
+
+| Function / Method | Signature | Description |
+|------------------|-----------|-------------|
+| `NewProgressBar` | `func(total int64) *ProgressBar` | Creates a determinate progress bar for a known total byte count |
+| `NewIndeterminateProgressBar` | `func() *ProgressBar` | Creates an indeterminate progress bar for operations of unknown size (WASM build only) |
+| `(*ProgressBar).Update` | `func(current int64) string` | Updates progress and returns a formatted display string; in TTY mode renders a gradient bar, in non-TTY mode returns a text percentage |
+
 ### Features
 
 - **Scaled gradient effect**: Smooth color transition from purple to cyan as progress advances

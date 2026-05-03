@@ -29,7 +29,7 @@ tools:
   cli-proxy: true
   cache-memory: true
   playwright:
-    version: "v1.56.1"
+    mode: cli
   edit:
   bash:
     - "npm install*"
@@ -113,39 +113,33 @@ done
 
 ## Step 3: Detect Layout Issues with Playwright
 
-Use Playwright's accessibility tree and element queries to detect content that bleeds outside slide boundaries. **Do NOT use screenshots** - use smart visibility queries instead:
+Use playwright-cli to navigate to the slides and check for content overflow using the accessibility tree. **Do NOT use screenshots** - use smart visibility queries instead:
 
-```javascript
-// Example Playwright code to detect overflow
-const page = await browser.newPage();
-await page.goto('http://localhost:8080/slides-preview.html');
+```bash
+playwright-cli browser_navigate --url "http://localhost:8080/slides-preview.html"
+playwright-cli browser_snapshot
+```
 
-// Navigate through slides and check for overflow
-const slides = await page.$$('section');
-for (let i = 0; i < slides.length; i++) {
-  const slide = slides[i];
-  
-  // Check if content overflows the slide boundaries
-  const boundingBox = await slide.boundingBox();
-  const overflowElements = await slide.$$eval('*', (elements) => {
-    return elements.filter(el => {
-      const rect = el.getBoundingClientRect();
-      const parentRect = el.closest('section').getBoundingClientRect();
-      return rect.bottom > parentRect.bottom || rect.right > parentRect.right;
-    }).map(el => ({
-      tag: el.tagName,
-      text: el.textContent.substring(0, 50),
-      overflow: {
-        bottom: rect.bottom - parentRect.bottom,
-        right: rect.right - parentRect.right
-      }
-    }));
-  });
-  
-  if (overflowElements.length > 0) {
-    console.log(`Slide ${i + 1} has overflow:`, overflowElements);
+To detect overflow elements, use `browser_run_code` to run Playwright code:
+
+```bash
+playwright-cli browser_run_code --code "async (page) => {
+  const slides = await page.\$\$('section');
+  const overflows = [];
+  for (let i = 0; i < slides.length; i++) {
+    const slide = slides[i];
+    const overflowElements = await slide.\$\$eval('*', (elements) => {
+      return elements.filter(el => {
+        const rect = el.getBoundingClientRect();
+        const parentRect = el.closest('section')?.getBoundingClientRect();
+        if (!parentRect) return false;
+        return rect.bottom > parentRect.bottom || rect.right > parentRect.right;
+      }).map(el => ({ tag: el.tagName, text: el.textContent.substring(0, 50) }));
+    });
+    if (overflowElements.length > 0) overflows.push({ slide: i + 1, overflowElements });
   }
-}
+  return overflows;
+}"
 ```
 
 Focus on:

@@ -43,7 +43,10 @@ type PolicyRule struct {
 
 // AuditLogEntry represents a single entry from audit.jsonl.
 // This is the JSONL format written by the AWF audit subsystem.
+// Each record includes a _schema field (e.g. "audit/v0.26.0") that identifies the
+// record type and AWF version for forward-compatible consumers.
 type AuditLogEntry struct {
+	Schema    string  `json:"_schema,omitempty"` // Self-describing record type, e.g. "audit/v0.26.0"
 	Timestamp float64 `json:"ts"`
 	Client    string  `json:"client,omitempty"`
 	Host      string  `json:"host"`

@@ -217,6 +217,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		var allowedDomains string
 		if workflowData.IsDetectionRun {
 			allowedDomains = GetThreatDetectionAllowedDomains(workflowData.NetworkPermissions)
+		} else if workflowData.CachedAllowedDomainsComputed {
+			// Use the pre-warmed cache (populated before GetExecutionSteps is called)
+			// to avoid re-running the expensive map+sort operation.
+			allowedDomains = workflowData.CachedAllowedDomainsStr
 		} else {
 			allowedDomains = GetCopilotAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 		}

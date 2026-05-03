@@ -1419,13 +1419,15 @@ func TestBuildAWFImageTagWithDigests(t *testing.T) {
 }
 
 func TestBuildAWFArgs_ImageTagIncludesDigests(t *testing.T) {
+	// Use a version that has embedded container pins so we can verify digest metadata
+	// is included in the AWF config JSON. Version 0.25.29 has full embedded pins.
 	config := AWFCommandConfig{
 		EngineName:     "copilot",
 		AllowedDomains: "github.com",
 		WorkflowData: &WorkflowData{
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{Enabled: true},
+				Firewall: &FirewallConfig{Enabled: true, Version: "0.25.29"},
 			},
 		},
 	}

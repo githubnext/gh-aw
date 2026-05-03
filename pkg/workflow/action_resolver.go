@@ -14,7 +14,7 @@ var resolverLog = logger.New("workflow:action_resolver")
 
 // ActionSHAResolver is the minimal interface for resolving an action tag to its commit SHA.
 type ActionSHAResolver interface {
-	ResolveSHA(repo, version string) (string, error)
+	ResolveSHA(ctx context.Context, repo, version string) (string, error)
 }
 
 // ActionResolver handles resolving action SHAs using GitHub CLI
@@ -33,7 +33,10 @@ func NewActionResolver(cache *ActionCache) *ActionResolver {
 
 // ResolveSHA resolves the SHA for a given action@version using GitHub CLI
 // Returns the SHA and an error if resolution fails
-func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
+func (r *ActionResolver) ResolveSHA(ctx context.Context, repo, version string) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	resolverLog.Printf("Resolving SHA for action: %s@%s", repo, version)
 
 	// Create a cache key for tracking failed resolutions and cache lookups.
@@ -56,7 +59,7 @@ func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 	resolverLog.Printf("This may take a moment as we query GitHub API at /repos/%s/git/ref/tags/%s", gitutil.ExtractBaseRepo(repo), version)
 
 	// Resolve using GitHub CLI
-	sha, err := r.resolveFromGitHub(repo, version)
+	sha, err := r.resolveFromGitHub(ctx, repo, version)
 	if err != nil {
 		resolverLog.Printf("Failed to resolve %s@%s: %v", repo, version, err)
 		// Mark this resolution as failed for this compilation run
@@ -94,7 +97,7 @@ func ParseTagRefTSV(line string) (sha, objType string, err error) {
 }
 
 // resolveFromGitHub uses gh CLI to resolve the SHA for an action@version
-func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error) {
+func (r *ActionResolver) resolveFromGitHub(ctx context.Context, repo, version string) (string, error) {
 	// Extract base repository (for actions like "github/codeql-action/upload-sarif")
 	baseRepo := gitutil.ExtractBaseRepo(repo)
 	resolverLog.Printf("Extracted base repository: %s from %s", baseRepo, repo)
@@ -104,13 +107,17 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 	apiPath := fmt.Sprintf("/repos/%s/git/ref/tags/%s", baseRepo, version)
 	resolverLog.Printf("Querying GitHub API: %s", apiPath)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// Derive a timeout context from the caller's context for the initial tag lookup.
+	// The caller's ctx is preserved separately so that each annotated-tag peel
+	// operation can also derive a fresh 30-second timeout from it (rather than from
+	// the already-running callCtx, which may have far less than 30 seconds remaining).
+	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	// Fetch both SHA and object type to detect annotated tags.
 	// Annotated tags have type "tag" and their SHA points to the tag object,
 	// not the underlying commit. We must peel to get the commit SHA.
-	cmd := ExecGHContext(ctx, "api", apiPath, "--jq", "[.object.sha, .object.type] | @tsv")
+	cmd := ExecGHContext(callCtx, "api", apiPath, "--jq", "[.object.sha, .object.type] | @tsv")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve %s@%s: %w", repo, version, err)
@@ -132,7 +139,10 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 		}
 		resolverLog.Printf("Detected annotated tag for %s@%s (depth %d, tag object SHA: %s), peeling to underlying object", repo, version, depth, sha)
 		tagPath := fmt.Sprintf("/repos/%s/git/tags/%s", baseRepo, sha)
-		peelCtx, peelCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		// Each peel gets its own fresh 30-second timeout derived from the original
+		// caller context (ctx), not from callCtx, so we don't accidentally shrink
+		// the budget for subsequent peels.
+		peelCtx, peelCancel := context.WithTimeout(ctx, 30*time.Second)
 		cmd2 := ExecGHContext(peelCtx, "api", tagPath, "--jq", "[.object.sha, .object.type] | @tsv")
 		output2, peelErr := cmd2.Output()
 		peelCancel()

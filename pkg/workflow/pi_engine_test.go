@@ -29,7 +29,8 @@ func TestPiEngine_GetRequiredSecretNames(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{Name: "test-workflow"}
 	secrets := engine.GetRequiredSecretNames(workflowData)
-	assert.Contains(t, secrets, "PI_API_KEY", "Required secrets should include PI_API_KEY")
+	assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN", "Required secrets should include COPILOT_GITHUB_TOKEN")
+	assert.NotContains(t, secrets, "PI_API_KEY", "Required secrets should not include PI_API_KEY")
 }
 
 func TestPiEngine_GetLogParserScriptId(t *testing.T) {

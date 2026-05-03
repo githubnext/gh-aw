@@ -170,7 +170,7 @@ func validateSubAgentFrontmatterFields(agent InlineSubAgent) []string {
 //	claude   → .claude/agents
 //	codex    → .codex/agents
 //	gemini   → .gemini/agents
-//	others   → .agents/agents  (Copilot default)
+//	others   → .github/agents  (Copilot default)
 func GetEngineSubAgentDir(engineID string) string {
 	switch strings.ToLower(engineID) {
 	case "claude":
@@ -180,7 +180,7 @@ func GetEngineSubAgentDir(engineID string) string {
 	case "gemini":
 		return ".gemini/agents"
 	default:
-		return ".agents/agents"
+		return ".github/agents"
 	}
 }
 

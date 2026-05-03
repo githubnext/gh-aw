@@ -5,7 +5,10 @@
 
 package workflow
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // internalSandboxFieldError returns a standardised strict-mode error for an
 // internal sandbox field that must not be configured by end users.
@@ -45,7 +48,7 @@ func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConf
 		// with no id) would silently default to AWF in non-strict builds but that
 		// implicit defaulting is not acceptable in strict mode.
 		if !agent.Disabled && !isSupportedSandboxType(getAgentType(agent)) {
-			return fmt.Errorf(
+			return errors.New(
 				"strict mode: 'sandbox.agent' must specify an explicit 'id' (e.g., id: awf). " +
 					"A sandbox agent without an 'id' is ambiguous and not allowed in strict mode. " +
 					"Add 'id: awf' to your sandbox.agent configuration. " +
