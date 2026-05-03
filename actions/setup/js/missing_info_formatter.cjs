@@ -10,7 +10,7 @@
 
 /**
  * Escape markdown content to prevent injection
- * @param {string} text - Text to escape
+ * @param {string | null | undefined} text - Text to escape
  * @returns {string} Escaped text
  */
 function escapeMarkdown(text) {
@@ -20,7 +20,7 @@ function escapeMarkdown(text) {
 
 /**
  * Format missing_tool messages into markdown list items
- * @param {Array<{tool: string, reason: string, alternatives?: string}>} missingTools - Missing tool messages
+ * @param {Array<{tool: string | null, reason: string, alternatives?: string | null}>} missingTools - Missing tool messages
  * @returns {string} Formatted markdown list
  */
 function formatMissingTools(missingTools) {
