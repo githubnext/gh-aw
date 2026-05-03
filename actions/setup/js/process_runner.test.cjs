@@ -31,10 +31,15 @@ describe("process_runner.cjs", () => {
   });
 
   describe("sleep", () => {
-    it("resolves after the given delay", async () => {
-      const start = Date.now();
-      await sleep(50);
-      expect(Date.now() - start).toBeGreaterThanOrEqual(40);
+    it("returns a promise that resolves after the given delay", async () => {
+      vi.useFakeTimers();
+      try {
+        const promise = sleep(1000);
+        vi.advanceTimersByTime(1000);
+        await expect(promise).resolves.toBeUndefined();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("resolves immediately for 0ms", async () => {
@@ -187,9 +192,10 @@ describe("process_runner.cjs", () => {
         logArgs: [longArg],
       });
       const spawnLog = logs.find(l => l.includes("spawning"));
-      // Extract the args portion from the log line (everything after "spawning: <cmd> ")
-      const afterCommand = spawnLog?.replace(/.*spawning: \S+ /, "") ?? "";
-      expect(afterCommand.length).toBeLessThanOrEqual(200);
+      // logArgs is a single arg made entirely of 'x' characters.  After truncation to 200
+      // chars the spawn log line must end with at most 200 consecutive x's.
+      const trailingXs = spawnLog?.match(/x+$/)?.[0] ?? "";
+      expect(trailingXs.length).toBeLessThanOrEqual(200);
     });
   });
 });

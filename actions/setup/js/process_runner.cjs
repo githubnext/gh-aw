@@ -62,6 +62,17 @@ function sleep(ms) {
 function runProcess({ command, args, attempt, log, logArgs }) {
   return new Promise(resolve => {
     const startTime = Date.now();
+    // Guard against the promise being settled more than once.  On some systems Node
+    // emits 'close' after 'error' (or vice-versa); only the first terminal event should
+    // log and resolve so callers receive a deterministic result.
+    let settled = false;
+    /** @param {{exitCode: number, output: string, hasOutput: boolean, durationMs: number}} result */
+    function settle(result) {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    }
+
     const argsForLog = logArgs ?? args;
     log(`attempt ${attempt + 1}: spawning: ${command} ${argsForLog.join(" ").substring(0, 200)}`);
 
@@ -106,7 +117,7 @@ function runProcess({ command, args, attempt, log, logArgs }) {
       const durationMs = Date.now() - startTime;
       const exitCode = code ?? 1;
       log(`attempt ${attempt + 1}: process closed` + ` exitCode=${exitCode}` + (signal ? ` signal=${signal}` : "") + ` duration=${formatDuration(durationMs)}` + ` stdout=${stdoutBytes}B stderr=${stderrBytes}B hasOutput=${hasOutput}`);
-      resolve({ exitCode, output: collectedOutput, hasOutput, durationMs });
+      settle({ exitCode, output: collectedOutput, hasOutput, durationMs });
     });
 
     child.on("error", err => {
@@ -116,7 +127,7 @@ function runProcess({ command, args, attempt, log, logArgs }) {
       const errCode = errno.code ?? "unknown";
       const errSyscall = errno.syscall ?? "unknown";
       log(`attempt ${attempt + 1}: failed to start process '${command}': ${err.message}` + ` (code=${errCode} syscall=${errSyscall})`);
-      resolve({
+      settle({
         exitCode: 1,
         output: collectedOutput,
         hasOutput,
