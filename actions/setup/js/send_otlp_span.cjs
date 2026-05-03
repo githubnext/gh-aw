@@ -559,11 +559,8 @@ function sanitizeOTLPPayload(payload) {
 /**
  * Resolve the list of configured OTLP endpoints for the current run.
  *
- * Checks `GH_AW_OTLP_ENDPOINTS` first (JSON-encoded array produced by the
- * gh-aw compiler for multi-endpoint configurations).  Falls back to the
- * legacy `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_HEADERS` pair
- * for backward compatibility with single-endpoint setups.
- *
+ * Reads `GH_AW_OTLP_ENDPOINTS` (JSON-encoded array produced by the gh-aw
+ * compiler for all endpoint configurations, including single-endpoint setups).
  * Returns an empty array when no endpoint is configured, so callers can skip
  * the export step without additional checks.
  *
@@ -571,31 +568,23 @@ function sanitizeOTLPPayload(payload) {
  */
 function parseOTLPEndpoints() {
   const raw = process.env.GH_AW_OTLP_ENDPOINTS || "";
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        /** @type {OTLPEndpointEntry[]} */
-        const valid = parsed
-          .filter(e => e && typeof e.url === "string" && e.url.trim() !== "")
-          .map(e => ({
-            url: e.url,
-            ...(typeof e.headers === "string" && e.headers ? { headers: e.headers } : {}),
-          }));
-        if (valid.length > 0) return valid;
-      }
-    } catch {
-      // Fall through to legacy single-endpoint env vars.
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      /** @type {OTLPEndpointEntry[]} */
+      const valid = parsed
+        .filter(e => e && typeof e.url === "string" && e.url.trim() !== "")
+        .map(e => ({
+          url: e.url,
+          ...(typeof e.headers === "string" && e.headers ? { headers: e.headers } : {}),
+        }));
+      return valid;
     }
+  } catch {
+    // Invalid JSON — no endpoints available.
   }
-  // Legacy single-endpoint fallback.
-  const endpoint = (process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "").trim();
-  if (!endpoint) return [];
-  /** @type {OTLPEndpointEntry} */
-  const entry = { url: endpoint };
-  const legacyHeaders = (process.env.OTEL_EXPORTER_OTLP_HEADERS || "").trim();
-  if (legacyHeaders) entry.headers = legacyHeaders;
-  return [entry];
+  return [];
 }
 
 /**
