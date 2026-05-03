@@ -34,6 +34,7 @@ jobs:
           mkdir -p "$OUT"
           if [ -z "${OPENAI_API_KEY:-}" ]; then
             echo '{"provider":"openai","error":"OPENAI_API_KEY not set","models":[]}' > "$OUT/models.json"
+            echo '{"provider":"openai","error":"OPENAI_API_KEY not set"}' > "$OUT/raw.json"
             echo "status=skipped" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -41,19 +42,30 @@ jobs:
             -H "Authorization: Bearer $OPENAI_API_KEY" \
             https://api.openai.com/v1/models) || true
           if [ "${HTTP_STATUS:-0}" = "200" ]; then
-            jq '{provider:"openai",models:[.data[].id]|sort}' "$OUT/raw.json" > "$OUT/models.json"
+            jq '{
+              provider: "openai",
+              models: [
+                .data[] | {
+                  id,
+                  owned_by,
+                  created
+                }
+              ] | sort_by(.id)
+            }' "$OUT/raw.json" > "$OUT/models.json"
             echo "status=ok" >> "$GITHUB_OUTPUT"
           else
             echo "{\"provider\":\"openai\",\"error\":\"HTTP $HTTP_STATUS\",\"models\":[]}" > "$OUT/models.json"
             echo "status=error" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Upload OpenAI artifact
+      - name: Upload OpenAI artifacts
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
           name: openai-models
-          path: /tmp/gh-aw/model-inventory/openai/models.json
+          path: |
+            /tmp/gh-aw/model-inventory/openai/models.json
+            /tmp/gh-aw/model-inventory/openai/raw.json
           if-no-files-found: error
           retention-days: 7
 
@@ -74,6 +86,7 @@ jobs:
           mkdir -p "$OUT"
           if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
             echo '{"provider":"anthropic","error":"ANTHROPIC_API_KEY not set","models":[]}' > "$OUT/models.json"
+            echo '{"provider":"anthropic","error":"ANTHROPIC_API_KEY not set"}' > "$OUT/raw.json"
             echo "status=skipped" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -82,19 +95,31 @@ jobs:
             -H "anthropic-version: 2023-06-01" \
             https://api.anthropic.com/v1/models) || true
           if [ "${HTTP_STATUS:-0}" = "200" ]; then
-            jq '{provider:"anthropic",models:[.data[].id]|sort}' "$OUT/raw.json" > "$OUT/models.json"
+            jq '{
+              provider: "anthropic",
+              models: [
+                .data[] | {
+                  id,
+                  display_name,
+                  created_at,
+                  type
+                }
+              ] | sort_by(.id)
+            }' "$OUT/raw.json" > "$OUT/models.json"
             echo "status=ok" >> "$GITHUB_OUTPUT"
           else
             echo "{\"provider\":\"anthropic\",\"error\":\"HTTP $HTTP_STATUS\",\"models\":[]}" > "$OUT/models.json"
             echo "status=error" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Upload Anthropic artifact
+      - name: Upload Anthropic artifacts
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
           name: anthropic-models
-          path: /tmp/gh-aw/model-inventory/anthropic/models.json
+          path: |
+            /tmp/gh-aw/model-inventory/anthropic/models.json
+            /tmp/gh-aw/model-inventory/anthropic/raw.json
           if-no-files-found: error
           retention-days: 7
 
@@ -115,25 +140,41 @@ jobs:
           mkdir -p "$OUT"
           if [ -z "${GEMINI_API_KEY:-}" ]; then
             echo '{"provider":"gemini","error":"GEMINI_API_KEY not set","models":[]}' > "$OUT/models.json"
+            echo '{"provider":"gemini","error":"GEMINI_API_KEY not set"}' > "$OUT/raw.json"
             echo "status=skipped" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           HTTP_STATUS=$(curl -sf -o "$OUT/raw.json" -w "%{http_code}" \
             "https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}") || true
           if [ "${HTTP_STATUS:-0}" = "200" ]; then
-            jq '{provider:"gemini",models:[.models[].name | ltrimstr("models/")]|sort}' "$OUT/raw.json" > "$OUT/models.json"
+            jq '{
+              provider: "gemini",
+              models: [
+                .models[] | {
+                  id: (.name | ltrimstr("models/")),
+                  display_name: .displayName,
+                  description: .description,
+                  input_token_limit: .inputTokenLimit,
+                  output_token_limit: .outputTokenLimit,
+                  supported_generation_methods: .supportedGenerationMethods,
+                  version: .version
+                }
+              ] | sort_by(.id)
+            }' "$OUT/raw.json" > "$OUT/models.json"
             echo "status=ok" >> "$GITHUB_OUTPUT"
           else
             echo "{\"provider\":\"gemini\",\"error\":\"HTTP $HTTP_STATUS\",\"models\":[]}" > "$OUT/models.json"
             echo "status=error" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Upload Gemini artifact
+      - name: Upload Gemini artifacts
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
           name: gemini-models
-          path: /tmp/gh-aw/model-inventory/gemini/models.json
+          path: |
+            /tmp/gh-aw/model-inventory/gemini/models.json
+            /tmp/gh-aw/model-inventory/gemini/raw.json
           if-no-files-found: error
           retention-days: 7
 
@@ -154,6 +195,7 @@ jobs:
           mkdir -p "$OUT"
           if [ -z "${COPILOT_GITHUB_TOKEN:-}" ]; then
             echo '{"provider":"copilot","error":"COPILOT_GITHUB_TOKEN not set","models":[]}' > "$OUT/models.json"
+            echo '{"provider":"copilot","error":"COPILOT_GITHUB_TOKEN not set"}' > "$OUT/raw.json"
             echo "status=skipped" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -162,19 +204,33 @@ jobs:
             -H "Copilot-Integration-Id: copilot-chat" \
             https://api.githubcopilot.com/models) || true
           if [ "${HTTP_STATUS:-0}" = "200" ]; then
-            jq '{provider:"copilot",models:[.data[].id]|sort}' "$OUT/raw.json" > "$OUT/models.json"
+            jq '{
+              provider: "copilot",
+              models: [
+                .data[] | {
+                  id,
+                  name: (.name // .id),
+                  vendor: (.vendor // null),
+                  version: (.version // null),
+                  capabilities: .capabilities,
+                  billing: .billing
+                }
+              ] | sort_by(.id)
+            }' "$OUT/raw.json" > "$OUT/models.json"
             echo "status=ok" >> "$GITHUB_OUTPUT"
           else
             echo "{\"provider\":\"copilot\",\"error\":\"HTTP $HTTP_STATUS\",\"models\":[]}" > "$OUT/models.json"
             echo "status=error" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Upload Copilot artifact
+      - name: Upload Copilot artifacts
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
           name: copilot-models
-          path: /tmp/gh-aw/model-inventory/copilot/models.json
+          path: |
+            /tmp/gh-aw/model-inventory/copilot/models.json
+            /tmp/gh-aw/model-inventory/copilot/raw.json
           if-no-files-found: error
           retention-days: 7
 
@@ -198,8 +254,17 @@ tools:
     - "cat /tmp/gh-aw/model-inventory/inventory.json"
     - "jq . /tmp/gh-aw/model-inventory/inventory.json"
     - "jq . /tmp/gh-aw/model-inventory/artifacts/*/models.json"
+    - "jq . /tmp/gh-aw/model-inventory/artifacts/*/raw.json"
+    - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/openai-models/raw.json"
+    - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/anthropic-models/raw.json"
+    - "jq '[.models[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/gemini-models/raw.json"
+    - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
+    - "jq '[.data[] | .capabilities | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
+    - "jq '[.data[] | select(.billing != null)] | length' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
+    - "jq '.data[] | {id, billing}' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
     - "find /tmp/gh-aw/model-inventory -type f"
     - "cat pkg/workflow/model_aliases.go"
+    - "cat pkg/cli/data/model_multipliers.json"
   github:
     toolsets: [default]
 
@@ -229,14 +294,25 @@ The pre-job steps have already fetched model lists from each provider's API and 
 
 - Combined inventory: `/tmp/gh-aw/model-inventory/inventory.json`
 - Individual provider files: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/models.json`
+- Raw provider responses: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/raw.json`
 
-Each entry in the inventory has the form:
+Each enriched `models.json` entry has the form (fields vary by provider):
 ```json
 {
-  "provider": "openai",
-  "models": ["gpt-4o", "gpt-4o-mini", ...]
+  "provider": "copilot",
+  "models": [
+    {
+      "id": "claude-sonnet-4-5",
+      "name": "Claude Sonnet 4.5",
+      "vendor": "anthropic",
+      "capabilities": { "limits": { "max_context_window_tokens": 200000 } },
+      "billing": { "multiplier": 1.0 }
+    }
+  ]
 }
 ```
+Note: the Copilot API acts as a proxy gateway and serves models from multiple vendors (Anthropic,
+OpenAI, Google). The `vendor` field identifies the underlying provider.
 
 If a provider's API key was not configured, the entry will have `"error": "... not set"` and an
 empty `models` array. Skip providers with errors or empty model lists.
@@ -271,7 +347,52 @@ The alias pattern syntax is:
 Read the combined inventory from `/tmp/gh-aw/model-inventory/inventory.json`. List the
 providers that returned data and the count of models available from each.
 
-### Step 2: Identify New or Updated Model Families
+### Step 2: Explore Raw API Fields
+
+For each provider that returned data, examine the raw response from
+`/tmp/gh-aw/model-inventory/artifacts/<provider>-models/raw.json` to identify all available
+fields. Specifically look for:
+
+- **Context window metadata**: input/output token limits (e.g. `inputTokenLimit`, `outputTokenLimit`,
+  `capabilities.limits.max_context_window_tokens`, `capabilities.limits.max_output_tokens`)
+- **Capability flags**: supported generation methods, vision support, tool use, streaming
+  (e.g. `supportedGenerationMethods`, `capabilities.supports.vision`, `capabilities.type`)
+- **Billing/pricing fields**: any field that conveys relative cost, a multiplier, a tier name,
+  or a premium indicator (e.g. `billing.multiplier`, `policy`, `tier`, `premium`, `cost_multiplier`)
+- **Model metadata**: `display_name`, `vendor`, `version`, `created_at`/`created`
+
+Summarize which fields are present and which carry useful data worth including in future cached
+inventories.
+
+### Step 3: Infer Token Multipliers
+
+Read the current built-in multiplier table from `pkg/cli/data/model_multipliers.json`.
+
+For each provider's enriched data, attempt to infer or validate the ET multiplier for each model:
+
+1. **Copilot API** — if `billing.multiplier` (or a similar field) is present in the raw response,
+   use it directly. Compare against the matching entry in `model_multipliers.json`. List any
+   discrepancies or missing models.
+
+2. **Gemini API** — use `inputTokenLimit` / `outputTokenLimit` as an approximate proxy for model
+   complexity (this is an inference heuristic, not a definitive billing mapping).
+   Large-context, high-output-limit models typically correspond to Pro-tier multipliers (~1.0);
+   smaller Flash models to lower multipliers (~0.1–0.2). Flag any models whose limits suggest a
+   tier change versus what is currently in `model_multipliers.json`.
+
+3. **OpenAI API** — use `owned_by` and model-ID naming conventions (e.g. `-mini`, `-nano`, `o1`,
+   `o3`) to cross-check current multipliers. Flag missing models or likely mismatches.
+
+4. **Anthropic API** — use `display_name` family grouping (haiku/sonnet/opus) to validate
+   current multipliers. Flag any new model IDs not yet in `model_multipliers.json`.
+
+Produce a consolidated multiplier gap table listing:
+- Models present in the live inventory but **missing** from `model_multipliers.json` — include
+  the provider name for each model (e.g. "openai", "anthropic", "gemini", "copilot")
+- Models in `model_multipliers.json` that are **no longer returned** by any API (stale)
+- Models where the **inferred multiplier** differs from the stored one
+
+### Step 4: Identify New or Updated Model Families
 
 Compare the live model list against the current aliases in `pkg/workflow/model_aliases.go`.
 Look for:
@@ -287,10 +408,10 @@ Look for:
    - `reasoning-model` → a model with extended reasoning/thinking capability
    - `vision-model` → a model that supports image input
 
-### Step 3: Propose Alias Mapping Updates
+### Step 5: Propose Alias Mapping Updates
 
-For each finding, produce a concrete YAML snippet showing the proposed new or updated alias entry
-in the `models:` frontmatter format. Use the alias pattern syntax:
+For each finding from Step 4, produce a concrete YAML snippet showing the proposed new or updated
+alias entry in the `models:` frontmatter format. Use the alias pattern syntax:
 
 ```yaml
 models:
@@ -304,7 +425,7 @@ Focus on aliases that provide genuine value to workflow authors. Prioritize:
 - Adding new semantic task-oriented aliases
 - Updating patterns that are stale
 
-### Step 4: Create Issue
+### Step 6: Create Issue
 
 If you found any meaningful updates to propose, create a GitHub issue using `create_issue`.
 
@@ -319,7 +440,8 @@ Brief description of what was found.
 
 - Providers queried: OpenAI, Anthropic, Gemini, Copilot
 - Total models found: <count>
-- Proposed changes: <count>
+- Proposed alias changes: <count>
+- Multiplier gaps found: <count>
 
 ### Provider Model Counts
 
@@ -329,6 +451,29 @@ Brief description of what was found.
 | anthropic | 15             | ✅ ok  |
 | gemini   | 28              | ✅ ok  |
 | copilot  | 35              | ✅ ok  |
+
+### Raw API Fields Discovered
+
+For each provider, list noteworthy fields found in the raw response that are now captured
+in the enriched `models.json` artifact (context limits, capabilities, billing fields, etc.).
+
+### Token Multiplier Analysis
+
+#### Missing from model_multipliers.json
+
+| Model ID | Provider | Inferred Multiplier | Basis |
+|----------|----------|--------------------:|-------|
+| ...      | ...      | ...                 | ...   |
+
+#### Stale entries (no longer returned by any API)
+
+List model IDs that appear in `model_multipliers.json` but are absent from all live inventories.
+
+#### Inferred vs stored discrepancies
+
+| Model ID | Stored Multiplier | Inferred Multiplier | Inferred From |
+|----------|------------------:|--------------------:|---------------|
+| ...      | ...               | ...                 | ...           |
 
 ### Proposed Alias Updates
 
@@ -349,9 +494,9 @@ List the complete sorted model IDs for each provider.
 Any caveats, stale patterns removed, or aliases that are already well-covered.
 ```
 
-If no updates are needed (all live models are already covered by existing aliases and no new
-task-oriented aliases are warranted), create an issue with title
-`Model alias inventory - no changes needed - YYYY-MM-DD` and a brief summary confirming
+If no updates are needed (all live models are already covered by existing aliases, all
+multipliers are up to date, and no new task-oriented aliases are warranted), create an issue with
+title `Model alias inventory - no changes needed - YYYY-MM-DD` and a brief summary confirming
 coverage is up to date.
 
 {{#runtime-import shared/noop-reminder.md}}
