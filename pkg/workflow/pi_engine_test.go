@@ -235,6 +235,74 @@ func TestPiEngine_GetExecutionSteps_ProviderPrefixAnthropic(t *testing.T) {
 	assert.NotContains(t, stepText, "COPILOT_GITHUB_TOKEN", "anthropic/ prefix should not inject COPILOT_GITHUB_TOKEN")
 }
 
+func TestBuildPiModelsJSONSetup_Copilot(t *testing.T) {
+	cmd := buildPiModelsJSONSetup("GITHUB_COPILOT_BASE_URL", "COPILOT_GITHUB_TOKEN", "claude-sonnet-4")
+	assert.Contains(t, cmd, `printf '`, "Should use printf for env-var substitution")
+	assert.Contains(t, cmd, "COPILOT_GITHUB_TOKEN", "Should include the secret env var name as apiKey")
+	assert.Contains(t, cmd, "claude-sonnet-4", "Should include the model ID")
+	assert.Contains(t, cmd, `${GITHUB_COPILOT_BASE_URL}`, "Should read base URL from env var at runtime")
+	assert.Contains(t, cmd, "aw-gateway", "Should register the aw-gateway provider")
+	assert.Contains(t, cmd, "openai-completions", "Should specify openai-completions API")
+	assert.NotContains(t, cmd, "host.docker.internal", "Should not hardcode host.docker.internal URL")
+	assert.NotContains(t, cmd, "base64", "Should not use base64 encoding")
+	assert.True(t, strings.HasSuffix(cmd, " && "), "Fragment should end with ' && ' for chaining")
+}
+
+func TestBuildPiModelsJSONSetup_Anthropic(t *testing.T) {
+	cmd := buildPiModelsJSONSetup("ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY", "claude-opus-4")
+	assert.Contains(t, cmd, "ANTHROPIC_API_KEY", "Should include the secret env var name as apiKey")
+	assert.Contains(t, cmd, "claude-opus-4", "Should include the model ID")
+	assert.Contains(t, cmd, `${ANTHROPIC_BASE_URL}`, "Should read base URL from env var at runtime")
+}
+
+func TestPiEngine_GetExecutionSteps_WithFirewall_UsesEnvVarBaseURL(t *testing.T) {
+	engine := NewPiEngine()
+	workflowData := makeFirewallEnabledWorkflowData()
+	workflowData.EngineConfig = &EngineConfig{ID: "pi", Model: "copilot/claude-sonnet-4"}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+	require.Len(t, steps, 1, "Should produce exactly one execution step")
+
+	stepText := strings.Join(steps[0], "\n")
+	// The models.json should be generated at runtime via printf from an env var,
+	// NOT via echo ... | base64 -d.
+	assert.Contains(t, stepText, `printf '`, "Should generate models.json using printf for runtime env-var substitution")
+	assert.Contains(t, stepText, `${GITHUB_COPILOT_BASE_URL}`, "Should read base URL from env var at runtime")
+	assert.NotContains(t, stepText, "base64 -d", "Should not decode a hardcoded base64 URL")
+	assert.Contains(t, stepText, "GITHUB_COPILOT_BASE_URL", "Should set GITHUB_COPILOT_BASE_URL in step env for container")
+	assert.Contains(t, stepText, "host.docker.internal", "Step env should set GITHUB_COPILOT_BASE_URL to host.docker.internal URL")
+	assert.Contains(t, stepText, "PI_CODING_AGENT_DIR", "Should set PI_CODING_AGENT_DIR so Pi CLI reads models.json")
+	assert.Contains(t, stepText, "aw-gateway/claude-sonnet-4", "Should pass --model aw-gateway/<id> to Pi CLI")
+}
+
+func TestPiEngine_GetExecutionSteps_WithFirewall_AnthropicUsesEnvVarBaseURL(t *testing.T) {
+	engine := NewPiEngine()
+	workflowData := makeFirewallEnabledWorkflowData()
+	workflowData.EngineConfig = &EngineConfig{ID: "pi", Model: "anthropic/claude-opus-4"}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+	require.Len(t, steps, 1, "Should produce exactly one execution step")
+
+	stepText := strings.Join(steps[0], "\n")
+	assert.Contains(t, stepText, `${ANTHROPIC_BASE_URL}`, "Anthropic backend should use ANTHROPIC_BASE_URL env var")
+	assert.Contains(t, stepText, "ANTHROPIC_API_KEY", "Anthropic backend should set ANTHROPIC_API_KEY")
+	assert.NotContains(t, stepText, "GITHUB_COPILOT_BASE_URL", "Anthropic backend should not set Copilot URL")
+}
+
+// makeFirewallEnabledWorkflowData returns WorkflowData with a firewall configuration
+// that causes isFirewallEnabled() to return true.
+func makeFirewallEnabledWorkflowData() *WorkflowData {
+	return &WorkflowData{
+		Name:        "test-workflow",
+		ParsedTools: NewTools(map[string]any{}),
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		},
+	}
+}
+
 func TestPiEngine_ImplementsCodingAgentEngine(t *testing.T) {
 	var _ CodingAgentEngine = NewPiEngine()
 }

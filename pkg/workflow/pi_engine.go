@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"maps"
 	"strings"
@@ -106,38 +104,25 @@ func piNativeProviderName(backend UniversalLLMBackend) string {
 	}
 }
 
-// buildPiModelsJSON returns a minimal Pi models.json payload that registers a
-// single custom provider named "aw-gateway" pointing at the AWF LLM gateway
-// sidecar.  Pi's resolveConfigValue() resolves the "apiKey" value by looking
-// up process.env[apiKey], so passing the secret env-var name (e.g.
-// "COPILOT_GITHUB_TOKEN") causes Pi to automatically use the value that is
-// already present in the container environment.
+// buildPiModelsJSONSetup returns a shell command fragment that generates
+// models.json at runtime by reading the base URL from the environment variable
+// named by baseURLEnvVarName.  Using runtime env-var substitution ensures the
+// correct gateway URL is used inside the AWF container, which may configure the
+// URL differently than the compile-time default.
 //
-// All dynamic values are marshaled via encoding/json to prevent JSON injection.
-func buildPiModelsJSON(gatewayPort int, secretEnvVarName, modelID string) string {
-	payload := map[string]any{
-		"providers": map[string]any{
-			"aw-gateway": map[string]any{
-				"baseUrl": fmt.Sprintf("http://host.docker.internal:%d", gatewayPort),
-				"api":     "openai-completions",
-				"apiKey":  secretEnvVarName,
-				"models":  []map[string]any{{"id": modelID}},
-			},
-		},
-	}
-	b, err := json.Marshal(payload)
-	if err != nil {
-		// json.Marshal only fails for non-serialisable types; our map is always
-		// serialisable, so this branch is unreachable in practice.
-		panic(fmt.Sprintf("BUG: buildPiModelsJSON failed to marshal JSON: %v", err))
-	}
-	return string(b)
-}
-
-// encodeBase64 returns the standard base64 encoding of s.  Used to safely
-// embed arbitrary content in shell commands without shell-injection risks.
-func encodeBase64(s string) string {
-	return base64.StdEncoding.EncodeToString([]byte(s))
+// Pi's resolveConfigValue() resolves the "apiKey" value by looking up
+// process.env[apiKey], so secretEnvVarName is passed as a literal string name
+// (not the token value itself).  baseUrl, however, must contain an actual URL,
+// so it is filled at runtime via printf from the env var.
+func buildPiModelsJSONSetup(baseURLEnvVarName, secretEnvVarName, modelID string) string {
+	// Build the JSON format string with a single %s placeholder for the base URL.
+	// apiKey and modelID are fixed at compile time; baseUrl is substituted at runtime.
+	jsonFmt := fmt.Sprintf(
+		`{"providers":{"aw-gateway":{"api":"openai-completions","apiKey":"%s","baseUrl":"%%s","models":[{"id":"%s"}]}}}`,
+		secretEnvVarName, modelID)
+	return fmt.Sprintf(
+		`mkdir -p /tmp/gh-aw/pi-agent-dir && printf '%s' "${%s}" > /tmp/gh-aw/pi-agent-dir/models.json && `,
+		jsonFmt, baseURLEnvVarName)
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Pi engine.
@@ -285,19 +270,17 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 		modelID := extractPiModelID(workflowData.EngineConfig.Model)
 		if firewallEnabled && len(profile.coreSecretNames) > 0 {
 			// Firewall case: write a models.json that redirects Pi's LLM calls to the
-			// AWF gateway sidecar port.  The "apiKey" field value is the name of the env
-			// var that holds the secret; Pi's resolveConfigValue() looks up
+			// AWF gateway sidecar.  The "apiKey" field value is the name of the env var
+			// that holds the secret; Pi's resolveConfigValue() looks up
 			// process.env[apiKey] to obtain the actual token value at runtime.
 			//
-			// The JSON is base64-encoded before embedding in the shell command so that
-			// the content is injection-safe regardless of what characters it contains.
-			modelsJSON := buildPiModelsJSON(profile.gatewayPort, profile.coreSecretNames[0], modelID)
-			modelsJSONBase64 := encodeBase64(modelsJSON)
-			piModelsJSONSetup = fmt.Sprintf(
-				`mkdir -p /tmp/gh-aw/pi-agent-dir && echo %s | base64 -d > /tmp/gh-aw/pi-agent-dir/models.json && `,
-				modelsJSONBase64)
+			// The base URL is read from the base URL env var at runtime (e.g.
+			// GITHUB_COPILOT_BASE_URL) rather than being hardcoded at compile time.
+			// This ensures Pi uses the gateway URL that the AWF container configures,
+			// which may differ from the compile-time default.
+			piModelsJSONSetup = buildPiModelsJSONSetup(profile.baseURLEnvName, profile.coreSecretNames[0], modelID)
 			piArgs = append(piArgs, "--model", "aw-gateway/"+modelID)
-			piLog.Printf("Pi: using models.json gateway routing for model %q via aw-gateway (port %d)", modelID, profile.gatewayPort)
+			piLog.Printf("Pi: using models.json gateway routing for model %q via aw-gateway (%s)", modelID, profile.baseURLEnvName)
 		} else {
 			// No firewall: use Pi's built-in provider so it can reach the real LLM API.
 			nativeProvider := piNativeProviderName(backend)
@@ -373,10 +356,9 @@ touch %s
 	}
 
 	// Build the environment map.  Provider-specific credentials are injected via
-	// the backend profile.  The base URL env var (e.g. GITHUB_COPILOT_BASE_URL) is
-	// NOT set for Pi because Pi v0.72+ does not read provider-specific base URL env
-	// vars; routing is instead handled through models.json (firewall case) or by Pi's
-	// native provider (no-firewall case).
+	// the backend profile.  When routing through the AWF gateway, the base URL env
+	// var (e.g. GITHUB_COPILOT_BASE_URL) is also set so that the models.json
+	// generation command can read it at runtime inside the AWF container.
 	env := map[string]string{
 		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
 		"GITHUB_AW":           "true",
@@ -396,10 +378,12 @@ touch %s
 		delete(env, "OPENAI_API_KEY")
 	}
 
-	// When the models.json gateway approach is used, tell Pi where to find it.
+	// When the models.json gateway approach is used, tell Pi where to find it and
+	// inject the base URL env var so the models.json generation command can read it.
 	if piModelsJSONSetup != "" {
 		env["PI_CODING_AGENT_DIR"] = "/tmp/gh-aw/pi-agent-dir"
-		piLog.Printf("Pi: setting PI_CODING_AGENT_DIR for models.json gateway config")
+		env[profile.baseURLEnvName] = fmt.Sprintf("http://host.docker.internal:%d", profile.gatewayPort)
+		piLog.Printf("Pi: setting PI_CODING_AGENT_DIR and %s for models.json gateway config", profile.baseURLEnvName)
 	}
 
 	if workflowData.IsDetectionRun {
