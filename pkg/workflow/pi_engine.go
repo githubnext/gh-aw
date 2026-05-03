@@ -47,21 +47,23 @@ func (e *PiEngine) GetModelEnvVarName() string {
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Pi engine.
+// Pi routes through the Copilot LLM gateway and reuses COPILOT_GITHUB_TOKEN
+// rather than a dedicated PI_API_KEY.
 func (e *PiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	piLog.Print("Collecting required secrets for Pi engine")
-	secrets := []string{"PI_API_KEY"}
+	secrets := []string{"COPILOT_GITHUB_TOKEN"}
 	secrets = append(secrets, collectCommonMCPSecrets(workflowData)...)
 	return secrets
 }
 
 // GetSecretValidationStep returns the secret validation step for the Pi engine.
-// Returns an empty step if custom command is specified.
+// Pi reuses COPILOT_GITHUB_TOKEN (no dedicated PI_API_KEY).
 func (e *PiEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
 	return BuildDefaultSecretValidationStep(
 		workflowData,
-		[]string{"PI_API_KEY"},
+		[]string{"COPILOT_GITHUB_TOKEN"},
 		"Pi",
-		"https://pi.dev/docs/latest/usage",
+		"https://github.github.com/gh-aw/reference/engines/#pi",
 	)
 }
 
@@ -198,7 +200,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 			UsesTTY:            false,
 			AllowedDomains:     allowedDomains,
 			PathSetup:          "touch " + AgentStepSummaryPath,
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"PI_API_KEY"}),
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"COPILOT_GITHUB_TOKEN"}),
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
@@ -207,11 +209,14 @@ touch %s
 %s 2>&1 | tee -a %s`, AgentStepSummaryPath, logFile, piCommand, logFile)
 	}
 
+	// #nosec G101 -- This is NOT a hardcoded credential. It is a GitHub Actions expression
+	// template that the runtime replaces with the actual secret value.
 	env := map[string]string{
-		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
-		"GITHUB_AW":           "true",
-		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
-		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
+		"COPILOT_GITHUB_TOKEN": "${{ secrets.COPILOT_GITHUB_TOKEN }}",
+		"GH_AW_PROMPT":         "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GITHUB_AW":            "true",
+		"GITHUB_WORKSPACE":     "${{ github.workspace }}",
+		"GITHUB_STEP_SUMMARY":  AgentStepSummaryPath,
 	}
 
 	if workflowData.IsDetectionRun {

@@ -8,7 +8,7 @@ engine:
     name: pi
   auth:
     - role: api-key
-      secret: PI_API_KEY
+      secret: COPILOT_GITHUB_TOKEN
 ---
 
 <!-- # Pi
