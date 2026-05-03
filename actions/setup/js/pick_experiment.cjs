@@ -29,9 +29,18 @@ const fs = require("fs");
 const path = require("path");
 
 /**
+ * @typedef {Object} ExperimentRunRecord
+ * @property {string} run_id       - GitHub Actions run ID (GITHUB_RUN_ID)
+ * @property {string} timestamp    - ISO-8601 UTC timestamp of the run
+ * @property {Record<string, string>} assignments - Maps experiment name → selected variant
+ */
+
+/**
  * @typedef {Object} ExperimentState
  * @property {Record<string, Record<string, number>>} counts
  *   Maps experiment name → variant → cumulative invocation count.
+ * @property {ExperimentRunRecord[]} [runs]
+ *   Per-run assignment history appended on each invocation.
  */
 
 /**
@@ -54,6 +63,9 @@ const path = require("path");
  * @property {number} [min_samples]                 - Minimum runs per variant for reliable analysis
  * @property {string} [owner]                       - Team or person responsible
  * @property {number} [issue]
+ * @property {string} [analysis_type]               - Statistical test: t_test | mann_whitney | proportion_test | bayesian_ab
+ * @property {string[]} [tags]                      - Free-form labels for dashboard filtering
+ * @property {{discussion?: number, issue?: number}} [notify] - Where to post significance alerts
  */
 
 /**
@@ -82,12 +94,15 @@ function loadState(stateFile) {
     const raw = fs.readFileSync(stateFile, "utf8");
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed.counts === "object") {
+      if (!Array.isArray(parsed.runs)) {
+        parsed.runs = [];
+      }
       return parsed;
     }
   } catch {
     // File missing, unreadable, or invalid JSON – start fresh.
   }
-  return { counts: {} };
+  return { counts: {}, runs: [] };
 }
 
 /**
@@ -199,13 +214,13 @@ function recordVariant(name, variant, state) {
  */
 async function writeSummary(assignments, configs, state, core) {
   const names = Object.keys(assignments).sort();
-  const lines = ["## 🧪 A/B Experiment Assignments", "", "| Experiment | Selected Variant | All Variants | Cumulative Counts |", "| --- | --- | --- | --- |"];
+  const lines = ["## 🧪 Experiment Assignments", "", "| Experiment | Variant | Counts (this/total) |", "| --- | --- | --- |"];
   for (const name of names) {
     const selected = assignments[name];
-    const variants = configs[name]?.variants || [];
     const counts = state.counts[name] || {};
-    const countsStr = variants.map(v => `${v}: ${counts[v] || 0}`).join(", ");
-    lines.push(`| \`${name}\` | **${selected}** | ${variants.join(", ")} | ${countsStr} |`);
+    const thisCount = counts[selected] || 0;
+    const totalCount = Object.values(counts).reduce((/** @type {number} */ a, /** @type {number} */ b) => a + b, 0);
+    lines.push(`| \`${name}\` | **${selected}** | ${thisCount} / ${totalCount} |`);
   }
   lines.push("");
 
@@ -359,7 +374,17 @@ async function main() {
   core.setOutput("experiments", experimentsJSON);
   core.info(`Experiment assignments (JSON): ${experimentsJSON}`);
 
-  // Persist updated counts.
+  if (Object.keys(assignments).length > 0) {
+    // Append a per-run record to state.runs so each assignment is traceable.
+    const runId = process.env.GITHUB_RUN_ID || "";
+    const timestamp = new Date().toISOString();
+    if (!state.runs) {
+      state.runs = [];
+    }
+    state.runs.push({ run_id: runId, timestamp, assignments: { ...assignments } });
+  }
+
+  // Persist updated counts and run history.
   saveState(stateFile, state);
   core.info(`Experiment state written to ${stateFile}`);
 
@@ -370,6 +395,15 @@ async function main() {
     const assignmentsFile = path.join(stateDir, "assignments.json");
     fs.writeFileSync(assignmentsFile, JSON.stringify(assignments, null, 2) + "\n", "utf8");
     core.info(`Experiment assignments written to ${assignmentsFile}`);
+
+    // Emit OTEL resource attributes so every span in this run carries the
+    // experiment assignments for filtering in Honeycomb/Grafana.
+    const otelAttrs = Object.entries(assignments)
+      .map(([name, variant]) => `experiment.${name}=${variant}`)
+      .join(",");
+    const existingAttrs = process.env.OTEL_RESOURCE_ATTRIBUTES || "";
+    core.exportVariable("OTEL_RESOURCE_ATTRIBUTES", existingAttrs ? `${existingAttrs},${otelAttrs}` : otelAttrs);
+    core.info(`OTEL resource attributes set: ${otelAttrs}`);
   }
 
   // Write step summary.

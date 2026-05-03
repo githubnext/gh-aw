@@ -2848,6 +2848,35 @@
               "owner": {
                 "type": "string",
                 "description": "Owner or team responsible for this experiment (e.g. '@team-agents'). Shown in step summaries and daily reports."
+              },
+              "analysis_type": {
+                "type": "string",
+                "enum": ["t_test", "mann_whitney", "proportion_test", "bayesian_ab"],
+                "description": "Statistical test to use for automated analysis by the reporting workflow. Valid values: t_test (Welch's two-sample t-test), mann_whitney (non-parametric rank test), proportion_test (two-proportion z-test), bayesian_ab (Bayesian A/B test)."
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Free-form labels for filtering experiments in dashboards and reports (e.g. ['cost', 'prompting', 'claude'])."
+              },
+              "notify": {
+                "type": "object",
+                "description": "Where to post significance alerts when the experiment reaches statistical significance.",
+                "properties": {
+                  "discussion": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "GitHub discussion number to post a significance comment to."
+                  },
+                  "issue": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "GitHub issue number to post a significance comment to."
+                  }
+                },
+                "additionalProperties": false
               }
             },
             "additionalProperties": false,
@@ -2875,7 +2904,10 @@
             "weight": [50, 50],
             "issue": 1234,
             "start_date": "2026-05-01",
-            "end_date": "2026-06-15"
+            "end_date": "2026-06-15",
+            "analysis_type": "t_test",
+            "tags": ["cost", "prompting"],
+            "notify": { "discussion": 1234 }
           },
           "model_temp": ["low", "high"]
         }

@@ -11,6 +11,7 @@ const mockCore = {
   error: vi.fn(),
   setFailed: vi.fn(),
   setOutput: vi.fn(),
+  exportVariable: vi.fn(),
   summary: {
     addRaw: vi.fn().mockReturnThis(),
     write: vi.fn().mockResolvedValue(undefined),
@@ -83,22 +84,37 @@ describe("pick_experiment", () => {
   describe("loadState", () => {
     it("returns empty state when file does not exist", () => {
       const state = loadState(path.join(tmpDir, "nonexistent.json"));
-      expect(state).toEqual({ counts: {} });
+      expect(state).toEqual({ counts: {}, runs: [] });
     });
 
     it("returns empty state on invalid JSON", () => {
       const file = path.join(tmpDir, "bad.json");
       fs.writeFileSync(file, "not valid json");
       const state = loadState(file);
-      expect(state).toEqual({ counts: {} });
+      expect(state).toEqual({ counts: {}, runs: [] });
     });
 
     it("round-trips state through save and load", () => {
       const file = path.join(tmpDir, "state.json");
-      const orig = { counts: { f: { A: 3, B: 1 } } };
+      const orig = { counts: { f: { A: 3, B: 1 } }, runs: [] };
       saveState(file, orig);
       const loaded = loadState(file);
       expect(loaded).toEqual(orig);
+    });
+
+    it("initialises runs to [] when loading legacy state without runs field", () => {
+      const file = path.join(tmpDir, "state.json");
+      fs.writeFileSync(file, JSON.stringify({ counts: { f: { A: 1 } } }), "utf8");
+      const loaded = loadState(file);
+      expect(loaded.runs).toEqual([]);
+    });
+
+    it("preserves existing runs array when loading state", () => {
+      const file = path.join(tmpDir, "state.json");
+      const runs = [{ run_id: "123", timestamp: "2026-01-01T00:00:00.000Z", assignments: { f: "A" } }];
+      fs.writeFileSync(file, JSON.stringify({ counts: { f: { A: 1 } }, runs }), "utf8");
+      const loaded = loadState(file);
+      expect(loaded.runs).toEqual(runs);
     });
   });
 
@@ -569,6 +585,95 @@ describe("pick_experiment", () => {
     it("passes through an object-form config unchanged", () => {
       const cfg = { variants: ["A", "B"], weight: [70, 30] };
       expect(normalizeConfig(cfg)).toBe(cfg);
+    });
+  });
+
+  // ── per-run metadata (state.runs) ─────────────────────────────────────────
+
+  describe("per-run metadata", () => {
+    it("appends a run record to state.runs after picking variants", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      process.env.GITHUB_RUN_ID = "42";
+
+      await main();
+
+      const state = loadState(stateFile);
+      expect(state.runs).toHaveLength(1);
+      expect(state.runs[0].run_id).toBe("42");
+      expect(state.runs[0].assignments).toEqual({ feat: "X" });
+      expect(typeof state.runs[0].timestamp).toBe("string");
+    });
+
+    it("accumulates run records across multiple runs", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      process.env.GITHUB_RUN_ID = "1";
+
+      await main();
+      vi.clearAllMocks();
+
+      process.env.GITHUB_RUN_ID = "2";
+      await main();
+
+      const state = loadState(stateFile);
+      expect(state.runs).toHaveLength(2);
+      expect(state.runs[0].run_id).toBe("1");
+      expect(state.runs[1].run_id).toBe("2");
+    });
+
+    it("does not append a run record when no experiments are assigned", async () => {
+      process.env.GH_AW_EXPERIMENT_SPEC = "{}";
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      const stateFile = path.join(tmpDir, "state.json");
+      // state.json is not written when no experiments are declared
+      expect(fs.existsSync(stateFile)).toBe(false);
+    });
+  });
+
+  // ── OTEL resource attributes ──────────────────────────────────────────────
+
+  describe("OTEL resource attributes", () => {
+    it("exports OTEL_RESOURCE_ATTRIBUTES with experiment assignments", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      delete process.env.OTEL_RESOURCE_ATTRIBUTES;
+
+      await main();
+
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("OTEL_RESOURCE_ATTRIBUTES", "experiment.feat=X");
+    });
+
+    it("appends to existing OTEL_RESOURCE_ATTRIBUTES", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      process.env.OTEL_RESOURCE_ATTRIBUTES = "service.name=myservice";
+
+      await main();
+
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("OTEL_RESOURCE_ATTRIBUTES", "service.name=myservice,experiment.feat=X");
+    });
+
+    it("does not export OTEL_RESOURCE_ATTRIBUTES when no experiments are assigned", async () => {
+      process.env.GH_AW_EXPERIMENT_SPEC = "{}";
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      expect(mockCore.exportVariable).not.toHaveBeenCalled();
     });
   });
 });

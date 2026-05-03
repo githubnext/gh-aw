@@ -158,6 +158,53 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 		if owner, ok := v["owner"].(string); ok {
 			cfg.Owner = owner
 		}
+		if at, ok := v["analysis_type"].(string); ok {
+			cfg.AnalysisType = at
+		}
+		if tagsRaw, ok := v["tags"]; ok {
+			cfg.Tags = extractStringSlice(tagsRaw)
+		}
+		if notifyRaw, ok := v["notify"]; ok {
+			if notifyMap, ok := notifyRaw.(map[string]any); ok {
+				notify := &ExperimentNotify{}
+				hasNotify := false
+				if d, ok := notifyMap["discussion"]; ok {
+					switch n := d.(type) {
+					case int:
+						notify.Discussion = n
+						hasNotify = true
+					case int64:
+						notify.Discussion = int(n)
+						hasNotify = true
+					case uint64:
+						notify.Discussion = int(n)
+						hasNotify = true
+					case float64:
+						notify.Discussion = int(n)
+						hasNotify = true
+					}
+				}
+				if i, ok := notifyMap["issue"]; ok {
+					switch n := i.(type) {
+					case int:
+						notify.Issue = n
+						hasNotify = true
+					case int64:
+						notify.Issue = int(n)
+						hasNotify = true
+					case uint64:
+						notify.Issue = int(n)
+						hasNotify = true
+					case float64:
+						notify.Issue = int(n)
+						hasNotify = true
+					}
+				}
+				if hasNotify {
+					cfg.Notify = notify
+				}
+			}
+		}
 		return cfg
 	}
 	return nil
