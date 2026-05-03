@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"golang.org/x/mod/semver"
 
@@ -174,16 +175,44 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 			backupPath = bPath
 			// On Windows, gh extension remove cannot delete the extension directory
 			// while it still contains a running binary (even a renamed one).  Move
-			// the backup to the OS temp directory so that the extension directory
-			// becomes empty and gh extension remove can succeed.
+			// the backup to a location outside the extension directory so that
+			// gh extension remove can succeed.
+			//
+			// We first try os.TempDir(); if that fails because TEMP is on a
+			// different drive (common on GitHub Actions runners where the extension
+			// lives on C: but TEMP is on D:), we fall back to the parent of the
+			// extension directory which is guaranteed to be on the same drive.
 			if runtime.GOOS == "windows" {
+				extDir := filepath.Dir(backupPath)
+				moved := false
+
+				// Attempt 1: OS temp directory
 				tmpBackup := filepath.Join(os.TempDir(), filepath.Base(backupPath))
 				if moveErr := os.Rename(backupPath, tmpBackup); moveErr == nil {
 					updateExtensionCheckLog.Printf("Moved Windows backup %s -> %s to free extension directory for removal", backupPath, tmpBackup)
 					backupPath = tmpBackup
+					moved = true
 				} else {
-					updateExtensionCheckLog.Printf("Could not move backup to temp directory (gh extension remove may fail): %v", moveErr)
+					updateExtensionCheckLog.Printf("Could not move backup to %s (cross-drive?): %v; trying same-drive fallback", tmpBackup, moveErr)
 				}
+
+				// Attempt 2: parent of the extension directory (same drive as backup)
+				if !moved {
+					sameDriveDir := filepath.Dir(extDir)
+					sameDriveTmp := filepath.Join(sameDriveDir, filepath.Base(backupPath))
+					if moveErr2 := os.Rename(backupPath, sameDriveTmp); moveErr2 == nil {
+						updateExtensionCheckLog.Printf("Moved Windows backup %s -> %s (same-drive fallback) to free extension directory for removal", backupPath, sameDriveTmp)
+						backupPath = sameDriveTmp
+					} else {
+						updateExtensionCheckLog.Printf("Could not move backup out of extension directory (gh extension remove may fail): %v", moveErr2)
+					}
+				}
+
+				// After moving our own backup out of the extension directory, try to
+				// remove any stale .bak files left by previous upgrade attempts or the
+				// gh CLI's own rename mechanism.  These may be temporarily locked by
+				// Windows Defender; retry a few times with short delays.
+				cleanupStaleWindowsBackups(extDir, backupPath)
 			}
 		}
 	}
@@ -311,13 +340,61 @@ func cleanupExecutableBackup(backupPath string) {
 	}
 }
 
+// cleanupStaleWindowsBackups attempts to remove any .bak files left in extDir
+// by previous upgrade attempts — either by our own code or the gh CLI's own
+// rename mechanism.  The file at ownBackup (our currently-active backup for
+// this upgrade attempt) is excluded so we do not remove our own relocated file.
+//
+// Retries with short delays to handle transient locks from antivirus scanners
+// (e.g. Windows Defender) that may briefly hold the file open after a process
+// exits.  The function is best-effort: if a file cannot be removed it is
+// logged and skipped; gh extension remove may still fail but the caller's
+// existing error-handling path covers that case.
+func cleanupStaleWindowsBackups(extDir string, ownBackup string) {
+	entries, err := os.ReadDir(extDir)
+	if err != nil {
+		updateExtensionCheckLog.Printf("Could not read extension directory for stale .bak cleanup: %v", err)
+		return
+	}
+	const maxAttempts = 3
+	const retryDelay = 300 * time.Millisecond
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".bak") {
+			continue
+		}
+		bakFile := filepath.Join(extDir, entry.Name())
+		if bakFile == ownBackup {
+			continue // do not remove our own active backup
+		}
+		for attempt := range maxAttempts {
+			if removeErr := os.Remove(bakFile); removeErr == nil {
+				updateExtensionCheckLog.Printf("Removed stale .bak file: %s", bakFile)
+				break
+			} else if attempt < maxAttempts-1 {
+				updateExtensionCheckLog.Printf("Could not remove stale .bak file %s (attempt %d/%d, retrying in %v): %v",
+					bakFile, attempt+1, maxAttempts, retryDelay, removeErr)
+				time.Sleep(retryDelay)
+			} else {
+				updateExtensionCheckLog.Printf("Could not remove stale .bak file %s after %d attempts (gh extension remove may fail): %v",
+					bakFile, maxAttempts, removeErr)
+			}
+		}
+	}
+}
+
 // isWindowsLockError reports whether the output or error from an upgrade
 // attempt indicate a Windows file-locking issue (the running-binary-lock
 // symptom).  Only when a lock error is detected should the Windows-specific
 // self-upgrade guidance be shown; other failures should propagate the
 // underlying error message instead.
 func isWindowsLockError(output string, err error) bool {
-	lockMsgs := []string{"Access is denied", "The process cannot access the file"}
+	lockMsgs := []string{
+		"Access is denied",
+		"The process cannot access the file",
+		// The gh CLI prints this when it finds a stale .bak file it cannot
+		// remove, which is a symptom of the same locked-binary problem.
+		"failed to remove previous extension update state",
+	}
 	for _, msg := range lockMsgs {
 		if strings.Contains(output, msg) {
 			return true

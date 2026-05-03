@@ -204,6 +204,12 @@ func TestIsWindowsLockError(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "gh cli stale bak cleanup failure",
+			output:   "failed to remove previous extension update state: unlinkat C:\\extensions\\gh-aw\\gh-aw.exe.1234.bak: Access is denied.",
+			err:      errors.New("exit status 1"),
+			expected: true,
+		},
+		{
 			name:     "unrelated error",
 			output:   "gh: 401 Unauthorized",
 			err:      errors.New("exit status 1"),
@@ -223,6 +229,47 @@ func TestIsWindowsLockError(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "isWindowsLockError result mismatch")
 		})
 	}
+}
+
+func TestCleanupStaleWindowsBackups(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a stale .bak file (from a previous run, not our own backup)
+	staleBak := filepath.Join(dir, "gh-aw.exe.1234.bak")
+	require.NoError(t, os.WriteFile(staleBak, []byte("old binary"), 0o755), "Should create stale bak")
+
+	// Create our own backup path (should be skipped)
+	ownBak := filepath.Join(dir, "gh-aw.exe.9999.bak")
+	require.NoError(t, os.WriteFile(ownBak, []byte("our backup"), 0o755), "Should create own bak")
+
+	// Create a non-.bak file (should be left alone)
+	otherFile := filepath.Join(dir, "manifest.yml")
+	require.NoError(t, os.WriteFile(otherFile, []byte("manifest"), 0o644), "Should create other file")
+
+	cleanupStaleWindowsBackups(dir, ownBak)
+
+	// Stale .bak should be removed
+	_, err := os.Stat(staleBak)
+	assert.True(t, os.IsNotExist(err), "Stale .bak should be removed")
+
+	// Our own backup should be left alone
+	_, err = os.Stat(ownBak)
+	require.NoError(t, err, "Own backup should be preserved")
+
+	// Non-.bak file should be left alone
+	_, err = os.Stat(otherFile)
+	require.NoError(t, err, "Non-.bak file should be preserved")
+}
+
+func TestCleanupStaleWindowsBackups_EmptyDir(t *testing.T) {
+	dir := t.TempDir()
+	// Should not panic on empty directory
+	cleanupStaleWindowsBackups(dir, "")
+}
+
+func TestCleanupStaleWindowsBackups_NonexistentDir(t *testing.T) {
+	// Should not panic when directory doesn't exist
+	cleanupStaleWindowsBackups("/nonexistent/dir", "")
 }
 
 func TestExtensionUpgradeArgs(t *testing.T) {
