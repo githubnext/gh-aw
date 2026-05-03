@@ -226,7 +226,7 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	if !HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		return
 	}
-	yaml.WriteString("      - name: Write Safe Outputs Config\n")
+	yaml.WriteString("      - name: Generate Safe Outputs Config\n")
 	configSecrets := ExtractSecretsFromValue(safeOutputConfig)
 	configContextVars := ExtractGitHubContextExpressionsFromValue(safeOutputConfig)
 	hasEnvVars := len(configSecrets) > 0 || len(configContextVars) > 0
@@ -298,7 +298,7 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 		validationConfigJSON = "{}"
 	}
 
-	yaml.WriteString("      - name: Write Safe Outputs Tools\n")
+	yaml.WriteString("      - name: Generate Safe Outputs Tools\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_TOOLS_META_JSON: |\n")
 	for line := range strings.SplitSeq(toolsMetaJSON, "\n") {

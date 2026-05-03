@@ -10,10 +10,29 @@ global.core = {
   setOutput: vi.fn(),
 };
 
+global.context = {
+  repo: { owner: "github", repo: "gh-aw" },
+  runId: 99999,
+  actor: "mnkiefer",
+  eventName: "workflow_dispatch",
+  payload: {},
+};
+
 describe("call_workflow handler factory", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.GITHUB_RUN_ID = "99999";
+    process.env.GITHUB_RUN_ATTEMPT = "2";
+    process.env.GITHUB_WORKFLOW_REF = "github/gh-aw/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/otel-for-episodes";
+    process.env.GITHUB_AW_OTEL_TRACE_ID = "f".repeat(32);
+    process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID = "abcdef1234567890";
   });
+
+  function parsePayloadOutput() {
+    const payloadArg = core.setOutput.mock.calls.find(call => call[0] === "call_workflow_payload")?.[1];
+    expect(typeof payloadArg).toBe("string");
+    return JSON.parse(payloadArg);
+  }
 
   it("should create a handler function", async () => {
     const handler = await main({});
@@ -41,7 +60,10 @@ describe("call_workflow handler factory", () => {
     expect(result.success).toBe(true);
     expect(result.workflow_name).toBe("spring-boot-bugfix");
     expect(core.setOutput).toHaveBeenCalledWith("call_workflow_name", "spring-boot-bugfix");
-    expect(core.setOutput).toHaveBeenCalledWith("call_workflow_payload", JSON.stringify({ environment: "staging", version: "1.2.3" }));
+    const payload = parsePayloadOutput();
+    expect(payload.environment).toBe("staging");
+    expect(payload.version).toBe("1.2.3");
+    expect(typeof payload.aw_context).toBe("string");
   });
 
   it("should reject unknown workflow names", async () => {
@@ -116,8 +138,33 @@ describe("call_workflow handler factory", () => {
 
     await handler({ workflow_name: "worker-a", inputs });
 
-    const expectedPayload = JSON.stringify(inputs);
-    expect(core.setOutput).toHaveBeenCalledWith("call_workflow_payload", expectedPayload);
+    const payload = parsePayloadOutput();
+    expect(payload.package_manager).toBe("npm");
+    expect(payload.dry_run).toBe(true);
+    expect(payload.count).toBe(42);
+    expect(typeof payload.aw_context).toBe("string");
+  });
+
+  it("should inject serialized aw_context into the forwarded payload", async () => {
+    const handler = await main({ workflows: ["worker-a"], max: 1 });
+
+    await handler({ workflow_name: "worker-a", inputs: { task: "validate" } });
+
+    const payload = parsePayloadOutput();
+    expect(payload.task).toBe("validate");
+    expect(typeof payload.aw_context).toBe("string");
+
+    const awContext = JSON.parse(payload.aw_context);
+    expect(awContext.episode_id).toBe("99999-2:github/gh-aw/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/otel-for-episodes");
+    expect(awContext.hop_id).toBe("99999-2:github/gh-aw/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/otel-for-episodes");
+    expect(awContext.parent_hop_id).toBe("");
+    expect(awContext.origin_event).toBe("workflow_dispatch");
+    expect(awContext.root_repo).toBe("github/gh-aw");
+    expect(awContext.root_workflow_id).toBe("github/gh-aw/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/otel-for-episodes");
+    expect(awContext.root_run_id).toBe("99999");
+    expect(awContext.workflow_call_id).toBe("99999-2:github/gh-aw/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/otel-for-episodes");
+    expect(awContext.otel_trace_id).toBe("f".repeat(32));
+    expect(awContext.otel_parent_span_id).toBe("abcdef1234567890");
   });
 
   it("should allow any workflow when allowed list is empty", async () => {
@@ -145,6 +192,8 @@ describe("call_workflow handler factory", () => {
     const result = await handler({ workflow_name: "worker-a" });
 
     expect(result.success).toBe(true);
-    expect(core.setOutput).toHaveBeenCalledWith("call_workflow_payload", "{}");
+    const payload = parsePayloadOutput();
+    expect(payload).toHaveProperty("aw_context");
+    expect(Object.keys(payload)).toEqual(["aw_context"]);
   });
 });

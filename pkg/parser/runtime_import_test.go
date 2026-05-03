@@ -91,6 +91,79 @@ func TestRuntimeImportExpressionValidation(t *testing.T) {
 			expectSafe:  false,
 			description: "Variables not allowed",
 		},
+		// Compound expression forms added by spec-enforcer fix
+		{
+			name:        "standalone string literal",
+			expression:  "'full-sweep (enforce_all)'",
+			expectSafe:  true,
+			description: "Standalone string literal is safe",
+		},
+		{
+			name:        "standalone boolean literal",
+			expression:  "true",
+			expectSafe:  true,
+			description: "Standalone boolean literal is safe",
+		},
+		{
+			name:        "comparison expression with safe property",
+			expression:  "github.event.inputs.enforce_all == 'true'",
+			expectSafe:  true,
+			description: "Comparison with safe LHS property is allowed",
+		},
+		{
+			name:        "AND compound safe × safe (no literals)",
+			expression:  "github.actor && github.repository",
+			expectSafe:  true,
+			description: "AND compound: both sides are safe properties",
+		},
+		{
+			name:        "AND compound with literal RHS is now refused",
+			expression:  "github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)'",
+			expectSafe:  false,
+			description: "AND with literal operand is refused (literal sub-expression in conjunction)",
+		},
+		{
+			name:        "AND compound with literal LHS is refused",
+			expression:  "'prefix' && github.actor",
+			expectSafe:  false,
+			description: "AND with literal on left is refused",
+		},
+		{
+			name:        "ternary-style AND/OR chain is refused (literal in AND)",
+			expression:  "github.event.inputs.enforce_all == 'true' && 'full-sweep (enforce_all)' || 'round-robin'",
+			expectSafe:  false,
+			description: "Ternary-style AND/OR chain with literal operand is refused",
+		},
+		{
+			name:        "OR fallback pattern is still allowed",
+			expression:  "github.event.inputs.enforce_all || 'round-robin'",
+			expectSafe:  true,
+			description: "OR fallback: safe property || literal is allowed",
+		},
+		{
+			name:        "literal on left of OR is refused",
+			expression:  "'default' || github.actor",
+			expectSafe:  false,
+			description: "Literal on left of OR is refused (always truthy, dead right side)",
+		},
+		{
+			name:        "unsafe AND compound with secrets on right",
+			expression:  "github.actor && secrets.TOKEN",
+			expectSafe:  false,
+			description: "secrets.TOKEN in AND right side must be blocked",
+		},
+		{
+			name:        "unsafe OR compound with secrets on right",
+			expression:  "github.actor == 'value' || secrets.TOKEN",
+			expectSafe:  false,
+			description: "secrets.TOKEN in OR right side must be blocked",
+		},
+		{
+			name:        "unsafe compound with secrets",
+			expression:  "secrets.TOKEN == 'x' && github.actor || github.repository",
+			expectSafe:  false,
+			description: "secrets.TOKEN in compound expression must be blocked",
+		},
 	}
 
 	// Find node executable

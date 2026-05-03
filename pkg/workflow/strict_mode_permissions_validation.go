@@ -144,9 +144,9 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 				continue
 			}
 
-			// Check if this is a known ecosystem identifier
-			ecosystemDomains := getEcosystemDomains(domain)
-			if len(ecosystemDomains) > 0 {
+			// Check if this is a known ecosystem identifier using a direct map lookup
+			// to avoid the allocation, copy, and sort that getEcosystemDomains incurs.
+			if isKnownEcosystemIdentifier(domain) {
 				// This is a known ecosystem identifier - allowed in strict mode
 				strictModeValidationLog.Printf("Domain '%s' is a known ecosystem identifier", domain)
 				continue

@@ -464,6 +464,12 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 		yaml.WriteString(line)
 	}
 
+	// Emit an audit step after credentials have been cleaned but before the agent begins
+	// execution. This captures a file listing of agent-related directories so the final
+	// pre-agent state (including any config written by MCP setup and engine config steps)
+	// is visible in the agent artifact without exposing raw credentials.
+	c.generatePreAgentAuditStep(yaml)
+
 	// Emit engine config steps (from RenderConfig) before the AI execution step.
 	// These steps write runtime config files to disk (e.g. provider/model config files).
 	// Most engines return no steps here; only engines that require config files use this.
@@ -589,6 +595,10 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 
 	// Collect agent stdio logs path for unified upload
 	paths = append(paths, logFileFull)
+
+	// Include the pre-agent audit file (file listing of agent-related directories captured
+	// before agent execution) so it is available in the agent artifact for post-run inspection.
+	paths = append(paths, constants.PreAgentAuditFilePath)
 
 	// Collect agent-generated files path for unified upload
 	// This directory is used by workflows that instruct the agent to write files

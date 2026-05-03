@@ -50,7 +50,8 @@ type importAccumulator struct {
 	skipBotsSet              map[string]bool
 	caches                   []string
 	features                 []map[string]any
-	runInstallScripts        bool // true if any imported workflow sets run-install-scripts: true (global or node-level)
+	models                   []map[string][]string // model alias maps from each imported file (appended in import order)
+	runInstallScripts        bool                  // true if any imported workflow sets run-install-scripts: true (global or node-level)
 	agentFile                string
 	agentImportSpec          string
 	repositoryImports        []string
@@ -436,6 +437,30 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
+	// Extract model aliases from imported file (parse as map[string][]string structure)
+	modelsContent, err := extractFieldJSONFromMap(fm, "models", "{}")
+	if err == nil && modelsContent != "" && modelsContent != "{}" {
+		var rawModels map[string]any
+		if jsonErr := json.Unmarshal([]byte(modelsContent), &rawModels); jsonErr == nil {
+			modelsMap := make(map[string][]string, len(rawModels))
+			for k, v := range rawModels {
+				if patterns, ok := v.([]any); ok {
+					strs := make([]string, 0, len(patterns))
+					for _, p := range patterns {
+						if s, ok := p.(string); ok {
+							strs = append(strs, s)
+						}
+					}
+					modelsMap[k] = strs
+				}
+			}
+			if len(modelsMap) > 0 {
+				acc.models = append(acc.models, modelsMap)
+				log.Printf("Extracted model aliases from import: %d entries", len(modelsMap))
+			}
+		}
+	}
+
 	// Extract run-install-scripts flag from imported file.
 	// If global run-install-scripts: true is set OR if runtimes.node.run-install-scripts: true is set,
 	// propagate to the accumulator (OR semantics: any import enabling it enables it overall).
@@ -510,6 +535,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedEnv:                   acc.envBuilder.String(),
 		MergedEnvSources:            acc.envSources,
 		MergedFeatures:              acc.features,
+		MergedModels:                acc.models,
 		MergedObservability:         acc.observabilityBuilder.String(),
 		ImportedFiles:               topologicalOrder,
 		AgentFile:                   acc.agentFile,

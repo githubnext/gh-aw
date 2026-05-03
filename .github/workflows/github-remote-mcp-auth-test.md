@@ -9,7 +9,7 @@ permissions:
   discussions: read
 engine:
   id: copilot
-  model: gpt-4.1-mini
+  model: gpt-4.1
 tools:
   cli-proxy: true
   github:

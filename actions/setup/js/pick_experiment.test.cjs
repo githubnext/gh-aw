@@ -33,9 +33,17 @@ describe("pick_experiment", () => {
   // ── pickVariant ────────────────────────────────────────────────────────────
 
   describe("pickVariant", () => {
-    it("selects the first variant when counts are equal", () => {
+    it("breaks ties randomly for two-variant experiment when counts are equal", () => {
       const state = { counts: {} };
+      // Math.floor(0 * 2) = 0 → tied[0] = "A"
+      vi.spyOn(Math, "random").mockReturnValueOnce(0);
       expect(pickVariant("f", ["A", "B"], state)).toBe("A");
+
+      // Math.floor(0.5 * 2) = 1 → tied[1] = "B"
+      vi.spyOn(Math, "random").mockReturnValueOnce(0.5);
+      expect(pickVariant("f", ["A", "B"], state)).toBe("B");
+
+      vi.restoreAllMocks();
     });
 
     it("selects the least-used variant", () => {
@@ -48,14 +56,32 @@ describe("pick_experiment", () => {
       expect(pickVariant("f", ["A", "B", "C"], state)).toBe("C");
     });
 
-    it("returns the first variant when all counts are equal (tie-break by order)", () => {
+    it("randomly selects from all tied variants when all counts are equal", () => {
       const state = { counts: { f: { A: 1, B: 1, C: 1 } } };
+      // All three variants are tied; verify the random index is respected.
+      // Math.floor(0   * 3) = 0 → tied[0] = "A"
+      // Math.floor(0.4 * 3) = 1 → tied[1] = "B"  (0.4*3=1.2)
+      // Math.floor(0.7 * 3) = 2 → tied[2] = "C"  (0.7*3=2.1)
+      vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValueOnce(0.4).mockReturnValueOnce(0.7);
       expect(pickVariant("f", ["A", "B", "C"], state)).toBe("A");
+      expect(pickVariant("f", ["A", "B", "C"], state)).toBe("B");
+      expect(pickVariant("f", ["A", "B", "C"], state)).toBe("C");
+
+      vi.restoreAllMocks();
     });
 
-    it("handles unknown experiment name (no counts yet)", () => {
+    it("handles unknown experiment name (no counts yet) by picking randomly", () => {
       const state = { counts: {} };
+      // Both variants are tied with zero counts; verify the random index is respected.
+      // Math.floor(0   * 2) = 0 → tied[0] = "X"
+      // Math.floor(0.5 * 2) = 1 → tied[1] = "Y"
+      vi.spyOn(Math, "random").mockReturnValueOnce(0);
       expect(pickVariant("new", ["X", "Y"], state)).toBe("X");
+
+      vi.spyOn(Math, "random").mockReturnValueOnce(0.5);
+      expect(pickVariant("new", ["X", "Y"], state)).toBe("Y");
+
+      vi.restoreAllMocks();
     });
   });
 
@@ -147,6 +173,9 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant ("A") is selected.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       await main();
 
       // Individual output per experiment
@@ -154,6 +183,8 @@ describe("pick_experiment", () => {
       // Combined JSON output
       expect(mockCore.setOutput).toHaveBeenCalledWith("experiments", JSON.stringify({ feature1: "A" }));
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      vi.restoreAllMocks();
     });
 
     it("persists state between calls to simulate multi-run balance", async () => {
@@ -164,14 +195,18 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant ("X") is selected on the first run.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       // First run → X
       await main();
       const firstCall = mockCore.setOutput.mock.calls.find(c => c[0] === "feat");
       expect(firstCall?.[1]).toBe("X");
 
+      vi.restoreAllMocks();
       vi.clearAllMocks();
 
-      // Second run → Y (state persisted from first call)
+      // Second run → Y (state persisted from first call; Y has the lower count)
       await main();
       const secondCall = mockCore.setOutput.mock.calls.find(c => c[0] === "feat");
       expect(secondCall?.[1]).toBe("Y");
@@ -198,12 +233,17 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant is chosen for each experiment.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       await main();
 
       const assignmentsFile = path.join(tmpDir, "assignments.json");
       expect(fs.existsSync(assignmentsFile)).toBe(true);
       const assignments = JSON.parse(fs.readFileSync(assignmentsFile, "utf8"));
       expect(assignments).toEqual({ feature1: "A", style: "concise" });
+
+      vi.restoreAllMocks();
     });
 
     it("overwrites assignments.json on successive runs reflecting the current variant", async () => {
@@ -212,14 +252,18 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant ("X") is chosen on the first run.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       // First run → X
       await main();
       const assignmentsFile = path.join(tmpDir, "assignments.json");
       expect(JSON.parse(fs.readFileSync(assignmentsFile, "utf8"))).toEqual({ feat: "X" });
 
+      vi.restoreAllMocks();
       vi.clearAllMocks();
 
-      // Second run → Y
+      // Second run → Y (Y has the lower count after first run recorded X)
       await main();
       expect(JSON.parse(fs.readFileSync(assignmentsFile, "utf8"))).toEqual({ feat: "Y" });
     });
@@ -265,10 +309,15 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant ("concise") is chosen.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       await main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("style", "concise");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      vi.restoreAllMocks();
     });
 
     it("uses control variant when today is before start_date", async () => {
