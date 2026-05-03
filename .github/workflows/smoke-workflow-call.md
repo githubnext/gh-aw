@@ -46,6 +46,8 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) successfully validated workflow_call checkout."
     run-failure: "❌ [{workflow_name}]({run_url}) failed to validate workflow_call checkout. Check the logs."
 timeout-minutes: 10
+imports:
+  - shared/observability-otlp.md
 ---
 
 # Smoke Test: Workflow Call Checkout Validation
