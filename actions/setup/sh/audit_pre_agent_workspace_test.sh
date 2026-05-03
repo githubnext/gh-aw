@@ -62,12 +62,18 @@ echo ""
 
 # ── Test 3: Audit file contains expected section headers ────────────────────
 echo "Test 3: Section headers are present in audit output"
-assert "Contains workspace agents header" "grep -q 'Workspace agents' /tmp/gh-aw/pre-agent-audit.txt"
-assert "Contains workspace skills header" "grep -q 'Workspace skills' /tmp/gh-aw/pre-agent-audit.txt"
+assert "Contains workspace agents header"  "grep -q 'Workspace agents' /tmp/gh-aw/pre-agent-audit.txt"
+assert "Contains workspace skills header"  "grep -q 'Workspace skills' /tmp/gh-aw/pre-agent-audit.txt"
 assert "Contains workspace copilot header" "grep -q 'Workspace copilot' /tmp/gh-aw/pre-agent-audit.txt"
-assert "Contains agent user home header"  "grep -q 'Agent user home' /tmp/gh-aw/pre-agent-audit.txt"
-assert "Contains gh extensions header"   "grep -q 'gh extensions' /tmp/gh-aw/pre-agent-audit.txt"
-assert "Contains gh-aw temp header"      "grep -q 'gh-aw temp directory' /tmp/gh-aw/pre-agent-audit.txt"
+assert "Contains workspace claude header"  "grep -q 'Workspace claude' /tmp/gh-aw/pre-agent-audit.txt"
+assert "Contains workspace codex header"   "grep -q 'Workspace codex' /tmp/gh-aw/pre-agent-audit.txt"
+assert "Contains workspace gemini header"  "grep -q 'Workspace gemini' /tmp/gh-aw/pre-agent-audit.txt"
+assert "Contains workspace crush header"   "grep -q 'Workspace crush' /tmp/gh-aw/pre-agent-audit.txt"
+assert "Contains workspace opencode header" "grep -q 'Workspace opencode' /tmp/gh-aw/pre-agent-audit.txt"
+assert "Contains workspace pi header"      "grep -q 'Workspace pi' /tmp/gh-aw/pre-agent-audit.txt"
+assert "Contains agent user home header"   "grep -q 'Agent user home' /tmp/gh-aw/pre-agent-audit.txt"
+assert "Contains gh extensions header"     "grep -q 'gh extensions' /tmp/gh-aw/pre-agent-audit.txt"
+assert "Contains gh-aw temp header"        "grep -q 'gh-aw temp directory' /tmp/gh-aw/pre-agent-audit.txt"
 echo ""
 
 # ── Test 4: Lists files that exist ──────────────────────────────────────────

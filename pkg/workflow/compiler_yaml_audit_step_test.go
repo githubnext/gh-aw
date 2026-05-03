@@ -37,7 +37,7 @@ Test workflow to verify pre-agent audit step is generated.
 	lockContent := string(content)
 
 	assert.Contains(t, lockContent, "name: Audit pre-agent workspace", "audit step name should be present")
-	assert.Contains(t, lockContent, "id: pre-agent-audit", "audit step id should be present")
+	assert.Contains(t, lockContent, "id: pre_agent_audit", "audit step id should be present")
 	assert.Contains(t, lockContent, "continue-on-error: true", "audit step should be resilient")
 	assert.Contains(t, lockContent, constants.PreAgentAuditFilePath, "audit file path should appear in step")
 }

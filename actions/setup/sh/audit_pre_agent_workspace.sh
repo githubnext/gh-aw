@@ -10,16 +10,27 @@ set +o histexpand
 # /tmp/gh-aw/pre-agent-audit.txt.  The listing is also surfaced via GITHUB_OUTPUT
 # so downstream steps can reference it.
 #
-# Directories scanned:
-#   $GITHUB_WORKSPACE/.github/agents/       - workspace agent files
-#   $GITHUB_WORKSPACE/.github/skills/       - workspace skill files
+# Directories scanned (workspace — all agentic engines assumed active):
+#   $GITHUB_WORKSPACE/.github/agents/       - workspace agent files (Copilot)
+#   $GITHUB_WORKSPACE/.github/skills/       - workspace skill files (Copilot)
 #   $GITHUB_WORKSPACE/.github/copilot/      - workspace Copilot config
+#   $GITHUB_WORKSPACE/.claude/              - Claude engine config
+#   $GITHUB_WORKSPACE/.codex/               - Codex engine config
+#   $GITHUB_WORKSPACE/.gemini/              - Gemini engine config
+#   $GITHUB_WORKSPACE/.crush/               - Crush engine config
+#   $GITHUB_WORKSPACE/.opencode/            - OpenCode engine config
+#   $GITHUB_WORKSPACE/.pi/                  - Pi engine config
+#
+# Directories scanned (user home):
 #   $HOME/.github/                          - agent user home .github
+#   $HOME/.claude/                          - Claude per-user config
+#   $HOME/.gemini/                          - Gemini per-user config
 #   $HOME/.local/share/gh/extensions/       - installed gh extensions
 #   $RUNNER_TEMP/gh-aw/                     - runner temp gh-aw directory
 #
 # Common cache directories (node_modules, __pycache__, .cache, vendor, .npm, .yarn,
 # .pnpm-store, site-packages, .bundle) are excluded to keep the listing concise.
+# Exclusions use -prune so find does not descend into excluded trees.
 #
 # Environment variables (set automatically by GitHub Actions):
 #   GITHUB_WORKSPACE   - path to the checked-out repository
@@ -40,32 +51,52 @@ AUDIT_FILE="/tmp/gh-aw/pre-agent-audit.txt"
 mkdir -p /tmp/gh-aw
 
 # list_dir prints a section header and runs find on the given directory,
-# excluding common cache folders.  Missing directories are silently noted.
+# pruning common cache folders so find does not descend into them.
+# Missing directories are silently noted.
 list_dir() {
   local label="$1"
   local dir="$2"
   echo "--- ${label}: ${dir} ---"
   find "${dir}" \
-    -not -path '*/node_modules/*' \
-    -not -path '*/__pycache__/*' \
-    -not -path '*/.cache/*' \
-    -not -path '*/vendor/*' \
-    -not -path '*/.npm/*' \
-    -not -path '*/.yarn/*' \
-    -not -path '*/.pnpm-store/*' \
-    -not -path '*/site-packages/*' \
-    -not -path '*/.bundle/*' \
-    -print 2>/dev/null || echo "(not found)"
+    \( \
+      -name 'node_modules' \
+      -o -name '__pycache__' \
+      -o -name '.cache' \
+      -o -name 'vendor' \
+      -o -name '.npm' \
+      -o -name '.yarn' \
+      -o -name '.pnpm-store' \
+      -o -name 'site-packages' \
+      -o -name '.bundle' \
+    \) -prune \
+    -o -print \
+    2>/dev/null || echo "(not found)"
 }
 
 {
   echo "=== Pre-agent workspace audit ==="
-  list_dir "Workspace agents"       "${GITHUB_WORKSPACE}/.github/agents"
-  list_dir "Workspace skills"       "${GITHUB_WORKSPACE}/.github/skills"
-  list_dir "Workspace copilot"      "${GITHUB_WORKSPACE}/.github/copilot"
+
+  echo "--- Copilot engine ---"
+  list_dir "Workspace agents"        "${GITHUB_WORKSPACE}/.github/agents"
+  list_dir "Workspace skills"        "${GITHUB_WORKSPACE}/.github/skills"
+  list_dir "Workspace copilot"       "${GITHUB_WORKSPACE}/.github/copilot"
+
+  echo "--- Engine config dirs ---"
+  list_dir "Workspace claude"        "${GITHUB_WORKSPACE}/.claude"
+  list_dir "Workspace codex"         "${GITHUB_WORKSPACE}/.codex"
+  list_dir "Workspace gemini"        "${GITHUB_WORKSPACE}/.gemini"
+  list_dir "Workspace crush"         "${GITHUB_WORKSPACE}/.crush"
+  list_dir "Workspace opencode"      "${GITHUB_WORKSPACE}/.opencode"
+  list_dir "Workspace pi"            "${GITHUB_WORKSPACE}/.pi"
+
+  echo "--- User home ---"
   list_dir "Agent user home .github" "${HOME}/.github"
-  list_dir "gh extensions"          "${HOME}/.local/share/gh/extensions"
-  list_dir "gh-aw temp directory"   "${RUNNER_TEMP}/gh-aw"
+  list_dir "Agent user home .claude" "${HOME}/.claude"
+  list_dir "Agent user home .gemini" "${HOME}/.gemini"
+  list_dir "gh extensions"           "${HOME}/.local/share/gh/extensions"
+
+  echo "--- Runner ---"
+  list_dir "gh-aw temp directory"    "${RUNNER_TEMP}/gh-aw"
 } > "${AUDIT_FILE}"
 
 LINE_COUNT="$(wc -l < "${AUDIT_FILE}" | tr -d ' ')"

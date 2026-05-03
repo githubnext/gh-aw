@@ -807,7 +807,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/mount_mcp_as_cli.cjs');
             await main();
       - name: Audit pre-agent workspace
-        id: pre-agent-audit
+        id: pre_agent_audit
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/audit_pre_agent_workspace.sh"
       - name: Clean credentials
