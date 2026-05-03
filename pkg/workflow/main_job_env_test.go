@@ -99,7 +99,9 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 				t.Fatalf("Failed to add job to manager: %v", err)
 			}
 
-			yamlOutput := jobManager.RenderToYAML()
+			var yamlBuf strings.Builder
+			jobManager.WriteJobsYAML(&yamlBuf)
+			yamlOutput := yamlBuf.String()
 			t.Logf("Generated YAML:\n%s", yamlOutput)
 
 			// Check that env section exists in YAML
