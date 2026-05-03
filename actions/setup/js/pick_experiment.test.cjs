@@ -691,13 +691,13 @@ describe("pick_experiment", () => {
 
     it("prunes runs to last MAX_RUN_HISTORY when run history exceeds the cap", async () => {
       const stateFile = path.join(tmpDir, "state.json");
-      // Pre-populate with 101 fake runs (above MAX_RUN_HISTORY = 100).
-      const existingRuns = Array.from({ length: 101 }, (_, i) => ({
+      // Pre-populate with 513 fake runs (above MAX_RUN_HISTORY = 512).
+      const existingRuns = Array.from({ length: 513 }, (_, i) => ({
         run_id: String(i),
         timestamp: "2026-01-01T00:00:00.000Z",
         assignments: { feat: "X" },
       }));
-      fs.writeFileSync(stateFile, JSON.stringify({ counts: { feat: { X: 101, Y: 0 } }, runs: existingRuns }), "utf8");
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { feat: { X: 513, Y: 0 } }, runs: existingRuns }), "utf8");
       process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
@@ -705,8 +705,8 @@ describe("pick_experiment", () => {
       await main();
 
       const state = loadState(stateFile);
-      // 101 existing + 1 new = 102, pruned to last 100.
-      expect(state.runs).toHaveLength(100);
+      // 513 existing + 1 new = 514, pruned to last 512.
+      expect(state.runs).toHaveLength(512);
       // The most recent run is always last.
       expect(state.runs[state.runs.length - 1].assignments).toEqual({ feat: "Y" });
     });
