@@ -15,6 +15,7 @@ tracker-id: daily-performance-summary
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, discussions]
 safe-outputs:
   upload-asset:
@@ -493,4 +494,4 @@ This workflow uses mcp-script tools imported from `shared/github-queries-mcp-scr
 
 Begin your analysis now. **Use the mcp-script tools** to gather data, run Python analysis, generate charts, and create the discussion report.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

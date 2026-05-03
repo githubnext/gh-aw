@@ -13,6 +13,7 @@ tools:
   cli-proxy: true
   agentic-workflows:
   github:
+    mode: gh-proxy
     toolsets: [default, actions]
 timeout-minutes: 10
 imports:
@@ -50,4 +51,4 @@ Analyze the collected data and provide:
 
 Create a discussion with your findings and actionable recommendations for improving CI/CD reliability and performance.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -444,6 +444,42 @@ func TestFrontmatterConfigFieldExtraction(t *testing.T) {
 			t.Error("node runtime should exist")
 		}
 	})
+
+	t.Run("parses object-form experiments without unmarshal error", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"experiments": map[string]any{
+				// Object form: must not cause json.Unmarshal to fail.
+				"prompt_style": map[string]any{
+					"variants": []any{"concise", "verbose"},
+					"weight":   []any{70.0, 30.0},
+				},
+				// Bare-array form: must still work alongside the object form.
+				"caveman": []any{"yes", "no"},
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("ParseFrontmatterConfig should not fail on object-form experiments: %v", err)
+		}
+
+		if config.ExperimentConfigs == nil {
+			t.Fatal("ExperimentConfigs should be populated")
+		}
+		if len(config.ExperimentConfigs) != 2 {
+			t.Errorf("expected 2 experiment configs, got %d", len(config.ExperimentConfigs))
+		}
+		ps := config.ExperimentConfigs["prompt_style"]
+		if ps == nil {
+			t.Fatal("prompt_style config should exist")
+		}
+		if len(ps.Variants) != 2 || ps.Variants[0] != "concise" {
+			t.Errorf("unexpected variants: %v", ps.Variants)
+		}
+		if len(ps.Weight) != 2 || ps.Weight[0] != 70 {
+			t.Errorf("unexpected weight: %v", ps.Weight)
+		}
+	})
 }
 
 func TestFrontmatterConfigBackwardCompatibility(t *testing.T) {

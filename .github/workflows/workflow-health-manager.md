@@ -8,9 +8,11 @@ permissions:
   actions: read
 engine: copilot
 tools:
+  cli-proxy: true
   bash: [":*"]
   edit:
   github:
+    mode: gh-proxy
     toolsets: [default, actions]
   repo-memory:
     branch-name: memory/meta-orchestrators
@@ -367,4 +369,4 @@ Created X issues | Updated X | Closed X
 
 Execute all phases systematically and maintain a proactive approach to workflow health management.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

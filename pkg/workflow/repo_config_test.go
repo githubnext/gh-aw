@@ -100,6 +100,42 @@ func TestLoadRepoConfig_SchemaViolation(t *testing.T) {
 	assert.Error(t, err, "schema violation should return an error")
 }
 
+func TestLoadRepoConfig_LabelTriggersDisable(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"maintenance": {"label_triggers": false}}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
+	require.NotNil(t, cfg.Maintenance.LabelTriggers, "label_triggers should be set")
+	assert.False(t, *cfg.Maintenance.LabelTriggers, "label_triggers should be false when explicitly set")
+	assert.False(t, cfg.Maintenance.IsLabelTriggerEnabled(), "setting label_triggers: false explicitly opts out — label-triggered jobs should not be included")
+}
+
+func TestLoadRepoConfig_LabelTriggers_DefaultFalse(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"maintenance": {}}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
+	assert.Nil(t, cfg.Maintenance.LabelTriggers, "label_triggers should be nil when not specified")
+	assert.False(t, cfg.Maintenance.IsLabelTriggerEnabled(), "label triggers should be disabled by default (nil = false)")
+}
+
+func TestLoadRepoConfig_LabelTriggers_ExplicitTrue(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"maintenance": {"label_triggers": true}}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
+	require.NotNil(t, cfg.Maintenance.LabelTriggers, "label_triggers should be set")
+	assert.True(t, *cfg.Maintenance.LabelTriggers, "label_triggers should be true when explicitly set")
+	assert.True(t, cfg.Maintenance.IsLabelTriggerEnabled(), "label_triggers: true keeps label-triggered jobs enabled")
+}
+
+// TestLoadRepoConfig_UnknownProperty tests that unknown properties are rejected.
 func TestLoadRepoConfig_UnknownProperty(t *testing.T) {
 	dir := t.TempDir()
 	writeAWJSON(t, dir, `{"unknown_property": "value"}`)

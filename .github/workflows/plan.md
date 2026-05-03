@@ -14,6 +14,7 @@ engine: copilot
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, discussions]
     allowed-repos: all
     min-integrity: none
@@ -138,4 +139,4 @@ Review instructions in `.github/instructions/*.instructions.md` if you need guid
 3. After creating all issues successfully, if this was triggered from a discussion in the "Ideas" category, close the discussion with a comment summarizing the plan and resolution reason "RESOLVED"
 {{/if}}
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

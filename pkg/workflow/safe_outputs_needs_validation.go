@@ -14,6 +14,8 @@ func validateSafeOutputsNeeds(data *WorkflowData) error {
 		return nil
 	}
 
+	safeOutputsNeedsValidationLog.Printf("Validating safe-outputs needs: %d need(s) declared", len(data.SafeOutputs.Needs))
+
 	if err := validateSafeOutputsNeedsField(data, "needs", data.SafeOutputs.Needs); err != nil {
 		return err
 	}
@@ -33,9 +35,11 @@ func validateSafeOutputsNeedsField(data *WorkflowData, fieldName string, needs [
 		}
 		customJobs[jobName] = true
 	}
+	safeOutputsNeedsValidationLog.Printf("Found %d custom job(s) available as needs targets", len(customJobs))
 
 	for _, need := range needs {
 		if isReservedSafeOutputsNeedsTarget(need) {
+			safeOutputsNeedsValidationLog.Printf("Validation failed: %q is a reserved job name", need)
 			return fmt.Errorf(
 				"safe-outputs.%s: built-in job %q is not allowed. Expected one of the workflow's custom jobs. Example: safe-outputs.%s: [secrets_fetcher]",
 				fieldName,
@@ -44,6 +48,7 @@ func validateSafeOutputsNeedsField(data *WorkflowData, fieldName string, needs [
 			)
 		}
 		if !customJobs[need] {
+			safeOutputsNeedsValidationLog.Printf("Validation failed: %q is not a known custom job", need)
 			return fmt.Errorf(
 				"safe-outputs.%s: unknown job %q. Expected one of the workflow's custom jobs. Example: safe-outputs.%s: [secrets_fetcher]",
 				fieldName,

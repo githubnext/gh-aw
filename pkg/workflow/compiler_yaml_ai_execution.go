@@ -15,7 +15,8 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 
 	for _, step := range steps {
 		for _, line := range step {
-			yaml.WriteString(line + "\n")
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 }
@@ -191,5 +192,27 @@ func (c *Compiler) generateTokenUsageSummary(yaml *strings.Builder, data *Workfl
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	yaml.WriteString("            const { main } = require('" + SetupActionDestination + "/parse_token_usage.cjs');\n")
+	yaml.WriteString("            await main();\n")
+}
+
+// generateAWFReflectSummary generates a step that reads the AWF /reflect payload
+// persisted by copilot_harness.cjs and appends a provider/model table to $GITHUB_STEP_SUMMARY.
+//
+// The /reflect endpoint (served by the AWF api-proxy sidecar on port 10000) returns the
+// list of configured LLM providers together with their available model lists. The harness
+// fetches this data from inside the AWF container and writes it to /tmp/gh-aw/awf-reflect.json
+// so this step can include it in the summary after the agent has completed.
+func (c *Compiler) generateAWFReflectSummary(yaml *strings.Builder, data *WorkflowData) {
+	compilerYamlLog.Print("Generating AWF reflect summary step")
+
+	yaml.WriteString("      - name: Print AWF reflect summary\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        continue-on-error: true\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+	yaml.WriteString("            const { main } = require('" + SetupActionDestination + "/awf_reflect_summary.cjs');\n")
 	yaml.WriteString("            await main();\n")
 }

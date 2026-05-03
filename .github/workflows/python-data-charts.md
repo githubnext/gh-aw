@@ -176,4 +176,4 @@ This report contains data visualizations and trending analysis generated using P
 
 Refer to the Charts with Trending Guide (imported above) for complete examples, trending patterns, cache-memory integration, and best practices.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

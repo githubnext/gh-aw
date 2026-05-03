@@ -85,8 +85,8 @@ Test workflow with custom AWF arguments.
 			t.Error("Compiled workflow should exclude COPILOT_GITHUB_TOKEN via --exclude-env")
 		}
 
-		if !strings.Contains(lockYAML, "--allow-domains") {
-			t.Error("Compiled workflow should still contain '--allow-domains' flag")
+		if !strings.Contains(lockYAML, "allowDomains") {
+			t.Error("Compiled workflow should still contain 'allowDomains' in the AWF config JSON")
 		}
 
 		if !strings.Contains(lockYAML, "--log-level") {
@@ -152,8 +152,8 @@ Test workflow without custom AWF arguments.
 			t.Error("Compiled workflow should exclude COPILOT_GITHUB_TOKEN via --exclude-env")
 		}
 
-		if !strings.Contains(lockYAML, "--allow-domains") {
-			t.Error("Compiled workflow should contain '--allow-domains' flag")
+		if !strings.Contains(lockYAML, "allowDomains") {
+			t.Error("Compiled workflow should contain 'allowDomains' in the AWF config JSON")
 		}
 
 		if !strings.Contains(lockYAML, "--log-level") {
@@ -321,6 +321,7 @@ permissions:
 engine: copilot
 sandbox:
   agent:
+    id: awf
     version: v0.25.0
 ---
 

@@ -117,9 +117,66 @@ tools:
 
 In read-only mode, the index is restored from cache and no indexing steps are run. This is useful when the index is built separately and shared across workflows.
 
+## Telemetry
+
+Use `otlp.cjs` in a shared import step to record qmd index size and search hits alongside the workflow's distributed trace.
+
+```yaml wrap title=".github/workflows/shared/qmd-otlp.md"
+---
+# Shared import: emit qmd index size and search hit counts after the agent job.
+
+steps:
+  - name: Record qmd telemetry
+    id: qmd-otlp
+    uses: actions/github-script@v8
+    with:
+      script: |
+        const fs   = require('fs');
+        const otlp = require('/tmp/gh-aw/actions/otlp.cjs');
+
+        // qmd writes index stats to /tmp/gh-aw/qmd/stats.json after indexing.
+        let indexSize = 0;
+        try {
+          const stats = JSON.parse(fs.readFileSync('/tmp/gh-aw/qmd/stats.json', 'utf8'));
+          indexSize = stats.index_size ?? 0;
+        } catch { /* index not available */ }
+
+        // qmd appends one JSON line per query to /tmp/gh-aw/qmd/queries.jsonl.
+        let hits = 0;
+        try {
+          const lines = fs.readFileSync('/tmp/gh-aw/qmd/queries.jsonl', 'utf8').trim().split('\n');
+          hits = lines.reduce((sum, l) => {
+            try { return sum + (JSON.parse(l).hits ?? 0); } catch { return sum; }
+          }, 0);
+        } catch { /* no queries yet */ }
+
+        await otlp.logSpan('qmd', {
+          'qmd.index.size':   indexSize,
+          'qmd.search.hits':  hits,
+        });
+---
+```
+
+Import the shared file in any workflow that uses qmd:
+
+```aw wrap
+---
+on: push
+engine: copilot
+imports:
+  - shared/observability-otlp.md   # sets OTEL_EXPORTER_OTLP_ENDPOINT
+  - shared/qmd-otlp.md             # records index size and search hits
+tools:
+  qmd:
+    checkouts:
+      - pattern: "docs/**/*.md"
+---
+```
+
 ## Related Documentation
 
 - [Tools](/gh-aw/reference/tools/) - Overview of all available tools and configuration
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
 - [Cache Memory](/gh-aw/reference/cache-memory/) - Persistent memory across workflow runs
 - [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API operations
+- [Custom OTLP Attributes](/gh-aw/guides/custom-otlp-attributes/) - Emit telemetry from shared imports

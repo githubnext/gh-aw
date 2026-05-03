@@ -131,4 +131,4 @@ Your search summary should be formatted as a comment with:
 
 Remember: Your goal is to provide valuable, actionable information from web searches that helps resolve the issue or improve the pull request.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

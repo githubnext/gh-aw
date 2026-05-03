@@ -33,6 +33,7 @@ safe-outputs:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default]
   bash: true
 
@@ -208,4 +209,4 @@ git status
 
 Good luck keeping our GitHub Actions up to date!
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

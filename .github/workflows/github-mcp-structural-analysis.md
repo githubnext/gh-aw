@@ -363,4 +363,4 @@ A successful analysis:
 - ✅ Provides recommendations for tool selection
 - ✅ Maintains 30-day rolling window of data
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

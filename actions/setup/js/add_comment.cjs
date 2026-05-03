@@ -17,6 +17,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getMessages } = require("./messages_core.cjs");
+const { getBodyHeader } = require("./messages_header.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { MAX_COMMENT_LENGTH, MAX_MENTIONS, MAX_LINKS, enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
@@ -582,9 +583,15 @@ async function main(config = {}) {
 
     // Inject CAUTION at top of body if threat detection warning was raised
     const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
-    if (detectionCaution) {
-      processedBody = detectionCaution + "\n\n" + processedBody;
-    }
+
+    // Inject body header if configured (placed after caution, before user content)
+    const bodyHeader = getBodyHeader({ workflowName, runUrl });
+
+    // Build prefix: caution (if any) → body header (if any) → user content
+    let prefix = "";
+    if (detectionCaution) prefix += detectionCaution + "\n\n";
+    if (bodyHeader) prefix += bodyHeader + "\n\n";
+    if (prefix) processedBody = prefix + processedBody;
 
     // Add tracker ID and footer
     const trackerIDComment = getTrackerID("markdown");
@@ -657,7 +664,7 @@ async function main(config = {}) {
     // Records a created comment in createdComments and returns the success result.
     const recordComment = (/** @type {{ id: string | number, html_url: string }} */ comment, /** @type {boolean} */ isDiscussionFlag) => {
       createdComments.push({ id: comment.id, html_url: comment.html_url, _tracking: { commentId: comment.id, itemNumber, repo: itemRepo, isDiscussion: isDiscussionFlag } });
-      return { success: true, commentId: comment.id, url: comment.html_url, itemNumber, repo: itemRepo, isDiscussion: isDiscussionFlag };
+      return { success: true, commentId: comment.id, url: comment.html_url, body: processedBody, itemNumber, repo: itemRepo, isDiscussion: isDiscussionFlag };
     };
 
     // Normalize reply_to_id once so both the main discussion path and the

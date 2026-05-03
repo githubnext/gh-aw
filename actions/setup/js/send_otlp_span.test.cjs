@@ -29,7 +29,10 @@ const {
   SPAN_KIND_SERVER,
   buildCurrentWorkflowCallId,
   buildEpisodeAttributesFromContext,
+  buildExperimentAttributes,
 } = await import("./send_otlp_span.cjs");
+
+const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = await import("./experiment_helpers.cjs");
 
 // ---------------------------------------------------------------------------
 // isValidTraceId
@@ -1773,6 +1776,7 @@ describe("sendJobSetupSpan", () => {
       expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_number", value: { stringValue: "42" } });
       const keys = span.attributes.map(a => a.key);
       expect(keys).not.toContain("gh-aw.trigger.label");
+      expect(keys).not.toContain("gh-aw.trigger.comment_id");
     });
 
     it("emits gh-aw.trigger.label when trigger_label is non-empty", async () => {
@@ -1797,6 +1801,26 @@ describe("sendJobSetupSpan", () => {
       expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.label", value: { stringValue: "copilot" } });
     });
 
+    it("emits gh-aw.trigger.comment_id when comment_id is non-empty", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ context: { item_type: "pull_request", item_number: "99", trigger_label: "copilot", comment_id: "123456789" } });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.comment_id", value: { stringValue: "123456789" } });
+    });
+
     it("omits trigger attributes when aw_info.json is absent", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
@@ -1813,6 +1837,7 @@ describe("sendJobSetupSpan", () => {
       expect(keys).not.toContain("gh-aw.trigger.item_type");
       expect(keys).not.toContain("gh-aw.trigger.item_number");
       expect(keys).not.toContain("gh-aw.trigger.label");
+      expect(keys).not.toContain("gh-aw.trigger.comment_id");
       expect(span.attributes).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "555-2" } });
       expect(span.attributes).toContainEqual({ key: "gh-aw.episode.kind", value: { stringValue: "run" } });
       expect(span.attributes).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "555-2" } });
@@ -1859,11 +1884,167 @@ describe("sendJobSetupSpan", () => {
       expect(span.attributes).toContainEqual({ key: "gh-aw.workflow_call.parent_id", value: { stringValue: "122-1" } });
     });
   });
+
+  describe("experiment attributes", () => {
+    let readFileSpy;
+
+    beforeEach(() => {
+      readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+    });
+
+    afterEach(() => {
+      readFileSpy.mockRestore();
+    });
+
+    it("includes gh-aw.experiment.<name> and gh-aw.experiments attributes when assignments file exists", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === EXPERIMENT_ASSIGNMENTS_PATH) {
+          return JSON.stringify({ caveman: "yes", style: "detailed" });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+      expect(attrs["gh-aw.experiment.caveman"]).toBe("yes");
+      expect(attrs["gh-aw.experiment.style"]).toBe("detailed");
+      expect(attrs["gh-aw.experiments"]).toBe(JSON.stringify({ caveman: "yes", style: "detailed" }));
+    });
+
+    it("omits experiment attributes when assignments file is absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = span.attributes.map(a => a.key);
+      expect(keys.some(k => k.startsWith("gh-aw.experiment."))).toBe(false);
+      expect(keys).not.toContain("gh-aw.experiments");
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
-// sendJobConclusionSpan
+// readExperimentAssignments / buildExperimentAttributes
 // ---------------------------------------------------------------------------
+
+describe("readExperimentAssignments", () => {
+  let readFileSpy;
+  const savedStateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR;
+
+  beforeEach(() => {
+    delete process.env.GH_AW_EXPERIMENT_STATE_DIR;
+    readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+  });
+
+  afterEach(() => {
+    readFileSpy.mockRestore();
+    if (savedStateDir !== undefined) {
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = savedStateDir;
+    } else {
+      delete process.env.GH_AW_EXPERIMENT_STATE_DIR;
+    }
+  });
+
+  it("returns null when the assignments file does not exist", () => {
+    expect(readExperimentAssignments()).toBeNull();
+  });
+
+  it("returns null when the assignments file contains invalid JSON", () => {
+    readFileSpy.mockReturnValue("not-valid-json");
+    expect(readExperimentAssignments()).toBeNull();
+  });
+
+  it("returns null when the assignments file contains a non-object value", () => {
+    readFileSpy.mockReturnValue(JSON.stringify(["A", "B"]));
+    expect(readExperimentAssignments()).toBeNull();
+  });
+
+  it("returns the parsed assignments object when the file is valid", () => {
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === EXPERIMENT_ASSIGNMENTS_PATH) {
+        return JSON.stringify({ caveman: "yes", style: "detailed" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readExperimentAssignments()).toEqual({ caveman: "yes", style: "detailed" });
+  });
+
+  it("reads from GH_AW_EXPERIMENT_STATE_DIR/assignments.json when env var is set", () => {
+    process.env.GH_AW_EXPERIMENT_STATE_DIR = "/custom/experiments";
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === "/custom/experiments/assignments.json") {
+        return JSON.stringify({ feature: "on" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readExperimentAssignments()).toEqual({ feature: "on" });
+  });
+
+  it("falls back to EXPERIMENT_ASSIGNMENTS_PATH when GH_AW_EXPERIMENT_STATE_DIR is not set", () => {
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === EXPERIMENT_ASSIGNMENTS_PATH) {
+        return JSON.stringify({ mode: "fast" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readExperimentAssignments()).toEqual({ mode: "fast" });
+  });
+});
+
+describe("buildExperimentAttributes", () => {
+  it("returns an empty array for null input", () => {
+    expect(buildExperimentAttributes(null)).toEqual([]);
+  });
+
+  it("returns an empty array for an empty assignments object", () => {
+    expect(buildExperimentAttributes({})).toEqual([]);
+  });
+
+  it("builds one attribute per experiment plus the aggregated gh-aw.experiments attribute", () => {
+    const attrs = buildExperimentAttributes({ caveman: "yes", style: "detailed" });
+    const attrMap = Object.fromEntries(attrs.map(a => [a.key, a.value.stringValue]));
+    expect(attrMap["gh-aw.experiment.caveman"]).toBe("yes");
+    expect(attrMap["gh-aw.experiment.style"]).toBe("detailed");
+    // experiments JSON is sorted by key
+    expect(JSON.parse(attrMap["gh-aw.experiments"])).toEqual({ caveman: "yes", style: "detailed" });
+  });
+
+  it("skips assignments with non-string or empty-string variants and still adds gh-aw.experiments for valid ones", () => {
+    const attrs = buildExperimentAttributes({ good: "A", bad: "" });
+    const keys = attrs.map(a => a.key);
+    expect(keys).toContain("gh-aw.experiment.good");
+    expect(keys).not.toContain("gh-aw.experiment.bad");
+    // gh-aw.experiments is present and only contains the valid variant
+    const experimentsAttr = attrs.find(a => a.key === "gh-aw.experiments");
+    expect(experimentsAttr).toBeDefined();
+    expect(JSON.parse(experimentsAttr.value.stringValue)).toEqual({ good: "A" });
+  });
+
+  it("returns empty array and omits gh-aw.experiments when all variants are empty strings", () => {
+    const attrs = buildExperimentAttributes({ exp1: "", exp2: "" });
+    expect(attrs).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sendJobConclusionSpan (continued — experiment attributes)
 
 describe("sendJobConclusionSpan", () => {
   /** @type {Record<string, string | undefined>} */
@@ -3598,6 +3779,7 @@ describe("sendJobConclusionSpan", () => {
       expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_number", value: { stringValue: "7" } });
       const keys = span.attributes.map(a => a.key);
       expect(keys).not.toContain("gh-aw.trigger.label");
+      expect(keys).not.toContain("gh-aw.trigger.comment_id");
     });
 
     it("emits gh-aw.trigger.label when trigger_label is non-empty", async () => {
@@ -3622,6 +3804,26 @@ describe("sendJobConclusionSpan", () => {
       expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.label", value: { stringValue: "bug" } });
     });
 
+    it("emits gh-aw.trigger.comment_id when comment_id is non-empty", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ context: { item_type: "pull_request", item_number: "456", trigger_label: "bug", comment_id: "987654321" } });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.comment_id", value: { stringValue: "987654321" } });
+    });
+
     it("omits trigger attributes when aw_info.json is absent", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
@@ -3636,6 +3838,59 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gh-aw.trigger.item_type");
       expect(keys).not.toContain("gh-aw.trigger.item_number");
       expect(keys).not.toContain("gh-aw.trigger.label");
+      expect(keys).not.toContain("gh-aw.trigger.comment_id");
+    });
+  });
+
+  describe("experiment attributes", () => {
+    let readFileSpy;
+
+    beforeEach(() => {
+      readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+    });
+
+    afterEach(() => {
+      readFileSpy.mockRestore();
+    });
+
+    it("includes gh-aw.experiment.<name> and gh-aw.experiments attributes in conclusion span", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === EXPERIMENT_ASSIGNMENTS_PATH) {
+          return JSON.stringify({ feature: "on", model: "fast" });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+      expect(attrs["gh-aw.experiment.feature"]).toBe("on");
+      expect(attrs["gh-aw.experiment.model"]).toBe("fast");
+      expect(attrs["gh-aw.experiments"]).toBe(JSON.stringify({ feature: "on", model: "fast" }));
+    });
+
+    it("omits experiment attributes in conclusion span when assignments file is absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = span.attributes.map(a => a.key);
+      expect(keys.some(k => k.startsWith("gh-aw.experiment."))).toBe(false);
+      expect(keys).not.toContain("gh-aw.experiments");
     });
   });
 });

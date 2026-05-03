@@ -212,6 +212,31 @@ When `allowed-github-references` is not configured at all, all references are le
 
 See [Text Sanitization](/gh-aw/reference/safe-outputs/#text-sanitization-allowed-domains-allowed-github-references) for full configuration options.
 
+### How are agent actions constrained — commenting, opening PRs, modifying files, and calling external tools?
+
+gh-aw uses defense-in-depth rather than a single control. Four layers work together:
+
+**1. Read-only agent by default.** The AI agent step has read-only GitHub permissions. It cannot comment, open PRs, or push files unless you explicitly configure [safe outputs](/gh-aw/reference/safe-outputs/).
+
+**2. Safe outputs for all writes.** Commenting, creating PRs, and modifying files all go through safe outputs — separate GitHub Actions jobs with scoped write tokens. The agent produces a structured artifact; a downstream job applies the changes after sanitization (secret redaction, URL filtering, size limits). You declare which operations are permitted:
+
+```yaml wrap
+safe-outputs:
+  add-comment:
+```
+
+**3. Threat detection before writes.** [Agentic threat detection](/gh-aw/reference/threat-detection/) runs automatically between the agent job and the safe output jobs. It scans the agent's output for prompt injection attempts, secret leaks, and malicious code patches, blocking the write jobs if a threat is detected.
+
+**4. Network allowlist for external calls.** The [Agent Workflow Firewall](/gh-aw/reference/sandbox/) blocks all outbound network access by default. You must explicitly allow each domain an agent may reach:
+
+```yaml wrap
+network:
+  allowed:
+    - defaults
+```
+
+For sensitive operations, you can layer on a [GitHub Environment protection rule](/gh-aw/reference/faq/#can-i-require-external-human-approval-before-safe-outputs-are-applied) so a designated reviewer must approve before any write jobs run.
+
 ### Tell me more about guardrails
 
 Guardrails are foundational to the design. Agentic workflows implement defense-in-depth through compilation-time validation (schema checks, expression safety, action SHA pinning), runtime isolation (sandboxed containers with network controls), permission separation (read-only defaults with [safe outputs](/gh-aw/reference/safe-outputs/) for writes), tool allowlisting, and output sanitization. See the [Security Architecture](/gh-aw/introduction/architecture/).
@@ -241,6 +266,31 @@ safe-outputs:
 This approval is enforced by GitHub's infrastructure, not by workflow logic the agent could influence. Threat detection still runs before the gate, so the reviewer sees output that has already passed automated scanning.
 
 Note that the *policy* — which environments require approval, what safe outputs are configured — is defined by whoever controls the repository. The admission decision for each run can be external; the admission policy itself is internal to repository owners.
+
+**Fully off-platform admission control**
+
+If your threat model requires an authority completely outside GitHub's control plane — such as an external policy engine, a PAM/PIM system, or a compliance approval workflow — call that system from your gate job before it proceeds:
+
+```yaml wrap
+jobs:
+  external-admission:
+    runs-on: ubuntu-latest
+    needs: [agent, detection]        # waits for agent output and threat scanning to complete
+    environment: production-deploy   # optional: also adds GitHub-native reviewer gate
+    steps:
+      - name: Request admission from external authority
+        run: |
+          curl --fail -X POST https://YOUR_POLICY_ENGINE/v1/admit \
+            -H "Authorization: Bearer $POLICY_TOKEN" \
+            -d '{"workflow_run": "${{ github.run_id }}"}'
+        env:
+          POLICY_TOKEN: ${{ secrets.POLICY_TOKEN }}
+
+safe-outputs:
+  needs: [external-admission]   # write jobs don't run until external admission is granted
+```
+
+If the external call fails or is denied, the safe output jobs never run. This places the final admission decision in a system entirely independent of GitHub.
 
 ### How is my code and data processed?
 
@@ -525,6 +575,33 @@ One workflow is simpler to maintain and good for learning, while multiple workfl
 ### Should I create agentic workflows by hand editing or using AI?
 
 Either approach works well. AI-assisted authoring using `/agent agentic-workflows create` in GitHub Copilot Chat provides interactive guidance with automatic best practices, while manual editing gives full control and is essential for advanced customizations. See [Creating Workflows](/gh-aw/setup/creating-workflows/) for AI-assisted approach, or [Reference documentation](/gh-aw/reference/frontmatter/) for manual configuration.
+
+### Can the agent use an existing branch specified at runtime (e.g., from a Jira issue)?
+
+The `create-pull-request` safe output always creates a new branch, but you can control its name and make it reuse an existing remote branch. Set these two fields in your workflow frontmatter:
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+    preserve-branch-name: true   # omit random salt suffix from agent-specified name
+    recreate-ref: true           # force-reset remote branch if it already exists
+```
+
+With `preserve-branch-name: true`, the agent's branch name (e.g., `feature/abc-123-my-change`) is used as-is instead of having a random hex suffix appended. With `recreate-ref: true`, if that branch already exists remotely, it is force-reset to the agent's current HEAD rather than falling back to creating an issue.
+
+To pass the branch name from a Jira issue body (or any issue body), instruct the agent in your workflow's markdown:
+
+```markdown
+Read the issue body and extract the branch name from the line starting with
+"Use existing branch:". Use that name when calling `create_pull_request`.
+```
+
+The agent reads the triggering issue body as part of its context, so no extra integration is needed when the branch name is embedded there. For richer Jira data (status, custom fields), use a [custom safe output](/gh-aw/reference/custom-safe-outputs/) or Jira MCP server.
+
+> [!NOTE]
+> `recreate-ref` requires `preserve-branch-name: true` to take effect. The agent always starts from the configured base branch — it doesn't literally check out the named branch before making changes.
+
+See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/) for full configuration details.
 
 ### You use 'agent' and 'agentic workflow' interchangeably. Are they the same thing?
 

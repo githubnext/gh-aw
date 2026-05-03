@@ -38,6 +38,7 @@ steps:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default]
   edit:
   bash:
@@ -347,4 +348,4 @@ Before creating the PR, verify:
 
 Good luck enhancing the codebase with better logging!
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

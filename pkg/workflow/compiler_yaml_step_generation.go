@@ -135,10 +135,7 @@ func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, 
 			fmt.Sprintf("          GH_AW_SETUP_WORKFLOW_NAME: %q\n", data.Name),
 			fmt.Sprintf("          GH_AW_CURRENT_WORKFLOW_REF: %s\n", buildSetupWorkflowRefExpr(data)),
 		}
-		if data != nil && hasWorkflowCallTrigger(data.On) {
-			lines = append(lines, "          GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}\n")
-		}
-		if traceID != "" {
+		if hasWorkflowCallTrigger(data.On) {
 			lines = append(lines, fmt.Sprintf("          INPUT_TRACE_ID: %s\n", traceID))
 		}
 		if enableArtifactClient {
@@ -168,7 +165,7 @@ func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, 
 		fmt.Sprintf("          GH_AW_SETUP_WORKFLOW_NAME: %q\n", data.Name),
 		fmt.Sprintf("          GH_AW_CURRENT_WORKFLOW_REF: %s\n", buildSetupWorkflowRefExpr(data)),
 	)
-	if data != nil && hasWorkflowCallTrigger(data.On) {
+	if hasWorkflowCallTrigger(data.On) {
 		lines = append(lines, "          GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}\n")
 	}
 	return lines

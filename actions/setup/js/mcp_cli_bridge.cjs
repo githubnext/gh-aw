@@ -433,20 +433,108 @@ function parseBridgeArgs(argv) {
 }
 
 /**
+ * Check whether stdin should be read and parsed as a JSON payload for tool arguments.
+ * Returns true when the '.' sentinel is the only argument, or when no arguments are
+ * provided and stdin is not connected to a terminal (i.e. data is being piped).
+ *
+ * This enables agents to pipe complex multi-argument payloads as a single JSON object:
+ *   printf '{"issue_number":42,"body":"hello"}' | safeoutputs add_comment .
+ *   printf '{"issue_number":42,"body":"hello"}' | safeoutputs add_comment
+ *
+ * @param {string[]} args - User arguments after the tool name
+ * @returns {boolean}
+ */
+function hasStdinJsonPayload(args) {
+  if (args.length === 1 && args[0] === ".") return true;
+  if (args.length === 0 && !process.stdin.isTTY) return true;
+  return false;
+}
+
+/** Maximum bytes accepted from stdin to prevent memory exhaustion (10 MB) */
+const STDIN_MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Read all of stdin synchronously and return the content as a string.
+ * Uses low-level fs.readSync on fd 0 so it works in both TTY and piped contexts.
+ * Throws an error if stdin exceeds STDIN_MAX_BYTES or if a read error occurs
+ * after bytes have already been collected (to prevent silently returning partial content).
+ * Returns an empty string if stdin is empty or if an error occurs before any bytes are read.
+ *
+ * @returns {string}
+ */
+function readStdinSync() {
+  const STDIN_FD = 0;
+  /** @type {Buffer[]} */
+  const chunks = [];
+  const bufSize = 65536;
+  let totalBytes = 0;
+  while (true) {
+    const buf = Buffer.alloc(bufSize);
+    let bytesRead;
+    try {
+      bytesRead = fs.readSync(STDIN_FD, buf, 0, bufSize, null);
+    } catch (err) {
+      // If we have already read some bytes, rethrow so the caller doesn't
+      // unknowingly use partial content. An error before any data is read
+      // (e.g. stdin is not connected) is treated as empty input.
+      if (totalBytes > 0) {
+        throw err;
+      }
+      return "";
+    }
+    if (bytesRead === 0) break;
+    totalBytes += bytesRead;
+    if (totalBytes > STDIN_MAX_BYTES) {
+      throw new Error(`stdin input exceeds maximum allowed size of ${STDIN_MAX_BYTES} bytes`);
+    }
+    chunks.push(buf.slice(0, bytesRead));
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+/**
  * Parse user-provided --key value pairs into a tool arguments object.
  * Supports both --key value and --key=value styles.
  * Boolean flags (--key without a value) are set to true.
  *
+ * When `stdinContent` is provided and args is empty or `['.']`, the stdin
+ * content is parsed as a JSON object and its properties are used as tool
+ * arguments directly (JSON payload mode). This enables agents to pipe
+ * complex multi-argument payloads without shell quoting issues:
+ *   printf '{"issue_number":42,"body":"hello"}' | safeoutputs add_comment .
+ *
  * @param {string[]} args - User arguments after the tool name
  * @param {Record<string, {type?: string|string[]}>} [schemaProperties] - Tool input schema properties
+ * @param {string | null} [stdinContent] - Pre-read stdin content; used only when args is empty
+ *   or `['.']` (JSON payload mode). Ignored for all other argument forms.
  * @returns {{args: Record<string, unknown>, json: boolean}}
  */
-function parseToolArgs(args, schemaProperties = {}) {
+function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
   /** @type {Record<string, unknown>} */
   const result = {};
   let jsonOutput = false;
   const hasSchemaProperties = Object.keys(schemaProperties).length > 0;
   const { normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys } = buildNormalizedSchemaKeyMap(schemaProperties);
+
+  // JSON payload mode: when args is empty or ['.'] and stdinContent is available,
+  // parse stdin as a JSON object and use its properties directly as tool arguments.
+  if (stdinContent !== null && (args.length === 0 || (args.length === 1 && args[0] === "."))) {
+    const trimmed = stdinContent.trim();
+    if (trimmed) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+          for (const [key, value] of Object.entries(parsed)) {
+            const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
+            result[canonicalKey] = value;
+          }
+          return { args: result, json: false };
+        }
+      } catch {
+        // Not valid JSON; fall through to normal flag-based argument parsing.
+      }
+    }
+  }
 
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith("--")) {
@@ -459,13 +547,15 @@ function parseToolArgs(args, schemaProperties = {}) {
           jsonOutput = true;
         } else {
           const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
-          result[canonicalKey] = coerceToolArgValue(canonicalKey, raw.slice(eqIdx + 1), schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
+          const rawValue = raw.slice(eqIdx + 1);
+          result[canonicalKey] = coerceToolArgValue(canonicalKey, rawValue, schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
         }
       } else if (raw === "json") {
         jsonOutput = true;
       } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
         const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
-        result[canonicalKey] = coerceToolArgValue(canonicalKey, args[i + 1], schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
+        const rawValue = args[i + 1];
+        result[canonicalKey] = coerceToolArgValue(canonicalKey, rawValue, schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
         i++;
       } else {
         const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
@@ -695,7 +785,7 @@ function showHelp(serverName, tools) {
  *
  * @param {string} serverName - Server name
  * @param {string} toolName - Tool name
- * @param {Array<{name: string, description?: string, inputSchema?: {properties?: Record<string, {description?: string, type?: string}>, required?: string[]}}>} tools
+ * @param {Array<{name: string, description?: string, inputSchema?: {properties?: Record<string, {description?: string, type?: string|string[]}>, required?: string[]}}>} tools
  */
 function showToolHelp(serverName, toolName, tools) {
   const tool = tools.find(t => t.name === toolName);
@@ -709,23 +799,37 @@ function showToolHelp(serverName, toolName, tools) {
   const lines = [`Command: ${toolName}`, `Description: ${tool.description || "No description"}`];
 
   const props = tool.inputSchema?.properties;
+  const required = new Set(tool.inputSchema?.required || []);
   if (props && Object.keys(props).length > 0) {
     lines.push("");
     lines.push("Options:");
     const maxKeyLen = Math.max(...Object.keys(props).map(k => k.length));
     for (const [key, val] of Object.entries(props)) {
-      const padded = `--${key}`.padEnd(maxKeyLen + 4);
-      lines.push(`  ${padded}${val.description || val.type || "string"}`);
+      const flagPad = `--${key}`.padEnd(maxKeyLen + 4);
+      const parts = [getTypeStr(val.type)];
+      if (required.has(key)) parts.push("(required)");
+      if (val.description) parts.push(val.description);
+      lines.push(`  ${flagPad}${parts.join(" ")}`);
     }
 
-    const required = tool.inputSchema?.required;
-    if (required && required.length > 0) {
-      lines.push("");
-      lines.push(`Required: ${required.join(", ")}`);
-    }
+    lines.push("");
+    lines.push(`Usage: ${serverName} ${toolName} [--param value ...]`);
+    lines.push(`  or:  printf '{"param":"value",...}' | ${serverName} ${toolName} .`);
   }
 
   process.stdout.write(lines.join("\n") + "\n");
+}
+
+/**
+ * Format a JSON schema type value as a short bracketed string.
+ *
+ * @param {string|string[]|undefined} type
+ * @returns {string}
+ */
+function getTypeStr(type) {
+  if (!type) return "(string)";
+  const types = Array.isArray(type) ? type.filter(t => t !== "null") : [type];
+  return `(${types.length > 0 ? types.join("|") : "null"})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -965,7 +1069,10 @@ async function main() {
   // Route: <command> [--param value ...] → call tool via MCP
   const matchedTool = tools.find(tool => tool && typeof tool === "object" && tool.name === toolName);
   const schemaProperties = matchedTool && matchedTool.inputSchema && matchedTool.inputSchema.properties ? matchedTool.inputSchema.properties : {};
-  const { args: toolArgs, json: jsonOutput } = parseToolArgs(toolUserArgs, schemaProperties);
+
+  // Pre-read stdin when JSON payload mode is triggered ('.' sentinel or no args with piped stdin).
+  const stdinContent = hasStdinJsonPayload(toolUserArgs) ? readStdinSync() : null;
+  const { args: toolArgs, json: jsonOutput } = parseToolArgs(toolUserArgs, schemaProperties, stdinContent);
 
   core.info(`[${serverName}] Calling tool '${toolName}' with args: ${JSON.stringify(toolArgs)}${jsonOutput ? " (--json)" : ""}`);
   auditLog(serverName, { event: "call_start", tool: toolName, arguments: toolArgs });
@@ -1023,5 +1130,7 @@ module.exports = {
   extractJSONRPCMessages,
   renderProgressMessages,
   formatResponse,
+  hasStdinJsonPayload,
+  readStdinSync,
   main,
 };

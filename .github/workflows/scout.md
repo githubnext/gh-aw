@@ -32,9 +32,11 @@ imports:
   - shared/mcp/markitdown.md
   - shared/jqschema.md
 tools:
+  cli-proxy: true
   edit:
   cache-memory: true
   github:
+    mode: gh-proxy
     allowed-repos: all
     min-integrity: none
 safe-outputs:
@@ -218,4 +220,4 @@ After completing your research, **always label the triggering issue or pull requ
 
 Remember: Your goal is to provide valuable, actionable intelligence that helps resolve the issue or improve the pull request. Make every search count and synthesize information effectively.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

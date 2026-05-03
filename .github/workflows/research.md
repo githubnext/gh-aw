@@ -65,4 +65,4 @@ Create a GitHub discussion with your research summary including:
 
 Keep your summary concise and focused on the most important information.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

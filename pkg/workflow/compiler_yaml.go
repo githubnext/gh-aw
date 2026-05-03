@@ -268,7 +268,8 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	// can receive caller metadata (repo, run_id, actor, etc.) from dispatch_workflow.
 	// String-based injection preserves existing YAML comments and formatting.
 	onSection = injectAwContextIntoOnYAML(onSection)
-	yaml.WriteString(onSection + "\n\n")
+	yaml.WriteString(onSection)
+	yaml.WriteString("\n\n")
 
 	// Note: GitHub Actions doesn't support workflow-level if conditions
 	// The workflow_run safety check is added to individual jobs instead
@@ -277,12 +278,15 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	// Agent permissions are applied only to the agent job
 	yaml.WriteString("permissions: {}\n\n")
 
-	yaml.WriteString(data.Concurrency + "\n\n")
-	yaml.WriteString(data.RunName + "\n\n")
+	yaml.WriteString(data.Concurrency)
+	yaml.WriteString("\n\n")
+	yaml.WriteString(data.RunName)
+	yaml.WriteString("\n\n")
 
 	// Add env section if present
 	if data.Env != "" {
-		yaml.WriteString(data.Env + "\n\n")
+		yaml.WriteString(data.Env)
+		yaml.WriteString("\n\n")
 	}
 
 	// Add cache comment if cache configuration was provided
@@ -290,8 +294,9 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString("# Cache configuration from frontmatter was processed and added to the main job steps\n\n")
 	}
 
-	// Generate jobs section using JobManager
-	yaml.WriteString(c.jobManager.RenderToYAML())
+	// Generate jobs section using JobManager — write directly to avoid an
+	// intermediate string allocation.
+	c.jobManager.WriteJobsYAML(yaml)
 }
 
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, []string, []string, error) {
@@ -317,12 +322,10 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 			hash, err = parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, data.RawFrontmatter, cache, parser.DefaultFileReader)
 		}
 		if err != nil {
-			compilerYamlLog.Printf("Warning: failed to compute frontmatter hash: %v", err)
-			// Continue without hash - non-fatal error
-		} else {
-			frontmatterHash = hash
-			compilerYamlLog.Printf("Computed frontmatter hash: %s", hash)
+			return "", nil, nil, fmt.Errorf("failed to generate workflow YAML: could not compute stable frontmatter hash for %q: %w", markdownPath, err)
 		}
+		frontmatterHash = hash
+		compilerYamlLog.Printf("Computed frontmatter hash: %s", hash)
 	}
 	// Store hash on WorkflowData so job-building helpers (MCP renderers, prompt
 	// step generators, etc.) can derive stable heredoc delimiters from it.
@@ -334,9 +337,10 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	}
 
 	// Pre-allocate builder capacity based on estimated workflow size.
-	// Copilot / Claude workflows with safe-outputs typically compile to ~70–90 KB.
-	// 96 KB avoids the first reallocation for the common case while keeping memory
-	// waste acceptable for small workflows (only ~32 KB extra for a 64 KB output).
+	// Copilot/Claude workflows with safe-outputs typically compile to ~70–90 KB.
+	// 96 KB avoids the first reallocation for the common case. The performance
+	// benefit of this function comes from eliminating the intermediate copies
+	// that RenderToYAML + WriteString used to incur, not from capacity reduction.
 	const initialBuilderCapacity = 96 * 1024
 	var yaml strings.Builder
 	yaml.Grow(initialBuilderCapacity)
@@ -353,6 +357,23 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// without requiring a second scan of the full YAML content.
 	secrets := CollectSecretReferences(bodyContent)
 	actions := CollectActionReferences(bodyContent)
+
+	// If this workflow has a workflow_call trigger, inject on.workflow_call.secrets:
+	// declarations so callers can map secrets explicitly instead of using secrets: inherit.
+	// We update data.On and regenerate the body so the compiled output includes the
+	// declarations. The set of secrets does not change between the two passes (the
+	// injected declarations do not add new ${{ secrets.* }} references).
+	if hasWorkflowCallTrigger(data.On) && len(secrets) > 0 {
+		updatedOn := injectWorkflowCallSecretsSection(data.On, secrets)
+		if updatedOn != data.On {
+			data.On = updatedOn
+			body.Reset()
+			body.Grow(initialBuilderCapacity)
+			c.generateWorkflowBody(&body, data)
+			bodyContent = body.String()
+			compilerYamlLog.Printf("Regenerated workflow body with on.workflow_call.secrets declarations")
+		}
+	}
 
 	// Generate workflow header comments (including metadata as first line, plus secrets/actions lists)
 	c.generateWorkflowHeader(&yaml, data, frontmatterHash, secrets, actions)
@@ -508,6 +529,18 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	// errors because the jobs are not in activation's needs, yet their outputs would be
 	// referenced in activation's step env vars.
 	expressionMappings = filterExpressionsForActivation(expressionMappings, data.Jobs, beforeActivationJobs)
+
+	// Add expression mappings for declared experiments.
+	// These ensure the interpolation and substitution steps have GH_AW_EXPERIMENTS_* env vars
+	// set from pick-experiment step outputs, which is required for:
+	//   - Step 2.5 of interpolate_prompt.cjs: substitutes __GH_AW_EXPERIMENTS_*__ placeholders
+	//     produced by runtime_import.cjs from {{#if experiments.name}} template conditionals.
+	//   - The substitute_placeholders step: replaces any remaining occurrences.
+	if len(data.Experiments) > 0 {
+		experimentMappings := ExperimentExpressionMappings(data.Experiments)
+		compilerYamlLog.Printf("Adding %d experiment expression mapping(s)", len(experimentMappings))
+		expressionMappings = append(expressionMappings, experimentMappings...)
+	}
 
 	// Step 2: Add main workflow markdown content to the prompt
 	if c.inlinePrompt || data.InlinedImports {

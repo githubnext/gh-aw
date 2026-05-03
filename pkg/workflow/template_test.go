@@ -38,3 +38,37 @@ func TestGenerateInterpolationAndTemplateStep_DeduplicatesEnvVars(t *testing.T) 
 	// OTHER_VAR should be present
 	assert.Contains(t, result, "GH_AW_VARS_OTHER_VAR: ${{ vars.OTHER_VAR }}", "OTHER_VAR should be present")
 }
+
+// TestGenerateInterpolationAndTemplateStep_SkipPath tests that the step is not generated
+// when there are no expression mappings, no template patterns, and no GitHub context tool.
+func TestGenerateInterpolationAndTemplateStep_SkipPath(t *testing.T) {
+	compiler := &Compiler{}
+	data := &WorkflowData{
+		MarkdownContent: "hello world",
+		ParsedTools:     NewTools(map[string]any{}),
+	}
+
+	var yaml strings.Builder
+	compiler.generateInterpolationAndTemplateStep(&yaml, nil, data)
+
+	assert.Empty(t, yaml.String(), "step YAML should be empty when MarkdownContent has no expressions or template patterns")
+}
+
+// TestGenerateInterpolationAndTemplateStep_GeneratePath tests that the step is generated
+// when the markdown content contains a template pattern.
+func TestGenerateInterpolationAndTemplateStep_GeneratePath(t *testing.T) {
+	compiler := &Compiler{}
+	data := &WorkflowData{
+		MarkdownContent: "{{#if github.event.issue.number}}do something{{/if}}",
+		ParsedTools:     NewTools(map[string]any{}),
+	}
+
+	var yaml strings.Builder
+	compiler.generateInterpolationAndTemplateStep(&yaml, nil, data)
+
+	result := yaml.String()
+	assert.Contains(t, result, "Interpolate variables and render templates", "step name should be present when template patterns exist")
+	assert.Contains(t, result, "GH_AW_PROMPT:", "prompt env var should be set when step is generated")
+	assert.Contains(t, result, "interpolate_prompt.cjs", "interpolate_prompt script should be referenced in the step")
+	assert.Contains(t, result, "setupGlobals", "setupGlobals helper should be called to initialise GitHub Actions objects")
+}

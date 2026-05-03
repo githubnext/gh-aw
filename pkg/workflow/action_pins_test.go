@@ -243,8 +243,8 @@ func TestApplyActionPinToStep(t *testing.T) {
 	}
 }
 
-// TestGetActionPinByRepo tests the getActionPinByRepo function
-func TestGetActionPinByRepo(t *testing.T) {
+// TestGetLatestActionPinByRepo tests the getLatestActionPinByRepo function
+func TestGetLatestActionPinByRepo(t *testing.T) {
 	tests := []struct {
 		repo                string
 		expectExists        bool
@@ -280,24 +280,24 @@ func TestGetActionPinByRepo(t *testing.T) {
 				t.Fatalf("invalid test case: expectVersion and expectVersionPrefix are mutually exclusive")
 			}
 
-			pin, exists := getActionPinByRepo(tt.repo)
+			pin, exists := getLatestActionPinByRepo(tt.repo)
 
 			if exists != tt.expectExists {
-				t.Errorf("getActionPinByRepo(%s) exists = %v, want %v", tt.repo, exists, tt.expectExists)
+				t.Errorf("getLatestActionPinByRepo(%s) exists = %v, want %v", tt.repo, exists, tt.expectExists)
 			}
 
 			if tt.expectExists {
 				if pin.Repo != tt.expectRepo {
-					t.Errorf("getActionPinByRepo(%s) repo = %s, want %s", tt.repo, pin.Repo, tt.expectRepo)
+					t.Errorf("getLatestActionPinByRepo(%s) repo = %s, want %s", tt.repo, pin.Repo, tt.expectRepo)
 				}
 				if tt.expectVersion != "" && pin.Version != tt.expectVersion {
-					t.Errorf("getActionPinByRepo(%s) version = %s, want %s", tt.repo, pin.Version, tt.expectVersion)
+					t.Errorf("getLatestActionPinByRepo(%s) version = %s, want %s", tt.repo, pin.Version, tt.expectVersion)
 				}
 				if tt.expectVersionPrefix != "" && !strings.HasPrefix(pin.Version, tt.expectVersionPrefix) {
-					t.Errorf("getActionPinByRepo(%s) version = %s, want prefix %s", tt.repo, pin.Version, tt.expectVersionPrefix)
+					t.Errorf("getLatestActionPinByRepo(%s) version = %s, want prefix %s", tt.repo, pin.Version, tt.expectVersionPrefix)
 				}
 				if !isValidSHA(pin.SHA) {
-					t.Errorf("getActionPinByRepo(%s) has invalid SHA: %s", tt.repo, pin.SHA)
+					t.Errorf("getLatestActionPinByRepo(%s) has invalid SHA: %s", tt.repo, pin.SHA)
 				}
 			}
 		})

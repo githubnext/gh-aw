@@ -25,11 +25,13 @@ network:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default]
   bash: ["*"]
   edit:
 sandbox:
   agent:
+    id: awf
     mounts:
       - "/usr/bin/make:/usr/bin/make:ro"
       - "/usr/bin/go:/usr/bin/go:ro"

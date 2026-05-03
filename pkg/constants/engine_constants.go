@@ -24,6 +24,8 @@ const (
 	OpenCodeEngine EngineName = "opencode"
 	// CrushEngine is the Crush engine identifier
 	CrushEngine EngineName = "crush"
+	// PiEngine is the Pi engine identifier (experimental)
+	PiEngine EngineName = "pi"
 
 	// DefaultEngine is the default agentic engine used when no engine is explicitly specified.
 	// Currently defaults to CopilotEngine.
@@ -34,7 +36,7 @@ const (
 // Deprecated: Use workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs() for a
 // catalog-derived list. This slice is maintained for backward compatibility and must
 // stay in sync with the built-in engines registered in NewEngineCatalog.
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(OpenCodeEngine), string(CrushEngine)}
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(OpenCodeEngine), string(CrushEngine), string(PiEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
@@ -104,6 +106,14 @@ var EngineOptions = []EngineOption{
 		AlternativeSecrets: []string{"ANTHROPIC_API_KEY", "GEMINI_API_KEY"},
 		KeyURL:             "https://github.com/charmbracelet/crush#installation",
 		WhenNeeded:         "Crush engine workflows (default: Copilot routing)",
+	},
+	{
+		Value:       string(PiEngine),
+		Label:       "Pi",
+		Description: "Pi AI coding agent (experimental)",
+		SecretName:  "COPILOT_GITHUB_TOKEN",
+		KeyURL:      "https://github.com/settings/personal-access-tokens/new",
+		WhenNeeded:  "Pi engine workflows",
 	},
 }
 
@@ -207,10 +217,27 @@ const (
 	EnvVarModelAgentCrush = "GH_AW_MODEL_AGENT_CRUSH"
 	// EnvVarModelDetectionCrush configures the default Crush model for detection
 	EnvVarModelDetectionCrush = "GH_AW_MODEL_DETECTION_CRUSH"
+	// EnvVarModelAgentPi configures the default Pi model for agent execution
+	EnvVarModelAgentPi = "GH_AW_MODEL_AGENT_PI"
 
 	// CopilotCLIModelEnvVar is the native environment variable name supported by the Copilot CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	CopilotCLIModelEnvVar = "COPILOT_MODEL"
+
+	// COPILOT_PROVIDER_* environment variables activate Bring Your Own Key (BYOK) mode,
+	// routing Copilot CLI requests to an external LLM provider instead of GitHub's routing.
+	//
+	// CopilotProviderBaseURL (REQUIRED for BYOK) is the base URL of the external provider.
+	// Setting this variable activates BYOK mode. Example: https://api.openai.com/v1
+	CopilotProviderBaseURL = "COPILOT_PROVIDER_BASE_URL"
+
+	// CopilotProviderAPIKey (OPTIONAL) is the API key for authenticating to the external provider.
+	// Required for cloud APIs (e.g., OpenAI, Anthropic). Not needed for local providers (Ollama, vLLM).
+	CopilotProviderAPIKey = "COPILOT_PROVIDER_API_KEY"
+
+	// CopilotProviderBearerToken (OPTIONAL) is an alternative to CopilotProviderAPIKey.
+	// Sent as a Bearer token in the Authorization header. Takes precedence over COPILOT_PROVIDER_API_KEY.
+	CopilotProviderBearerToken = "COPILOT_PROVIDER_BEARER_TOKEN"
 
 	// CopilotCLIIntegrationIDEnvVar is the native environment variable name supported by the Copilot CLI
 	// for identifying the calling integration. This tells the Copilot CLI that it is being invoked
@@ -245,6 +272,10 @@ const (
 	// OpenCodeCLIModelEnvVar is the native environment variable name for OpenCode model selection.
 	// OpenCode uses provider/model format (e.g., "anthropic/claude-sonnet-4-20250514").
 	OpenCodeCLIModelEnvVar = "OPENCODE_MODEL"
+
+	// PiCLIModelEnvVar is the native environment variable name for Pi model selection.
+	// Setting PI_MODEL is equivalent to passing --model to the Pi CLI.
+	PiCLIModelEnvVar = "PI_MODEL"
 
 	// Common environment variable names used across all engines
 

@@ -105,6 +105,64 @@ type PermissionsConfig struct {
 	GitHubAppPermissionsConfig
 }
 
+// GuardrailMetric defines a metric threshold that must not degrade during an experiment.
+// If the threshold is violated the experiment should be aborted regardless of primary metric outcome.
+type GuardrailMetric struct {
+	// Name is the metric to guard (e.g. "success_rate", "empty_output_rate").
+	Name string `json:"name"`
+
+	// Threshold is a comparison expression (e.g. ">=0.95", "==0").
+	Threshold string `json:"threshold"`
+}
+
+// ExperimentConfig represents the rich metadata for a single A/B experiment.
+// The bare-array form (e.g. prompt_style: [concise, verbose]) is normalized to this
+// struct with only the Variants field populated.
+type ExperimentConfig struct {
+	// Variants is the ordered list of variant strings for this experiment (required, ≥ 2).
+	Variants []string `json:"variants"`
+
+	// Description is a human-readable explanation of what the experiment tests.
+	Description string `json:"description,omitempty"`
+
+	// Hypothesis states the null and alternative hypotheses for the experiment.
+	// e.g. "H0: no change in effective_tokens. H1: concise reduces tokens by >=15%"
+	Hypothesis string `json:"hypothesis,omitempty"`
+
+	// Metric names the primary metric that should be observed (e.g. "effective_tokens").
+	Metric string `json:"metric,omitempty"`
+
+	// SecondaryMetrics lists additional metrics to track alongside the primary metric.
+	SecondaryMetrics []string `json:"secondary_metrics,omitempty"`
+
+	// GuardrailMetrics defines thresholds that must not degrade during the experiment.
+	// If any guardrail is violated the experiment should be aborted.
+	GuardrailMetrics []GuardrailMetric `json:"guardrail_metrics,omitempty"`
+
+	// MinSamples is the minimum number of runs required per variant before
+	// statistical analysis is considered reliable.
+	MinSamples int `json:"min_samples,omitempty"`
+
+	// Owner tags the team or person responsible for this experiment (e.g. "@team-agents").
+	Owner string `json:"owner,omitempty"`
+
+	// Weight holds an optional per-variant probability weight.  When provided its length
+	// must equal the length of Variants.  Values are relative (they need not sum to 100).
+	Weight []int `json:"weight,omitempty"`
+
+	// Issue is an optional GitHub issue number that tracks this experiment.
+	Issue int `json:"issue,omitempty"`
+
+	// StartDate is an optional ISO-8601 date (YYYY-MM-DD) before which the experiment
+	// is not active.  When today is before this date the control variant (first variant)
+	// is used.
+	StartDate string `json:"start_date,omitempty"`
+
+	// EndDate is an optional ISO-8601 date (YYYY-MM-DD) after which the experiment is
+	// no longer active.  When today is after this date the control variant is used.
+	EndDate string `json:"end_date,omitempty"`
+}
+
 // RateLimitConfig represents rate limiting configuration for workflow triggers
 // Limits how many times a user can trigger a workflow within a time window
 type RateLimitConfig struct {
@@ -206,6 +264,16 @@ type FrontmatterConfig struct {
 	Metadata      map[string]string    `json:"metadata,omitempty"` // Custom metadata key-value pairs
 	SecretMasking *SecretMaskingConfig `json:"secret-masking,omitempty"`
 	Observability *ObservabilityConfig `json:"observability,omitempty"`
+
+	// A/B testing experiments: maps experiment name to either a bare variant array or an
+	// object-form ExperimentConfig.  Typed as map[string]any so JSON unmarshaling succeeds
+	// for both the legacy bare-array form and the new object form; use ExperimentConfigs for
+	// typed access.  See ExperimentConfig and extractExperimentConfigsFromFrontmatter.
+	Experiments map[string]any `json:"experiments,omitempty"`
+
+	// ExperimentConfigs holds the fully-typed experiment metadata, populated alongside
+	// Experiments during frontmatter parsing.  Keys match those of Experiments.
+	ExperimentConfigs map[string]*ExperimentConfig `json:"-"`
 
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`

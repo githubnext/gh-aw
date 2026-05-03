@@ -199,22 +199,83 @@ function isSafeExpression(expr) {
     }
   }
 
-  // Check for OR expressions with literals (e.g., "inputs.repository || 'default'")
-  // Pattern: safe_expression || 'literal' or safe_expression || "literal" or safe_expression || `literal`
-  // Also supports numbers and booleans as literals
+  // Strict string-literal regex: the body must not contain an unescaped copy of the
+  // opening quote character.  This prevents compound expressions like
+  // `'a' || secrets.TOKEN || 'b'` from being misclassified as a string literal because
+  // they happen to start and end with a quote.
+  // Pattern: ^(quote)(non-quote-non-backslash | escaped-char)*(same-quote)$
+  //   [^'\\] = any char except the single-quote and backslash
+  //   \\.    = backslash followed by any character (escape sequence)
+  const STRING_LITERAL_RE = /^'(?:[^'\\]|\\.)*'$|^"(?:[^"\\]|\\.)*"$|^`(?:[^`\\]|\\.)*`$/;
+
+  /**
+   * Returns true when `expr` is a standalone literal value (string, number, or boolean).
+   * Used to refuse literal operands inside && / || compound expressions — a literal in a
+   * conjunction or disjunction is semantically incomplete and may hide injection vectors.
+   * @param {string} expr - The trimmed expression to test
+   * @returns {boolean}
+   */
+  const isLiteralValue = expr => {
+    const t = expr.trim();
+    if (STRING_LITERAL_RE.test(t)) return true;
+    if (/^-?\d+(\.\d+)?$/.test(t)) return true;
+    if (t === "true" || t === "false") return true;
+    return false;
+  };
+
+  // Allow literal values (string, number, boolean) as *standalone* safe expressions only.
+  // A literal is only valid when it is the entire expression, not as a sub-expression inside
+  // && or ||.  The checks below enforce this constraint by refusing literal operands there.
+  const isStringLiteralStandalone = STRING_LITERAL_RE.test(trimmed);
+  if (isStringLiteralStandalone) {
+    const contentMatch = trimmed.match(/^(['"`])(.+)\1$/);
+    if (contentMatch) {
+      const content = contentMatch[2];
+      // Reject nested expressions
+      if (content.includes("${{") || content.includes("}}")) {
+        return false;
+      }
+      // Reject escape sequences that could hide keywords
+      if (/\\[xu][\da-fA-F]/.test(content) || /\\[0-7]{1,3}/.test(content)) {
+        return false;
+      }
+      // Reject zero-width characters
+      if (/[\u200B-\u200D\uFEFF]/.test(content)) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (/^-?\d+(\.\d+)?$/.test(trimmed) || trimmed === "true" || trimmed === "false") {
+    return true;
+  }
+
+  // Check for OR expressions (e.g., "inputs.repository || 'default'").
+  // The RIGHT side may be a literal (fallback default), but the LEFT side must not be a
+  // literal — a literal on the left is always truthy and makes the right side dead code.
+  // Important: once an OR match is found the decision is final — do NOT fall through to
+  // the AND/comparison checks below, because doing so would allow a partially-validated
+  // OR expression like "github.actor == 'x' || secrets.TOKEN" to pass via the comparison
+  // path even though the right side is unsafe.
   const orMatch = trimmed.match(/^(.+?)\s*\|\|\s*(.+)$/);
   if (orMatch) {
     const leftExpr = orMatch[1].trim();
     const rightExpr = orMatch[2].trim();
 
-    // Check if left side is safe
-    const leftIsSafe = isSafeExpression(leftExpr);
-    if (!leftIsSafe) {
+    // Refuse a literal on the left side of a disjunction — semantically always-true
+    // and a potential source of confusion or injection vectors.
+    if (isLiteralValue(leftExpr)) {
       return false;
     }
 
-    // Check if right side is a literal string (single, double, or backtick quotes)
-    const isStringLiteral = /^(['"`]).*\1$/.test(rightExpr);
+    // Check if left side is safe
+    if (!isSafeExpression(leftExpr)) {
+      return false;
+    }
+
+    // Check if right side is a literal string (single, double, or backtick quotes).
+    // Use the same strict regex that requires no unescaped matching quote in the body.
+    const isStringLiteral = STRING_LITERAL_RE.test(rightExpr);
     if (isStringLiteral) {
       // Validate string literal content for security
       const contentMatch = rightExpr.match(/^(['"`])(.+)\1$/);
@@ -248,10 +309,48 @@ function isSafeExpression(expr) {
       return true;
     }
 
-    // If right side is also a safe expression (e.g., secrets.FOO || secrets.BAR)
+    // If right side is also a safe expression (e.g., inputs.repo || github.repository)
     if (isSafeExpression(rightExpr)) {
       return true;
     }
+
+    // Right side is neither a safe literal nor a safe expression — reject.
+    return false;
+  }
+
+  // Check for AND expressions (e.g., "github.actor && github.repository").
+  // Both sides must be independently safe property expressions — literal operands are refused
+  // because a literal in a conjunction is semantically incomplete (always truthy/falsy constant)
+  // and could hide injection vectors.  Operator precedence means && binds tighter than ||, so
+  // this check runs after the OR check above.
+  // Important: once an AND match is found the decision is final — do NOT fall through to
+  // the comparison check, which could otherwise allow "github.actor == 'x' && secrets.TOKEN"
+  // to pass because the comparison extracts only "github.actor" as safe.
+  const andMatch = trimmed.match(/^(.+?)\s*&&\s*(.+)$/);
+  if (andMatch) {
+    const leftExpr = andMatch[1].trim();
+    const rightExpr = andMatch[2].trim();
+    // Refuse literal sub-expressions in a conjunction
+    if (isLiteralValue(leftExpr) || isLiteralValue(rightExpr)) {
+      return false;
+    }
+    return isSafeExpression(leftExpr) && isSafeExpression(rightExpr);
+  }
+
+  // Check for simple comparison expressions (e.g., "github.event.inputs.enforce_all == 'true'").
+  // This check only runs for expressions that have no top-level || or && operators (since those
+  // cases are fully handled above), preventing a partially-validated compound expression from
+  // sneaking through via the comparison path.
+  // Extract each property access on the left side of a comparison operator and verify it is in
+  // the allowed list.  This mirrors the Go comparisonExtractionRegex logic.
+  const compExtractRegex = /([a-zA-Z_][a-zA-Z0-9_.]*)\s*(?:==|!=|<=?|>=?)\s*/g;
+  const comparisonProps = [];
+  let compMatch;
+  while ((compMatch = compExtractRegex.exec(trimmed)) !== null) {
+    comparisonProps.push(compMatch[1].trim());
+  }
+  if (comparisonProps.length > 0 && comparisonProps.every(prop => isSafeExpression(prop))) {
+    return true;
   }
 
   return false;

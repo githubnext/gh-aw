@@ -12,6 +12,7 @@ engine: copilot
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [issues, pull_requests, repos]
 safe-outputs:
   assign-to-user:
@@ -45,4 +46,4 @@ If you find a match:
 
 If no unassigned issue exists, exit successfully without taking action.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

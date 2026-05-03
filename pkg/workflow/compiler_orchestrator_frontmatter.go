@@ -146,21 +146,46 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	}, nil
 }
 
-// copyFrontmatterWithoutInternalMarkers creates a deep copy of frontmatter without internal marker fields
-// This is used for schema validation while preserving markers in the original for YAML generation
+// copyFrontmatterWithoutInternalMarkers creates a copy of frontmatter without internal marker fields.
+// This is used for schema validation while preserving markers in the original for YAML generation.
+// As an optimization, it checks whether any internal markers are present before allocating a copy.
+// If no markers exist (the common case for most workflows), the original map is returned as-is.
 func (c *Compiler) copyFrontmatterWithoutInternalMarkers(frontmatter map[string]any) map[string]any {
-	// Create a shallow copy of the top level
-	copy := make(map[string]any)
+	// Fast path: check if any internal markers are present before allocating a copy.
+	// Markers may appear in on.issues, on.pull_request, on.discussion, and on.issue_comment sub-maps.
+	hasMarkers := false
+	if onValue, hasOn := frontmatter["on"]; hasOn {
+		if onMap, ok := onValue.(map[string]any); ok {
+			for _, eventKey := range []string{"issues", "pull_request", "discussion", "issue_comment"} {
+				if sectionValue, exists := onMap[eventKey]; exists {
+					if sectionMap, ok := sectionValue.(map[string]any); ok {
+						if _, hasMarker := sectionMap["__gh_aw_native_label_filter__"]; hasMarker {
+							hasMarkers = true
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// If no markers found, return the original map directly (no copy needed).
+	if !hasMarkers {
+		return frontmatter
+	}
+
+	// Markers exist: build a copy without them.
+	copy := make(map[string]any, len(frontmatter))
 	for k, v := range frontmatter {
 		if k == "on" {
 			// Special handling for "on" field - need to deep copy and remove markers
 			if onMap, ok := v.(map[string]any); ok {
-				onCopy := make(map[string]any)
+				onCopy := make(map[string]any, len(onMap))
 				for onKey, onValue := range onMap {
-					if onKey == "issues" || onKey == "pull_request" || onKey == "discussion" {
+					if onKey == "issues" || onKey == "pull_request" || onKey == "discussion" || onKey == "issue_comment" {
 						// Deep copy the section and remove marker
 						if sectionMap, ok := onValue.(map[string]any); ok {
-							sectionCopy := make(map[string]any)
+							sectionCopy := make(map[string]any, len(sectionMap))
 							for sectionKey, sectionValue := range sectionMap {
 								if sectionKey != "__gh_aw_native_label_filter__" {
 									sectionCopy[sectionKey] = sectionValue

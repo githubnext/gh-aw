@@ -10,6 +10,18 @@ import (
 
 var safeOutputsMaxValidationLog = newValidationLogger("safe_outputs_max")
 
+// sortedSafeOutputMaxFieldNames is the pre-sorted list of safeOutputFieldMapping keys used
+// by validateSafeOutputsMax for deterministic error reporting. Pre-computing this slice at
+// init time avoids a make+sort allocation on every validateSafeOutputsMax call.
+var sortedSafeOutputMaxFieldNames = func() []string {
+	names := make([]string, 0, len(safeOutputFieldMapping))
+	for fieldName := range safeOutputFieldMapping {
+		names = append(names, fieldName)
+	}
+	sort.Strings(names)
+	return names
+}()
+
 // isInvalidMaxValue returns true if n is not a valid max field value.
 // Valid values are positive integers (n > 0) or -1 (unlimited).
 // Invalid values are 0 and negative integers except -1.
@@ -38,14 +50,9 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 	val := reflect.ValueOf(config).Elem()
 
 	// Iterate over sorted field names for deterministic error reporting.
-	sortedFieldNames := make([]string, 0, len(safeOutputFieldMapping))
-	for fieldName := range safeOutputFieldMapping {
-		sortedFieldNames = append(sortedFieldNames, fieldName)
-	}
-	sort.Strings(sortedFieldNames)
-
-	// Validate max on all named safe output fields that embed BaseSafeOutputConfig
-	for _, fieldName := range sortedFieldNames {
+	// sortedSafeOutputMaxFieldNames is pre-computed at init time to avoid a
+	// make+sort allocation on every call (performance-critical hot path).
+	for _, fieldName := range sortedSafeOutputMaxFieldNames {
 		toolName := safeOutputFieldMapping[fieldName]
 		field := val.FieldByName(fieldName)
 		if !field.IsValid() || field.IsNil() {

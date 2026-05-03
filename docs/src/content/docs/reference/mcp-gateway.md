@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.13.0  
+**Version**: 1.14.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -36,7 +36,8 @@ This document is governed by the GitHub Agentic Workflows project specifications
 7. [Authentication](#7-authentication)
 8. [Health Monitoring](#8-health-monitoring)
 9. [Error Handling](#9-error-handling)
-10. [Compliance Testing](#10-compliance-testing)
+10. [Guard Policy](#10-guard-policy)
+11. [Compliance Testing](#11-compliance-testing)
 
 ---
 
@@ -251,7 +252,8 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `payloadSizeThreshold` | integer | No | Size threshold in bytes for storing payloads to disk (default: 524288 = 512KB) |
 | `trustedBots` | array[string] | No | Additional GitHub bot identity strings (e.g., `github-actions[bot]`) passed to the gateway and merged with its built-in trusted identity list. This field is additive — it extends the internal list but cannot remove built-in entries. |
 | `keepaliveInterval` | integer | No | Keepalive ping interval in seconds for HTTP MCP backends. Prevents session expiry during long-running tasks. Use `-1` to disable, `0` or unset for gateway default (1500s = 25 min), or a positive integer for a custom interval. |
-| `opentelemetry` | object | No | OpenTelemetry configuration for emitting distributed tracing events for MCP calls. See Section 4.1.3.6 for details. |
+| `sessionTimeout` | string | No | Session timeout for MCP gateway sessions as a Go duration string (e.g. `"30m"`, `"4h"`, `"24h"`). Empty or omitted uses the gateway default (6h). Must be at least 5m when set by the workflow compiler (no upper bound; infrastructure operators may override via `MCP_GATEWAY_SESSION_TIMEOUT` env var). |
+| `opentelemetry` | object | No | OpenTelemetry configuration for emitting distributed tracing events for MCP calls. See Section 4.1.3.7 for details. |
 
 #### 4.1.3.1 Payload Directory Path Validation
 
@@ -449,7 +451,47 @@ sandbox:
 - A value of `-1` disables keepalive pings entirely
 - Any positive integer sets the keepalive interval in seconds
 
-#### 4.1.3.6 OpenTelemetry Configuration
+#### 4.1.3.6 Session Timeout Configuration
+
+The optional `sessionTimeout` field in the gateway configuration controls how long stateful MCP sessions survive in both unified and routed modes.
+
+| Value | Behavior |
+|-------|----------|
+| Unset / `""` | Gateway default: 6 hours (or `MCP_GATEWAY_SESSION_TIMEOUT` env var) |
+| Go duration string | Custom session lifetime (e.g. `"30m"`, `"4h"`, `"6h"`, `"12h"`) |
+
+**Precedence**: `sessionTimeout` in the stdin config JSON **>** `MCP_GATEWAY_SESSION_TIMEOUT` environment variable **>** gateway built-in default (6h).
+
+**Configuration example (JSON)**:
+
+```json
+{
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "${MCP_GATEWAY_API_KEY}",
+    "sessionTimeout": "4h"
+  }
+}
+```
+
+**Workflow frontmatter** (via `engine.mcp.session-timeout`):
+
+```yaml
+engine:
+  id: copilot
+  mcp:
+    session-timeout: 4h   # 4-hour sessions for long-running migrations
+```
+
+**Compliance rules**:
+
+- `sessionTimeout` MUST be a valid Go duration string when present (e.g. `"30m"`, `"4h"`)
+- The workflow compiler enforces a minimum of `5m` for author-specified values (no upper bound)
+- Infrastructure operators may set `MCP_GATEWAY_SESSION_TIMEOUT` on the gateway container to override the default for all workflows; a per-workflow `sessionTimeout` in the stdin config takes precedence
+- When unset, the gateway uses its built-in default (6h)
+
+#### 4.1.3.7 OpenTelemetry Configuration
 
 The optional `opentelemetry` object in the gateway configuration enables the gateway to emit distributed tracing events for MCP calls using the [OpenTelemetry](https://opentelemetry.io/) standard. When configured, the gateway creates spans for each MCP tool invocation and exports them to the designated collector endpoint.
 
@@ -511,7 +553,7 @@ The gateway MUST NOT fail to start if the OpenTelemetry collector endpoint is un
 - Export failures MUST NOT propagate errors to MCP clients
 - `headers` MUST be a string when provided; object form is not supported
 
-**Compliance Test**: T-OTEL-001 through T-OTEL-010 (Section 10.1.10)
+**Compliance Test**: T-OTEL-001 through T-OTEL-010 (Section 11.1.10)
 
 #### 4.1.3a Top-Level Configuration Fields
 
@@ -1342,13 +1384,163 @@ The gateway SHOULD:
 
 ---
 
-## 10. Compliance Testing
+## 10. Guard Policy
 
-### 10.1 Test Suite Requirements
+### 10.1 Overview
+
+The guard policy controls which GitHub content the gateway exposes to the agent based on **integrity** — a trust level derived from the content author's association with the repository and the content's merge status. Guard policy configuration is specific to the GitHub MCP server and is passed to the gateway alongside the standard server configuration.
+
+This section specifies the guard policy fields supported by the gateway, their semantics, and the algorithm used to compute effective integrity for each item. For user-facing configuration documentation, see the [GitHub Integrity Filtering Reference](/gh-aw/reference/integrity/).
+
+### 10.2 Integrity Levels
+
+The gateway recognizes the following integrity levels, ordered from highest to lowest:
+
+```text
+merged > approved > unapproved > none > blocked
+```
+
+| Level | Meaning |
+|-------|---------|
+| `merged` | Pull requests merged into the target branch; commits reachable from the default branch |
+| `approved` | Content from `OWNER`, `MEMBER`, or `COLLABORATOR`; non-fork PRs on public repos; all items in private repos; recognized platform bots; users in `trusted-users` |
+| `unapproved` | Content from `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR` |
+| `none` | All other content, including `FIRST_TIMER` and users with no association |
+| `blocked` | Content from users in `blocked-users` — always denied, cannot be promoted |
+
+`blocked` is not a configurable `min-integrity` value. It is assigned automatically to items from users in `blocked-users` and is always denied regardless of the configured threshold.
+
+### 10.3 Guard Policy Fields
+
+Guard policy fields are passed to the gateway as part of the GitHub MCP server configuration under a dedicated guard policy object. The following fields are supported:
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `min-integrity` | string | Conditional | `approved` (public repos) | Minimum integrity threshold: `merged`, `approved`, `unapproved`, or `none`. Required when any other guard policy field is used. |
+| `allowed-repos` | string or array | No | `"all"` | Repository scope: `"all"`, `"public"`, or array of patterns (e.g., `["myorg/*"]`) |
+| `blocked-users` | array or expression | No | `[]` | GitHub usernames unconditionally denied, regardless of any other policy |
+| `trusted-users` | array or expression | No | `[]` | GitHub usernames elevated to `approved` integrity regardless of their author association |
+| `approval-labels` | array or expression | No | `[]` | GitHub label names that promote items to `approved` integrity |
+| `refusal-labels` | array or expression | No | `[]` | GitHub label names that downgrade items to `none` integrity, overriding any promotion |
+
+### 10.4 Effective Integrity Computation
+
+The gateway MUST compute each item's effective integrity in the following order:
+
+1. **Base integrity**: Derived from GitHub metadata (author association, merge status, repository visibility).
+2. **`blocked-users` check**: If the content author is listed in `blocked-users`, effective integrity → `blocked` (unconditionally denied; skip remaining steps).
+3. **`refusal-labels` check**: If the item carries any label present in `refusal-labels`, effective integrity → `none` (overrides any promotion from steps 4–5).
+4. **`trusted-users` check**: If the content author is listed in `trusted-users`, effective integrity → `max(base, approved)`.
+5. **`approval-labels` check**: If the item carries any label present in `approval-labels`, effective integrity → `max(base, approved)`.
+6. **Default**: effective integrity → base.
+
+The `min-integrity` threshold check is applied after step 6. Items whose effective integrity is below the threshold MUST be removed before the response is returned to the agent.
+
+**Key constraints**:
+
+- `blocked-users` MUST take precedence over all other policy fields. Blocked items MUST be denied even if they carry an `approval-labels` label or the author is in `trusted-users`.
+- `refusal-labels` MUST override promotion from `trusted-users` and `approval-labels`. An item bearing a refusal label and an approval label simultaneously MUST have effective integrity `none`.
+- `trusted-users` and `approval-labels` are **promotion only** — they MUST NOT lower integrity. `max(base, approved)` ensures existing higher integrity (`merged`) is preserved.
+- `refusal-labels` is **demotion only** — it sets integrity to `none` and MUST NOT affect `blocked` items.
+
+### 10.5 `approval-labels` Field
+
+`approval-labels` lists GitHub label names that promote items bearing any of those labels to `approved` integrity.
+
+**Semantics**:
+
+- When an item carries a label present in `approval-labels`, its effective integrity is set to `max(base, approved)`.
+- Promotion does not lower integrity: an item already at `merged` remains at `merged`.
+- `blocked-users` always takes precedence: a blocked user's items remain blocked even if labeled.
+- `refusal-labels` overrides `approval-labels`: an item with both an approval label and a refusal label has effective integrity `none`.
+
+**Use case**: Human-review gate workflows where a trusted reviewer adds a label to signal that an external contribution is safe for the agent.
+
+**Configuration Example**:
+
+```yaml
+tools:
+  github:
+    min-integrity: approved
+    approval-labels:
+      - "human-reviewed"
+      - "safe-for-agent"
+```
+
+**Compliance Test**: T-GP-003 — Approval label promotion
+
+### 10.6 `refusal-labels` Field
+
+`refusal-labels` is the inverse of `approval-labels`. Items bearing any listed GitHub label have their effective integrity downgraded to `none`, regardless of the author's association or any promotion from `trusted-users` or `approval-labels`.
+
+**Semantics**:
+
+- When an item carries a label present in `refusal-labels`, its effective integrity MUST be set to `none`.
+- `refusal-labels` overrides promotion: if both a refusal label and an approval label are present on the same item, the effective integrity MUST be `none`.
+- `refusal-labels` overrides `trusted-users`: if an author is in `trusted-users` but the item has a refusal label, the effective integrity MUST be `none`.
+- `blocked-users` still takes precedence: a blocked user's items remain `blocked` and are not affected by `refusal-labels`.
+- `refusal-labels` does not lower integrity below `none`; items from blocked users are not affected.
+
+**Use case**: Suppressing specific items from the agent — for example, issues flagged for security review or pull requests pending a manual compliance check — even when the workflow's `min-integrity` would otherwise allow them.
+
+**Configuration Example**:
+
+```yaml
+tools:
+  github:
+    min-integrity: approved
+    refusal-labels:
+      - "needs-security-review"
+      - "do-not-automate"
+```
+
+**Combined Example** (approval and refusal labels together):
+
+```yaml
+tools:
+  github:
+    min-integrity: approved
+    approval-labels:
+      - "human-reviewed"
+    refusal-labels:
+      - "needs-security-review"
+```
+
+In this configuration:
+- Items labeled `human-reviewed` (without `needs-security-review`) are promoted to `approved`.
+- Items labeled `needs-security-review` are downgraded to `none`, even if also labeled `human-reviewed`.
+
+**Requirements**:
+
+- The gateway MUST apply `refusal-labels` checks before `trusted-users` and `approval-labels` checks in the effective integrity computation.
+- The gateway MUST set effective integrity to `none` for any item bearing a label present in `refusal-labels`.
+- The `refusal-labels` value MUST support both a literal array of strings and a GitHub Actions expression resolving to a comma- or newline-separated list.
+- The gateway MUST treat an empty `refusal-labels` list as a no-op (no items are downgraded).
+
+**Compliance Tests**: T-GP-004 through T-GP-008
+
+### 10.7 Centralized Management via GitHub Variables
+
+Each guard policy list field (`blocked-users`, `trusted-users`, `approval-labels`, `refusal-labels`) MAY be extended centrally using GitHub repository or organization variables. The runtime MUST union the per-workflow values with the corresponding variable at runtime.
+
+| Workflow field | GitHub variable |
+|----------------|----------------|
+| `blocked-users` | `GH_AW_GITHUB_BLOCKED_USERS` |
+| `trusted-users` | `GH_AW_GITHUB_TRUSTED_USERS` |
+| `approval-labels` | `GH_AW_GITHUB_APPROVAL_LABELS` |
+| `refusal-labels` | `GH_AW_GITHUB_REFUSAL_LABELS` |
+
+Variables are split on commas and newlines, trimmed of whitespace, and deduplicated. The union of workflow-declared values and variable values forms the effective list used at runtime.
+
+---
+
+## 11. Compliance Testing
+
+### 11.1 Test Suite Requirements
 
 A conforming implementation MUST pass the following test categories:
 
-#### 10.1.1 Configuration Tests
+#### 11.1.1 Configuration Tests
 
 - **T-CFG-001**: Valid stdio server configuration
 - **T-CFG-002**: Valid HTTP server configuration
@@ -1370,7 +1562,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-CFG-018**: Multiple mounts for single stdio server
 - **T-CFG-019**: Reject mounts for HTTP servers (stdio only)
 
-#### 10.1.2 Protocol Translation Tests
+#### 11.1.2 Protocol Translation Tests
 
 - **T-PTL-001**: Stdio request/response cycle
 - **T-PTL-002**: HTTP passthrough
@@ -1381,7 +1573,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-PTL-007**: HTTP connection failure error response
 - **T-PTL-008**: HTTP connection failure is not silently ignored
 
-#### 10.1.3 Isolation Tests
+#### 11.1.3 Isolation Tests
 
 - **T-ISO-001**: Container isolation verification
 - **T-ISO-002**: Environment isolation verification
@@ -1392,7 +1584,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-ISO-007**: Volume mount access mode enforcement (ro vs rw)
 - **T-ISO-008**: Volume mount path independence between containers
 
-#### 10.1.4 Authentication Tests
+#### 11.1.4 Authentication Tests
 
 - **T-AUTH-001**: Valid token acceptance
 - **T-AUTH-002**: Invalid token rejection
@@ -1401,7 +1593,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-AUTH-005**: Token rotation support
 - **T-AUTH-006**: Trusted bot identity configuration — `trustedBots` entries are present in the generated gateway config and merged with the gateway's built-in list
 
-#### 10.1.5 Timeout Tests
+#### 11.1.5 Timeout Tests
 
 - **T-TMO-001**: Startup timeout enforcement
 - **T-TMO-002**: Tool timeout enforcement
@@ -1409,7 +1601,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-TMO-004**: Partial response timeout
 - **T-TMO-005**: Concurrent timeout handling
 
-#### 10.1.6 Health Monitoring Tests
+#### 11.1.6 Health Monitoring Tests
 
 - **T-HLT-001**: Health endpoint availability
 - **T-HLT-002**: Liveness probe accuracy
@@ -1421,7 +1613,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-HLT-008**: specVersion uses semantic versioning format
 - **T-HLT-009**: gatewayVersion uses semantic versioning format
 
-#### 10.1.7 Configuration Output Tests
+#### 11.1.7 Configuration Output Tests
 
 - **T-OUT-001**: Gateway outputs valid JSON configuration to stdout
 - **T-OUT-002**: Output configuration includes all configured servers
@@ -1431,7 +1623,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-OUT-006**: Authorization header is present when authentication is configured
 - **T-OUT-007**: Output configuration is complete before health endpoint becomes available
 
-#### 10.1.8 Error Handling Tests
+#### 11.1.8 Error Handling Tests
 
 - **T-ERR-001**: Startup failure reporting
 - **T-ERR-002**: Runtime error handling
@@ -1439,7 +1631,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-ERR-004**: Server crash recovery
 - **T-ERR-005**: Error message quality
 
-#### 10.1.9 Gateway Lifecycle Tests
+#### 11.1.9 Gateway Lifecycle Tests
 
 - **T-LIFE-001**: Close endpoint authentication
 - **T-LIFE-002**: Close endpoint success response
@@ -1449,7 +1641,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-LIFE-006**: In-flight request handling during shutdown
 - **T-LIFE-007**: New requests rejected after close initiated
 
-#### 10.1.10 OpenTelemetry Tests
+#### 11.1.10 OpenTelemetry Tests
 
 - **T-OTEL-001**: Gateway starts successfully when `opentelemetry` is omitted
 - **T-OTEL-002**: Gateway starts successfully when `opentelemetry` is configured with a valid endpoint
@@ -1462,7 +1654,20 @@ A conforming implementation MUST pass the following test categories:
 - **T-OTEL-009**: Export failure does not affect MCP request processing or gateway availability
 - **T-OTEL-010**: `serviceName` is reflected in `service.name` resource attribute of emitted spans
 
-### 10.2 Compliance Checklist
+#### 11.1.11 Guard Policy Tests
+
+- **T-GP-001**: Items from `blocked-users` are denied regardless of `min-integrity` setting
+- **T-GP-002**: Items from `trusted-users` receive effective integrity `approved` when base is lower
+- **T-GP-003**: Items bearing an `approval-labels` label receive effective integrity `approved` when base is lower
+- **T-GP-004**: Items bearing a `refusal-labels` label receive effective integrity `none`
+- **T-GP-005**: `refusal-labels` overrides `approval-labels` — an item with both a refusal label and an approval label has effective integrity `none`
+- **T-GP-006**: `refusal-labels` overrides `trusted-users` — an item from a trusted user with a refusal label has effective integrity `none`
+- **T-GP-007**: `blocked-users` takes precedence over `refusal-labels` — blocked items remain `blocked`
+- **T-GP-008**: Empty `refusal-labels` list results in no items being downgraded
+- **T-GP-009**: `refusal-labels` accepts a GitHub Actions expression (comma- or newline-separated list)
+- **T-GP-010**: `min-integrity: none` allows items at `none` integrity through; items downgraded by `refusal-labels` to `none` are visible when `min-integrity: none`
+
+### 11.2 Compliance Checklist
 
 | Requirement | Test ID | Level | Status |
 |-------------|---------|-------|--------|
@@ -1478,8 +1683,9 @@ A conforming implementation MUST pass the following test categories:
 | Error handling | T-ERR-* | 1 | Required |
 | Gateway lifecycle | T-LIFE-* | 2 | Standard |
 | OpenTelemetry | T-OTEL-* | 3 | Optional |
+| Guard policy | T-GP-* | 2 | Standard |
 
-### 10.3 Test Execution
+### 11.3 Test Execution
 
 Implementations SHOULD provide:
 
@@ -1813,6 +2019,28 @@ Content-Type: application/json
 
 ## Change Log
 
+### Version 1.14.0 (Draft)
+
+- **Added**: Section 10 — Guard Policy
+  - Formal specification of the guard policy mechanism for integrity-based content filtering on the GitHub MCP server
+  - Section 10.1 — Overview: describes the purpose and relationship to the integrity filtering reference
+  - Section 10.2 — Integrity Levels: defines `merged`, `approved`, `unapproved`, `none`, and `blocked` levels
+  - Section 10.3 — Guard Policy Fields: field reference table covering `min-integrity`, `allowed-repos`, `blocked-users`, `trusted-users`, `approval-labels`, and `refusal-labels`
+  - Section 10.4 — Effective Integrity Computation: normative 6-step algorithm with precedence rules
+  - Section 10.5 — `approval-labels` Field: semantics, constraints, and configuration example
+  - Section 10.6 — `refusal-labels` Field: new field; semantics, constraints, combined example, and requirements
+  - Section 10.7 — Centralized Management via GitHub Variables: `GH_AW_GITHUB_REFUSAL_LABELS` variable added
+- **Added**: `refusal-labels` guard policy field (Section 10.6)
+  - The inverse of `approval-labels`: items bearing any listed label have effective integrity downgraded to `none`
+  - Overrides `trusted-users` and `approval-labels` promotion; `blocked-users` still takes precedence
+  - Accepts a literal array or a GitHub Actions expression (comma- or newline-separated list)
+  - Empty list is a no-op
+- **Added**: Compliance test category 11.1.11 — Guard Policy Tests (T-GP-001 through T-GP-010)
+  - T-GP-004 through T-GP-008 specifically cover `refusal-labels` behavior
+- **Updated**: Compliance Checklist (Section 11.2) — added Guard Policy row (T-GP-*, Level 2, Standard)
+- **Renumbered**: Former Section 10 (Compliance Testing) is now Section 11; all subsection references updated accordingly
+- **Added**: `GH_AW_GITHUB_REFUSAL_LABELS` to the centralized management variables table (Section 10.7)
+
 ### Version 1.13.0 (Draft)
 
 - **Breaking**: `headers` field in `opentelemetry` configuration is now exclusively a string; object form is no longer supported (Section 4.1.3.6)
@@ -1851,6 +2079,16 @@ Content-Type: application/json
 - **Added**: OpenTelemetry example configurations (Appendix A.6, A.7)
 - **Added**: Normative references for W3C Trace Context and OTLP
 - **Updated**: JSON Schema with `opentelemetry` property and `opentelemetryConfig` definition in `gatewayConfig`
+
+### Version 1.11.0 (Draft)
+
+- **Added**: `sessionTimeout` field to gateway configuration (Section 4.1.3, 4.1.3.6)
+  - Optional Go duration string for controlling MCP session lifetime (e.g. `"4h"`, `"30m"`)
+  - Precedence: stdin config `sessionTimeout` > `MCP_GATEWAY_SESSION_TIMEOUT` env var > gateway default (6h)
+  - Workflow authors configure via `engine.mcp.session-timeout` in frontmatter; the compiler validates (min 5m, no upper bound) and emits it into the gateway config JSON
+- **Added**: Section 4.1.3.6 — Session Timeout Configuration
+- **Renumbered**: Former Section 4.1.3.6 (OpenTelemetry) to 4.1.3.7
+- **Updated**: JSON Schema with `sessionTimeout` property in `gatewayConfig` definition
 
 ### Version 1.10.0 (Draft)
 

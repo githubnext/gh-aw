@@ -13,6 +13,7 @@ engine: copilot
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     min-integrity: approved
     toolsets:
       - repos
@@ -498,4 +499,4 @@ A successful health report:
 
 Begin the organization health report analysis now. Follow the phases in order, add appropriate delays, and generate a comprehensive report for maintainers.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

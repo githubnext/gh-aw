@@ -12,11 +12,14 @@ import (
 func TestASCIILogoAlignment(t *testing.T) {
 	compiler := NewCompiler()
 
-	// Create a minimal workflow for testing
+	// Create a minimal workflow for testing.
+	// RawMarkdown must be non-empty so generateYAML uses the fast-path hash
+	// computation (which does not require the file to exist on disk).
 	data := &WorkflowData{
 		Name:        "test-workflow",
 		On:          "push",
 		Permissions: "contents: read",
+		RawMarkdown: "# test-workflow",
 	}
 
 	// Generate YAML

@@ -18,6 +18,7 @@ tools:
   agentic-workflows:
   cache-memory: true
   github:
+    mode: gh-proxy
     toolsets: [default, actions]
 safe-outputs:
   create-issue:
@@ -431,4 +432,4 @@ A successful run:
 - ✅ Creates a discussion summarizing all findings
 - ✅ Avoids duplicate issues by checking `known-issues.json`
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

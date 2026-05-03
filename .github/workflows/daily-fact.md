@@ -2,7 +2,7 @@
 description: Posts a daily poetic verse about the gh-aw project to a discussion thread
 on:
   schedule:
-    - cron: "daily around 11:00 on weekdays"  # ~11 AM UTC, weekdays only
+    - cron: "daily around 14:00 on weekdays"  # ~2 PM UTC, weekdays only
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,6 +26,7 @@ network:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets:
       - default
       - discussions
@@ -129,4 +130,4 @@ This ensures tomorrow's verse celebrates something new.
 
 Now, analyze the recent activity and compose one poetic fact to share in discussion #4750.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

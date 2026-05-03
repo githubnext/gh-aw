@@ -38,6 +38,7 @@ Not all features are available across all engines. The table below summarizes pe
 | `tools.web-search` | via MCP | via MCP | ✅ (opt-in) | via MCP | via MCP | via MCP |
 | `engine.agent` (custom agent file) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `engine.api-target` (custom endpoint) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `engine.bare` (disable context loading) | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
 | `engine.harness` (custom harness script) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Tools allowlist | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
 
@@ -46,6 +47,7 @@ Not all features are available across all engines. The table below summarizes pe
 - `max-continuations` enables autopilot mode with multiple consecutive runs (Copilot only).
 - `web-search` for Codex is disabled by default; add `tools: web-search:` to enable it. Other engines use a third-party MCP server — see [Using Web Search](/gh-aw/guides/web-search/).
 - `engine.agent` references a `.github/agents/` file for custom Copilot agent behavior. See [Copilot Custom Configuration](#copilot-custom-configuration).
+- `engine.bare` disables automatic context loading (memory files, custom instructions). See [Bare Mode](#bare-mode-bare) below.
 - `engine.harness` allows replacing the built-in Copilot harness script. See [Custom Harness Script](#custom-harness-script-harness) below.
 
 ## Extended Coding Agent Configuration
@@ -191,6 +193,75 @@ network:
 
 `GITHUB_COPILOT_BASE_URL` is a fallback — if both it and `engine.api-target` are set, `engine.api-target` takes precedence. Crush uses OpenAI-compatible API format; its `model` field uses `provider/model` format (e.g., `openai/gpt-4o`).
 
+### Copilot Bring Your Own Key (BYOK) Mode
+
+The Copilot engine supports routing requests to an external LLM provider instead of GitHub's default routing. This is useful when you want to use a different model or provider (e.g., OpenAI, Anthropic, Azure OpenAI, or a local Ollama/vLLM instance) while still using the Copilot CLI tooling.
+
+Set `COPILOT_PROVIDER_BASE_URL` in `engine.env` to activate BYOK mode. The credential variables `COPILOT_PROVIDER_BASE_URL`, `COPILOT_PROVIDER_API_KEY`, and `COPILOT_PROVIDER_BEARER_TOKEN` are explicitly allowed to carry `${{ secrets.* }}` references in `engine.env` under strict mode — they are not leaked to the agent container. Other `COPILOT_PROVIDER_*` variables hold non-sensitive configuration and can be set as plain strings.
+
+| Variable | Required | Description |
+|---|---|---|
+| `COPILOT_PROVIDER_BASE_URL` | ✅ for BYOK | Base URL of the external provider (e.g. `https://api.openai.com/v1`) |
+| `COPILOT_MODEL` | ✅ for BYOK | Model to use (e.g. `claude-sonnet-4`, `gpt-4o`); required by most providers |
+| `COPILOT_PROVIDER_API_KEY` | Optional | API key for cloud providers (OpenAI, Anthropic, etc.); not needed for local providers |
+| `COPILOT_PROVIDER_BEARER_TOKEN` | Optional | Bearer token alternative to `COPILOT_PROVIDER_API_KEY`; takes precedence when set |
+| `COPILOT_PROVIDER_TYPE` | Optional | Provider format: `openai` (default), `azure`, or `anthropic` |
+| `COPILOT_PROVIDER_WIRE_API` | Optional | Wire API variant: `completions` (default) or `responses` (for GPT-5 series) |
+| `COPILOT_PROVIDER_MODEL_ID` | Optional | Model ID sent on the wire when it differs from `COPILOT_MODEL` (e.g. an Azure deployment name) |
+| `COPILOT_PROVIDER_WIRE_MODEL` | Optional | Alternative to `COPILOT_PROVIDER_MODEL_ID` for overriding the wire model |
+| `COPILOT_PROVIDER_MAX_PROMPT_TOKENS` | Optional | Override the maximum prompt token limit (otherwise resolved from model catalog) |
+| `COPILOT_PROVIDER_MAX_OUTPUT_TOKENS` | Optional | Override the maximum output token limit |
+
+**Example: OpenAI-compatible provider**
+
+```yaml wrap
+engine:
+  id: copilot
+  env:
+    # REQUIRED — activates BYOK mode
+    COPILOT_PROVIDER_BASE_URL: ${{ secrets.PROVIDER_BASE_URL }}
+
+    # REQUIRED — a model must be specified for most external providers
+    COPILOT_MODEL: claude-sonnet-4
+
+    # OPTIONAL — API key for cloud providers; not needed for local providers
+    COPILOT_PROVIDER_API_KEY: ${{ secrets.PROVIDER_API_KEY }}
+
+    # OPTIONAL — set to "anthropic" or "azure" if needed (default: "openai")
+    # COPILOT_PROVIDER_TYPE: anthropic
+
+network:
+  allowed:
+    - defaults
+    - your-provider-domain.example.com
+```
+
+**Example: Anthropic provider**
+
+```yaml wrap
+engine:
+  id: copilot
+  env:
+    COPILOT_PROVIDER_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+    COPILOT_MODEL: claude-sonnet-4
+    COPILOT_PROVIDER_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    COPILOT_PROVIDER_TYPE: anthropic
+```
+
+> [!NOTE]
+> `COPILOT_PROVIDER_BASE_URL`, `COPILOT_PROVIDER_API_KEY`, and `COPILOT_PROVIDER_BEARER_TOKEN` are
+> recognised as engine credentials and are allowed to carry `${{ secrets.* }}` references in
+> `engine.env` without triggering the strict-mode "secrets in env" warning. Other
+> `COPILOT_PROVIDER_*` variables (type, model, token limits) hold non-sensitive configuration and
+> can be set as plain strings. They may also use `${{ secrets.* }}` syntax if you prefer to keep
+> them private, but this is not required.
+
+> [!NOTE]
+> Credentials passed via `COPILOT_PROVIDER_*` variables are kept out of the agent container. Only
+> the dummy API key that activates the Agentic Workflow Firewall (AWF) BYOK detection path is
+> visible to the agent process; the real credential is isolated in the AWF API proxy sidecar.
+> See the [AWF sandbox architecture](/gh-aw/reference/sandbox/) for details.
+
 ### Engine Command-Line Arguments
 
 All engines support custom command-line arguments through the `args` field, injected before the prompt:
@@ -237,6 +308,27 @@ The value must be a bare filename — no directory separators, no `..`, and no s
 | No path traversal | `harness.mjs` | `../harness.cjs` |
 | Must start with `[A-Za-z0-9_]` | `harness.js` | `-harness.cjs` |
 | Must end with `.js`, `.cjs`, or `.mjs` | `wrapper.cjs` | `harness.sh` |
+
+### Bare Mode (`bare`)
+
+Set `engine.bare: true` to disable automatic loading of context and custom instructions by the engine. Use this when the workflow prompt is fully self-contained and you want to prevent the engine from reading memory files, AGENTS.md, or built-in system prompts that would otherwise be loaded automatically.
+
+```yaml wrap
+engine:
+  id: claude
+  bare: true
+```
+
+The underlying mechanism is engine-specific:
+
+| Engine | Effect |
+|--------|--------|
+| Copilot | Passes `--no-custom-instructions` — suppresses `.github/AGENTS.md` and user-level custom instructions |
+| Claude | Passes `--bare` — suppresses CLAUDE.md memory files |
+| Codex | Passes `--no-system-prompt` — suppresses the default system prompt |
+| Gemini | Sets `GEMINI_SYSTEM_MD=/dev/null` — overrides the built-in system prompt with an empty file |
+
+Defaults to `false`.
 
 ### Custom Token Weights (`token-weights`)
 

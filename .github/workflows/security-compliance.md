@@ -33,7 +33,9 @@ safe-outputs:
     group: true
 
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [repos, search, code_security]
   repo-memory:
     branch-name: memory/campaigns
@@ -294,4 +296,4 @@ gh issue list --label "campaign:security-compliance-${{ github.run_id }}" --json
 cat memory/campaigns/security-compliance-${{ github.run_id }}/metrics/$(date +%Y-%m-%d).json
 ```
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -34,19 +34,18 @@ tools:
     - "wc*"
   edit:
   github:
+    mode: gh-proxy
     toolsets: [default, repos, pull_requests]
-
-safe-outputs:
-  create-pull-request:
-    expires: 3d
-    title-prefix: "[rendering-scripts] "
-    labels: [rendering, javascript, automated-fix]
-    reviewers: [copilot]
 
 timeout-minutes: 30
 
 imports:
-  - shared/activation-app.md
+  - uses: shared/daily-pr-base.md
+    with:
+      title-prefix: "[rendering-scripts] "
+      expires: "3d"
+      labels: [rendering, javascript, automated-fix]
+      reviewers: [copilot]
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[rendering-scripts] "
@@ -371,4 +370,4 @@ If you found parser or rendering issues:
 - **Be safe**: Never execute code extracted from workflow logs; only run the rendering scripts against log content
 - **No PR if no issues**: Only create a pull request when concrete rendering failures are found and fixed
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -59,13 +59,34 @@ func (e *CrushEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		return []GitHubActionStep{}
 	}
 
-	npmSteps := BuildStandardNpmEngineInstallSteps(
+	// Use version from engine config if provided, otherwise default to pinned version
+	version := string(constants.DefaultCrushVersion)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		version = workflowData.EngineConfig.Version
+	}
+
+	// Crush requires post-install scripts (native binaries) so --ignore-scripts must
+	// NOT be passed. This is intentionally different from other engine installs.
+	npmSteps := GenerateNpmInstallSteps(
 		"@charmland/crush",
-		string(constants.DefaultCrushVersion),
+		version,
 		"Install Crush CLI",
 		"crush",
-		workflowData,
+		true, // Include Node.js setup
+		true, // Crush requires post-install scripts for native binaries
 	)
+
+	// Run crush --version to verify the installation and force any deferred binary downloads
+	commandName := "crush"
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		commandName = workflowData.EngineConfig.Command
+	}
+	versionStep := GitHubActionStep{
+		"      - name: Verify Crush CLI installation",
+		"        run: " + commandName + " --version",
+	}
+	npmSteps = append(npmSteps, versionStep)
+
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
 
@@ -140,17 +161,26 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		if modelConfigured {
 			model = workflowData.EngineConfig.Model
 		}
-		// The model was validated by validateUniversalLLMConsumerModel before reaching here,
-		// so a malformed model (e.g. leading slash) must never occur. Panic is the correct
-		// response to an internal invariant violation.
-		allowedDomains, err := GetCrushAllowedDomainsWithToolsAndRuntimes(
-			model,
-			workflowData.NetworkPermissions,
-			workflowData.Tools,
-			workflowData.Runtimes,
-		)
-		if err != nil {
-			panic(fmt.Sprintf("BUG: invalid model %q reached domain computation (should have been caught by validation): %v", model, err))
+		// Get allowed domains: prefer the pre-warmed cache on WorkflowData to avoid
+		// re-running the expensive map+sort operation. Note: crush uses model-specific
+		// domains; the cache is populated with the same model during compilation.
+		var allowedDomains string
+		if workflowData.CachedAllowedDomainsComputed {
+			allowedDomains = workflowData.CachedAllowedDomainsStr
+		} else {
+			// The model was validated by validateUniversalLLMConsumerModel before reaching here,
+			// so a malformed model (e.g. leading slash) must never occur. Panic is the correct
+			// response to an internal invariant violation.
+			var err error
+			allowedDomains, err = GetCrushAllowedDomainsWithToolsAndRuntimes(
+				model,
+				workflowData.NetworkPermissions,
+				workflowData.Tools,
+				workflowData.Runtimes,
+			)
+			if err != nil {
+				panic(fmt.Sprintf("BUG: invalid model %q reached domain computation (should have been caught by validation): %v", model, err))
+			}
 		}
 
 		npmPathSetup := GetNpmBinPathSetup()

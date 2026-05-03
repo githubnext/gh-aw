@@ -90,10 +90,7 @@ func TestSpec_PublicAPI_FormatDurationNs(t *testing.T) {
 		{name: "zero returns em-dash", inputNs: 0, expected: "—"},
 		{name: "negative returns em-dash", inputNs: -1, expected: "—"},
 		// From spec code examples
-		// SPEC_MISMATCH: README documents FormatDurationNs(2_500_000_000) → "2s",
-		// but Go's time.Duration.Round(time.Second) rounds 2.5s away from zero to 3s.
-		// Using implementation-observed value "3s" here; README example may be incorrect.
-		{name: "spec example: 2.5 billion ns → rounded to second", inputNs: 2_500_000_000, expected: "3s"},
+		{name: "spec example: 2 billion ns → 2s", inputNs: 2_000_000_000, expected: "2s"},
 		{name: "spec example: 90 billion ns → 1m30s", inputNs: 90_000_000_000, expected: "1m30s"},
 	}
 

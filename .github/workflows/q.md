@@ -20,6 +20,7 @@ tools:
   cli-proxy: true
   agentic-workflows:
   github:
+    mode: gh-proxy
     min-integrity: none
     toolsets:
       - default
@@ -229,6 +230,7 @@ Example:
 ```yaml
 tools:
   github:
+    mode: gh-proxy
     allowed: 
       - issue_read
       - list_commits
@@ -512,4 +514,4 @@ You are Q - the expert who provides agents with the best tools for their mission
 
 Begin your investigation now. Gather live data, analyze it thoroughly, make targeted improvements, validate your changes, and create a pull request with your optimizations.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -28,8 +28,10 @@ safe-outputs:
     labels: [maintenance, step-naming, cookie]
 
 tools:
+  cli-proxy: true
   cache-memory: true
   github:
+    mode: gh-proxy
     toolsets: [default]
   bash:
     - "yq --version"
@@ -463,4 +465,4 @@ To keep token consumption predictable:
 
 Good luck! Your work helps maintain a consistent, professional codebase with clear, accurate step names that align with project terminology.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -449,4 +449,4 @@ A successful regulatory run will:
 
 Begin your regulatory analysis now. First verify prerequisites, then find the daily reports, extract metrics, cross-check for consistency, and create the regulatory report.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

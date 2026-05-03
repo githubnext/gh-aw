@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -64,7 +65,7 @@ func generateInstallCLISteps(actionMode ActionMode, version string, actionTag st
 // the tag-based reference (repo@tag).
 func resolveActionRef(actionRepo, tag string, resolver ActionSHAResolver) string {
 	if resolver != nil && tag != "" && tag != "dev" {
-		sha, err := resolver.ResolveSHA(actionRepo, tag)
+		sha, err := resolver.ResolveSHA(context.Background(), actionRepo, tag)
 		if err != nil {
 			maintenanceLog.Printf("Failed to resolve SHA for %s@%s: %v, falling back to tag reference", actionRepo, tag, err)
 		} else if sha != "" {
@@ -125,8 +126,10 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 	// Determine the runs-on value to use for all maintenance jobs.
 	const defaultRunsOn = "ubuntu-slim"
 	var configuredRunsOn RunsOnValue
+	disableLabelTrigger := true // default: disable label-triggered jobs (opt-in)
 	if repoConfig != nil && repoConfig.Maintenance != nil {
 		configuredRunsOn = repoConfig.Maintenance.RunsOn
+		disableLabelTrigger = !repoConfig.Maintenance.IsLabelTriggerEnabled()
 	}
 	runsOnValue := FormatRunsOn(configuredRunsOn, defaultRunsOn)
 
@@ -176,7 +179,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 	defaultBranch := FetchDefaultBranch(repoSlug)
 
 	// Generate the YAML content for the maintenance workflow
-	content := buildMaintenanceWorkflowYAML(cronSchedule, scheduleDesc, minExpiresDays, runsOnValue, actionMode, version, actionTag, resolver, configuredRunsOn, defaultBranch)
+	content := buildMaintenanceWorkflowYAML(cronSchedule, scheduleDesc, minExpiresDays, runsOnValue, actionMode, version, actionTag, resolver, configuredRunsOn, defaultBranch, disableLabelTrigger)
 
 	// Write the maintenance workflow file
 	maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")

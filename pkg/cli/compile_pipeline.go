@@ -369,7 +369,12 @@ func compileAllFilesInDirectory(
 		return workflowDataList, err
 	}
 
-	// Output results
+	// Output results.
+	// Populate MarkdownFiles so that outputResults can collect per-workflow stats
+	// (e.g. schedule heatmap) even when the caller did not specify explicit files.
+	if config.Stats && len(config.MarkdownFiles) == 0 {
+		config.MarkdownFiles = mdFiles
+	}
 	if err := outputResults(stats, validationResults, config); err != nil {
 		return workflowDataList, err
 	}
@@ -420,30 +425,6 @@ func runPurgeOperations(workflowsDir string, data *purgeTrackingData, verbose bo
 	// Errors from purge operations are logged but don't stop compilation
 	_ = purgeOrphanedLockFiles(workflowsDir, data.expectedLockFiles, verbose)
 	_ = purgeInvalidFiles(workflowsDir, verbose)
-}
-
-// displayScheduleWarnings displays any schedule warnings from the compiler
-func displayScheduleWarnings(compiler *workflow.Compiler, jsonOutput bool) {
-	scheduleWarnings := compiler.GetScheduleWarnings()
-	if len(scheduleWarnings) > 0 && !jsonOutput {
-		for _, warning := range scheduleWarnings {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
-		}
-	}
-}
-
-// displaySafeUpdateWarnings displays any safe update warning prompts accumulated by the
-// compiler.  Each entry is a structured message that instructs the calling agent to:
-//   - Review new secrets/actions for malicious use
-//   - Add a security review note to the pull request description
-func displaySafeUpdateWarnings(compiler *workflow.Compiler, jsonOutput bool) {
-	warnings := compiler.GetSafeUpdateWarnings()
-	if len(warnings) == 0 || jsonOutput {
-		return
-	}
-	for _, w := range warnings {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
-	}
 }
 
 // runPostProcessing runs post-processing for specific files compilation
@@ -533,26 +514,6 @@ func runPostProcessingForDirectory(
 	return nil
 }
 
-// pruneStaleActionCacheEntries removes stale gh-aw-actions entries from the
-// action cache whose version does not match the compiler's current version.
-// This prevents actions-lock.json from accumulating entries for old compiler
-// releases that are no longer referenced by any compiled workflow.
-func pruneStaleActionCacheEntries(compiler *workflow.Compiler, actionCache *workflow.ActionCache) {
-	if actionCache == nil {
-		return
-	}
-
-	// Determine the effective version: actionTag takes precedence when explicitly
-	// set (e.g., via --action-tag for testing against a specific release), otherwise
-	// fall back to the compiler's built-in version from the binary.
-	version := compiler.GetActionTag()
-	if version == "" {
-		version = compiler.GetVersion()
-	}
-
-	actionCache.PruneStaleGHAWEntries(version, compiler.EffectiveActionsRepo())
-}
-
 // outputResults outputs compilation results in the requested format
 func outputResults(
 	stats *CompilationStats,
@@ -566,6 +527,7 @@ func outputResults(
 			statsList = collectWorkflowStatisticsWrapper(config.MarkdownFiles)
 		}
 		displayStatsTable(statsList)
+		displayScheduleCalendar(statsList)
 	}
 
 	// Output JSON if requested

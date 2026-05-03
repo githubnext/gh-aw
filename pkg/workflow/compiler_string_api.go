@@ -135,6 +135,21 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
+	// Validate optional engine.mcp.session-timeout configuration.
+	if err := c.validateEngineMCPSessionTimeout(workflowData); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
+	// Validate optional engine.mcp.tool-timeout configuration.
+	if err := c.validateEngineMCPToolTimeout(workflowData); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
+	// Validate Pi engine requirements (gh-proxy + cli-proxy).
+	if err := c.validatePiEngineRequirements(workflowData); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
 	// Validate GitHub tool configuration
 	if err := validateGitHubToolConfig(workflowData.ParsedTools, workflowData.Name); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)

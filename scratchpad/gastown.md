@@ -826,7 +826,7 @@ safe-outputs:
 
 ## 10. Implementation Recommendations for gh-aw
 
-Based on Gastown's proven patterns, here are recommended enhancements for gh-aw:
+Based on patterns from Gastown, here are recommended enhancements for gh-aw:
 
 ### 10.1 Short-Term Enhancements (Low Complexity)
 
@@ -947,7 +947,7 @@ Based on Gastown's proven patterns, here are recommended enhancements for gh-aw:
 
 ## 12. Conclusion
 
-Gastown provides a mature, battle-tested architecture for multi-agent coordination with persistent state and crash recovery. While gh-aw and Gastown target different use cases (GitHub Actions vs local multi-agent orchestration), understanding Gastown's patterns reveals opportunities for gh-aw evolution:
+Gastown provides a mature architecture with established patterns for multi-agent coordination with persistent state and crash recovery. While gh-aw and Gastown target different use cases (GitHub Actions vs local multi-agent orchestration), understanding Gastown's patterns reveals opportunities for gh-aw evolution:
 
 1. **State Persistence**: Enable workflows to survive crashes and resume from checkpoints
 2. **Multi-Agent Orchestration**: Coordinate multiple concurrent workflows with structured handoffs

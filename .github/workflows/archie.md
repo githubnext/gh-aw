@@ -21,6 +21,7 @@ imports:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets:
       - default
   edit:
@@ -233,4 +234,4 @@ A successful Archie run:
 
 Examine the current context, analyze any linked references, generate your Mermaid diagrams using Serena, validate them, and post your visualization comment!
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

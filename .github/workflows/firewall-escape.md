@@ -42,6 +42,7 @@ safe-outputs:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets:
       - default
       - discussions
@@ -388,4 +389,4 @@ Append your techniques to the log (use `- [x]` for completed techniques):
 
 **Remember: This is authorized security testing. Study the implementation, think creatively, reference prior attempts, and try your absolute best to break out with NEW innovative techniques!**
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

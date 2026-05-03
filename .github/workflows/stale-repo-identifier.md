@@ -37,12 +37,16 @@ network:
     - github
 
 safe-outputs:
+  staged: true
   create-issue:
     expires: 2d
     title-prefix: "[Stale Repository] "
     labels: [stale-repository, automated-analysis, cookie]
     max: 10
     group: true
+  add-comment:
+    max: 5
+  noop:
   upload-artifact:
     max-uploads: 5
     retention-days: 30
@@ -58,7 +62,9 @@ safe-outputs:
     run-failure: "⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}."
 
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     read-only: true
     min-integrity: approved
     toolsets:
@@ -145,7 +151,7 @@ For EACH **PUBLIC** repository in the list, conduct a thorough investigation:
 **CRITICAL**: Before analyzing any repository, verify it is public. Skip all private repositories.
 
 #### 2.1 Repository Overview
-Use the GitHub MCP tools to gather:
+Use `gh repo view <owner>/<repo> --json name,description,repositoryTopics,primaryLanguage,diskUsage,createdAt,updatedAt,defaultBranchRef,isPrivate,isArchived` to gather:
 - Repository name, description, and topics
 - Primary language and size
 - Creation date and last update date
@@ -162,9 +168,9 @@ Analyze commit history:
 - Number of unique contributors in the last year
 - Trend analysis: Is activity declining or has it stopped abruptly?
 
-Use the GitHub MCP `list_commits` tool to get commit history:
-```
-List commits for the repository to analyze recent activity
+Use `gh api repos/<owner>/<repo>/commits?per_page=100&since=<2-years-ago>` to get commit history:
+```bash
+gh api repos/<owner>/<repo>/commits --paginate --jq '.[].commit.author.date'
 ```
 
 #### 2.3 Issue Activity Analysis
@@ -174,9 +180,9 @@ Examine issue activity:
 - Average time to close issues
 - Any open issues that need attention
 
-Use the GitHub MCP `search_issues` or `list_issues` tool:
-```
-Search for recent issues in the repository
+Use `gh issue list --repo <owner>/<repo>` to get issue data:
+```bash
+gh issue list --repo <owner>/<repo> --state all --limit 100 --json number,state,createdAt,closedAt,title
 ```
 
 #### 2.4 Pull Request Activity
@@ -186,9 +192,9 @@ Review pull request patterns:
 - Outstanding open PRs
 - Review activity
 
-Use the GitHub MCP `list_pull_requests` or `search_pull_requests` tool:
-```
-List pull requests to understand merge activity
+Use `gh pr list --repo <owner>/<repo>` to get PR data:
+```bash
+gh pr list --repo <owner>/<repo> --state all --limit 100 --json number,state,mergedAt,createdAt,title
 ```
 
 #### 2.5 Release Activity
@@ -197,9 +203,9 @@ If the repository has releases:
 - Release frequency
 - Version progression
 
-Use the GitHub MCP `list_releases` tool:
-```
-List releases to check deployment activity
+Use `gh release list --repo <owner>/<repo>` to check releases:
+```bash
+gh release list --repo <owner>/<repo> --limit 10 --json tagName,publishedAt,name
 ```
 
 #### 2.6 Repository Health Indicators
@@ -368,4 +374,4 @@ To avoid GitHub API rate limits:
 - Print summary statistics to stdout
 - Be clear and actionable in recommendations
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

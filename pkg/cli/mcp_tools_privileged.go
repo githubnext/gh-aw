@@ -252,6 +252,8 @@ func registerAuditTool(server *mcp.Server, execCmd execCmdFunc, actor string, va
 		RunIDsOrURLs []string `json:"run_ids_or_urls,omitempty" jsonschema:"One or more workflow run IDs or URLs. Single item: detailed audit report. Multiple items: diff mode with first as base (see tool description for accepted formats)."`
 		Artifacts    []string `json:"artifacts,omitempty"        jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
 		MaxTokens    int      `json:"max_tokens,omitempty"       jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
+		Experiment   string   `json:"experiment,omitempty"       jsonschema:"Filter to runs that include this experiment name. When set, runs whose experiment artifact does not contain an assignment for this experiment name are skipped."`
+		Variant      string   `json:"variant,omitempty"          jsonschema:"Filter to runs assigned this specific variant value. Requires experiment to be set."`
 	}
 
 	// Generate schema for audit tool
@@ -286,8 +288,11 @@ When a job URL is provided (single-run mode only):
 - If no step number, finds and extracts the first failing step's output
 - Saves job logs and step-specific logs to the output directory
 
+Use experiment/variant to filter runs by A/B experiment assignment (skips runs
+that do not match). variant requires experiment.
+
 Single-run returns JSON with:
-- overview: Basic run information (run_id, workflow_name, status, conclusion, created_at, started_at, updated_at, duration, event, branch, url, logs_path)
+- overview: Basic run information (run_id, workflow_name, status, conclusion, created_at, started_at, updated_at, duration, event, branch, url, logs_path, experiment)
 - metrics: Execution metrics (token_usage, estimated_cost, turns, error_count, warning_count)
 - jobs: List of job details (name, status, conclusion, duration)
 - downloaded_files: List of artifact files (path, size, size_formatted, description, is_directory)
@@ -297,6 +302,7 @@ Single-run returns JSON with:
 - warnings: Warning details (file, line, type, message)
 - tool_usage: Tool usage statistics (name, call_count, max_output_size, max_duration)
 - firewall_analysis: Network firewall analysis if available (total_requests, allowed_requests, blocked_requests, allowed_domains, blocked_domains)
+- experiments: A/B experiment assignments if present (assignments map, cumulative_counts map)
 
 Multi-run diff returns JSON describing changes between the base and each comparison run.`,
 		InputSchema: auditSchema,
@@ -335,6 +341,12 @@ Multi-run diff returns JSON describing changes between the base and each compari
 		cmdArgs = append(cmdArgs, "-o", "/tmp/gh-aw/aw-mcp/logs", "--json")
 		if len(args.Artifacts) > 0 {
 			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
+		}
+		if args.Experiment != "" {
+			cmdArgs = append(cmdArgs, "--experiment", args.Experiment)
+		}
+		if args.Variant != "" {
+			cmdArgs = append(cmdArgs, "--variant", args.Variant)
 		}
 
 		cmdArgs = appendRepoFlagFromEnv(cmdArgs)

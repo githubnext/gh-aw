@@ -353,6 +353,22 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_FAILURE_REPORT_AS_ISSUE: \"true\"\n")
 	}
 
+	// Pass missing-tool report-as-failure flag (defaults to true when not configured).
+	// When false, missing_tool signals will not activate failure handling.
+	if data.SafeOutputs != nil && data.SafeOutputs.MissingTool != nil && data.SafeOutputs.MissingTool.ReportAsFailure != nil {
+		agentFailureEnvVars = append(agentFailureEnvVars, buildTemplatableBoolEnvVar("GH_AW_MISSING_TOOL_REPORT_AS_FAILURE", data.SafeOutputs.MissingTool.ReportAsFailure)...)
+	} else {
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: \"true\"\n")
+	}
+
+	// Pass missing-data report-as-failure flag (defaults to true when not configured).
+	// When false, missing_data signals will not activate failure handling.
+	if data.SafeOutputs != nil && data.SafeOutputs.MissingData != nil && data.SafeOutputs.MissingData.ReportAsFailure != nil {
+		agentFailureEnvVars = append(agentFailureEnvVars, buildTemplatableBoolEnvVar("GH_AW_MISSING_DATA_REPORT_AS_FAILURE", data.SafeOutputs.MissingData.ReportAsFailure)...)
+	} else {
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_MISSING_DATA_REPORT_AS_FAILURE: \"true\"\n")
+	}
+
 	// Pass failure-issue-repo configuration (optional, defaults to current repo)
 	if data.SafeOutputs != nil && data.SafeOutputs.FailureIssueRepo != "" {
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_FAILURE_ISSUE_REPO: %q\n", data.SafeOutputs.FailureIssueRepo))

@@ -21,8 +21,9 @@ func buildMaintenanceWorkflowYAML(
 	resolver ActionSHAResolver,
 	configuredRunsOn RunsOnValue,
 	defaultBranch string,
+	disableLabelTrigger bool,
 ) string {
-	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q", actionMode, minExpiresDays, cronSchedule, defaultBranch)
+	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger)
 
 	var yaml strings.Builder
 
@@ -54,6 +55,13 @@ on:
       - ` + defaultBranch + `
     paths:
       - '.github/workflows/*.md'
+`)
+	}
+
+	// Add label-event trigger only when the label-triggered jobs are enabled
+	if !disableLabelTrigger {
+		yaml.WriteString(`  issues:
+    types: [labeled]
 `)
 	}
 
@@ -613,6 +621,109 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/run_validate_workflows.cjs');
             await main();
 `)
+
+	// Add label_disable_agentic_workflow job triggered by label "agentic-workflows:disable" on issues.
+	// This job reads the body of the labeled issue to extract the workflow_id from XML comment
+	// markers, disables the corresponding agentic workflow via the GitHub REST API, and posts
+	// a confirmation comment.
+	// Skipped when label_triggers is set to false in aw.json maintenance config.
+	if !disableLabelTrigger {
+		disableLabelCondition := buildLabeledDisableCondition()
+		yaml.WriteString(`
+  label_disable_agentic_workflow:
+    if: ${{ ` + RenderCondition(disableLabelCondition) + ` }}
+    runs-on: ` + runsOnValue + `
+    permissions:
+      actions: write
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout actions folder
+        uses: ` + getActionPin("actions/checkout") + `
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        id: check_permissions
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+      - name: Disable agentic workflow
+        if: ${{ steps.check_permissions.outcome == 'success' }}
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/disable_agentic_workflow.cjs');
+            await main();
+`)
+
+		// Add label_apply_safe_outputs job triggered by "agentic-workflows:apply-safe-outputs" label on issues.
+		// This job extracts a workflow run URL from the issue body XML comments and re-applies the safe outputs.
+		applySafeOutputsCondition := buildLabeledApplySafeOutputsCondition()
+		yaml.WriteString(`
+  label_apply_safe_outputs:
+    if: ${{ ` + RenderCondition(applySafeOutputsCondition) + ` }}
+    runs-on: ` + runsOnValue + `
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout actions folder
+        uses: ` + getActionPin("actions/checkout") + `
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        id: check_permissions
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+      - name: Apply safe outputs from referenced run
+        if: ${{ steps.check_permissions.outcome == 'success' }}
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/label_apply_safe_outputs.cjs');
+            await main();
+`)
+	}
 
 	// Add compile-workflows and zizmor-scan jobs only in dev mode
 	// These jobs are specific to the gh-aw repository and require go.mod, make build, etc.

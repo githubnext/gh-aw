@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -76,7 +75,7 @@ func (n *NotNode) Render() string {
 	if _, isFunctionCall := n.Child.(*FunctionCallNode); isFunctionCall {
 		return "!" + n.Child.Render()
 	}
-	return fmt.Sprintf("!(%s)", n.Child.Render())
+	return "!(" + n.Child.Render() + ")"
 }
 
 // DisjunctionNode represents an OR operation with multiple terms to avoid deep nesting
@@ -151,7 +150,7 @@ func (f *FunctionCallNode) Render() string {
 	for _, arg := range f.Arguments {
 		args = append(args, arg.Render())
 	}
-	return fmt.Sprintf("%s(%s)", f.FunctionName, strings.Join(args, ", "))
+	return f.FunctionName + "(" + strings.Join(args, ", ") + ")"
 }
 
 // PropertyAccessNode represents property access like github.event.action
@@ -171,7 +170,7 @@ type StringLiteralNode struct {
 func (s *StringLiteralNode) Render() string {
 	// GitHub Actions single-quoted strings escape embedded single quotes by doubling them.
 	escaped := strings.ReplaceAll(s.Value, "'", "''")
-	return fmt.Sprintf("'%s'", escaped)
+	return "'" + escaped + "'"
 }
 
 // BooleanLiteralNode represents a boolean literal value
@@ -194,5 +193,5 @@ type ComparisonNode struct {
 }
 
 func (c *ComparisonNode) Render() string {
-	return fmt.Sprintf("%s %s %s", c.Left.Render(), c.Operator, c.Right.Render())
+	return c.Left.Render() + " " + c.Operator + " " + c.Right.Render()
 }

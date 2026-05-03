@@ -2730,6 +2730,139 @@
         }
       ]
     },
+    "experiments": {
+      "description": "A/B testing experiments. Each key is an experiment name; the value is either an array of two or more variant strings (bare-array form) or an object with a 'variants' field plus optional metadata fields (description, metric, weight, issue, start_date, end_date, hypothesis, secondary_metrics, guardrail_metrics, min_samples, owner). At runtime the activation job picks a variant using actions/cache to maintain consistent assignment across runs. Use ${{ experiments.<name> }} in the workflow prompt to reference the selected variant. When multiple experiments are declared, assignments are statistically balanced using a counter that round-robins across variants (or weighted when 'weight' is provided).",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+        "description": "Experiment names must be valid identifiers: start with a letter or underscore, followed by letters, digits, or underscores."
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "description": "Bare-array form: list of variant values for this experiment. Must contain at least two variants."
+          },
+          {
+            "type": "object",
+            "required": ["variants"],
+            "properties": {
+              "variants": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 2,
+                "description": "Array of variant values for this experiment. Must contain at least two variants."
+              },
+              "description": {
+                "type": "string",
+                "description": "Human-readable description of what this experiment tests."
+              },
+              "metric": {
+                "type": "string",
+                "description": "Primary metric to observe (e.g. 'effective_tokens')."
+              },
+              "weight": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Per-variant probability weights (relative, need not sum to 100). Length must equal the number of variants."
+              },
+              "issue": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "GitHub issue number tracking this experiment."
+              },
+              "start_date": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "ISO-8601 date (YYYY-MM-DD). Experiment is inactive before this date; control variant is used."
+              },
+              "end_date": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "ISO-8601 date (YYYY-MM-DD). Experiment is inactive after this date; control variant is used."
+              },
+              "hypothesis": {
+                "type": "string",
+                "description": "Hypothesis statement for this experiment (e.g. 'H0: no change in tokens. H1: concise reduces by >=15%'). Surfaced in step summaries and daily reports."
+              },
+              "secondary_metrics": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Additional metrics to collect and report alongside the primary metric (e.g. ['duration_ms', 'discussion_word_count'])."
+              },
+              "guardrail_metrics": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["name", "threshold"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Name of the guardrail metric (e.g. 'success_rate', 'empty_output_rate')."
+                    },
+                    "threshold": {
+                      "type": "string",
+                      "pattern": "^(>=|<=|==|>|<)-?\\d+(\\.\\d+)?$",
+                      "description": "Threshold expression the metric must satisfy (e.g. '>=0.95', '==0', '<=0.05'). If any guardrail fails for any variant the experiment is automatically abandoned."
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "description": "Guardrail metrics that must pass for all variants. If any guardrail fails the recommendation is forced to ABANDON regardless of p-value."
+              },
+              "min_samples": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 20,
+                "description": "Minimum number of runs required per variant before a PROMOTE recommendation is made. Defaults to 20 when not specified. Progress toward this target is shown in step summaries and daily reports."
+              },
+              "owner": {
+                "type": "string",
+                "description": "Owner or team responsible for this experiment (e.g. '@team-agents'). Shown in step summaries and daily reports."
+              }
+            },
+            "additionalProperties": false,
+            "description": "Object form: experiment config with variants and optional metadata."
+          }
+        ]
+      },
+      "examples": [
+        {
+          "feature1": ["A", "B"]
+        },
+        {
+          "prompt_style": {
+            "variants": ["concise", "verbose"],
+            "description": "Test whether concise vs verbose prompts reduce token consumption",
+            "hypothesis": "H0: no change in tokens. H1: concise reduces by >=15%",
+            "metric": "effective_tokens",
+            "secondary_metrics": ["duration_ms", "discussion_word_count"],
+            "guardrail_metrics": [
+              { "name": "success_rate", "threshold": ">=0.95" },
+              { "name": "empty_output_rate", "threshold": "==0" }
+            ],
+            "min_samples": 25,
+            "owner": "@team-agents",
+            "weight": [50, 50],
+            "issue": 1234,
+            "start_date": "2026-05-01",
+            "end_date": "2026-06-15"
+          },
+          "model_temp": ["low", "high"]
+        }
+      ]
+    },
     "infer": {
       "type": "boolean",
       "description": "DEPRECATED: Use 'disable-model-invocation' instead. Controls whether the custom agent should infer additional context from the conversation. This field is maintained for backward compatibility with existing custom agent files.",
@@ -3912,15 +4045,20 @@
               "properties": {
                 "version": {
                   "type": ["string", "number"],
-                  "description": "Optional Playwright container version (e.g., 'v1.41.0', 1.41, 20). Numeric values are automatically converted to strings at runtime.",
-                  "examples": ["v1.41.0", 1.41, 20]
+                  "description": "Optional version pin. In CLI mode (recommended): the @playwright/cli npm package version (e.g., '0.1.11'). In MCP mode (deprecated): the Playwright browser Docker image version (e.g., 'v1.56.1'). Omit to use the default version.",
+                  "examples": ["0.1.11", "v1.56.1"]
                 },
                 "args": {
                   "type": "array",
-                  "description": "Optional additional arguments to append to the generated MCP server command",
+                  "description": "Optional additional arguments to append to the generated MCP server command (MCP mode only)",
                   "items": {
                     "type": "string"
                   }
+                },
+                "mode": {
+                  "type": "string",
+                  "description": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations — use playwright-cli commands in bash and localhost to reach local servers; 'mcp' (deprecated) runs a Docker-based MCP server.",
+                  "enum": ["cli", "mcp"]
                 }
               },
               "additionalProperties": false
@@ -8537,6 +8675,11 @@
               "description": "Custom message template for commit push link appended to the activation comment. Available placeholders: {commit_sha}, {short_sha}, {commit_url}. Default: 'Commit pushed: [`{short_sha}`]({commit_url})'",
               "examples": ["Commit pushed: [`{short_sha}`]({commit_url})", "[`{short_sha}`]({commit_url}) pushed"]
             },
+            "body-header": {
+              "type": "string",
+              "description": "Custom header text prepended to every message body generated by safe outputs (issues, comments, pull requests, discussions). Applied after any threat-detection caution alert and before the agent-generated content. Available placeholders: {workflow_name}, {run_url}.",
+              "examples": ["> ⚠️ This content was generated by [{workflow_name}]({run_url}).", "> 🤖 AI-generated output — please review before acting."]
+            },
             "append-only-comments": {
               "type": "boolean",
               "description": "When enabled, workflow completion notifier creates a new comment instead of editing the activation comment. Creates an append-only timeline of workflow runs. Default: false",
@@ -8886,16 +9029,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "bots": {
-      "type": "array",
-      "description": "Allow list of bot identifiers that can trigger the workflow even if they don't meet the required role permissions. When the actor is in this list, the bot must be active (installed) on the repository to trigger the workflow.",
-      "items": {
-        "type": "string",
-        "minLength": 1,
-        "pattern": "^[A-Za-z0-9._\\[\\]-]+$",
-        "description": "Bot identifier/name (e.g., 'dependabot[bot]', 'renovate[bot]', 'github-actions[bot]')"
-      }
     },
     "rate-limit": {
       "type": "object",
@@ -9819,6 +9952,23 @@
               "type": "boolean",
               "description": "When true, disables automatic loading of context and custom instructions by the AI engine. The engine-specific flag depends on the engine: copilot uses --no-custom-instructions (suppresses .github/AGENTS.md and user-level custom instructions), claude uses --bare (suppresses CLAUDE.md memory files), codex uses --no-system-prompt (suppresses the default system prompt), gemini sets GEMINI_SYSTEM_MD=/dev/null (overrides the built-in system prompt with an empty one). Defaults to false.",
               "default": false
+            },
+            "mcp": {
+              "type": "object",
+              "description": "Engine-level MCP gateway configuration. Settings here apply to the MCP gateway used by this engine.",
+              "properties": {
+                "session-timeout": {
+                  "type": "string",
+                  "description": "Session timeout for MCP gateway sessions as a Go duration string (e.g. \"30m\", \"4h\", \"24h\"). Must be at least 5m (no upper bound). Omitted or empty uses the effective gateway default (precedence: this field > MCP_GATEWAY_SESSION_TIMEOUT env var > built-in default 6h). Longer timeouts benefit multi-hour workflows such as large-scale migrations; shorter values free gateway resources sooner.",
+                  "examples": ["30m", "1h", "4h", "6h", "12h"]
+                },
+                "tool-timeout": {
+                  "type": "string",
+                  "description": "Timeout for individual MCP tool calls as a Go duration string (e.g. \"30s\", \"2m\", \"10m\"). Must be between 10s and 600s inclusive. Omitted or empty uses the gateway built-in default (60s). Use a higher value for slow MCP backends such as full-text search over large indexes.",
+                  "examples": ["30s", "2m", "5m", "10m"]
+                }
+              },
+              "additionalProperties": false
             }
           },
           "required": ["id"],

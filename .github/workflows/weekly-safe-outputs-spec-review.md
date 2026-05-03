@@ -26,10 +26,12 @@ imports:
   - shared/github-guard-policy.md
 
 tools:
+  cli-proxy: true
   edit:
   bash:
     - "*"
   github:
+    mode: gh-proxy
     min-integrity: approved
     toolsets:
       - repos
@@ -259,4 +261,4 @@ You have successfully completed this task when:
 - A pull request has been created (if updates were made), OR
 - Confirmation that no updates are needed has been logged
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

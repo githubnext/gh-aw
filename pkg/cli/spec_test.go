@@ -841,6 +841,16 @@ func TestSpec_PublicAPI_GetVersion(t *testing.T) {
 	assert.NotEmpty(t, version, "GetVersion should return a non-empty version string")
 }
 
+// TestSpec_PublicAPI_SetVersionInfo validates that SetVersionInfo stores the version returned by GetVersion.
+// Spec: "Sets the version at startup"
+func TestSpec_PublicAPI_SetVersionInfo(t *testing.T) {
+	original := GetVersion()
+	t.Cleanup(func() { SetVersionInfo(original) })
+
+	SetVersionInfo("v99.99.99-spec-test")
+	assert.Equal(t, "v99.99.99-spec-test", GetVersion(), "GetVersion should return the value set by SetVersionInfo")
+}
+
 // TestSpec_PublicAPI_IsRunningInCI validates that IsRunningInCI returns a bool without panicking.
 // Spec: detects CI environment.
 func TestSpec_PublicAPI_IsRunningInCI(t *testing.T) {

@@ -4,6 +4,8 @@ engine: copilot
 on:
   workflow_dispatch:
 
+tools:
+  cli-proxy: true
 safe-outputs:
   update-project:
     max: 5
@@ -60,4 +62,4 @@ running the workflow.
 
 The agent must always provide the project URL explicitly in the output message.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

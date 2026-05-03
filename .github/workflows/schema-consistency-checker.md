@@ -29,7 +29,7 @@ imports:
       title-prefix: "[Schema Consistency] "
       expires: 1d
 pre-agent-steps:
-  - name: Pre-compute schema analysis data
+  - name: Precompute schema analysis data
     run: |
       set -e
       mkdir -p /tmp/gh-aw/agent
@@ -493,4 +493,4 @@ A successful run:
 
 Begin your analysis now. Check the cache, choose a strategy, execute it, and report your findings in a discussion.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

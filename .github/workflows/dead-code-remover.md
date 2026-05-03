@@ -10,7 +10,12 @@ permissions:
   issues: read
 engine: copilot
 imports:
-  - shared/activation-app.md
+  - uses: shared/daily-pr-base.md
+    with:
+      title-prefix: "[dead-code] "
+      expires: "3d"
+      labels: [chore, dead-code]
+      reviewers: [copilot]
 network:
   allowed:
     - defaults
@@ -20,16 +25,10 @@ tools:
   bash: true
   edit:
   github:
+    mode: gh-proxy
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [default, pull_requests]
   cache-memory: true
-safe-outputs:
-  create-pull-request:
-    expires: 3d
-    title-prefix: "[dead-code] "
-    labels: [chore, dead-code]
-    reviewers: [copilot]
-  noop:
 timeout-minutes: 30
 features:
   copilot-requests: true

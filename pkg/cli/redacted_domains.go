@@ -121,16 +121,22 @@ func analyzeRedactedDomains(runDir string, verbose bool) (*RedactedDomainsAnalys
 
 	// Fallback: search recursively for redacted-urls.log
 	var foundPath string
-	_ = filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil {
+	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			redactedDomainsLog.Printf("walk error at %s: %v", path, err)
+			return nil
+		}
+		if info == nil {
 			return nil
 		}
 		if !info.IsDir() && info.Name() == "redacted-urls.log" {
 			foundPath = path
-			return errors.New("found") // Stop walking
+			return errWalkStop
 		}
 		return nil
-	})
+	}); walkErr != nil && !errors.Is(walkErr, errWalkStop) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", runDir, walkErr)))
+	}
 
 	if foundPath != "" {
 		redactedDomainsLog.Printf("Found redacted-urls.log via recursive search: %s", foundPath)

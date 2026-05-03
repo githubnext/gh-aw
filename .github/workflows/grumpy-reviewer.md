@@ -6,17 +6,16 @@ on:
     events: [pull_request_comment, pull_request_review_comment]
   pull_request:
     types: [ready_for_review]
+engine: codex
 permissions:
   contents: read
   pull-requests: read
-engine: codex
 imports:
-  - shared/github-guard-policy.md
-  - shared/pr-code-review-config.md
+  - uses: shared/pr-review-base.md
+    with:
+      min-integrity: approved
 tools:
   cli-proxy: true
-  github:
-    min-integrity: approved
 safe-outputs:
   create-pull-request-review-comment:
     max: 5
@@ -61,10 +60,10 @@ Use the cache memory at `/tmp/gh-aw/cache-memory/` to:
 
 ### Step 2: Fetch Pull Request Details
 
-Use the GitHub tools to get the pull request details:
-- Get the PR with number `${{ github.event.issue.number }}` in repository `${{ github.repository }}`
-- Get the list of files changed in the PR
-- Review the diff for each changed file
+Use `gh` CLI to get the pull request details:
+- `gh pr view ${{ github.event.issue.number }} --repo ${{ github.repository }} --json number,title,body,headRefName`
+- `gh pr diff ${{ github.event.issue.number }} --repo ${{ github.repository }}`
+- `gh pr view ${{ github.event.issue.number }} --repo ${{ github.repository }} --json files`
 
 ### Step 3: Analyze the Code
 
@@ -163,4 +162,4 @@ The safe output system will automatically create these as pull request review co
 
 Now get to work. This code isn't going to review itself. 🔥
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

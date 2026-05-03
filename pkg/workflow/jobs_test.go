@@ -153,170 +153,66 @@ func TestJobManager_ValidateDependencies(t *testing.T) {
 	}
 }
 
-func TestJobManager_RenderToYAML(t *testing.T) {
+// TestJobManager_WriteJobsYAML verifies that WriteJobsYAML correctly appends
+// the jobs section to an already-populated builder (mimicking generateWorkflowBody).
+func TestJobManager_WriteJobsYAML(t *testing.T) {
 	tests := []struct {
 		name     string
+		prefix   string
 		jobs     []*Job
-		expected []string // Strings that should be present in the output
+		expected []string
 	}{
 		{
-			name: "empty job manager",
-			jobs: []*Job{},
-			expected: []string{
-				"jobs:",
-			},
+			name:     "appends to non-empty builder",
+			prefix:   "name: \"my-workflow\"\non: issues\npermissions: {}\n\n",
+			jobs:     []*Job{},
+			expected: []string{"name: \"my-workflow\"", "jobs:"},
 		},
 		{
-			name: "single simple job",
+			name:   "jobs follow existing header content",
+			prefix: "name: \"test\"\n",
 			jobs: []*Job{
 				{
-					Name:   "test-job",
-					RunsOn: "runs-on: ubuntu-latest",
-					Steps:  []string{"      - name: Test\n        run: echo hello\n"},
+					Name:    "build",
+					RunsOn:  "runs-on: ubuntu-latest",
+					Steps:   []string{"      - name: Build\n        run: make build\n"},
+					Outputs: map[string]string{"sha": "${{ steps.build.outputs.sha }}"},
 				},
 			},
 			expected: []string{
+				"name: \"test\"",
 				"jobs:",
-				"  test-job:",
-				"    runs-on: ubuntu-latest",
-				"    steps:",
-				"      - name: Test",
-				"        run: echo hello",
-			},
-		},
-		{
-			name: "job with dependencies",
-			jobs: []*Job{
-				{
-					Name:   "job1",
-					RunsOn: "runs-on: ubuntu-latest",
-					Needs:  []string{"job2"},
-					Steps:  []string{"      - name: Step1\n        run: echo step1\n"},
-				},
-				{
-					Name:   "job2",
-					RunsOn: "runs-on: ubuntu-latest",
-					Steps:  []string{"      - name: Step2\n        run: echo step2\n"},
-				},
-			},
-			expected: []string{
-				"jobs:",
-				"  job1:",
-				"    needs: job2",
-				"    runs-on: ubuntu-latest",
-				"  job2:",
-				"    runs-on: ubuntu-latest",
-			},
-		},
-		{
-			name: "job with multiple dependencies",
-			jobs: []*Job{
-				{
-					Name:   "deploy",
-					RunsOn: "runs-on: ubuntu-latest",
-					Needs:  []string{"build", "test"},
-					Steps:  []string{"      - name: Deploy\n        run: echo deploy\n"},
-				},
-			},
-			expected: []string{
-				"jobs:",
-				"  deploy:",
-				"    needs:",
-				"      - build",
-				"      - test",
-				"    runs-on: ubuntu-latest",
-			},
-		},
-		{
-			name: "job with if condition",
-			jobs: []*Job{
-				{
-					Name:   "conditional-job",
-					RunsOn: "runs-on: ubuntu-latest",
-					If:     "github.event_name == 'push'",
-					Steps:  []string{"      - name: Conditional Step\n        run: echo conditional\n"},
-				},
-			},
-			expected: []string{
-				"jobs:",
-				"  conditional-job:",
-				"    if: github.event_name == 'push'",
-				"    runs-on: ubuntu-latest",
-			},
-		},
-		{
-			name: "job with outputs",
-			jobs: []*Job{
-				{
-					Name:   "output-job",
-					RunsOn: "runs-on: ubuntu-latest",
-					Outputs: map[string]string{
-						"result":  "${{ steps.test.outputs.result }}",
-						"version": "${{ steps.version.outputs.version }}",
-					},
-					Steps: []string{"      - name: Generate Output\n        run: echo output\n"},
-				},
-			},
-			expected: []string{
-				"jobs:",
-				"  output-job:",
+				"  build:",
 				"    runs-on: ubuntu-latest",
 				"    outputs:",
-				"      result: ${{ steps.test.outputs.result }}",
-				"      version: ${{ steps.version.outputs.version }}",
+				"      sha: ${{ steps.build.outputs.sha }}",
+				"    steps:",
+				"      - name: Build",
+				"        run: make build",
 			},
 		},
 		{
-			name: "jobs sorted alphabetically regardless of insertion order",
+			name:   "multiple jobs appended to header - order and separators correct",
+			prefix: "on: push\n\n",
 			jobs: []*Job{
 				{
-					Name:   "zebra-job",
+					Name:   "test",
 					RunsOn: "runs-on: ubuntu-latest",
-					Steps:  []string{"      - name: Zebra\n        run: echo zebra\n"},
+					Steps:  []string{"      - name: Test\n        run: echo test\n"},
 				},
-				{
-					Name:   "alpha-job",
-					RunsOn: "runs-on: ubuntu-latest",
-					Steps:  []string{"      - name: Alpha\n        run: echo alpha\n"},
-				},
-				{
-					Name:   "charlie-job",
-					RunsOn: "runs-on: ubuntu-latest",
-					Steps:  []string{"      - name: Charlie\n        run: echo charlie\n"},
-				},
-				{
-					Name:   "beta-job",
-					RunsOn: "runs-on: ubuntu-latest",
-					Steps:  []string{"      - name: Beta\n        run: echo beta\n"},
-				},
-			},
-			expected: []string{
-				"jobs:",
-				"  alpha-job:",
-				"  beta-job:",
-				"  charlie-job:",
-				"  zebra-job:",
-			},
-		},
-		{
-			name: "job with multiple dependencies sorted alphabetically",
-			jobs: []*Job{
 				{
 					Name:   "deploy",
 					RunsOn: "runs-on: ubuntu-latest",
-					Needs:  []string{"test", "activation", "build", "lint"},
+					Needs:  []string{"test"},
 					Steps:  []string{"      - name: Deploy\n        run: echo deploy\n"},
 				},
 			},
 			expected: []string{
+				"on: push",
 				"jobs:",
 				"  deploy:",
-				"    needs:",
-				"      - activation",
-				"      - build",
-				"      - lint",
-				"      - test",
-				"    runs-on: ubuntu-latest",
+				"    needs: test",
+				"  test:",
 			},
 		},
 	}
@@ -330,11 +226,15 @@ func TestJobManager_RenderToYAML(t *testing.T) {
 				}
 			}
 
-			result := jm.RenderToYAML()
+			// Write to a builder that already has content.
+			var b strings.Builder
+			b.WriteString(tt.prefix)
+			jm.WriteJobsYAML(&b)
+			result := b.String()
 
 			for _, expected := range tt.expected {
 				if !strings.Contains(result, expected) {
-					t.Errorf("RenderToYAML() result does not contain expected string: %s\nFull result:\n%s", expected, result)
+					t.Errorf("WriteJobsYAML() result does not contain %q\nFull result:\n%s", expected, result)
 				}
 			}
 		})

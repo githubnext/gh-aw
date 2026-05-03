@@ -15,17 +15,14 @@ tracker-id: daily-testify-uber-super-expert
 engine: copilot
 
 imports:
-  - shared/activation-app.md
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[testify-expert] "
+      expires: "2d"
+      labels: [testing, code-quality, automated-analysis, cookie]
   - shared/go-source-analysis.md
   - shared/safe-output-app.md
   - shared/observability-otlp.md
-
-safe-outputs:
-  create-issue:
-    expires: 2d
-    title-prefix: "[testify-expert] "
-    labels: [testing, code-quality, automated-analysis, cookie]
-    max: 1
 
 tools:
   cli-proxy: true
@@ -35,6 +32,7 @@ tools:
     file-glob: ["*.json", "*.txt"]
     max-file-size: 51200  # 50KB
   github:
+    mode: gh-proxy
     toolsets: [default]
   bash:
     - "find . -name '*_test.go' -type f"
@@ -528,4 +526,4 @@ Use Serena to:
 
 Begin your analysis now. Load the cache, select a test file, perform deep quality analysis, create an issue with specific improvements, and update the cache.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

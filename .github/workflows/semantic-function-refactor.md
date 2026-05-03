@@ -27,7 +27,9 @@ safe-outputs:
     max: 1
 
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, issues]
   edit:
 
@@ -466,4 +468,4 @@ This analysis is successful when:
 
 **Objective**: Improve code organization and reduce duplication by identifying refactoring opportunities through semantic function clustering and duplicate detection. Focus on high-impact, actionable findings that developers can implement.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

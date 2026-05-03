@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const { main } = require("./dispatch_repository.cjs");
-const globals = /** @type {any} */ (global);
+const globals = /** @type {any} */ global;
 
 describe("dispatch_repository", () => {
   /** @type {any} */

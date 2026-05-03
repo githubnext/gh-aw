@@ -23,6 +23,7 @@ network:
 tools:
   cli-proxy: true
   playwright:
+    mode: cli
   web-fetch:
   bash:
     - "curl*"
@@ -77,9 +78,9 @@ For each editor discovered in Step 0, verify that its URL is reachable:
 
 For each editor URL that responded with HTTP 200 in Step 1:
 
-1. Use the Playwright MCP tool to navigate to the URL.
+1. Run `playwright-cli browser_navigate --url "<URL>"` to navigate to the URL.
 2. Wait for the page to fully load (wait for network idle).
-3. Take a full-page screenshot and save it to `/tmp/gh-aw/editors/<editor-id>-screenshot.png` where `<editor-id>` is the kebab-case id derived in Step 0.
+3. Run `playwright-cli browser_take_screenshot --filename /tmp/gh-aw/editors/<editor-id>-screenshot.png --full-page true` to take a full-page screenshot, where `<editor-id>` is the kebab-case id derived in Step 0.
 
 ### Step 3: Upload Screenshots as Assets
 
@@ -138,4 +139,4 @@ Example body (rows reflect whatever editors were discovered in Step 0):
 - If no screenshots were successfully taken and no documentation changes are needed, do **not** open a pull request. Instead, exit successfully after logging the results.
 - Always attempt all editors before deciding whether to create a PR.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

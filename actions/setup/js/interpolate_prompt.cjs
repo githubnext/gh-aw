@@ -1,6 +1,9 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+// @safe-outputs-exempt SEC-004 — no issue body is read or reflected; the only "body" occurrence is
+// a literal log string ("body") used to describe a template branch, not user-controlled content.
+
 // interpolate_prompt.cjs
 // Interpolates GitHub Actions expressions and renders template conditionals in the prompt file.
 // This combines variable interpolation and template filtering into a single step.
@@ -8,6 +11,7 @@
 const fs = require("fs");
 const { isTruthy } = require("./is_truthy.cjs");
 const { processRuntimeImports } = require("./runtime_import.cjs");
+const { writeInlineSubAgents } = require("./extract_inline_sub_agents.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 
@@ -68,8 +72,8 @@ function renderMarkdownTemplate(markdown) {
   }
 
   // Count conditionals before processing
-  const blockConditionals = (_stripped.match(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g) || []).length;
-  const inlineConditionals = (_stripped.match(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g) || []).length - blockConditionals;
+  const blockConditionals = (_stripped.match(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*(?:{{#endif}}|{{\/if}})[ \t]*)(\n?)/g) || []).length;
+  const inlineConditionals = (_stripped.match(/{{#if\s+([^}]*)}}([\s\S]*?)(?:{{#endif}}|{{\/if}})/g) || []).length - blockConditionals;
 
   core.info(`[renderMarkdownTemplate] Found ${blockConditionals} block conditional(s) and ${inlineConditionals} inline conditional(s)`);
 
@@ -79,7 +83,8 @@ function renderMarkdownTemplate(markdown) {
 
   // First pass: Handle blocks where tags are on their own lines
   // Captures: (leading newline)(opening tag line)(condition)(body)(closing tag line)(trailing newline)
-  let result = _stripped.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+  // Closing tag: {{#endif}} (primary) or {{/if}} (alternate)
+  let result = _stripped.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*(?:{{#endif}}|{{\/if}})[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
     blockCount++;
     const condTrimmed = cond.trim();
     const truthyResult = isTruthy(cond);
@@ -88,14 +93,24 @@ function renderMarkdownTemplate(markdown) {
     core.info(`[renderMarkdownTemplate] Block ${blockCount}: condition="${condTrimmed}" -> ${truthyResult ? "KEEP" : "REMOVE"}`);
     core.info(`[renderMarkdownTemplate]   Body preview: "${bodyPreview}${body.length > 60 ? "..." : ""}"`);
 
+    // Split on {{#else}} if present to support two-branch conditionals.
+    // e.g. {{#if experiments.prompt_style == "concise"}} ... {{#else}} ... {{#endif}}
+    const elseParts = body.split(/[ \t]*\{\{#else\}\}[ \t]*\n?/);
+    const trueBranch = elseParts[0];
+    const falseBranch = elseParts.length > 1 ? elseParts.slice(1).join("{{#else}}") : null;
+
     if (truthyResult) {
-      // Keep body with leading newline if there was one before the opening tag
+      // Keep the true branch (before {{#else}}, or full body if no {{#else}})
       keptBlocks++;
-      core.info(`[renderMarkdownTemplate]   Action: Keeping body with leading newline=${!!leadNL}`);
-      return leadNL + body;
+      core.info(`[renderMarkdownTemplate]   Action: Keeping ${falseBranch !== null ? "true branch" : "body"} with leading newline=${!!leadNL}`);
+      return leadNL + trueBranch;
     } else {
-      // Remove entire block completely - the line containing the template is removed
+      // Remove the block, or keep the false branch when {{#else}} is present
       removedBlocks++;
+      if (falseBranch !== null) {
+        core.info(`[renderMarkdownTemplate]   Action: Keeping false branch ({{#else}} branch)`);
+        return leadNL + falseBranch;
+      }
       core.info(`[renderMarkdownTemplate]   Action: Removing entire block`);
       return "";
     }
@@ -108,7 +123,8 @@ function renderMarkdownTemplate(markdown) {
   let removedInline = 0;
 
   // Second pass: Handle inline conditionals (tags not on their own lines)
-  result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => {
+  // Closing tag: {{#endif}} (primary) or {{/if}} (alternate)
+  result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?)(?:{{#endif}}|{{\/if}})/g, (_, cond, body) => {
     inlineCount++;
     const condTrimmed = cond.trim();
     const truthyResult = isTruthy(cond);
@@ -207,6 +223,28 @@ async function main() {
       core.info("No runtime import macros found, skipping runtime import processing");
     }
 
+    // Step 1.5: Extract and write inline sub-agents
+    // ## agent: name / ## end: name blocks are written to .github/agents/<name>.md.
+    // This happens after runtime imports so that any {{#runtime-import}} macros
+    // inside an agent block have already been resolved.
+    core.info("\n========================================");
+    core.info("[main] STEP 1.5: Inline Sub-Agent Extraction");
+    core.info("========================================");
+    const hasAgentMarkers = /^##[ \t]+agent:[ \t]+`[a-z]/m.test(content);
+    if (hasAgentMarkers) {
+      const beforeExtraction = content.length;
+      // Write agents to /tmp/gh-aw/<engine-dir>/ so the files are included in the
+      // activation artifact and available to the downstream agent job.
+      const agentsBaseDir = "/tmp/gh-aw";
+      const engineId = process.env.GH_AW_ENGINE_ID || "";
+      content = writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId);
+      const afterExtraction = content.length;
+      core.info(`Inline sub-agents extracted and written`);
+      core.info(`Content length change: ${beforeExtraction} -> ${afterExtraction} (${afterExtraction > beforeExtraction ? "+" : ""}${afterExtraction - beforeExtraction})`);
+    } else {
+      core.info("No inline sub-agent markers found, skipping");
+    }
+
     // Step 2: Interpolate variables
     core.info("\n========================================");
     core.info("[main] STEP 2: Variable Interpolation");
@@ -235,6 +273,48 @@ async function main() {
       core.info(`Content length change: ${beforeInterpolation} -> ${afterInterpolation} (${afterInterpolation > beforeInterpolation ? "+" : ""}${afterInterpolation - beforeInterpolation})`);
     } else {
       core.info("No expression variables found, skipping interpolation");
+    }
+
+    // Step 2.5: Substitute experiment placeholders BEFORE template rendering.
+    // When the runtime-import step processes {{#if experiments.name}} conditionals,
+    // it converts them to __GH_AW_EXPERIMENTS_NAME__ placeholders. These must be
+    // resolved with the actual variant value before renderMarkdownTemplate() runs,
+    // otherwise the placeholder string is truthy and the block is always kept.
+    // The activation job exposes GH_AW_EXPERIMENTS_* env vars (from the pick-experiment
+    // step output via the step's env: block), so we can substitute them here.
+    // Additionally, {{#if experiments.name == "value"}} conditions use the dot-notation
+    // form directly in the condition expression. We substitute experiments.NAME → actual
+    // value inside {{#if ...}} condition tags so that isTruthy can evaluate the resulting
+    // GitHub Actions script style expression (e.g. concise == "concise").
+    core.info("\n========================================");
+    core.info("[main] STEP 2.5: Experiment Placeholder Substitution");
+    core.info("========================================");
+    let experimentSubCount = 0;
+    for (const [key, value] of Object.entries(process.env)) {
+      if (key.startsWith("GH_AW_EXPERIMENTS_")) {
+        const placeholder = `__${key}__`;
+        if (content.includes(placeholder)) {
+          content = content.split(placeholder).join(value || "");
+          experimentSubCount++;
+          core.info(`  Substituted ${placeholder} → "${value || ""}"`);
+        }
+        // Also substitute experiments.name references inside {{#if ...}} conditions.
+        // This enables GitHub Actions script style comparisons (e.g. prompt_style == "concise")
+        // to resolve correctly — after substitution the condition becomes: concise == "concise".
+        const experimentName = key.substring("GH_AW_EXPERIMENTS_".length).toLowerCase();
+        const exprForm = `experiments.${experimentName}`;
+        const conditionPattern = new RegExp(`(\\{\\{#if[^}]*?)${exprForm.replace(".", "\\.")}`, "gi");
+        if (conditionPattern.test(content)) {
+          conditionPattern.lastIndex = 0;
+          content = content.replace(conditionPattern, `$1${value || ""}`);
+          core.info(`  Substituted ${exprForm} in conditions → "${value || ""}"`);
+        }
+      }
+    }
+    if (experimentSubCount > 0) {
+      core.info(`Substituted ${experimentSubCount} experiment placeholder(s)`);
+    } else {
+      core.info("No experiment placeholders found in prompt");
     }
 
     // Step 3: Render template conditionals

@@ -8,6 +8,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
+const { logRetryEvent } = require("./github_rate_limit_logger.cjs");
 
 /**
  * Configuration for retry behavior
@@ -30,6 +31,25 @@ const DEFAULT_RETRY_CONFIG = {
   maxDelayMs: 10000,
   backoffMultiplier: 2,
   jitterMs: 100,
+  shouldRetry: isTransientError,
+};
+
+/**
+ * Retry configuration for GitHub API rate-limit scenarios.
+ * Uses longer delays to handle installation token exhaustion during burst windows.
+ *
+ * Backoff sequence (approximate — jitter of up to 5 s is added per retry):
+ *   ~30 s → ~60 s → ~120 s → ~240 s → ~240 s (capped)
+ *
+ * Note: The first actual retry sleep = initialDelayMs * backoffMultiplier = 15 000 * 2 = 30 000 ms.
+ * @type {RetryConfig}
+ */
+const RATE_LIMIT_RETRY_CONFIG = {
+  maxRetries: 5,
+  initialDelayMs: 15000, // 15 s × backoffMultiplier(2) = 30 s first retry
+  maxDelayMs: 240000, // 4-minute cap
+  backoffMultiplier: 2,
+  jitterMs: 5000, // Up to 5 s of jitter to spread concurrent retries
   shouldRetry: isTransientError,
 };
 
@@ -81,6 +101,61 @@ function sleep(ms) {
 }
 
 /**
+ * Extract the Retry-After delay in milliseconds from a GitHub API rate-limit error.
+ *
+ * Only applies when the response status indicates a rate-limit condition:
+ *   - HTTP 429 (Too Many Requests)
+ *   - HTTP 403 with `x-ratelimit-remaining: 0` (GitHub secondary rate limit)
+ *
+ * In those cases GitHub returns one of two headers:
+ *   - `retry-after`       – integer seconds to wait (per RFC 6585)
+ *   - `x-ratelimit-reset` – Unix timestamp (seconds) when the quota resets
+ *
+ * For any other status (5xx transient errors, etc.) returns null so normal
+ * exponential backoff applies.
+ *
+ * @param {any} error - The error object from a failed GitHub API call
+ * @returns {number|null} Milliseconds to wait, or null if not a rate-limit response
+ */
+function getRetryAfterMs(error) {
+  // Octokit surfaces response headers via error.response.headers or error.headers
+  const status = error?.response?.status ?? error?.status ?? null;
+  const headers = error?.response?.headers ?? error?.headers ?? null;
+  if (!headers) return null;
+
+  // Only honour rate-limit headers for genuine rate-limit responses.
+  // GitHub uses 429 for primary rate limits and 403 for secondary rate limits
+  // (the latter always sets x-ratelimit-remaining to "0").
+  const remainingHeader = headers["x-ratelimit-remaining"];
+  const isRateLimitStatus = status === 429 || (status === 403 && remainingHeader != null && parseInt(remainingHeader, 10) === 0);
+
+  if (!isRateLimitStatus) return null;
+
+  // retry-after: number of seconds (highest priority)
+  const retryAfter = headers["retry-after"];
+  if (retryAfter != null) {
+    const seconds = parseInt(retryAfter, 10);
+    if (!isNaN(seconds) && seconds > 0) {
+      return seconds * 1000;
+    }
+  }
+
+  // x-ratelimit-reset: Unix timestamp — derive wait time from clock delta
+  const resetAt = headers["x-ratelimit-reset"];
+  if (resetAt != null) {
+    const resetTimestampMs = parseInt(resetAt, 10) * 1000;
+    if (!isNaN(resetTimestampMs)) {
+      const waitMs = resetTimestampMs - Date.now();
+      if (waitMs > 0) {
+        return waitMs;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Execute an operation with retry logic and exponential backoff
  * @template T
  * @param {() => Promise<T>} operation - The async operation to execute
@@ -100,6 +175,7 @@ async function withRetry(operation, config = {}, operationName = "operation") {
         const jitter = fullConfig.jitterMs > 0 ? Math.floor(Math.random() * fullConfig.jitterMs) : 0;
         const delayWithJitter = delay + jitter;
         core.info(`Retry attempt ${attempt}/${fullConfig.maxRetries} for ${operationName} after ${delayWithJitter}ms delay`);
+        logRetryEvent(lastError, operationName, attempt, delayWithJitter);
         await sleep(delayWithJitter);
       }
 
@@ -140,8 +216,21 @@ async function withRetry(operation, config = {}, operationName = "operation") {
       // Log the retry attempt
       core.warning(`${operationName} failed (attempt ${attempt + 1}/${fullConfig.maxRetries + 1}): ${errorMsg}`);
 
-      // Calculate next delay with exponential backoff
-      delay = Math.min(delay * fullConfig.backoffMultiplier, fullConfig.maxDelayMs);
+      // Calculate next delay: honour Retry-After header when present, otherwise
+      // use exponential backoff.  Either way the result is capped at maxDelayMs.
+      const retryAfterMs = getRetryAfterMs(error);
+      if (retryAfterMs !== null) {
+        const cappedDelay = Math.min(retryAfterMs, fullConfig.maxDelayMs);
+        if (cappedDelay < retryAfterMs) {
+          core.info(`Retry-After header detected for ${operationName}: server requested ${retryAfterMs}ms wait, capped to ${cappedDelay}ms (maxDelayMs)`);
+        } else {
+          core.info(`Retry-After header detected for ${operationName}: next retry will wait ${cappedDelay}ms`);
+        }
+        delay = cappedDelay;
+      } else {
+        // Calculate next delay with exponential backoff
+        delay = Math.min(delay * fullConfig.backoffMultiplier, fullConfig.maxDelayMs);
+      }
     }
   }
 
@@ -266,8 +355,10 @@ module.exports = {
   withRetry,
   sleep,
   isTransientError,
+  getRetryAfterMs,
   enhanceError,
   createValidationError,
   createOperationError,
   DEFAULT_RETRY_CONFIG,
+  RATE_LIMIT_RETRY_CONFIG,
 };

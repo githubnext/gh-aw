@@ -14,6 +14,7 @@ tracker-id: daily-secrets-analysis
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, discussions]
   bash: true
 timeout-minutes: 20
@@ -298,4 +299,4 @@ For detailed information about secret usage patterns, see:
 - Use **tables and formatting** for readability
 - Include **actionable recommendations**
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

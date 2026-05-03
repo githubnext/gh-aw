@@ -13,6 +13,7 @@ strict: true
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [pull_requests, repos]
   bash:
     - "jq *"
@@ -262,4 +263,4 @@ PRs closed:
 
 Execute the cleanup policy systematically and maintain consistency in how you calculate inactivity and apply actions.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

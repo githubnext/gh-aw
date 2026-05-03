@@ -891,6 +891,10 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
 	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix)...)
 
+	// Download experiment artifact so the detection agent can read the current variant assignments.
+	// The experiment artifact is uploaded by the activation job.
+	steps = append(steps, buildExperimentArtifactDownloadSteps(data)...)
+
 	// Conditionally checkout the target repository so the detection engine can
 	// analyze patches in the context of the surrounding codebase.
 	steps = append(steps, c.buildWorkspaceCheckoutForDetectionStep(data)...)

@@ -126,10 +126,7 @@ async function main(core, ctx) {
   const awContextRaw = ctx.payload?.inputs?.aw_context ?? ctx.payload?.client_payload?.aw_context;
   if (awContextRaw != null) {
     try {
-      const parsed =
-        typeof awContextRaw === "string"
-          ? JSON.parse(awContextRaw)
-          : awContextRaw;
+      const parsed = typeof awContextRaw === "string" ? JSON.parse(awContextRaw) : awContextRaw;
 
       // Validate: must be a plain non-null object (not an array or primitive)
       if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {

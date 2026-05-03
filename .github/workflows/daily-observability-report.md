@@ -13,6 +13,7 @@ tracker-id: daily-observability-report
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, discussions, actions]
   agentic-workflows: true
 timeout-minutes: 45
@@ -388,4 +389,4 @@ A successful run will:
 
 Begin your analysis now. Download the logs, analyze observability coverage, and create the discussion report.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

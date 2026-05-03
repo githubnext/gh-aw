@@ -55,6 +55,10 @@ type ImportsResult struct {
 	// This is an appropriate use of 'any' for dynamic YAML/JSON data.
 	// See scratchpad/go-type-patterns.md for guidance on when to use map[string]any.
 	ImportInputs map[string]any // Aggregated input values from all imports (key = input name, value = input value)
+	// Warnings contains best-effort advisory messages collected while processing imports
+	// (e.g. unknown frontmatter fields in inline sub-agent blocks). Callers should surface
+	// these to the user but must not treat them as compilation failures.
+	Warnings []string
 }
 
 // ImportInputDefinition defines an input parameter for a shared workflow import.

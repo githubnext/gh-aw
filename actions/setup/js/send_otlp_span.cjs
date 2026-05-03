@@ -4,9 +4,11 @@
 const { randomBytes } = require("crypto");
 const fs = require("fs");
 const { buildWorkflowCallId } = require("./aw_context.cjs");
+const path = require("path");
 const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = require("./experiment_helpers.cjs");
 
 /**
  * send_otlp_span.cjs
@@ -380,6 +382,49 @@ function appendToOTLPJSONL(payload) {
 }
 
 // ---------------------------------------------------------------------------
+// Experiment assignments
+// ---------------------------------------------------------------------------
+// readExperimentAssignments and EXPERIMENT_ASSIGNMENTS_PATH are imported from
+// experiment_helpers.cjs above.
+
+/**
+ * Build OTLP span attributes for the active experiment assignments.
+ *
+ * Adds one `gh-aw.experiment.<name>` attribute per experiment (carrying the
+ * selected variant string) and a single `gh-aw.experiments` attribute with a
+ * compact JSON string of only the valid emitted assignments (key-sorted for
+ * determinism), which enables simple substring searches in backends that do
+ * not support per-attribute filtering.
+ *
+ * Invalid assignments (non-string or empty-string variants) are skipped for
+ * both the per-experiment attributes and the aggregated JSON.
+ *
+ * Returns an empty array when no assignments are available.
+ *
+ * @param {Record<string, string> | null} assignments
+ * @returns {Array<{key: string, value: object}>}
+ */
+function buildExperimentAttributes(assignments) {
+  if (!assignments || typeof assignments !== "object") return [];
+  const names = Object.keys(assignments).sort();
+  if (names.length === 0) return [];
+  const attrs = [];
+  /** @type {Record<string, string>} */
+  const validAssignments = {};
+  for (const name of names) {
+    const variant = assignments[name];
+    if (typeof variant === "string" && variant) {
+      attrs.push(buildAttr(`gh-aw.experiment.${name}`, variant));
+      validAssignments[name] = variant;
+    }
+  }
+  if (attrs.length > 0) {
+    attrs.push(buildAttr("gh-aw.experiments", JSON.stringify(validAssignments)));
+  }
+  return attrs;
+}
+
+// ---------------------------------------------------------------------------
 // HTTP transport
 // ---------------------------------------------------------------------------
 
@@ -631,9 +676,10 @@ function isValidSpanId(id) {
  *   trace ID so that dispatched child workflows share the parent's OTLP trace;
  *   `context.otel_parent_span_id` is used as the parent span ID so the child's setup span
  *   is properly nested under the parent's setup span in the trace hierarchy; and
- *   `context.item_type`, `context.item_number`, and `context.trigger_label` are emitted as
- *   `gh-aw.trigger.item_type`, `gh-aw.trigger.item_number`, and `gh-aw.trigger.label`
- *   attributes so every span can be linked back to the GitHub item that triggered the workflow
+ *   `context.item_type`, `context.item_number`, `context.trigger_label`, and `context.comment_id`
+ *   are emitted as `gh-aw.trigger.item_type`, `gh-aw.trigger.item_number`, `gh-aw.trigger.label`,
+ *   and `gh-aw.trigger.comment_id` attributes so every span can be linked back to the GitHub item
+ *   (and specific comment) that triggered the workflow
  *
  * @param {SendJobSetupSpanOptions} [options]
  * @returns {Promise<{ traceId: string, spanId: string }>} The trace and span IDs used.
@@ -673,6 +719,7 @@ async function sendJobSetupSpan(options = {}) {
   const itemType = typeof awInfo.context?.item_type === "string" ? awInfo.context.item_type : "";
   const itemNumber = typeof awInfo.context?.item_number === "string" ? awInfo.context.item_number : "";
   const triggerLabel = typeof awInfo.context?.trigger_label === "string" ? awInfo.context.trigger_label : "";
+  const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
 
   const traceId = optionsTraceId || inputTraceId || contextTraceId || generateTraceId();
 
@@ -732,6 +779,12 @@ async function sendJobSetupSpan(options = {}) {
   if (itemType) attributes.push(buildAttr("gh-aw.trigger.item_type", itemType));
   if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
   if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
+  if (commentId) attributes.push(buildAttr("gh-aw.trigger.comment_id", commentId));
+
+  // Include experiment assignments so each span can be correlated with the
+  // A/B variant selected for this run (written by pick_experiment.cjs).
+  const experimentAssignments = readExperimentAssignments();
+  attributes.push(...buildExperimentAttributes(experimentAssignments));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
 
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
@@ -930,6 +983,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const itemType = typeof awInfo.context?.item_type === "string" ? awInfo.context.item_type : "";
   const itemNumber = typeof awInfo.context?.item_number === "string" ? awInfo.context.item_number : "";
   const triggerLabel = typeof awInfo.context?.trigger_label === "string" ? awInfo.context.trigger_label : "";
+  const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
   const jobName = process.env.INPUT_JOB_NAME || "";
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = awInfo.run_attempt || process.env.GITHUB_RUN_ATTEMPT || "1";
@@ -991,6 +1045,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (itemType) attributes.push(buildAttr("gh-aw.trigger.item_type", itemType));
   if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
   if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
+  if (commentId) attributes.push(buildAttr("gh-aw.trigger.comment_id", commentId));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
@@ -1032,6 +1087,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       attributes.push(buildAttr("gh-aw.github.rate_limit.reset", String(lastRateLimit.reset)));
     }
   }
+
+  // Include experiment assignments so each span can be correlated with the
+  // A/B variant selected for this run (written by pick_experiment.cjs).
+  const conclusionExperimentAssignments = readExperimentAssignments();
+  attributes.push(...buildExperimentAttributes(conclusionExperimentAssignments));
 
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
   if (repository && runId) {
@@ -1217,4 +1277,5 @@ module.exports = {
   sendJobConclusionSpan,
   OTEL_JSONL_PATH,
   appendToOTLPJSONL,
+  buildExperimentAttributes,
 };

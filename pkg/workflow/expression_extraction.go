@@ -65,15 +65,22 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 
 		// Extract the content (without ${{ }})
 		content := strings.TrimSpace(match[1])
+		originalContent := content
 
 		// Apply activation output transformation for backward compatibility
 		// This transforms needs.activation.outputs.{text|title|body} to steps.sanitized.outputs.{text|title|body}
 		// Users should now use steps.sanitized.outputs.* directly; this transformation exists only for
 		// backward compatibility with existing workflows.
-		transformedContent := transformActivationOutputs(content)
-		if transformedContent != content {
-			expressionExtractionLog.Printf("Transformed expression: %s -> %s", content, transformedContent)
-			content = transformedContent
+		if t := transformActivationOutputs(content); t != content {
+			expressionExtractionLog.Printf("Transformed expression: %s -> %s", content, t)
+			content = t
+		}
+
+		// Detect experiments.NAME expressions and remap them to steps.pick-experiment.outputs.NAME
+		// so the substitution step reads the variant value from the pick_experiment step output.
+		if t := transformExperimentsExpression(content); t != content {
+			expressionExtractionLog.Printf("Transformed experiment expression: %s -> %s", content, t)
+			content = t
 		}
 
 		// Skip if we've already seen this expression (also prevents duplicate deprecation warnings)
@@ -81,10 +88,10 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 			continue
 		}
 
-		// Emit deprecation warning once per unique deprecated expression
-		if transformedContent != strings.TrimSpace(match[1]) {
+		// Emit deprecation warning once per unique deprecated activation-output expression
+		if content != originalContent && strings.HasPrefix(content, "steps.sanitized.outputs.") {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-				fmt.Sprintf("Deprecated expression ${{ %s }}: use ${{ %s }} instead.", strings.TrimSpace(match[1]), transformedContent),
+				fmt.Sprintf("Deprecated expression ${{ %s }}: use ${{ %s }} instead.", originalContent, content),
 			))
 		}
 
@@ -187,6 +194,32 @@ func transformActivationOutputs(expr string) string {
 	}
 
 	return expr
+}
+
+// experimentNameRegex matches experiments.<name> expressions where name is a simple identifier.
+var experimentNameRegex = regexp.MustCompile(`^experiments\.([a-zA-Z_][a-zA-Z0-9_]*)$`)
+
+// ExperimentEnvVarName returns the env-var name used for the given experiment.
+// The name is uppercased; hyphens are converted to underscores; all other characters
+// that are not A-Z, 0-9, or underscore are dropped (not replaced).
+// Example: "feature1" → "GH_AW_EXPERIMENTS_FEATURE1"
+// Example: "my-flag"  → "GH_AW_EXPERIMENTS_MY_FLAG"
+func ExperimentEnvVarName(experimentName string) string {
+	return "GH_AW_EXPERIMENTS_" + normalizeJobNameForEnvVar(experimentName)
+}
+
+// transformExperimentsExpression detects expressions of the form "experiments.<name>"
+// and rewrites them to "steps.pick-experiment.outputs.<name>" so that the placeholder
+// substitution step reads the value from the pick_experiment step output.
+// This is used for ${{ experiments.name }} expressions that appear directly in the prompt body
+// (mostly relevant in inline mode; in runtime-import mode the template conditional
+// {{#if experiments.name}} path is handled separately via ExperimentExpressionMappings).
+func transformExperimentsExpression(expr string) string {
+	m := experimentNameRegex.FindStringSubmatch(expr)
+	if m == nil {
+		return expr
+	}
+	return "steps.pick-experiment.outputs." + m[1]
 }
 
 // simpleIdentifierRegex matches simple JavaScript property access chains like

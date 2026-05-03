@@ -12,12 +12,14 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -85,8 +87,12 @@ func findGitHubRateLimitsFile(runDir string) string {
 
 	// Fallback: walk the run directory looking for the file by name
 	found := ""
-	_ = filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			gitHubRateLimitUsageLog.Printf("walk error at %s: %v", path, err)
+			return nil
+		}
+		if info == nil || info.IsDir() {
 			return nil
 		}
 		if info.Name() == filename {
@@ -94,7 +100,9 @@ func findGitHubRateLimitsFile(runDir string) string {
 			return filepath.SkipAll
 		}
 		return nil
-	})
+	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", runDir, walkErr)))
+	}
 	if found != "" {
 		gitHubRateLimitUsageLog.Printf("Found rate limits file via walk: %s", found)
 		return found

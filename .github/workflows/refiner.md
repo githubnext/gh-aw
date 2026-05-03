@@ -8,11 +8,13 @@ permissions:
   issues: read
 engine: copilot
 imports:
-  - shared/github-guard-policy.md
+  - uses: shared/pr-review-base.md
+    with:
+      min-integrity: approved
 tools:
   cli-proxy: true
   github:
-    min-integrity: approved
+    mode: gh-proxy
     toolsets: [pull_requests, repos, issues]
 safe-outputs:
   create-pull-request:
@@ -404,4 +406,4 @@ Your effectiveness is measured by:
 
 Execute all phases systematically and produce high-quality refinement pull requests that genuinely improve the codebase.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

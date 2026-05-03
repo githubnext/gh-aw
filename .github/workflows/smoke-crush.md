@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
     types: [labeled]
-    names: ["smoke"]
+    names: ["water"]
   reaction: "eyes"
   status-comment: true
 permissions:
@@ -72,4 +72,4 @@ Add a **very brief** comment (max 5-10 lines) to the current pull request with:
 
 If all tests pass, use the `add_labels` safe-output tool to add the label `smoke-crush` to the pull request.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

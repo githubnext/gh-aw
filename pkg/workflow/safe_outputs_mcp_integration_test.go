@@ -114,17 +114,31 @@ Test workflow without safe outputs.
 	}
 	yamlStr := string(yamlContent)
 
-	// Check that safe-outputs MCP server file is NOT written (it's copied by setup.sh instead)
-	// The check is now redundant since we removed the cat command entirely
-
-	// Check that safe-outputs configuration file is NOT written
-	if strings.Contains(yamlStr, `cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json"`) {
-		t.Error("Expected safe-outputs configuration to NOT be written when safe-outputs are disabled")
+	// When no safe-outputs are user-configured, the compiler automatically injects a default
+	// create-issue safe output (applyDefaultCreateIssue). This auto-inject ensures agents can
+	// always report their results, so the safeoutputs MCP server IS expected to be present.
+	// Verify the auto-inject behaviour is active by checking for the auto-create-issue prompt.
+	if !strings.Contains(yamlStr, "safe_outputs_auto_create_issue.md") {
+		t.Error("Expected auto-injected create-issue prompt to be present when no safe-outputs are configured")
 	}
 
-	// Check that safeoutputs is NOT included in MCP configuration
-	if strings.Contains(yamlStr, `"safeoutputs": {`) {
-		t.Error("Expected safeoutputs to NOT be in MCP server configuration when disabled")
+	// The safeoutputs MCP server and config file are written because auto-inject enabled create-issue.
+	if !strings.Contains(yamlStr, `cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json"`) {
+		t.Error("Expected safe-outputs configuration to be written due to auto-injected create-issue")
+	}
+	if !strings.Contains(yamlStr, `"safeoutputs": {`) {
+		t.Error("Expected safeoutputs to be in MCP server configuration due to auto-injected create-issue")
+	}
+
+	// The auto-injected config should reference the create_issue tool, confirming the MCP
+	// server is configured with the correct auto-injected output definition.
+	if !strings.Contains(yamlStr, `"create_issue"`) {
+		t.Error("Expected create_issue tool to be in safeoutputs config due to auto-injected create-issue")
+	}
+
+	// Explicitly configured safe-outputs like upload_artifact or custom jobs should NOT appear.
+	if strings.Contains(yamlStr, "upload_artifact") {
+		t.Error("Expected upload_artifact to NOT be configured when safe-outputs are not user-configured")
 	}
 
 	t.Log("Safe outputs MCP server disabled test passed")

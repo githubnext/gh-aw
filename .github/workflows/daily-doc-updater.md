@@ -35,6 +35,7 @@ tools:
   cli-proxy: true
   cache-memory: true
   github:
+    mode: gh-proxy
     toolsets: [default]
     min-integrity: approved
   edit:
@@ -297,4 +298,4 @@ This PR updates the documentation based on features merged in the last 24 hours.
 
 Good luck! Your documentation updates help keep our project accessible and up-to-date.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

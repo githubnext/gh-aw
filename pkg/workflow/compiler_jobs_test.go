@@ -3287,7 +3287,9 @@ func TestBuildCustomJobsAllNewFieldsViaWorkflowData(t *testing.T) {
 	if err := jm.AddJob(job); err != nil {
 		t.Fatalf("AddJob() error: %v", err)
 	}
-	rendered := jm.RenderToYAML()
+	var renderedBuf strings.Builder
+	jm.WriteJobsYAML(&renderedBuf)
+	rendered := renderedBuf.String()
 
 	renderedChecks := []string{
 		"name: My Display Name",

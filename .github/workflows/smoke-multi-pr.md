@@ -90,4 +90,4 @@ Both PRs must be created successfully. After creating both PRs, add a comment to
 - Confirmation that multi-PR creation is working
 - Confirmation that CRLF line endings were handled correctly (PR 2)
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

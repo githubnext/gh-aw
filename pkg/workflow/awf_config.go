@@ -12,7 +12,7 @@
 // The generated config file follows the AWF config file format:
 //
 //	{
-//	  "$schema": "https://github.com/github/gh-aw-firewall/schemas/awf-config.v1.json",
+//	  "$schema": "https://github.com/github/gh-aw-firewall/releases/download/vX.Y.Z/awf-config.schema.json",
 //	  "network": {
 //	    "allowDomains": ["github.com", "api.github.com"],
 //	    "blockDomains": ["ads.example.com"]
@@ -47,7 +47,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var awfConfigLog = logger.New("workflow:awf_config")
 
 // AWFConfigFile represents the AWF configuration file schema.
 // This is the top-level structure written to awf-config.json.
@@ -106,6 +111,30 @@ type AWFContainerConfig struct {
 	ImageTag string `json:"imageTag,omitempty"`
 }
 
+// buildAWFConfigSchemaURL returns the release-pinned JSON schema URL for the AWF config file.
+// The URL is versioned so that schema validation tools always reference the exact schema
+// that matches the AWF binary being used. When DefaultFirewallVersion is bumped the URL
+// automatically tracks the new release.
+//
+// If firewallConfig carries an explicit version (e.g. sandbox.agent.version) that version
+// is used; otherwise DefaultFirewallVersion is used.
+func buildAWFConfigSchemaURL(firewallConfig *FirewallConfig) string {
+	version := string(constants.DefaultFirewallVersion)
+	if firewallConfig != nil && firewallConfig.Version != "" {
+		version = firewallConfig.Version
+	}
+	// Special-case "latest": the GitHub Releases /latest/download/ shortcut serves
+	// assets from the most recent release without requiring a tag in the path.
+	if strings.EqualFold(version, "latest") {
+		return "https://github.com/github/gh-aw-firewall/releases/latest/download/awf-config.schema.json"
+	}
+	// Ensure version has the 'v' prefix required by GitHub release tag URLs.
+	if !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
+	return fmt.Sprintf("https://github.com/github/gh-aw-firewall/releases/download/%s/awf-config.schema.json", version)
+}
+
 // BuildAWFConfigJSON generates a compact JSON config file for AWF from the provided
 // command configuration. The JSON is single-line (no indentation) for safe embedding
 // in a shell printf command.
@@ -113,21 +142,30 @@ type AWFContainerConfig struct {
 // The caller is responsible for writing the returned JSON to disk at the path expected
 // by the AWF --config flag. See BuildAWFCommand for how this is wired together.
 func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
+	awfConfigLog.Printf("Building AWF config JSON: engine=%s, allowed_domains=%q", config.EngineName, config.AllowedDomains)
+
+	// Resolve firewall config once — used for both the schema URL and the container image tag.
+	firewallConfig := getFirewallConfig(config.WorkflowData)
+
 	awfConfig := AWFConfigFile{
-		Schema: "https://github.com/github/gh-aw-firewall/schemas/awf-config.v1.json",
+		Schema: buildAWFConfigSchemaURL(firewallConfig),
 	}
 
 	// ── Network section ──────────────────────────────────────────────────────
 	if config.AllowedDomains != "" {
+		allowList := splitDomainList(config.AllowedDomains)
 		awfConfig.Network = &AWFNetworkConfig{
-			AllowDomains: splitDomainList(config.AllowedDomains),
+			AllowDomains: allowList,
 		}
+		awfConfigLog.Printf("Network section: %d allowed domains", len(allowList))
 
 		// Blocked domains (if configured in the workflow)
 		if config.WorkflowData != nil {
 			blockedDomainsStr := formatBlockedDomains(config.WorkflowData.NetworkPermissions)
 			if blockedDomainsStr != "" {
-				awfConfig.Network.BlockDomains = splitDomainList(blockedDomainsStr)
+				blockList := splitDomainList(blockedDomainsStr)
+				awfConfig.Network.BlockDomains = blockList
+				awfConfigLog.Printf("Network section: %d blocked domains", len(blockList))
 			}
 		}
 	}
@@ -141,35 +179,41 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	if openaiTarget := extractAPITargetHost(config.WorkflowData, "OPENAI_BASE_URL"); openaiTarget != "" {
 		targets["openai"] = &AWFAPITargetConfig{Host: openaiTarget}
+		awfConfigLog.Printf("API proxy: custom openai target=%s", openaiTarget)
 	}
 	if anthropicTarget := extractAPITargetHost(config.WorkflowData, "ANTHROPIC_BASE_URL"); anthropicTarget != "" {
 		targets["anthropic"] = &AWFAPITargetConfig{Host: anthropicTarget}
+		awfConfigLog.Printf("API proxy: custom anthropic target=%s", anthropicTarget)
 	}
 	if copilotTarget := GetCopilotAPITarget(config.WorkflowData); copilotTarget != "" {
 		targets["copilot"] = &AWFAPITargetConfig{Host: copilotTarget}
+		awfConfigLog.Printf("API proxy: custom copilot target=%s", copilotTarget)
 	}
 	if geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName); geminiTarget != "" {
 		targets["gemini"] = &AWFAPITargetConfig{Host: geminiTarget}
+		awfConfigLog.Printf("API proxy: custom gemini target=%s", geminiTarget)
 	}
 
 	if len(targets) > 0 {
 		apiProxy.Targets = targets
+		awfConfigLog.Printf("API proxy: %d custom targets configured", len(targets))
 	}
 	awfConfig.APIProxy = apiProxy
 
 	// ── Container section ─────────────────────────────────────────────────────
-	firewallConfig := getFirewallConfig(config.WorkflowData)
 	awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
 	if awfImageTag != "" {
 		awfConfig.Container = &AWFContainerConfig{
 			ImageTag: awfImageTag,
 		}
+		awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
 	}
 
 	jsonBytes, err := json.Marshal(awfConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal AWF config to JSON: %w", err)
 	}
+	awfConfigLog.Printf("AWF config JSON generated: %d bytes", len(jsonBytes))
 	return string(jsonBytes), nil
 }
 

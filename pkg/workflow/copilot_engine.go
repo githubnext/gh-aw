@@ -59,11 +59,24 @@ func (e *CopilotEngine) GetModelEnvVarName() string {
 	return constants.CopilotCLIModelEnvVar
 }
 
-// GetRequiredSecretNames returns the list of secrets required by the Copilot engine
-// This includes COPILOT_GITHUB_TOKEN and optionally MCP_GATEWAY_API_KEY
+// GetRequiredSecretNames returns the list of secrets required by the Copilot engine.
+// This includes COPILOT_GITHUB_TOKEN and optionally MCP_GATEWAY_API_KEY.
+// It also includes COPILOT_PROVIDER_* env var keys that may carry secrets when BYOK mode
+// is configured — allowing them to pass through strict-mode validation and the secret filter.
 func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	copilotLog.Print("Collecting required secrets for Copilot engine")
-	secrets := []string{"COPILOT_GITHUB_TOKEN"}
+	secrets := []string{
+		"COPILOT_GITHUB_TOKEN",
+		// BYOK provider variables that may carry secrets in engine.env.
+		// Listed unconditionally: checking for their presence in the current workflow's
+		// EngineConfig.Env would add complexity without security benefit, since these
+		// keys only carry secrets when the workflow author explicitly sets them.
+		// Listing them here allows strict-mode validation to recognise them as engine
+		// credentials and lets FilterEnvForSecrets pass their values through to the step.
+		constants.CopilotProviderBaseURL,
+		constants.CopilotProviderAPIKey,
+		constants.CopilotProviderBearerToken,
+	}
 
 	// Add MCP gateway API key if MCP servers are present (gateway is always started with MCP servers)
 	if HasMCPServers(workflowData) {

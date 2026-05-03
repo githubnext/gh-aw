@@ -20,6 +20,7 @@ imports:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     min-integrity: approved
     toolsets:
       - issues
@@ -210,4 +211,4 @@ Your discussion should include:
 - When creating parent issues, include references to all related sub-issues in the body
 - Link all related issues as sub-issues immediately after creating the parent issue
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

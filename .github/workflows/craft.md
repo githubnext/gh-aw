@@ -15,6 +15,7 @@ tools:
   bash:
     - "*"
   github:
+    mode: gh-proxy
     toolsets: [default]
 steps:
   - name: Install gh-aw extension
@@ -232,6 +233,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: gh-proxy
     toolsets: [default]
 safe-outputs:
   add-comment:
@@ -284,4 +286,4 @@ Now analyze the user's request: "${{ steps.sanitized.outputs.text }}"
 5. Push changes using `push-to-pull-request-branch`
 6. Report success with details
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

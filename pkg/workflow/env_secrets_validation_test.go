@@ -602,6 +602,83 @@ func TestValidateEngineEnvSecrets(t *testing.T) {
 			expectError: true,
 			errorMsg:    "strict mode: secrets detected in 'env' section will be leaked to the agent container",
 		},
+		// BYOK (Bring Your Own Key) provider variable tests
+		{
+			name: "engine.env with COPILOT_PROVIDER_BASE_URL secret is allowed in strict mode (BYOK)",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						"COPILOT_PROVIDER_BASE_URL": "${{ secrets.PROVIDER_BASE_URL }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "engine.env with COPILOT_PROVIDER_API_KEY secret is allowed in strict mode (BYOK)",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						"COPILOT_PROVIDER_API_KEY": "${{ secrets.PROVIDER_API_KEY }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "engine.env with COPILOT_PROVIDER_BEARER_TOKEN secret is allowed in strict mode (BYOK)",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						"COPILOT_PROVIDER_BEARER_TOKEN": "${{ secrets.PROVIDER_BEARER_TOKEN }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "engine.env with full BYOK config (URL + API key + model) is allowed in strict mode",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						"COPILOT_PROVIDER_BASE_URL": "${{ secrets.PROVIDER_BASE_URL }}",
+						"COPILOT_PROVIDER_API_KEY":  "${{ secrets.PROVIDER_API_KEY }}",
+						"COPILOT_MODEL":             "claude-sonnet-4",
+						"COPILOT_PROVIDER_TYPE":     "anthropic",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "engine.env with BYOK vars and an unrelated secret still fails in strict mode",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						"COPILOT_PROVIDER_BASE_URL": "${{ secrets.PROVIDER_BASE_URL }}",
+						"COPILOT_PROVIDER_API_KEY":  "${{ secrets.PROVIDER_API_KEY }}",
+						"UNRELATED_SECRET":          "${{ secrets.UNRELATED }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets detected in 'engine.env' section",
+		},
 	}
 
 	for _, tt := range tests {

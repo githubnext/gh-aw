@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -108,8 +109,12 @@ func (d *CopilotCodingAgentDetector) hasAgentWorkflowPath() bool {
 func (d *CopilotCodingAgentDetector) hasAgentLogPatterns() bool {
 	found := false
 	// Check log files for agent-specific patterns
-	_ = filepath.Walk(d.runDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() {
+	if walkErr := filepath.Walk(d.runDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			copilotCodingAgentLog.Printf("walk error at %s: %v", path, err)
+			return nil
+		}
+		if info == nil || info.IsDir() {
 			return nil
 		}
 
@@ -134,7 +139,9 @@ func (d *CopilotCodingAgentDetector) hasAgentLogPatterns() bool {
 		}
 
 		return nil
-	})
+	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", d.runDir, walkErr)))
+	}
 
 	return found
 }

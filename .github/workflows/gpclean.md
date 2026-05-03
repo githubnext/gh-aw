@@ -418,4 +418,4 @@ After creating the issue:
 
 This ensures systematic coverage without duplicate work.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

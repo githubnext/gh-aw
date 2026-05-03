@@ -19,10 +19,12 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
+  cli-proxy: true
   edit:
   bash:
     - "*"
   github:
+    mode: gh-proxy
     min-integrity: approved
     toolsets: 
       - issues
@@ -155,4 +157,4 @@ Follow the **Report Formatting Guidelines** in `shared/reporting.md` to structur
 - Detailed issue lists wrapped in `<details>` tags
 - Critical information (overview, trends, statistics, recommendations) always visible
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

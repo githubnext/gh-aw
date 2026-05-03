@@ -32,7 +32,9 @@ network:
   allowed: ["defaults", "go"]
 
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default]
   edit:
   bash: ["make:*", "git restore:*", "git status"]
@@ -140,4 +142,4 @@ The repository has all necessary tools installed:
 
 Start by checking for existing tidy pull requests, then proceed with the tidying process.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

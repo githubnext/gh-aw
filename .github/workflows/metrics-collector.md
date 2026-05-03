@@ -12,6 +12,7 @@ tools:
   cli-proxy: true
   agentic-workflows:
   github:
+    mode: gh-proxy
     toolsets: [default]
   repo-memory:
     branch-name: memory/meta-orchestrators

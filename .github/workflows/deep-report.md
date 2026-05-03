@@ -48,6 +48,7 @@ tools:
     file-glob: ["*.md"]
     max-file-size: 1048576  # 1MB
   github:
+    mode: gh-proxy
     toolsets:
       - all
   bash:
@@ -362,4 +363,4 @@ List all reports and data sources analyzed:
 1. **Create GitHub Issues**: For each of the 7 actionable tasks identified (if any), create a GitHub issue using the safe-outputs create-issue capability
 2. **Create Discussion Report**: Create a new GitHub discussion titled "DeepReport Intelligence Briefing - [Today's Date]" in the "reports" category with your full analysis (including the identified actionable tasks)
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

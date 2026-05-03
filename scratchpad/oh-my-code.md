@@ -811,7 +811,7 @@ inputs:
 **Magic Word Feature**: `ultrawork` or `ulw`
 - Include in prompt to activate all features automatically
 - Parallel agents, background tasks, deep exploration
-- Relentless execution until completion
+- Continues execution until all tasks complete
 - Agent figures out coordination automatically
 
 ### 7.2 GitHub Agentic Workflows: Frontmatter Configuration
@@ -917,7 +917,7 @@ Review the PR and check for security issues...
 
 ## 8. Developer Experience
 
-### 8.1 oh-my-opencode: Power User Paradise
+### 8.1 oh-my-opencode: Configuration and Usage
 
 **Installation**:
 ```bash
@@ -949,19 +949,19 @@ User: "ultrawork - Refactor authentication to use OAuth2"
 ```
 
 **Key Features**:
-- **Zero config**: Works out of box with sensible defaults
-- **Battery included**: All tools, agents, hooks pre-configured
-- **Magic word**: Just type `ultrawork` for full power
+- **Zero configuration**: Works with sensible defaults
+- **Pre-configured**: All tools, agents, and hooks included
+- **Simple invocation**: Type `ultrawork` to run all agents
 - **Real-time**: See agents working in parallel
 - **Interactive**: Ask questions, get design feedback
 - **Persistent**: Work continues across sessions
 
 **Learning Curve**: 
-- Beginner: Use magic word `ultrawork` (zero learning)
+- Beginner: Type `ultrawork` (no configuration required)
 - Intermediate: Configure agents, models (30 minutes)
 - Advanced: Custom agents, hooks, MCPs (1-2 hours)
 
-### 8.2 GitHub Agentic Workflows: Team Automation Made Safe
+### 8.2 GitHub Agentic Workflows: Configuration and Usage
 
 **Installation**:
 ```bash

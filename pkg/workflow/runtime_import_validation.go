@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/parser"
 )
 
 // runtimeImportMacroRe matches {{#runtime-import filepath}} or {{#runtime-import? filepath}}.
@@ -82,19 +84,22 @@ func extractRuntimeImportPaths(markdownContent string) []string {
 // validateRuntimeImportFiles validates expressions in all runtime-import files at compile time.
 // This catches expression errors early, before the workflow runs.
 // workspaceDir should be the root of the repository (containing .github folder).
-func validateRuntimeImportFiles(markdownContent string, workspaceDir string) error {
+// It returns any best-effort sub-agent frontmatter warnings and a non-nil error for fatal
+// expression validation failures.
+func validateRuntimeImportFiles(markdownContent string, workspaceDir string) ([]string, error) {
 	expressionValidationLog.Print("Validating runtime-import files")
 
 	// Extract all runtime-import file paths
 	paths := extractRuntimeImportPaths(markdownContent)
 	if len(paths) == 0 {
 		expressionValidationLog.Print("No runtime-import files to validate")
-		return nil
+		return nil, nil
 	}
 
 	expressionValidationLog.Printf("Found %d runtime-import file(s) to validate", len(paths))
 
 	var validationErrors []string
+	var subAgentWarnings []string
 
 	for _, filePath := range paths {
 		// Normalize the path to be relative to .github folder
@@ -143,11 +148,18 @@ func validateRuntimeImportFiles(markdownContent string, workspaceDir string) err
 		} else {
 			expressionValidationLog.Printf("✓ Validated expressions in %s", filePath)
 		}
+
+		// Best-effort: detect and validate inline sub-agent frontmatter in the
+		// runtime-imported file. Unknown fields are collected and returned to the
+		// caller so it can emit them through the normal warning counter.
+		for _, w := range parser.ValidateInlineSubAgentsFrontmatter(string(content)) {
+			subAgentWarnings = append(subAgentWarnings, fmt.Sprintf("runtime-import '%s': %s", filePath, w))
+		}
 	}
 
 	if len(validationErrors) > 0 {
 		expressionValidationLog.Printf("Runtime-import validation failed: %d file(s) with errors", len(validationErrors))
-		return NewValidationError(
+		return subAgentWarnings, NewValidationError(
 			"runtime-import",
 			fmt.Sprintf("%d files with errors", len(validationErrors)),
 			"runtime-import files contain expression errors:\n\n"+strings.Join(validationErrors, "\n\n"),
@@ -156,5 +168,5 @@ func validateRuntimeImportFiles(markdownContent string, workspaceDir string) err
 	}
 
 	expressionValidationLog.Print("All runtime-import files validated successfully")
-	return nil
+	return subAgentWarnings, nil
 }

@@ -27,6 +27,7 @@ imports:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default, pull_requests, issues]
   bash:
     - "cat:*"

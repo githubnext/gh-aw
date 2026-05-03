@@ -40,6 +40,7 @@ tools:
   agentic-workflows:
   cache-memory: true
   github:
+    mode: gh-proxy
     toolsets: [repos, pull_requests]
   bash: ["*"]
 
@@ -630,4 +631,4 @@ If workflow logs unavailable for most PRs:
 
 Now analyze the prompts and generate your comprehensive report!
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

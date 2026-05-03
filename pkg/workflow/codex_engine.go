@@ -210,8 +210,14 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	var command string
 	if firewallEnabled {
 		// Build AWF-wrapped command using helper function
-		// Get allowed domains (Codex defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
-		allowedDomains := GetCodexAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		// Get allowed domains: prefer the pre-warmed cache on WorkflowData to avoid
+		// re-running the expensive map+sort operation.
+		var allowedDomains string
+		if workflowData.CachedAllowedDomainsComputed {
+			allowedDomains = workflowData.CachedAllowedDomainsStr
+		} else {
+			allowedDomains = GetCodexAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		}
 		// Add GHES/custom API target domains to the firewall allow-list when engine.api-target is set
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
 			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
@@ -420,27 +426,35 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 
 	// Handle playwright tool by converting it to an MCP tool configuration with copilot agent tools
 	if toolsConfig.Playwright != nil {
-		// Create an updated Playwright config with the allowed tools
+		// Create an updated Playwright config preserving all fields including Mode
 		playwrightConfig := &PlaywrightToolConfig{
 			Version: toolsConfig.Playwright.Version,
 			Args:    toolsConfig.Playwright.Args,
+			Mode:    toolsConfig.Playwright.Mode,
 		}
 
 		result.Playwright = playwrightConfig
 
-		// Also update the Custom map entry for playwright with allowed tools list
-		playwrightMCP := map[string]any{
-			"allowed": GetPlaywrightTools(),
-		}
-		if playwrightConfig.Version != "" {
-			playwrightMCP["version"] = playwrightConfig.Version
-		}
-		if len(playwrightConfig.Args) > 0 {
-			playwrightMCP["args"] = playwrightConfig.Args
-		}
+		// In CLI mode, playwright is not an MCP server — remove from raw map and skip MCP config entry.
+		// result.raw is populated by maps.Copy(result.raw, toolsConfig.raw) earlier in this function,
+		// so delete is safe regardless of whether the key was originally present.
+		if playwrightConfig.IsCLIMode() {
+			delete(result.raw, "playwright")
+		} else {
+			// Also update the Custom map entry for playwright with allowed tools list
+			playwrightMCP := map[string]any{
+				"allowed": GetPlaywrightTools(),
+			}
+			if playwrightConfig.Version != "" {
+				playwrightMCP["version"] = playwrightConfig.Version
+			}
+			if len(playwrightConfig.Args) > 0 {
+				playwrightMCP["args"] = playwrightConfig.Args
+			}
 
-		// Update raw map for backward compatibility
-		result.raw["playwright"] = playwrightMCP
+			// Update raw map for backward compatibility
+			result.raw["playwright"] = playwrightMCP
+		}
 	}
 
 	return result

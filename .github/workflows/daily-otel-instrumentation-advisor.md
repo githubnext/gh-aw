@@ -19,6 +19,7 @@ tools:
   cli-proxy: true
   bash: true
   github:
+    mode: gh-proxy
     toolsets: [default, issues]
 safe-outputs:
   create-issue:

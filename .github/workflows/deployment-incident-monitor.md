@@ -10,7 +10,9 @@ permissions:
   deployments: read
 engine: copilot
 tools:
+  cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [repos, actions]
 safe-outputs:
   create-issue:
@@ -40,10 +42,11 @@ Perform a root cause analysis of this deployment failure and create a focused in
 
 1. **Check for an existing open incident issue**: Look for open issues with both `incident` and `deployment-failure` labels. If one already exists for this environment and recent timeframe, call `noop` with a brief explanation.
 
-2. **Gather context** using the available GitHub MCP tools:
-   - Look up recent workflow runs and job logs in the `actions` toolset to identify what failed
-   - Review recent commits to the deployed branch to identify changes that may have caused the failure
-   - Check if there were any related CI failures preceding the deployment
+2. **Gather context** using `gh` CLI:
+   - Look up recent workflow runs: `gh run list --repo $REPO --limit 10 --json databaseId,conclusion,name,headSha,createdAt`
+   - Download job logs for failed runs: `gh run view <run_id> --log-failed`
+   - Review recent commits: `gh api repos/$REPO/commits?per_page=10`
+   - Check for related CI failures preceding the deployment
 
 3. **Create an incident issue** if no duplicate exists. The issue should include:
    - **Environment** and the deployment failure state

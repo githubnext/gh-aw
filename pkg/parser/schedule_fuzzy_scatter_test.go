@@ -812,7 +812,7 @@ func TestScatterScheduleAvoidsUSBusinessHours(t *testing.T) {
 
 // TestScatterScheduleUsesPreferredWindows verifies that full-day scatter patterns
 // (FUZZY:DAILY, FUZZY:DAILY_WEEKDAYS, FUZZY:WEEKLY, etc.) land exclusively in the
-// preferred time windows: BEST (02–05 UTC), GOOD (10–12 UTC), or OK (19–23 UTC).
+// preferred time windows: BEST (02–05 UTC) or BROAD (06–23 UTC).
 func TestScatterScheduleUsesPreferredWindows(t *testing.T) {
 	workflowIDs := []string{
 		"workflow-a.md", "workflow-b.md", "workflow-c.md",
@@ -832,7 +832,8 @@ func TestScatterScheduleUsesPreferredWindows(t *testing.T) {
 	}
 
 	isInPreferredWindow := func(hour int) bool {
-		return (hour >= 2 && hour <= 5) || (hour >= 10 && hour <= 12) || (hour >= 19 && hour <= 23)
+		// BEST (02–05 UTC) or BROAD (06–23 UTC) — hours 00–01 are excluded
+		return hour >= 2 && hour <= 23
 	}
 
 	for _, pattern := range patterns {
@@ -854,7 +855,7 @@ func TestScatterScheduleUsesPreferredWindows(t *testing.T) {
 				}
 
 				if !isInPreferredWindow(hour) {
-					t.Errorf("pattern=%q wfID=%q: cron %q schedules at hour %d, which is not in a preferred window (02-05, 10-12, or 19-23 UTC)",
+					t.Errorf("pattern=%q wfID=%q: cron %q schedules at hour %d, which is not in a preferred window (02-05 or 06-23 UTC)",
 						pattern, wfID, result, hour)
 				}
 			})

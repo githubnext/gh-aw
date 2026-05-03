@@ -121,12 +121,13 @@ async function main() {
       core.info(`ℹ️  Label already exists: ${labelName}`);
       skipped++;
     } else {
+      const color = deterministicLabelColor(labelName);
       try {
         await github.rest.issues.createLabel({
           owner,
           repo,
           name: labelName,
-          color: deterministicLabelColor(labelName),
+          color,
           description: "",
         });
         core.info(`✅ Created label: ${labelName}`);

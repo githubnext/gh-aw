@@ -29,8 +29,10 @@ imports:
   - shared/mcp/serena-go.md
 
 tools:
+  cli-proxy: true
   cache-memory: true
   github:
+    mode: gh-proxy
     toolsets: [default, issues]
   edit:
   bash:
@@ -637,4 +639,4 @@ A successful Sergo run delivers:
 
 Begin your analysis! Scan Serena tools, pick your strategy, and dive deep into the Go codebase to discover meaningful improvements.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

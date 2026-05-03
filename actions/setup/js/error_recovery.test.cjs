@@ -1,6 +1,7 @@
 // @ts-check
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import fs from "fs";
 
 // Mock @actions/core
 global.core = {
@@ -10,7 +11,7 @@ global.core = {
   debug: vi.fn(),
 };
 
-import { withRetry, isTransientError, enhanceError, createValidationError, createOperationError, DEFAULT_RETRY_CONFIG } from "./error_recovery.cjs";
+import { withRetry, isTransientError, getRetryAfterMs, enhanceError, createValidationError, createOperationError, DEFAULT_RETRY_CONFIG, RATE_LIMIT_RETRY_CONFIG } from "./error_recovery.cjs";
 
 describe("error_recovery", () => {
   beforeEach(() => {
@@ -331,6 +332,166 @@ describe("error_recovery", () => {
       expect(DEFAULT_RETRY_CONFIG.backoffMultiplier).toBe(2);
       expect(DEFAULT_RETRY_CONFIG.jitterMs).toBe(100);
       expect(DEFAULT_RETRY_CONFIG.shouldRetry).toBe(isTransientError);
+    });
+  });
+
+  describe("RATE_LIMIT_RETRY_CONFIG", () => {
+    it("should have 5 retries", () => {
+      expect(RATE_LIMIT_RETRY_CONFIG.maxRetries).toBe(5);
+    });
+
+    it("should have initialDelayMs producing 30s first retry sleep", () => {
+      // First retry sleep = initialDelayMs * backoffMultiplier
+      const firstRetrySleep = RATE_LIMIT_RETRY_CONFIG.initialDelayMs * RATE_LIMIT_RETRY_CONFIG.backoffMultiplier;
+      expect(firstRetrySleep).toBe(30000);
+    });
+
+    it("should cap delay at 240s", () => {
+      expect(RATE_LIMIT_RETRY_CONFIG.maxDelayMs).toBe(240000);
+    });
+
+    it("should use isTransientError as shouldRetry", () => {
+      expect(RATE_LIMIT_RETRY_CONFIG.shouldRetry).toBe(isTransientError);
+    });
+  });
+
+  describe("getRetryAfterMs", () => {
+    it("should return null when error has no response headers", () => {
+      expect(getRetryAfterMs(new Error("Some error"))).toBeNull();
+      expect(getRetryAfterMs(null)).toBeNull();
+      expect(getRetryAfterMs(undefined)).toBeNull();
+    });
+
+    it("should return null when status is not a rate-limit status", () => {
+      // 5xx errors should not use Retry-After from x-ratelimit-reset
+      const error502 = { response: { status: 502, headers: { "x-ratelimit-reset": String(Math.floor((Date.now() + 120000) / 1000)) } } };
+      expect(getRetryAfterMs(error502)).toBeNull();
+      // 403 without x-ratelimit-remaining: 0 is not a rate-limit response
+      const error403 = { response: { status: 403, headers: { "retry-after": "60", "x-ratelimit-remaining": "100" } } };
+      expect(getRetryAfterMs(error403)).toBeNull();
+    });
+
+    it("should extract retry-after seconds from response headers on 429", () => {
+      const error = { response: { status: 429, headers: { "retry-after": "60" } } };
+      expect(getRetryAfterMs(error)).toBe(60000);
+    });
+
+    it("should extract retry-after seconds from top-level headers on 429", () => {
+      const error = { status: 429, headers: { "retry-after": "30" } };
+      expect(getRetryAfterMs(error)).toBe(30000);
+    });
+
+    it("should prefer response.headers over top-level headers on 429", () => {
+      const error = {
+        response: { status: 429, headers: { "retry-after": "60" } },
+        headers: { "retry-after": "30" },
+      };
+      expect(getRetryAfterMs(error)).toBe(60000);
+    });
+
+    it("should return null for zero or negative retry-after on 429", () => {
+      expect(getRetryAfterMs({ response: { status: 429, headers: { "retry-after": "0" } } })).toBeNull();
+      expect(getRetryAfterMs({ response: { status: 429, headers: { "retry-after": "-1" } } })).toBeNull();
+    });
+
+    it("should fall back to x-ratelimit-reset when retry-after is absent on 429", () => {
+      const futureTimestamp = Math.floor((Date.now() + 120000) / 1000); // 2 min from now
+      const error = { response: { status: 429, headers: { "x-ratelimit-reset": String(futureTimestamp) } } };
+      const result = getRetryAfterMs(error);
+      // Should be roughly 120s (allow ±5s for test timing)
+      expect(result).toBeGreaterThan(115000);
+      expect(result).toBeLessThan(125000);
+    });
+
+    it("should use x-ratelimit-reset for 403 with x-ratelimit-remaining: 0 (secondary rate limit)", () => {
+      const futureTimestamp = Math.floor((Date.now() + 60000) / 1000); // 1 min from now
+      const error = {
+        response: {
+          status: 403,
+          headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(futureTimestamp) },
+        },
+      };
+      const result = getRetryAfterMs(error);
+      expect(result).toBeGreaterThan(55000);
+      expect(result).toBeLessThan(65000);
+    });
+
+    it("should return null when x-ratelimit-reset is in the past on 429", () => {
+      const pastTimestamp = Math.floor((Date.now() - 60000) / 1000);
+      const error = { response: { status: 429, headers: { "x-ratelimit-reset": String(pastTimestamp) } } };
+      expect(getRetryAfterMs(error)).toBeNull();
+    });
+
+    it("should return null for non-numeric retry-after on 429", () => {
+      const error = { response: { status: 429, headers: { "retry-after": "not-a-number" } } };
+      expect(getRetryAfterMs(error)).toBeNull();
+    });
+  });
+
+  describe("withRetry with Retry-After header", () => {
+    let appendSpy, existsSpy, mkdirSpy;
+
+    beforeEach(() => {
+      existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined);
+      appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      existsSpy.mockRestore();
+      mkdirSpy.mockRestore();
+      appendSpy.mockRestore();
+    });
+
+    it("should use Retry-After delay instead of backoff when header is present on 429", async () => {
+      const retryAfterError = {
+        message: "rate limit exceeded",
+        response: { status: 429, headers: { "retry-after": "1" } }, // 1s for test speed
+      };
+      const operation = vi.fn().mockRejectedValueOnce(retryAfterError).mockResolvedValue("success");
+
+      const result = await withRetry(operation, { maxRetries: 2, initialDelayMs: 10, backoffMultiplier: 2, jitterMs: 0 }, "test-operation");
+
+      expect(result).toBe("success");
+      // The delay used should be 1000ms (from Retry-After: 1) rather than 20ms (10 * 2)
+      expect(core.info).toHaveBeenCalledWith(expect.stringContaining("Retry-After header detected for test-operation: next retry will wait 1000ms"));
+    });
+
+    it("should fall back to exponential backoff for non-rate-limit errors (502)", async () => {
+      const transientError = {
+        message: "502 bad gateway",
+        response: { status: 502, headers: { "x-ratelimit-reset": String(Math.floor((Date.now() + 120000) / 1000)) } },
+      };
+      const operation = vi.fn().mockRejectedValueOnce(transientError).mockResolvedValue("success");
+
+      const result = await withRetry(operation, { maxRetries: 2, initialDelayMs: 10, backoffMultiplier: 2, jitterMs: 0 }, "test-operation");
+
+      expect(result).toBe("success");
+      // Normal backoff: 10 * 2 = 20ms — NOT the 120s reset header
+      expect(core.info).toHaveBeenCalledWith(expect.stringContaining("after 20ms delay"));
+      expect(core.info).not.toHaveBeenCalledWith(expect.stringContaining("Retry-After header detected"));
+    });
+
+    it("should write a JSONL retry entry to the rate-limit log file on each retry", async () => {
+      const error = {
+        message: "rate limit exceeded",
+        response: {
+          status: 429,
+          headers: { "x-ratelimit-remaining": "0", "x-ratelimit-limit": "5000", "retry-after": "1" },
+        },
+      };
+      const operation = vi.fn().mockRejectedValueOnce(error).mockResolvedValue("ok");
+
+      await withRetry(operation, { maxRetries: 2, initialDelayMs: 10, backoffMultiplier: 2, jitterMs: 0 }, "test-log-op");
+
+      // appendFileSync should have been called once (one retry)
+      expect(appendSpy).toHaveBeenCalledOnce();
+      const entry = JSON.parse(appendSpy.mock.calls[0][1].trimEnd());
+      expect(entry.source).toBe("retry");
+      expect(entry.operation).toBe("test-log-op");
+      expect(entry.attempt).toBe(1);
+      expect(entry.status).toBe(429);
+      expect(entry.remaining).toBe(0);
     });
   });
 });

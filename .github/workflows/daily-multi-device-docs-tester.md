@@ -26,7 +26,7 @@ tools:
   cli-proxy: true
   timeout: 120  # Playwright navigation on Astro dev server can take >60s; increase to 120s
   playwright:
-    version: "v1.56.1"
+    mode: cli
   bash:
     - "npm install*"
     - "npm run dev*"
@@ -79,7 +79,7 @@ You are a documentation testing specialist. Your task is to comprehensively test
 2. The docs folder is at: `${{ github.workspace }}/docs`
 3. Use absolute paths or change directory explicitly
 4. Keep token usage low by being efficient with your code and minimizing iterations
-5. **Playwright is available via MCP tools only** - do NOT try to `require('playwright')` or install it via npm
+5. **Playwright is available as `playwright-cli` commands in bash** — use `playwright-cli <command>` to automate the browser
 
 ## Your Mission
 
@@ -108,47 +108,32 @@ Test these device types based on input `${{ inputs.devices }}`:
 
 ## Step 3: Run Playwright Tests
 
-**IMPORTANT: Using Playwright in gh-aw Workflows**
+**Using Playwright in gh-aw Workflows (CLI mode)**
 
-Playwright is provided through an MCP server interface, **NOT** as an npm package. You must use the MCP Playwright tools:
+Playwright is pre-installed as `@playwright/cli`. Use `playwright-cli <command>` in bash — no MCP tools or Docker container is involved:
 
-- ✅ **Correct**: Use `mcp__playwright__browser_run_code` with `page.goto(..., { waitUntil: 'domcontentloaded' })`
+- ✅ **Correct**: `playwright-cli browser_navigate --url "http://localhost:4321/gh-aw/"`
+- ✅ **Correct**: Use `playwright-cli browser_run_code --code "async (page) => { ... }"` for custom Playwright code
 - ❌ **Incorrect**: Do NOT try to `require('playwright')` or create standalone Node.js scripts
-- ❌ **Incorrect**: Do NOT install playwright via npm - it's already available through MCP
+- ❌ **Incorrect**: Do NOT use `mcp__playwright__*` tool names — those are the deprecated MCP mode
 
 **⚠️ CRITICAL: Navigation Timeout Prevention**
 
-The Astro development server uses Vite, which loads many JavaScript modules per page. Using the default `waitUntil: 'load'` or `waitForLoadState('networkidle')` will cause 60s timeouts because the browser waits for all modules to finish. **Always use `waitUntil: 'domcontentloaded'`** for navigation:
-
-- ✅ **Correct**: `page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })`
-- ❌ **Never use**: `page.waitForLoadState('networkidle')` — causes guaranteed timeouts
-- ❌ **Never use**: `mcp__playwright__browser_navigate` for first load — it uses default 'load' wait which times out
-
-**Example Usage:**
+The Astro development server uses Vite, which loads many JavaScript modules per page. Using the default `waitUntil: 'load'` will cause 60s timeouts because the browser waits for all modules to finish. **Use `waitUntil: 'domcontentloaded'`** for navigation:
 
 ```bash
-# First, get the container's bridge IP (needed for Playwright - see shared lifecycle instructions)
-SERVER_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
-if [ -z "$SERVER_IP" ]; then SERVER_IP=$(hostname -I | awk '{print $1}'); fi
-echo "Playwright server URL: http://${SERVER_IP}:4321/gh-aw/"
+playwright-cli browser_run_code --code "async (page) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('http://localhost:4321/gh-aw/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  return { url: page.url(), title: await page.title() };
+}"
 ```
 
-```javascript
-// Use browser_run_code to execute Playwright commands.
-// IMPORTANT: Replace 172.30.0.20 below with the actual SERVER_IP from the bash command above.
-// Do NOT use "localhost" — Playwright runs with --network host so its localhost differs.
-// ALWAYS use waitUntil: 'domcontentloaded' to prevent timeout on the Vite dev server.
-mcp__playwright__browser_run_code({
-  code: `async (page) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('http://172.30.0.20:4321/gh-aw/', { waitUntil: 'domcontentloaded', timeout: 30000 });  // substitute actual SERVER_IP
-    return { url: page.url(), title: await page.title() };
-  }`
-})
-```
+- ✅ **Use `localhost` directly** — playwright-cli runs on the runner, so `localhost` reaches the dev server
+- ❌ **Do NOT use bridge IP detection** — that is only needed in the deprecated MCP mode
 
-For each device viewport, use Playwright MCP tools to:
-- Set viewport size and navigate to `http://${SERVER_IP}:4321/gh-aw/` (substitute the bridge IP you obtained above, NOT localhost)
+For each device viewport, use playwright-cli to:
+- Set viewport size and navigate to `http://localhost:4321/gh-aw/`
 - Take screenshots and run accessibility audits
 - Test interactions (navigation, search, buttons)
 - Check for layout issues (overflow, truncation, broken layouts)

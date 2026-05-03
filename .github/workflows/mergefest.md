@@ -36,6 +36,7 @@ tools:
     - "grep"
   edit:
   github:
+    mode: gh-proxy
     toolsets: [pull_requests, repos]
 safe-outputs:
   push-to-pull-request-branch:
@@ -349,4 +350,4 @@ Merged `<BASE_BRANCH>` into `<PR_BRANCH>`
 [Any important notes about the merge, conflicts, or excluded files]
 ```
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

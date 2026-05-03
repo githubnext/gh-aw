@@ -401,3 +401,227 @@ func TestValidateEngineHarnessScript(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateEngineMCPSessionTimeout tests the validateEngineMCPSessionTimeout function.
+func TestValidateEngineMCPSessionTimeout(t *testing.T) {
+	tests := []struct {
+		name        string
+		workflow    *WorkflowData
+		expectError bool
+		errorSubstr string
+	}{
+		{
+			name:        "nil workflow data",
+			workflow:    nil,
+			expectError: false,
+		},
+		{
+			name:        "nil engine config",
+			workflow:    &WorkflowData{},
+			expectError: false,
+		},
+		{
+			name: "empty session timeout - no error",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid duration 4h",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPSessionTimeout: "4h"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid duration 30m",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPSessionTimeout: "30m"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid duration 12h",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPSessionTimeout: "12h"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid duration 5m (minimum)",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPSessionTimeout: "5m"},
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid duration string",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPSessionTimeout: "2hours"},
+			},
+			expectError: true,
+			errorSubstr: "invalid duration",
+		},
+		{
+			name: "too short - 4m",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPSessionTimeout: "4m"},
+			},
+			expectError: true,
+			errorSubstr: "too short",
+		},
+		{
+			name: "valid duration 24h (no upper bound)",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPSessionTimeout: "24h"},
+			},
+			expectError: false,
+		},
+		{
+			name: "plain integer - not valid Go duration",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPSessionTimeout: "3600"},
+			},
+			expectError: true,
+			errorSubstr: "invalid duration",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			err := compiler.validateEngineMCPSessionTimeout(tt.workflow)
+
+			if tt.expectError {
+				require.Error(t, err, "Expected validation error")
+				if tt.errorSubstr != "" {
+					assert.Contains(t, err.Error(), tt.errorSubstr, "Expected error substring mismatch")
+				}
+				return
+			}
+
+			assert.NoError(t, err, "Expected session-timeout validation to pass")
+		})
+	}
+}
+
+// TestValidateEngineMCPToolTimeout tests the validateEngineMCPToolTimeout function.
+func TestValidateEngineMCPToolTimeout(t *testing.T) {
+	tests := []struct {
+		name        string
+		workflow    *WorkflowData
+		expectError bool
+		errorSubstr string
+	}{
+		{
+			name:        "nil workflow data",
+			workflow:    nil,
+			expectError: false,
+		},
+		{
+			name:        "nil engine config",
+			workflow:    &WorkflowData{},
+			expectError: false,
+		},
+		{
+			name: "empty tool timeout - no error",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid duration 2m",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPToolTimeout: "2m"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid duration 30s",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPToolTimeout: "30s"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid duration 10s (minimum)",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPToolTimeout: "10s"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid duration 600s (maximum)",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPToolTimeout: "600s"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid duration 10m (maximum)",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPToolTimeout: "10m"},
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid duration string",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPToolTimeout: "2hours"},
+			},
+			expectError: true,
+			errorSubstr: "invalid duration",
+		},
+		{
+			name: "too short - 5s",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPToolTimeout: "5s"},
+			},
+			expectError: true,
+			errorSubstr: "too short",
+		},
+		{
+			name: "too long - 601s",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPToolTimeout: "601s"},
+			},
+			expectError: true,
+			errorSubstr: "exceeds the maximum",
+		},
+		{
+			name: "too long - 11m",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPToolTimeout: "11m"},
+			},
+			expectError: true,
+			errorSubstr: "exceeds the maximum",
+		},
+		{
+			name: "plain integer - not valid Go duration",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MCPToolTimeout: "120"},
+			},
+			expectError: true,
+			errorSubstr: "invalid duration",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			err := compiler.validateEngineMCPToolTimeout(tt.workflow)
+
+			if tt.expectError {
+				require.Error(t, err, "Expected validation error")
+				if tt.errorSubstr != "" {
+					assert.Contains(t, err.Error(), tt.errorSubstr, "Expected error substring mismatch")
+				}
+				return
+			}
+
+			assert.NoError(t, err, "Expected tool-timeout validation to pass")
+		})
+	}
+}

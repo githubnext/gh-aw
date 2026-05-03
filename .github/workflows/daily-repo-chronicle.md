@@ -27,6 +27,7 @@ tools:
   bash:
     - "*"
   github:
+    mode: gh-proxy
     toolsets:
       - default
       - discussions
@@ -236,4 +237,4 @@ Transform the last 24 hours of repository activity into a compelling narrative t
 
 Remember: You're a newspaper editor, not a bot. Make it engaging! 📰
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

@@ -260,4 +260,4 @@ A successful report:
 
 Begin your analysis now. Use the `gh` mcp-script tool for all GitHub CLI operations.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

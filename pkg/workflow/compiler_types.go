@@ -512,10 +512,13 @@ type WorkflowData struct {
 	CachedPermissions             *Permissions                    // cached parsed Permissions object (for performance optimization); populated by applyDefaults after all permission mutations
 	ConcurrencyGroupExpr          string                          // cached concurrency group expression extracted from Concurrency YAML (for performance optimization); populated by applyDefaults
 	CachedConcurrencyGroupExprErr error                           // cached result of validateConcurrencyGroupExpression(ConcurrencyGroupExpr); nil = valid; populated by applyDefaults
+	Experiments                   map[string][]string             // A/B testing experiments: maps experiment name to variant list (from frontmatter)
+	ExperimentConfigs             map[string]*ExperimentConfig    // Full A/B experiment metadata (populated alongside Experiments)
 	CachedConcurrencyGroupExprSet bool                            // true once CachedConcurrencyGroupExprErr has been populated; distinguishes "valid (nil)" from "not yet computed"
 	CachedParsedToolsets          []string                        // cached result of ParseGitHubToolsets for the GitHub tool (for performance optimization); populated by applyDefaults
 	CachedAllowedDomainsStr       string                          // cached allowed-domains string for sanitization (for performance optimization); computed once and reused across multiple compilation steps
 	CachedAllowedDomainsComputed  bool                            // true once CachedAllowedDomainsStr has been set; distinguishes "computed empty" from "not yet computed"
+	KnownActionCredentialEnvVars  map[string]bool                 // env vars for clean_known_action_credentials.sh; keyed by GH_AW_CLEAN_* names; nil when no known credential-leaking actions are detected
 }
 
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.
@@ -649,6 +652,7 @@ type SafeOutputMessagesConfig struct {
 	CommitPushed                   string `yaml:"commit-pushed,omitempty" json:"commitPushed,omitempty"`                                       // Custom message template for commit push link. Placeholders: {commit_sha}, {short_sha}, {commit_url}
 	AgentFailureIssue              string `yaml:"agent-failure-issue,omitempty" json:"agentFailureIssue,omitempty"`                            // Custom footer template for agent failure tracking issues
 	AgentFailureComment            string `yaml:"agent-failure-comment,omitempty" json:"agentFailureComment,omitempty"`                        // Custom footer template for comments on agent failure tracking issues
+	BodyHeader                     string `yaml:"body-header,omitempty" json:"bodyHeader,omitempty"`                                           // Custom header text prepended to every message body (issues, comments, PRs, discussions). Placeholders: {workflow_name}, {run_url}
 }
 
 // MentionsConfig holds configuration for @mention filtering in safe outputs

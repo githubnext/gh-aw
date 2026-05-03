@@ -252,6 +252,7 @@ constants.DefaultClaudeCodeVersion      // Claude Code CLI version
 constants.DefaultCodexVersion           // OpenAI Codex CLI version
 constants.DefaultGeminiVersion          // Google Gemini CLI version
 constants.DefaultCrushVersion           // Crush CLI version
+constants.DefaultOpenCodeVersion        // OpenCode CLI version
 
 // Infrastructure
 constants.DefaultGitHubMCPServerVersion // GitHub MCP server Docker image version
@@ -419,8 +420,6 @@ constants.ClaudeLLMGatewayPort      // 10000
 constants.CodexLLMGatewayPort       // 10001
 constants.CopilotLLMGatewayPort     // 10002
 constants.GeminiLLMGatewayPort      // 10003
-constants.OpenCodeLLMGatewayPort    // 10004
-constants.CrushLLMGatewayPort       // 10005
 ```
 
 ## Tool Lists

@@ -534,6 +534,8 @@ func TestAuditUsesRunSummaryCache(t *testing.T) {
 		0,     // jobID — 0: full-run audit (not job-specific)
 		0,     // stepNumber
 		nil,   // artifactSets
+		"",    // experimentFilter — no filter
+		"",    // variantFilter — no filter
 	); err != nil {
 		t.Fatalf("AuditWorkflowRun failed — cache path not taken (fetchWorkflowRunMetadata was probably called): %v", err)
 	}
@@ -1094,4 +1096,29 @@ func TestAuditCommandRequiresArgsOrStdin(t *testing.T) {
 	err := cmd.Execute()
 	require.Error(t, err, "audit with no args and no --stdin should return an error")
 	assert.Contains(t, err.Error(), "at least one run ID or URL is required", "error message should prompt for required input")
+}
+
+func TestAuditCommandVariantWithoutExperiment(t *testing.T) {
+	cmd := NewAuditCommand()
+	cmd.SetArgs([]string{"1234567890", "--variant", "concise"})
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	err := cmd.Execute()
+	require.Error(t, err, "--variant without --experiment should return an error")
+	assert.Contains(t, err.Error(), "--variant requires --experiment", "error message should explain the requirement")
+}
+
+func TestAuditCommandExperimentAndVariantFlagsAreAccepted(t *testing.T) {
+	// Verifies that --experiment and --variant are registered and parseable.
+	// The command will fail before reaching GitHub API calls (no valid run ID),
+	// but the parse step must succeed without an unknown-flag error.
+	cmd := NewAuditCommand()
+	cmd.SetArgs([]string{"1234567890", "--experiment", "style", "--variant", "concise"})
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	err := cmd.Execute()
+	// Any error should NOT be an "unknown flag" error — flags must be registered.
+	if err != nil {
+		assert.NotContains(t, err.Error(), "unknown flag", "flags --experiment and --variant must be registered")
+	}
 }

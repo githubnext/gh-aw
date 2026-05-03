@@ -154,6 +154,46 @@ async function fetchAndLogRateLimit(github, operation = "fetch") {
 }
 
 /**
+ * Log a retry attempt to the JSONL log file, capturing any rate-limit headers
+ * present in the error response so that retry storms can be correlated with
+ * quota exhaustion in post-run analysis.
+ *
+ * Call this from {@link withRetry} immediately before sleeping on a retry attempt.
+ *
+ * @param {any} error - The error that triggered the retry
+ * @param {string} operation - Human-readable name of the failing operation
+ * @param {number} attempt - Retry attempt number (1-based; 1 = first retry)
+ * @param {number} delayMs - How long the caller will sleep before the next try
+ */
+function logRetryEvent(error, operation, attempt, delayMs) {
+  const headers = error?.response?.headers ?? error?.headers ?? {};
+  const status = error?.response?.status ?? error?.status ?? null;
+
+  /** @type {Record<string, unknown>} */
+  const entry = {
+    timestamp: new Date().toISOString(),
+    source: "retry",
+    operation,
+    attempt,
+    delay_ms: delayMs,
+  };
+
+  if (status != null) entry.status = status;
+
+  const remaining = headers["x-ratelimit-remaining"];
+  const limit = headers["x-ratelimit-limit"];
+  const reset = headers["x-ratelimit-reset"];
+  const resource = headers["x-ratelimit-resource"];
+
+  if (remaining !== undefined) entry.remaining = parseInt(remaining, 10);
+  if (limit !== undefined) entry.limit = parseInt(limit, 10);
+  if (reset) entry.reset = parseResetTimestamp(reset);
+  if (resource) entry.resource = resource;
+
+  appendEntry(entry);
+}
+
+/**
  * Wrap a github object (as provided by actions/github-script) so that every
  * `github.rest.*.*()` call automatically logs rate-limit headers from the
  * response.
@@ -225,6 +265,7 @@ function createRateLimitAwareGithub(github) {
 module.exports = {
   logRateLimitFromResponse,
   fetchAndLogRateLimit,
+  logRetryEvent,
   createRateLimitAwareGithub,
   GITHUB_RATE_LIMITS_JSONL_PATH,
 };

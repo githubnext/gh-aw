@@ -31,6 +31,25 @@ LEVELS=("merged" "approved" "unapproved" "none")
 mkdir -p "$CACHE_DIR"
 cd "$CACHE_DIR"
 
+# --- Detect cache hit before any git operations ---
+# A pre-existing .git directory indicates the cache was restored from a previous run.
+IS_CACHE_HIT=false
+if [ -d .git ]; then
+  IS_CACHE_HIT=true
+  echo "Cache hit detected: git repository found (restored from a previous run)"
+else
+  echo "Cache cold start: no git repository found, will initialize"
+fi
+
+# --- Log cache directory contents after restore (before git setup) ---
+echo "=== Cache directory: non-git files present after restore ==="
+_pre_files=$(find . -not -path './.git/*' -type f 2>/dev/null | sort || true)
+if [ -n "$_pre_files" ]; then
+  echo "$_pre_files"
+else
+  echo "(no non-git files)"
+fi
+
 # --- Security: clear git hooks before any git operations ---
 # Git hook files under .git/hooks/ are preserved in the cache but are NOT tracked
 # by git (git add -A ignores .git/). A compromised agent run could write executable
@@ -166,4 +185,28 @@ if [ -n "${GH_AW_ALLOWED_EXTENSIONS:-}" ]; then
     fi
   done < <(find . -not -path './.git/*' -type f -print0)
   echo "Pre-agent sanitization complete: removed ${removed} file(s) with disallowed extensions"
+fi
+
+# --- Log cache directory contents after full setup ---
+echo "=== Cache directory: non-git files available for agent after setup ==="
+_post_files=$(find . -not -path './.git/*' -type f 2>/dev/null | sort || true)
+if [ -n "$_post_files" ]; then
+  echo "$_post_files"
+  _post_file_count=$(echo "$_post_files" | wc -l | tr -d ' ')
+else
+  echo "(no non-git files)"
+  _post_file_count=0
+fi
+
+# --- Track hit history ---
+# On a cache hit, record the run ID, timestamp, and file count in a small JSON file
+# so that future runs (and humans reviewing logs) can see when the last successful
+# restore occurred.  The file is committed by commit_cache_memory_git.sh and therefore
+# persisted into the saved cache for the next run to restore.
+if [ "$IS_CACHE_HIT" = "true" ]; then
+  _timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u)
+  _run_id="${GITHUB_RUN_ID:-unknown}"
+  printf '{"last_hit":{"run_id":"%s","timestamp":"%s","cache_files":%s}}\n' \
+    "$_run_id" "$_timestamp" "$_post_file_count" > "cache-hit-history.json"
+  echo "Cache hit history updated (run: $_run_id, files: $_post_file_count)"
 fi

@@ -19,6 +19,7 @@ tools:
   cli-proxy: true
   agentic-workflows:
   github:
+    mode: gh-proxy
     toolsets: [pull_requests, actions, repos]
   bash:
     - "gh agent-task create *"
@@ -249,4 +250,4 @@ If any are false, provide analysis in comment but don't create a task.
 
 **Security**: Process only workflow_dispatch runs (filtered by `if`), same-repo PRs only, don't execute untrusted code from logs
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

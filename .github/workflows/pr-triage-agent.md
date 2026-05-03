@@ -7,14 +7,15 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-  # Note: issues and discussions write handled via safe-outputs
 engine: copilot
 imports:
-  - shared/github-guard-policy.md
+  - uses: shared/pr-review-base.md
+    with:
+      min-integrity: approved
 tools:
   cli-proxy: true
   github:
-    min-integrity: approved
+    mode: gh-proxy
     toolsets: [pull_requests, repos, issues, labels]
   repo-memory:
     branch-name: memory/pr-triage
@@ -447,4 +448,4 @@ Your effectiveness is measured by:
 
 Execute all phases systematically and maintain consistency in scoring and recommendations across all PRs.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

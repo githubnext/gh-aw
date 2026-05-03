@@ -102,6 +102,38 @@ func buildDispatchOperationCondition(operation string) ConditionNode {
 	)
 }
 
+// buildLabeledDisableCondition creates a condition for the disable_agentic_workflow job
+// that triggers when an issue is labeled with "agentic-workflows:disable".
+// Condition: !fork && event_name == 'issues' && event.label.name == 'agentic-workflows:disable'
+func buildLabeledDisableCondition() ConditionNode {
+	return BuildAnd(
+		buildNotForkCondition(),
+		BuildAnd(
+			BuildEventTypeEquals("issues"),
+			BuildEquals(
+				BuildPropertyAccess("github.event.label.name"),
+				BuildStringLiteral("agentic-workflows:disable"),
+			),
+		),
+	)
+}
+
+// buildLabeledApplySafeOutputsCondition creates a condition for the label_apply_safe_outputs job
+// that triggers when an issue is labeled with "agentic-workflows:apply-safe-outputs".
+// Condition: !fork && event_name == 'issues' && event.label.name == 'agentic-workflows:apply-safe-outputs'
+func buildLabeledApplySafeOutputsCondition() ConditionNode {
+	return BuildAnd(
+		buildNotForkCondition(),
+		BuildAnd(
+			BuildEventTypeEquals("issues"),
+			BuildEquals(
+				BuildPropertyAccess("github.event.label.name"),
+				BuildStringLiteral("agentic-workflows:apply-safe-outputs"),
+			),
+		),
+	)
+}
+
 // buildRunOperationCondition creates the condition for the unified run_operation
 // job that handles all dispatch/call operations except the ones with dedicated jobs.
 // Condition: (dispatch || call) && operation != ” && operation != each excluded && !fork.

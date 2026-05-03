@@ -128,6 +128,7 @@ pre-agent-steps:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [pull_requests]
   cache-memory: true
   edit:
@@ -142,6 +143,9 @@ safe-outputs:
     title-prefix: "[spec-extractor] "
     labels: [pkg-specifications, documentation, automation]
     draft: false
+    protected-files:
+      exclude:
+        - README.md    # this workflow writes pkg/*/README.md specification files
 
 timeout-minutes: 30
 features:
@@ -301,4 +305,4 @@ This PR updates README.md specifications for the following packages:
 - ✅ Round-robin rotation advances correctly
 - ✅ PR created with specification changes
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

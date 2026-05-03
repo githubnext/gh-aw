@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { readExperimentAssignments } = require("./experiment_helpers.cjs");
+
 /**
  * Resolves the item type, item number, and comment id from the GitHub Actions
  * event payload, covering issues, pull requests, discussions, check runs,
@@ -142,7 +144,7 @@ function parseInboundAwContext(raw) {
     return null;
   }
   if (typeof raw === "object" && !Array.isArray(raw)) {
-    return /** @type {Record<string, unknown>} */ (raw);
+    return /** @type {Record<string, unknown>} */ raw;
   }
   return null;
 }
@@ -188,7 +190,8 @@ function readInboundAwContext(payload) {
  *   workflow_run_conclusion: string,
  *   otel_trace_id: string,
  *   otel_parent_span_id: string,
- *   trigger_label: string
+ *   trigger_label: string,
+ *   experiments: string
  * }}
  * Properties:
  *   - item_type: Kind of entity that triggered the workflow (issue, pull_request,
@@ -221,6 +224,11 @@ function readInboundAwContext(payload) {
  *   - trigger_label: Name of the label that triggered the workflow for labeled/unlabeled
  *     events (e.g. pull_request_target, issues, pull_request with labeled type).
  *     Empty string for events that do not carry label information.
+ *   - experiments: Compact JSON string of the experiment variant assignments picked by
+ *     pick_experiment.cjs for the current workflow run (e.g. `{"caveman":"yes"}`).
+ *     Empty string when no experiments are declared or the assignments file cannot be read.
+ *     Propagated to dispatched child workflows so they can identify which variants the
+ *     parent workflow was running.
  */
 function buildAwContext() {
   const { item_type, item_number, comment_id, comment_node_id } = resolveItemContext(context.payload);
@@ -233,8 +241,18 @@ function buildAwContext() {
   const inheritedHopId = typeof inheritedContext?.hop_id === "string" ? inheritedContext.hop_id.trim() : typeof inheritedContext?.workflow_call_id === "string" ? inheritedContext.workflow_call_id.trim() : "";
   const parentHopId = typeof inheritedContext?.parent_hop_id === "string" && inheritedContext.parent_hop_id.trim() ? inheritedContext.parent_hop_id.trim() : inheritedHopId;
   const episodeId = typeof inheritedContext?.episode_id === "string" && inheritedContext.episode_id.trim() ? inheritedContext.episode_id.trim() : inheritedHopId || currentHopId;
-  const originEvent = typeof inheritedContext?.origin_event === "string" && inheritedContext.origin_event.trim() ? inheritedContext.origin_event.trim() : typeof inheritedContext?.event_type === "string" && inheritedContext.event_type.trim() ? inheritedContext.event_type.trim() : context.eventName ?? "";
-  const rootRepo = typeof inheritedContext?.root_repo === "string" && inheritedContext.root_repo.trim() ? inheritedContext.root_repo.trim() : typeof inheritedContext?.repo === "string" && inheritedContext.repo.trim() ? inheritedContext.repo.trim() : currentRepo;
+  const originEvent =
+    typeof inheritedContext?.origin_event === "string" && inheritedContext.origin_event.trim()
+      ? inheritedContext.origin_event.trim()
+      : typeof inheritedContext?.event_type === "string" && inheritedContext.event_type.trim()
+        ? inheritedContext.event_type.trim()
+        : (context.eventName ?? "");
+  const rootRepo =
+    typeof inheritedContext?.root_repo === "string" && inheritedContext.root_repo.trim()
+      ? inheritedContext.root_repo.trim()
+      : typeof inheritedContext?.repo === "string" && inheritedContext.repo.trim()
+        ? inheritedContext.repo.trim()
+        : currentRepo;
   const rootWorkflowId =
     typeof inheritedContext?.root_workflow_id === "string" && inheritedContext.root_workflow_id.trim()
       ? inheritedContext.root_workflow_id.trim()
@@ -247,6 +265,8 @@ function buildAwContext() {
       : typeof inheritedContext?.run_id === "string" && inheritedContext.run_id.trim()
         ? inheritedContext.run_id.trim()
         : currentRunId;
+  const assignments = readExperimentAssignments();
+  const experimentAssignments = assignments ? JSON.stringify(assignments) : "";
 
   return {
     repo: currentRepo,
@@ -299,6 +319,11 @@ function buildAwContext() {
     // issues, pull_request, etc.). Empty string for events without label data such as
     // workflow_dispatch, push, or schedule.
     trigger_label: context.payload?.label?.name ?? "",
+    // experiments is a compact JSON string of the A/B experiment variant assignments
+    // picked by pick_experiment.cjs for the current workflow run (e.g. {"caveman":"yes"}).
+    // Empty string when no experiments are declared or the assignments file cannot be read.
+    // Propagated to dispatched child workflows for experiment context continuity.
+    experiments: experimentAssignments,
   };
 }
 

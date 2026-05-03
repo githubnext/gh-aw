@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -260,7 +261,7 @@ func resolveContainerDigest(ctx context.Context, image string, verbose bool) (st
 		errs = append(errs, msg)
 	}
 
-	return "", fmt.Errorf("%s", strings.Join(errs, "; "))
+	return "", errors.New(strings.Join(errs, "; "))
 }
 
 // resolveDigestViaBuildx uses "docker buildx imagetools inspect" to get the content

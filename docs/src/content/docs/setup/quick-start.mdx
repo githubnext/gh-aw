@@ -68,7 +68,7 @@ This will take you through an interactive process to:
 1. **Check prerequisites** - Verify repository permissions.
 2. **Select an AI Engine** - Choose between Copilot, Claude, Codex, or Gemini.
 3. **Set up the required secret** - [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) (a separate GitHub token with Copilot access — distinct from the default `GITHUB_TOKEN`), [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key), [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key), or [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key). See [Authentication](/gh-aw/reference/auth/) for setup instructions.
-4. **Add the workflow** - Adds the workflow and lock file to `.github/workflows/`.
+4. **Add the workflow** - Adds the workflow file (`.md`) and its compiled lock file (`.lock.yml`) to `.github/workflows/`.
 5. **Optionally trigger an initial run** - Starts the workflow immediately.
 
 > [!TIP]
@@ -98,11 +98,14 @@ With GitHub Agentic Workflows, you are in control! Your repository automation is
 
 To customize it now:
 
+> [!NOTE]
+> Each workflow file has two parts. The **frontmatter** (the configuration block between the `---` markers at the top) controls when the workflow runs, which AI engine powers it, and what tools it can access — changes here require recompiling (step 3). The **body** below contains your natural language task description and instructions — changes here take effect immediately on the next run.
+
 1. Open the workflow markdown file located at `.github/workflows/daily-repo-status.md` in your repository.
 
 2. Edit the section "What to include" to list things you are having trouble with regularly in your repository: your issue blacklog, your CI setup, your testing, the performance of your software, your roadmap. Any or all of these, or anything else you want to improve. You can also customize the style and process sections to guide the coding agent's behavior.
 
-3. If you have changed the [frontmatter](/gh-aw/reference/frontmatter/) (the YAML configuration block between `---` markers at the top of the file), regenerate the workflow YAML by running:
+3. If you changed the [frontmatter](/gh-aw/reference/frontmatter/) (the configuration block between the `---` markers at the top of the file), regenerate the compiled workflow by running:
 
    ```text
    gh aw compile

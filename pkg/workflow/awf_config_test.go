@@ -197,6 +197,102 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 	})
 }
 
+// TestBuildAWFConfigSchemaURL verifies that buildAWFConfigSchemaURL returns a release-pinned
+// URL that tracks the AWF version in use.
+func TestBuildAWFConfigSchemaURL(t *testing.T) {
+	tests := []struct {
+		name           string
+		firewallConfig *FirewallConfig
+		wantContains   string
+		wantURL        string // exact URL match, takes precedence over wantContains when set
+	}{
+		{
+			name:           "nil config uses DefaultFirewallVersion",
+			firewallConfig: nil,
+			wantContains:   string(constants.DefaultFirewallVersion),
+		},
+		{
+			name:           "empty version uses DefaultFirewallVersion",
+			firewallConfig: &FirewallConfig{Enabled: true},
+			wantContains:   string(constants.DefaultFirewallVersion),
+		},
+		{
+			name:           "pinned version with v prefix",
+			firewallConfig: &FirewallConfig{Enabled: true, Version: "v0.24.0"},
+			wantContains:   "v0.24.0",
+		},
+		{
+			name:           "pinned version without v prefix gets v added",
+			firewallConfig: &FirewallConfig{Enabled: true, Version: "0.24.0"},
+			wantContains:   "v0.24.0",
+		},
+		{
+			name:           "latest version uses /releases/latest/download/ URL",
+			firewallConfig: &FirewallConfig{Enabled: true, Version: "latest"},
+			wantURL:        "https://github.com/github/gh-aw-firewall/releases/latest/download/awf-config.schema.json",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			url := buildAWFConfigSchemaURL(tt.firewallConfig)
+
+			if tt.wantURL != "" {
+				assert.Equal(t, tt.wantURL, url, "schema URL should match the expected URL exactly")
+				return
+			}
+
+			assert.Contains(t, url, tt.wantContains, "schema URL should contain the expected version")
+			assert.Contains(t, url, "https://github.com/github/gh-aw-firewall/releases/download/", "schema URL should use the release download path")
+			assert.True(t, strings.HasSuffix(url, "awf-config.schema.json"), "schema URL should end with awf-config.schema.json")
+		})
+	}
+}
+
+// TestBuildAWFConfigJSON_SchemaURLIsVersionPinned verifies that the $schema field in the
+// generated config uses a release-pinned URL that matches the AWF version in use.
+func TestBuildAWFConfigJSON_SchemaURLIsVersionPinned(t *testing.T) {
+	t.Run("default version when no version pinned", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		expectedVersion := string(constants.DefaultFirewallVersion)
+		assert.Contains(t, jsonStr, expectedVersion, "schema URL should contain the default firewall version")
+		assert.Contains(t, jsonStr, "releases/download/", "schema URL should use release download path")
+		assert.Contains(t, jsonStr, "awf-config.schema.json", "schema URL should reference awf-config.schema.json")
+	})
+
+	t.Run("pinned version appears in schema URL", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true, Version: "v0.24.0"},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		assert.Contains(t, jsonStr, "v0.24.0", "schema URL should contain the pinned version")
+		assert.NotContains(t, jsonStr, string(constants.DefaultFirewallVersion), "schema URL should not contain default version when version is pinned")
+	})
+}
+
 // TestBuildAWFConfigJSON_DomainDeduplication verifies that duplicate domain entries
 // in the comma-separated allowed domains list are removed.
 func TestBuildAWFConfigJSON_DomainDeduplication(t *testing.T) {

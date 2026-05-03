@@ -26,6 +26,7 @@ imports:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets:
       - issues
     min-integrity: approved
@@ -289,4 +290,4 @@ When running on schedule, create a discussion report following these formatting 
 - Label accuracy: ≥90% (minimal maintainer corrections needed)
 - False positive rate: <10%
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

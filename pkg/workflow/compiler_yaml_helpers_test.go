@@ -366,6 +366,7 @@ func TestGenerateYAMLRefactored(t *testing.T) {
 					ID: "copilot",
 				},
 				MarkdownContent: "Test content",
+				RawMarkdown:     "# Test Workflow",
 			},
 			expectInStr: []string{
 				"# Test description",

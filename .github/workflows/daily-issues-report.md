@@ -14,6 +14,7 @@ tracker-id: daily-issues-report
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     min-integrity: approved
     toolsets: [default, discussions]
 timeout-minutes: 30
@@ -364,4 +365,4 @@ A successful run will:
 
 Begin your analysis now. Load the data, run the Python analysis, generate charts, and create the discussion report.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

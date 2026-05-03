@@ -42,6 +42,7 @@ tools:
   bash: true
   edit:
   github:
+    mode: gh-proxy
     toolsets: [default, issues]
 safe-outputs:
   create-issue:
@@ -692,4 +693,4 @@ Each entry contains:
 
 Begin your daily performance analysis now!
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

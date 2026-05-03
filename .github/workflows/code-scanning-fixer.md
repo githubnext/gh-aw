@@ -11,10 +11,16 @@ permissions:
 engine: copilot
 imports:
   - shared/security-analysis-base.md
-  - shared/activation-app.md
+  - uses: shared/daily-pr-base.md
+    with:
+      title-prefix: "[code-scanning-fix] "
+      expires: "2d"
+      labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
+      reviewers: [copilot]
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [context, pull_requests]
   repo-memory:
@@ -28,11 +34,6 @@ safe-outputs:
     allowed:
       - agentic-campaign
       - z_campaign_security-alert-burndown
-  create-pull-request:
-    expires: 2d
-    title-prefix: "[code-scanning-fix] "
-    labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
-    reviewers: [copilot]
 timeout-minutes: 20
 
 ---
@@ -226,4 +227,4 @@ If any step fails:
 
 Remember: Your goal is to provide a secure, well-tested fix that can be reviewed and merged safely. Focus on quality and correctness over speed.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

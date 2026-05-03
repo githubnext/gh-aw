@@ -76,8 +76,23 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
+	// Validate playwright tool mode: warn when MCP mode is used (deprecated in favour of CLI mode)
+	if err := c.validatePlaywrightMode(workflowData); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
 	// Validate optional custom engine harness script configuration.
 	if err := c.validateEngineHarnessScript(workflowData); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
+	// Validate optional engine.mcp.session-timeout configuration.
+	if err := c.validateEngineMCPSessionTimeout(workflowData); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
+	// Validate optional engine.mcp.tool-timeout configuration.
+	if err := c.validateEngineMCPToolTimeout(workflowData); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
@@ -201,6 +216,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Process and merge services
 	c.processAndMergeServices(result.Frontmatter, workflowData, engineSetup.importsResult)
 
+	// Detect known credential-leaking actions in all merged step collections so that the
+	// compiler can inject a targeted cleanup step before the agentic engine executes.
+	workflowData.KnownActionCredentialEnvVars = DetectKnownCredentialLeakingActionsFromWorkflowData(workflowData)
+
 	// Extract additional configurations (cache, mcp-scripts, safe-outputs, etc.)
 	if err := c.extractAdditionalConfigurations(
 		result.Frontmatter,
@@ -208,7 +227,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		markdownDir,
 		workflowData,
 		engineSetup.importsResult,
-		result.Markdown,
+		toolsResult.rawMainMarkdown,
 		toolsResult.safeOutputs,
 	); err != nil {
 		return nil, err
@@ -373,6 +392,10 @@ func (c *Compiler) extractAdditionalConfigurations(
 	// Apply the top-level github-app as a fallback for all nested github-app token minting operations.
 	// This runs last so that all section-specific configurations have been resolved first.
 	applyTopLevelGitHubAppFallbacks(workflowData)
+
+	// Extract experiments configuration once; derive the simple variants map from the configs.
+	workflowData.ExperimentConfigs = extractExperimentConfigsFromFrontmatter(frontmatter)
+	workflowData.Experiments = experimentVariantsFromConfigs(workflowData.ExperimentConfigs)
 
 	return nil
 }

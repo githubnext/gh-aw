@@ -43,6 +43,7 @@ safe-outputs:
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [default]
   edit:
   bash:
@@ -329,4 +330,4 @@ This helps improve efficiency over time and avoids re-discovering the same patte
 
 Good luck maintaining our layout specification!
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}

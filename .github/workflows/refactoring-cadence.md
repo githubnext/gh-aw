@@ -11,24 +11,29 @@ permissions:
   actions: read
 tracker-id: refactoring-cadence
 engine: copilot
+imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[refactoring-cadence] "
+      expires: "14d"
+      labels: [refactoring, ai-generated]
 tools:
   cli-proxy: true
   github:
+    mode: gh-proxy
     toolsets: [repos, issues]
   bash: true
   cache-memory: true
 safe-outputs:
-  create-issue:
-    expires: 14d
-    title-prefix: "[refactoring-cadence] "
-    labels: [refactoring, ai-generated]
-    max: 1
-  noop:
   messages:
     footer: "> 🔧 *Code health check by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🔧 Refactoring Cadence online! [{workflow_name}]({run_url}) is measuring code health..."
     run-success: "✅ Code health check complete! [{workflow_name}]({run_url}) has finished its analysis."
     run-failure: "🔧 Code health check failed! [{workflow_name}]({run_url}) {status}. Code health status unknown..."
+network:
+  allowed:
+    - defaults
+    - go
 timeout-minutes: 20
 features:
   copilot-requests: true

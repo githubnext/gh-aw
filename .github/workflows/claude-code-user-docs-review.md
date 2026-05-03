@@ -26,6 +26,7 @@ tools:
   cli-proxy: true
   cache-memory: true
   github:
+    mode: gh-proxy
     toolsets: [default, discussions]
   bash:
     - "*"
@@ -539,4 +540,4 @@ Your report is successful if it:
 
 Execute your review systematically and provide a comprehensive report that helps make gh-aw accessible to all AI tool users, not just Copilot users.
 
-{{#import shared/noop-reminder.md}}
+{{#runtime-import shared/noop-reminder.md}}
