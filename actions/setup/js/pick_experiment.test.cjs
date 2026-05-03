@@ -33,16 +33,17 @@ describe("pick_experiment", () => {
   // ── pickVariant ────────────────────────────────────────────────────────────
 
   describe("pickVariant", () => {
-    it("selects one of the tied variants randomly when counts are equal", () => {
+    it("breaks ties randomly for two-variant experiment when counts are equal", () => {
       const state = { counts: {} };
-      // Run many times and verify both variants are eventually selected.
-      // The probability that one variant never appears in 200 trials is (1/2)^200, which is negligible.
-      const results = new Set();
-      for (let i = 0; i < 200; i++) {
-        results.add(pickVariant("f", ["A", "B"], state));
-      }
-      expect(results).toContain("A");
-      expect(results).toContain("B");
+      // Math.floor(0 * 2) = 0 → tied[0] = "A"
+      vi.spyOn(Math, "random").mockReturnValueOnce(0);
+      expect(pickVariant("f", ["A", "B"], state)).toBe("A");
+
+      // Math.floor(0.5 * 2) = 1 → tied[1] = "B"
+      vi.spyOn(Math, "random").mockReturnValueOnce(0.5);
+      expect(pickVariant("f", ["A", "B"], state)).toBe("B");
+
+      vi.restoreAllMocks();
     });
 
     it("selects the least-used variant", () => {
@@ -57,26 +58,30 @@ describe("pick_experiment", () => {
 
     it("randomly selects from all tied variants when all counts are equal", () => {
       const state = { counts: { f: { A: 1, B: 1, C: 1 } } };
-      // Run many times and verify all three variants are selected.
-      const results = new Set();
-      for (let i = 0; i < 200; i++) {
-        results.add(pickVariant("f", ["A", "B", "C"], state));
-      }
-      expect(results).toContain("A");
-      expect(results).toContain("B");
-      expect(results).toContain("C");
+      // All three variants are tied; verify the random index is respected.
+      // Math.floor(0   * 3) = 0 → tied[0] = "A"
+      // Math.floor(0.4 * 3) = 1 → tied[1] = "B"  (0.4*3=1.2)
+      // Math.floor(0.7 * 3) = 2 → tied[2] = "C"  (0.7*3=2.1)
+      vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValueOnce(0.4).mockReturnValueOnce(0.7);
+      expect(pickVariant("f", ["A", "B", "C"], state)).toBe("A");
+      expect(pickVariant("f", ["A", "B", "C"], state)).toBe("B");
+      expect(pickVariant("f", ["A", "B", "C"], state)).toBe("C");
+
+      vi.restoreAllMocks();
     });
 
     it("handles unknown experiment name (no counts yet) by picking randomly", () => {
       const state = { counts: {} };
-      // Both variants must be reachable from an empty state.
-      // The probability that one variant never appears in 200 trials is (1/2)^200, which is negligible.
-      const results = new Set();
-      for (let i = 0; i < 200; i++) {
-        results.add(pickVariant("new", ["X", "Y"], state));
-      }
-      expect(results).toContain("X");
-      expect(results).toContain("Y");
+      // Both variants are tied with zero counts; verify the random index is respected.
+      // Math.floor(0   * 2) = 0 → tied[0] = "X"
+      // Math.floor(0.5 * 2) = 1 → tied[1] = "Y"
+      vi.spyOn(Math, "random").mockReturnValueOnce(0);
+      expect(pickVariant("new", ["X", "Y"], state)).toBe("X");
+
+      vi.spyOn(Math, "random").mockReturnValueOnce(0.5);
+      expect(pickVariant("new", ["X", "Y"], state)).toBe("Y");
+
+      vi.restoreAllMocks();
     });
   });
 
