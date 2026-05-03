@@ -68,16 +68,19 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 	}
 
 	// Install @playwright/cli globally.
-	// runInstallScripts is true because playwright's postinstall script may set up
-	// browser binaries needed at runtime.
+	// Node.js setup is needed only when a custom engine.command is specified because
+	// in that case the engine's own install steps (which normally set up Node) are skipped.
+	// When EngineConfig is nil or Command is empty (standard engine configuration), Node.js
+	// is already set up by the engine install steps that run before this function is called.
+	needsNodeSetup := workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != ""
 	steps := GenerateNpmInstallStepsWithScope(
 		"@playwright/cli",
 		version,
 		"Install Playwright CLI",
 		"playwright-cli",
-		false, // Node.js is already set up by the engine install steps
-		true,  // Global install so playwright-cli is on PATH
-		true,  // Allow install scripts for browser setup
+		needsNodeSetup, // true only when engine.command skips standard engine install steps
+		true,           // Global install so playwright-cli is on PATH
+		true,           // Allow install scripts for browser setup
 	)
 
 	// Install playwright-cli skills so the coding agent can discover available commands.
