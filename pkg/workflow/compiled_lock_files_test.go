@@ -372,6 +372,11 @@ func TestCompiledLockFiles_SmokeWorkflowCallHasExpectedOutputs(t *testing.T) {
 		assert.Contains(t, lockContent, "safe_outputs:", "lock file should contain safe_outputs job")
 	})
 
+	t.Run("LockUploadsOTELMirrorInAgentArtifact", func(t *testing.T) {
+		assert.Contains(t, lockContent, "/tmp/gh-aw/otel.jsonl",
+			"smoke-workflow-call agent artifact should include the OTEL JSONL mirror")
+	})
+
 	// The smoke workflow uses add-comment – verify its outputs appear in both places.
 	require.NotNil(t, safeOutputs.AddComments, "smoke-workflow-call.md should have add-comment configured")
 
