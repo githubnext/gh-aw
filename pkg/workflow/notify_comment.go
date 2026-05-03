@@ -46,7 +46,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		// Notify comment job doesn't need project support
 		// Conclusion/notify job depends on activation, reuse its trace ID
 		notifyTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, notifyTraceID)...)
+		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, notifyTraceID)...)
 	}
 
 	// Add GitHub App token minting step if app is configured

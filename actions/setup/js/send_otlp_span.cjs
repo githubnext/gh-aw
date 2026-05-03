@@ -101,8 +101,26 @@ function buildAttr(key, value) {
  * @param {string} [workflowRef]
  * @returns {string}
  */
-function buildCurrentWorkflowCallId(runId, runAttempt, workflowRef = process.env.GITHUB_WORKFLOW_REF || "") {
+function buildCurrentWorkflowCallId(runId, runAttempt, workflowRef = process.env.GH_AW_CURRENT_WORKFLOW_REF || process.env.GITHUB_WORKFLOW_REF || "") {
   return buildWorkflowCallId(runId, runAttempt, workflowRef);
+}
+
+/**
+ * Parse setup-time aw_context passed via environment before aw_info.json exists.
+ *
+ * @param {string | undefined} raw
+ * @returns {Record<string, unknown>}
+ */
+function parseSetupAwContext(raw) {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -640,6 +658,10 @@ async function sendJobSetupSpan(options = {}) {
   // propagated via aw_context.otel_trace_id → aw_info.context.otel_trace_id so that
   // composite-action spans share a single trace with their caller.
   const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
+  const setupAwContext = parseSetupAwContext(process.env.GH_AW_SETUP_AW_CONTEXT);
+  if ((!awInfo.context || typeof awInfo.context !== "object") && Object.keys(setupAwContext).length > 0) {
+    awInfo.context = setupAwContext;
+  }
   const rawContextTraceId = typeof awInfo.context?.otel_trace_id === "string" ? awInfo.context.otel_trace_id.trim().toLowerCase() : "";
   const contextTraceId = isValidTraceId(rawContextTraceId) ? rawContextTraceId : "";
   // When this job was dispatched by a parent workflow, the parent's setup span ID is
@@ -666,7 +688,7 @@ async function sendJobSetupSpan(options = {}) {
 
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
   const jobName = process.env.INPUT_JOB_NAME || "";
-  const workflowName = process.env.GH_AW_INFO_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "";
+  const workflowName = process.env.GH_AW_INFO_WORKFLOW_NAME || process.env.GH_AW_SETUP_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "";
   const engineId = process.env.GH_AW_INFO_ENGINE_ID || "";
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = process.env.GITHUB_RUN_ATTEMPT || "1";
@@ -677,7 +699,7 @@ async function sendJobSetupSpan(options = {}) {
   const refName = process.env.GITHUB_REF_NAME || "";
   const headRef = process.env.GITHUB_HEAD_REF || "";
   const sha = process.env.GITHUB_SHA || "";
-  const workflowRef = process.env.GITHUB_WORKFLOW_REF || "";
+  const workflowRef = process.env.GH_AW_CURRENT_WORKFLOW_REF || process.env.GITHUB_WORKFLOW_REF || "";
 
   const attributes = [
     buildAttr("gh-aw.job.name", jobName),

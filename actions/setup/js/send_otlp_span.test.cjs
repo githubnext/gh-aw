@@ -1044,6 +1044,9 @@ describe("sendJobSetupSpan", () => {
     "OTEL_SERVICE_NAME",
     "INPUT_JOB_NAME",
     "INPUT_TRACE_ID",
+    "GH_AW_SETUP_WORKFLOW_NAME",
+    "GH_AW_CURRENT_WORKFLOW_REF",
+    "GH_AW_SETUP_AW_CONTEXT",
     "GH_AW_INFO_WORKFLOW_NAME",
     "GH_AW_INFO_ENGINE_ID",
     "GITHUB_RUN_ID",
@@ -1177,6 +1180,49 @@ describe("sendJobSetupSpan", () => {
     expect(attrs["gh-aw.run.attempt"]).toBe("2");
     expect(attrs["gh-aw.run.actor"]).toBe("octocat");
     expect(attrs["gh-aw.repository"]).toBe("owner/repo");
+  });
+
+  it("uses setup workflow identity and inbound aw_context when aw_info.json is not available yet", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.INPUT_JOB_NAME = "agent";
+    process.env.GITHUB_RUN_ID = "25280567207";
+    process.env.GITHUB_RUN_ATTEMPT = "1";
+    process.env.GITHUB_WORKFLOW = "Smoke Call Workflow";
+    process.env.GITHUB_WORKFLOW_REF = "owner/repo/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/main";
+    process.env.GH_AW_SETUP_WORKFLOW_NAME = "Smoke Workflow Call";
+    process.env.GH_AW_CURRENT_WORKFLOW_REF = "owner/repo/.github/workflows/smoke-workflow-call.lock.yml@refs/heads/main";
+    process.env.GH_AW_SETUP_AW_CONTEXT = JSON.stringify({
+      episode_id: "25280567207-1:owner/repo/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/main",
+      hop_id: "25280567207-1:owner/repo/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/main",
+      parent_hop_id: "parent-hop-root",
+      origin_event: "workflow_dispatch",
+      root_repo: "owner/repo",
+      root_workflow_id: "owner/repo/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/main",
+    });
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobSetupSpan();
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, attrValue(a)]));
+    expect(attrs["gh-aw.workflow.name"]).toBe("Smoke Workflow Call");
+    expect(attrs["gh-aw.episode.id"]).toBe("25280567207-1:owner/repo/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/main");
+    expect(attrs["gh-aw.hop.id"]).toBe("25280567207-1:owner/repo/.github/workflows/smoke-workflow-call.lock.yml@refs/heads/main");
+    expect(attrs["gh-aw.hop.parent_id"]).toBe("parent-hop-root");
+
+    const resourceAttrs = Object.fromEntries(body.resourceSpans[0].resource.attributes.map(a => [a.key, attrValue(a)]));
+    expect(resourceAttrs["github.workflow_ref"]).toBe("owner/repo/.github/workflows/smoke-workflow-call.lock.yml@refs/heads/main");
   });
 
   it("defaults gh-aw.run.attempt to '1' when GITHUB_RUN_ATTEMPT is not set", async () => {
