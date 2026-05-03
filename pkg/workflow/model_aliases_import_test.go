@@ -3,10 +3,8 @@
 package workflow_test
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -67,10 +65,11 @@ imports:
 
 	lockYAML := string(lockFileContent)
 
-	// Verify the generated lock file contains model alias configuration.
-	// The models section is embedded in the AWF config step.
-	assert.True(t, strings.Contains(lockYAML, "main-alias") || strings.Contains(lockYAML, "shared-alias"),
-		"lock file should contain model alias names from main and imported workflows")
+	// Verify the generated lock file compiles successfully. Since models are not yet
+	// emitted to awf-config.json (pending AWF firewall support), we verify that the
+	// compilation itself succeeds and produces a valid lock file without checking for
+	// model alias names in the lock YAML (they don't appear in the JSON config yet).
+	assert.NotEmpty(t, lockYAML, "lock file should be non-empty after successful compilation")
 }
 
 // TestModelAliasesImportMergeOrder verifies the priority order:
@@ -108,8 +107,12 @@ func TestModelAliasesImportMergeOrder(t *testing.T) {
 	})
 }
 
-// TestModelAliasesAWFConfigJSON verifies that the AWF config JSON generated during
-// workflow compilation includes model alias entries from imported workflows.
+// TestModelAliasesAWFConfigJSON verifies that model alias entries from imported workflows
+// are merged into WorkflowData.ModelMappings during compilation.
+//
+// NOTE: The "models" field is intentionally excluded from the AWF config JSON until the
+// AWF firewall binary is updated to recognise config.models. Assertions check
+// ModelMappings directly rather than the serialised JSON.
 func TestModelAliasesAWFConfigJSON(t *testing.T) {
 	awfConfig := workflow.AWFCommandConfig{
 		EngineName:     "copilot",
@@ -134,21 +137,22 @@ func TestModelAliasesAWFConfigJSON(t *testing.T) {
 	jsonStr, err := workflow.BuildAWFConfigJSON(awfConfig)
 	require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
-	var parsed struct {
-		Models map[string][]string `json:"models"`
-	}
-	require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "result must be valid JSON")
-	require.NotNil(t, parsed.Models, "models section should be present")
+	// models must NOT appear in the JSON until the AWF binary supports it
+	assert.NotContains(t, jsonStr, `"models"`, "models section must be absent from AWF config JSON until AWF binary supports it")
 
-	// Imported alias is in the output.
-	assert.Equal(t, []string{"import/model"}, parsed.Models["import-alias"],
-		"import-alias from imported workflow should appear in AWF config JSON")
+	// Verify that the alias map is correctly populated in WorkflowData.
+	mappings := awfConfig.WorkflowData.ModelMappings
+	require.NotNil(t, mappings, "ModelMappings should be set on WorkflowData")
+
+	// Imported alias is in the model mappings.
+	assert.Equal(t, []string{"import/model"}, mappings["import-alias"],
+		"import-alias from imported workflow should be in ModelMappings")
 
 	// Main workflow override wins over builtin haiku.
-	assert.Equal(t, []string{"main/haiku-override"}, parsed.Models["haiku"],
-		"main workflow alias should override builtin haiku in AWF config JSON")
+	assert.Equal(t, []string{"main/haiku-override"}, mappings["haiku"],
+		"main workflow alias should override builtin haiku in ModelMappings")
 
 	// Other builtins preserved.
-	assert.NotEmpty(t, parsed.Models["sonnet"], "builtin sonnet should still be in AWF config JSON")
-	assert.NotEmpty(t, parsed.Models["auto"], "builtin auto should still be in AWF config JSON")
+	assert.NotEmpty(t, mappings["sonnet"], "builtin sonnet should still be in ModelMappings")
+	assert.NotEmpty(t, mappings["auto"], "builtin auto should still be in ModelMappings")
 }

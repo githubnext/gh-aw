@@ -25,6 +25,8 @@
 
 package workflow
 
+import "maps"
+
 // BuiltinModelAliases returns the built-in model alias map that covers the main
 // model families supported by gh-aw.  The returned map is a freshly allocated
 // copy so callers may freely modify it.
@@ -128,9 +130,7 @@ func MergeImportedModelAliases(importedModels []map[string][]string, frontmatter
 	}
 
 	// Layer 3 — main workflow frontmatter always wins.
-	for k, v := range frontmatterModels {
-		merged[k] = v
-	}
+	maps.Copy(merged, frontmatterModels)
 
 	return merged
 }
