@@ -85,7 +85,7 @@ func hasUnsafeExpressionInRunContent(yamlContent string) bool {
 
 	// Unsafe expressions exist somewhere; scan for any that appear inside a run: block
 	// without doing a full YAML parse.
-	// Use SplitSeq to iterate over lines lazily, avoiding the upfront allocation of the
+	// Use SplitSeq to iterate over lines lazily, avoiding the up-front allocation of the
 	// full []string slice that strings.Split would create for large YAML content.
 	inRunBlock := false
 	runBlockIndent := 0
