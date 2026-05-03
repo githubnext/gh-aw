@@ -117,7 +117,7 @@ func (e *PiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActi
 	}
 
 	npmSteps := BuildStandardNpmEngineInstallSteps(
-		"@pi/cli",
+		"@mariozechner/pi-coding-agent",
 		version,
 		"Install Pi CLI",
 		"pi",

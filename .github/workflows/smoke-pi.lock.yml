@@ -134,8 +134,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "pi"
           GH_AW_INFO_ENGINE_NAME: "Pi"
           GH_AW_INFO_MODEL: "copilot/claude-sonnet-4-20250514"
-          GH_AW_INFO_VERSION: "0.0.1"
-          GH_AW_INFO_AGENT_VERSION: "0.0.1"
+          GH_AW_INFO_VERSION: "0.72.1"
+          GH_AW_INFO_AGENT_VERSION: "0.72.1"
           GH_AW_INFO_WORKFLOW_NAME: "Smoke Pi"
           GH_AW_INFO_EXPERIMENTAL: "true"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -491,7 +491,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.35
       - name: Install Pi CLI
-        run: npm install --ignore-scripts -g @pi/cli@0.0.1
+        run: npm install --ignore-scripts -g @mariozechner/pi-coding-agent@0.72.1
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
@@ -1383,7 +1383,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.35
       - name: Install Pi CLI
-        run: npm install --ignore-scripts -g @pi/cli@0.0.1
+        run: npm install --ignore-scripts -g @mariozechner/pi-coding-agent@0.72.1
       - name: Execute Pi CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
