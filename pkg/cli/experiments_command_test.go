@@ -4,9 +4,7 @@ package cli
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,110 +61,131 @@ func TestExtractExperimentName(t *testing.T) {
 	}
 }
 
-func TestComputeExperimentStatus(t *testing.T) {
-	today := time.Now().Format("2006-01-02")
-	thirtyOneDaysAgo := time.Now().AddDate(0, 0, -(experimentsStaleThresholdDays + 1)).Format("2006-01-02")
-	twentyNineDaysAgo := time.Now().AddDate(0, 0, -(experimentsStaleThresholdDays - 1)).Format("2006-01-02")
-
+func TestParseExperimentState(t *testing.T) {
 	tests := []struct {
-		name     string
-		dateStr  string
-		expected string
+		name            string
+		input           []byte
+		wantExperiments int
+		wantTotalRuns   int
+		wantLastRun     string
 	}{
 		{
-			name:     "today is active",
-			dateStr:  today,
-			expected: "active",
+			name: "valid state with runs",
+			input: []byte(`{
+				"counts": {"feature": {"A": 3, "B": 2}},
+				"runs": [
+					{"run_id": "1", "timestamp": "2024-06-01T10:00:00Z", "assignments": {"feature": "A"}},
+					{"run_id": "2", "timestamp": "2024-06-15T12:00:00Z", "assignments": {"feature": "B"}}
+				]
+			}`),
+			wantExperiments: 1,
+			wantTotalRuns:   2,
+			wantLastRun:     "2024-06-15",
 		},
 		{
-			name:     "29 days ago is active",
-			dateStr:  twentyNineDaysAgo,
-			expected: "active",
+			name: "valid state without runs array",
+			input: []byte(`{
+				"counts": {"exp1": {"yes": 5, "no": 5}, "exp2": {"on": 3, "off": 7}}
+			}`),
+			wantExperiments: 2,
+			wantTotalRuns:   20,
+			wantLastRun:     "",
 		},
 		{
-			name:     "31 days ago is stale",
-			dateStr:  thirtyOneDaysAgo,
-			expected: "stale",
+			name:            "empty JSON object",
+			input:           []byte(`{}`),
+			wantExperiments: 0,
+			wantTotalRuns:   0,
+			wantLastRun:     "",
 		},
 		{
-			name:     "empty string returns unknown",
-			dateStr:  "",
-			expected: "unknown",
-		},
-		{
-			name:     "invalid date returns unknown",
-			dateStr:  "not-a-date",
-			expected: "unknown",
+			name:            "invalid JSON returns empty state",
+			input:           []byte(`not json`),
+			wantExperiments: 0,
+			wantTotalRuns:   0,
+			wantLastRun:     "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := computeExperimentStatus(tt.dateStr)
-			assert.Equal(t, tt.expected, got, "computeExperimentStatus(%q)", tt.dateStr)
+			state := parseExperimentState(tt.input)
+			require.NotNil(t, state, "state should never be nil")
+			assert.Len(t, state.Counts, tt.wantExperiments, "experiment count")
+			assert.Equal(t, tt.wantTotalRuns, experimentTotalRuns(state), "total runs")
+			assert.Equal(t, tt.wantLastRun, experimentLastRun(state), "last run date")
 		})
 	}
 }
 
-func TestParseForEachRefOutput(t *testing.T) {
-	today := time.Now().Format("2006-01-02")
+func TestExperimentDetailsFromState(t *testing.T) {
+	state := &ExperimentState{
+		Counts: map[string]map[string]int{
+			"style":   {"concise": 4, "detailed": 6},
+			"feature": {"on": 5, "off": 5},
+		},
+		Runs: []ExperimentRunRecord{
+			{RunID: "r1", Timestamp: "2024-05-01T00:00:00Z", Assignments: map[string]string{"style": "concise", "feature": "on"}},
+			{RunID: "r2", Timestamp: "2024-05-02T00:00:00Z", Assignments: map[string]string{"style": "detailed", "feature": "off"}},
+		},
+	}
 
+	details := experimentDetailsFromState("my-workflow", "experiments/my-workflow", state)
+	require.NotNil(t, details, "details should not be nil")
+	assert.Equal(t, "my-workflow", details.WorkflowID, "workflow ID")
+	assert.Equal(t, "experiments/my-workflow", details.Branch, "branch")
+	assert.Equal(t, 2, details.TotalRuns, "total runs from runs array")
+	assert.Len(t, details.Experiments, 2, "should have 2 experiment entries")
+	assert.Len(t, details.RecentRuns, 2, "should have 2 recent runs")
+
+	// Experiments are sorted by name.
+	assert.Equal(t, "feature", details.Experiments[0].Name, "first experiment sorted by name")
+	assert.Equal(t, 10, details.Experiments[0].Total, "feature total")
+	assert.Equal(t, "style", details.Experiments[1].Name, "second experiment sorted by name")
+	assert.Equal(t, 10, details.Experiments[1].Total, "style total")
+}
+
+func TestExperimentTotalRunsFallback(t *testing.T) {
+	// When no runs array present, sum variant counts.
+	state := &ExperimentState{
+		Counts: map[string]map[string]int{
+			"exp": {"A": 3, "B": 4},
+		},
+	}
+	assert.Equal(t, 7, experimentTotalRuns(state), "total from counts fallback")
+}
+
+func TestFormatAssignments(t *testing.T) {
 	tests := []struct {
-		name          string
-		output        string
-		expectedNames []string
-		expectedCount int
+		name     string
+		input    map[string]string
+		expected string
 	}{
 		{
-			name:          "parses single remote branch",
-			output:        "origin/experiments/feature-a|Alice|" + today + "|Add initial feature\n",
-			expectedNames: []string{"feature-a"},
-			expectedCount: 1,
+			name:     "nil map returns dash",
+			input:    nil,
+			expected: "-",
 		},
 		{
-			name: "parses multiple branches",
-			output: strings.Join([]string{
-				"origin/experiments/feature-a|Alice|" + today + "|Feature A",
-				"origin/experiments/feature-b|Bob|2024-01-01|Feature B",
-			}, "\n") + "\n",
-			expectedNames: []string{"feature-a", "feature-b"},
-			expectedCount: 2,
+			name:     "empty map returns dash",
+			input:    map[string]string{},
+			expected: "-",
 		},
 		{
-			name: "deduplicates local and remote refs for same experiment",
-			output: strings.Join([]string{
-				"origin/experiments/feature-a|Alice|" + today + "|From remote",
-				"experiments/feature-a|Alice|" + today + "|From local",
-			}, "\n") + "\n",
-			expectedNames: []string{"feature-a"},
-			expectedCount: 1,
+			name:     "single entry",
+			input:    map[string]string{"style": "concise"},
+			expected: "style=concise",
 		},
 		{
-			name:          "empty output returns empty slice",
-			output:        "",
-			expectedNames: []string{},
-			expectedCount: 0,
-		},
-		{
-			name: "ignores unrelated branches",
-			output: strings.Join([]string{
-				"origin/main|Alice|" + today + "|Main branch",
-				"origin/feature/foo|Bob|" + today + "|Feature branch",
-			}, "\n") + "\n",
-			expectedNames: []string{},
-			expectedCount: 0,
+			name:     "multiple entries sorted by key",
+			input:    map[string]string{"z": "last", "a": "first"},
+			expected: "a=first, z=last",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := parseForEachRefOutput(tt.output)
-			require.Len(t, got, tt.expectedCount, "expected %d experiments", tt.expectedCount)
-
-			for i, name := range tt.expectedNames {
-				assert.Equal(t, name, got[i].Name, "experiment[%d].Name", i)
-				assert.Equal(t, experimentsBranchPrefix+name, got[i].Branch, "experiment[%d].Branch", i)
-			}
+			assert.Equal(t, tt.expected, formatAssignments(tt.input), "formatAssignments(%v)", tt.input)
 		})
 	}
 }
@@ -220,11 +239,11 @@ func TestParsePagedJSONArray(t *testing.T) {
 func TestExperimentInfoJSONOutput(t *testing.T) {
 	experiments := []ExperimentInfo{
 		{
-			Name:       "my-feature",
-			Author:     "Alice",
-			LastCommit: "2024-01-15",
-			Status:     "stale",
-			Branch:     "experiments/my-feature",
+			WorkflowID:  "my-workflow",
+			Branch:      "experiments/my-workflow",
+			Experiments: 2,
+			TotalRuns:   15,
+			LastRun:     "2024-06-15",
 		},
 	}
 
@@ -235,26 +254,27 @@ func TestExperimentInfoJSONOutput(t *testing.T) {
 	require.NoError(t, json.Unmarshal(jsonBytes, &result), "should unmarshal JSON back")
 
 	require.Len(t, result, 1, "should have 1 experiment")
-	assert.Equal(t, "my-feature", result[0]["name"], "name field should match")
-	assert.Equal(t, "Alice", result[0]["author"], "author field should match")
-	assert.Equal(t, "2024-01-15", result[0]["last_commit"], "last_commit field should match")
-	assert.Equal(t, "stale", result[0]["status"], "status field should match")
-	assert.Equal(t, "experiments/my-feature", result[0]["branch"], "branch field should match")
+	assert.Equal(t, "my-workflow", result[0]["workflow_id"], "workflow_id field should match")
+	assert.Equal(t, "experiments/my-workflow", result[0]["branch"], "branch field should match")
+	assert.EqualValues(t, 2, result[0]["experiments"], "experiments count should match")
+	assert.EqualValues(t, 15, result[0]["total_runs"], "total_runs should match")
+	assert.Equal(t, "2024-06-15", result[0]["last_run"], "last_run should match")
 }
 
 func TestExperimentDetailsJSONOutput(t *testing.T) {
 	details := ExperimentDetails{
-		Name:        "my-feature",
-		Branch:      "experiments/my-feature",
-		Author:      "Alice",
-		LastCommit:  "2024-01-15",
-		Status:      "stale",
-		CommitCount: 3,
-		Commits: []ExperimentCommit{
-			{SHA: "abc1234", Message: "Initial commit", Author: "Alice", Date: "2024-01-15"},
+		WorkflowID: "my-workflow",
+		Branch:     "experiments/my-workflow",
+		TotalRuns:  10,
+		Experiments: []ExperimentVariantStats{
+			{
+				Name:     "style",
+				Variants: map[string]int{"concise": 6, "detailed": 4},
+				Total:    10,
+			},
 		},
-		PRs: []ExperimentPR{
-			{Number: 42, Title: "Experiment: my feature", State: "open", URL: "https://github.com/owner/repo/pull/42"},
+		RecentRuns: []ExperimentRunRecord{
+			{RunID: "123", Timestamp: "2024-06-01T00:00:00Z", Assignments: map[string]string{"style": "concise"}},
 		},
 	}
 
@@ -264,22 +284,23 @@ func TestExperimentDetailsJSONOutput(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal(jsonBytes, &result), "should unmarshal JSON back")
 
-	assert.Equal(t, "my-feature", result["name"], "name field should match")
-	assert.EqualValues(t, 3, result["commit_count"], "commit_count should match")
+	assert.Equal(t, "my-workflow", result["workflow_id"], "workflow_id should match")
+	assert.EqualValues(t, 10, result["total_runs"], "total_runs should match")
 
-	commits, ok := result["commits"].([]any)
-	require.True(t, ok, "commits should be an array")
-	require.Len(t, commits, 1, "should have 1 commit")
+	experiments, ok := result["experiments"].([]any)
+	require.True(t, ok, "experiments should be an array")
+	require.Len(t, experiments, 1, "should have 1 experiment")
 
-	prs, ok := result["prs"].([]any)
-	require.True(t, ok, "prs should be an array")
-	require.Len(t, prs, 1, "should have 1 PR")
+	recentRuns, ok := result["recent_runs"].([]any)
+	require.True(t, ok, "recent_runs should be an array")
+	require.Len(t, recentRuns, 1, "should have 1 recent run")
 }
 
 func TestNewExperimentsCommand(t *testing.T) {
 	cmd := NewExperimentsCommand()
 	require.NotNil(t, cmd, "command should be created")
 	assert.Equal(t, "experiments", cmd.Name(), "command name should be experiments")
+	assert.True(t, cmd.Hidden, "experiments command should be hidden")
 
 	subCmds := cmd.Commands()
 	subNames := make([]string, 0, len(subCmds))
@@ -311,7 +332,6 @@ func TestExperimentsAnalyzeRequiresArg(t *testing.T) {
 	cmd := NewExperimentsAnalyzeSubcommand()
 	require.NotNil(t, cmd, "analyze subcommand should be created")
 
-	// ExactArgs(1) should reject zero args
 	err := cmd.Args(cmd, []string{})
 	assert.Error(t, err, "analyze should require exactly 1 argument")
 }

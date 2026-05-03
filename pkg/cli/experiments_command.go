@@ -1,13 +1,14 @@
 package cli
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
-	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -18,50 +19,46 @@ import (
 
 var experimentsLog = logger.New("cli:experiments_command")
 
-const (
-	// experimentsBranchPrefix is the git branch prefix used to identify experiments.
-	experimentsBranchPrefix = "experiments/"
+// experimentsBranchPrefix is the git branch prefix used to identify experiment state branches.
+const experimentsBranchPrefix = "experiments/"
 
-	// experimentsStaleThresholdDays is the number of days after which an experiment
-	// branch is considered stale.
-	experimentsStaleThresholdDays = 30
-)
+// ExperimentState represents the state.json format stored in experiments/* branches.
+// This matches the format written by pick_experiment.cjs.
+type ExperimentState struct {
+	Counts map[string]map[string]int `json:"counts"` // experiment name → variant → count
+	Runs   []ExperimentRunRecord     `json:"runs,omitempty"`
+}
 
-// ExperimentInfo represents a single experiment for list output.
+// ExperimentRunRecord represents a single workflow run in the state history.
+type ExperimentRunRecord struct {
+	RunID       string            `json:"run_id"`
+	Timestamp   string            `json:"timestamp"`
+	Assignments map[string]string `json:"assignments"`
+}
+
+// ExperimentVariantStats holds counts for all variants of one named A/B experiment.
+type ExperimentVariantStats struct {
+	Name     string         `json:"name"`
+	Variants map[string]int `json:"variants"` // variant → count
+	Total    int            `json:"total"`
+}
+
+// ExperimentInfo represents a single experiment workflow for list output.
 type ExperimentInfo struct {
-	Name       string `json:"name" console:"header:Name"`
-	Author     string `json:"author" console:"header:Author"`
-	LastCommit string `json:"last_commit" console:"header:Last Commit"`
-	Status     string `json:"status" console:"header:Status"`
-	Branch     string `json:"branch" console:"header:Branch"`
+	WorkflowID  string `json:"workflow_id" console:"header:Workflow"`
+	Branch      string `json:"branch" console:"header:Branch"`
+	Experiments int    `json:"experiments" console:"header:Experiments"`
+	TotalRuns   int    `json:"total_runs" console:"header:Total Runs"`
+	LastRun     string `json:"last_run" console:"header:Last Run"`
 }
 
-// ExperimentCommit represents a single commit within an experiment.
-type ExperimentCommit struct {
-	SHA     string `json:"sha"`
-	Message string `json:"message"`
-	Author  string `json:"author"`
-	Date    string `json:"date"`
-}
-
-// ExperimentPR represents a pull request associated with an experiment.
-type ExperimentPR struct {
-	Number int    `json:"number"`
-	Title  string `json:"title"`
-	State  string `json:"state"`
-	URL    string `json:"url"`
-}
-
-// ExperimentDetails represents detailed information about a specific experiment.
+// ExperimentDetails represents detailed information about a specific experiment workflow.
 type ExperimentDetails struct {
-	Name        string             `json:"name"`
-	Branch      string             `json:"branch"`
-	Author      string             `json:"author"`
-	LastCommit  string             `json:"last_commit"`
-	Status      string             `json:"status"`
-	CommitCount int                `json:"commit_count"`
-	Commits     []ExperimentCommit `json:"commits"`
-	PRs         []ExperimentPR     `json:"prs"`
+	WorkflowID  string                   `json:"workflow_id"`
+	Branch      string                   `json:"branch"`
+	TotalRuns   int                      `json:"total_runs"`
+	Experiments []ExperimentVariantStats `json:"experiments"`
+	RecentRuns  []ExperimentRunRecord    `json:"recent_runs,omitempty"`
 }
 
 // ExperimentsListConfig holds configuration for the experiments list subcommand.
@@ -86,18 +83,19 @@ func NewExperimentsCommand() *cobra.Command {
 		Long: `Explore ongoing experiments in the repository.
 
 Experiments are tracked via git branches with the "experiments/" prefix (e.g.,
-experiments/my-feature). This command helps discover, list, and analyze those branches.
+experiments/my-workflow). Each branch stores a state.json file written by the
+workflow's pick_experiment step, containing variant counts and run history.
 
 Available subcommands:
-  • list    - List all experiment branches (default)
-  • analyze - Analyze a specific experiment in detail
+  • list    - List all experiment workflow branches (default)
+  • analyze - Analyze a specific experiment workflow in detail
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` experiments                        # List all experiments (default)
   ` + string(constants.CLIExtensionPrefix) + ` experiments list                   # List all experiments
   ` + string(constants.CLIExtensionPrefix) + ` experiments list --json            # Output in JSON format
-  ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-feature     # Analyze experiments/my-feature
-  ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-feature --json  # Analyze in JSON format`,
+  ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow    # Analyze experiments/my-workflow
+  ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow --json  # Analyze in JSON format`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			repoOverride, _ := cmd.Flags().GetString("repo")
@@ -121,15 +119,12 @@ Examples:
 func NewExperimentsListSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List all experiment branches",
-		Long: `List all experiment branches in the repository.
+		Short: "List all experiment workflow branches",
+		Long: `List all experiment workflow branches in the repository.
 
-Experiments are identified by git branches with the "experiments/" prefix.
-For each experiment, shows the name, author of the last commit, date of the
-last commit, and status (active or stale).
-
-An experiment is considered "active" if its last commit was within the past
-30 days, and "stale" otherwise.
+Reads the state.json file from each experiments/* branch and shows a summary
+of each workflow's A/B experiments: number of experiments defined, total runs,
+and timestamp of the most recent run.
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` experiments list                             # List all experiments
@@ -155,19 +150,19 @@ Examples:
 func NewExperimentsAnalyzeSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "analyze <experiment>",
-		Short: "Analyze a specific experiment in detail",
-		Long: `Analyze a specific experiment branch in detail.
+		Short: "Analyze a specific experiment workflow in detail",
+		Long: `Analyze a specific experiment workflow in detail.
 
-The experiment argument is the name of the experiment without the "experiments/"
-prefix (e.g., "my-feature" for the "experiments/my-feature" branch).
+The experiment argument is the workflow ID (branch name without the "experiments/"
+prefix, e.g. "my-workflow" for the "experiments/my-workflow" branch).
 
-Shows recent commits on the experiment branch, associated pull requests (both
-open and closed), and a status summary.
+Reads the state.json file from the branch and shows per-variant counts, total
+runs, and the most recent run assignments.
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-feature              # Analyze experiments/my-feature
-  ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-feature --json       # Output in JSON format
-  ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-feature --repo owner/repo  # Analyze in a specific repository`,
+  ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow              # Analyze experiments/my-workflow
+  ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow --json       # Output in JSON format
+  ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow --repo owner/repo  # Analyze in a specific repository`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			jsonOutput, _ := cmd.Flags().GetBool("json")
@@ -214,15 +209,15 @@ func RunExperimentsList(config ExperimentsListConfig) error {
 	}
 
 	if len(experiments) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No experiment branches found (branches matching experiments/* pattern)."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No experiment workflow branches found (branches matching experiments/* pattern)."))
 		return nil
 	}
 
 	count := len(experiments)
 	if count == 1 {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Found 1 experiment"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Found 1 experiment workflow"))
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %d experiments", count)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %d experiment workflows", count)))
 	}
 	fmt.Fprint(os.Stderr, console.RenderStruct(experiments))
 
@@ -263,19 +258,18 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 	return nil
 }
 
-// fetchLocalExperiments lists experiment branches from the local git repository.
+// fetchLocalExperiments lists experiment branches and reads their state from the local git repo.
 func fetchLocalExperiments() ([]ExperimentInfo, error) {
 	experimentsLog.Print("Fetching local experiment branches via git for-each-ref")
 
 	cmd := exec.Command("git", "for-each-ref",
 		"--sort=-committerdate",
-		"--format=%(refname:short)|%(authorname)|%(committerdate:format:%Y-%m-%d)|%(subject)",
+		"--format=%(refname:short)",
 		"refs/remotes/origin/"+experimentsBranchPrefix+"*",
 		"refs/heads/"+experimentsBranchPrefix+"*",
 	)
 	output, err := cmd.Output()
 	if err != nil {
-		// Not a fatal error if there are simply no branches or no remote named origin
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) && exitErr.ExitCode() == 128 {
 			return []ExperimentInfo{}, nil
@@ -283,91 +277,39 @@ func fetchLocalExperiments() ([]ExperimentInfo, error) {
 		return nil, fmt.Errorf("failed to list experiment branches: %w", err)
 	}
 
-	return parseForEachRefOutput(string(output)), nil
-}
-
-// parseForEachRefOutput parses the output of git for-each-ref into ExperimentInfo slice.
-func parseForEachRefOutput(output string) []ExperimentInfo {
 	seen := make(map[string]bool)
 	var experiments []ExperimentInfo
 
-	for line := range strings.SplitSeq(strings.TrimSpace(output), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(output)), "\n") {
 		if line == "" {
 			continue
 		}
-		parts := strings.SplitN(line, "|", 4)
-		if len(parts) < 3 {
+		workflowID := extractExperimentName(line)
+		if workflowID == "" || seen[workflowID] {
 			continue
 		}
+		seen[workflowID] = true
 
-		fullRef := parts[0] // e.g. origin/experiments/my-feature or experiments/my-feature
-		author := parts[1]
-		dateStr := parts[2]
-
-		// Extract experiment name from branch ref
-		name := extractExperimentName(fullRef)
-		if name == "" {
-			continue
+		branchName := experimentsBranchPrefix + workflowID
+		// Prefer remote ref; fall back to local.
+		ref := "origin/" + branchName
+		if !gitRefExists(ref) {
+			ref = branchName
 		}
-
-		// Deduplicate: prefer remote (origin/) over local branch
-		if seen[name] {
-			continue
-		}
-		seen[name] = true
-
-		branch := experimentsBranchPrefix + name
-		status := computeExperimentStatus(dateStr)
-
-		experiments = append(experiments, ExperimentInfo{
-			Name:       name,
-			Author:     author,
-			LastCommit: dateStr,
-			Status:     status,
-			Branch:     branch,
-		})
+		state := readLocalExperimentState(ref)
+		experiments = append(experiments, experimentInfoFromState(workflowID, branchName, state))
 	}
 
-	return experiments
+	return experiments, nil
 }
 
-// extractExperimentName extracts the experiment name from a branch ref.
-// e.g. "origin/experiments/my-feature" -> "my-feature"
-//
-//	"experiments/my-feature"        -> "my-feature"
-func extractExperimentName(ref string) string {
-	// Strip remote prefix (origin/)
-	ref = strings.TrimPrefix(ref, "origin/")
-
-	if !strings.HasPrefix(ref, experimentsBranchPrefix) {
-		return ""
-	}
-	return strings.TrimPrefix(ref, experimentsBranchPrefix)
-}
-
-// computeExperimentStatus returns "active" or "stale" based on the last commit date string.
-func computeExperimentStatus(dateStr string) string {
-	if dateStr == "" {
-		return "unknown"
-	}
-	t, err := time.Parse("2006-01-02", dateStr)
-	if err != nil {
-		return "unknown"
-	}
-	if time.Since(t) <= time.Duration(experimentsStaleThresholdDays)*24*time.Hour {
-		return "active"
-	}
-	return "stale"
-}
-
-// fetchRemoteExperiments lists experiment branches from a remote repository via GitHub API.
+// fetchRemoteExperiments lists experiment branches and reads their state via the GitHub API.
 func fetchRemoteExperiments(repoOverride string) ([]ExperimentInfo, error) {
 	experimentsLog.Printf("Fetching remote experiment branches: repo=%s", repoOverride)
 
-	// Fetch all branches from the repository; GitHub API doesn't support prefix filters
 	args := []string{"api", "repos/{owner}/{repo}/branches",
 		"--paginate",
-		"--jq", "[.[] | select(.name | startswith(\"" + experimentsBranchPrefix + "\")) | {name: .name, sha: .commit.sha}]",
+		"--jq", `[.[] | select(.name | startswith("` + experimentsBranchPrefix + `")) | .name]`,
 		"--repo", repoOverride,
 	}
 	cmd := workflow.ExecGH(args...)
@@ -380,313 +322,273 @@ func fetchRemoteExperiments(repoOverride string) ([]ExperimentInfo, error) {
 		return nil, fmt.Errorf("failed to fetch branches: %w", err)
 	}
 
-	// Parse paged JSON output — gh api --paginate emits one JSON array per page
-	type branchRef struct {
-		Name string `json:"name"`
-		SHA  string `json:"sha"`
-	}
-	allBranches, err := parsePagedJSONArray[branchRef](string(output))
+	branchNames, err := parsePagedJSONArray[string](string(output))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse branch list: %w", err)
 	}
 
 	var experiments []ExperimentInfo
-	for _, b := range allBranches {
-		name := strings.TrimPrefix(b.Name, experimentsBranchPrefix)
-
-		// Fetch commit details for this branch
-		commitDate, commitAuthor := fetchCommitDetails(repoOverride, b.SHA)
-
-		experiments = append(experiments, ExperimentInfo{
-			Name:       name,
-			Author:     commitAuthor,
-			LastCommit: commitDate,
-			Status:     computeExperimentStatus(commitDate),
-			Branch:     b.Name,
-		})
+	for _, branchName := range branchNames {
+		workflowID := strings.TrimPrefix(branchName, experimentsBranchPrefix)
+		state := readRemoteExperimentState(repoOverride, branchName)
+		experiments = append(experiments, experimentInfoFromState(workflowID, branchName, state))
 	}
 
 	return experiments, nil
 }
 
-// fetchCommitDetails fetches the date and author of a commit by SHA.
-func fetchCommitDetails(repoOverride, sha string) (date, author string) {
-	if sha == "" {
-		return "", ""
-	}
-	args := []string{"api", "repos/{owner}/{repo}/commits/" + sha,
-		"--jq", ".commit.author.date[:10] + \"|\" + .commit.author.name",
-		"--repo", repoOverride,
-	}
-	cmd := workflow.ExecGH(args...)
-	out, err := cmd.Output()
-	if err != nil {
-		return "", ""
-	}
-	parts := strings.SplitN(strings.TrimSpace(string(out)), "|", 2)
-	if len(parts) == 2 {
-		return parts[0], parts[1]
-	}
-	return "", ""
-}
-
-// fetchLocalExperimentDetails fetches detailed information about a specific experiment branch
-// from the local git repository.
-func fetchLocalExperimentDetails(branchName, experimentName string) (*ExperimentDetails, error) {
+// fetchLocalExperimentDetails reads the state.json from a local experiment branch.
+func fetchLocalExperimentDetails(branchName, workflowID string) (*ExperimentDetails, error) {
 	experimentsLog.Printf("Fetching local experiment details: branch=%s", branchName)
 
-	// Resolve full ref: prefer remote, fall back to local branch
-	remoteBranch := "origin/" + branchName
-	if !gitRefExists(remoteBranch) {
+	ref := "origin/" + branchName
+	if !gitRefExists(ref) {
 		if !gitRefExists(branchName) {
-			return nil, fmt.Errorf("experiment branch %q not found locally (tried %s and %s)",
-				experimentName, remoteBranch, branchName)
+			return nil, fmt.Errorf("experiment branch %q not found locally (tried origin/%s and %s)",
+				workflowID, branchName, branchName)
 		}
-		remoteBranch = branchName
+		ref = branchName
 	}
 
-	// Fetch recent commits on the branch
-	commits, err := fetchLocalCommits(remoteBranch)
-	if err != nil {
-		return nil, err
-	}
-
-	// Determine status from most recent commit date
-	status := "unknown"
-	lastCommit := ""
-	author := ""
-	if len(commits) > 0 {
-		lastCommit = commits[0].Date
-		author = commits[0].Author
-		status = computeExperimentStatus(lastCommit)
-	}
-
-	// Fetch associated pull requests via gh CLI
-	prs, err := fetchPRsForBranch(branchName, "")
-	if err != nil {
-		experimentsLog.Printf("Failed to fetch PRs (non-fatal): %v", err)
-		prs = []ExperimentPR{}
-	}
-
-	return &ExperimentDetails{
-		Name:        experimentName,
-		Branch:      branchName,
-		Author:      author,
-		LastCommit:  lastCommit,
-		Status:      status,
-		CommitCount: len(commits),
-		Commits:     commits,
-		PRs:         prs,
-	}, nil
+	state := readLocalExperimentState(ref)
+	return experimentDetailsFromState(workflowID, branchName, state), nil
 }
 
-// fetchRemoteExperimentDetails fetches detailed information about a specific experiment
-// from a remote repository via GitHub API.
-func fetchRemoteExperimentDetails(repoOverride, branchName, experimentName string) (*ExperimentDetails, error) {
+// fetchRemoteExperimentDetails reads the state.json from a remote experiment branch.
+func fetchRemoteExperimentDetails(repoOverride, branchName, workflowID string) (*ExperimentDetails, error) {
 	experimentsLog.Printf("Fetching remote experiment details: repo=%s, branch=%s", repoOverride, branchName)
 
-	// Fetch branch info
+	// Verify the branch exists.
 	encodedBranch := strings.ReplaceAll(branchName, "/", "%2F")
-	args := []string{"api",
+	checkArgs := []string{"api",
 		"repos/{owner}/{repo}/branches/" + encodedBranch,
+		"--jq", ".name",
 		"--repo", repoOverride,
 	}
-	cmd := workflow.ExecGH(args...)
-	out, err := cmd.Output()
-	if err != nil {
+	checkCmd := workflow.ExecGH(checkArgs...)
+	if _, err := checkCmd.Output(); err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			stderr := strings.TrimSpace(string(exitErr.Stderr))
 			if strings.Contains(stderr, "404") || strings.Contains(stderr, "not found") {
-				return nil, fmt.Errorf("experiment %q not found in %s", experimentName, repoOverride)
+				return nil, fmt.Errorf("experiment %q not found in %s", workflowID, repoOverride)
 			}
 			return nil, fmt.Errorf("failed to fetch experiment branch (exit %d): %s", exitErr.ExitCode(), stderr)
 		}
 		return nil, fmt.Errorf("failed to fetch experiment branch: %w", err)
 	}
 
-	type remoteBranchInfo struct {
-		Commit struct {
-			SHA    string `json:"sha"`
-			Commit struct {
-				Author struct {
-					Name string `json:"name"`
-					Date string `json:"date"`
-				} `json:"author"`
-			} `json:"commit"`
-		} `json:"commit"`
-	}
-	var branchInfo remoteBranchInfo
-	if err := json.Unmarshal(out, &branchInfo); err != nil {
-		return nil, fmt.Errorf("failed to parse branch info: %w", err)
-	}
-
-	author := branchInfo.Commit.Commit.Author.Name
-	lastCommit := ""
-	if branchInfo.Commit.Commit.Author.Date != "" {
-		lastCommit = branchInfo.Commit.Commit.Author.Date[:10]
-	}
-	status := computeExperimentStatus(lastCommit)
-
-	// Fetch recent commits via GitHub API
-	commits, err := fetchRemoteCommits(repoOverride, branchName)
-	if err != nil {
-		experimentsLog.Printf("Failed to fetch commits (non-fatal): %v", err)
-		commits = []ExperimentCommit{}
-	}
-
-	// Fetch associated pull requests
-	prs, err := fetchPRsForBranch(branchName, repoOverride)
-	if err != nil {
-		experimentsLog.Printf("Failed to fetch PRs (non-fatal): %v", err)
-		prs = []ExperimentPR{}
-	}
-
-	return &ExperimentDetails{
-		Name:        experimentName,
-		Branch:      branchName,
-		Author:      author,
-		LastCommit:  lastCommit,
-		Status:      status,
-		CommitCount: len(commits),
-		Commits:     commits,
-		PRs:         prs,
-	}, nil
+	state := readRemoteExperimentState(repoOverride, branchName)
+	return experimentDetailsFromState(workflowID, branchName, state), nil
 }
 
-// gitRefExists checks if a git ref exists locally.
-func gitRefExists(ref string) bool {
-	cmd := exec.Command("git", "rev-parse", "--verify", ref)
-	return cmd.Run() == nil
-}
-
-// fetchLocalCommits fetches recent commits on a branch using git log.
-func fetchLocalCommits(branch string) ([]ExperimentCommit, error) {
-	// Limit to 10 most recent commits for readability
-	cmd := exec.Command("git", "log", branch,
-		"--max-count=10",
-		"--format=%H|%an|%cd|%s",
-		"--date=format:%Y-%m-%d",
-	)
+// readLocalExperimentState reads state.json from a local git ref (e.g. "origin/experiments/foo").
+// Returns an empty state when the file is absent or cannot be parsed.
+func readLocalExperimentState(ref string) *ExperimentState {
+	cmd := exec.Command("git", "show", ref+":state.json")
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch commits for branch %q: %w", branch, err)
+		return emptyExperimentState()
 	}
-
-	var commits []ExperimentCommit
-	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
-		if line == "" {
-			continue
-		}
-		parts := strings.SplitN(line, "|", 4)
-		if len(parts) < 4 {
-			continue
-		}
-		commits = append(commits, ExperimentCommit{
-			SHA:     parts[0][:min(7, len(parts[0]))],
-			Author:  parts[1],
-			Date:    parts[2],
-			Message: parts[3],
-		})
-	}
-	return commits, nil
+	return parseExperimentState(out)
 }
 
-// fetchRemoteCommits fetches recent commits from a remote repository via GitHub API.
-func fetchRemoteCommits(repoOverride, branchName string) ([]ExperimentCommit, error) {
+// readRemoteExperimentState fetches state.json from an experiments/* branch via the GitHub API.
+// Returns an empty state on any error (branch missing, file absent, parse failure).
+func readRemoteExperimentState(repoOverride, branchName string) *ExperimentState {
 	args := []string{"api",
-		"repos/{owner}/{repo}/commits",
-		"--field", "sha=" + branchName,
-		"--field", "per_page=10",
-		"--jq", `[.[] | {sha: .sha[:7], author: .commit.author.name, date: .commit.author.date[:10], message: (.commit.message | split("\n")[0])}]`,
+		"repos/{owner}/{repo}/contents/state.json",
+		"--field", "ref=" + branchName,
+		"--jq", ".content",
 		"--repo", repoOverride,
 	}
 	cmd := workflow.ExecGH(args...)
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch commits: %w", err)
+		return emptyExperimentState()
 	}
 
-	var commits []ExperimentCommit
-	if err := json.Unmarshal(out, &commits); err != nil {
-		return nil, fmt.Errorf("failed to parse commits: %w", err)
-	}
-	return commits, nil
-}
-
-// fetchPRsForBranch fetches pull requests associated with the given branch.
-func fetchPRsForBranch(branchName, repoOverride string) ([]ExperimentPR, error) {
-	// Search for PRs with head or base matching the experiment branch
-	args := []string{"pr", "list",
-		"--head", branchName,
-		"--state", "all",
-		"--json", "number,title,state,url",
-		"--limit", "20",
-	}
-	if repoOverride != "" {
-		args = append(args, "--repo", repoOverride)
-	}
-
-	cmd := workflow.ExecGH(args...)
-	out, err := cmd.Output()
+	// GitHub API returns base64-encoded content with embedded newlines for line-wrapping.
+	// Strip all whitespace before decoding.
+	b64 := strings.Join(strings.Fields(strings.TrimSpace(string(out))), "")
+	decoded, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch PRs: %w", err)
+		experimentsLog.Printf("Failed to base64-decode state.json from %s: %v", branchName, err)
+		return emptyExperimentState()
 	}
-
-	type ghPR struct {
-		Number int    `json:"number"`
-		Title  string `json:"title"`
-		State  string `json:"state"`
-		URL    string `json:"url"`
-	}
-	var ghPRs []ghPR
-	if err := json.Unmarshal(out, &ghPRs); err != nil {
-		return nil, fmt.Errorf("failed to parse PRs: %w", err)
-	}
-
-	prs := make([]ExperimentPR, 0, len(ghPRs))
-	for _, p := range ghPRs {
-		prs = append(prs, ExperimentPR(p))
-	}
-	return prs, nil
+	return parseExperimentState(decoded)
 }
 
-// printExperimentDetails renders the experiment details to stderr in human-readable form.
-func printExperimentDetails(d *ExperimentDetails) {
-	var statusIcon string
-	switch d.Status {
-	case "active":
-		statusIcon = "✓"
-	case "stale":
-		statusIcon = "⚠"
-	default:
-		statusIcon = "●"
+// parseExperimentState unmarshals raw JSON into an ExperimentState.
+// Returns an empty state when parsing fails or the data is invalid.
+func parseExperimentState(data []byte) *ExperimentState {
+	var state ExperimentState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return emptyExperimentState()
+	}
+	// Validate: state.json must have a counts object.
+	if state.Counts == nil {
+		state.Counts = map[string]map[string]int{}
+	}
+	return &state
+}
+
+// emptyExperimentState returns a zero-value ExperimentState with an initialised Counts map.
+func emptyExperimentState() *ExperimentState {
+	return &ExperimentState{Counts: map[string]map[string]int{}}
+}
+
+// experimentInfoFromState builds an ExperimentInfo summary from a state.json.
+func experimentInfoFromState(workflowID, branchName string, state *ExperimentState) ExperimentInfo {
+	return ExperimentInfo{
+		WorkflowID:  workflowID,
+		Branch:      branchName,
+		Experiments: len(state.Counts),
+		TotalRuns:   experimentTotalRuns(state),
+		LastRun:     experimentLastRun(state),
+	}
+}
+
+// experimentDetailsFromState builds ExperimentDetails from a state.json.
+func experimentDetailsFromState(workflowID, branchName string, state *ExperimentState) *ExperimentDetails {
+	experiments := make([]ExperimentVariantStats, 0, len(state.Counts))
+	for name, variants := range state.Counts {
+		total := 0
+		for _, c := range variants {
+			total += c
+		}
+		experiments = append(experiments, ExperimentVariantStats{
+			Name:     name,
+			Variants: variants,
+			Total:    total,
+		})
+	}
+	sort.Slice(experiments, func(i, j int) bool {
+		return experiments[i].Name < experiments[j].Name
+	})
+
+	recentRuns := state.Runs
+	const maxRecentRuns = 10
+	if len(recentRuns) > maxRecentRuns {
+		recentRuns = recentRuns[len(recentRuns)-maxRecentRuns:]
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		fmt.Sprintf("Experiment: %s (%s %s)", d.Name, statusIcon, d.Status),
-	))
-	fmt.Fprintf(os.Stderr, "  Branch:      %s\n", d.Branch)
-	fmt.Fprintf(os.Stderr, "  Author:      %s\n", d.Author)
-	fmt.Fprintf(os.Stderr, "  Last Commit: %s\n", d.LastCommit)
-	fmt.Fprintf(os.Stderr, "  Commits:     %d\n", d.CommitCount)
+	return &ExperimentDetails{
+		WorkflowID:  workflowID,
+		Branch:      branchName,
+		TotalRuns:   experimentTotalRuns(state),
+		Experiments: experiments,
+		RecentRuns:  recentRuns,
+	}
+}
 
-	if len(d.Commits) > 0 {
-		fmt.Fprintln(os.Stderr, "\nRecent commits:")
-		for _, c := range d.Commits {
-			fmt.Fprintf(os.Stderr, "  %s  %s  %s  %s\n", c.SHA, c.Date, c.Author, c.Message)
+// experimentTotalRuns returns the total number of runs recorded in the state.
+// Prefers the runs array length when non-empty; falls back to summing all variant counts.
+func experimentTotalRuns(state *ExperimentState) int {
+	if len(state.Runs) > 0 {
+		return len(state.Runs)
+	}
+	total := 0
+	for _, variants := range state.Counts {
+		for _, c := range variants {
+			total += c
 		}
 	}
+	return total
+}
 
-	if len(d.PRs) > 0 {
-		fmt.Fprintln(os.Stderr, "\nPull requests:")
-		for _, pr := range d.PRs {
-			fmt.Fprintf(os.Stderr, "  #%d [%s] %s\n", pr.Number, pr.State, pr.Title)
-			fmt.Fprintf(os.Stderr, "     %s\n", pr.URL)
+// experimentLastRun returns the date (YYYY-MM-DD) of the most recent run, or "" if unknown.
+func experimentLastRun(state *ExperimentState) string {
+	if len(state.Runs) == 0 {
+		return ""
+	}
+	ts := state.Runs[len(state.Runs)-1].Timestamp
+	if len(ts) >= 10 {
+		return ts[:10]
+	}
+	return ts
+}
+
+// extractExperimentName extracts the workflow ID from a branch ref.
+//
+//	"origin/experiments/my-workflow" → "my-workflow"
+//	"experiments/my-workflow"        → "my-workflow"
+//	"experiments/"                   → "" (bare prefix, rejected by callers)
+func extractExperimentName(ref string) string {
+	ref = strings.TrimPrefix(ref, "origin/")
+	if !strings.HasPrefix(ref, experimentsBranchPrefix) {
+		return ""
+	}
+	// An empty result here (bare "experiments/" ref) is acceptable: callers
+	// guard against empty workflow IDs with `if workflowID == ""` checks.
+	return strings.TrimPrefix(ref, experimentsBranchPrefix)
+}
+
+// gitRefExists reports whether a git ref exists locally.
+func gitRefExists(ref string) bool {
+	cmd := exec.Command("git", "rev-parse", "--verify", ref)
+	return cmd.Run() == nil
+}
+
+// printExperimentDetails renders experiment details to stderr in human-readable form.
+func printExperimentDetails(d *ExperimentDetails) {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Experiment workflow: "+d.WorkflowID))
+	fmt.Fprintf(os.Stderr, "  Branch:     %s\n", d.Branch)
+	fmt.Fprintf(os.Stderr, "  Total runs: %d\n", d.TotalRuns)
+
+	if len(d.Experiments) > 0 {
+		fmt.Fprintln(os.Stderr, "\nExperiments:")
+		for _, exp := range d.Experiments {
+			fmt.Fprintf(os.Stderr, "  %s (total: %d):\n", exp.Name, exp.Total)
+			// Sort variants for deterministic display.
+			type kv struct {
+				k string
+				v int
+			}
+			pairs := make([]kv, 0, len(exp.Variants))
+			for k, v := range exp.Variants {
+				pairs = append(pairs, kv{k, v})
+			}
+			sort.Slice(pairs, func(i, j int) bool { return pairs[i].k < pairs[j].k })
+			for _, p := range pairs {
+				pct := 0
+				if exp.Total > 0 {
+					pct = p.v * 100 / exp.Total
+				}
+				fmt.Fprintf(os.Stderr, "    %-20s %d (%d%%)\n", p.k, p.v, pct)
+			}
 		}
 	} else {
-		fmt.Fprintln(os.Stderr, "\nNo pull requests found for this branch.")
+		fmt.Fprintln(os.Stderr, "\nNo experiment data found (state.json not present or empty).")
 	}
+
+	if len(d.RecentRuns) > 0 {
+		fmt.Fprintln(os.Stderr, "\nRecent runs:")
+		for _, run := range d.RecentRuns {
+			date := run.Timestamp
+			if len(date) >= 10 {
+				date = date[:10]
+			}
+			fmt.Fprintf(os.Stderr, "  %s  %-16s  %s\n", date, run.RunID, formatAssignments(run.Assignments))
+		}
+	}
+}
+
+// formatAssignments formats a map of experiment→variant as "k=v, k=v" sorted by key.
+func formatAssignments(assignments map[string]string) string {
+	if len(assignments) == 0 {
+		return "-"
+	}
+	keys := make([]string, 0, len(assignments))
+	for k := range assignments {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, k+"="+assignments[k])
+	}
+	return strings.Join(parts, ", ")
 }
 
 // parsePagedJSONArray parses multiple JSON arrays (one per page from --paginate)
