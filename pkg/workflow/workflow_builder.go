@@ -132,6 +132,13 @@ func (c *Compiler) buildInitialWorkflowData(
 		}
 	}
 
+	// Populate model mappings: merge builtin aliases with any frontmatter-defined overrides.
+	var frontmatterModels map[string][]string
+	if toolsResult.parsedFrontmatter != nil {
+		frontmatterModels = toolsResult.parsedFrontmatter.Models
+	}
+	workflowData.ModelMappings = MergeModelAliases(frontmatterModels)
+
 	return workflowData
 }
 

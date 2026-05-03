@@ -67,6 +67,12 @@ type AWFConfigFile struct {
 
 	// Container contains container execution configuration.
 	Container *AWFContainerConfig `json:"container,omitempty"`
+
+	// Models contains model alias and fallback policy definitions.
+	// Keys are alias names (empty string "" = default policy); values are ordered
+	// lists of vendor/modelid patterns or other alias names to try in sequence.
+	// AWF resolves aliases recursively; loops are not permitted.
+	Models map[string][]string `json:"models,omitempty"`
 }
 
 // AWFNetworkConfig is the "network" section of the AWF config file.
@@ -180,6 +186,12 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 			ImageTag: awfImageTag,
 		}
 		awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
+	}
+
+	// ── Models section ────────────────────────────────────────────────────────
+	if config.WorkflowData != nil && len(config.WorkflowData.ModelMappings) > 0 {
+		awfConfig.Models = config.WorkflowData.ModelMappings
+		awfConfigLog.Printf("Models section: %d alias entries", len(config.WorkflowData.ModelMappings))
 	}
 
 	jsonBytes, err := json.Marshal(awfConfig)

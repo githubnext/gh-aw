@@ -275,6 +275,12 @@ type FrontmatterConfig struct {
 	// Experiments during frontmatter parsing.  Keys match those of Experiments.
 	ExperimentConfigs map[string]*ExperimentConfig `json:"-"`
 
+	// Model aliases and fallback policies.
+	// Keys are alias names (empty string "" = default policy); values are ordered lists of
+	// model patterns or alias references to try in sequence.
+	// Merged with the builtin model aliases at compile time; frontmatter entries take precedence.
+	Models map[string][]string `json:"models,omitempty"`
+
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`
 
