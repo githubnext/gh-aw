@@ -112,10 +112,33 @@ var GeminiDefaultDomains = []string{
 	"registry.npmjs.org",
 }
 
-// PiDefaultDomains are the default domains required for the Pi CLI to operate.
-// Pi routes its API calls through the AWF LLM gateway (host.docker.internal) when
-// the firewall is enabled. The api.pi.ai domain covers the Pi API endpoint.
+// PiBaseDefaultDomains are the base domains required for the Pi CLI to operate,
+// independent of the chosen LLM provider. When a model uses provider/model format,
+// provider-specific API domains are added on top via GetPiDefaultDomains().
+var PiBaseDefaultDomains = []string{
+	"api.pi.ai",            // Pi CLI telemetry / update checks
+	"host.docker.internal", // MCP gateway / API proxy access
+	"github.com",
+	"raw.githubusercontent.com",
+	"registry.npmjs.org", // npm package downloads
+}
+
+// piProviderDomains maps provider prefixes to their API domains.
+// Mirrors crushProviderDomains / openCodeProviderDomains for the same set of
+// providers that Pi can route through via the AWF LLM gateway.
+var piProviderDomains = map[string]string{
+	"copilot":   "api.githubcopilot.com",
+	"anthropic": "api.anthropic.com",
+	"openai":    "api.openai.com",
+	"codex":     "api.openai.com",
+	"google":    "generativelanguage.googleapis.com",
+}
+
+// PiDefaultDomains are the static default domains for backward compatibility when
+// no model provider prefix is given. When a provider/model format is used, the
+// dynamic path (GetPiDefaultDomains) resolves provider-specific domains instead.
 var PiDefaultDomains = []string{
+	"api.githubcopilot.com", // Default provider (Copilot routing)
 	"api.pi.ai",
 	"host.docker.internal",
 	"github.com",
@@ -268,6 +291,40 @@ func GetCrushDefaultDomains(model string) ([]string, error) {
 // Returns an error if the model string is malformed (e.g. a leading slash).
 func GetCrushAllowedDomainsWithToolsAndRuntimes(model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) (string, error) {
 	return GetAllowedDomainsForEngineWithModel(constants.CrushEngine, model, network, tools, runtimes)
+}
+
+// GetPiDefaultDomains returns the default domains for Pi based on the model provider.
+// It starts with PiBaseDefaultDomains and adds the provider-specific API domain when
+// the model uses provider/model format (e.g. "copilot/claude-sonnet-4-20250514").
+// When no provider prefix is present the default Copilot API domain is included for
+// backward compatibility.
+// Returns an error if the model string is malformed (e.g. a leading slash).
+func GetPiDefaultDomains(model string) ([]string, error) {
+	provider, err := extractProviderFromModel(model)
+	if err != nil {
+		return nil, err
+	}
+	domains := make([]string, 0, len(PiBaseDefaultDomains)+1)
+	domains = append(domains, PiBaseDefaultDomains...)
+
+	if domain, ok := piProviderDomains[provider]; ok {
+		domains = append(domains, domain)
+	} else if provider == "" {
+		// No provider prefix → default to Copilot routing for backward compatibility.
+		domains = append(domains, piProviderDomains["copilot"])
+	}
+
+	return domains, nil
+}
+
+// GetPiAllowedDomainsWithModel merges Pi default domains with NetworkPermissions, HTTP MCP
+// server domains, and runtime ecosystem domains.
+// Pass the selected model (e.g. "copilot/claude-sonnet-4-20250514") so provider-specific
+// API domains are included. Returns a deduplicated, sorted, comma-separated string suitable
+// for AWF's --allow-domains flag.
+// Returns an error if the model string is malformed (e.g. a leading slash).
+func GetPiAllowedDomainsWithModel(model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) (string, error) {
+	return GetAllowedDomainsForEngineWithModel(constants.PiEngine, model, network, tools, runtimes)
 }
 
 // PlaywrightDomains are the domains required for Playwright browser downloads
@@ -687,20 +744,19 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 }
 
 // engineDefaultDomains maps each engine to its static default required domains.
-// Engines with model-specific defaults (for example, Crush) are resolved in
+// Engines with model-specific defaults (for example, Crush, OpenCode, Pi) are resolved in
 // getDefaultDomainsForEngine instead of being stored directly in this map.
 var engineDefaultDomains = map[constants.EngineName][]string{
 	constants.CopilotEngine: CopilotDefaultDomains,
 	constants.ClaudeEngine:  ClaudeDefaultDomains,
 	constants.CodexEngine:   CodexDefaultDomains,
 	constants.GeminiEngine:  GeminiDefaultDomains,
-	constants.PiEngine:      PiDefaultDomains,
 }
 
 // getDefaultDomainsForEngine returns the engine's default required domains.
-// OpenCode and Crush domains are model/provider-specific, so they must be
-// resolved via GetOpenCodeDefaultDomains(model) / GetCrushDefaultDomains(model)
-// rather than the static engineDefaultDomains map.
+// OpenCode, Crush, and Pi domains are model/provider-specific, so they must be
+// resolved via their respective Get*DefaultDomains(model) functions rather than
+// the static engineDefaultDomains map.
 // Falls back to an empty default domain list for unknown engines.
 // Returns an error if the model string is malformed (e.g. a leading slash).
 func getDefaultDomainsForEngine(engine constants.EngineName, model string) ([]string, error) {
@@ -709,6 +765,9 @@ func getDefaultDomainsForEngine(engine constants.EngineName, model string) ([]st
 	}
 	if engine == constants.CrushEngine {
 		return GetCrushDefaultDomains(model)
+	}
+	if engine == constants.PiEngine {
+		return GetPiDefaultDomains(model)
 	}
 
 	return engineDefaultDomains[engine], nil
@@ -780,10 +839,13 @@ func GetGeminiAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, to
 }
 
 // GetPiAllowedDomains merges Pi default domains with NetworkPermissions, HTTP MCP server domains,
-// and runtime ecosystem domains.
+// and runtime ecosystem domains. Uses backward-compatible Copilot routing when no model is given.
+// For model-aware resolution, prefer GetPiAllowedDomainsWithModel.
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
 func GetPiAllowedDomains(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	return GetAllowedDomainsForEngine(constants.PiEngine, network, tools, runtimes)
+	// Empty model → backward-compatible Copilot routing; no malformed-model error possible.
+	result, _ := GetPiAllowedDomainsWithModel("", network, tools, runtimes)
+	return result
 }
 
 // GetBlockedDomains returns the blocked domains from network permissions
@@ -926,7 +988,15 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 	case "gemini":
 		base = GetGeminiAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	case "pi":
-		base = GetPiAllowedDomains(data.NetworkPermissions, data.Tools, data.Runtimes)
+		model := ""
+		if data.EngineConfig != nil {
+			model = data.EngineConfig.Model
+		}
+		var err error
+		base, err = GetPiAllowedDomainsWithModel(model, data.NetworkPermissions, data.Tools, data.Runtimes)
+		if err != nil {
+			return "", err
+		}
 	case "opencode":
 		model := ""
 		if data.EngineConfig != nil {

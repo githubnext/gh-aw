@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"maps"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -11,8 +12,12 @@ import (
 var piLog = logger.New("workflow:pi_engine")
 
 // PiEngine represents the Pi AI coding agent (experimental).
-// Pi is an agentic coding assistant that communicates via stdin/stdout and
-// emits a streaming JSONL log for structured event capture.
+// Pi is a provider-agnostic agentic coding assistant that communicates via stdin/stdout
+// and emits a streaming JSONL log for structured event capture.  When engine.model uses
+// provider/model format (e.g. "copilot/claude-sonnet-4-20250514"), Pi borrows the
+// matching engine's AWF configuration (secrets, gateway port, allowed domains) so the
+// firewall can route LLM traffic through the correct sidecar port.  Without a provider
+// prefix Pi defaults to the Copilot gateway.
 //
 // Requirements:
 //   - tools.github.mode: gh-proxy must be enabled (pre-authenticated gh CLI).
@@ -46,22 +51,50 @@ func (e *PiEngine) GetModelEnvVarName() string {
 	return constants.PiCLIModelEnvVar
 }
 
+// resolvePiBackend extracts the provider prefix from the engine model (if any) and maps
+// it to the matching UniversalLLMBackend.  A model without a slash (e.g. "claude-sonnet-4")
+// defaults to the Copilot backend for backward compatibility.
+func resolvePiBackend(workflowData *WorkflowData) UniversalLLMBackend {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Model == "" {
+		return UniversalLLMBackendCopilot
+	}
+	model := workflowData.EngineConfig.Model
+	if !strings.Contains(model, "/") {
+		// No provider prefix — default to Copilot (backward compatibility).
+		return UniversalLLMBackendCopilot
+	}
+	backend, err := resolveUniversalLLMBackendFromModel(model)
+	if err != nil {
+		piLog.Printf("Could not resolve backend for Pi model %q, defaulting to copilot: %v", model, err)
+		return UniversalLLMBackendCopilot
+	}
+	return backend
+}
+
 // GetRequiredSecretNames returns the list of secrets required by the Pi engine.
-// Pi routes through the Copilot LLM gateway and reuses COPILOT_GITHUB_TOKEN
-// rather than a dedicated PI_API_KEY.
+// When the model uses provider/model format the provider-specific secret is required
+// (e.g. ANTHROPIC_API_KEY for "anthropic/..."); otherwise Pi routes through the
+// Copilot LLM gateway and reuses COPILOT_GITHUB_TOKEN.
 func (e *PiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	piLog.Print("Collecting required secrets for Pi engine")
-	secrets := []string{"COPILOT_GITHUB_TOKEN"}
+	backend := resolvePiBackend(workflowData)
+	profile := getUniversalLLMBackendProfile(backend, isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData))
+	secrets := append([]string{}, profile.coreSecretNames...)
 	secrets = append(secrets, collectCommonMCPSecrets(workflowData)...)
 	return secrets
 }
 
 // GetSecretValidationStep returns the secret validation step for the Pi engine.
-// Pi reuses COPILOT_GITHUB_TOKEN (no dedicated PI_API_KEY).
+// The validated secret depends on the resolved provider backend.
 func (e *PiEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
+	backend := resolvePiBackend(workflowData)
+	profile := getUniversalLLMBackendProfile(backend, isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData))
+	if len(profile.coreSecretNames) == 0 {
+		return GitHubActionStep{}
+	}
 	return BuildDefaultSecretValidationStep(
 		workflowData,
-		[]string{"COPILOT_GITHUB_TOKEN"},
+		profile.coreSecretNames,
 		"Pi",
 		"https://github.github.com/gh-aw/reference/engines/#pi",
 	)
@@ -165,23 +198,36 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	}
 
 	// The prompt is piped from a file via stdin substitution.
-	// The built-in steering extension is automatically loaded so that every Pi session
-	// receives time-pressure steering messages without requiring workflow configuration.
-	// Pi CLI supports multiple --extension flags; user-specified extensions (via engine.args)
-	// are appended before this flag so the built-in extension loads last, consistent with the
-	// aw-harness spec's "built-in extensions after user extensions" ordering.
-	// ${RUNNER_TEMP} is a Linux shell variable expanded by bash at runtime; gh-aw container
-	// environments are Linux-only so this is safe across all supported runner configurations.
+	// Two extensions are automatically loaded (in order):
+	//   1. pi_provider.cjs  — calls /reflect to discover the open LLM inference paths
+	//   2. pi_steering_extension.cjs — injects time-pressure steering messages
+	// Pi CLI supports multiple --extension flags; built-in extensions load after any
+	// user-specified extensions (via engine.args) so the built-in behaviour wins.
+	// ${RUNNER_TEMP} is a Linux shell variable expanded by bash at runtime; gh-aw
+	// container environments are Linux-only so this is safe across all runners.
 	piCommand := fmt.Sprintf(
-		`cat /tmp/gh-aw/aw-prompts/prompt.txt | %s %s --extension "${RUNNER_TEMP}/gh-aw/actions/pi_steering_extension.cjs"`,
+		`cat /tmp/gh-aw/aw-prompts/prompt.txt | %s %s --extension "${RUNNER_TEMP}/gh-aw/actions/pi_provider.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_steering_extension.cjs"`,
 		commandName, shellJoinArgs(piArgs))
 
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
 
+	// Resolve backend based on the model provider prefix.
+	backend := resolvePiBackend(workflowData)
+	profile := getUniversalLLMBackendProfile(backend, isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData))
+
 	var command string
 	firewallEnabled := isFirewallEnabled(workflowData)
 	if firewallEnabled {
-		allowedDomains := GetPiAllowedDomains(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		model := ""
+		if modelConfigured {
+			model = workflowData.EngineConfig.Model
+		}
+		// The model was validated before reaching here; a malformed model (leading slash)
+		// must never occur at this point — panic is the correct invariant guard.
+		allowedDomains, err := GetPiAllowedDomainsWithModel(model, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		if err != nil {
+			panic(fmt.Sprintf("BUG: invalid Pi model %q reached domain computation (should have been caught by validation): %v", model, err))
+		}
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
 			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
 		}
@@ -200,7 +246,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 			UsesTTY:            false,
 			AllowedDomains:     allowedDomains,
 			PathSetup:          "touch " + AgentStepSummaryPath,
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"COPILOT_GITHUB_TOKEN"}),
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, profile.coreSecretNames),
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
@@ -209,14 +255,21 @@ touch %s
 %s 2>&1 | tee -a %s`, AgentStepSummaryPath, logFile, piCommand, logFile)
 	}
 
-	// #nosec G101 -- This is NOT a hardcoded credential. It is a GitHub Actions expression
-	// template that the runtime replaces with the actual secret value.
+	// Build the environment map.  Provider-specific credentials and base URL are
+	// injected via the backend profile so Pi connects to the correct LLM gateway.
 	env := map[string]string{
-		"COPILOT_GITHUB_TOKEN": "${{ secrets.COPILOT_GITHUB_TOKEN }}",
-		"GH_AW_PROMPT":         "/tmp/gh-aw/aw-prompts/prompt.txt",
-		"GITHUB_AW":            "true",
-		"GITHUB_WORKSPACE":     "${{ github.workspace }}",
-		"GITHUB_STEP_SUMMARY":  AgentStepSummaryPath,
+		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GITHUB_AW":           "true",
+		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
+		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
+	}
+
+	// Inject provider-specific credentials and, when the firewall is enabled,
+	// the gateway base URL so Pi routes LLM traffic through the correct sidecar port.
+	maps.Copy(env, profile.env)
+	if firewallEnabled {
+		piLog.Printf("Setting %s to Pi LLM gateway port %d", profile.baseURLEnvName, profile.gatewayPort)
+		env[profile.baseURLEnvName] = fmt.Sprintf("http://host.docker.internal:%d", profile.gatewayPort)
 	}
 
 	if workflowData.IsDetectionRun {
@@ -231,8 +284,7 @@ touch %s
 	}
 
 	// When the AWF firewall is enabled, set git identity environment variables
-	// for commit authorship. Pi uses the copilot/claude/codex LLM gateway ports
-	// directly (no dedicated Pi gateway port).
+	// for commit authorship.
 	if firewallEnabled {
 		maps.Copy(env, getGitIdentityEnvVars())
 	}
