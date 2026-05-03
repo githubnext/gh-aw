@@ -233,6 +233,64 @@ describe("fuzz_is_safe_expression – ternary-style (unsafe in any position bloc
 });
 
 // ---------------------------------------------------------------------------
+// Security invariants: unsafe namespaces are ALWAYS blocked regardless of
+// the surrounding compound expression structure
+// ---------------------------------------------------------------------------
+
+describe("fuzz_is_safe_expression – security invariants", () => {
+  /**
+   * Wrapper forms that should never make an unsafe sub-expression safe.
+   * Note: wrappers that would introduce a literal operand in && are now also blocked
+   * (for the literal reason), but the security invariant still holds.
+   */
+  const wrappers = [
+    /** bare */
+    u => u,
+    /** comparison */
+    u => `${u} == 'x'`,
+    /** AND — unsafe on left */
+    u => `${u} && github.actor`,
+    /** AND — unsafe on right */
+    u => `github.actor && ${u}`,
+    /** OR — unsafe on right */
+    u => `${u} || 'fallback'`,
+    /** OR — unsafe on right of a comparison */
+    u => `github.actor == 'value' || ${u}`,
+    /** compound: comparison && unsafe || safe */
+    u => `${u} == 'x' && github.actor || github.repository`,
+    /** compound: safe && unsafe || safe */
+    u => `github.actor && ${u} || github.repository`,
+    /** triple-OR — unsafe in middle */
+    u => `github.actor || ${u} || github.repository`,
+  ];
+
+  for (const unsafe of UNSAFE_LEAVES) {
+    for (const wrap of wrappers) {
+      const expr = wrap(unsafe);
+      it(`should block: ${expr}`, () => {
+        expect(testIsSafeExpression(expr).safe).toBe(false);
+      });
+    }
+  }
+
+  it("should never mark any expression containing secrets. as safe", () => {
+    const secretExprs = ["secrets.TOKEN", "secrets.GITHUB_TOKEN", "secrets.TOKEN == 'x'", "github.actor && secrets.TOKEN", "secrets.TOKEN || 'fallback'", "secrets.TOKEN == 'x' && github.actor || github.repository"];
+    for (const expr of secretExprs) {
+      expect(testIsSafeExpression(expr).safe).toBe(false);
+    }
+  });
+
+  it("should never mark any expression with a dangerous property name as safe", () => {
+    const dangerous = ["constructor", "__proto__", "prototype", "hasOwnProperty", "valueOf"];
+    for (const prop of dangerous) {
+      expect(testIsSafeExpression(`github.${prop}`).safe).toBe(false);
+      expect(testIsSafeExpression(`inputs.${prop}`).safe).toBe(false);
+      expect(testIsSafeExpression(`github.${prop} == 'x'`).safe).toBe(false);
+      expect(testIsSafeExpression(`github.actor && github.${prop}`).safe).toBe(false);
+    }
+  });
+});
+// ---------------------------------------------------------------------------
 // Exhaustive safe-leaf × comparison-operator matrix
 // ---------------------------------------------------------------------------
 

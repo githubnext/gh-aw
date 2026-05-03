@@ -203,12 +203,18 @@ function isSafeExpression(expr) {
   // opening quote character.  This prevents compound expressions like
   // `'a' || secrets.TOKEN || 'b'` from being misclassified as a string literal because
   // they happen to start and end with a quote.
-  // Pattern: ^(quote)(non-quote | escaped-char)*(same-quote)$
+  // Pattern: ^(quote)(non-quote-non-backslash | escaped-char)*(same-quote)$
+  //   [^'\\] = any char except the single-quote and backslash
+  //   \\.    = backslash followed by any character (escape sequence)
   const STRING_LITERAL_RE = /^'(?:[^'\\]|\\.)*'$|^"(?:[^"\\]|\\.)*"$|^`(?:[^`\\]|\\.)*`$/;
 
-  // Returns true when the expression is a standalone literal value (string, number, boolean).
-  // Used to refuse literals as sub-expressions inside && / || operators — a literal operand
-  // in a conjunction or disjunction is semantically incomplete and may hide injection vectors.
+  /**
+   * Returns true when `expr` is a standalone literal value (string, number, or boolean).
+   * Used to refuse literal operands inside && / || compound expressions — a literal in a
+   * conjunction or disjunction is semantically incomplete and may hide injection vectors.
+   * @param {string} expr - The trimmed expression to test
+   * @returns {boolean}
+   */
   const isLiteralValue = expr => {
     const t = expr.trim();
     if (STRING_LITERAL_RE.test(t)) return true;
