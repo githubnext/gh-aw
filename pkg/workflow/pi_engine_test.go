@@ -133,6 +133,7 @@ func TestPiEngine_GetExecutionSteps_Basic(t *testing.T) {
 	assert.Contains(t, stepText, "pi run", "Step should run `pi run`")
 	assert.Contains(t, stepText, "json-log", "Step should include JSON log flag")
 	assert.Contains(t, stepText, "agentic_execution", "Step should have agentic_execution id")
+	assert.Contains(t, stepText, "pi_steering_extension.cjs", "Step should automatically load the steering extension")
 }
 
 func TestPiEngine_GetExecutionSteps_WithModel(t *testing.T) {

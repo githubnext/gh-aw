@@ -60,7 +60,7 @@ const DefaultOpenCodeVersion Version = "1.2.14"
 const DefaultGitHubMCPServerVersion Version = "v1.0.3"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.25.29"
+const DefaultFirewallVersion Version = "v0.25.35"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
