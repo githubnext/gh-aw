@@ -20,7 +20,7 @@ const {
 describe("awf_reflect.cjs", () => {
   describe("constants", () => {
     it("exports expected default values", () => {
-      expect(AWF_API_PROXY_REFLECT_URL).toBe("http://api-proxy:10000/reflect");
+      expect(AWF_API_PROXY_REFLECT_URL).toBe("http://172.30.0.30:10000/reflect");
       expect(AWF_REFLECT_OUTPUT_PATH).toBe("/tmp/gh-aw/sandbox/firewall/awf-reflect.json");
       expect(AWF_REFLECT_TIMEOUT_MS).toBe(5000);
       expect(AWF_MODELS_URL_TIMEOUT_MS).toBe(3000);

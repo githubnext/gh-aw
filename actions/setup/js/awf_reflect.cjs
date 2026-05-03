@@ -20,8 +20,10 @@ const path = require("path");
 
 // AWF API proxy management endpoint for discovering configured LLM providers and available models.
 // The api-proxy sidecar exposes /reflect on its management port (port 10000) inside the AWF
-// Docker network. From the agent container, the proxy is reachable via the "api-proxy" hostname.
-const AWF_API_PROXY_REFLECT_URL = "http://api-proxy:10000/reflect";
+// Docker network. The sidecar's fixed container IP (172.30.0.30) is used instead of the
+// "api-proxy" DNS hostname to ensure reachability from agent containers (such as Pi) that
+// may run in a network context where the Docker service name does not resolve.
+const AWF_API_PROXY_REFLECT_URL = "http://172.30.0.30:10000/reflect";
 // Path inside the agent container where the reflect payload is persisted. The directory is
 // co-located with other AWF firewall observability data so it is included in the agent artifact.
 const AWF_REFLECT_OUTPUT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
@@ -143,8 +145,8 @@ async function enrichReflectModels(reflectData, timeoutMs, logger) {
  * Fetch the AWF API proxy /reflect endpoint and persist the response to disk.
  *
  * The /reflect endpoint is exposed by the api-proxy sidecar on its management port (10000)
- * and returns the list of configured LLM providers together with their available model lists.
- * This information is saved to AWF_REFLECT_OUTPUT_PATH so the post-run GitHub Actions step
+ * at the sidecar's fixed container IP (172.30.0.30) and returns the list of configured LLM
+ * providers together with their available model lists. This information is saved to AWF_REFLECT_OUTPUT_PATH so the post-run GitHub Actions step
  * (awf_reflect_summary.cjs) can include it in the step summary without requiring the
  * containers to still be running.
  *
