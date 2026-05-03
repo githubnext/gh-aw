@@ -170,6 +170,8 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 
 // extractIntField converts a numeric any value to int.
 // Returns (int(value), true) on success; (0, false) when val is nil or not a supported numeric type.
+// Note: uint64 values larger than math.MaxInt are truncated on 32-bit systems (int is 32-bit there).
+// Experiment counts and IDs are expected to be well within int range, so this is acceptable.
 func extractIntField(val any) (int, bool) {
 	switch n := val.(type) {
 	case int:

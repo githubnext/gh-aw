@@ -214,11 +214,12 @@ function recordVariant(name, variant, state) {
  */
 async function writeSummary(assignments, configs, state, core) {
   const names = Object.keys(assignments).sort();
-  const lines = ["## 🧪 Experiment Assignments", "", "| Experiment | Variant | Counts (this/total) |", "| --- | --- | --- |"];
+  const lines = ["## 🧪 Experiment Assignments", "", "| Experiment | Variant | Counts (current/total) |", "| --- | --- | --- |"];
   for (const name of names) {
     const selected = assignments[name];
     const counts = state.counts[name] || {};
     const thisCount = counts[selected] || 0;
+    // counts values are always numbers (set by recordVariant which uses integer arithmetic).
     const countValues = /** @type {number[]} */ Object.values(counts);
     const totalCount = countValues.reduce((a, b) => a + b, 0);
     lines.push(`| \`${name}\` | **${selected}** | ${thisCount} / ${totalCount} |`);
