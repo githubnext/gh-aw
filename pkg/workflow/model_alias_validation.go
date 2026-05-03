@@ -53,8 +53,9 @@ func (c *Compiler) validateModelAliasMap(
 		len(mergedAliasMap), len(frontmatterModels), engineModel)
 
 	// V-MAF-004: engine.model MUST NOT be a glob pattern.
-	// GitHub Actions expressions (${{ … }}) are exempt from syntax checks.
-	if engineModel != "" && !isExpression(engineModel) {
+	// GitHub Actions expressions (${{ … }}) are exempt from syntax checks,
+	// including partial expressions such as "${{ inputs.model }}?effort=high".
+	if engineModel != "" && !containsExpression(engineModel) {
 		if err := validateEngineModelNotGlob(engineModel, markdownPath); err != nil {
 			return err
 		}
@@ -136,7 +137,9 @@ func validateModelIdentifierStrings(identifiers []string, context string) []stri
 			continue
 		}
 		// Skip GitHub Actions expressions — they are resolved at runtime.
-		if isExpression(id) {
+		// This includes whole-string expressions ("${{ inputs.model }}") and
+		// partial expressions ("${{ inputs.model }}?effort=high", "copilot/${{ inputs.model }}").
+		if containsExpression(id) {
 			continue
 		}
 		p, err := ParseModelIdentifier(id)
@@ -159,7 +162,7 @@ func validateModelIdentifierStrings(identifiers []string, context string) []stri
 // parameter key found in the given model identifier strings (V-MAF-011).
 func (c *Compiler) warnUnrecognizedModelParams(identifiers []string, markdownPath string) {
 	for _, id := range identifiers {
-		if id == "" || isExpression(id) {
+		if id == "" || containsExpression(id) {
 			continue
 		}
 		p, err := ParseModelIdentifier(id)

@@ -424,6 +424,47 @@ func TestValidateModelAliasMap_ExpressionModelSkipped(t *testing.T) {
 	assert.NoError(t, err, "GitHub Actions expression in engine.model should be skipped")
 }
 
+func TestValidateModelAliasMap_PartialExpressionEngineModelSkipped(t *testing.T) {
+	// Partial expressions (expression + query params) must also be exempt from validation.
+	// The query params cannot be evaluated until the expression is resolved at runtime.
+	compiler := NewCompiler()
+	err := compiler.validateModelAliasMap(
+		BuiltinModelAliases(),
+		nil,
+		"${{ inputs.model }}?effort=high",
+		"/fake/path/workflow.md",
+	)
+	assert.NoError(t, err, "partial expression in engine.model should be skipped")
+}
+
+func TestValidateModelAliasMap_ExpressionInAliasEntriesSkipped(t *testing.T) {
+	// Expressions in alias list entries must be exempt from validation.
+	compiler := NewCompiler()
+	err := compiler.validateModelAliasMap(
+		BuiltinModelAliases(),
+		map[string][]string{
+			"dynamic": {"${{ inputs.model }}", "${{ inputs.fallback }}"},
+		},
+		"",
+		"/fake/path/workflow.md",
+	)
+	assert.NoError(t, err, "GitHub Actions expressions in alias entries should be skipped")
+}
+
+func TestValidateModelAliasMap_PartialExpressionInAliasEntriesSkipped(t *testing.T) {
+	// Partial expressions in alias entries (expression with query params) must be exempt.
+	compiler := NewCompiler()
+	err := compiler.validateModelAliasMap(
+		BuiltinModelAliases(),
+		map[string][]string{
+			"dynamic": {"${{ inputs.model }}?effort=high", "copilot/${{ inputs.model_token }}"},
+		},
+		"",
+		"/fake/path/workflow.md",
+	)
+	assert.NoError(t, err, "partial expressions in alias entries should be skipped")
+}
+
 func TestValidateModelAliasMap_NoEngineModel(t *testing.T) {
 	compiler := NewCompiler()
 	err := compiler.validateModelAliasMap(
