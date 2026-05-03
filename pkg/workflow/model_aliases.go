@@ -82,9 +82,13 @@ func BuiltinModelAliases() map[string][]string {
 		},
 		// ── Meta-aliases ─────────────────────────────────────────────────────
 		// These reference other aliases; AWF resolves them recursively.
+		// "small" — same as "mini" (convenience alias for lightweight/fast models).
 		// "mini"  — lightweight/fast models across all supported vendors.
 		// "large" — full-capability models across all supported vendors.
 		// "auto"  — convenience alias that resolves to the "large" tier.
+		"small": {
+			"mini",
+		},
 		"mini": {
 			"haiku",
 			"gpt-5-mini",
