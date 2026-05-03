@@ -18,7 +18,9 @@ const {
   buildOTLPPayload,
   sanitizeOTLPPayload,
   parseOTLPHeaders,
+  parseOTLPEndpoints,
   sendOTLPSpan,
+  sendOTLPToAllEndpoints,
   sendJobSetupSpan,
   sendJobConclusionSpan,
   readLastRateLimitEntry,
@@ -4012,5 +4014,203 @@ describe("sendJobConclusionSpan", () => {
       expect(keys.some(k => k.startsWith("gh-aw.experiment."))).toBe(false);
       expect(keys).not.toContain("gh-aw.experiments");
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseOTLPEndpoints
+// ---------------------------------------------------------------------------
+
+describe("parseOTLPEndpoints", () => {
+  afterEach(() => {
+    delete process.env.GH_AW_OTLP_ENDPOINTS;
+    delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    delete process.env.OTEL_EXPORTER_OTLP_HEADERS;
+  });
+
+  it("returns empty array when no env vars are set", () => {
+    const result = parseOTLPEndpoints();
+    expect(result).toEqual([]);
+  });
+
+  it("falls back to legacy OTEL_EXPORTER_OTLP_ENDPOINT when GH_AW_OTLP_ENDPOINTS is not set", () => {
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com:4317";
+    const result = parseOTLPEndpoints();
+    expect(result).toEqual([{ url: "https://traces.example.com:4317" }]);
+  });
+
+  it("includes legacy OTEL_EXPORTER_OTLP_HEADERS in fallback entry", () => {
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com:4317";
+    process.env.OTEL_EXPORTER_OTLP_HEADERS = "Authorization=Bearer tok";
+    const result = parseOTLPEndpoints();
+    expect(result).toEqual([{ url: "https://traces.example.com:4317", headers: "Authorization=Bearer tok" }]);
+  });
+
+  it("parses GH_AW_OTLP_ENDPOINTS JSON array", () => {
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://primary.example.com:4317", headers: "Authorization=Bearer tok1" }, { url: "https://secondary.example.com:4317" }]);
+    const result = parseOTLPEndpoints();
+    expect(result).toEqual([{ url: "https://primary.example.com:4317", headers: "Authorization=Bearer tok1" }, { url: "https://secondary.example.com:4317" }]);
+  });
+
+  it("filters out entries with empty url from GH_AW_OTLP_ENDPOINTS", () => {
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "" }, { url: "https://valid.example.com:4317" }]);
+    const result = parseOTLPEndpoints();
+    expect(result).toEqual([{ url: "https://valid.example.com:4317" }]);
+  });
+
+  it("falls back to legacy env var when GH_AW_OTLP_ENDPOINTS is invalid JSON", () => {
+    process.env.GH_AW_OTLP_ENDPOINTS = "not-valid-json";
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://fallback.example.com:4317";
+    const result = parseOTLPEndpoints();
+    expect(result).toEqual([{ url: "https://fallback.example.com:4317" }]);
+  });
+
+  it("falls back to legacy env var when GH_AW_OTLP_ENDPOINTS is an empty array", () => {
+    process.env.GH_AW_OTLP_ENDPOINTS = "[]";
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://fallback.example.com:4317";
+    const result = parseOTLPEndpoints();
+    expect(result).toEqual([{ url: "https://fallback.example.com:4317" }]);
+  });
+
+  it("GH_AW_OTLP_ENDPOINTS takes precedence over legacy env vars", () => {
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://new.example.com:4317" }]);
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://old.example.com:4317";
+    const result = parseOTLPEndpoints();
+    expect(result).toEqual([{ url: "https://new.example.com:4317" }]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sendOTLPToAllEndpoints
+// ---------------------------------------------------------------------------
+
+describe("sendOTLPToAllEndpoints", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    delete process.env.OTEL_EXPORTER_OTLP_HEADERS;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("sends to a single endpoint", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const payload = buildOTLPPayload({
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      spanName: "test.span",
+      startMs: 1000,
+      endMs: 2000,
+      serviceName: "gh-aw",
+      attributes: [],
+    });
+
+    await sendOTLPToAllEndpoints([{ url: "https://primary.example.com:4317" }], payload, { skipJSONL: true });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch.mock.calls[0][0]).toBe("https://primary.example.com:4317/v1/traces");
+  });
+
+  it("sends to multiple endpoints concurrently", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const payload = buildOTLPPayload({
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      spanName: "test.span",
+      startMs: 1000,
+      endMs: 2000,
+      serviceName: "gh-aw",
+      attributes: [],
+    });
+
+    await sendOTLPToAllEndpoints([{ url: "https://primary.example.com:4317" }, { url: "https://secondary.example.com:4317" }], payload, { skipJSONL: true });
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const urls = mockFetch.mock.calls.map(c => c[0]).sort();
+    expect(urls).toEqual(["https://primary.example.com:4317/v1/traces", "https://secondary.example.com:4317/v1/traces"].sort());
+  });
+
+  it("uses per-endpoint headers (not global OTEL_EXPORTER_OTLP_HEADERS)", async () => {
+    process.env.OTEL_EXPORTER_OTLP_HEADERS = "X-Global=global";
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const payload = buildOTLPPayload({
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      spanName: "test.span",
+      startMs: 1000,
+      endMs: 2000,
+      serviceName: "gh-aw",
+      attributes: [],
+    });
+
+    await sendOTLPToAllEndpoints(
+      [
+        { url: "https://primary.example.com:4317", headers: "Authorization=Bearer tok1" },
+        { url: "https://secondary.example.com:4317", headers: "Authorization=Bearer tok2" },
+      ],
+      payload,
+      { skipJSONL: true }
+    );
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const call1 = mockFetch.mock.calls.find(c => c[0].includes("primary"));
+    const call2 = mockFetch.mock.calls.find(c => c[0].includes("secondary"));
+    expect(call1[1].headers["Authorization"]).toBe("Bearer tok1");
+    expect(call2[1].headers["Authorization"]).toBe("Bearer tok2");
+    // Global header should NOT be included since per-endpoint headers override it.
+    expect(call1[1].headers["X-Global"]).toBeUndefined();
+  });
+
+  it("continues to other endpoints when one fails", async () => {
+    let callCount = 0;
+    const mockFetch = vi.fn().mockImplementation(url => {
+      callCount++;
+      if (url.includes("primary")) {
+        return Promise.reject(new Error("connection refused"));
+      }
+      return Promise.resolve({ ok: true, status: 200, statusText: "OK" });
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const payload = buildOTLPPayload({
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      spanName: "test.span",
+      startMs: 1000,
+      endMs: 2000,
+      serviceName: "gh-aw",
+      attributes: [],
+    });
+
+    // Should not throw even if one endpoint fails.
+    await expect(sendOTLPToAllEndpoints([{ url: "https://primary.example.com:4317" }, { url: "https://secondary.example.com:4317" }], payload, { skipJSONL: true, maxRetries: 0 })).resolves.toBeUndefined();
+
+    // Both endpoints were attempted.
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("is a no-op when endpoints array is empty", async () => {
+    const mockFetch = vi.fn();
+    vi.stubGlobal("fetch", mockFetch);
+
+    const payload = buildOTLPPayload({
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      spanName: "test.span",
+      startMs: 1000,
+      endMs: 2000,
+      serviceName: "gh-aw",
+      attributes: [],
+    });
+
+    await sendOTLPToAllEndpoints([], payload, { skipJSONL: true });
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });

@@ -9095,6 +9095,37 @@
                   "description": "Deprecated: use the map form instead. Comma-separated list of key=value HTTP headers to include with every OTLP export request (e.g. 'Authorization=Bearer <token>'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_HEADERS }}. Injected as the OTEL_EXPORTER_OTLP_HEADERS environment variable."
                 }
               ]
+            },
+            "endpoints": {
+              "type": "array",
+              "description": "Array of OTLP collector endpoints to export traces to concurrently. Each entry has its own URL and optional per-endpoint headers. When set alongside 'endpoint', all entries are merged and exported together. Encoded as the GH_AW_OTLP_ENDPOINTS environment variable.",
+              "items": {
+                "type": "object",
+                "description": "A single OTLP collector endpoint configuration.",
+                "required": ["url"],
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static URL is provided, its hostname is automatically added to the network firewall allowlist."
+                  },
+                  "headers": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "description": "Map of HTTP header names to values to include with every OTLP export request for this endpoint. Values support GitHub Actions expressions such as ${{ secrets.TOKEN }}.",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "type": "string",
+                        "description": "Deprecated: use the map form instead. Comma-separated list of key=value HTTP headers for this endpoint (e.g. 'Authorization=Bearer <token>'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_HEADERS }}."
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
             }
           },
           "additionalProperties": false

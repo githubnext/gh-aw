@@ -72,13 +72,14 @@ require(path.join(__dirname, "shim.cjs"));
  */
 async function logSpan(toolName, attributes = {}, options = {}) {
   try {
-    const { buildAttr, buildOTLPPayload, sendOTLPSpan, sanitizeOTLPPayload, appendToOTLPJSONL, generateSpanId, isValidTraceId, isValidSpanId, SPAN_KIND_CLIENT } = require(path.join(__dirname, "send_otlp_span.cjs"));
+    const { buildAttr, buildOTLPPayload, parseOTLPEndpoints, sendOTLPToAllEndpoints, sanitizeOTLPPayload, appendToOTLPJSONL, generateSpanId, isValidTraceId, isValidSpanId, SPAN_KIND_CLIENT } = require(
+      path.join(__dirname, "send_otlp_span.cjs")
+    );
 
     const now = Date.now();
     const startMs = options.startMs ?? now;
     const endMs = options.endMs ?? now;
 
-    const endpoint = options.endpoint ?? process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "";
     const traceId = options.traceId ?? process.env.GITHUB_AW_OTEL_TRACE_ID ?? "";
     const parentSpanId = options.parentSpanId ?? process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID ?? "";
 
@@ -105,9 +106,17 @@ async function logSpan(toolName, attributes = {}, options = {}) {
     // Sanitize before mirroring so that the local JSONL debug file never
     // contains secrets, just like the over-the-wire export.
     appendToOTLPJSONL(sanitizeOTLPPayload(payload));
-    // Only attempt the HTTP export when an endpoint is configured.
-    if (endpoint) {
-      await sendOTLPSpan(endpoint, payload, { skipJSONL: true });
+
+    // When an endpoint override is provided use the legacy single-endpoint path;
+    // otherwise fan out to all configured endpoints concurrently.
+    if (options.endpoint) {
+      const { sendOTLPSpan } = require(path.join(__dirname, "send_otlp_span.cjs"));
+      await sendOTLPSpan(options.endpoint, payload, { skipJSONL: true });
+    } else {
+      const endpoints = parseOTLPEndpoints();
+      if (endpoints.length > 0) {
+        await sendOTLPToAllEndpoints(endpoints, payload, { skipJSONL: true });
+      }
     }
   } catch (err) {
     // Export failures must never break the workflow.

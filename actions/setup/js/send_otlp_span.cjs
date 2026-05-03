@@ -546,6 +546,84 @@ function sanitizeOTLPPayload(payload) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Multi-endpoint support
+// ---------------------------------------------------------------------------
+
+/**
+ * @typedef {Object} OTLPEndpointEntry
+ * @property {string} url      - OTLP base URL (e.g. https://traces.example.com:4317)
+ * @property {string} [headers] - Per-endpoint headers in "key=value,key=value" format
+ */
+
+/**
+ * Resolve the list of configured OTLP endpoints for the current run.
+ *
+ * Checks `GH_AW_OTLP_ENDPOINTS` first (JSON-encoded array produced by the
+ * gh-aw compiler for multi-endpoint configurations).  Falls back to the
+ * legacy `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_HEADERS` pair
+ * for backward compatibility with single-endpoint setups.
+ *
+ * Returns an empty array when no endpoint is configured, so callers can skip
+ * the export step without additional checks.
+ *
+ * @returns {OTLPEndpointEntry[]}
+ */
+function parseOTLPEndpoints() {
+  const raw = process.env.GH_AW_OTLP_ENDPOINTS || "";
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        /** @type {OTLPEndpointEntry[]} */
+        const valid = parsed
+          .filter(e => e && typeof e.url === "string" && e.url.trim() !== "")
+          .map(e => ({
+            url: e.url,
+            ...(typeof e.headers === "string" && e.headers ? { headers: e.headers } : {}),
+          }));
+        if (valid.length > 0) return valid;
+      }
+    } catch {
+      // Fall through to legacy single-endpoint env vars.
+    }
+  }
+  // Legacy single-endpoint fallback.
+  const endpoint = (process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "").trim();
+  if (!endpoint) return [];
+  /** @type {OTLPEndpointEntry} */
+  const entry = { url: endpoint };
+  const legacyHeaders = (process.env.OTEL_EXPORTER_OTLP_HEADERS || "").trim();
+  if (legacyHeaders) entry.headers = legacyHeaders;
+  return [entry];
+}
+
+/**
+ * Send an OTLP payload to all configured endpoints concurrently.
+ *
+ * Uses `Promise.allSettled` so a failure on one endpoint never prevents
+ * delivery to the others.  The local JSONL mirror is written once by the
+ * caller before invoking this function (pass `skipJSONL: true`).
+ *
+ * @param {OTLPEndpointEntry[]} endpoints  - Resolved endpoint list from {@link parseOTLPEndpoints}
+ * @param {object} payload                 - Serialisable OTLP JSON object
+ * @param {{ maxRetries?: number, baseDelayMs?: number, skipJSONL?: boolean }} [opts]
+ * @returns {Promise<void>}
+ */
+async function sendOTLPToAllEndpoints(endpoints, payload, opts = {}) {
+  if (endpoints.length === 0) return;
+  await Promise.allSettled(
+    endpoints.map(ep =>
+      sendOTLPSpan(ep.url, payload, {
+        ...opts,
+        // Pass per-endpoint headers so each collector receives only its own
+        // credentials (not the merged set from a different endpoint).
+        headersOverride: ep.headers !== undefined ? ep.headers : "",
+      })
+    )
+  );
+}
+
 /**
  * POST an OTLP traces payload to `{endpoint}/v1/traces` with automatic retries.
  *
@@ -555,14 +633,15 @@ function sanitizeOTLPPayload(payload) {
  * well under a second in the typical success case.
  *
  * Reads `OTEL_EXPORTER_OTLP_HEADERS` from the environment and merges any
- * configured headers into every request.
+ * configured headers into every request, unless `headersOverride` is provided
+ * (used for per-endpoint headers in the multi-endpoint case).
  *
  * @param {string} endpoint  - OTLP base URL (e.g. https://traces.example.com:4317)
  * @param {object} payload   - Serialisable OTLP JSON object
- * @param {{ maxRetries?: number, baseDelayMs?: number, skipJSONL?: boolean }} [opts]
+ * @param {{ maxRetries?: number, baseDelayMs?: number, skipJSONL?: boolean, headersOverride?: string }} [opts]
  * @returns {Promise<void>}
  */
-async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 100, skipJSONL = false } = {}) {
+async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 100, skipJSONL = false, headersOverride } = {}) {
   // Mirror payload locally so it survives even when the collector is unreachable.
   // Callers that already wrote the JSONL mirror pass skipJSONL: true to avoid a
   // duplicate line.
@@ -571,7 +650,10 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
   }
 
   const url = endpoint.replace(/\/$/, "") + "/v1/traces";
-  const extraHeaders = parseOTLPHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS || "");
+  // Use headersOverride when provided (per-endpoint headers in multi-endpoint mode),
+  // otherwise fall back to the OTEL_EXPORTER_OTLP_HEADERS environment variable.
+  const rawHeaders = headersOverride !== undefined ? headersOverride : process.env.OTEL_EXPORTER_OTLP_HEADERS || "";
+  const extraHeaders = parseOTLPHeaders(rawHeaders);
   const headers = { "Content-Type": "application/json", ...extraHeaders };
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
@@ -828,13 +910,13 @@ async function sendJobSetupSpan(options = {}) {
   // Always mirror to JSONL — the artifact is useful even without a live collector.
   appendToOTLPJSONL(payload);
 
-  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
-  if (!endpoint) {
+  const endpoints = parseOTLPEndpoints();
+  if (endpoints.length === 0) {
     return { traceId, spanId };
   }
 
-  // Pass skipJSONL: true so sendOTLPSpan doesn't double-write the mirror.
-  await sendOTLPSpan(endpoint, payload, { skipJSONL: true });
+  // Pass skipJSONL: true so sendOTLPToAllEndpoints/sendOTLPSpan don't double-write the mirror.
+  await sendOTLPToAllEndpoints(endpoints, payload, { skipJSONL: true });
   return { traceId, spanId };
 }
 
@@ -1179,7 +1261,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     attributes.push(buildAttr("gen_ai.usage.cache_creation.input_tokens", agentUsage.cache_write_tokens));
   }
 
-  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
+  const endpoints = parseOTLPEndpoints();
   const conclusionSpanId = generateSpanId();
   if (jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs) {
     const agentSpanEvents = buildSpanEvents(agentEndMs);
@@ -1222,8 +1304,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       kind: SPAN_KIND_CLIENT,
     });
     appendToOTLPJSONL(agentPayload);
-    if (endpoint) {
-      await sendOTLPSpan(endpoint, agentPayload, { skipJSONL: true });
+    if (endpoints.length > 0) {
+      await sendOTLPToAllEndpoints(endpoints, agentPayload, { skipJSONL: true });
     }
   }
 
@@ -1246,12 +1328,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Always mirror to JSONL — the artifact is useful even without a live collector.
   appendToOTLPJSONL(payload);
 
-  if (!endpoint) {
+  if (endpoints.length === 0) {
     return;
   }
 
-  // Pass skipJSONL: true so sendOTLPSpan doesn't double-write the mirror.
-  await sendOTLPSpan(endpoint, payload, { skipJSONL: true });
+  // Pass skipJSONL: true so sendOTLPToAllEndpoints/sendOTLPSpan don't double-write the mirror.
+  await sendOTLPToAllEndpoints(endpoints, payload, { skipJSONL: true });
 }
 
 module.exports = {
@@ -1272,7 +1354,9 @@ module.exports = {
   buildOTLPPayload,
   sanitizeOTLPPayload,
   parseOTLPHeaders,
+  parseOTLPEndpoints,
   sendOTLPSpan,
+  sendOTLPToAllEndpoints,
   readJSONIfExists,
   readLastRateLimitEntry,
   buildCurrentWorkflowCallId,
