@@ -131,7 +131,7 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	// When upload_artifact is configured, add a read-write mount for the staging directory
 	// so the model can copy files there from inside the container. The parent ${RUNNER_TEMP}/gh-aw
 	// is mounted :ro above; this child mount overrides access for the staging subdirectory only.
-	// The staging directory must already exist on the host (created in Write Safe Outputs Config step).
+	// The staging directory must already exist on the host (created in Generate Safe Outputs Config step).
 	if config.WorkflowData != nil && config.WorkflowData.SafeOutputs != nil && config.WorkflowData.SafeOutputs.UploadArtifact != nil {
 		stagingDir := "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts"
 		expandableArgs += fmt.Sprintf(` --mount "%s:%s:rw"`, stagingDir, stagingDir)
