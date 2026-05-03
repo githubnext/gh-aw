@@ -18,7 +18,7 @@ const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs")
  * /tmp/gh-aw/github_rate_limits.jsonl for post-run observability.
  *
  * @param {typeof core} coreModule - The @actions/core module
- * @param {typeof github} githubModule - The @actions/github module
+ * @param {any} githubModule - The @actions/github module
  * @param {typeof context} contextModule - The GitHub context object
  * @param {typeof exec} execModule - The @actions/exec module
  * @param {typeof io} ioModule - The @actions/io module

@@ -561,7 +561,6 @@ function buildPushRepoMemoryFailureContext(hasPushRepoMemoryFailure, repoMemoryP
  */
 function loadMissingDataMessages(items) {
   try {
-    /** @type {Array<any>} */
     let resolvedItems = items;
     if (!resolvedItems) {
       const { loadAgentOutput } = require("./load_agent_output.cjs");
@@ -639,7 +638,6 @@ function buildMissingDataContext(cacheMemoryEnabled, items) {
  */
 function loadMissingToolMessages(items) {
   try {
-    /** @type {Array<any>} */
     let resolvedItems = items;
     if (!resolvedItems) {
       const { loadAgentOutput } = require("./load_agent_output.cjs");
@@ -700,7 +698,6 @@ function buildMissingToolContext(items) {
  */
 function loadReportIncompleteMessages(items) {
   try {
-    /** @type {Array<any>} */
     let resolvedItems = items;
     if (!resolvedItems) {
       const { loadAgentOutput } = require("./load_agent_output.cjs");
