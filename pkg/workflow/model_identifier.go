@@ -104,19 +104,55 @@ var (
 	reParamValue = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 )
 
-// firstForbiddenChar returns the first character in s that is outside the
-// allowed set for the given segment type, or 0 if s is clean.
-// This satisfies V-MAF-006: the implementation MUST name the offending character
-// and the segment type.
-func firstForbiddenChar(s, allowedPattern string) rune {
-	allowed := regexp.MustCompile(`^[` + allowedPattern + `]$`)
+// firstForbiddenCharInProviderOrParam returns the first character in s that is not in
+// [A-Za-z0-9-], or 0 if all characters are allowed.
+// Used for provider tokens and parameter keys (V-MAF-006).
+func firstForbiddenCharInProviderOrParam(s string) rune {
 	for _, r := range s {
-		if !allowed.MatchString(string(r)) {
+		if !isAlpha(r) && !isDigit(r) && r != '-' {
 			return r
 		}
 	}
 	return 0
 }
+
+// firstForbiddenCharInModelToken returns the first character in s that is not in
+// [A-Za-z0-9_.-], or 0 if all characters are allowed.
+// Used for model tokens (V-MAF-006).
+func firstForbiddenCharInModelToken(s string) rune {
+	for _, r := range s {
+		if !isAlpha(r) && !isDigit(r) && r != '_' && r != '.' && r != '-' {
+			return r
+		}
+	}
+	return 0
+}
+
+// firstForbiddenCharInBareName returns the first character in s that is not in
+// [A-Za-z0-9._-], or 0 if all characters are allowed.
+// Used for bare names (V-MAF-006).
+func firstForbiddenCharInBareName(s string) rune {
+	for _, r := range s {
+		if !isAlpha(r) && !isDigit(r) && r != '_' && r != '.' && r != '-' {
+			return r
+		}
+	}
+	return 0
+}
+
+// firstForbiddenCharInParamValue returns the first character in s that is not in
+// [A-Za-z0-9._-], or 0 if all characters are allowed.
+// Used for parameter values (V-MAF-006).
+func firstForbiddenCharInParamValue(s string) rune {
+	for _, r := range s {
+		if !isAlpha(r) && !isDigit(r) && r != '_' && r != '.' && r != '-' {
+			return r
+		}
+	}
+	return 0
+}
+
+func isAlpha(r rune) bool { return isLetter(r) }
 
 // ParseModelIdentifier parses a model identifier string into its components.
 //
@@ -189,10 +225,10 @@ func validateProviderToken(token string) error {
 		return errors.New("model identifier: provider token must not be empty (segment type: provider)")
 	}
 	if !reProviderToken.MatchString(token) {
-		if r := firstForbiddenChar(token, `A-Za-z0-9-`); r != 0 {
+		if r := firstForbiddenCharInProviderOrParam(token); r != 0 {
 			return fmt.Errorf("model identifier: character %q is not allowed in provider token %q (segment type: provider)", r, token)
 		}
-		if !isASCIILetter(rune(token[0])) {
+		if !isAlpha(rune(token[0])) {
 			return fmt.Errorf("model identifier: provider token %q must start with a letter (segment type: provider)", token)
 		}
 	}
@@ -209,7 +245,7 @@ func validateModelToken(token string) error {
 		return errors.New("model identifier: model token must not be empty (segment type: model)")
 	}
 	if !reModelToken.MatchString(token) {
-		if r := firstForbiddenChar(token, `A-Za-z0-9_.-`); r != 0 {
+		if r := firstForbiddenCharInModelToken(token); r != 0 {
 			return fmt.Errorf("model identifier: character %q is not allowed in model token %q (segment type: model)", r, token)
 		}
 		return fmt.Errorf("model identifier: model token %q is syntactically invalid (segment type: model)", token)
@@ -245,7 +281,7 @@ func validateBareName(name string) error {
 		return fmt.Errorf("model identifier: bare name %q must not start with '-' or '.' (segment type: alias)", name)
 	}
 	if !reBareName.MatchString(name) {
-		if r := firstForbiddenChar(name, `A-Za-z0-9._-`); r != 0 {
+		if r := firstForbiddenCharInBareName(name); r != 0 {
 			return fmt.Errorf("model identifier: character %q is not allowed in bare name %q (segment type: alias)", r, name)
 		}
 		return fmt.Errorf("model identifier: bare name %q is syntactically invalid (segment type: alias)", name)
@@ -285,10 +321,10 @@ func validateParamKey(key string) error {
 		return errors.New("model identifier: parameter key must not be empty (segment type: parameter key)")
 	}
 	if !reParamKey.MatchString(key) {
-		if r := firstForbiddenChar(key, `A-Za-z0-9-`); r != 0 {
+		if r := firstForbiddenCharInProviderOrParam(key); r != 0 {
 			return fmt.Errorf("model identifier: character %q is not allowed in parameter key %q (segment type: parameter key)", r, key)
 		}
-		if !isASCIILetter(rune(key[0])) {
+		if !isAlpha(rune(key[0])) {
 			return fmt.Errorf("model identifier: parameter key %q must start with a letter (segment type: parameter key)", key)
 		}
 	}
@@ -301,7 +337,7 @@ func validateParamValue(value string) error {
 		return errors.New("model identifier: parameter value must not be empty (segment type: parameter value)")
 	}
 	if !reParamValue.MatchString(value) {
-		if r := firstForbiddenChar(value, `A-Za-z0-9._-`); r != 0 {
+		if r := firstForbiddenCharInParamValue(value); r != 0 {
 			return fmt.Errorf("model identifier: character %q is not allowed in parameter value %q (segment type: parameter value)", r, value)
 		}
 	}
@@ -366,7 +402,3 @@ func UnrecognizedParams(params map[string]string) []string {
 }
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
-
-func isASCIILetter(r rune) bool {
-	return (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z')
-}

@@ -219,7 +219,7 @@ func detectCircularModelAliases(aliasMap map[string][]string, markdownPath strin
 }
 
 // dfsCycleCheck performs a depth-first traversal starting at start.
-// onPath holds the set of alias names currently on the active DFS path.
+// visited tracks fully explored nodes (no cycle reachable from there).
 // Returns the cycle chain (slice of alias names forming the loop) or nil.
 func dfsCycleCheck(
 	start string,
@@ -227,54 +227,53 @@ func dfsCycleCheck(
 	visited map[string]bool,
 	path []string,
 ) []string {
-	// Build a set of aliases on the current path for O(1) membership tests.
-	onPath := map[string]bool{}
-	for _, n := range path {
-		onPath[n] = true
+	state := &dfsState{
+		aliasMap: aliasMap,
+		visited:  visited,
+		onPath:   map[string]bool{},
+		path:     path,
 	}
+	return state.dfs(start)
+}
 
-	// Inner recursive helper — mutates onPath and path via closure.
-	var dfs func(node string) []string
-	dfs = func(node string) []string {
-		if visited[node] {
-			return nil
-		}
-		if onPath[node] {
-			// Cycle found — return the chain from node back around.
-			idx := 0
-			for i, n := range path {
-				if n == node {
-					idx = i
-					break
-				}
-			}
-			return path[idx:]
-		}
+// dfsState holds the mutable state for a single DFS traversal.
+type dfsState struct {
+	aliasMap map[string][]string
+	visited  map[string]bool
+	onPath   map[string]bool
+	path     []string
+}
 
-		onPath[node] = true
-		path = append(path, node)
-
-		entries, inMap := aliasMap[node]
-		if inMap {
-			for _, entry := range entries {
-				// Extract base (strip params).
-				base, _, _ := strings.Cut(entry, "?")
-				// Only follow bare alias references (not provider-scoped names or globs).
-				if isAliasReference(base, aliasMap) {
-					if cycle := dfs(base); cycle != nil {
-						return cycle
-					}
-				}
-			}
-		}
-
-		path = path[:len(path)-1]
-		onPath[node] = false
-		visited[node] = true
+func (s *dfsState) dfs(node string) []string {
+	if s.visited[node] {
 		return nil
 	}
+	if s.onPath[node] {
+		// Cycle found — return the chain from node back around.
+		for i, n := range s.path {
+			if n == node {
+				return s.path[i:]
+			}
+		}
+		return s.path // fallback: should not happen
+	}
 
-	return dfs(start)
+	s.onPath[node] = true
+	s.path = append(s.path, node)
+
+	for _, entry := range s.aliasMap[node] {
+		base, _, _ := strings.Cut(entry, "?")
+		if isAliasReference(base, s.aliasMap) {
+			if cycle := s.dfs(base); cycle != nil {
+				return cycle
+			}
+		}
+	}
+
+	s.path = s.path[:len(s.path)-1]
+	s.onPath[node] = false
+	s.visited[node] = true
+	return nil
 }
 
 // isAliasReference reports whether base is a bare identifier that refers to
