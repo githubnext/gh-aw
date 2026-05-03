@@ -101,11 +101,11 @@ If there's a previous run's data, load it to understand historical context:
 
 ## Phase 1: Discovery and Initial Analysis
 
-Use the `file-cataloger` agent to discover and catalog all markdown files in `specs/` and `scratchpad/`. Use the returned inventory table as the file list for all subsequent phases.
+Invoke the `file-cataloger` agent (no arguments needed). It will discover and catalog all markdown files in `specs/` and `scratchpad/` and return a markdown table. Use that inventory table as the file list for all subsequent phases.
 
 ## Phase 2: Tone and Consistency Analysis
 
-For each file in the inventory, use the `tone-analyzer` agent, passing the file path.
+For each file in the inventory, invoke the `tone-analyzer` agent with the file path as the sole input.
 Collect all returned JSON objects into a combined issues list for Phase 3.
 Also note any sections the agent flags as candidates for Mermaid diagrams.
 
@@ -563,7 +563,7 @@ Return only the table, no other commentary.
 description: Scan a markdown file for marketing language and formatting violations
 model: claude-haiku-4.5
 ---
-You receive a single file path. Read the file and perform two scans:
+You receive a single file path as your input. Read the file and perform two scans:
 
 1. **Tone scan**: Find marketing/subjective language: "great", "easy", "powerful",
    "amazing", "simple", "seamless", "intuitive", or subjective adjectives without
