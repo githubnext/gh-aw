@@ -31,9 +31,18 @@ type ExperimentData struct {
 }
 
 // experimentStateJSON matches the shape of the state.json written by pick_experiment.cjs:
-// { "counts": { "<name>": { "<variant>": <count> } } }
+// { "counts": { "<name>": { "<variant>": <count> } }, "runs": [ { "run_id": "...", "timestamp": "...", "assignments": {"<name>": "<variant>"} } ] }
 type experimentStateJSON struct {
 	Counts map[string]map[string]int `json:"counts"`
+	Runs   []experimentRunRecord     `json:"runs,omitempty"`
+}
+
+// experimentRunRecord represents a single run's experiment assignment record as stored
+// in state.json's "runs" array.
+type experimentRunRecord struct {
+	RunID       string            `json:"run_id"`
+	Timestamp   string            `json:"timestamp"`
+	Assignments map[string]string `json:"assignments"`
 }
 
 // findExperimentStatePath returns the first existing state.json path inside the experiment
@@ -56,9 +65,11 @@ func findExperimentStatePath(logsPath string) string {
 // logsPath and returns a populated ExperimentData or nil when no experiment artifact
 // is present.
 //
-// The state.json only contains the cumulative counters; it does not record which variant
-// was chosen for *this* run. The selected variant is derived by applying the same
-// least-used selection rule (lowest count wins; ties broken by the sorted variant order).
+// When the state file contains a non-empty "runs" array (written by pick_experiment.cjs
+// v2+), the assignments of the most recent run record are returned directly.
+// For legacy state files that only contain "counts" (no "runs" field), the selected
+// variant is inferred by the max-count heuristic: the variant with the highest cumulative
+// count is assumed to have been selected last (ties broken by sorted variant order).
 func extractExperimentData(logsPath string) *ExperimentData {
 	if logsPath == "" {
 		return nil
@@ -84,6 +95,19 @@ func extractExperimentData(logsPath string) *ExperimentData {
 	}
 
 	experimentDataLog.Printf("Found %d experiment(s) in state file", len(state.Counts))
+
+	// When per-run records are available, use the most recent run's assignments directly
+	// instead of inferring them from cumulative counts.
+	if len(state.Runs) > 0 {
+		lastRun := state.Runs[len(state.Runs)-1]
+		if len(lastRun.Assignments) > 0 {
+			experimentDataLog.Printf("Using run record from run_id=%s (timestamp=%s)", lastRun.RunID, lastRun.Timestamp)
+			return &ExperimentData{
+				Assignments:      lastRun.Assignments,
+				CumulativeCounts: state.Counts,
+			}
+		}
+	}
 
 	// Derive this-run assignments: the variant selected on the most-recent run is
 	// the one with the maximum count (ties resolved by sorted order).

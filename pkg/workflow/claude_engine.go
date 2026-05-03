@@ -262,9 +262,15 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Build the full command based on whether firewall is enabled
 	var command string
 	if isFirewallEnabled(workflowData) {
-		// Build the AWF-wrapped command using helper function
-		// Get allowed domains (Claude defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
-		allowedDomains := GetClaudeAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		// Get allowed domains: prefer the pre-warmed cache on WorkflowData (populated by
+		// computeAllowedDomainsForSanitization before GetExecutionSteps is called) to avoid
+		// re-running the expensive map+sort operation.
+		var allowedDomains string
+		if workflowData.CachedAllowedDomainsComputed {
+			allowedDomains = workflowData.CachedAllowedDomainsStr
+		} else {
+			allowedDomains = GetClaudeAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		}
 		// Add GHES/custom API target domains to the firewall allow-list when engine.api-target is set
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
 			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)

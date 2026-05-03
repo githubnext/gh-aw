@@ -16,61 +16,66 @@ const AwContextInputName = "aw_context"
 // It signals to users that this input is managed internally by the agentic workflow system.
 const awContextInputDescription = "Agent caller context (used internally by Agentic Workflows)."
 
-// injectAwContextIntoOnYAML adds the aw_context input to the workflow_dispatch trigger
-// in the given on-section YAML string, if workflow_dispatch is present.
+// injectAwContextIntoOnYAML adds the aw_context input to internal workflow triggers
+// in the given on-section YAML string.
 //
 // The injection is string-based to preserve existing YAML comments and formatting.
-// It handles two cases:
-//   - Bare "workflow_dispatch:" (no sub-keys): adds an inputs: block with aw_context
-//   - "workflow_dispatch:" with an "inputs:" sub-key: adds aw_context inside inputs
+// It handles these triggers independently:
+//   - workflow_dispatch
+//   - workflow_call
+//
+// For each trigger it supports two cases:
+//   - Bare trigger line (no sub-keys): adds an inputs: block with aw_context
+//   - Trigger with an existing inputs: sub-key: adds aw_context inside inputs
 //
 // The function is idempotent: calling it twice produces the same result.
 func injectAwContextIntoOnYAML(onSection string) string {
-	if !strings.Contains(onSection, "workflow_dispatch") {
-		awContextLog.Print("No workflow_dispatch trigger found, skipping aw_context injection")
+	updated := injectAwContextIntoTrigger(onSection, "workflow_dispatch")
+	updated = injectAwContextIntoTrigger(updated, "workflow_call")
+	return updated
+}
+
+func injectAwContextIntoTrigger(onSection string, triggerName string) string {
+	if !strings.Contains(onSection, triggerName) {
+		awContextLog.Printf("No %s trigger found, skipping aw_context injection", triggerName)
 		return onSection
 	}
-	// Idempotency: skip if already injected
-	if strings.Contains(onSection, AwContextInputName+":") {
-		awContextLog.Print("aw_context already injected, skipping")
-		return onSection
-	}
-	awContextLog.Print("Injecting aw_context input into workflow_dispatch trigger")
+	awContextLog.Printf("Injecting aw_context input into %s trigger", triggerName)
 
 	lines := strings.Split(onSection, "\n")
 
-	// Find the workflow_dispatch: line (bare — no sub-value on same line)
-	wdLineIdx := -1
-	wdIndent := 0
+	// Find the trigger line (bare — no sub-value on same line)
+	triggerLineIdx := -1
+	triggerIndent := 0
 	for i, line := range lines {
 		stripped := strings.TrimLeft(line, " \t")
-		rest, found := strings.CutPrefix(stripped, "workflow_dispatch:")
+		rest, found := strings.CutPrefix(stripped, triggerName+":")
 		if found {
 			rest = strings.TrimSpace(rest)
 			if rest == "" || rest == "null" || rest == "~" {
-				wdLineIdx = i
-				wdIndent = len(line) - len(stripped)
+				triggerLineIdx = i
+				triggerIndent = len(line) - len(stripped)
 				break
 			}
 		}
 	}
 
-	if wdLineIdx == -1 {
-		awContextLog.Print("No bare workflow_dispatch: line found, skipping aw_context injection")
+	if triggerLineIdx == -1 {
+		awContextLog.Printf("No bare %s: line found, skipping aw_context injection", triggerName)
 		return onSection
 	}
-	awContextLog.Printf("Found workflow_dispatch at line %d (indent=%d), injecting aw_context", wdLineIdx, wdIndent)
+	awContextLog.Printf("Found %s at line %d (indent=%d), injecting aw_context", triggerName, triggerLineIdx, triggerIndent)
 
-	// Look for an "inputs:" key directly inside workflow_dispatch (at wdIndent+2 depth).
-	// Only the first non-empty, non-comment line after wdLineIdx matters.
+	// Look for an "inputs:" key directly inside the trigger block.
+	// Only the first non-empty, non-comment line after the trigger matters.
 	inputsLineIdx := -1
-	for i := wdLineIdx + 1; i < len(lines); i++ {
+	for i := triggerLineIdx + 1; i < len(lines); i++ {
 		stripped := strings.TrimLeft(lines[i], " \t")
 		if stripped == "" || strings.HasPrefix(stripped, "#") {
 			continue
 		}
 		lineIndent := len(lines[i]) - len(stripped)
-		if lineIndent <= wdIndent {
+		if lineIndent <= triggerIndent {
 			break // left workflow_dispatch block entirely
 		}
 		if strings.HasPrefix(stripped, "inputs:") {
@@ -79,25 +84,43 @@ func injectAwContextIntoOnYAML(onSection string) string {
 		break // only inspect the first substantive child key
 	}
 
-	awContextLines := buildAwContextInputLines(wdIndent)
+	if inputsLineIdx != -1 {
+		inputsIndent := len(lines[inputsLineIdx]) - len(strings.TrimLeft(lines[inputsLineIdx], " \t"))
+		for i := inputsLineIdx + 1; i < len(lines); i++ {
+			stripped := strings.TrimLeft(lines[i], " \t")
+			if stripped == "" || strings.HasPrefix(stripped, "#") {
+				continue
+			}
+			lineIndent := len(lines[i]) - len(stripped)
+			if lineIndent <= inputsIndent {
+				break
+			}
+			if strings.HasPrefix(stripped, AwContextInputName+":") {
+				awContextLog.Printf("aw_context already injected into %s, skipping", triggerName)
+				return onSection
+			}
+		}
+	}
+
+	awContextLines := buildAwContextInputLines(triggerIndent)
 
 	result := make([]string, 0, len(lines)+len(awContextLines)+1)
 	for i, line := range lines {
-		// When the workflow_dispatch: line contains an explicit null/~ value,
-		// replace it with a bare workflow_dispatch: so sub-keys can follow.
-		if i == wdLineIdx && (strings.HasSuffix(strings.TrimSpace(line), " null") ||
+		// When the trigger line contains an explicit null/~ value,
+		// replace it with a bare trigger so sub-keys can follow.
+		if i == triggerLineIdx && (strings.HasSuffix(strings.TrimSpace(line), " null") ||
 			strings.HasSuffix(strings.TrimSpace(line), " ~")) {
 			stripped := strings.TrimLeft(line, " \t")
-			line = strings.Repeat(" ", wdIndent) + strings.SplitN(stripped, ":", 2)[0] + ":"
+			line = strings.Repeat(" ", triggerIndent) + strings.SplitN(stripped, ":", 2)[0] + ":"
 		}
 		result = append(result, line)
 
 		if inputsLineIdx != -1 && i == inputsLineIdx {
 			// Insert aw_context as the first entry under existing inputs:
 			result = append(result, awContextLines...)
-		} else if inputsLineIdx == -1 && i == wdLineIdx {
-			// workflow_dispatch is bare — add inputs: + aw_context
-			result = append(result, strings.Repeat(" ", wdIndent+2)+"inputs:")
+		} else if inputsLineIdx == -1 && i == triggerLineIdx {
+			// Trigger is bare — add inputs: + aw_context
+			result = append(result, strings.Repeat(" ", triggerIndent+2)+"inputs:")
 			result = append(result, awContextLines...)
 		}
 	}

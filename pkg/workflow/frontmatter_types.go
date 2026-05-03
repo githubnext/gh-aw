@@ -115,6 +115,16 @@ type GuardrailMetric struct {
 	Threshold string `json:"threshold"`
 }
 
+// ExperimentNotify specifies where to post significance alerts when an experiment reaches
+// statistical significance.
+type ExperimentNotify struct {
+	// Discussion is a GitHub discussion number to post a significance comment to.
+	Discussion int `json:"discussion,omitempty"`
+
+	// Issue is a GitHub issue number to post a significance comment to.
+	Issue int `json:"issue,omitempty"`
+}
+
 // ExperimentConfig represents the rich metadata for a single A/B experiment.
 // The bare-array form (e.g. prompt_style: [concise, verbose]) is normalized to this
 // struct with only the Variants field populated.
@@ -161,6 +171,16 @@ type ExperimentConfig struct {
 	// EndDate is an optional ISO-8601 date (YYYY-MM-DD) after which the experiment is
 	// no longer active.  When today is after this date the control variant is used.
 	EndDate string `json:"end_date,omitempty"`
+
+	// AnalysisType declares the statistical test used by automated reporting tooling.
+	// Valid values: t_test, mann_whitney, proportion_test, bayesian_ab.
+	AnalysisType string `json:"analysis_type,omitempty"`
+
+	// Tags are free-form labels for filtering experiments in dashboards.
+	Tags []string `json:"tags,omitempty"`
+
+	// Notify specifies where to post significance alerts when the experiment concludes.
+	Notify *ExperimentNotify `json:"notify,omitempty"`
 }
 
 // RateLimitConfig represents rate limiting configuration for workflow triggers
@@ -274,6 +294,12 @@ type FrontmatterConfig struct {
 	// ExperimentConfigs holds the fully-typed experiment metadata, populated alongside
 	// Experiments during frontmatter parsing.  Keys match those of Experiments.
 	ExperimentConfigs map[string]*ExperimentConfig `json:"-"`
+
+	// Model aliases and fallback policies.
+	// Keys are alias names (empty string "" = default policy); values are ordered lists of
+	// model patterns or alias references to try in sequence.
+	// Merged with the builtin model aliases at compile time; frontmatter entries take precedence.
+	Models map[string][]string `json:"models,omitempty"`
 
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`

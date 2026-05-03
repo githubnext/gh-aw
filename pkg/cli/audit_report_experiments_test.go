@@ -323,3 +323,93 @@ func TestDeriveLastSelectedVariant(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractExperimentDataWithRuns(t *testing.T) {
+	t.Run("uses last run record when runs array is present", func(t *testing.T) {
+		dir := t.TempDir()
+		state := map[string]any{
+			"counts": map[string]any{
+				"style": map[string]int{"concise": 3, "detailed": 2},
+			},
+			"runs": []map[string]any{
+				{
+					"run_id":      "100",
+					"timestamp":   "2026-01-01T00:00:00Z",
+					"assignments": map[string]string{"style": "detailed"},
+				},
+				{
+					"run_id":      "101",
+					"timestamp":   "2026-01-02T00:00:00Z",
+					"assignments": map[string]string{"style": "concise"},
+				},
+			},
+		}
+		raw, err := json.Marshal(state)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "state.json"), raw, 0o600))
+
+		got := extractExperimentData(dir)
+		require.NotNil(t, got, "should return non-nil ExperimentData")
+		// Should use the last run's assignment (concise), not the heuristic
+		assert.Equal(t, "concise", got.Assignments["style"], "should use last run record assignment")
+		assert.Equal(t, 3, got.CumulativeCounts["style"]["concise"], "cumulative counts should still be populated")
+	})
+
+	t.Run("falls back to heuristic when runs array is empty", func(t *testing.T) {
+		dir := t.TempDir()
+		state := map[string]any{
+			"counts": map[string]any{
+				"style": map[string]int{"concise": 3, "detailed": 2},
+			},
+			"runs": []map[string]any{},
+		}
+		raw, err := json.Marshal(state)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "state.json"), raw, 0o600))
+
+		got := extractExperimentData(dir)
+		require.NotNil(t, got, "should return non-nil ExperimentData")
+		// Falls back to heuristic: highest count = concise
+		assert.Equal(t, "concise", got.Assignments["style"], "should fall back to highest-count heuristic")
+	})
+
+	t.Run("falls back to heuristic when runs field is absent (legacy state)", func(t *testing.T) {
+		dir := t.TempDir()
+		state := map[string]any{
+			"counts": map[string]any{
+				"caveman": map[string]int{"yes": 5, "no": 3},
+			},
+		}
+		raw, err := json.Marshal(state)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "state.json"), raw, 0o600))
+
+		got := extractExperimentData(dir)
+		require.NotNil(t, got, "should return non-nil ExperimentData for legacy state")
+		assert.Equal(t, "yes", got.Assignments["caveman"], "should use heuristic for legacy state")
+	})
+
+	t.Run("skips last run record with empty assignments", func(t *testing.T) {
+		dir := t.TempDir()
+		state := map[string]any{
+			"counts": map[string]any{
+				"style": map[string]int{"concise": 3, "detailed": 2},
+			},
+			"runs": []map[string]any{
+				{
+					"run_id":      "100",
+					"timestamp":   "2026-01-01T00:00:00Z",
+					"assignments": map[string]string{},
+				},
+			},
+		}
+		raw, err := json.Marshal(state)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "state.json"), raw, 0o600))
+
+		got := extractExperimentData(dir)
+		require.NotNil(t, got, "should return non-nil ExperimentData")
+		// Falls back to heuristic when last run's assignments map is empty
+		assert.Equal(t, "concise", got.Assignments["style"], "should fall back to heuristic for empty assignments")
+	})
+}

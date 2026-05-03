@@ -105,6 +105,9 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily Sub-Agent Optimizer"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-subagent-optimizer.lock.yml@${{ github.ref }}
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -361,6 +364,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily Sub-Agent Optimizer"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-subagent-optimizer.lock.yml@${{ github.ref }}
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -516,7 +522,7 @@ jobs:
             echo "::error::Failed to find gh-aw binary for MCP server"
             exit 1
           fi
-      - name: Write Safe Outputs Config
+      - name: Generate Safe Outputs Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -524,7 +530,7 @@ jobs:
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_f5ced13d62ae9400_EOF'
           {"create_issue":{"close_older_issues":true,"expires":168,"labels":["automation","optimization","prompt-quality"],"max":1,"title_prefix":"[subagent-optimizer] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
           GH_AW_SAFE_OUTPUTS_CONFIG_f5ced13d62ae9400_EOF
-      - name: Write Safe Outputs Tools
+      - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
             {
@@ -783,6 +789,10 @@ jobs:
       - name: Clean credentials
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
+      - name: Audit pre-agent workspace
+        id: pre_agent_audit
+        continue-on-error: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/audit_pre_agent_workspace.sh"
       - name: Start CLI Proxy
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1049,6 +1059,7 @@ jobs:
             /tmp/gh-aw/mcp-logs/
             /tmp/gh-aw/agent_usage.json
             /tmp/gh-aw/agent-stdio.log
+            /tmp/gh-aw/pre-agent-audit.txt
             /tmp/gh-aw/agent/
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/safeoutputs.jsonl
@@ -1098,6 +1109,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily Sub-Agent Optimizer"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-subagent-optimizer.lock.yml@${{ github.ref }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1237,6 +1251,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily Sub-Agent Optimizer"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-subagent-optimizer.lock.yml@${{ github.ref }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1452,6 +1469,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily Sub-Agent Optimizer"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-subagent-optimizer.lock.yml@${{ github.ref }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1529,6 +1549,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily Sub-Agent Optimizer"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-subagent-optimizer.lock.yml@${{ github.ref }}
       - name: Download cache-memory artifact (default)
         id: download_cache_default
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

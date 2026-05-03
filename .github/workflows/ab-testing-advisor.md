@@ -18,7 +18,9 @@ engine:
   id: copilot
   bare: true
 
-timeout-minutes: 20
+timeout-minutes: 30
+
+strict: true
 
 network:
   allowed:
@@ -26,6 +28,7 @@ network:
 
 tools:
   cli-proxy: true
+  cache-memory: true
   github:
     mode: gh-proxy
     toolsets:
@@ -50,6 +53,11 @@ tools:
     - "jq"
     - "find"
     - "cat"
+    - "sort"
+    - "basename"
+    - "tail"
+    - "uniq"
+    - "mkdir"
 
 safe-outputs:
   create-issue:
@@ -83,6 +91,15 @@ Your mission today has two parts: **Primary quest** and **Side quest**.
 
 ### Step 1 — Discover Eligible Workflows
 
+First, load the recently-analyzed cache so that we avoid re-selecting a workflow that was analyzed in one of the last 14 runs:
+
+```bash
+mkdir -p /tmp/gh-aw/cache-memory/ab-testing-advisor
+cat /tmp/gh-aw/cache-memory/ab-testing-advisor/recently-analyzed.json 2>/dev/null || echo '{"recently_analyzed":[]}'
+```
+
+The file (if it exists) contains a JSON object with a `recently_analyzed` array of workflow basenames (without `.md`) — for example `["daily-news", "scout"]`. Keep this list in mind when selecting a workflow below.
+
 Run the following bash commands to identify all agentic workflow markdown files and determine which ones do **not yet** have an `experiments:` section:
 
 ```bash
@@ -100,7 +117,13 @@ grep -rl 'experiments:' .github/workflows/*.md 2>/dev/null || echo "none"
 grep -rL 'experiments:' .github/workflows/*.md 2>/dev/null | grep -v shared | sort
 ```
 
-From the list of workflows **without** an `experiments:` section, pick one at random using:
+From the list of workflows **without** an `experiments:` section, pick one at random — **excluding any workflow whose basename appears in the `recently_analyzed` list above** — using:
+
+```bash
+grep -rL 'experiments:' .github/workflows/*.md 2>/dev/null | grep -v shared | shuf -n 1
+```
+
+If after filtering out recently-analyzed workflows the candidate list is empty, fall back to any eligible workflow (the dedup window has been exhausted):
 
 ```bash
 grep -rL 'experiments:' .github/workflows/*.md 2>/dev/null | grep -v shared | shuf -n 1
@@ -189,11 +212,25 @@ Create a GitHub issue with:
 
 ### Experiment Configuration
 
-Add the following `experiments:` block to the workflow frontmatter:
+Add the following `experiments:` block to the workflow frontmatter (use the rich object form so all metadata is self-documenting):
 
 ```yaml
 experiments:
-  <experiment_name>: [<variant1>, <variant2>]
+  <experiment_name>:
+    variants: [<variant1>, <variant2>]
+    description: "<what this test measures>"
+    hypothesis: "H0: no change in <metric>. H1: <alternative hypothesis with expected effect size>"
+    metric: <primary_metric>
+    secondary_metrics: [<secondary_metric1>, <secondary_metric2>]
+    guardrail_metrics:
+      - name: <guardrail_metric>
+        direction: min
+        threshold: <value>
+    min_samples: <n_per_variant>
+    owner: "@team-agents"
+    weight: [50, 50]
+    start_date: "<YYYY-MM-DD>"
+    issue: <this_issue_number>
 ```
 
 **Variant descriptions**:
@@ -237,6 +274,27 @@ List the exact changes needed in the workflow markdown body to implement the exp
 
 ---
 
+## Step 5 — Update Cache Memory
+
+After creating the campaign issue, record the selected workflow in the recently-analyzed cache to prevent it from being picked again in the next 14 runs:
+
+```bash
+mkdir -p /tmp/gh-aw/cache-memory/ab-testing-advisor
+```
+
+Read the current list, append the new entry (using the workflow basename without `.md`), keep only the last 14 entries, and write the result back:
+
+```bash
+SELECTED_BASENAME=$(basename "$SELECTED" .md)
+CURRENT=$(cat /tmp/gh-aw/cache-memory/ab-testing-advisor/recently-analyzed.json 2>/dev/null || echo '{"recently_analyzed":[]}')
+UPDATED=$(echo "$CURRENT" | jq --arg name "$SELECTED_BASENAME" \
+  '.recently_analyzed = ((.recently_analyzed + [$name]) | unique | .[-14:])' )
+echo "$UPDATED" > /tmp/gh-aw/cache-memory/ab-testing-advisor/recently-analyzed.json
+echo "✅ Cache updated — recently analyzed: $(echo "$UPDATED" | jq -r '.recently_analyzed | join(", ")')"
+```
+
+---
+
 ## Side Quest: Improve the Experiment Infrastructure
 
 After completing the primary quest, include a **second issue** (sub-issue of the first) proposing improvements to the experiments infrastructure. Assess the current implementation by reading:
@@ -250,25 +308,38 @@ Then review what data is currently captured per experiment run (the artifact upl
 
 Propose concrete improvements in the following areas:
 
-### Area 1: Frontmatter Schema Enhancements
+### Area 1: Frontmatter Schema — Verify Genuine Gaps Before Filing
 
-Suggest additions to the `experiments:` YAML schema to enable richer experiment definitions, such as:
-- Descriptions and hypotheses embedded in the frontmatter
-- Metric names to track (so tooling knows what to measure)
-- Traffic allocation weights (e.g., 20% baseline, 80% variant)
-- Start/end date for time-boxed experiments
-- Links to related issues
+**Important**: Before proposing additions, verify what is already implemented by reading the source files:
 
-Example enhanced schema proposal:
-```yaml
-experiments:
-  prompt_style:
-    variants: [concise, detailed]
-    description: "Test whether concise vs detailed prompts affect output quality"
-    metric: effective_tokens
-    weight: [50, 50]
-    issue: 1234
+```bash
+cat pkg/workflow/compiler_experiments.go
+cat actions/setup/js/pick_experiment.cjs
 ```
+
+The current `ExperimentConfig` already supports the following fields — **do not propose adding these**, they are fully operational:
+
+| Field | Description |
+|---|---|
+| `variants` | Ordered list of variant strings (required) |
+| `description` | Human-readable summary of what the experiment tests |
+| `hypothesis` | Null/alternative hypothesis statement |
+| `metric` | Primary metric name to observe |
+| `secondary_metrics` | Additional metrics to track |
+| `guardrail_metrics` | Thresholds that must not degrade |
+| `min_samples` | Minimum runs per variant before analysis is reliable |
+| `owner` | Team or person responsible |
+| `weight` | Per-variant probability weights |
+| `start_date` / `end_date` | ISO-8601 date range for time-boxed experiments |
+| `issue` | GitHub issue number tracking the experiment |
+
+After reading the compiler and `pick_experiment.cjs`, check whether the following **genuinely unimplemented** fields have been added yet:
+
+- **`analysis_type`** — declares the statistical test for automated reporting (`t_test`, `mann_whitney`, `proportion_test`, `bayesian_ab`)
+- **`tags`** — free-form labels for filtering experiments in dashboards
+- **`notify`** — destination for significance alerts when an experiment concludes (e.g., discussion, issue comment)
+
+**Only create the sub-issue if** at least one of these three fields is genuinely absent from the compiler and `pick_experiment.cjs`. If all three are already fully implemented and surfaced in run artifacts, skip the sub-issue and note in the campaign issue body that infrastructure is complete.
 
 ### Area 2: Reporting & Dashboards
 
@@ -293,7 +364,8 @@ Propose how experiments should integrate with `gh aw audit` and OTEL observabili
 
 ## Output Constraints
 
-- Create **exactly 2 issues** total: one for the experiment campaign, one sub-issue for infrastructure improvements
+- Create **exactly 2 issues** total when the sub-issue is warranted (see Area 1 gate above): one for the experiment campaign, one sub-issue for infrastructure improvements
+- If the Area 1 gate determines all three fields (`analysis_type`, `tags`, `notify`) are fully implemented, create **only 1 issue** (the campaign) and note infrastructure is complete
 - Use `###` headers (never `##` or `#`) inside issue bodies
 - Be specific and actionable — include concrete YAML snippets and diff-style changes
 - The experiment campaign issue title must clearly identify the workflow and dimension

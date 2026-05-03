@@ -118,7 +118,15 @@ describe("dispatch_workflow handler factory", () => {
     const awContext = JSON.parse(awContextRaw);
     expect(awContext).toHaveProperty("repo");
     expect(awContext).toHaveProperty("run_id");
+    expect(awContext).toHaveProperty("run_attempt");
     expect(awContext).toHaveProperty("workflow_id");
+    expect(awContext).toHaveProperty("episode_id");
+    expect(awContext).toHaveProperty("hop_id");
+    expect(awContext).toHaveProperty("parent_hop_id");
+    expect(awContext).toHaveProperty("origin_event");
+    expect(awContext).toHaveProperty("root_repo");
+    expect(awContext).toHaveProperty("root_workflow_id");
+    expect(awContext).toHaveProperty("root_run_id");
     expect(awContext).toHaveProperty("workflow_call_id");
     expect(awContext).toHaveProperty("time");
     expect(awContext).toHaveProperty("actor");
@@ -128,10 +136,18 @@ describe("dispatch_workflow handler factory", () => {
     expect(new Date(awContext.time).toISOString()).toBe(awContext.time);
     // repo should match mocked context
     expect(awContext.repo).toBe("test-owner/test-repo");
+    expect(awContext.run_attempt).toBe("2");
     // workflow_id uses GITHUB_WORKFLOW_REF (full workflow file path)
     expect(awContext.workflow_id).toBe("test-owner/test-repo/.github/workflows/dispatcher.yml@refs/heads/main");
-    // workflow_call_id combines run_id and run_attempt for uniqueness
-    expect(awContext.workflow_call_id).toBe("99999-2");
+    expect(awContext.episode_id).toBe("99999-2:test-owner/test-repo/.github/workflows/dispatcher.yml@refs/heads/main");
+    expect(awContext.hop_id).toBe("99999-2:test-owner/test-repo/.github/workflows/dispatcher.yml@refs/heads/main");
+    expect(awContext.parent_hop_id).toBe("");
+    expect(awContext.origin_event).toBe("issues");
+    expect(awContext.root_repo).toBe("test-owner/test-repo");
+    expect(awContext.root_workflow_id).toBe("test-owner/test-repo/.github/workflows/dispatcher.yml@refs/heads/main");
+    expect(awContext.root_run_id).toBe("99999");
+    // workflow_call_id includes the workflow ref so reusable workflows in the same run stay distinct
+    expect(awContext.workflow_call_id).toBe("99999-2:test-owner/test-repo/.github/workflows/dispatcher.yml@refs/heads/main");
   });
 
   it("should reject workflows not in allowed list", async () => {

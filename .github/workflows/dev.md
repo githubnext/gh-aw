@@ -8,7 +8,9 @@ name: Dev
 description: Daily status report for gh-aw project
 timeout-minutes: 30
 strict: false
-engine: pi
+engine:
+  id: pi
+  model: copilot/claude-sonnet-4-20250514
 
 permissions:
   contents: read

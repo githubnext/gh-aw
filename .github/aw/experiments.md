@@ -12,15 +12,15 @@ Consult this file when you want to measure the impact of a prompt change, a new 
 
 Each workflow run goes through this lifecycle:
 
-1. **Restore** — the activation job loads the experiment state JSON from GitHub Actions cache (`/tmp/gh-aw/experiments/state.json`).
+1. **Restore** — the activation job loads the experiment state JSON from the configured storage (git branch by default, or GitHub Actions cache when `storage: cache`).
 2. **Pick** — `pick_experiment.cjs` selects a variant for each declared experiment using a balanced round-robin counter. The variant with the lowest invocation count so far is chosen; ties are broken by variant array order, producing deterministic balanced assignment across runs.
-3. **Save** — the updated counter state is written back to cache for the next run.
+3. **Save** — the updated counter state is written back to the configured storage.
 4. **Upload** — the state file is uploaded as a workflow artifact named `experiment` (retained 30 days) so you can audit per-run assignments.
 5. **Inject** — the selected variant is available in the workflow prompt as `${{ experiments.<name> }}` and in `{{#if experiments.<name> }}` handlebars blocks.
 
 **Key properties**:
 - Every run receives exactly one variant assignment per declared experiment.
-- Assignment is cache-backed and persists across runs automatically; no setup is required beyond the `experiments:` field.
+- Assignment persists across runs automatically; no setup is required beyond the `experiments:` field.
 - Multiple experiments can run simultaneously — each is independently balanced.
 - No sampling or percentage-based routing: every run participates.
 
@@ -85,6 +85,30 @@ experiments:
 - `issue:` - Linked tracking issue number for governance tooling (no runtime effect).
 
 **Bare array and object forms can be mixed** in the same `experiments:` map — each experiment is independent.
+
+---
+
+## Storage Configuration
+
+The `storage` key inside the `experiments:` map controls how experiment state is persisted across runs:
+
+```yaml
+experiments:
+  storage: repo   # or: cache
+  prompt_style: [concise, detailed]
+```
+
+| Value | Behaviour | When to use |
+|---|---|---|
+| `repo` (**default**) | Commits `state.json` to a git branch named `experiments/{sanitizedWorkflowID}` (workflow ID lowercased with hyphens removed, e.g. `my-workflow` → `experiments/myworkflow`) after each run. State survives cache evictions. | Recommended for all experiments — experiment data is valuable. |
+| `cache` | Uses GitHub Actions cache (legacy behaviour). State may be evicted after 7 days of inactivity. | Only when `contents: write` cannot be granted to the workflow. |
+
+**Key differences:**
+
+- **`repo` storage** adds a `push_experiments_state` job that runs after the activation job. This job commits the updated state to a branch like `experiments/myworkflow` using `contents: write` permission. The state is durable and survives long periods without workflow runs.
+- **`cache` storage** is the original behaviour. No extra job or permission is required, but state can be evicted after 7 days of GitHub Actions cache inactivity.
+
+> The branch is created automatically on first run (as an orphan branch containing only `state.json` and `assignments.json`).
 
 ---
 

@@ -14,7 +14,7 @@ permissions:
 name: Smoke Pi
 engine:
   id: pi
-  model: claude-sonnet-4-20250514
+  model: copilot/claude-sonnet-4-20250514
 strict: true
 imports:
   - shared/gh.md

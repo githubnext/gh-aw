@@ -101,6 +101,9 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Agent Performance Analyzer - Meta-Orchestrator"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agent-performance-analyzer.lock.yml@${{ github.ref }}
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -309,7 +312,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/base
-            /tmp/gh-aw/.agents/agents
+            /tmp/gh-aw/.github/agents
           if-no-files-found: ignore
           retention-days: 1
 
@@ -359,6 +362,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Agent Performance Analyzer - Meta-Orchestrator"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agent-performance-analyzer.lock.yml@${{ github.ref }}
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -473,7 +479,7 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh"
       - name: Restore inline sub-agents from activation artifact
         env:
-          GH_AW_SUB_AGENT_DIR: ".agents/agents"
+          GH_AW_SUB_AGENT_DIR: ".github/agents"
           GH_AW_SUB_AGENT_EXT: ".agent.md"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh"
       - name: Download container images
@@ -506,7 +512,7 @@ jobs:
             echo "::error::Failed to find gh-aw binary for MCP server"
             exit 1
           fi
-      - name: Write Safe Outputs Config
+      - name: Generate Safe Outputs Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -514,7 +520,7 @@ jobs:
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_477767443955ee26_EOF'
           {"add_comment":{"max":10},"create_discussion":{"expires":24,"fallback_to_issue":true,"max":2},"create_issue":{"expires":48,"group":true,"labels":["cookie"],"max":5},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":10240}]},"report_incomplete":{}}
           GH_AW_SAFE_OUTPUTS_CONFIG_477767443955ee26_EOF
-      - name: Write Safe Outputs Tools
+      - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
             {
@@ -825,6 +831,10 @@ jobs:
       - name: Clean credentials
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
+      - name: Audit pre-agent workspace
+        id: pre_agent_audit
+        continue-on-error: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/audit_pre_agent_workspace.sh"
       - name: Start CLI Proxy
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1037,6 +1047,7 @@ jobs:
             /tmp/gh-aw/mcp-logs/
             /tmp/gh-aw/agent_usage.json
             /tmp/gh-aw/agent-stdio.log
+            /tmp/gh-aw/pre-agent-audit.txt
             /tmp/gh-aw/agent/
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/safeoutputs.jsonl
@@ -1088,6 +1099,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Agent Performance Analyzer - Meta-Orchestrator"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agent-performance-analyzer.lock.yml@${{ github.ref }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1231,6 +1245,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Agent Performance Analyzer - Meta-Orchestrator"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agent-performance-analyzer.lock.yml@${{ github.ref }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1429,6 +1446,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Agent Performance Analyzer - Meta-Orchestrator"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agent-performance-analyzer.lock.yml@${{ github.ref }}
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1535,6 +1555,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Agent Performance Analyzer - Meta-Orchestrator"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agent-performance-analyzer.lock.yml@${{ github.ref }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true

@@ -226,7 +226,7 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	if !HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		return
 	}
-	yaml.WriteString("      - name: Write Safe Outputs Config\n")
+	yaml.WriteString("      - name: Generate Safe Outputs Config\n")
 	configSecrets := ExtractSecretsFromValue(safeOutputConfig)
 	configContextVars := ExtractGitHubContextExpressionsFromValue(safeOutputConfig)
 	hasEnvVars := len(configSecrets) > 0 || len(configContextVars) > 0
@@ -298,7 +298,7 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 		validationConfigJSON = "{}"
 	}
 
-	yaml.WriteString("      - name: Write Safe Outputs Tools\n")
+	yaml.WriteString("      - name: Generate Safe Outputs Tools\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_TOOLS_META_JSON: |\n")
 	for line := range strings.SplitSeq(toolsMetaJSON, "\n") {
@@ -620,6 +620,10 @@ func buildMCPGatewayContainerCommand(engine CodingAgentEngine, workflowData *Wor
 		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
 	}
 	var containerCmd strings.Builder
+	// Pre-size the builder to avoid reallocations. The base flags from
+	// appendMCPGatewayBaseEnvFlags alone write ~2KB of -e flags; allocating
+	// 2048 bytes upfront covers the common case without overcommitting.
+	containerCmd.Grow(2048)
 	containerCmd.WriteString("docker run -i --rm --network host")
 	containerCmd.WriteString(" --add-host host.docker.internal:127.0.0.1")
 	containerCmd.WriteString(" --user ${MCP_GATEWAY_UID}:${MCP_GATEWAY_GID}")

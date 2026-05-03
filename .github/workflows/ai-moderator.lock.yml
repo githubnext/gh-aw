@@ -119,6 +119,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.pre_activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -392,6 +395,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -465,7 +471,7 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh"
       - name: Download container images
         run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.35 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.35 ghcr.io/github/gh-aw-firewall/squid:0.25.35 ghcr.io/github/gh-aw-mcpg:v0.3.3 ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959 node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
-      - name: Write Safe Outputs Config
+      - name: Generate Safe Outputs Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -473,7 +479,7 @@ jobs:
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_82ef2e5e487124ae_EOF'
           {"add_labels":{"allowed":["spam","ai-generated","link-spam","ai-inspected"],"target":"*"},"create_report_incomplete_issue":{},"hide_comment":{"allowed_reasons":["spam"],"max":5},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
           GH_AW_SAFE_OUTPUTS_CONFIG_82ef2e5e487124ae_EOF
-      - name: Write Safe Outputs Tools
+      - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
             {
@@ -801,6 +807,10 @@ jobs:
       - name: Clean credentials
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
+      - name: Audit pre-agent workspace
+        id: pre_agent_audit
+        continue-on-error: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/audit_pre_agent_workspace.sh"
       - name: Execute Codex CLI
         id: agentic_execution
         run: |
@@ -973,6 +983,7 @@ jobs:
             !/tmp/gh-aw/proxy-logs/proxy-tls/
             /tmp/gh-aw/agent_usage.json
             /tmp/gh-aw/agent-stdio.log
+            /tmp/gh-aw/pre-agent-audit.txt
             /tmp/gh-aw/agent/
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/safeoutputs.jsonl
@@ -1021,6 +1032,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1134,6 +1148,9 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
       - name: Check user rate limit
         id: check_rate_limit
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1217,6 +1234,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1291,6 +1311,9 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
       - name: Unlock issue after agent workflow
         id: unlock-issue
         if: (github.event_name == 'issues' || github.event_name == 'issue_comment') && needs.activation.outputs.issue_locked == 'true'
