@@ -138,13 +138,16 @@ function isWithinDateWindow(startDate, endDate, todayOverride) {
 function pickVariant(name, variants, state) {
   const counts = state.counts[name] || {};
   let minCount = Infinity;
+  let tied = [];
   for (const variant of variants) {
     const c = counts[variant] || 0;
     if (c < minCount) {
       minCount = c;
+      tied = [variant];
+    } else if (c === minCount) {
+      tied.push(variant);
     }
   }
-  const tied = variants.filter(v => (counts[v] || 0) === minCount);
   return tied[Math.floor(Math.random() * tied.length)];
 }
 

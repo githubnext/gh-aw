@@ -36,8 +36,9 @@ describe("pick_experiment", () => {
     it("selects one of the tied variants randomly when counts are equal", () => {
       const state = { counts: {} };
       // Run many times and verify both variants are eventually selected.
+      // The probability that one variant never appears in 200 trials is (1/2)^200, which is negligible.
       const results = new Set();
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 200; i++) {
         results.add(pickVariant("f", ["A", "B"], state));
       }
       expect(results).toContain("A");
@@ -69,8 +70,9 @@ describe("pick_experiment", () => {
     it("handles unknown experiment name (no counts yet) by picking randomly", () => {
       const state = { counts: {} };
       // Both variants must be reachable from an empty state.
+      // The probability that one variant never appears in 200 trials is (1/2)^200, which is negligible.
       const results = new Set();
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 200; i++) {
         results.add(pickVariant("new", ["X", "Y"], state));
       }
       expect(results).toContain("X");
