@@ -179,6 +179,7 @@ describe("dispatch_repository", () => {
     });
 
     it("should inject aw_context into client_payload", async () => {
+      process.env.GITHUB_RUN_ID = "9999";
       process.env.GITHUB_RUN_ATTEMPT = "2";
       process.env.GITHUB_WORKFLOW_REF = "test-owner/test-repo/.github/workflows/test.lock.yml@refs/heads/main";
       mockContext.eventName = "issues";
@@ -203,6 +204,7 @@ describe("dispatch_repository", () => {
         root_run_id: "9999",
       });
 
+      delete process.env.GITHUB_RUN_ID;
       delete process.env.GITHUB_RUN_ATTEMPT;
       delete process.env.GITHUB_WORKFLOW_REF;
     });
