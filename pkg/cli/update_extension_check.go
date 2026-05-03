@@ -20,6 +20,14 @@ import (
 
 var updateExtensionCheckLog = logger.New("cli:update_extension_check")
 
+// maxBackupCleanupAttempts is the number of times cleanupStaleWindowsBackups
+// retries removing a stale .bak file before giving up.
+const maxBackupCleanupAttempts = 3
+
+// backupCleanupRetryDelay is the pause between successive cleanup attempts.
+// The delay allows transient locks (e.g. Windows Defender scanning) to clear.
+const backupCleanupRetryDelay = 300 * time.Millisecond
+
 // upgradeExtensionIfOutdated checks if a newer version of the gh-aw extension is available
 // and, if so, upgrades it automatically.
 //
@@ -356,8 +364,6 @@ func cleanupStaleWindowsBackups(extDir string, ownBackup string) {
 		updateExtensionCheckLog.Printf("Could not read extension directory for stale .bak cleanup: %v", err)
 		return
 	}
-	const maxAttempts = 3
-	const retryDelay = 300 * time.Millisecond
 	for _, entry := range entries {
 		if !strings.HasSuffix(entry.Name(), ".bak") {
 			continue
@@ -366,17 +372,17 @@ func cleanupStaleWindowsBackups(extDir string, ownBackup string) {
 		if bakFile == ownBackup {
 			continue // do not remove our own active backup
 		}
-		for attempt := range maxAttempts {
+		for attempt := range maxBackupCleanupAttempts {
 			if removeErr := os.Remove(bakFile); removeErr == nil {
 				updateExtensionCheckLog.Printf("Removed stale .bak file: %s", bakFile)
 				break
-			} else if attempt < maxAttempts-1 {
+			} else if attempt < maxBackupCleanupAttempts-1 {
 				updateExtensionCheckLog.Printf("Could not remove stale .bak file %s (attempt %d/%d, retrying in %v): %v",
-					bakFile, attempt+1, maxAttempts, retryDelay, removeErr)
-				time.Sleep(retryDelay)
+					bakFile, attempt+1, maxBackupCleanupAttempts, backupCleanupRetryDelay, removeErr)
+				time.Sleep(backupCleanupRetryDelay)
 			} else {
 				updateExtensionCheckLog.Printf("Could not remove stale .bak file %s after %d attempts (gh extension remove may fail): %v",
-					bakFile, maxAttempts, removeErr)
+					bakFile, maxBackupCleanupAttempts, removeErr)
 			}
 		}
 	}
