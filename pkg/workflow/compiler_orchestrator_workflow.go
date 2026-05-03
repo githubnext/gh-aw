@@ -396,6 +396,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	// Extract experiments configuration once; derive the simple variants map from the configs.
 	workflowData.ExperimentConfigs = extractExperimentConfigsFromFrontmatter(frontmatter)
 	workflowData.Experiments = experimentVariantsFromConfigs(workflowData.ExperimentConfigs)
+	workflowData.ExperimentsStorage = extractExperimentsStorageFromFrontmatter(frontmatter)
 
 	return nil
 }

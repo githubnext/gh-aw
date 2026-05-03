@@ -19,6 +19,20 @@ const experimentsCacheDir = "/tmp/gh-aw/experiments"
 // experimentStateFile is the path to the experiment state JSON written by pick_experiment.cjs.
 const experimentStateFile = experimentsCacheDir + "/state.json"
 
+// ExperimentsStorageCache uses GitHub Actions cache to persist experiment state.
+const ExperimentsStorageCache = "cache"
+
+// ExperimentsStorageRepo uses a git branch (repo-memory) to persist experiment state.
+// This is the default because experiment data is valuable and repo storage is more durable.
+const ExperimentsStorageRepo = "repo"
+
+// experimentsBranchPrefix is the git branch prefix used when storage: repo is selected.
+// Branches are named "experiments/{sanitizedWorkflowID}".
+const experimentsBranchPrefix = "experiments"
+
+// experimentsStorageReservedKey is the reserved key in the experiments map that controls storage mode.
+const experimentsStorageReservedKey = "storage"
+
 // experimentNamePattern validates experiment names as identifier-style keys.
 // Experiment names must match [a-zA-Z_][a-zA-Z0-9_]* so they can be used
 // as GitHub Actions step output names and in ${{ experiments.<name> }} expressions without
@@ -52,6 +66,10 @@ func extractExperimentConfigsFromFrontmatter(frontmatter map[string]any) map[str
 	}
 	result := make(map[string]*ExperimentConfig, len(rawMap))
 	for name, val := range rawMap {
+		// "storage" is a reserved key that controls persistence mode, not an experiment name.
+		if name == experimentsStorageReservedKey {
+			continue
+		}
 		if !experimentNamePattern.MatchString(name) {
 			experimentsLog.Printf("Skipping experiment %q: name must match [a-zA-Z_][a-zA-Z0-9_]*", name)
 			continue
@@ -65,6 +83,41 @@ func extractExperimentConfigsFromFrontmatter(frontmatter map[string]any) map[str
 		return nil
 	}
 	return result
+}
+
+// extractExperimentsStorageFromFrontmatter reads the "storage" key from the experiments
+// map and returns the resolved storage mode.  Returns ExperimentsStorageRepo when the
+// key is absent or has an unrecognised value.
+func extractExperimentsStorageFromFrontmatter(frontmatter map[string]any) string {
+	raw, ok := frontmatter["experiments"]
+	if !ok || raw == nil {
+		return ExperimentsStorageRepo
+	}
+	rawMap, ok := raw.(map[string]any)
+	if !ok {
+		return ExperimentsStorageRepo
+	}
+	if storageRaw, ok := rawMap[experimentsStorageReservedKey]; ok {
+		if s, ok := storageRaw.(string); ok {
+			switch s {
+			case ExperimentsStorageCache, ExperimentsStorageRepo:
+				return s
+			default:
+				experimentsLog.Printf("Unknown experiments storage %q; falling back to %q", s, ExperimentsStorageRepo)
+			}
+		}
+	}
+	return ExperimentsStorageRepo
+}
+
+// experimentsBranchName returns the git branch name used for repo-based experiment storage.
+// Format: "experiments/{sanitizedWorkflowID}"
+func experimentsBranchName(workflowID string) string {
+	sanitized := SanitizeWorkflowIDForCacheKey(workflowID)
+	if sanitized == "" {
+		sanitized = "default"
+	}
+	return experimentsBranchPrefix + "/" + sanitized
 }
 
 // extractOneExperimentConfig converts a single raw experiment value into an ExperimentConfig.
@@ -229,20 +282,36 @@ func extractIntSlice(raw any) []int {
 
 // generateExperimentSteps creates the steps that pick and upload A/B experiment variants.
 //
-// Steps generated (only when experiments are declared):
+// When storage is "cache" (legacy) the steps are:
 //  1. Restore experiment cache   – actions/cache/restore keyed by workflow ID
 //  2. Pick variants              – pick_experiment.cjs (reads/writes state.json, sets step outputs,
 //     writes a Markdown step summary); outputs: one per experiment (e.g. "caveman=yes") + "experiments" JSON blob
 //  3. Save experiment cache      – actions/cache/save keyed by workflow ID
 //  4. Upload experiment artifact – actions/upload-artifact named "{workflowID}-experiment"
+//
+// When storage is "repo" (default) the steps are:
+//  1. Restore experiment state from git – load_experiment_state_from_repo.cjs fetches state.json
+//     from the "experiments/{sanitizedID}" branch via the GitHub API (read-only; falls back to
+//     empty state when the branch/file does not yet exist)
+//  2. Pick variants              – same as cache mode
+//  3. Upload experiment artifact – same as cache mode (NO cache save; a separate push job commits state)
 func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 	if len(data.Experiments) == 0 {
 		return nil
 	}
 
 	experimentNames := sortedExperimentNames(data.Experiments)
-	experimentsLog.Printf("Generating experiment steps for %d experiment(s): %v", len(experimentNames), experimentNames)
+	experimentsLog.Printf("Generating experiment steps for %d experiment(s): %v (storage=%s)", len(experimentNames), experimentNames, data.ExperimentsStorage)
 
+	if data.ExperimentsStorage == ExperimentsStorageCache {
+		return c.generateExperimentCacheSteps(data, experimentNames)
+	}
+	// Default: repo storage.
+	return c.generateExperimentRepoSteps(data, experimentNames)
+}
+
+// generateExperimentCacheSteps generates the experiment steps using GitHub Actions cache for persistence.
+func (c *Compiler) generateExperimentCacheSteps(data *WorkflowData, experimentNames []string) []string {
 	// Use the literal sanitized workflow ID in the cache key so it is correct in the
 	// activation job, which does not have GH_AW_WORKFLOW_ID_SANITIZED in its environment.
 	sanitizedID := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
@@ -262,25 +331,7 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 		fmt.Sprintf("          path: %s\n", experimentsCacheDir),
 	)
 
-	// ── Step 2: Pick experiment variants ──────────────────────────────────────
-	// Build the JSON spec including full metadata when available.
-	specJSON := buildExperimentSpecJSON(data.Experiments, data.ExperimentConfigs, experimentNames)
-
-	steps = append(steps,
-		"      - name: Pick experiment variants\n",
-		"        id: pick-experiment\n",
-		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
-		"        env:\n",
-		fmt.Sprintf("          GH_AW_EXPERIMENT_SPEC: '%s'\n", strings.ReplaceAll(specJSON, "'", "''")),
-		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_FILE: %s\n", experimentStateFile),
-		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_DIR: %s\n", experimentsCacheDir),
-		"        with:\n",
-		"          script: |\n",
-		"            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n",
-		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
-		"            const { main } = require('"+SetupActionDestination+"/pick_experiment.cjs');\n",
-		"            await main();\n",
-	)
+	steps = append(steps, c.generatePickExperimentStep(data, experimentNames)...)
 
 	// ── Step 3: Save experiment cache ─────────────────────────────────────────
 	steps = append(steps,
@@ -292,12 +343,68 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 		fmt.Sprintf("          path: %s\n", experimentsCacheDir),
 	)
 
-	// ── Step 4: Upload experiment artifact ────────────────────────────────────
+	steps = append(steps, c.generateExperimentArtifactUploadStep(data, sanitizedID)...)
+	return steps
+}
+
+// generateExperimentRepoSteps generates the experiment steps using a git branch for durable persistence.
+// The activation job restores state via the GitHub API (read-only); a separate push_experiments_state
+// job commits and pushes the updated state after the activation job succeeds.
+func (c *Compiler) generateExperimentRepoSteps(data *WorkflowData, experimentNames []string) []string {
+	sanitizedID := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+	branchName := experimentsBranchName(data.WorkflowID)
+
+	var steps []string
+
+	// ── Step 1: Restore experiment state from git branch ─────────────────────
+	steps = append(steps,
+		"      - name: Restore experiment state from git\n",
+		"        id: restore-experiment-state\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        env:\n",
+		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_FILE: %s\n", experimentStateFile),
+		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_DIR: %s\n", experimentsCacheDir),
+		fmt.Sprintf("          GH_AW_EXPERIMENT_BRANCH: %s\n", branchName),
+		"        with:\n",
+		"          script: |\n",
+		"            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n",
+		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		"            const { main } = require('"+SetupActionDestination+"/load_experiment_state_from_repo.cjs');\n",
+		"            await main();\n",
+	)
+
+	steps = append(steps, c.generatePickExperimentStep(data, experimentNames)...)
+	steps = append(steps, c.generateExperimentArtifactUploadStep(data, sanitizedID)...)
+	return steps
+}
+
+// generatePickExperimentStep generates the "Pick experiment variants" step shared by both storage modes.
+func (c *Compiler) generatePickExperimentStep(data *WorkflowData, experimentNames []string) []string {
+	specJSON := buildExperimentSpecJSON(data.Experiments, data.ExperimentConfigs, experimentNames)
+	return []string{
+		"      - name: Pick experiment variants\n",
+		"        id: pick-experiment\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        env:\n",
+		fmt.Sprintf("          GH_AW_EXPERIMENT_SPEC: '%s'\n", strings.ReplaceAll(specJSON, "'", "''")),
+		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_FILE: %s\n", experimentStateFile),
+		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_DIR: %s\n", experimentsCacheDir),
+		"        with:\n",
+		"          script: |\n",
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
+		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		"            const { main } = require('" + SetupActionDestination + "/pick_experiment.cjs');\n",
+		"            await main();\n",
+	}
+}
+
+// generateExperimentArtifactUploadStep generates the artifact upload step shared by both storage modes.
+func (c *Compiler) generateExperimentArtifactUploadStep(data *WorkflowData, sanitizedID string) []string {
 	// For workflow_call the artifact prefix expression is prepended at runtime.
 	// For regular workflows the sanitized workflow ID is used as a prefix so the
 	// artifact name uniquely identifies which workflow produced it.
 	experimentArtifactName := experimentArtifactUploadName(data, sanitizedID)
-	steps = append(steps,
+	return []string{
 		"      - name: Upload experiment artifact\n",
 		"        if: always()\n",
 		fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")),
@@ -306,9 +413,7 @@ func (c *Compiler) generateExperimentSteps(data *WorkflowData) []string {
 		fmt.Sprintf("          path: %s\n", experimentsCacheDir),
 		"          if-no-files-found: ignore\n",
 		"          retention-days: 30\n",
-	)
-
-	return steps
+	}
 }
 
 // buildExperimentSpecJSON builds a compact JSON object from the experiments map.
@@ -435,4 +540,101 @@ func buildExperimentArtifactDownloadSteps(data *WorkflowData) []string {
 		DownloadPath: experimentsCacheDir + "/",
 		StepName:     "Download experiment artifact",
 	})
+}
+
+// buildPushExperimentsStateJob creates a job that downloads the experiment-state artifact and
+// commits it to a git branch ("experiments/{sanitizedID}") for durable storage across runs.
+// Returns nil when there are no experiments or the storage mode is not "repo".
+func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error) {
+	if len(data.Experiments) == 0 || data.ExperimentsStorage != ExperimentsStorageRepo {
+		return nil, nil
+	}
+
+	experimentsLog.Printf("Building push_experiments_state job (branch=%s)", experimentsBranchName(data.WorkflowID))
+
+	var steps []string
+
+	// Setup step so the push_repo_memory.cjs script is available.
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" || c.actionMode.IsScript() {
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+		traceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, traceID)...)
+	}
+
+	// Checkout step – configure git credentials without downloading workspace files.
+	var checkoutStep strings.Builder
+	checkoutStep.WriteString("      - name: Checkout repository\n")
+	fmt.Fprintf(&checkoutStep, "        uses: %s\n", getActionPin("actions/checkout"))
+	checkoutStep.WriteString("        with:\n")
+	checkoutStep.WriteString("          persist-credentials: false\n")
+	checkoutStep.WriteString("          sparse-checkout: .\n")
+	steps = append(steps, checkoutStep.String())
+
+	// Git configuration (author, email).
+	steps = append(steps, c.generateGitConfigurationSteps()...)
+
+	// Download the experiment artifact uploaded by the activation job.
+	artifactName := experimentArtifactDownloadName(data)
+	var downloadStep strings.Builder
+	downloadStep.WriteString("      - name: Download experiment artifact\n")
+	fmt.Fprintf(&downloadStep, "        uses: %s\n", getActionPin("actions/download-artifact"))
+	downloadStep.WriteString("        continue-on-error: true\n")
+	downloadStep.WriteString("        with:\n")
+	fmt.Fprintf(&downloadStep, "          name: %s\n", artifactName)
+	fmt.Fprintf(&downloadStep, "          path: %s\n", experimentsCacheDir)
+	steps = append(steps, downloadStep.String())
+
+	// Push experiment state to the git branch via push_repo_memory.cjs.
+	branchName := experimentsBranchName(data.WorkflowID)
+	allowedExtsJSON := `[".json"]`
+
+	var pushStep strings.Builder
+	pushStep.WriteString("      - name: Push experiment state to git\n")
+	pushStep.WriteString("        id: push_experiments_state\n")
+	pushStep.WriteString("        if: always()\n")
+	fmt.Fprintf(&pushStep, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	pushStep.WriteString("        env:\n")
+	pushStep.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+	pushStep.WriteString("          GITHUB_RUN_ID: ${{ github.run_id }}\n")
+	pushStep.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
+	fmt.Fprintf(&pushStep, "          ARTIFACT_DIR: %s\n", experimentsCacheDir)
+	pushStep.WriteString("          MEMORY_ID: experiments\n")
+	pushStep.WriteString("          TARGET_REPO: ${{ github.repository }}\n")
+	fmt.Fprintf(&pushStep, "          BRANCH_NAME: %s\n", branchName)
+	fmt.Fprintf(&pushStep, "          ALLOWED_EXTENSIONS: '%s'\n", allowedExtsJSON)
+	// Limit files to state.json and assignments.json only.
+	pushStep.WriteString("          FILE_GLOB_FILTER: \"*.json\"\n")
+	pushStep.WriteString("        with:\n")
+	pushStep.WriteString("          script: |\n")
+	pushStep.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	pushStep.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+	pushStep.WriteString("            const { main } = require('" + SetupActionDestination + "/push_repo_memory.cjs');\n")
+	pushStep.WriteString("            await main();\n")
+	steps = append(steps, pushStep.String())
+
+	// Restore the checkout in dev mode (same reason as push_repo_memory).
+	if c.actionMode.IsDev() {
+		steps = append(steps, c.generateRestoreActionsSetupStep())
+	}
+
+	// The push_experiments_state job runs after the activation job succeeds.
+	// It does not depend on the agent job because experiment state was fully resolved in activation.
+	activationSucceeded := BuildEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.ActivationJobName)),
+		BuildStringLiteral("success"),
+	)
+	notCancelled := &NotNode{Child: BuildFunctionCall("cancelled")}
+	jobCondition := RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), activationSucceeded))
+
+	job := &Job{
+		Name:        "push_experiments_state",
+		RunsOn:      c.formatFrameworkJobRunsOn(data),
+		If:          jobCondition,
+		Permissions: "permissions:\n      contents: write",
+		Needs:       []string{string(constants.ActivationJobName)},
+		Steps:       steps,
+	}
+
+	return job, nil
 }

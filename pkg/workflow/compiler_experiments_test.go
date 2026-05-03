@@ -83,12 +83,41 @@ func TestGenerateExperimentSteps_Generated(t *testing.T) {
 		Experiments: map[string][]string{
 			"feature1": {"A", "B"},
 		},
+		// Default storage is repo; no ExperimentsStorage means repo.
 	}
 	steps := c.generateExperimentSteps(data)
 	require.NotEmpty(t, steps, "steps should be generated when experiments are declared")
 
 	joined := strings.Join(steps, "")
+	// Repo storage: restore via GitHub API, no cache save step.
+	assert.Contains(t, joined, "Restore experiment state from git", "should include git restore step for repo storage")
+	assert.Contains(t, joined, "load_experiment_state_from_repo.cjs", "should reference load helper for repo storage")
+	assert.Contains(t, joined, "GH_AW_EXPERIMENT_BRANCH", "should set branch env var")
+	assert.Contains(t, joined, "experiments/myworkflow", "branch should include sanitized workflow ID")
+	assert.Contains(t, joined, "Pick experiment variants", "should include pick step")
+	assert.Contains(t, joined, "pick_experiment.cjs", "should reference pick_experiment.cjs")
+	assert.NotContains(t, joined, "Save experiment state", "repo storage should not include cache save step")
+	assert.Contains(t, joined, "Upload experiment artifact", "should include artifact upload step")
+	assert.Contains(t, joined, "myworkflow-experiment", "artifact name should include sanitized workflow ID and 'experiment'")
+	assert.NotContains(t, joined, "GH_AW_WORKFLOW_ID_SANITIZED", "branch name must not reference unset env var")
+}
+
+func TestGenerateExperimentSteps_CacheStorage(t *testing.T) {
+	c := &Compiler{}
+	data := &WorkflowData{
+		WorkflowID: "my-workflow",
+		Experiments: map[string][]string{
+			"feature1": {"A", "B"},
+		},
+		ExperimentsStorage: ExperimentsStorageCache,
+	}
+	steps := c.generateExperimentSteps(data)
+	require.NotEmpty(t, steps, "steps should be generated when experiments are declared")
+
+	joined := strings.Join(steps, "")
+	// Cache storage: classic actions/cache restore and save.
 	assert.Contains(t, joined, "Restore experiment state", "should include cache restore step")
+	assert.NotContains(t, joined, "load_experiment_state_from_repo.cjs", "cache storage should not reference git load helper")
 	assert.Contains(t, joined, "Pick experiment variants", "should include pick step")
 	assert.Contains(t, joined, "pick_experiment.cjs", "should reference pick_experiment.cjs")
 	assert.Contains(t, joined, "Save experiment state", "should include cache save step")
@@ -374,4 +403,85 @@ func TestGenerateExperimentSteps_WithConfigs(t *testing.T) {
 	assert.Contains(t, joined, `"variants"`, "spec should include variants key")
 	assert.Contains(t, joined, `"weight"`, "spec should include weight key")
 	assert.Contains(t, joined, `"start_date"`, "spec should include start_date key")
+}
+
+// ── extractExperimentsStorageFromFrontmatter ──────────────────────────────
+
+func TestExtractExperimentsStorageFromFrontmatter(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		want        string
+	}{
+		{
+			name:        "no experiments key returns repo default",
+			frontmatter: map[string]any{},
+			want:        ExperimentsStorageRepo,
+		},
+		{
+			name:        "nil experiments returns repo default",
+			frontmatter: map[string]any{"experiments": nil},
+			want:        ExperimentsStorageRepo,
+		},
+		{
+			name:        "experiments without storage key returns repo default",
+			frontmatter: map[string]any{"experiments": map[string]any{"my_exp": []any{"A", "B"}}},
+			want:        ExperimentsStorageRepo,
+		},
+		{
+			name:        "storage: repo returns repo",
+			frontmatter: map[string]any{"experiments": map[string]any{"storage": "repo"}},
+			want:        ExperimentsStorageRepo,
+		},
+		{
+			name:        "storage: cache returns cache",
+			frontmatter: map[string]any{"experiments": map[string]any{"storage": "cache"}},
+			want:        ExperimentsStorageCache,
+		},
+		{
+			name:        "unknown storage value returns repo default",
+			frontmatter: map[string]any{"experiments": map[string]any{"storage": "unknown"}},
+			want:        ExperimentsStorageRepo,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractExperimentsStorageFromFrontmatter(tt.frontmatter)
+			assert.Equal(t, tt.want, got, "storage should match expected value")
+		})
+	}
+}
+
+// ── experimentsBranchName ─────────────────────────────────────────────────
+
+func TestExperimentsBranchName(t *testing.T) {
+	tests := []struct {
+		workflowID string
+		want       string
+	}{
+		{"my-workflow", "experiments/myworkflow"},
+		{"smoke-copilot", "experiments/smokecopilot"},
+		{"", "experiments/default"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.workflowID, func(t *testing.T) {
+			got := experimentsBranchName(tt.workflowID)
+			assert.Equal(t, tt.want, got, "branch name should use experiments/ prefix")
+		})
+	}
+}
+
+// ── storage key is excluded from experiment configs ───────────────────────
+
+func TestExtractExperimentConfigsFromFrontmatter_StorageKeyIsSkipped(t *testing.T) {
+	frontmatter := map[string]any{
+		"experiments": map[string]any{
+			"storage": "repo",
+			"my_exp":  []any{"A", "B"},
+		},
+	}
+	got := extractExperimentConfigsFromFrontmatter(frontmatter)
+	require.NotNil(t, got, "experiment configs should not be nil")
+	assert.Contains(t, got, "my_exp", "my_exp should be present")
+	assert.NotContains(t, got, "storage", "storage key should be excluded from experiment configs")
 }
