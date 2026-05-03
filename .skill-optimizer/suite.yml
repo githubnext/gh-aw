@@ -1,0 +1,83 @@
+name: gh-aw-skill-suite
+# skill-optimizer v2 workbench suite for the gh-aw prompt surface.
+# Run locally: skill-optimizer run-suite .skill-optimizer/suite.yml
+# Requires: Docker + OPENROUTER_API_KEY
+models:
+  - openrouter/anthropic/claude-sonnet-4.6
+env:
+  - OPENROUTER_API_KEY
+timeoutSeconds: 300
+
+cases:
+  - name: ansi-escape-prevention
+    task: |
+      I'm editing a compiled workflow YAML file in .github/workflows/ and some
+      terminal output I pasted seems to have broken the YAML parser.
+      How do I avoid ANSI escape codes in workflow YAML files, and how do I check
+      for them?
+
+      Write your answer to /work/answer.md.
+    graders:
+      - name: mentions-ansi-break-yaml
+        command: >
+          node -e "
+            const fs = require('fs');
+            const answer = fs.readFileSync('/work/answer.md', 'utf8').toLowerCase();
+            const checks = [
+              answer.includes('ansi'),
+              answer.includes('\\\\x1b') || answer.includes('escape code'),
+              answer.includes('--no-color') || answer.includes('| cat'),
+              answer.includes('make recompile') || answer.includes('recompile'),
+              answer.includes('stripansi') || answer.includes('strip'),
+            ];
+            const passed = checks.filter(Boolean).length;
+            process.exitCode = passed >= 4 ? 0 : 1;
+          "
+
+  - name: sanitized-outputs-migration
+    task: |
+      I have a workflow that uses \`\${{ needs.activation.outputs.text }}\` and
+      \`\${{ needs.activation.outputs.title }}\` in the agent prompt to get the issue
+      body and title. I'm seeing a deprecation warning during compilation.
+      What should I change, and why?
+
+      Write your answer to /work/answer.md.
+    graders:
+      - name: correct-replacement
+        command: >
+          node -e "
+            const fs = require('fs');
+            const answer = fs.readFileSync('/work/answer.md', 'utf8');
+            const checks = [
+              answer.includes('steps.sanitized.outputs'),
+              answer.includes('needs.activation.outputs'),
+              answer.toLowerCase().includes('deprecat'),
+              answer.includes('activation job'),
+            ];
+            const passed = checks.filter(Boolean).length;
+            process.exitCode = passed >= 3 ? 0 : 1;
+          "
+
+  - name: skill-optimizer-clean-git
+    task: |
+      Our daily skill-optimizer CI job keeps failing with the error:
+      \`target.repoPath: target repo has uncommitted changes (optimize.requireCleanGit is enabled)\`.
+      The init step runs fine but the run step fails every time.
+      How should I fix this so the optimizer can run successfully in CI?
+
+      Write your answer to /work/answer.md.
+    graders:
+      - name: recommends-require-clean-git-false
+        command: >
+          node -e "
+            const fs = require('fs');
+            const answer = fs.readFileSync('/work/answer.md', 'utf8');
+            const checks = [
+              answer.includes('requireCleanGit'),
+              answer.includes('false'),
+              answer.includes('git stash'),
+              answer.includes('optimize'),
+            ];
+            const passed = checks.filter(Boolean).length;
+            process.exitCode = passed >= 3 ? 0 : 1;
+          "
