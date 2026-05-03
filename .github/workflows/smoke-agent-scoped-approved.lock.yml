@@ -727,39 +727,7 @@ jobs:
       - name: Audit pre-agent workspace
         id: pre-agent-audit
         continue-on-error: true
-        run: |
-          AUDIT_FILE="/tmp/gh-aw/pre-agent-audit.txt"
-          mkdir -p "$(dirname "${AUDIT_FILE}")"
-          PRUNE_OPTS=(
-            -not -path "*/node_modules/*"
-            -not -path "*/__pycache__/*"
-            -not -path "*/.cache/*"
-            -not -path "*/vendor/*"
-            -not -path "*/.npm/*"
-            -not -path "*/.yarn/*"
-            -not -path "*/.pnpm-store/*"
-            -not -path "*/site-packages/*"
-            -not -path "*/.bundle/*"
-          )
-          {
-            echo "=== Pre-agent workspace audit ==="
-            echo "--- Workspace agents: ${GITHUB_WORKSPACE}/.github/agents/ ---"
-            find "${GITHUB_WORKSPACE}/.github/agents" "${PRUNE_OPTS[@]}" -print 2>/dev/null || echo "(not found)"
-            echo "--- Workspace skills: ${GITHUB_WORKSPACE}/.github/skills/ ---"
-            find "${GITHUB_WORKSPACE}/.github/skills" "${PRUNE_OPTS[@]}" -print 2>/dev/null || echo "(not found)"
-            echo "--- Workspace copilot config: ${GITHUB_WORKSPACE}/.github/copilot/ ---"
-            find "${GITHUB_WORKSPACE}/.github/copilot" "${PRUNE_OPTS[@]}" -print 2>/dev/null || echo "(not found)"
-            echo "--- Agent user home agents: ${HOME}/.github/ ---"
-            find "${HOME}/.github" "${PRUNE_OPTS[@]}" -print 2>/dev/null || echo "(not found)"
-            echo "--- gh extensions: ${HOME}/.local/share/gh/extensions/ ---"
-            find "${HOME}/.local/share/gh/extensions" "${PRUNE_OPTS[@]}" -print 2>/dev/null || echo "(not found)"
-            echo "--- gh-aw temp directory: ${RUNNER_TEMP}/gh-aw/ ---"
-            find "${RUNNER_TEMP}/gh-aw" "${PRUNE_OPTS[@]}" -print 2>/dev/null || echo "(not found)"
-          } > "${AUDIT_FILE}"
-          LINE_COUNT="$(wc -l < "${AUDIT_FILE}" | tr -d ' ')"
-          echo "pre-agent-audit-file=${AUDIT_FILE}" >> "${GITHUB_OUTPUT}"
-          echo "pre-agent-audit-line-count=${LINE_COUNT}" >> "${GITHUB_OUTPUT}"
-          echo "Pre-agent audit written to ${AUDIT_FILE} (${LINE_COUNT} lines)"
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/audit_pre_agent_workspace.sh"
       - name: Clean credentials
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"

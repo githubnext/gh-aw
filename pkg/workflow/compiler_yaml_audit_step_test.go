@@ -105,43 +105,30 @@ Test workflow to verify audit file is in artifact paths.
 		"audit file path %q should appear in lock file", constants.PreAgentAuditFilePath)
 }
 
-func TestPreAgentAuditStepExcludesCommonCacheDirs(t *testing.T) {
+func TestPreAgentAuditStepCallsShellScript(t *testing.T) {
 	var sb strings.Builder
 	compiler := NewCompiler()
 	compiler.generatePreAgentAuditStep(&sb)
 	stepYAML := sb.String()
 
-	excludedDirs := []string{
-		"node_modules",
-		"__pycache__",
-		".cache",
-		"vendor",
-		".npm",
-		".yarn",
-		".pnpm-store",
-		"site-packages",
-		".bundle",
-	}
-	for _, dir := range excludedDirs {
-		assert.Contains(t, stepYAML, dir, "step should exclude %q from listings", dir)
-	}
+	assert.Contains(t, stepYAML, "audit_pre_agent_workspace.sh",
+		"step should invoke the audit shell script")
+	assert.Contains(t, stepYAML, "RUNNER_TEMP",
+		"step should use RUNNER_TEMP to locate the shell script")
 }
 
-func TestPreAgentAuditStepCoversAgentDirectories(t *testing.T) {
+func TestPreAgentAuditStepNoInlineInterpolation(t *testing.T) {
 	var sb strings.Builder
 	compiler := NewCompiler()
 	compiler.generatePreAgentAuditStep(&sb)
 	stepYAML := sb.String()
 
-	expectedPaths := []string{
-		".github/agents",
-		".github/skills",
-		".github/copilot",
-		".github",
-		".local/share/gh/extensions",
-		"RUNNER_TEMP",
-	}
-	for _, path := range expectedPaths {
-		assert.Contains(t, stepYAML, path, "step should cover %q directory", path)
-	}
+	// The step must be a simple script invocation with no hardcoded paths or
+	// inline shell logic interpolated from Go values.
+	assert.NotContains(t, stepYAML, "/tmp/gh-aw/pre-agent-audit.txt",
+		"hardcoded audit file path should not be interpolated into the step YAML")
+	assert.NotContains(t, stepYAML, "node_modules",
+		"exclude patterns should live in the shell script, not inlined in YAML")
+	assert.NotContains(t, stepYAML, "GITHUB_OUTPUT",
+		"GITHUB_OUTPUT writes should be in the shell script, not inlined in YAML")
 }
