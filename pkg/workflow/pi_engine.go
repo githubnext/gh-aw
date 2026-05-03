@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"strings"
@@ -115,14 +116,44 @@ func piNativeProviderName(backend UniversalLLMBackend) string {
 // (not the token value itself).  baseUrl, however, must contain an actual URL,
 // so it is filled at runtime via printf from the env var.
 func buildPiModelsJSONSetup(baseURLEnvVarName, secretEnvVarName, modelID string) string {
-	// Build the JSON format string with a single %s placeholder for the base URL.
-	// apiKey and modelID are fixed at compile time; baseUrl is substituted at runtime.
-	jsonFmt := fmt.Sprintf(
-		`{"providers":{"aw-gateway":{"api":"openai-completions","apiKey":"%s","baseUrl":"%%s","models":[{"id":"%s"}]}}}`,
-		secretEnvVarName, modelID)
+	// Use json.Marshal for the fixed parts (apiKey and modelID) so that any
+	// special characters are properly escaped, preventing JSON injection.
+	// baseUrl is substituted at runtime via printf; the %s placeholder remains
+	// as a printf format specifier.
+	type modelEntry struct {
+		ID string `json:"id"`
+	}
+	type providerConfig struct {
+		API    string `json:"api"`
+		APIKey string `json:"apiKey"`
+		// baseUrl is a literal "%s" placeholder filled by printf at runtime.
+		BaseURLPlaceholder string       `json:"baseUrl"`
+		Models             []modelEntry `json:"models"`
+	}
+	type modelsPayload struct {
+		Providers map[string]providerConfig `json:"providers"`
+	}
+
+	payload := modelsPayload{
+		Providers: map[string]providerConfig{
+			"aw-gateway": {
+				API:                "openai-completions",
+				APIKey:             secretEnvVarName,
+				BaseURLPlaceholder: "%s",
+				Models:             []modelEntry{{ID: modelID}},
+			},
+		},
+	}
+
+	b, err := json.Marshal(payload)
+	if err != nil {
+		// json.Marshal only fails for non-serialisable types; our struct is always
+		// serialisable, so this branch is unreachable in practice.
+		panic(fmt.Sprintf("BUG: buildPiModelsJSONSetup failed to marshal JSON: %v", err))
+	}
 	return fmt.Sprintf(
 		`mkdir -p /tmp/gh-aw/pi-agent-dir && printf '%s' "${%s}" > /tmp/gh-aw/pi-agent-dir/models.json && `,
-		jsonFmt, baseURLEnvVarName)
+		string(b), baseURLEnvVarName)
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Pi engine.
