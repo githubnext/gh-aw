@@ -186,15 +186,19 @@ func TestPiEngine_GetExecutionSteps_WithModel(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi", Model: "pi-3"},
+		EngineConfig: &EngineConfig{ID: "pi", Model: "copilot/claude-sonnet-4"},
 		ParsedTools:  NewTools(map[string]any{}),
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
 	require.NotEmpty(t, steps, "Steps should not be empty")
 
 	stepText := strings.Join(steps[0], "\n")
-	assert.Contains(t, stepText, "PI_MODEL", "Step env should include PI_MODEL when model is configured")
-	assert.Contains(t, stepText, "pi-3", "Step env should include the model value")
+	// When firewall is not enabled, Pi is invoked with the --model flag using the
+	// native github-copilot provider (Pi's built-in provider for GitHub Copilot).
+	assert.Contains(t, stepText, "--model", "Step should pass --model flag to Pi CLI")
+	assert.Contains(t, stepText, "github-copilot", "Non-firewall copilot model should use github-copilot/ provider prefix")
+	assert.Contains(t, stepText, "claude-sonnet-4", "Step should include the model ID portion")
+	assert.NotContains(t, stepText, "PI_MODEL", "Step should not set the unsupported PI_MODEL env var")
 }
 
 func TestPiEngine_GetExecutionSteps_ProviderPrefixCopilot(t *testing.T) {
@@ -209,7 +213,11 @@ func TestPiEngine_GetExecutionSteps_ProviderPrefixCopilot(t *testing.T) {
 
 	stepText := strings.Join(steps[0], "\n")
 	assert.Contains(t, stepText, "COPILOT_GITHUB_TOKEN", "copilot/ prefix should inject COPILOT_GITHUB_TOKEN")
+	// OPENAI_API_KEY must not be injected: Pi reads it and routes to api.openai.com,
+	// bypassing the github-copilot provider and the AWF firewall.
+	assert.NotContains(t, stepText, "OPENAI_API_KEY", "copilot/ prefix must not inject OPENAI_API_KEY (causes Pi to use OpenAI instead of github-copilot)")
 	assert.Contains(t, stepText, "pi_provider.cjs", "Step should load the provider extension")
+	assert.Contains(t, stepText, "--model", "Step should pass --model flag to Pi CLI")
 }
 
 func TestPiEngine_GetExecutionSteps_ProviderPrefixAnthropic(t *testing.T) {

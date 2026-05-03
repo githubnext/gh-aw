@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"strings"
@@ -54,6 +56,9 @@ func (e *PiEngine) GetModelEnvVarName() string {
 // resolvePiBackend extracts the provider prefix from the engine model (if any) and maps
 // it to the matching UniversalLLMBackend.  A model without a slash (e.g. "claude-sonnet-4")
 // defaults to the Copilot backend for backward compatibility.
+//
+// "github-copilot/" is accepted as an alias for "copilot/" since that is the
+// provider name used by Pi CLI's built-in model registry.
 func resolvePiBackend(workflowData *WorkflowData) UniversalLLMBackend {
 	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Model == "" {
 		return UniversalLLMBackendCopilot
@@ -63,12 +68,76 @@ func resolvePiBackend(workflowData *WorkflowData) UniversalLLMBackend {
 		// No provider prefix — default to Copilot (backward compatibility).
 		return UniversalLLMBackendCopilot
 	}
+	// "github-copilot" is Pi CLI's internal name for GitHub Copilot.  Accept it as
+	// an alias so workflows can use either "copilot/..." or "github-copilot/...".
+	parts := strings.SplitN(model, "/", 2)
+	if strings.EqualFold(parts[0], "github-copilot") {
+		return UniversalLLMBackendCopilot
+	}
 	backend, err := resolveUniversalLLMBackendFromModel(model)
 	if err != nil {
 		piLog.Printf("Could not resolve backend for Pi model %q, defaulting to copilot: %v", model, err)
 		return UniversalLLMBackendCopilot
 	}
 	return backend
+}
+
+// extractPiModelID returns the model ID portion of a provider/model string.
+// For "copilot/claude-sonnet-4" it returns "claude-sonnet-4".
+// For a bare model name (no slash) the whole string is returned unchanged.
+func extractPiModelID(model string) string {
+	if _, after, found := strings.Cut(model, "/"); found {
+		return after
+	}
+	return model
+}
+
+// piNativeProviderName maps an AWF UniversalLLMBackend to the corresponding
+// Pi CLI built-in provider name.  Used when there is no AWF gateway to proxy
+// through (firewall disabled) so Pi can call the provider's API directly.
+func piNativeProviderName(backend UniversalLLMBackend) string {
+	switch backend {
+	case UniversalLLMBackendAnthropic:
+		return "anthropic"
+	case UniversalLLMBackendCodex:
+		return "openai"
+	default:
+		return "github-copilot"
+	}
+}
+
+// buildPiModelsJSON returns a minimal Pi models.json payload that registers a
+// single custom provider named "aw-gateway" pointing at the AWF LLM gateway
+// sidecar.  Pi's resolveConfigValue() resolves the "apiKey" value by looking
+// up process.env[apiKey], so passing the secret env-var name (e.g.
+// "COPILOT_GITHUB_TOKEN") causes Pi to automatically use the value that is
+// already present in the container environment.
+//
+// All dynamic values are marshaled via encoding/json to prevent JSON injection.
+func buildPiModelsJSON(gatewayPort int, secretEnvVarName, modelID string) string {
+	payload := map[string]any{
+		"providers": map[string]any{
+			"aw-gateway": map[string]any{
+				"baseUrl": fmt.Sprintf("http://host.docker.internal:%d", gatewayPort),
+				"api":     "openai-completions",
+				"apiKey":  secretEnvVarName,
+				"models":  []map[string]any{{"id": modelID}},
+			},
+		},
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		// json.Marshal only fails for non-serialisable types; our map is always
+		// serialisable, so this branch is unreachable in practice.
+		panic(fmt.Sprintf("BUG: buildPiModelsJSON failed to marshal JSON: %v", err))
+	}
+	return string(b)
+}
+
+// encodeBase64 returns the standard base64 encoding of s.  Used to safely
+// embed arbitrary content in shell commands without shell-injection risks.
+func encodeBase64(s string) string {
+	return base64.StdEncoding.EncodeToString([]byte(s))
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Pi engine.
@@ -189,6 +258,12 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 		commandName = workflowData.EngineConfig.Command
 	}
 
+	// Resolve backend and profile early so we can use them when building piArgs.
+	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
+	backend := resolvePiBackend(workflowData)
+	profile := getUniversalLLMBackendProfile(backend, isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData))
+	firewallEnabled := isFirewallEnabled(workflowData)
+
 	// Build the pi command.  Pi v0.72+ uses flags-only syntax (no "run" subcommand).
 	// --print: non-interactive, process prompt from stdin and exit.
 	// --mode json: emit structured JSONL events to stdout.
@@ -198,6 +273,37 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	// Append any user-supplied extra args from engine.args
 	if workflowData.EngineConfig != nil {
 		piArgs = append(piArgs, workflowData.EngineConfig.Args...)
+	}
+
+	// Pi v0.72+ does not support a PI_MODEL env var; the model must be passed as
+	// the --model CLI flag.  When the firewall is enabled we route LLM traffic
+	// through the AWF gateway sidecar by generating a temporary models.json that
+	// registers a custom "aw-gateway" provider pointing at the gateway port.  When
+	// the firewall is disabled we use Pi's built-in provider directly.
+	var piModelsJSONSetup string // shell fragment prepended to piCommand when needed
+	if modelConfigured {
+		modelID := extractPiModelID(workflowData.EngineConfig.Model)
+		if firewallEnabled && len(profile.coreSecretNames) > 0 {
+			// Firewall case: write a models.json that redirects Pi's LLM calls to the
+			// AWF gateway sidecar port.  The "apiKey" field value is the name of the env
+			// var that holds the secret; Pi's resolveConfigValue() looks up
+			// process.env[apiKey] to obtain the actual token value at runtime.
+			//
+			// The JSON is base64-encoded before embedding in the shell command so that
+			// the content is injection-safe regardless of what characters it contains.
+			modelsJSON := buildPiModelsJSON(profile.gatewayPort, profile.coreSecretNames[0], modelID)
+			modelsJSONBase64 := encodeBase64(modelsJSON)
+			piModelsJSONSetup = fmt.Sprintf(
+				`mkdir -p /tmp/gh-aw/pi-agent-dir && echo %s | base64 -d > /tmp/gh-aw/pi-agent-dir/models.json && `,
+				modelsJSONBase64)
+			piArgs = append(piArgs, "--model", "aw-gateway/"+modelID)
+			piLog.Printf("Pi: using models.json gateway routing for model %q via aw-gateway (port %d)", modelID, profile.gatewayPort)
+		} else {
+			// No firewall: use Pi's built-in provider so it can reach the real LLM API.
+			nativeProvider := piNativeProviderName(backend)
+			piArgs = append(piArgs, "--model", nativeProvider+"/"+modelID)
+			piLog.Printf("Pi: using native provider %q for model %q (no firewall)", nativeProvider, modelID)
+		}
 	}
 
 	// The prompt is piped from a file via stdin substitution.
@@ -214,14 +320,12 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 		`cat /tmp/gh-aw/aw-prompts/prompt.txt | %s %s --extension "${RUNNER_TEMP}/gh-aw/actions/pi_provider.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_steering_extension.cjs" 2>&1 | tee %s`,
 		commandName, shellJoinArgs(piArgs), PiStreamingLogFile)
 
-	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
-
-	// Resolve backend based on the model provider prefix.
-	backend := resolvePiBackend(workflowData)
-	profile := getUniversalLLMBackendProfile(backend, isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData))
+	// Prepend models.json generation when the gateway-routing approach is used.
+	if piModelsJSONSetup != "" {
+		piCommand = piModelsJSONSetup + piCommand
+	}
 
 	var command string
-	firewallEnabled := isFirewallEnabled(workflowData)
 	if firewallEnabled {
 		// Get allowed domains: prefer the pre-warmed cache on WorkflowData to avoid
 		// re-running the expensive map+sort operation.
@@ -268,8 +372,11 @@ touch %s
 %s 2>&1 | tee -a %s`, AgentStepSummaryPath, logFile, piCommand, logFile)
 	}
 
-	// Build the environment map.  Provider-specific credentials and base URL are
-	// injected via the backend profile so Pi connects to the correct LLM gateway.
+	// Build the environment map.  Provider-specific credentials are injected via
+	// the backend profile.  The base URL env var (e.g. GITHUB_COPILOT_BASE_URL) is
+	// NOT set for Pi because Pi v0.72+ does not read provider-specific base URL env
+	// vars; routing is instead handled through models.json (firewall case) or by Pi's
+	// native provider (no-firewall case).
 	env := map[string]string{
 		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
 		"GITHUB_AW":           "true",
@@ -277,12 +384,22 @@ touch %s
 		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
 	}
 
-	// Inject provider-specific credentials and, when the firewall is enabled,
-	// the gateway base URL so Pi routes LLM traffic through the correct sidecar port.
+	// Inject provider-specific credentials from the backend profile.
 	maps.Copy(env, profile.env)
-	if firewallEnabled {
-		piLog.Printf("Setting %s to Pi LLM gateway port %d", profile.baseURLEnvName, profile.gatewayPort)
-		env[profile.baseURLEnvName] = fmt.Sprintf("http://host.docker.internal:%d", profile.gatewayPort)
+
+	// Pi CLI reads OPENAI_API_KEY and routes traffic to api.openai.com when the env
+	// var is present, bypassing the github-copilot provider and the AWF gateway.
+	// For the Copilot backend Pi authenticates via COPILOT_GITHUB_TOKEN directly
+	// (either through the native github-copilot provider or via models.json apiKey
+	// resolution), so OPENAI_API_KEY must not be exposed in the container env.
+	if backend == UniversalLLMBackendCopilot {
+		delete(env, "OPENAI_API_KEY")
+	}
+
+	// When the models.json gateway approach is used, tell Pi where to find it.
+	if piModelsJSONSetup != "" {
+		env["PI_CODING_AGENT_DIR"] = "/tmp/gh-aw/pi-agent-dir"
+		piLog.Printf("Pi: setting PI_CODING_AGENT_DIR for models.json gateway config")
 	}
 
 	if workflowData.IsDetectionRun {
@@ -300,12 +417,6 @@ touch %s
 	// for commit authorship.
 	if firewallEnabled {
 		maps.Copy(env, getGitIdentityEnvVars())
-	}
-
-	// Apply native model env var only when explicitly configured.
-	if modelConfigured {
-		piLog.Printf("Setting %s env var for model: %s", constants.PiCLIModelEnvVar, workflowData.EngineConfig.Model)
-		env[constants.PiCLIModelEnvVar] = workflowData.EngineConfig.Model
 	}
 
 	// Apply safe-outputs env
