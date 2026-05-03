@@ -197,70 +197,10 @@ tools:
 
 ### Example: Issue Triage with Categorization and Summarization
 
-This workflow fetches open issues in `steps:`, then delegates categorization and summarization to two small-model sub-agents before the main agent writes a triage report:
+After `steps:` have fetched and split the raw data into per-item files, the prompt
+orchestrates two small-model sub-agents and then synthesizes the results:
 
-````aw wrap
----
-name: Weekly Issue Triage
-description: Categorizes and summarizes open issues using small-model sub-agents
-on:
-  schedule: weekly
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  issues: read
-  discussions: write
-
-engine: copilot
-strict: true
-features:
-  inline-agents: true
-
-network:
-  allowed:
-    - defaults
-    - github
-
-safe-outputs:
-  create-discussion:
-    title-prefix: "[triage] "
-    category: "announcements"
-    max: 1
-    close-older-discussions: true
-
-tools:
-  bash: ["*"]
-  cli-proxy: true
-
-steps:
-  - name: Fetch open issues
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      mkdir -p /tmp/gh-aw/triage
-
-      gh issue list \
-        --repo "${{ github.repository }}" \
-        --state open \
-        --limit 50 \
-        --json number,title,body,labels,createdAt,author,comments \
-        > /tmp/gh-aw/triage/issues.json
-
-      echo "Fetched $(jq 'length' /tmp/gh-aw/triage/issues.json) open issues"
-
-  - name: Prepare per-issue files
-    run: |
-      # Write one JSON file per issue so sub-agents can process them independently
-      jq -c '.[]' /tmp/gh-aw/triage/issues.json | while IFS= read -r issue; do
-        num=$(echo "$issue" | jq '.number')
-        echo "$issue" > "/tmp/gh-aw/triage/issue-${num}.json"
-      done
-      echo "Prepared $(ls /tmp/gh-aw/triage/issue-*.json | wc -l) per-issue files"
-
-timeout-minutes: 15
----
-
+```aw wrap
 # Weekly Issue Triage
 
 The raw issue data is in `/tmp/gh-aw/triage/` — one file per issue (`issue-<number>.json`).
@@ -300,7 +240,7 @@ You receive a JSON file for a single GitHub issue.
 Write a single sentence (≤ 20 words) that describes what the issue is about.
 Return a JSON object: `{"number": <issue number>, "summary": "<sentence>"}`.
 Write nothing else.
-````
+```
 
 ### Why this is faster and cheaper
 
