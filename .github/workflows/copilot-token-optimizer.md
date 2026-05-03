@@ -63,7 +63,7 @@ steps:
         echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/all-runs.json
       fi
 
-  - name: Pre-aggregate top workflows by token usage
+  - name: Aggregate top workflows by token usage
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/token-audit
