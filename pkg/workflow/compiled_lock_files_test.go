@@ -358,6 +358,16 @@ func TestCompiledLockFiles_SmokeWorkflowCallHasExpectedOutputs(t *testing.T) {
 		assert.Contains(t, lockContent, "workflow_call:", "lock file should contain workflow_call trigger")
 	})
 
+	t.Run("LockHasAwContextWorkflowCallInput", func(t *testing.T) {
+		onLockSection := extractWorkflowCallSection(lockContent)
+		workflowCallIdx := strings.Index(onLockSection, "workflow_call:")
+		require.GreaterOrEqual(t, workflowCallIdx, 0, "on section should contain workflow_call:")
+		workflowCallBlock := onLockSection[workflowCallIdx:]
+		assert.Contains(t, workflowCallBlock, "inputs:", "on.workflow_call should have inputs")
+		assert.Contains(t, workflowCallBlock, "aw_context:", "on.workflow_call.inputs should include aw_context")
+		assert.Contains(t, workflowCallBlock, "type: string", "aw_context workflow_call input should be typed as string")
+	})
+
 	t.Run("LockHasSafeOutputsJob", func(t *testing.T) {
 		assert.Contains(t, lockContent, "safe_outputs:", "lock file should contain safe_outputs job")
 	})
