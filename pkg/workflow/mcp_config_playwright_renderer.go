@@ -58,6 +58,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -69,19 +70,22 @@ var mcpPlaywrightLog = logger.New("workflow:mcp_config_playwright_renderer")
 // If inline is true, it writes on a single line; otherwise uses multi-line formatting.
 // Always appends a trailing comma after the closing bracket.
 func writeJSONStringArray(b *strings.Builder, indent, key string, values []string, inline bool) {
+	jsonKey, _ := json.Marshal(key)
 	if inline {
-		b.WriteString(indent + "\"" + key + "\": [")
+		b.WriteString(indent + string(jsonKey) + ": [")
 		for i, v := range values {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			b.WriteString("\"" + v + "\"")
+			jsonVal, _ := json.Marshal(v)
+			b.Write(jsonVal)
 		}
 		b.WriteString("],\n")
 	} else {
-		b.WriteString(indent + "\"" + key + "\": [\n")
+		b.WriteString(indent + string(jsonKey) + ": [\n")
 		for i, v := range values {
-			b.WriteString(indent + "  \"" + v + "\"")
+			jsonVal, _ := json.Marshal(v)
+			b.WriteString(indent + "  " + string(jsonVal))
 			if i < len(values)-1 {
 				b.WriteString(",")
 			}
@@ -120,11 +124,6 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 	// MCP Gateway spec fields for containerized stdio servers
 	yaml.WriteString("                \"container\": \"" + playwrightImage + "\",\n")
 
-	// Docker runtime args (goes before container image in docker run command)
-	// These are additional flags for docker run like --init and --network
-	// Add security-opt and ipc flags for Chromium browser compatibility in GitHub Actions
-	// --security-opt seccomp=unconfined: Required for Chromium sandbox to function properly
-	// --ipc=host: Provides shared memory access required by Chromium
 	// Docker runtime args (goes before container image in docker run command)
 	// These are additional flags for docker run like --init and --network
 	// Add security-opt and ipc flags for Chromium browser compatibility in GitHub Actions
