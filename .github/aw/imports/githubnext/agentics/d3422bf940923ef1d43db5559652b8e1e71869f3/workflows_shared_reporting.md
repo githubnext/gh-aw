@@ -4,11 +4,7 @@
 
 ## Report Formatting
 
-Structure your report with an overview followed by detailed content:
-
-1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
-
-2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information.
+Structure reports with 1–2 overview paragraphs, then full details in `<details>/<summary>` tags:
 
 **Example format:**
 
@@ -35,17 +31,9 @@ Full report content with all sections, tables, and detailed information goes her
 
 ## Reporting Workflow Run Information
 
-When analyzing workflow run logs or reporting information from GitHub Actions runs:
-
 ### 1. Workflow Run ID Formatting
 
 **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
-
-**Format:**
-
-`````markdown
-[§12345](https://github.com/owner/repo/actions/runs/12345)
-`````
 
 **Example:**
 
@@ -70,10 +58,8 @@ When your analysis is based on information mined from one or more workflow runs,
 
 **Guidelines:**
 
-- Include **maximum 3 references** to keep reports concise
-- Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-- Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
-- If analyzing more than 3 runs, select the most important ones for references
+- Maximum 3 references — choose the most relevant (failed, high-cost, or notable runs)
+- Always use the actual URL from workflow run data (`url` from `RunData` or `RunURL` from `ErrorSummary`)
 
 ## Footer Attribution
 
