@@ -440,11 +440,6 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	// Mount MCP servers as CLI tools (runs after gateway is started)
 	c.generateMCPCLIMountStep(yaml, data)
 
-	// Emit an audit step after all pre-agent preparation (skills, agents, MCP servers)
-	// is complete but before the agent begins execution. This captures a file listing of
-	// agent-related directories so the state is visible in the agent artifact.
-	c.generatePreAgentAuditStep(yaml)
-
 	return engine, nil
 }
 
@@ -468,6 +463,12 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	for _, line := range credentialsCleanerSteps {
 		yaml.WriteString(line)
 	}
+
+	// Emit an audit step after credentials have been cleaned but before the agent begins
+	// execution. This captures a file listing of agent-related directories so the final
+	// pre-agent state (including any config written by MCP setup and engine config steps)
+	// is visible in the agent artifact without exposing raw credentials.
+	c.generatePreAgentAuditStep(yaml)
 
 	// Emit engine config steps (from RenderConfig) before the AI execution step.
 	// These steps write runtime config files to disk (e.g. provider/model config files).

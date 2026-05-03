@@ -66,14 +66,17 @@ Test workflow to verify audit step order.
 	lockContent := string(content)
 
 	mountMCPIndex := indexInNonCommentLines(lockContent, "- name: Mount MCP servers as CLIs")
+	cleanCredsIndex := indexInNonCommentLines(lockContent, "- name: Clean credentials")
 	auditIndex := indexInNonCommentLines(lockContent, "- name: Audit pre-agent workspace")
 	agentIndex := indexInNonCommentLines(lockContent, "- name: Execute GitHub Copilot CLI")
 
 	require.NotEqual(t, -1, mountMCPIndex, "Mount MCP servers step should be present")
+	require.NotEqual(t, -1, cleanCredsIndex, "Clean credentials step should be present")
 	require.NotEqual(t, -1, auditIndex, "Audit pre-agent workspace step should be present")
 	require.NotEqual(t, -1, agentIndex, "Agent execution step should be present")
 
-	assert.Greater(t, auditIndex, mountMCPIndex, "audit step (%d) should appear after MCP CLI mount (%d)", auditIndex, mountMCPIndex)
+	assert.Greater(t, cleanCredsIndex, mountMCPIndex, "clean credentials step (%d) should appear after MCP CLI mount (%d)", cleanCredsIndex, mountMCPIndex)
+	assert.Greater(t, auditIndex, cleanCredsIndex, "audit step (%d) should appear after clean credentials (%d)", auditIndex, cleanCredsIndex)
 	assert.Less(t, auditIndex, agentIndex, "audit step (%d) should appear before agent execution (%d)", auditIndex, agentIndex)
 }
 
