@@ -186,6 +186,58 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `ParseFilterConfig` | `func(map[string]any) SafeOutputFilterConfig` | Parses a filter configuration block |
 | `SafeOutputsConfigFromKeys` | `func([]string) *SafeOutputsConfig` | Creates a config from a list of type keys |
 
+### Sandbox Configuration
+
+The sandbox subsystem controls which agent firewall (AWF) or sandbox runtime is used during workflow execution.
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `SandboxType` | string alias | Sandbox type identifier (`"awf"`, `"default"`) |
+| `SandboxConfig` | struct | Top-level sandbox configuration; supports new `agent`/`mcp` fields and legacy `type`/`config` fields |
+| `AgentSandboxConfig` | struct | Agent-side sandbox configuration (ID, version, command, mounts, memory, env) |
+| `SandboxRuntimeConfig` | struct | Anthropic Sandbox Runtime (SRT) configuration (filesystem, network, violations) |
+| `SRTNetworkConfig` | struct | Network configuration for SRT (allowed/blocked domains, Unix sockets) |
+| `SRTFilesystemConfig` | struct | Filesystem configuration for SRT (denyRead, allowWrite, denyWrite) |
+
+#### Sandbox Constants
+
+| Name | Type | Description |
+|------|------|-------------|
+| `SandboxTypeAWF` | `SandboxType` | AWF sandbox type (`"awf"`) |
+| `SandboxTypeDefault` | `SandboxType` | Alias for AWF for backward compatibility (`"default"`) |
+
+### MCP Scripts
+
+The MCP Scripts subsystem provides inline custom tool definitions (JavaScript, shell, Python, or Go) that are compiled into a local MCP server at workflow runtime.
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `MCPScriptsConfig` | struct | Parsed `mcp-scripts:` block; holds transport mode and a map of tool configurations |
+| `MCPScriptToolConfig` | struct | Configuration for a single MCP script tool (description, inputs, script/run/py/go, env, timeout) |
+| `MCPScriptParam` | struct | An input parameter for a script tool (type, description, required, default) |
+| `MCPScriptsToolJSON` | struct | Tool entry serialized to `tools.json` for the MCP server |
+| `MCPScriptsConfigJSON` | struct | Top-level `tools.json` structure (serverName, version, logDir, tools list) |
+
+#### MCP Scripts Constants
+
+| Name | Type | Description |
+|------|------|-------------|
+| `MCPScriptsModeHTTP` | `string` | The only supported transport mode for MCP scripts (`"http"`) |
+| `MCPScriptsDirectory` | `string` | Runtime directory where MCP scripts files are generated |
+
+#### MCP Scripts Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `HasMCPScripts` | `func(*MCPScriptsConfig) bool` | Returns whether any MCP script tools are configured |
+| `IsMCPScriptsEnabled` | `func(*MCPScriptsConfig) bool` | Returns whether MCP scripts are enabled (currently equivalent to `HasMCPScripts`) |
+| `GenerateMCPScriptsToolsConfig` | `func(*MCPScriptsConfig) string` | Generates the `tools.json` configuration file content for the MCP scripts server |
+| `GenerateMCPScriptsMCPServerScript` | `func(*MCPScriptsConfig) string` | Generates the HTTP entry-point script for the MCP scripts server |
+| `GenerateMCPScriptJavaScriptToolScript` | `func(*MCPScriptToolConfig) string` | Generates the `.cjs` tool handler for a JavaScript `script:` tool |
+| `GenerateMCPScriptShellToolScript` | `func(*MCPScriptToolConfig) string` | Generates the `.sh` tool handler for a `run:` shell tool |
+| `GenerateMCPScriptPythonToolScript` | `func(*MCPScriptToolConfig) string` | Generates the `.py` tool handler for a `py:` Python tool |
+| `GenerateMCPScriptGoToolScript` | `func(*MCPScriptToolConfig) string` | Generates the `.go` tool handler for a `go:` Go tool |
+
 ### Network Permissions
 
 | Type | Kind | Description |
@@ -329,6 +381,12 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `SetIsRelease` | `func(bool)` | Marks whether this is a release build |
 | `IsRelease` | `func() bool` | Returns whether this is a release build |
 | `IsReleasedVersion` | `func(string) bool` | Checks whether a version string is a release |
+
+### Workflow Header Generation
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `GenerateWorkflowHeader` | `func(sourceFile, generatedBy, customInstructions string) string` | Generates the standard ASCII-art + regeneration-instructions header comment for compiled lock files; `sourceFile` is the `.md` source path, `generatedBy` names the generator, and `customInstructions` is appended verbatim |
 
 ### Validation Functions
 
