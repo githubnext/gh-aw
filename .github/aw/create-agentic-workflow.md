@@ -800,6 +800,35 @@ Check `/tmp/gh-aw/cache-memory/seen-runs.json` for previously seen run IDs; skip
 
 **`cache-memory` tip:** Add `cache-memory: true` under `tools:` to persist pre-fetched data across runs. This enables deduplication (skip already-diagnosed run IDs), trending (compare metrics over time), and avoids redundant downloads on retries. The agent reads and writes `/tmp/gh-aw/cache-memory/`. Use `jq` to update the dedup file efficiently — for example `jq '. + ["'"$RUN_ID"'"]' /tmp/gh-aw/cache-memory/seen-runs.json > /tmp/seen-runs.tmp && mv /tmp/seen-runs.tmp /tmp/gh-aw/cache-memory/seen-runs.json`. See `.github/aw/memory.md` for full configuration options.
 
+### Preventing Duplicate Actions
+
+Without a `concurrency` group, a workflow can be triggered multiple times in quick succession — for example when a contributor force-pushes to a PR branch or rapidly re-runs CI. Each run executes independently, so the agent may post the same comment or perform the same write operation more than once.
+
+Add a `concurrency` block in the frontmatter to prevent this:
+
+```yaml
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+```
+
+**How it works:**
+
+- `group` — a string that uniquely identifies the "slot". Any new run with the same group value will either cancel or queue behind the currently running job.
+- `cancel-in-progress: true` — cancels the currently running job when a newer run for the same group arrives. This is the right default for most agentic workflows: the newest push or rerun is the one that matters, so stale runs should be discarded.
+- `cancel-in-progress: false` — queues the new run instead of cancelling. Prefer this when **every run must complete** — for example a release workflow or a billing/audit workflow where dropping a run would cause data loss.
+
+**Group key examples:**
+
+| Trigger | Recommended group key |
+|---|---|
+| Pull request events | `${{ github.workflow }}-${{ github.event.pull_request.number }}` |
+| Push to a branch | `${{ github.workflow }}-${{ github.ref }}` |
+| Issue events | `${{ github.workflow }}-${{ github.event.issue.number }}` |
+| Scheduled / `workflow_dispatch` | `${{ github.workflow }}-${{ github.ref }}` |
+
+> 💡 **Always include `concurrency`** when the workflow posts comments, creates PRs, or performs any other write operation that would be confusing or harmful if duplicated.
+
 ## Issue Form Mode: Step-by-Step Workflow Creation
 
 When processing a GitHub issue created via the workflow creation form, follow these steps:
