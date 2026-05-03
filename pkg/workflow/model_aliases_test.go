@@ -193,7 +193,102 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 	})
 }
 
-// TestFrontmatterModelsField verifies that the models field in frontmatter is parsed
+// TestMergeImportedModelAliases verifies the three-layer merge: builtins → imports → main.
+func TestMergeImportedModelAliases(t *testing.T) {
+	t.Run("no imports and no frontmatter returns builtins", func(t *testing.T) {
+		merged := MergeImportedModelAliases(nil, nil)
+		builtins := BuiltinModelAliases()
+		assert.Len(t, merged, len(builtins), "should return exactly the builtins")
+		for k, v := range builtins {
+			assert.Equal(t, v, merged[k], "builtin alias %q should be present unchanged", k)
+		}
+	})
+
+	t.Run("imported alias is added when not in builtins", func(t *testing.T) {
+		imported := []map[string][]string{
+			{"my-imported": {"vendor/imported-model"}},
+		}
+		merged := MergeImportedModelAliases(imported, nil)
+		assert.Equal(t, []string{"vendor/imported-model"}, merged["my-imported"],
+			"imported alias should be present in merged map")
+		assert.NotEmpty(t, merged["sonnet"], "builtin sonnet should still be present")
+	})
+
+	t.Run("import cannot override a builtin alias", func(t *testing.T) {
+		imported := []map[string][]string{
+			{"sonnet": {"imported/sonnet-override"}},
+		}
+		merged := MergeImportedModelAliases(imported, nil)
+		builtins := BuiltinModelAliases()
+		assert.Equal(t, builtins["sonnet"], merged["sonnet"],
+			"import should NOT override a builtin alias; builtin takes precedence over import")
+	})
+
+	t.Run("first import wins among multiple imports for the same key", func(t *testing.T) {
+		imported := []map[string][]string{
+			{"shared-alias": {"first-import/model"}},
+			{"shared-alias": {"second-import/model"}},
+		}
+		merged := MergeImportedModelAliases(imported, nil)
+		assert.Equal(t, []string{"first-import/model"}, merged["shared-alias"],
+			"first import should win among competing imports for the same alias key")
+	})
+
+	t.Run("main workflow frontmatter overrides imported alias", func(t *testing.T) {
+		imported := []map[string][]string{
+			{"my-alias": {"import/model"}},
+		}
+		frontmatter := map[string][]string{
+			"my-alias": {"main/model"},
+		}
+		merged := MergeImportedModelAliases(imported, frontmatter)
+		assert.Equal(t, []string{"main/model"}, merged["my-alias"],
+			"main workflow frontmatter should win over imported alias")
+	})
+
+	t.Run("main workflow frontmatter overrides builtin alias", func(t *testing.T) {
+		frontmatter := map[string][]string{
+			"sonnet": {"mygateway/sonnet-v3"},
+		}
+		merged := MergeImportedModelAliases(nil, frontmatter)
+		assert.Equal(t, []string{"mygateway/sonnet-v3"}, merged["sonnet"],
+			"main workflow frontmatter should override builtin sonnet alias")
+		assert.NotEmpty(t, merged["haiku"], "other builtins should still be present")
+	})
+
+	t.Run("all three layers are combined correctly", func(t *testing.T) {
+		imported := []map[string][]string{
+			{
+				"import-only": {"import/model"},
+				"both":        {"import/both"},
+				"sonnet":      {"import/sonnet"}, // shadowed by builtin
+			},
+		}
+		frontmatter := map[string][]string{
+			"main-only": {"main/model"},
+			"both":      {"main/both"},
+		}
+		merged := MergeImportedModelAliases(imported, frontmatter)
+
+		// import-only key comes from import (no conflict)
+		assert.Equal(t, []string{"import/model"}, merged["import-only"],
+			"import-only alias should come from the import layer")
+
+		// main-only key comes from main workflow
+		assert.Equal(t, []string{"main/model"}, merged["main-only"],
+			"main-only alias should come from the main workflow layer")
+
+		// 'both' key: main workflow wins over import
+		assert.Equal(t, []string{"main/both"}, merged["both"],
+			"main workflow should win over import for the 'both' key")
+
+		// 'sonnet' key: builtin wins over import
+		builtins := BuiltinModelAliases()
+		assert.Equal(t, builtins["sonnet"], merged["sonnet"],
+			"builtin should win over import for the 'sonnet' key")
+	})
+}
+
 // correctly by ParseFrontmatterConfig.
 func TestFrontmatterModelsField(t *testing.T) {
 	t.Run("models field is parsed from frontmatter", func(t *testing.T) {

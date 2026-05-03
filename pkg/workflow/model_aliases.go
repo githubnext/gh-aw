@@ -25,8 +25,6 @@
 
 package workflow
 
-import "maps"
-
 // BuiltinModelAliases returns the built-in model alias map that covers the main
 // model families supported by gh-aw.  The returned map is a freshly allocated
 // copy so callers may freely modify it.
@@ -103,14 +101,45 @@ func BuiltinModelAliases() map[string][]string {
 	}
 }
 
+// MergeImportedModelAliases builds the final model alias map from three layers,
+// with later layers overriding earlier ones (highest priority last):
+//
+//  1. Builtin aliases (lowest priority)
+//  2. Imported workflow aliases — merged in import order; first import to define a
+//     key wins among imports (same "first-wins among peers" semantics as features).
+//  3. Main workflow frontmatter aliases (highest priority — main workflow file wins)
+//
+// If both importedModels and frontmatterModels are nil/empty, the builtin aliases are
+// returned as-is (identical to MergeModelAliases(nil)).
+func MergeImportedModelAliases(importedModels []map[string][]string, frontmatterModels map[string][]string) map[string][]string {
+	merged := BuiltinModelAliases()
+
+	// Layer 2 — imported models (first import to define a key wins among imports).
+	for _, importedMap := range importedModels {
+		for k, v := range importedMap {
+			if _, exists := merged[k]; !exists {
+				merged[k] = v
+			}
+		}
+	}
+
+	// Layer 3 — main workflow frontmatter always wins.
+	for k, v := range frontmatterModels {
+		merged[k] = v
+	}
+
+	return merged
+}
+
 // MergeModelAliases merges the frontmatter-defined model aliases on top of the
 // builtin aliases and returns the combined map.  Frontmatter entries always take
 // precedence: if the same key exists in both the builtins and the frontmatter
 // definition, the frontmatter value replaces the builtin value entirely.
 //
 // If frontmatterModels is nil or empty, the builtin aliases are returned as-is.
+//
+// For the full three-layer merge that also incorporates imported workflow aliases,
+// use MergeImportedModelAliases.
 func MergeModelAliases(frontmatterModels map[string][]string) map[string][]string {
-	merged := BuiltinModelAliases()
-	maps.Copy(merged, frontmatterModels)
-	return merged
+	return MergeImportedModelAliases(nil, frontmatterModels)
 }
