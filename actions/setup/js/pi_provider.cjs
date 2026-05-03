@@ -66,10 +66,13 @@ function resolveGatewayUrl(provider) {
 /**
  * Pi provider extension for gh-aw.
  *
- * Subscribes to the `agent_start` Pi SDK event and calls the AWF /reflect
- * endpoint to discover and log the open LLM inference paths before the agent
- * begins its first turn.  This is best-effort: any network or parse error is
- * logged but does not abort the agent session.
+ * Subscribes to the `agent_start` and `agent_end` Pi SDK events and calls the AWF /reflect
+ * endpoint to discover and log the open LLM inference paths before the agent begins its
+ * first turn and again after it finishes.  The post-run fetch is the authoritative snapshot
+ * used by the step summary; the pre-run fetch captures the initial proxy state for diagnostics
+ * in case the session exits unexpectedly before reaching `agent_end`.
+ * Both calls are best-effort: any network or parse error is logged but does not abort the
+ * agent session.
  *
  * @param {any} pi - Pi ExtensionAPI instance
  * @returns {void}
@@ -92,8 +95,20 @@ function piProviderExtension(pi) {
       log(`model=${model || "(not set)"} (no provider prefix — defaulting to Copilot gateway)`);
     }
 
-    // Fetch AWF API proxy reflection data and persist to disk so the post-run
-    // step summary (awf_reflect_summary.cjs) can include provider and model info.
+    // Fetch AWF API proxy reflection data before the agent runs to capture initial proxy state.
+    // This is best-effort: failures are logged but do not affect the agent session.
+    await fetchAWFReflect({
+      reflectUrl: AWF_API_PROXY_REFLECT_URL,
+      outputPath: AWF_REFLECT_OUTPUT_PATH,
+      timeoutMs: AWF_REFLECT_TIMEOUT_MS,
+      modelsTimeoutMs: AWF_MODELS_URL_TIMEOUT_MS,
+      logger: log,
+    });
+  });
+
+  pi.on("agent_end", async () => {
+    // Fetch AWF API proxy reflection data after the agent finishes for the post-run step summary.
+    // This is best-effort: failures are logged but do not affect the agent exit code.
     await fetchAWFReflect({
       reflectUrl: AWF_API_PROXY_REFLECT_URL,
       outputPath: AWF_REFLECT_OUTPUT_PATH,
