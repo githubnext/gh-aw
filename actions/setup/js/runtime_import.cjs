@@ -199,17 +199,46 @@ function isSafeExpression(expr) {
     }
   }
 
+  // Allow literal values (string, number, boolean) as standalone safe expressions.
+  // This mirrors the Go validateSingleExpression behaviour.
+  const isStringLiteralStandalone = /^(['"`]).*\1$/.test(trimmed);
+  if (isStringLiteralStandalone) {
+    const contentMatch = trimmed.match(/^(['"`])(.+)\1$/);
+    if (contentMatch) {
+      const content = contentMatch[2];
+      // Reject nested expressions
+      if (content.includes("${{") || content.includes("}}")) {
+        return false;
+      }
+      // Reject escape sequences that could hide keywords
+      if (/\\[xu][\da-fA-F]/.test(content) || /\\[0-7]{1,3}/.test(content)) {
+        return false;
+      }
+      // Reject zero-width characters
+      if (/[\u200B-\u200D\uFEFF]/.test(content)) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (/^-?\d+(\.\d+)?$/.test(trimmed) || trimmed === "true" || trimmed === "false") {
+    return true;
+  }
+
   // Check for OR expressions with literals (e.g., "inputs.repository || 'default'")
   // Pattern: safe_expression || 'literal' or safe_expression || "literal" or safe_expression || `literal`
-  // Also supports numbers and booleans as literals
+  // Also supports numbers and booleans as literals.
+  // Important: once an OR match is found the decision is final — do NOT fall through to
+  // the AND/comparison checks below, because doing so would allow a partially-validated
+  // OR expression like "github.actor == 'x' || secrets.TOKEN" to pass via the comparison
+  // path even though the right side is unsafe.
   const orMatch = trimmed.match(/^(.+?)\s*\|\|\s*(.+)$/);
   if (orMatch) {
     const leftExpr = orMatch[1].trim();
     const rightExpr = orMatch[2].trim();
 
     // Check if left side is safe
-    const leftIsSafe = isSafeExpression(leftExpr);
-    if (!leftIsSafe) {
+    if (!isSafeExpression(leftExpr)) {
       return false;
     }
 
@@ -248,10 +277,42 @@ function isSafeExpression(expr) {
       return true;
     }
 
-    // If right side is also a safe expression (e.g., secrets.FOO || secrets.BAR)
+    // If right side is also a safe expression (e.g., inputs.repo || github.repository)
     if (isSafeExpression(rightExpr)) {
       return true;
     }
+
+    // Right side is neither a safe literal nor a safe expression — reject.
+    return false;
+  }
+
+  // Check for AND expressions (e.g., "condition && 'value'").
+  // Both sides must be independently safe.  Operator precedence means && binds
+  // tighter than ||, so this check runs after the OR check above.
+  // Important: once an AND match is found the decision is final — do NOT fall through to
+  // the comparison check, which could otherwise allow "github.actor == 'x' && secrets.TOKEN"
+  // to pass because the comparison extracts only "github.actor" as safe.
+  const andMatch = trimmed.match(/^(.+?)\s*&&\s*(.+)$/);
+  if (andMatch) {
+    const leftExpr = andMatch[1].trim();
+    const rightExpr = andMatch[2].trim();
+    return isSafeExpression(leftExpr) && isSafeExpression(rightExpr);
+  }
+
+  // Check for simple comparison expressions (e.g., "github.event.inputs.enforce_all == 'true'").
+  // This check only runs for expressions that have no top-level || or && operators (since those
+  // cases are fully handled above), preventing a partially-validated compound expression from
+  // sneaking through via the comparison path.
+  // Extract each property access on the left side of a comparison operator and verify it is in
+  // the allowed list.  This mirrors the Go comparisonExtractionRegex logic.
+  const compExtractRegex = /([a-zA-Z_][a-zA-Z0-9_.]*)\s*(?:==|!=|<=?|>=?)\s*/g;
+  const comparisonProps = [];
+  let compMatch;
+  while ((compMatch = compExtractRegex.exec(trimmed)) !== null) {
+    comparisonProps.push(compMatch[1].trim());
+  }
+  if (comparisonProps.length > 0 && comparisonProps.every(prop => isSafeExpression(prop))) {
+    return true;
   }
 
   return false;
