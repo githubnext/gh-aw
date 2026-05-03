@@ -8,6 +8,7 @@
 // # Validation Functions
 //
 //   - validateNoIncludesInTemplateRegions() - Validates that imports are not inside template blocks
+//   - validateNoPreExpandedExperimentPlaceholders() - Validates that pre-expanded __GH_AW_EXPERIMENTS_*__ placeholders are not used in template conditions
 //
 // # Validation Pattern: Structure Validation
 //
@@ -45,6 +46,11 @@ var (
 	// templateRegionPattern matches template conditional blocks with their content
 	// Uses (?s) for dotall mode, .*? (non-greedy) with \s* to handle expressions with or without trailing spaces
 	templateRegionPattern = regexp.MustCompile(`(?s)\{\{#if\s+.*?\s*\}\}(.*?)\{\{/if\}\}`)
+
+	// preExpandedExperimentPattern matches the internal __GH_AW_EXPERIMENTS_*__ placeholder form
+	// that is produced by the runtime and must never be written manually in workflow markdown.
+	// Authors should use the experiments.<name> form (e.g. experiments.prompt_style == "detailed").
+	preExpandedExperimentPattern = regexp.MustCompile(`__GH_AW_EXPERIMENTS_[A-Z0-9_]+__`)
 )
 
 // validateNoIncludesInTemplateRegions checks that import directives
@@ -83,6 +89,40 @@ func validateNoIncludesInTemplateRegions(markdown string) error {
 	// Return aggregated errors
 	if len(errs) > 0 {
 		templateValidationLog.Printf("Found %d template validation errors", len(errs))
+		return errors.Join(errs...)
+	}
+
+	return nil
+}
+
+// validateNoPreExpandedExperimentPlaceholders checks that authors have not written the
+// internal __GH_AW_EXPERIMENTS_*__ placeholder form directly in template conditions.
+// This form is produced at runtime by the interpolation step and must never appear in
+// workflow markdown source.  The correct form is experiments.<name> (optionally with a
+// comparison, e.g. experiments.prompt_style == "detailed").
+func validateNoPreExpandedExperimentPlaceholders(markdown string) error {
+	templateValidationLog.Print("Validating that pre-expanded experiment placeholders are not used in template conditions")
+
+	// Use TemplateIfPattern which correctly handles embedded ${{ ... }} blocks inside conditions
+	conditions := TemplateIfPattern.FindAllStringSubmatch(markdown, -1)
+	templateValidationLog.Printf("Found %d template condition(s) to validate", len(conditions))
+
+	var errs []error
+	for _, m := range conditions {
+		if len(m) < 2 {
+			continue
+		}
+		condition := m[1]
+		if preExpandedExperimentPattern.MatchString(condition) {
+			errs = append(errs, fmt.Errorf(
+				"pre-expanded experiment placeholder %q found in template condition %q: use experiments.<name> instead (e.g. experiments.prompt_style == \"detailed\")",
+				preExpandedExperimentPattern.FindString(condition), condition,
+			))
+		}
+	}
+
+	if len(errs) > 0 {
+		templateValidationLog.Printf("Found %d pre-expanded placeholder error(s)", len(errs))
 		return errors.Join(errs...)
 	}
 

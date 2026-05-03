@@ -131,3 +131,102 @@ Second template
 		})
 	}
 }
+
+func TestCompilerRejectsPreExpandedExperimentPlaceholders(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	tests := []struct {
+		name        string
+		content     string
+		shouldError bool
+		errContains string
+	}{
+		{
+			name: "valid workflow with experiments dot-notation condition",
+			content: `---
+on: issues
+permissions:
+  issues: read
+strict: false
+---
+
+{{#if experiments.prompt_style == "detailed"}}
+detailed prompt
+{{else}}
+concise prompt
+{{/if}}`,
+			shouldError: false,
+		},
+		{
+			name: "invalid workflow with pre-expanded placeholder in condition",
+			content: `---
+on: issues
+permissions:
+  issues: read
+strict: false
+---
+
+{{#if __GH_AW_EXPERIMENTS_PROMPT_STYLE__}}
+detailed prompt
+{{/if}}`,
+			shouldError: true,
+			errContains: "pre-expanded experiment placeholder",
+		},
+		{
+			name: "invalid workflow with pre-expanded placeholder alongside github expression",
+			content: `---
+on: issues
+permissions:
+  issues: read
+strict: false
+---
+
+{{#if __GH_AW_EXPERIMENTS_PROMPT_STYLE__ }}
+detailed prompt
+{{/if}}`,
+			shouldError: true,
+			errContains: "pre-expanded experiment placeholder",
+		},
+		{
+			name: "valid workflow with github expression in condition",
+			content: `---
+on: issues
+permissions:
+  issues: read
+strict: false
+---
+
+{{#if ${{ github.actor }} != ""}}
+some content
+{{/if}}`,
+			shouldError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowPath := filepath.Join(tempDir, tt.name+".md")
+			err := os.WriteFile(workflowPath, []byte(tt.content), 0644)
+			if err != nil {
+				t.Fatalf("Failed to create test workflow file: %v", err)
+			}
+
+			compiler := NewCompiler()
+			_, err = compiler.ParseWorkflowFile(workflowPath)
+
+			if tt.shouldError {
+				if err == nil {
+					t.Errorf("Expected error for %s, but got nil", tt.name)
+					return
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("Expected error to contain %q, but got: %v", tt.errContains, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error for %s: %v", tt.name, err)
+				}
+			}
+		})
+	}
+}
