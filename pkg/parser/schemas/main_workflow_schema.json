@@ -2921,7 +2921,9 @@
             "end_date": "2026-06-15",
             "analysis_type": "t_test",
             "tags": ["cost", "prompting"],
-            "notify": { "issue": 1234 }
+            "notify": {
+              "issue": 1234
+            }
           },
           "model_temp": ["low", "high"]
         }
@@ -9078,10 +9080,74 @@
           "description": "OTLP (OpenTelemetry Protocol) trace export configuration.",
           "properties": {
             "endpoint": {
-              "type": "string",
-              "description": "OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static URL is provided, its hostname is automatically added to the network firewall allowlist."
+              "description": "OTLP endpoint configuration. Accepts a plain URL string (backward-compat), a single {url, headers} object, or an array of {url, headers} objects for multi-endpoint concurrent fan-out. Encoded as GH_AW_OTLP_ENDPOINTS (JSON array).",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static URL is provided, its hostname is automatically added to the network firewall allowlist."
+                },
+                {
+                  "type": "object",
+                  "description": "A single OTLP endpoint with a URL and optional per-endpoint headers.",
+                  "required": ["url"],
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static URL is provided, its hostname is automatically added to the network firewall allowlist."
+                    },
+                    "headers": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "description": "Map of HTTP header names to values. Values support GitHub Actions expressions such as ${{ secrets.TOKEN }}.",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "string",
+                          "description": "Deprecated: use the map form instead. Comma-separated list of key=value HTTP headers (e.g. 'Authorization=Bearer <token>'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_HEADERS }}."
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "array",
+                  "description": "Multiple OTLP collector endpoints to export traces to concurrently. Each entry has its own URL and optional per-endpoint headers.",
+                  "items": {
+                    "type": "object",
+                    "description": "A single OTLP endpoint with a URL and optional per-endpoint headers.",
+                    "required": ["url"],
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "description": "OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static URL is provided, its hostname is automatically added to the network firewall allowlist."
+                      },
+                      "headers": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "description": "Map of HTTP header names to values. Values support GitHub Actions expressions such as ${{ secrets.TOKEN }}.",
+                            "additionalProperties": {
+                              "type": "string"
+                            }
+                          },
+                          {
+                            "type": "string",
+                            "description": "Deprecated: use the map form instead. Comma-separated list of key=value HTTP headers (e.g. 'Authorization=Bearer <token>'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_HEADERS }}."
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              ]
             },
             "headers": {
+              "description": "HTTP headers for the backward-compat string endpoint form. Only used when endpoint is a plain string; object/array endpoint entries carry their own per-endpoint headers.",
               "oneOf": [
                 {
                   "type": "object",
@@ -9095,37 +9161,6 @@
                   "description": "Deprecated: use the map form instead. Comma-separated list of key=value HTTP headers to include with every OTLP export request (e.g. 'Authorization=Bearer <token>'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_HEADERS }}. Injected as the OTEL_EXPORTER_OTLP_HEADERS environment variable."
                 }
               ]
-            },
-            "endpoints": {
-              "type": "array",
-              "description": "Array of OTLP collector endpoints to export traces to concurrently. Each entry has its own URL and optional per-endpoint headers. When set alongside 'endpoint', all entries are merged and exported together. Encoded as the GH_AW_OTLP_ENDPOINTS environment variable.",
-              "items": {
-                "type": "object",
-                "description": "A single OTLP collector endpoint configuration.",
-                "required": ["url"],
-                "properties": {
-                  "url": {
-                    "type": "string",
-                    "description": "OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static URL is provided, its hostname is automatically added to the network firewall allowlist."
-                  },
-                  "headers": {
-                    "oneOf": [
-                      {
-                        "type": "object",
-                        "description": "Map of HTTP header names to values to include with every OTLP export request for this endpoint. Values support GitHub Actions expressions such as ${{ secrets.TOKEN }}.",
-                        "additionalProperties": {
-                          "type": "string"
-                        }
-                      },
-                      {
-                        "type": "string",
-                        "description": "Deprecated: use the map form instead. Comma-separated list of key=value HTTP headers for this endpoint (e.g. 'Authorization=Bearer <token>'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_HEADERS }}."
-                      }
-                    ]
-                  }
-                },
-                "additionalProperties": false
-              }
             }
           },
           "additionalProperties": false

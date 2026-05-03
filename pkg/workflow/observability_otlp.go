@@ -86,14 +86,20 @@ func extractOTLPEndpointDomain(endpoint string) string {
 	return host
 }
 
-// getOTLPEndpointEnvValue returns the raw endpoint value suitable for injecting as an
-// environment variable in the generated GitHub Actions workflow YAML.
-// Returns an empty string when no OTLP endpoint is configured.
+// getOTLPEndpointEnvValue returns the raw string endpoint value suitable for
+// injecting as an environment variable in the generated GitHub Actions workflow YAML.
+// Only handles the backward-compat string form of the endpoint field; object/array
+// forms are handled by collectAllOTLPEndpoints via RawFrontmatter.
+// Returns an empty string when no OTLP endpoint is configured or when the endpoint
+// is not a plain string.
 func getOTLPEndpointEnvValue(config *FrontmatterConfig) string {
 	if config == nil || config.Observability == nil || config.Observability.OTLP == nil {
 		return ""
 	}
-	return config.Observability.OTLP.Endpoint
+	if ep, ok := config.Observability.OTLP.Endpoint.(string); ok {
+		return ep
+	}
+	return ""
 }
 
 // isOTLPHeadersPresent returns true when OTEL_EXPORTER_OTLP_HEADERS or
@@ -132,11 +138,12 @@ func generateOTLPHeadersMaskStep() string {
 	return sb.String()
 }
 
-// extractOTLPConfigFromRaw reads OTLP endpoint and headers directly from the raw
-// frontmatter map[string]any.  This avoids dependence on ParseFrontmatterConfig
-// succeeding -- that function may fail for workflows with complex tool configurations
-// (e.g. engine objects, array-style bash configs), which would leave ParsedFrontmatter
-// nil and prevent OTLP injection.
+// extractOTLPConfigFromRaw reads the first OTLP endpoint and its headers directly
+// from the raw frontmatter map[string]any.  The `endpoint` field may be:
+//
+//   - a string:  backward-compat URL + optional top-level `headers` field
+//   - an object: {url: "...", headers: {...}} — the object's own headers are used
+//   - an array:  [{url: ..., headers: ...}, ...] — only the first element is returned
 //
 // The third return value is true when the deprecated string form was used for headers,
 // so the caller can emit a deprecation warning.
@@ -157,11 +164,38 @@ func extractOTLPConfigFromRaw(frontmatter map[string]any) (endpoint, headers str
 	if !ok {
 		return
 	}
-	if ep, ok := otlpMap["endpoint"].(string); ok {
+
+	endpointRaw := otlpMap["endpoint"]
+	switch ep := endpointRaw.(type) {
+	case string:
+		if ep == "" {
+			return
+		}
 		endpoint = ep
-	}
-	if raw, ok := otlpMap["headers"]; ok {
-		headers, deprecated = normalizeOTLPHeaders(raw)
+		if raw, ok := otlpMap["headers"]; ok {
+			headers, deprecated = normalizeOTLPHeaders(raw)
+		}
+	case map[string]any:
+		// Object form: endpoint: {url: "...", headers: {...}}
+		if url, _ := ep["url"].(string); url != "" {
+			endpoint = url
+			if h, ok := ep["headers"]; ok {
+				headers, deprecated = normalizeOTLPHeaders(h)
+			}
+		}
+	case []any:
+		// Array form: return only the first element (callers needing all entries
+		// should use collectAllOTLPEndpoints instead).
+		if len(ep) > 0 {
+			if firstItem, ok := ep[0].(map[string]any); ok {
+				if url, _ := firstItem["url"].(string); url != "" {
+					endpoint = url
+					if h, ok := firstItem["headers"]; ok {
+						headers, deprecated = normalizeOTLPHeaders(h)
+					}
+				}
+			}
+		}
 	}
 	return
 }
@@ -174,27 +208,19 @@ type otlpEndpointEntry struct {
 	Headers string `json:"headers,omitempty"`
 }
 
-// collectAllOTLPEndpoints merges the single-endpoint (endpoint/headers) and
-// multi-endpoint (endpoints[]) frontmatter fields into a unified slice of
-// otlpEndpointEntry values.
+// collectAllOTLPEndpoints reads the `observability.otlp.endpoint` field from the raw
+// frontmatter and returns all configured endpoint entries. The `endpoint` field may be:
 //
-// Priority: if endpoint is non-empty it is prepended as the first entry;
-// entries from the endpoints array are appended after it.  This ensures
-// backward compatibility for workflows that only set the single-endpoint fields.
+//   - a string:  backward-compat URL; optional top-level `headers` field applies
+//   - an object: {url: "...", headers: {...}} — single endpoint with per-endpoint headers
+//   - an array:  [{url: ..., headers: ...}, ...] — multiple endpoints for concurrent fan-out
+//
+// Returns a non-nil slice when at least one valid endpoint is found, and a boolean
+// indicating whether the deprecated string form was used for any headers value.
 func collectAllOTLPEndpoints(frontmatter map[string]any) ([]otlpEndpointEntry, bool) {
 	var entries []otlpEndpointEntry
 	anyDeprecated := false
 
-	// Single-endpoint backward-compat fields.
-	singleEndpoint, singleHeaders, dep := extractOTLPConfigFromRaw(frontmatter)
-	if dep {
-		anyDeprecated = true
-	}
-	if singleEndpoint != "" {
-		entries = append(entries, otlpEndpointEntry{URL: singleEndpoint, Headers: singleHeaders})
-	}
-
-	// endpoints[] array.
 	obs, ok := frontmatter["observability"]
 	if !ok {
 		return entries, anyDeprecated
@@ -203,41 +229,64 @@ func collectAllOTLPEndpoints(frontmatter map[string]any) ([]otlpEndpointEntry, b
 	if !ok {
 		return entries, anyDeprecated
 	}
-	otlp, ok := obsMap["otlp"]
+	otlpRaw, ok := obsMap["otlp"]
 	if !ok {
 		return entries, anyDeprecated
 	}
-	otlpMap, ok := otlp.(map[string]any)
+	otlpMap, ok := otlpRaw.(map[string]any)
 	if !ok {
 		return entries, anyDeprecated
 	}
-	endpointsRaw, ok := otlpMap["endpoints"]
-	if !ok {
-		return entries, anyDeprecated
-	}
-	endpointsList, ok := endpointsRaw.([]any)
-	if !ok {
-		return entries, anyDeprecated
-	}
-	for _, item := range endpointsList {
-		itemMap, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		epURL, _ := itemMap["url"].(string)
-		if epURL == "" {
-			continue
-		}
-		headers := ""
-		if h, ok := itemMap["headers"]; ok {
-			var dep bool
-			headers, dep = normalizeOTLPHeaders(h)
+
+	endpointRaw := otlpMap["endpoint"]
+	topHeadersRaw := otlpMap["headers"] // only used with backward-compat string form
+
+	switch ep := endpointRaw.(type) {
+	case string:
+		// Backward-compat string form: endpoint: "https://..."
+		if ep != "" {
+			headers, dep := normalizeOTLPHeaders(topHeadersRaw)
 			if dep {
 				anyDeprecated = true
 			}
+			entries = append(entries, otlpEndpointEntry{URL: ep, Headers: headers})
 		}
-		entries = append(entries, otlpEndpointEntry{URL: epURL, Headers: headers})
+	case map[string]any:
+		// Object form: endpoint: {url: "...", headers: {...}}
+		if url, _ := ep["url"].(string); url != "" {
+			headers := ""
+			if h, hasH := ep["headers"]; hasH {
+				var dep bool
+				headers, dep = normalizeOTLPHeaders(h)
+				if dep {
+					anyDeprecated = true
+				}
+			}
+			entries = append(entries, otlpEndpointEntry{URL: url, Headers: headers})
+		}
+	case []any:
+		// Array form: endpoint: [{url: ..., headers: {...}}, ...]
+		for _, item := range ep {
+			itemMap, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			url, _ := itemMap["url"].(string)
+			if url == "" {
+				continue
+			}
+			headers := ""
+			if h, hasH := itemMap["headers"]; hasH {
+				var dep bool
+				headers, dep = normalizeOTLPHeaders(h)
+				if dep {
+					anyDeprecated = true
+				}
+			}
+			entries = append(entries, otlpEndpointEntry{URL: url, Headers: headers})
+		}
 	}
+
 	return entries, anyDeprecated
 }
 
@@ -287,8 +336,7 @@ func allOTLPHeaders(entries []otlpEndpointEntry) string {
 //
 // When no OTLP endpoint is configured the function is a no-op.
 func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
-	// Collect all endpoint entries from both the single-endpoint and multi-endpoint
-	// frontmatter fields.
+	// Collect all endpoint entries from the endpoint field (string, object, or array).
 	entries, deprecated := collectAllOTLPEndpoints(workflowData.RawFrontmatter)
 
 	// Fall back to ParsedFrontmatter when raw map extraction found nothing.

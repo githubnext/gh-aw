@@ -192,8 +192,8 @@ type RateLimitConfig struct {
 	IgnoredRoles []string `json:"ignored-roles,omitempty"` // Roles that are exempt from rate limiting (e.g., ["admin", "maintainer"])
 }
 
-// OTLPEndpointConfig holds configuration for a single entry in the
-// observability.otlp.endpoints array.
+// OTLPEndpointConfig holds configuration for a single OTLP endpoint entry
+// used when the `endpoint` field is an object or an element of an array.
 type OTLPEndpointConfig struct {
 	// URL is the OTLP collector endpoint URL (e.g. "https://traces.example.com:4317").
 	// Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}.
@@ -208,24 +208,25 @@ type OTLPEndpointConfig struct {
 
 // OTLPConfig holds configuration for OTLP (OpenTelemetry Protocol) trace export.
 type OTLPConfig struct {
-	// Endpoint is the OTLP collector endpoint URL (e.g. "https://traces.example.com:4317").
+	// Endpoint accepts one of three forms:
+	//   - string:        backward-compat URL  (e.g. "https://traces.example.com:4317")
+	//   - object:        single endpoint with URL and optional headers
+	//                    (e.g. {url: "https://...", headers: {Authorization: "Bearer ${{ secrets.TOKEN }}"}})
+	//   - array:         multiple endpoints for concurrent fan-out
+	//                    (e.g. [{url: "https://primary:4317", headers: {...}}, {url: "https://backup:4317"}])
 	// Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}.
 	// When a static URL is provided, its hostname is automatically added to the
 	// network firewall allowlist.
-	Endpoint string `json:"endpoint,omitempty"`
+	Endpoint any `json:"endpoint,omitempty"`
 
-	// Headers holds HTTP headers to include with every OTLP export request.
+	// Headers holds HTTP headers for the backward-compat string endpoint form.
+	// Only used when Endpoint is a plain string; object/array endpoint entries
+	// carry their own per-endpoint headers.
 	// Preferred form: a map of header name to value (e.g. {"Authorization": "Bearer ${{ secrets.TOKEN }}"}).
 	// Deprecated string form: a comma-separated list of key=value pairs
 	// (e.g. "Authorization=Bearer <token>"). Use the map form instead.
 	// Both forms are injected as the standard OTEL_EXPORTER_OTLP_HEADERS environment variable.
 	Headers any `json:"headers,omitempty"`
-
-	// Endpoints is an array of OTLP collector endpoints to export traces to concurrently.
-	// Each entry has its own URL and optional per-endpoint headers.
-	// When Endpoints is set alongside Endpoint, all entries are merged and exported together.
-	// Encoded as the GH_AW_OTLP_ENDPOINTS environment variable (JSON array).
-	Endpoints []OTLPEndpointConfig `json:"endpoints,omitempty"`
 }
 
 // ObservabilityConfig represents workflow observability options.
