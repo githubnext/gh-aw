@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"sort"
@@ -345,7 +347,7 @@ func fetchLocalExperimentDetails(branchName, workflowID string) (*ExperimentDeta
 	if !gitRefExists(ref) {
 		if !gitRefExists(branchName) {
 			return nil, fmt.Errorf("experiment branch %q not found locally (tried origin/%s and %s)",
-				workflowID, branchName, branchName)
+				branchName, branchName, branchName)
 		}
 		ref = branchName
 	}
@@ -359,7 +361,7 @@ func fetchRemoteExperimentDetails(repoOverride, branchName, workflowID string) (
 	experimentsLog.Printf("Fetching remote experiment details: repo=%s, branch=%s", repoOverride, branchName)
 
 	// Verify the branch exists.
-	encodedBranch := strings.ReplaceAll(branchName, "/", "%2F")
+	encodedBranch := url.PathEscape(branchName)
 	checkArgs := []string{"api",
 		"repos/{owner}/{repo}/branches/" + encodedBranch,
 		"--jq", ".name",
@@ -596,9 +598,12 @@ func formatAssignments(assignments map[string]string) string {
 func parsePagedJSONArray[T any](output string) ([]T, error) {
 	var result []T
 	decoder := json.NewDecoder(strings.NewReader(output))
-	for decoder.More() {
+	for {
 		var page []T
 		if err := decoder.Decode(&page); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
 			return nil, err
 		}
 		result = append(result, page...)
