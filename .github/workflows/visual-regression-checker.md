@@ -18,7 +18,6 @@ tools:
   cli-proxy: true
   playwright:
     mode: cli
-    version: "v1.52.0"
   bash:
     - "npm *"
     - "npx *"

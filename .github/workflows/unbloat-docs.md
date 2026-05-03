@@ -405,7 +405,7 @@ Use the `doc-page-screenshotter` agent, passing the full page URL as input. The 
 ```json
 {
   "success": true,
-  "screenshots": ["/tmp/gh-aw/mcp-logs/playwright/doc-screenshot.png"],
+  "screenshots": ["/tmp/gh-aw/screenshots/doc-screenshot.png"],
   "blocked_domains": [],
   "error": null
 }
@@ -422,7 +422,7 @@ Check the `screenshots` array returned by the `doc-page-screenshotter` sub-agent
 
 #### Upload Screenshots
 
-1. Call the `upload_asset` safe-output tool for each screenshot using absolute paths (for example `/tmp/gh-aw/mcp-logs/playwright/<screenshot>.png`)
+1. Call the `upload_asset` safe-output tool for each screenshot using absolute paths (for example `/tmp/gh-aw/screenshots/<screenshot>.png`)
 2. Record the returned asset URL for each screenshot to include in the PR description
 
 #### Report Blocked Domains
@@ -550,8 +550,9 @@ You are a documentation screenshot agent. Your input is a full page URL to scree
 
 2. Set viewport to HD (1920×1080) and take a full-page screenshot:
    ```bash
+   mkdir -p /tmp/gh-aw/screenshots
    playwright-cli browser_resize --width 1920 --height 1080
-   playwright-cli browser_take_screenshot --filename /tmp/gh-aw/mcp-logs/playwright/doc-screenshot.png --full-page true
+   playwright-cli browser_take_screenshot --filename /tmp/gh-aw/screenshots/doc-screenshot.png --full-page true
    ```
 
 3. Check the browser console for blocked network requests:
@@ -562,7 +563,7 @@ You are a documentation screenshot agent. Your input is a full page URL to scree
 
 4. Verify the screenshot was saved:
    ```bash
-   ls -lh /tmp/gh-aw/mcp-logs/playwright/
+   ls -lh /tmp/gh-aw/screenshots/
    ```
 
 Return a JSON object only — no prose, no extra text:
@@ -570,7 +571,7 @@ Return a JSON object only — no prose, no extra text:
 ```json
 {
   "success": true,
-  "screenshots": ["/tmp/gh-aw/mcp-logs/playwright/doc-screenshot.png"],
+  "screenshots": ["/tmp/gh-aw/screenshots/doc-screenshot.png"],
   "blocked_domains": [],
   "error": null
 }

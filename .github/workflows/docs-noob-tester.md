@@ -105,7 +105,12 @@ Act as a complete beginner who has never used GitHub Agentic Workflows before. N
 
 **⚠️ CRITICAL: Navigation Timeout Prevention** — Always use `waitUntil: 'domcontentloaded'` to prevent timeout on the Astro development server.
 
-Using Playwright, visit exactly these 3 pages and stop (use the Playwright server URL read from `/tmp/gh-aw/agent/server-url.txt`):
+Using Playwright, visit exactly these 3 pages and stop:
+
+Before taking screenshots, create the screenshots directory:
+```bash
+mkdir -p /tmp/gh-aw/screenshots
+```
 
 1. **Visit the home page** (`http://localhost:4321/gh-aw/`)
    - Take a screenshot: `playwright-cli browser_navigate --url "http://localhost:4321/gh-aw/" && playwright-cli browser_take_screenshot --filename /tmp/gh-aw/screenshots/home.png`

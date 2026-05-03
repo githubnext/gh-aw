@@ -30,7 +30,6 @@ tools:
   cache-memory: true
   playwright:
     mode: cli
-    version: "v1.56.1"
   edit:
   bash:
     - "npm install*"

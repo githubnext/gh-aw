@@ -68,16 +68,29 @@ MCP mode starts a Docker-based `mcr.microsoft.com/playwright/mcp` container and 
 
 ### Version
 
-Pin to a specific version or use the latest:
+The `version` field controls different things depending on the mode:
+
+**CLI mode** (`mode: cli`, recommended) — pins the `@playwright/cli` npm package version:
 
 ```yaml wrap
 tools:
   playwright:
     mode: cli
-    version: "1.56.1"  # Pin to specific version (default)
+    version: "0.1.11"  # @playwright/cli npm package version (default)
 ```
 
-**Default**: `1.56.1` (when `version` is not specified)
+**Default** (CLI mode): `0.1.11`
+
+**MCP mode** (deprecated) — pins the Playwright browser Docker image version:
+
+```yaml wrap
+tools:
+  playwright:
+    mode: mcp  # deprecated
+    version: "v1.56.1"  # Browser Docker image version
+```
+
+When `version` is not specified, the compiler uses the built-in default for the active mode.
 
 ## Network Access Configuration
 

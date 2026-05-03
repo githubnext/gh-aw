@@ -4045,12 +4045,12 @@
               "properties": {
                 "version": {
                   "type": ["string", "number"],
-                  "description": "Optional Playwright container version (e.g., 'v1.41.0', 1.41, 20). Numeric values are automatically converted to strings at runtime.",
-                  "examples": ["v1.41.0", 1.41, 20]
+                  "description": "Optional version pin. In CLI mode (recommended): the @playwright/cli npm package version (e.g., '0.1.11'). In MCP mode (deprecated): the Playwright browser Docker image version (e.g., 'v1.56.1'). Omit to use the default version.",
+                  "examples": ["0.1.11", "v1.56.1"]
                 },
                 "args": {
                   "type": "array",
-                  "description": "Optional additional arguments to append to the generated MCP server command",
+                  "description": "Optional additional arguments to append to the generated MCP server command (MCP mode only)",
                   "items": {
                     "type": "string"
                   }

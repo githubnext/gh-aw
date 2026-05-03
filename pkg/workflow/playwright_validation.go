@@ -14,8 +14,8 @@
 //  1. Add `mode: cli` to your playwright tool configuration:
 //
 //     tools:
-//     playwright:
-//     mode: cli
+//       playwright:
+//         mode: cli
 //
 //  2. Update prompts to use `playwright-cli <command>` via bash instead of
 //     MCP browser tool calls. For example:
