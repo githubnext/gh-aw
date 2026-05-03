@@ -192,8 +192,9 @@ jobs:
             if [[ "$INSTALLED_AFTER" != "$LATEST" ]]; then
               echo "⚠️  macOS prerelease upgrade: got $INSTALLED_AFTER instead of $LATEST"
               echo "    (expected — PREVIOUS binary pre-dates the macOS prerelease fix)"
-              echo "    Correcting via direct pin-install to verify target version works..."
-              gh extension install github/gh-aw --pin "$LATEST" --force
+              echo "    Correcting via remove+install to verify target version works..."
+              gh extension remove github/gh-aw
+              gh extension install github/gh-aw --pin "$LATEST"
             fi
           fi
 
