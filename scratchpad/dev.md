@@ -727,6 +727,9 @@ sequenceDiagram
 - `create-project-status-update`
 - `update-release`, `upload-asset`
 
+**Wiki**:
+- `edit-wiki`
+
 **Security & Agent Tasks**:
 - `create-code-scanning-alert`
 - `create-agent-session`
@@ -805,7 +808,49 @@ safe-outputs:
 
 The `blocked` field accepts a list of usernames or glob patterns. If the AI agent attempts to assign/unassign a blocked user, the operation is rejected. The `allowed` field restricts which users can be operated on; if omitted, all non-blocked users are permitted.
 
-### Attribution Footers
+**Edit Wiki** (`edit-wiki`):
+```yaml
+safe-outputs:
+  edit-wiki:                          # minimal — targets the current repo's wiki
+
+  # or with options:
+  edit-wiki:
+    repo: "org/other-repo"            # optional, defaults to current repo
+    allowed-repos:                    # restricts which repos can be targeted
+      - "org/other-repo"
+    if-no-changes: warn               # warn | error | ignore (default: warn)
+    commit-title-suffix: " [bot]"     # appended to each commit subject line
+    github-token: ${{ secrets.MY_TOKEN }}
+    staged: false
+```
+
+The agent clones the wiki repo (`OWNER/REPO.wiki.git`) to a local directory, creates or edits wiki page files, commits the changes, then calls the `edit_wiki` tool. The safe-output job applies the patch via `git am --3way` and pushes to the wiki's default branch (`master`).
+
+Agent usage pattern:
+```bash
+# 1. Clone the wiki
+git clone https://github.com/OWNER/REPO.wiki.git /tmp/gh-aw/wiki
+git -C /tmp/gh-aw/wiki config user.email "github-actions[bot]@users.noreply.github.com"
+git -C /tmp/gh-aw/wiki config user.name "github-actions[bot]"
+
+# 2. Create or edit wiki pages
+echo "# My Page\nContent here" > /tmp/gh-aw/wiki/My-Page.md
+
+# 3. Commit the changes
+git -C /tmp/gh-aw/wiki add .
+git -C /tmp/gh-aw/wiki commit -m "Add My-Page"
+
+# 4. Call the edit_wiki tool
+# { "message": "Add My-Page", "wiki_dir": "/tmp/gh-aw/wiki" }
+```
+
+Testing `edit-wiki` locally with `smoke-codex.md`:
+1. Add `edit-wiki:` under `safe-outputs:` in your workflow
+2. Run the workflow: `gh aw run .github/workflows/smoke-codex.md`
+3. The smoke test (#10) clones the wiki, creates `Smoke-Test-Haiku.md`, appends a link to `Home.md`, commits, and calls the tool
+4. Check the wiki at `https://github.com/OWNER/REPO/wiki` to confirm the new page and link appear
+
+
 
 All GitHub content created by safe outputs includes attribution:
 
@@ -2590,6 +2635,7 @@ type Everything interface {
 | `add-comment` | 1 | ✅ | `issues: write` or `pull-requests: write` |
 | `assign-to-user` | 1 | ✅ | `issues: write` |
 | `unassign-from-user` | 1 | ✅ | `issues: write` |
+| `edit-wiki` | 1 | ✅ | `contents: write` |
 | `missing-tool` | 0 (unlimited) | N/A | Optional `issues: write` |
 | `noop` | 1 | N/A | None |
 
