@@ -387,30 +387,28 @@ func cleanupAllIncludes(verbose bool) error {
 }
 
 // hasDirectiveMarker reports whether content contains any @include, @import, or {{#import
-// directive marker using a single forward scan, so the content is traversed at most once.
+// directive marker using a single forward scan of the content.
 func hasDirectiveMarker(content string) bool {
 	for i := 0; i < len(content); {
-		// Find next '@' or '{'—both are rare in workflow prose, so IndexByte skips
-		// large stretches of uninteresting bytes via SIMD on supported platforms.
-		atIdx := strings.IndexByte(content[i:], '@')
-		braceIdx := strings.IndexByte(content[i:], '{')
-		if atIdx < 0 && braceIdx < 0 {
+		// A single IndexAny call locates the next '@' or '{' in one pass, so
+		// the content is traversed at most once regardless of which byte appears first.
+		idx := strings.IndexAny(content[i:], "@{")
+		if idx < 0 {
 			return false
 		}
-		if atIdx >= 0 && (braceIdx < 0 || atIdx <= braceIdx) {
-			pos := i + atIdx
-			rest := content[pos:]
+		pos := i + idx
+		rest := content[pos:]
+		switch rest[0] {
+		case '@':
 			if strings.HasPrefix(rest, "@include") || strings.HasPrefix(rest, "@import") {
 				return true
 			}
-			i = pos + 1
-		} else {
-			pos := i + braceIdx
-			if strings.HasPrefix(content[pos:], "{{#import") {
+		case '{':
+			if strings.HasPrefix(rest, "{{#import") {
 				return true
 			}
-			i = pos + 1
 		}
+		i = pos + 1
 	}
 	return false
 }
