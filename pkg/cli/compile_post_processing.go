@@ -1,13 +1,16 @@
 // This file provides post-processing operations for workflow compilation.
 //
 // This file contains functions that perform post-compilation operations such as
-// generating Dependabot manifests and maintenance workflows.
+// generating Dependabot manifests, maintenance workflows, file cleanup, and
+// displaying compiler warnings.
 //
 // # Organization Rationale
 //
 // These post-processing functions are grouped here because they:
 //   - Run after workflow compilation completes
 //   - Generate auxiliary files and manifests
+//   - Clean up orphaned or invalid workflow files
+//   - Display accumulated warnings from the compiler
 //   - Have a clear domain focus (post-compilation processing)
 //   - Keep the main orchestrator focused on coordination
 //
@@ -17,6 +20,15 @@
 //   - generateDependabotManifestsWrapper() - Generate Dependabot manifests
 //   - generateMaintenanceWorkflowWrapper() - Generate maintenance workflow
 //
+// Cleanup:
+//   - purgeOrphanedLockFiles() - Remove orphaned .lock.yml files
+//   - purgeInvalidFiles() - Remove .invalid.yml files
+//
+// Warnings and Cache:
+//   - displayScheduleWarnings() - Display schedule warnings from the compiler
+//   - displaySafeUpdateWarnings() - Display safe update warning prompts
+//   - pruneStaleActionCacheEntries() - Remove stale gh-aw-actions cache entries
+//
 // These functions abstract post-processing operations, allowing the main compile
 // orchestrator to focus on coordination while these handle generation and validation.
 
@@ -25,6 +37,8 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -84,4 +98,141 @@ func generateMaintenanceWorkflowWrapper(
 	}
 
 	return nil
+}
+
+// purgeOrphanedLockFiles removes orphaned .lock.yml files
+// These are lock files that exist but don't have a corresponding .md file
+func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, verbose bool) error {
+	compilePostProcessingLog.Printf("Purging orphaned lock files in %s", workflowsDir)
+
+	// Find all existing .lock.yml files
+	existingLockFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
+	if err != nil {
+		return fmt.Errorf("failed to find existing lock files: %w", err)
+	}
+
+	if len(existingLockFiles) == 0 {
+		compilePostProcessingLog.Print("No lock files found")
+		return nil
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .lock.yml files", len(existingLockFiles))))
+	}
+
+	// Build a set of expected lock files
+	expectedLockFileSet := make(map[string]bool)
+	for _, expected := range expectedLockFiles {
+		expectedLockFileSet[expected] = true
+	}
+
+	// Find lock files that should be deleted (exist but aren't expected)
+	var orphanedFiles []string
+	for _, existing := range existingLockFiles {
+		// Skip .campaign.lock.yml files - they're handled by purgeOrphanedCampaignOrchestratorLockFiles
+		if strings.HasSuffix(existing, ".campaign.lock.yml") {
+			continue
+		}
+		if !expectedLockFileSet[existing] {
+			orphanedFiles = append(orphanedFiles, existing)
+		}
+	}
+
+	// Delete orphaned lock files
+	if len(orphanedFiles) > 0 {
+		for _, orphanedFile := range orphanedFiles {
+			if err := os.Remove(orphanedFile); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove orphaned lock file %s: %v", filepath.Base(orphanedFile), err)))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed orphaned lock file: "+filepath.Base(orphanedFile)))
+			}
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Purged %d orphaned .lock.yml files", len(orphanedFiles))))
+		}
+	}
+
+	compilePostProcessingLog.Printf("Purged %d orphaned lock files", len(orphanedFiles))
+	return nil
+}
+
+// purgeInvalidFiles removes all .invalid.yml files
+// These are temporary debugging artifacts that should not persist
+func purgeInvalidFiles(workflowsDir string, verbose bool) error {
+	compilePostProcessingLog.Printf("Purging invalid files in %s", workflowsDir)
+
+	// Find all existing .invalid.yml files
+	existingInvalidFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.invalid.yml"))
+	if err != nil {
+		return fmt.Errorf("failed to find existing invalid files: %w", err)
+	}
+
+	if len(existingInvalidFiles) == 0 {
+		compilePostProcessingLog.Print("No invalid files found")
+		return nil
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .invalid.yml files", len(existingInvalidFiles))))
+	}
+
+	// Delete all .invalid.yml files
+	for _, invalidFile := range existingInvalidFiles {
+		if err := os.Remove(invalidFile); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove invalid file %s: %v", filepath.Base(invalidFile), err)))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed invalid file: "+filepath.Base(invalidFile)))
+		}
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Purged %d .invalid.yml files", len(existingInvalidFiles))))
+	}
+
+	compilePostProcessingLog.Printf("Purged %d invalid files", len(existingInvalidFiles))
+	return nil
+}
+
+// displayScheduleWarnings displays any schedule warnings from the compiler
+func displayScheduleWarnings(compiler *workflow.Compiler, jsonOutput bool) {
+	scheduleWarnings := compiler.GetScheduleWarnings()
+	if len(scheduleWarnings) > 0 && !jsonOutput {
+		for _, warning := range scheduleWarnings {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
+		}
+	}
+}
+
+// displaySafeUpdateWarnings displays any safe update warning prompts accumulated by the
+// compiler.  Each entry is a structured message that instructs the calling agent to:
+//   - Review new secrets/actions for malicious use
+//   - Add a security review note to the pull request description
+func displaySafeUpdateWarnings(compiler *workflow.Compiler, jsonOutput bool) {
+	warnings := compiler.GetSafeUpdateWarnings()
+	if len(warnings) == 0 || jsonOutput {
+		return
+	}
+	for _, w := range warnings {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+	}
+}
+
+// pruneStaleActionCacheEntries removes stale gh-aw-actions entries from the
+// action cache whose version does not match the compiler's current version.
+// This prevents actions-lock.json from accumulating entries for old compiler
+// releases that are no longer referenced by any compiled workflow.
+func pruneStaleActionCacheEntries(compiler *workflow.Compiler, actionCache *workflow.ActionCache) {
+	if actionCache == nil {
+		return
+	}
+
+	// Determine the effective version: actionTag takes precedence when explicitly
+	// set (e.g., via --action-tag for testing against a specific release), otherwise
+	// fall back to the compiler's built-in version from the binary.
+	version := compiler.GetActionTag()
+	if version == "" {
+		version = compiler.GetVersion()
+	}
+
+	actionCache.PruneStaleGHAWEntries(version, compiler.EffectiveActionsRepo())
 }
