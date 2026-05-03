@@ -837,10 +837,71 @@ on: "deployment error"              # deployment_status with state == 'error' gu
 on: "deployment failed or error"    # deployment_status with state == 'failure' or 'error' guard
 ```
 
+## Choosing the Right Trigger
+
+When automating tasks related to pull requests, `pull_request` and `workflow_run` serve different purposes. The right choice depends on whether the workflow needs CI artifacts, write permissions on fork PRs, or direct access to the PR code.
+
+| | `pull_request` | `workflow_run` |
+|---|---|---|
+| Direct access to PR diff and code | ✅ | ❌ |
+| Runs immediately when PR is opened/updated | ✅ | ❌ (waits for triggering workflow to finish) |
+| Access to CI artifacts (logs, coverage reports) | ❌ | ✅ |
+| Write permissions on fork PRs | ❌ | ✅ (runs in base repo context) |
+| Post-CI analysis | ❌ | ✅ |
+
+**Use `pull_request` when:**
+
+- The task needs direct access to the PR diff or changed files.
+- No CI artifacts are required.
+- Fork PRs are acceptable with read-only permissions.
+
+**Use `workflow_run` when:**
+
+- The task depends on CI artifacts such as test logs or coverage reports.
+- Fork PRs need write operations (posting comments, creating issues). Because `workflow_run` fires in the base repository context, it has full write permissions even when triggered by a fork PR.
+- The workflow should run only after another workflow (such as CI) has completed.
+
+> [!IMPORTANT]
+> `workflow_run` always executes in the base repository's context, not the fork's. This means the workflow has access to repository secrets and write permissions regardless of whether the triggering PR came from a fork. Always include `branches:` to restrict which branches can trigger the workflow.
+
+### Example: Post-CI coverage analysis
+
+The following workflow runs after CI completes and downloads coverage artifacts to post a summary comment on the PR. The `branches:` filter should match your repository's protected branches — the CI workflow must upload a `coverage` artifact for this pattern to work.
+
+```aw wrap
+---
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    conclusion: success
+    branches:
+      - main
+      - "feature/**"
+permissions:
+  contents: read
+  actions: read
+tools:
+  github:
+    toolsets: [repos, actions, pull_requests]
+safe-outputs:
+  add-comment:
+---
+
+# Coverage Report
+
+CI has finished for the pull request that triggered this run.
+
+1. Use the `actions` tool to download the `coverage` artifact from workflow run `${{ github.event.workflow_run.id }}`.
+2. Parse the coverage data and compute the overall coverage percentage.
+3. Find the pull request associated with workflow run `${{ github.event.workflow_run.id }}` and post a comment summarising the coverage results.
+```
+
 ## Related Documentation
 
 - [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Complete schedule format reference
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
+- [Fork Support](/gh-aw/reference/fork-support/) - Fork PR handling and permissions
 - [LabelOps](/gh-aw/patterns/label-ops/) - Label-based automation workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
