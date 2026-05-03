@@ -77,7 +77,9 @@ async function main() {
     return;
   }
 
-  const octokit = getOctokit(process.env.GITHUB_TOKEN || "");
+  // Use the authenticated `github` client provided by actions/github-script (via setupGlobals).
+  // This avoids requiring GITHUB_TOKEN to be explicitly set in the step env.
+  const octokit = github;
   const stateFileName = path.basename(stateFile);
 
   core.info(`Loading experiment state from branch "${branch}" (file: ${stateFileName})`);

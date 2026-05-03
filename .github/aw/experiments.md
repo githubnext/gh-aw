@@ -100,7 +100,7 @@ experiments:
 
 | Value | Behaviour | When to use |
 |---|---|---|
-| `repo` (**default**) | Commits `state.json` to a git branch named `experiments/{workflowID}` after each run. State survives cache evictions. | Recommended for all experiments — experiment data is valuable. |
+| `repo` (**default**) | Commits `state.json` to a git branch named `experiments/{sanitizedWorkflowID}` (workflow ID lowercased with hyphens removed, e.g. `my-workflow` → `experiments/myworkflow`) after each run. State survives cache evictions. | Recommended for all experiments — experiment data is valuable. |
 | `cache` | Uses GitHub Actions cache (legacy behaviour). State may be evicted after 7 days of inactivity. | Only when `contents: write` cannot be granted to the workflow. |
 
 **Key differences:**

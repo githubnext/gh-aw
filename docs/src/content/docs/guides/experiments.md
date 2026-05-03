@@ -100,7 +100,7 @@ experiments:
 
 | Value | Behaviour |
 |---|---|
-| `repo` (**default**) | Commits state to a git branch named `experiments/{workflowID}`. Durable — survives cache evictions. Requires `contents: write` permission (added automatically by the compiler). |
+| `repo` (**default**) | Commits state to a git branch named `experiments/{sanitizedWorkflowID}` (workflow ID lowercased with hyphens removed, e.g. `my-workflow` → `experiments/myworkflow`). Durable — survives cache evictions. Requires `contents: write` permission (added automatically by the compiler). |
 | `cache` | Uses GitHub Actions cache (legacy). State may be evicted after 7 days of inactivity. |
 
 When `storage: repo`, the compiler adds a `push_experiments_state` job that runs after the activation job and commits the updated `state.json` to the experiments branch.

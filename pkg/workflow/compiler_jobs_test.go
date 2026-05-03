@@ -3415,3 +3415,117 @@ func TestUpdateCacheMemoryJobConditionalDetection(t *testing.T) {
 		t.Errorf("update_cache_memory Needs %v should contain detection job", job.Needs)
 	}
 }
+
+// TestBuildPushExperimentsStateJob_RepoStorage verifies that buildPushExperimentsStateJob
+// creates the push_experiments_state job when experiments are configured with repo storage.
+func TestBuildPushExperimentsStateJob_RepoStorage(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:               "Test Workflow",
+		WorkflowID:         "my-workflow",
+		AI:                 "copilot",
+		RunsOn:             "runs-on: ubuntu-latest",
+		ExperimentsStorage: ExperimentsStorageRepo,
+		Experiments: map[string][]string{
+			"prompt_style": {"concise", "detailed"},
+		},
+	}
+
+	job, err := compiler.buildPushExperimentsStateJob(data)
+	require.NoError(t, err, "buildPushExperimentsStateJob should not return an error")
+	require.NotNil(t, job, "buildPushExperimentsStateJob should return a job for repo storage")
+
+	assert.Equal(t, "push_experiments_state", job.Name, "job name should be push_experiments_state")
+	assert.Contains(t, job.If, "always()", "job condition should use always()")
+	assert.Contains(t, job.Permissions, "contents: write", "job should have contents: write permission")
+	assert.Contains(t, job.Needs, string(constants.ActivationJobName), "job should depend on activation job")
+
+	// Branch name should use sanitized workflow ID
+	stepsYAML := strings.Join(job.Steps, "\n")
+	assert.Contains(t, stepsYAML, "experiments/myworkflow", "steps should reference sanitized branch name")
+	assert.Contains(t, stepsYAML, "push_experiment_state.cjs", "steps should use push_experiment_state.cjs helper")
+}
+
+// TestBuildPushExperimentsStateJob_CacheStorage verifies that buildPushExperimentsStateJob
+// returns nil when experiments use cache storage (no extra job needed).
+func TestBuildPushExperimentsStateJob_CacheStorage(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:               "Test Workflow",
+		WorkflowID:         "my-workflow",
+		AI:                 "copilot",
+		RunsOn:             "runs-on: ubuntu-latest",
+		ExperimentsStorage: ExperimentsStorageCache,
+		Experiments: map[string][]string{
+			"prompt_style": {"concise", "detailed"},
+		},
+	}
+
+	job, err := compiler.buildPushExperimentsStateJob(data)
+	require.NoError(t, err, "buildPushExperimentsStateJob should not return an error")
+	assert.Nil(t, job, "buildPushExperimentsStateJob should return nil for cache storage")
+}
+
+// TestBuildPushExperimentsStateJob_NoExperiments verifies that buildPushExperimentsStateJob
+// returns nil when no experiments are configured.
+func TestBuildPushExperimentsStateJob_NoExperiments(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:               "Test Workflow",
+		WorkflowID:         "my-workflow",
+		AI:                 "copilot",
+		RunsOn:             "runs-on: ubuntu-latest",
+		ExperimentsStorage: ExperimentsStorageRepo,
+		Experiments:        map[string][]string{},
+	}
+
+	job, err := compiler.buildPushExperimentsStateJob(data)
+	require.NoError(t, err, "buildPushExperimentsStateJob should not return an error")
+	assert.Nil(t, job, "buildPushExperimentsStateJob should return nil when no experiments are defined")
+}
+
+// TestBuildMemoryManagementJobs_PushExperimentsIncludedInConclusion verifies that when
+// experiments use repo storage, push_experiments_state is wired into conclusion job needs.
+func TestBuildMemoryManagementJobs_PushExperimentsIncludedInConclusion(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "push-experiments-conclusion-test")
+
+	frontmatter := `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+strict: false
+experiments:
+  storage: repo
+  prompt_style: [concise, detailed]
+---
+
+# Test Workflow
+
+Test content`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(frontmatter), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "test.lock.yml"))
+	require.NoError(t, err, "lock file should be created")
+
+	yamlStr := string(content)
+
+	// push_experiments_state job should exist
+	assert.True(t, containsInNonCommentLines(yamlStr, "push_experiments_state:"), "push_experiments_state job should be present")
+
+	// conclusion job should depend on push_experiments_state
+	conclusionSection := extractJobSection(yamlStr, "conclusion")
+	require.NotEmpty(t, conclusionSection, "conclusion job should be present")
+	assert.Contains(t, conclusionSection, "push_experiments_state", "conclusion job should depend on push_experiments_state")
+}

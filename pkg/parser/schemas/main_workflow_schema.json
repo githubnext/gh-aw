@@ -2749,10 +2749,10 @@
       ]
     },
     "experiments": {
-      "description": "A/B testing experiments. Each key is an experiment name; the value is either an array of two or more variant strings (bare-array form) or an object with a 'variants' field plus optional metadata fields (description, metric, weight, issue, start_date, end_date, hypothesis, secondary_metrics, guardrail_metrics, min_samples, owner). The reserved 'storage' key controls how experiment state is persisted: 'repo' (default) commits state to a git branch named 'experiments/{workflowID}' for durability; 'cache' uses GitHub Actions cache. At runtime the activation job picks a variant and persists the updated counters. Use ${{ experiments.<name> }} in the workflow prompt to reference the selected variant. When multiple experiments are declared, assignments are statistically balanced using a least-used counter that round-robins across variants (or weighted when 'weight' is provided); ties are broken randomly so no variant is systematically favoured on the first run.",
+      "description": "A/B testing experiments. Each key is an experiment name; the value is either an array of two or more variant strings (bare-array form) or an object with a 'variants' field plus optional metadata fields (description, metric, weight, issue, start_date, end_date, hypothesis, secondary_metrics, guardrail_metrics, min_samples, owner). The reserved 'storage' key controls how experiment state is persisted: 'repo' (default) commits state to a git branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with hyphens removed) for durability; 'cache' uses GitHub Actions cache. At runtime the activation job picks a variant and persists the updated counters. Use ${{ experiments.<name> }} in the workflow prompt to reference the selected variant. When multiple experiments are declared, assignments are statistically balanced using a least-used counter that round-robins across variants (or weighted when 'weight' is provided); ties are broken randomly so no variant is systematically favoured on the first run.",
       "type": "object",
       "propertyNames": {
-        "oneOf": [
+        "anyOf": [
           {
             "const": "storage",
             "description": "Reserved key for storage mode configuration."
@@ -2899,7 +2899,7 @@
           "type": "string",
           "enum": ["cache", "repo"],
           "default": "repo",
-          "description": "Storage backend for experiment state. 'repo' (default) persists state to a git branch named 'experiments/{workflowID}' for durability across cache evictions. 'cache' uses GitHub Actions cache (legacy behaviour). Repo storage is recommended because experiment data is valuable and more durable than cache."
+          "description": "Storage backend for experiment state. 'repo' (default) persists state to a git branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with hyphens removed, e.g. 'my-workflow' -> 'experiments/myworkflow') for durability across cache evictions. 'cache' uses GitHub Actions cache (legacy behaviour). Repo storage is recommended because experiment data is valuable and more durable than cache."
         }
       }
     },

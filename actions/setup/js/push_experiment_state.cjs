@@ -178,13 +178,21 @@ async function main() {
         core.warning(`Push failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delay}ms: ${errMsg}`);
         await new Promise(resolve => setTimeout(resolve, delay));
 
-        // Refresh baseRef in case another run pushed to the branch concurrently.
+        // Refresh baseRef and fetch the updated remote history so that
+        // pushSignedCommits can resolve the new baseRef in git rev-list.
         try {
           const { stdout: lsOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branchName}`], { cwd: workspaceDir });
           const remoteHead = lsOut.trim().split(/\s+/)[0] || "";
           if (remoteHead && remoteHead !== currentBaseRef) {
             currentBaseRef = remoteHead;
             core.info(`Refreshed baseRef for retry: ${currentBaseRef}`);
+            // Fetch the updated branch history into the local repo so pushSignedCommits
+            // can resolve currentBaseRef in `git rev-list baseRef..HEAD`.
+            try {
+              execGitSync(["fetch", "origin", `refs/heads/${branchName}`], { stdio: "pipe", cwd: workspaceDir, suppressLogs: true });
+            } catch (fetchErr) {
+              core.info(`Fetch on retry failed (non-fatal): ${getErrorMessage(fetchErr)}`);
+            }
           }
         } catch {
           // ls-remote failed; keep existing baseRef
