@@ -35,6 +35,7 @@ import "maps"
 //   - "sonnet"       → Anthropic Sonnet family
 //   - "haiku"        → Anthropic Haiku family
 //   - "opus"         → Anthropic Opus family
+//   - "gpt-4.1"      → OpenAI GPT-4.1 family
 //   - "gpt-5"        → OpenAI GPT-5 family
 //   - "gpt-5-mini"   → OpenAI GPT-5-mini family
 //   - "gpt-5-codex"  → OpenAI GPT-5-Codex family
@@ -61,6 +62,10 @@ func BuiltinModelAliases() map[string][]string {
 			"anthropic/*opus*",
 		},
 		// ── OpenAI ───────────────────────────────────────────────────────────
+		"gpt-4.1": {
+			"copilot/gpt-4.1*",
+			"openai/gpt-4.1*",
+		},
 		"gpt-5": {
 			"copilot/gpt-5*",
 			"openai/gpt-5*",

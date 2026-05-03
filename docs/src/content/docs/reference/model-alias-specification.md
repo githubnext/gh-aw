@@ -532,6 +532,7 @@ AWF ships the following builtin aliases. Workflow frontmatter definitions (and i
 | `sonnet` | `copilot/*sonnet*`, `anthropic/*sonnet*` |
 | `haiku` | `copilot/*haiku*`, `anthropic/*haiku*` |
 | `opus` | `copilot/*opus*`, `anthropic/*opus*` |
+| `gpt-4.1` | `copilot/gpt-4.1*`, `openai/gpt-4.1*` |
 | `gpt-5` | `copilot/gpt-5*`, `openai/gpt-5*` |
 | `gpt-5-mini` | `copilot/gpt-5*mini*`, `openai/gpt-5*mini*` |
 | `gpt-5-codex` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*` |
