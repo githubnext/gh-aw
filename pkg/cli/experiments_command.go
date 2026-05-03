@@ -238,8 +238,12 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 
 	branchName := experimentsBranchPrefix + config.ExperimentName
 
-	// Load experiment configs from the workflow frontmatter for rich statistical output.
-	// Errors are intentionally ignored — statistics are still computed with defaults.
+	// Load experiment configs from the workflow frontmatter to enrich the statistical output
+	// with hypothesis text, analysis_type, min_samples, and guardrail thresholds.
+	// Config loading is best-effort: failures are silently ignored and analysis falls back to
+	// defaults (min_samples=20, equal expected proportions, no hypothesis displayed).
+	// This ensures the command remains functional even when the workflow .md file is absent
+	// (e.g., when analysing experiments from a remote repository without the workflow checked out).
 	var experimentConfigs map[string]*workflow.ExperimentConfig
 	if config.RepoOverride != "" {
 		experimentConfigs = loadRemoteExperimentConfigs(config.RepoOverride, config.ExperimentName)
@@ -308,7 +312,20 @@ func loadLocalExperimentConfigs(experimentName string) map[string]*workflow.Expe
 		return nil
 	}
 
-	content, err := os.ReadFile(filePath) // #nosec G304 — filePath is resolved from local .github/workflows/
+	// Verify that the resolved path is within .github/workflows/ to prevent path traversal.
+	// findWorkflowFileForExperiment returns absolute paths from getMarkdownWorkflowFiles,
+	// which enumerates only files beneath .github/workflows/ (no user input injected).
+	workflowsDir, err := filepath.Abs(getWorkflowsDir())
+	if err != nil {
+		experimentsLog.Printf("Failed to resolve workflows dir: %v", err)
+		return nil
+	}
+	if !strings.HasPrefix(filePath, workflowsDir+string(filepath.Separator)) {
+		experimentsLog.Printf("Refusing to read workflow file outside .github/workflows/: %s", filePath)
+		return nil
+	}
+
+	content, err := os.ReadFile(filePath) // #nosec G304 — path confirmed within .github/workflows/
 	if err != nil {
 		experimentsLog.Printf("Failed to read workflow file %s: %v", filePath, err)
 		return nil

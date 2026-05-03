@@ -172,7 +172,7 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 
 	// Recommendation (R-STAT-007).
 	belowCount := 0
-	minObserved := math.MaxInt32
+	minObserved := math.MaxInt
 	for _, v := range a.Variants {
 		if v.BelowMinSamples {
 			belowCount++
@@ -239,7 +239,11 @@ func expectedProportions(sortedVariantNames []string, cfg *workflow.ExperimentCo
 }
 
 // chiSquarePValue computes the right-tail p-value P(X ≥ chi2) where X ~ Chi²(df).
-// Uses the Wilson-Hilferty normal approximation, accurate for df ≥ 1 and moderate chi2.
+// Uses the Wilson-Hilferty normal approximation via math.Erfc.
+// Accuracy: good for df ≥ 1 and chi2 in roughly the range [0, 100]; the approximation
+// degrades for very large chi2 values (>100) or very small df (df=1 with extreme chi2),
+// but is adequate for the balance-testing use case (variants rarely exceed 10, and
+// chi2 values outside the critical region are truncated by the significance gate).
 // Returns 1.0 for degenerate inputs (chi2 ≤ 0 or df ≤ 0).
 func chiSquarePValue(chi2 float64, df int) float64 {
 	if chi2 <= 0 || df <= 0 {

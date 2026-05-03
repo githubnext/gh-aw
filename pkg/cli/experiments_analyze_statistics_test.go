@@ -544,23 +544,12 @@ func TestPartiallyBelowMinSamples(t *testing.T) {
 	assert.Equal(t, "EXTEND", a.Recommendation, "one variant below threshold → EXTEND")
 	assert.Contains(t, a.Rationale, "1 of 2", "rationale should count variants below threshold")
 
-	// Check per-variant BelowMinSamples flags.
-	aboveVariant := findVariantAnalysis(a.Variants, "above")
-	belowVariant := findVariantAnalysis(a.Variants, "below")
-	require.NotNil(t, aboveVariant, "should find 'above' variant")
-	require.NotNil(t, belowVariant, "should find 'below' variant")
-	assert.False(t, aboveVariant.BelowMinSamples, "'above' should not be flagged")
-	assert.True(t, belowVariant.BelowMinSamples, "'below' should be flagged")
-}
-
-// findVariantAnalysis is a test helper that finds a VariantAnalysis by name.
-func findVariantAnalysis(variants []VariantAnalysis, name string) *VariantAnalysis {
-	for i := range variants {
-		if variants[i].Name == name {
-			return &variants[i]
-		}
-	}
-	return nil
+	// Variants are sorted alphabetically: "above" comes before "below".
+	require.Len(t, a.Variants, 2, "should have two variants")
+	assert.Equal(t, "above", a.Variants[0].Name, "first variant alphabetically")
+	assert.Equal(t, "below", a.Variants[1].Name, "second variant alphabetically")
+	assert.False(t, a.Variants[0].BelowMinSamples, "'above' (count=25) should not be flagged")
+	assert.True(t, a.Variants[1].BelowMinSamples, "'below' (count=5) should be flagged")
 }
 
 // TestChiSquarePerfectBalance verifies that chi² = 0 for a perfectly balanced sample.
