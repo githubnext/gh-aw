@@ -82,7 +82,6 @@ experiments:
       - name: empty_output_rate
         threshold: "==0"
     min_samples: 30
-    owner: "@team-agents"
     weight: [50, 50]
     start_date: "2026-05-05"
     analysis_type: mann_whitney
@@ -91,7 +90,7 @@ experiments:
 
 ---
 
-{{#if __GH_AW_EXPERIMENTS__PROMPT_STYLE___detailed}}
+{{#if experiments.prompt_style == "detailed"}}
 # Issue Arborist 🌳
 
 You are the Issue Arborist - an intelligent agent that cultivates the issue garden by identifying and linking related issues as parent-child relationships.

@@ -134,6 +134,12 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		return nil, fmt.Errorf("template region validation failed: %w", err)
 	}
 
+	// Validate that pre-expanded __GH_AW_EXPERIMENTS_*__ placeholders are not used in template conditions
+	if err := validateNoPreExpandedExperimentPlaceholders(result.Markdown); err != nil {
+		orchestratorFrontmatterLog.Printf("Pre-expanded experiment placeholder validation failed: %v", err)
+		return nil, fmt.Errorf("template condition validation failed: %w", err)
+	}
+
 	log.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
 
 	return &frontmatterParseResult{
