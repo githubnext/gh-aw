@@ -10,7 +10,7 @@ import (
 var compilerSafeOutputJobsLog = logger.New("workflow:compiler_safe_output_jobs")
 
 func buildCallWorkflowAwContextExpression() string {
-	return "${{ format('{{\"repo\":\"{0}\",\"run_id\":\"{1}\",\"workflow_id\":\"{2}\",\"workflow_call_id\":\"{3}-{4}:{5}\",\"time\":\"\",\"actor\":\"{6}\",\"event_type\":\"{7}\",\"item_type\":\"\",\"item_number\":\"\",\"comment_id\":\"\",\"comment_node_id\":\"\",\"deployment_state\":\"\",\"workflow_run_conclusion\":\"\",\"otel_trace_id\":\"{8}\",\"otel_parent_span_id\":\"\",\"trigger_label\":\"{9}\"}}', github.repository, github.run_id, github.workflow_ref, github.run_id, github.run_attempt, github.workflow_ref, github.actor, github.event_name, needs.activation.outputs.setup-trace-id, github.event.label.name || '') }}"
+	return "${{ format('{{\"repo\":\"{0}\",\"run_id\":\"{1}\",\"workflow_id\":\"{2}\",\"workflow_call_id\":\"{3}-{4}:{5}\",\"time\":\"\",\"actor\":\"{6}\",\"event_type\":\"{7}\",\"item_type\":\"\",\"item_number\":\"\",\"comment_id\":\"\",\"comment_node_id\":\"\",\"deployment_state\":\"\",\"workflow_run_conclusion\":\"\",\"otel_trace_id\":\"{8}\",\"otel_parent_span_id\":\"\",\"trigger_label\":\"\"}}', github.repository, github.run_id, github.workflow_ref, github.run_id, github.run_attempt, github.workflow_ref, github.actor, github.event_name, needs.activation.outputs.setup-trace-id) }}"
 }
 
 // buildSafeOutputsJobs builds all safe output jobs based on the configuration in data.SafeOutputs.
