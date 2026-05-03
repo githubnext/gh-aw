@@ -77,7 +77,7 @@ func getCachedActionPinFromResolver(repo string, resolver ActionSHAResolver) str
 
 // getActionPinByRepo returns the latest ActionPin for a given repository, if any.
 func getActionPinByRepo(repo string) (ActionPin, bool) {
-	return actionpins.GetActionPinByRepo(repo)
+	return actionpins.GetLatestActionPinByRepo(repo)
 }
 
 // getEmbeddedContainerPin returns the pinned container image for a given image reference.

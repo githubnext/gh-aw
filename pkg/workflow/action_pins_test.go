@@ -243,8 +243,8 @@ func TestApplyActionPinToStep(t *testing.T) {
 	}
 }
 
-// TestGetActionPinByRepo tests the getActionPinByRepo function
-func TestGetActionPinByRepo(t *testing.T) {
+// TestGetLatestActionPinByRepo tests the getActionPinByRepo function
+func TestGetLatestActionPinByRepo(t *testing.T) {
 	tests := []struct {
 		repo                string
 		expectExists        bool

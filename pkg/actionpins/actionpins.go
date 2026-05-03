@@ -187,8 +187,8 @@ func GetActionPinsByRepo(repo string) []ActionPin {
 	return cachedActionPinsByRepo[repo]
 }
 
-// GetActionPinByRepo returns the latest ActionPin for a given repository, if any.
-func GetActionPinByRepo(repo string) (ActionPin, bool) {
+// GetLatestActionPinByRepo returns the latest ActionPin for a given repository, if any.
+func GetLatestActionPinByRepo(repo string) (ActionPin, bool) {
 	pins := GetActionPinsByRepo(repo)
 	if len(pins) == 0 {
 		return ActionPin{}, false
