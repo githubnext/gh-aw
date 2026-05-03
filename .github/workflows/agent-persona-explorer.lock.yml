@@ -504,7 +504,7 @@ jobs:
             echo "::error::Failed to find gh-aw binary for MCP server"
             exit 1
           fi
-      - name: Write Safe Outputs Config
+      - name: Generate Safe Outputs Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -512,7 +512,7 @@ jobs:
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_aa9eab4217bc80a7_EOF'
           {"create_discussion":{"category":"agent-research","close_older_discussions":true,"fallback_to_issue":true,"max":1},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
           GH_AW_SAFE_OUTPUTS_CONFIG_aa9eab4217bc80a7_EOF
-      - name: Write Safe Outputs Tools
+      - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
             {

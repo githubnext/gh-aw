@@ -617,7 +617,7 @@ jobs:
             echo "::error::Failed to find gh-aw binary for MCP server"
             exit 1
           fi
-      - name: Write Safe Outputs Config
+      - name: Generate Safe Outputs Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -625,7 +625,7 @@ jobs:
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_0c59fe88ed6f6234_EOF'
           {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1,"title_prefix":"[mcp-inspector] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"notion-add-comment":{"description":"Add a comment to a Notion page","inputs":{"comment":{"default":null,"description":"The comment text to add","required":true,"type":"string"}},"output":"Comment added to Notion successfully!"},"post-to-slack-channel":{"description":"Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \u003equote, and links \u003curl|text\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.","inputs":{"message":{"default":null,"description":"The message to post (max 200 characters, supports Slack markdown)","required":true,"type":"string"}},"output":"Message posted to Slack successfully!"},"report_incomplete":{}}
           GH_AW_SAFE_OUTPUTS_CONFIG_0c59fe88ed6f6234_EOF
-      - name: Write Safe Outputs Tools
+      - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
             {

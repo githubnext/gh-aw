@@ -677,7 +677,7 @@ jobs:
             echo "::error::Failed to find gh-aw binary for MCP server"
             exit 1
           fi
-      - name: Write Safe Outputs Config
+      - name: Generate Safe Outputs Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -686,7 +686,7 @@ jobs:
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_0258fc88addb0325_EOF'
           {"add_comment":{"allowed_repos":["github/gh-aw"],"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-copilot"],"allowed_repos":["github/gh-aw"]},"comment_memory":{"max":1,"memory_id":"default"},"create_discussion":{"category":"announcements","close_older_discussions":true,"close_older_key":"smoke-copilot","expires":2,"fallback_to_issue":true,"labels":["ai-generated"],"max":1},"create_issue":{"close_older_issues":true,"close_older_key":"smoke-copilot","expires":2,"group":true,"labels":["automation","testing"],"max":1},"create_pull_request_review_comment":{"max":5,"side":"RIGHT"},"create_report_incomplete_issue":{},"dispatch_workflow":{"max":1,"workflow_files":{"haiku-printer":".yml"},"workflows":["haiku-printer"]},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke"]},"reply_to_pull_request_review_comment":{"max":5},"report_incomplete":{},"send-slack-message":{"description":"Send a message to Slack (stub for testing)","inputs":{"message":{"description":"The message to send","required":false,"type":"string"}},"output":"Slack message stub executed!"},"set_issue_type":{},"submit_pull_request_review":{"max":1},"upload_artifact":{"max-size-bytes":104857600,"max-uploads":1,"retention-days":1,"skip-archive":true}}
           GH_AW_SAFE_OUTPUTS_CONFIG_0258fc88addb0325_EOF
-      - name: Write Safe Outputs Tools
+      - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
             {
