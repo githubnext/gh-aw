@@ -52,19 +52,32 @@ func (c *Compiler) validateModelAliasMap(
 	modelAliasValidationLog.Printf("Validating model alias map: %d merged entries, %d frontmatter entries, engine.model=%q",
 		len(mergedAliasMap), len(frontmatterModels), engineModel)
 
-	// V-MAF-004: engine.model MUST NOT be a glob pattern.
-	// GitHub Actions expressions (${{ ... }}) are exempt from syntax checks,
-	// including partial expressions such as "${{ inputs.model }}?effort=high".
-	if engineModel != "" && !containsExpression(engineModel) {
-		if err := validateEngineModelNotGlob(engineModel, markdownPath); err != nil {
-			return err
+	// V-MAF-004: engine.model MUST NOT contain a glob pattern ("*").
+	// The check is always performed, but only on the *literal* parts of the
+	// value — expression segments (${{ ... }}) are stripped first so that a
+	// "*" inside an expression body (e.g. "${{ contains(inputs.m, '*') }}")
+	// is not falsely flagged.  A "*" that appears *outside* an expression
+	// (e.g. "${{ inputs.model }}*" or "copilot/*${{ inputs.model }}") is
+	// still a glob and must be rejected.
+	if engineModel != "" {
+		literalText := ExpressionPattern.ReplaceAllString(engineModel, "")
+		if strings.Contains(literalText, "*") {
+			return formatCompilerError(markdownPath, "error",
+				fmt.Sprintf("engine.model: glob patterns are not allowed in engine.model; "+
+					"got %q — glob patterns may only appear in models alias list entries (V-MAF-004)", engineModel),
+				nil)
 		}
-		// V-MAF-001 + V-MAF-006: validate syntax of engine.model.
-		if errs := validateModelIdentifierStrings([]string{engineModel}, "engine.model"); len(errs) > 0 {
-			return formatCompilerError(markdownPath, "error", errs[0], nil)
+		// Syntax and parameter checks ($-character parsing, known params) are
+		// skipped for runtime-resolved expressions — they cannot be parsed at
+		// compile time.
+		if !containsExpression(engineModel) {
+			// V-MAF-001 + V-MAF-006: validate syntax of engine.model.
+			if errs := validateModelIdentifierStrings([]string{engineModel}, "engine.model"); len(errs) > 0 {
+				return formatCompilerError(markdownPath, "error", errs[0], nil)
+			}
+			// V-MAF-011: warn about unrecognised parameter keys in engine.model.
+			c.warnUnrecognizedModelParams([]string{engineModel}, markdownPath)
 		}
-		// V-MAF-011: warn about unrecognised parameter keys in engine.model.
-		c.warnUnrecognizedModelParams([]string{engineModel}, markdownPath)
 	}
 
 	// Validate user-supplied frontmatter aliases only (builtins are pre-validated).
@@ -89,20 +102,6 @@ func (c *Compiler) validateModelAliasMap(
 	}
 
 	modelAliasValidationLog.Print("Model alias map validation passed")
-	return nil
-}
-
-// ─── V-MAF-004: glob check for engine.model ───────────────────────────────────
-
-// validateEngineModelNotGlob returns an error if the engine.model value is a glob
-// pattern (contains "*"), which is prohibited in engine.model (V-MAF-004).
-func validateEngineModelNotGlob(engineModel, markdownPath string) error {
-	if strings.Contains(engineModel, "*") {
-		return formatCompilerError(markdownPath, "error",
-			fmt.Sprintf("engine.model: glob patterns are not allowed in engine.model; "+
-				"got %q — glob patterns may only appear in models alias list entries (V-MAF-004)", engineModel),
-			nil)
-	}
 	return nil
 }
 

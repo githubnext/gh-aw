@@ -657,15 +657,22 @@ func TestValidateModelAliasMap_EngineModelExpressionForms(t *testing.T) {
 		engineModel string
 		wantErr     bool
 	}{
+		// Whole/partial expressions — no "*" in literal parts — accepted.
 		{"whole-string expression", "${{ inputs.model }}", false},
 		{"expression with effort param", "${{ inputs.model }}?effort=high", false},
 		{"expression with temperature param", "${{ inputs.model }}?temperature=0.5", false},
 		{"expression with multiple params", "${{ inputs.model }}?effort=low&temperature=0.3", false},
 		{"expression with unknown param — no error (no static parse)", "${{ inputs.model }}?unknownparam=x", false},
 		{"compact expression syntax", "${{inputs.model}}", false},
+		{"provider-scoped expression", "copilot/${{ inputs.model }}", false},
 		// Non-expression values are still validated normally.
 		{"valid literal is accepted", "copilot/gpt-5", false},
+		// V-MAF-004: glob in literal part — always rejected regardless of expressions.
 		{"glob in engine.model is still rejected (V-MAF-004)", "copilot/*gpt*", true},
+		// V-MAF-004 must fire even when "*" appears outside an expression.
+		{"expression + trailing glob rejected (V-MAF-004)", "${{ inputs.model }}*", true},
+		{"literal glob before expression rejected (V-MAF-004)", "copilot/*${{ inputs.model }}", true},
+		{"expression between globs rejected (V-MAF-004)", "*${{ inputs.model }}*", true},
 	}
 
 	for _, tt := range tests {
@@ -678,7 +685,9 @@ func TestValidateModelAliasMap_EngineModelExpressionForms(t *testing.T) {
 				"/fake/path/workflow.md",
 			)
 			if tt.wantErr {
-				assert.Error(t, err, "engine.model=%q should be rejected", tt.engineModel)
+				require.Error(t, err, "engine.model=%q should be rejected", tt.engineModel)
+				assert.Contains(t, err.Error(), "V-MAF-004", "engine.model=%q error should reference V-MAF-004", tt.engineModel)
+				assert.Contains(t, err.Error(), tt.engineModel, "engine.model error should quote the offending value")
 			} else {
 				assert.NoError(t, err, "engine.model=%q should be accepted", tt.engineModel)
 			}
