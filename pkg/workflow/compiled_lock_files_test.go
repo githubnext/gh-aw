@@ -405,8 +405,7 @@ func TestCompiledLockFiles_SmokeCallWorkflowForwardsAwContext(t *testing.T) {
 
 	t.Run("CallWorkflowJobForwardsGeneratedAwContext", func(t *testing.T) {
 		assert.Contains(t, lockContent, "call-smoke-workflow-call:", "lock file should contain the call-workflow job")
-		assert.Contains(t, lockContent, "- activation", "call-workflow job should depend on activation for trace context")
-		assert.Contains(t, lockContent, "aw_context: ${{ format(", "call-workflow job should synthesize aw_context directly in YAML")
-		assert.Contains(t, lockContent, "needs.activation.outputs.setup-trace-id", "aw_context should propagate the activation trace id")
+		assert.Contains(t, lockContent, "aw_context:", "call-workflow job should synthesize aw_context directly in YAML")
+		assert.Contains(t, lockContent, "${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).aw_context }}", "call-workflow job should forward aw_context from the handler payload")
 	})
 }
