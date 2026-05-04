@@ -1710,11 +1710,32 @@ jobs:
         with:
           name: agent
           path: /tmp/gh-aw/
+      - name: Extract base branch from agent output
+        id: extract-base-branch
+        if: steps.download-agent-output.outcome == 'success'
+        run: |
+          if [ -f "/tmp/gh-aw/agent_output.json" ]; then
+            BASE_BRANCH=$(node -e "
+              try {
+                const data = JSON.parse(require('fs').readFileSync('/tmp/gh-aw/agent_output.json', 'utf8'));
+                const item = (data.items || []).find(i =>
+                  (i.type === 'create_pull_request' || i.type === 'push_to_pull_request_branch') &&
+                  i.base_branch
+                );
+                if (item) process.stdout.write(item.base_branch);
+              } catch(e) {}
+            " 2>/dev/null || true)
+            # Validate: only allow safe git branch name characters
+            if [[ "$BASE_BRANCH" =~ ^[a-zA-Z0-9/_.-]+$ ]] && [ ${#BASE_BRANCH} -le 255 ]; then
+              printf 'base-branch=%s\n' "$BASE_BRANCH" >> "$GITHUB_OUTPUT"
+              echo "Extracted base branch from safe output: $BASE_BRANCH"
+            fi
+          fi
       - name: Checkout repository
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}
+          ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}
           token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           persist-credentials: false
           fetch-depth: 1

@@ -122,7 +122,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"GIT_TOKEN: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
 				`REPO_NAME: "org/target-repo"`,
 				// Cross-repo checkout must not use github.ref_name
-				"ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
+				"ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
 			},
 		},
 		{
@@ -133,7 +133,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				},
 			},
 			checkContains: []string{
-				"ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
+				"ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
 			},
 			checkNotContains: []string{
 				"github.ref_name",
@@ -148,7 +148,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 			checkContains: []string{
 				"repository: org/trial-repo",
-				"ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
+				"ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
 			},
 		},
 		{
@@ -197,12 +197,12 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
-			name: "default checkout ref uses github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch",
+			name: "default checkout ref uses steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
 			checkContains: []string{
-				"ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}",
+				"ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}",
 			},
 		},
 		{
@@ -522,6 +522,7 @@ func TestStepOrderInConsolidatedJob(t *testing.T) {
 	setupPos := strings.Index(stepsContent, "name: Setup Scripts")
 	downloadPos := strings.Index(stepsContent, "name: Download agent output")
 	patchPos := strings.Index(stepsContent, "name: Download patch artifact")
+	extractBranchPos := strings.Index(stepsContent, "name: Extract base branch from agent output")
 	checkoutPos := strings.Index(stepsContent, "name: Checkout repository")
 	gitConfigPos := strings.Index(stepsContent, "name: Configure Git credentials")
 	handlerPos := strings.Index(stepsContent, "name: Process Safe Outputs")
@@ -533,8 +534,11 @@ func TestStepOrderInConsolidatedJob(t *testing.T) {
 	if downloadPos != -1 && patchPos != -1 {
 		assert.Less(t, downloadPos, patchPos, "Agent output download should come before patch download")
 	}
-	if patchPos != -1 && checkoutPos != -1 {
-		assert.Less(t, patchPos, checkoutPos, "Patch download should come before checkout")
+	if patchPos != -1 && extractBranchPos != -1 {
+		assert.Less(t, patchPos, extractBranchPos, "Patch download should come before extract base branch")
+	}
+	if extractBranchPos != -1 && checkoutPos != -1 {
+		assert.Less(t, extractBranchPos, checkoutPos, "Extract base branch should come before checkout")
 	}
 	if checkoutPos != -1 && gitConfigPos != -1 {
 		assert.Less(t, checkoutPos, gitConfigPos, "Checkout should come before git config")
@@ -542,4 +546,24 @@ func TestStepOrderInConsolidatedJob(t *testing.T) {
 	if gitConfigPos != -1 && handlerPos != -1 {
 		assert.Less(t, gitConfigPos, handlerPos, "Git config should come before handler")
 	}
+}
+
+// TestBuildExtractBaseBranchStep tests that the extract-base-branch step is correctly generated
+func TestBuildExtractBaseBranchStep(t *testing.T) {
+	steps := buildExtractBaseBranchStep()
+
+	require.NotEmpty(t, steps)
+
+	stepsContent := strings.Join(steps, "")
+
+	assert.Contains(t, stepsContent, "name: Extract base branch from agent output")
+	assert.Contains(t, stepsContent, "id: extract-base-branch")
+	assert.Contains(t, stepsContent, "steps.download-agent-output.outcome == 'success'")
+	assert.Contains(t, stepsContent, "/tmp/gh-aw/agent_output.json")
+	assert.Contains(t, stepsContent, "create_pull_request")
+	assert.Contains(t, stepsContent, "push_to_pull_request_branch")
+	assert.Contains(t, stepsContent, "base_branch")
+	assert.Contains(t, stepsContent, "GITHUB_OUTPUT")
+	// Validate branch name characters restriction for security
+	assert.Contains(t, stepsContent, "^[a-zA-Z0-9/_.-]+$")
 }
