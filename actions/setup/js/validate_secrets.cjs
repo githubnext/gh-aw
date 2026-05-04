@@ -40,6 +40,7 @@ const SECRET_DOCS = {
   GH_AW_COPILOT_TOKEN: "https://docs.github.com/en/copilot",
   ANTHROPIC_API_KEY: "https://docs.anthropic.com/en/api/getting-started",
   OPENAI_API_KEY: "https://platform.openai.com/docs/api-reference/auth",
+  GEMINI_API_KEY: "https://aistudio.google.com/api-keys",
   BRAVE_API_KEY: "https://brave.com/search/api/",
   NOTION_API_TOKEN: "https://developers.notion.com/docs/authorization",
 };
@@ -387,6 +388,53 @@ async function testOpenAIAPI(apiKey) {
 }
 
 /**
+ * Test Google Gemini API
+ * @param {string | undefined} apiKey
+ * @returns {Promise<{status: string, message: string, details?: any}>}
+ */
+async function testGeminiAPI(apiKey) {
+  if (!apiKey) {
+    return { status: Status.NOT_SET, message: "API key not set" };
+  }
+
+  try {
+    // Test with the models list endpoint which is lightweight and requires only a valid API key.
+    // Note: The Gemini API uses a query parameter for authentication (not an Authorization header),
+    // which is the standard method documented at https://ai.google.dev/gemini-api/docs/api-key
+    const result = await makeRequest("generativelanguage.googleapis.com", `/v1beta/models?key=${encodeURIComponent(apiKey)}&pageSize=1`, {
+      "User-Agent": "gh-aw-secret-validation",
+    });
+
+    if (result.statusCode === 200) {
+      return {
+        status: Status.SUCCESS,
+        message: "Gemini API access successful",
+        details: { statusCode: result.statusCode },
+      };
+    } else if (result.statusCode === 400 || result.statusCode === 403) {
+      return {
+        status: Status.FAILURE,
+        message: "Invalid or expired Gemini API key",
+        details: { statusCode: result.statusCode },
+      };
+    } else {
+      return {
+        status: Status.FAILURE,
+        message: `Gemini API returned status ${result.statusCode}`,
+        details: { statusCode: result.statusCode },
+      };
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      status: Status.FAILURE,
+      message: `Gemini API error: ${errorMessage}`,
+      details: { error: errorMessage },
+    };
+  }
+}
+
+/**
  * Test Brave Search API
  * @param {string | undefined} apiKey
  * @returns {Promise<{status: string, message: string, details?: any}>}
@@ -709,6 +757,17 @@ async function main() {
     });
     core.info(`  ${statusEmoji(openaiResult.status)} ${openaiResult.message}`);
 
+    // Test GEMINI_API_KEY
+    core.info("Testing GEMINI_API_KEY...");
+    const geminiKey = process.env.GEMINI_API_KEY;
+    const geminiResult = await testGeminiAPI(geminiKey);
+    results.push({
+      secret: "GEMINI_API_KEY",
+      test: "Google Gemini API",
+      ...geminiResult,
+    });
+    core.info(`  ${statusEmoji(geminiResult.status)} ${geminiResult.message}`);
+
     // Test BRAVE_API_KEY
     core.info("Testing BRAVE_API_KEY...");
     const braveKey = process.env.BRAVE_API_KEY;
@@ -770,6 +829,7 @@ module.exports = {
   testCopilotCLI,
   testAnthropicAPI,
   testOpenAIAPI,
+  testGeminiAPI,
   testBraveSearchAPI,
   testNotionAPI,
   generateMarkdownReport,

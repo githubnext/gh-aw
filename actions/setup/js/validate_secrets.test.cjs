@@ -1,7 +1,7 @@
 // @ts-check
 
 import { describe, it, expect } from "vitest";
-import { testGitHubRESTAPI, testGitHubGraphQLAPI, testCopilotCLI, testAnthropicAPI, testOpenAIAPI, testBraveSearchAPI, testNotionAPI, generateMarkdownReport, isForkRepository } from "./validate_secrets.cjs";
+import { testGitHubRESTAPI, testGitHubGraphQLAPI, testCopilotCLI, testAnthropicAPI, testOpenAIAPI, testGeminiAPI, testBraveSearchAPI, testNotionAPI, generateMarkdownReport, isForkRepository } from "./validate_secrets.cjs";
 
 describe("validate_secrets", () => {
   describe("testGitHubRESTAPI", () => {
@@ -51,6 +51,26 @@ describe("validate_secrets", () => {
   describe("testOpenAIAPI", () => {
     it("should return NOT_SET when API key is not provided", async () => {
       const result = await testOpenAIAPI("");
+      expect(result.status).toBe("not_set");
+      expect(result.message).toBe("API key not set");
+    });
+  });
+
+  describe("testGeminiAPI", () => {
+    it("should return NOT_SET when API key is not provided", async () => {
+      const result = await testGeminiAPI("");
+      expect(result.status).toBe("not_set");
+      expect(result.message).toBe("API key not set");
+    });
+
+    it("should return NOT_SET when API key is null", async () => {
+      const result = await testGeminiAPI(null);
+      expect(result.status).toBe("not_set");
+      expect(result.message).toBe("API key not set");
+    });
+
+    it("should return NOT_SET when API key is undefined", async () => {
+      const result = await testGeminiAPI(undefined);
       expect(result.status).toBe("not_set");
       expect(result.message).toBe("API key not set");
     });
