@@ -113,11 +113,8 @@ func TestWithMountedCLIShellCommandsInRestrictedBash_PlaywrightCLIMode(t *testin
 		require.NotNil(t, result, "result should not be nil")
 		bash, ok := result["bash"].([]any)
 		require.True(t, ok, "bash should be a []any")
-		for _, cmd := range bash {
-			if cmdStr, ok := cmd.(string); ok {
-				assert.NotEqual(t, "playwright-cli:*", cmdStr, "playwright-cli:* should not be injected when bash is wildcard")
-			}
-		}
+		// Wildcard must be preserved and playwright-cli:* must not be injected
+		assert.Equal(t, []any{"*"}, bash, "bash should remain exactly [\"*\"] — wildcard preserved and nothing injected")
 	})
 
 	t.Run("playwright mcp mode (not cli) does not add playwright-cli:*", func(t *testing.T) {
@@ -165,5 +162,11 @@ func TestWithMountedCLIShellCommandsInRestrictedBash_PlaywrightCLIMode(t *testin
 	t.Run("nil workflowData returns nil", func(t *testing.T) {
 		result := withMountedCLIShellCommandsInRestrictedBash(nil)
 		assert.Nil(t, result, "nil input should return nil")
+	})
+
+	t.Run("workflowData with nil tools returns nil tools", func(t *testing.T) {
+		workflowData := &WorkflowData{Tools: nil}
+		result := withMountedCLIShellCommandsInRestrictedBash(workflowData)
+		assert.Nil(t, result, "nil tools should be returned unchanged")
 	})
 }

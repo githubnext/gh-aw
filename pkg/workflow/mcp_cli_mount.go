@@ -210,6 +210,9 @@ func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) map
 
 	// When playwright is configured in CLI mode, playwright-cli must be executable.
 	// Automatically add it to the restricted bash allowlist so the agent can invoke it.
+	// This injection only applies when bash is restricted (explicit allowlist); when bash
+	// is unrestricted (nil or wildcard), playwright-cli is already accessible without
+	// explicit allowlisting.
 	if needsPlaywrightCLI {
 		const playwrightCLICommand = "playwright-cli:*"
 		if !slices.ContainsFunc(augmentedBash, func(v any) bool {
