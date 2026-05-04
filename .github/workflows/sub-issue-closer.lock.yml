@@ -99,6 +99,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Sub-Issue Closer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/sub-issue-closer.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -345,6 +346,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Sub-Issue Closer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/sub-issue-closer.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -967,6 +969,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Sub-Issue Closer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/sub-issue-closer.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1107,6 +1110,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Sub-Issue Closer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/sub-issue-closer.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1321,6 +1325,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Sub-Issue Closer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/sub-issue-closer.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true

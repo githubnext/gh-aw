@@ -138,6 +138,9 @@ func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, 
 				fmt.Sprintf("          GH_AW_SETUP_WORKFLOW_NAME: %q\n", data.Name),
 				fmt.Sprintf("          GH_AW_CURRENT_WORKFLOW_REF: %s\n", buildSetupWorkflowRefExpr(data)),
 			)
+			if v := getVersionForSetup(data); v != "" {
+				lines = append(lines, fmt.Sprintf("          GH_AW_INFO_VERSION: %q\n", v))
+			}
 		}
 		if traceID != "" {
 			lines = append(lines, fmt.Sprintf("          INPUT_TRACE_ID: %s\n", traceID))
@@ -169,6 +172,9 @@ func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, 
 		fmt.Sprintf("          GH_AW_SETUP_WORKFLOW_NAME: %q\n", data.Name),
 		fmt.Sprintf("          GH_AW_CURRENT_WORKFLOW_REF: %s\n", buildSetupWorkflowRefExpr(data)),
 	)
+	if v := getVersionForSetup(data); v != "" {
+		lines = append(lines, fmt.Sprintf("          GH_AW_INFO_VERSION: %q\n", v))
+	}
 	if hasWorkflowCallTrigger(data.On) {
 		lines = append(lines, "          GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}\n")
 	}

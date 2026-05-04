@@ -11,14 +11,15 @@ import (
 
 var mcpToolsManagementLog = logger.New("cli:mcp_tools_management")
 
+// addArgs holds the input parameters for the add tool.
+type addArgs struct {
+	Workflows []string `json:"workflows" jsonschema:"Workflows to add (e.g., 'owner/repo/workflow-name' or 'owner/repo/workflow-name@version')"`
+	Number    int      `json:"number,omitempty" jsonschema:"Create multiple numbered copies (corresponds to -c flag, default: 1)"`
+	Name      string   `json:"name,omitempty" jsonschema:"Specify name for the added workflow - without .md extension (corresponds to -n flag)"`
+}
+
 // registerAddTool registers the add tool with the MCP server.
 func registerAddTool(server *mcp.Server, execCmd execCmdFunc) {
-	type addArgs struct {
-		Workflows []string `json:"workflows" jsonschema:"Workflows to add (e.g., 'owner/repo/workflow-name' or 'owner/repo/workflow-name@version')"`
-		Number    int      `json:"number,omitempty" jsonschema:"Create multiple numbered copies (corresponds to -c flag, default: 1)"`
-		Name      string   `json:"name,omitempty" jsonschema:"Specify name for the added workflow - without .md extension (corresponds to -n flag)"`
-	}
-
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "add",
 		Annotations: &mcp.ToolAnnotations{
@@ -73,14 +74,15 @@ func registerAddTool(server *mcp.Server, execCmd execCmdFunc) {
 	})
 }
 
+// updateArgs holds the input parameters for the update tool.
+type updateArgs struct {
+	Workflows []string `json:"workflows,omitempty" jsonschema:"Workflow IDs to update (empty for all workflows)"`
+	Major     bool     `json:"major,omitempty" jsonschema:"Allow major version updates when updating tagged releases"`
+	Force     bool     `json:"force,omitempty" jsonschema:"Force update even if no changes detected"`
+}
+
 // registerUpdateTool registers the update tool with the MCP server.
 func registerUpdateTool(server *mcp.Server, execCmd execCmdFunc) {
-	type updateArgs struct {
-		Workflows []string `json:"workflows,omitempty" jsonschema:"Workflow IDs to update (empty for all workflows)"`
-		Major     bool     `json:"major,omitempty" jsonschema:"Allow major version updates when updating tagged releases"`
-		Force     bool     `json:"force,omitempty" jsonschema:"Force update even if no changes detected"`
-	}
-
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "update",
 		Annotations: &mcp.ToolAnnotations{
@@ -145,14 +147,15 @@ Returns formatted text output showing:
 	})
 }
 
+// fixArgs holds the input parameters for the fix tool.
+type fixArgs struct {
+	Workflows    []string `json:"workflows,omitempty" jsonschema:"Workflow IDs to fix (empty for all workflows)"`
+	Write        bool     `json:"write,omitempty" jsonschema:"Write changes to files (default is dry-run)"`
+	ListCodemods bool     `json:"list_codemods,omitempty" jsonschema:"List all available codemods and exit"`
+}
+
 // registerFixTool registers the fix tool with the MCP server.
 func registerFixTool(server *mcp.Server, execCmd execCmdFunc) {
-	type fixArgs struct {
-		Workflows    []string `json:"workflows,omitempty" jsonschema:"Workflow IDs to fix (empty for all workflows)"`
-		Write        bool     `json:"write,omitempty" jsonschema:"Write changes to files (default is dry-run)"`
-		ListCodemods bool     `json:"list_codemods,omitempty" jsonschema:"List all available codemods and exit"`
-	}
-
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "fix",
 		Annotations: &mcp.ToolAnnotations{

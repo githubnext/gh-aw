@@ -122,6 +122,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Agent: public/none"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-agent-public-none.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -391,6 +392,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Agent: public/none"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-agent-public-none.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1034,6 +1036,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Agent: public/none"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-agent-public-none.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1191,6 +1194,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Agent: public/none"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-agent-public-none.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1389,6 +1393,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Agent: public/none"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-agent-public-none.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1452,6 +1457,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Agent: public/none"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-agent-public-none.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

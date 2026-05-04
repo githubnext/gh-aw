@@ -11,6 +11,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestJSONFieldNames verifies that jsonFieldNames extracts the correct JSON tag
+// names from a struct via reflection.
+func TestJSONFieldNames(t *testing.T) {
+	type sampleArgs struct {
+		Alpha   string   `json:"alpha,omitempty"`
+		Beta    int      `json:"beta"`
+		Gamma   []string `json:"gamma,omitempty"`
+		ignored string   //nolint:unused // unexported — must be excluded
+		Skip    string   `json:"-"`
+		NoTag   string
+	}
+
+	got := jsonFieldNames(sampleArgs{})
+	// sorted result
+	assert.Equal(t, []string{"alpha", "beta", "gamma"}, got, "should include only tagged exported fields, sorted")
+}
+
 // TestExtractUnknownParams verifies that the error-message parser correctly
 // extracts unknown parameter names from the jsonschema-go validation error.
 func TestExtractUnknownParams(t *testing.T) {
@@ -278,23 +295,38 @@ func TestArgumentValidationMiddleware_PassesThroughNonToolCallMethods(t *testing
 }
 
 // TestMCPToolParams verifies that the tool parameter registry is populated and
-// consistent with the known tools.
-//
-// MAINTENANCE: This list must mirror createMCPServer in mcp_server.go —
-// add an entry here whenever a new register*Tool call is added there.
+// consistent with the known tools.  Parameter names are derived automatically
+// from the *Args struct json tags via reflection, so this test validates that
+// every tool is present, has non-empty params, and that no unexpected tools
+// have been added to mcpToolParams() without also being listed here.
 func TestMCPToolParams(t *testing.T) {
 	params := mcpToolParams()
 
+	// This list must mirror createMCPServer in mcp_server.go.  If a new tool is
+	// registered there, add it here as well — the len check below will fail and
+	// catch any discrepancy at test time.
 	expectedTools := []string{"status", "compile", "logs", "audit", "audit-diff", "checks", "mcp-inspect", "add", "update", "fix"}
+
+	// Verify the registry has exactly the expected number of entries so that a
+	// new tool added to mcpToolParams() without also adding it to expectedTools
+	// (or vice-versa) is caught immediately.
+	assert.Len(t, params, len(expectedTools), "mcpToolParams() must contain exactly the expected tools; update expectedTools if a new tool was added")
+
 	for _, tool := range expectedTools {
 		t.Run(tool, func(t *testing.T) {
 			toolParams, ok := params[tool]
 			require.True(t, ok, "tool '%s' should be in the parameter registry", tool)
 			assert.NotEmpty(t, toolParams, "tool '%s' should have at least one parameter", tool)
 
-			// Verify that the compile tool includes the parameters mentioned in the issue.
-			if tool == "compile" {
+			// Spot-check a known parameter for each tool to confirm reflection is working.
+			switch tool {
+			case "compile":
 				assert.Contains(t, toolParams, "workflows", "compile tool must include 'workflows' param")
+			case "audit":
+				// experiment and variant were previously missing from the hardcoded map;
+				// reflection must now include them automatically.
+				assert.Contains(t, toolParams, "experiment", "audit tool must include 'experiment' param")
+				assert.Contains(t, toolParams, "variant", "audit tool must include 'variant' param")
 			}
 		})
 	}

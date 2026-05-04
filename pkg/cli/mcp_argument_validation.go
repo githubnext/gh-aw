@@ -16,6 +16,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -220,79 +221,57 @@ func longestCommonPrefixLen(a, b string) int {
 	return n
 }
 
+// jsonFieldNames extracts the JSON field names from the exported fields of a
+// struct value using reflection.  The json tag name (the part before the first
+// comma) is used; fields whose tag is "-" or that have no json tag are skipped.
+// The returned slice is sorted for deterministic output.
+func jsonFieldNames(v any) []string {
+	t := reflect.TypeOf(v)
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return nil
+	}
+	var names []string
+	for i := range t.NumField() {
+		field := t.Field(i)
+		if !field.IsExported() {
+			continue
+		}
+		tag := field.Tag.Get("json")
+		if tag == "" || tag == "-" {
+			continue
+		}
+		name, _, _ := strings.Cut(tag, ",")
+		if name != "" && name != "-" {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
 // mcpToolParams returns the registry of valid parameter names for every tool
-// registered in the MCP server.  This is called once during server construction
-// and the result is passed to argumentValidationMiddleware.
+// registered in the MCP server.  The map key is the MCP tool name; the value
+// is the sorted list of valid JSON parameter names derived automatically from
+// the corresponding *Args struct's json tags via reflection.
 //
-// The map key is the MCP tool name; the value is the sorted list of valid JSON
-// parameter names taken from the corresponding *Args struct json tags.
-//
-// MAINTENANCE: When tool parameters change, update the corresponding entry here
-// to match the json tags on the *Args struct in register*Tool functions:
-//   - status       → registerStatusTool   in mcp_tools_readonly.go  (statusArgs)
-//   - compile      → registerCompileTool  in mcp_tools_readonly.go  (compileArgs)
-//   - logs         → registerLogsTool     in mcp_tools_privileged.go (logsArgs)
-//   - audit        → registerAuditTool    in mcp_tools_privileged.go (auditArgs)
-//   - audit-diff   → registerAuditDiffTool in mcp_tools_privileged.go (auditDiffArgs)
-//   - checks       → registerChecksTool   in mcp_tools_readonly.go  (checksArgs)
-//   - mcp-inspect  → registerMCPInspectTool in mcp_tools_readonly.go (mcpInspectArgs)
-//   - add          → registerAddTool      in mcp_tools_management.go (addArgs)
-//   - update       → registerUpdateTool   in mcp_tools_management.go (updateArgs)
-//   - fix          → registerFixTool      in mcp_tools_management.go (fixArgs)
+// Each *Args struct is declared at package scope (rather than locally inside its
+// register*Tool function) precisely so it can be referenced here for reflection.
+// Adding a new field to any *Args struct automatically includes it here —
+// no manual update is required.
 func mcpToolParams() map[string]toolParamEntry {
-	params := map[string]toolParamEntry{
-		// statusArgs in mcp_tools_readonly.go
-		"status": {
-			"pattern",
-		},
-		// compileArgs in mcp_tools_readonly.go
-		"compile": {
-			"workflows", "strict", "zizmor", "poutine", "actionlint",
-			"runner-guard", "fix", "max_tokens",
-		},
-		// logsArgs in mcp_tools_privileged.go
-		"logs": {
-			"workflow_name", "count", "start_date", "end_date", "engine",
-			"firewall", "no_firewall", "filtered_integrity", "branch",
-			"after_run_id", "before_run_id", "timeout", "max_tokens", "artifacts",
-		},
-		// auditArgs in mcp_tools_privileged.go
-		"audit": {
-			"run_id_or_url", "run_ids_or_urls", "artifacts", "max_tokens",
-		},
-		// auditDiffArgs in mcp_tools_privileged.go
-		"audit-diff": {
-			"base_run_id", "compare_run_ids", "artifacts",
-		},
-		// checksArgs in mcp_tools_readonly.go
-		"checks": {
-			"pr_number", "repo",
-		},
-		// mcpInspectArgs in mcp_tools_readonly.go
-		"mcp-inspect": {
-			"workflow_file", "server", "tool",
-		},
-		// addArgs in mcp_tools_management.go
-		"add": {
-			"workflows", "number", "name",
-		},
-		// updateArgs in mcp_tools_management.go
-		"update": {
-			"workflows", "major", "force",
-		},
-		// fixArgs in mcp_tools_management.go
-		"fix": {
-			"workflows", "write", "list_codemods",
-		},
+	return map[string]toolParamEntry{
+		"status":      jsonFieldNames(statusArgs{}),
+		"compile":     jsonFieldNames(compileArgs{}),
+		"logs":        jsonFieldNames(logsArgs{}),
+		"audit":       jsonFieldNames(auditArgs{}),
+		"audit-diff":  jsonFieldNames(auditDiffArgs{}),
+		"checks":      jsonFieldNames(checksArgs{}),
+		"mcp-inspect": jsonFieldNames(mcpInspectArgs{}),
+		"add":         jsonFieldNames(addArgs{}),
+		"update":      jsonFieldNames(updateArgs{}),
+		"fix":         jsonFieldNames(fixArgs{}),
 	}
-
-	// Sort each list for deterministic output in suggestions.
-	for k, v := range params {
-		sorted := make([]string, len(v))
-		copy(sorted, v)
-		sort.Strings(sorted)
-		params[k] = sorted
-	}
-
-	return params
 }

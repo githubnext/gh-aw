@@ -13,6 +13,41 @@ var compilerYamlLookupsLog = logger.New("workflow:compiler_yaml_lookups")
 // gitDescribeSHAPattern matches git-describe output ending with -N-gSHA (pre-compiled for performance)
 var gitDescribeSHAPattern = regexp.MustCompile(`-\d+-g([0-9a-f]+)$`)
 
+// getVersionForSetup returns the agent version to inject as GH_AW_INFO_VERSION in setup steps.
+// It mirrors getInstallationVersion but derives the engine ID from data fields (not from a
+// CodingAgentEngine object), allowing it to be called in contexts where the engine object
+// is not available (e.g. compiler_yaml_step_generation.go).
+func getVersionForSetup(data *WorkflowData) string {
+	if data == nil {
+		return ""
+	}
+	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
+		return data.EngineConfig.Version
+	}
+	engineID := ""
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		engineID = data.EngineConfig.ID
+	} else if data.AI != "" {
+		engineID = data.AI
+	}
+	switch engineID {
+	case "copilot":
+		return string(constants.DefaultCopilotVersion)
+	case "claude":
+		return string(constants.DefaultClaudeCodeVersion)
+	case "codex":
+		return string(constants.DefaultCodexVersion)
+	case "opencode":
+		return string(constants.DefaultOpenCodeVersion)
+	case "crush":
+		return string(constants.DefaultCrushVersion)
+	case "pi":
+		return string(constants.DefaultPiVersion)
+	default:
+		return ""
+	}
+}
+
 // getInstallationVersion returns the version that will be installed for the given engine.
 // This matches the logic in BuildStandardNpmEngineInstallSteps.
 func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string {

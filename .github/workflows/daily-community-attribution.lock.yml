@@ -114,6 +114,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -418,6 +419,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1136,6 +1138,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1282,6 +1285,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1476,6 +1480,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1562,6 +1567,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1670,6 +1676,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

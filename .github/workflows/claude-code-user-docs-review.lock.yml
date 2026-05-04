@@ -116,6 +116,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Claude Code User Documentation Review"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/claude-code-user-docs-review.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -374,6 +375,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Claude Code User Documentation Review"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/claude-code-user-docs-review.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1048,6 +1050,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Claude Code User Documentation Review"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/claude-code-user-docs-review.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1193,6 +1196,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Claude Code User Documentation Review"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/claude-code-user-docs-review.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1410,6 +1414,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Claude Code User Documentation Review"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/claude-code-user-docs-review.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
@@ -1492,6 +1497,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Claude Code User Documentation Review"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/claude-code-user-docs-review.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Download cache-memory artifact (default)
         id: download_cache_default
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

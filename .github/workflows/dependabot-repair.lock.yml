@@ -104,6 +104,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Dependabot Local Repair"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-repair.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -360,6 +361,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Dependabot Local Repair"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-repair.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1028,6 +1030,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Dependabot Local Repair"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-repair.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1180,6 +1183,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Dependabot Local Repair"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-repair.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1370,6 +1374,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Dependabot Local Repair"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-repair.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1437,6 +1442,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Dependabot Local Repair"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-repair.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true

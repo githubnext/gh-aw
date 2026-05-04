@@ -23,6 +23,8 @@ safe-outputs:
     labels: ["security", "red-team"]
     max: 5
 timeout-minutes: 60
+features:
+  inline-agents: true
 imports:
   - shared/security-analysis-base.md
   - uses: shared/daily-audit-base.md
@@ -569,150 +571,15 @@ echo "📊 Total findings all time: $NEW_TOTAL_FINDINGS"
 
 For each finding, perform forensics to identify when the problematic code was introduced:
 
-```bash
-#!/bin/bash
-
-if [ ${#FINDINGS[@]} -gt 0 ]; then
-  echo "🔍 Performing forensics analysis..."
-  
-  # Perform git blame and commit analysis for each finding
-  FORENSICS_DATA=()
-  
-  for finding in "${FINDINGS[@]}"; do
-    TYPE=$(echo "$finding" | cut -d: -f1)
-    FILE=$(echo "$finding" | cut -d: -f2)
-    LINE=$(echo "$finding" | cut -d: -f3)
-    EXTRA=$(echo "$finding" | cut -d: -f4-)
-    
-    if [ -f "$FILE" ] && [ "$LINE" != "0" ]; then
-      echo "Analyzing: $FILE:$LINE"
-      
-      # Get commit that introduced this line
-      BLAME_OUTPUT=$(git blame -L "$LINE,$LINE" --porcelain "$FILE" 2>/dev/null || echo "")
-      
-      if [ -n "$BLAME_OUTPUT" ]; then
-        COMMIT_SHA=$(echo "$BLAME_OUTPUT" | grep "^[0-9a-f]\{40\}" | head -1 | cut -d' ' -f1)
-        AUTHOR=$(git log -1 --format="%an" "$COMMIT_SHA" 2>/dev/null || echo "Unknown")
-        COMMIT_DATE=$(git log -1 --format="%ai" "$COMMIT_SHA" 2>/dev/null || echo "Unknown")
-        COMMIT_MSG=$(git log -1 --format="%s" "$COMMIT_SHA" 2>/dev/null || echo "Unknown")
-        SHORT_SHA=$(echo "$COMMIT_SHA" | cut -c1-7)
-        
-        FORENSICS_DATA+=("$finding|$SHORT_SHA|$AUTHOR|$COMMIT_DATE|$COMMIT_MSG")
-        
-        echo "  ✓ Found: commit $SHORT_SHA by $AUTHOR on $COMMIT_DATE"
-      else
-        FORENSICS_DATA+=("$finding|unknown||||")
-        echo "  ⚠ Could not determine origin commit"
-      fi
-    else
-      FORENSICS_DATA+=("$finding|unknown||||")
-    fi
-  done
-  
-  echo "✅ Forensics analysis complete"
-fi
-```
+Pipe the FINDINGS array (one entry per line) to stdin of the `forensics-extractor` agent.
+Collect its JSON-per-line stdout output into FORENSICS_DATA for Phase 7.
 
 ## Phase 7: Generate Agentic Fix Tasks
 
 Create actionable remediation tasks for each finding:
 
-```bash
-#!/bin/bash
-
-if [ ${#FINDINGS[@]} -gt 0 ]; then
-  echo "🛠️  Generating agentic fix tasks..."
-  
-  # Prepare detailed findings with forensics and fix tasks
-  FINDINGS_DETAILS=""
-  FIX_TASKS=""
-  
-  for i in "${!FORENSICS_DATA[@]}"; do
-    FORENSICS="${FORENSICS_DATA[$i]}"
-    
-    # Parse forensics data
-    FINDING=$(echo "$FORENSICS" | cut -d'|' -f1)
-    TYPE=$(echo "$FINDING" | cut -d: -f1)
-    FILE=$(echo "$FINDING" | cut -d: -f2)
-    LINE=$(echo "$FINDING" | cut -d: -f3)
-    EXTRA=$(echo "$FINDING" | cut -d: -f4-)
-    
-    COMMIT=$(echo "$FORENSICS" | cut -d'|' -f2)
-    AUTHOR=$(echo "$FORENSICS" | cut -d'|' -f3)
-    DATE=$(echo "$FORENSICS" | cut -d'|' -f4)
-    MSG=$(echo "$FORENSICS" | cut -d'|' -f5)
-    
-    # Generate finding details
-    FINDINGS_DETAILS+="### Finding $((i+1)): $TYPE\n\n"
-    FINDINGS_DETAILS+="**Location**: \`$FILE:$LINE\`\n\n"
-    
-    if [ -n "$EXTRA" ]; then
-      FINDINGS_DETAILS+="**Details**: $EXTRA\n\n"
-    fi
-    
-    # Add forensics information
-    FINDINGS_DETAILS+="**Forensics Analysis**:\n"
-    if [ "$COMMIT" != "unknown" ]; then
-      FINDINGS_DETAILS+="- Introduced in commit: \`$COMMIT\`\n"
-      FINDINGS_DETAILS+="- Author: $AUTHOR\n"
-      FINDINGS_DETAILS+="- Date: $DATE\n"
-      FINDINGS_DETAILS+="- Message: \"$MSG\"\n"
-    else
-      FINDINGS_DETAILS+="- Unable to determine origin commit (file may be new or line may have moved)\n"
-    fi
-    FINDINGS_DETAILS+="\n"
-    
-    # Generate fix task based on finding type
-    case "$TYPE" in
-      SECRET_EXFIL)
-        FIX_TASKS+="- [ ] **Task $((i+1))**: Review and remove secret exfiltration pattern in \`$FILE:$LINE\`\n"
-        FIX_TASKS+="  - Verify if external network call is legitimate\n"
-        FIX_TASKS+="  - If malicious: Remove the code and rotate any exposed credentials\n"
-        FIX_TASKS+="  - If legitimate: Add domain to approved network list and document why needed\n"
-        ;;
-      DYNAMIC_EXEC)
-        FIX_TASKS+="- [ ] **Task $((i+1))**: Audit dynamic code execution in \`$FILE:$LINE\`\n"
-        FIX_TASKS+="  - Replace eval/exec with safer alternatives\n"
-        FIX_TASKS+="  - Sanitize all user inputs before use\n"
-        FIX_TASKS+="  - Add input validation and consider allowlist approach\n"
-        ;;
-      OBFUSCATION)
-        FIX_TASKS+="- [ ] **Task $((i+1))**: Investigate obfuscated content in \`$FILE:$LINE\`\n"
-        FIX_TASKS+="  - Decode and review the obfuscated content\n"
-        FIX_TASKS+="  - If legitimate: Add comment explaining purpose\n"
-        FIX_TASKS+="  - If malicious: Remove and investigate how it was introduced\n"
-        ;;
-      DANGEROUS_OPS)
-        FIX_TASKS+="- [ ] **Task $((i+1))**: Secure dangerous file operations in \`$FILE:$LINE\`\n"
-        FIX_TASKS+="  - Validate all file paths before operations\n"
-        FIX_TASKS+="  - Use safe file operation alternatives\n"
-        FIX_TASKS+="  - Add explicit permission checks\n"
-        ;;
-      SUSPICIOUS_DOMAIN)
-        FIX_TASKS+="- [ ] **Task $((i+1))**: Verify network domain in \`$FILE:$LINE\`\n"
-        FIX_TASKS+="  - Check if domain is legitimate for this operation\n"
-        FIX_TASKS+="  - If suspicious: Remove and investigate origin\n"
-        FIX_TASKS+="  - Consider replacing with internal service\n"
-        ;;
-      SUSPICIOUS_KEYWORDS)
-        FIX_TASKS+="- [ ] **Task $((i+1))**: Review suspicious keywords in \`$FILE:$LINE\`\n"
-        FIX_TASKS+="  - Determine if code is intentionally malicious or just poorly named\n"
-        FIX_TASKS+="  - Remove if malicious, rename if legitimate\n"
-        FIX_TASKS+="  - Review commit history for context\n"
-        ;;
-      *)
-        FIX_TASKS+="- [ ] **Task $((i+1))**: Investigate $TYPE pattern in \`$FILE:$LINE\`\n"
-        FIX_TASKS+="  - Review the code and determine if it's a security risk\n"
-        FIX_TASKS+="  - Remediate if confirmed malicious\n"
-        FIX_TASKS+="  - Document findings and actions taken\n"
-        ;;
-    esac
-    FIX_TASKS+="\n"
-  done
-  
-  echo "✅ Generated ${#FINDINGS[@]} remediation tasks"
-fi
-```
+Pipe the FORENSICS_DATA JSON lines (from Phase 6) to stdin of the `fix-task-generator` agent.
+Use its markdown stdout output as FIX_TASKS in Phase 8.
 
 ## Phase 8: Create Security Issues with Actionable Tasks
 
@@ -840,3 +707,73 @@ A successful security scan:
 ## Begin Your Security Analysis
 
 Initialize your cache-memory, determine today's technique, and begin your comprehensive security scan of the `actions/setup/js` and `actions/setup/sh` directories!
+
+## agent: `forensics-extractor`
+---
+model: claude-haiku-4.5
+description: Run git blame on each security finding and extract commit origin metadata as JSON
+---
+You receive security findings as plain text, one per line, in the format:
+`TYPE:FILE:LINE` or `TYPE:FILE:LINE:EXTRA`
+
+For each finding, run `git blame` to extract commit origin metadata and output a JSON object per line.
+
+```bash
+#!/bin/bash
+# Read findings from stdin, one per line
+while IFS= read -r finding; do
+  [ -z "$finding" ] && continue
+  TYPE=$(echo "$finding" | cut -d: -f1)
+  FILE=$(echo "$finding" | cut -d: -f2)
+  LINE=$(echo "$finding" | cut -d: -f3)
+
+  COMMIT="unknown"
+  AUTHOR=""
+  DATE=""
+  MSG=""
+
+  if [ -f "$FILE" ] && [ "$LINE" != "0" ] && [ -n "$LINE" ]; then
+    BLAME_OUTPUT=$(git blame -L "$LINE,$LINE" --porcelain "$FILE" 2>/dev/null || echo "")
+    if [ -n "$BLAME_OUTPUT" ]; then
+      COMMIT_SHA=$(echo "$BLAME_OUTPUT" | grep "^[0-9a-f]\{40\}" | head -1 | cut -d' ' -f1)
+      if [ -n "$COMMIT_SHA" ] && [ "$COMMIT_SHA" != "0000000000000000000000000000000000000000" ]; then
+        AUTHOR=$(git log -1 --format="%an" "$COMMIT_SHA" 2>/dev/null || echo "Unknown")
+        DATE=$(git log -1 --format="%ai" "$COMMIT_SHA" 2>/dev/null || echo "Unknown")
+        MSG=$(git log -1 --format="%s" "$COMMIT_SHA" 2>/dev/null || echo "Unknown")
+        COMMIT=$(echo "$COMMIT_SHA" | cut -c1-7)
+      fi
+    fi
+  fi
+
+  jq -cn --arg finding "$finding" --arg commit "$COMMIT" --arg author "$AUTHOR" --arg date "$DATE" --arg message "$MSG" \
+    '{finding: $finding, commit: $commit, author: $author, date: $date, message: $message}'
+done
+```
+
+Output one JSON object per line. No preamble, no summary.
+
+## agent: `fix-task-generator`
+---
+model: claude-haiku-4.5
+description: Generate markdown remediation checklist from classified security findings
+---
+You receive security finding records as JSON objects, one per line:
+`{"finding":"TYPE:FILE:LINE","commit":"...","author":"...","date":"...","message":"..."}`
+
+For each record, produce one markdown checklist item based on TYPE:
+- SECRET_EXFIL: review and remove exfiltration; verify call legitimacy; rotate exposed credentials
+- DYNAMIC_EXEC: audit dynamic execution; replace eval/exec with safer alternatives; sanitize inputs
+- OBFUSCATION: decode and investigate; if legitimate add a comment; if malicious remove and investigate
+- DANGEROUS_OPS: validate all file paths; use safe operation alternatives; add permission checks
+- SUSPICIOUS_DOMAIN: verify domain legitimacy; remove if suspicious; replace with internal service
+- SUSPICIOUS_KEYWORDS: determine intent; remove if malicious or rename if legitimate; review history
+- Other: investigate the pattern; review for security risk; remediate if malicious; document findings
+
+Format:
+- [ ] **Task N**: [Action] in `FILE:LINE`
+  - [Step 1]
+  - [Step 2]
+  - [Step 3]
+  - Forensics: introduced in commit `COMMIT` by AUTHOR on DATE ("MESSAGE") [omit if commit == "unknown"]
+
+Output only markdown. No preamble, no code fences.

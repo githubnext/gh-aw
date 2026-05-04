@@ -9,6 +9,7 @@ const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
+const { addReaction, addDiscussionReaction } = require("./add_reaction.cjs");
 
 /**
  * Event type descriptions for comment messages
@@ -20,20 +21,6 @@ const EVENT_TYPE_DESCRIPTIONS = {
   pull_request_review_comment: "pull request review comment",
   discussion: "discussion",
   discussion_comment: "discussion comment",
-};
-
-/**
- * Maps reaction emoji names to GitHub's GraphQL ReactionContent enum values
- */
-const DISCUSSION_REACTION_MAP = {
-  "+1": "THUMBS_UP",
-  "-1": "THUMBS_DOWN",
-  laugh: "LAUGH",
-  confused: "CONFUSED",
-  heart: "HEART",
-  hooray: "HOORAY",
-  rocket: "ROCKET",
-  eyes: "EYES",
 };
 
 async function main() {
@@ -177,53 +164,6 @@ async function main() {
     core.error(`Failed to process reaction and comment creation: ${errorMessage}`);
     core.setFailed(`${ERR_API}: Failed to process reaction and comment creation: ${errorMessage}`);
   }
-}
-
-/**
- * Add a reaction to a GitHub issue, PR, or comment using REST API
- * @param {string} endpoint - The GitHub API endpoint to add the reaction to
- * @param {string} reaction - The reaction type to add
- */
-async function addReaction(endpoint, reaction) {
-  const response = await github.request(`POST ${endpoint}`, {
-    content: reaction,
-    headers: {
-      Accept: "application/vnd.github+json",
-    },
-  });
-
-  const reactionId = response.data?.id;
-  core.info(`Successfully added reaction: ${reaction}${reactionId ? ` (id: ${reactionId})` : ""}`);
-  core.setOutput("reaction-id", reactionId?.toString() ?? "");
-}
-
-/**
- * Add a reaction to a GitHub discussion or discussion comment using GraphQL
- * @param {string} subjectId - The node ID of the discussion or comment
- * @param {string} reaction - The reaction type to add (mapped to GitHub's ReactionContent enum)
- */
-async function addDiscussionReaction(subjectId, reaction) {
-  const reactionContent = DISCUSSION_REACTION_MAP[reaction];
-  if (!reactionContent) {
-    throw new Error(`${ERR_VALIDATION}: Invalid reaction type for GraphQL: ${reaction}`);
-  }
-
-  const result = await github.graphql(
-    `
-    mutation($subjectId: ID!, $content: ReactionContent!) {
-      addReaction(input: { subjectId: $subjectId, content: $content }) {
-        reaction {
-          id
-          content
-        }
-      }
-    }`,
-    { subjectId, content: reactionContent }
-  );
-
-  const reactionId = result.addReaction.reaction.id;
-  core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-  core.setOutput("reaction-id", reactionId);
 }
 
 /**

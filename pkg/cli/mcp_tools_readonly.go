@@ -11,13 +11,14 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// statusArgs holds the input parameters for the status tool.
+type statusArgs struct {
+	Pattern string `json:"pattern,omitempty" jsonschema:"Optional pattern to filter workflows by name"`
+}
+
 // registerStatusTool registers the status tool with the MCP server.
 // The status tool is read-only and idempotent.
 func registerStatusTool(server *mcp.Server) {
-	type statusArgs struct {
-		Pattern string `json:"pattern,omitempty" jsonschema:"Optional pattern to filter workflows by name"`
-	}
-
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "status",
 		Annotations: &mcp.ToolAnnotations{
@@ -68,6 +69,18 @@ Returns a JSON array where each element has the following structure:
 	})
 }
 
+// compileArgs holds the input parameters for the compile tool.
+type compileArgs struct {
+	Workflows   []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
+	Strict      bool     `json:"strict,omitempty" jsonschema:"Override frontmatter to enforce strict mode validation for all workflows. Note: Workflows default to strict mode unless frontmatter sets strict: false"`
+	Zizmor      bool     `json:"zizmor,omitempty" jsonschema:"Run zizmor security scanner on generated .lock.yml files"`
+	Poutine     bool     `json:"poutine,omitempty" jsonschema:"Run poutine security scanner on generated .lock.yml files"`
+	Actionlint  bool     `json:"actionlint,omitempty" jsonschema:"Run actionlint linter on generated .lock.yml files"`
+	RunnerGuard bool     `json:"runner-guard,omitempty" jsonschema:"Run runner-guard taint analysis scanner on generated .lock.yml files"`
+	Fix         bool     `json:"fix,omitempty" jsonschema:"Apply automatic codemod fixes to workflows before compiling"`
+	MaxTokens   int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
+}
+
 // registerCompileTool registers the compile tool with the MCP server.
 // manifestCacheFile is the path to a temp JSON file containing pre-cached gh-aw-manifests
 // collected at server startup; it is passed to each compile subprocess via
@@ -75,17 +88,6 @@ Returns a JSON array where each element has the following structure:
 // enforcement.  An empty string disables this feature.
 // Returns an error if schema generation fails, which causes the server to stop registering tools.
 func registerCompileTool(server *mcp.Server, execCmd execCmdFunc, manifestCacheFile string) error {
-	type compileArgs struct {
-		Workflows   []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
-		Strict      bool     `json:"strict,omitempty" jsonschema:"Override frontmatter to enforce strict mode validation for all workflows. Note: Workflows default to strict mode unless frontmatter sets strict: false"`
-		Zizmor      bool     `json:"zizmor,omitempty" jsonschema:"Run zizmor security scanner on generated .lock.yml files"`
-		Poutine     bool     `json:"poutine,omitempty" jsonschema:"Run poutine security scanner on generated .lock.yml files"`
-		Actionlint  bool     `json:"actionlint,omitempty" jsonschema:"Run actionlint linter on generated .lock.yml files"`
-		RunnerGuard bool     `json:"runner-guard,omitempty" jsonschema:"Run runner-guard taint analysis scanner on generated .lock.yml files"`
-		Fix         bool     `json:"fix,omitempty" jsonschema:"Apply automatic codemod fixes to workflows before compiling"`
-		MaxTokens   int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
-	}
-
 	// Generate schema with elicitation defaults
 	compileSchema, err := GenerateSchema[compileArgs]()
 	if err != nil {
@@ -262,14 +264,15 @@ Returns JSON array with validation results for each workflow:
 	return nil
 }
 
+// mcpInspectArgs holds the input parameters for the mcp-inspect tool.
+type mcpInspectArgs struct {
+	WorkflowFile string `json:"workflow_file,omitempty" jsonschema:"Workflow file to inspect MCP servers from (empty to list all workflows with MCP servers)"`
+	Server       string `json:"server,omitempty" jsonschema:"Filter to inspect only the specified MCP server"`
+	Tool         string `json:"tool,omitempty" jsonschema:"Show detailed information about a specific tool (requires server parameter)"`
+}
+
 // registerMCPInspectTool registers the mcp-inspect tool with the MCP server.
 func registerMCPInspectTool(server *mcp.Server, execCmd execCmdFunc) {
-	type mcpInspectArgs struct {
-		WorkflowFile string `json:"workflow_file,omitempty" jsonschema:"Workflow file to inspect MCP servers from (empty to list all workflows with MCP servers)"`
-		Server       string `json:"server,omitempty" jsonschema:"Filter to inspect only the specified MCP server"`
-		Tool         string `json:"tool,omitempty" jsonschema:"Show detailed information about a specific tool (requires server parameter)"`
-	}
-
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "mcp-inspect",
 		Annotations: &mcp.ToolAnnotations{
@@ -341,14 +344,15 @@ Returns formatted text output showing:
 	})
 }
 
+// checksArgs holds the input parameters for the checks tool.
+type checksArgs struct {
+	PRNumber string `json:"pr_number" jsonschema:"Pull request number to classify CI checks for"`
+	Repo     string `json:"repo,omitempty" jsonschema:"Repository in owner/repo format (defaults to current repository)"`
+}
+
 // registerChecksTool registers the checks tool with the MCP server.
 // The checks tool is read-only and idempotent.
 func registerChecksTool(server *mcp.Server) {
-	type checksArgs struct {
-		PRNumber string `json:"pr_number" jsonschema:"Pull request number to classify CI checks for"`
-		Repo     string `json:"repo,omitempty" jsonschema:"Repository in owner/repo format (defaults to current repository)"`
-	}
-
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "checks",
 		Annotations: &mcp.ToolAnnotations{
