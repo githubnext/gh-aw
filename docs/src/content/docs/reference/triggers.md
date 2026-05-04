@@ -478,9 +478,18 @@ on:
   status-comment: true
 ```
 
-When `status-comment: true`, the activation job posts a comment when the workflow starts and updates it when the run completes. This must be **explicitly enabled** — setting `reaction:` alone does not create status comments.
+When `status-comment: true`, the activation job posts a comment when the workflow starts and updates it when the run completes. Setting `reaction:` alone does not create status comments — they are independent settings.
 
-To suppress status comments, omit `status-comment:` or set it to `false`.
+For `slash_command` and `label_command` triggers, both `reaction: eyes` and `status-comment: true` are enabled by default. Disable either explicitly:
+
+```yaml wrap
+on:
+  slash_command: my-bot
+  reaction: none           # disable the eyes reaction
+  status-comment: false    # disable the status comment
+```
+
+For all other trigger types, `status-comment` must be explicitly set to `true` to enable it. To suppress status comments, omit `status-comment:` or set it to `false`.
 
 #### Selective target control (object form)
 
