@@ -46,7 +46,7 @@ type ImportsResult struct {
 	MergedEnvSources            map[string]string     // env var name → source import path (for conflict detection and lock file header listing)
 	MergedFeatures              []map[string]any      // Merged features configuration from all imports (parsed YAML structures)
 	MergedModels                []map[string][]string // Merged model alias definitions from all imports (first import to define a key wins among imports)
-	MergedObservability         string                // Observability config (JSON) from first import that defines it (first-wins)
+	MergedObservability         string                // Merged observability config (JSON) from all imports as an endpoint array (deduped by URL)
 	ImportedFiles               []string              // List of imported file paths (for manifest)
 	AgentFile                   string                // Path to custom agent file (if imported)
 	AgentImportSpec             string                // Original import specification for agent file (e.g., "owner/repo/path@ref")
