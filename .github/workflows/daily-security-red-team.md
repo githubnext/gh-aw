@@ -571,15 +571,15 @@ echo "📊 Total findings all time: $NEW_TOTAL_FINDINGS"
 
 For each finding, perform forensics to identify when the problematic code was introduced:
 
-Pass the FINDINGS array (one entry per line) to the `forensics-extractor` agent.
-Collect its JSON-per-line output into FORENSICS_DATA for Phase 7.
+Pipe the FINDINGS array (one entry per line) to stdin of the `forensics-extractor` agent.
+Collect its JSON-per-line stdout output into FORENSICS_DATA for Phase 7.
 
 ## Phase 7: Generate Agentic Fix Tasks
 
 Create actionable remediation tasks for each finding:
 
-Pass the FORENSICS_DATA JSON lines (from Phase 6) to the `fix-task-generator` agent.
-Use its markdown output as FIX_TASKS in Phase 8.
+Pipe the FORENSICS_DATA JSON lines (from Phase 6) to stdin of the `fix-task-generator` agent.
+Use its markdown stdout output as FIX_TASKS in Phase 8.
 
 ## Phase 8: Create Security Issues with Actionable Tasks
 
@@ -745,8 +745,8 @@ while IFS= read -r finding; do
     fi
   fi
 
-  printf '{"finding":"%s","commit":"%s","author":"%s","date":"%s","message":"%s"}\n' \
-    "$finding" "$COMMIT" "$AUTHOR" "$DATE" "$MSG"
+  jq -cn --arg finding "$finding" --arg commit "$COMMIT" --arg author "$AUTHOR" --arg date "$DATE" --arg message "$MSG" \
+    '{finding: $finding, commit: $commit, author: $author, date: $date, message: $message}'
 done
 ```
 
