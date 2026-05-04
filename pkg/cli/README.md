@@ -446,6 +446,15 @@ err := cli.RunHealth(cli.HealthConfig{
 - `pkg/console` — terminal output formatting
 - `pkg/logger` — structured debug logging
 - `pkg/constants` — engine names, job names, feature flags
+- `pkg/agentdrain` — Drain log anomaly detection for audit analysis
+- `pkg/envutil` — environment variable reading with bounds validation
+- `pkg/semverutil` — semantic version comparison for dependency checks
+- `pkg/sliceutil` — slice utilities
+- `pkg/stats` — incremental statistics for health metrics
+- `pkg/styles` — terminal color styles and lipgloss configuration
+- `pkg/timeutil` — human-readable duration formatting
+- `pkg/tty` — terminal detection
+- `pkg/types` — shared MCP server configuration types
 - `pkg/stringutil`, `pkg/fileutil`, `pkg/gitutil`, `pkg/repoutil` — utilities
 
 **External**:

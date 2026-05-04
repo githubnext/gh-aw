@@ -6,7 +6,7 @@ The `sliceutil` package provides generic utility functions for working with slic
 
 All functions in this package are pure: they never modify their input. They are generic and work with any element type using Go's type-parameter syntax.
 
-## Functions
+## Public API
 
 ### `Filter[T any](slice []T, predicate func(T) bool) []T`
 
@@ -68,6 +68,27 @@ Returns a new slice with duplicate elements removed, preserving the order of fir
 
 ```go
 items := []string{"a", "b", "a", "c", "b"}
+unique := sliceutil.Deduplicate(items)
+// unique = ["a", "b", "c"]
+```
+
+## Usage Examples
+
+```go
+import "github.com/github/gh-aw/pkg/sliceutil"
+
+// Filter a slice
+numbers := []int{1, 2, 3, 4, 5}
+evens := sliceutil.Filter(numbers, func(n int) bool { return n%2 == 0 })
+// evens = [2, 4]
+
+// Map a slice
+names := []string{"alice", "bob"}
+upper := sliceutil.Map(names, strings.ToUpper)
+// upper = ["ALICE", "BOB"]
+
+// Deduplicate
+items := []string{"a", "b", "a", "c"}
 unique := sliceutil.Deduplicate(items)
 // unique = ["a", "b", "c"]
 ```

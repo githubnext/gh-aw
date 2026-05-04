@@ -263,9 +263,10 @@ Import caching is crucial for performance and cycle detection. The `ImportCache`
 - `pkg/stringutil` — string normalization and ANSI/format helpers
 
 **External**:
-- `github.com/santhosh-tekuri/jsonschema/v5` — JSON schema validation
-- `go.yaml.in/yaml/v3` — YAML parsing
-- `goccy/go-yaml` — YAML 1.1/1.2 compatible parsing (for GitHub Actions compatibility)
+- `github.com/santhosh-tekuri/jsonschema/v6` — JSON schema validation
+- `github.com/goccy/go-yaml` — YAML 1.1/1.2 compatible parsing (for GitHub Actions compatibility)
+- `github.com/cli/go-gh/v2` — GitHub CLI API integration for remote file fetching
+- `github.com/modelcontextprotocol/go-sdk/mcp` — MCP Go SDK for MCP server configuration
 
 ## Thread Safety
 

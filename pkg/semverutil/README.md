@@ -10,7 +10,9 @@ This package wraps `golang.org/x/mod/semver` with additional helpers for:
 - Parsing versions into a structured `SemanticVersion` type.
 - Comparing and checking compatibility between version strings.
 
-## Types
+## Public API
+
+### Types
 
 ### `SemanticVersion`
 
@@ -33,7 +35,7 @@ type SemanticVersion struct {
 | `IsPreciseVersion() bool` | Returns `true` if the version has at least two dots (e.g. `v6.0.0` is precise, `v6` is not) |
 | `IsNewer(other *SemanticVersion) bool` | Returns `true` if this version is newer than `other` |
 
-## Functions
+### Functions
 
 ### `EnsureVPrefix(v string) string`
 
@@ -95,6 +97,36 @@ semverutil.IsCompatible("v5.0.0", "v5")     // true
 semverutil.IsCompatible("v5.1.0", "v5.0.0") // true
 semverutil.IsCompatible("v6.0.0", "v5")     // false
 ```
+
+## Usage Examples
+
+```go
+import "github.com/github/gh-aw/pkg/semverutil"
+
+// Normalize a version string
+semverutil.EnsureVPrefix("1.2.3") // → "v1.2.3"
+
+// Parse into structured type
+ver := semverutil.ParseVersion("v1.2.3")
+if ver != nil {
+    fmt.Println(ver.Major, ver.Minor, ver.Patch) // 1 2 3
+}
+
+// Compare versions
+semverutil.Compare("v2.0.0", "v1.9.9") // 1 (v2 is newer)
+
+// Check major-version compatibility
+semverutil.IsCompatible("v5.1.0", "v5") // true
+semverutil.IsCompatible("v6.0.0", "v5") // false
+```
+
+## Dependencies
+
+**Internal**:
+- `pkg/logger` — debug logging
+
+**External**:
+- `golang.org/x/mod/semver` — canonical semver parsing and comparison
 
 ## Design Notes
 

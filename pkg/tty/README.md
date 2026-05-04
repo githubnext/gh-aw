@@ -8,7 +8,7 @@ This package exposes two simple functions for checking whether the standard outp
 
 On WebAssembly targets (`js/wasm`) the package provides stub implementations that always return `false`, since WASM environments do not have real TTY file descriptors.
 
-## Functions
+## Public API
 
 ### `IsStdoutTerminal() bool`
 
@@ -29,6 +29,24 @@ Returns `true` if `stderr` (`os.Stderr`) is connected to a terminal.
 ```go
 if tty.IsStderrTerminal() {
     // Safe to emit colored or animated output to stderr
+}
+```
+
+## Usage Examples
+
+```go
+import "github.com/github/gh-aw/pkg/tty"
+
+if tty.IsStdoutTerminal() {
+    // Safe to emit colored or animated output to stdout
+    fmt.Println(coloredOutput)
+} else {
+    // Plain output for pipes/redirects
+    fmt.Println(plainOutput)
+}
+
+if tty.IsStderrTerminal() {
+    // Safe to emit spinner or progress animation to stderr
 }
 ```
 

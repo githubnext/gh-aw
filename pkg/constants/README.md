@@ -16,7 +16,9 @@ The package is organized into focused files:
 | `url_constants.go` | URL semantic types, well-known URLs, documentation URLs |
 | `version_constants.go` | Default version strings and minimum version constraints |
 
-## Semantic Types
+## Public API
+
+### Semantic Types
 
 The package uses typed aliases to prevent mixing unrelated string or integer values:
 
@@ -439,6 +441,39 @@ constants.DefaultGitHubToolsLocal         // default tools for local (Docker) mo
 constants.DefaultGitHubToolsRemote        // default tools for remote (hosted) mode — equals DefaultReadOnlyGitHubTools
 constants.DefaultGitHubTools              // deprecated: use DefaultGitHubToolsLocal or DefaultGitHubToolsRemote
 constants.DefaultBashTools
+```
+
+## Usage Examples
+
+```go
+import "github.com/github/gh-aw/pkg/constants"
+
+// Engine constants
+engine := constants.CopilotEngine // EngineName("copilot")
+fmt.Println(engine.String())      // "copilot"
+fmt.Println(engine.IsValid())     // true
+
+// Resolve an engine option for display and secret info
+opt := constants.GetEngineOption("copilot")
+fmt.Println(opt.Label)      // "GitHub Copilot"
+fmt.Println(opt.SecretName) // "COPILOT_GITHUB_TOKEN"
+
+// Version constants
+fmt.Println(constants.DefaultCopilotVersion)
+
+// Feature flags
+fmt.Println(constants.MCPGatewayFeatureFlag.String()) // "mcp-gateway"
+
+// Job / step IDs
+fmt.Println(constants.AgentJobName.String())          // "agent"
+fmt.Println(constants.CheckMembershipStepID.String()) // "check_membership"
+
+// Runtime paths
+fmt.Println(constants.GhAwRootDir)       // "${{ runner.temp }}/gh-aw"
+fmt.Println(constants.GhAwRootDirShell)  // "${RUNNER_TEMP}/gh-aw"
+
+// Dynamic workflow directory (respects GH_AW_WORKFLOWS_DIR)
+dir := constants.GetWorkflowDir() // ".github/workflows"
 ```
 
 ## Design Notes

@@ -31,6 +31,33 @@ This package follows Charmbracelet best practices for terminal UI:
 - **Boxes**: 2 character horizontal padding, 0-1 vertical padding
 - **Info sections**: 2 character left padding for consistent indentation
 
+## Public API
+
+The following components and functions are exported by the `console` package:
+
+| Export | Kind | Description |
+|--------|------|-------------|
+| `NewSpinner` | func | Creates a new animated spinner |
+| `NewProgressBar` | func | Creates a determinate progress bar |
+| `NewIndeterminateProgressBar` | func | Creates an indeterminate progress bar |
+| `RenderStruct` | func | Renders a Go struct to a styled terminal string |
+| `RenderTable` | func | Renders a formatted table string |
+| `RenderTree` | func | Renders a tree-node hierarchy |
+| `RenderTitleBox` / `RenderErrorBox` / `RenderInfoSection` | funcs | Section rendering helpers |
+| `RenderComposedSections` | func | Composes and prints multiple sections |
+| `FormatSuccessMessage` / `FormatInfoMessage` / `FormatWarningMessage` / `FormatErrorMessage` | funcs | Styled status message formatting |
+| `FormatCommandMessage` / `FormatProgressMessage` / `FormatVerboseMessage` | funcs | Additional message styles |
+| `FormatError` | func | Renders a structured `CompilerError` with context |
+| `FormatErrorChain` | func | Renders a wrapped-error chain |
+| `FormatErrorWithSuggestions` | func | Error message with actionable suggestions |
+| `ConfirmAction` | func | Interactive yes/no confirmation |
+| `ShowInteractiveList` | func | Interactive single-selection list |
+| `PromptInput` / `PromptSecretInput` | funcs | Text and secret input prompts |
+| `LogVerbose` | func | Conditional verbose logging |
+| `FormatFileSize` / `FormatNumber` | funcs | Human-readable byte and integer formatting |
+| `IsAccessibleMode` | func | Detects accessibility mode |
+| `CompilerError` / `ErrorPosition` / `TableConfig` / `TreeNode` | types | Supporting data types |
+
 ## Spinner Component
 
 The `Spinner` component provides animated visual feedback during long-running operations with automatic TTY detection and accessibility support.
@@ -793,6 +820,59 @@ if console.IsAccessibleMode() {
     // Use simpler, non-animated output
 }
 ```
+
+## Usage Examples
+
+```go
+import (
+    "fmt"
+    "os"
+    "github.com/github/gh-aw/pkg/console"
+)
+
+// Display a spinner during a long-running operation
+spinner := console.NewSpinner("Compiling workflows...")
+spinner.Start()
+// ... do work ...
+spinner.StopWithMessage("✓ Done!")
+
+// Format status messages (always write to stderr)
+fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow compiled successfully"))
+fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Processing 3 files..."))
+fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Network access is unrestricted"))
+fmt.Fprintln(os.Stderr, console.FormatErrorMessage("File not found: workflow.md"))
+
+// Render a table
+table := console.RenderTable(console.TableConfig{
+    Headers: []string{"Name", "Status"},
+    Rows: [][]string{
+        {"build", "success"},
+        {"test", "failure"},
+    },
+    Title: "Job Results",
+})
+fmt.Print(table)
+
+// Interactive confirmation
+confirmed, err := console.ConfirmAction("Delete all compiled workflows?", "Yes, delete", "Cancel")
+if err != nil || !confirmed {
+    return
+}
+```
+
+## Dependencies
+
+**Internal**:
+- `pkg/logger` — debug-level console logging
+- `pkg/styles` — adaptive color constants and pre-configured lipgloss styles
+- `pkg/tty` — terminal detection for spinner and progress bar
+
+**External**:
+- `charm.land/lipgloss/v2` — terminal styling and layout
+- `charm.land/bubbles/v2/spinner` — spinner animation
+- `charm.land/bubbles/v2/progress` — progress bar
+- `charm.land/bubbletea/v2` — terminal UI event loop
+- `charm.land/huh/v2` — interactive form components
 
 ---
 
