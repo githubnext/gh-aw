@@ -116,6 +116,14 @@ function buildWorkflowCallId(runId, runAttempt, workflowRef) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
  * Parse inbound aw_context from workflow inputs or repository_dispatch payload.
  *
  * Callers may deliver aw_context as a JSON string (workflow_call/workflow_dispatch)
@@ -135,7 +143,7 @@ function parseInboundAwContext(raw) {
     }
     try {
       const parsed = JSON.parse(trimmed);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      if (isRecord(parsed)) {
         return parsed;
       }
     } catch {
@@ -143,8 +151,8 @@ function parseInboundAwContext(raw) {
     }
     return null;
   }
-  if (typeof raw === "object" && !Array.isArray(raw)) {
-    return /** @type {Record<string, unknown>} */ raw;
+  if (isRecord(raw)) {
+    return raw;
   }
   return null;
 }
