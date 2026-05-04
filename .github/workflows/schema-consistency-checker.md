@@ -388,7 +388,10 @@ EOF
 ```
 
 ### Step 6: Create Discussion
-Generate a comprehensive report for discussion output.
+
+**⚠️ MANDATORY STEP**: After completing your analysis, you **MUST** call the `create_discussion` safe-output tool with your findings report. **DO NOT just write the report in your output text** — you MUST actually invoke the tool. The workflow will fail if you skip this step.
+
+Use this discussion format for the content you pass to `create_discussion`:
 
 ## Discussion Report Format
 
@@ -491,6 +494,6 @@ A successful run:
 - ✅ Creates a detailed discussion report
 - ✅ Provides actionable recommendations
 
-Begin your analysis now. Check the cache, choose a strategy, execute it, and report your findings in a discussion.
+Begin your analysis now. Check the cache, choose a strategy, execute it, and **call `create_discussion` with your findings** to complete the workflow.
 
 {{#runtime-import shared/noop-reminder.md}}
