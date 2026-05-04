@@ -151,6 +151,7 @@ func TestAddResolvedWorkflows(t *testing.T) {
 
 			opts := AddOptions{}
 			_, err := AddResolvedWorkflows(
+				context.Background(),
 				[]string{"test/repo/test-workflow"},
 				resolved,
 				opts,
@@ -461,7 +462,7 @@ func TestAddWorkflowWithTracking_SourceFieldVariants(t *testing.T) {
 			}
 			opts := AddOptions{DisableSecurityScanner: true}
 
-			err := addWorkflowWithTracking(resolved, nil, opts)
+			err := addWorkflowWithTracking(context.Background(), resolved, nil, opts)
 			require.NoError(t, err, "addWorkflowWithTracking should succeed")
 
 			written, err := os.ReadFile(filepath.Join(workflowsDir, tt.spec.WorkflowName+".md"))
@@ -515,7 +516,7 @@ func TestAddWorkflowWithTracking_UsesActualFetchedPath(t *testing.T) {
 	opts := AddOptions{
 		DisableSecurityScanner: true,
 	}
-	err := addWorkflowWithTracking(resolved, nil, opts)
+	err := addWorkflowWithTracking(context.Background(), resolved, nil, opts)
 	require.NoError(t, err, "addWorkflowWithTracking should succeed")
 
 	// Read the written file

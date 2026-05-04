@@ -35,6 +35,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -70,6 +71,7 @@ func generateDependabotManifestsWrapper(
 
 // generateMaintenanceWorkflowWrapper generates maintenance workflow if any workflow uses expires field
 func generateMaintenanceWorkflowWrapper(
+	ctx context.Context,
 	compiler *workflow.Compiler,
 	workflowDataList []*workflow.WorkflowData,
 	workflowsDir string,
@@ -89,7 +91,7 @@ func generateMaintenanceWorkflowWrapper(
 		repoConfig = nil
 	}
 
-	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, compiler.GetVersion(), compiler.GetActionMode(), compiler.GetActionTag(), verbose, repoConfig, compiler.GetRepositorySlug()); err != nil {
+	if err := workflow.GenerateMaintenanceWorkflow(ctx, workflowDataList, workflowsDir, compiler.GetVersion(), compiler.GetActionMode(), compiler.GetActionTag(), verbose, repoConfig, compiler.GetRepositorySlug()); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate maintenance workflow: %w", err)
 		}

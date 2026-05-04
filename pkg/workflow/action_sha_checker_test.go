@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -137,7 +138,7 @@ func TestCheckActionSHAUpdates(t *testing.T) {
 	resolver := NewActionResolver(cache)
 
 	// Check for updates
-	checks := CheckActionSHAUpdates(actions, resolver)
+	checks := CheckActionSHAUpdates(context.Background(), actions, resolver)
 
 	// Verify results
 	if len(checks) != 2 {
@@ -152,6 +153,39 @@ func TestCheckActionSHAUpdates(t *testing.T) {
 	// Second action (actions/setup-node) should need update
 	if !checks[1].NeedsUpdate {
 		t.Errorf("Expected actions/setup-node to need update, but it's marked as up to date")
+	}
+}
+
+// TestCheckActionSHAUpdates_ContextCancellation verifies that context cancellation is
+// respected when checking action SHA updates. When the context is already cancelled,
+// the resolver should propagate the cancellation error without hanging.
+func TestCheckActionSHAUpdates_ContextCancellation(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	actions := []ActionUsage{
+		{
+			Repo:    "actions/checkout",
+			SHA:     "oldsha0000000000000000000000000000000000",
+			Version: "v4",
+		},
+	}
+
+	// Use an already-cancelled context — the resolver will see ctx.Err() != nil
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	resolver := NewActionResolver(cache)
+
+	// With an already-cancelled context and no cached value, the resolver should
+	// attempt the resolution and propagate the cancellation. The result will either
+	// have an empty LatestSHA (because the request was cancelled) or behave like a
+	// cache miss. The important thing is that it does not hang.
+	checks := CheckActionSHAUpdates(ctx, actions, resolver)
+
+	// Should still return one result per action even with cancellation
+	if len(checks) != 1 {
+		t.Errorf("Expected 1 check result, got %d", len(checks))
 	}
 }
 

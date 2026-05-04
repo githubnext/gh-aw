@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,7 @@ var maintenanceWorkflowYAMLLog = logger.New("workflow:maintenance_workflow_yaml"
 // agentics-maintenance.yml workflow. It is called by GenerateMaintenanceWorkflow
 // after the cron schedule and setup parameters have been resolved.
 func buildMaintenanceWorkflowYAML(
+	ctx context.Context,
 	cronSchedule, scheduleDesc string,
 	minExpiresDays int,
 	runsOnValue string,
@@ -123,7 +125,7 @@ jobs:
     steps:
 `)
 
-	setupActionRef := ResolveSetupActionReference(actionMode, version, actionTag, resolver)
+	setupActionRef := ResolveSetupActionReference(ctx, actionMode, version, actionTag, resolver)
 
 	// Add checkout step only in dev/script mode (for local action paths)
 	if actionMode == ActionModeDev || actionMode == ActionModeScript {
@@ -253,7 +255,7 @@ jobs:
 
 `)
 
-	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+	yaml.WriteString(generateInstallCLISteps(ctx, actionMode, version, actionTag, resolver))
 	yaml.WriteString(`      - name: Run operation
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
@@ -407,7 +409,7 @@ jobs:
 
 `)
 
-	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+	yaml.WriteString(generateInstallCLISteps(ctx, actionMode, version, actionTag, resolver))
 	yaml.WriteString(`      - name: Create missing labels
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
@@ -454,7 +456,7 @@ jobs:
 
 `)
 
-	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+	yaml.WriteString(generateInstallCLISteps(ctx, actionMode, version, actionTag, resolver))
 	yaml.WriteString(`      - name: Restore activity report logs cache
         id: activity_report_logs_cache
         uses: ` + getActionPin("actions/cache/restore") + `
@@ -607,7 +609,7 @@ jobs:
 
 `)
 
-	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+	yaml.WriteString(generateInstallCLISteps(ctx, actionMode, version, actionTag, resolver))
 
 	yaml.WriteString(`      - name: Validate workflows and file issue on findings
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
@@ -752,7 +754,7 @@ jobs:
 
 `)
 
-		yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+		yaml.WriteString(generateInstallCLISteps(ctx, actionMode, version, actionTag, resolver))
 		yaml.WriteString(`      - name: Compile workflows
         run: |
           ` + getCLICmdPrefix(actionMode) + ` compile --validate --validate-images --verbose

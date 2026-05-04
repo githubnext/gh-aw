@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -133,7 +134,7 @@ This workflow specifies repos without min-integrity.
 			require.NoError(t, err, "Failed to write workflow file")
 
 			compiler := workflow.NewCompiler()
-			err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+			err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, false, false, false, false, false, false)
 
 			if tt.expectError {
 				require.Error(t, err, "Expected compilation to fail")
@@ -173,7 +174,7 @@ This workflow uses min-integrity without specifying repos.
 	require.NoError(t, err, "Failed to write workflow file")
 
 	compiler := workflow.NewCompiler()
-	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, false, false, false, false, false, false)
 	require.NoError(t, err, "Expected compilation to succeed")
 
 	// Read the compiled lock file and verify it contains the correct guard-policies JSON block.
@@ -233,7 +234,7 @@ This workflow uses blocked-users and approval-labels.
 	require.NoError(t, err, "Failed to write workflow file")
 
 	compiler := workflow.NewCompiler()
-	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, false, false, false, false, false, false)
 	require.NoError(t, err, "Expected compilation to succeed")
 
 	lockFilePath := filepath.Join(tmpDir, "test-guard-policy-blocked.lock.yml")
@@ -283,7 +284,7 @@ This workflow passes blocked-users and approval-labels as expressions.
 	require.NoError(t, err, "Failed to write workflow file")
 
 	compiler := workflow.NewCompiler()
-	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, false, false, false, false, false, false)
 	require.NoError(t, err, "Expected compilation to succeed")
 
 	lockFilePath := filepath.Join(tmpDir, "test-guard-policy-expr.lock.yml")
@@ -331,7 +332,7 @@ This workflow passes blocked-users as a comma-separated string.
 	require.NoError(t, err, "Failed to write workflow file")
 
 	compiler := workflow.NewCompiler()
-	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, false, false, false, false, false, false)
 	require.NoError(t, err, "Expected compilation to succeed")
 
 	lockFilePath := filepath.Join(tmpDir, "test-guard-policy-csv.lock.yml")
@@ -379,7 +380,7 @@ This workflow uses trusted-users alongside blocked-users.
 	require.NoError(t, err, "Failed to write workflow file")
 
 	compiler := workflow.NewCompiler()
-	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, false, false, false, false, false, false)
 	require.NoError(t, err, "Expected compilation to succeed")
 
 	lockFilePath := filepath.Join(tmpDir, "test-guard-policy-trusted.lock.yml")
@@ -424,7 +425,7 @@ This workflow passes trusted-users as a GitHub Actions expression.
 	require.NoError(t, err, "Failed to write workflow file")
 
 	compiler := workflow.NewCompiler()
-	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, false, false, false, false, false, false)
 	require.NoError(t, err, "Expected compilation to succeed")
 
 	lockFilePath := filepath.Join(tmpDir, "test-guard-policy-trusted-expr.lock.yml")
@@ -465,7 +466,7 @@ This workflow sets trusted-users without min-integrity (should fail).
 	require.NoError(t, err, "Failed to write workflow file")
 
 	compiler := workflow.NewCompiler()
-	err = CompileWorkflowWithValidation(compiler, workflowPath, false, false, false, false, false, false)
+	err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, false, false, false, false, false, false)
 	require.Error(t, err, "Expected compilation to fail without min-integrity")
 	assert.Contains(t, err.Error(), "min-integrity", "Error should mention min-integrity requirement")
 }

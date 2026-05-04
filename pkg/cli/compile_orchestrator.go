@@ -83,9 +83,9 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 	// Compile specific files or all files in directory
 	if len(config.MarkdownFiles) > 0 {
 		// Compile specific workflow files
-		return compileSpecificFiles(compiler, config, stats, &validationResults)
+		return compileSpecificFiles(ctx, compiler, config, stats, &validationResults)
 	}
 
 	// Compile all workflow files in directory
-	return compileAllFilesInDirectory(compiler, config, workflowDir, stats, &validationResults)
+	return compileAllFilesInDirectory(ctx, compiler, config, workflowDir, stats, &validationResults)
 }

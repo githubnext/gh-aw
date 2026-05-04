@@ -18,7 +18,7 @@ var maintenanceLog = logger.New("workflow:maintenance_workflow")
 // In release mode: installs the released CLI via the setup-cli action (gh aw available)
 // In action mode: installs the released CLI via the gh-aw-actions/setup-cli action (gh aw available)
 // When resolver is non-nil, attempts to resolve the setup-cli action to a SHA-pinned reference.
-func generateInstallCLISteps(actionMode ActionMode, version string, actionTag string, resolver ActionSHAResolver) string {
+func generateInstallCLISteps(ctx context.Context, actionMode ActionMode, version string, actionTag string, resolver ActionSHAResolver) string {
 	if actionMode == ActionModeDev {
 		return `      - name: Setup Go
         uses: ` + getActionPin("actions/setup-go") + `
@@ -40,7 +40,7 @@ func generateInstallCLISteps(actionMode ActionMode, version string, actionTag st
 	// Action mode: use setup-cli action from external gh-aw-actions repository
 	if actionMode == ActionModeAction {
 		actionRepo := GitHubActionsOrgRepo + "/setup-cli"
-		ref := resolveActionRef(actionRepo, cliTag, resolver)
+		ref := resolveActionRef(ctx, actionRepo, cliTag, resolver)
 		return `      - name: Install gh-aw
         uses: ` + ref + `
         with:
@@ -51,7 +51,7 @@ func generateInstallCLISteps(actionMode ActionMode, version string, actionTag st
 
 	// Release mode: use setup-cli action (consistent with copilot-setup-steps.yml)
 	actionRepo := GitHubOrgRepo + "/actions/setup-cli"
-	ref := resolveActionRef(actionRepo, cliTag, resolver)
+	ref := resolveActionRef(ctx, actionRepo, cliTag, resolver)
 	return `      - name: Install gh-aw
         uses: ` + ref + `
         with:
@@ -63,9 +63,9 @@ func generateInstallCLISteps(actionMode ActionMode, version string, actionTag st
 // resolveActionRef attempts to resolve an action repo@tag to a SHA-pinned reference
 // using the provided resolver. If the resolver is nil or resolution fails, it returns
 // the tag-based reference (repo@tag).
-func resolveActionRef(actionRepo, tag string, resolver ActionSHAResolver) string {
+func resolveActionRef(ctx context.Context, actionRepo, tag string, resolver ActionSHAResolver) string {
 	if resolver != nil && tag != "" && tag != "dev" {
-		sha, err := resolver.ResolveSHA(context.Background(), actionRepo, tag)
+		sha, err := resolver.ResolveSHA(ctx, actionRepo, tag)
 		if err != nil {
 			maintenanceLog.Printf("Failed to resolve SHA for %s@%s: %v, falling back to tag reference", actionRepo, tag, err)
 		} else if sha != "" {
@@ -88,14 +88,14 @@ func getCLICmdPrefix(actionMode ActionMode) string {
 // FetchDefaultBranch queries the GitHub API to determine the default branch of the
 // given repository slug (owner/repo). Returns "main" as a fallback when the slug is
 // empty, not in owner/repo format, or when the API call fails.
-func FetchDefaultBranch(slug string) string {
+func FetchDefaultBranch(ctx context.Context, slug string) string {
 	const fallback = "main"
 	if slug == "" || strings.Count(slug, "/") != 1 {
 		maintenanceLog.Printf("No valid repository slug, using default branch fallback: %s", fallback)
 		return fallback
 	}
 	maintenanceLog.Printf("Fetching default branch for repository: %s", slug)
-	output, err := RunGH("Fetching default branch...", "api", "/repos/"+slug, "--jq", ".default_branch")
+	output, err := RunGHContext(ctx, "Fetching default branch...", "api", "/repos/"+slug, "--jq", ".default_branch")
 	if err != nil {
 		maintenanceLog.Printf("Failed to fetch default branch for %s: %v, falling back to %s", slug, err, fallback)
 		return fallback
@@ -115,7 +115,7 @@ func FetchDefaultBranch(slug string) string {
 // maintenance workflow is deleted and the function returns immediately.
 // repoSlug is the owner/repo slug used to determine the default branch for the push
 // trigger; pass an empty string to fall back to "main".
-func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir string, version string, actionMode ActionMode, actionTag string, verbose bool, repoConfig *RepoConfig, repoSlug string) error {
+func GenerateMaintenanceWorkflow(ctx context.Context, workflowDataList []*WorkflowData, workflowDir string, version string, actionMode ActionMode, actionTag string, verbose bool, repoConfig *RepoConfig, repoSlug string) error {
 	maintenanceLog.Print("Checking if maintenance workflow is needed")
 
 	// Respect explicit opt-out from aw.json: maintenance: false
@@ -159,7 +159,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 
 		// Even without expires, side-repo targets still need maintenance workflows
 		// for safe_outputs, create_labels, and validate operations.
-		return generateAllSideRepoMaintenanceWorkflows(workflowDataList, workflowDir, version, actionMode, actionTag, runsOnValue, resolver, false, 0)
+		return generateAllSideRepoMaintenanceWorkflows(ctx, workflowDataList, workflowDir, version, actionMode, actionTag, runsOnValue, resolver, false, 0)
 	}
 
 	maintenanceLog.Printf("Generating maintenance workflow for expired discussions, issues, and pull requests (minimum expires: %d hours)", minExpires)
@@ -176,10 +176,10 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 
 	// Fetch the default branch for the push trigger (dev mode only)
 	// Resolved here to avoid passing it through multiple layers; empty slug falls back to "main"
-	defaultBranch := FetchDefaultBranch(repoSlug)
+	defaultBranch := FetchDefaultBranch(ctx, repoSlug)
 
 	// Generate the YAML content for the maintenance workflow
-	content := buildMaintenanceWorkflowYAML(cronSchedule, scheduleDesc, minExpiresDays, runsOnValue, actionMode, version, actionTag, resolver, configuredRunsOn, defaultBranch, disableLabelTrigger)
+	content := buildMaintenanceWorkflowYAML(ctx, cronSchedule, scheduleDesc, minExpiresDays, runsOnValue, actionMode, version, actionTag, resolver, configuredRunsOn, defaultBranch, disableLabelTrigger)
 
 	// Write the maintenance workflow file
 	maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")
@@ -192,7 +192,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 	maintenanceLog.Print("Maintenance workflow generated successfully")
 
 	// Generate side-repo maintenance workflows for any SideRepoOps targets detected.
-	if err := generateAllSideRepoMaintenanceWorkflows(workflowDataList, workflowDir, version, actionMode, actionTag, runsOnValue, resolver, hasExpires, minExpiresDays); err != nil {
+	if err := generateAllSideRepoMaintenanceWorkflows(ctx, workflowDataList, workflowDir, version, actionMode, actionTag, runsOnValue, resolver, hasExpires, minExpiresDays); err != nil {
 		return err
 	}
 

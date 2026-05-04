@@ -102,7 +102,7 @@ Examples:
 				CreatePR:         createPR,
 				RootCmd:          cmd.Root(),
 			}
-			if err := InitRepository(opts); err != nil {
+			if err := InitRepository(cmd.Context(), opts); err != nil {
 				initCommandLog.Printf("Init command failed: %v", err)
 				return err
 			}

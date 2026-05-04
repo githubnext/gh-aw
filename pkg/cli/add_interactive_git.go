@@ -39,7 +39,7 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 		StopAfter:              c.StopAfter,
 		DisableSecurityScanner: false,
 	}
-	result, err := AddResolvedWorkflows(c.WorkflowSpecs, c.resolvedWorkflows, opts)
+	result, err := AddResolvedWorkflows(ctx, c.WorkflowSpecs, c.resolvedWorkflows, opts)
 	if err != nil {
 		return fmt.Errorf("failed to add workflow: %w", err)
 	}

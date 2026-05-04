@@ -35,6 +35,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -68,7 +69,7 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Compiling: "+file))
 	}
 
-	if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
+	if err := CompileWorkflowWithValidation(context.Background(), compiler, file, verbose, false, false, false, false, false); err != nil {
 		// Always show compilation errors on new line
 		// Note: Don't wrap in FormatErrorMessage as the error is already formatted by console.FormatError
 		fmt.Fprintln(os.Stderr, err.Error())

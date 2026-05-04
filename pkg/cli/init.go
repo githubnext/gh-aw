@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -26,7 +27,7 @@ type InitOptions struct {
 }
 
 // InitRepository initializes the repository for agentic workflows
-func InitRepository(opts InitOptions) error {
+func InitRepository(ctx context.Context, opts InitOptions) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
 	// Show welcome banner for interactive mode
@@ -143,7 +144,7 @@ func InitRepository(opts InitOptions) error {
 
 	// Generate/update maintenance workflow if any workflows use expires field
 	initLog.Print("Checking for workflows with expires field to generate maintenance workflow")
-	if err := ensureMaintenanceWorkflow(opts.Verbose); err != nil {
+	if err := ensureMaintenanceWorkflow(ctx, opts.Verbose); err != nil {
 		initLog.Printf("Failed to generate maintenance workflow: %v", err)
 		// Don't fail init if maintenance workflow generation has issues
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate maintenance workflow: %v", err)))
@@ -183,7 +184,7 @@ func InitRepository(opts InitOptions) error {
 
 // ensureMaintenanceWorkflow checks existing workflows for expires field and generates/updates
 // the maintenance workflow file if any workflows use it
-func ensureMaintenanceWorkflow(verbose bool) error {
+func ensureMaintenanceWorkflow(ctx context.Context, verbose bool) error {
 	initLog.Print("Checking for workflows with expires field")
 
 	// Find git root
@@ -238,7 +239,7 @@ func ensureMaintenanceWorkflow(verbose bool) error {
 		repoConfig = nil
 	}
 
-	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, GetVersion(), compiler.GetActionMode(), compiler.GetActionTag(), verbose, repoConfig, compiler.GetRepositorySlug()); err != nil {
+	if err := workflow.GenerateMaintenanceWorkflow(ctx, workflowDataList, workflowsDir, GetVersion(), compiler.GetActionMode(), compiler.GetActionTag(), verbose, repoConfig, compiler.GetRepositorySlug()); err != nil {
 		return fmt.Errorf("failed to generate maintenance workflow: %w", err)
 	}
 

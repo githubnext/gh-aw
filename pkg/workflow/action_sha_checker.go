@@ -101,7 +101,7 @@ func ExtractActionsFromLockFile(lockFilePath string) ([]ActionUsage, error) {
 }
 
 // CheckActionSHAUpdates checks if actions need updating by comparing with latest SHAs
-func CheckActionSHAUpdates(actions []ActionUsage, resolver *ActionResolver) []ActionUpdateCheck {
+func CheckActionSHAUpdates(ctx context.Context, actions []ActionUsage, resolver *ActionResolver) []ActionUpdateCheck {
 	actionSHACheckerLog.Printf("Checking %d actions for updates", len(actions))
 
 	results := make([]ActionUpdateCheck, 0, len(actions))
@@ -119,7 +119,7 @@ func CheckActionSHAUpdates(actions []ActionUsage, resolver *ActionResolver) []Ac
 		}
 
 		// Resolve the latest SHA for this version
-		latestSHA, err := resolver.ResolveSHA(context.Background(), action.Repo, action.Version)
+		latestSHA, err := resolver.ResolveSHA(ctx, action.Repo, action.Version)
 		if err != nil {
 			actionSHACheckerLog.Printf("Failed to resolve %s@%s: %v", action.Repo, action.Version, err)
 			check.Message = fmt.Sprintf("Unable to check for updates: %v", err)
@@ -146,7 +146,7 @@ func CheckActionSHAUpdates(actions []ActionUsage, resolver *ActionResolver) []Ac
 }
 
 // ValidateActionSHAsInLockFile validates action SHAs in a lock file and emits warnings
-func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbose bool) error {
+func ValidateActionSHAsInLockFile(ctx context.Context, lockFilePath string, cache *ActionCache, verbose bool) error {
 	actionSHACheckerLog.Printf("Validating action SHAs in: %s", lockFilePath)
 
 	// Extract actions from lock file
@@ -167,7 +167,7 @@ func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbo
 	resolver := NewActionResolver(cache)
 
 	// Check for updates
-	checks := CheckActionSHAUpdates(actions, resolver)
+	checks := CheckActionSHAUpdates(ctx, actions, resolver)
 
 	// Count and report updates
 	updateCount := 0

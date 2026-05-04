@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -56,7 +57,7 @@ func TestInitRepository(t *testing.T) {
 			}
 
 			// Call the function (no MCP or campaign)
-			err = InitRepository(InitOptions{Verbose: false, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
+			err = InitRepository(context.Background(), InitOptions{Verbose: false, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
 
 			// Check error expectation
 			if tt.wantError {
@@ -114,13 +115,13 @@ func TestInitRepository_Idempotent(t *testing.T) {
 	}
 
 	// Call the function first time
-	err = InitRepository(InitOptions{Verbose: false, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
+	err = InitRepository(context.Background(), InitOptions{Verbose: false, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
 	if err != nil {
 		t.Fatalf("InitRepository(, false, false, false, nil) returned error on first call: %v", err)
 	}
 
 	// Call the function second time
-	err = InitRepository(InitOptions{Verbose: false, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
+	err = InitRepository(context.Background(), InitOptions{Verbose: false, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
 	if err != nil {
 		t.Fatalf("InitRepository(, false, false, false, nil) returned error on second call: %v", err)
 	}
@@ -158,7 +159,7 @@ func TestInitRepository_Verbose(t *testing.T) {
 	}
 
 	// Call the function with verbose=true (should not error)
-	err = InitRepository(InitOptions{Verbose: true, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
+	err = InitRepository(context.Background(), InitOptions{Verbose: true, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
 	if err != nil {
 		t.Fatalf("InitRepository(, false, false, false, nil) returned error with verbose=true: %v", err)
 	}
@@ -263,7 +264,7 @@ This is a test workflow.
 			}
 
 			// Call ensureMaintenanceWorkflow
-			err = ensureMaintenanceWorkflow(false)
+			err = ensureMaintenanceWorkflow(context.Background(), false)
 			if err != nil {
 				t.Logf("ensureMaintenanceWorkflow returned error (may be expected): %v", err)
 			}

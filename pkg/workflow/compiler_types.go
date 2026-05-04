@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"os"
 
 	actionpins "github.com/github/gh-aw/pkg/actionpins"
@@ -55,6 +56,7 @@ type FileCreationTracker interface {
 
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
+	ctx                     context.Context // Context for cancellation and timeout; set at start of each compile operation
 	verbose                 bool
 	quiet                   bool // If true, suppress success messages (for interactive mode)
 	engineOverride          string
@@ -144,6 +146,22 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 // SetSkipValidation configures whether to skip schema validation
 func (c *Compiler) SetSkipValidation(skip bool) {
 	c.skipValidation = skip
+}
+
+// context returns the compiler's current context, falling back to context.Background()
+// when no context has been set for the current compilation operation.
+func (c *Compiler) context() context.Context {
+	if c.ctx != nil {
+		return c.ctx
+	}
+	return context.Background()
+}
+
+// SetContext sets the context for the current compilation operation.
+// This allows callers to propagate cancellation and timeout support
+// through the compiler's internal operations (e.g., action SHA resolution).
+func (c *Compiler) SetContext(ctx context.Context) {
+	c.ctx = ctx
 }
 
 // SetRequireDocker configures whether Docker must be available for container image validation.

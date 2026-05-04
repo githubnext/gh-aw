@@ -4,6 +4,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"testing"
@@ -67,7 +68,7 @@ func TestInitRepository_WithNilRootCmd(t *testing.T) {
 	require.NoError(t, err, "Failed to init git repo")
 
 	// InitRepository with nil rootCmd and completions disabled should succeed
-	err = InitRepository(InitOptions{Verbose: false, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
+	err = InitRepository(context.Background(), InitOptions{Verbose: false, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
 	require.NoError(t, err, "InitRepository with nil rootCmd should succeed when completions are disabled")
 }
 
@@ -96,7 +97,7 @@ func TestInitRepository_WithRootCmd(t *testing.T) {
 	}
 
 	// InitRepository with real rootCmd should succeed
-	err = InitRepository(InitOptions{Verbose: false, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: rootCmd})
+	err = InitRepository(context.Background(), InitOptions{Verbose: false, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: rootCmd})
 	require.NoError(t, err, "InitRepository with rootCmd should succeed")
 }
 

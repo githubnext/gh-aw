@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -338,7 +339,7 @@ func TestResolveSetupActionReference(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Pass nil for data to test backward compatibility with standalone usage
-			ref := ResolveSetupActionReference(tt.actionMode, tt.version, tt.actionTag, nil)
+			ref := ResolveSetupActionReference(context.Background(), tt.actionMode, tt.version, tt.actionTag, nil)
 			assert.Equal(t, tt.expectedRef, ref, tt.description)
 		})
 	}
@@ -352,14 +353,14 @@ func TestResolveSetupActionReferenceWithData(t *testing.T) {
 
 		// The resolver will fail to resolve github/gh-aw/actions/setup@v1.0.0
 		// since it's not a real tag, but it should fall back gracefully
-		ref := ResolveSetupActionReference(ActionModeRelease, "v1.0.0", "", resolver)
+		ref := ResolveSetupActionReference(context.Background(), ActionModeRelease, "v1.0.0", "", resolver)
 
 		// Without a valid pin or successful resolution, should return tag-based reference
 		assert.Equal(t, "github/gh-aw/actions/setup@v1.0.0", ref, "should return tag-based reference when SHA resolution fails")
 	})
 
 	t.Run("release mode with nil resolver returns tag-based reference", func(t *testing.T) {
-		ref := ResolveSetupActionReference(ActionModeRelease, "v1.0.0", "", nil)
+		ref := ResolveSetupActionReference(context.Background(), ActionModeRelease, "v1.0.0", "", nil)
 		assert.Equal(t, "github/gh-aw/actions/setup@v1.0.0", ref, "should return tag-based reference when no resolver provided")
 	})
 }
