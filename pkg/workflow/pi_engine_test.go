@@ -298,8 +298,13 @@ func TestBuildPiModelsJSON_UsesAPIProxyContainerIP(t *testing.T) {
 				"baseUrl must not use host.docker.internal — it bypasses the api-proxy Docker container")
 
 			assert.Equal(t, tt.secretVar, gateway["apiKey"], "apiKey should be the secret env var name")
-			assert.Equal(t, tt.modelID, ((gateway["models"].([]any))[0]).(map[string]any)["id"],
-				"models[0].id should match the provided model ID")
+
+			models, ok := gateway["models"].([]any)
+			require.True(t, ok, "aw-gateway should have 'models' array")
+			require.NotEmpty(t, models, "models array should not be empty")
+			firstModel, ok := models[0].(map[string]any)
+			require.True(t, ok, "models[0] should be an object")
+			assert.Equal(t, tt.modelID, firstModel["id"], "models[0].id should match the provided model ID")
 		})
 	}
 }
