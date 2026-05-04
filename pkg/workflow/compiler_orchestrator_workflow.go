@@ -191,20 +191,23 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 			}
 
 			// Append import endpoints that aren't already present.
+			importAdded := 0
 			for _, ep := range extractRawOTLPEndpointMaps(importedObs) {
 				if url, _ := ep["url"].(string); url != "" && !seen[url] {
 					seen[url] = true
 					mergedEndpoints = append(mergedEndpoints, ep)
+					importAdded++
 				}
 			}
 
 			if len(mergedEndpoints) > 0 {
+				mainCount := len(mergedEndpoints) - importAdded
 				workflowData.RawFrontmatter["observability"] = map[string]any{
 					"otlp": map[string]any{
 						"endpoint": mergedEndpoints,
 					},
 				}
-				orchestratorWorkflowLog.Printf("Merged %d OTLP endpoint(s) from imports and main workflow into RawFrontmatter", len(mergedEndpoints))
+				orchestratorWorkflowLog.Printf("Merged OTLP endpoints into RawFrontmatter: %d from main workflow, %d from imports (%d total)", mainCount, importAdded, len(mergedEndpoints))
 			}
 		}
 	}

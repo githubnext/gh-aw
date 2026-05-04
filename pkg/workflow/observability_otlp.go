@@ -278,7 +278,9 @@ func extractRawOTLPEndpointMaps(obs map[string]any) []map[string]any {
 		}
 	case map[string]any:
 		if url, _ := ep["url"].(string); url != "" {
-			// Copy to avoid mutating the original
+			// Shallow copy: top-level keys (url, headers) are copied. The headers
+			// value (a map[string]any) is shared by reference, but it is never mutated
+			// downstream — it is only read by normalizeOTLPHeaders and collectAllOTLPEndpoints.
 			entry := make(map[string]any, len(ep))
 			maps.Copy(entry, ep)
 			result = append(result, entry)
@@ -290,6 +292,7 @@ func extractRawOTLPEndpointMaps(obs map[string]any) []map[string]any {
 				continue
 			}
 			if url, _ := itemMap["url"].(string); url != "" {
+				// Shallow copy: see note above — headers value is never mutated.
 				entry := make(map[string]any, len(itemMap))
 				maps.Copy(entry, itemMap)
 				result = append(result, entry)

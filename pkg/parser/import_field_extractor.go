@@ -620,13 +620,13 @@ func mergeObservabilityConfigs(configs []string) string {
 	seen := make(map[string]bool)
 	var allEndpoints []observabilityImportEndpoint
 
-	for _, cfgJSON := range configs {
+	for i, cfgJSON := range configs {
 		if cfgJSON == "" {
 			continue
 		}
 		var obs map[string]any
 		if err := json.Unmarshal([]byte(cfgJSON), &obs); err != nil {
-			log.Printf("Failed to unmarshal observability config during merge: %v", err)
+			log.Printf("Failed to unmarshal observability config from import %d during merge: %v", i, err)
 			continue
 		}
 		for _, e := range extractOTLPEndpointsFromObsMap(obs) {
@@ -650,7 +650,7 @@ func mergeObservabilityConfigs(configs []string) string {
 	}
 	b, err := json.Marshal(merged)
 	if err != nil {
-		log.Printf("Failed to marshal merged observability config: %v", err)
+		log.Printf("Failed to marshal %d merged OTLP endpoints: %v", len(allEndpoints), err)
 		return ""
 	}
 	return string(b)
