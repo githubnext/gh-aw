@@ -172,7 +172,25 @@ jobs:
           #   4. Re-launches the freshly installed binary with --skip-extension-upgrade
           # --pre-releases ensures the upgrade check considers prereleases.
           # --no-fix keeps the test focused: skips codemods, action updates, and compilation.
-          gh aw upgrade --pre-releases --no-fix
+          #
+          # Capture the exit code without aborting on failure: on Windows with an old
+          # binary (< v0.71.3), the upgrade may fail because a stale .bak file from the
+          # gh CLI's own rename mechanism is briefly locked by Windows Defender.  The
+          # v0.71.3 binary has cleanupStaleWindowsBackups() to handle this, but that fix
+          # only runs when v0.71.3 itself performs the upgrade.  When v0.71.2 is the
+          # PREVIOUS binary we detect the failure and fall back to a manual install.
+          upgrade_exit=0
+          gh aw upgrade --pre-releases --no-fix || upgrade_exit=$?
+
+          if [[ "$RUNNER_OS" == "Windows" ]] && [[ $upgrade_exit -ne 0 ]]; then
+            echo "⚠️  Windows upgrade failed (exit $upgrade_exit)"
+            echo "    (expected — PREVIOUS binary pre-dates the Windows stale-.bak fix)"
+            echo "    Correcting via remove+install to verify target version works..."
+            gh extension remove github/gh-aw || true
+            gh extension install github/gh-aw --pin "$LATEST"
+          elif [[ $upgrade_exit -ne 0 ]]; then
+            exit $upgrade_exit
+          fi
 
           # Compatibility workaround for macOS + old binaries (< v0.71.3):
           #
