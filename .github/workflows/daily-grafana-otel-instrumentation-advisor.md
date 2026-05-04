@@ -12,16 +12,8 @@ tracker-id: daily-grafana-otel-instrumentation-advisor
 engine: claude
 mcp-servers:
   grafana:
-    command: "docker"
+    container: "grafana/mcp-grafana"
     args:
-      - "run"
-      - "--rm"
-      - "-i"
-      - "-e"
-      - "GRAFANA_URL"
-      - "-e"
-      - "GRAFANA_SERVICE_ACCOUNT_TOKEN"
-      - "grafana/mcp-grafana"
       - "-t"
       - "stdio"
       - "--disable-write"
