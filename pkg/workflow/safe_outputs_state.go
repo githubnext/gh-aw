@@ -85,7 +85,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		return true
 	}
 
-	// Direct nil checks — no reflection, no heap allocation.
+	// Direct nil checks — no reflection, no heap allocation (42 fields matching safeOutputFieldMapping).
 	return safeOutputs.CreateIssues != nil ||
 		safeOutputs.CreateAgentSessions != nil ||
 		safeOutputs.CreateDiscussions != nil ||
@@ -127,7 +127,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.MissingTool != nil ||
 		safeOutputs.MissingData != nil ||
 		safeOutputs.SetIssueType != nil ||
-		safeOutputs.NoOp != nil
+		safeOutputs.NoOp != nil // 42nd field
 }
 
 // hasNonBuiltinSafeOutputsEnabled reports whether any non-builtin safe output is configured.
@@ -146,7 +146,8 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		return true
 	}
 
-	// Direct nil checks for non-builtin pointer fields (all except NoOp, MissingData, MissingTool).
+	// Direct nil checks for non-builtin pointer fields (39 fields = 42 total minus 3 builtins:
+	// NoOp, MissingData, MissingTool).
 	return safeOutputs.CreateIssues != nil ||
 		safeOutputs.CreateAgentSessions != nil ||
 		safeOutputs.CreateDiscussions != nil ||
@@ -185,7 +186,7 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.DispatchWorkflow != nil ||
 		safeOutputs.DispatchRepository != nil ||
 		safeOutputs.CallWorkflow != nil ||
-		safeOutputs.SetIssueType != nil
+		safeOutputs.SetIssueType != nil // 39th non-builtin field
 }
 
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
