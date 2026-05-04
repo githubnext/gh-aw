@@ -101,6 +101,14 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 		MinSamples:     defaultMinSamples,
 	}
 
+	// Degenerate: fewer than 2 variants cannot be meaningfully analysed.
+	if len(exp.Variants) < 2 {
+		a.IsBalanced = true
+		a.Recommendation = "EXTEND"
+		a.Rationale = "experiment has fewer than 2 variants; cannot perform statistical analysis"
+		return a
+	}
+
 	// Extract metadata from config when available.
 	if cfg != nil {
 		a.Hypothesis = cfg.Hypothesis

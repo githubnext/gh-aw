@@ -302,7 +302,7 @@ func computeExperimentAnalyses(experiments []ExperimentVariantStats, configs map
 // loadLocalExperimentConfigs reads the workflow .md file for the given experiment name
 // and returns the ExperimentConfig map from its frontmatter.
 // experimentName is the sanitized workflow ID (the part after "experiments/" in the branch name).
-// Returns an empty map when the workflow file cannot be found or parsed.
+// Returns nil when the workflow file cannot be found or parsed.
 func loadLocalExperimentConfigs(experimentName string) map[string]*workflow.ExperimentConfig {
 	experimentsLog.Printf("Loading local experiment configs for %s", experimentName)
 
@@ -313,21 +313,26 @@ func loadLocalExperimentConfigs(experimentName string) map[string]*workflow.Expe
 	}
 
 	// Verify that the resolved path is within .github/workflows/ to prevent path traversal.
-	// findWorkflowFileForExperiment returns absolute paths from getMarkdownWorkflowFiles,
-	// which enumerates only files beneath .github/workflows/ (no user input injected).
+	// findWorkflowFileForExperiment returns paths from filepath.Glob with a relative base dir,
+	// so convert both sides to absolute paths before the prefix check.
+	absFilePath, err := filepath.Abs(filePath)
+	if err != nil {
+		experimentsLog.Printf("Failed to resolve absolute path for %s: %v", filePath, err)
+		return nil
+	}
 	workflowsDir, err := filepath.Abs(getWorkflowsDir())
 	if err != nil {
 		experimentsLog.Printf("Failed to resolve workflows dir: %v", err)
 		return nil
 	}
-	if !strings.HasPrefix(filePath, workflowsDir+string(filepath.Separator)) {
-		experimentsLog.Printf("Refusing to read workflow file outside .github/workflows/: %s", filePath)
+	if !strings.HasPrefix(absFilePath, workflowsDir+string(filepath.Separator)) {
+		experimentsLog.Printf("Refusing to read workflow file outside .github/workflows/: %s", absFilePath)
 		return nil
 	}
 
-	content, err := os.ReadFile(filePath) // #nosec G304 — path confirmed within .github/workflows/
+	content, err := os.ReadFile(absFilePath) // #nosec G304 — path confirmed within .github/workflows/
 	if err != nil {
-		experimentsLog.Printf("Failed to read workflow file %s: %v", filePath, err)
+		experimentsLog.Printf("Failed to read workflow file %s: %v", absFilePath, err)
 		return nil
 	}
 

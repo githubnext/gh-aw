@@ -612,3 +612,32 @@ func TestAnalysisWithNilConfig(t *testing.T) {
 	assert.False(t, math.IsNaN(a.PValue), "p-value should not be NaN")
 	assert.True(t, a.PValue >= 0 && a.PValue <= 1, "p-value should be in [0,1]")
 }
+
+// TestComputeExperimentAnalysisDegenerateVariants tests degenerate experiments with < 2 variants.
+func TestComputeExperimentAnalysisDegenerateVariants(t *testing.T) {
+	t.Run("zero variants returns EXTEND", func(t *testing.T) {
+		exp := ExperimentVariantStats{
+			Name:     "no_variants",
+			Variants: map[string]int{},
+			Total:    0,
+		}
+		a := computeExperimentAnalysis(exp, nil)
+		assert.Equal(t, "EXTEND", a.Recommendation, "zero variants → EXTEND")
+		assert.True(t, a.IsBalanced, "degenerate case defaults to balanced")
+		assert.Empty(t, a.Variants, "no variant entries")
+		assert.Contains(t, a.Rationale, "fewer than 2 variants", "rationale mentions variant count")
+	})
+
+	t.Run("single variant returns EXTEND", func(t *testing.T) {
+		exp := ExperimentVariantStats{
+			Name:     "one_variant",
+			Variants: map[string]int{"only": 10},
+			Total:    10,
+		}
+		a := computeExperimentAnalysis(exp, nil)
+		assert.Equal(t, "EXTEND", a.Recommendation, "single variant → EXTEND")
+		assert.True(t, a.IsBalanced, "degenerate case defaults to balanced")
+		assert.Empty(t, a.Variants, "no variant entries emitted for degenerate case")
+		assert.Contains(t, a.Rationale, "fewer than 2 variants", "rationale is clear")
+	})
+}
