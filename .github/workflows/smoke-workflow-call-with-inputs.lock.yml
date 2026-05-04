@@ -133,6 +133,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Workflow Call with Inputs"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-workflow-call-with-inputs.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Resolve host repo for activation checkout
         id: resolve-host-repo
@@ -416,6 +417,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Workflow Call with Inputs"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-workflow-call-with-inputs.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Set runtime paths
         id: set-runtime-paths
@@ -1016,6 +1018,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Workflow Call with Inputs"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-workflow-call-with-inputs.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Download agent output artifact
         id: download-agent-output
@@ -1157,6 +1160,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Workflow Call with Inputs"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-workflow-call-with-inputs.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Download agent output artifact
         id: download-agent-output
@@ -1347,6 +1351,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Workflow Call with Inputs"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-workflow-call-with-inputs.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Check team membership for workflow
         id: check_membership
@@ -1409,6 +1414,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Workflow Call with Inputs"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-workflow-call-with-inputs.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Download agent output artifact
         id: download-agent-output

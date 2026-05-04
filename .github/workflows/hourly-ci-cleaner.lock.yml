@@ -104,6 +104,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "CI Cleaner"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/hourly-ci-cleaner.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -364,6 +365,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "CI Cleaner"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/hourly-ci-cleaner.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1095,6 +1097,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "CI Cleaner"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/hourly-ci-cleaner.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1239,6 +1242,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "CI Cleaner"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/hourly-ci-cleaner.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1458,6 +1462,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "CI Cleaner"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/hourly-ci-cleaner.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.126"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true

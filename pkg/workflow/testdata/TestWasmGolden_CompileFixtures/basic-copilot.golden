@@ -50,6 +50,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "basic-copilot-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/basic-copilot.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -278,6 +279,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "basic-copilot-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/basic-copilot.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -598,6 +600,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "basic-copilot-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/basic-copilot.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "1.0.40"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
