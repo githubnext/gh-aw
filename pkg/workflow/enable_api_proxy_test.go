@@ -1,3 +1,5 @@
+//go:build !integration
+
 package workflow
 
 import (
@@ -136,6 +138,41 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 
 		if !strings.Contains(stepContent, `"enabled":true`) {
 			t.Error("Expected Gemini AWF command to contain apiProxy enabled in config JSON")
+		}
+	})
+
+	t.Run("Pi AWF command includes apiProxy enabled in config file", func(t *testing.T) {
+		toolsRaw := map[string]any{
+			"github":    map[string]any{"mode": "gh-proxy"},
+			"cli-proxy": true,
+		}
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID:    "pi",
+				Model: "copilot/claude-sonnet-4-20250514",
+			},
+			Tools:       toolsRaw,
+			ParsedTools: NewTools(toolsRaw),
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewPiEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// AWF config JSON embedded in the step must have apiProxy.enabled = true.
+		if !strings.Contains(stepContent, `"enabled":true`) {
+			t.Error("Expected Pi AWF command to contain apiProxy enabled in config JSON")
 		}
 	})
 }

@@ -1,12 +1,9 @@
 package workflow
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"maps"
-	"net"
-	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -115,19 +112,17 @@ func piNativeProviderName(backend UniversalLLMBackend) string {
 // "COPILOT_GITHUB_TOKEN") causes Pi to automatically use the value that is
 // already present in the container environment.
 //
-// The baseUrl uses the fixed api-proxy container IP (constants.AWFAPIProxyContainerIP)
-// so that Pi's LLM traffic routes through the api-proxy sidecar on the AWF Docker
-// network.  This ensures the api-proxy is an active network participant, which in
-// turn makes its management endpoint (api-proxy:10000/reflect) reachable from the
-// agent container.  Using host.docker.internal here would bypass the api-proxy's
-// Docker network interface and prevent /reflect from responding.
+// The baseUrl uses the "api-proxy" Docker service hostname (not host.docker.internal)
+// so that Pi can reach the sidecar container within the AWF Docker network.
+// host.docker.internal points to the Docker host (runner), not the api-proxy
+// container, and is only available when --enable-host-access is set.
 //
 // All dynamic values are marshaled via encoding/json to prevent JSON injection.
 func buildPiModelsJSON(gatewayPort int, secretEnvVarName, modelID string) string {
 	payload := map[string]any{
 		"providers": map[string]any{
 			"aw-gateway": map[string]any{
-				"baseUrl": "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(gatewayPort)),
+				"baseUrl": fmt.Sprintf("http://api-proxy:%d", gatewayPort),
 				"api":     "openai-completions",
 				"apiKey":  secretEnvVarName,
 				"models":  []map[string]any{{"id": modelID}},
@@ -141,12 +136,6 @@ func buildPiModelsJSON(gatewayPort int, secretEnvVarName, modelID string) string
 		panic(fmt.Sprintf("BUG: buildPiModelsJSON failed to marshal JSON: %v", err))
 	}
 	return string(b)
-}
-
-// encodeBase64 returns the standard base64 encoding of s.  Used to safely
-// embed arbitrary content in shell commands without shell-injection risks.
-func encodeBase64(s string) string {
-	return base64.StdEncoding.EncodeToString([]byte(s))
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Pi engine.
@@ -298,13 +287,13 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 			// var that holds the secret; Pi's resolveConfigValue() looks up
 			// process.env[apiKey] to obtain the actual token value at runtime.
 			//
-			// The JSON is base64-encoded before embedding in the shell command so that
-			// the content is injection-safe regardless of what characters it contains.
+			// printf '%s\n' '<json>' is safe here because JSON uses only double quotes
+			// (never single quotes), so single-quoting via shellEscapeArg requires no
+			// further escaping in practice.
 			modelsJSON := buildPiModelsJSON(profile.gatewayPort, profile.coreSecretNames[0], modelID)
-			modelsJSONBase64 := encodeBase64(modelsJSON)
 			piModelsJSONSetup = fmt.Sprintf(
-				`mkdir -p /tmp/gh-aw/pi-agent-dir && echo %s | base64 -d > /tmp/gh-aw/pi-agent-dir/models.json && `,
-				modelsJSONBase64)
+				`mkdir -p /tmp/gh-aw/pi-agent-dir && printf '%%s\n' %s > /tmp/gh-aw/pi-agent-dir/models.json && `,
+				shellEscapeArg(modelsJSON))
 			piArgs = append(piArgs, "--model", "aw-gateway/"+modelID)
 			piLog.Printf("Pi: using models.json gateway routing for model %q via aw-gateway (port %d)", modelID, profile.gatewayPort)
 		} else {

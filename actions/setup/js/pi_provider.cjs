@@ -43,16 +43,12 @@ function extractProviderFromModel(model) {
   return model.slice(0, slashIdx).toLowerCase();
 }
 
-// Fixed IP of the AWF api-proxy sidecar container within the AWF Docker network.
-// Matches constants.AWFAPIProxyContainerIP on the Go side.
-const AWF_API_PROXY_CONTAINER_IP = "172.30.0.30";
-
 /**
  * Resolve the expected LLM gateway base URL for a given provider prefix.
  * Returns null when the provider is not one of the well-known AWF sidecar providers.
  *
- * Uses the fixed api-proxy container IP (AWF_API_PROXY_CONTAINER_IP) so the URL
- * matches the actual Docker network address used by the Pi models.json configuration.
+ * Uses the "api-proxy" Docker service hostname so the URL reflects the actual
+ * address used by Pi's models.json routing within the AWF Docker network.
  *
  * @param {string} provider - Lowercase provider prefix (e.g. "copilot", "anthropic").
  * @returns {string|null}
@@ -60,14 +56,14 @@ const AWF_API_PROXY_CONTAINER_IP = "172.30.0.30";
 function resolveGatewayUrl(provider) {
   const GATEWAY_PORTS = /** @type {Record<string, number>} */ {
     copilot: 10002,
-    anthropic: 10000,
-    openai: 10001,
-    codex: 10001,
+    anthropic: 10001,
+    openai: 10000,
+    codex: 10000,
     google: 10003,
   };
   const port = GATEWAY_PORTS[provider];
   if (!port) return null;
-  return `http://${AWF_API_PROXY_CONTAINER_IP}:${port}`;
+  return `http://api-proxy:${port}`;
 }
 
 /**
@@ -127,6 +123,5 @@ function piProviderExtension(pi) {
 }
 
 module.exports = piProviderExtension;
-module.exports.AWF_API_PROXY_CONTAINER_IP = AWF_API_PROXY_CONTAINER_IP;
 module.exports.extractProviderFromModel = extractProviderFromModel;
 module.exports.resolveGatewayUrl = resolveGatewayUrl;
