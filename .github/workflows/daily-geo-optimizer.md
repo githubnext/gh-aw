@@ -73,7 +73,7 @@ jobs:
 
           metadata = {
             "run_id": "${{ github.run_id }}",
-            "timestamp": datetime.datetime.utcnow().strftime("%Y-%m-%d %H-%M-%S"),
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H-%M-%S"),
             "docs_url": "https://github.github.com/gh-aw/",
             "readme_url": "https://github.com/${{ github.repository }}",
             "repository": "${{ github.repository }}",
@@ -87,6 +87,8 @@ jobs:
       - name: Save geo-optimizer results to cache
         uses: actions/cache/save@v4
         with:
+          # Key prefix 'dailygeooptimizer' is the sanitized workflow ID (hyphens stripped
+          # from 'daily-geo-optimizer') — matches GH_AW_WORKFLOW_ID_SANITIZED in the agent job.
           key: memory-none-nopolicy-dailygeooptimizer-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
 
@@ -171,7 +173,7 @@ Write the updated history back with:
 # read current scores from the audit JSONs, then write updated history
 ```
 
-## Phase 5: Create Discussion Report
+Limit the history file to the most recent 30 entries (drop the oldest when the list exceeds 30).
 
 Create a GitHub Discussion with the audit findings using the following structure:
 
@@ -244,6 +246,6 @@ Use today's date derived from the metadata.json timestamp.
 - **If a file is missing or empty**: Note it clearly rather than fabricating data.
 - **Safe filenames**: Use `YYYY-MM-DD HH-MM-SS` format (no colons) for any timestamps you write.
 - **Efficient**: Read each file once; avoid redundant bash calls.
-- **History integrity**: Only append to history, never truncate data older than 30 entries.
+- **History integrity**: Append to history before writing; keep only the most recent 30 entries.
 
 {{#runtime-import shared/noop-reminder.md}}
