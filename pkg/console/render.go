@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -583,6 +584,15 @@ func FormatNumber(n int) string {
 	}
 }
 
+// workingDirOnce caches the process's working directory on first access.
+// The working directory is constant for the lifetime of a CLI invocation,
+// so computing it once avoids a syscall on every call to ToRelativePath.
+var (
+	workingDirOnce sync.Once
+	workingDir     string
+	workingDirErr  error
+)
+
 // ToRelativePath converts an absolute path to a relative path from the current working directory
 // If the relative path contains "..", returns the absolute path instead for clarity
 func ToRelativePath(path string) string {
@@ -590,12 +600,14 @@ func ToRelativePath(path string) string {
 		return path
 	}
 
-	wd, err := os.Getwd()
-	if err != nil {
+	workingDirOnce.Do(func() {
+		workingDir, workingDirErr = os.Getwd()
+	})
+	if workingDirErr != nil {
 		return path
 	}
 
-	relPath, err := filepath.Rel(wd, path)
+	relPath, err := filepath.Rel(workingDir, path)
 	if err != nil {
 		return path
 	}
