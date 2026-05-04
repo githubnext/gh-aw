@@ -269,7 +269,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		if workflowData.CachedAllowedDomainsComputed {
 			allowedDomains = workflowData.CachedAllowedDomainsStr
 		} else {
-			allowedDomains = GetClaudeAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+			allowedDomains = GetAllowedDomainsForEngine(constants.ClaudeEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 		}
 		// Add GHES/custom API target domains to the firewall allow-list when engine.api-target is set
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {

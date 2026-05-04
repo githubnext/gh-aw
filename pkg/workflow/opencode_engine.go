@@ -130,7 +130,8 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 			// so a malformed model (e.g. leading slash) must never occur. Panic is the correct
 			// response to an internal invariant violation.
 			var err error
-			allowedDomains, err = GetOpenCodeAllowedDomainsWithToolsAndRuntimes(
+			allowedDomains, err = GetAllowedDomainsForEngineWithModel(
+				constants.OpenCodeEngine,
 				model,
 				workflowData.NetworkPermissions,
 				workflowData.Tools,

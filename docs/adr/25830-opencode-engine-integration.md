@@ -28,7 +28,7 @@ Rather than adding a new engine, the Claude engine could be extended to accept `
 
 #### Alternative 3: Static multi-provider domain allowlist
 
-Instead of parsing the model string to derive the firewall domain at compile time, include all known provider API endpoints in `OpenCodeDefaultDomains` statically. This is simpler but violates the principle of least privilege: a workflow using only the Anthropic provider would unnecessarily have `api.openai.com` and `generativelanguage.googleapis.com` in its allowlist. The current implementation includes only the three most common providers in the static default (`OpenCodeDefaultDomains`) as a broad fallback, while `GetOpenCodeDefaultDomains(model)` provides a narrower per-provider list when a model is explicitly configured.
+Instead of parsing the model string to derive the firewall domain at compile time, include all known provider API endpoints in `OpenCodeDefaultDomains` statically. This is simpler but violates the principle of least privilege: a workflow using only the Anthropic provider would unnecessarily have `api.openai.com` and `generativelanguage.googleapis.com` in its allowlist. The current implementation includes only the three most common providers in the static default (`OpenCodeDefaultDomains`) as a broad fallback, while `GetDefaultDomainsForEngine(constants.OpenCodeEngine, model)` provides a narrower per-provider list when a model is explicitly configured.
 
 ### Consequences
 
@@ -77,7 +77,7 @@ Instead of parsing the model string to derive the firewall domain at compile tim
 
 ### Firewall Domain Allowlisting
 
-1. When a model is explicitly configured in `engine.model`, the compiler **MUST** call `GetOpenCodeDefaultDomains(model)` to resolve provider-specific API domains from the `provider/model` prefix.
+1. When a model is explicitly configured in `engine.model`, the compiler **MUST** call `GetDefaultDomainsForEngine(constants.OpenCodeEngine, model)` to resolve provider-specific API domains from the `provider/model` prefix.
 2. The `extractProviderFromModel` function **MUST** parse the model string by splitting on the first `/` character and returning the left-hand token, lowercased.
 3. When no `/` separator is found in the model string, `extractProviderFromModel` **MUST** return `"anthropic"` as the default provider.
 4. The `openCodeProviderDomains` map **MUST** be the single source of truth for mapping provider names to their API hostnames; callers **MUST NOT** hardcode provider domain strings outside this map.

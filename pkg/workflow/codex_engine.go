@@ -245,7 +245,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		if workflowData.CachedAllowedDomainsComputed {
 			allowedDomains = workflowData.CachedAllowedDomainsStr
 		} else {
-			allowedDomains = GetCodexAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+			allowedDomains = GetAllowedDomainsForEngine(constants.CodexEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 		}
 		// Add GHES/custom API target domains to the firewall allow-list when engine.api-target is set
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {

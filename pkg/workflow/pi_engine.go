@@ -338,7 +338,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 			// The model was validated before reaching here; a malformed model (leading slash)
 			// must never occur at this point — panic is the correct invariant guard.
 			var err error
-			allowedDomains, err = GetPiAllowedDomainsWithModel(model, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+			allowedDomains, err = GetAllowedDomainsForEngineWithModel(constants.PiEngine, model, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 			if err != nil {
 				panic(fmt.Sprintf("BUG: invalid Pi model %q reached domain computation (should have been caught by validation): %v", model, err))
 			}

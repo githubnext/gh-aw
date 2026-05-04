@@ -172,7 +172,8 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			// so a malformed model (e.g. leading slash) must never occur. Panic is the correct
 			// response to an internal invariant violation.
 			var err error
-			allowedDomains, err = GetCrushAllowedDomainsWithToolsAndRuntimes(
+			allowedDomains, err = GetAllowedDomainsForEngineWithModel(
+				constants.CrushEngine,
 				model,
 				workflowData.NetworkPermissions,
 				workflowData.Tools,
