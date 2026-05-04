@@ -1,3 +1,5 @@
+//go:build !integration
+
 package workflow
 
 import (
@@ -28,6 +30,11 @@ func TestCollectDockerImages_APIProxyForEnginesWithLLMGateway(t *testing.T) {
 		{
 			name:           "Codex engine includes api-proxy image (supports LLM gateway)",
 			engine:         "codex",
+			expectAPIProxy: true,
+		},
+		{
+			name:           "Pi engine includes api-proxy image (supports LLM gateway via models.json routing)",
+			engine:         "pi",
 			expectAPIProxy: true,
 		},
 	}

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -237,4 +238,92 @@ func TestPiEngine_GetExecutionSteps_ProviderPrefixAnthropic(t *testing.T) {
 
 func TestPiEngine_ImplementsCodingAgentEngine(t *testing.T) {
 	var _ CodingAgentEngine = NewPiEngine()
+}
+
+func TestPiEngine_GetExecutionSteps_FirewallCopilotProvider(t *testing.T) {
+	engine := NewPiEngine()
+	toolsRaw := map[string]any{
+		"github":    map[string]any{"mode": "gh-proxy"},
+		"cli-proxy": true,
+	}
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		EngineConfig: &EngineConfig{ID: "pi", Model: "copilot/claude-sonnet-4-20250514"},
+		Tools:        toolsRaw,
+		ParsedTools:  NewTools(toolsRaw),
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+	require.Len(t, steps, 1, "Should produce exactly one execution step")
+
+	stepText := strings.Join(steps[0], "\n")
+	// When firewall is enabled, Pi uses models.json to route through the api-proxy gateway.
+	assert.Contains(t, stepText, "PI_CODING_AGENT_DIR", "Firewall mode should set PI_CODING_AGENT_DIR for models.json config")
+	assert.Contains(t, stepText, "models.json", "Firewall mode should write a models.json gateway config")
+	assert.Contains(t, stepText, "aw-gateway", "Firewall mode should register the aw-gateway provider in models.json")
+	assert.Contains(t, stepText, "claude-sonnet-4-20250514", "Step should include the model ID in models.json")
+	// AWF config JSON embedded in step must enable the api-proxy sidecar.
+	assert.Contains(t, stepText, `"enabled":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
+	// The models.json is base64-encoded in the step. Verify the correct Copilot gateway port
+	// is embedded by re-building the expected JSON and comparing its base64 encoding.
+	expectedModelsJSON := buildPiModelsJSON(constants.CopilotLLMGatewayPort, "COPILOT_GITHUB_TOKEN", "claude-sonnet-4-20250514")
+	assert.Contains(t, stepText, encodeBase64(expectedModelsJSON), "Copilot provider should route through CopilotLLMGatewayPort via models.json")
+}
+
+func TestPiEngine_GetExecutionSteps_FirewallAnthropicProvider(t *testing.T) {
+	engine := NewPiEngine()
+	toolsRaw := map[string]any{
+		"github":    map[string]any{"mode": "gh-proxy"},
+		"cli-proxy": true,
+	}
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		EngineConfig: &EngineConfig{ID: "pi", Model: "anthropic/claude-opus-4-20251101"},
+		Tools:        toolsRaw,
+		ParsedTools:  NewTools(toolsRaw),
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+	require.Len(t, steps, 1, "Should produce exactly one execution step")
+
+	stepText := strings.Join(steps[0], "\n")
+	assert.Contains(t, stepText, "PI_CODING_AGENT_DIR", "Firewall mode should set PI_CODING_AGENT_DIR for models.json config")
+	assert.Contains(t, stepText, "aw-gateway", "Firewall mode should register the aw-gateway provider in models.json")
+	assert.Contains(t, stepText, "claude-opus-4-20251101", "Step should include the model ID in models.json")
+	assert.Contains(t, stepText, `"enabled":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
+	// Anthropic provider routes through the Claude LLM gateway port.
+	expectedModelsJSON := buildPiModelsJSON(constants.ClaudeLLMGatewayPort, "ANTHROPIC_API_KEY", "claude-opus-4-20251101")
+	assert.Contains(t, stepText, encodeBase64(expectedModelsJSON), "Anthropic provider should route through ClaudeLLMGatewayPort via models.json")
+}
+
+func TestPiEngine_GetExecutionSteps_FirewallCodexProvider(t *testing.T) {
+	engine := NewPiEngine()
+	toolsRaw := map[string]any{
+		"github":    map[string]any{"mode": "gh-proxy"},
+		"cli-proxy": true,
+	}
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		EngineConfig: &EngineConfig{ID: "pi", Model: "codex/gpt-4.1"},
+		Tools:        toolsRaw,
+		ParsedTools:  NewTools(toolsRaw),
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+	require.Len(t, steps, 1, "Should produce exactly one execution step")
+
+	stepText := strings.Join(steps[0], "\n")
+	assert.Contains(t, stepText, "PI_CODING_AGENT_DIR", "Firewall mode should set PI_CODING_AGENT_DIR for models.json config")
+	assert.Contains(t, stepText, "aw-gateway", "Firewall mode should register the aw-gateway provider in models.json")
+	assert.Contains(t, stepText, "gpt-4.1", "Step should include the model ID in models.json")
+	assert.Contains(t, stepText, `"enabled":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
+	// Codex/OpenAI provider routes through the Codex LLM gateway port.
+	expectedModelsJSON := buildPiModelsJSON(constants.CodexLLMGatewayPort, "CODEX_API_KEY", "gpt-4.1")
+	assert.Contains(t, stepText, encodeBase64(expectedModelsJSON), "Codex provider should route through CodexLLMGatewayPort via models.json")
 }
