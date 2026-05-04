@@ -121,6 +121,11 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		for _, serverName := range getMountedCLIServerNamesIfBashRestricted(workflowData, tools, safeOutputs, mcpScripts) {
 			args = append(args, "--allow-tool", fmt.Sprintf("shell(%s:*)", serverName))
 		}
+		// When playwright is configured in CLI mode, playwright-cli must be executable.
+		// Automatically add shell(playwright-cli:*) to the restricted bash allowlist.
+		if workflowData != nil && isPlaywrightCLIMode(workflowData.Tools) {
+			args = append(args, "--allow-tool", "shell(playwright-cli:*)")
+		}
 	}
 
 	// Handle edit tools requirement for file write access
