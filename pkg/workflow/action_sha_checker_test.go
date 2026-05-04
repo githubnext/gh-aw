@@ -178,14 +178,19 @@ func TestCheckActionSHAUpdates_ContextCancellation(t *testing.T) {
 	resolver := NewActionResolver(cache)
 
 	// With an already-cancelled context and no cached value, the resolver should
-	// attempt the resolution and propagate the cancellation. The result will either
-	// have an empty LatestSHA (because the request was cancelled) or behave like a
-	// cache miss. The important thing is that it does not hang.
+	// propagate the cancellation. The result will have an empty LatestSHA because
+	// the request was cancelled. The important thing is that it does not hang.
 	checks := CheckActionSHAUpdates(ctx, actions, resolver)
 
 	// Should still return one result per action even with cancellation
 	if len(checks) != 1 {
 		t.Errorf("Expected 1 check result, got %d", len(checks))
+	}
+
+	// With a cancelled context and no cached SHA, the resolution fails and
+	// LatestSHA should be empty (no successful resolution occurred).
+	if checks[0].LatestSHA != "" {
+		t.Errorf("Expected empty LatestSHA when context is cancelled, got %q", checks[0].LatestSHA)
 	}
 }
 
