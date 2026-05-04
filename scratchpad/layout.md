@@ -1,18 +1,18 @@
 # GitHub Actions Workflow Layout Specification
 
 > Auto-generated specification documenting patterns used in compiled `.lock.yml` files.
-> Last updated: 2026-04-27
+> Last updated: 2026-05-04
 
 ## Overview
 
 This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). It serves as a reference for developers working with the gh-aw codebase.
 
 **Statistics:**
-- **Lock files analyzed**: 204
-- **Unique GitHub Actions**: 25
-- **Artifact patterns**: 27
-- **Job name patterns**: 30
-- **File path references**: 55
+- **Lock files analyzed**: 211
+- **Unique GitHub Actions**: 26
+- **Artifact patterns**: 36
+- **Job name patterns**: 38
+- **File path references**: 65
 
 ## GitHub Actions
 
@@ -20,11 +20,11 @@ Common GitHub Actions used across compiled workflows:
 
 | Action | Version (SHA) | Description | Context |
 |--------|---------------|-------------|---------|
-| `actions/checkout` | `de0fac2e...` | Checks out repository code | Used in almost all workflows for accessing repo content |
+| `actions/checkout` | `de0fac2e...`, `34e11487...` | Checks out repository code | Used in almost all workflows for accessing repo content |
 | `actions/upload-artifact` | `043fb46d...` | Uploads build artifacts | Used for agent outputs, patches, prompts, logs, and safe-output data |
 | `actions/download-artifact` | `3e5f45b2...` | Downloads artifacts from previous jobs | Used in safe-output jobs and conclusion jobs |
 | `actions/setup-node` | `48b55a01...` | Sets up Node.js environment | Used in workflows requiring npm/node |
-| `actions/setup-python` | `a309ff8b...` | Sets up Python environment | Used for Python-based workflows and scripts |
+| `actions/setup-python` | `a309ff8b...`, `a26af69b...` | Sets up Python environment | Used for Python-based workflows and scripts |
 | `actions/setup-go` | `4a360112...` | Sets up Go environment | Used for Go-based builds and tests |
 | `actions/setup-java` | `be666c2f...` | Sets up Java environment | Used for Java-based workflows |
 | `actions/setup-dotnet` | `c2fa09f4...` | Sets up .NET environment | Used for .NET-based workflows |
@@ -78,6 +78,16 @@ Artifacts uploaded/downloaded between workflow jobs:
 | `super-linter-log` | Super-linter job | Debug step | Linter execution logs |
 | `${{ needs.activation.outputs.artifact_prefix }}agent` | Agent job | Downstream jobs | Dynamic-prefixed agent artifact (used in `workflow_call` context) |
 | `${{ needs.activation.outputs.artifact_prefix }}activation` | Activation job | Agent job | Dynamic-prefixed activation artifact (used in `workflow_call` context) |
+| `${{ needs.activation.outputs.artifact_prefix }}apm-${{ matrix.group.id }}` | APM matrix job | Conclusion job | Dynamic-prefixed APM artifact for each matrix group |
+| `anthropic-models` | Model inventory job | Download step | Anthropic model inventory data |
+| `copilot-models` | Model inventory job | Download step | Copilot model inventory data |
+| `gemini-models` | Model inventory job | Download step | Gemini model inventory data |
+| `openai-models` | Model inventory job | Download step | OpenAI model inventory data |
+| `geo-optimizer-results` | Geo optimizer job | Download step | Results from geographic optimization analysis |
+| `issuearborist-experiment` | Issue arborist job | Download step | Issue arborist experiment results |
+| `dailyastrostylelitemarkdownspellcheck-experiment` | Daily workflow job | Download step | Daily Astro/style-lite/markdown/spellcheck experiment artifact |
+| `dailycommunityattribution-experiment` | Daily workflow job | Download step | Daily community attribution experiment artifact |
+| `smokecopilot-experiment` | Smoke test job | Download step | Smoke test Copilot experiment artifact |
 
 ## Common Job Names
 
@@ -118,6 +128,14 @@ Standard job names across compiled workflows:
 | `call-smoke-workflow-call` | Smoke test caller | Various | Calls the smoke test reusable workflow |
 | `sync_actions` | Actions sync | Various | Syncs actions or configuration across repos |
 | `indexing` | QMD document indexing | `activation` | Runs QMD (Quarto Markdown) indexing on GPU runner for document search/embedding |
+| `apm-prep` | APM preparation | `activation` | Prepares APM matrix groups configuration before parallel APM jobs |
+| `collect_anthropic_models` | Model collection | Various | Collects Anthropic model inventory |
+| `collect_copilot_models` | Model collection | Various | Collects Copilot model inventory |
+| `collect_gemini_models` | Model collection | Various | Collects Gemini model inventory |
+| `collect_openai_models` | Model collection | Various | Collects OpenAI model inventory |
+| `geo_audit` | Geographic audit | Various | Runs geographic optimization audit across repositories |
+| `push_experiments_state` | Experiments state push | Agent/analysis jobs | Pushes A/B experiments state to storage |
+| `trufflehog_scan` | Secret scanning | Various | Runs TruffleHog secret scanner on repository |
 
 ## File Paths
 
@@ -185,6 +203,27 @@ Common file paths referenced in workflow files:
 | `/tmp/gh-aw/url-cache` | Directory | URL content cache | Content-addressed cache of fetched URLs |
 | `${{ env.GH_AW_AGENT_OUTPUT }}` | Environment var | Agent output path | Dynamic path to agent output file |
 | `${{ env.GH_AW_SAFE_OUTPUTS }}` | Environment var | Safe outputs path | Dynamic path to safe outputs directory |
+| `/tmp/gh-aw/.claude/agents` | Directory | Claude custom agents | Custom agent definitions mounted for Claude engine |
+| `/tmp/gh-aw/.github/agents` | Directory | GitHub custom agents | Custom agent definitions mounted for workflows |
+| `/tmp/gh-aw/apm-bundles` | Directory | APM bundle storage | Uploaded APM bundle files for performance monitoring |
+| `/tmp/gh-aw/comment-memory/` | Directory | Comment memory | Persistent memory from issue/PR comments |
+| `/tmp/gh-aw/experiments` | Directory | A/B experiments | Experiment assignment and state files |
+| `/tmp/gh-aw/experiments/assignments.json` | File | Experiment assignments | A/B experiment assignment data |
+| `/tmp/gh-aw/experiments/state.json` | File | Experiments state | Current A/B experiments state |
+| `/tmp/gh-aw/geo-optimizer` | Directory | Geo optimizer data | Geographic optimization analysis results |
+| `/tmp/gh-aw/model-inventory/anthropic/` | Directory | Anthropic model data | Anthropic models inventory (models.json, raw.json) |
+| `/tmp/gh-aw/model-inventory/copilot/` | Directory | Copilot model data | Copilot models inventory (models.json, raw.json) |
+| `/tmp/gh-aw/model-inventory/gemini/` | Directory | Gemini model data | Gemini models inventory (models.json, raw.json) |
+| `/tmp/gh-aw/model-inventory/openai/` | Directory | OpenAI model data | OpenAI models inventory (models.json, raw.json) |
+| `/tmp/gh-aw/model-inventory/artifacts` | Directory | Model inventory artifacts | Aggregated model inventory artifacts |
+| `/tmp/gh-aw/pi-streaming.jsonl` | File | PI streaming log | Prompt injection streaming detection log |
+| `/tmp/gh-aw/pre-agent-audit.txt` | File | Pre-agent audit | Audit snapshot taken before agent execution |
+| `/tmp/gh-aw/skill-optimizer-results` | Directory | Skill optimizer results | Results from skill optimizer analysis runs |
+| `/tmp/gh-aw/spellcheck/` | Directory | Spellcheck output | Spellcheck results and configuration |
+| `/tmp/gh-aw/spellcheck/cspell-results.json` | File | cspell results | Raw cspell output |
+| `/tmp/gh-aw/spellcheck/findings.ndjson` | File | Spellcheck findings | NDJSON formatted spellcheck findings |
+| `/tmp/gh-aw/spellcheck/summary.json` | File | Spellcheck summary | Summary of spellcheck findings |
+| `/tmp/gh-aw/trufflehog/` | Directory | TruffleHog output | TruffleHog secret scanner results |
 
 ## Working Directories
 
@@ -437,6 +476,11 @@ Key environment variables set in workflow steps:
 | `DIFC_PROXY_POLICY` | Policy config for DIFC proxy | Agent job |
 | `AWF_LOGS_DIR` | Directory for AWF (firewall) logs | Sandbox agent job |
 | `ENABLE_GITHUB_ACTIONS_STEP_SUMMARY` | Enables the step summary output | Agent job |
+| `CONTEXT7_API_KEY` | API key for Context7 MCP server | Agent job |
+| `OPENCODE_MODEL` | Model name for the OpenCode engine | Agent job (opencode engine) |
+| `TRUFFLEHOG_VERSION` | TruffleHog scanner version | Secret scan job |
+| `OPENROUTER_API_KEY` | API key for OpenRouter | Agent job |
+| `SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN` | Token for GitHub MCP server | Agent job |
 
 
 
@@ -482,11 +526,14 @@ GitHub Actions runner images used across compiled workflows:
 ### Temporary File Structure
 ```
 /tmp/gh-aw/
+├── .claude/agents/             # Claude custom agent definitions
+├── .github/agents/             # GitHub custom agent definitions
 ├── agent/                      # Agent workspace
 ├── agent-stdio.log             # Agent logs
 ├── agent_output.json           # Agent output JSON
 ├── agent_usage.json            # Token usage JSON
 ├── apm-bundle/                 # APM bundle data
+├── apm-bundles/                # Uploaded APM bundle files
 ├── artifact-resolver.json      # Artifact resolution config
 ├── aw-prompts/                 # Prompt storage
 │   └── prompt.txt
@@ -496,6 +543,12 @@ GitHub Actions runner images used across compiled workflows:
 ├── cache-memory-chroma/        # Vector DB cache
 ├── cache-memory-focus-areas/   # Focus areas cache
 ├── cache-memory-repo-audits/   # Audit cache
+├── comment-memory/             # Comment memory
+│   └── default.md
+├── experiments/                # A/B experiments
+│   ├── assignments.json
+│   └── state.json
+├── geo-optimizer/              # Geographic optimization results
 ├── github_rate_limits.jsonl    # GitHub API rate limit log
 ├── mcp-cli-audit/              # MCP CLI audit logs
 ├── mcp-config/logs/            # MCP config logs
@@ -509,7 +562,14 @@ GitHub Actions runner images used across compiled workflows:
 │   └── stderr.log              # MCP stderr log
 ├── mcp-payloads/               # MCP gateway payloads
 ├── mcp-scripts/logs/           # MCP scripts logs
+├── model-inventory/            # AI model inventories
+│   ├── anthropic/              # Anthropic models
+│   ├── copilot/                # Copilot models
+│   ├── gemini/                 # Gemini models
+│   └── openai/                 # OpenAI models
 ├── otel.jsonl                  # OpenTelemetry span mirror
+├── pi-streaming.jsonl          # Prompt injection streaming log
+├── pre-agent-audit.txt         # Pre-agent audit snapshot
 ├── proxy-logs/                 # Network proxy logs
 ├── python/                     # Python scripts/data
 │   ├── *.py
@@ -534,9 +594,15 @@ GitHub Actions runner images used across compiled workflows:
 │           └── api-proxy-logs/
 │               └── token-usage.jsonl  # Per-call token usage
 ├── sarif/                      # SARIF download path
+├── skill-optimizer-results/    # Skill optimizer results
+├── spellcheck/                 # Spellcheck results
+│   ├── cspell-results.json
+│   ├── findings.ndjson
+│   └── summary.json
 ├── temporary-id-map.json       # Temporary ID map
 ├── threat-detection/
 │   └── detection.log           # Threat detection log
+├── trufflehog/                 # TruffleHog scan results
 └── url-cache/                  # URL content cache
 ```
 
@@ -582,9 +648,9 @@ This specification is automatically maintained by the **Layout Specification Mai
 4. Updates this document with findings
 5. Creates a PR with the changes
 
-**Last extraction run**: 2026-04-27
-**Lock files analyzed**: 204
-**Patterns documented**: 300+
+**Last extraction run**: 2026-05-04
+**Lock files analyzed**: 211
+**Patterns documented**: 350+
 
 ---
 

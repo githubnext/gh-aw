@@ -202,7 +202,7 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		if workflowData.CachedAllowedDomainsComputed {
 			allowedDomains = workflowData.CachedAllowedDomainsStr
 		} else {
-			allowedDomains = GetGeminiAllowedDomainsWithToolsAndRuntimes(
+			allowedDomains = GetAllowedDomainsForEngine(constants.GeminiEngine,
 				workflowData.NetworkPermissions,
 				workflowData.Tools,
 				workflowData.Runtimes,

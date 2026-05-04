@@ -4,7 +4,7 @@ set +o histexpand
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
 # Specification: docs/src/content/docs/reference/safe-outputs-specification.md
-# Version: 1.16.0 (2026-04-06)
+# Version: 1.19.0 (2026-04-30)
 
 set -euo pipefail
 
@@ -889,6 +889,136 @@ check_mce_actionable_errors() {
     fi
 }
 check_mce_actionable_errors
+
+# TYPE-001: merge_pull_request Handler Existence and Default Branch Protection (Section 7.3, v1.17.0)
+echo "Running TYPE-001: merge_pull_request Handler Existence and Default Branch Protection..."
+check_merge_pull_request_handler() {
+    local handler="actions/setup/js/merge_pull_request.cjs"
+    local failed=0
+
+    # Per spec Section 7.3: merge_pull_request handler must exist
+    if [ ! -f "$handler" ]; then
+        log_high "TYPE-001: merge_pull_request handler missing: $handler"
+        return
+    fi
+
+    # Per spec Section 7.3: Merge to the repository default branch MUST be refused
+    if ! grep -q "isDefault" "$handler"; then
+        log_critical "TYPE-001: merge_pull_request handler does not check isDefault — default branch protection missing"
+        failed=1
+    fi
+
+    # Per spec Section 7.3: Policy gates must be enforced (required checks, review decision)
+    if ! grep -qE "requiredChecks|review_decision|required_labels|allowed_labels" "$handler"; then
+        log_high "TYPE-001: merge_pull_request handler missing policy gate checks"
+        failed=1
+    fi
+
+    # Per spec Section 7.3: mergeability check must be present
+    if ! grep -q "mergeable" "$handler"; then
+        log_high "TYPE-001: merge_pull_request handler does not verify mergeability"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-001: merge_pull_request handler exists with default branch protection and policy gates"
+    fi
+}
+check_merge_pull_request_handler
+
+# TYPE-002: comment_memory Memory ID Validation (Section 7.3, v1.18.0)
+echo "Running TYPE-002: comment_memory Memory ID Validation..."
+check_comment_memory_validation() {
+    local handler="actions/setup/js/comment_memory.cjs"
+    local helpers="actions/setup/js/comment_memory_helpers.cjs"
+    local failed=0
+
+    # Per spec Section 7.3: comment_memory handler must exist
+    if [ ! -f "$handler" ]; then
+        log_high "TYPE-002: comment_memory handler missing: $handler"
+        return
+    fi
+
+    # Per spec Section 7.3: memory_id MUST be validated as [A-Za-z0-9_-]+
+    if ! grep -qE "\[A-Za-z0-9_-\]" "$handler" "$helpers" 2>/dev/null; then
+        log_critical "TYPE-002: comment_memory does not validate memory_id with [A-Za-z0-9_-]+ pattern — path traversal risk"
+        failed=1
+    fi
+
+    # Per spec Section 7.3: Managed comment scan MUST be bounded by a maximum page limit
+    if ! grep -qE "MAX_SCAN_PAGES|maxScanPages|scan.*limit|COMMENT_MEMORY_MAX_SCAN" "$handler"; then
+        log_high "TYPE-002: comment_memory scan is not bounded by a maximum page limit"
+        failed=1
+    fi
+
+    # Per spec Section 7.3: Body content MUST undergo sanitization before upsert
+    if ! grep -qE "sanitize|validateBody|enforceComment" "$handler"; then
+        log_high "TYPE-002: comment_memory body content does not appear to be sanitized before upsert"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-002: comment_memory handler validates memory_id, bounds scanning, and sanitizes body"
+    fi
+}
+check_comment_memory_validation
+
+# TYPE-003: comment_memory Not Exposed as MCP Tool (Section 7.3, v1.18.0)
+echo "Running TYPE-003: comment_memory Not Exposed as Agent MCP Tool..."
+check_comment_memory_not_mcp_tool() {
+    local safe_outputs_tools="pkg/workflow/js/safe_outputs_tools.json"
+    local failed=0
+
+    # Per spec Section 7.3: comment_memory MUST NOT be exposed as an agent-editable MCP tool
+    # when file-based comment-memory synchronization is active.
+    if [ -f "$safe_outputs_tools" ]; then
+        if grep -q '"comment_memory"' "$safe_outputs_tools"; then
+            log_high "TYPE-003: comment_memory is registered as an agent MCP tool in $safe_outputs_tools — spec requires it NOT be exposed"
+            failed=1
+        fi
+    fi
+
+    # Also check the gateway handler tool registration
+    local gateway="actions/setup/js/safe_outputs_handlers.cjs"
+    if [ -f "$gateway" ]; then
+        if grep -qE '"comment_memory"|comment_memory.*tool.*register' "$gateway"; then
+            log_medium "TYPE-003: comment_memory may be registered as an MCP tool in $gateway — verify file-based sync is used instead"
+        fi
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-003: comment_memory is not registered as an agent-editable MCP tool"
+    fi
+}
+check_comment_memory_not_mcp_tool
+
+# TYPE-004: create-issue Auto-Injection for Workflows Without safe-outputs (Section 4.3, v1.19.0)
+echo "Running TYPE-004: create-issue Auto-Injection..."
+check_create_issue_auto_injection() {
+    local failed=0
+
+    # Per spec Section 4.3 (v1.19.0): When no safe-outputs: section is present, the compiler
+    # MUST automatically inject a default create-issue configuration (max: 1, labels: [workflowID],
+    # title-prefix: "[workflowID]"). Auto-injection is suppressed when any non-builtin safe output
+    # is explicitly configured.
+
+    # Verify the Go compiler implements auto-injection by checking test or implementation files
+    if ! grep -rqE "auto.inject.*create.issue|inject.*create.issue|autoInject|injectDefault.*create" pkg/workflow/ 2>/dev/null; then
+        log_high "TYPE-004: No evidence of create-issue auto-injection logic in pkg/workflow/ (spec Section 4.3 v1.19.0)"
+        failed=1
+    fi
+
+    # Verify auto-injection is suppressed when non-builtin outputs are configured
+    if ! grep -rqE "suppress.*inject|non.builtin|noop.*missing.tool.*missing.data|system.type" pkg/workflow/ 2>/dev/null; then
+        log_medium "TYPE-004: Cannot confirm auto-injection suppression for non-builtin safe outputs (spec Section 4.3 v1.19.0)"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-004: create-issue auto-injection is implemented and suppression logic exists"
+    fi
+}
+check_create_issue_auto_injection
 
 # Summary
 echo ""

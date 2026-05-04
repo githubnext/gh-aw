@@ -54,6 +54,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Assign to Agent**](#assign-to-agent-assign-to-agent) (`assign-to-agent`) - Assign Copilot coding agent to issues or PRs (max: 1)
 - [**Assign to User**](#assign-to-user-assign-to-user) (`assign-to-user`) - Assign users to issues (max: 1)
 - [**Unassign from User**](#unassign-from-user-unassign-from-user) (`unassign-from-user`) - Remove user assignments from issues or PRs (max: 1)
+- [**Set Issue Type**](#set-issue-type-set-issue-type) (`set-issue-type`) - Set or clear the type of GitHub issues (max: 5)
 
 ### Projects, Releases & Assets
 
@@ -61,6 +62,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Update Project**](#project-board-updates-update-project) (`update-project`) - Manage GitHub Projects boards (max: 10, same-repo only)
 - [**Create Project Status Update**](#project-status-updates-create-project-status-update) (`create-project-status-update`) - Create project status updates
 - [**Update Release**](#release-updates-update-release) (`update-release`) - Update GitHub release descriptions (max: 1)
+- [**Upload Artifact**](#artifact-uploads-upload-artifact) (`upload-artifact`) - Upload files as run-scoped GitHub Actions artifacts (max: 1 by default)
 - [**Upload Assets**](#asset-uploads-upload-asset) (`upload-asset`) - Upload files to orphaned git branch (max: 10, same-repo only). **Prefer `upload-artifact` with `skip-archive` instead.**
 
 ### Security & Agent Tasks
@@ -416,6 +418,23 @@ safe-outputs:
 
 Agent output includes `parent_issue_number` and `sub_issue_number`. Validation ensures both issues exist and meet label/prefix requirements before linking.
 
+### Set Issue Type (`set-issue-type:`)
+
+Sets or clears the type of a GitHub issue. Issue types must be configured in repository or organization settings. Pass an empty string `""` to clear the current issue type.
+
+```yaml wrap
+safe-outputs:
+  set-issue-type:                          # null enables with defaults
+    allowed: ["Bug", "Feature", "Task"]   # restrict allowed types (omit for any type)
+    max: 5                                 # max operations (default: 5)
+    target: "triggering"                   # "triggering" (default), "*", or issue number
+    target-repo: "owner/repo"              # cross-repository
+    allowed-repos: ["owner/repo1"]         # additional allowed repositories
+    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }}
+```
+
+Agent calls `set_issue_type` with `issue_type` (the type name) and optionally `issue_number`. Omitting `issue_number` targets the triggering issue.
+
 ### Project Creation (`create-project:`)
 
 Creates new GitHub Projects V2 boards. Requires a write-capable PAT or GitHub App token ([project token authentication](/gh-aw/patterns/project-ops/#project-token-authentication)); default `GITHUB_TOKEN` lacks Projects v2 access. Supports optional view configuration to create custom project views at creation time.
@@ -743,6 +762,24 @@ safe-outputs:
 ```
 
 Agent output format: `{"type": "update_release", "tag": "v1.0.0", "operation": "replace", "body": "..."}`. The `tag` field is optional for release events (inferred from context). Workflow needs read access; only the generated job receives write permissions.
+
+### Artifact Uploads (`upload-artifact:`)
+
+Uploads files as run-scoped GitHub Actions artifacts. Artifacts expire automatically after the configured retention period and put less pressure on git storage than `upload-asset`. Recommended for images, reports, and temporary output files.
+
+```yaml wrap
+safe-outputs:
+  upload-artifact:                         # null enables with defaults
+    max-uploads: 1                         # max upload operations per run (default: 1)
+    retention-days: 7                      # artifact retention in days
+    skip-archive: false                    # upload without zip archiving (single-file only)
+    max-size-bytes: 104857600             # max upload size in bytes (default: 100 MB)
+    allowed-paths:                         # restrict paths agent may upload
+      - "output/**"
+    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }}
+```
+
+Agent calls `upload_artifact` with a `path` (file or directory) or `filters` (glob-based file selection). Artifacts are available via `gh run download` during the workflow run retention period.
 
 ### Asset Uploads (`upload-asset:`)
 

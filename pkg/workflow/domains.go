@@ -114,7 +114,7 @@ var GeminiDefaultDomains = []string{
 
 // PiBaseDefaultDomains are the base domains required for the Pi CLI to operate,
 // independent of the chosen LLM provider. When a model uses provider/model format,
-// provider-specific API domains are added on top via GetPiDefaultDomains().
+// provider-specific API domains are added on top via GetDefaultDomainsForEngine.
 var PiBaseDefaultDomains = []string{
 	"api.pi.ai",            // Pi CLI telemetry / update checks
 	"host.docker.internal", // MCP gateway / API proxy access
@@ -139,7 +139,7 @@ var piProviderDomains = map[string]string{
 
 // PiDefaultDomains are the static default domains for backward compatibility when
 // no model provider prefix is given. When a provider/model format is used, the
-// dynamic path (GetPiDefaultDomains) resolves provider-specific domains instead.
+// dynamic path (GetDefaultDomainsForEngine) resolves provider-specific domains instead.
 var PiDefaultDomains = []string{
 	"api.githubcopilot.com", // Default provider (Copilot routing)
 	"api.pi.ai",
@@ -151,7 +151,7 @@ var PiDefaultDomains = []string{
 
 // CrushBaseDefaultDomains are the default domains required for Crush CLI operation.
 // Crush is BYOK (any provider), so provider-specific domains are added dynamically
-// based on the model prefix via GetCrushDefaultDomains().
+// based on the model prefix via GetDefaultDomainsForEngine.
 var CrushBaseDefaultDomains = []string{
 	"host.docker.internal", // MCP gateway / API proxy access
 	"charm.land",           // Crush telemetry/docs endpoints
@@ -161,7 +161,7 @@ var CrushBaseDefaultDomains = []string{
 }
 
 // crushProviderDomains maps provider prefixes to their API domains.
-// Used by extractProviderFromModel() and GetCrushDefaultDomains().
+// Used by extractProviderFromModel() and getCrushDefaultDomains().
 var crushProviderDomains = map[string]string{
 	"copilot":   "api.githubcopilot.com",
 	"anthropic": "api.anthropic.com",
@@ -174,7 +174,7 @@ var crushProviderDomains = map[string]string{
 }
 
 // CrushDefaultDomains are the static default domains for backward compatibility.
-// The dynamic path (GetCrushDefaultDomains) resolves provider-specific domains
+// The dynamic path (GetDefaultDomainsForEngine) resolves provider-specific domains
 // based on the model prefix and uses CrushBaseDefaultDomains as the base.
 var CrushDefaultDomains = []string{
 	"api.githubcopilot.com",             // Default provider (Copilot routing)
@@ -189,7 +189,7 @@ var CrushDefaultDomains = []string{
 
 // OpenCodeBaseDefaultDomains are the default domains required for OpenCode CLI operation.
 // OpenCode is BYOK (any provider), so provider-specific domains are added dynamically
-// based on the model prefix via GetOpenCodeDefaultDomains().
+// based on the model prefix via GetDefaultDomainsForEngine.
 var OpenCodeBaseDefaultDomains = []string{
 	"host.docker.internal", // MCP gateway / API proxy access
 	"github.com",           // provider updates and metadata
@@ -198,7 +198,7 @@ var OpenCodeBaseDefaultDomains = []string{
 }
 
 // openCodeProviderDomains maps provider prefixes to their API domains.
-// Used by extractProviderFromModel() and GetOpenCodeDefaultDomains().
+// Used by extractProviderFromModel() and getOpenCodeDefaultDomains().
 var openCodeProviderDomains = map[string]string{
 	"copilot":   "api.githubcopilot.com",
 	"anthropic": "api.anthropic.com",
@@ -211,7 +211,7 @@ var openCodeProviderDomains = map[string]string{
 }
 
 // OpenCodeDefaultDomains are the static default domains for backward compatibility.
-// The dynamic path (GetOpenCodeDefaultDomains) resolves provider-specific domains
+// The dynamic path (GetDefaultDomainsForEngine) resolves provider-specific domains
 // based on the model prefix and uses OpenCodeBaseDefaultDomains as the base.
 var OpenCodeDefaultDomains = []string{
 	"api.githubcopilot.com",             // Default provider (Copilot routing)
@@ -245,10 +245,10 @@ func extractProviderFromModel(model string) (string, error) {
 	return provider, nil
 }
 
-// GetOpenCodeDefaultDomains returns the default domains for OpenCode based on the model provider.
+// getOpenCodeDefaultDomains returns the default domains for OpenCode based on the model provider.
 // It starts with OpenCodeBaseDefaultDomains and adds the provider-specific API domain.
 // Returns an error if the model string is malformed (e.g. a leading slash).
-func GetOpenCodeDefaultDomains(model string) ([]string, error) {
+func getOpenCodeDefaultDomains(model string) ([]string, error) {
 	provider, err := extractProviderFromModel(model)
 	if err != nil {
 		return nil, err
@@ -263,17 +263,10 @@ func GetOpenCodeDefaultDomains(model string) ([]string, error) {
 	return domains, nil
 }
 
-// GetOpenCodeAllowedDomainsWithToolsAndRuntimes merges OpenCode default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains.
-// Pass the selected model so provider-specific API domains are included.
-// Returns an error if the model string is malformed (e.g. a leading slash).
-func GetOpenCodeAllowedDomainsWithToolsAndRuntimes(model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) (string, error) {
-	return GetAllowedDomainsForEngineWithModel(constants.OpenCodeEngine, model, network, tools, runtimes)
-}
-
-// GetCrushDefaultDomains returns the default domains for Crush based on the model provider.
+// getCrushDefaultDomains returns the default domains for Crush based on the model provider.
 // It starts with CrushBaseDefaultDomains and adds the provider-specific API domain.
 // Returns an error if the model string is malformed (e.g. a leading slash).
-func GetCrushDefaultDomains(model string) ([]string, error) {
+func getCrushDefaultDomains(model string) ([]string, error) {
 	provider, err := extractProviderFromModel(model)
 	if err != nil {
 		return nil, err
@@ -288,21 +281,13 @@ func GetCrushDefaultDomains(model string) ([]string, error) {
 	return domains, nil
 }
 
-// GetCrushAllowedDomainsWithToolsAndRuntimes merges Crush default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains.
-// Pass the selected model (e.g. "anthropic/claude-sonnet-4-20250514") so provider-specific
-// API domains are included. Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
-// Returns an error if the model string is malformed (e.g. a leading slash).
-func GetCrushAllowedDomainsWithToolsAndRuntimes(model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) (string, error) {
-	return GetAllowedDomainsForEngineWithModel(constants.CrushEngine, model, network, tools, runtimes)
-}
-
-// GetPiDefaultDomains returns the default domains for Pi based on the model provider.
+// getPiDefaultDomains returns the default domains for Pi based on the model provider.
 // It starts with PiBaseDefaultDomains and adds the provider-specific API domain when
 // the model uses provider/model format (e.g. "copilot/claude-sonnet-4-20250514").
 // When no provider prefix is present the default Copilot API domain is included for
 // backward compatibility.
 // Returns an error if the model string is malformed (e.g. a leading slash).
-func GetPiDefaultDomains(model string) ([]string, error) {
+func getPiDefaultDomains(model string) ([]string, error) {
 	provider, err := extractProviderFromModel(model)
 	if err != nil {
 		return nil, err
@@ -318,16 +303,6 @@ func GetPiDefaultDomains(model string) ([]string, error) {
 	}
 
 	return domains, nil
-}
-
-// GetPiAllowedDomainsWithModel merges Pi default domains with NetworkPermissions, HTTP MCP
-// server domains, and runtime ecosystem domains.
-// Pass the selected model (e.g. "copilot/claude-sonnet-4-20250514") so provider-specific
-// API domains are included. Returns a deduplicated, sorted, comma-separated string suitable
-// for AWF's --allow-domains flag.
-// Returns an error if the model string is malformed (e.g. a leading slash).
-func GetPiAllowedDomainsWithModel(model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) (string, error) {
-	return GetAllowedDomainsForEngineWithModel(constants.PiEngine, model, network, tools, runtimes)
 }
 
 // PlaywrightDomains are the domains required for Playwright browser downloads
@@ -764,21 +739,21 @@ var engineDefaultDomains = map[constants.EngineName][]string{
 	constants.GeminiEngine:  GeminiDefaultDomains,
 }
 
-// getDefaultDomainsForEngine returns the engine's default required domains.
-// OpenCode, Crush, and Pi domains are model/provider-specific, so they must be
-// resolved via their respective Get*DefaultDomains(model) functions rather than
-// the static engineDefaultDomains map.
+// GetDefaultDomainsForEngine returns the engine's default required domains.
+// OpenCode, Crush, and Pi domains are model/provider-specific, so they are
+// resolved dynamically from the model's provider prefix rather than the static
+// engineDefaultDomains map.
 // Falls back to an empty default domain list for unknown engines.
 // Returns an error if the model string is malformed (e.g. a leading slash).
-func getDefaultDomainsForEngine(engine constants.EngineName, model string) ([]string, error) {
+func GetDefaultDomainsForEngine(engine constants.EngineName, model string) ([]string, error) {
 	if engine == constants.OpenCodeEngine {
-		return GetOpenCodeDefaultDomains(model)
+		return getOpenCodeDefaultDomains(model)
 	}
 	if engine == constants.CrushEngine {
-		return GetCrushDefaultDomains(model)
+		return getCrushDefaultDomains(model)
 	}
 	if engine == constants.PiEngine {
-		return GetPiDefaultDomains(model)
+		return getPiDefaultDomains(model)
 	}
 
 	return engineDefaultDomains[engine], nil
@@ -792,7 +767,7 @@ func getDefaultDomainsForEngine(engine constants.EngineName, model string) ([]st
 // --allow-domains flag.
 // Returns an error if the model string is malformed (e.g. a leading slash).
 func GetAllowedDomainsForEngineWithModel(engine constants.EngineName, model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) (string, error) {
-	defaults, err := getDefaultDomainsForEngine(engine, model)
+	defaults, err := GetDefaultDomainsForEngine(engine, model)
 	if err != nil {
 		return "", err
 	}
@@ -811,12 +786,6 @@ func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPer
 	return result
 }
 
-// GetCopilotAllowedDomainsWithToolsAndRuntimes merges Copilot default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func GetCopilotAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	return GetAllowedDomainsForEngine(constants.CopilotEngine, network, tools, runtimes)
-}
-
 // GetThreatDetectionAllowedDomains returns the minimal set of domains allowed for a Copilot
 // detection run. It loads the "threat-detection" ecosystem from ecosystem_domains.json, which
 // includes only the Copilot API endpoints needed for read-only threat analysis. It intentionally
@@ -829,34 +798,6 @@ func GetThreatDetectionAllowedDomains(network *NetworkPermissions) string {
 	// Pass nil tools and runtimes: detection runs with no npm/runtime ecosystem, so
 	// ecosystem domain expansion is intentionally skipped.
 	return mergeDomainsWithNetworkToolsAndRuntimes(detectionDomains, network, nil, nil)
-}
-
-// GetCodexAllowedDomainsWithToolsAndRuntimes merges Codex default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func GetCodexAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	return GetAllowedDomainsForEngine(constants.CodexEngine, network, tools, runtimes)
-}
-
-// GetClaudeAllowedDomainsWithToolsAndRuntimes merges Claude default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func GetClaudeAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	return GetAllowedDomainsForEngine(constants.ClaudeEngine, network, tools, runtimes)
-}
-
-// GetGeminiAllowedDomainsWithToolsAndRuntimes merges Gemini default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func GetGeminiAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	return GetAllowedDomainsForEngine(constants.GeminiEngine, network, tools, runtimes)
-}
-
-// GetPiAllowedDomains merges Pi default domains with NetworkPermissions, HTTP MCP server domains,
-// and runtime ecosystem domains. Uses backward-compatible Copilot routing when no model is given.
-// For model-aware resolution, prefer GetPiAllowedDomainsWithModel.
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
-func GetPiAllowedDomains(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	// Empty model → backward-compatible Copilot routing; no malformed-model error possible.
-	result, _ := GetPiAllowedDomainsWithModel("", network, tools, runtimes)
-	return result
 }
 
 // GetBlockedDomains returns the blocked domains from network permissions
@@ -989,47 +930,21 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 	// Compute domains based on engine type, including tools and runtimes to match
 	// what's provided to the actual firewall at runtime
 	var base string
-	switch engineID {
-	case "copilot":
-		base = GetCopilotAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
-	case "codex":
-		base = GetCodexAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
-	case "claude":
-		base = GetClaudeAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
-	case "gemini":
-		base = GetGeminiAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
-	case "pi":
+	engine := constants.EngineName(engineID)
+	switch engine {
+	case constants.CopilotEngine, constants.CodexEngine, constants.ClaudeEngine, constants.GeminiEngine,
+		constants.PiEngine, constants.OpenCodeEngine, constants.CrushEngine:
 		model := ""
 		if data.EngineConfig != nil {
 			model = data.EngineConfig.Model
 		}
 		var err error
-		base, err = GetPiAllowedDomainsWithModel(model, data.NetworkPermissions, data.Tools, data.Runtimes)
-		if err != nil {
-			return "", err
-		}
-	case "opencode":
-		model := ""
-		if data.EngineConfig != nil {
-			model = data.EngineConfig.Model
-		}
-		var err error
-		base, err = GetOpenCodeAllowedDomainsWithToolsAndRuntimes(model, data.NetworkPermissions, data.Tools, data.Runtimes)
-		if err != nil {
-			return "", err
-		}
-	case "crush":
-		model := ""
-		if data.EngineConfig != nil {
-			model = data.EngineConfig.Model
-		}
-		var err error
-		base, err = GetCrushAllowedDomainsWithToolsAndRuntimes(model, data.NetworkPermissions, data.Tools, data.Runtimes)
+		base, err = GetAllowedDomainsForEngineWithModel(engine, model, data.NetworkPermissions, data.Tools, data.Runtimes)
 		if err != nil {
 			return "", err
 		}
 	default:
-		// For other engines, use network permissions only
+		// For other engines (e.g. custom), use network permissions only
 		domains := GetAllowedDomains(data.NetworkPermissions)
 		base = strings.Join(domains, ",")
 	}

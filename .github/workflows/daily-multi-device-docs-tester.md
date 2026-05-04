@@ -32,12 +32,20 @@ tools:
     - "npm run dev*"
     - "npx astro*"
     - "npx playwright*"
+    - "playwright-cli*"  # CLI-mode playwright commands
     - "curl*"
     - "kill*"
+    - "pkill*"          # Kill processes by name (e.g. pkill -f "astro dev")
     - "lsof*"
-    - "ls*"      # List files for directory navigation
-    - "pwd*"     # Print working directory
-    - "cd*"      # Change directory
+    - "ls*"             # List files for directory navigation
+    - "pwd*"            # Print working directory
+    - "cd*"             # Change directory
+    - "nohup*"          # Start server in background
+    - "cat*"            # Read log files
+    - "echo*"           # Debug output and shell commands
+    - "sleep*"          # Wait between retries
+    - "rm*"             # Cleanup temp files
+    - "mkdir*"          # Create directories
 safe-outputs:
   upload-artifact:
     max-uploads: 3
@@ -216,8 +224,9 @@ Follow the shared **Documentation Server Lifecycle Management** instructions for
 
 ## Summary
 
-**Always provide a safe output:**
+**⚠️ MANDATORY: Always provide a safe output before finishing:**
 - **If issues found**: Create GitHub issue with test results, findings, and recommendations
 - **If no issues found**: Call `noop` tool with completion message including total devices tested and pass status
+- **If testing could not be completed** (e.g., server failed to start, permission errors): Call `noop` with an explanation of what was attempted and what blocked completion
 
-The workflow requires explicit safe output (either issue creation or noop) to confirm completion.
+The workflow will fail if you do not call either the `create-issue` or `noop` tool before exiting, regardless of whether testing succeeded or not.

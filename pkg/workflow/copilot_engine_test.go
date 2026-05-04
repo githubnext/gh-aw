@@ -627,6 +627,75 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				"--allow-tool", "shell(safeoutputs:*)",
 			},
 		},
+		// Playwright CLI mode tests - playwright-cli must be auto-allowed when bash is restricted.
+		{
+			name: "playwright cli mode with restricted bash auto-allows playwright-cli",
+			tools: map[string]any{
+				"bash": []any{"echo"},
+				"playwright": map[string]any{
+					"mode": "cli",
+				},
+			},
+			workflowData: &WorkflowData{
+				Tools: map[string]any{
+					"bash": []any{"echo"},
+					"playwright": map[string]any{
+						"mode": "cli",
+					},
+				},
+			},
+			expected: []string{"--allow-tool", "shell(echo)", "--allow-tool", "shell(playwright-cli:*)"},
+		},
+		{
+			name: "playwright cli mode with unrestricted bash does not add playwright-cli",
+			tools: map[string]any{
+				"bash": nil,
+				"playwright": map[string]any{
+					"mode": "cli",
+				},
+			},
+			workflowData: &WorkflowData{
+				Tools: map[string]any{
+					"bash": nil,
+					"playwright": map[string]any{
+						"mode": "cli",
+					},
+				},
+			},
+			expected: []string{"--allow-tool", "shell"},
+		},
+		{
+			name: "playwright cli mode with wildcard bash does not add playwright-cli",
+			tools: map[string]any{
+				"bash": []any{"*"},
+				"playwright": map[string]any{
+					"mode": "cli",
+				},
+			},
+			workflowData: &WorkflowData{
+				Tools: map[string]any{
+					"bash": []any{"*"},
+					"playwright": map[string]any{
+						"mode": "cli",
+					},
+				},
+			},
+			expected: []string{"--allow-all-tools"},
+		},
+		{
+			name: "playwright mcp mode with restricted bash does not add playwright-cli",
+			tools: map[string]any{
+				"bash":       []any{"echo"},
+				"playwright": true,
+			},
+			workflowData: &WorkflowData{
+				Tools: map[string]any{
+					"bash":       []any{"echo"},
+					"playwright": true,
+				},
+			},
+			expected: []string{"--allow-tool", "shell(echo)"},
+		},
 		// Single-quote sanitization tests - commands with single quotes are truncated
 		// to safe prefixes to avoid Copilot CLI startup crashes.
 		{

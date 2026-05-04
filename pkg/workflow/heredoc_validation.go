@@ -9,7 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var heredocLog = logger.New("workflow:heredoc_validation")
 
 // ValidateHeredocContent checks that content does not contain the heredoc delimiter
 // anywhere (substring match). The check is intentionally stricter than what shell
@@ -24,6 +28,7 @@ import (
 // delimiter that also appears in the content — computationally infeasible with
 // HMAC-SHA256. This check exists as defense-in-depth.
 func ValidateHeredocContent(content, delimiter string) error {
+	heredocLog.Printf("Validating heredoc content against delimiter %q (content length: %d)", delimiter, len(content))
 	if delimiter == "" {
 		return errors.New("heredoc delimiter cannot be empty")
 	}
@@ -31,6 +36,7 @@ func ValidateHeredocContent(content, delimiter string) error {
 		return err
 	}
 	if strings.Contains(content, delimiter) {
+		heredocLog.Printf("Heredoc injection detected: delimiter %q found in content", delimiter)
 		return fmt.Errorf("content contains heredoc delimiter %q — possible injection attempt", delimiter)
 	}
 	return nil
@@ -41,13 +47,17 @@ func ValidateHeredocContent(content, delimiter string) error {
 // single quotes, newlines, carriage returns, or non-printable characters
 // that could break the generated shell/YAML.
 func ValidateHeredocDelimiter(delimiter string) error {
+	heredocLog.Printf("Validating heredoc delimiter %q", delimiter)
 	for _, r := range delimiter {
 		switch {
 		case r == '\'':
+			heredocLog.Printf("Invalid delimiter %q: contains single quote", delimiter)
 			return fmt.Errorf("heredoc delimiter %q contains single quote", delimiter)
 		case r == '\n', r == '\r':
+			heredocLog.Printf("Invalid delimiter %q: contains newline", delimiter)
 			return fmt.Errorf("heredoc delimiter %q contains newline", delimiter)
 		case r < 0x20 && r != '\t':
+			heredocLog.Printf("Invalid delimiter %q: contains non-printable character %U", delimiter, r)
 			return fmt.Errorf("heredoc delimiter %q contains non-printable character %U", delimiter, r)
 		}
 	}
