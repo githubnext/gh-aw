@@ -363,3 +363,116 @@ sandbox:
 	assert.Contains(t, result, "container: github/gh-aw-mcpg")
 	assert.Contains(t, result, "port: 8080")
 }
+
+func TestSandboxMCPContainerRemoval_RemovesEmptySandboxGrandparent(t *testing.T) {
+	// When container: is the only field under mcp:, and mcp: is the only field
+	// under sandbox:, the codemod must remove all three levels to avoid a
+	// dangling "sandbox:" key that YAML parses as null.
+	codemod := getSandboxMCPContainerRemovalCodemod()
+
+	content := `---
+on: workflow_dispatch
+sandbox:
+  mcp:
+    container: ghcr.io/example/gateway
+permissions:
+  contents: read
+---
+
+# Test`
+
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"sandbox": map[string]any{
+			"mcp": map[string]any{
+				"container": "ghcr.io/example/gateway",
+			},
+		},
+		"permissions": map[string]any{
+			"contents": "read",
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.NotContains(t, result, "container:", "container field should be removed")
+	assert.NotContains(t, result, "mcp:", "empty mcp block should be removed")
+	assert.NotContains(t, result, "sandbox:", "empty sandbox block should be removed")
+	assert.Contains(t, result, "permissions:", "permissions block should be preserved")
+}
+
+func TestSandboxMCPVersionRemoval_RemovesEmptySandboxGrandparent(t *testing.T) {
+	// When version: is the only field under mcp:, and mcp: is the only field
+	// under sandbox:, the codemod must remove all three levels to avoid a
+	// dangling "sandbox:" key that YAML parses as null.
+	codemod := getSandboxMCPVersionRemovalCodemod()
+
+	content := `---
+on: workflow_dispatch
+sandbox:
+  mcp:
+    version: v0.1.0
+permissions:
+  contents: read
+---
+
+# Test`
+
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"sandbox": map[string]any{
+			"mcp": map[string]any{
+				"version": "v0.1.0",
+			},
+		},
+		"permissions": map[string]any{
+			"contents": "read",
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.NotContains(t, result, "version:", "version field should be removed")
+	assert.NotContains(t, result, "mcp:", "empty mcp block should be removed")
+	assert.NotContains(t, result, "sandbox:", "empty sandbox block should be removed")
+	assert.Contains(t, result, "permissions:", "permissions block should be preserved")
+}
+
+func TestSandboxMCPContainerRemoval_KeepsSandboxWhenOtherChildrenRemain(t *testing.T) {
+	// When sandbox: has other children besides mcp:, it must be preserved even
+	// after mcp: becomes empty and is removed.
+	codemod := getSandboxMCPContainerRemovalCodemod()
+
+	content := `---
+on: workflow_dispatch
+sandbox:
+  mcp:
+    container: ghcr.io/example/gateway
+  agent: awf
+---
+
+# Test`
+
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"sandbox": map[string]any{
+			"mcp": map[string]any{
+				"container": "ghcr.io/example/gateway",
+			},
+			"agent": "awf",
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.NotContains(t, result, "container:", "container field should be removed")
+	assert.NotContains(t, result, "mcp:", "empty mcp block should be removed")
+	assert.Contains(t, result, "sandbox:", "sandbox block should be kept (still has agent:)")
+	assert.Contains(t, result, "agent: awf", "other sandbox children should be preserved")
+}

@@ -21,7 +21,13 @@ func getSandboxMCPContainerRemovalCodemod() Codemod {
 				return content, false, nil
 			}
 			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				return removeFieldFromBlock(lines, "container", "mcp")
+				result, modified := removeFieldFromBlock(lines, "container", "mcp")
+				if modified {
+					// If mcp: became empty and was removed, also clean up sandbox: if it
+					// is now empty to avoid leaving a dangling "sandbox: null" key.
+					result = removeParentBlockIfTrulyEmpty(result, "sandbox")
+				}
+				return result, modified
 			})
 			if applied {
 				sandboxMCPInternalCodemodLog.Print("Removed deprecated sandbox.mcp.container")
@@ -48,7 +54,13 @@ func getSandboxMCPVersionRemovalCodemod() Codemod {
 				return content, false, nil
 			}
 			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				return removeFieldFromBlock(lines, "version", "mcp")
+				result, modified := removeFieldFromBlock(lines, "version", "mcp")
+				if modified {
+					// If mcp: became empty and was removed, also clean up sandbox: if it
+					// is now empty to avoid leaving a dangling "sandbox: null" key.
+					result = removeParentBlockIfTrulyEmpty(result, "sandbox")
+				}
+				return result, modified
 			})
 			if applied {
 				sandboxMCPInternalCodemodLog.Print("Removed deprecated sandbox.mcp.version")

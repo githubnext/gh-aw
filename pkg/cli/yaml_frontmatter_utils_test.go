@@ -477,6 +477,25 @@ func TestRemoveFieldFromBlock(t *testing.T) {
 			},
 			shouldModify: true,
 		},
+		{
+			name: "keeps parent block header when only a comment remains under it",
+			lines: []string{
+				"features:",
+				"  # user-authored comment",
+				"  mcp-cli: true",
+				"permissions:",
+				"  contents: read",
+			},
+			fieldName:   "mcp-cli",
+			parentBlock: "features",
+			expectedLines: []string{
+				"features:",
+				"  # user-authored comment",
+				"permissions:",
+				"  contents: read",
+			},
+			shouldModify: true,
+		},
 	}
 
 	for _, tt := range tests {
