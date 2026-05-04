@@ -11,8 +11,8 @@
  *   - If the process produced any output (hasOutput) and exits with a non-zero code, the
  *     session is considered partially executed.  The driver retries with a fresh run
  *     because Codex does not support a --continue-style session resumption.
- *   - Rate-limit errors (HTTP 429 / "rate_limit_exceeded") and server errors (HTTP 429,
- *     500, 503) are well-known transient failure modes and are logged explicitly, but
+ *   - Rate-limit errors (HTTP 429 / "rate_limit_exceeded") and server errors (HTTP 500,
+ *     503) are well-known transient failure modes and are logged explicitly, but
  *     any partial-execution failure is retried — not just those specific errors.
  *   - If the process produced no output (failed to start / auth error before any work), the
  *     driver does not retry because there is nothing to resume.
