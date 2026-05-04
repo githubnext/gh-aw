@@ -74,11 +74,28 @@ describe("otlp.cjs", () => {
       GH_AW_OTLP_ENDPOINTS: process.env.GH_AW_OTLP_ENDPOINTS,
       GITHUB_AW_OTEL_TRACE_ID: process.env.GITHUB_AW_OTEL_TRACE_ID,
       GITHUB_AW_OTEL_PARENT_SPAN_ID: process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID,
+      GITHUB_REPOSITORY: process.env.GITHUB_REPOSITORY,
+      GITHUB_RUN_ID: process.env.GITHUB_RUN_ID,
+      GITHUB_EVENT_NAME: process.env.GITHUB_EVENT_NAME,
+      GITHUB_REF: process.env.GITHUB_REF,
+      GITHUB_REF_NAME: process.env.GITHUB_REF_NAME,
+      GITHUB_HEAD_REF: process.env.GITHUB_HEAD_REF,
+      GITHUB_SHA: process.env.GITHUB_SHA,
+      GITHUB_WORKFLOW_REF: process.env.GITHUB_WORKFLOW_REF,
+      GH_AW_CURRENT_WORKFLOW_REF: process.env.GH_AW_CURRENT_WORKFLOW_REF,
+      GH_AW_INFO_STAGED: process.env.GH_AW_INFO_STAGED,
+      GH_AW_INFO_VERSION: process.env.GH_AW_INFO_VERSION,
+      GITHUB_SERVER_URL: process.env.GITHUB_SERVER_URL,
     };
 
     process.env.GITHUB_AW_OTEL_TRACE_ID = VALID_TRACE_ID;
     process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID = VALID_SPAN_ID;
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://otel.example.com" }]);
+    process.env.GITHUB_REPOSITORY = "owner/repo";
+    process.env.GITHUB_RUN_ID = "99887766";
+    process.env.GITHUB_EVENT_NAME = "push";
+    process.env.GH_AW_INFO_VERSION = "v1.2.3";
+    delete process.env.GH_AW_INFO_STAGED;
   });
 
   afterEach(() => {
@@ -259,6 +276,118 @@ describe("otlp.cjs", () => {
 
       const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
       expect(payloadOpts.parentSpanId).toBeUndefined();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // logSpan — resource attributes
+  // ---------------------------------------------------------------------------
+
+  describe("logSpan — resource attributes", () => {
+    it("passes scopeVersion from GH_AW_INFO_VERSION", async () => {
+      process.env.GH_AW_INFO_VERSION = "v2.0.0";
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(payloadOpts.scopeVersion).toBe("v2.0.0");
+    });
+
+    it("falls back to 'unknown' when GH_AW_INFO_VERSION is not set", async () => {
+      delete process.env.GH_AW_INFO_VERSION;
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(payloadOpts.scopeVersion).toBe("unknown");
+    });
+
+    it("includes github.repository in resourceAttributes", async () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(mockBuildAttr).toHaveBeenCalledWith("github.repository", "myorg/myrepo");
+      expect(payloadOpts.resourceAttributes).toEqual(expect.arrayContaining([{ key: "github.repository", value: "myorg/myrepo" }]));
+    });
+
+    it("includes github.run_id in resourceAttributes", async () => {
+      process.env.GITHUB_RUN_ID = "12345678";
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(mockBuildAttr).toHaveBeenCalledWith("github.run_id", "12345678");
+      expect(payloadOpts.resourceAttributes).toEqual(expect.arrayContaining([{ key: "github.run_id", value: "12345678" }]));
+    });
+
+    it("includes github.event_name in resourceAttributes when set", async () => {
+      process.env.GITHUB_EVENT_NAME = "pull_request";
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(mockBuildAttr).toHaveBeenCalledWith("github.event_name", "pull_request");
+      expect(payloadOpts.resourceAttributes).toEqual(expect.arrayContaining([{ key: "github.event_name", value: "pull_request" }]));
+    });
+
+    it("omits github.event_name from resourceAttributes when not set", async () => {
+      delete process.env.GITHUB_EVENT_NAME;
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(payloadOpts.resourceAttributes).not.toEqual(expect.arrayContaining([expect.objectContaining({ key: "github.event_name" })]));
+    });
+
+    it("sets deployment.environment to 'production' when GH_AW_INFO_STAGED is not set", async () => {
+      delete process.env.GH_AW_INFO_STAGED;
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(mockBuildAttr).toHaveBeenCalledWith("deployment.environment", "production");
+      expect(payloadOpts.resourceAttributes).toEqual(expect.arrayContaining([{ key: "deployment.environment", value: "production" }]));
+    });
+
+    it("sets deployment.environment to 'staging' when GH_AW_INFO_STAGED is 'true'", async () => {
+      process.env.GH_AW_INFO_STAGED = "true";
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(mockBuildAttr).toHaveBeenCalledWith("deployment.environment", "staging");
+      expect(payloadOpts.resourceAttributes).toEqual(expect.arrayContaining([{ key: "deployment.environment", value: "staging" }]));
+    });
+
+    it("includes github.actions.run_url when repository and run_id are set", async () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GITHUB_RUN_ID = "42";
+      process.env.GITHUB_SERVER_URL = "https://github.com";
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(mockBuildAttr).toHaveBeenCalledWith("github.actions.run_url", "https://github.com/myorg/myrepo/actions/runs/42");
+    });
+
+    it("includes github.sha in resourceAttributes when set", async () => {
+      process.env.GITHUB_SHA = "abc123def456";
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(mockBuildAttr).toHaveBeenCalledWith("github.sha", "abc123def456");
+    });
+
+    it("omits github.sha from resourceAttributes when not set", async () => {
+      delete process.env.GITHUB_SHA;
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(payloadOpts.resourceAttributes).not.toEqual(expect.arrayContaining([expect.objectContaining({ key: "github.sha" })]));
     });
   });
 });
