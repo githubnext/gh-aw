@@ -235,6 +235,10 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 	yaml.WriteString("          env_vars = [\"DEBUG\", \"GH_TOKEN\", \"GITHUB_TOKEN\", \"GITHUB_ACTOR\", \"GITHUB_REPOSITORY\"]\n")
 }
 
+// webFetchServerScript is the path to the bundled MCP stdio server script for web-fetch.
+// Used in both the TOML (preliminary) and JSON (gateway) configuration output.
+const webFetchServerScript = SetupActionDestinationShell + "/web_fetch_server.cjs"
+
 // RenderWebFetchMCP generates the web-fetch MCP server configuration.
 // This is only used by the Codex engine, which does not have a native web-fetch built-in.
 // Other engines (Claude, Copilot, Gemini) expose web-fetch as a native tool and do not
@@ -256,13 +260,11 @@ func (r *MCPConfigRendererUnified) RenderWebFetchMCP(yaml *strings.Builder) {
 func (r *MCPConfigRendererUnified) renderWebFetchTOML(yaml *strings.Builder) {
 	mcpRendererBuiltinLog.Print("Rendering web-fetch MCP in TOML format")
 
-	serverScript := SetupActionDestinationShell + "/web_fetch_server.cjs"
-
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.WebFetchMCPServerID.String() + "]\n")
 	yaml.WriteString("          container = \"" + constants.DefaultNodeAlpineLTSImage + "\"\n")
 	yaml.WriteString("          entrypoint = \"node\"\n")
-	yaml.WriteString("          entrypointArgs = [\"" + serverScript + "\"]\n")
+	yaml.WriteString("          entrypointArgs = [\"" + webFetchServerScript + "\"]\n")
 	// Mount the gh-aw actions directory so the container can access web_fetch_server.cjs.
 	// --network host: allows the container to fetch URLs through the runner's network stack.
 	yaml.WriteString("          mounts = [\"" + constants.DefaultGhAwMount + "\"]\n")
@@ -272,8 +274,6 @@ func (r *MCPConfigRendererUnified) renderWebFetchTOML(yaml *strings.Builder) {
 // renderWebFetchMCPConfigWithOptions generates the web-fetch MCP server configuration in JSON format.
 // Used in the MCP gateway config (mcp-servers.json) for Codex.
 func renderWebFetchMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
-	serverScript := SetupActionDestinationShell + "/web_fetch_server.cjs"
-
 	yaml.WriteString("              \"" + constants.WebFetchMCPServerID.String() + "\": {\n")
 
 	if includeCopilotFields {
@@ -282,7 +282,7 @@ func renderWebFetchMCPConfigWithOptions(yaml *strings.Builder, isLast bool, incl
 
 	yaml.WriteString("                \"container\": \"" + constants.DefaultNodeAlpineLTSImage + "\",\n")
 	yaml.WriteString("                \"entrypoint\": \"node\",\n")
-	yaml.WriteString("                \"entrypointArgs\": [\"" + serverScript + "\"],\n")
+	yaml.WriteString("                \"entrypointArgs\": [\"" + webFetchServerScript + "\"],\n")
 	// Mount the gh-aw directory so the container can read web_fetch_server.cjs and its
 	// required modules (mcp_server_core.cjs, read_buffer.cjs, etc.).
 	yaml.WriteString("                \"mounts\": [\"" + constants.DefaultGhAwMount + "\"],\n")
