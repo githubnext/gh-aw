@@ -51,7 +51,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var modelIdentifierLog = logger.New("workflow:model_identifier")
 
 // ParsedModelIdentifier holds the components of a parsed model identifier.
 type ParsedModelIdentifier struct {
@@ -161,6 +165,7 @@ func isAlpha(r rune) bool { return isLetter(r) }
 // Returns a non-nil *ParsedModelIdentifier on success.
 // Returns an error (satisfying V-MAF-001 and V-MAF-006) on syntax violations.
 func ParseModelIdentifier(s string) (*ParsedModelIdentifier, error) {
+	modelIdentifierLog.Printf("Parsing model identifier: %q", s)
 	if s == "" {
 		return nil, errors.New("model identifier must not be empty")
 	}
@@ -180,6 +185,7 @@ func ParseModelIdentifier(s string) (*ParsedModelIdentifier, error) {
 		provider, modelPart, _ := strings.Cut(base, "/")
 
 		if err := validateProviderToken(provider); err != nil {
+			modelIdentifierLog.Printf("Invalid provider token %q: %v", provider, err)
 			return nil, err
 		}
 
@@ -187,6 +193,7 @@ func ParseModelIdentifier(s string) (*ParsedModelIdentifier, error) {
 
 		if strings.Contains(modelPart, "*") {
 			// Glob pattern.
+			modelIdentifierLog.Printf("Parsing as glob pattern: provider=%q model-glob=%q", provider, modelPart)
 			if err := validateModelGlobToken(modelPart); err != nil {
 				return nil, err
 			}
@@ -194,6 +201,7 @@ func ParseModelIdentifier(s string) (*ParsedModelIdentifier, error) {
 			p.IsGlob = true
 		} else {
 			// Exact provider-scoped name.
+			modelIdentifierLog.Printf("Parsing as provider-scoped: provider=%q model=%q", provider, modelPart)
 			if err := validateModelToken(modelPart); err != nil {
 				return nil, err
 			}
@@ -201,6 +209,7 @@ func ParseModelIdentifier(s string) (*ParsedModelIdentifier, error) {
 		}
 	} else {
 		// Bare name.
+		modelIdentifierLog.Printf("Parsing as bare name: %q", base)
 		if err := validateBareName(base); err != nil {
 			return nil, err
 		}
@@ -208,13 +217,16 @@ func ParseModelIdentifier(s string) (*ParsedModelIdentifier, error) {
 
 	// ── Parse and validate query string ─────────────────────────────────────
 	if rawQuery != "" {
+		modelIdentifierLog.Printf("Parsing query string: %q", rawQuery)
 		params, err := parseQueryString(rawQuery)
 		if err != nil {
 			return nil, err
 		}
 		p.Params = params
+		modelIdentifierLog.Printf("Parsed %d query param(s)", len(params))
 	}
 
+	modelIdentifierLog.Printf("Successfully parsed model identifier: provider=%q model=%q isGlob=%v params=%d", p.Provider, p.ModelToken, p.IsGlob, len(p.Params))
 	return p, nil
 }
 

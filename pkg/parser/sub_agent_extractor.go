@@ -71,7 +71,11 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var subAgentLog = logger.New("parser:sub_agent_extractor")
 
 // validSubAgentFrontmatterFields is the set of permitted keys in a sub-agent
 // frontmatter block. Any key not in this set will produce a warning when
@@ -242,18 +246,23 @@ var h2HeadingRegex = regexp.MustCompile(`(?m)^##[ \t]`)
 // If no start markers are found the original markdown is returned unchanged and
 // agents is nil.
 func ExtractInlineSubAgents(markdown string) (mainMarkdown string, agents []InlineSubAgent, err error) {
+	subAgentLog.Printf("Extracting inline sub-agents from markdown (length: %d)", len(markdown))
 	// Find all start markers (returned in document order by FindAllStringSubmatchIndex).
 	allStarts := subAgentSeparatorRegex.FindAllStringSubmatchIndex(markdown, -1)
 	if len(allStarts) == 0 {
 		// No start markers — return unchanged.
+		subAgentLog.Print("No inline sub-agent markers found")
 		return markdown, nil, nil
 	}
+
+	subAgentLog.Printf("Found %d inline sub-agent marker(s)", len(allStarts))
 
 	// Validate that all agent names are unique.
 	seen := make(map[string]struct{})
 	for _, m := range allStarts {
 		name := markdown[m[2]:m[3]]
 		if _, exists := seen[name]; exists {
+			subAgentLog.Printf("Duplicate sub-agent name: %q", name)
 			return "", nil, fmt.Errorf("duplicate inline sub-agent name %q", name)
 		}
 		seen[name] = struct{}{}
@@ -294,8 +303,10 @@ func ExtractInlineSubAgents(markdown string) (mainMarkdown string, agents []Inli
 		contentEnd := nextH2After(lineEnd)
 
 		content := strings.TrimSpace(markdown[lineEnd:contentEnd])
+		subAgentLog.Printf("Extracted sub-agent %q (content length: %d)", name, len(content))
 		agents = append(agents, InlineSubAgent{Name: name, Content: content})
 	}
 
+	subAgentLog.Printf("Extraction complete: %d sub-agent(s), main markdown length: %d", len(agents), len(mainMarkdown))
 	return mainMarkdown, agents, nil
 }

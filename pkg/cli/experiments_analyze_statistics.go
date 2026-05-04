@@ -8,8 +8,11 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var experimentsStatsLog = logger.New("cli:experiments_statistics")
 
 // defaultMinSamples is the minimum samples per variant before analysis is reliable (§11.4 / R-STAT-007).
 const defaultMinSamples = 20
@@ -95,6 +98,7 @@ type GuardrailStatus struct {
 // computeExperimentAnalysis computes the statistical analysis for a single named experiment.
 // cfg may be nil when no workflow frontmatter is available, in which case defaults are used.
 func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.ExperimentConfig) ExperimentAnalysis {
+	experimentsStatsLog.Printf("Computing analysis for experiment %q: %d variant(s), %d total runs", exp.Name, len(exp.Variants), exp.Total)
 	a := ExperimentAnalysis{
 		ExperimentName: exp.Name,
 		TotalRuns:      exp.Total,
@@ -103,6 +107,7 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 
 	// Degenerate: fewer than 2 variants cannot be meaningfully analysed.
 	if len(exp.Variants) < 2 {
+		experimentsStatsLog.Printf("Experiment %q has fewer than 2 variants; skipping analysis", exp.Name)
 		a.IsBalanced = true
 		a.Recommendation = "EXTEND"
 		a.Rationale = "experiment has fewer than 2 variants; cannot perform statistical analysis"
@@ -169,6 +174,7 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 		a.DegreesOfFreedom = df
 		a.PValue = pval
 		a.IsBalanced = pval >= balanceSignificanceThreshold
+		experimentsStatsLog.Printf("Chi-square balance test for %q: χ²=%.3f df=%d p=%.3f balanced=%v", exp.Name, chi2, df, pval, a.IsBalanced)
 	} else {
 		a.IsBalanced = true // insufficient data to assess balance
 	}
@@ -193,10 +199,12 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 		a.Recommendation = "EXTEND"
 		a.Rationale = fmt.Sprintf("%d of %d variant(s) below min_samples threshold (min observed: %d / %d)",
 			belowCount, k, minObserved, a.MinSamples)
+		experimentsStatsLog.Printf("Experiment %q recommendation: EXTEND (%d/%d variants below min_samples=%d)", exp.Name, belowCount, k, a.MinSamples)
 	} else {
 		a.Recommendation = "READY_FOR_ANALYSIS"
 		a.Rationale = fmt.Sprintf("all %d variants have reached min_samples (%d); proceed with outcome metric analysis",
 			k, a.MinSamples)
+		experimentsStatsLog.Printf("Experiment %q recommendation: READY_FOR_ANALYSIS (all %d variants above min_samples=%d)", exp.Name, k, a.MinSamples)
 	}
 
 	return a
