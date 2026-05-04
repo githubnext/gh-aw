@@ -10,7 +10,7 @@ require (
 	github.com/charmbracelet/x/exp/golden v0.0.0-20260422141420-a6cbdff8a7e2
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/creack/pty v1.1.24
-	github.com/fsnotify/fsnotify v1.9.0
+	github.com/fsnotify/fsnotify v1.10.0
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/jsonschema-go v0.4.3
 	github.com/modelcontextprotocol/go-sdk v1.6.0
