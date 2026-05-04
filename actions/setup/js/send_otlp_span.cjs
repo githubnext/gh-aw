@@ -280,6 +280,52 @@ function buildOTLPResourceAttributes(serviceName, scopeVersion, resourceAttribut
 }
 
 /**
+ * Build the standard GitHub Actions resource attributes shared by all OTLP spans
+ * (setup, conclusion, and tool spans).  Centralises the attribute list so that
+ * future additions propagate to every span type automatically.
+ *
+ * @param {{
+ *   repository: string,
+ *   runId: string,
+ *   eventName?: string,
+ *   ref?: string,
+ *   refName?: string,
+ *   headRef?: string,
+ *   sha?: string,
+ *   workflowRef?: string,
+ *   staged: boolean,
+ * }} ctx
+ * @returns {Array<{key: string, value: object}>}
+ */
+function buildGitHubActionsResourceAttributes({ repository, runId, eventName = "", ref = "", refName = "", headRef = "", sha = "", workflowRef = "", staged }) {
+  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
+  if (repository && runId && repository.includes("/")) {
+    const [owner, repo] = repository.split("/");
+    resourceAttributes.push(buildAttr("github.actions.run_url", buildWorkflowRunUrl({ runId }, { owner, repo })));
+  }
+  if (eventName) {
+    resourceAttributes.push(buildAttr("github.event_name", eventName));
+  }
+  if (ref) {
+    resourceAttributes.push(buildAttr("github.ref", ref));
+  }
+  if (refName) {
+    resourceAttributes.push(buildAttr("github.ref_name", refName));
+  }
+  if (headRef) {
+    resourceAttributes.push(buildAttr("github.head_ref", headRef));
+  }
+  if (sha) {
+    resourceAttributes.push(buildAttr("github.sha", sha));
+  }
+  if (workflowRef) {
+    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
+  }
+  resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
+  return resourceAttributes;
+}
+
+/**
  * Wrap one or more OTLP span objects in a single traces payload.
  *
  * @param {{
@@ -860,30 +906,7 @@ async function sendJobSetupSpan(options = {}) {
   attributes.push(...buildExperimentAttributes(experimentAssignments));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
 
-  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
-  if (repository && runId) {
-    const [owner, repo] = repository.split("/");
-    resourceAttributes.push(buildAttr("github.actions.run_url", buildWorkflowRunUrl({ runId }, { owner, repo })));
-  }
-  if (eventName) {
-    resourceAttributes.push(buildAttr("github.event_name", eventName));
-  }
-  if (ref) {
-    resourceAttributes.push(buildAttr("github.ref", ref));
-  }
-  if (refName) {
-    resourceAttributes.push(buildAttr("github.ref_name", refName));
-  }
-  if (headRef) {
-    resourceAttributes.push(buildAttr("github.head_ref", headRef));
-  }
-  if (sha) {
-    resourceAttributes.push(buildAttr("github.sha", sha));
-  }
-  if (workflowRef) {
-    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
-  }
-  resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
+  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, workflowRef, staged });
 
   const payload = buildOTLPPayload({
     traceId,
@@ -1166,30 +1189,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const conclusionExperimentAssignments = readExperimentAssignments();
   attributes.push(...buildExperimentAttributes(conclusionExperimentAssignments));
 
-  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
-  if (repository && runId) {
-    const [owner, repo] = repository.split("/");
-    resourceAttributes.push(buildAttr("github.actions.run_url", buildWorkflowRunUrl({ runId }, { owner, repo })));
-  }
-  if (eventName) {
-    resourceAttributes.push(buildAttr("github.event_name", eventName));
-  }
-  if (ref) {
-    resourceAttributes.push(buildAttr("github.ref", ref));
-  }
-  if (refName) {
-    resourceAttributes.push(buildAttr("github.ref_name", refName));
-  }
-  if (headRef) {
-    resourceAttributes.push(buildAttr("github.head_ref", headRef));
-  }
-  if (sha) {
-    resourceAttributes.push(buildAttr("github.sha", sha));
-  }
-  if (workflowRef) {
-    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
-  }
-  resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
+  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, workflowRef, staged });
 
   // Build OTel exception span events — one per error — following the
   // OpenTelemetry semantic convention for exceptions.  Each event has
@@ -1339,6 +1339,7 @@ module.exports = {
   generateSpanId,
   toNanoString,
   buildAttr,
+  buildGitHubActionsResourceAttributes,
   buildOTLPSpan,
   buildOTLPBatchPayload,
   buildOTLPBatchPayloads,

@@ -72,9 +72,20 @@ require(path.join(__dirname, "shim.cjs"));
  */
 async function logSpan(toolName, attributes = {}, options = {}) {
   try {
-    const { buildAttr, buildOTLPPayload, parseOTLPEndpoints, sendOTLPToAllEndpoints, sanitizeOTLPPayload, appendToOTLPJSONL, generateSpanId, isValidTraceId, isValidSpanId, SPAN_KIND_CLIENT } = require(
-      path.join(__dirname, "send_otlp_span.cjs")
-    );
+    const {
+      buildAttr,
+      buildOTLPPayload,
+      parseOTLPEndpoints,
+      sendOTLPToAllEndpoints,
+      sanitizeOTLPPayload,
+      appendToOTLPJSONL,
+      generateSpanId,
+      isValidTraceId,
+      isValidSpanId,
+      SPAN_KIND_CLIENT,
+      buildGitHubActionsResourceAttributes,
+      readJSONIfExists,
+    } = require(path.join(__dirname, "send_otlp_span.cjs"));
 
     const now = Date.now();
     const startMs = options.startMs ?? now;
@@ -89,44 +100,25 @@ async function logSpan(toolName, attributes = {}, options = {}) {
 
     const spanAttrs = Object.entries(attributes).map(([k, v]) => buildAttr(k, v));
 
-    // Build resource attributes matching what job setup and conclusion spans carry
-    // so that tool spans are visible to resource-level filtering in Grafana etc.
-    const repository = process.env.GITHUB_REPOSITORY || "";
-    const runId = process.env.GITHUB_RUN_ID || "";
-    const eventName = process.env.GITHUB_EVENT_NAME || "";
-    const ref = process.env.GITHUB_REF || "";
-    const refName = process.env.GITHUB_REF_NAME || "";
-    const headRef = process.env.GITHUB_HEAD_REF || "";
-    const sha = process.env.GITHUB_SHA || "";
-    const workflowRef = process.env.GH_AW_CURRENT_WORKFLOW_REF || process.env.GITHUB_WORKFLOW_REF || "";
-    const staged = process.env.GH_AW_INFO_STAGED === "true";
-    const scopeVersion = process.env.GH_AW_INFO_VERSION || "unknown";
+    // Read aw_info.json first: in compiled workflows GH_AW_INFO_VERSION and
+    // GH_AW_INFO_STAGED are only present during the setup step and are not
+    // exported to later github-script steps.  aw_info.json is the authoritative
+    // source (written by generate_aw_info.cjs and read by conclusion spans).
+    const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
+    const staged = awInfo.staged === true || process.env.GH_AW_INFO_STAGED === "true";
+    const scopeVersion = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
 
-    const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
-    if (repository && runId && repository.includes("/")) {
-      const [owner, repo] = repository.split("/");
-      const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-      resourceAttributes.push(buildAttr("github.actions.run_url", `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`));
-    }
-    if (eventName) {
-      resourceAttributes.push(buildAttr("github.event_name", eventName));
-    }
-    if (ref) {
-      resourceAttributes.push(buildAttr("github.ref", ref));
-    }
-    if (refName) {
-      resourceAttributes.push(buildAttr("github.ref_name", refName));
-    }
-    if (headRef) {
-      resourceAttributes.push(buildAttr("github.head_ref", headRef));
-    }
-    if (sha) {
-      resourceAttributes.push(buildAttr("github.sha", sha));
-    }
-    if (workflowRef) {
-      resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
-    }
-    resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
+    const resourceAttributes = buildGitHubActionsResourceAttributes({
+      repository: process.env.GITHUB_REPOSITORY || "",
+      runId: process.env.GITHUB_RUN_ID || "",
+      eventName: process.env.GITHUB_EVENT_NAME || "",
+      ref: process.env.GITHUB_REF || "",
+      refName: process.env.GITHUB_REF_NAME || "",
+      headRef: process.env.GITHUB_HEAD_REF || "",
+      sha: process.env.GITHUB_SHA || "",
+      workflowRef: process.env.GH_AW_CURRENT_WORKFLOW_REF || process.env.GITHUB_WORKFLOW_REF || "",
+      staged,
+    });
 
     const payload = buildOTLPPayload({
       traceId,

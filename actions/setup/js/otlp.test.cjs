@@ -28,9 +28,23 @@ const mockAppendToOTLPJSONL = vi.fn();
 const mockGenerateSpanId = vi.fn();
 const mockIsValidTraceId = vi.fn();
 const mockIsValidSpanId = vi.fn();
+const mockBuildGitHubActionsResourceAttributes = vi.fn();
+const mockReadJSONIfExists = vi.fn();
 
 // Capture originals so we can restore them after each test
-const PATCHED_KEYS = ["buildAttr", "buildOTLPPayload", "sendOTLPSpan", "sendOTLPToAllEndpoints", "sanitizeOTLPPayload", "appendToOTLPJSONL", "generateSpanId", "isValidTraceId", "isValidSpanId"];
+const PATCHED_KEYS = [
+  "buildAttr",
+  "buildOTLPPayload",
+  "sendOTLPSpan",
+  "sendOTLPToAllEndpoints",
+  "sanitizeOTLPPayload",
+  "appendToOTLPJSONL",
+  "generateSpanId",
+  "isValidTraceId",
+  "isValidSpanId",
+  "buildGitHubActionsResourceAttributes",
+  "readJSONIfExists",
+];
 const originals = Object.fromEntries(PATCHED_KEYS.map(k => [k, sendOtlpModule[k]]));
 
 describe("otlp.cjs", () => {
@@ -57,6 +71,9 @@ describe("otlp.cjs", () => {
     mockGenerateSpanId.mockReturnValue(VALID_SPAN_ID);
     mockIsValidTraceId.mockImplementation(id => id === VALID_TRACE_ID);
     mockIsValidSpanId.mockImplementation(id => id === VALID_SPAN_ID);
+    mockBuildGitHubActionsResourceAttributes.mockReturnValue([{ key: "github.repository", value: "owner/repo" }]);
+    // Default: no aw_info.json present (the common env-only path)
+    mockReadJSONIfExists.mockReturnValue(null);
 
     // Patch the shared CJS module exports
     sendOtlpModule.buildAttr = mockBuildAttr;
@@ -68,6 +85,8 @@ describe("otlp.cjs", () => {
     sendOtlpModule.generateSpanId = mockGenerateSpanId;
     sendOtlpModule.isValidTraceId = mockIsValidTraceId;
     sendOtlpModule.isValidSpanId = mockIsValidSpanId;
+    sendOtlpModule.buildGitHubActionsResourceAttributes = mockBuildGitHubActionsResourceAttributes;
+    sendOtlpModule.readJSONIfExists = mockReadJSONIfExists;
     // Keep SPAN_KIND_CLIENT as-is (it's a constant and does not need a stub)
 
     savedEnv = {
@@ -284,7 +303,7 @@ describe("otlp.cjs", () => {
   // ---------------------------------------------------------------------------
 
   describe("logSpan — resource attributes", () => {
-    it("passes scopeVersion from GH_AW_INFO_VERSION", async () => {
+    it("passes scopeVersion from GH_AW_INFO_VERSION when aw_info.json is absent", async () => {
       process.env.GH_AW_INFO_VERSION = "v2.0.0";
 
       await otlp.logSpan("my-scanner", {});
@@ -293,7 +312,7 @@ describe("otlp.cjs", () => {
       expect(payloadOpts.scopeVersion).toBe("v2.0.0");
     });
 
-    it("falls back to 'unknown' when GH_AW_INFO_VERSION is not set", async () => {
+    it("falls back to 'unknown' when aw_info.json is absent and GH_AW_INFO_VERSION is not set", async () => {
       delete process.env.GH_AW_INFO_VERSION;
 
       await otlp.logSpan("my-scanner", {});
@@ -302,92 +321,139 @@ describe("otlp.cjs", () => {
       expect(payloadOpts.scopeVersion).toBe("unknown");
     });
 
-    it("includes github.repository in resourceAttributes", async () => {
-      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+    it("passes the result of buildGitHubActionsResourceAttributes to buildOTLPPayload as resourceAttributes", async () => {
+      const mockAttrs = [{ key: "github.repository", value: { stringValue: "owner/repo" } }];
+      mockBuildGitHubActionsResourceAttributes.mockReturnValue(mockAttrs);
 
       await otlp.logSpan("my-scanner", {});
 
       const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
-      expect(mockBuildAttr).toHaveBeenCalledWith("github.repository", "myorg/myrepo");
-      expect(payloadOpts.resourceAttributes).toEqual(expect.arrayContaining([{ key: "github.repository", value: "myorg/myrepo" }]));
+      expect(payloadOpts.resourceAttributes).toBe(mockAttrs);
     });
 
-    it("includes github.run_id in resourceAttributes", async () => {
+    it("passes GITHUB_REPOSITORY to buildGitHubActionsResourceAttributes", async () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+
+      await otlp.logSpan("my-scanner", {});
+
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ repository: "myorg/myrepo" }));
+    });
+
+    it("passes GITHUB_RUN_ID to buildGitHubActionsResourceAttributes", async () => {
       process.env.GITHUB_RUN_ID = "12345678";
 
       await otlp.logSpan("my-scanner", {});
 
-      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
-      expect(mockBuildAttr).toHaveBeenCalledWith("github.run_id", "12345678");
-      expect(payloadOpts.resourceAttributes).toEqual(expect.arrayContaining([{ key: "github.run_id", value: "12345678" }]));
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ runId: "12345678" }));
     });
 
-    it("includes github.event_name in resourceAttributes when set", async () => {
+    it("passes GITHUB_EVENT_NAME to buildGitHubActionsResourceAttributes when set", async () => {
       process.env.GITHUB_EVENT_NAME = "pull_request";
 
       await otlp.logSpan("my-scanner", {});
 
-      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
-      expect(mockBuildAttr).toHaveBeenCalledWith("github.event_name", "pull_request");
-      expect(payloadOpts.resourceAttributes).toEqual(expect.arrayContaining([{ key: "github.event_name", value: "pull_request" }]));
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ eventName: "pull_request" }));
     });
 
-    it("omits github.event_name from resourceAttributes when not set", async () => {
+    it("passes empty string for eventName to buildGitHubActionsResourceAttributes when not set", async () => {
       delete process.env.GITHUB_EVENT_NAME;
 
       await otlp.logSpan("my-scanner", {});
 
-      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
-      expect(payloadOpts.resourceAttributes).not.toEqual(expect.arrayContaining([expect.objectContaining({ key: "github.event_name" })]));
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ eventName: "" }));
     });
 
-    it("sets deployment.environment to 'production' when GH_AW_INFO_STAGED is not set", async () => {
+    it("passes staged=false to buildGitHubActionsResourceAttributes when GH_AW_INFO_STAGED is not set", async () => {
       delete process.env.GH_AW_INFO_STAGED;
 
       await otlp.logSpan("my-scanner", {});
 
-      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
-      expect(mockBuildAttr).toHaveBeenCalledWith("deployment.environment", "production");
-      expect(payloadOpts.resourceAttributes).toEqual(expect.arrayContaining([{ key: "deployment.environment", value: "production" }]));
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ staged: false }));
     });
 
-    it("sets deployment.environment to 'staging' when GH_AW_INFO_STAGED is 'true'", async () => {
+    it("passes staged=true to buildGitHubActionsResourceAttributes when GH_AW_INFO_STAGED is 'true'", async () => {
       process.env.GH_AW_INFO_STAGED = "true";
 
       await otlp.logSpan("my-scanner", {});
 
-      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
-      expect(mockBuildAttr).toHaveBeenCalledWith("deployment.environment", "staging");
-      expect(payloadOpts.resourceAttributes).toEqual(expect.arrayContaining([{ key: "deployment.environment", value: "staging" }]));
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ staged: true }));
     });
 
-    it("includes github.actions.run_url when repository and run_id are set", async () => {
-      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
-      process.env.GITHUB_RUN_ID = "42";
-      process.env.GITHUB_SERVER_URL = "https://github.com";
-
-      await otlp.logSpan("my-scanner", {});
-
-      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
-      expect(mockBuildAttr).toHaveBeenCalledWith("github.actions.run_url", "https://github.com/myorg/myrepo/actions/runs/42");
-    });
-
-    it("includes github.sha in resourceAttributes when set", async () => {
+    it("passes GITHUB_SHA to buildGitHubActionsResourceAttributes when set", async () => {
       process.env.GITHUB_SHA = "abc123def456";
 
       await otlp.logSpan("my-scanner", {});
 
-      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
-      expect(mockBuildAttr).toHaveBeenCalledWith("github.sha", "abc123def456");
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ sha: "abc123def456" }));
     });
+  });
 
-    it("omits github.sha from resourceAttributes when not set", async () => {
-      delete process.env.GITHUB_SHA;
+  // ---------------------------------------------------------------------------
+  // logSpan — aw_info.json runtime path
+  // ---------------------------------------------------------------------------
+
+  describe("logSpan — aw_info.json runtime path", () => {
+    it("reads version from aw_info.json when env var is absent", async () => {
+      delete process.env.GH_AW_INFO_VERSION;
+      mockReadJSONIfExists.mockReturnValue({ version: "v3.1.0" });
 
       await otlp.logSpan("my-scanner", {});
 
       const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
-      expect(payloadOpts.resourceAttributes).not.toEqual(expect.arrayContaining([expect.objectContaining({ key: "github.sha" })]));
+      expect(payloadOpts.scopeVersion).toBe("v3.1.0");
+    });
+
+    it("prefers agent_version over version in aw_info.json", async () => {
+      mockReadJSONIfExists.mockReturnValue({ agent_version: "v4.0.0", version: "v3.0.0" });
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(payloadOpts.scopeVersion).toBe("v4.0.0");
+    });
+
+    it("reads staged=true from aw_info.json when env var is absent", async () => {
+      delete process.env.GH_AW_INFO_STAGED;
+      mockReadJSONIfExists.mockReturnValue({ staged: true });
+
+      await otlp.logSpan("my-scanner", {});
+
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ staged: true }));
+    });
+
+    it("reads staged=false from aw_info.json when staged is not set there", async () => {
+      delete process.env.GH_AW_INFO_STAGED;
+      mockReadJSONIfExists.mockReturnValue({ staged: false });
+
+      await otlp.logSpan("my-scanner", {});
+
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ staged: false }));
+    });
+
+    it("aw_info.json staged takes precedence over GH_AW_INFO_STAGED=false", async () => {
+      // awInfo.staged === true wins even when env var would say non-staged
+      delete process.env.GH_AW_INFO_STAGED;
+      mockReadJSONIfExists.mockReturnValue({ staged: true });
+
+      await otlp.logSpan("my-scanner", {});
+
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ staged: true }));
+    });
+
+    it("falls back to GH_AW_INFO_STAGED when aw_info.json has staged=false", async () => {
+      process.env.GH_AW_INFO_STAGED = "true";
+      mockReadJSONIfExists.mockReturnValue({ staged: false });
+
+      await otlp.logSpan("my-scanner", {});
+
+      // staged = (false === true) || ("true" === "true") => true
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ staged: true }));
+    });
+
+    it("calls readJSONIfExists with the aw_info.json path", async () => {
+      await otlp.logSpan("my-scanner", {});
+
+      expect(mockReadJSONIfExists).toHaveBeenCalledWith("/tmp/gh-aw/aw_info.json");
     });
   });
 });
