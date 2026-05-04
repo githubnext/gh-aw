@@ -3,9 +3,11 @@
 package workflow
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -237,4 +239,67 @@ func TestPiEngine_GetExecutionSteps_ProviderPrefixAnthropic(t *testing.T) {
 
 func TestPiEngine_ImplementsCodingAgentEngine(t *testing.T) {
 	var _ CodingAgentEngine = NewPiEngine()
+}
+
+// TestBuildPiModelsJSON_UsesAPIProxyContainerIP verifies that the Pi models.json
+// routes LLM traffic through the api-proxy Docker container IP, not host.docker.internal.
+// This is required so that the api-proxy is an active Docker network participant,
+// which makes its management endpoint (api-proxy:10000/reflect) reachable.
+func TestBuildPiModelsJSON_UsesAPIProxyContainerIP(t *testing.T) {
+	tests := []struct {
+		name      string
+		port      int
+		secretVar string
+		modelID   string
+	}{
+		{
+			name:      "copilot gateway port",
+			port:      constants.CopilotLLMGatewayPort,
+			secretVar: "COPILOT_GITHUB_TOKEN",
+			modelID:   "claude-sonnet-4-20250514",
+		},
+		{
+			name:      "claude gateway port",
+			port:      constants.ClaudeLLMGatewayPort,
+			secretVar: "ANTHROPIC_API_KEY",
+			modelID:   "claude-opus-4",
+		},
+		{
+			name:      "codex gateway port",
+			port:      constants.CodexLLMGatewayPort,
+			secretVar: "OPENAI_API_KEY",
+			modelID:   "gpt-4o",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jsonStr := buildPiModelsJSON(tt.port, tt.secretVar, tt.modelID)
+			require.NotEmpty(t, jsonStr, "buildPiModelsJSON should return non-empty JSON")
+
+			var payload map[string]any
+			require.NoError(t, json.Unmarshal([]byte(jsonStr), &payload), "Should produce valid JSON")
+
+			providers, ok := payload["providers"].(map[string]any)
+			require.True(t, ok, "JSON should have 'providers' map")
+
+			gateway, ok := providers["aw-gateway"].(map[string]any)
+			require.True(t, ok, "providers should have 'aw-gateway' entry")
+
+			baseURL, ok := gateway["baseUrl"].(string)
+			require.True(t, ok, "aw-gateway should have 'baseUrl' string")
+
+			expectedIP := constants.AWFAPIProxyContainerIP
+			assert.Contains(t, baseURL, expectedIP,
+				"baseUrl must use api-proxy container IP (%s) not host.docker.internal, "+
+					"so LLM traffic routes through the Docker network api-proxy and /reflect is reachable",
+				expectedIP)
+			assert.NotContains(t, baseURL, "host.docker.internal",
+				"baseUrl must not use host.docker.internal — it bypasses the api-proxy Docker container")
+
+			assert.Equal(t, tt.secretVar, gateway["apiKey"], "apiKey should be the secret env var name")
+			assert.Equal(t, tt.modelID, ((gateway["models"].([]any))[0]).(map[string]any)["id"],
+				"models[0].id should match the provided model ID")
+		})
+	}
 }

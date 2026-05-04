@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"net"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -113,12 +115,19 @@ func piNativeProviderName(backend UniversalLLMBackend) string {
 // "COPILOT_GITHUB_TOKEN") causes Pi to automatically use the value that is
 // already present in the container environment.
 //
+// The baseUrl uses the fixed api-proxy container IP (constants.AWFAPIProxyContainerIP)
+// so that Pi's LLM traffic routes through the api-proxy sidecar on the AWF Docker
+// network.  This ensures the api-proxy is an active network participant, which in
+// turn makes its management endpoint (api-proxy:10000/reflect) reachable from the
+// agent container.  Using host.docker.internal here would bypass the api-proxy's
+// Docker network interface and prevent /reflect from responding.
+//
 // All dynamic values are marshaled via encoding/json to prevent JSON injection.
 func buildPiModelsJSON(gatewayPort int, secretEnvVarName, modelID string) string {
 	payload := map[string]any{
 		"providers": map[string]any{
 			"aw-gateway": map[string]any{
-				"baseUrl": fmt.Sprintf("http://host.docker.internal:%d", gatewayPort),
+				"baseUrl": "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(gatewayPort)),
 				"api":     "openai-completions",
 				"apiKey":  secretEnvVarName,
 				"models":  []map[string]any{{"id": modelID}},
