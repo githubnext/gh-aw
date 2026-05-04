@@ -261,6 +261,7 @@ func TestPiEngine_GetExecutionSteps_FirewallCopilotProvider(t *testing.T) {
 	stepText := strings.Join(steps[0], "\n")
 	// When firewall is enabled, Pi uses models.json to route through the api-proxy gateway.
 	assert.Contains(t, stepText, "PI_CODING_AGENT_DIR", "Firewall mode should set PI_CODING_AGENT_DIR for models.json config")
+	assert.Contains(t, stepText, "PI_CODING_AGENT_DIR: /tmp/gh-aw/pi-agent-dir", "PI_CODING_AGENT_DIR should point to the models.json directory")
 	assert.Contains(t, stepText, "models.json", "Firewall mode should write a models.json gateway config")
 	assert.Contains(t, stepText, "aw-gateway", "Firewall mode should register the aw-gateway provider in models.json")
 	assert.Contains(t, stepText, "claude-sonnet-4-20250514", "Step should include the model ID in models.json")
