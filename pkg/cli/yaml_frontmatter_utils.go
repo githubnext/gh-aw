@@ -123,8 +123,10 @@ func applyFrontmatterLineTransform(content string, transform func([]string) ([]s
 	return reconstructContent(result, markdown), true, nil
 }
 
-// removeFieldFromBlock removes a field and its nested content from a YAML block
-// Returns the modified lines and whether any changes were made
+// removeFieldFromBlock removes a field and its nested content from a YAML block.
+// If removing the field leaves the parent block empty, the parent block line is
+// also removed to avoid a dangling "parentBlock:" key (which YAML parses as null).
+// Returns the modified lines and whether any changes were made.
 func removeFieldFromBlock(lines []string, fieldName string, parentBlock string) ([]string, bool) {
 	var result []string
 	var modified bool
@@ -192,6 +194,10 @@ func removeFieldFromBlock(lines []string, fieldName string, parentBlock string) 
 		}
 
 		result = append(result, line)
+	}
+
+	if modified {
+		result = removeBlockIfEmpty(result, parentBlock)
 	}
 
 	return result, modified
