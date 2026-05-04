@@ -35,6 +35,7 @@ imports:
   - shared/copilot-pr-analysis-base.md
   - shared/python-dataviz.md
   - shared/python-nlp.md
+  - shared/reporting.md
 
 steps:
   - name: Fetch PR comments for detailed analysis
@@ -255,7 +256,7 @@ Post a comprehensive discussion with the following structure:
 ````markdown
 # 🤖 Copilot PR Conversation NLP Analysis - [DATE]
 
-## Executive Summary
+### Executive Summary
 
 **Analysis Period**: Last 24 hours (merged PRs only)  
 **Repository**: ${{ github.repository }}  
@@ -263,7 +264,7 @@ Post a comprehensive discussion with the following structure:
 **Total Messages**: [count] comments, [count] reviews, [count] review comments  
 **Average Sentiment**: [polarity score] ([positive/neutral/negative])
 
-## Sentiment Analysis
+### Sentiment Analysis
 
 ### Overall Sentiment Distribution
 ![Sentiment Distribution]([SENTIMENT_DIST_URL])
@@ -281,7 +282,7 @@ Post a comprehensive discussion with the following structure:
 - [e.g., "Conversations typically start neutral and become more positive as issues are resolved"]
 - [e.g., "PR #123 showed unusual negative sentiment spike mid-conversation"]
 
-## Topic Analysis
+### Topic Analysis
 
 ### Identified Discussion Topics
 ![Topic Frequencies]([TOPIC_FREQ_URL])
@@ -295,7 +296,7 @@ Post a comprehensive discussion with the following structure:
 ### Topic Word Cloud
 ![Topics Word Cloud]([TOPICS_CLOUD_URL])
 
-## Keyword Trends
+### Keyword Trends
 
 ### Most Common Keywords and Phrases
 ![Keyword Trends]([KEYWORD_TRENDS_URL])
@@ -305,7 +306,7 @@ Post a comprehensive discussion with the following structure:
 - **Action-oriented**: [list top 5 action verbs/phrases]
 - **Feedback**: [list top 5 feedback-related terms]
 
-## Conversation Patterns
+### Conversation Patterns
 
 ### User ↔ Copilot Exchange Analysis
 
@@ -319,7 +320,7 @@ Post a comprehensive discussion with the following structure:
 - PRs merged without discussion: [count]
 - Average response time: [if timestamps available]
 
-## Insights and Trends
+### Insights and Trends
 
 ### 🔍 Key Observations
 
@@ -335,7 +336,7 @@ Post a comprehensive discussion with the following structure:
 - **Concerning Pattern**: [e.g., "PRs with >5 review cycles show declining sentiment"]
 - **Emerging Theme**: [e.g., "Increased focus on documentation quality this period"]
 
-## Sentiment by Message Type
+### Sentiment by Message Type
 
 | Message Type | Avg Sentiment | Count | Percentage |
 |--------------|---------------|-------|------------|
@@ -343,7 +344,7 @@ Post a comprehensive discussion with the following structure:
 | Reviews | [score] | [count] | [%] |
 | Review Comments | [score] | [count] | [%] |
 
-## PR Highlights
+### PR Highlights
 
 ### Most Positive PR 😊
 **PR #[number]**: [title]  
@@ -360,7 +361,8 @@ Post a comprehensive discussion with the following structure:
 **Topics**: [list of topics]  
 **Summary**: [brief summary]
 
-## Historical Context
+<details>
+<summary><b>Historical Context</b></summary>
 
 [If cache memory has historical data, compare to previous periods]
 
@@ -372,7 +374,9 @@ Post a comprehensive discussion with the following structure:
 
 **7-Day Trend**: [e.g., "Sentiment trending upward, +0.15 increase"]
 
-## Recommendations
+</details>
+
+### Recommendations
 
 Based on NLP analysis:
 
@@ -382,7 +386,8 @@ Based on NLP analysis:
 
 3. **✨ Best Practices**: [e.g., "Quick initial acknowledgment (within 1 hour) associated with smoother conversations"]
 
-## Methodology
+<details>
+<summary><b>Methodology</b></summary>
 
 **NLP Techniques Applied**:
 - Sentiment Analysis: TextBlob/VADER
@@ -404,7 +409,9 @@ Based on NLP analysis:
 - Pandas/NumPy: Data processing
 - Matplotlib/Seaborn: Charting
 
-## Workflow Details
+</details>
+
+### Workflow Details
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
