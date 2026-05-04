@@ -297,11 +297,21 @@ func TestArgumentValidationMiddleware_PassesThroughNonToolCallMethods(t *testing
 // TestMCPToolParams verifies that the tool parameter registry is populated and
 // consistent with the known tools.  Parameter names are derived automatically
 // from the *Args struct json tags via reflection, so this test validates that
-// every tool is present and has non-empty params.
+// every tool is present, has non-empty params, and that no unexpected tools
+// have been added to mcpToolParams() without also being listed here.
 func TestMCPToolParams(t *testing.T) {
 	params := mcpToolParams()
 
+	// This list must mirror createMCPServer in mcp_server.go.  If a new tool is
+	// registered there, add it here as well — the len check below will fail and
+	// catch any discrepancy at test time.
 	expectedTools := []string{"status", "compile", "logs", "audit", "audit-diff", "checks", "mcp-inspect", "add", "update", "fix"}
+
+	// Verify the registry has exactly the expected number of entries so that a
+	// new tool added to mcpToolParams() without also adding it to expectedTools
+	// (or vice-versa) is caught immediately.
+	assert.Len(t, params, len(expectedTools), "mcpToolParams() must contain exactly the expected tools; update expectedTools if a new tool was added")
+
 	for _, tool := range expectedTools {
 		t.Run(tool, func(t *testing.T) {
 			toolParams, ok := params[tool]
