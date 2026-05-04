@@ -23,14 +23,35 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var copilotEngineToolsLog = logger.New("workflow:copilot_engine_tools")
+
+// sanitizeCopilotShellCommand truncates a bash tool command at the first single
+// quote to produce a safe prefix for the Copilot CLI --allow-tool shell() argument.
+//
+// Copilot CLI uses prefix matching for shell() arguments, so shell(jq) matches any
+// jq invocation including "jq '.filter' ...". Single quotes in the allow-tool argument
+// cause the Copilot CLI to crash at startup because of quoting conflicts in the
+// multi-level shell escaping required by the AWF entrypoint.
+//
+// Returns the sanitized command and whether sanitization was needed.
+func sanitizeCopilotShellCommand(cmdStr string) (string, bool) {
+	prefix, _, found := strings.Cut(cmdStr, "'")
+	if !found {
+		return cmdStr, false
+	}
+	// Trim trailing whitespace from the prefix.
+	// shell(jq) prefix-matches any jq invocation, preserving full tool access.
+	return strings.TrimRight(prefix, " "), true
+}
 
 // computeCopilotToolArguments computes the --allow-tool arguments for Copilot CLI based on tool configurations.
 // It handles bash/shell tools, edit tools, safe outputs, mcp-scripts, and MCP server tools.
@@ -75,7 +96,15 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 					if !strings.Contains(cmdStr, ":") && !strings.Contains(cmdStr, " ") && constants.CopilotStemCommands[cmdStr] {
 						args = append(args, "--allow-tool", fmt.Sprintf("shell(%s:*)", cmdStr))
 					} else {
-						args = append(args, "--allow-tool", fmt.Sprintf("shell(%s)", cmdStr))
+						sanitized, wasSanitized := sanitizeCopilotShellCommand(cmdStr)
+						if wasSanitized {
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+								fmt.Sprintf("bash tool %q contains single quotes that crash Copilot CLI; "+
+									"truncated to safe prefix %q for shell() prefix-matching. "+
+									"Use %q in your workflow to silence this warning.",
+									cmdStr, sanitized, sanitized)))
+						}
+						args = append(args, "--allow-tool", fmt.Sprintf("shell(%s)", sanitized))
 					}
 				}
 			}
@@ -194,7 +223,10 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		}
 	}
 
-	// Simple sort - extract values, sort them, and rebuild args
+	// Sort and deduplicate values, then rebuild args.
+	// Deduplication is needed because sanitizeCopilotShellCommand can truncate
+	// multiple different commands to the same safe prefix (e.g. several jq filters
+	// all become "jq"), producing duplicate --allow-tool shell(jq) entries.
 	if len(args) > 0 {
 		var values []string
 		for i := 1; i < len(args); i += 2 {
@@ -202,10 +234,15 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		}
 		sort.Strings(values)
 
-		// Rebuild args with sorted values
+		// Rebuild args with sorted, deduplicated values
 		newArgs := make([]string, 0, len(args))
+		prev := ""
 		for _, value := range values {
+			if value == prev {
+				continue
+			}
 			newArgs = append(newArgs, "--allow-tool", value)
+			prev = value
 		}
 		args = newArgs
 	}
