@@ -559,6 +559,8 @@ func TestBuildExtractBaseBranchStep(t *testing.T) {
 	assert.Contains(t, stepsContent, "name: Extract base branch from agent output")
 	assert.Contains(t, stepsContent, "id: extract-base-branch")
 	assert.Contains(t, stepsContent, "steps.download-agent-output.outcome == 'success'")
+	assert.Contains(t, stepsContent, "shell: bash", "step must explicitly set shell to bash for Windows runner compatibility")
+	assert.Contains(t, stepsContent, "which node 2>/dev/null || command -v node 2>/dev/null || echo node", "node must be resolved via PATH, not assumed")
 	assert.Contains(t, stepsContent, "/tmp/gh-aw/agent_output.json")
 	assert.Contains(t, stepsContent, "create_pull_request")
 	assert.Contains(t, stepsContent, "push_to_pull_request_branch")
