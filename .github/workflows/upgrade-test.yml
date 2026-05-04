@@ -39,7 +39,7 @@ jobs:
           if [ "${{ github.event_name }}" = "release" ]; then
             TARGET="${{ github.event.release.tag_name }}"
             PREVIOUS=$(gh api "repos/github/gh-aw/releases?per_page=50" \
-              --jq --arg target "$TARGET" '[.[] | select(.draft == false and .tag_name != $target)][0].tag_name')
+              | jq -r --arg target "$TARGET" '[.[] | select(.draft == false and .tag_name != $target)][0].tag_name')
           else
             TARGET=$(gh api "repos/github/gh-aw/releases?per_page=50" \
               --jq '[.[] | select(.draft == false)][0].tag_name')
@@ -249,7 +249,8 @@ jobs:
 
           FAILURES=$(
             gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100" \
-              --jq --arg job_prefix "$UPGRADE_JOB_NAME_PREFIX" '.jobs
+              | jq -r --arg job_prefix "$UPGRADE_JOB_NAME_PREFIX" '
+                .jobs
                 | map(select(.name | startswith($job_prefix)))
                 | map(select(.conclusion != "success"))
                 | map("\(.name): \(.conclusion // "unknown")")
