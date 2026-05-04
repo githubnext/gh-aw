@@ -252,16 +252,7 @@ tools:
   cli-proxy: true
   bash:
     - "cat /tmp/gh-aw/model-inventory/inventory.json"
-    - "jq . /tmp/gh-aw/model-inventory/inventory.json"
-    - "jq . /tmp/gh-aw/model-inventory/artifacts/*/models.json"
-    - "jq . /tmp/gh-aw/model-inventory/artifacts/*/raw.json"
-    - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/openai-models/raw.json"
-    - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/anthropic-models/raw.json"
-    - "jq '[.models[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/gemini-models/raw.json"
-    - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
-    - "jq '[.data[] | .capabilities | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
-    - "jq '[.data[] | select(.billing != null)] | length' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
-    - "jq '.data[] | {id, billing}' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
+    - "jq"
     - "find /tmp/gh-aw/model-inventory -type f"
     - "cat pkg/workflow/model_aliases.go"
     - "cat pkg/cli/data/model_multipliers.json"
