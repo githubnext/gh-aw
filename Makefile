@@ -688,7 +688,7 @@ sync-action-scripts:
 # Recompile all workflow files
 .PHONY: recompile
 recompile: build
-	./$(BINARY_NAME) init --codespaces
+	./$(BINARY_NAME) init --codespaces ""
 	./$(BINARY_NAME) compile --validate --verbose --purge --stats
 #	./$(BINARY_NAME) compile --dir pkg/cli/workflows --validate --verbose --purge
 
