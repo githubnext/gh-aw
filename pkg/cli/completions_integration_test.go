@@ -133,8 +133,9 @@ engine: copilot
 	assert.Contains(t, outputStr, "test-mcp")
 }
 
-// TestCompletionMCPListToolsServerFlagIntegration tests the MCP list-tools --server flag completion
-func TestCompletionMCPListToolsServerFlagIntegration(t *testing.T) {
+// TestCompletionMCPListToolsNoSecondPositionalArgIntegration verifies that mcp list-tools
+// does not offer completions for a second positional argument (only [workflow] is accepted).
+func TestCompletionMCPListToolsNoSecondPositionalArgIntegration(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 

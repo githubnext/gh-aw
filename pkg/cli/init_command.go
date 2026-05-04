@@ -79,7 +79,7 @@ Examples:
 				mcp = mcpFlag
 			}
 
-			// Trim the codespace repos string (NoOptDefVal uses a space)
+			// Trim the codespace repos string (explicit value required; use --codespaces "" for current repo only)
 			codespaceReposStr = strings.TrimSpace(codespaceReposStr)
 
 			// Parse codespace repos from comma-separated string

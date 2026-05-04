@@ -132,7 +132,7 @@ func findWorkflowsWithMCPServer(workflowsDir string, mcpServerName string, verbo
 	// Display matching workflows and suggest using one
 	fmt.Fprintf(os.Stderr, "Found MCP server '%s' in %d workflow(s): %s\n",
 		mcpServerName, len(matchingWorkflows), strings.Join(matchingWorkflows, ", "))
-	fmt.Fprintf(os.Stderr, "\nRun 'gh aw mcp list-tools %s <workflow-name>' to list tools for a specific workflow\n", mcpServerName)
+	fmt.Fprintf(os.Stderr, "\nRun 'gh aw mcp list-tools <workflow-name> --server %s' to list tools for a specific workflow\n", mcpServerName)
 
 	return nil
 }
