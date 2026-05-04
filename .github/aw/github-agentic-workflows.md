@@ -688,7 +688,9 @@ The YAML frontmatter supports these fields:
         required-labels: [automated]      # Optional: only close with any of these labels
         required-title-prefix: "[bot]"    # Optional: only close matching prefix
         max: 20                           # Optional: max closures (default: 1)
+        state-reason: "not_planned"       # Optional: "completed" (default), "not_planned", "duplicate"
         target-repo: "owner/repo"         # Optional: cross-repository
+        allowed-repos: [owner/other]      # Optional: additional repos agent can close issues in
     ```
 
   - `create-discussion:` - Safe GitHub discussion creation (status, audits, reports, logs)
@@ -767,6 +769,10 @@ The YAML frontmatter supports these fields:
         auto-merge: false               # Optional: enable auto-merge when checks pass (default: false)
         base-branch: "vnext"            # Optional: base branch for PR (defaults to workflow's branch)
         preserve-branch-name: true      # Optional: skip random salt suffix on agent-specified branch names (default: false)
+        recreate-ref: false             # Optional: force-recreate existing remote branch when preserve-branch-name is true (default: false)
+        allow-workflows: false          # Optional: add workflows:write permission when allowed-files targets .github/workflows/ paths (default: false; requires github-app)
+        assignees: [user1]              # Optional: assignees for fallback issues on PR creation failure
+        fallback-labels: [needs-review] # Optional: labels for fallback issues (defaults to PR labels)
         fallback-as-issue: false        # Optional: when true (default), creates a fallback issue on PR creation failure; on permission errors, the issue includes a one-click link to create the PR via GitHub's compare URL
         auto-close-issue: false         # Optional: when true (default), adds "Fixes #N" closing keyword when triggered from an issue; set to false to prevent auto-closing the triggering issue on merge. Accepts a boolean or GitHub Actions expression.
         target-repo: "owner/repo"       # Optional: cross-repository
@@ -788,7 +794,9 @@ The YAML frontmatter supports these fields:
 
     **Auto-Expiration**: The `expires` field auto-closes PRs after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Minimum duration: 2 hours. Only for same-repo PRs without target-repo. Generates `agentics-maintenance.yml` workflow.
 
-    **Branch Name Preservation**: Set `preserve-branch-name: true` to skip the random salt suffix on agent-specified branch names. Useful when CI enforces branch naming conventions (e.g., Jira keys in uppercase). Invalid characters are still replaced for security; casing is always preserved.
+    **Branch Name Preservation**: Set `preserve-branch-name: true` to skip the random salt suffix on agent-specified branch names. Useful when CI enforces branch naming conventions (e.g., Jira keys in uppercase). Invalid characters are still replaced for security; casing is always preserved. Set `recreate-ref: true` alongside this to force-recreate an existing remote branch (e.g., when a previous PR was already merged into the branch).
+
+    **Workflow File Changes**: To modify files under `.github/workflows/`, set `allow-workflows: true`. This adds `workflows: write` to the token used for the PR — a permission that requires `safe-outputs.github-app` to be configured, since `GITHUB_TOKEN` cannot hold this permission.
 
     **CI Triggering**: By default, PRs created with `GITHUB_TOKEN` do not trigger CI workflow runs. To trigger CI, set `github-token-for-extra-empty-commit` to a PAT with `Contents: Read & Write` permission, or to `"app"` to use the configured GitHub App. Alternatively, set the magic secret `GH_AW_CI_TRIGGER_TOKEN` to a suitable PAT — this is automatically used without requiring explicit configuration in the workflow.
 
@@ -858,12 +866,14 @@ The YAML frontmatter supports these fields:
       update-pull-request:
         title: true                     # Optional: enable title updates (default: true)
         body: true                      # Optional: enable body updates (default: true)
+        operation: "replace"            # Optional: "replace" (default), "append", "prepend"
+        update-branch: false            # Optional: update PR branch with latest base before updates (default: false)
         max: 1                          # Optional: max updates (default: 1)
         target: "*"                     # Optional: "triggering" (default), "*", or number
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
 
-    Operation types: `append` (default), `prepend`, `replace`.
+    Operation types: `replace` (default), `append`, `prepend`.
   - `merge-pull-request:` - Merge pull requests under configured policy gates (experimental)
 
     ```yaml

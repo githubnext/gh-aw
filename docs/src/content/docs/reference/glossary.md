@@ -329,6 +329,19 @@ engine:
 
 See [Engines Reference](/gh-aw/reference/engines/).
 
+### Experiments (`experiments:`)
+
+A frontmatter section that enables A/B testing of workflow prompt variants across successive runs. Each key in the `experiments:` map names an experiment; the value is either a bare array of variant strings or a rich object with additional fields (`variants`, `description`, `hypothesis`, `metric`, `weight`, `min_samples`, `start_date`, `end_date`). At runtime the activation job selects one variant per experiment using a balanced round-robin counter and exposes the selection as `${{ experiments.<name> }}` for use anywhere in the workflow body.
+
+Experiment state is persisted to dedicated `experiments/<name>` git branches in the workflow repository. Use `gh aw experiments list` and `gh aw experiments analyze` to inspect variant distribution and statistical readiness (chi-square balance test, Bonferroni correction, EXTEND / READY_FOR_ANALYSIS recommendation). See [A/B Experiments](/gh-aw/guides/experiments/) and the [Experiments Specification](/gh-aw/reference/experiments-specification/).
+
+```aw wrap
+experiments:
+  prompt_style: [concise, detailed]
+---
+Summarize this issue in a **${{ experiments.prompt_style }}** way.
+```
+
 ### Feature Flags (`features:`)
 
 A frontmatter section that enables experimental or optional compiler and runtime behaviors as key-value pairs. Feature flags provide controlled access to new capabilities before they become defaults or are fully stabilized. Common flags include `action-mode` (controls how custom action references are compiled), `copilot-requests` (enables GitHub Actions token authentication for Copilot; currently in **private preview** — will not work unless your account has been onboarded), `mcp-gateway` (enables the MCP gateway proxy), `integrity-reactions` (enables reaction-based integrity promotion and demotion), `cli-proxy` (enables CLI proxy mode for integrity enforcement at the network boundary), and `awf-diagnostic-logs` (enables AWF Docker operational diagnostics collection on failure). `byok-copilot` is deprecated because Copilot BYOK behavior is now the default for `engine: copilot`. See [Frontmatter Reference](/gh-aw/reference/frontmatter/#feature-flags-features).
@@ -361,7 +374,7 @@ Controls over external domains and services a workflow can access. Configured vi
 
 ### Observability (`observability.otlp`)
 
-A frontmatter field that enables distributed tracing for workflow runs via OpenTelemetry. Configured under `observability.otlp`, it exports structured spans to any OTLP-compatible backend (such as Honeycomb, Grafana Tempo, or Sentry). Every job emits setup and conclusion spans; cross-job trace correlation is wired automatically using a single trace ID from the activation job. Sensitive values in span attributes are automatically redacted before export. The MCP Gateway also receives OpenTelemetry configuration derived from `observability.otlp`, correlating MCP tool-call traces under the workflow root trace.
+A frontmatter field that enables distributed tracing for workflow runs via OpenTelemetry. Configured under `observability.otlp`, it exports structured spans to any OTLP-compatible backend (such as Honeycomb, Grafana Tempo, or Sentry). Every job emits setup and conclusion spans; cross-job trace correlation is wired automatically using a single trace ID from the activation job. Sensitive values in span attributes are automatically redacted before export. The MCP Gateway also receives OpenTelemetry configuration derived from `observability.otlp`, correlating MCP tool-call traces under the workflow root trace. The `endpoint` field is polymorphic: it accepts a plain URL string, a single `{url, headers}` object, or an array of objects to fan out spans to multiple OTLP collectors simultaneously.
 
 ### Pre-Steps (`jobs.<job-id>.pre-steps`)
 
