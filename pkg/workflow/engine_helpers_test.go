@@ -177,6 +177,11 @@ func TestGetNpmBinPathSetup(t *testing.T) {
 		t.Errorf("PATH setup should reference /home/runner/work/_tool for GPU runner support, got: %s", pathSetup)
 	}
 
+	// Should also search nvm-managed Node.js installations (e.g. on aw-gpu-runner-T4)
+	if !strings.Contains(pathSetup, ".nvm/versions/node") {
+		t.Errorf("PATH setup should reference .nvm/versions/node for nvm-managed Node.js, got: %s", pathSetup)
+	}
+
 	// Should search for bin directories
 	if !strings.Contains(pathSetup, "-name bin") {
 		t.Errorf("PATH setup should search for bin directories, got: %s", pathSetup)

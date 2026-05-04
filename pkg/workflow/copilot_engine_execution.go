@@ -263,7 +263,15 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		}
 		pathSetup := "touch " + AgentStepSummaryPath + "\n" +
 			"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
-			"export GH_AW_NODE_BIN"
+			"export GH_AW_NODE_BIN\n" +
+			// Prepend node's directory to PATH so AWF captures it in AWF_HOST_PATH.
+			// On GPU runners (e.g. aw-gpu-runner-T4), sudo's secure_path drops the
+			// toolcache directory added by actions/setup-node. By exporting the parent
+			// directory of the resolved node binary here (before sudo -E awf runs),
+			// sudo -E preserves the updated PATH and AWF forwards it to the chroot via
+			// AWF_HOST_PATH. This ensures `node` is on PATH inside the AWF container
+			// and satisfies any pre-flight check that the container may perform.
+			`if [ -n "${GH_AW_NODE_BIN}" ]; then export PATH="$(dirname "${GH_AW_NODE_BIN}"):${PATH}"; fi`
 		if customCommandScriptSetup != "" {
 			pathSetup = customCommandScriptSetup + "\n" + pathSetup
 		}

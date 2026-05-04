@@ -224,3 +224,45 @@ func TestChrootModeEnvFlags(t *testing.T) {
 		}
 	})
 }
+
+// TestCopilotNodePathExportedBeforeAWF verifies that the Copilot engine exports node's
+// parent directory to PATH before `sudo -E awf` runs. This ensures AWF captures the
+// node bin dir in AWF_HOST_PATH so it is available inside the AWF chroot container —
+// critical on GPU runners (e.g. aw-gpu-runner-T4) where sudo's secure_path strips the
+// toolcache additions made by actions/setup-node.
+func TestCopilotNodePathExportedBeforeAWF(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		},
+	}
+
+	engine := NewCopilotEngine()
+	steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+	stepContent := requireCopilotExecutionStep(t, steps)
+
+	// GH_AW_NODE_BIN must still be captured for the fallback inside AWF
+	if !strings.Contains(stepContent, "GH_AW_NODE_BIN") {
+		t.Error("GH_AW_NODE_BIN must be captured before AWF runs")
+	}
+
+	// The path setup must export the node bin directory to PATH before sudo -E awf
+	// so AWF_HOST_PATH includes it and `node` is available inside the chroot.
+	if !strings.Contains(stepContent, `export PATH="$(dirname "${GH_AW_NODE_BIN}")`) {
+		t.Error("node's bin directory must be prepended to PATH before sudo -E awf so AWF_HOST_PATH includes it")
+	}
+
+	// The export must appear before the sudo -E awf invocation
+	pathExportIdx := strings.Index(stepContent, `export PATH="$(dirname "${GH_AW_NODE_BIN}")`)
+	awfIdx := strings.Index(stepContent, "sudo -E awf")
+	if pathExportIdx >= awfIdx {
+		t.Errorf("node PATH export must appear before sudo -E awf (pathExportIdx=%d, awfIdx=%d)", pathExportIdx, awfIdx)
+	}
+}
