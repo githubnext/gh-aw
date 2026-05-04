@@ -15,7 +15,7 @@ tools:
   edit:
   bash: ["*"]
   github:
-    mode: remote
+    mode: gh-proxy
     toolsets: [default, discussions]
   cache-memory:
     key: schema-consistency-cache-${{ github.workflow }}
