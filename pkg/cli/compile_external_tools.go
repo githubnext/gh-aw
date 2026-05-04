@@ -64,32 +64,28 @@ func runBatchLockFileTool(toolName string, lockFiles []string, verbose bool, str
 
 	compileExternalToolsLog.Printf("Running batch %s on %d lock files", toolName, len(lockFiles))
 
-	if err := runner(lockFiles, verbose, strict); err != nil {
-		if strict {
-			return fmt.Errorf("%s failed: %w", toolName, err)
-		}
-		// In non-strict mode, errors are warnings
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s warnings: %v", toolName, err)))
-		}
-	}
-
-	return nil
+	return handleBatchToolError(toolName, runner(lockFiles, verbose, strict), strict, verbose)
 }
 
 // runBatchDirectoryTool runs a directory-based batch tool with uniform error handling
 func runBatchDirectoryTool(toolName string, workflowDir string, verbose bool, strict bool, runner func(string, bool, bool) error) error {
 	compileExternalToolsLog.Printf("Running batch %s on directory: %s", toolName, workflowDir)
 
-	if err := runner(workflowDir, verbose, strict); err != nil {
-		if strict {
-			return fmt.Errorf("%s failed: %w", toolName, err)
-		}
-		// In non-strict mode, errors are warnings
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s warnings: %v", toolName, err)))
-		}
-	}
+	return handleBatchToolError(toolName, runner(workflowDir, verbose, strict), strict, verbose)
+}
 
+// handleBatchToolError applies uniform strict/non-strict error handling for batch tool results.
+// In strict mode, errors are returned wrapped. In non-strict mode, errors are logged as warnings.
+func handleBatchToolError(toolName string, err error, strict, verbose bool) error {
+	if err == nil {
+		return nil
+	}
+	if strict {
+		return fmt.Errorf("%s failed: %w", toolName, err)
+	}
+	// In non-strict mode, errors are warnings
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s warnings: %v", toolName, err)))
+	}
 	return nil
 }

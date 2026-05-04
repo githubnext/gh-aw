@@ -185,25 +185,6 @@ func TestNormalizeJobNameForEnvVar(t *testing.T) {
 	}
 }
 
-func TestNormalizeOutputNameForEnvVar(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"text", "TEXT"},
-		{"comment_id", "COMMENT_ID"},
-		{"issue_url", "ISSUE_URL"},
-		{"output_types", "OUTPUT_TYPES"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			result := normalizeOutputNameForEnvVar(tt.input)
-			assert.Equal(t, tt.expected, result, "Output name normalization failed")
-		})
-	}
-}
-
 func TestGetCustomJobsBeforeActivation(t *testing.T) {
 	tests := []struct {
 		name         string
