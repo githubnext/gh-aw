@@ -80,7 +80,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		return nil
 	}
 
-	mcpTools := collectMCPTools(workflowData)
+	mcpTools := collectMCPTools(workflowData, engine.GetID())
 
 	// Populate dispatch-workflow file mappings before generating config
 	// This ensures workflow_files is available in the config.json
@@ -129,7 +129,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	return generateMCPGatewaySetup(yaml, tools, mcpTools, engine, workflowData, hasAgenticWorkflows)
 }
 
-func collectMCPTools(workflowData *WorkflowData) []string {
+func collectMCPTools(workflowData *WorkflowData, engineID string) []string {
 	var mcpTools []string
 	for toolName, toolValue := range workflowData.Tools {
 		if toolValue == false {
@@ -159,6 +159,14 @@ func collectMCPTools(workflowData *WorkflowData) []string {
 	}
 	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		mcpTools = append(mcpTools, "mcp-scripts")
+	}
+	// web-fetch is exposed as a containerised MCP server only for Codex; other engines provide it
+	// as a native built-in tool (Claude: WebFetch, Gemini: web_fetch, Copilot: built-in).
+	if engineID == string(constants.CodexEngine) &&
+		workflowData.ParsedTools != nil &&
+		workflowData.ParsedTools.WebFetch != nil {
+		mcpTools = append(mcpTools, constants.WebFetchMCPServerID.String())
+		mcpSetupGeneratorLog.Print("Adding web-fetch MCP server for Codex engine")
 	}
 	return mcpTools
 }

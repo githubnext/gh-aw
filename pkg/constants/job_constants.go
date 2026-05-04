@@ -176,6 +176,9 @@ const MCPScriptsMCPVersion = "1.0.0"
 // AgenticWorkflowsMCPServerID is the identifier for the agentic-workflows MCP server
 const AgenticWorkflowsMCPServerID MCPServerID = "agenticworkflows"
 
+// WebFetchMCPServerID is the identifier for the web-fetch MCP server used by Codex
+const WebFetchMCPServerID MCPServerID = "web-fetch"
+
 // Step IDs for pre-activation job
 const CheckMembershipStepID StepID = "check_membership"
 const CheckStopTimeStepID StepID = "check_stop_time"

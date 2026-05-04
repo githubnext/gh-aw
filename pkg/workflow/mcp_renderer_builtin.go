@@ -234,3 +234,64 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 
 	yaml.WriteString("          env_vars = [\"DEBUG\", \"GH_TOKEN\", \"GITHUB_TOKEN\", \"GITHUB_ACTOR\", \"GITHUB_REPOSITORY\"]\n")
 }
+
+// RenderWebFetchMCP generates the web-fetch MCP server configuration.
+// This is only used by the Codex engine, which does not have a native web-fetch built-in.
+// Other engines (Claude, Copilot, Gemini) expose web-fetch as a native tool and do not
+// need this MCP server.
+func (r *MCPConfigRendererUnified) RenderWebFetchMCP(yaml *strings.Builder) {
+	mcpRendererBuiltinLog.Printf("Rendering web-fetch MCP: format=%s", r.options.Format)
+
+	if r.options.Format == "toml" {
+		r.renderWebFetchTOML(yaml)
+		return
+	}
+
+	// JSON format
+	renderWebFetchMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields)
+}
+
+// renderWebFetchTOML generates the web-fetch MCP server configuration in TOML format for Codex.
+// The server runs as a containerised stdio process using the bundled web_fetch_server.cjs script.
+func (r *MCPConfigRendererUnified) renderWebFetchTOML(yaml *strings.Builder) {
+	mcpRendererBuiltinLog.Print("Rendering web-fetch MCP in TOML format")
+
+	serverScript := SetupActionDestinationShell + "/web_fetch_server.cjs"
+
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers." + constants.WebFetchMCPServerID.String() + "]\n")
+	yaml.WriteString("          container = \"" + constants.DefaultNodeAlpineLTSImage + "\"\n")
+	yaml.WriteString("          entrypoint = \"node\"\n")
+	yaml.WriteString("          entrypointArgs = [\"" + serverScript + "\"]\n")
+	// Mount the gh-aw actions directory so the container can access web_fetch_server.cjs.
+	// --network host: allows the container to fetch URLs through the runner's network stack.
+	yaml.WriteString("          mounts = [\"" + constants.DefaultGhAwMount + "\"]\n")
+	yaml.WriteString("          args = [\"--init\", \"--network\", \"host\"]\n")
+}
+
+// renderWebFetchMCPConfigWithOptions generates the web-fetch MCP server configuration in JSON format.
+// Used in the MCP gateway config (mcp-servers.json) for Codex.
+func renderWebFetchMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
+	serverScript := SetupActionDestinationShell + "/web_fetch_server.cjs"
+
+	yaml.WriteString("              \"" + constants.WebFetchMCPServerID.String() + "\": {\n")
+
+	if includeCopilotFields {
+		yaml.WriteString("                \"type\": \"stdio\",\n")
+	}
+
+	yaml.WriteString("                \"container\": \"" + constants.DefaultNodeAlpineLTSImage + "\",\n")
+	yaml.WriteString("                \"entrypoint\": \"node\",\n")
+	yaml.WriteString("                \"entrypointArgs\": [\"" + serverScript + "\"],\n")
+	// Mount the gh-aw directory so the container can read web_fetch_server.cjs and its
+	// required modules (mcp_server_core.cjs, read_buffer.cjs, etc.).
+	yaml.WriteString("                \"mounts\": [\"" + constants.DefaultGhAwMount + "\"],\n")
+	// --network host allows the container to reach external URLs through the runner network.
+	yaml.WriteString("                \"args\": [\"--init\", \"--network\", \"host\"]\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}

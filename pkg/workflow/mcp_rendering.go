@@ -168,6 +168,9 @@ func buildStandardJSONMCPRenderers(
 		RenderMCPScripts: func(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, isLast bool) {
 			createRenderer(isLast).RenderMCPScriptsMCP(yaml, mcpScripts, workflowData)
 		},
+		RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
+			createRenderer(isLast).RenderWebFetchMCP(yaml)
+		},
 		RenderCustomMCPConfig: renderCustom,
 	}
 }

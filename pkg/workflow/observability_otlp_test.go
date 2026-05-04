@@ -795,7 +795,6 @@ func TestInjectOTLPConfig_MapHeaders(t *testing.T) {
 	})
 }
 
-
 // correctly parsed by ParseFrontmatterConfig.
 func TestObservabilityConfigParsing_MapHeaders(t *testing.T) {
 	t.Run("map headers parsed as any type", func(t *testing.T) {

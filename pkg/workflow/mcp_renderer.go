@@ -154,6 +154,10 @@ func RenderJSONMCPConfig(
 			if options.Renderers.RenderMCPScripts != nil {
 				options.Renderers.RenderMCPScripts(&configBuilder, workflowData.MCPScripts, isLast)
 			}
+		case "web-fetch":
+			if options.Renderers.RenderWebFetch != nil {
+				options.Renderers.RenderWebFetch(&configBuilder, isLast)
+			}
 		default:
 			// Handle custom MCP tools using shared helper
 			HandleCustomMCPToolInSwitch(&configBuilder, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig)
