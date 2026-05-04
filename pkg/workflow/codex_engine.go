@@ -219,9 +219,9 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	}
 
 	// Build the Codex command.
-	// When a harness is present, the prompt is delivered via --prompt-file (read by the
-	// harness and appended as the last positional arg to codex exec).
-	// Without a harness, the prompt is read via shell expansion of $INSTRUCTION.
+	// The default harness (codex_harness.cjs) wraps execution with retry logic and reads the
+	// prompt via --prompt-file.  The else branch is retained as a fallback in case the harness
+	// is explicitly disabled in the future (e.g. engine.harness overrides that clear the name).
 	var codexCommand string
 	if harnessScriptName != "" {
 		// Harness-wrapped execution: the harness reads --prompt-file and passes its content
