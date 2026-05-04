@@ -47,20 +47,23 @@ function extractProviderFromModel(model) {
  * Resolve the expected LLM gateway base URL for a given provider prefix.
  * Returns null when the provider is not one of the well-known AWF sidecar providers.
  *
+ * Uses the "api-proxy" Docker service hostname so the URL reflects the actual
+ * address used by Pi's models.json routing within the AWF Docker network.
+ *
  * @param {string} provider - Lowercase provider prefix (e.g. "copilot", "anthropic").
  * @returns {string|null}
  */
 function resolveGatewayUrl(provider) {
   const GATEWAY_PORTS = /** @type {Record<string, number>} */ {
     copilot: 10002,
-    anthropic: 10000,
-    openai: 10001,
-    codex: 10001,
+    anthropic: 10001,
+    openai: 10000,
+    codex: 10000,
     google: 10003,
   };
   const port = GATEWAY_PORTS[provider];
   if (!port) return null;
-  return `http://host.docker.internal:${port}`;
+  return `http://api-proxy:${port}`;
 }
 
 /**

@@ -88,6 +88,7 @@ env:
   OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
   OTEL_SERVICE_NAME: gh-aw
   OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.GH_AW_OTEL_HEADERS }}
+  GH_AW_OTLP_ENDPOINTS: [{"url":"${{ secrets.GH_AW_OTEL_ENDPOINT }}","headers":"${{ secrets.GH_AW_OTEL_HEADERS }}"}]
 
 jobs:
   activation:

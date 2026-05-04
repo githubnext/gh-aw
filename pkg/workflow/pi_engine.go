@@ -112,12 +112,17 @@ func piNativeProviderName(backend UniversalLLMBackend) string {
 // "COPILOT_GITHUB_TOKEN") causes Pi to automatically use the value that is
 // already present in the container environment.
 //
+// The baseUrl uses the "api-proxy" Docker service hostname (not host.docker.internal)
+// so that Pi can reach the sidecar container within the AWF Docker network.
+// host.docker.internal points to the Docker host (runner), not the api-proxy
+// container, and is only available when --enable-host-access is set.
+//
 // All dynamic values are marshaled via encoding/json to prevent JSON injection.
 func buildPiModelsJSON(gatewayPort int, secretEnvVarName, modelID string) string {
 	payload := map[string]any{
 		"providers": map[string]any{
 			"aw-gateway": map[string]any{
-				"baseUrl": fmt.Sprintf("http://host.docker.internal:%d", gatewayPort),
+				"baseUrl": fmt.Sprintf("http://api-proxy:%d", gatewayPort),
 				"api":     "openai-completions",
 				"apiKey":  secretEnvVarName,
 				"models":  []map[string]any{{"id": modelID}},
