@@ -234,6 +234,100 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  collect_copilot_billing_multipliers:
+    runs-on: ubuntu-latest
+    needs: [activation]
+    permissions:
+      contents: read
+    steps:
+      - name: Fetch Copilot billing multipliers
+        id: fetch
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="/tmp/gh-aw/model-inventory/copilot-billing"
+          mkdir -p "$OUT"
+          python3 - <<'PYEOF'
+          import json, sys, urllib.request, html.parser
+
+          # NOTE: If GitHub's documentation URL structure changes, this URL must be updated manually.
+          URL = "https://docs.github.com/en/copilot/reference/copilot-billing/model-multipliers-for-annual-plans"
+
+          class TableParser(html.parser.HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.in_table = False
+                  self.headers = []
+                  self.rows = []
+                  self.current_row = []
+                  self.current_cell = None
+                  self.cell_text = []
+
+              def handle_starttag(self, tag, attrs):
+                  if tag == "table":
+                      self.in_table = True
+                  elif self.in_table and tag in ("th", "td"):
+                      self.current_cell = tag
+                      self.cell_text = []
+                  elif self.in_table and tag == "tr":
+                      self.current_row = []
+
+              def handle_endtag(self, tag):
+                  if tag == "table":
+                      self.in_table = False
+                  elif self.in_table and tag in ("th", "td"):
+                      text = "".join(self.cell_text).strip()
+                      if self.current_cell == "th":
+                          self.headers.append(text)
+                      else:
+                          self.current_row.append(text)
+                      self.current_cell = None
+                  elif self.in_table and tag == "tr":
+                      if self.current_row:
+                          self.rows.append(self.current_row)
+
+              def handle_data(self, data):
+                  if self.current_cell is not None:
+                      self.cell_text.append(data)
+
+          req = urllib.request.Request(URL, headers={"User-Agent": "Mozilla/5.0"})
+          try:
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  html_content = resp.read().decode("utf-8", errors="replace")
+          except Exception as e:
+              result = {"source": URL, "error": str(e), "headers": [], "models": []}
+              with open("/tmp/gh-aw/model-inventory/copilot-billing/multipliers.json", "w") as f:
+                  json.dump(result, f, indent=2)
+              print(f"Error fetching page: {e}", file=sys.stderr)
+              sys.exit(0)
+
+          parser = TableParser()
+          parser.feed(html_content)
+
+          models = []
+          if parser.headers and parser.rows:
+              for row in parser.rows:
+                  if len(row) == len(parser.headers):
+                      entry = {parser.headers[i]: row[i] for i in range(len(parser.headers))}
+                      models.append(entry)
+
+          result = {"source": URL, "headers": parser.headers, "models": models}
+          out_path = "/tmp/gh-aw/model-inventory/copilot-billing/multipliers.json"
+          with open(out_path, "w") as f:
+              json.dump(result, f, indent=2)
+          print(f"Extracted {len(models)} model multiplier entries", file=sys.stderr)
+          PYEOF
+          echo "status=ok" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Copilot billing multipliers artifact
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: copilot-billing-multipliers
+          path: /tmp/gh-aw/model-inventory/copilot-billing/multipliers.json
+          if-no-files-found: error
+          retention-days: 7
+
 steps:
   - name: Download all model artifacts
     uses: actions/download-artifact@v8.0.1
@@ -250,6 +344,8 @@ steps:
 
 tools:
   cli-proxy: true
+  playwright:
+    mode: cli
   bash:
     - "cat /tmp/gh-aw/model-inventory/inventory.json"
     - "jq . /tmp/gh-aw/model-inventory/inventory.json"
@@ -262,6 +358,9 @@ tools:
     - "jq '[.data[] | .capabilities | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
     - "jq '[.data[] | select(.billing != null)] | length' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
     - "jq '.data[] | {id, billing}' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
+    - "cat /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
+    - "jq . /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
+    - "jq '.models[]' /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
     - "find /tmp/gh-aw/model-inventory -type f"
     - "cat pkg/workflow/model_aliases.go"
     - "cat pkg/cli/data/model_multipliers.json"
@@ -368,11 +467,25 @@ inventories.
 
 Read the current built-in multiplier table from `pkg/cli/data/model_multipliers.json`.
 
+The pre-job step has also fetched the **official GitHub Copilot billing multipliers** from the
+documentation page and stored them as:
+
+- `/tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json`
+
+This file contains the authoritative ET multipliers per model extracted from
+`https://docs.github.com/en/copilot/reference/copilot-billing/model-multipliers-for-annual-plans`,
+with columns `Model`, `Current multiplier`, and `New multiplier`.
+
+**Use the docs table as the primary (authoritative) source of ET multipliers.** Prefer the
+**New multiplier** column for upcoming billing schedule comparisons. If the docs table fetch
+failed or returned an empty model list, fall back to the heuristics below.
+
 For each provider's enriched data, attempt to infer or validate the ET multiplier for each model:
 
-1. **Copilot API** — if `billing.multiplier` (or a similar field) is present in the raw response,
-   use it directly. Compare against the matching entry in `model_multipliers.json`. List any
-   discrepancies or missing models.
+1. **Copilot API** — match model names/IDs against the official docs table first. If a match is
+   found, use the `New multiplier` as the authoritative value. Also check `billing.multiplier`
+   (or a similar field) in the raw Copilot API response as a secondary source. Compare both
+   against the matching entry in `model_multipliers.json`. List any discrepancies or missing models.
 
 2. **Gemini API** — use `inputTokenLimit` / `outputTokenLimit` as an approximate proxy for model
    complexity (this is an inference heuristic, not a definitive billing mapping).

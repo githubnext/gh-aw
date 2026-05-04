@@ -105,22 +105,37 @@ func TestCompletionMCPListToolsIntegration(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
-	// Test completion for mcp list-tools first argument (common server names)
+	// Create a test workflow file so there's something to complete
+	workflowPath := filepath.Join(setup.workflowsDir, "test-mcp.md")
+	content := `---
+name: Test MCP Workflow
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Test MCP Workflow
+`
+	if err := os.WriteFile(workflowPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	// Test completion for mcp list-tools first argument (workflow names)
 	cmd := exec.Command(setup.binaryPath, "__complete", "mcp", "list-tools", "")
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "CLI __complete command for mcp list-tools failed: %s", string(output))
 
 	outputStr := string(output)
 
-	// Should contain common MCP server names
-	assert.Contains(t, outputStr, "github")
-	assert.Contains(t, outputStr, "playwright")
-	assert.Contains(t, outputStr, "tavily")
-	assert.Contains(t, outputStr, "safe-outputs")
+	// Should contain workflow name (without .md extension)
+	assert.Contains(t, outputStr, "test-mcp")
 }
 
-// TestCompletionMCPListToolsWorkflowIntegration tests the MCP list-tools second argument completion
-func TestCompletionMCPListToolsWorkflowIntegration(t *testing.T) {
+// TestCompletionMCPListToolsNoSecondPositionalArgIntegration verifies that mcp list-tools
+// does not offer completions for a second positional argument (only [workflow] is accepted).
+func TestCompletionMCPListToolsNoSecondPositionalArgIntegration(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
@@ -141,15 +156,16 @@ engine: copilot
 		t.Fatalf("Failed to write test workflow file: %v", err)
 	}
 
-	// Test completion for mcp list-tools second argument (workflow names after server name)
-	cmd := exec.Command(setup.binaryPath, "__complete", "mcp", "list-tools", "github", "")
+	// Test completion for mcp list-tools with workflow argument (only 1 positional arg allowed now)
+	cmd := exec.Command(setup.binaryPath, "__complete", "mcp", "list-tools", "test-mcp", "")
 	output, err := cmd.CombinedOutput()
+	// With only 1 positional arg allowed, second arg should show no completions
 	require.NoError(t, err, "CLI __complete command for mcp list-tools workflow failed: %s", string(output))
 
 	outputStr := string(output)
 
-	// Should contain workflow name (without .md extension)
-	assert.Contains(t, outputStr, "test-mcp")
+	// Should not contain workflow name (second positional arg not accepted)
+	assert.NotContains(t, outputStr, "test-mcp")
 }
 
 // TestCompletionMCPInspectIntegration tests the MCP inspect completion via the CLI binary

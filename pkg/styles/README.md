@@ -6,6 +6,17 @@ The `styles` package provides centralized color constants, adaptive color variab
 
 All colors use `compat.AdaptiveColor` to automatically choose between light and dark variants based on the terminal's background. The dark palette is inspired by the [Dracula theme](https://draculatheme.com/); the light palette uses darker, more saturated colors for good contrast on light backgrounds.
 
+## Public API
+
+The `styles` package exports the following:
+
+| Category | Exports |
+|----------|---------|
+| Adaptive colors | `ColorError`, `ColorWarning`, `ColorSuccess`, `ColorInfo`, `ColorPurple`, `ColorYellow`, `ColorComment`, `ColorForeground`, `ColorBackground`, `ColorBorder`, `ColorTableAltRow` |
+| Border styles | `RoundedBorder`, `NormalBorder`, `ThickBorder` |
+| Pre-configured `lipgloss.Style` | `Error`, `Warning`, `Success`, `Info`, `FilePath`, `LineNumber`, `Command`, `Progress`, `Prompt`, `Count`, `Verbose`, `Header`, `TableHeader`, `TableCell`, `TableTitle`, `TableBorder`, `ErrorBox`, `ServerName`, `ServerType`, `TreeEnumerator`, `TreeNode` |
+| Huh theme | `HuhTheme` — `huh.ThemeFunc` for Dracula-inspired interactive forms |
+
 ## Adaptive Color Variables
 
 These variables provide `compat.AdaptiveColor` values that auto-select the correct shade at render time:
@@ -66,7 +77,7 @@ These `lipgloss.Style` values are ready to use directly:
 | `TreeEnumerator` | Border color | Tree branch characters |
 | `TreeNode` | Foreground | Tree node text |
 
-## Usage
+## Usage Examples
 
 ```go
 import "github.com/github/gh-aw/pkg/styles"

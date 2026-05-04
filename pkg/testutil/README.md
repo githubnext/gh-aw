@@ -10,7 +10,7 @@ This package is imported only in test files (`_test.go`). It provides:
 - Helpers for capturing `os.Stderr` output during tests.
 - A helper for stripping YAML comment headers from compiled workflow output.
 
-## Functions
+## Public API
 
 ### `GetTestRunDir() string`
 
@@ -53,6 +53,24 @@ Removes the leading comment block from a generated YAML file and returns only th
 raw, _ := os.ReadFile("workflow.lock.yml")
 yaml := testutil.StripYAMLCommentHeader(string(raw))
 assert.Contains(t, yaml, "runs-on: ubuntu-latest")
+```
+
+## Usage Examples
+
+```go
+import "github.com/github/gh-aw/pkg/testutil"
+
+func TestMyFunction(t *testing.T) {
+    // Create an isolated temp directory for test artifacts
+    dir := testutil.TempDir(t, "my-test-*")
+    // dir is cleaned up automatically when the test ends
+
+    // Capture output written to os.Stderr
+    output := testutil.CaptureStderr(t, func() {
+        myFunction() // function that writes to os.Stderr
+    })
+    assert.Contains(t, output, "expected message")
+}
 ```
 
 ## Design Notes

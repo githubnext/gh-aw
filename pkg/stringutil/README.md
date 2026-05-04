@@ -2,7 +2,9 @@
 
 The `stringutil` package provides utility functions for working with strings. It is organized into focused sub-files covering ANSI stripping, identifier normalization, sanitization, URL utilities, and PAT (Personal Access Token) validation.
 
-## Overview
+## Public API
+
+The `stringutil` package is organized into focused sub-files:
 
 | Sub-file | Functions |
 |----------|-----------|
@@ -176,6 +178,43 @@ if err := stringutil.ValidateCopilotPAT(token); err != nil {
 ### `GetPATTypeDescription(token string) string`
 
 Returns a human-readable description of the token type (e.g. `"fine-grained personal access token"`).
+
+## Usage Examples
+
+```go
+import "github.com/github/gh-aw/pkg/stringutil"
+
+// Truncate a long string for display
+stringutil.Truncate("hello world", 8) // "hello..."
+
+// Strip ANSI color codes from terminal output
+plain := stringutil.StripANSI("\x1b[32mSuccess\x1b[0m") // "Success"
+
+// Normalize workflow names
+stringutil.NormalizeWorkflowName("weekly-research.md")       // "weekly-research"
+stringutil.NormalizeWorkflowName("weekly-research.lock.yml") // "weekly-research"
+
+// Convert markdown path to lock file and back
+stringutil.MarkdownToLockFile(".github/workflows/test.md")       // ".github/workflows/test.lock.yml"
+stringutil.LockFileToMarkdown(".github/workflows/test.lock.yml") // ".github/workflows/test.md"
+
+// Redact secrets from error messages
+stringutil.SanitizeErrorMessage("Error: MY_SECRET_TOKEN is invalid")
+// → "Error: [REDACTED] is invalid"
+
+// Normalize a GitHub host URL
+stringutil.NormalizeGitHubHostURL("github.example.com") // "https://github.example.com"
+
+// Validate a Copilot PAT
+if err := stringutil.ValidateCopilotPAT(token); err != nil {
+    fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+}
+```
+
+## Dependencies
+
+**Internal**:
+- `pkg/logger` — debug logging
 
 ## Design Notes
 

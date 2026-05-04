@@ -103,7 +103,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --after -1w                # Delete cached run folders older than 1 week
   ` + string(constants.CLIExtensionPrefix) + ` logs --after -30d               # Delete cached run folders older than 30 days
   ` + string(constants.CLIExtensionPrefix) + ` logs --after -1mo               # Delete cached run folders older than 1 month
-  ` + string(constants.CLIExtensionPrefix) + ` logs --after 2024-01-01         # Delete cached run folders from before 2024-01-01`,
+  ` + string(constants.CLIExtensionPrefix) + ` logs --after 2024-01-01         # Delete cached run folders older than 2024-01-01`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logsCommandLog.Printf("Starting logs command: args=%d", len(args))
 

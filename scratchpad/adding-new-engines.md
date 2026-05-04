@@ -131,6 +131,7 @@ type MyEngine struct {
 - [ ] Set engine ID, display name, description, and experimental status
 - [ ] Configure capability flags (tools allowlist, max turns, web fetch/search, firewall, plugins, LLM gateway)
 - [ ] Add engine constant to `pkg/constants/constants.go` (optional but recommended)
+- [ ] Register default firewall domains in `pkg/workflow/domains.go` (see [Firewall Domain Registration](#firewall-domain-registration))
 
 ### Phase 2: Installation & Execution
 
@@ -757,6 +758,46 @@ step := GenerateMultiSecretValidationStep(
     "https://docs.url",
 )
 ```
+
+### Firewall Domain Registration
+
+Engines that support the firewall (`SupportsFirewall() bool`) must declare their default allowed domains in `pkg/workflow/domains.go`. The `engineDefaultDomains` map provides the centralized registry:
+
+```go
+// In pkg/workflow/domains.go
+
+// MyEngineDefaultDomains are the default domains required for My AI Engine operation
+var MyEngineDefaultDomains = []string{
+    "api.my-engine.com",
+    "github.com",
+    "host.docker.internal",
+    "raw.githubusercontent.com",
+    "registry.npmjs.org",
+}
+
+// Add to the engineDefaultDomains map
+var engineDefaultDomains = map[constants.EngineName][]string{
+    constants.CopilotEngine:  CopilotDefaultDomains,
+    constants.ClaudeEngine:   ClaudeDefaultDomains,
+    constants.CodexEngine:    CodexDefaultDomains,
+    constants.GeminiEngine:   GeminiDefaultDomains,
+    constants.MyEngine:       MyEngineDefaultDomains, // Add your engine here
+}
+```
+
+For engines with **model/provider-specific** domain requirements (where the API domain depends on the selected model's provider prefix, e.g., `openai/gpt-4.1`), implement a `getMyEngineDefaultDomains(model string) ([]string, error)` function instead and handle it in `GetDefaultDomainsForEngine()`:
+
+```go
+func GetDefaultDomainsForEngine(engine constants.EngineName, model string) ([]string, error) {
+    // ... existing cases ...
+    if engine == constants.MyEngine {
+        return getMyEngineDefaultDomains(model)
+    }
+    return engineDefaultDomains[engine], nil
+}
+```
+
+These domains are automatically merged with user-configured `network.allowed` entries via `GetAllowedDomainsForEngine()`.
 
 ### Firewall Integration
 

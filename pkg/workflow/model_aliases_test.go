@@ -53,56 +53,6 @@ func TestBuiltinModelAliases(t *testing.T) {
 	assert.NotEqual(t, aliases["sonnet"], aliases2["sonnet"], "BuiltinModelAliases should return a fresh copy each time")
 }
 
-// TestMergeModelAliases verifies that frontmatter-defined aliases are merged on top
-// of the builtins.
-func TestMergeModelAliases(t *testing.T) {
-	t.Run("nil frontmatter returns all builtins", func(t *testing.T) {
-		merged := MergeModelAliases(nil)
-		builtins := BuiltinModelAliases()
-		assert.Len(t, merged, len(builtins), "nil frontmatter should return exactly the builtins")
-		for k, v := range builtins {
-			assert.Equal(t, v, merged[k], "builtin alias %q should be present unchanged", k)
-		}
-	})
-
-	t.Run("empty frontmatter returns all builtins", func(t *testing.T) {
-		merged := MergeModelAliases(map[string][]string{})
-		builtins := BuiltinModelAliases()
-		assert.Len(t, merged, len(builtins), "empty frontmatter should return exactly the builtins")
-	})
-
-	t.Run("frontmatter override replaces builtin entry", func(t *testing.T) {
-		custom := map[string][]string{
-			"sonnet": {"myvendor/sonnet-custom"},
-		}
-		merged := MergeModelAliases(custom)
-		assert.Equal(t, []string{"myvendor/sonnet-custom"}, merged["sonnet"],
-			"frontmatter override should replace the builtin sonnet alias")
-		// Other builtins should be unaffected.
-		assert.NotEmpty(t, merged["haiku"], "haiku builtin should still be present")
-	})
-
-	t.Run("frontmatter adds new alias", func(t *testing.T) {
-		custom := map[string][]string{
-			"my-alias": {"copilot/my-model"},
-		}
-		merged := MergeModelAliases(custom)
-		assert.Equal(t, []string{"copilot/my-model"}, merged["my-alias"],
-			"new frontmatter alias should be present in merged map")
-		// Builtins should still be present.
-		assert.NotEmpty(t, merged["sonnet"], "sonnet builtin should still be present")
-	})
-
-	t.Run("default policy key is supported", func(t *testing.T) {
-		custom := map[string][]string{
-			"": {"sonnet", "gpt-5-codex"},
-		}
-		merged := MergeModelAliases(custom)
-		assert.Equal(t, []string{"sonnet", "gpt-5-codex"}, merged[""],
-			"default policy (empty key) should be stored and returned")
-	})
-}
-
 // TestBuildAWFConfigJSON_ModelsSection verifies model alias behaviour in BuildAWFConfigJSON.
 //
 // NOTE: The "models" field is intentionally excluded from the AWF config JSON until the
@@ -120,7 +70,7 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{Enabled: true},
 				},
-				ModelMappings: MergeModelAliases(nil),
+				ModelMappings: MergeImportedModelAliases(nil, nil),
 			},
 		}
 
@@ -153,7 +103,7 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{Enabled: true},
 				},
-				ModelMappings: MergeModelAliases(custom),
+				ModelMappings: MergeImportedModelAliases(nil, custom),
 			},
 		}
 

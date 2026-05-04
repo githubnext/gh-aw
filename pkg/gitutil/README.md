@@ -11,7 +11,7 @@ This package contains helpers for:
 - Finding the root directory of the current Git repository.
 - Reading file contents from the `HEAD` commit.
 
-## Functions
+## Public API
 
 ### Error Classification
 
@@ -87,6 +87,36 @@ Reads a file's content from the `HEAD` commit without touching the working tree.
 root, _ := gitutil.FindGitRoot()
 content, err := gitutil.ReadFileFromHEADWithRoot("pkg/workflow/compiler.go", root)
 ```
+
+## Usage Examples
+
+```go
+import "github.com/github/gh-aw/pkg/gitutil"
+
+// Check for rate-limit errors from GitHub API
+if gitutil.IsRateLimitError(err.Error()) {
+    // Back off and retry
+}
+
+// Validate a commit SHA
+if gitutil.IsValidFullSHA(commitSHA) {
+    fmt.Println("Valid 40-character commit SHA")
+}
+
+// Find the git repository root
+root, err := gitutil.FindGitRoot()
+if err != nil {
+    return fmt.Errorf("not in a git repository: %w", err)
+}
+
+// Read a file from the HEAD commit
+content, err := gitutil.ReadFileFromHEADWithRoot("go.mod", root)
+```
+
+## Dependencies
+
+**Internal**:
+- `pkg/logger` — debug logging
 
 ## Design Notes
 

@@ -6,7 +6,7 @@ The `fileutil` package provides utility functions for safe file path validation 
 
 This package focuses on security-conscious file handling: path validation, boundary enforcement, and straightforward file/directory operations. It also provides a cross-platform tar extraction helper.
 
-## Functions
+## Public API
 
 ### Path Validation
 
@@ -82,6 +82,33 @@ if err != nil {
     return fmt.Errorf("binary not found in release archive: %w", err)
 }
 ```
+
+## Usage Examples
+
+```go
+import "github.com/github/gh-aw/pkg/fileutil"
+
+// Validate and clean a user-supplied path
+cleanPath, err := fileutil.ValidateAbsolutePath(userInput)
+if err != nil {
+    return fmt.Errorf("invalid path: %w", err)
+}
+
+// Ensure output path stays within workspace
+if err := fileutil.MustBeWithin("/workspace", outputPath); err != nil {
+    return fmt.Errorf("output path escapes workspace: %w", err)
+}
+
+// Copy a file
+if err := fileutil.CopyFile("source.txt", "destination.txt"); err != nil {
+    return fmt.Errorf("copy failed: %w", err)
+}
+```
+
+## Dependencies
+
+**Internal**:
+- `pkg/logger` — debug logging
 
 ## Design Notes
 

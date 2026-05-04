@@ -325,43 +325,6 @@ func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 	return workflowFiles, nil
 }
 
-// fastParseTitle scans markdown content for the first H1 header, skipping an
-// optional frontmatter block, without performing a full YAML parse.
-//
-// Frontmatter is recognised only when "---" appears on the very first line
-// (matching the behaviour of ExtractFrontmatterFromContent). Returns the H1
-// title text, or ("", nil) when no H1 header is present. Returns an error if
-// frontmatter is opened but never closed.
-func fastParseTitle(content string) (string, error) {
-	firstLine := true
-	inFrontmatter := false
-	for line := range strings.SplitSeq(content, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if firstLine {
-			firstLine = false
-			if trimmed == "---" {
-				inFrontmatter = true
-				continue
-			}
-		} else if inFrontmatter {
-			if trimmed == "---" {
-				inFrontmatter = false
-			}
-			continue
-		}
-		if strings.HasPrefix(trimmed, "# ") {
-			return strings.TrimSpace(trimmed[2:]), nil
-		}
-	}
-
-	// Unclosed frontmatter is an error (consistent with ExtractFrontmatterFromContent).
-	if inFrontmatter {
-		return "", errors.New("frontmatter not properly closed")
-	}
-
-	return "", nil
-}
-
 // fastParseTitleFromReader scans lines from r for the first H1 header, skipping
 // an optional frontmatter block, without reading the entire file into memory.
 // This is more efficient than fastParseTitle for file-based callers because it

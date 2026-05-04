@@ -10,7 +10,9 @@ In GitHub Agentic Workflows, `agentdrain` processes `AgentEvent` records emitted
 1. Build a model of normal behavior by training on events from successful runs.
 2. Detect anomalies in new runs by comparing events against the learned model.
 
-## Types
+## Public API
+
+### Types
 
 ### `Config`
 
@@ -95,7 +97,7 @@ type AnomalyReport struct {
 }
 ```
 
-## Core Components
+### Core Components
 
 ### `Miner`
 
@@ -209,6 +211,45 @@ type SnapshotCluster struct {
 ```
 
 These types are returned and consumed by `SaveSnapshots` / `LoadSnapshots` and are serialized as JSON.
+
+## Usage Examples
+
+```go
+import "github.com/github/gh-aw/pkg/agentdrain"
+
+// Create a coordinator with default config
+cfg := agentdrain.DefaultConfig()
+stages := []string{"plan", "tool_call", "finish"}
+coord, err := agentdrain.NewCoordinator(cfg, stages)
+if err != nil {
+    panic(err)
+}
+
+// Load pre-trained weights
+if err := coord.LoadDefaultWeights(); err != nil {
+    panic(err)
+}
+
+// Analyze an incoming agent event
+evt := agentdrain.AgentEvent{
+    Stage:  "tool_call",
+    Fields: map[string]string{"tool": "read_file", "path": "/workspace/main.go"},
+}
+result, report, err := coord.AnalyzeEvent(evt)
+if err != nil {
+    panic(err)
+}
+if report.IsNewTemplate {
+    fmt.Printf("New behavior pattern detected (score=%.2f): %s\n",
+        report.AnomalyScore, report.Reason)
+}
+```
+
+## Dependencies
+
+**Internal**:
+- `pkg/logger` — debug logging
+- `pkg/sliceutil` — slice utilities for cluster management
 
 ## Default Weights
 

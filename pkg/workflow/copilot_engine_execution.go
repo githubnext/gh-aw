@@ -222,7 +222,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// to avoid re-running the expensive map+sort operation.
 			allowedDomains = workflowData.CachedAllowedDomainsStr
 		} else {
-			allowedDomains = GetCopilotAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+			allowedDomains = GetAllowedDomainsForEngine(constants.CopilotEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 		}
 		// Add Copilot API target domains to the firewall allow-list.
 		// Resolved from engine.api-target or GITHUB_COPILOT_BASE_URL in engine.env.

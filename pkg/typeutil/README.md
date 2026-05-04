@@ -6,7 +6,7 @@ The `typeutil` package provides general-purpose type conversion utilities for wo
 
 JSON and YAML parsers produce `any` values whose concrete type varies at runtime (`int`, `float64`, `string`, etc.). This package provides safe, well-documented conversion functions that handle the common cases without requiring callers to write their own type switches.
 
-## Functions
+## Public API
 
 ### Strict Conversions
 
@@ -69,6 +69,32 @@ ratio := typeutil.ConvertToFloat(jsonData["ratio"])
 | Boolean flag in a `map[string]any` | `ParseBool` |
 | Casting `uint64` counter to `int` | `SafeUint64ToInt` |
 | Numeric value from any source as float | `ConvertToFloat` |
+
+## Usage Examples
+
+```go
+import "github.com/github/gh-aw/pkg/typeutil"
+
+// Parse a YAML integer value
+v, ok := typeutil.ParseIntValue(someYAMLField)
+if !ok {
+    return errors.New("field is missing or not an integer")
+}
+
+// Parse a boolean from a map
+enabled := typeutil.ParseBool(config, "enabled")
+
+// Convert any value to int (lenient, zero on failure)
+count := typeutil.ConvertToInt(jsonData["count"])
+
+// Safe uint64 to int conversion
+n := typeutil.SafeUint64ToInt(uint64Value)
+```
+
+## Dependencies
+
+**Internal**:
+- `pkg/logger` — debug logging
 
 ## Design Notes
 

@@ -321,11 +321,18 @@ func TestDisplayToolsList(t *testing.T) {
 func TestNewMCPListToolsSubcommand(t *testing.T) {
 	cmd := NewMCPListToolsSubcommand()
 
-	if cmd.Use != "list-tools <server> [workflow]" {
-		t.Errorf("Expected Use to be 'list-tools <server> [workflow]', got: %s", cmd.Use)
+	if cmd.Use != "list-tools [workflow]" {
+		t.Errorf("Expected Use to be 'list-tools [workflow]', got: %s", cmd.Use)
 	}
 
 	if cmd.Short != "List available tools for a specific MCP server" {
 		t.Errorf("Expected Short description, got: %s", cmd.Short)
+	}
+
+	serverFlag := cmd.Flags().Lookup("server")
+	if serverFlag == nil {
+		t.Error("Expected 'server' flag to be defined")
+	} else if serverFlag.Annotations == nil || len(serverFlag.Annotations["cobra_annotation_bash_completion_one_required_flag"]) == 0 {
+		t.Error("Expected 'server' flag to be marked as required")
 	}
 }

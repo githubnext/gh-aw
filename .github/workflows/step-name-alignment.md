@@ -34,8 +34,7 @@ tools:
     mode: gh-proxy
     toolsets: [default]
   bash:
-    - "yq --version"
-    - "yq eval '.jobs.*.steps[].name' .github/workflows/*.lock.yml"
+    - "yq*"
     - "find .github/workflows -name '*.lock.yml' -type f"
     - "cat docs/src/content/docs/reference/glossary.md"
     - "git log --since='24 hours ago' --oneline --name-only -- '.github/workflows/*.lock.yml'"
@@ -327,7 +326,7 @@ To improve these step names:
 - Source workflow: `.github/workflows/<workflow-name>.md`
 - Compiled workflow: `.github/workflows/<workflow-name>.lock.yml`
 - Project glossary: `docs/src/content/docs/reference/glossary.md`
-- Naming patterns cache: `/tmp/gh-aw/cache-memory/step-name-alignment/patterns.json`
+- Naming patterns cache: `/tmp/gh-aw/cache-memory/step-name-alignment.json`
 
 ### Priority
 

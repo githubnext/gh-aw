@@ -25,7 +25,13 @@
 
 package workflow
 
-import "maps"
+import (
+	"maps"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var modelAliasesLog = logger.New("workflow:model_aliases")
 
 // BuiltinModelAliases returns the built-in model alias map that covers the main
 // model families supported by gh-aw.  The returned map is a freshly allocated
@@ -138,32 +144,29 @@ func BuiltinModelAliases() map[string][]string {
 // If both importedModels and frontmatterModels are nil/empty, the builtin aliases are
 // returned as-is (identical to MergeModelAliases(nil)).
 func MergeImportedModelAliases(importedModels []map[string][]string, frontmatterModels map[string][]string) map[string][]string {
+	modelAliasesLog.Printf("Merging model aliases: %d import(s), %d frontmatter override(s)", len(importedModels), len(frontmatterModels))
 	merged := BuiltinModelAliases()
 
 	// Layer 2 — imported models (first import to define a key wins among imports).
+	addedFromImports := 0
 	for _, importedMap := range importedModels {
 		for k, v := range importedMap {
 			if _, exists := merged[k]; !exists {
 				merged[k] = v
+				addedFromImports++
 			}
 		}
 	}
+	if addedFromImports > 0 {
+		modelAliasesLog.Printf("Added %d alias(es) from imports", addedFromImports)
+	}
 
 	// Layer 3 — main workflow frontmatter always wins.
+	if len(frontmatterModels) > 0 {
+		modelAliasesLog.Printf("Applying %d frontmatter alias override(s)", len(frontmatterModels))
+	}
 	maps.Copy(merged, frontmatterModels)
 
+	modelAliasesLog.Printf("Final alias map has %d entries", len(merged))
 	return merged
-}
-
-// MergeModelAliases merges the frontmatter-defined model aliases on top of the
-// builtin aliases and returns the combined map.  Frontmatter entries always take
-// precedence: if the same key exists in both the builtins and the frontmatter
-// definition, the frontmatter value replaces the builtin value entirely.
-//
-// If frontmatterModels is nil or empty, the builtin aliases are returned as-is.
-//
-// For the full three-layer merge that also incorporates imported workflow aliases,
-// use MergeImportedModelAliases.
-func MergeModelAliases(frontmatterModels map[string][]string) map[string][]string {
-	return MergeImportedModelAliases(nil, frontmatterModels)
 }

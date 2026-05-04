@@ -250,11 +250,9 @@ The MCP Scripts subsystem provides inline custom tool definitions (JavaScript, s
 |----------|-----------|-------------|
 | `GetAllowedDomains` | `func(*NetworkPermissions) []string` | Returns the full list of allowed domains |
 | `GetDomainEcosystem` | `func(domain string) string` | Returns the ecosystem name for a domain |
+| `GetDefaultDomainsForEngine` | `func(EngineName, model string) ([]string, error)` | Returns the engine's default required domains (model-aware for Crush, OpenCode, Pi) |
 | `GetAllowedDomainsForEngine` | `func(EngineName, *NetworkPermissions, ...) string` | Returns allowed domains for a specific engine |
-| `GetCopilotAllowedDomainsWithToolsAndRuntimes` | `func(*NetworkPermissions, ...) string` | Copilot-specific allowed domains |
-| `GetCodexAllowedDomainsWithToolsAndRuntimes` | `func(*NetworkPermissions, ...) string` | Codex-specific allowed domains |
-| `GetClaudeAllowedDomainsWithToolsAndRuntimes` | `func(*NetworkPermissions, ...) string` | Claude-specific allowed domains |
-| `GetGeminiAllowedDomainsWithToolsAndRuntimes` | `func(*NetworkPermissions, ...) string` | Gemini-specific allowed domains |
+| `GetAllowedDomainsForEngineWithModel` | `func(EngineName, model string, *NetworkPermissions, ...) (string, error)` | Returns allowed domains for a model-aware engine |
 | `GetThreatDetectionAllowedDomains` | `func(*NetworkPermissions) string` | Allowed domains for threat detection jobs |
 
 ### Error Types
@@ -521,8 +519,10 @@ pkg/workflow ── FrontmatterConfig (typed structs)
 - `pkg/types` — shared MCP types
 
 **External**:
-- `goccy/go-yaml` — YAML 1.1/1.2 compatible marshaling
+- `github.com/goccy/go-yaml` — YAML 1.1/1.2 compatible marshaling
 - `go.yaml.in/yaml/v3` — standard YAML marshaling for non-Actions YAML
+- `github.com/cli/go-gh/v2` — GitHub CLI API and repository integration
+- `github.com/santhosh-tekuri/jsonschema/v6` — JSON schema validation
 
 ## Thread Safety
 
