@@ -32,7 +32,6 @@ tools:
     - "npm run dev*"
     - "npx astro*"
     - "npx playwright*"
-    - "playwright-cli*"
     - "curl*"
     - "kill*"
     - "lsof*"

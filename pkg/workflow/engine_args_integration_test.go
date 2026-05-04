@@ -258,19 +258,19 @@ This is a test workflow to verify codex engine args injection.
 
 	result := string(content)
 
-	// Check that the compiled YAML contains the custom args before INSTRUCTION
+	// Check that the compiled YAML contains the custom args before --prompt-file
 	if !strings.Contains(result, "--custom-flag value") {
 		t.Errorf("Expected compiled YAML to contain '--custom-flag value'")
 	}
 
-	// Verify args come before "$INSTRUCTION"
+	// Verify args come before "--prompt-file" (codex uses harness with --prompt-file)
 	customFlagIdx := strings.Index(result, "--custom-flag value")
-	instructionIdx := strings.Index(result, "\"$INSTRUCTION\"")
-	if customFlagIdx == -1 || instructionIdx == -1 {
-		t.Fatal("Could not find both --custom-flag and $INSTRUCTION in compiled YAML")
+	promptFileIdx := strings.Index(result, "--prompt-file")
+	if customFlagIdx == -1 || promptFileIdx == -1 {
+		t.Fatal("Could not find both --custom-flag and --prompt-file in compiled YAML")
 	}
-	if customFlagIdx > instructionIdx {
-		t.Error("Expected --custom-flag to come before $INSTRUCTION in compiled YAML")
+	if customFlagIdx > promptFileIdx {
+		t.Error("Expected --custom-flag to come before --prompt-file in compiled YAML")
 	}
 }
 
