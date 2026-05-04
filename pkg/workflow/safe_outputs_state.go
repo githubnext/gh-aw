@@ -85,7 +85,8 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		return true
 	}
 
-	// Direct nil checks — no reflection, no heap allocation (42 fields matching safeOutputFieldMapping).
+	// Direct nil checks — no reflection, no heap allocation (43 fields matching safeOutputFieldMapping
+	// plus CommentMemory which is attached via tools.comment-memory and not in safeOutputFieldMapping).
 	return safeOutputs.CreateIssues != nil ||
 		safeOutputs.CreateAgentSessions != nil ||
 		safeOutputs.CreateDiscussions != nil ||
@@ -95,6 +96,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.ClosePullRequests != nil ||
 		safeOutputs.MarkPullRequestAsReadyForReview != nil ||
 		safeOutputs.AddComments != nil ||
+		safeOutputs.CommentMemory != nil ||
 		safeOutputs.CreatePullRequests != nil ||
 		safeOutputs.CreatePullRequestReviewComments != nil ||
 		safeOutputs.SubmitPullRequestReview != nil ||
@@ -127,7 +129,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.MissingTool != nil ||
 		safeOutputs.MissingData != nil ||
 		safeOutputs.SetIssueType != nil ||
-		safeOutputs.NoOp != nil // 42nd field
+		safeOutputs.NoOp != nil // 43rd field
 }
 
 // hasNonBuiltinSafeOutputsEnabled reports whether any non-builtin safe output is configured.
@@ -146,8 +148,9 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		return true
 	}
 
-	// Direct nil checks for non-builtin pointer fields (39 fields = 42 total minus 3 builtins:
-	// NoOp, MissingData, MissingTool).
+	// Direct nil checks for non-builtin pointer fields (40 fields = 43 total minus 3 builtins:
+	// NoOp, MissingData, MissingTool). Includes CommentMemory which is attached via
+	// tools.comment-memory and is not in safeOutputFieldMapping.
 	return safeOutputs.CreateIssues != nil ||
 		safeOutputs.CreateAgentSessions != nil ||
 		safeOutputs.CreateDiscussions != nil ||
@@ -157,6 +160,7 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.ClosePullRequests != nil ||
 		safeOutputs.MarkPullRequestAsReadyForReview != nil ||
 		safeOutputs.AddComments != nil ||
+		safeOutputs.CommentMemory != nil ||
 		safeOutputs.CreatePullRequests != nil ||
 		safeOutputs.CreatePullRequestReviewComments != nil ||
 		safeOutputs.SubmitPullRequestReview != nil ||
@@ -186,7 +190,7 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.DispatchWorkflow != nil ||
 		safeOutputs.DispatchRepository != nil ||
 		safeOutputs.CallWorkflow != nil ||
-		safeOutputs.SetIssueType != nil // 39th non-builtin field
+		safeOutputs.SetIssueType != nil // 40th non-builtin field
 }
 
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
