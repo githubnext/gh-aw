@@ -170,16 +170,3 @@ func MergeImportedModelAliases(importedModels []map[string][]string, frontmatter
 	modelAliasesLog.Printf("Final alias map has %d entries", len(merged))
 	return merged
 }
-
-// MergeModelAliases merges the frontmatter-defined model aliases on top of the
-// builtin aliases and returns the combined map.  Frontmatter entries always take
-// precedence: if the same key exists in both the builtins and the frontmatter
-// definition, the frontmatter value replaces the builtin value entirely.
-//
-// If frontmatterModels is nil or empty, the builtin aliases are returned as-is.
-//
-// For the full three-layer merge that also incorporates imported workflow aliases,
-// use MergeImportedModelAliases.
-func MergeModelAliases(frontmatterModels map[string][]string) map[string][]string {
-	return MergeImportedModelAliases(nil, frontmatterModels)
-}

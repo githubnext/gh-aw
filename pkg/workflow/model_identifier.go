@@ -73,9 +73,6 @@ type ParsedModelIdentifier struct {
 	Params map[string]string
 }
 
-// IsBare reports whether the identifier is a bare name (no provider prefix).
-func (p *ParsedModelIdentifier) IsBare() bool { return p.Provider == "" }
-
 // Defined parameter keys recognised by the spec (Section 6).
 const (
 	modelParamEffort      = "effort"

@@ -138,68 +138,6 @@ func generateOTLPHeadersMaskStep() string {
 	return sb.String()
 }
 
-// extractOTLPConfigFromRaw reads the first OTLP endpoint and its headers directly
-// from the raw frontmatter map[string]any.  The `endpoint` field may be:
-//
-//   - a string:  backward-compat URL + optional top-level `headers` field
-//   - an object: {url: "...", headers: {...}} — the object's own headers are used
-//   - an array:  [{url: ..., headers: ...}, ...] — only the first element is returned
-//
-// The third return value is true when the deprecated string form was used for headers,
-// so the caller can emit a deprecation warning.
-func extractOTLPConfigFromRaw(frontmatter map[string]any) (endpoint, headers string, deprecated bool) {
-	obs, ok := frontmatter["observability"]
-	if !ok {
-		return
-	}
-	obsMap, ok := obs.(map[string]any)
-	if !ok {
-		return
-	}
-	otlp, ok := obsMap["otlp"]
-	if !ok {
-		return
-	}
-	otlpMap, ok := otlp.(map[string]any)
-	if !ok {
-		return
-	}
-
-	endpointRaw := otlpMap["endpoint"]
-	switch ep := endpointRaw.(type) {
-	case string:
-		if ep == "" {
-			return
-		}
-		endpoint = ep
-		if raw, ok := otlpMap["headers"]; ok {
-			headers, deprecated = normalizeOTLPHeaders(raw)
-		}
-	case map[string]any:
-		// Object form: endpoint: {url: "...", headers: {...}}
-		if url, _ := ep["url"].(string); url != "" {
-			endpoint = url
-			if h, ok := ep["headers"]; ok {
-				headers, deprecated = normalizeOTLPHeaders(h)
-			}
-		}
-	case []any:
-		// Array form: return only the first element (callers needing all entries
-		// should use collectAllOTLPEndpoints instead).
-		if len(ep) > 0 {
-			if firstItem, ok := ep[0].(map[string]any); ok {
-				if url, _ := firstItem["url"].(string); url != "" {
-					endpoint = url
-					if h, ok := firstItem["headers"]; ok {
-						headers, deprecated = normalizeOTLPHeaders(h)
-					}
-				}
-			}
-		}
-	}
-	return
-}
-
 // otlpEndpointEntry is the wire format used when encoding the GH_AW_OTLP_ENDPOINTS
 // environment variable as a JSON array.  Each entry carries the endpoint URL and
 // its optional normalized (comma-separated key=value) headers string.
