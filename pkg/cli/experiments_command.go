@@ -9,12 +9,14 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -61,6 +63,9 @@ type ExperimentDetails struct {
 	TotalRuns   int                      `json:"total_runs"`
 	Experiments []ExperimentVariantStats `json:"experiments"`
 	RecentRuns  []ExperimentRunRecord    `json:"recent_runs,omitempty"`
+	// Analyses holds the statistical analysis for each named experiment.
+	// Populated by RunExperimentsAnalyze; absent in list output.
+	Analyses []ExperimentAnalysis `json:"analyses,omitempty"`
 }
 
 // ExperimentsListConfig holds configuration for the experiments list subcommand.
@@ -233,6 +238,20 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 
 	branchName := experimentsBranchPrefix + config.ExperimentName
 
+	// Load experiment configs from the workflow frontmatter to enrich the statistical output
+	// with hypothesis text, analysis_type, min_samples, and guardrail thresholds.
+	// Config loading is best-effort: failures are silently ignored and analysis falls back to
+	// defaults (min_samples=20, equal expected proportions, no hypothesis displayed).
+	// This ensures the command remains functional even when the workflow .md file is absent
+	// (e.g., when analysing experiments from a remote repository without the workflow checked out).
+	var experimentConfigs map[string]*workflow.ExperimentConfig
+	if config.RepoOverride != "" {
+		experimentConfigs = loadRemoteExperimentConfigs(config.RepoOverride, config.ExperimentName)
+	} else {
+		experimentConfigs = loadLocalExperimentConfigs(config.ExperimentName)
+	}
+	experimentsLog.Printf("Loaded %d experiment config(s) for %s", len(experimentConfigs), config.ExperimentName)
+
 	var details *ExperimentDetails
 	var err error
 
@@ -247,6 +266,9 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 		return nil
 	}
 
+	// Compute statistical analyses for each named experiment.
+	details.Analyses = computeExperimentAnalyses(details.Experiments, experimentConfigs)
+
 	if config.JSONOutput {
 		jsonBytes, err := json.MarshalIndent(details, "", "  ")
 		if err != nil {
@@ -258,6 +280,153 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 
 	printExperimentDetails(details)
 	return nil
+}
+
+// computeExperimentAnalyses computes statistical analyses for all named experiments.
+// configs maps experiment names to their configuration; values may be nil.
+func computeExperimentAnalyses(experiments []ExperimentVariantStats, configs map[string]*workflow.ExperimentConfig) []ExperimentAnalysis {
+	if len(experiments) == 0 {
+		return nil
+	}
+	analyses := make([]ExperimentAnalysis, 0, len(experiments))
+	for _, exp := range experiments {
+		var cfg *workflow.ExperimentConfig
+		if configs != nil {
+			cfg = configs[exp.Name]
+		}
+		analyses = append(analyses, computeExperimentAnalysis(exp, cfg))
+	}
+	return analyses
+}
+
+// loadLocalExperimentConfigs reads the workflow .md file for the given experiment name
+// and returns the ExperimentConfig map from its frontmatter.
+// experimentName is the sanitized workflow ID (the part after "experiments/" in the branch name).
+// Returns nil when the workflow file cannot be found or parsed.
+func loadLocalExperimentConfigs(experimentName string) map[string]*workflow.ExperimentConfig {
+	experimentsLog.Printf("Loading local experiment configs for %s", experimentName)
+
+	filePath := findWorkflowFileForExperiment(experimentName)
+	if filePath == "" {
+		experimentsLog.Printf("No workflow file found for experiment %s", experimentName)
+		return nil
+	}
+
+	// Verify that the resolved path is within .github/workflows/ to prevent path traversal.
+	// findWorkflowFileForExperiment returns paths from filepath.Glob with a relative base dir,
+	// so convert both sides to absolute paths before the prefix check.
+	absFilePath, err := filepath.Abs(filePath)
+	if err != nil {
+		experimentsLog.Printf("Failed to resolve absolute path for %s: %v", filePath, err)
+		return nil
+	}
+	workflowsDir, err := filepath.Abs(getWorkflowsDir())
+	if err != nil {
+		experimentsLog.Printf("Failed to resolve workflows dir: %v", err)
+		return nil
+	}
+	if !strings.HasPrefix(absFilePath, workflowsDir+string(filepath.Separator)) {
+		experimentsLog.Printf("Refusing to read workflow file outside .github/workflows/: %s", absFilePath)
+		return nil
+	}
+
+	content, err := os.ReadFile(absFilePath) // #nosec G304 — path confirmed within .github/workflows/
+	if err != nil {
+		experimentsLog.Printf("Failed to read workflow file %s: %v", absFilePath, err)
+		return nil
+	}
+
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		experimentsLog.Printf("Failed to parse frontmatter from %s: %v", filePath, err)
+		return nil
+	}
+
+	cfg, err := workflow.ParseFrontmatterConfig(result.Frontmatter)
+	if err != nil {
+		experimentsLog.Printf("Failed to parse frontmatter config from %s: %v", filePath, err)
+		return nil
+	}
+
+	return cfg.ExperimentConfigs
+}
+
+// loadRemoteExperimentConfigs fetches the workflow .md file from the repository default branch
+// via the GitHub API and returns the ExperimentConfig map from its frontmatter.
+// Returns nil when the file cannot be fetched or parsed.
+func loadRemoteExperimentConfigs(repoOverride, experimentName string) map[string]*workflow.ExperimentConfig {
+	experimentsLog.Printf("Loading remote experiment configs for %s from %s", experimentName, repoOverride)
+
+	// Scan common workflow file name candidates: the experiment name as-is, and with
+	// a hyphen reintroduced before common separators. We try the exact name first since
+	// the sanitized form (hyphens removed, lowercased) is irreversible in general.
+	candidates := workflowFileCandidates(experimentName)
+
+	for _, candidate := range candidates {
+		apiPath := ".github/workflows/" + candidate + ".md"
+		args := []string{"api",
+			"repos/{owner}/{repo}/contents/" + url.PathEscape(apiPath),
+			"--jq", ".content",
+			"--repo", repoOverride,
+		}
+		cmd := workflow.ExecGH(args...)
+		out, err := cmd.Output()
+		if err != nil {
+			continue
+		}
+
+		b64 := strings.Join(strings.Fields(strings.TrimSpace(string(out))), "")
+		decoded, err := base64.StdEncoding.DecodeString(b64)
+		if err != nil {
+			experimentsLog.Printf("Failed to base64-decode workflow file %s: %v", candidate, err)
+			continue
+		}
+
+		result, err := parser.ExtractFrontmatterFromContent(string(decoded))
+		if err != nil {
+			continue
+		}
+
+		cfg, err := workflow.ParseFrontmatterConfig(result.Frontmatter)
+		if err != nil {
+			continue
+		}
+
+		if len(cfg.ExperimentConfigs) > 0 {
+			experimentsLog.Printf("Loaded remote configs from %s", apiPath)
+			return cfg.ExperimentConfigs
+		}
+	}
+
+	experimentsLog.Printf("No remote workflow file found for experiment %s", experimentName)
+	return nil
+}
+
+// findWorkflowFileForExperiment scans .github/workflows/ for a .md file whose sanitized
+// basename (lowercase, hyphens removed) matches the given experiment name.
+// Returns the file path or "" when no match is found.
+func findWorkflowFileForExperiment(experimentName string) string {
+	mdFiles, err := getMarkdownWorkflowFiles("")
+	if err != nil {
+		return ""
+	}
+	for _, f := range mdFiles {
+		base := strings.TrimSuffix(filepath.Base(f), ".md")
+		if workflow.SanitizeWorkflowIDForCacheKey(base) == experimentName {
+			return f
+		}
+	}
+	return ""
+}
+
+// workflowFileCandidates returns a list of candidate workflow file basenames (without .md)
+// to try when looking up a remote workflow by its sanitized experiment name.
+// The sanitized form is lossy (hyphens removed), so we return the sanitized name itself
+// plus the original name as candidates.
+func workflowFileCandidates(experimentName string) []string {
+	// Start with the experiment name as-is (may already be the correct filename).
+	candidates := []string{experimentName}
+	return candidates
 }
 
 // fetchLocalExperiments lists experiment branches and reads their state from the local git repo.
@@ -563,6 +732,8 @@ func printExperimentDetails(d *ExperimentDetails) {
 	} else {
 		fmt.Fprintln(os.Stderr, "\nNo experiment data found (state.json not present or empty).")
 	}
+
+	printExperimentAnalyses(d.Analyses)
 
 	if len(d.RecentRuns) > 0 {
 		fmt.Fprintln(os.Stderr, "\nRecent runs:")

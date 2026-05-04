@@ -134,6 +134,12 @@ func (e *CodexEngine) GetAgentManifestPathPrefixes() []string {
 	return []string{".codex/"}
 }
 
+// GetHarnessScriptName returns the filename of the JavaScript harness script that wraps
+// Codex CLI execution with retry logic for transient OpenAI API errors.
+func (e *CodexEngine) GetHarnessScriptName() string {
+	return "codex_harness.cjs"
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
@@ -203,8 +209,31 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		commandName = "codex"
 	}
 
-	codexCommand := fmt.Sprintf("%s %sexec%s%s%s%s\"$INSTRUCTION\"",
-		commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
+	// Determine harness script to wrap codex execution.
+	// The built-in harness provides retry logic for transient OpenAI API errors
+	// (rate limits, server errors).  A custom engine.harness overrides the built-in one.
+	harnessScriptName := e.GetHarnessScriptName()
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.HarnessScript != "" {
+		harnessScriptName = workflowData.EngineConfig.HarnessScript
+		codexEngineLog.Printf("Using custom harness script: %s", harnessScriptName)
+	}
+
+	// Build the Codex command.
+	// The default harness (codex_harness.cjs) wraps execution with retry logic and reads the
+	// prompt via --prompt-file.  The else branch is a defensive fallback for the case where
+	// harnessScriptName is empty (e.g. a future code path that does not set a harness).
+	var codexCommand string
+	if harnessScriptName != "" {
+		// Harness-wrapped execution: the harness reads --prompt-file and passes its content
+		// as the last positional arg.  The harness also provides retry logic.
+		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
+		codexCommand = fmt.Sprintf("%s %sexec%s%s%s%s--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
+			execPrefix, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
+	} else {
+		// Without harness: use shell expansion for the prompt (no retry logic).
+		codexCommand = fmt.Sprintf("%s %sexec%s%s%s%s\"$INSTRUCTION\"",
+			commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
+	}
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
 	var command string
@@ -223,20 +252,23 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
 		}
 
-		// Build the command with agent file handling if specified
-		// INSTRUCTION reading is done inside the AWF command to avoid Docker Compose interpolation
-		// issues with $ characters in the prompt.
-		//
 		// AWF v0.15.0+ with --env-all handles most PATH setup natively (chroot mode is default):
 		// - GOROOT, JAVA_HOME, etc. are handled via AWF_HOST_PATH and entrypoint.sh
 		// However, npm-installed CLIs (like codex) need hostedtoolcache bin directories in PATH.
 		npmPathSetup := GetNpmBinPathSetup()
 
-		// Codex reads prompt inside AWF container (PATH setup + codex command).
+		// Build the codex command with PATH setup inside the AWF container.
 		// For engines that do not support native agent-file handling (including Codex),
-		// the compiler prepends the agent file content to prompt.txt so no special
-		// shell variable juggling is needed here.
-		codexCommandWithSetup := fmt.Sprintf(`%s && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && %s`, npmPathSetup, codexCommand)
+		// the compiler prepends the agent file content to prompt.txt.
+		// When using the harness, --prompt-file is passed directly; otherwise the prompt
+		// is read via shell variable expansion.
+		var codexCommandWithSetup string
+		if harnessScriptName != "" {
+			// Harness handles prompt reading via --prompt-file; no INSTRUCTION variable needed.
+			codexCommandWithSetup = fmt.Sprintf(`%s && %s`, npmPathSetup, codexCommand)
+		} else {
+			codexCommandWithSetup = fmt.Sprintf(`%s && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && %s`, npmPathSetup, codexCommand)
+		}
 		// Add MCP CLI bin directory to PATH when cli-proxy is enabled
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			codexCommandWithSetup = fmt.Sprintf("%s && %s", mcpCLIPath, codexCommandWithSetup)
@@ -262,12 +294,21 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// For engines that do not support native agent-file handling (including Codex),
 		// the compiler prepends the agent file content to prompt.txt so no special
 		// shell variable juggling is needed here.
-		command = fmt.Sprintf(`set -o pipefail
+		if harnessScriptName != "" {
+			// Harness handles prompt reading via --prompt-file; no INSTRUCTION variable needed.
+			command = fmt.Sprintf(`set -o pipefail
+touch %s
+(umask 177 && touch %s)
+mkdir -p "$CODEX_HOME/logs"
+%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, codexCommand, logFile)
+		} else {
+			command = fmt.Sprintf(`set -o pipefail
 touch %s
 (umask 177 && touch %s)
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
 %s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, codexCommand, logFile)
+		}
 	}
 
 	// Get effective GitHub token based on precedence: custom token > default

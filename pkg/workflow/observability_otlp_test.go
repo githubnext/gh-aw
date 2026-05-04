@@ -1266,7 +1266,9 @@ func TestInjectOTLPConfig_MultipleEndpoints(t *testing.T) {
 
 		require.NotEmpty(t, wd.Env, "Env should be set")
 		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: https://primary.example.com:4317", "first endpoint should be set as primary")
-		assert.Contains(t, wd.Env, "GH_AW_OTLP_ENDPOINTS:", "multi-endpoint env var should be injected")
+		// GH_AW_OTLP_ENDPOINTS must be single-quoted so YAML parsers treat the
+		// leading '[' as a string, not a sequence node.
+		assert.Contains(t, wd.Env, "GH_AW_OTLP_ENDPOINTS: '[", "multi-endpoint env var should be single-quoted")
 		assert.Contains(t, wd.Env, "primary.example.com", "primary endpoint should appear in GH_AW_OTLP_ENDPOINTS")
 		assert.Contains(t, wd.Env, "secondary.example.com", "secondary endpoint should appear in GH_AW_OTLP_ENDPOINTS")
 	})
