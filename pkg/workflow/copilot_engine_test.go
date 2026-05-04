@@ -627,6 +627,57 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				"--allow-tool", "shell(safeoutputs:*)",
 			},
 		},
+		// Single-quote sanitization tests - commands with single quotes are truncated
+		// to safe prefixes to avoid Copilot CLI startup crashes.
+		{
+			name: "bash tool with single-quoted jq filter is truncated to prefix",
+			tools: map[string]any{
+				"bash": []any{"jq '.data[] | {id, billing}' /tmp/file.json"},
+			},
+			expected: []string{"--allow-tool", "shell(jq)"},
+		},
+		{
+			name: "bash tool with single-quoted filter and leading space trimmed",
+			tools: map[string]any{
+				"bash": []any{"jq '[.data[] | keys] | add | unique' /tmp/file.json"},
+			},
+			expected: []string{"--allow-tool", "shell(jq)"},
+		},
+		{
+			name: "bash tool without single quotes passes through unchanged",
+			tools: map[string]any{
+				"bash": []any{"jq . /tmp/file.json"},
+			},
+			expected: []string{"--allow-tool", "shell(jq . /tmp/file.json)"},
+		},
+		{
+			name: "multiple bash tools: single-quoted ones truncated, others unchanged",
+			tools: map[string]any{
+				"bash": []any{
+					"jq '.data[]' /tmp/file.json",
+					"jq . /tmp/other.json",
+					"cat /tmp/file.json",
+				},
+			},
+			expected: []string{
+				"--allow-tool", "shell(cat /tmp/file.json)",
+				// shell(jq . ...) sorts before shell(jq) because ' ' (32) < ')' (41)
+				"--allow-tool", "shell(jq . /tmp/other.json)",
+				"--allow-tool", "shell(jq)",
+			},
+		},
+		{
+			name: "multiple single-quoted tools with same prefix are deduplicated",
+			tools: map[string]any{
+				"bash": []any{
+					"jq '.filter1'",
+					"jq '.filter2'",
+					"jq '.filter3'",
+				},
+			},
+			// All three sanitize to "jq" → deduplication yields exactly one shell(jq)
+			expected: []string{"--allow-tool", "shell(jq)"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1957,6 +2008,70 @@ func TestCopilotSupportsNoAskUser(t *testing.T) {
 			result := copilotSupportsNoAskUser(tt.engineConfig)
 			if result != tt.expected {
 				t.Errorf("copilotSupportsNoAskUser(%v) = %v, want %v", tt.engineConfig, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSanitizeCopilotShellCommand(t *testing.T) {
+	tests := []struct {
+		name            string
+		input           string
+		expectedOutput  string
+		expectedChanged bool
+	}{
+		{
+			name:            "no single quotes - unchanged",
+			input:           "jq . /tmp/file.json",
+			expectedOutput:  "jq . /tmp/file.json",
+			expectedChanged: false,
+		},
+		{
+			name:            "single-quoted jq filter - truncated to prefix",
+			input:           "jq '.data[] | {id, billing}' /tmp/file.json",
+			expectedOutput:  "jq",
+			expectedChanged: true,
+		},
+		{
+			name:            "single-quoted jq array filter - truncated to prefix",
+			input:           "jq '[.data[] | keys] | add | unique' /tmp/file.json",
+			expectedOutput:  "jq",
+			expectedChanged: true,
+		},
+		{
+			name:            "plain command without quotes - unchanged",
+			input:           "cat /tmp/file.json",
+			expectedOutput:  "cat /tmp/file.json",
+			expectedChanged: false,
+		},
+		{
+			name:            "empty string - unchanged",
+			input:           "",
+			expectedOutput:  "",
+			expectedChanged: false,
+		},
+		{
+			name:            "single quote at start - empty prefix",
+			input:           "'quoted from start'",
+			expectedOutput:  "",
+			expectedChanged: true,
+		},
+		{
+			name:            "trailing whitespace trimmed after truncation",
+			input:           "grep  '.pattern'",
+			expectedOutput:  "grep",
+			expectedChanged: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output, changed := sanitizeCopilotShellCommand(tt.input)
+			if output != tt.expectedOutput {
+				t.Errorf("sanitizeCopilotShellCommand(%q) output = %q, want %q", tt.input, output, tt.expectedOutput)
+			}
+			if changed != tt.expectedChanged {
+				t.Errorf("sanitizeCopilotShellCommand(%q) changed = %v, want %v", tt.input, changed, tt.expectedChanged)
 			}
 		})
 	}
