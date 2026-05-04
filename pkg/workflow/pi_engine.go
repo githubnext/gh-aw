@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -132,12 +131,6 @@ func buildPiModelsJSON(gatewayPort int, secretEnvVarName, modelID string) string
 		panic(fmt.Sprintf("BUG: buildPiModelsJSON failed to marshal JSON: %v", err))
 	}
 	return string(b)
-}
-
-// encodeBase64 returns the standard base64 encoding of s.  Used to safely
-// embed arbitrary content in shell commands without shell-injection risks.
-func encodeBase64(s string) string {
-	return base64.StdEncoding.EncodeToString([]byte(s))
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Pi engine.
@@ -289,13 +282,13 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 			// var that holds the secret; Pi's resolveConfigValue() looks up
 			// process.env[apiKey] to obtain the actual token value at runtime.
 			//
-			// The JSON is base64-encoded before embedding in the shell command so that
-			// the content is injection-safe regardless of what characters it contains.
+			// printf '%s\n' '<json>' is safe here because JSON uses only double quotes
+			// (never single quotes), so single-quoting via shellEscapeArg requires no
+			// further escaping in practice.
 			modelsJSON := buildPiModelsJSON(profile.gatewayPort, profile.coreSecretNames[0], modelID)
-			modelsJSONBase64 := encodeBase64(modelsJSON)
 			piModelsJSONSetup = fmt.Sprintf(
-				`mkdir -p /tmp/gh-aw/pi-agent-dir && echo %s | base64 -d > /tmp/gh-aw/pi-agent-dir/models.json && `,
-				modelsJSONBase64)
+				`mkdir -p /tmp/gh-aw/pi-agent-dir && printf '%%s\n' %s > /tmp/gh-aw/pi-agent-dir/models.json && `,
+				shellEscapeArg(modelsJSON))
 			piArgs = append(piArgs, "--model", "aw-gateway/"+modelID)
 			piLog.Printf("Pi: using models.json gateway routing for model %q via aw-gateway (port %d)", modelID, profile.gatewayPort)
 		} else {

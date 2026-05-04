@@ -267,10 +267,10 @@ func TestPiEngine_GetExecutionSteps_FirewallCopilotProvider(t *testing.T) {
 	assert.Contains(t, stepText, "claude-sonnet-4-20250514", "Step should include the model ID in models.json")
 	// AWF config JSON embedded in step must enable the api-proxy sidecar.
 	assert.Contains(t, stepText, `"enabled":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
-	// The models.json is base64-encoded in the step. Verify the correct Copilot gateway port
-	// is embedded by re-building the expected JSON and comparing its base64 encoding.
+	// The models.json is embedded in the step as a printf argument. Verify the correct
+	// Copilot gateway port is present by re-building the expected JSON.
 	expectedModelsJSON := buildPiModelsJSON(constants.CopilotLLMGatewayPort, "COPILOT_GITHUB_TOKEN", "claude-sonnet-4-20250514")
-	assert.Contains(t, stepText, encodeBase64(expectedModelsJSON), "Copilot provider should route through CopilotLLMGatewayPort via models.json")
+	assert.Contains(t, stepText, expectedModelsJSON, "Copilot provider should route through CopilotLLMGatewayPort via models.json")
 }
 
 func TestPiEngine_GetExecutionSteps_FirewallAnthropicProvider(t *testing.T) {
@@ -298,7 +298,7 @@ func TestPiEngine_GetExecutionSteps_FirewallAnthropicProvider(t *testing.T) {
 	assert.Contains(t, stepText, `"enabled":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
 	// Anthropic provider routes through the Claude LLM gateway port.
 	expectedModelsJSON := buildPiModelsJSON(constants.ClaudeLLMGatewayPort, "ANTHROPIC_API_KEY", "claude-opus-4-20251101")
-	assert.Contains(t, stepText, encodeBase64(expectedModelsJSON), "Anthropic provider should route through ClaudeLLMGatewayPort via models.json")
+	assert.Contains(t, stepText, expectedModelsJSON, "Anthropic provider should route through ClaudeLLMGatewayPort via models.json")
 }
 
 func TestPiEngine_GetExecutionSteps_FirewallCodexProvider(t *testing.T) {
@@ -326,5 +326,5 @@ func TestPiEngine_GetExecutionSteps_FirewallCodexProvider(t *testing.T) {
 	assert.Contains(t, stepText, `"enabled":true`, "Firewall mode should enable the api-proxy in AWF config JSON")
 	// Codex/OpenAI provider routes through the Codex LLM gateway port.
 	expectedModelsJSON := buildPiModelsJSON(constants.CodexLLMGatewayPort, "CODEX_API_KEY", "gpt-4.1")
-	assert.Contains(t, stepText, encodeBase64(expectedModelsJSON), "Codex provider should route through CodexLLMGatewayPort via models.json")
+	assert.Contains(t, stepText, expectedModelsJSON, "Codex provider should route through CodexLLMGatewayPort via models.json")
 }
