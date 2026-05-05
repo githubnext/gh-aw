@@ -31,6 +31,9 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 	if len(data.Bots) > 0 {
 		steps = append(steps, fmt.Sprintf("          GH_AW_ALLOWED_BOTS: %q\n", strings.Join(data.Bots, ",")))
 	}
+	if data.AllowBotAuthoredTriggerComment {
+		steps = append(steps, "          GH_AW_ALLOW_BOT_AUTHORED_TRIGGER_COMMENT: \"true\"\n")
+	}
 
 	steps = append(steps, "        with:\n")
 	// Explicitly use the GitHub Actions token (GITHUB_TOKEN) for role membership checks
@@ -374,8 +377,8 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 			for eventName := range onMap {
 				// Skip command events as they are handled separately
 				// Skip stop-after and reaction as they are not event types
-				// Skip roles, bots, and labels as they are configuration, not event types
-				if eventName == "command" || eventName == "stop-after" || eventName == "reaction" || eventName == "roles" || eventName == "bots" || eventName == "labels" {
+				// Skip roles, bots, labels, and other configuration keys as they are not event types
+				if eventName == "command" || eventName == "stop-after" || eventName == "reaction" || eventName == "roles" || eventName == "bots" || eventName == "labels" || eventName == "allow-bot-authored-trigger-comment" {
 					continue
 				}
 
@@ -414,6 +417,9 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 				eventCount--
 			}
 			if _, hasLabelNames := onMap["labels"]; hasLabelNames {
+				eventCount--
+			}
+			if _, hasAllowBotAuthored := onMap["allow-bot-authored-trigger-comment"]; hasAllowBotAuthored {
 				eventCount--
 			}
 
@@ -541,6 +547,23 @@ func (c *Compiler) extractSkipRoles(frontmatter map[string]any) []string {
 // Returns nil if skip-bots is not configured
 func (c *Compiler) extractSkipBots(frontmatter map[string]any) []string {
 	return extractSkipField(frontmatter, "skip-bots")
+}
+
+// extractAllowBotAuthoredTriggerComment extracts the 'allow-bot-authored-trigger-comment' boolean
+// from the 'on:' section of frontmatter. When true, the confused-deputy mismatch check is skipped
+// for issue_comment:edited events where the comment was authored by a bot — the bot-posted-menu /
+// user-checks-box pattern. Returns false if the field is absent or not a boolean true.
+func (c *Compiler) extractAllowBotAuthoredTriggerComment(frontmatter map[string]any) bool {
+	if onValue, exists := frontmatter["on"]; exists {
+		if onMap, ok := onValue.(map[string]any); ok {
+			if val, exists := onMap["allow-bot-authored-trigger-comment"]; exists {
+				if b, ok := val.(bool); ok {
+					return b
+				}
+			}
+		}
+	}
+	return false
 }
 
 // mergeStringSlicesDedup merges two string slices with deduplication (preserving order of first occurrence).
