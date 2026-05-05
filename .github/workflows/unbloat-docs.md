@@ -181,7 +181,7 @@ pre-agent-steps:
     run: |
       STATUS=""
       for i in $(seq 1 45); do
-        STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/gh-aw/)
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/gh-aw/ || true)
         [ "$STATUS" = "200" ] && echo "Server ready at http://localhost:4321/gh-aw/" && break
         echo "Waiting for server... ($i/45) (status: $STATUS)" && sleep 3
       done
