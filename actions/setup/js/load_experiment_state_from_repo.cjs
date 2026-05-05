@@ -22,6 +22,19 @@
 const fs = require("fs");
 const path = require("path");
 
+const MAX_STATE_FILE_BYTES = 102400;
+
+/**
+ * Returns true when decoded state content exceeds allowed byte length.
+ *
+ * @param {string} content
+ * @param {number} maxBytes
+ * @returns {boolean}
+ */
+function checkLimit(content, maxBytes) {
+  return content.length > maxBytes;
+}
+
 /**
  * Fetch experiment state from the git branch via the GitHub API.
  * Returns the raw file content as a string, or null when the branch/file is absent.
@@ -96,6 +109,11 @@ async function main() {
 
   if (content === null) {
     core.info(`No experiment state found in branch "${branch}" – starting with empty state`);
+    return;
+  }
+
+  if (checkLimit(content, MAX_STATE_FILE_BYTES)) {
+    core.warning(`Experiment state file exceeds max limit (${MAX_STATE_FILE_BYTES} bytes) – starting fresh`);
     return;
   }
 
