@@ -12,8 +12,6 @@ import (
 )
 
 func TestImportCache(t *testing.T) {
-	tempDir := t.TempDir()
-	cache := NewImportCache(tempDir)
 	const (
 		owner = "testowner"
 		repo  = "testrepo"
@@ -23,19 +21,23 @@ func TestImportCache(t *testing.T) {
 	testContent := []byte("# Test Workflow\n\nTest content")
 
 	t.Run("Set creates file and returns path", func(t *testing.T) {
+		cache := NewImportCache(t.TempDir())
 		cachedPath, err := cache.Set(owner, repo, path, sha, testContent)
 		require.NoError(t, err, "Set should succeed for valid inputs")
 		require.FileExists(t, cachedPath, "cache file should be created at expected path")
 	})
 
 	t.Run("Get returns cached path after Set", func(t *testing.T) {
-		cachedPath, _ := cache.Set(owner, repo, path, sha, testContent)
+		cache := NewImportCache(t.TempDir())
+		cachedPath, err := cache.Set(owner, repo, path, sha, testContent)
+		require.NoError(t, err, "Set should succeed for valid inputs")
 		retrievedPath, found := cache.Get(owner, repo, path, sha)
 		assert.True(t, found, "cache entry should be found after Set")
 		assert.Equal(t, cachedPath, retrievedPath, "retrieved path should match path returned by Set")
 	})
 
 	t.Run("Cached file content matches original", func(t *testing.T) {
+		cache := NewImportCache(t.TempDir())
 		cachedPath, err := cache.Set(owner, repo, path, sha, testContent)
 		require.NoError(t, err, "Set should succeed")
 		content, err := os.ReadFile(cachedPath)
@@ -44,7 +46,10 @@ func TestImportCache(t *testing.T) {
 	})
 
 	t.Run("New cache instance finds existing entry", func(t *testing.T) {
-		cachedPath, _ := cache.Set(owner, repo, path, sha, testContent)
+		tempDir := t.TempDir()
+		cache := NewImportCache(tempDir)
+		cachedPath, err := cache.Set(owner, repo, path, sha, testContent)
+		require.NoError(t, err, "Set should succeed for valid inputs")
 		cache2 := NewImportCache(tempDir)
 		retrievedPath2, found := cache2.Get(owner, repo, path, sha)
 		assert.True(t, found, "cache entry should be found from new cache instance")
@@ -60,6 +65,14 @@ func TestImportCacheDirectory(t *testing.T) {
 	// Test cache directory path
 	expectedDir := filepath.Join(tempDir, ImportCacheDir)
 	assert.Equal(t, expectedDir, cache.GetCacheDir(), "GetCacheDir should return expected path")
+
+	// GetCacheDir works for nested base directories that don't exist yet
+	t.Run("nested base dir returns correct path", func(t *testing.T) {
+		nestedBase := filepath.Join(t.TempDir(), "nested", "dir")
+		nestedCache := NewImportCache(nestedBase)
+		assert.Equal(t, filepath.Join(nestedBase, ImportCacheDir), nestedCache.GetCacheDir(),
+			"GetCacheDir should return base dir joined with ImportCacheDir for nested paths")
+	})
 
 	// Create a cache entry to trigger directory creation
 	testContent := []byte("test")
@@ -155,6 +168,16 @@ func TestSanitizePath(t *testing.T) {
 			name:     "leading slash becomes root-like",
 			input:    "/absolute/path",
 			expected: "_absolute_path",
+		},
+		{
+			name:     "dot-prefixed path cleaned",
+			input:    "./file.md",
+			expected: "file.md",
+		},
+		{
+			name:     "multiple consecutive slashes cleaned",
+			input:    "a//b/file.md",
+			expected: "a_b_file.md",
 		},
 	}
 

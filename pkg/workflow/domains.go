@@ -40,6 +40,7 @@ var CopilotDefaultDomains = []string{
 var CodexDefaultDomains = []string{
 	"172.30.0.1", // AWF gateway IP - Codex resolves host.docker.internal to this IP for Rust DNS compatibility
 	"api.openai.com",
+	"chatgpt.com", // Codex CLI connects to chatgpt.com (and subdomains e.g. ab.chatgpt.com) for auth/telemetry
 	"host.docker.internal",
 	"openai.com",
 }

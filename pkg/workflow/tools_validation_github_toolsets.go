@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 func validateGitHubToolsAgainstToolsetsImpl(allowedTools []string, enabledToolsets []string) error {
@@ -74,7 +75,7 @@ func validateGitHubToolsAgainstToolsetsImpl(allowedTools []string, enabledToolse
 	if len(unknownTools) > 0 {
 		githubToolToToolsetLog.Printf("Found %d unknown tools", len(unknownTools))
 		var errMsg strings.Builder
-		errMsg.WriteString(fmt.Sprintf("Unknown GitHub tool(s): %s\n\n", formatList(unknownTools)))
+		errMsg.WriteString(fmt.Sprintf("Unknown GitHub tool(s): %s\n\n", stringutil.FormatList(unknownTools)))
 
 		if len(suggestions) > 0 {
 			errMsg.WriteString("Did you mean:\n")
@@ -92,7 +93,7 @@ func validateGitHubToolsAgainstToolsetsImpl(allowedTools []string, enabledToolse
 		sort.Strings(validTools)
 
 		exampleCount := min(10, len(validTools))
-		errMsg.WriteString(fmt.Sprintf("Valid GitHub tools include: %s\n\n", formatList(validTools[:exampleCount])))
+		errMsg.WriteString(fmt.Sprintf("Valid GitHub tools include: %s\n\n", stringutil.FormatList(validTools[:exampleCount])))
 		errMsg.WriteString("See all tools: https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_tool_to_toolset.json")
 
 		return errors.New(errMsg.String())

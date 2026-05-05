@@ -46,24 +46,47 @@ Use the **report_progress** tool to commit and push your changes. This will auto
 
 **Never leave file changes uncommitted.** Even for small or "obvious" changes, always use **report_progress** to push your work to a PR so it can be reviewed.
 
-### ⚠️ MANDATORY PRE-COMMIT VALIDATION ⚠️
+### ⚠️ MANDATORY PRE-COMMIT AND PRE-PR VALIDATION ⚠️
 
-**🚨 BEFORE EVERY COMMIT - NO EXCEPTIONS:**
+**🚨 TWO-CHECKPOINT VALIDATION STRATEGY — NO EXCEPTIONS:**
+
+#### Checkpoint 1 — After First Significant Code Edit
+
+Run this immediately after making your first substantial code change (do NOT wait until the end):
 
 ```bash
-make agent-finish  # Runs build, test, recompile, fmt, lint
+make build && make fmt   # Catch compile errors and formatting issues early
 ```
 
-**Why this matters:**
+**Why checkpoint 1 matters:**
+- Surfaces compile errors before you spend more context on subsequent edits
+- Prevents wasted work if the approach is fundamentally broken
+- Cheap to run (~2s) and gives immediate feedback
+
+#### Checkpoint 2 — Before Every `report_progress` / PR Creation
+
+**🚨 DO NOT call `report_progress` (which creates/updates the PR) until this passes:**
+
+```bash
+make agent-report-progress  # build + fmt + test-unit (<30s) — fast pre-PR gate
+```
+
+When more time is available, prefer the full suite:
+
+```bash
+make agent-finish  # Runs build, test, recompile, fmt, lint (full validation)
+```
+
+**Why checkpoint 2 matters:**
 - **CI WILL FAIL** if you skip this step - this is automatic and non-negotiable
 - Unformatted code causes immediate CI failures that block all other work
 - This has caused **5 CI failures in a single day** - don't be the 6th!
 - The formatting check (`go fmt`) is strict and cannot be disabled
+- PRs that fail CI immediately after opening are closed without merging — a wasted session
 
-**If you're in a hurry** and `make agent-finish` takes too long, **at minimum run**:
+**If you're in a hurry** and `make agent-finish` takes too long, use the dedicated fast gate:
 ```bash
-make fmt         # Format Go, JavaScript, and JSON files
-make test-unit   # Fast unit tests (~25s)
+make agent-report-progress   # build + fmt + test-unit (~30s)
 ```
 
 **After making Go code changes (*.go files):**
@@ -1138,7 +1161,7 @@ Use the mcpscripts-make tool with args: "build"     ← may fail with context ca
 Use the mcpscripts-go tool with args: "test ./..."  ← may fail with context canceled
 ```
 
-**Additional rule**: Add an **intermediate validation checkpoint** using bash after the first major code edit (e.g., `make build`), not just at the very end of the session. This surfaces compile errors early, before the agent spends more context on subsequent edits.
+**Additional rule**: Follow the **two-checkpoint validation strategy** (see Critical Requirements): run `make build && make fmt` after the first major code edit (Checkpoint 1), and run `make agent-report-progress` before every `report_progress` call (Checkpoint 2). Both checkpoints must use direct `bash` commands, not MCP tools.
 
 **When `mcpscripts-*` tools are safe to use:**
 - Early in a session, before any long exploration phase
@@ -1208,13 +1231,17 @@ make minor-release  # Automated via GitHub Actions
 
 Use **report_progress** to commit, push, and update the PR. Never leave changes uncommitted.
 
-### 🚨 CRITICAL - Pre-Commit Checklist
-Before EVERY commit:
-1. ✅ Run `make agent-finish` (or at minimum `make fmt`)
-2. ✅ Verify no errors from the above command
-3. ✅ Only then commit and push
+### 🚨 CRITICAL - Two-Checkpoint Validation (Pre-Commit + Pre-PR)
+**Checkpoint 1** — After first significant code edit:
+1. ✅ Run `make build && make fmt` (fast early feedback, ~2s)
+2. ✅ Fix any compile errors or formatting issues before proceeding
 
-**This is NOT optional** - skipping this causes immediate CI failures.
+**Checkpoint 2** — Before every `report_progress` call (creates/updates PR):
+1. ✅ Run `make agent-report-progress` (build + fmt + test-unit, <30s)
+2. ✅ Verify no errors from the above command
+3. ✅ Only then call `report_progress`
+
+**This is NOT optional** — PRs that fail CI immediately after opening are closed without merging, wasting the entire agent session.
 
 ### Development Guidelines
 - Go project with Makefile-managed build/test/lint

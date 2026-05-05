@@ -3,10 +3,13 @@ package workflow
 import (
 	"fmt"
 	"maps"
+	"os"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -118,11 +121,27 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// (e.g., ${{ needs.search_issues.outputs.* }}), we MUST add them as direct dependencies.
 	// This is required for GitHub Actions expression evaluation and actionlint validation.
 	// Also check custom steps from the frontmatter, which are also added to the agent job.
+	// Also check engine.env values, which may contain needs.<job>.outputs.* expressions.
 	var contentBuilder strings.Builder
 	contentBuilder.WriteString(data.MarkdownContent)
 	if data.CustomSteps != "" {
 		contentBuilder.WriteByte('\n')
 		contentBuilder.WriteString(data.CustomSteps)
+	}
+	// Compute engine.env content once; reuse for both the dependency scan and the built-in
+	// job reference warning below.
+	var engineEnvContent string
+	if data.EngineConfig != nil && len(data.EngineConfig.Env) > 0 {
+		var engineEnvBuilder strings.Builder
+		for _, envValue := range data.EngineConfig.Env {
+			engineEnvBuilder.WriteByte('\n')
+			engineEnvBuilder.WriteString(envValue)
+		}
+		engineEnvContent = engineEnvBuilder.String()
+		// Include engine.env values so that needs.<job>.outputs.* expressions there are also
+		// scanned for custom job dependencies that must be added to the agent job's needs list.
+		contentBuilder.WriteString(engineEnvContent)
+		compilerMainJobLog.Printf("Including %d engine.env values in agent job dependency scan", len(data.EngineConfig.Env))
 	}
 	referencedJobs := c.getReferencedCustomJobs(contentBuilder.String(), data.Jobs)
 	for _, jobName := range referencedJobs {
@@ -136,7 +155,42 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Add it if not already present
 		if !alreadyDepends {
 			depends = append(depends, jobName)
-			compilerMainJobLog.Printf("Added direct dependency on custom job '%s' because it's referenced in workflow content", jobName)
+			compilerMainJobLog.Printf("Added direct dependency on custom job '%s' because it's referenced in workflow content or engine.env", jobName)
+		}
+	}
+
+	// Warn when built-in job names appear in needs expressions inside engine.env values.
+	// engine.env values are emitted as step-level environment variables in the agent job;
+	// for a needs expression like ${{ needs.X.outputs.Y }} to evaluate correctly at runtime,
+	// X must be a direct dependency of the agent job. Built-in jobs (e.g., detection,
+	// safe_outputs) are managed by the compiler and cannot be added as direct dependencies,
+	// so referencing them here will silently produce empty strings at runtime.
+	// Exception: skip any built-in that is already in `depends` (e.g., `activation`),
+	// as those expressions are valid and will evaluate correctly.
+	if engineEnvContent != "" {
+		builtinNames := make([]string, 0, len(constants.KnownBuiltInJobNames))
+		for name := range constants.KnownBuiltInJobNames {
+			builtinNames = append(builtinNames, name)
+		}
+		sort.Strings(builtinNames)
+		builtinsWarned := make(map[string]bool)
+		for _, builtinJobName := range builtinNames {
+			// Skip built-ins that are already direct dependencies (e.g., activation) —
+			// their outputs are accessible and the expression is valid.
+			if slices.Contains(depends, builtinJobName) {
+				continue
+			}
+			if !builtinsWarned[builtinJobName] && strings.Contains(engineEnvContent, fmt.Sprintf("needs.%s.", builtinJobName)) {
+				builtinsWarned[builtinJobName] = true
+				warningMsg := fmt.Sprintf(
+					"engine.env references built-in job '%s' in a needs expression. "+
+						"Built-in jobs are managed by the compiler and cannot be added as direct agent dependencies; "+
+						"this expression will silently evaluate to an empty string at runtime.",
+					builtinJobName,
+				)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+				c.IncrementWarningCount()
+			}
 		}
 	}
 

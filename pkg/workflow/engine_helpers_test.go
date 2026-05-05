@@ -339,4 +339,148 @@ func TestFormatStepWithCommandAndEnvYAMLSafe(t *testing.T) {
 			t.Errorf("Expected unquoted github expression in env, got:\n%s", output)
 		}
 	})
+
+	t.Run("multi-line env var emitted as literal block scalar", func(t *testing.T) {
+		stepLines := []string{"      - name: Test step"}
+		// Continuation lines have 4-space leading whitespace (as produced by goccy/go-yaml
+		// when parsing a >- block scalar with extra-indented continuation lines).
+		multiLineValue := "${{ secrets.PAT_1 != '' && secrets.PAT_1 ||\n    secrets.PAT_2 != '' && secrets.PAT_2 ||\n    secrets.PAT_3 }}"
+		env := map[string]string{
+			"COPILOT_GITHUB_TOKEN": multiLineValue,
+		}
+		result := FormatStepWithCommandAndEnv(stepLines, "echo test", env)
+		output := strings.Join(result, "\n")
+
+		// Multi-line value must be emitted as a literal block scalar
+		if !strings.Contains(output, "          COPILOT_GITHUB_TOKEN: |") {
+			t.Errorf("Expected literal block scalar indicator, got:\n%s", output)
+		}
+		if !strings.Contains(output, "            ${{ secrets.PAT_1 != '' && secrets.PAT_1 ||") {
+			t.Errorf("Expected first line of multi-line value, got:\n%s", output)
+		}
+		// Continuation lines have 4-space prefix preserved, so total indentation is 12+4=16 spaces.
+		if !strings.Contains(output, "                secrets.PAT_3 }}") {
+			t.Errorf("Expected last line of multi-line value with preserved continuation indentation (16 spaces), got:\n%s", output)
+		}
+	})
+
+	t.Run("trailing newline in env var is trimmed", func(t *testing.T) {
+		stepLines := []string{"      - name: Test step"}
+		env := map[string]string{
+			"MY_TOKEN": "${{ secrets.TOKEN }}\n",
+		}
+		result := FormatStepWithCommandAndEnv(stepLines, "echo test", env)
+		output := strings.Join(result, "\n")
+
+		// Trailing newline should be trimmed; value should be emitted inline
+		if !strings.Contains(output, "MY_TOKEN: ${{ secrets.TOKEN }}") {
+			t.Errorf("Expected trailing newline to be trimmed, got:\n%s", output)
+		}
+		// Should not emit a block scalar for a value that only had a trailing newline
+		if strings.Contains(output, "MY_TOKEN: |") {
+			t.Errorf("Expected inline emission (not block scalar) after trimming trailing newline, got:\n%s", output)
+		}
+	})
+}
+
+func TestAppendEnvVarLine(t *testing.T) {
+	tests := []struct {
+		name            string
+		key             string
+		value           string
+		expectedContent []string
+		notExpected     []string
+	}{
+		{
+			name:  "single-line value emitted inline",
+			key:   "MY_VAR",
+			value: "simple value",
+			expectedContent: []string{
+				"          MY_VAR: simple value",
+			},
+		},
+		{
+			name:  "github expression emitted inline without extra quoting",
+			key:   "TOKEN",
+			value: "${{ secrets.TOKEN }}",
+			expectedContent: []string{
+				"          TOKEN: ${{ secrets.TOKEN }}",
+			},
+		},
+		{
+			name:  "json value gets single-quoted inline",
+			key:   "CONFIG",
+			value: `{"key":"value"}`,
+			expectedContent: []string{
+				`          CONFIG: '{"key":"value"}'`,
+			},
+		},
+		{
+			name: "multi-line value emitted as literal block scalar",
+			key:  "COPILOT_GITHUB_TOKEN",
+			// Continuation lines have 4-space leading whitespace (as produced by goccy/go-yaml
+			// when parsing a >- block scalar with extra-indented continuation lines).
+			value: "${{ secrets.PAT_1 != '' && secrets.PAT_1 ||\n    secrets.PAT_2 }}",
+			expectedContent: []string{
+				"          COPILOT_GITHUB_TOKEN: |",
+				"            ${{ secrets.PAT_1 != '' && secrets.PAT_1 ||",
+				// Continuation line has 4-space prefix preserved: 12 base + 4 continuation = 16 spaces total.
+				"                secrets.PAT_2 }}",
+			},
+			notExpected: []string{
+				"COPILOT_GITHUB_TOKEN: ${{ secrets.PAT_1",
+			},
+		},
+		{
+			name:  "trailing newline is trimmed before deciding inline vs block",
+			key:   "TRIMMED",
+			value: "${{ secrets.TOKEN }}\n",
+			expectedContent: []string{
+				"          TRIMMED: ${{ secrets.TOKEN }}",
+			},
+			notExpected: []string{
+				"TRIMMED: |",
+			},
+		},
+		{
+			name:  "only one trailing newline is trimmed (not multiple)",
+			key:   "MULTI_NEWLINE",
+			value: "line one\nline two\n\n",
+			expectedContent: []string{
+				"          MULTI_NEWLINE: |",
+				"            line one",
+				"            line two",
+				// The second trailing newline becomes an empty line in the block scalar.
+				"            ",
+			},
+		},
+		{
+			name:  "multi-line value with trailing newline trimmed",
+			key:   "MULTI",
+			value: "line one\nline two\n",
+			expectedContent: []string{
+				"          MULTI: |",
+				"            line one",
+				"            line two",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := appendEnvVarLine([]string{}, tt.key, tt.value)
+			output := strings.Join(result, "\n")
+
+			for _, expected := range tt.expectedContent {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected result to contain %q\nGot:\n%s", expected, output)
+				}
+			}
+			for _, notExp := range tt.notExpected {
+				if strings.Contains(output, notExp) {
+					t.Errorf("Expected result NOT to contain %q\nGot:\n%s", notExp, output)
+				}
+			}
+		})
+	}
 }

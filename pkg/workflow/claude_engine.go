@@ -320,7 +320,14 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		"DISABLE_TELEMETRY":       "1",
 		"DISABLE_ERROR_REPORTING": "1",
 		"DISABLE_BUG_COMMAND":     "1",
-		"GH_AW_PROMPT":            "/tmp/gh-aw/aw-prompts/prompt.txt",
+		// Disable Claude Code's "fast mode" feature. Fast mode requires the
+		// server-side flagSettings.fastMode feature flag, which is not available
+		// in Agent SDK contexts (non-interactive --print sessions). Without this,
+		// Claude Code 2.1.120+ attempts to enable fast mode and fails with
+		// "Fast mode unavailable: Fast mode is not available in the Agent SDK",
+		// which crashes the agent mid-session on every API call.
+		"CLAUDE_CODE_DISABLE_FAST_MODE": "1",
+		"GH_AW_PROMPT":                  "/tmp/gh-aw/aw-prompts/prompt.txt",
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW": "true",
 		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.

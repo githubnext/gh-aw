@@ -414,6 +414,102 @@ func TestParseVersionValue(t *testing.T) {
 	}
 }
 
+func TestFormatList(t *testing.T) {
+	tests := []struct {
+		name     string
+		items    []string
+		expected string
+	}{
+		{
+			name:     "empty slice",
+			items:    []string{},
+			expected: "",
+		},
+		{
+			name:     "single item",
+			items:    []string{"a"},
+			expected: "a",
+		},
+		{
+			name:     "two items",
+			items:    []string{"a", "b"},
+			expected: "a and b",
+		},
+		{
+			name:     "three items",
+			items:    []string{"a", "b", "c"},
+			expected: "a, b, and c",
+		},
+		{
+			name:     "four items",
+			items:    []string{"a", "b", "c", "d"},
+			expected: "a, b, c, and d",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatList(tt.items)
+			if result != tt.expected {
+				t.Errorf("FormatList(%v) = %q; want %q", tt.items, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestNormalizeLeadingWhitespace(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "removes consistent leading spaces",
+			input:    "          Line 1\n          Line 2\n          Line 3",
+			expected: "Line 1\nLine 2\nLine 3",
+		},
+		{
+			name:     "handles no leading spaces",
+			input:    "Line 1\nLine 2",
+			expected: "Line 1\nLine 2",
+		},
+		{
+			name:     "preserves relative indentation",
+			input:    "          Line 1\n            Indented Line 2\n          Line 3",
+			expected: "Line 1\n  Indented Line 2\nLine 3",
+		},
+		{
+			name:     "handles empty lines",
+			input:    "          Line 1\n\n          Line 3",
+			expected: "Line 1\n\nLine 3",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "removes consistent leading tabs",
+			input:    "\t\tLine 1\n\t\tLine 2\n\t\tLine 3",
+			expected: "Line 1\nLine 2\nLine 3",
+		},
+		{
+			name:     "removes consistent mixed tab and space indentation",
+			input:    "\t  Line 1\n\t  Line 2\n\t  Line 3",
+			expected: "Line 1\nLine 2\nLine 3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NormalizeLeadingWhitespace(tt.input)
+			if result != tt.expected {
+				t.Errorf("NormalizeLeadingWhitespace(%q) = %q; want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestIsPositiveInteger(t *testing.T) {
 	tests := []struct {
 		name string

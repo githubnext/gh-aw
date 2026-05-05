@@ -186,6 +186,8 @@ from where the previous request stopped due to timeout.`,
 		mcpLog.Printf("Executing logs tool: workflow=%s, count=%d, firewall=%v, no_firewall=%v, filtered_integrity=%v, timeout=%d, command_args=%v",
 			args.WorkflowName, args.Count, args.Firewall, args.NoFirewall, args.FilteredIntegrity, timeoutValue, cmdArgs)
 
+		notifyProgress(ctx, req, 0, 100, "Downloading workflow logs...")
+
 		// Execute the CLI command
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
@@ -233,6 +235,8 @@ from where the previous request stopped due to timeout.`,
 
 		// Always write output to a file and return schema + file path
 		finalOutput := buildLogsFileResponse(outputStr)
+
+		notifyProgress(ctx, req, 100, 100, "Workflow logs downloaded")
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
@@ -353,6 +357,8 @@ Multi-run diff returns JSON describing changes between the base and each compari
 
 		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
 
+		notifyProgress(ctx, req, 0, 100, "Downloading audit artifacts...")
+
 		// Execute the CLI command.
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
@@ -408,6 +414,8 @@ Multi-run diff returns JSON describing changes between the base and each compari
 				Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
 			}, nil, nil
 		}
+
+		notifyProgress(ctx, req, 100, 100, "Audit complete")
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
@@ -483,6 +491,10 @@ Returns JSON describing the differences between the base run and each comparison
 			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
 		}
 
+		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
+
+		notifyProgress(ctx, req, 0, 100, "Downloading artifacts for diff...")
+
 		cmd := execCmd(ctx, cmdArgs...)
 		stdout, err := cmd.Output()
 		outputStr := string(stdout)
@@ -517,12 +529,34 @@ Returns JSON describing the differences between the base run and each comparison
 			}, nil, nil
 		}
 
+		notifyProgress(ctx, req, 100, 100, "Diff complete")
+
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{&mcp.TextContent{Text: outputStr}},
 		}, nil, nil
 	})
 
 	return nil
+}
+
+// notifyProgress sends a progress notification to the MCP client if the request
+// includes a progress token. The req, req.Params, and req.Session fields are
+// checked for nil before use. Errors are silently ignored because progress
+// notifications are best-effort; the tool result is not affected. If the client
+// has disconnected or the notification fails for any reason, the tool continues
+// executing normally.
+func notifyProgress(ctx context.Context, req *mcp.CallToolRequest, progress, total float64, message string) {
+	if req == nil || req.Session == nil {
+		return
+	}
+	if token := req.Params.GetProgressToken(); token != nil {
+		_ = req.Session.NotifyProgress(ctx, &mcp.ProgressNotificationParams{
+			ProgressToken: token,
+			Progress:      progress,
+			Total:         total,
+			Message:       message,
+		})
+	}
 }
 
 // filtering out debug log lines (e.g. "workflow:script_registry Creating... +151ns").
