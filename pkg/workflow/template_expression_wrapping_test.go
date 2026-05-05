@@ -241,6 +241,57 @@ Regular content`,
 			input:    "{{#if github.actor}}A{{/if}} {{#if }}B{{/if}} {{#if true}}C{{/if}}",
 			expected: "{{#if ${{ github.actor }} }}A{{/if}} {{#if ${{ false }} }}B{{/if}} {{#if ${{ true }} }}C{{/if}}",
 		},
+		// elseif variants — expression wrapping and canonical normalisation
+		{
+			name:     "canonical elseif wraps expression",
+			input:    "{{#if github.actor}}A{{#elseif github.repository}}B{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}A{{#elseif ${{ github.repository }} }}B{{/if}}",
+		},
+		{
+			name:     "else-if hyphen variant normalised to canonical",
+			input:    "{{#if github.actor}}A{{#else-if github.repository}}B{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}A{{#elseif ${{ github.repository }} }}B{{/if}}",
+		},
+		{
+			name:     "else_if underscore variant normalised to canonical",
+			input:    "{{#if github.actor}}A{{#else_if github.repository}}B{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}A{{#elseif ${{ github.repository }} }}B{{/if}}",
+		},
+		{
+			name:     "elseif without hash prefix normalised to canonical",
+			input:    "{{#if github.actor}}A{{elseif github.repository}}B{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}A{{#elseif ${{ github.repository }} }}B{{/if}}",
+		},
+		{
+			name:     "else-if without hash prefix normalised to canonical",
+			input:    "{{#if github.actor}}A{{else-if github.repository}}B{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}A{{#elseif ${{ github.repository }} }}B{{/if}}",
+		},
+		{
+			name:     "else_if without hash prefix normalised to canonical",
+			input:    "{{#if github.actor}}A{{else_if github.repository}}B{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}A{{#elseif ${{ github.repository }} }}B{{/if}}",
+		},
+		{
+			name:     "elseif already wrapped expression skipped",
+			input:    "{{#if github.actor}}A{{#elseif ${{ github.repository }} }}B{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}A{{#elseif ${{ github.repository }} }}B{{/if}}",
+		},
+		{
+			name:     "multiple elseif branches wrapped",
+			input:    "{{#if github.actor}}A{{#elseif github.repository}}B{{#elseif env.MY_VAR}}C{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}A{{#elseif ${{ github.repository }} }}B{{#elseif ${{ env.MY_VAR }} }}C{{/if}}",
+		},
+		{
+			name:     "elseif with env var reference skipped",
+			input:    "{{#if github.actor}}A{{#elseif ${GH_AW_EXPR_REPO}}}B{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}A{{#elseif ${GH_AW_EXPR_REPO}}}B{{/if}}",
+		},
+		{
+			name:     "elseif with placeholder reference skipped",
+			input:    "{{#if github.actor}}A{{#elseif __GH_AW_VAR__}}B{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}A{{#elseif __GH_AW_VAR__}}B{{/if}}",
+		},
 	}
 
 	for _, tt := range tests {

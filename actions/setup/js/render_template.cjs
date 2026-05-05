@@ -13,6 +13,44 @@ const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 const { isTruthy } = require("./is_truthy.cjs");
 
 /**
+ * Selects the appropriate branch from a conditional block that may contain
+ * {{#elseif}}, {{#else-if}}, {{#else_if}}, {{elseif}}, {{else-if}}, {{else_if}}
+ * branches in addition to the optional {{#else}} fallback.
+ *
+ * @param {string} ifCondition - The condition from the opening {{#if ...}} tag
+ * @param {string} body        - Everything between the opening tag and {{/if}}
+ * @returns {string|null}      - Content of the first truthy branch, or null
+ */
+function selectBranch(ifCondition, body) {
+  // Split on all elseif variants.  The capturing group ensures that the condition
+  // text appears between the content pieces in the resulting array.
+  // Supported: {{#elseif}}, {{#else-if}}, {{#else_if}}, {{elseif}}, {{else-if}}, {{else_if}}
+  const parts = body.split(/[ \t]*\{\{#?else[-_]?if\s+([^}]*)\}\}[ \t]*\n?/);
+
+  // parts alternates: [content0, cond1, content1, cond2, content2, ...]
+  const branches = [{ condition: ifCondition, content: parts[0] }];
+  for (let i = 1; i < parts.length; i += 2) {
+    branches.push({ condition: parts[i].trim(), content: parts[i + 1] || "" });
+  }
+
+  // Check whether the last branch's content contains a {{#else}} tail
+  const lastBranch = branches[branches.length - 1];
+  const elseParts = lastBranch.content.split(/[ \t]*\{\{#else\}\}[ \t]*\n?/);
+  if (elseParts.length > 1) {
+    lastBranch.content = elseParts[0];
+    branches.push({ condition: null, content: elseParts.slice(1).join("{{#else}}") });
+  }
+
+  // Return content of the first truthy branch
+  for (const branch of branches) {
+    if (branch.condition === null || isTruthy(branch.condition)) {
+      return branch.content;
+    }
+  }
+  return null;
+}
+
+/**
  * Renders a Markdown template by processing {{#if}} conditional blocks.
  * When a conditional block is removed (falsy condition) and the template tags
  * were on their own lines, the empty lines are cleaned up to avoid
@@ -50,16 +88,15 @@ function renderMarkdownTemplate(markdown) {
   // Uses .*? (non-greedy) with \s* to handle expressions with or without trailing spaces
   let result = _stripped.replace(/(\n?)([ \t]*{{#if\s+(.*?)\s*}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body) => {
     blockCount++;
-    const truthyResult = isTruthy(cond);
 
-    core.info(`[renderMarkdownTemplate] Block ${blockCount}: condition="${cond.trim()}" -> ${truthyResult ? "KEEP" : "REMOVE"}`);
+    core.info(`[renderMarkdownTemplate] Block ${blockCount}: condition="${cond.trim()}" -> evaluating branches`);
 
-    if (truthyResult) {
-      // Keep body with leading newline if there was one before the opening tag
+    const selectedContent = selectBranch(cond, body);
+
+    if (selectedContent !== null) {
       keptBlocks++;
-      return leadNL + body;
+      return leadNL + selectedContent;
     } else {
-      // Remove entire block completely - the line containing the template is removed
       removedBlocks++;
       return "";
     }
@@ -75,13 +112,13 @@ function renderMarkdownTemplate(markdown) {
   // Uses .*? (non-greedy) with \s* to handle expressions with or without trailing spaces
   result = result.replace(/{{#if\s+(.*?)\s*}}([\s\S]*?){{\/if}}/g, (_, cond, body) => {
     inlineCount++;
-    const truthyResult = isTruthy(cond);
+    const selectedContent = selectBranch(cond, body);
 
-    core.info(`[renderMarkdownTemplate] Inline ${inlineCount}: condition="${cond.trim()}" -> ${truthyResult ? "KEEP" : "REMOVE"}`);
+    core.info(`[renderMarkdownTemplate] Inline ${inlineCount}: condition="${cond.trim()}" -> ${selectedContent !== null ? "KEEP" : "REMOVE"}`);
 
-    if (truthyResult) {
+    if (selectedContent !== null) {
       keptInline++;
-      return body;
+      return selectedContent;
     } else {
       removedInline++;
       return "";
@@ -152,4 +189,4 @@ function main() {
   }
 }
 
-module.exports = { renderMarkdownTemplate, main };
+module.exports = { renderMarkdownTemplate, main, selectBranch };

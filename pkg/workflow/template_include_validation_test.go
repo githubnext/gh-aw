@@ -446,6 +446,71 @@ Even more content.
 	}
 }
 
+// TestValidateNoPreExpandedExperimentPlaceholders_ElseIf tests that elseif conditions
+// are also checked for pre-expanded experiment placeholders.
+func TestValidateNoPreExpandedExperimentPlaceholders_ElseIf(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "valid - experiments.name in if condition",
+			input:   `{{#if experiments.prompt_style == "detailed"}}content{{/if}}`,
+			wantErr: false,
+		},
+		{
+			name:    "valid - experiments.name in elseif condition",
+			input:   `{{#if false}}a{{#elseif experiments.prompt_style == "detailed"}}content{{/if}}`,
+			wantErr: false,
+		},
+		{
+			name:    "invalid - pre-expanded placeholder in if condition",
+			input:   `{{#if __GH_AW_EXPERIMENTS_PROMPT_STYLE__ == "detailed"}}content{{/if}}`,
+			wantErr: true,
+			errMsg:  "pre-expanded experiment placeholder",
+		},
+		{
+			name:    "invalid - pre-expanded placeholder in elseif condition",
+			input:   `{{#if false}}a{{#elseif __GH_AW_EXPERIMENTS_PROMPT_STYLE__ == "detailed"}}content{{/if}}`,
+			wantErr: true,
+			errMsg:  "pre-expanded experiment placeholder",
+		},
+		{
+			name:    "invalid - pre-expanded placeholder in else-if (hyphen) condition",
+			input:   `{{#if false}}a{{#else-if __GH_AW_EXPERIMENTS_FEATURE__ == "on"}}content{{/if}}`,
+			wantErr: true,
+			errMsg:  "pre-expanded experiment placeholder",
+		},
+		{
+			name:    "invalid - pre-expanded placeholder in else_if (underscore) condition",
+			input:   `{{#if false}}a{{#else_if __GH_AW_EXPERIMENTS_FEATURE__}}content{{/if}}`,
+			wantErr: true,
+			errMsg:  "pre-expanded experiment placeholder",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateNoPreExpandedExperimentPlaceholders(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("validateNoPreExpandedExperimentPlaceholders() expected error, got nil")
+					return
+				}
+				if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf("validateNoPreExpandedExperimentPlaceholders() error = %q, want to contain %q", err.Error(), tt.errMsg)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("validateNoPreExpandedExperimentPlaceholders() unexpected error = %v", err)
+				}
+			}
+		})
+	}
+}
+
 // TestValidateNoIncludesInTemplateRegions_SingleError tests single error behavior
 func TestValidateNoIncludesInTemplateRegions_SingleError(t *testing.T) {
 	// Input with single include inside template region
