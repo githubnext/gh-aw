@@ -7,6 +7,7 @@ on:
 
 permissions:
   pull-requests: write
+  issues: write
   checks: read
 
 jobs:
@@ -106,7 +107,10 @@ jobs:
 
             try {
               await github.rest.issues.getLabel({ owner, repo, name: label });
-            } catch {
+            } catch (err) {
+              if (err.status !== 404) {
+                throw err;
+              }
               // Label doesn't exist yet — create it
               await github.rest.issues.createLabel({
                 owner,

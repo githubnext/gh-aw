@@ -46,7 +46,7 @@ Use the **report_progress** tool to commit and push your changes. This will auto
 
 **Never leave file changes uncommitted.** Even for small or "obvious" changes, always use **report_progress** to push your work to a PR so it can be reviewed.
 
-### ⚠️ MANDATORY PRE-COMMIT VALIDATION ⚠️
+### ⚠️ MANDATORY PRE-COMMIT AND PRE-PR VALIDATION ⚠️
 
 **🚨 TWO-CHECKPOINT VALIDATION STRATEGY — NO EXCEPTIONS:**
 
@@ -68,7 +68,7 @@ make build && make fmt   # Catch compile errors and formatting issues early
 **🚨 DO NOT call `report_progress` (which creates/updates the PR) until this passes:**
 
 ```bash
-make agent_report_progress  # build + fmt + test-unit (<30s) — fast pre-PR gate
+make agent-report-progress  # build + fmt + test-unit (<30s) — fast pre-PR gate
 ```
 
 When more time is available, prefer the full suite:
@@ -86,7 +86,7 @@ make agent-finish  # Runs build, test, recompile, fmt, lint (full validation)
 
 **If you're in a hurry** and `make agent-finish` takes too long, use the dedicated fast gate:
 ```bash
-make agent_report_progress   # build + fmt + test-unit (~30s)
+make agent-report-progress   # build + fmt + test-unit (~30s)
 ```
 
 **After making Go code changes (*.go files):**
@@ -1161,7 +1161,7 @@ Use the mcpscripts-make tool with args: "build"     ← may fail with context ca
 Use the mcpscripts-go tool with args: "test ./..."  ← may fail with context canceled
 ```
 
-**Additional rule**: Follow the **two-checkpoint validation strategy** (see Critical Requirements): run `make build && make fmt` after the first major code edit (Checkpoint 1), and run `make agent_report_progress` before every `report_progress` call (Checkpoint 2). Both checkpoints must use direct `bash` commands, not MCP tools.
+**Additional rule**: Follow the **two-checkpoint validation strategy** (see Critical Requirements): run `make build && make fmt` after the first major code edit (Checkpoint 1), and run `make agent-report-progress` before every `report_progress` call (Checkpoint 2). Both checkpoints must use direct `bash` commands, not MCP tools.
 
 **When `mcpscripts-*` tools are safe to use:**
 - Early in a session, before any long exploration phase
@@ -1237,7 +1237,7 @@ Use **report_progress** to commit, push, and update the PR. Never leave changes 
 2. ✅ Fix any compile errors or formatting issues before proceeding
 
 **Checkpoint 2** — Before every `report_progress` call (creates/updates PR):
-1. ✅ Run `make agent_report_progress` (build + fmt + test-unit, <30s)
+1. ✅ Run `make agent-report-progress` (build + fmt + test-unit, <30s)
 2. ✅ Verify no errors from the above command
 3. ✅ Only then call `report_progress`
 
