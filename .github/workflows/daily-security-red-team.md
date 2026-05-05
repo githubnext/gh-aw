@@ -710,7 +710,7 @@ Initialize your cache-memory, determine today's technique, and begin your compre
 
 ## agent: `forensics-extractor`
 ---
-model: claude-haiku-4.5
+model: small
 description: Run git blame on each security finding and extract commit origin metadata as JSON
 ---
 You receive security findings as plain text, one per line, in the format:
@@ -754,7 +754,7 @@ Output one JSON object per line. No preamble, no summary.
 
 ## agent: `fix-task-generator`
 ---
-model: claude-haiku-4.5
+model: small
 description: Generate markdown remediation checklist from classified security findings
 ---
 You receive security finding records as JSON objects, one per line:
