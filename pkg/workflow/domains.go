@@ -40,6 +40,7 @@ var CopilotDefaultDomains = []string{
 var CodexDefaultDomains = []string{
 	"172.30.0.1", // AWF gateway IP - Codex resolves host.docker.internal to this IP for Rust DNS compatibility
 	"api.openai.com",
+	"chatgpt.com", // Codex CLI connects to chatgpt.com (and subdomains e.g. ab.chatgpt.com) for auth/telemetry
 	"host.docker.internal",
 	"openai.com",
 }
@@ -772,6 +773,17 @@ func GetAllowedDomainsForEngineWithModel(engine constants.EngineName, model stri
 		return "", err
 	}
 	return mergeDomainsWithNetworkToolsAndRuntimes(defaults, network, tools, runtimes), nil
+}
+
+// mustGetAllowedDomainsForEngineWithModel is like GetAllowedDomainsForEngineWithModel but
+// panics if the model is malformed. It is intended for call sites where the model has
+// already been validated and an error represents an internal invariant violation (BUG).
+func mustGetAllowedDomainsForEngineWithModel(engine constants.EngineName, model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	result, err := GetAllowedDomainsForEngineWithModel(engine, model, network, tools, runtimes)
+	if err != nil {
+		panic(fmt.Sprintf("BUG: invalid model %q reached domain computation (should have been caught by validation): %v", model, err))
+	}
+	return result
 }
 
 // GetAllowedDomainsForEngine merges the engine's default domains with NetworkPermissions,

@@ -1,4 +1,5 @@
 ---
+redirect: https://github.com/microsoft/apm/blob/main/.github/workflows/shared/apm.md
 # APM (Agent Package Manager) - Shared Workflow
 # Install Microsoft APM packages in your agentic workflow.
 #

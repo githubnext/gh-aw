@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-> Last updated: 2026-05-04 · Source: [Issue created by workflow run §25311481444](https://github.com/github/gh-aw/actions/runs/25311481444)
+> Last updated: 2026-05-05 · Source: [Issue created by workflow run §25368177917](https://github.com/github/gh-aw/actions/runs/25368177917)
 
 ## Overview
 

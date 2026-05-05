@@ -62,11 +62,14 @@ Test that the GitHub remote MCP server can authenticate and access GitHub API wi
 ### Success Case
 
 If the test succeeds (issues are retrieved successfully):
-- Output a brief success message with:
+- **Call `noop`** with the success message — do NOT create a discussion since the test passed:
+  ```json
+  {"noop": {"message": "Authentication test passed: successfully retrieved [N] open issues via GitHub remote MCP server"}}
+  ```
+- Include in the noop message:
   - ✅ Authentication test passed
   - Number of issues retrieved
   - Sample issue numbers and titles
-- **Do NOT create a discussion** - the test passed
 
 ### Failure Case
 
@@ -174,15 +177,9 @@ If the test fails, create a discussion using safe-outputs based on the failure t
 ## Expected Output
 
 **On Success**:
+Call `noop` with a message like:
 ```
-✅ GitHub Remote MCP Authentication Test PASSED
-
-Successfully retrieved 3 open issues:
-- #123: Issue title 1
-- #124: Issue title 2
-- #125: Issue title 3
-
-Authentication with GitHub Actions token is working correctly.
+Authentication test passed: successfully retrieved 3 open issues via GitHub remote MCP server (#123 Issue title 1, #124 Issue title 2, #125 Issue title 3)
 ```
 
 **On Failure**:

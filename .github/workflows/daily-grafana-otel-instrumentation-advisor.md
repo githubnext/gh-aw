@@ -13,7 +13,7 @@ engine: claude
 mcp-servers:
   grafana:
     container: "grafana/mcp-grafana"
-    args:
+    entrypointArgs:
       - "-t"
       - "stdio"
       - "--disable-write"

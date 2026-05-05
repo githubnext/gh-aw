@@ -31,4 +31,3 @@ if (fs.existsSync(assignmentsFile)) {
 This enables filtering workflow runs by experiment variant in Datadog, Honeycomb, or any
 OTLP-compatible backend. Attribute keys follow the pattern `gh_aw.experiment.<name>` with the
 assigned variant as the value, plus `gh_aw.experiment.names` as a comma-separated index.
-

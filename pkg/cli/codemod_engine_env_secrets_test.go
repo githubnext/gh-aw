@@ -91,6 +91,62 @@ engine:
 		assert.Equal(t, content, result, "content should be unchanged")
 	})
 
+	t.Run("no-op when COPILOT_PROVIDER_API_KEY is used (BYOK)", func(t *testing.T) {
+		content := `---
+on: workflow_dispatch
+engine:
+  id: copilot
+  env:
+    COPILOT_PROVIDER_BASE_URL: ${{ vars.PROVIDER_BASE_URL }}
+    COPILOT_MODEL: ${{ vars.PROVIDER_MODEL }}
+    COPILOT_PROVIDER_API_KEY: ${{ secrets.PROVIDER_API_KEY }}
+---
+`
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"engine": map[string]any{
+				"id": "copilot",
+				"env": map[string]any{
+					"COPILOT_PROVIDER_BASE_URL": "${{ vars.PROVIDER_BASE_URL }}",
+					"COPILOT_MODEL":             "${{ vars.PROVIDER_MODEL }}",
+					"COPILOT_PROVIDER_API_KEY":  "${{ secrets.PROVIDER_API_KEY }}",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should not error for BYOK pattern")
+		assert.False(t, applied, "codemod should not apply: COPILOT_PROVIDER_API_KEY is a BYOK credential")
+		assert.Equal(t, content, result, "content should be unchanged")
+	})
+
+	t.Run("no-op when COPILOT_PROVIDER_BEARER_TOKEN is used (BYOK)", func(t *testing.T) {
+		content := `---
+on: workflow_dispatch
+engine:
+  id: copilot
+  env:
+    COPILOT_PROVIDER_BASE_URL: ${{ vars.PROVIDER_BASE_URL }}
+    COPILOT_PROVIDER_BEARER_TOKEN: ${{ secrets.PROVIDER_BEARER_TOKEN }}
+---
+`
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"engine": map[string]any{
+				"id": "copilot",
+				"env": map[string]any{
+					"COPILOT_PROVIDER_BASE_URL":     "${{ vars.PROVIDER_BASE_URL }}",
+					"COPILOT_PROVIDER_BEARER_TOKEN": "${{ secrets.PROVIDER_BEARER_TOKEN }}",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should not error for BYOK bearer token pattern")
+		assert.False(t, applied, "codemod should not apply: COPILOT_PROVIDER_BEARER_TOKEN is a BYOK credential")
+		assert.Equal(t, content, result, "content should be unchanged")
+	})
+
 	t.Run("supports inline engine runtime.id for allowlist", func(t *testing.T) {
 		content := `---
 on: workflow_dispatch

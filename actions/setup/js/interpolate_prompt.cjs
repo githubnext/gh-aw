@@ -10,6 +10,7 @@
 
 const fs = require("fs");
 const { isTruthy } = require("./is_truthy.cjs");
+const { selectBranch } = require("./template_branch.cjs");
 const { processRuntimeImports } = require("./runtime_import.cjs");
 const { writeInlineSubAgents } = require("./extract_inline_sub_agents.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -87,30 +88,20 @@ function renderMarkdownTemplate(markdown) {
   let result = _stripped.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*(?:{{#endif}}|{{\/if}})[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
     blockCount++;
     const condTrimmed = cond.trim();
-    const truthyResult = isTruthy(cond);
     const bodyPreview = body.substring(0, 60).replace(/\n/g, "\\n");
 
-    core.info(`[renderMarkdownTemplate] Block ${blockCount}: condition="${condTrimmed}" -> ${truthyResult ? "KEEP" : "REMOVE"}`);
+    core.info(`[renderMarkdownTemplate] Block ${blockCount}: condition="${condTrimmed}" -> evaluating branches`);
     core.info(`[renderMarkdownTemplate]   Body preview: "${bodyPreview}${body.length > 60 ? "..." : ""}"`);
 
-    // Split on {{#else}} if present to support two-branch conditionals.
-    // e.g. {{#if experiments.prompt_style == "concise"}} ... {{#else}} ... {{#endif}}
-    const elseParts = body.split(/[ \t]*\{\{#else\}\}[ \t]*\n?/);
-    const trueBranch = elseParts[0];
-    const falseBranch = elseParts.length > 1 ? elseParts.slice(1).join("{{#else}}") : null;
+    // Evaluate the full branch chain (if / elseif* / else?)
+    const selectedContent = selectBranch(cond, body);
 
-    if (truthyResult) {
-      // Keep the true branch (before {{#else}}, or full body if no {{#else}})
+    if (selectedContent !== null) {
       keptBlocks++;
-      core.info(`[renderMarkdownTemplate]   Action: Keeping ${falseBranch !== null ? "true branch" : "body"} with leading newline=${!!leadNL}`);
-      return leadNL + trueBranch;
+      core.info(`[renderMarkdownTemplate]   Action: Keeping selected branch with leading newline=${!!leadNL}`);
+      return leadNL + selectedContent;
     } else {
-      // Remove the block, or keep the false branch when {{#else}} is present
       removedBlocks++;
-      if (falseBranch !== null) {
-        core.info(`[renderMarkdownTemplate]   Action: Keeping false branch ({{#else}} branch)`);
-        return leadNL + falseBranch;
-      }
       core.info(`[renderMarkdownTemplate]   Action: Removing entire block`);
       return "";
     }
@@ -127,15 +118,16 @@ function renderMarkdownTemplate(markdown) {
   result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?)(?:{{#endif}}|{{\/if}})/g, (_, cond, body) => {
     inlineCount++;
     const condTrimmed = cond.trim();
-    const truthyResult = isTruthy(cond);
     const bodyPreview = body.substring(0, 40).replace(/\n/g, "\\n");
 
-    core.info(`[renderMarkdownTemplate] Inline ${inlineCount}: condition="${condTrimmed}" -> ${truthyResult ? "KEEP" : "REMOVE"}`);
+    const selectedContent = selectBranch(cond, body);
+
+    core.info(`[renderMarkdownTemplate] Inline ${inlineCount}: condition="${condTrimmed}" -> ${selectedContent !== null ? "KEEP" : "REMOVE"}`);
     core.info(`[renderMarkdownTemplate]   Body preview: "${bodyPreview}${body.length > 40 ? "..." : ""}"`);
 
-    if (truthyResult) {
+    if (selectedContent !== null) {
       keptInline++;
-      return body;
+      return selectedContent;
     } else {
       removedInline++;
       return "";
@@ -364,4 +356,4 @@ async function main() {
   }
 }
 
-module.exports = { main };
+module.exports = { main, renderMarkdownTemplate, interpolateVariables };

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -135,7 +136,7 @@ Line 3`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := normalizeLeadingWhitespace(tt.input)
+			result := stringutil.NormalizeLeadingWhitespace(tt.input)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

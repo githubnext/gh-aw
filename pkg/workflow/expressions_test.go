@@ -154,8 +154,44 @@ func TestBuildReactionConditionForTargetsExcludesPullRequests(t *testing.T) {
 	if strings.Contains(rendered, "github.event_name == 'pull_request_review_comment'") {
 		t.Errorf("Expected pull_request_review_comment event to be excluded when pull request reactions are disabled, got: %s", rendered)
 	}
+	if strings.Contains(rendered, "github.event_name == 'pull_request_review'") {
+		t.Errorf("Expected pull_request_review event to be excluded when pull request reactions are disabled, got: %s", rendered)
+	}
 	if !strings.Contains(rendered, "github.event_name == 'issues'") {
 		t.Errorf("Expected issues event to remain when issue reactions are enabled, got: %s", rendered)
+	}
+}
+
+func TestBuildReactionConditionForTargetsIncludesPullRequestReview(t *testing.T) {
+	result := BuildReactionConditionForTargets(true, true, true)
+	rendered := result.Render()
+
+	// Assert the combined sub-expression for pull_request_review with its fork guard,
+	// rather than just the guard string alone (which could already be present via pull_request).
+	const pullRequestReviewWithForkGuard = "github.event_name == 'pull_request_review' && github.event.pull_request.head.repo.id == github.repository_id"
+	if !strings.Contains(rendered, pullRequestReviewWithForkGuard) {
+		t.Errorf("Expected pull_request_review with fork guard to be included when pull request reactions are enabled, got: %s", rendered)
+	}
+}
+
+func TestBuildStatusCommentConditionIncludesPullRequestReview(t *testing.T) {
+	result := BuildStatusCommentCondition(true, true, true)
+	rendered := result.Render()
+
+	// Assert the combined sub-expression for pull_request_review with its fork guard,
+	// rather than just the guard string alone (which could already be present via pull_request).
+	const pullRequestReviewWithForkGuard = "github.event_name == 'pull_request_review' && github.event.pull_request.head.repo.id == github.repository_id"
+	if !strings.Contains(rendered, pullRequestReviewWithForkGuard) {
+		t.Errorf("Expected pull_request_review with fork guard to be included in status comment condition, got: %s", rendered)
+	}
+}
+
+func TestBuildStatusCommentConditionExcludesPullRequestReview(t *testing.T) {
+	result := BuildStatusCommentCondition(true, false, true)
+	rendered := result.Render()
+
+	if strings.Contains(rendered, "github.event_name == 'pull_request_review'") {
+		t.Errorf("Expected pull_request_review event to be excluded when includePullRequests is false, got: %s", rendered)
 	}
 }
 

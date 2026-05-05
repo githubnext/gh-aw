@@ -7,6 +7,7 @@ const __filename = fileURLToPath(import.meta.url),
   core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn(), summary: { addHeading: vi.fn().mockReturnThis(), addRaw: vi.fn().mockReturnThis(), write: vi.fn() } };
 global.core = core;
 const { isTruthy } = require("./is_truthy.cjs"),
+  { selectBranch } = require("./template_branch.cjs"),
   renderTemplateScript = fs.readFileSync(path.join(__dirname, "render_template.cjs"), "utf8"),
   renderMarkdownTemplateMatch = renderTemplateScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
 if (!renderMarkdownTemplateMatch) throw new Error("Could not extract renderMarkdownTemplate function from render_template.cjs");
@@ -116,6 +117,57 @@ describe("renderMarkdownTemplate", () => {
       const input = "{{#if true}}\nKeep\n{{/if}}\n```python\nprint('hello')\n```";
       const output = renderMarkdownTemplate(input);
       expect(output).toBe("Keep\n```python\nprint('hello')\n```");
+    });
+  });
+  describe("elseif support", () => {
+    it("should keep elseif branch when if is false and elseif is true", () => {
+      const output = renderMarkdownTemplate("{{#if false}}\nBranch A\n{{#elseif true}}\nBranch B\n{{/if}}");
+      expect(output).toContain("Branch B");
+      expect(output).not.toContain("Branch A");
+    });
+    it("should keep if branch and skip elseif when if is true", () => {
+      const output = renderMarkdownTemplate("{{#if true}}\nFirst\n{{#elseif true}}\nSecond\n{{/if}}");
+      expect(output).toContain("First");
+      expect(output).not.toContain("Second");
+    });
+    it("should fall through to else when no if/elseif matches", () => {
+      const output = renderMarkdownTemplate("{{#if false}}\nA\n{{#elseif false}}\nB\n{{#else}}\nFallback\n{{/if}}");
+      expect(output).toContain("Fallback");
+      expect(output).not.toContain("Branch A");
+      expect(output).not.toContain("Branch B");
+    });
+    it("should support else-if hyphen variant", () => {
+      const output = renderMarkdownTemplate("{{#if false}}\nA\n{{#else-if true}}\nB\n{{/if}}");
+      expect(output).toContain("B");
+      expect(output).not.toContain("A");
+    });
+    it("should support else_if underscore variant", () => {
+      const output = renderMarkdownTemplate("{{#if false}}\nA\n{{#else_if true}}\nB\n{{/if}}");
+      expect(output).toContain("B");
+      expect(output).not.toContain("A");
+    });
+    it("should support elseif without hash prefix", () => {
+      const output = renderMarkdownTemplate("{{#if false}}\nA\n{{elseif true}}\nB\n{{/if}}");
+      expect(output).toContain("B");
+      expect(output).not.toContain("A");
+    });
+    it("should remove entire block when no branch matches", () => {
+      const output = renderMarkdownTemplate("{{#if false}}\nA\n{{#elseif false}}\nB\n{{/if}}");
+      expect(output).toBe("");
+    });
+    it("should select first matching branch among multiple elseif", () => {
+      const output = renderMarkdownTemplate("{{#if false}}\nA\n{{#elseif false}}\nB\n{{#elseif true}}\nC\n{{#elseif true}}\nD\n{{/if}}");
+      expect(output).toContain("C");
+      expect(output).not.toContain("A");
+      expect(output).not.toContain("B");
+      expect(output).not.toContain("D");
+    });
+    it("should support equality condition in elseif", () => {
+      // 'something' != "concise" and 'something' != "verbose" so else branch is selected
+      const output = renderMarkdownTemplate('{{#if something == "concise"}}\nConcise\n{{#elseif something == "verbose"}}\nVerbose\n{{#else}}\nDefault\n{{/if}}');
+      expect(output).toContain("Default");
+      expect(output).not.toContain("Concise");
+      expect(output).not.toContain("Verbose");
     });
   });
 });

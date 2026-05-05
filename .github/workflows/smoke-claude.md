@@ -30,10 +30,6 @@ imports:
   - shared/go-make.md
   - shared/github-mcp-app.md
   - shared/mcp/serena-go.md
-  - uses: shared/apm.md
-    with:
-      packages:
-        - microsoft/apm-sample-package
 network:
   allowed:
     - defaults

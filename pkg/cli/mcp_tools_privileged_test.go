@@ -10,12 +10,50 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// connectInMemoryWithProgress creates an in-memory MCP client-server connection
+// that captures progress notifications. Returns the client session and a
+// function to retrieve captured notifications. The returned getNotifications
+// function returns a snapshot copy of all captured notifications and is safe
+// to call concurrently with ongoing notification capture.
+func connectInMemoryWithProgress(t *testing.T, server *mcp.Server) (*mcp.ClientSession, func() []*mcp.ProgressNotificationParams) {
+	t.Helper()
+	ctx := context.Background()
+	t1, t2 := mcp.NewInMemoryTransports()
+	_, err := server.Connect(ctx, t1, nil)
+	require.NoError(t, err, "server.Connect should succeed")
+
+	var mu sync.Mutex
+	var captured []*mcp.ProgressNotificationParams
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "1.0"}, &mcp.ClientOptions{
+		ProgressNotificationHandler: func(_ context.Context, req *mcp.ProgressNotificationClientRequest) {
+			mu.Lock()
+			defer mu.Unlock()
+			p := *req.Params
+			captured = append(captured, &p)
+		},
+	})
+	session, err := client.Connect(ctx, t2, nil)
+	require.NoError(t, err, "client.Connect should succeed")
+	t.Cleanup(func() { session.Close() })
+
+	getNotifications := func() []*mcp.ProgressNotificationParams {
+		mu.Lock()
+		defer mu.Unlock()
+		result := make([]*mcp.ProgressNotificationParams, len(captured))
+		copy(result, captured)
+		return result
+	}
+	return session, getNotifications
+}
 
 // TestExtractLastConsoleMessage verifies that extractLastConsoleMessage correctly
 // filters debug log lines and returns only user-facing console messages.
@@ -507,4 +545,193 @@ func TestAuditDiffToolErrorEnvelopeHelperProcess(t *testing.T) {
 
 	_, _ = fmt.Fprintln(os.Stderr, "✗ failed to diff workflow runs")
 	os.Exit(1)
+}
+
+// TestLogsToolEmitsProgressNotifications verifies that the logs MCP tool
+// sends progress notifications when a progress token is provided.
+func TestLogsToolEmitsProgressNotifications(t *testing.T) {
+	const fakeOutput = `{"file_path":"/tmp/gh-aw/aw-mcp/logs/runs.json"}`
+
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", fakeOutput)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerLogsTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerLogsTool should succeed")
+
+	session, getNotifications := connectInMemoryWithProgress(t, server)
+
+	params := &mcp.CallToolParams{Name: "logs", Arguments: map[string]any{}}
+	params.SetProgressToken("logs-progress-token")
+	_, err = session.CallTool(context.Background(), params)
+	require.NoError(t, err, "logs tool should succeed")
+
+	notifications := getNotifications()
+	require.GreaterOrEqual(t, len(notifications), 2, "logs tool should emit at least 2 progress notifications")
+
+	first := notifications[0]
+	assert.InDelta(t, float64(0), first.Progress, 0.001, "first notification should have progress=0")
+	assert.InDelta(t, float64(100), first.Total, 0.001, "first notification should have total=100")
+	assert.NotEmpty(t, first.Message, "first notification should have a message")
+
+	last := notifications[len(notifications)-1]
+	assert.InDelta(t, float64(100), last.Progress, 0.001, "last notification should have progress=100")
+	assert.InDelta(t, float64(100), last.Total, 0.001, "last notification should have total=100")
+	assert.NotEmpty(t, last.Message, "last notification should have a message")
+}
+
+// TestLogsToolNoProgressWithoutToken verifies that the logs MCP tool
+// does not send progress notifications when no progress token is provided.
+func TestLogsToolNoProgressWithoutToken(t *testing.T) {
+	const fakeOutput = `{"file_path":"/tmp/gh-aw/aw-mcp/logs/runs.json"}`
+
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", fakeOutput)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerLogsTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerLogsTool should succeed")
+
+	session, getNotifications := connectInMemoryWithProgress(t, server)
+
+	// Call without setting a progress token
+	_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "logs",
+		Arguments: map[string]any{},
+	})
+	require.NoError(t, err, "logs tool should succeed")
+
+	assert.Empty(t, getNotifications(), "logs tool should not emit progress notifications without a token")
+}
+
+// TestAuditToolEmitsProgressNotifications verifies that the audit MCP tool
+// sends progress notifications when a progress token is provided.
+func TestAuditToolEmitsProgressNotifications(t *testing.T) {
+	const fakeOutput = `{"overview":{"run_id":"1234567890"}}`
+
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", fakeOutput)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditTool should succeed")
+
+	session, getNotifications := connectInMemoryWithProgress(t, server)
+
+	params := &mcp.CallToolParams{
+		Name:      "audit",
+		Arguments: map[string]any{"run_id_or_url": "1234567890"},
+	}
+	params.SetProgressToken("audit-progress-token")
+	_, err = session.CallTool(context.Background(), params)
+	require.NoError(t, err, "audit tool should succeed")
+
+	notifications := getNotifications()
+	require.GreaterOrEqual(t, len(notifications), 2, "audit tool should emit at least 2 progress notifications")
+
+	first := notifications[0]
+	assert.InDelta(t, float64(0), first.Progress, 0.001, "first notification should have progress=0")
+	assert.InDelta(t, float64(100), first.Total, 0.001, "first notification should have total=100")
+	assert.NotEmpty(t, first.Message, "first notification should have a message")
+
+	last := notifications[len(notifications)-1]
+	assert.InDelta(t, float64(100), last.Progress, 0.001, "last notification should have progress=100")
+	assert.InDelta(t, float64(100), last.Total, 0.001, "last notification should have total=100")
+	assert.NotEmpty(t, last.Message, "last notification should have a message")
+}
+
+// TestAuditDiffToolEmitsProgressNotifications verifies that the audit-diff MCP
+// tool sends progress notifications when a progress token is provided.
+func TestAuditDiffToolEmitsProgressNotifications(t *testing.T) {
+	const fakeOutput = `[{"base_run_id":100,"compare_run_id":200}]`
+
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", fakeOutput)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditDiffTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditDiffTool should succeed")
+
+	session, getNotifications := connectInMemoryWithProgress(t, server)
+
+	params := &mcp.CallToolParams{
+		Name: "audit-diff",
+		Arguments: map[string]any{
+			"base_run_id":     "100",
+			"compare_run_ids": []string{"200"},
+		},
+	}
+	params.SetProgressToken("audit-diff-progress-token")
+	_, err = session.CallTool(context.Background(), params)
+	require.NoError(t, err, "audit-diff tool should succeed")
+
+	notifications := getNotifications()
+	require.GreaterOrEqual(t, len(notifications), 2, "audit-diff tool should emit at least 2 progress notifications")
+
+	first := notifications[0]
+	assert.InDelta(t, float64(0), first.Progress, 0.001, "first notification should have progress=0")
+	assert.InDelta(t, float64(100), first.Total, 0.001, "first notification should have total=100")
+	assert.NotEmpty(t, first.Message, "first notification should have a message")
+
+	last := notifications[len(notifications)-1]
+	assert.InDelta(t, float64(100), last.Progress, 0.001, "last notification should have progress=100")
+	assert.InDelta(t, float64(100), last.Total, 0.001, "last notification should have total=100")
+	assert.NotEmpty(t, last.Message, "last notification should have a message")
+}
+
+// TestAuditToolNoProgressWithoutToken verifies that the audit MCP tool
+// does not send progress notifications when no progress token is provided.
+func TestAuditToolNoProgressWithoutToken(t *testing.T) {
+	const fakeOutput = `{"overview":{"run_id":"1234567890"}}`
+
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", fakeOutput)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditTool should succeed")
+
+	session, getNotifications := connectInMemoryWithProgress(t, server)
+
+	// Call without setting a progress token
+	_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "audit",
+		Arguments: map[string]any{"run_id_or_url": "1234567890"},
+	})
+	require.NoError(t, err, "audit tool should succeed")
+
+	assert.Empty(t, getNotifications(), "audit tool should not emit progress notifications without a token")
+}
+
+// TestAuditDiffToolNoProgressWithoutToken verifies that the audit-diff MCP tool
+// does not send progress notifications when no progress token is provided.
+func TestAuditDiffToolNoProgressWithoutToken(t *testing.T) {
+	const fakeOutput = `[{"base_run_id":100,"compare_run_id":200}]`
+
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", fakeOutput)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditDiffTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditDiffTool should succeed")
+
+	session, getNotifications := connectInMemoryWithProgress(t, server)
+
+	// Call without setting a progress token
+	_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "audit-diff",
+		Arguments: map[string]any{
+			"base_run_id":     "100",
+			"compare_run_ids": []string{"200"},
+		},
+	})
+	require.NoError(t, err, "audit-diff tool should succeed")
+
+	assert.Empty(t, getNotifications(), "audit-diff tool should not emit progress notifications without a token")
 }

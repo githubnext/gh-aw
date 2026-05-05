@@ -25,51 +25,6 @@ type PromptSection struct {
 	EnvVars map[string]string
 }
 
-// normalizeLeadingWhitespace removes consistent leading whitespace from all lines
-// This handles content that was generated with indentation for heredocs
-func normalizeLeadingWhitespace(content string) string {
-	lines := strings.Split(content, "\n")
-	if len(lines) == 0 {
-		return content
-	}
-
-	// Find minimum leading whitespace (excluding empty lines)
-	minLeadingSpaces := -1
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			continue // Skip empty lines
-		}
-		leadingSpaces := len(line) - len(strings.TrimLeft(line, " "))
-		if minLeadingSpaces == -1 || leadingSpaces < minLeadingSpaces {
-			minLeadingSpaces = leadingSpaces
-		}
-	}
-
-	// If no content or no leading spaces, return as-is
-	if minLeadingSpaces <= 0 {
-		return content
-	}
-
-	// Remove the minimum leading whitespace from all lines
-	var result strings.Builder
-	for i, line := range lines {
-		if i > 0 {
-			result.WriteString("\n")
-		}
-		if strings.TrimSpace(line) == "" {
-			// Keep empty lines as empty
-			result.WriteString("")
-		} else if len(line) >= minLeadingSpaces {
-			// Remove leading whitespace
-			result.WriteString(line[minLeadingSpaces:])
-		} else {
-			result.WriteString(line)
-		}
-	}
-
-	return result.String()
-}
-
 // removeConsecutiveEmptyLines removes consecutive empty lines, keeping only one
 func removeConsecutiveEmptyLines(content string) string {
 	lines := strings.Split(content, "\n")
@@ -440,7 +395,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 			} else {
 				// Inline content inside conditional - open heredoc, write content, close
 				yaml.WriteString("            cat << '" + delimiter + "'\n")
-				normalizedContent := normalizeLeadingWhitespace(section.Content)
+				normalizedContent := stringutil.NormalizeLeadingWhitespace(section.Content)
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
 				contentLines := strings.SplitSeq(cleanedContent, "\n")
 				for line := range contentLines {
@@ -480,7 +435,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 					}
 				}
 				// Write content directly to open heredoc
-				normalizedContent := normalizeLeadingWhitespace(section.Content)
+				normalizedContent := stringutil.NormalizeLeadingWhitespace(section.Content)
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
 				contentLines := strings.SplitSeq(cleanedContent, "\n")
 				for line := range contentLines {

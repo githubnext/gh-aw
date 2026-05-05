@@ -55,6 +55,7 @@ features:
 		require.NoError(t, err, "Should not error")
 		assert.True(t, applied, "Should apply codemod")
 		assert.NotContains(t, result, "mcp-cli:", "Should remove mcp-cli feature flag")
+		assert.NotContains(t, result, "features:", "Should remove empty features block")
 	})
 
 	t.Run("renames mount-as-clis and removes mcp-cli together", func(t *testing.T) {

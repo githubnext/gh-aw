@@ -1,5 +1,5 @@
 // @ts-check
-// <reference types="@actions/github-script" />
+/// <reference types="@actions/github-script" />
 
 /**
  * Expired Entity Cleanup Helpers
@@ -163,7 +163,7 @@ function buildNotExpiredSection(notExpiredEntities, now, entityLabel) {
 
   let section = `### Not Yet Expired\n\n`;
 
-  const list = notExpiredEntities.length > 10 ? notExpiredEntities.slice(0, 10) : notExpiredEntities;
+  const list = notExpiredEntities.slice(0, 10);
   if (notExpiredEntities.length > 10) {
     section += `${notExpiredEntities.length} ${entityLabel.toLowerCase()}(s) not yet expired (showing first 10):\n\n`;
   }

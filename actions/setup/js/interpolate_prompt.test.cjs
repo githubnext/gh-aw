@@ -8,8 +8,9 @@ const __filename = fileURLToPath(import.meta.url),
   __dirname = path.dirname(__filename),
   core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn() };
 global.core = core;
-const interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8"),
-  { isTruthy } = require("./is_truthy.cjs"),
+const { isTruthy } = require("./is_truthy.cjs"),
+  { selectBranch } = require("./template_branch.cjs"),
+  interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8"),
   interpolateVariablesMatch = interpolatePromptScript.match(/function interpolateVariables\(content, variables\)\s*{[\s\S]*?return result;[\s\S]*?}/),
   renderMarkdownTemplateMatch = interpolatePromptScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
 if (!interpolateVariablesMatch) throw new Error("Could not extract interpolateVariables function from interpolate_prompt.cjs");
@@ -114,6 +115,52 @@ describe("interpolate_prompt", () => {
         it("should support {{/if}} as alternate closing tag", () => {
           const output = renderMarkdownTemplate("{{#if true}}\nKeep\n{{/if}}");
           expect(output).toContain("Keep");
+        }),
+        it("should keep first elseif branch when if is false and elseif is true", () => {
+          const output = renderMarkdownTemplate("{{#if false}}\nBranch A\n{{#elseif true}}\nBranch B\n{{#endif}}");
+          expect(output).toContain("Branch B");
+          expect(output).not.toContain("Branch A");
+          expect(output).not.toContain("{{#elseif}}");
+        }),
+        it("should skip all elseif branches when none match and use else", () => {
+          const output = renderMarkdownTemplate("{{#if false}}\nA\n{{#elseif false}}\nB\n{{#else}}\nFallback\n{{#endif}}");
+          expect(output).toContain("Fallback");
+          expect(output).not.toContain("Branch A");
+          expect(output).not.toContain("Branch B");
+        }),
+        it("should keep the if branch and skip elseif when if is true", () => {
+          const output = renderMarkdownTemplate("{{#if true}}\nFirst\n{{#elseif true}}\nSecond\n{{#endif}}");
+          expect(output).toContain("First");
+          expect(output).not.toContain("Second");
+        }),
+        it("should support else-if hyphen syntax variant", () => {
+          const output = renderMarkdownTemplate("{{#if false}}\nA\n{{#else-if true}}\nB\n{{#endif}}");
+          expect(output).toContain("B");
+          expect(output).not.toContain("A");
+        }),
+        it("should support else_if underscore syntax variant", () => {
+          const output = renderMarkdownTemplate("{{#if false}}\nA\n{{#else_if true}}\nB\n{{#endif}}");
+          expect(output).toContain("B");
+          expect(output).not.toContain("A");
+        }),
+        it("should support elseif without hash prefix", () => {
+          const output = renderMarkdownTemplate("{{#if false}}\nA\n{{elseif true}}\nB\n{{#endif}}");
+          expect(output).toContain("B");
+          expect(output).not.toContain("A");
+        }),
+        it("should handle multiple elseif branches selecting the correct one", () => {
+          const output = renderMarkdownTemplate("{{#if false}}\nA\n{{#elseif false}}\nB\n{{#elseif true}}\nC\n{{#elseif true}}\nD\n{{#endif}}");
+          expect(output).toContain("C");
+          expect(output).not.toContain("A");
+          expect(output).not.toContain("B");
+          expect(output).not.toContain("D");
+        }),
+        it("should support equality condition in elseif", () => {
+          // 'something' != "concise" and 'something' != "verbose" so else branch is selected
+          const output = renderMarkdownTemplate('{{#if something == "concise"}}\nConcise\n{{#elseif something == "verbose"}}\nVerbose\n{{#else}}\nDefault\n{{#endif}}');
+          expect(output).toContain("Default");
+          expect(output).not.toContain("Concise");
+          expect(output).not.toContain("Verbose");
         }));
     }),
     describe("combined interpolation and template rendering", () => {

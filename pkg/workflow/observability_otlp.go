@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/url"
 	"os"
 	"sort"
@@ -243,7 +244,64 @@ func encodeOTLPEndpoints(entries []otlpEndpointEntry) string {
 	return string(b)
 }
 
-// allOTLPHeaders returns a comma-joined string of all header values from every
+// extractRawOTLPEndpointMaps returns OTLP endpoint entries as []map[string]any from
+// an observability section map. Unlike collectAllOTLPEndpoints, headers are kept in
+// their original format (string or map) so that no false deprecation warnings are
+// emitted when the merged result is later processed by collectAllOTLPEndpoints.
+// Supports string, object, and array forms of the endpoint field.
+// Top-level `headers` is only applied to the backward-compat string endpoint form.
+func extractRawOTLPEndpointMaps(obs map[string]any) []map[string]any {
+	if obs == nil {
+		return nil
+	}
+	otlpAny, ok := obs["otlp"]
+	if !ok {
+		return nil
+	}
+	otlpMap, ok := otlpAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	endpointRaw := otlpMap["endpoint"]
+	headersRaw := otlpMap["headers"] // only applies to the backward-compat string form
+
+	var result []map[string]any
+	switch ep := endpointRaw.(type) {
+	case string:
+		if ep != "" {
+			entry := map[string]any{"url": ep}
+			if headersRaw != nil {
+				entry["headers"] = headersRaw
+			}
+			result = append(result, entry)
+		}
+	case map[string]any:
+		if url, _ := ep["url"].(string); url != "" {
+			// Shallow copy: top-level keys (url, headers) are copied. The headers
+			// value (a map[string]any) is shared by reference, but it is never mutated
+			// downstream — it is only read by normalizeOTLPHeaders and collectAllOTLPEndpoints.
+			entry := make(map[string]any, len(ep))
+			maps.Copy(entry, ep)
+			result = append(result, entry)
+		}
+	case []any:
+		for _, item := range ep {
+			itemMap, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			if url, _ := itemMap["url"].(string); url != "" {
+				// Shallow copy: see note above — headers value is never mutated.
+				entry := make(map[string]any, len(itemMap))
+				maps.Copy(entry, itemMap)
+				result = append(result, entry)
+			}
+		}
+	}
+	return result
+}
+
 // endpoint entry.  Duplicate pairs are included as-is; the result is used only
 // for secret-masking and contains no sensitive data itself after runtime
 // expression substitution by GitHub Actions.

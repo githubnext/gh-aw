@@ -47,7 +47,8 @@ permissions:
 	require.NoError(t, err)
 	assert.True(t, applied)
 	assert.NotContains(t, result, "agent: false")
-	assert.Contains(t, result, "sandbox:")
+	// Empty sandbox block must be removed to avoid "got null, want object" compile error
+	assert.NotContains(t, result, "sandbox:")
 }
 
 func TestSandboxAgentFalseRemoval_PreservesOtherSandboxKeys(t *testing.T) {

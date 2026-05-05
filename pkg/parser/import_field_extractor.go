@@ -36,7 +36,7 @@ type importAccumulator struct {
 	jobsBuilder              strings.Builder   // Jobs from imported YAML workflows
 	envBuilder               strings.Builder   // env vars from imported workflows (JSON, one object per line)
 	envSources               map[string]string // env var name → source import path (for conflict detection and header listing)
-	observabilityBuilder     strings.Builder   // observability config (first-wins for OTLP endpoint)
+	observabilityConfigs     []string          // observability config JSON blobs from all imports (merged into endpoint array)
 	engines                  []string
 	safeOutputs              []string
 	mcpScripts               []string
@@ -488,15 +488,13 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract observability from imported file (first-wins: only set if not yet populated).
-	// This ensures an imported workflow's OTLP config is visible to injectOTLPConfig even
-	// when the main workflow's frontmatter does not contain an observability section.
-	if acc.observabilityBuilder.Len() == 0 {
-		obsContent, obsErr := extractFieldJSONFromMap(fm, "observability", "{}")
-		if obsErr == nil && obsContent != "" && obsContent != "{}" {
-			acc.observabilityBuilder.WriteString(obsContent)
-			log.Printf("Extracted observability from import: %s", item.fullPath)
-		}
+	// Extract observability from imported file. All imports' OTLP endpoints are collected
+	// so that each import can contribute endpoints for fan-out observability.
+	// Deduplication and merging into a single array happens in toImportsResult.
+	obsContent, obsErr := extractFieldJSONFromMap(fm, "observability", "{}")
+	if obsErr == nil && obsContent != "" && obsContent != "{}" {
+		acc.observabilityConfigs = append(acc.observabilityConfigs, obsContent)
+		log.Printf("Extracted observability from import: %s", item.fullPath)
 	}
 
 	return nil
@@ -536,7 +534,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedEnvSources:            acc.envSources,
 		MergedFeatures:              acc.features,
 		MergedModels:                acc.models,
-		MergedObservability:         acc.observabilityBuilder.String(),
+		MergedObservability:         mergeObservabilityConfigs(acc.observabilityConfigs),
 		ImportedFiles:               topologicalOrder,
 		AgentFile:                   acc.agentFile,
 		AgentImportSpec:             acc.agentImportSpec,
@@ -550,7 +548,114 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 	}
 }
 
-// computeImportRelPath returns the repository-root-relative path for a workflow file,
+// observabilityImportEndpoint is an endpoint entry used during import merging.
+// Headers are kept as any (original format: string or map) so that the workflow
+// package can later detect the deprecated string form and normalise correctly.
+type observabilityImportEndpoint struct {
+	URL     string `json:"url"`
+	Headers any    `json:"headers,omitempty"`
+}
+
+// extractOTLPEndpointsFromObsMap reads the `otlp.endpoint` field from a raw
+// observability map and returns all endpoint entries as observabilityImportEndpoints.
+// Supports string, object, and array forms of the endpoint field.
+// Top-level `headers` is only applied to the backward-compat string endpoint form.
+func extractOTLPEndpointsFromObsMap(obs map[string]any) []observabilityImportEndpoint {
+	otlpAny, ok := obs["otlp"]
+	if !ok {
+		return nil
+	}
+	otlpMap, ok := otlpAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	endpointRaw := otlpMap["endpoint"]
+	headersRaw := otlpMap["headers"] // only applies to the backward-compat string form
+
+	var result []observabilityImportEndpoint
+	switch ep := endpointRaw.(type) {
+	case string:
+		if ep != "" {
+			entry := observabilityImportEndpoint{URL: ep}
+			if headersRaw != nil {
+				entry.Headers = headersRaw
+			}
+			result = append(result, entry)
+		}
+	case map[string]any:
+		if url, _ := ep["url"].(string); url != "" {
+			entry := observabilityImportEndpoint{URL: url}
+			if h, hasH := ep["headers"]; hasH {
+				entry.Headers = h
+			}
+			result = append(result, entry)
+		}
+	case []any:
+		for _, item := range ep {
+			itemMap, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			url, _ := itemMap["url"].(string)
+			if url == "" {
+				continue
+			}
+			entry := observabilityImportEndpoint{URL: url}
+			if h, hasH := itemMap["headers"]; hasH {
+				entry.Headers = h
+			}
+			result = append(result, entry)
+		}
+	}
+	return result
+}
+
+// mergeObservabilityConfigs takes a slice of observability config JSON strings (one per
+// import), extracts all OTLP endpoint entries from each (supporting string, object, and
+// array forms), deduplicates by URL (first occurrence wins), and returns a single merged
+// observability JSON string with all endpoints expressed as an array.
+// Returns "" when no valid endpoints are found.
+func mergeObservabilityConfigs(configs []string) string {
+	seen := make(map[string]bool)
+	var allEndpoints []observabilityImportEndpoint
+
+	for i, cfgJSON := range configs {
+		if cfgJSON == "" {
+			continue
+		}
+		var obs map[string]any
+		if err := json.Unmarshal([]byte(cfgJSON), &obs); err != nil {
+			log.Printf("Failed to unmarshal observability config from import %d during merge: %v", i, err)
+			continue
+		}
+		for _, e := range extractOTLPEndpointsFromObsMap(obs) {
+			if !seen[e.URL] {
+				seen[e.URL] = true
+				allEndpoints = append(allEndpoints, e)
+			}
+		}
+	}
+
+	if len(allEndpoints) == 0 {
+		return ""
+	}
+
+	// Produce a merged config with the endpoint field as an array so that the
+	// workflow package's collectAllOTLPEndpoints handles it uniformly.
+	merged := map[string]any{
+		"otlp": map[string]any{
+			"endpoint": allEndpoints,
+		},
+	}
+	b, err := json.Marshal(merged)
+	if err != nil {
+		log.Printf("Failed to marshal %d merged OTLP endpoints: %v", len(allEndpoints), err)
+		return ""
+	}
+	return string(b)
+}
+
 // suitable for use in a {{#runtime-import ...}} macro.
 //
 // The rules are:

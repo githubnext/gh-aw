@@ -24,6 +24,10 @@
 //	      "anthropic": { "host": "api.anthropic.com" },
 //	      "copilot":   { "host": "api.githubcopilot.com" },
 //	      "gemini":    { "host": "generativelanguage.googleapis.com" }
+//	    },
+//	    "models": {
+//	      "sonnet": ["mygateway/*sonnet*"],
+//	      "":       ["sonnet", "gpt-5-mini"]
 //	    }
 //	  },
 //	  "container": {
@@ -44,15 +48,78 @@
 package workflow
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
+//go:embed schemas/awf-config.schema.json
+var awfConfigSchema string
+
 var awfConfigLog = logger.New("workflow:awf_config")
+
+// Cached compiled AWF config schema to avoid recompiling on every validation.
+var (
+	compiledAWFConfigSchemaOnce sync.Once
+	compiledAWFConfigSchema     *jsonschema.Schema
+	awfConfigSchemaCompileError error
+)
+
+// getCompiledAWFConfigSchema returns the compiled AWF config schema, compiling once and caching.
+func getCompiledAWFConfigSchema() (*jsonschema.Schema, error) {
+	compiledAWFConfigSchemaOnce.Do(func() {
+		awfConfigLog.Print("Compiling AWF config schema (first time)")
+		var schemaDoc any
+		if err := json.Unmarshal([]byte(awfConfigSchema), &schemaDoc); err != nil {
+			awfConfigSchemaCompileError = fmt.Errorf("failed to parse embedded AWF config schema: %w", err)
+			return
+		}
+		loader := jsonschema.NewCompiler()
+		schemaURL := fmt.Sprintf("https://github.com/github/gh-aw-firewall/releases/download/%s/awf-config.schema.json", constants.DefaultFirewallVersion)
+		if err := loader.AddResource(schemaURL, schemaDoc); err != nil {
+			awfConfigSchemaCompileError = fmt.Errorf("failed to add AWF config schema resource: %w", err)
+			return
+		}
+		schema, err := loader.Compile(schemaURL)
+		if err != nil {
+			awfConfigSchemaCompileError = fmt.Errorf("failed to compile AWF config schema: %w", err)
+			return
+		}
+		compiledAWFConfigSchema = schema
+		awfConfigLog.Print("AWF config schema compiled successfully")
+	})
+	return compiledAWFConfigSchema, awfConfigSchemaCompileError
+}
+
+// ValidateAWFConfigJSON validates the provided AWF config JSON string against the
+// embedded AWF config schema. Returns nil if validation passes.
+// This exported variant is used by tests in external packages.
+func ValidateAWFConfigJSON(configJSON string) error {
+	return validateAWFConfigJSON(configJSON)
+}
+
+// validateAWFConfigJSON validates the provided AWF config JSON string against the
+// embedded AWF config schema. Returns nil if validation passes.
+func validateAWFConfigJSON(configJSON string) error {
+	schema, err := getCompiledAWFConfigSchema()
+	if err != nil {
+		return err
+	}
+	var doc any
+	if err := json.Unmarshal([]byte(configJSON), &doc); err != nil {
+		return fmt.Errorf("failed to parse AWF config JSON: %w", err)
+	}
+	if err := schema.Validate(doc); err != nil {
+		return fmt.Errorf("AWF config schema validation failed: %w", err)
+	}
+	return nil
+}
 
 // AWFConfigFile represents the AWF configuration file schema.
 // This is the top-level structure written to awf-config.json.
@@ -68,17 +135,6 @@ type AWFConfigFile struct {
 
 	// Container contains container execution configuration.
 	Container *AWFContainerConfig `json:"container,omitempty"`
-
-	// Models contains model alias and fallback policy definitions.
-	// Keys are alias names (empty string "" = default policy); values are ordered
-	// lists of vendor/modelid patterns or other alias names to try in sequence.
-	// AWF resolves aliases recursively; loops are not permitted.
-	//
-	// NOTE: Pending AWF binary support (config.models is not yet recognised by the
-	// AWF firewall schema). This field is intentionally omitted from JSON output
-	// until the AWF schema at awf-config.v1.json is updated to include "models".
-	// The field remains here so the struct is ready once AWF support lands.
-	Models map[string][]string `json:"-"`
 }
 
 // AWFNetworkConfig is the "network" section of the AWF config file.
@@ -104,6 +160,13 @@ type AWFAPIProxyConfig struct {
 	// Targets holds per-provider API target overrides.
 	// Supported keys: "openai", "anthropic", "copilot", "gemini"
 	Targets map[string]*AWFAPITargetConfig `json:"targets,omitempty"`
+
+	// Models contains model alias and fallback policy definitions.
+	// Keys are alias names (empty string "" = default policy); values are ordered
+	// lists of vendor/modelid patterns or other alias names to try in sequence.
+	// AWF resolves aliases recursively; loops are not permitted.
+	// Per the AWF config schema, this lives under apiProxy.models.
+	Models map[string][]string `json:"models,omitempty"`
 }
 
 // AWFAPITargetConfig is a single API proxy target entry.
@@ -209,6 +272,13 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		apiProxy.Targets = targets
 		awfConfigLog.Printf("API proxy: %d custom targets configured", len(targets))
 	}
+
+	// ── Models section (nested under apiProxy per AWF config schema) ──────────
+	if config.WorkflowData != nil && len(config.WorkflowData.ModelMappings) > 0 {
+		apiProxy.Models = config.WorkflowData.ModelMappings
+		awfConfigLog.Printf("Models section: %d alias entries", len(config.WorkflowData.ModelMappings))
+	}
+
 	awfConfig.APIProxy = apiProxy
 
 	// ── Container section ─────────────────────────────────────────────────────
@@ -220,18 +290,18 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
 	}
 
-	// ── Models section ────────────────────────────────────────────────────────
-	if config.WorkflowData != nil && len(config.WorkflowData.ModelMappings) > 0 {
-		awfConfig.Models = config.WorkflowData.ModelMappings
-		awfConfigLog.Printf("Models section: %d alias entries", len(config.WorkflowData.ModelMappings))
-	}
-
 	jsonBytes, err := json.Marshal(awfConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal AWF config to JSON: %w", err)
 	}
+	jsonStr := string(jsonBytes)
 	awfConfigLog.Printf("AWF config JSON generated: %d bytes", len(jsonBytes))
-	return string(jsonBytes), nil
+
+	if err := validateAWFConfigJSON(jsonStr); err != nil {
+		return "", fmt.Errorf("generated AWF config failed schema validation: %w", err)
+	}
+
+	return jsonStr, nil
 }
 
 // splitDomainList splits a comma-separated domain string into a deduplicated

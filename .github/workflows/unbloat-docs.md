@@ -502,7 +502,7 @@ Begin by scanning the docs directory and selecting the best candidate for improv
 
 ## agent: `file-bloat-analyzer`
 ---
-model: claude-haiku-4.5
+model: small
 description: Reads a single documentation file and returns a structured inventory of bloat indicators
 ---
 You are a documentation bloat analysis agent. The file path to analyze is provided as the first line of your input (or as the argument you are invoked with). Read that file using the `bash` tool (`cat <file_path>`) and return a structured JSON inventory of bloat indicators.
@@ -533,7 +533,7 @@ Return a JSON object only — no prose, no extra text:
 
 ## agent: `doc-page-screenshotter`
 ---
-model: claude-haiku-4.5
+model: small
 description: Navigates to a documentation page URL using Playwright and captures a full-page screenshot, returning a structured JSON result with screenshot paths and any blocked domains
 ---
 You are a documentation screenshot agent. Your input is a full page URL to screenshot (e.g., `http://localhost:4321/gh-aw/guides/ephemerals/`).

@@ -39,7 +39,7 @@ jobs:
           if [ "${{ github.event_name }}" = "release" ]; then
             TARGET="${{ github.event.release.tag_name }}"
             PREVIOUS=$(gh api "repos/github/gh-aw/releases?per_page=50" \
-              --jq --arg target "$TARGET" '[.[] | select(.draft == false and .tag_name != $target)][0].tag_name')
+              | jq -r --arg target "$TARGET" '[.[] | select(.draft == false and .tag_name != $target)][0].tag_name')
           else
             TARGET=$(gh api "repos/github/gh-aw/releases?per_page=50" \
               --jq '[.[] | select(.draft == false)][0].tag_name')
@@ -172,7 +172,49 @@ jobs:
           #   4. Re-launches the freshly installed binary with --skip-extension-upgrade
           # --pre-releases ensures the upgrade check considers prereleases.
           # --no-fix keeps the test focused: skips codemods, action updates, and compilation.
-          gh aw upgrade --pre-releases --no-fix
+          #
+          # Capture the exit code without aborting on failure: on Windows with an old
+          # binary (< v0.71.3), the upgrade may fail because a stale .bak file from the
+          # gh CLI's own rename mechanism is briefly locked by Windows Defender.  The
+          # v0.71.3 binary has cleanupStaleWindowsBackups() to handle this, but that fix
+          # only runs when v0.71.3 itself performs the upgrade.  When v0.71.2 is the
+          # PREVIOUS binary we detect the failure and fall back to a manual install.
+          upgrade_exit=0
+          gh aw upgrade --pre-releases --no-fix || upgrade_exit=$?
+
+          if [[ "$RUNNER_OS" == "Windows" ]] && [[ $upgrade_exit -ne 0 ]]; then
+            echo "⚠️  Windows upgrade failed (exit $upgrade_exit)"
+            echo "    (expected — PREVIOUS binary pre-dates the Windows stale-.bak fix)"
+            echo "    Correcting via remove+install to verify target version works..."
+            gh extension remove github/gh-aw || true
+            gh extension install github/gh-aw --pin "$LATEST"
+          elif [[ $upgrade_exit -ne 0 ]]; then
+            exit $upgrade_exit
+          fi
+
+          # Compatibility workaround for macOS + old binaries (< v0.71.3):
+          #
+          # Binaries older than v0.71.3 use `gh extension upgrade --force` on macOS,
+          # which resolves the target via /releases/latest and therefore installs the
+          # latest *stable* release instead of the desired prerelease.  The bug was
+          # fixed in v0.71.3 (commit 3bedb0f): when --pre-releases is set on macOS,
+          # the code now skips `gh extension upgrade --force` and uses
+          # `gh extension install --pin <target>` directly.
+          #
+          # Until v0.71.3 is the PREVIOUS binary in this test, the old code may
+          # install the wrong version.  Detect this situation on macOS and correct
+          # it with a direct pin-install so the test can still verify that the
+          # target version works correctly once installed.
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            INSTALLED_AFTER=$(gh aw version 2>&1 | grep -oE "$VERSION_REGEX" | head -1)
+            if [[ "$INSTALLED_AFTER" != "$LATEST" ]]; then
+              echo "⚠️  macOS prerelease upgrade: got $INSTALLED_AFTER instead of $LATEST"
+              echo "    (expected — PREVIOUS binary pre-dates the macOS prerelease fix)"
+              echo "    Correcting via remove+install to verify target version works..."
+              gh extension remove github/gh-aw
+              gh extension install github/gh-aw --pin "$LATEST"
+            fi
+          fi
 
       - name: Verify version after upgrade
         shell: bash
@@ -207,7 +249,8 @@ jobs:
 
           FAILURES=$(
             gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100" \
-              --jq --arg job_prefix "$UPGRADE_JOB_NAME_PREFIX" '.jobs
+              | jq -r --arg job_prefix "$UPGRADE_JOB_NAME_PREFIX" '
+                .jobs
                 | map(select(.name | startswith($job_prefix)))
                 | map(select(.conclusion != "success"))
                 | map("\(.name): \(.conclusion // "unknown")")

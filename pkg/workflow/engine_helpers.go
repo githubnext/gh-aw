@@ -167,7 +167,7 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 				expr = override
 			}
 		}
-		stepLines = append(stepLines, fmt.Sprintf("          %s: %s", secretName, expr))
+		stepLines = appendEnvVarLine(stepLines, secretName, expr)
 	}
 
 	return GitHubActionStep(stepLines)
@@ -263,11 +263,36 @@ func FormatStepWithCommandAndEnv(stepLines []string, command string, env map[str
 
 		for _, key := range envKeys {
 			value := env[key]
-			stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, yamlStringValue(value)))
+			stepLines = appendEnvVarLine(stepLines, key, value)
 		}
 	}
 
 	return stepLines
+}
+
+// appendEnvVarLine appends a YAML env var entry to lines.
+// If the value contains embedded newlines (e.g. from a multi-line YAML block scalar
+// like >- with extra-indented continuation lines), it is emitted as a YAML literal
+// block scalar (|) with proper indentation. At most one trailing newline (produced
+// by block scalars) is trimmed before processing; multiple intentional trailing
+// newlines are preserved.
+func appendEnvVarLine(lines []string, key, value string) []string {
+	// Trim at most one trailing newline added by YAML | or > block scalars.
+	// Using TrimSuffix (not TrimRight) to avoid stripping multiple trailing
+	// newlines that may be intentional in the value.
+	value = strings.TrimSuffix(value, "\n")
+
+	if !strings.Contains(value, "\n") {
+		// Single-line: emit inline with YAML-safe quoting
+		return append(lines, fmt.Sprintf("          %s: %s", key, yamlStringValue(value)))
+	}
+
+	// Multi-line: emit as a literal block scalar so embedded newlines are preserved
+	lines = append(lines, fmt.Sprintf("          %s: |", key))
+	for line := range strings.SplitSeq(value, "\n") {
+		lines = append(lines, "            "+line)
+	}
+	return lines
 }
 
 // yamlStringValue returns a YAML-safe representation of a string value.

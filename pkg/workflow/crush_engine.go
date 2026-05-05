@@ -171,17 +171,13 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			// The model was validated by validateUniversalLLMConsumerModel before reaching here,
 			// so a malformed model (e.g. leading slash) must never occur. Panic is the correct
 			// response to an internal invariant violation.
-			var err error
-			allowedDomains, err = GetAllowedDomainsForEngineWithModel(
+			allowedDomains = mustGetAllowedDomainsForEngineWithModel(
 				constants.CrushEngine,
 				model,
 				workflowData.NetworkPermissions,
 				workflowData.Tools,
 				workflowData.Runtimes,
 			)
-			if err != nil {
-				panic(fmt.Sprintf("BUG: invalid model %q reached domain computation (should have been caught by validation): %v", model, err))
-			}
 		}
 
 		npmPathSetup := GetNpmBinPathSetup()

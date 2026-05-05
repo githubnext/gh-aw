@@ -280,6 +280,52 @@ function buildOTLPResourceAttributes(serviceName, scopeVersion, resourceAttribut
 }
 
 /**
+ * Build the standard GitHub Actions resource attributes shared by all OTLP spans
+ * (setup, conclusion, and tool spans).  Centralises the attribute list so that
+ * future additions propagate to every span type automatically.
+ *
+ * @param {{
+ *   repository: string,
+ *   runId: string,
+ *   eventName?: string,
+ *   ref?: string,
+ *   refName?: string,
+ *   headRef?: string,
+ *   sha?: string,
+ *   workflowRef?: string,
+ *   staged: boolean,
+ * }} ctx
+ * @returns {Array<{key: string, value: object}>}
+ */
+function buildGitHubActionsResourceAttributes({ repository, runId, eventName = "", ref = "", refName = "", headRef = "", sha = "", workflowRef = "", staged }) {
+  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
+  if (repository && runId && repository.includes("/")) {
+    const [owner, repo] = repository.split("/");
+    resourceAttributes.push(buildAttr("github.actions.run_url", buildWorkflowRunUrl({ runId }, { owner, repo })));
+  }
+  if (eventName) {
+    resourceAttributes.push(buildAttr("github.event_name", eventName));
+  }
+  if (ref) {
+    resourceAttributes.push(buildAttr("github.ref", ref));
+  }
+  if (refName) {
+    resourceAttributes.push(buildAttr("github.ref_name", refName));
+  }
+  if (headRef) {
+    resourceAttributes.push(buildAttr("github.head_ref", headRef));
+  }
+  if (sha) {
+    resourceAttributes.push(buildAttr("github.sha", sha));
+  }
+  if (workflowRef) {
+    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
+  }
+  resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
+  return resourceAttributes;
+}
+
+/**
  * Wrap one or more OTLP span objects in a single traces payload.
  *
  * @param {{
@@ -860,30 +906,7 @@ async function sendJobSetupSpan(options = {}) {
   attributes.push(...buildExperimentAttributes(experimentAssignments));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
 
-  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
-  if (repository && runId) {
-    const [owner, repo] = repository.split("/");
-    resourceAttributes.push(buildAttr("github.actions.run_url", buildWorkflowRunUrl({ runId }, { owner, repo })));
-  }
-  if (eventName) {
-    resourceAttributes.push(buildAttr("github.event_name", eventName));
-  }
-  if (ref) {
-    resourceAttributes.push(buildAttr("github.ref", ref));
-  }
-  if (refName) {
-    resourceAttributes.push(buildAttr("github.ref_name", refName));
-  }
-  if (headRef) {
-    resourceAttributes.push(buildAttr("github.head_ref", headRef));
-  }
-  if (sha) {
-    resourceAttributes.push(buildAttr("github.sha", sha));
-  }
-  if (workflowRef) {
-    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
-  }
-  resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
+  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, workflowRef, staged });
 
   const payload = buildOTLPPayload({
     traceId,
@@ -990,6 +1013,12 @@ function readLastRateLimitEntry() {
  * - `GH_AW_AGENT_CONCLUSION`        – agent job result ("success", "failure", "timed_out",
  *                                     "cancelled", "skipped"); when "failure" or "timed_out"
  *                                     the span status is set to STATUS_CODE_ERROR (2)
+ * - `GH_AW_DETECTION_CONCLUSION`   – threat-detection scan outcome ("success", "warning",
+ *                                     "failure", "skipped"); emitted as
+ *                                     `gh-aw.detection.conclusion` when present
+ * - `GH_AW_DETECTION_REASON`       – machine-readable reason for the detection conclusion
+ *                                     (e.g. "threat_detected", "agent_failure"); emitted as
+ *                                     `gh-aw.detection.reason` when present
  * - `INPUT_JOB_NAME`               – job name; set automatically by GitHub Actions from the
  *                                     `job-name` action input
  * - `GITHUB_AW_OTEL_TRACE_ID`      – trace ID written to GITHUB_ENV by the setup step;
@@ -1073,6 +1102,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Values: "success", "failure", "timed_out", "cancelled", "skipped".
   const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "";
 
+  // Detection conclusion and reason are injected from needs.detection.outputs.*
+  // when threat detection is enabled in the compiled workflow.
+  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
+  const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
+
   // Mark the span as an error when the agent job failed, timed out, or was cancelled.
   const isAgentFailure = agentConclusion === "failure" || agentConclusion === "timed_out";
   const isAgentCancelled = agentConclusion === "cancelled";
@@ -1127,6 +1161,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (agentConclusion) {
     attributes.push(buildAttr("gh-aw.agent.conclusion", agentConclusion));
   }
+  if (detectionConclusion) {
+    attributes.push(buildAttr("gh-aw.detection.conclusion", detectionConclusion));
+  }
+  if (detectionReason) {
+    attributes.push(buildAttr("gh-aw.detection.reason", detectionReason));
+  }
   if (errorMessages.length > 0) {
     attributes.push(buildAttr("gh-aw.error.count", outputErrors.length));
     attributes.push(buildAttr("gh-aw.error.messages", errorMessages.join(" | ")));
@@ -1166,30 +1206,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const conclusionExperimentAssignments = readExperimentAssignments();
   attributes.push(...buildExperimentAttributes(conclusionExperimentAssignments));
 
-  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
-  if (repository && runId) {
-    const [owner, repo] = repository.split("/");
-    resourceAttributes.push(buildAttr("github.actions.run_url", buildWorkflowRunUrl({ runId }, { owner, repo })));
-  }
-  if (eventName) {
-    resourceAttributes.push(buildAttr("github.event_name", eventName));
-  }
-  if (ref) {
-    resourceAttributes.push(buildAttr("github.ref", ref));
-  }
-  if (refName) {
-    resourceAttributes.push(buildAttr("github.ref_name", refName));
-  }
-  if (headRef) {
-    resourceAttributes.push(buildAttr("github.head_ref", headRef));
-  }
-  if (sha) {
-    resourceAttributes.push(buildAttr("github.sha", sha));
-  }
-  if (workflowRef) {
-    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
-  }
-  resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
+  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, workflowRef, staged });
 
   // Build OTel exception span events — one per error — following the
   // OpenTelemetry semantic convention for exceptions.  Each event has
@@ -1235,37 +1252,44 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
-  // Read agent token-usage counters and add the per-category breakdown to the
-  // conclusion span so a single query is sufficient for observability (no join
-  // to the child agent span required).
+  // Read agent token-usage counters and build per-category breakdown attributes.
+  // These are attached exclusively to the dedicated agent span (when one is emitted)
+  // to avoid double-counting in backends that sum gen_ai.usage.* across all spans.
+  // When no agent span is emitted the attributes fall through to the conclusion span
+  // so a single query is still sufficient for observability.
   const agentUsage = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || {};
+  const usageAttrs = [];
   if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
-    attributes.push(buildAttr("gen_ai.usage.input_tokens", agentUsage.input_tokens));
+    usageAttrs.push(buildAttr("gen_ai.usage.input_tokens", agentUsage.input_tokens));
   }
   if (typeof agentUsage.output_tokens === "number" && agentUsage.output_tokens > 0) {
-    attributes.push(buildAttr("gen_ai.usage.output_tokens", agentUsage.output_tokens));
+    usageAttrs.push(buildAttr("gen_ai.usage.output_tokens", agentUsage.output_tokens));
   }
   if (typeof agentUsage.cache_read_tokens === "number" && agentUsage.cache_read_tokens > 0) {
-    attributes.push(buildAttr("gen_ai.usage.cache_read.input_tokens", agentUsage.cache_read_tokens));
+    usageAttrs.push(buildAttr("gen_ai.usage.cache_read.input_tokens", agentUsage.cache_read_tokens));
   }
   if (typeof agentUsage.cache_write_tokens === "number" && agentUsage.cache_write_tokens > 0) {
-    attributes.push(buildAttr("gen_ai.usage.cache_creation.input_tokens", agentUsage.cache_write_tokens));
+    usageAttrs.push(buildAttr("gen_ai.usage.cache_creation.input_tokens", agentUsage.cache_write_tokens));
   }
 
   const endpoints = parseOTLPEndpoints();
   const conclusionSpanId = generateSpanId();
+  let agentSpanEmitted = false;
   if (jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs) {
+    agentSpanEmitted = true;
     const agentSpanEvents = buildSpanEvents(agentEndMs);
 
     // Build OTel GenAI semantic convention attributes for the dedicated agent span.
     // These follow the OpenTelemetry GenAI specification and enable out-of-the-box
     // LLM dashboards in Grafana, Datadog, and Honeycomb without custom mappings.
-    // Token-usage attributes are inherited from the conclusion span attributes above.
-    const agentAttributes = [...attributes];
+    // Token-usage attributes are included here (and only here) to prevent
+    // double-counting with the conclusion span.
+    const agentAttributes = [...attributes, ...usageAttrs];
     // gen_ai.operation.name is Required by the OTel GenAI spec for inference spans.
     // All gh-aw agent executions are chat-style LLM completions.
     agentAttributes.push(buildAttr("gen_ai.operation.name", "chat"));
-    if (model) agentAttributes.push(buildAttr("gen_ai.request.model", model));
+    // gen_ai.request.model is already present in agentAttributes via the spread above
+    // (added to attributes at the top of this function); do not push again.
     // gen_ai.system is the OTel GenAI standard attribute for the LLM system/provider.
     // Map the gh-aw internal engine ID to the standardized value so backends can apply
     // native GenAI dashboard detection. The original engine ID is preserved in gh-aw.engine.
@@ -1298,6 +1322,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     if (endpoints.length > 0) {
       await sendOTLPToAllEndpoints(endpoints, agentPayload, { skipJSONL: true });
     }
+  }
+
+  // When no agent span was emitted, attach token-usage attributes to the conclusion span
+  // so a single query remains sufficient for observability (no join required).
+  if (!agentSpanEmitted) {
+    attributes.push(...usageAttrs);
   }
 
   const payload = buildOTLPPayload({
@@ -1339,6 +1369,7 @@ module.exports = {
   generateSpanId,
   toNanoString,
   buildAttr,
+  buildGitHubActionsResourceAttributes,
   buildOTLPSpan,
   buildOTLPBatchPayload,
   buildOTLPBatchPayloads,

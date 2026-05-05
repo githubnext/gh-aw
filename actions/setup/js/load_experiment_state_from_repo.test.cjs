@@ -1,5 +1,8 @@
 // @ts-check
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // Mock globals used by load_experiment_state_from_repo.cjs
 const mockCore = {
@@ -13,11 +16,28 @@ const mockGetOctokit = vi.fn();
 global.core = mockCore;
 global.getOctokit = mockGetOctokit;
 
-const { fetchFileFromBranch } = await import("./load_experiment_state_from_repo.cjs");
+const { fetchFileFromBranch, main } = await import("./load_experiment_state_from_repo.cjs");
+const ENV_KEYS = ["GH_AW_EXPERIMENT_STATE_FILE", "GH_AW_EXPERIMENT_STATE_DIR", "GH_AW_EXPERIMENT_BRANCH", "GITHUB_REPOSITORY"];
+const MAX_STATE_FILE_BYTES = 102400;
 
 describe("load_experiment_state_from_repo", () => {
+  /** @type {Record<string, string | undefined>} */
+  let envBackup = {};
+
   beforeEach(() => {
     vi.clearAllMocks();
+    envBackup = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
+  });
+
+  afterEach(() => {
+    for (const key of ENV_KEYS) {
+      if (envBackup[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = envBackup[key];
+      }
+    }
+    delete global.github;
   });
 
   describe("fetchFileFromBranch", () => {
@@ -108,6 +128,73 @@ describe("load_experiment_state_from_repo", () => {
       const result = await fetchFileFromBranch(mockOctokit, "owner", "repo", "experiments/myworkflow", "state.json");
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe("main", () => {
+    it("skips oversized state files", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-state-"));
+      try {
+        const stateFile = path.join(tmpDir, "state.json");
+        const oversizedContent = "x".repeat(MAX_STATE_FILE_BYTES + 1);
+        const encoded = Buffer.from(oversizedContent, "utf8").toString("base64");
+
+        process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+        process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+        process.env.GH_AW_EXPERIMENT_BRANCH = "experiments/myworkflow";
+        process.env.GITHUB_REPOSITORY = "owner/repo";
+
+        global.github = {
+          rest: {
+            repos: {
+              getContent: vi.fn().mockResolvedValue({
+                data: { type: "file", content: encoded },
+              }),
+            },
+          },
+        };
+
+        await main();
+
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("exceeds max limit"));
+        expect(fs.existsSync(stateFile)).toBe(false);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("accepts state file at max size boundary", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-state-"));
+      try {
+        const stateFile = path.join(tmpDir, "state.json");
+        const prefix = '{"counts":{"a":"';
+        const suffix = '"}}';
+        const payloadLength = MAX_STATE_FILE_BYTES - prefix.length - suffix.length;
+        const boundaryContent = `${prefix}${"x".repeat(payloadLength)}${suffix}`;
+        const encoded = Buffer.from(boundaryContent, "utf8").toString("base64");
+
+        process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+        process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+        process.env.GH_AW_EXPERIMENT_BRANCH = "experiments/myworkflow";
+        process.env.GITHUB_REPOSITORY = "owner/repo";
+
+        global.github = {
+          rest: {
+            repos: {
+              getContent: vi.fn().mockResolvedValue({
+                data: { type: "file", content: encoded },
+              }),
+            },
+          },
+        };
+
+        await main();
+
+        expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("exceeds max limit"));
+        expect(fs.readFileSync(stateFile, "utf8")).toBe(boundaryContent);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
     });
   });
 });

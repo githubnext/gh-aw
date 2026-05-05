@@ -165,6 +165,13 @@ var (
 	// TemplateIfPattern matches {{#if condition }} template conditionals
 	// Captures the condition expression (which may contain ${{ ... }})
 	TemplateIfPattern = regexp.MustCompile(`\{\{#if\s+((?:\$\{\{[^\}]*\}\}|[^\}])*)\s*\}\}`)
+
+	// TemplateElseIfPattern matches elseif/else-if/else_if template conditionals in all supported
+	// syntax variants:
+	//   {{#elseif expr}}  {{#else-if expr}}  {{#else_if expr}}
+	//   {{elseif expr}}   {{else-if expr}}   {{else_if expr}}
+	// Captures the condition expression (which may contain ${{ ... }})
+	TemplateElseIfPattern = regexp.MustCompile(`\{\{#?else[-_]?if\s+((?:\$\{\{[^\}]*\}\}|[^\}])*)\s*\}\}`)
 )
 
 // Comparison and Literal Patterns

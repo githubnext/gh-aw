@@ -378,7 +378,7 @@ Investigate the root cause:
 2. Review recent commits to the deployed branch for potential causes
 3. Check if this environment has had recent failures (look for existing incident issues)
 
-If a new incident is found, create an issue summarising the failure, the likely root cause, and the recommended next step.
+If a new incident is found, create an issue summarizing the failure, the likely root cause, and the recommended next step.
 If an incident issue for this deployment already exists, call noop.
 ```
 

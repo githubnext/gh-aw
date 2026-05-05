@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var auditStepLog = logger.New("workflow:compiler_yaml_audit_step")
 
 // generatePreAgentAuditStep emits a step that lists files in agent-related directories
 // for all known agentic engines (Copilot, Claude, Codex, Gemini, Crush, OpenCode, Pi)
@@ -18,6 +22,7 @@ import (
 // continue-on-error so a missing directory or permission error does not block agent
 // execution.
 func (c *Compiler) generatePreAgentAuditStep(yaml *strings.Builder) {
+	auditStepLog.Print("Generating pre-agent workspace audit step")
 	yaml.WriteString("      - name: Audit pre-agent workspace\n")
 	yaml.WriteString("        id: pre_agent_audit\n")
 	yaml.WriteString("        continue-on-error: true\n")

@@ -34,7 +34,7 @@ Define a sub-agent with a level-2 Markdown heading of the form `## agent: \`name
 ## agent: `file-summarizer`
 ---
 description: Summarizes the content of a file in a few concise sentences
-model: claude-haiku-4.5
+model: small
 ---
 You are a file summarization assistant. When given a file path, read the
 file and return a brief summary (2–4 sentences) describing its purpose
@@ -58,7 +58,15 @@ Only two fields are supported inside a sub-agent frontmatter block:
 | Field | Required | Default | Notes |
 |---|---|---|---|
 | `description` | No | — | Human-readable summary of the sub-agent's role |
-| `model` | No | `"inherited"` | Model override; `"inherited"` uses the parent workflow's model |
+| `model` | No | `"inherited"` | Model override; `"inherited"` uses the parent workflow's model. Prefer model aliases (e.g. `small`, `large`) over specific model IDs for portability. |
+
+**Prefer model aliases over model IDs.** Built-in aliases resolve to the best available model for each provider, so they continue to work as models are updated. Commonly used aliases for sub-agents:
+
+| Alias | Resolves to | When to use |
+|---|---|---|
+| `small` | `mini` → haiku, gpt-5-mini, gpt-5-nano, gemini-flash | Cheap, fast tasks: extraction, classification, formatting |
+| `large` | sonnet, gpt-5-pro, gpt-5, gemini-pro | Complex reasoning or synthesis tasks |
+| `inherited` | Parent workflow model | Default — use when the sub-agent needs the same capability as the parent |
 
 All other fields (`engine`, `tools`, `network`, etc.) are stripped at runtime with a warning. Sub-agents inherit the parent's engine, tool access, and network configuration.
 
@@ -127,7 +135,7 @@ The top item must have a linked PR draft or issue.
 ## agent: `dependency-scanner`
 ---
 description: Lists outdated npm/pip/go packages
-model: claude-haiku-4.5
+model: small
 ---
 Run the appropriate package-manager audit command and return a
 machine-readable list of outdated packages with their current and
@@ -136,7 +144,7 @@ latest versions.
 ## agent: `test-coverage`
 ---
 description: Summarises low-coverage code paths
-model: claude-haiku-4.5
+model: small
 ---
 Read the most recent test coverage report and list the top 5 files or
 functions with coverage below 60 %. Include the file path and line range.
@@ -144,14 +152,14 @@ functions with coverage below 60 %. Include the file path and line range.
 ## agent: `secret-scanner`
 ---
 description: Checks for potential credential leaks
-model: claude-haiku-4.5
+model: small
 ---
 Scan staged changes and recently modified files for patterns that
 resemble API keys, tokens, or passwords. Report any findings with the
 file name and approximate line number.
 ```
 
-The parent model (e.g. Claude Sonnet or Copilot) orchestrates, while the sub-agents do the heavy lifting with a haiku-size model at lower cost.
+The parent model (e.g. Claude Sonnet or Copilot) orchestrates, while the sub-agents do the heavy lifting with a `small` model at lower cost.
 
 ### 2 — Reusable specialised helpers
 
@@ -184,7 +192,7 @@ tools:
 ## agent: `diff-explainer`
 ---
 description: Produces a plain-English summary of a pull request diff
-model: claude-haiku-4.5
+model: small
 ---
 You receive a unified diff. Describe each changed file in one sentence,
 focusing on *what changed* and *why it matters*. Ignore formatting-only

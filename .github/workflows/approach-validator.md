@@ -233,8 +233,10 @@ REPORT_EOF
 
 The report file must follow this structure:
 
+> Use h3 (`###`) or lower for all headers in your report. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability.
+
 ```markdown
-# 🔬 Approach Validation Report
+### 🔬 Approach Validation Report
 
 **Date**: [current date]
 **Approach**: [title/name of the proposed approach]
@@ -243,7 +245,7 @@ The report file must follow this structure:
 
 ---
 
-## Overall Assessment
+#### Overall Assessment
 
 **Recommendation**: ✅ Proceed / ⚠️ Proceed with Caution / ❌ Reconsider
 
@@ -251,31 +253,43 @@ The report file must follow this structure:
 
 ---
 
-## 😈 Agent 1: Devil's Advocate — Failure Modes
+<details>
+<summary><b>😈 Agent 1: Devil's Advocate — Failure Modes</b></summary>
 
 [Insert Agent 1 full output]
 
+</details>
+
 ---
 
-## 🗺️ Agent 2: Alternatives Scout — Alternative Approaches
+<details>
+<summary><b>🗺️ Agent 2: Alternatives Scout — Alternative Approaches</b></summary>
 
 [Insert Agent 2 full output]
 
+</details>
+
 ---
 
-## ⚖️ Agent 3: Implementation Estimator — Complexity Assessment
+<details>
+<summary><b>⚖️ Agent 3: Implementation Estimator — Complexity Assessment</b></summary>
 
 [Insert Agent 3 full output]
 
+</details>
+
 ---
 
-## 🚧 Agent 4: Dead End Detector — Rewrite Risk Analysis
+<details>
+<summary><b>🚧 Agent 4: Dead End Detector — Rewrite Risk Analysis</b></summary>
 
 [Insert Agent 4 full output]
 
+</details>
+
 ---
 
-## 🗳️ Human Approval Required
+#### 🗳️ Human Approval Required
 
 Before any implementation PR referencing this approach can merge, a human reviewer must explicitly approve or reject this approach:
 
