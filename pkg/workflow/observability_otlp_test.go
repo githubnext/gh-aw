@@ -1207,3 +1207,102 @@ func TestIsOTLPHeadersPresent_AllHeaders(t *testing.T) {
 		assert.True(t, isOTLPHeadersPresent(wd), "should detect GH_AW_OTLP_ALL_HEADERS")
 	})
 }
+
+// TestExtractRawOTLPEndpointMaps verifies that all three endpoint forms (string, object, array)
+// are extracted as raw maps with original header format preserved.
+func TestExtractRawOTLPEndpointMaps(t *testing.T) {
+	tests := []struct {
+		name string
+		obs  map[string]any
+		want []map[string]any
+	}{
+		{
+			name: "nil map returns nil",
+			obs:  nil,
+			want: nil,
+		},
+		{
+			name: "empty map returns nil",
+			obs:  map[string]any{},
+			want: nil,
+		},
+		{
+			name: "missing otlp key returns nil",
+			obs:  map[string]any{"other": "value"},
+			want: nil,
+		},
+		{
+			name: "string form without headers",
+			obs: map[string]any{
+				"otlp": map[string]any{
+					"endpoint": "https://traces.example.com:4317",
+				},
+			},
+			want: []map[string]any{
+				{"url": "https://traces.example.com:4317"},
+			},
+		},
+		{
+			name: "string form with top-level headers preserved as map",
+			obs: map[string]any{
+				"otlp": map[string]any{
+					"endpoint": "https://traces.example.com:4317",
+					"headers":  map[string]any{"Authorization": "Bearer tok"},
+				},
+			},
+			want: []map[string]any{
+				{"url": "https://traces.example.com:4317", "headers": map[string]any{"Authorization": "Bearer tok"}},
+			},
+		},
+		{
+			name: "object form with headers",
+			obs: map[string]any{
+				"otlp": map[string]any{
+					"endpoint": map[string]any{
+						"url":     "https://traces.example.com:4317",
+						"headers": map[string]any{"X-API-Key": "key1"},
+					},
+				},
+			},
+			want: []map[string]any{
+				{"url": "https://traces.example.com:4317", "headers": map[string]any{"X-API-Key": "key1"}},
+			},
+		},
+		{
+			name: "array form with multiple endpoints",
+			obs: map[string]any{
+				"otlp": map[string]any{
+					"endpoint": []any{
+						map[string]any{"url": "https://primary.example.com:4317"},
+						map[string]any{"url": "https://secondary.example.com:4317", "headers": map[string]any{"X-Key": "v"}},
+					},
+				},
+			},
+			want: []map[string]any{
+				{"url": "https://primary.example.com:4317"},
+				{"url": "https://secondary.example.com:4317", "headers": map[string]any{"X-Key": "v"}},
+			},
+		},
+		{
+			name: "array form skips entries with empty URL",
+			obs: map[string]any{
+				"otlp": map[string]any{
+					"endpoint": []any{
+						map[string]any{"url": ""},
+						map[string]any{"url": "https://valid.example.com:4317"},
+					},
+				},
+			},
+			want: []map[string]any{
+				{"url": "https://valid.example.com:4317"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractRawOTLPEndpointMaps(tt.obs)
+			assert.Equal(t, tt.want, got, "extractRawOTLPEndpointMaps")
+		})
+	}
+}

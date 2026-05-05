@@ -38,21 +38,23 @@ var modelAliasesLog = logger.New("workflow:model_aliases")
 // copy so callers may freely modify it.
 //
 // Vendor aliases (patterns use * as a glob wildcard, prefer copilot gateway first):
-//   - "sonnet"       → Anthropic Sonnet family
-//   - "haiku"        → Anthropic Haiku family
-//   - "opus"         → Anthropic Opus family
-//   - "gpt-4.1"      → OpenAI GPT-4.1 family
-//   - "gpt-5"        → OpenAI GPT-5 family
-//   - "gpt-5-mini"   → OpenAI GPT-5-mini family
-//   - "gpt-5-nano"   → OpenAI GPT-5-nano family (ultra-lightweight)
-//   - "gpt-5-codex"  → OpenAI GPT-5-Codex family
-//   - "reasoning"    → OpenAI o1/o3/o4 reasoning model families
-//   - "gemini-flash" → Google Gemini Flash family (fast/lightweight)
-//   - "gemini-pro"   → Google Gemini Pro family (full-capability)
+//   - "sonnet"         → Anthropic Sonnet family
+//   - "haiku"          → Anthropic Haiku family
+//   - "opus"           → Anthropic Opus family
+//   - "gpt-4.1"        → OpenAI GPT-4.1 family
+//   - "gpt-5"          → OpenAI GPT-5 family
+//   - "gpt-5-mini"     → OpenAI GPT-5-mini family
+//   - "gpt-5-nano"     → OpenAI GPT-5-nano family (ultra-lightweight)
+//   - "gpt-5-codex"    → OpenAI GPT-5-Codex family
+//   - "gpt-5-pro"      → OpenAI GPT-5 Pro high-capability tier
+//   - "reasoning"      → OpenAI o1/o3/o4 reasoning model families
+//   - "gemini-flash"   → Google Gemini Flash family (fast/lightweight)
+//   - "gemini-pro"     → Google Gemini Pro family (full-capability)
+//   - "deep-research"  → Google Gemini deep-research family (specialized research agents)
 //
 // Meta-aliases (reference other aliases; resolved recursively by AWF):
 //   - "mini"  → haiku, gpt-5-mini, gpt-5-nano, gemini-flash
-//   - "large" → sonnet, gpt-5, gemini-pro
+//   - "large" → sonnet, gpt-5-pro, gpt-5, gemini-pro
 //   - "auto"  → large (convenience alias for the default capable tier)
 func BuiltinModelAliases() map[string][]string {
 	return map[string][]string{
@@ -90,6 +92,10 @@ func BuiltinModelAliases() map[string][]string {
 			"copilot/gpt-5*codex*",
 			"openai/gpt-5*codex*",
 		},
+		"gpt-5-pro": {
+			"copilot/gpt-5*pro*",
+			"openai/gpt-5*pro*",
+		},
 		"reasoning": {
 			"copilot/o1*",
 			"copilot/o3*",
@@ -106,6 +112,10 @@ func BuiltinModelAliases() map[string][]string {
 		"gemini-pro": {
 			"copilot/gemini-*pro*",
 			"google/gemini-*pro*",
+		},
+		"deep-research": {
+			"copilot/deep-research*",
+			"google/deep-research*",
 		},
 		// ── Meta-aliases ─────────────────────────────────────────────────────
 		// These reference other aliases; AWF resolves them recursively.
@@ -124,6 +134,7 @@ func BuiltinModelAliases() map[string][]string {
 		},
 		"large": {
 			"sonnet",
+			"gpt-5-pro",
 			"gpt-5",
 			"gemini-pro",
 		},

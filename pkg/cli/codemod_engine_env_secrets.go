@@ -95,6 +95,28 @@ func allowedEngineEnvSecretKeys(engineID string) map[string]bool {
 	) {
 		allowed[req.Name] = true
 	}
+	// Also include all secrets returned by the engine's GetRequiredSecretNames so that
+	// BYOK credentials (e.g. COPILOT_PROVIDER_API_KEY) are treated the same way as they
+	// are during compile-time strict-mode validation and are not removed by this codemod.
+	if engineID != "" {
+		registry := workflow.GetGlobalEngineRegistry()
+		if engine, err := registry.GetEngine(engineID); err == nil {
+			// Use a minimal WorkflowData so we get only the engine's unconditional secrets.
+			// GetRequiredSecretNames only adds extra secrets when non-nil MCP tools
+			// (ParsedTools.GitHub, ParsedTools.Playwright, etc.) are set, or when
+			// MCPScripts is populated. By passing empty Tools/ParsedTools we get just the
+			// base engine secrets without any optional/conditional ones.
+			minimalData := &workflow.WorkflowData{
+				Tools:       map[string]any{},
+				ParsedTools: &workflow.ToolsConfig{},
+			}
+			for _, name := range engine.GetRequiredSecretNames(minimalData) {
+				allowed[name] = true
+			}
+		} else {
+			engineEnvSecretsCodemodLog.Printf("Could not look up engine '%s' for allowlist expansion: %v", engineID, err)
+		}
+	}
 	return allowed
 }
 

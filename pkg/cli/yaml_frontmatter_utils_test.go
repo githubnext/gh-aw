@@ -428,6 +428,74 @@ func TestRemoveFieldFromBlock(t *testing.T) {
 			},
 			shouldModify: false,
 		},
+		{
+			name: "removes empty parent block when last child is removed",
+			lines: []string{
+				"features:",
+				"  mcp-cli: true",
+				"permissions:",
+				"  contents: read",
+			},
+			fieldName:   "mcp-cli",
+			parentBlock: "features",
+			expectedLines: []string{
+				"permissions:",
+				"  contents: read",
+			},
+			shouldModify: true,
+		},
+		{
+			name: "keeps parent block when other children remain",
+			lines: []string{
+				"features:",
+				"  mcp-cli: true",
+				"  other-flag: true",
+				"permissions:",
+				"  contents: read",
+			},
+			fieldName:   "mcp-cli",
+			parentBlock: "features",
+			expectedLines: []string{
+				"features:",
+				"  other-flag: true",
+				"permissions:",
+				"  contents: read",
+			},
+			shouldModify: true,
+		},
+		{
+			name: "removes empty parent block when it is the last block",
+			lines: []string{
+				"engine: copilot",
+				"features:",
+				"  mcp-cli: true",
+			},
+			fieldName:   "mcp-cli",
+			parentBlock: "features",
+			expectedLines: []string{
+				"engine: copilot",
+			},
+			shouldModify: true,
+		},
+		{
+			name: "keeps parent block header when only a comment remains under it",
+			lines: []string{
+				"features:",
+				"  # user-authored comment",
+				"  mcp-cli: true",
+				"permissions:",
+				"  contents: read",
+			},
+			fieldName:   "mcp-cli",
+			parentBlock: "features",
+			expectedLines: []string{
+				"features:",
+				"  # user-authored comment",
+				"permissions:",
+				"  contents: read",
+			},
+			shouldModify: true,
+		},
 	}
 
 	for _, tt := range tests {

@@ -203,7 +203,12 @@ The command will:
 
 			return ListToolsForMCP(workflowFile, serverFilter, verbose)
 		},
-		ValidArgsFunction: CompleteWorkflowNames,
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) > 0 {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return CompleteWorkflowNames(cmd, args, toComplete)
+		},
 	}
 
 	cmd.Flags().StringVar(&serverFilter, "server", "", "MCP server name to list tools for")

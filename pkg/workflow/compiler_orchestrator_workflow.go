@@ -168,14 +168,46 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
 	}
 
-	// Merge observability config from imports into RawFrontmatter so that injectOTLPConfig
-	// can see an OTLP endpoint defined in an imported workflow (first-wins from imports).
+	// Merge observability endpoints from imports with those from the main workflow.
+	// All OTLP endpoints from both sources are combined into an array, deduplicating
+	// by URL (main workflow endpoints take precedence). This allows multiple shared
+	// workflows each defining their own OTLP endpoint to fan out to all collectors.
 	if obs := engineSetup.importsResult.MergedObservability; obs != "" {
-		if _, hasObs := workflowData.RawFrontmatter["observability"]; !hasObs {
-			var obsMap map[string]any
-			if err := json.Unmarshal([]byte(obs), &obsMap); err == nil {
-				workflowData.RawFrontmatter["observability"] = obsMap
-				orchestratorWorkflowLog.Printf("Merged observability config from imports into RawFrontmatter")
+		var importedObs map[string]any
+		if err := json.Unmarshal([]byte(obs), &importedObs); err == nil {
+			seen := make(map[string]bool)
+			var mergedEndpoints []any
+
+			// Main workflow endpoints take precedence (first in, first wins dedup).
+			var mainObs map[string]any
+			if v, ok := workflowData.RawFrontmatter["observability"]; ok {
+				mainObs, _ = v.(map[string]any)
+			}
+			for _, ep := range extractRawOTLPEndpointMaps(mainObs) {
+				if url, _ := ep["url"].(string); url != "" && !seen[url] {
+					seen[url] = true
+					mergedEndpoints = append(mergedEndpoints, ep)
+				}
+			}
+
+			// Append import endpoints that aren't already present.
+			importAdded := 0
+			for _, ep := range extractRawOTLPEndpointMaps(importedObs) {
+				if url, _ := ep["url"].(string); url != "" && !seen[url] {
+					seen[url] = true
+					mergedEndpoints = append(mergedEndpoints, ep)
+					importAdded++
+				}
+			}
+
+			if len(mergedEndpoints) > 0 {
+				mainCount := len(mergedEndpoints) - importAdded
+				workflowData.RawFrontmatter["observability"] = map[string]any{
+					"otlp": map[string]any{
+						"endpoint": mergedEndpoints,
+					},
+				}
+				orchestratorWorkflowLog.Printf("Merged OTLP endpoints into RawFrontmatter: %d from main workflow, %d from imports (%d total)", mainCount, importAdded, len(mergedEndpoints))
 			}
 		}
 	}
