@@ -2889,3 +2889,43 @@ func TestPRPolicyFieldsExpressionsPassThrough(t *testing.T) {
 		})
 	}
 }
+
+// TestDispatchWorkflowRelayInjectsDispatchCompatibleRef verifies that when a workflow_call
+// trigger is present and dispatch_workflow safe-outputs are configured, the compiler injects
+// needs.activation.outputs.target_ref (the dispatch-compatible branch/tag ref) — not
+// needs.activation.outputs.target_checkout_ref (the SHA) — as the target-ref for dispatch.
+// Sending a SHA to createWorkflowDispatch causes "No ref found for: <sha>" errors.
+func TestDispatchWorkflowRelayInjectsDispatchCompatibleRef(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	compiler.SetActionMode(ActionModeDev)
+
+	safeOutputs := &SafeOutputsConfig{
+		DispatchWorkflow: &DispatchWorkflowConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			Workflows:            []string{"repo-worker"},
+		},
+	}
+
+	data := &WorkflowData{
+		Name: "test-relay",
+		On: `"on":
+  workflow_call:
+  workflow_dispatch:`,
+		SafeOutputs: safeOutputs,
+		AI:          "copilot",
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, data)
+	require.NotEmpty(t, steps, "should produce at least one step env var")
+
+	stepsContent := strings.Join(steps, "\n")
+
+	// target_ref (dispatch-compatible branch/tag) must be injected
+	assert.Contains(t, stepsContent, "needs.activation.outputs.target_ref",
+		"dispatch target-ref must use needs.activation.outputs.target_ref (branch/tag ref)")
+
+	// target_checkout_ref (SHA) must NOT be used as the dispatch ref
+	assert.NotContains(t, stepsContent, "target_checkout_ref",
+		"dispatch target-ref must NOT use target_checkout_ref (commit SHA)")
+}

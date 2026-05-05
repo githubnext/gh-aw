@@ -249,3 +249,98 @@ Test workflow with create-project item_url permissions.
 	assert.Contains(t, stepsStr, "permission-issues: read", "GitHub App token should include issues read permission for issue-backed project items")
 	assert.Contains(t, stepsStr, "permission-contents: read", "GitHub App token should include contents read permission")
 }
+
+// TestSafeOutputsAppTokenAddCommentAddLabelsIssuesWrite is a regression test for the issue
+// where safe_outputs App token permissions were capped at the workflow-level permissions block
+// instead of being derived from the configured safe-output handlers.
+//
+// Repro: workflow declares `permissions: { issues: read }` (required by agent-no-write rule),
+// but configures add-comment (issues: true) and add-labels — both needing issues: write.
+// The compiled App token MUST emit `permission-issues: write`, not `read`.
+func TestSafeOutputsAppTokenAddCommentAddLabelsIssuesWrite(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	markdown := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+safe-outputs:
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    owner: my-org
+  add-comment:
+    max: 1
+    issues: true
+    pull-requests: false
+    discussions: false
+  add-labels:
+    max: 4
+    allowed: [routed]
+---
+Test workflow
+`
+
+	tmpDir := t.TempDir()
+	testFile := tmpDir + "/test.md"
+	require.NoError(t, os.WriteFile(testFile, []byte(markdown), 0644), "Failed to write test file")
+
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err, "Failed to parse markdown content")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.GitHubApp, "GitHubApp should not be nil")
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", testFile)
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	// The workflow declares `issues: read` but the handlers require `issues: write`.
+	// The App token permissions MUST come from handler-computed scope, NOT the
+	// workflow-level `permissions:` block.
+	assert.Contains(t, stepsStr, "permission-issues: write",
+		"App token must use handler-computed issues:write, not workflow-level issues:read")
+	assert.Contains(t, stepsStr, "permission-pull-requests: write",
+		"App token must include pull-requests:write from add-labels handler")
+	assert.Contains(t, stepsStr, "permission-contents: read",
+		"App token must include contents:read")
+
+	// The job-level permissions YAML must also reflect the handler-computed scope.
+	assert.Contains(t, job.Permissions, "issues: write",
+		"Job-level permissions must be handler-computed (issues:write)")
+}
+
+// TestSafeOutputsAppTokenPermissionsOverride tests that safe-outputs.github-app.permissions:
+// overrides take effect in the minted token. Users can supply GitHub App-only scopes
+// (e.g. members: read) not expressible via standard safe-output handler declarations.
+func TestSafeOutputsAppTokenPermissionsOverride(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+				Permissions: map[string]string{
+					"members": "read",
+				},
+			},
+			CreateIssues: &CreateIssuesConfig{TitlePrefix: "[Test] "},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	// The override must add permission-members: read to the minted token.
+	assert.Contains(t, stepsStr, "permission-members: read",
+		"App token must include members:read from github-app.permissions override")
+}

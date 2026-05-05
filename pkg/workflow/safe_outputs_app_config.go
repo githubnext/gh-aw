@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -196,10 +197,30 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 	// Always add github-api-url from environment variable
 	steps = append(steps, "          github-api-url: ${{ github.api_url }}\n")
 
-	// Add permission-* fields automatically computed from job permissions
-	// Sort keys to ensure deterministic compilation order
+	// Add permission-* fields automatically computed from job permissions.
+	// Sort keys to ensure deterministic compilation order.
 	if permissions != nil {
 		permissionFields := convertPermissionsToAppTokenFields(permissions)
+
+		// Apply app.Permissions overrides on top of handler-computed permissions.
+		// This allows workflows to add GitHub App-only scopes (e.g. members: read,
+		// organization-administration: read) that are not expressible via standard
+		// safe-output handler declarations.  The override wins over the computed value
+		// for any scope it declares.
+		for key, val := range app.Permissions {
+			scope := convertStringToPermissionScope(key)
+			if scope == "" {
+				safeOutputsAppLog.Printf("Skipping unknown permission scope %q in github-app.permissions", key)
+				continue
+			}
+			level := strings.ToLower(strings.TrimSpace(val))
+			// Map the scope back to a permission-* field name by running it through
+			// a single-entry Permissions object so the same mapping logic applies.
+			tempPerms := NewPermissionsFromMap(map[PermissionScope]PermissionLevel{scope: PermissionLevel(level)})
+			for fieldKey, fieldVal := range convertPermissionsToAppTokenFields(tempPerms) {
+				permissionFields[fieldKey] = fieldVal
+			}
+		}
 
 		// Extract and sort keys for deterministic ordering
 		keys := make([]string, 0, len(permissionFields))

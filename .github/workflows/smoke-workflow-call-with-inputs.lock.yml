@@ -112,6 +112,7 @@ jobs:
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
       stale_lock_file_failed: ${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}
+      target_checkout_ref: ${{ steps.resolve-host-repo.outputs.target_checkout_ref }}
       target_ref: ${{ steps.resolve-host-repo.outputs.target_ref }}
       target_repo: ${{ steps.resolve-host-repo.outputs.target_repo }}
       target_repo_name: ${{ steps.resolve-host-repo.outputs.target_repo_name }}
@@ -197,7 +198,7 @@ jobs:
         with:
           persist-credentials: false
           repository: ${{ steps.resolve-host-repo.outputs.target_repo }}
-          ref: ${{ steps.resolve-host-repo.outputs.target_ref }}
+          ref: ${{ steps.resolve-host-repo.outputs.target_checkout_ref }}
           sparse-checkout: |
             .github
             .agents
@@ -920,7 +921,7 @@ jobs:
         run: |
           # Fix permissions on firewall logs/audit dirs so they can be uploaded as artifacts
           # AWF runs with sudo, creating files owned by root
-          sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall 2>/dev/null || true
+          sudo chmod -R a+rX /tmp/gh-aw/sandbox/firewall 2>/dev/null || true
           # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)
           if command -v awf &> /dev/null; then
             awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
