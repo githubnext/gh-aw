@@ -243,9 +243,9 @@ sudo env -u GITHUB_API_URL -u GITHUB_GRAPHQL_URL -u GH_HOST \
 # these specific standard paths. If node is not found, AWF fails with:
 #   [entrypoint][ERROR] Copilot CLI requires Node.js, but 'node' is not available
 #                       inside AWF chroot.
-# Creating a symlink at /usr/local/bin/node (which is always in the system PATH
-# and is recognised by the AWF entrypoint) ensures node is discoverable regardless
-# of where setup-node placed the binary.
+# Creating a symlink at ${AWF_INSTALL_DIR}/node (i.e. /usr/local/bin/node, which
+# is always in the system PATH and is recognized by the AWF entrypoint) ensures
+# node is discoverable regardless of where setup-node placed the binary.
 NODE_BIN=$(command -v node 2>/dev/null || true)
 if [ -n "$NODE_BIN" ] && [ ! -e "${AWF_INSTALL_DIR}/node" ]; then
   sudo ln -sf "$NODE_BIN" "${AWF_INSTALL_DIR}/node"
