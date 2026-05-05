@@ -67,25 +67,25 @@ func TestSpec_PublicAPI_ValidateAbsolutePath(t *testing.T) {
 	}
 }
 
-// TestSpec_PublicAPI_MustBeWithin validates that candidate must be within the base directory.
+// TestSpec_PublicAPI_ValidatePathWithinBase validates that candidate must be within the base directory.
 // Spec: "prevents both .. traversal and symlink escapes"
-func TestSpec_PublicAPI_MustBeWithin(t *testing.T) {
+func TestSpec_PublicAPI_ValidatePathWithinBase(t *testing.T) {
 	base := t.TempDir()
 	within := filepath.Join(base, "subdir", "file.txt")
 	outside := filepath.Join(base, "..", "outside")
 
 	t.Run("accepts path within base", func(t *testing.T) {
-		err := fileutil.MustBeWithin(base, within)
+		err := fileutil.ValidatePathWithinBase(base, within)
 		assert.NoError(t, err, "path within base should be accepted")
 	})
 
 	t.Run("rejects path outside base", func(t *testing.T) {
-		err := fileutil.MustBeWithin(base, outside)
+		err := fileutil.ValidatePathWithinBase(base, outside)
 		assert.Error(t, err, "path outside base should be rejected")
 	})
 
 	t.Run("accepts base path itself", func(t *testing.T) {
-		err := fileutil.MustBeWithin(base, base)
+		err := fileutil.ValidatePathWithinBase(base, base)
 		assert.NoError(t, err, "base path itself should be accepted")
 	})
 }

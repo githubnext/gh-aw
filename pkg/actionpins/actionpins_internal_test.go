@@ -68,3 +68,13 @@ func TestGetContainerPin_ReturnsPinnedImage(t *testing.T) {
 	assert.NotEmpty(t, pin.Digest, "Expected digest to be populated")
 	assert.Contains(t, pin.PinnedImage, "@sha256:", "Expected pinned image to include digest")
 }
+
+func TestGetContainerPin_MCPGatewayV036IsPinned(t *testing.T) {
+	const image = "ghcr.io/github/gh-aw-mcpg:v0.3.6"
+
+	pin, ok := GetContainerPin(image)
+	require.True(t, ok, "Expected embedded container pin for %s", image)
+	assert.Equal(t, image, pin.Image, "Expected image name to match key")
+	assert.Equal(t, "sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c", pin.Digest, "Expected v0.3.6 digest to match")
+	assert.Equal(t, image+"@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c", pin.PinnedImage, "Expected pinned image to include v0.3.6 digest")
+}
