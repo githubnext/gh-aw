@@ -375,9 +375,9 @@ func TestSplitDomainList(t *testing.T) {
 }
 
 // TestBuildAWFConfigJSON_ModelsSectionBasic verifies that model alias mappings are included
-// in the AWF config JSON when ModelMappings is populated in WorkflowData.
+// in the AWF config JSON nested under apiProxy, as required by the AWF config schema.
 func TestBuildAWFConfigJSON_ModelsSectionBasic(t *testing.T) {
-	t.Run("models section is included when ModelMappings is set", func(t *testing.T) {
+	t.Run("models section is included under apiProxy when ModelMappings is set", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com",
@@ -397,14 +397,19 @@ func TestBuildAWFConfigJSON_ModelsSectionBasic(t *testing.T) {
 		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
 		var parsed struct {
-			Models map[string][]string `json:"models"`
+			APIProxy struct {
+				Models map[string][]string `json:"models"`
+			} `json:"apiProxy"`
 		}
 		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "result must be valid JSON")
 
 		assert.Contains(t, jsonStr, `"models"`, "should include models section")
-		require.NotNil(t, parsed.Models, "models should not be nil")
-		assert.Equal(t, []string{"mygateway/*sonnet*"}, parsed.Models["sonnet"], "sonnet alias should match")
-		assert.Equal(t, []string{"sonnet", "gpt-5-mini"}, parsed.Models[""], "default policy should match")
+		require.NotNil(t, parsed.APIProxy.Models, "apiProxy.models should not be nil")
+		assert.Equal(t, []string{"mygateway/*sonnet*"}, parsed.APIProxy.Models["sonnet"], "sonnet alias should match")
+		assert.Equal(t, []string{"sonnet", "gpt-5-mini"}, parsed.APIProxy.Models[""], "default policy should match")
+
+		// Validate against the embedded AWF config schema.
+		assert.NoError(t, validateAWFConfigJSON(jsonStr), "generated config must pass AWF schema validation")
 	})
 
 	t.Run("models section is omitted when ModelMappings is empty", func(t *testing.T) {
@@ -424,6 +429,7 @@ func TestBuildAWFConfigJSON_ModelsSectionBasic(t *testing.T) {
 		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
 		assert.NotContains(t, jsonStr, `"models"`, "should not include models section when ModelMappings is empty")
+		assert.NoError(t, validateAWFConfigJSON(jsonStr), "generated config must pass AWF schema validation")
 	})
 
 	t.Run("models section is omitted when WorkflowData has no ModelMappings", func(t *testing.T) {
@@ -442,7 +448,85 @@ func TestBuildAWFConfigJSON_ModelsSectionBasic(t *testing.T) {
 		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
 		assert.NotContains(t, jsonStr, `"models"`, "should not include models section when no ModelMappings")
+		assert.NoError(t, validateAWFConfigJSON(jsonStr), "generated config must pass AWF schema validation")
 	})
+}
+
+// TestBuildAWFConfigJSON_SchemaValidation validates that all generated configs conform to
+// the embedded AWF config schema.
+func TestBuildAWFConfigJSON_SchemaValidation(t *testing.T) {
+	tests := []struct {
+		name   string
+		config AWFCommandConfig
+	}{
+		{
+			name: "basic config with allowed domains",
+			config: AWFCommandConfig{
+				EngineName:     "copilot",
+				AllowedDomains: "github.com,api.github.com",
+				WorkflowData: &WorkflowData{
+					EngineConfig: &EngineConfig{ID: "copilot"},
+					NetworkPermissions: &NetworkPermissions{
+						Firewall: &FirewallConfig{Enabled: true},
+					},
+				},
+			},
+		},
+		{
+			name: "config with blocked domains",
+			config: AWFCommandConfig{
+				EngineName:     "copilot",
+				AllowedDomains: "github.com",
+				WorkflowData: &WorkflowData{
+					EngineConfig: &EngineConfig{ID: "copilot"},
+					NetworkPermissions: &NetworkPermissions{
+						Blocked:  []string{"ads.example.com"},
+						Firewall: &FirewallConfig{Enabled: true},
+					},
+				},
+			},
+		},
+		{
+			name: "config with model mappings under apiProxy",
+			config: AWFCommandConfig{
+				EngineName:     "copilot",
+				AllowedDomains: "github.com",
+				WorkflowData: &WorkflowData{
+					EngineConfig: &EngineConfig{ID: "copilot"},
+					NetworkPermissions: &NetworkPermissions{
+						Firewall: &FirewallConfig{Enabled: true},
+					},
+					ModelMappings: MergeImportedModelAliases(nil, nil),
+				},
+			},
+		},
+		{
+			name: "config with openai target",
+			config: AWFCommandConfig{
+				EngineName:     "codex",
+				AllowedDomains: "github.com",
+				WorkflowData: &WorkflowData{
+					EngineConfig: &EngineConfig{
+						ID: "codex",
+						Env: map[string]string{
+							"OPENAI_BASE_URL": "https://my-proxy.internal.example.com/v1",
+						},
+					},
+					NetworkPermissions: &NetworkPermissions{
+						Firewall: &FirewallConfig{Enabled: true},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jsonStr, err := BuildAWFConfigJSON(tt.config)
+			require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
+			assert.NoError(t, validateAWFConfigJSON(jsonStr), "generated config must pass AWF schema validation")
+		})
+	}
 }
 
 // that writes a JSON config file and references it via --config.
