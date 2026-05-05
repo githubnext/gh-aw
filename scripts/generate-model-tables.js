@@ -24,15 +24,37 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ROOT = path.resolve(__dirname, "..");
-const ALIASES_PATH = path.join(ROOT, "pkg/cli/data/model_aliases.json");
+const ALIASES_PATH = path.join(ROOT, "pkg/workflow/data/model_aliases.json");
 const MULTIPLIERS_PATH = path.join(ROOT, "pkg/cli/data/model_multipliers.json");
 const OUTPUT_PATH = path.join(ROOT, "docs/src/content/docs/reference/model-tables.md");
 
 // ---------------------------------------------------------------------------
 // Load data
 // ---------------------------------------------------------------------------
-const aliasesData = JSON.parse(fs.readFileSync(ALIASES_PATH, "utf-8"));
-const multipliersData = JSON.parse(fs.readFileSync(MULTIPLIERS_PATH, "utf-8"));
+
+/**
+ * Read and parse a JSON file, with a clear error message on failure.
+ * @param {string} filePath
+ * @returns {any}
+ */
+function readJSON(filePath) {
+  let raw;
+  try {
+    raw = fs.readFileSync(filePath, "utf-8");
+  } catch (err) {
+    console.error(`Error: could not read ${filePath}: ${err.message}`);
+    process.exit(1);
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error(`Error: invalid JSON in ${filePath}: ${err.message}`);
+    process.exit(1);
+  }
+}
+
+const aliasesData = readJSON(ALIASES_PATH);
+const multipliersData = readJSON(MULTIPLIERS_PATH);
 
 const aliases = aliasesData.aliases;
 const multipliers = multipliersData.multipliers;
@@ -51,7 +73,7 @@ function classifyAliases(aliasMap) {
   const vendor = [];
   const meta = [];
   for (const [alias, patterns] of Object.entries(aliasMap)) {
-    const isMetaOnly = patterns.every((p) => !p.includes("/"));
+    const isMetaOnly = patterns.every(p => !p.includes("/"));
     if (isMetaOnly) {
       meta.push({ alias, resolves: patterns });
     } else {
@@ -100,9 +122,7 @@ function generateAliasTable(vendorAliases) {
   lines.push("| Alias | Fallback patterns (tried in order) |");
   lines.push("|-------|-------------------------------------|");
   for (const { alias, patterns } of vendorAliases) {
-    const formattedPatterns = patterns
-      .map((p) => `\`${p}\``)
-      .join(", ");
+    const formattedPatterns = patterns.map(p => `\`${p}\``).join(", ");
     lines.push(`| \`${alias}\` | ${formattedPatterns} |`);
   }
   return lines.join("\n");
@@ -113,7 +133,7 @@ function generateMetaAliasTable(metaAliases) {
   lines.push("| Meta-alias | Expands to |");
   lines.push("|------------|------------|");
   for (const { alias, resolves } of metaAliases) {
-    const formattedResolves = resolves.map((r) => `\`${r}\``).join(" → ");
+    const formattedResolves = resolves.map(r => `\`${r}\``).join(" → ");
     lines.push(`| \`${alias}\` | ${formattedResolves} |`);
   }
   return lines.join("\n");
@@ -136,9 +156,7 @@ function generateTokenWeightsTable(weights) {
   lines.push("| Token class | Default weight |");
   lines.push("|-------------|---------------|");
   for (const [cls, weight] of Object.entries(weights)) {
-    const label = cls
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+    const label = cls.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
     lines.push(`| ${label} | ${weight} |`);
   }
   return lines.join("\n");
@@ -157,23 +175,19 @@ function generateMarkdown() {
   // Frontmatter
   lines.push("---");
   lines.push("title: Model Aliases & Multipliers");
-  lines.push(
-    "description: Reference tables for the built-in model alias map and per-model Effective Token multipliers used by GitHub Agentic Workflows."
-  );
+  lines.push("description: Reference tables for the built-in model alias map and per-model Effective Token multipliers used by GitHub Agentic Workflows.");
   lines.push("sidebar:");
   lines.push("  order: 297");
   lines.push("---");
   lines.push("");
 
-  lines.push(
-    "This page lists the built-in model aliases and the per-model Effective Token (ET) multipliers used by GitHub Agentic Workflows."
-  );
+  lines.push("This page lists the built-in model aliases and the per-model Effective Token (ET) multipliers used by GitHub Agentic Workflows.");
   lines.push("");
 
   // Approximation callout
   lines.push("> [!CAUTION]");
   lines.push(
-    "> The multiplier values shown on this page are **approximations**. They are used solely for the purpose of normalising token usage across models into a single comparable metric (Effective Tokens) and do **not** represent precise cost ratios. Values may be inaccurate for specific model versions and may become out of date as providers update their offerings. Do not use these numbers for billing or financial calculations."
+    "> The multiplier values shown on this page are **approximations**. They are used solely for the purpose of normalizing token usage across models into a single comparable metric (Effective Tokens) and do **not** represent precise cost ratios. Values may be inaccurate for specific model versions and may become out of date as providers update their offerings. Do not use these numbers for billing or financial calculations."
   );
   lines.push("");
 
@@ -186,25 +200,19 @@ function generateMarkdown() {
     "Model aliases let you write `engine: copilot` with a human-friendly model name such as `sonnet` or `mini`, and gh-aw resolves it to the best available concrete model at compile time. Each alias holds an ordered list of patterns; the first pattern that matches an available model wins."
   );
   lines.push("");
-  lines.push(
-    "For details on the alias syntax, fallback resolution algorithm, and how to define your own aliases in workflow frontmatter, see the [Model Alias Format Specification](/gh-aw/reference/model-alias-specification/)."
-  );
+  lines.push("For details on the alias syntax, fallback resolution algorithm, and how to define your own aliases in workflow frontmatter, see the [Model Alias Format Specification](/gh-aw/reference/model-alias-specification/).");
   lines.push("");
 
   lines.push("### Vendor Aliases");
   lines.push("");
-  lines.push(
-    "Vendor aliases map a short name to one or more provider-scoped glob patterns. The Copilot gateway is always tried first."
-  );
+  lines.push("Vendor aliases map a short name to one or more provider-scoped glob patterns. The Copilot gateway is always tried first.");
   lines.push("");
   lines.push(generateAliasTable(vendor));
   lines.push("");
 
   lines.push("### Meta-Aliases");
   lines.push("");
-  lines.push(
-    "Meta-aliases reference other aliases by name. They are resolved recursively until a concrete pattern is reached."
-  );
+  lines.push("Meta-aliases reference other aliases by name. They are resolved recursively until a concrete pattern is reached.");
   lines.push("");
   lines.push(generateMetaAliasTable(meta));
   lines.push("");
@@ -218,16 +226,12 @@ function generateMarkdown() {
     `Effective Token multipliers scale the weighted token total for each model relative to the reference model (\`${referenceModel}\`, multiplier = 1.0). A multiplier of 5.0 means that a run on that model counts as five times as many Effective Tokens as the same run on the reference model.`
   );
   lines.push("");
-  lines.push(
-    "See the [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) for the full formula."
-  );
+  lines.push("See the [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) for the full formula.");
   lines.push("");
 
   lines.push("### Token Class Weights");
   lines.push("");
-  lines.push(
-    "Before per-model multipliers are applied, raw token counts are weighted by token class:"
-  );
+  lines.push("Before per-model multipliers are applied, raw token counts are weighted by token class:");
   lines.push("");
   lines.push(generateTokenWeightsTable(tokenClassWeights));
   lines.push("");

@@ -8,7 +8,7 @@ sidebar:
 This page lists the built-in model aliases and the per-model Effective Token (ET) multipliers used by GitHub Agentic Workflows.
 
 > [!CAUTION]
-> The multiplier values shown on this page are **approximations**. They are used solely for the purpose of normalising token usage across models into a single comparable metric (Effective Tokens) and do **not** represent precise cost ratios. Values may be inaccurate for specific model versions and may become out of date as providers update their offerings. Do not use these numbers for billing or financial calculations.
+> The multiplier values shown on this page are **approximations**. They are used solely for the purpose of normalizing token usage across models into a single comparable metric (Effective Tokens) and do **not** represent precise cost ratios. Values may be inaccurate for specific model versions and may become out of date as providers update their offerings. Do not use these numbers for billing or financial calculations.
 
 ## Model Aliases
 
