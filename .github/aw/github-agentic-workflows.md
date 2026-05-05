@@ -645,11 +645,15 @@ The YAML frontmatter supports these fields:
       create-issue:
         title-prefix: "[ai] "           # Optional: prefix for issue titles
         labels: [automation, agentic]    # Optional: labels to attach to issues
+        allowed-labels: [bug, task]     # Optional: restrict which labels the agent can set (any label allowed if omitted)
         assignees: [user1, copilot]     # Optional: assignees (use 'copilot' for bot)
         max: 5                          # Optional: maximum number of issues (default: 1)
         expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y, or false)
         group: true                     # Optional: group as sub-issues under a parent issue (default: false)
+        group-by-day: true              # Optional: group same-day runs into one issue by posting as comments (default: false)
         close-older-issues: true        # Optional: close previous issues from same workflow (default: false)
+        close-older-key: "my-key"       # Optional: explicit deduplication key for close-older matching (uses gh-aw-close-key marker)
+        footer: false                   # Optional: omit AI-generated footer while preserving XML markers (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
         allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)
     ```
@@ -700,10 +704,14 @@ The YAML frontmatter supports these fields:
       create-discussion:
         title-prefix: "[ai] "           # Optional: prefix for discussion titles
         category: "General"             # Optional: discussion category name, slug, or ID (defaults to first category if not specified)
+        labels: [status]                # Optional: labels to attach (used for matching when close-older-discussions is enabled)
+        allowed-labels: [status, audit] # Optional: restrict which labels the agent can set (any label allowed if omitted)
         max: 3                          # Optional: maximum number of discussions (default: 1)
         close-older-discussions: true   # Optional: close older discussions with same prefix/labels (default: false)
+        close-older-key: "my-key"       # Optional: explicit deduplication key for close-older matching
         expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y, or false)
         fallback-to-issue: true         # Optional: create issue if discussion creation fails (default: true)
+        footer: false                   # Optional: omit AI-generated footer while preserving XML markers (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
         allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)
     ```
@@ -921,6 +929,7 @@ The YAML frontmatter supports these fields:
     safe-outputs:
       add-labels:
         allowed: [bug, enhancement, documentation]  # Optional: restrict to specific labels
+        blocked: ["~*", "*[bot]"]                   # Optional: blocked label patterns (glob; takes precedence over allowed)
         max: 3                                      # Optional: maximum number of labels (default: 3)
         target: "*"                                 # Optional: "triggering" (default), "*" (any issue/PR), or number
         target-repo: "owner/repo"                   # Optional: cross-repository
@@ -933,6 +942,7 @@ The YAML frontmatter supports these fields:
     safe-outputs:
       remove-labels:
         allowed: [automated, stale]  # Optional: restrict to specific labels
+        blocked: ["~*", "*[bot]"]    # Optional: blocked label patterns (glob; takes precedence over allowed)
         max: 3                       # Optional: maximum number of operations (default: 3)
         target: "*"                  # Optional: "triggering" (default), "*" (any issue/PR), or number
         target-repo: "owner/repo"    # Optional: cross-repository
@@ -958,6 +968,7 @@ The YAML frontmatter supports these fields:
     safe-outputs:
       assign-milestone:
         allowed: [v1.0, v2.0]           # Optional: restrict to specific milestone titles
+        auto-create: true               # Optional: auto-create milestones from the allowed list if missing (default: false)
         max: 1                          # Optional: max assignments (default: 1)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
@@ -1347,7 +1358,7 @@ The YAML frontmatter supports these fields:
       set-issue-type:
         allowed: [Bug, Feature, Enhancement]  # Optional: restrict to specific issue type names
         target: "triggering"                  # Optional: "triggering" (default), "*", or number
-        max: 1                                # Optional: max operations (default: 1)
+        max: 5                                # Optional: max operations (default: 5)
         target-repo: "owner/repo"             # Optional: cross-repository
     ```
 
