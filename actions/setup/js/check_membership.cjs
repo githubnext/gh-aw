@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus, isAllowedBot, readAllowBotAuthoredTriggerComment, isConfusedDeputyAttack } = require("./check_permissions_utils.cjs");
+const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus, isAllowedBot, isConfusedDeputyAttack } = require("./check_permissions_utils.cjs");
 const { writeDenialSummary } = require("./pre_activation_summary.cjs");
 
 async function main() {
@@ -56,13 +56,7 @@ async function main() {
   // @dependabot show (for issue_comment events) to make dependabot appear as the
   // actor, bypassing permission checks that rely solely on github.actor.
   // Reference: https://labs.boostsecurity.io/articles/weaponizing-dependabot-pwn-request-at-its-finest/
-  //
-  // The allowBotAuthoredTriggerComment flag is propagated via the inbound aw_context
-  // when a caller explicitly opts in to the bot-posted-menu / user-checks-box pattern
-  // (e.g. a workflow posts a checkbox comment as github-actions[bot] and a maintainer
-  // edits it to tick a box, firing issue_comment:edited).
-  const allowBotAuthoredTriggerComment = readAllowBotAuthoredTriggerComment(context.payload);
-  if (isConfusedDeputyAttack(actor, eventName, context.payload, allowBotAuthoredTriggerComment)) {
+  if (isConfusedDeputyAttack(actor, eventName, context.payload)) {
     const errorMessage = `Access denied: Potential confused deputy attack detected. Actor '${actor}' does not match the event author. The workflow may have been triggered indirectly via a bot command.`;
     core.warning(errorMessage);
     core.setOutput("is_team_member", "false");

@@ -201,7 +201,7 @@ describe("buildAwContext allow_bot_authored_trigger_comment field", () => {
     expect(buildAwContext().allow_bot_authored_trigger_comment).toBe(false);
   });
 
-  it("is true for issue_comment:edited when actor differs from comment author (bot-menu pattern)", async () => {
+  it("is true for issue_comment:edited when actor differs from [bot]-authored comment (bot-menu pattern)", async () => {
     // A workflow posted a checkbox-menu comment as github-actions[bot].
     // A human maintainer (theletterf) edited it to tick a box.
     global.context = {
@@ -213,6 +213,20 @@ describe("buildAwContext allow_bot_authored_trigger_comment field", () => {
     };
     const { buildAwContext } = await import("./aw_context.cjs");
     expect(buildAwContext().allow_bot_authored_trigger_comment).toBe(true);
+  });
+
+  it("is false for issue_comment:edited when comment author is a human (not a [bot])", async () => {
+    // A maintainer editing another human's comment should NOT set the flag —
+    // only bot-authored comments qualify for the bot-menu exception.
+    global.context = {
+      repo: { owner: "o", repo: "r" },
+      runId: 1,
+      actor: "theletterf",
+      eventName: "issue_comment",
+      payload: { action: "edited", comment: { user: { login: "another-human" } } },
+    };
+    const { buildAwContext } = await import("./aw_context.cjs");
+    expect(buildAwContext().allow_bot_authored_trigger_comment).toBe(false);
   });
 
   it("is false for issue_comment:edited when comment.user.login is absent from payload", async () => {

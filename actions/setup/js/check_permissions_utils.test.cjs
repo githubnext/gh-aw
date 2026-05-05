@@ -641,7 +641,13 @@ describe("check_permissions_utils", () => {
         expect(isConfusedDeputyAttack("dependabot[bot]", "issue_comment", payload)).toBe(false);
       });
 
-      it("should return true when actor differs from comment author", () => {
+      it("should return true when actor differs from comment author on created action", () => {
+        // The dependabot @dependabot show attack goes via issue_comment:created
+        const payload = { action: "created", comment: { user: { login: "dependabot[bot]" } } };
+        expect(isConfusedDeputyAttack("attacker", "issue_comment", payload)).toBe(true);
+      });
+
+      it("should return true when actor differs from human comment author (no action field)", () => {
         const payload = { comment: { user: { login: "attacker" } } };
         expect(isConfusedDeputyAttack("dependabot[bot]", "issue_comment", payload)).toBe(true);
       });
@@ -656,33 +662,36 @@ describe("check_permissions_utils", () => {
         expect(isConfusedDeputyAttack("dependabot[bot]", "issue_comment", payload)).toBe(false);
       });
 
-      describe("allowBotAuthoredTriggerComment opt-in", () => {
-        it("should return false for issue_comment:edited with mismatched author when flag is true (bot-menu pattern)", () => {
+      describe("bot-posted-menu / user-checks-box pattern (issue_comment:edited by bot author)", () => {
+        it("should return false for issue_comment:edited with [bot]-authored comment (the real fix)", () => {
           // The legitimate pattern: workflow posts checkbox-menu comment (github-actions[bot]),
           // human maintainer edits it to tick a box → actor != comment.user.login, action=edited.
+          // Derived directly from the native webhook payload — no aw_context flag needed.
           const payload = { action: "edited", comment: { user: { login: "github-actions[bot]" } } };
-          expect(isConfusedDeputyAttack("theletterf", "issue_comment", payload, true)).toBe(false);
+          expect(isConfusedDeputyAttack("theletterf", "issue_comment", payload)).toBe(false);
         });
 
-        it("should still return true for issue_comment:created with mismatched author even when flag is true", () => {
-          // The dependabot attack goes via issue_comment:created — the flag must NOT bypass that.
+        it("should return false for issue_comment:edited with any [bot]-suffixed comment author", () => {
+          const payload = { action: "edited", comment: { user: { login: "custom-bot[bot]" } } };
+          expect(isConfusedDeputyAttack("maintainer", "issue_comment", payload)).toBe(false);
+        });
+
+        it("should return true for issue_comment:created with [bot]-authored comment (Dependabot attack vector)", () => {
+          // The Dependabot attack always fires via created, so this must still be caught.
           const payload = { action: "created", comment: { user: { login: "dependabot[bot]" } } };
-          expect(isConfusedDeputyAttack("attacker", "issue_comment", payload, true)).toBe(true);
+          expect(isConfusedDeputyAttack("attacker", "issue_comment", payload)).toBe(true);
         });
 
-        it("should return true for issue_comment:edited with mismatched author when flag is false (default)", () => {
+        it("should return true for issue_comment:edited with human comment author (not a bot-menu)", () => {
+          // A human edited a human's comment — mismatch is still suspicious.
+          const payload = { action: "edited", comment: { user: { login: "human-author" } } };
+          expect(isConfusedDeputyAttack("different-actor", "issue_comment", payload)).toBe(true);
+        });
+
+        it("should return false for issue_comment:edited when actor matches bot comment author", () => {
+          // No mismatch — not a confused deputy
           const payload = { action: "edited", comment: { user: { login: "github-actions[bot]" } } };
-          expect(isConfusedDeputyAttack("theletterf", "issue_comment", payload, false)).toBe(true);
-        });
-
-        it("should return true for issue_comment:edited with mismatched author when flag is omitted", () => {
-          const payload = { action: "edited", comment: { user: { login: "github-actions[bot]" } } };
-          expect(isConfusedDeputyAttack("theletterf", "issue_comment", payload)).toBe(true);
-        });
-
-        it("should return false for issue_comment:edited when actor matches comment author (flag irrelevant)", () => {
-          const payload = { action: "edited", comment: { user: { login: "theletterf" } } };
-          expect(isConfusedDeputyAttack("theletterf", "issue_comment", payload, true)).toBe(false);
+          expect(isConfusedDeputyAttack("github-actions[bot]", "issue_comment", payload)).toBe(false);
         });
       });
     });

@@ -340,14 +340,15 @@ function buildAwContext() {
     // Propagated to dispatched child workflows for experiment context continuity.
     experiments: experimentAssignments,
     // allow_bot_authored_trigger_comment is set to true when the triggering event is
-    // issue_comment:edited and the comment author differs from the actor — the
+    // issue_comment:edited, the comment was authored by a GitHub App bot (login ends
+    // with "[bot]"), and the editor (actor) differs from the comment author — the
     // bot-posted-menu / user-checks-box pattern described in gh-aw issue #29480.
-    // Propagated to child workflows so their confused-deputy check can recognise
-    // this known-safe scenario and skip the actor-vs-comment-author mismatch guard.
+    // Propagated as metadata to child workflows so they can identify the trigger context.
     allow_bot_authored_trigger_comment: (() => {
       const isIssueCommentEdited = context.eventName === "issue_comment" && context.payload?.action === "edited";
       const commentAuthor = context.payload?.comment?.user?.login;
-      const commentAuthoredByOther = typeof commentAuthor === "string" && commentAuthor !== (context.actor ?? "");
+      const commentAuthoredByBot = typeof commentAuthor === "string" && commentAuthor.endsWith("[bot]");
+      const commentAuthoredByOther = commentAuthoredByBot && commentAuthor !== (context.actor ?? "");
       return isIssueCommentEdited && commentAuthoredByOther;
     })(),
   };
