@@ -1883,6 +1883,22 @@ describe("runtime_import", () => {
       expect(children[1].rawContent).toBe("Shared content");
     });
 
+    it("cached import rawContent should be pre-expansion content, not the expanded result", async () => {
+      // shared-with-nested.md itself imports leaf.md, so its raw content differs from the expanded output
+      fs.writeFileSync(path.join(workflowsDir, "leaf.md"), "Leaf content");
+      fs.writeFileSync(path.join(workflowsDir, "shared-with-nested.md"), "Before\n{{#runtime-import leaf.md}}\nAfter");
+      /** @type {any[]} */
+      const children = [];
+      await processRuntimeImports("{{#runtime-import shared-with-nested.md}}\n{{#runtime-import shared-with-nested.md}}", tempDir, new Set(), new Map(), [], children);
+      expect(children).toHaveLength(2);
+      // First occurrence: rawContent is the pre-expansion template
+      expect(children[0].cached).toBeUndefined();
+      expect(children[0].rawContent).toBe("Before\n{{#runtime-import leaf.md}}\nAfter");
+      // Second occurrence (cached): rawContent must also be the pre-expansion template, NOT the expanded output
+      expect(children[1].cached).toBe(true);
+      expect(children[1].rawContent).toBe("Before\n{{#runtime-import leaf.md}}\nAfter");
+    });
+
     it("should populate multiple top-level imports in order", async () => {
       fs.writeFileSync(path.join(workflowsDir, "first.md"), "First");
       fs.writeFileSync(path.join(workflowsDir, "second.md"), "Second");

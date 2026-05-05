@@ -18,6 +18,18 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
+ * @typedef {Object} ImportTreeNode
+ * @property {string} macro - The original {{#runtime-import ...}} macro text
+ * @property {string} src - The resolved file path or URL
+ * @property {boolean} optional - Whether the import was optional ({{#runtime-import?}})
+ * @property {number|null} startLine - Start line for partial imports, or null
+ * @property {number|null} endLine - End line for partial imports, or null
+ * @property {string} rawContent - File content before nested import expansion (or raw cached content)
+ * @property {boolean} [cached] - True when content was served from import cache
+ * @property {ImportTreeNode[]} children - Nested import nodes
+ */
+
+/**
  * Interpolates variables in the prompt content
  * @param {string} content - The prompt content with ${GH_AW_EXPR_*} placeholders
  * @param {Record<string, string>} variables - Map of variable names to their values
@@ -213,7 +225,7 @@ async function main() {
     const importTree = {
       version: 1,
       template: content,
-      children: /** @type {import('./runtime_import.cjs').ImportTreeNode[]} */ [],
+      children: /** @type {ImportTreeNode[]} */ [],
     };
 
     if (hasRuntimeImports) {

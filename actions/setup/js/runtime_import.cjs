@@ -1058,9 +1058,10 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
  * @param {Map<string, string>} [importCache] - Cache of imported file contents (for deduplication)
  * @param {Array<string>} [importStack] - Stack of currently importing files (for circular dependency detection)
  * @param {ImportTreeNode[]|null} [parentTreeChildren] - Array to push import tree nodes into, or null to skip tree building
+ * @param {Map<string, string>} [rawImportCache] - Cache of raw (pre-expansion) file contents, used to set rawContent on cached tree nodes
  * @returns {Promise<string>} - Content with runtime-import macros replaced by file/URL contents
  */
-async function processRuntimeImports(content, workspaceDir, importedFiles = new Set(), importCache = new Map(), importStack = [], parentTreeChildren = null) {
+async function processRuntimeImports(content, workspaceDir, importedFiles = new Set(), importCache = new Map(), importStack = [], parentTreeChildren = null, rawImportCache = new Map()) {
   // Normalize body-level {{#import}} directives to {{#runtime-import}} equivalents.
   // {{#import}} is deprecated — use {{#runtime-import}} or the 'imports:' frontmatter field instead.
   // Both colon and no-colon syntax are supported for backward compatibility:
@@ -1143,14 +1144,16 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
         processedContent = processedContent.replace(fullMatch, cachedContent);
         core.info(`Reusing cached content for ${filepathWithRange}`);
         if (parentTreeChildren !== null) {
-          // Record a tree node for the cached import; children are already expanded in the cache
+          // Use the raw (pre-expansion) content from rawImportCache so that
+          // rawContent is consistent between first and subsequent occurrences.
+          const rawContent = rawImportCache.get(filepathWithRange) ?? cachedContent;
           parentTreeChildren.push({
             macro: fullMatch,
             src: filepathOrUrl,
             optional,
             startLine: startLine ?? null,
             endLine: endLine ?? null,
-            rawContent: cachedContent,
+            rawContent,
             cached: true,
             children: [],
           });
@@ -1172,22 +1175,25 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
       // Import the file content
       let importedContent = await processRuntimeImport(filepathOrUrl, optional, workspaceDir, startLine, endLine);
 
-      // Build a tree node for this import (if tree building is enabled)
-      /** @type {ImportTreeNode|null} */
-      const treeNode =
-        parentTreeChildren !== null
-          ? {
-              macro: fullMatch,
-              src: filepathOrUrl,
-              optional,
-              startLine: startLine ?? null,
-              endLine: endLine ?? null,
-              rawContent: importedContent,
-              children: [],
-            }
-          : null;
-      if (treeNode !== null) {
-        parentTreeChildren.push(treeNode);
+      // Capture raw content before any nested expansion so tree nodes always
+      // record the pre-recursion state (consistent with first-occurrence behaviour).
+      const rawContent = importedContent;
+
+      // Build a tree node for this import and append it immediately so that
+      // parentTreeChildren.push() is only called when tree building is active.
+      // treeNodeChildren is used below to pass into the recursive call.
+      /** @type {ImportTreeNode[]} */
+      const treeNodeChildren = [];
+      if (parentTreeChildren !== null) {
+        parentTreeChildren.push({
+          macro: fullMatch,
+          src: filepathOrUrl,
+          optional,
+          startLine: startLine ?? null,
+          endLine: endLine ?? null,
+          rawContent,
+          children: treeNodeChildren,
+        });
       }
 
       // Recursively process any runtime-import or body-level {{#import}} macros in the
@@ -1195,11 +1201,12 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
       // any {{#import}} directives before processing them.
       if (importedContent && /\{\{#(?:runtime-import|import)/.test(importedContent)) {
         core.info(`Recursively processing imports in ${filepathWithRange}`);
-        importedContent = await processRuntimeImports(importedContent, workspaceDir, importedFiles, importCache, [...importStack], treeNode !== null ? treeNode.children : null);
+        importedContent = await processRuntimeImports(importedContent, workspaceDir, importedFiles, importCache, [...importStack], parentTreeChildren !== null ? treeNodeChildren : null, rawImportCache);
       }
 
-      // Cache the fully processed content
+      // Cache the fully processed content and the raw pre-expansion content
       importCache.set(filepathWithRange, importedContent);
+      rawImportCache.set(filepathWithRange, rawContent);
       importedFiles.add(filepathWithRange);
 
       // Replace the macro with the imported content
