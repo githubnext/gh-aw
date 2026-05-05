@@ -134,8 +134,7 @@ func TestValidateStrictSandboxCustomization(t *testing.T) {
 			expectError: false,
 		},
 		{
-			// A bare sandbox.agent object with no id/type defaults to AWF.
-			// It should be accepted in strict mode.
+			// A bare sandbox.agent object with no id/type is explicitly set to AWF in strict mode.
 			name: "sandbox.agent without id is allowed in strict mode (defaults to awf)",
 			sandbox: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
@@ -145,8 +144,7 @@ func TestValidateStrictSandboxCustomization(t *testing.T) {
 			expectError: false,
 		},
 		{
-			// An empty AgentSandboxConfig (no id, no type, no version) also defaults to AWF.
-			// It should be accepted in strict mode.
+			// An empty AgentSandboxConfig (no id, no type, no version) is explicitly set to AWF in strict mode.
 			name: "empty sandbox.agent is allowed in strict mode (defaults to awf)",
 			sandbox: &SandboxConfig{
 				Agent: &AgentSandboxConfig{},
@@ -211,5 +209,39 @@ func TestValidateStrictSandboxCustomizationNonStrictMode(t *testing.T) {
 	err := compiler.validateStrictSandboxCustomization(sandbox)
 	if err != nil {
 		t.Errorf("Expected non-strict mode to allow all sandbox fields, got error: %v", err)
+	}
+}
+
+// TestValidateStrictSandboxCustomizationSetsAWFDefault verifies that in strict mode
+// a sandbox.agent with no id/type is explicitly set to AWF.
+func TestValidateStrictSandboxCustomizationSetsAWFDefault(t *testing.T) {
+	tests := []struct {
+		name  string
+		agent *AgentSandboxConfig
+	}{
+		{
+			name:  "version-only agent gets AWF type",
+			agent: &AgentSandboxConfig{Version: "v0.25.29"},
+		},
+		{
+			name:  "empty agent gets AWF type",
+			agent: &AgentSandboxConfig{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.strictMode = true
+
+			sandbox := &SandboxConfig{Agent: tt.agent}
+			err := compiler.validateStrictSandboxCustomization(sandbox)
+			if err != nil {
+				t.Errorf("Expected validation to succeed but it failed: %v", err)
+			}
+			if sandbox.Agent.Type != SandboxTypeAWF {
+				t.Errorf("Expected sandbox.agent.Type to be %q after strict mode validation, got %q", SandboxTypeAWF, sandbox.Agent.Type)
+			}
+		})
 	}
 }

@@ -28,7 +28,7 @@ func internalSandboxFieldError(fieldPath string) error {
 //   - sandbox.mcp.container, sandbox.mcp.version, sandbox.mcp.entrypoint,
 //     sandbox.mcp.args, sandbox.mcp.entrypointArgs  (MCP gateway customization)
 //
-// A sandbox.agent object without an explicit 'id' is allowed and defaults to AWF.
+// A sandbox.agent object without an explicit 'id' is explicitly set to AWF in strict mode.
 func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConfig) error {
 	if !c.strictMode {
 		strictModeValidationLog.Printf("Strict mode disabled, skipping sandbox customization validation")
@@ -41,6 +41,13 @@ func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConf
 
 	// Check agent sandbox internal fields
 	if agent := sandboxConfig.Agent; agent != nil {
+		// In strict mode, if sandbox.agent has no id/type set, explicitly default it to AWF
+		// so the sandbox configuration is always unambiguous.
+		if !agent.Disabled && !isSupportedSandboxType(getAgentType(agent)) {
+			strictModeValidationLog.Printf("sandbox.agent has no id/type in strict mode, defaulting to awf")
+			agent.Type = SandboxTypeAWF
+		}
+
 		if agent.Command != "" {
 			return internalSandboxFieldError("sandbox.agent.command")
 		}
