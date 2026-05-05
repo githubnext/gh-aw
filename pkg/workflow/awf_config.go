@@ -28,6 +28,10 @@
 //	  },
 //	  "container": {
 //	    "imageTag": "0.25.29,squid=sha256:..."
+//	  },
+//	  "models": {
+//	    "sonnet": ["mygateway/*sonnet*"],
+//	    "":       ["sonnet", "gpt-5-mini"]
 //	  }
 //	}
 //
@@ -73,12 +77,7 @@ type AWFConfigFile struct {
 	// Keys are alias names (empty string "" = default policy); values are ordered
 	// lists of vendor/modelid patterns or other alias names to try in sequence.
 	// AWF resolves aliases recursively; loops are not permitted.
-	//
-	// NOTE: Pending AWF binary support (config.models is not yet recognised by the
-	// AWF firewall schema). This field is intentionally omitted from JSON output
-	// until the AWF schema at awf-config.v1.json is updated to include "models".
-	// The field remains here so the struct is ready once AWF support lands.
-	Models map[string][]string `json:"-"`
+	Models map[string][]string `json:"models,omitempty"`
 }
 
 // AWFNetworkConfig is the "network" section of the AWF config file.

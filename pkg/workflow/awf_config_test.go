@@ -374,7 +374,77 @@ func TestSplitDomainList(t *testing.T) {
 	}
 }
 
-// TestBuildAWFCommand_UsesConfigFile verifies that BuildAWFCommand always produces a run step
+// TestBuildAWFConfigJSON_ModelsSectionBasic verifies that model alias mappings are included
+// in the AWF config JSON when ModelMappings is populated in WorkflowData.
+func TestBuildAWFConfigJSON_ModelsSectionBasic(t *testing.T) {
+	t.Run("models section is included when ModelMappings is set", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				ModelMappings: map[string][]string{
+					"sonnet": {"mygateway/*sonnet*"},
+					"":       {"sonnet", "gpt-5-mini"},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
+
+		var parsed struct {
+			Models map[string][]string `json:"models"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "result must be valid JSON")
+
+		assert.Contains(t, jsonStr, `"models"`, "should include models section")
+		require.NotNil(t, parsed.Models, "models should not be nil")
+		assert.Equal(t, []string{"mygateway/*sonnet*"}, parsed.Models["sonnet"], "sonnet alias should match")
+		assert.Equal(t, []string{"sonnet", "gpt-5-mini"}, parsed.Models[""], "default policy should match")
+	})
+
+	t.Run("models section is omitted when ModelMappings is empty", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				ModelMappings: map[string][]string{},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
+
+		assert.NotContains(t, jsonStr, `"models"`, "should not include models section when ModelMappings is empty")
+	})
+
+	t.Run("models section is omitted when WorkflowData has no ModelMappings", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
+
+		assert.NotContains(t, jsonStr, `"models"`, "should not include models section when no ModelMappings")
+	})
+}
+
 // that writes a JSON config file and references it via --config.
 func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 	config := AWFCommandConfig{

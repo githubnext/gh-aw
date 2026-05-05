@@ -54,14 +54,8 @@ func TestBuiltinModelAliases(t *testing.T) {
 }
 
 // TestBuildAWFConfigJSON_ModelsSection verifies model alias behaviour in BuildAWFConfigJSON.
-//
-// NOTE: The "models" field is intentionally excluded from the AWF config JSON until the
-// AWF firewall binary is updated to recognise config.models (awf-config.v1.json schema).
-// The model alias infrastructure (builtin aliases, frontmatter overrides, import merging)
-// remains fully operational inside gh-aw; once AWF support lands the json:"-" tag on
-// AWFConfigFile.Models can be changed to json:"models,omitempty" to re-enable emission.
 func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
-	t.Run("builtin model aliases are included when WorkflowData has ModelMappings", func(t *testing.T) {
+	t.Run("builtin model aliases are included in AWF config JSON when WorkflowData has ModelMappings", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com",
@@ -80,17 +74,17 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 		var parsed map[string]any
 		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "result must be valid JSON")
 
-		// models must NOT appear in the JSON until the AWF binary supports it
-		assert.NotContains(t, parsed, "models", "models section must be absent from AWF config JSON until AWF binary supports it")
+		// models must appear in the JSON
+		assert.Contains(t, parsed, "models", "models section must be present in AWF config JSON")
 
-		// but the alias map is still populated in WorkflowData
+		// the alias map is populated in WorkflowData
 		assert.NotEmpty(t, config.WorkflowData.ModelMappings, "ModelMappings should be populated on WorkflowData")
 		assert.Contains(t, config.WorkflowData.ModelMappings, "sonnet", "ModelMappings should include sonnet alias")
 		assert.Contains(t, config.WorkflowData.ModelMappings, "haiku", "ModelMappings should include haiku alias")
 		assert.Contains(t, config.WorkflowData.ModelMappings, "auto", "ModelMappings should include auto alias")
 	})
 
-	t.Run("frontmatter override is reflected in WorkflowData but not in AWF config JSON", func(t *testing.T) {
+	t.Run("frontmatter override is reflected in WorkflowData and in AWF config JSON", func(t *testing.T) {
 		custom := map[string][]string{
 			"sonnet": {"myvendor/sonnet-v3"},
 			"":       {"sonnet"},
@@ -110,14 +104,23 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
-		// models must NOT appear in the JSON until the AWF binary supports it
-		assert.NotContains(t, jsonStr, `"models"`, "models section must be absent from AWF config JSON until AWF binary supports it")
+		var parsed struct {
+			Models map[string][]string `json:"models"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "result must be valid JSON")
 
-		// but frontmatter overrides are visible in WorkflowData
+		// models must appear in the JSON
+		assert.Contains(t, jsonStr, `"models"`, "models section must be present in AWF config JSON")
+
+		// frontmatter overrides are visible in both WorkflowData and the JSON
 		assert.Equal(t, []string{"myvendor/sonnet-v3"}, config.WorkflowData.ModelMappings["sonnet"],
 			"frontmatter override for sonnet should be stored in ModelMappings")
+		assert.Equal(t, []string{"myvendor/sonnet-v3"}, parsed.Models["sonnet"],
+			"frontmatter override for sonnet should be emitted in AWF config JSON")
 		assert.Equal(t, []string{"sonnet"}, config.WorkflowData.ModelMappings[""],
 			"default policy should be stored in ModelMappings")
+		assert.Equal(t, []string{"sonnet"}, parsed.Models[""],
+			"default policy should be emitted in AWF config JSON")
 	})
 
 	t.Run("no models section when ModelMappings is nil", func(t *testing.T) {

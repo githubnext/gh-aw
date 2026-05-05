@@ -3,6 +3,7 @@
 package workflow_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -108,11 +109,7 @@ func TestModelAliasesImportMergeOrder(t *testing.T) {
 }
 
 // TestModelAliasesAWFConfigJSON verifies that model alias entries from imported workflows
-// are merged into WorkflowData.ModelMappings during compilation.
-//
-// NOTE: The "models" field is intentionally excluded from the AWF config JSON until the
-// AWF firewall binary is updated to recognise config.models. Assertions check
-// ModelMappings directly rather than the serialised JSON.
+// are merged into WorkflowData.ModelMappings during compilation and emitted in the AWF config JSON.
 func TestModelAliasesAWFConfigJSON(t *testing.T) {
 	awfConfig := workflow.AWFCommandConfig{
 		EngineName:     "copilot",
@@ -137,8 +134,8 @@ func TestModelAliasesAWFConfigJSON(t *testing.T) {
 	jsonStr, err := workflow.BuildAWFConfigJSON(awfConfig)
 	require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
-	// models must NOT appear in the JSON until the AWF binary supports it
-	assert.NotContains(t, jsonStr, `"models"`, "models section must be absent from AWF config JSON until AWF binary supports it")
+	// models must appear in the JSON
+	assert.Contains(t, jsonStr, `"models"`, "models section must be present in AWF config JSON")
 
 	// Verify that the alias map is correctly populated in WorkflowData.
 	mappings := awfConfig.WorkflowData.ModelMappings
@@ -155,4 +152,14 @@ func TestModelAliasesAWFConfigJSON(t *testing.T) {
 	// Other builtins preserved.
 	assert.NotEmpty(t, mappings["sonnet"], "builtin sonnet should still be in ModelMappings")
 	assert.NotEmpty(t, mappings["auto"], "builtin auto should still be in ModelMappings")
+
+	// Verify emitted JSON contains the merged aliases.
+	var parsed struct {
+		Models map[string][]string `json:"models"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "result must be valid JSON")
+	assert.Equal(t, []string{"import/model"}, parsed.Models["import-alias"],
+		"import-alias should be emitted in AWF config JSON models section")
+	assert.Equal(t, []string{"main/haiku-override"}, parsed.Models["haiku"],
+		"main workflow haiku override should be emitted in AWF config JSON models section")
 }
