@@ -110,6 +110,6 @@ func TestResolveCompileArgs_Mixed(t *testing.T) {
 func writeWorkflowFile(t *testing.T, dir, name string) {
 	t.Helper()
 	content := "---\non: push\n---\n\n# Test Workflow\n"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0600),
+	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0644),
 		"write workflow file %s", name)
 }

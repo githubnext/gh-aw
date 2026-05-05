@@ -92,9 +92,6 @@ func expandURLArg(urlArg string, verbose bool) ([]string, error) {
 
 	// For tree (directory) URLs, compile all .md files in that directory
 	if components.Type == parser.URLTypeTree {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Compiling all workflows in directory: %s", localPath)))
-		}
 		return expandDirectoryArg(localPath, verbose)
 	}
 
