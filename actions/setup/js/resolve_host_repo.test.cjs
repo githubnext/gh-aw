@@ -23,6 +23,19 @@ describe("parseDispatchRef", () => {
     expect(parseDispatchRef("owner/repo/.github/workflows/file.yml")).toBe("");
   });
 
+  it("returns empty string when JOB_WORKFLOW_REF ends with a 40-hex commit SHA", () => {
+    // workflow_call can reference a workflow by commit SHA, but createWorkflowDispatch
+    // rejects SHAs — parseDispatchRef must return "" to prevent dispatch failures.
+    const sha = "abc123def456abc123def456abc123def456abc1";
+    expect(parseDispatchRef(`owner/repo/.github/workflows/file.yml@${sha}`)).toBe("");
+  });
+
+  it("uses lastIndexOf so an '@' in the workflow path does not mis-parse the ref", () => {
+    // Pathological but valid: if the path segment contained '@', lastIndexOf ensures
+    // we capture the ref portion after the final '@'.
+    expect(parseDispatchRef("owner/repo@org/.github/workflows/file.yml@refs/heads/main")).toBe("refs/heads/main");
+  });
+
   it("does not return a SHA-like value for a tag ref", () => {
     const result = parseDispatchRef("owner/repo/.github/workflows/file.yml@refs/tags/v2.0.0");
     expect(result).toBe("refs/tags/v2.0.0");
@@ -139,6 +152,21 @@ describe("resolve_host_repo main", () => {
 
     expect(outputs["target_ref"]).toBe("");
     expect(warnings.length).toBeGreaterThan(0);
+  });
+
+  it("emits target_ref as empty string and warns when JOB_WORKFLOW_REF ends with a commit SHA", async () => {
+    // workflow_call can pin to a SHA; createWorkflowDispatch cannot accept a SHA as ref.
+    const sha = "abc123def456abc123def456abc123def456abc1";
+    process.env.JOB_WORKFLOW_REPOSITORY = "owner/platform-repo";
+    process.env.JOB_WORKFLOW_SHA = sha;
+    process.env.JOB_WORKFLOW_REF = `owner/platform-repo/.github/workflows/file.yml@${sha}`;
+    process.env.GITHUB_REPOSITORY = "owner/platform-repo";
+
+    await main();
+
+    expect(outputs["target_ref"]).toBe("");
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(outputs["target_checkout_ref"]).toBe(sha);
   });
 
   it("emits target_repo and target_repo_name correctly", async () => {

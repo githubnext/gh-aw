@@ -34,7 +34,11 @@
 /**
  * Parses the dispatch-compatible branch/tag ref from job.workflow_ref.
  * job.workflow_ref has the form "owner/repo/.github/workflows/file.yml@refs/heads/main".
- * Returns the substring after "@", or an empty string if missing or malformed.
+ * Returns the substring after the last "@", or an empty string if missing, malformed,
+ * or if the extracted value looks like a commit SHA (40 lowercase hex characters —
+ * these are not accepted by the workflow dispatch API).
+ *
+ * Uses lastIndexOf to handle the unlikely case of an "@" in the workflow path.
  *
  * @param {string} workflowRef
  * @returns {string}
@@ -43,11 +47,17 @@ function parseDispatchRef(workflowRef) {
   if (!workflowRef) {
     return "";
   }
-  const atIndex = workflowRef.indexOf("@");
+  const atIndex = workflowRef.lastIndexOf("@");
   if (atIndex === -1) {
     return "";
   }
-  return workflowRef.slice(atIndex + 1);
+  const ref = workflowRef.slice(atIndex + 1);
+  // Reject SHA-like values (40 lowercase hex chars). workflow_call can reference a
+  // workflow by commit SHA, but createWorkflowDispatch does not accept SHAs as refs.
+  if (/^[0-9a-f]{40}$/.test(ref)) {
+    return "";
+  }
+  return ref;
 }
 
 /**
