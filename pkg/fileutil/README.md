@@ -29,12 +29,12 @@ if err != nil {
 content, err := os.ReadFile(cleanPath)
 ```
 
-#### `MustBeWithin(base, candidate string) error`
+#### `ValidatePathWithinBase(base, candidate string) error`
 
 Checks that `candidate` is located within the `base` directory tree. Both paths are resolved through `filepath.EvalSymlinks` (falling back to `filepath.Abs` for paths that do not yet exist on disk) before comparison, preventing both `..` traversal and symlink escapes.
 
 ```go
-if err := fileutil.MustBeWithin("/workspace", outputPath); err != nil {
+if err := fileutil.ValidatePathWithinBase("/workspace", outputPath); err != nil {
     return fmt.Errorf("output path escapes workspace: %w", err)
 }
 ```
@@ -95,7 +95,7 @@ if err != nil {
 }
 
 // Ensure output path stays within workspace
-if err := fileutil.MustBeWithin("/workspace", outputPath); err != nil {
+if err := fileutil.ValidatePathWithinBase("/workspace", outputPath); err != nil {
     return fmt.Errorf("output path escapes workspace: %w", err)
 }
 
@@ -113,7 +113,7 @@ if err := fileutil.CopyFile("source.txt", "destination.txt"); err != nil {
 ## Design Notes
 
 - All debug output uses `logger.New("fileutil:fileutil")` and `logger.New("fileutil:tar")` and is only emitted when `DEBUG=fileutil:*`.
-- `MustBeWithin` resolves symlinks before comparison, providing defence-in-depth against symlink attacks in addition to the `..` checking that `ValidateAbsolutePath` provides.
+- `ValidatePathWithinBase` resolves symlinks before comparison, providing defence-in-depth against symlink attacks in addition to the `..` checking that `ValidateAbsolutePath` provides.
 - `ExtractFileFromTar` rejects path-traversal payloads in both the caller-supplied path and in tar entry names using `filepath.IsLocal`.
 
 ---
