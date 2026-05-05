@@ -64,8 +64,8 @@ Only two fields are supported inside a sub-agent frontmatter block:
 
 | Alias | Resolves to | When to use |
 |---|---|---|
-| `small` | `mini` → haiku, gpt-5-mini, gemini-flash | Cheap, fast tasks: extraction, classification, formatting |
-| `large` | sonnet, gpt-5-pro, gemini-pro | Complex reasoning or synthesis tasks |
+| `small` | `mini` → haiku, gpt-5-mini, gpt-5-nano, gemini-flash | Cheap, fast tasks: extraction, classification, formatting |
+| `large` | sonnet, gpt-5-pro, gpt-5, gemini-pro | Complex reasoning or synthesis tasks |
 | `inherited` | Parent workflow model | Default — use when the sub-agent needs the same capability as the parent |
 
 All other fields (`engine`, `tools`, `network`, etc.) are stripped at runtime with a warning. Sub-agents inherit the parent's engine, tool access, and network configuration.
