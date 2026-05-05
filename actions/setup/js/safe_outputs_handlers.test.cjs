@@ -944,6 +944,12 @@ describe("safe_outputs_handlers", () => {
         // Should NOT have written a patch_path
         const appended = mockAppendSafeOutput.mock.calls[0][0];
         expect(appended.patch_path).toBeUndefined();
+        // diff_size must be recorded so the downstream push step can validate
+        // max_patch_size against the net incremental diff (not the bundle size,
+        // which on long-running branches accumulates packed git objects and can
+        // exceed the limit even when the actual change is small).
+        expect(typeof appended.diff_size).toBe("number");
+        expect(appended.diff_size).toBeGreaterThanOrEqual(0);
       } finally {
         delete process.env.GITHUB_BASE_REF;
       }

@@ -13,6 +13,7 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
 const { generateGitBundle } = require("./generate_git_bundle.cjs");
 const { hasMergeCommitsInRange } = require("./git_helpers.cjs");
+const { computeIncrementalDiffSize } = require("./git_patch_utils.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
@@ -634,6 +635,28 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
       if (bundleResult.baseCommit) {
         entry.base_commit = bundleResult.baseCommit;
+      }
+
+      // Compute the incremental net diff size so push_to_pull_request_branch can
+      // validate `max_patch_size` against how much the branch will actually change,
+      // rather than the full bundle artifact size (which includes packed git
+      // objects and per-commit metadata, and can be many MB on long-running
+      // branches even when each iteration changes only a few KB). Without this,
+      // the push step falls back to the on-disk bundle size and may reject pushes
+      // that are within the configured net-diff limit. See
+      // push_to_pull_request_branch.cjs "Size-check source of truth".
+      if (bundleResult.baseCommit && entry.branch) {
+        const tmpDiffPath = `${bundleResult.bundlePath}.diff.tmp`;
+        const diffSize = computeIncrementalDiffSize({
+          baseRef: bundleResult.baseCommit,
+          headRef: entry.branch,
+          cwd: pushTransportOptions.cwd || process.env.GITHUB_WORKSPACE || process.cwd(),
+          tmpPath: tmpDiffPath,
+        });
+        if (typeof diffSize === "number" && diffSize >= 0) {
+          entry.diff_size = diffSize;
+          server.debug(`Computed incremental diff_size for bundle: ${diffSize} bytes`);
+        }
       }
 
       appendSafeOutput(entry);
