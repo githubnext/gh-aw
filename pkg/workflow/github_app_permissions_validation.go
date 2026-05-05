@@ -175,17 +175,16 @@ func validateGitHubMCPAppPermissionsNoWrite(workflowData *WorkflowData) error {
 }
 
 // warnGitHubAppPermissionsUnsupportedContexts emits a warning when
-// tools.github.github-app.permissions is set in contexts that do not support it.
-// The permissions field only takes effect for the GitHub MCP token minting step;
-// it is silently ignored if set on safe-outputs.github-app, on.github-app, or the
-// top-level github-app fallback.
+// github-app.permissions is set in contexts that do not support it.
+// The permissions field takes effect for tools.github.github-app and
+// safe-outputs.github-app, but is silently ignored for on.github-app
+// and the top-level github-app fallback.
 func warnGitHubAppPermissionsUnsupportedContexts(workflowData *WorkflowData) {
 	type context struct {
 		label string
 		app   *GitHubAppConfig
 	}
 	unsupported := []context{
-		{"safe-outputs.github-app", safeOutputsGitHubApp(workflowData)},
 		{"on.github-app", workflowData.ActivationGitHubApp},
 		{"github-app (top-level fallback)", workflowData.TopLevelGitHubApp},
 	}
@@ -193,19 +192,12 @@ func warnGitHubAppPermissionsUnsupportedContexts(workflowData *WorkflowData) {
 		if ctx.app != nil && len(ctx.app.Permissions) > 0 {
 			msg := fmt.Sprintf(
 				"The 'permissions' field under '%s' has no effect. "+
-					"Extra GitHub App permissions only apply to tools.github.github-app.",
+					"Extra GitHub App permissions apply to tools.github.github-app and safe-outputs.github-app.",
 				ctx.label,
 			)
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
 		}
 	}
-}
-
-func safeOutputsGitHubApp(workflowData *WorkflowData) *GitHubAppConfig {
-	if workflowData.SafeOutputs == nil {
-		return nil
-	}
-	return workflowData.SafeOutputs.GitHubApp
 }
 
 func hasGitHubAppConfigured(workflowData *WorkflowData) bool {
