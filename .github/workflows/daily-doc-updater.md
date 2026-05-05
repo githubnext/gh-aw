@@ -68,9 +68,10 @@ Scan the repository for merged pull requests and code changes from the last 24 h
 
 ## Tool Reference
 
-- GitHub data: use `gh` CLI commands directly via Bash (e.g. `gh pr list`, `gh issue list`)
-- Do NOT use `mcpscripts` for GitHub reads — use `gh` CLI directly
-- Documentation editing: use the `Edit` tool, not bash `sed`
+- **GitHub data (batch reads)**: use `gh` CLI via Bash for the Pre-flight fetch (e.g. `gh pr list`, `gh issue list`)
+- **GitHub data (detailed reads)**: use GitHub MCP tools (`search_pull_requests`, `pull_request_read`, `list_commits`, `get_commit`) for per-item detail lookups in Task Steps
+- **Do NOT** use `mcpscripts` for any GitHub reads — use `gh` CLI or GitHub MCP tools directly
+- **Documentation editing**: use the `Edit` tool, not bash `sed`
 
 ## Pre-flight: Batch Data Fetch (do this first, before any analysis)
 
