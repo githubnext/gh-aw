@@ -20,12 +20,16 @@
 // # Builtin Aliases
 //
 // gh-aw ships a set of builtin model aliases that cover the major model families.
+// The alias data is defined in data/model_aliases.json (embedded at compile time).
 // Frontmatter-defined aliases are merged on top of the builtins, allowing workflows
 // to extend or override the defaults without replacing the entire mapping.
 
 package workflow
 
 import (
+	_ "embed"
+	"encoding/json"
+	"fmt"
 	"maps"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -33,10 +37,19 @@ import (
 
 var modelAliasesLog = logger.New("workflow:model_aliases")
 
+//go:embed data/model_aliases.json
+var builtinModelAliasesJSON []byte
+
+// builtinModelAliasesFile mirrors the JSON structure of data/model_aliases.json.
+type builtinModelAliasesFile struct {
+	Aliases map[string][]string `json:"aliases"`
+}
+
 // BuiltinModelAliases returns the built-in model alias map that covers the main
 // model families supported by gh-aw.  The returned map is a freshly allocated
 // copy so callers may freely modify it.
 //
+// The alias data is loaded from data/model_aliases.json (embedded at compile time).
 // Vendor aliases (patterns use * as a glob wildcard, prefer copilot gateway first):
 //   - "sonnet"         → Anthropic Sonnet family
 //   - "haiku"          → Anthropic Haiku family
@@ -57,91 +70,14 @@ var modelAliasesLog = logger.New("workflow:model_aliases")
 //   - "large" → sonnet, gpt-5-pro, gpt-5, gemini-pro
 //   - "auto"  → large (convenience alias for the default capable tier)
 func BuiltinModelAliases() map[string][]string {
-	return map[string][]string{
-		// ── Anthropic ────────────────────────────────────────────────────────
-		"sonnet": {
-			"copilot/*sonnet*",
-			"anthropic/*sonnet*",
-		},
-		"haiku": {
-			"copilot/*haiku*",
-			"anthropic/*haiku*",
-		},
-		"opus": {
-			"copilot/*opus*",
-			"anthropic/*opus*",
-		},
-		// ── OpenAI ───────────────────────────────────────────────────────────
-		"gpt-4.1": {
-			"copilot/gpt-4.1*",
-			"openai/gpt-4.1*",
-		},
-		"gpt-5": {
-			"copilot/gpt-5*",
-			"openai/gpt-5*",
-		},
-		"gpt-5-mini": {
-			"copilot/gpt-5*mini*",
-			"openai/gpt-5*mini*",
-		},
-		"gpt-5-nano": {
-			"copilot/gpt-5*nano*",
-			"openai/gpt-5*nano*",
-		},
-		"gpt-5-codex": {
-			"copilot/gpt-5*codex*",
-			"openai/gpt-5*codex*",
-		},
-		"gpt-5-pro": {
-			"copilot/gpt-5*pro*",
-			"openai/gpt-5*pro*",
-		},
-		"reasoning": {
-			"copilot/o1*",
-			"copilot/o3*",
-			"copilot/o4*",
-			"openai/o1*",
-			"openai/o3*",
-			"openai/o4*",
-		},
-		// ── Google ───────────────────────────────────────────────────────────
-		"gemini-flash": {
-			"copilot/gemini-*flash*",
-			"google/gemini-*flash*",
-		},
-		"gemini-pro": {
-			"copilot/gemini-*pro*",
-			"google/gemini-*pro*",
-		},
-		"deep-research": {
-			"copilot/deep-research*",
-			"google/deep-research*",
-		},
-		// ── Meta-aliases ─────────────────────────────────────────────────────
-		// These reference other aliases; AWF resolves them recursively.
-		// "small"     — same as "mini" (convenience alias for lightweight/fast models).
-		// "mini"      — lightweight/fast models across all supported vendors.
-		// "large"     — full-capability models across all supported vendors.
-		// "auto"      — convenience alias that resolves to the "large" tier.
-		"small": {
-			"mini",
-		},
-		"mini": {
-			"haiku",
-			"gpt-5-mini",
-			"gpt-5-nano",
-			"gemini-flash",
-		},
-		"large": {
-			"sonnet",
-			"gpt-5-pro",
-			"gpt-5",
-			"gemini-pro",
-		},
-		"auto": {
-			"large",
-		},
+	var data builtinModelAliasesFile
+	if err := json.Unmarshal(builtinModelAliasesJSON, &data); err != nil {
+		panic(fmt.Sprintf("workflow: failed to parse embedded model_aliases.json: %v (try 'make build' to rebuild with the latest data)", err))
 	}
+	// Return a fresh copy so callers may freely modify it.
+	result := make(map[string][]string, len(data.Aliases))
+	maps.Copy(result, data.Aliases)
+	return result
 }
 
 // MergeImportedModelAliases builds the final model alias map from three layers,

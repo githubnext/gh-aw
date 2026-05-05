@@ -367,7 +367,7 @@ top-level structure:
 recent) to prevent unbounded growth.
 
 **R-STORE-006**: When loading a `state.json` that has no `runs` field (legacy format),
-implementations **MUST** initialise `runs` to an empty array and continue normally.
+implementations **MUST** initialize `runs` to an empty array and continue normally.
 
 **R-STORE-007**: When at least one experiment is assigned on a run, implementations **MUST**
 append one run record to `state.runs` before persisting. Each record **MUST** contain:
@@ -775,7 +775,7 @@ Conformance at each level is verified by the following test categories.
 | T-STORE-002 | R-STORE-004 | Valid `state.json` structure written after run |
 | T-STORE-003 | R-STORE-007 | Run record appended with correct fields |
 | T-STORE-004 | R-STORE-005 | `runs` pruned to ≤ 512 entries |
-| T-STORE-005 | R-STORE-006 | Legacy state (no `runs` field) initialised to empty array |
+| T-STORE-005 | R-STORE-006 | Legacy state (no `runs` field) initialized to empty array |
 | T-STORE-006 | R-STORE-CACHE-004 | No `contents: write` required for cache mode |
 
 #### 14.1.5 Audit CLI Tests (Level 2)

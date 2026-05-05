@@ -331,6 +331,7 @@ export default defineConfig({
 						{ label: 'Cost Management', link: '/reference/cost-management/' },
 						{ label: 'Cost Management (Rate Limiting)', link: '/reference/rate-limiting-controls/' },
 						{ label: 'Cost Management (Effective Tokens)', link: '/reference/effective-tokens-specification/' },
+						{ label: 'Cost Management (Model Tables)', link: '/reference/model-tables/' },
 						{ label: 'Environment Variables', link: '/reference/environment-variables/' },
 						{ label: 'FAQ', link: '/reference/faq/' },
 						{ label: 'Footers', link: '/reference/footers/' },

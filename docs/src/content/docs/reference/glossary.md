@@ -390,7 +390,7 @@ A workflow configuration field (`stop-after:`) that automatically prevents new r
 
 ### `deployment_status` Trigger
 
-A GitHub Actions trigger that fires when an external deployment changes state. Supported states are `error`, `failure`, `pending`, `queued`, `in_progress`, `success`, `inactive`, and `waiting`. The gh-aw compiler accepts an optional `state:` filter in the trigger definition and synthesises a job-level `if:` condition so that the agent only runs for the specified states. A natural-language shorthand is also supported — `on: "deployment failed"` expands to `deployment_status` with `state: [failure]`. See [Frontmatter Reference](/gh-aw/reference/frontmatter/).
+A GitHub Actions trigger that fires when an external deployment changes state. Supported states are `error`, `failure`, `pending`, `queued`, `in_progress`, `success`, `inactive`, and `waiting`. The gh-aw compiler accepts an optional `state:` filter in the trigger definition and synthesizes a job-level `if:` condition so that the agent only runs for the specified states. A natural-language shorthand is also supported — `on: "deployment failed"` expands to `deployment_status` with `state: [failure]`. See [Frontmatter Reference](/gh-aw/reference/frontmatter/).
 
 ```aw wrap
 on:

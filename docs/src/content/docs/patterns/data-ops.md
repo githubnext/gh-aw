@@ -174,7 +174,7 @@ Analyze the combined data at `/tmp/gh-aw/combined.json` covering:
 
 ## Subagents with Smaller Models
 
-After moving computation into `steps:`, the next optimization is to delegate narrow, repetitive reasoning tasks—categorization, per-item summarization, sentiment scoring—to **inline sub-agents** backed by a smaller, cheaper model. The main agent then only needs to read the pre-processed results and synthesise a final output, spending its reasoning budget where it matters most.
+After moving computation into `steps:`, the next optimization is to delegate narrow, repetitive reasoning tasks—categorization, per-item summarization, sentiment scoring—to **inline sub-agents** backed by a smaller, cheaper model. The main agent then only needs to read the pre-processed results and synthesize a final output, spending its reasoning budget where it matters most.
 
 ### How the layers fit together
 

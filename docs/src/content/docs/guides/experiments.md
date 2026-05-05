@@ -97,7 +97,7 @@ experiments:
   prompt_style: [concise, detailed]
 ```
 
-| Value | Behaviour |
+| Value | Behavior |
 |---|---|
 | `repo` (**default**) | Commits state to a git branch named `experiments/{sanitizedWorkflowID}` (workflow ID lowercased with hyphens removed, e.g. `my-workflow` → `experiments/myworkflow`). Durable — survives cache evictions. Requires `contents: write` permission (added automatically by the compiler). |
 | `cache` | Uses GitHub Actions cache (legacy). State may be evicted after 7 days of inactivity. |

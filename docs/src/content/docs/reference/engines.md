@@ -250,7 +250,7 @@ engine:
 
 > [!NOTE]
 > `COPILOT_PROVIDER_BASE_URL`, `COPILOT_PROVIDER_API_KEY`, and `COPILOT_PROVIDER_BEARER_TOKEN` are
-> recognised as engine credentials and are allowed to carry `${{ secrets.* }}` references in
+> recognized as engine credentials and are allowed to carry `${{ secrets.* }}` references in
 > `engine.env` without triggering the strict-mode "secrets in env" warning. Other
 > `COPILOT_PROVIDER_*` variables (type, model, token limits) hold non-sensitive configuration and
 > can be set as plain strings. They may also use `${{ secrets.* }}` syntax if you prefer to keep

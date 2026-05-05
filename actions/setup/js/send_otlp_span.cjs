@@ -1013,6 +1013,12 @@ function readLastRateLimitEntry() {
  * - `GH_AW_AGENT_CONCLUSION`        – agent job result ("success", "failure", "timed_out",
  *                                     "cancelled", "skipped"); when "failure" or "timed_out"
  *                                     the span status is set to STATUS_CODE_ERROR (2)
+ * - `GH_AW_DETECTION_CONCLUSION`   – threat-detection scan outcome ("success", "warning",
+ *                                     "failure", "skipped"); emitted as
+ *                                     `gh-aw.detection.conclusion` when present
+ * - `GH_AW_DETECTION_REASON`       – machine-readable reason for the detection conclusion
+ *                                     (e.g. "threat_detected", "agent_failure"); emitted as
+ *                                     `gh-aw.detection.reason` when present
  * - `INPUT_JOB_NAME`               – job name; set automatically by GitHub Actions from the
  *                                     `job-name` action input
  * - `GITHUB_AW_OTEL_TRACE_ID`      – trace ID written to GITHUB_ENV by the setup step;
@@ -1096,6 +1102,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Values: "success", "failure", "timed_out", "cancelled", "skipped".
   const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "";
 
+  // Detection conclusion and reason are injected from needs.detection.outputs.*
+  // when threat detection is enabled in the compiled workflow.
+  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
+  const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
+
   // Mark the span as an error when the agent job failed, timed out, or was cancelled.
   const isAgentFailure = agentConclusion === "failure" || agentConclusion === "timed_out";
   const isAgentCancelled = agentConclusion === "cancelled";
@@ -1149,6 +1160,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   if (agentConclusion) {
     attributes.push(buildAttr("gh-aw.agent.conclusion", agentConclusion));
+  }
+  if (detectionConclusion) {
+    attributes.push(buildAttr("gh-aw.detection.conclusion", detectionConclusion));
+  }
+  if (detectionReason) {
+    attributes.push(buildAttr("gh-aw.detection.reason", detectionReason));
   }
   if (errorMessages.length > 0) {
     attributes.push(buildAttr("gh-aw.error.count", outputErrors.length));
