@@ -1,6 +1,10 @@
 package workflow
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
+)
 
 // extractAPITargetHost extracts the hostname from a custom API base URL in engine.env.
 // This supports custom OpenAI-compatible or Anthropic-compatible endpoints (e.g., internal
@@ -110,12 +114,13 @@ func extractAPIBasePath(workflowData *WorkflowData, envVar string) string {
 
 // GetCopilotAPITarget returns the effective Copilot API target hostname, checking in order:
 //  1. engine.api-target (explicit, takes precedence)
-//  2. GITHUB_COPILOT_BASE_URL in engine.env (implicit, derived from the configured Copilot base URL)
+//  2. COPILOT_PROVIDER_BASE_URL in engine.env (BYOK provider endpoint)
+//  3. GITHUB_COPILOT_BASE_URL in engine.env (implicit, derived from the configured Copilot base URL)
 //
 // This mirrors the pattern used by other engines:
 //   - Codex:    OPENAI_BASE_URL     → --openai-api-target
 //   - Claude:   ANTHROPIC_BASE_URL  → --anthropic-api-target
-//   - Copilot:  GITHUB_COPILOT_BASE_URL → --copilot-api-target (fallback when api-target not set)
+//   - Copilot:  COPILOT_PROVIDER_BASE_URL / GITHUB_COPILOT_BASE_URL → --copilot-api-target (fallback when api-target not set)
 //   - Gemini:   GEMINI_API_BASE_URL → --gemini-api-target (default: generativelanguage.googleapis.com)
 //
 // Returns empty string if neither source is configured.
@@ -123,6 +128,12 @@ func GetCopilotAPITarget(workflowData *WorkflowData) string {
 	// Explicit engine.api-target takes precedence.
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
 		return workflowData.EngineConfig.APITarget
+	}
+
+	// BYOK fallback: derive from COPILOT_PROVIDER_BASE_URL when configured.
+	// This ensures AWF routes Copilot traffic to the external provider endpoint.
+	if byokTarget := extractAPITargetHost(workflowData, constants.CopilotProviderBaseURL); byokTarget != "" {
+		return byokTarget
 	}
 
 	// Fallback: derive from the well-known GITHUB_COPILOT_BASE_URL env var.

@@ -748,6 +748,83 @@ Test workflow with GITHUB_COPILOT_BASE_URL in engine.env.
 	}
 }
 
+// TestCopilotProviderBaseURLInCompiledWorkflow verifies that when COPILOT_PROVIDER_BASE_URL is set
+// in engine.env (BYOK mode, without explicit engine.api-target), the compiled lock file contains
+// the derived copilot target host in AWF config JSON and in the computed allowed domains.
+func TestCopilotProviderBaseURLInCompiledWorkflow(t *testing.T) {
+	workflow := `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine:
+  id: copilot
+  env:
+    COPILOT_PROVIDER_BASE_URL: "https://my-foundry.openai.azure.com/openai/v1"
+strict: false
+safe-outputs:
+  create-issue:
+---
+
+# Test Workflow
+
+Test workflow with COPILOT_PROVIDER_BASE_URL in engine.env.
+`
+
+	tmpDir := testutil.TempDir(t, "copilot-provider-base-url-test")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(workflow), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockStr := string(lockContent)
+
+	if !strings.Contains(lockStr, `"copilot":{"host":"my-foundry.openai.azure.com"}`) {
+		t.Error("Expected copilot API target to be derived from COPILOT_PROVIDER_BASE_URL in AWF config JSON")
+	}
+
+	allowDomainsPrefix := `"allowDomains":[`
+	allowDomainsIdx := strings.Index(lockStr, allowDomainsPrefix)
+	if allowDomainsIdx < 0 {
+		t.Fatal("allowDomains key not found in compiled lock file")
+	}
+	arrayStart := allowDomainsIdx + len(allowDomainsPrefix)
+	allowDomainsEnd := strings.Index(lockStr[arrayStart:], "]")
+	if allowDomainsEnd < 0 {
+		allowDomainsEnd = len(lockStr) - arrayStart
+	}
+	allowDomainsSection := lockStr[arrayStart : arrayStart+allowDomainsEnd]
+	if !strings.Contains(allowDomainsSection, "my-foundry.openai.azure.com") {
+		t.Errorf("Expected hostname from COPILOT_PROVIDER_BASE_URL in allowDomains.\nSection: %s", allowDomainsSection)
+	}
+
+	lines := strings.Split(lockStr, "\n")
+	var domainsLine string
+	for _, line := range lines {
+		if strings.Contains(line, "GH_AW_ALLOWED_DOMAINS:") {
+			domainsLine = line
+			break
+		}
+	}
+	if domainsLine == "" {
+		t.Fatal("GH_AW_ALLOWED_DOMAINS not found in compiled lock file")
+	}
+	if !strings.Contains(domainsLine, "my-foundry.openai.azure.com") {
+		t.Errorf("Expected hostname from COPILOT_PROVIDER_BASE_URL in GH_AW_ALLOWED_DOMAINS.\nLine: %s", domainsLine)
+	}
+}
+
 // TestAPITargetDomainsInThreatDetectionStep is a regression test verifying that when engine.api-target
 // is configured, the threat detection AWF invocation in the compiled lock file also receives
 // --copilot-api-target and includes the GHE domains in its --allow-domains list.

@@ -751,7 +751,7 @@ func TestEngineExecutionWithCustomAPITarget(t *testing.T) {
 }
 
 // TestGetCopilotAPITarget tests the GetCopilotAPITarget helper that resolves the effective
-// Copilot API target from either engine.api-target or GITHUB_COPILOT_BASE_URL in engine.env.
+// Copilot API target from engine.api-target, COPILOT_PROVIDER_BASE_URL, or GITHUB_COPILOT_BASE_URL.
 func TestGetCopilotAPITarget(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -759,20 +759,33 @@ func TestGetCopilotAPITarget(t *testing.T) {
 		expected     string
 	}{
 		{
-			name: "engine.api-target takes precedence over GITHUB_COPILOT_BASE_URL",
+			name: "engine.api-target takes precedence over BYOK and GITHUB_COPILOT_BASE_URL",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
 					ID:        "copilot",
 					APITarget: "api.acme.ghe.com",
 					Env: map[string]string{
-						"GITHUB_COPILOT_BASE_URL": "https://other.endpoint.com",
+						"COPILOT_PROVIDER_BASE_URL": "https://byok.endpoint.example.com/v1",
+						"GITHUB_COPILOT_BASE_URL":   "https://other.endpoint.com",
 					},
 				},
 			},
 			expected: "api.acme.ghe.com",
 		},
 		{
-			name: "GITHUB_COPILOT_BASE_URL used as fallback when api-target not set",
+			name: "COPILOT_PROVIDER_BASE_URL used as fallback when api-target not set",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						"COPILOT_PROVIDER_BASE_URL": "https://my-foundry.openai.azure.com/openai/v1",
+					},
+				},
+			},
+			expected: "my-foundry.openai.azure.com",
+		},
+		{
+			name: "GITHUB_COPILOT_BASE_URL used as final fallback when api-target and BYOK are not set",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
 					ID: "copilot",
@@ -796,7 +809,7 @@ func TestGetCopilotAPITarget(t *testing.T) {
 			expected: "copilot-proxy.corp.example.com",
 		},
 		{
-			name: "empty when neither api-target nor GITHUB_COPILOT_BASE_URL is set",
+			name: "empty when neither api-target, BYOK base URL, nor GITHUB_COPILOT_BASE_URL is set",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
 					ID: "copilot",
@@ -848,6 +861,36 @@ func TestCopilotEngineIncludesCopilotAPITargetFromEnvVar(t *testing.T) {
 	// With config file support, Copilot API target is in the JSON config (not as CLI flag)
 	assert.Contains(t, stepContent, `"copilot"`, "Should include copilot target in config JSON")
 	assert.Contains(t, stepContent, "copilot-api.contoso-aw.ghe.com", "Should include custom Copilot hostname in config JSON")
+	assert.NotContains(t, stepContent, "--copilot-api-target", "Should not emit --copilot-api-target as CLI flag")
+}
+
+// TestCopilotEngineIncludesCopilotAPITargetFromBYOKBaseURL tests that the Copilot engine
+// execution step includes the copilot API target in the JSON config when
+// COPILOT_PROVIDER_BASE_URL is configured for BYOK mode.
+func TestCopilotEngineIncludesCopilotAPITargetFromBYOKBaseURL(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				"COPILOT_PROVIDER_BASE_URL": "https://my-foundry.openai.azure.com/openai/v1",
+			},
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		},
+	}
+
+	engine := NewCopilotEngine()
+	steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+	assert.NotEmpty(t, steps, "Should generate execution steps")
+
+	stepContent := strings.Join(steps[0], "\n")
+	assert.Contains(t, stepContent, `"copilot"`, "Should include copilot target in config JSON")
+	assert.Contains(t, stepContent, "my-foundry.openai.azure.com", "Should include BYOK provider hostname in config JSON")
 	assert.NotContains(t, stepContent, "--copilot-api-target", "Should not emit --copilot-api-target as CLI flag")
 }
 
