@@ -114,7 +114,44 @@ function execGitSync(args, options = {}) {
   return result.stdout;
 }
 
+/**
+ * Check whether a commit range contains any merge commits.
+ *
+ * `git am` (the default patch transport) cannot apply merge commits — it only
+ * handles linear patches produced by `git format-patch`. Callers can use this
+ * helper to detect when a range requires the `bundle` transport instead, which
+ * preserves merge commit topology by transferring git objects directly.
+ *
+ * Returns `false` (rather than throwing) when the underlying git command fails
+ * — for example when one of the refs cannot be resolved. Callers should treat
+ * "unknown" as "no merge commits detected" so that a detection failure never
+ * blocks the normal patch path.
+ *
+ * @param {string} baseRef - The base ref (exclusive). Example: "origin/feature".
+ * @param {string} headRef - The head ref (inclusive). Example: "feature".
+ * @param {Object} [options]
+ * @param {string} [options.cwd] - Working directory for the git command.
+ * @returns {boolean} True if at least one merge commit exists in baseRef..headRef.
+ */
+function hasMergeCommitsInRange(baseRef, headRef, options = {}) {
+  if (!baseRef || !headRef) return false;
+  try {
+    const out = execGitSync(["rev-list", "--merges", "--count", `${baseRef}..${headRef}`], {
+      cwd: options.cwd,
+      suppressLogs: true,
+    });
+    const count = parseInt(out.trim(), 10);
+    return Number.isFinite(count) && count > 0;
+  } catch {
+    // Detection failure — treat as no merge commits to avoid blocking the
+    // normal patch path. The caller's downstream patch generation will surface
+    // any actionable error.
+    return false;
+  }
+}
+
 module.exports = {
   execGitSync,
   getGitAuthEnv,
+  hasMergeCommitsInRange,
 };
