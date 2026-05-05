@@ -37,6 +37,7 @@ var log = logger.New("fileutil:fileutil")
 func ValidateAbsolutePath(path string) (string, error) {
 	// Check for empty path
 	if path == "" {
+		log.Print("ValidateAbsolutePath: rejected empty path")
 		return "", errors.New("path cannot be empty")
 	}
 
@@ -45,9 +46,11 @@ func ValidateAbsolutePath(path string) (string, error) {
 
 	// Verify the path is absolute to prevent relative path traversal
 	if !filepath.IsAbs(cleanPath) {
+		log.Printf("ValidateAbsolutePath: rejected relative path: %s", path)
 		return "", fmt.Errorf("path must be absolute, got: %s", path)
 	}
 
+	log.Printf("ValidateAbsolutePath: validated path: %s", cleanPath)
 	return cleanPath, nil
 }
 
@@ -60,6 +63,7 @@ func ValidateAbsolutePath(path string) (string, error) {
 //   - Either path cannot be resolved to an absolute form.
 //   - The resolved candidate path starts outside the resolved base directory.
 func MustBeWithin(base, candidate string) error {
+	log.Printf("MustBeWithin: checking candidate=%q within base=%q", candidate, base)
 	// EvalSymlinks resolves both symlinks and ".." components.
 	// Fall back to Abs when a path does not exist on disk yet.
 	absBase, err := filepath.EvalSymlinks(base)
@@ -78,8 +82,10 @@ func MustBeWithin(base, candidate string) error {
 	}
 	rel, err := filepath.Rel(absBase, absCand)
 	if err != nil || !filepath.IsLocal(rel) {
+		log.Printf("MustBeWithin: path escape detected: candidate=%q base=%q", candidate, base)
 		return fmt.Errorf("path %q escapes base directory %q", candidate, base)
 	}
+	log.Printf("MustBeWithin: path is safe: candidate=%q (rel=%s) within base=%q", candidate, rel, base)
 	return nil
 }
 

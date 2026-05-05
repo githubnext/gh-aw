@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
+
+var subAgentStepLog = logger.New("workflow:sub_agent_step")
 
 // generateRestoreInlineSubAgentsStep emits a step that copies inline sub-agent files
 // from the activation artifact into the workspace after the base-branch restore.
@@ -24,6 +27,7 @@ func generateRestoreInlineSubAgentsStep(yaml *strings.Builder, data *WorkflowDat
 	}
 	subAgentDir := parser.GetEngineSubAgentDir(engineID)
 	subAgentExt := parser.GetEngineSubAgentExt(engineID)
+	subAgentStepLog.Printf("Generating restore inline sub-agents step: engine=%s, dir=%s, ext=%s", engineID, subAgentDir, subAgentExt)
 
 	yaml.WriteString("      - name: Restore inline sub-agents from activation artifact\n")
 	yaml.WriteString("        env:\n")
