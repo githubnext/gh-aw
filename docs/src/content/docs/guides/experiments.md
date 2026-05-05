@@ -54,7 +54,6 @@ experiments:
     start_date: "2026-05-05"
     end_date: "2026-07-25"
     issue: 1234
-    owner: "@team-agents"
 ---
 
 Summarize the findings in a **${{ experiments.prompt_style }}** way.
@@ -84,11 +83,26 @@ Address the issue described above.
 
 ## Statistical balancing
 
-The activation job maintains a per-variant invocation counter in an `actions/cache` entry keyed by workflow ID. The variant with the lowest cumulative count is selected on each run; ties are broken by variant order. Over N runs every variant is used approximately N/K times (K = variant count), providing basic A/B balance with no configuration.
-
-The counter persists across workflow runs via the GitHub Actions cache. A fresh repository starts from zero counts.
+The activation job maintains a per-variant invocation counter that is persisted according to the `storage` setting in the `experiments:` block (see [Storage Configuration](#storage-configuration) below). The variant with the lowest cumulative count is selected on each run; when multiple variants share the lowest count (including the very first run when state is empty), one is chosen at random so no variant is systematically favoured. Over N runs every variant is used approximately N/K times (K = variant count), providing basic A/B balance with no configuration.
 
 When a `weight` array is provided, weighted-random selection is used instead of round-robin. Each variant is chosen with probability proportional to its weight (e.g. `[70, 30]` gives the first variant a 70% probability). When `start_date` or `end_date` is set and today falls outside the window, the control variant (first entry) is returned without incrementing any counter.
+
+## Storage Configuration
+
+The `storage` key inside the `experiments:` map controls how experiment state is persisted:
+
+```yaml
+experiments:
+  storage: repo   # or: cache (default: repo)
+  prompt_style: [concise, detailed]
+```
+
+| Value | Behaviour |
+|---|---|
+| `repo` (**default**) | Commits state to a git branch named `experiments/{sanitizedWorkflowID}` (workflow ID lowercased with hyphens removed, e.g. `my-workflow` → `experiments/myworkflow`). Durable — survives cache evictions. Requires `contents: write` permission (added automatically by the compiler). |
+| `cache` | Uses GitHub Actions cache (legacy). State may be evicted after 7 days of inactivity. |
+
+When `storage: repo`, the compiler adds a `push_experiments_state` job that runs after the activation job and commits the updated `state.json` to the experiments branch.
 
 ## Accessing assignments downstream
 
@@ -181,7 +195,6 @@ Tracking issue: [#1234](https://github.com/owner/repo/issues/1234)
 | `secondary_metrics` | `string[]` | | Additional metrics to track alongside the primary metric |
 | `guardrail_metrics` | `object[]` | | List of `{name, threshold}` pairs that must not degrade. Threshold is a comparison expression like `>=0.95` or `==0` |
 | `min_samples` | `integer` | | Minimum runs per variant required before statistical analysis is considered reliable. The step summary shows a progress bar toward this target. |
-| `owner` | `string` | | Team or person responsible for this experiment (e.g. `@team-agents`) |
 | `weight` | `integer[]` | | Per-variant probability weights (same length as `variants`). Enables weighted-random selection; values are relative and need not sum to 100. |
 | `issue` | `integer` | | GitHub issue number that tracks this experiment's lifecycle |
 | `start_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) before which the experiment is inactive. The control variant is returned before this date without incrementing any counter. |

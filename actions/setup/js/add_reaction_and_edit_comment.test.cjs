@@ -506,6 +506,30 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(expect.stringContaining("POST"), expect.objectContaining({ body: expect.stringContaining("🔒 This issue has been locked") }));
     });
 
+    it("should add lock notice for issue_comment event when GH_AW_LOCK_FOR_AGENT=true", async () => {
+      process.env.GH_AW_LOCK_FOR_AGENT = "true";
+      mockGithub.request.mockResolvedValueOnce({ data: { id: 123, html_url: "https://example.com" } });
+
+      const { addCommentWithWorkflowLink } = await loadModule();
+      await addCommentWithWorkflowLink("/repos/testowner/testrepo/issues/123/comments", "https://github.com/testowner/testrepo/actions/runs/12345", "issue_comment");
+
+      expect(mockGithub.request).toHaveBeenCalledWith(expect.stringContaining("POST"), expect.objectContaining({ body: expect.stringContaining("🔒 This issue has been locked") }));
+    });
+
+    it("should not add lock notice for discussion events when GH_AW_LOCK_FOR_AGENT=true", async () => {
+      process.env.GH_AW_LOCK_FOR_AGENT = "true";
+      mockGithub.graphql
+        .mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOABcD1M4AaBbC", url: "https://github.com/testowner/testrepo/discussions/10" } } })
+        .mockResolvedValueOnce({ addDiscussionComment: { comment: { id: "DC_kwDOABcD1M4AaBbE", url: "https://github.com/testowner/testrepo/discussions/10#discussioncomment-999" } } });
+
+      const { addCommentWithWorkflowLink } = await loadModule();
+      await addCommentWithWorkflowLink("discussion:10", "https://github.com/testowner/testrepo/actions/runs/12345", "discussion");
+
+      const graphqlCall = mockGithub.graphql.mock.calls.find(call => String(call[0]).includes("addDiscussionComment"));
+      expect(graphqlCall).toBeDefined();
+      expect(graphqlCall?.[1]?.body).not.toContain("🔒 This issue has been locked");
+    });
+
     it("should not add lock notice for pull_request events", async () => {
       process.env.GH_AW_LOCK_FOR_AGENT = "true";
       mockGithub.request.mockResolvedValueOnce({ data: { id: 123, html_url: "https://example.com" } });

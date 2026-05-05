@@ -39,7 +39,7 @@ With --codespaces flag:
 - Configures permissions for current repo: actions:write, contents:write, discussions:read, issues:read, pull-requests:write, workflows:write
 - Configures permissions for additional repos (in same org): actions:read, contents:read, discussions:read, issues:read, pull-requests:read, workflows:read
 - Adds GitHub Copilot extensions and gh aw CLI installation
-- Use without value (--codespaces) for current repo only, or with comma-separated repos (--codespaces repo1,repo2)
+- Use with an empty value (--codespaces "") for current repo only, or with comma-separated repos (--codespaces repo1,repo2)
 
 With --completions flag:
 - Automatically detects your shell (bash, zsh, fish, or PowerShell)
@@ -56,7 +56,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` init                                # Initialize repository with defaults
   ` + string(constants.CLIExtensionPrefix) + ` init -v                             # Initialize with verbose output
   ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp                       # Skip MCP configuration
-  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces                   # Configure Codespaces
+  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces ""               # Configure Codespaces for current repo only
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2       # Codespaces with additional repos
   ` + string(constants.CLIExtensionPrefix) + ` init --completions                  # Install shell completions
   ` + string(constants.CLIExtensionPrefix) + ` init --create-pull-request          # Initialize and create a pull request`,
@@ -79,7 +79,7 @@ Examples:
 				mcp = mcpFlag
 			}
 
-			// Trim the codespace repos string (NoOptDefVal uses a space)
+			// Trim the codespace repos string (explicit value required; use --codespaces "" for current repo only)
 			codespaceReposStr = strings.TrimSpace(codespaceReposStr)
 
 			// Parse codespace repos from comma-separated string
@@ -114,9 +114,7 @@ Examples:
 	cmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, crush)")
 	_ = cmd.Flags().MarkHidden("engine") // Hide the engine flag from help output (internal use only)
 	cmd.Flags().Bool("no-mcp", false, "Skip configuring gh-aw MCP server integration for GitHub Copilot Agent")
-	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use without value for current repo only")
-	// NoOptDefVal allows using --codespaces without a value (returns empty string when no value provided)
-	cmd.Flags().Lookup("codespaces").NoOptDefVal = " "
+	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use with empty value for current repo only")
 	cmd.Flags().Bool("completions", false, "Install shell completion for the detected shell (bash, zsh, fish, or PowerShell)")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the initialization changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")

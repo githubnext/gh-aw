@@ -21,6 +21,7 @@ var tokenUsageLog = logger.New("cli:token_usage")
 
 // TokenUsageEntry represents a single line from token-usage.jsonl
 type TokenUsageEntry struct {
+	Schema           string `json:"_schema,omitempty"` // Self-describing record type, e.g. "token-usage/v0.26.0"
 	Timestamp        string `json:"timestamp"`
 	RequestID        string `json:"request_id"`
 	Provider         string `json:"provider"`

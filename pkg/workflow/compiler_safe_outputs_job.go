@@ -78,7 +78,7 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 
 		// Safe outputs job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
 		safeOutputsTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableArtifactClient, safeOutputsTraceID)...)
+		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, enableArtifactClient, safeOutputsTraceID)...)
 	}
 
 	// Mask OTLP telemetry headers immediately after setup so authentication tokens cannot
@@ -422,7 +422,7 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 			insertIndex += len(c.generateCheckoutActionsFolder(data))
 			// Use the same traceID as the real call so the line count matches exactly
 			countTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-			insertIndex += len(c.generateSetupStep(setupActionRef, SetupActionDestination, data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID))
+			insertIndex += len(c.generateSetupStep(data, setupActionRef, SetupActionDestination, data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID))
 		}
 
 		// Add artifact download steps count

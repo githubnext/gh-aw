@@ -115,6 +115,16 @@ type GuardrailMetric struct {
 	Threshold string `json:"threshold"`
 }
 
+// ExperimentNotify specifies where to post significance alerts when an experiment reaches
+// statistical significance.
+type ExperimentNotify struct {
+	// Discussion is a GitHub discussion number to post a significance comment to.
+	Discussion int `json:"discussion,omitempty"`
+
+	// Issue is a GitHub issue number to post a significance comment to.
+	Issue int `json:"issue,omitempty"`
+}
+
 // ExperimentConfig represents the rich metadata for a single A/B experiment.
 // The bare-array form (e.g. prompt_style: [concise, verbose]) is normalized to this
 // struct with only the Variants field populated.
@@ -143,9 +153,6 @@ type ExperimentConfig struct {
 	// statistical analysis is considered reliable.
 	MinSamples int `json:"min_samples,omitempty"`
 
-	// Owner tags the team or person responsible for this experiment (e.g. "@team-agents").
-	Owner string `json:"owner,omitempty"`
-
 	// Weight holds an optional per-variant probability weight.  When provided its length
 	// must equal the length of Variants.  Values are relative (they need not sum to 100).
 	Weight []int `json:"weight,omitempty"`
@@ -161,6 +168,16 @@ type ExperimentConfig struct {
 	// EndDate is an optional ISO-8601 date (YYYY-MM-DD) after which the experiment is
 	// no longer active.  When today is after this date the control variant is used.
 	EndDate string `json:"end_date,omitempty"`
+
+	// AnalysisType declares the statistical test used by automated reporting tooling.
+	// Valid values: t_test, mann_whitney, proportion_test, bayesian_ab.
+	AnalysisType string `json:"analysis_type,omitempty"`
+
+	// Tags are free-form labels for filtering experiments in dashboards.
+	Tags []string `json:"tags,omitempty"`
+
+	// Notify specifies where to post significance alerts when the experiment concludes.
+	Notify *ExperimentNotify `json:"notify,omitempty"`
 }
 
 // RateLimitConfig represents rate limiting configuration for workflow triggers
@@ -172,15 +189,36 @@ type RateLimitConfig struct {
 	IgnoredRoles []string `json:"ignored-roles,omitempty"` // Roles that are exempt from rate limiting (e.g., ["admin", "maintainer"])
 }
 
-// OTLPConfig holds configuration for OTLP (OpenTelemetry Protocol) trace export.
-type OTLPConfig struct {
-	// Endpoint is the OTLP collector endpoint URL (e.g. "https://traces.example.com:4317").
+// OTLPEndpointConfig holds configuration for a single OTLP endpoint entry
+// used when the `endpoint` field is an object or an element of an array.
+type OTLPEndpointConfig struct {
+	// URL is the OTLP collector endpoint URL (e.g. "https://traces.example.com:4317").
 	// Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}.
 	// When a static URL is provided, its hostname is automatically added to the
 	// network firewall allowlist.
-	Endpoint string `json:"endpoint,omitempty"`
+	URL string `json:"url,omitempty"`
 
-	// Headers holds HTTP headers to include with every OTLP export request.
+	// Headers holds HTTP headers to include with every OTLP export request for this endpoint.
+	// Same format as OTLPConfig.Headers: preferred map form or deprecated comma-separated string.
+	Headers any `json:"headers,omitempty"`
+}
+
+// OTLPConfig holds configuration for OTLP (OpenTelemetry Protocol) trace export.
+type OTLPConfig struct {
+	// Endpoint accepts one of three forms:
+	//   - string:        backward-compat URL  (e.g. "https://traces.example.com:4317")
+	//   - object:        single endpoint with URL and optional headers
+	//                    (e.g. {url: "https://...", headers: {Authorization: "Bearer ${{ secrets.TOKEN }}"}})
+	//   - array:         multiple endpoints for concurrent fan-out
+	//                    (e.g. [{url: "https://primary:4317", headers: {...}}, {url: "https://backup:4317"}])
+	// Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}.
+	// When a static URL is provided, its hostname is automatically added to the
+	// network firewall allowlist.
+	Endpoint any `json:"endpoint,omitempty"`
+
+	// Headers holds HTTP headers for the backward-compat string endpoint form.
+	// Only used when Endpoint is a plain string; object/array endpoint entries
+	// carry their own per-endpoint headers.
 	// Preferred form: a map of header name to value (e.g. {"Authorization": "Bearer ${{ secrets.TOKEN }}"}).
 	// Deprecated string form: a comma-separated list of key=value pairs
 	// (e.g. "Authorization=Bearer <token>"). Use the map form instead.
@@ -274,6 +312,12 @@ type FrontmatterConfig struct {
 	// ExperimentConfigs holds the fully-typed experiment metadata, populated alongside
 	// Experiments during frontmatter parsing.  Keys match those of Experiments.
 	ExperimentConfigs map[string]*ExperimentConfig `json:"-"`
+
+	// Model aliases and fallback policies.
+	// Keys are alias names (empty string "" = default policy); values are ordered lists of
+	// model patterns or alias references to try in sequence.
+	// Merged with the builtin model aliases at compile time; frontmatter entries take precedence.
+	Models map[string][]string `json:"models,omitempty"`
 
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`

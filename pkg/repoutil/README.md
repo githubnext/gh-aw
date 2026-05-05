@@ -6,7 +6,7 @@ The `repoutil` package provides utility functions for working with GitHub reposi
 
 This package offers a single focused helper for parsing and validating `owner/repo` repository slug strings, which are used throughout the codebase wherever GitHub repositories are referenced.
 
-## Functions
+## Public API
 
 ### `SplitRepoSlug(slug string) (owner, repo string, err error)`
 
@@ -35,6 +35,23 @@ repoutil.SplitRepoSlug("github/")         // error: invalid repo format: github/
 // Too many separators
 repoutil.SplitRepoSlug("github/gh-aw/x") // error: invalid repo format: github/gh-aw/x
 ```
+
+## Usage Examples
+
+```go
+import "github.com/github/gh-aw/pkg/repoutil"
+
+owner, repo, err := repoutil.SplitRepoSlug("github/gh-aw")
+if err != nil {
+    return fmt.Errorf("invalid repository: %w", err)
+}
+// owner = "github", repo = "gh-aw"
+```
+
+## Dependencies
+
+**Internal**:
+- `pkg/logger` — debug logging
 
 ## Design Notes
 

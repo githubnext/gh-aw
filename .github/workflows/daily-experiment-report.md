@@ -1,5 +1,5 @@
 ---
-description: Daily statistical report that aggregates experiment-state artifacts across recent runs, computes per-variant statistics (mean, variance, 95% CI, success rate), detects significance via Welch t-test or two-proportion z-test (p < 0.05), checks guardrail metric thresholds, renders bar charts and an ASCII comparison table per experiment, and posts a discussion with a promote/extend/abandon recommendation; notifies tracking issues when experiments reach statistical significance or min_samples
+description: Daily statistical report that uses the experiments CLI command to list active experiments and the experiments analyze tool to get per-variant statistics and statistical significance, then computes per-variant success rates and durations from run artifacts, renders bar charts and an ASCII comparison table per experiment, and posts a discussion with a promote/extend/abandon recommendation; notifies tracking issues when experiments reach statistical significance or min_samples
 name: daily-experiment-report
 on:
   schedule: daily around 8:00
@@ -13,6 +13,7 @@ permissions:
 
 engine: copilot
 tools:
+  cli-proxy: true
   github:
     toolsets: [default, actions]
 
@@ -49,19 +50,52 @@ summary if no tracking issue is configured).
 
 ## Step 1 — Discover Workflows with Active Experiments
 
-Use the GitHub MCP tools to list all workflows in `${{ github.repository }}`. For each workflow,
-read its frontmatter and identify those that declare an `experiments:` section. Collect:
+Run the `experiments` CLI command to list all experiments in the repository:
 
-- Workflow file name (e.g. `daily-report.lock.yml`)
-- Each experiment name (e.g. `prompt_style`)
-- Variants (e.g. `[concise, detailed]`)
+```
+gh aw experiments list --json --repo ${{ github.repository }}
+```
+
+This returns a JSON array of experiment workflows. Each entry includes the workflow ID, branch name,
+number of experiments, total runs, and last-run date.
+
+If the command returns an empty array, append the following to `$GITHUB_STEP_SUMMARY` and exit:
+
+```
+No active experiments found in ${{ github.repository }} — nothing to report.
+```
+
+For each workflow in the list, run the `experiments analyze` CLI command to retrieve per-variant
+statistics and experiment configuration:
+
+```
+gh aw experiments analyze <workflow-id> --json --repo ${{ github.repository }}
+```
+
+This returns a JSON object with:
+- `workflow_id` and `branch` — workflow identifier and git branch name
+- `total_runs` — total runs recorded in the git branch state
+- `experiments` — array of per-experiment variant counts and totals
+- `recent_runs` — last 10 run records with variant assignments
+- `analyses` — per-experiment statistical analysis, including:
+  - `experiment_name` — name of the A/B experiment
+  - `hypothesis` — hypothesis text (from workflow frontmatter, if set)
+  - `analysis_type` — declared statistical test type
+  - `min_samples` — minimum runs per variant before analysis is reliable (default: 20)
+  - `total_runs` — total runs for this experiment
+  - `variants` — per-variant: `name`, `count`, `observed_pct`, `expected_pct`, `min_samples_reached`
+  - `chi_square`, `degrees_of_freedom`, `p_value`, `is_balanced` — chi-square balance test
+  - `bonferroni_alpha` — Bonferroni-corrected threshold (for K ≥ 3 variants only)
+  - `guardrails` — declared metric thresholds (pass/fail requires per-run outcome data)
+  - `recommendation` — `EXTEND` or `READY_FOR_ANALYSIS`
+  - `rationale` — one-sentence explanation
+
+Also use the GitHub MCP tools to read each workflow's frontmatter for additional fields not exposed
+by the experiments CLI:
+
 - Primary metric (`metric:` field), if set
 - Secondary metrics (`secondary_metrics:` list), if set
-- Guardrail metric thresholds (`guardrail_metrics:` list), if set — each entry has `name` and `threshold`
-- `min_samples` per variant, if set (defaults to 20 when not specified)
-- `hypothesis` text, if set
-- `owner`, if set
-- Tracking issue number, if an `issue:` field is set for that experiment
+- Tracking issue number, if an `issue:` field is set
 
 If no workflows declare `experiments:`, append the following to `$GITHUB_STEP_SUMMARY` and exit:
 
@@ -69,34 +103,29 @@ If no workflows declare `experiments:`, append the following to `$GITHUB_STEP_SU
 No active experiments found in ${{ github.repository }} — nothing to report.
 ```
 
-## Step 2 — Collect Run Data
+## Step 2 — Collect Run Data and Outcome Metrics
 
-For each workflow that has experiments, list the **last 30 completed runs** (any final state:
-`success`, `failure`, `cancelled`, or `skipped`) using the GitHub MCP tools. For each run, record:
+For each workflow that has experiments, use the `experiments analyze` output from Step 1:
+
+- The `analyses[].variants` field provides per-variant counts from the git branch state.
+- The `analyses[].recommendation` field provides the CLI's readiness gate
+  (`EXTEND` when any variant is below `min_samples`, `READY_FOR_ANALYSIS` otherwise).
+
+To compute **outcome metrics** (success rate, duration) that are not stored in the git branch state,
+list the **last 30 completed runs** (any final state: `success`, `failure`, `cancelled`, or
+`skipped`) using the GitHub MCP tools. For each run, record:
 
 - `run_id`
 - `conclusion` (`success`, `failure`, `cancelled`, …)
 - `created_at` and `updated_at`
 - `run_duration_ms` (derived from `created_at` and `updated_at`)
 
-Then download the `experiment` artifact (`state.json`) from every run that has one. The state file
-has the cumulative counts for every variant up to and including that run:
+Then correlate each run with its variant assignment using the `recent_runs` array from the
+`experiments analyze` output (which contains the last 10 run records with explicit
+`assignments` maps). For runs not covered by `recent_runs`, download the `experiment` artifact
+(`state.json`) to infer variant assignment from cumulative count differences.
 
-```json
-{
-  "counts": {
-    "<experiment_name>": {
-      "<variant>": <cumulative_count>
-    }
-  }
-}
-```
-
-By comparing the cumulative counts between consecutive runs (oldest → newest), infer which variant
-was assigned to each run: the variant whose count increased by exactly 1 from the previous snapshot
-is the variant used on that run.
-
-**Edge cases for variant inference:**
+**Edge cases for variant inference (when using artifact-based inference):**
 - **Missing artifact**: If a run has no experiment artifact, skip it and treat the count sequence as
   having a gap — do not attempt to infer assignment from the next available snapshot.
 - **Zero increases**: If no variant count changed between two consecutive snapshots (e.g., cancelled
@@ -106,7 +135,7 @@ is the variant used on that run.
   downloaded snapshots), record both runs as `ambiguous` and exclude them from calculations.
   Note the number of ambiguous runs in the report.
 
-Build a per-run record for every run that had an experiment artifact:
+Build a per-run outcome record for every run whose variant is known:
 
 ```json
 {
@@ -120,7 +149,17 @@ Build a per-run record for every run that had an experiment artifact:
 
 ## Step 3 — Compute Per-Variant Statistics
 
-For each experiment and each variant, compute the following statistics over all collected runs:
+Use the `analyses` array from `gh aw experiments analyze` (Step 1) for the following fields — no
+recomputation is needed:
+
+- **n** (variant count): from `analyses[].variants[].count`
+- **min_samples**: from `analyses[].min_samples`
+- **min_samples_reached**: from `analyses[].variants[].min_samples_reached`
+- **Balance test**: `chi_square`, `p_value`, `is_balanced` from the analyze output
+- **Readiness**: `recommendation` (`EXTEND` / `READY_FOR_ANALYSIS`) from the analyze output
+
+For each experiment and each variant, additionally compute the following **outcome statistics**
+from the per-run outcome records collected in Step 2:
 
 | Statistic            | Description                                                            |
 |----------------------|------------------------------------------------------------------------|
@@ -196,10 +235,11 @@ Welch t-test cannot be applied — show `N/A` for p-value and note "zero varianc
 
 The significance threshold is **p < 0.05**.
 
-**`min_samples` gate:** An experiment is only eligible for a `PROMOTE` recommendation when
-**all** variants have `n >= min_samples` (use the value from the experiment's `min_samples:`
-field, defaulting to 20 if not declared). When any variant is below `min_samples`, always use
-`EXTEND` regardless of p-value, and include the progress toward `min_samples` in the table.
+**`min_samples` gate:** Use the `recommendation` field from `gh aw experiments analyze` to
+determine readiness: when the CLI returns `EXTEND` for an experiment, always use `EXTEND` as the
+recommendation (regardless of p-value) and show the per-variant progress toward `min_samples`
+from `analyses[].variants[].min_samples_reached`. Only proceed with `PROMOTE` or `ABANDON` when
+the CLI returns `READY_FOR_ANALYSIS`.
 
 ## Step 5 — Generate Bar Charts
 
@@ -281,7 +321,6 @@ For each experiment, produce an ASCII table inside a fenced code block:
 Experiment : <experiment_name>
 Workflow   : <workflow_file_name>
 Hypothesis : <hypothesis text if declared, else "(not specified)">
-Owner      : <owner if declared, else "(not specified)">
 Window     : last 30 runs  |  Analysed: <count> runs with artifacts
 min_samples: <min_samples> per variant
 
@@ -340,7 +379,7 @@ title-prefix `[experiments]`, category `audits`, and automatic cleanup of older 
 #### `<experiment_name>` · `<workflow_basename>`
 
 > **Variants**: `<v1>` vs `<v2>` · **Window**: last 30 runs · **Analysed**: N runs with artifacts
-> **min_samples**: <min_samples> per variant · **Owner**: <owner or "(not specified)">
+> **min_samples**: <min_samples> per variant
 
 <hypothesis if declared>
 

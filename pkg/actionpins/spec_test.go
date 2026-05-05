@@ -144,16 +144,16 @@ func TestSpec_PublicAPI_GetActionPinsByRepo(t *testing.T) {
 	})
 }
 
-// TestSpec_PublicAPI_GetActionPinByRepo validates GetActionPinByRepo returns the latest pin.
-func TestSpec_PublicAPI_GetActionPinByRepo(t *testing.T) {
+// TestSpec_PublicAPI_GetLatestActionPinByRepo validates GetLatestActionPinByRepo returns the latest pin.
+func TestSpec_PublicAPI_GetLatestActionPinByRepo(t *testing.T) {
 	t.Run("returns false for unknown repository", func(t *testing.T) {
-		_, ok := actionpins.GetActionPinByRepo("does-not-exist/unknown-action-xyzzy")
+		_, ok := actionpins.GetLatestActionPinByRepo("does-not-exist/unknown-action-xyzzy")
 		assert.False(t, ok, "should return false for unknown repo")
 	})
 
 	t.Run("returns a pin for a known repository", func(t *testing.T) {
 		known := "actions/checkout"
-		pin, ok := actionpins.GetActionPinByRepo(known)
+		pin, ok := actionpins.GetLatestActionPinByRepo(known)
 		assert.True(t, ok, "should return true for a known repo")
 		assert.Equal(t, known, pin.Repo, "returned pin should belong to the queried repo")
 	})
@@ -176,7 +176,7 @@ func TestSpec_PublicAPI_ResolveActionPin(t *testing.T) {
 func TestSpec_PublicAPI_ResolveLatestActionPin(t *testing.T) {
 	t.Run("returns latest pinned reference for known repository", func(t *testing.T) {
 		known := "actions/checkout"
-		latestPin, ok := actionpins.GetActionPinByRepo(known)
+		latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
 		require.True(t, ok, "expected latest pin for known repository")
 
 		result := actionpins.ResolveLatestActionPin(known, nil)
@@ -260,7 +260,7 @@ func TestSpec_Types_ActionPinsData(t *testing.T) {
 // a formatted reference for a known repository. Spec: "Embedded-only lookup from bundled pin data"
 func TestSpec_PublicAPI_ResolveActionPin_EmbeddedMatch(t *testing.T) {
 	known := "actions/checkout"
-	latestPin, ok := actionpins.GetActionPinByRepo(known)
+	latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
 	require.True(t, ok, "prerequisite: known repo must be in embedded data")
 
 	ctx := &actionpins.PinContext{StrictMode: false, Warnings: make(map[string]bool)}

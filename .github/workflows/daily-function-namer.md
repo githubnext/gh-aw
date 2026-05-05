@@ -67,23 +67,34 @@ Each day, analyze **one entire Go package** using round-robin rotation across al
 Run this script to load the round-robin state, enumerate all Go package directories, and compute which package to analyze this run:
 
 ```bash
-# Load last_package_index from cache (default 0 if cache absent/empty)
+# Load last_package_index from cache (-1 sentinel means cache is absent/empty — pick randomly later)
 LAST_INDEX=$(python3 -c "
 import sys, json, os
 p = '/tmp/gh-aw/cache-memory/function-namer-state.json'
 if os.path.exists(p):
     try:
         d = json.load(open(p))
-        print(d.get('last_package_index', 0))
+        print(d.get('last_package_index', -1))
     except Exception:
-        print(0)
+        print(-1)
 else:
-    print(0)
+    print(-1)
 ")
 
 # Enumerate all unique package directories containing non-test Go files
 mapfile -t ALL_PKGS < <(find pkg -name '*.go' ! -name '*_test.go' -type f | xargs -I{} dirname {} | sort -u)
 TOTAL=${#ALL_PKGS[@]}
+
+if [ "$TOTAL" -eq 0 ]; then
+  echo "ERROR: no Go packages found in pkg/" >&2
+  exit 1
+fi
+
+# On cache miss, start at a random position so repeated cold starts don't always hit the same package
+if [ "$LAST_INDEX" -eq -1 ]; then
+  LAST_INDEX=$(( RANDOM % TOTAL ))
+  echo "cache_miss=true (random start at index ${LAST_INDEX})"
+fi
 
 echo "total_packages=${TOTAL}"
 echo "last_package_index=${LAST_INDEX}"

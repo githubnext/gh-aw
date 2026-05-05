@@ -138,22 +138,32 @@ func buildCLIWorkflowDataForMounts(workflowData *WorkflowData, tools map[string]
 	return &copied
 }
 
-func getMountedCLIServerNamesIfBashRestricted(workflowData *WorkflowData, tools map[string]any, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig) []string {
+// hasBashRestrictedAllowlist reports true when tools contains an explicit, finite bash
+// command allowlist (not a wildcard). Used to decide whether implicit commands must be
+// injected for auto-allowed tools such as playwright-cli.
+func hasBashRestrictedAllowlist(tools map[string]any) bool {
 	if tools == nil {
-		return nil
+		return false
 	}
 	bashConfig, hasBash := tools["bash"]
 	if !hasBash {
-		return nil
+		return false
 	}
 	bashCommands, ok := bashConfig.([]any)
 	if !ok || len(bashCommands) == 0 {
-		return nil
+		return false
 	}
 	for _, cmd := range bashCommands {
 		if cmdStr, ok := cmd.(string); ok && (cmdStr == "*" || cmdStr == ":*") {
-			return nil
+			return false
 		}
+	}
+	return true
+}
+
+func getMountedCLIServerNamesIfBashRestricted(workflowData *WorkflowData, tools map[string]any, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig) []string {
+	if !hasBashRestrictedAllowlist(tools) {
+		return nil
 	}
 	return getMCPCLIServerNames(buildCLIWorkflowDataForMounts(workflowData, tools, safeOutputs, mcpScripts))
 }
@@ -167,7 +177,9 @@ func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) map
 	}
 
 	servers := getMountedCLIServerNamesIfBashRestricted(workflowData, workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts)
-	if len(servers) == 0 {
+	needsPlaywrightCLI := isPlaywrightCLIMode(workflowData.Tools) && hasBashRestrictedAllowlist(workflowData.Tools)
+
+	if len(servers) == 0 && !needsPlaywrightCLI {
 		return workflowData.Tools
 	}
 
@@ -193,6 +205,21 @@ func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) map
 		}
 		if !exists {
 			augmentedBash = append(augmentedBash, command)
+		}
+	}
+
+	// When playwright is configured in CLI mode, playwright-cli must be executable.
+	// Automatically add it to the restricted bash allowlist so the agent can invoke it.
+	// This injection only applies when bash is restricted (explicit allowlist); when bash
+	// is unrestricted (nil or wildcard), playwright-cli is already accessible without
+	// explicit allowlisting.
+	if needsPlaywrightCLI {
+		const playwrightCLICommand = "playwright-cli:*"
+		if !slices.ContainsFunc(augmentedBash, func(v any) bool {
+			s, ok := v.(string)
+			return ok && s == playwrightCLICommand
+		}) {
+			augmentedBash = append(augmentedBash, playwrightCLICommand)
 		}
 	}
 

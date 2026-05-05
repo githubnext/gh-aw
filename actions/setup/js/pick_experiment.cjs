@@ -20,7 +20,8 @@
  * Algorithm:
  *   When weight is provided the variant is chosen by weighted-random selection.
  *   Otherwise the variant with the lowest invocation count is selected next (ties are
- *   broken by variant order, yielding a deterministic round-robin across runs).
+ *   broken by random selection, ensuring no variant is systematically favoured on the
+ *   first run or whenever counts are equal).
  *   When start_date or end_date is provided and today falls outside that window the
  *   control variant (first variant) is used and no counter is incremented.
  */
@@ -28,10 +29,22 @@
 const fs = require("fs");
 const path = require("path");
 
+/** Maximum number of per-run records retained in state.runs. Older entries are pruned to keep state.json small. */
+const MAX_RUN_HISTORY = 512;
+
+/**
+ * @typedef {Object} ExperimentRunRecord
+ * @property {string} run_id       - GitHub Actions run ID (GITHUB_RUN_ID)
+ * @property {string} timestamp    - ISO-8601 UTC timestamp of the run
+ * @property {Record<string, string>} assignments - Maps experiment name → selected variant
+ */
+
 /**
  * @typedef {Object} ExperimentState
  * @property {Record<string, Record<string, number>>} counts
  *   Maps experiment name → variant → cumulative invocation count.
+ * @property {ExperimentRunRecord[]} [runs]
+ *   Per-run assignment history appended on each invocation.
  */
 
 /**
@@ -52,8 +65,10 @@ const path = require("path");
  * @property {string[]} [secondary_metrics]         - Additional metrics to track
  * @property {GuardrailMetric[]} [guardrail_metrics] - Thresholds that must not degrade
  * @property {number} [min_samples]                 - Minimum runs per variant for reliable analysis
- * @property {string} [owner]                       - Team or person responsible
  * @property {number} [issue]
+ * @property {string} [analysis_type]               - Statistical test: t_test | mann_whitney | proportion_test | bayesian_ab
+ * @property {string[]} [tags]                      - Free-form labels for dashboard filtering
+ * @property {{discussion?: number, issue?: number}} [notify] - Where to post significance alerts
  */
 
 /**
@@ -82,12 +97,15 @@ function loadState(stateFile) {
     const raw = fs.readFileSync(stateFile, "utf8");
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed.counts === "object") {
+      if (!Array.isArray(parsed.runs)) {
+        parsed.runs = [];
+      }
       return parsed;
     }
   } catch {
     // File missing, unreadable, or invalid JSON – start fresh.
   }
-  return { counts: {} };
+  return { counts: {}, runs: [] };
 }
 
 /**
@@ -124,8 +142,10 @@ function isWithinDateWindow(startDate, endDate, todayOverride) {
 
 /**
  * Pick the variant for one experiment using a balanced least-used selection.
- * The variant with the lowest cumulative count is chosen; ties are broken by
- * the order of the variants array so selection is deterministic.
+ * The variant with the lowest cumulative count is chosen; when multiple variants
+ * share the lowest count (including the initial empty-cache state where all counts
+ * are zero), one is selected at random to avoid systematically favouring the first
+ * declared variant.
  *
  * @param {string} name       - Experiment name
  * @param {string[]} variants - Array of variant values (length >= 2)
@@ -135,15 +155,17 @@ function isWithinDateWindow(startDate, endDate, todayOverride) {
 function pickVariant(name, variants, state) {
   const counts = state.counts[name] || {};
   let minCount = Infinity;
-  let selected = variants[0];
+  let tied = [];
   for (const variant of variants) {
     const c = counts[variant] || 0;
     if (c < minCount) {
       minCount = c;
-      selected = variant;
+      tied = [variant];
+    } else if (c === minCount) {
+      tied.push(variant);
     }
   }
-  return selected;
+  return tied[Math.floor(Math.random() * tied.length)];
 }
 
 /**
@@ -199,27 +221,30 @@ function recordVariant(name, variant, state) {
  */
 async function writeSummary(assignments, configs, state, core) {
   const names = Object.keys(assignments).sort();
-  const lines = ["## 🧪 A/B Experiment Assignments", "", "| Experiment | Selected Variant | All Variants | Cumulative Counts |", "| --- | --- | --- | --- |"];
+  const lines = ["## 🧪 Experiment Assignments", "", "| Experiment | Variant | Counts (current/total) |", "| --- | --- | --- |"];
   for (const name of names) {
     const selected = assignments[name];
-    const variants = configs[name]?.variants || [];
     const counts = state.counts[name] || {};
-    const countsStr = variants.map(v => `${v}: ${counts[v] || 0}`).join(", ");
-    lines.push(`| \`${name}\` | **${selected}** | ${variants.join(", ")} | ${countsStr} |`);
+    const thisCount = counts[selected] || 0;
+    // Prefer counting actual run records for the total when the runs array is present;
+    // fall back to summing incremented counts (which excludes date-window gated runs).
+    const runsForExp = state.runs ? state.runs.filter(r => r.assignments && name in r.assignments) : null;
+    const totalCount = runsForExp !== null && runsForExp.length > 0 ? runsForExp.length : Object.values(/** @type {number[]} */ counts).reduce((a, b) => a + b, 0);
+    lines.push(`| \`${name}\` | **${selected}** | ${thisCount} / ${totalCount} |`);
   }
   lines.push("");
 
   // Progress bars and ready-for-analysis flags when min_samples is a positive integer.
   const progressNames = names.filter(name => {
     const ms = configs[name]?.min_samples;
-    return Number.isInteger(ms) && ms > 0;
+    return ms != null && Number.isInteger(ms) && ms > 0;
   });
   if (progressNames.length > 0) {
     lines.push("### 📊 Sampling Progress");
     lines.push("");
     for (const name of progressNames) {
       const cfg = configs[name];
-      const minSamples = cfg.min_samples;
+      const minSamples = cfg.min_samples ?? 0;
       const variants = cfg.variants || [];
       const counts = state.counts[name] || {};
       const allReady = variants.every(v => (counts[v] || 0) >= minSamples);
@@ -279,7 +304,7 @@ async function writeSummary(assignments, configs, state, core) {
     }
   }
 
-  lines.push("_Variants are selected by balanced round-robin (or weighted) to ensure statistical relevance across runs._");
+  lines.push("_Variants are selected by balanced round-robin (or weighted) to ensure statistical relevance across runs. Ties are broken randomly so no variant is systematically favoured on the first run._");
   await core.summary.addRaw(lines.join("\n")).write();
 }
 
@@ -359,7 +384,21 @@ async function main() {
   core.setOutput("experiments", experimentsJSON);
   core.info(`Experiment assignments (JSON): ${experimentsJSON}`);
 
-  // Persist updated counts.
+  if (Object.keys(assignments).length > 0) {
+    // Append a per-run record to state.runs so each assignment is traceable.
+    const runId = process.env.GITHUB_RUN_ID || "";
+    const timestamp = new Date().toISOString();
+    if (!state.runs) {
+      state.runs = [];
+    }
+    state.runs.push({ run_id: runId, timestamp, assignments: { ...assignments } });
+    // Prune run history to avoid state.json growing without bound over many runs.
+    if (state.runs.length > MAX_RUN_HISTORY) {
+      state.runs = state.runs.slice(-MAX_RUN_HISTORY);
+    }
+  }
+
+  // Persist updated counts and run history.
   saveState(stateFile, state);
   core.info(`Experiment state written to ${stateFile}`);
 
@@ -370,6 +409,15 @@ async function main() {
     const assignmentsFile = path.join(stateDir, "assignments.json");
     fs.writeFileSync(assignmentsFile, JSON.stringify(assignments, null, 2) + "\n", "utf8");
     core.info(`Experiment assignments written to ${assignmentsFile}`);
+
+    // Emit OTEL resource attributes so every span in this run carries the
+    // experiment assignments for filtering in Honeycomb/Grafana.
+    const otelAttrs = Object.entries(assignments)
+      .map(([name, variant]) => `experiment.${name}=${variant}`)
+      .join(",");
+    const existingAttrs = process.env.OTEL_RESOURCE_ATTRIBUTES || "";
+    core.exportVariable("OTEL_RESOURCE_ATTRIBUTES", existingAttrs ? `${existingAttrs},${otelAttrs}` : otelAttrs);
+    core.info(`OTEL resource attributes set: ${otelAttrs}`);
   }
 
   // Write step summary.

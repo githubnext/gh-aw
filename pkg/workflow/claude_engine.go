@@ -262,9 +262,15 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Build the full command based on whether firewall is enabled
 	var command string
 	if isFirewallEnabled(workflowData) {
-		// Build the AWF-wrapped command using helper function
-		// Get allowed domains (Claude defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
-		allowedDomains := GetClaudeAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		// Get allowed domains: prefer the pre-warmed cache on WorkflowData (populated by
+		// computeAllowedDomainsForSanitization before GetExecutionSteps is called) to avoid
+		// re-running the expensive map+sort operation.
+		var allowedDomains string
+		if workflowData.CachedAllowedDomainsComputed {
+			allowedDomains = workflowData.CachedAllowedDomainsStr
+		} else {
+			allowedDomains = GetAllowedDomainsForEngine(constants.ClaudeEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		}
 		// Add GHES/custom API target domains to the firewall allow-list when engine.api-target is set
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
 			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
@@ -314,7 +320,14 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		"DISABLE_TELEMETRY":       "1",
 		"DISABLE_ERROR_REPORTING": "1",
 		"DISABLE_BUG_COMMAND":     "1",
-		"GH_AW_PROMPT":            "/tmp/gh-aw/aw-prompts/prompt.txt",
+		// Disable Claude Code's "fast mode" feature. Fast mode requires the
+		// server-side flagSettings.fastMode feature flag, which is not available
+		// in Agent SDK contexts (non-interactive --print sessions). Without this,
+		// Claude Code 2.1.120+ attempts to enable fast mode and fails with
+		// "Fast mode unavailable: Fast mode is not available in the Agent SDK",
+		// which crashes the agent mid-session on every API call.
+		"CLAUDE_CODE_DISABLE_FAST_MODE": "1",
+		"GH_AW_PROMPT":                  "/tmp/gh-aw/aw-prompts/prompt.txt",
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW": "true",
 		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.

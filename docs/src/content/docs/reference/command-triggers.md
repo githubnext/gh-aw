@@ -156,18 +156,23 @@ Title: "${{ github.event.issue.title }}"
 Body: "${{ github.event.issue.body }}"
 ```
 
-## Reactions
+## Reactions and Status Comments
 
-Command workflows automatically add the "eyes" (👀) emoji reaction to triggering comments and edit them with workflow run links, providing immediate feedback. Customize the reaction:
+Command workflows enable `reaction: eyes` (👀) and `status-comment: true` by default. The reaction adds a visual indicator to triggering comments; the status comment posts a started/completed notification with a workflow run link.
+
+Customize or disable either:
 
 ```yaml wrap
 on:
   slash_command:
     name: my-bot
-  reaction: "rocket"  # Override default "eyes"
+  reaction: "rocket"       # Override default "eyes"
+  status-comment: false    # Disable the status comment
 ```
 
-See [Reactions](/gh-aw/reference/frontmatter/) for available reactions and detailed behavior.
+To disable the reaction entirely, use `reaction: none`.
+
+See [Reactions and Status Comments](/gh-aw/reference/triggers/#reactions-reaction) for all available reactions and detailed behavior.
 
 ## Slash Commands in SideRepoOps
 

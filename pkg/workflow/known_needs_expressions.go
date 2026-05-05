@@ -44,7 +44,7 @@ func generateKnownNeedsExpressions(data *WorkflowData, preActivationJobCreated b
 		activatedExpr := fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.ActivatedOutput)
 		activatedEnvVar := fmt.Sprintf("GH_AW_NEEDS_%s_OUTPUTS_%s",
 			normalizeJobNameForEnvVar(string(constants.PreActivationJobName)),
-			normalizeOutputNameForEnvVar(constants.ActivatedOutput))
+			normalizeJobNameForEnvVar(constants.ActivatedOutput))
 		mappings = append(mappings, &ExpressionMapping{
 			Original: fmt.Sprintf("${{ %s }}", activatedExpr),
 			EnvVar:   activatedEnvVar,
@@ -57,7 +57,7 @@ func generateKnownNeedsExpressions(data *WorkflowData, preActivationJobCreated b
 			matchedCmdExpr := fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.MatchedCommandOutput)
 			matchedCmdEnvVar := fmt.Sprintf("GH_AW_NEEDS_%s_OUTPUTS_%s",
 				normalizeJobNameForEnvVar(string(constants.PreActivationJobName)),
-				normalizeOutputNameForEnvVar(constants.MatchedCommandOutput))
+				normalizeJobNameForEnvVar(constants.MatchedCommandOutput))
 			mappings = append(mappings, &ExpressionMapping{
 				Original: fmt.Sprintf("${{ %s }}", matchedCmdExpr),
 				EnvVar:   matchedCmdEnvVar,
@@ -96,7 +96,7 @@ func generateKnownNeedsExpressions(data *WorkflowData, preActivationJobCreated b
 				expr := fmt.Sprintf("needs.%s.outputs.%s", jobName, output)
 				envVar := fmt.Sprintf("GH_AW_NEEDS_%s_OUTPUTS_%s",
 					normalizeJobNameForEnvVar(jobName),
-					normalizeOutputNameForEnvVar(output))
+					normalizeJobNameForEnvVar(output))
 				mappings = append(mappings, &ExpressionMapping{
 					Original: fmt.Sprintf("${{ %s }}", expr),
 					EnvVar:   envVar,
@@ -176,12 +176,6 @@ func normalizeJobNameForEnvVar(jobName string) string {
 		}
 	}
 	return result.String()
-}
-
-// normalizeOutputNameForEnvVar converts an output name to a valid environment variable segment
-// Examples: "text" -> "TEXT", "comment_id" -> "COMMENT_ID"
-func normalizeOutputNameForEnvVar(outputName string) string {
-	return normalizeJobNameForEnvVar(outputName)
 }
 
 // getCustomJobsBeforeActivation returns a list of custom job names that run before the activation job

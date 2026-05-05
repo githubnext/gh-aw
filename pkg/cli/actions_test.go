@@ -4,6 +4,8 @@ package cli
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConvertToGitHubActionsEnv(t *testing.T) {
@@ -109,23 +111,40 @@ func TestConvertToGitHubActionsEnv(t *testing.T) {
 				"STRING_VAR": "${{ secrets.TOKEN }}",
 			},
 		},
+		{
+			name: "non-map input returns empty map",
+			input: []string{
+				"${API_TOKEN}",
+			},
+			envMetadata: []EnvironmentVariable{},
+			expected:    map[string]string{},
+		},
+		{
+			name: "env variable not in metadata and key differs from token name",
+			input: map[string]any{
+				"MY_KEY": "${SOME_TOKEN}",
+			},
+			envMetadata: []EnvironmentVariable{},
+			expected: map[string]string{
+				"MY_KEY": "${{ secrets.SOME_TOKEN }}",
+			},
+		},
+		{
+			name: "existing github actions env syntax is preserved unchanged",
+			input: map[string]any{
+				"VAR_ENV": "${{ env.EXISTING_ENV }}",
+			},
+			envMetadata: []EnvironmentVariable{},
+			expected: map[string]string{
+				"VAR_ENV": "${{ env.EXISTING_ENV }}",
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := convertToGitHubActionsEnv(tt.input, tt.envMetadata)
-
-			if len(result) != len(tt.expected) {
-				t.Errorf("Expected %d environment variables, got %d", len(tt.expected), len(result))
-			}
-
-			for key, expectedValue := range tt.expected {
-				if actualValue, exists := result[key]; !exists {
-					t.Errorf("Expected key '%s' not found in result", key)
-				} else if actualValue != expectedValue {
-					t.Errorf("For key '%s', expected '%s', got '%s'", key, expectedValue, actualValue)
-				}
-			}
+			assert.Equal(t, tt.expected, result, "convertToGitHubActionsEnv should produce the expected environment variable map")
 		})
 	}
 }

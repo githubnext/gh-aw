@@ -16,7 +16,7 @@ const { run } = req("./action_conclusion_otlp.cjs");
 const mockSendJobConclusionSpan = vi.fn();
 
 /** Env vars read by this module — cleared before each test */
-const MANAGED_ENV_VARS = ["OTEL_EXPORTER_OTLP_ENDPOINT", "INPUT_JOB_NAME", "INPUT_JOB-NAME", "GITHUB_AW_OTEL_JOB_START_MS"];
+const MANAGED_ENV_VARS = ["GH_AW_OTLP_ENDPOINTS", "INPUT_JOB_NAME", "INPUT_JOB-NAME", "GITHUB_AW_OTEL_JOB_START_MS"];
 
 describe("action_conclusion_otlp.cjs", () => {
   /** @type {Record<string, string | undefined>} */
@@ -49,11 +49,11 @@ describe("action_conclusion_otlp.cjs", () => {
     expect(typeof run).toBe("function");
   });
 
-  describe("when OTEL_EXPORTER_OTLP_ENDPOINT is not set", () => {
+  describe("when GH_AW_OTLP_ENDPOINTS is not set", () => {
     it("should log that OTLP export is skipped and JSONL mirror will be attempted", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping OTLP export (will attempt JSONL mirror)");
+      expect(console.log).toHaveBeenCalledWith("[otlp] GH_AW_OTLP_ENDPOINTS not set, skipping OTLP export (will attempt JSONL mirror)");
     });
 
     it("should still call sendJobConclusionSpan for JSONL mirror", async () => {
@@ -64,9 +64,9 @@ describe("action_conclusion_otlp.cjs", () => {
     });
   });
 
-  describe("when OTEL_EXPORTER_OTLP_ENDPOINT is set", () => {
+  describe("when GH_AW_OTLP_ENDPOINTS is set", () => {
     beforeEach(() => {
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:4318" }]);
     });
 
     it("should call sendJobConclusionSpan once", async () => {
@@ -84,7 +84,7 @@ describe("action_conclusion_otlp.cjs", () => {
     it("should log the endpoint URL in the sending message", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining("http://localhost:4318"));
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining("configured endpoints"));
     });
 
     describe("span name construction", () => {
@@ -116,7 +116,7 @@ describe("action_conclusion_otlp.cjs", () => {
 
         await run();
 
-        expect(console.log).toHaveBeenCalledWith('[otlp] sending conclusion span "gh-aw.setup.conclusion" to http://localhost:4318');
+        expect(console.log).toHaveBeenCalledWith('[otlp] sending conclusion span "gh-aw.setup.conclusion" to configured endpoints');
       });
 
       it("should handle different job names correctly", async () => {
@@ -172,7 +172,7 @@ describe("action_conclusion_otlp.cjs", () => {
 
   describe("error handling", () => {
     it("should propagate errors from sendJobConclusionSpan", async () => {
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:4318" }]);
       mockSendJobConclusionSpan.mockRejectedValueOnce(new Error("Network error"));
 
       // run() propagates the error; callers swallow it via .catch(() => {})

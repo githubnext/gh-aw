@@ -11,6 +11,7 @@ const mockCore = {
   error: vi.fn(),
   setFailed: vi.fn(),
   setOutput: vi.fn(),
+  exportVariable: vi.fn(),
   summary: {
     addRaw: vi.fn().mockReturnThis(),
     write: vi.fn().mockResolvedValue(undefined),
@@ -33,9 +34,17 @@ describe("pick_experiment", () => {
   // ── pickVariant ────────────────────────────────────────────────────────────
 
   describe("pickVariant", () => {
-    it("selects the first variant when counts are equal", () => {
+    it("breaks ties randomly for two-variant experiment when counts are equal", () => {
       const state = { counts: {} };
+      // Math.floor(0 * 2) = 0 → tied[0] = "A"
+      vi.spyOn(Math, "random").mockReturnValueOnce(0);
       expect(pickVariant("f", ["A", "B"], state)).toBe("A");
+
+      // Math.floor(0.5 * 2) = 1 → tied[1] = "B"
+      vi.spyOn(Math, "random").mockReturnValueOnce(0.5);
+      expect(pickVariant("f", ["A", "B"], state)).toBe("B");
+
+      vi.restoreAllMocks();
     });
 
     it("selects the least-used variant", () => {
@@ -48,14 +57,32 @@ describe("pick_experiment", () => {
       expect(pickVariant("f", ["A", "B", "C"], state)).toBe("C");
     });
 
-    it("returns the first variant when all counts are equal (tie-break by order)", () => {
+    it("randomly selects from all tied variants when all counts are equal", () => {
       const state = { counts: { f: { A: 1, B: 1, C: 1 } } };
+      // All three variants are tied; verify the random index is respected.
+      // Math.floor(0   * 3) = 0 → tied[0] = "A"
+      // Math.floor(0.4 * 3) = 1 → tied[1] = "B"  (0.4*3=1.2)
+      // Math.floor(0.7 * 3) = 2 → tied[2] = "C"  (0.7*3=2.1)
+      vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValueOnce(0.4).mockReturnValueOnce(0.7);
       expect(pickVariant("f", ["A", "B", "C"], state)).toBe("A");
+      expect(pickVariant("f", ["A", "B", "C"], state)).toBe("B");
+      expect(pickVariant("f", ["A", "B", "C"], state)).toBe("C");
+
+      vi.restoreAllMocks();
     });
 
-    it("handles unknown experiment name (no counts yet)", () => {
+    it("handles unknown experiment name (no counts yet) by picking randomly", () => {
       const state = { counts: {} };
+      // Both variants are tied with zero counts; verify the random index is respected.
+      // Math.floor(0   * 2) = 0 → tied[0] = "X"
+      // Math.floor(0.5 * 2) = 1 → tied[1] = "Y"
+      vi.spyOn(Math, "random").mockReturnValueOnce(0);
       expect(pickVariant("new", ["X", "Y"], state)).toBe("X");
+
+      vi.spyOn(Math, "random").mockReturnValueOnce(0.5);
+      expect(pickVariant("new", ["X", "Y"], state)).toBe("Y");
+
+      vi.restoreAllMocks();
     });
   });
 
@@ -83,22 +110,37 @@ describe("pick_experiment", () => {
   describe("loadState", () => {
     it("returns empty state when file does not exist", () => {
       const state = loadState(path.join(tmpDir, "nonexistent.json"));
-      expect(state).toEqual({ counts: {} });
+      expect(state).toEqual({ counts: {}, runs: [] });
     });
 
     it("returns empty state on invalid JSON", () => {
       const file = path.join(tmpDir, "bad.json");
       fs.writeFileSync(file, "not valid json");
       const state = loadState(file);
-      expect(state).toEqual({ counts: {} });
+      expect(state).toEqual({ counts: {}, runs: [] });
     });
 
     it("round-trips state through save and load", () => {
       const file = path.join(tmpDir, "state.json");
-      const orig = { counts: { f: { A: 3, B: 1 } } };
+      const orig = { counts: { f: { A: 3, B: 1 } }, runs: [] };
       saveState(file, orig);
       const loaded = loadState(file);
       expect(loaded).toEqual(orig);
+    });
+
+    it("initialises runs to [] when loading legacy state without runs field", () => {
+      const file = path.join(tmpDir, "state.json");
+      fs.writeFileSync(file, JSON.stringify({ counts: { f: { A: 1 } } }), "utf8");
+      const loaded = loadState(file);
+      expect(loaded.runs).toEqual([]);
+    });
+
+    it("preserves existing runs array when loading state", () => {
+      const file = path.join(tmpDir, "state.json");
+      const runs = [{ run_id: "123", timestamp: "2026-01-01T00:00:00.000Z", assignments: { f: "A" } }];
+      fs.writeFileSync(file, JSON.stringify({ counts: { f: { A: 1 } }, runs }), "utf8");
+      const loaded = loadState(file);
+      expect(loaded.runs).toEqual(runs);
     });
   });
 
@@ -147,6 +189,9 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant ("A") is selected.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       await main();
 
       // Individual output per experiment
@@ -154,6 +199,8 @@ describe("pick_experiment", () => {
       // Combined JSON output
       expect(mockCore.setOutput).toHaveBeenCalledWith("experiments", JSON.stringify({ feature1: "A" }));
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      vi.restoreAllMocks();
     });
 
     it("persists state between calls to simulate multi-run balance", async () => {
@@ -164,14 +211,18 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant ("X") is selected on the first run.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       // First run → X
       await main();
       const firstCall = mockCore.setOutput.mock.calls.find(c => c[0] === "feat");
       expect(firstCall?.[1]).toBe("X");
 
+      vi.restoreAllMocks();
       vi.clearAllMocks();
 
-      // Second run → Y (state persisted from first call)
+      // Second run → Y (state persisted from first call; Y has the lower count)
       await main();
       const secondCall = mockCore.setOutput.mock.calls.find(c => c[0] === "feat");
       expect(secondCall?.[1]).toBe("Y");
@@ -198,12 +249,17 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant is chosen for each experiment.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       await main();
 
       const assignmentsFile = path.join(tmpDir, "assignments.json");
       expect(fs.existsSync(assignmentsFile)).toBe(true);
       const assignments = JSON.parse(fs.readFileSync(assignmentsFile, "utf8"));
       expect(assignments).toEqual({ feature1: "A", style: "concise" });
+
+      vi.restoreAllMocks();
     });
 
     it("overwrites assignments.json on successive runs reflecting the current variant", async () => {
@@ -212,14 +268,18 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant ("X") is chosen on the first run.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       // First run → X
       await main();
       const assignmentsFile = path.join(tmpDir, "assignments.json");
       expect(JSON.parse(fs.readFileSync(assignmentsFile, "utf8"))).toEqual({ feat: "X" });
 
+      vi.restoreAllMocks();
       vi.clearAllMocks();
 
-      // Second run → Y
+      // Second run → Y (Y has the lower count after first run recorded X)
       await main();
       expect(JSON.parse(fs.readFileSync(assignmentsFile, "utf8"))).toEqual({ feat: "Y" });
     });
@@ -265,10 +325,15 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
       process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
 
+      // Force Math.random → 0 so the first tied variant ("concise") is chosen.
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
       await main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("style", "concise");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      vi.restoreAllMocks();
     });
 
     it("uses control variant when today is before start_date", async () => {
@@ -569,6 +634,123 @@ describe("pick_experiment", () => {
     it("passes through an object-form config unchanged", () => {
       const cfg = { variants: ["A", "B"], weight: [70, 30] };
       expect(normalizeConfig(cfg)).toBe(cfg);
+    });
+  });
+
+  // ── per-run metadata (state.runs) ─────────────────────────────────────────
+
+  describe("per-run metadata", () => {
+    it("appends a run record to state.runs after picking variants", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      // Pre-populate counts so Y is the deterministic least-used pick (avoids random tie-break).
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { feat: { X: 1, Y: 0 } }, runs: [] }), "utf8");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      process.env.GITHUB_RUN_ID = "42";
+
+      await main();
+
+      const state = loadState(stateFile);
+      expect(state.runs).toHaveLength(1);
+      expect(state.runs[0].run_id).toBe("42");
+      expect(state.runs[0].assignments).toEqual({ feat: "Y" });
+      expect(typeof state.runs[0].timestamp).toBe("string");
+    });
+
+    it("accumulates run records across multiple runs", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      process.env.GITHUB_RUN_ID = "1";
+
+      await main();
+      vi.clearAllMocks();
+
+      process.env.GITHUB_RUN_ID = "2";
+      await main();
+
+      const state = loadState(stateFile);
+      expect(state.runs).toHaveLength(2);
+      expect(state.runs[0].run_id).toBe("1");
+      expect(state.runs[1].run_id).toBe("2");
+    });
+
+    it("does not append a run record when no experiments are assigned", async () => {
+      process.env.GH_AW_EXPERIMENT_SPEC = "{}";
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      const stateFile = path.join(tmpDir, "state.json");
+      // state.json is not written when no experiments are declared
+      expect(fs.existsSync(stateFile)).toBe(false);
+    });
+
+    it("prunes runs to last MAX_RUN_HISTORY when run history exceeds the cap", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      // Pre-populate with 513 fake runs (above MAX_RUN_HISTORY = 512).
+      const existingRuns = Array.from({ length: 513 }, (_, i) => ({
+        run_id: String(i),
+        timestamp: "2026-01-01T00:00:00.000Z",
+        assignments: { feat: "X" },
+      }));
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { feat: { X: 513, Y: 0 } }, runs: existingRuns }), "utf8");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      const state = loadState(stateFile);
+      // 513 existing + 1 new = 514, pruned to last 512.
+      expect(state.runs).toHaveLength(512);
+      // The most recent run is always last.
+      expect(state.runs[state.runs.length - 1].assignments).toEqual({ feat: "Y" });
+    });
+  });
+
+  // ── OTEL resource attributes ──────────────────────────────────────────────
+
+  describe("OTEL resource attributes", () => {
+    it("exports OTEL_RESOURCE_ATTRIBUTES with experiment assignments", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      // Pre-populate so Y is the deterministic least-used pick.
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { feat: { X: 1, Y: 0 } }, runs: [] }), "utf8");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      delete process.env.OTEL_RESOURCE_ATTRIBUTES;
+
+      await main();
+
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("OTEL_RESOURCE_ATTRIBUTES", "experiment.feat=Y");
+    });
+
+    it("appends to existing OTEL_RESOURCE_ATTRIBUTES", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      // Pre-populate so Y is the deterministic least-used pick.
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { feat: { X: 1, Y: 0 } }, runs: [] }), "utf8");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({ feat: ["X", "Y"] });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      process.env.OTEL_RESOURCE_ATTRIBUTES = "service.name=myservice";
+
+      await main();
+
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("OTEL_RESOURCE_ATTRIBUTES", "service.name=myservice,experiment.feat=Y");
+    });
+
+    it("does not export OTEL_RESOURCE_ATTRIBUTES when no experiments are assigned", async () => {
+      process.env.GH_AW_EXPERIMENT_SPEC = "{}";
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      expect(mockCore.exportVariable).not.toHaveBeenCalled();
     });
   });
 });

@@ -118,8 +118,8 @@ Expected format:
 }
 ```
 
-- If the file does not exist, start at index 0.
-- If the queue in cache differs from the current file list (files added/removed), rebuild the queue from the current sorted list and reset index to 0.
+- If the file does not exist, count the total number of files in the sorted list (`TOTAL=$(...)`) and pick a **random** starting index with `$(( RANDOM % TOTAL ))`. This avoids always processing the same files first when the cache is cold.
+- If the queue in cache differs from the current file list (files added/removed), rebuild the queue from the current sorted list and reset the index to 0.
 - Pick the **next 5 files** starting from `last_processed_index + 1` (wrapping around if needed). This is your **batch** for this run.
 
 ## Step 3: Analyze and Optimize Each File

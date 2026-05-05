@@ -65,7 +65,7 @@ tools:
     toolsets: [default]
   edit:
   playwright:
-    args: ["--viewport-size", "1920x1080"]
+    mode: cli
   bash:
     - "find docs/src/content/docs *"
     - "find /tmp/gh-aw/cache-memory *"
@@ -191,14 +191,11 @@ pre-agent-steps:
         exit 1
       fi
 
-  - name: Capture Playwright base URL
+  - name: Write Playwright base URL
     run: |
-      SERVER_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
-      if [ -z "$SERVER_IP" ]; then
-        SERVER_IP=$(hostname -I | awk '{print $1}')
-      fi
-      echo "http://${SERVER_IP}:4321/gh-aw/" > /tmp/gh-aw/agent/playwright-base-url.txt
-      echo "Playwright base URL: http://${SERVER_IP}:4321/gh-aw/"
+      mkdir -p /tmp/gh-aw/agent
+      echo "http://localhost:4321/gh-aw/" > /tmp/gh-aw/agent/playwright-base-url.txt
+      echo "Playwright base URL: http://localhost:4321/gh-aw/"
 
 # Build steps for documentation
 steps:
@@ -399,7 +396,7 @@ Convert the modified file path to a page URL path:
 - Strip the `docs/src/content/docs/` prefix and the `.md` suffix, then append `/`
 - Example: `docs/src/content/docs/guides/ephemerals.md` → `guides/ephemerals/`
 
-Append that page path to the base URL (e.g., `http://172.30.0.20:4321/gh-aw/guides/ephemerals/`).
+Append that page path to the base URL (e.g., `http://localhost:4321/gh-aw/guides/ephemerals/`).
 
 #### Capture Screenshots via Sub-Agent
 
@@ -408,7 +405,7 @@ Use the `doc-page-screenshotter` agent, passing the full page URL as input. The 
 ```json
 {
   "success": true,
-  "screenshots": ["/tmp/gh-aw/mcp-logs/playwright/doc-screenshot.png"],
+  "screenshots": ["/tmp/gh-aw/screenshots/doc-screenshot.png"],
   "blocked_domains": [],
   "error": null
 }
@@ -425,7 +422,7 @@ Check the `screenshots` array returned by the `doc-page-screenshotter` sub-agent
 
 #### Upload Screenshots
 
-1. Call the `upload_asset` safe-output tool for each screenshot using absolute paths (for example `/tmp/gh-aw/mcp-logs/playwright/<screenshot>.png`)
+1. Call the `upload_asset` safe-output tool for each screenshot using absolute paths (for example `/tmp/gh-aw/screenshots/<screenshot>.png`)
 2. Record the returned asset URL for each screenshot to include in the PR description
 
 #### Report Blocked Domains
@@ -539,32 +536,34 @@ Return a JSON object only — no prose, no extra text:
 model: claude-haiku-4.5
 description: Navigates to a documentation page URL using Playwright and captures a full-page screenshot, returning a structured JSON result with screenshot paths and any blocked domains
 ---
-You are a documentation screenshot agent. Your input is a full page URL to screenshot (e.g., `http://172.30.0.20:4321/gh-aw/guides/ephemerals/`).
+You are a documentation screenshot agent. Your input is a full page URL to screenshot (e.g., `http://localhost:4321/gh-aw/guides/ephemerals/`).
 
-1. Navigate to the URL using the `playwright` CLI tool. Use `browser_navigate` with the URL. If navigation times out (Vite dev server can be slow with the default `load` wait), fall back to `browser_run_code_unsafe` with `waitUntil: 'domcontentloaded'`:
+1. Navigate to the URL using `playwright-cli`. Use `browser_navigate` with the URL. If navigation times out (Vite dev server can be slow with the default `load` wait), fall back to `browser_run_code_unsafe` with `waitUntil: 'domcontentloaded'`:
    ```bash
    # Primary: direct navigation
-   playwright browser_navigate --url "<URL>"
+   playwright-cli browser_navigate --url "<URL>"
    ```
    If the above times out, use this fallback instead:
    ```bash
-   playwright browser_run_code_unsafe --code "async (page) => { await page.goto('<URL>', { waitUntil: 'domcontentloaded', timeout: 30000 }); return { url: page.url(), title: await page.title() }; }"
+   playwright-cli browser_run_code_unsafe --code "async (page) => { await page.goto('<URL>', { waitUntil: 'domcontentloaded', timeout: 30000 }); return { url: page.url(), title: await page.title() }; }"
    ```
 
-2. Take a full-page screenshot:
+2. Set viewport to HD (1920×1080) and take a full-page screenshot:
    ```bash
-   playwright browser_take_screenshot --filename /tmp/gh-aw/mcp-logs/playwright/doc-screenshot.png --full-page true
+   mkdir -p /tmp/gh-aw/screenshots
+   playwright-cli browser_resize --width 1920 --height 1080
+   playwright-cli browser_take_screenshot --filename /tmp/gh-aw/screenshots/doc-screenshot.png --full-page true
    ```
 
 3. Check the browser console for blocked network requests:
    ```bash
-   playwright browser_console_messages
+   playwright-cli browser_console_messages
    ```
    Look for errors mentioning blocked CSS, font, or image domains.
 
 4. Verify the screenshot was saved:
    ```bash
-   ls -lh /tmp/gh-aw/mcp-logs/playwright/
+   ls -lh /tmp/gh-aw/screenshots/
    ```
 
 Return a JSON object only — no prose, no extra text:
@@ -572,7 +571,7 @@ Return a JSON object only — no prose, no extra text:
 ```json
 {
   "success": true,
-  "screenshots": ["/tmp/gh-aw/mcp-logs/playwright/doc-screenshot.png"],
+  "screenshots": ["/tmp/gh-aw/screenshots/doc-screenshot.png"],
   "blocked_domains": [],
   "error": null
 }

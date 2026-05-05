@@ -30,7 +30,10 @@ imports:
 
 tools:
   cli-proxy: true
-  cache-memory: true
+  repo-memory:
+    branch-name: memory/sergo
+    description: "Historical Sergo Go analysis results, strategies, and tool snapshots"
+    file-glob: ["*.json", "*.jsonl"]
   github:
     mode: gh-proxy
     toolsets: [default, issues]
@@ -59,8 +62,8 @@ You are **Sergo**, the ultimate expert in Go code quality and the Serena MCP (Mo
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
-- **Memory Location**: `/tmp/gh-aw/cache-memory/`
-- **Serena Memory**: `/tmp/gh-aw/cache-memory/serena/`
+- **Memory Location**: `/tmp/gh-aw/repo-memory/default/` (the `default` subdirectory is the fixed repo-memory mount point)
+- **Serena Memory**: `/tmp/gh-aw/repo-memory/default/serena/`
 
 ## Your Mission
 
@@ -79,7 +82,7 @@ Each day, you will:
 
 ### 1.1 Ensure Serena Memory Directory Exists
 ```bash
-mkdir -p /tmp/gh-aw/cache-memory/serena
+mkdir -p /tmp/gh-aw/repo-memory/default/serena
 ```
 
 ### 1.2 List All Available Serena Tools
@@ -97,8 +100,8 @@ Document all available Serena tools by exploring the MCP server's tool list.
 ### 1.3 Load Previous Tools List from Cache
 Check if you have a cached tools list from previous runs:
 ```bash
-if [ -f /tmp/gh-aw/cache-memory/sergo-tools-list.json ]; then
-  cat /tmp/gh-aw/cache-memory/sergo-tools-list.json
+if [ -f /tmp/gh-aw/repo-memory/default/sergo-tools-list.json ]; then
+  cat /tmp/gh-aw/repo-memory/default/sergo-tools-list.json
 else
   echo "No cached tools list found — this is a first run or the cache expired. Start fresh without a tools history."
 fi
@@ -124,7 +127,7 @@ Compare the current tools list with the cached version:
 Save the current tools list to cache:
 ```bash
 # Save updated tools list
-echo '{"last_updated": "<ISO-8601-timestamp>", "tools": [...]}' > /tmp/gh-aw/cache-memory/sergo-tools-list.json
+echo '{"last_updated": "<ISO-8601-timestamp>", "tools": [...]}' > /tmp/gh-aw/repo-memory/default/sergo-tools-list.json
 ```
 
 ## Step 2: Load Strategy History from Cache
@@ -132,8 +135,8 @@ echo '{"last_updated": "<ISO-8601-timestamp>", "tools": [...]}' > /tmp/gh-aw/cac
 ### 2.1 Load Previous Strategies
 Read the strategy history to understand what analysis approaches have been used before:
 ```bash
-if [ -f /tmp/gh-aw/cache-memory/sergo-strategies.jsonl ]; then
-  cat /tmp/gh-aw/cache-memory/sergo-strategies.jsonl
+if [ -f /tmp/gh-aw/repo-memory/default/sergo-strategies.jsonl ]; then
+  cat /tmp/gh-aw/repo-memory/default/sergo-strategies.jsonl
 else
   echo "No strategy history found — this is a first run or the cache expired. Start fresh with a new exploration strategy."
 fi
@@ -409,7 +412,7 @@ Rate your analysis run on a scale of 0-10 based on:
 Append your results to the strategy history:
 ```bash
 # Add new strategy execution to JSONL file
-echo '{"date": "2026-01-15", "strategy": "your-strategy-name", "tools": ["tool1", "tool2"], "findings": 5, "tasks_created": 2, "success_score": 8, "notes": "Additional context"}' >> /tmp/gh-aw/cache-memory/sergo-strategies.jsonl
+echo '{"date": "2026-01-15", "strategy": "your-strategy-name", "tools": ["tool1", "tool2"], "findings": 5, "tasks_created": 2, "success_score": 8, "notes": "Additional context"}' >> /tmp/gh-aw/repo-memory/default/sergo-strategies.jsonl
 ```
 
 ### 8.3 Update Statistics
@@ -417,7 +420,7 @@ echo '{"date": "2026-01-15", "strategy": "your-strategy-name", "tools": ["tool1"
 Update aggregate statistics:
 ```bash
 # Save updated stats
-cat > /tmp/gh-aw/cache-memory/sergo-stats.json << 'EOF'
+cat > /tmp/gh-aw/repo-memory/default/sergo-stats.json << 'EOF'
 {
   "total_runs": 42,
   "total_findings": 178,

@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -21,7 +22,7 @@ type mockSHAResolver struct {
 	err error
 }
 
-func (m *mockSHAResolver) ResolveSHA(_, _ string) (string, error) {
+func (m *mockSHAResolver) ResolveSHA(_ context.Context, _, _ string) (string, error) {
 	return m.sha, m.err
 }
 func TestEnsureCopilotSetupSteps(t *testing.T) {

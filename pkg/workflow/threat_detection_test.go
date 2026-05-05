@@ -1343,7 +1343,9 @@ func TestDetectionJobPermissionsIndentation(t *testing.T) {
 				t.Fatalf("AddJob() error: %v", err)
 			}
 
-			yamlOutput := compiler.jobManager.RenderToYAML()
+			var yamlBuf strings.Builder
+			compiler.jobManager.WriteJobsYAML(&yamlBuf)
+			yamlOutput := yamlBuf.String()
 
 			for _, expected := range tt.wantContains {
 				if !strings.Contains(yamlOutput, expected) {

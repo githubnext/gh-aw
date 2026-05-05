@@ -27,6 +27,8 @@ strict: true
 network:
   allowed:
     - defaults
+imports:
+  - shared/observability-otlp.md
 tools:
   bash:
     - "git status"

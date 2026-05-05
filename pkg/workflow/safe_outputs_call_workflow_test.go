@@ -278,7 +278,9 @@ func TestCallWorkflowJobYAMLOutput(t *testing.T) {
 	require.True(t, exists, "Job should exist")
 
 	// Render all jobs to YAML
-	yamlOutput := compiler.jobManager.RenderToYAML()
+	var yamlBuf strings.Builder
+	compiler.jobManager.WriteJobsYAML(&yamlBuf)
+	yamlOutput := yamlBuf.String()
 
 	assert.Contains(t, yamlOutput, "uses: ./.github/workflows/worker-a.lock.yml", "Should contain uses directive")
 	assert.Contains(t, yamlOutput, "secrets: inherit", "Should inherit secrets")

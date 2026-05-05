@@ -72,13 +72,25 @@ require(path.join(__dirname, "shim.cjs"));
  */
 async function logSpan(toolName, attributes = {}, options = {}) {
   try {
-    const { buildAttr, buildOTLPPayload, sendOTLPSpan, sanitizeOTLPPayload, appendToOTLPJSONL, generateSpanId, isValidTraceId, isValidSpanId, SPAN_KIND_CLIENT } = require(path.join(__dirname, "send_otlp_span.cjs"));
+    const {
+      buildAttr,
+      buildOTLPPayload,
+      parseOTLPEndpoints,
+      sendOTLPToAllEndpoints,
+      sanitizeOTLPPayload,
+      appendToOTLPJSONL,
+      generateSpanId,
+      isValidTraceId,
+      isValidSpanId,
+      SPAN_KIND_CLIENT,
+      buildGitHubActionsResourceAttributes,
+      readJSONIfExists,
+    } = require(path.join(__dirname, "send_otlp_span.cjs"));
 
     const now = Date.now();
     const startMs = options.startMs ?? now;
     const endMs = options.endMs ?? now;
 
-    const endpoint = options.endpoint ?? process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "";
     const traceId = options.traceId ?? process.env.GITHUB_AW_OTEL_TRACE_ID ?? "";
     const parentSpanId = options.parentSpanId ?? process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID ?? "";
 
@@ -88,6 +100,26 @@ async function logSpan(toolName, attributes = {}, options = {}) {
 
     const spanAttrs = Object.entries(attributes).map(([k, v]) => buildAttr(k, v));
 
+    // Read aw_info.json first: in compiled workflows GH_AW_INFO_VERSION and
+    // GH_AW_INFO_STAGED are only present during the setup step and are not
+    // exported to later github-script steps.  aw_info.json is the authoritative
+    // source (written by generate_aw_info.cjs and read by conclusion spans).
+    const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
+    const staged = awInfo.staged === true || process.env.GH_AW_INFO_STAGED === "true";
+    const scopeVersion = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
+
+    const resourceAttributes = buildGitHubActionsResourceAttributes({
+      repository: process.env.GITHUB_REPOSITORY || "",
+      runId: process.env.GITHUB_RUN_ID || "",
+      eventName: process.env.GITHUB_EVENT_NAME || "",
+      ref: process.env.GITHUB_REF || "",
+      refName: process.env.GITHUB_REF_NAME || "",
+      headRef: process.env.GITHUB_HEAD_REF || "",
+      sha: process.env.GITHUB_SHA || "",
+      workflowRef: process.env.GH_AW_CURRENT_WORKFLOW_REF || process.env.GITHUB_WORKFLOW_REF || "",
+      staged,
+    });
+
     const payload = buildOTLPPayload({
       traceId,
       spanId: generateSpanId(),
@@ -96,8 +128,10 @@ async function logSpan(toolName, attributes = {}, options = {}) {
       startMs,
       endMs,
       serviceName: toolName,
+      scopeVersion,
       kind: SPAN_KIND_CLIENT,
       attributes: spanAttrs,
+      resourceAttributes,
       statusCode: options.isError ? 2 : 1,
       ...(options.isError && options.errorMessage ? { statusMessage: options.errorMessage } : {}),
     });
@@ -105,9 +139,17 @@ async function logSpan(toolName, attributes = {}, options = {}) {
     // Sanitize before mirroring so that the local JSONL debug file never
     // contains secrets, just like the over-the-wire export.
     appendToOTLPJSONL(sanitizeOTLPPayload(payload));
-    // Only attempt the HTTP export when an endpoint is configured.
-    if (endpoint) {
-      await sendOTLPSpan(endpoint, payload, { skipJSONL: true });
+
+    // When an endpoint override is provided use the legacy single-endpoint path;
+    // otherwise fan out to all configured endpoints concurrently.
+    if (options.endpoint) {
+      const { sendOTLPSpan } = require(path.join(__dirname, "send_otlp_span.cjs"));
+      await sendOTLPSpan(options.endpoint, payload, { skipJSONL: true });
+    } else {
+      const endpoints = parseOTLPEndpoints();
+      if (endpoints.length > 0) {
+        await sendOTLPToAllEndpoints(endpoints, payload, { skipJSONL: true });
+      }
     }
   } catch (err) {
     // Export failures must never break the workflow.

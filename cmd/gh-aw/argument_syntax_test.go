@@ -172,9 +172,9 @@ func TestMCPSubcommandArgumentSyntax(t *testing.T) {
 			expectedUse: "add [workflow] [server]",
 		},
 		{
-			name:        "mcp list-tools requires server with optional workflow",
+			name:        "mcp list-tools has optional workflow",
 			subcommand:  "list-tools",
-			expectedUse: "list-tools <server> [workflow]",
+			expectedUse: "list-tools [workflow]",
 		},
 	}
 

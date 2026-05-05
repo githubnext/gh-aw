@@ -8,7 +8,9 @@ name: Dev
 description: Daily status report for gh-aw project
 timeout-minutes: 30
 strict: false
-engine: pi
+engine:
+  id: pi
+  model: copilot/claude-sonnet-4-20250514
 
 permissions:
   contents: read
@@ -65,7 +67,7 @@ Generate a daily status report for the gh-aw project, focusing on documentation 
    - Any issues where the documentation actually already contains the answer (and the issue could be closed with a pointer)
    - Gaps where no documentation exists for a reported problem
 
-4. Post the report as an issue with the date in the title.
+4. Post the report as an issue with the date in the title. **If no documentation problems are found in issues**, call `noop` with "No documentation problems found in open issues — no action needed" instead of creating a report issue.
 
 Keep the report informative but concise.
 

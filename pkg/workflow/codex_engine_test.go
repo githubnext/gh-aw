@@ -1007,3 +1007,78 @@ func TestCodexEngineWithExpressionVersion(t *testing.T) {
 		t.Errorf("Expression should NOT be embedded directly in npm install command, got:\n%s", installStep)
 	}
 }
+
+func TestCodexEngineGetHarnessScriptName(t *testing.T) {
+	engine := NewCodexEngine()
+	if engine.GetHarnessScriptName() != "codex_harness.cjs" {
+		t.Errorf("Expected 'codex_harness.cjs', got '%s'", engine.GetHarnessScriptName())
+	}
+}
+
+func TestCodexEngineExecutionUsesHarness(t *testing.T) {
+	engine := NewCodexEngine()
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step for Codex execution, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Default execution should use the codex_harness.cjs
+	if !strings.Contains(stepContent, "codex_harness.cjs") {
+		t.Errorf("Expected codex_harness.cjs in execution step, got:\n%s", stepContent)
+	}
+
+	// Harness should appear before the prompt file argument
+	harnessIdx := strings.Index(stepContent, "codex_harness.cjs")
+	promptFileIdx := strings.Index(stepContent, "--prompt-file")
+	if harnessIdx == -1 {
+		t.Fatal("Could not find codex_harness.cjs in step")
+	}
+	if promptFileIdx == -1 {
+		t.Fatal("Could not find --prompt-file in step")
+	}
+	if harnessIdx > promptFileIdx {
+		t.Error("Expected codex_harness.cjs to appear before --prompt-file")
+	}
+
+	// Should use --prompt-file instead of $INSTRUCTION when harness is active
+	if !strings.Contains(stepContent, "--prompt-file") {
+		t.Errorf("Expected --prompt-file in harness-wrapped execution step, got:\n%s", stepContent)
+	}
+	if strings.Contains(stepContent, "\"$INSTRUCTION\"") {
+		t.Errorf("Expected no $INSTRUCTION variable when harness is active, got:\n%s", stepContent)
+	}
+}
+
+func TestCodexEngineExecutionCustomHarness(t *testing.T) {
+	engine := NewCodexEngine()
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:            "codex",
+			HarnessScript: "custom_codex_harness.cjs",
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step for Codex execution, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Should use custom harness script
+	if !strings.Contains(stepContent, "custom_codex_harness.cjs") {
+		t.Errorf("Expected custom_codex_harness.cjs in execution step, got:\n%s", stepContent)
+	}
+
+	// Should NOT use the default harness path
+	if strings.Contains(stepContent, "actions/codex_harness.cjs") {
+		t.Errorf("Expected default harness path to be overridden, got:\n%s", stepContent)
+	}
+}

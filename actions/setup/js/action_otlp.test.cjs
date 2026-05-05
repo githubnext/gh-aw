@@ -26,7 +26,7 @@ describe("action_setup_otlp run()", () => {
   beforeEach(() => {
     originalEnv = { ...process.env };
     // Clear any OTLP endpoint so send_otlp_span.cjs is a no-op
-    delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    delete process.env.GH_AW_OTLP_ENDPOINTS;
     delete process.env.GITHUB_OUTPUT;
     delete process.env.GITHUB_ENV;
     delete process.env.SETUP_START_MS;
@@ -83,7 +83,7 @@ describe("action_setup_otlp run()", () => {
     const inputTraceId = "a".repeat(32);
     const tmpOut = path.join(path.dirname(__dirname), `action_setup_otlp_test_input_tid_${Date.now()}.txt`);
     try {
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
       process.env.INPUT_TRACE_ID = inputTraceId;
       process.env.GITHUB_OUTPUT = tmpOut;
       process.env.GITHUB_ENV = tmpOut;
@@ -106,7 +106,7 @@ describe("action_setup_otlp run()", () => {
     const tmpOut = path.join(path.dirname(__dirname), `action_setup_otlp_test_output_${Date.now()}.txt`);
     try {
       // Provide a fake endpoint (fetch will fail gracefully)
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
       process.env.SETUP_START_MS = String(Date.now() - 1000);
       process.env.GITHUB_OUTPUT = tmpOut;
       process.env.GITHUB_ENV = tmpOut;
@@ -146,7 +146,7 @@ describe("action_setup_otlp run()", () => {
   });
 
   it("does not throw when GITHUB_OUTPUT is not set", async () => {
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     await expect(runSetup()).resolves.toBeUndefined();
     fetchSpy.mockRestore();
@@ -155,7 +155,7 @@ describe("action_setup_otlp run()", () => {
   it("uses job name from INPUT_JOB-NAME (hyphen form) in setup span when INPUT_JOB_NAME is not set", async () => {
     const tmpOut = path.join(path.dirname(__dirname), `action_setup_otlp_test_job_name_hyphen_${Date.now()}.txt`);
     try {
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
       process.env["INPUT_JOB-NAME"] = "agent";
       delete process.env.INPUT_JOB_NAME;
       process.env.GITHUB_OUTPUT = tmpOut;
@@ -181,7 +181,7 @@ describe("action_setup_otlp run()", () => {
   it("includes github.repository, github.run_id resource attributes in setup span", async () => {
     const tmpOut = path.join(path.dirname(__dirname), `action_setup_otlp_test_resource_attrs_${Date.now()}.txt`);
     try {
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
       process.env.GITHUB_REPOSITORY = "owner/repo";
       process.env.GITHUB_RUN_ID = "111222333";
       process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
@@ -221,7 +221,7 @@ describe("action_conclusion_otlp run()", () => {
 
   beforeEach(() => {
     originalEnv = { ...process.env };
-    delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    delete process.env.GH_AW_OTLP_ENDPOINTS;
     delete process.env.INPUT_JOB_NAME;
   });
 
@@ -234,14 +234,14 @@ describe("action_conclusion_otlp run()", () => {
   });
 
   it("resolves without throwing when endpoint is configured", async () => {
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     await expect(runConclusion()).resolves.toBeUndefined();
     fetchSpy.mockRestore();
   });
 
   it("uses job name from INPUT_JOB_NAME in span name", async () => {
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
     process.env.INPUT_JOB_NAME = "agent";
     let capturedBody;
     const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
@@ -258,7 +258,7 @@ describe("action_conclusion_otlp run()", () => {
   });
 
   it("uses default span name when INPUT_JOB_NAME is not set", async () => {
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
     let capturedBody;
     const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
       capturedBody = opts?.body;
@@ -274,7 +274,7 @@ describe("action_conclusion_otlp run()", () => {
   });
 
   it("records agent failure conclusion as STATUS_CODE_ERROR when GH_AW_AGENT_CONCLUSION is 'failure'", async () => {
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
     process.env.GH_AW_AGENT_CONCLUSION = "failure";
     let capturedBody;
     const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
@@ -295,7 +295,7 @@ describe("action_conclusion_otlp run()", () => {
   });
 
   it("records timed_out conclusion as STATUS_CODE_ERROR when GH_AW_AGENT_CONCLUSION is 'timed_out'", async () => {
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
     process.env.GH_AW_AGENT_CONCLUSION = "timed_out";
     let capturedBody;
     const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
@@ -316,7 +316,7 @@ describe("action_conclusion_otlp run()", () => {
   });
 
   it("records success conclusion as STATUS_CODE_OK when GH_AW_AGENT_CONCLUSION is 'success'", async () => {
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
     process.env.GH_AW_AGENT_CONCLUSION = "success";
     let capturedBody;
     const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
@@ -337,7 +337,7 @@ describe("action_conclusion_otlp run()", () => {
   });
 
   it("records cancelled conclusion as STATUS_CODE_ERROR when GH_AW_AGENT_CONCLUSION is 'cancelled'", async () => {
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
     process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
     let capturedBody;
     const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
@@ -358,7 +358,7 @@ describe("action_conclusion_otlp run()", () => {
   });
 
   it("omits gh-aw.agent.conclusion attribute when GH_AW_AGENT_CONCLUSION is not set", async () => {
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
     delete process.env.GH_AW_AGENT_CONCLUSION;
     let capturedBody;
     const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
@@ -377,7 +377,7 @@ describe("action_conclusion_otlp run()", () => {
   });
 
   it("uses GITHUB_AW_OTEL_JOB_START_MS as span start time when set", async () => {
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
     const jobStartMs = Date.now() - 120_000; // 2 minutes ago
     process.env.GITHUB_AW_OTEL_JOB_START_MS = String(jobStartMs);
     let capturedBody;
@@ -400,7 +400,7 @@ describe("action_conclusion_otlp run()", () => {
   });
 
   it("falls back to current time as span start when GITHUB_AW_OTEL_JOB_START_MS is not set", async () => {
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
     delete process.env.GITHUB_AW_OTEL_JOB_START_MS;
     const beforeMs = Date.now();
     let capturedBody;

@@ -135,9 +135,8 @@ func consolidatedSafeOutputsJobWillExist(safeOutputs *SafeOutputsConfig) bool {
 	if len(safeOutputs.Scripts) > 0 || len(safeOutputs.Actions) > 0 || len(safeOutputs.Steps) > 0 {
 		return true
 	}
-	// Reuse the existing reflection-based check with the dynamic fields cleared.
-	// hasAnySafeOutputEnabled will then fall through to reflection over safeOutputFieldMapping,
-	// which covers every builtin pointer type (create-issue, add-comment, etc.).
+	// Reuse the direct-check function with the dynamic fields cleared.
+	// hasAnySafeOutputEnabled covers every builtin pointer type (create-issue, add-comment, etc.).
 	stripped := *safeOutputs
 	stripped.Jobs = nil
 	stripped.Scripts = nil

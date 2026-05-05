@@ -74,19 +74,21 @@ When triggered by an issue event (opened/edited), scheduled run, or manual dispa
 When an issue is opened or edited:
 
 1. **Analyze the issue** that triggered this workflow (available in `github.event.issue`)
-2. **Check if the author is a community member** — if `author_association` is `NONE`, `FIRST_TIME_CONTRIBUTOR`, `FIRST_TIMER`, or `CONTRIBUTOR`, and the author is **not** a bot (`user.type != "Bot"` and login does not end with `[bot]`), include `community` in the labels to apply
-3. **Classify the issue** based on its title and body content
-4. **Apply all labels** (including `community` if applicable) in a single `add_labels` call
-5. If uncertain about classification, add the `needs-triage` label for human review
+2. **Check if the issue already has labels** — if it already has appropriate labels covering its type and component, call `noop` with "Issue #[N] already has labels: [comma-separated label names, e.g. bug, documentation]" and stop.
+3. **Check if the author is a community member** — if `author_association` is `NONE`, `FIRST_TIME_CONTRIBUTOR`, `FIRST_TIMER`, or `CONTRIBUTOR`, and the author is **not** a bot (`user.type != "Bot"` and login does not end with `[bot]`), include `community` in the labels to apply
+4. **Classify the issue** based on its title and body content
+5. **Apply all labels** (including `community` if applicable) in a single `add_labels` call
+6. If uncertain about classification, add the `needs-triage` label for human review
 
 ### On Scheduled Runs (Every 6 Hours)
 
 When running on schedule:
 
 1. **Read pre-fetched unlabeled issues** from `/tmp/gh-aw/agent/unlabeled-issues.json` (populated by the pre-agent step). If the file is missing or contains an empty JSON array (`[]`), fall back to `search_issues` with query `repo:github/gh-aw is:issue is:open no:label` — **do NOT use `list_issues`** as it returns an oversized payload.
-2. **Process up to 10 unlabeled issues** (respecting safe-output limits)
-3. **Apply labels** to each issue based on classification; the pre-fetched data already includes `number`, `title`, and `body`. Only call `issue_read` when you need additional metadata not present in those fields (e.g., comments, reactions, or author association details not available in the pre-fetch).
-4. **Create a summary report** as a discussion with statistics on processed issues
+2. **If there are no unlabeled issues**, call `noop` with "No unlabeled issues found — no action needed" and stop. Do not create a discussion.
+3. **Process up to 10 unlabeled issues** (respecting safe-output limits)
+4. **Apply labels** to each issue based on classification; the pre-fetched data already includes `number`, `title`, and `body`. Only call `issue_read` when you need additional metadata not present in those fields (e.g., comments, reactions, or author association details not available in the pre-fetch).
+5. **Create a summary report** as a discussion with statistics on processed issues
 
 ### On Manual/On-Demand Runs (workflow_dispatch)
 

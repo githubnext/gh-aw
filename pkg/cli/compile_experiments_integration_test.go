@@ -57,7 +57,7 @@ func TestCompileExperimentsBareArrayForm(t *testing.T) {
 }
 
 // TestCompileExperimentsRichSchema verifies that the rich object-form experiment fields
-// (hypothesis, secondary_metrics, guardrail_metrics, min_samples, owner) are all
+// (hypothesis, secondary_metrics, guardrail_metrics, min_samples) are all
 // serialised into GH_AW_EXPERIMENT_SPEC in the compiled lock file.
 func TestCompileExperimentsRichSchema(t *testing.T) {
 	setup := setupIntegrationTest(t)
@@ -93,7 +93,6 @@ func TestCompileExperimentsRichSchema(t *testing.T) {
 
 	// Verify all new fields are present and have correct values.
 	assertJSONStringField(t, cfg, "hypothesis", "H0: no change in tokens. H1: concise reduces by >=15%")
-	assertJSONStringField(t, cfg, "owner", "@team-agents")
 
 	// secondary_metrics
 	var secondaryMetrics []string
@@ -131,6 +130,21 @@ func TestCompileExperimentsRichSchema(t *testing.T) {
 	var weights []int
 	require.NoError(t, json.Unmarshal(cfg["weight"], &weights), "weight should parse")
 	assert.Equal(t, []int{60, 40}, weights, "weight should match")
+
+	// analysis_type
+	assertJSONStringField(t, cfg, "analysis_type", "t_test")
+
+	// tags
+	var tags []string
+	require.NoError(t, json.Unmarshal(cfg["tags"], &tags), "tags should parse")
+	assert.Equal(t, []string{"cost", "prompting"}, tags, "tags should match")
+
+	// notify.issue
+	var notify struct {
+		Issue int `json:"issue"`
+	}
+	require.NoError(t, json.Unmarshal(cfg["notify"], &notify), "notify should parse")
+	assert.Equal(t, 5678, notify.Issue, "notify.issue should be 5678")
 
 	t.Logf("Rich-schema experiment workflow compiled successfully to %s", lockPath)
 }

@@ -26,26 +26,27 @@ func appendRepoFlagFromEnv(args []string) []string {
 	return args
 }
 
+// logsArgs holds the input parameters for the logs tool.
+type logsArgs struct {
+	WorkflowName      string   `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
+	Count             int      `json:"count,omitempty" jsonschema:"Number of workflow runs to download (default: 100)"`
+	StartDate         string   `json:"start_date,omitempty" jsonschema:"Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
+	EndDate           string   `json:"end_date,omitempty" jsonschema:"Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
+	Engine            string   `json:"engine,omitempty" jsonschema:"Filter logs by agentic engine type (claude, codex, copilot)"`
+	Firewall          bool     `json:"firewall,omitempty" jsonschema:"Filter to only runs with firewall enabled"`
+	NoFirewall        bool     `json:"no_firewall,omitempty" jsonschema:"Filter to only runs without firewall enabled"`
+	FilteredIntegrity bool     `json:"filtered_integrity,omitempty" jsonschema:"Filter to only runs that contain DIFC integrity-filtered events in gateway logs"`
+	Branch            string   `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
+	AfterRunID        int64    `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
+	BeforeRunID       int64    `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
+	Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: 1 for MCP server)"`
+	MaxTokens         int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored. Output is always written to a file."`
+	Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
+}
+
 // The logs tool requires write+ access and checks actor permissions.
 // Returns an error if schema generation fails.
 func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
-	type logsArgs struct {
-		WorkflowName      string   `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
-		Count             int      `json:"count,omitempty" jsonschema:"Number of workflow runs to download (default: 100)"`
-		StartDate         string   `json:"start_date,omitempty" jsonschema:"Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
-		EndDate           string   `json:"end_date,omitempty" jsonschema:"Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
-		Engine            string   `json:"engine,omitempty" jsonschema:"Filter logs by agentic engine type (claude, codex, copilot)"`
-		Firewall          bool     `json:"firewall,omitempty" jsonschema:"Filter to only runs with firewall enabled"`
-		NoFirewall        bool     `json:"no_firewall,omitempty" jsonschema:"Filter to only runs without firewall enabled"`
-		FilteredIntegrity bool     `json:"filtered_integrity,omitempty" jsonschema:"Filter to only runs that contain DIFC integrity-filtered events in gateway logs"`
-		Branch            string   `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
-		AfterRunID        int64    `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
-		BeforeRunID       int64    `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
-		Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: 1 for MCP server)"`
-		MaxTokens         int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored. Output is always written to a file."`
-		Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
-	}
-
 	// Generate schema with elicitation defaults
 	logsSchema, err := GenerateSchema[logsArgs]()
 	if err != nil {
@@ -185,6 +186,8 @@ from where the previous request stopped due to timeout.`,
 		mcpLog.Printf("Executing logs tool: workflow=%s, count=%d, firewall=%v, no_firewall=%v, filtered_integrity=%v, timeout=%d, command_args=%v",
 			args.WorkflowName, args.Count, args.Firewall, args.NoFirewall, args.FilteredIntegrity, timeoutValue, cmdArgs)
 
+		notifyProgress(ctx, req, 0, 100, "Downloading workflow logs...")
+
 		// Execute the CLI command
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
@@ -233,6 +236,8 @@ from where the previous request stopped due to timeout.`,
 		// Always write output to a file and return schema + file path
 		finalOutput := buildLogsFileResponse(outputStr)
 
+		notifyProgress(ctx, req, 100, 100, "Workflow logs downloaded")
+
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: finalOutput},
@@ -243,19 +248,20 @@ from where the previous request stopped due to timeout.`,
 	return nil
 }
 
+// auditArgs holds the input parameters for the audit tool.
+type auditArgs struct {
+	RunIDOrURL   string   `json:"run_id_or_url,omitempty"   jsonschema:"Deprecated: use run_ids_or_urls instead. Single GitHub Actions workflow run ID or URL."`
+	RunIDsOrURLs []string `json:"run_ids_or_urls,omitempty" jsonschema:"One or more workflow run IDs or URLs. Single item: detailed audit report. Multiple items: diff mode with first as base (see tool description for accepted formats)."`
+	Artifacts    []string `json:"artifacts,omitempty"        jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
+	MaxTokens    int      `json:"max_tokens,omitempty"       jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
+	Experiment   string   `json:"experiment,omitempty"       jsonschema:"Filter to runs that include this experiment name. When set, runs whose experiment artifact does not contain an assignment for this experiment name are skipped."`
+	Variant      string   `json:"variant,omitempty"          jsonschema:"Filter to runs assigned this specific variant value. Requires experiment to be set."`
+}
+
 // registerAuditTool registers the audit tool with the MCP server.
 // The audit tool requires write+ access and checks actor permissions.
 // Returns an error if schema generation fails.
 func registerAuditTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
-	type auditArgs struct {
-		RunIDOrURL   string   `json:"run_id_or_url,omitempty"   jsonschema:"Deprecated: use run_ids_or_urls instead. Single GitHub Actions workflow run ID or URL."`
-		RunIDsOrURLs []string `json:"run_ids_or_urls,omitempty" jsonschema:"One or more workflow run IDs or URLs. Single item: detailed audit report. Multiple items: diff mode with first as base (see tool description for accepted formats)."`
-		Artifacts    []string `json:"artifacts,omitempty"        jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
-		MaxTokens    int      `json:"max_tokens,omitempty"       jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
-		Experiment   string   `json:"experiment,omitempty"       jsonschema:"Filter to runs that include this experiment name. When set, runs whose experiment artifact does not contain an assignment for this experiment name are skipped."`
-		Variant      string   `json:"variant,omitempty"          jsonschema:"Filter to runs assigned this specific variant value. Requires experiment to be set."`
-	}
-
 	// Generate schema for audit tool
 	auditSchema, err := GenerateSchema[auditArgs]()
 	if err != nil {
@@ -351,6 +357,8 @@ Multi-run diff returns JSON describing changes between the base and each compari
 
 		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
 
+		notifyProgress(ctx, req, 0, 100, "Downloading audit artifacts...")
+
 		// Execute the CLI command.
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
@@ -407,6 +415,8 @@ Multi-run diff returns JSON describing changes between the base and each compari
 			}, nil, nil
 		}
 
+		notifyProgress(ctx, req, 100, 100, "Audit complete")
+
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: outputStr},
@@ -417,15 +427,16 @@ Multi-run diff returns JSON describing changes between the base and each compari
 	return nil
 }
 
+// auditDiffArgs holds the input parameters for the audit-diff tool.
+type auditDiffArgs struct {
+	BaseRunID     string   `json:"base_run_id"     jsonschema:"Numeric ID of the base (reference) workflow run"`
+	CompareRunIDs []string `json:"compare_run_ids" jsonschema:"One or more numeric IDs of the comparison runs"`
+	Artifacts     []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
+}
+
 // registerAuditDiffTool registers the audit-diff tool with the MCP server.
 // It exposes the `gh aw audit diff` subcommand for comparing two workflow runs.
 func registerAuditDiffTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
-	type auditDiffArgs struct {
-		BaseRunID     string   `json:"base_run_id"     jsonschema:"Numeric ID of the base (reference) workflow run"`
-		CompareRunIDs []string `json:"compare_run_ids" jsonschema:"One or more numeric IDs of the comparison runs"`
-		Artifacts     []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
-	}
-
 	schema, err := GenerateSchema[auditDiffArgs]()
 	if err != nil {
 		mcpLog.Printf("Failed to generate audit-diff tool schema: %v", err)
@@ -480,6 +491,10 @@ Returns JSON describing the differences between the base run and each comparison
 			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
 		}
 
+		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
+
+		notifyProgress(ctx, req, 0, 100, "Downloading artifacts for diff...")
+
 		cmd := execCmd(ctx, cmdArgs...)
 		stdout, err := cmd.Output()
 		outputStr := string(stdout)
@@ -514,12 +529,34 @@ Returns JSON describing the differences between the base run and each comparison
 			}, nil, nil
 		}
 
+		notifyProgress(ctx, req, 100, 100, "Diff complete")
+
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{&mcp.TextContent{Text: outputStr}},
 		}, nil, nil
 	})
 
 	return nil
+}
+
+// notifyProgress sends a progress notification to the MCP client if the request
+// includes a progress token. The req, req.Params, and req.Session fields are
+// checked for nil before use. Errors are silently ignored because progress
+// notifications are best-effort; the tool result is not affected. If the client
+// has disconnected or the notification fails for any reason, the tool continues
+// executing normally.
+func notifyProgress(ctx context.Context, req *mcp.CallToolRequest, progress, total float64, message string) {
+	if req == nil || req.Session == nil {
+		return
+	}
+	if token := req.Params.GetProgressToken(); token != nil {
+		_ = req.Session.NotifyProgress(ctx, &mcp.ProgressNotificationParams{
+			ProgressToken: token,
+			Progress:      progress,
+			Total:         total,
+			Message:       message,
+		})
+	}
 }
 
 // filtering out debug log lines (e.g. "workflow:script_registry Creating... +151ns").

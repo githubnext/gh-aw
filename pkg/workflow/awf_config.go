@@ -12,7 +12,7 @@
 // The generated config file follows the AWF config file format:
 //
 //	{
-//	  "$schema": "https://github.com/github/gh-aw-firewall/schemas/awf-config.v1.json",
+//	  "$schema": "https://github.com/github/gh-aw-firewall/releases/download/vX.Y.Z/awf-config.schema.json",
 //	  "network": {
 //	    "allowDomains": ["github.com", "api.github.com"],
 //	    "blockDomains": ["ads.example.com"]
@@ -48,6 +48,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -67,6 +68,17 @@ type AWFConfigFile struct {
 
 	// Container contains container execution configuration.
 	Container *AWFContainerConfig `json:"container,omitempty"`
+
+	// Models contains model alias and fallback policy definitions.
+	// Keys are alias names (empty string "" = default policy); values are ordered
+	// lists of vendor/modelid patterns or other alias names to try in sequence.
+	// AWF resolves aliases recursively; loops are not permitted.
+	//
+	// NOTE: Pending AWF binary support (config.models is not yet recognised by the
+	// AWF firewall schema). This field is intentionally omitted from JSON output
+	// until the AWF schema at awf-config.v1.json is updated to include "models".
+	// The field remains here so the struct is ready once AWF support lands.
+	Models map[string][]string `json:"-"`
 }
 
 // AWFNetworkConfig is the "network" section of the AWF config file.
@@ -110,6 +122,30 @@ type AWFContainerConfig struct {
 	ImageTag string `json:"imageTag,omitempty"`
 }
 
+// buildAWFConfigSchemaURL returns the release-pinned JSON schema URL for the AWF config file.
+// The URL is versioned so that schema validation tools always reference the exact schema
+// that matches the AWF binary being used. When DefaultFirewallVersion is bumped the URL
+// automatically tracks the new release.
+//
+// If firewallConfig carries an explicit version (e.g. sandbox.agent.version) that version
+// is used; otherwise DefaultFirewallVersion is used.
+func buildAWFConfigSchemaURL(firewallConfig *FirewallConfig) string {
+	version := string(constants.DefaultFirewallVersion)
+	if firewallConfig != nil && firewallConfig.Version != "" {
+		version = firewallConfig.Version
+	}
+	// Special-case "latest": the GitHub Releases /latest/download/ shortcut serves
+	// assets from the most recent release without requiring a tag in the path.
+	if strings.EqualFold(version, "latest") {
+		return "https://github.com/github/gh-aw-firewall/releases/latest/download/awf-config.schema.json"
+	}
+	// Ensure version has the 'v' prefix required by GitHub release tag URLs.
+	if !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
+	return fmt.Sprintf("https://github.com/github/gh-aw-firewall/releases/download/%s/awf-config.schema.json", version)
+}
+
 // BuildAWFConfigJSON generates a compact JSON config file for AWF from the provided
 // command configuration. The JSON is single-line (no indentation) for safe embedding
 // in a shell printf command.
@@ -119,8 +155,11 @@ type AWFContainerConfig struct {
 func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	awfConfigLog.Printf("Building AWF config JSON: engine=%s, allowed_domains=%q", config.EngineName, config.AllowedDomains)
 
+	// Resolve firewall config once — used for both the schema URL and the container image tag.
+	firewallConfig := getFirewallConfig(config.WorkflowData)
+
 	awfConfig := AWFConfigFile{
-		Schema: "https://github.com/github/gh-aw-firewall/schemas/awf-config.v1.json",
+		Schema: buildAWFConfigSchemaURL(firewallConfig),
 	}
 
 	// ── Network section ──────────────────────────────────────────────────────
@@ -173,13 +212,18 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	awfConfig.APIProxy = apiProxy
 
 	// ── Container section ─────────────────────────────────────────────────────
-	firewallConfig := getFirewallConfig(config.WorkflowData)
 	awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
 	if awfImageTag != "" {
 		awfConfig.Container = &AWFContainerConfig{
 			ImageTag: awfImageTag,
 		}
 		awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
+	}
+
+	// ── Models section ────────────────────────────────────────────────────────
+	if config.WorkflowData != nil && len(config.WorkflowData.ModelMappings) > 0 {
+		awfConfig.Models = config.WorkflowData.ModelMappings
+		awfConfigLog.Printf("Models section: %d alias entries", len(config.WorkflowData.ModelMappings))
 	}
 
 	jsonBytes, err := json.Marshal(awfConfig)

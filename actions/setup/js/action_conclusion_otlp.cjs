@@ -50,7 +50,7 @@ const { getActionInput } = require("./action_input_utils.cjs");
  * @returns {Promise<void>}
  */
 async function run() {
-  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
 
   // Read the job-start timestamp written by action_setup_otlp so the conclusion
   // span duration covers the actual job execution window, not just this step's overhead.
@@ -60,15 +60,15 @@ async function run() {
   const jobName = getActionInput("JOB_NAME");
   const spanName = jobName ? `gh-aw.${jobName}.conclusion` : "gh-aw.job.conclusion";
 
-  if (!endpoint) {
-    console.log("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping OTLP export (will attempt JSONL mirror)");
+  if (!endpoints) {
+    console.log("[otlp] GH_AW_OTLP_ENDPOINTS not set, skipping OTLP export (will attempt JSONL mirror)");
   } else {
-    console.log(`[otlp] sending conclusion span "${spanName}" to ${endpoint}`);
+    console.log(`[otlp] sending conclusion span "${spanName}" to configured endpoints`);
   }
 
   await sendOtlpSpan.sendJobConclusionSpan(spanName, { startMs });
 
-  if (endpoint) {
+  if (endpoints) {
     console.log(`[otlp] conclusion span export attempted`);
   }
 }

@@ -1,6 +1,9 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
+)
 
 var playwrightToolsLog = logger.New("workflow:playwright_tools")
 
@@ -31,12 +34,6 @@ func GetPlaywrightTools() []any {
 		"browser_type",
 		"browser_wait_for",
 	}
-
-	// Convert []string to []any for compatibility with the configuration system
-	result := make([]any, len(tools))
-	for i, tool := range tools {
-		result[i] = tool
-	}
-	playwrightToolsLog.Printf("Returning %d Playwright tools", len(result))
-	return result
+	playwrightToolsLog.Printf("Returning %d Playwright tools", len(tools))
+	return sliceutil.Map(tools, func(t string) any { return t })
 }

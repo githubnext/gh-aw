@@ -2730,12 +2730,38 @@
         }
       ]
     },
+    "models": {
+      "description": "Named model alias definitions with ordered fallback lists, resolved recursively by AWF. Each key is an alias name (use empty string \"\" for the default policy). Each value is an ordered list of vendor/modelid glob patterns or other alias names to try in sequence. Entries defined here are merged on top of the builtin aliases; the main workflow file always wins over imported aliases. Builtin aliases include: sonnet, haiku, opus, gpt-5, gpt-5-mini, gpt-5-codex, gemini-flash, gemini-pro, small, mini, large, auto.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "A vendor/modelid glob pattern (e.g. 'copilot/*sonnet*') or an alias name (e.g. 'sonnet') to resolve recursively."
+        },
+        "description": "Ordered list of model patterns or alias names to try in sequence."
+      },
+      "examples": [
+        {
+          "sonnet": ["mygateway/*sonnet-v3*"],
+          "": ["sonnet", "gpt-5-codex"]
+        }
+      ]
+    },
     "experiments": {
-      "description": "A/B testing experiments. Each key is an experiment name; the value is either an array of two or more variant strings (bare-array form) or an object with a 'variants' field plus optional metadata fields (description, metric, weight, issue, start_date, end_date, hypothesis, secondary_metrics, guardrail_metrics, min_samples, owner). At runtime the activation job picks a variant using actions/cache to maintain consistent assignment across runs. Use ${{ experiments.<name> }} in the workflow prompt to reference the selected variant. When multiple experiments are declared, assignments are statistically balanced using a counter that round-robins across variants (or weighted when 'weight' is provided).",
+      "description": "A/B testing experiments. Each key is an experiment name; the value is either an array of two or more variant strings (bare-array form) or an object with a 'variants' field plus optional metadata fields (description, metric, weight, issue, start_date, end_date, hypothesis, secondary_metrics, guardrail_metrics, min_samples, owner). The reserved 'storage' key controls how experiment state is persisted: 'repo' (default) commits state to a git branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with hyphens removed) for durability; 'cache' uses GitHub Actions cache. At runtime the activation job picks a variant and persists the updated counters. Use ${{ experiments.<name> }} in the workflow prompt to reference the selected variant. When multiple experiments are declared, assignments are statistically balanced using a least-used counter that round-robins across variants (or weighted when 'weight' is provided); ties are broken randomly so no variant is systematically favoured on the first run.",
       "type": "object",
       "propertyNames": {
-        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
-        "description": "Experiment names must be valid identifiers: start with a letter or underscore, followed by letters, digits, or underscores."
+        "anyOf": [
+          {
+            "const": "storage",
+            "description": "Reserved key for storage mode configuration."
+          },
+          {
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+            "description": "Experiment names must be valid identifiers: start with a letter or underscore, followed by letters, digits, or underscores."
+          }
+        ]
       },
       "additionalProperties": {
         "oneOf": [
@@ -2827,9 +2853,34 @@
                 "default": 20,
                 "description": "Minimum number of runs required per variant before a PROMOTE recommendation is made. Defaults to 20 when not specified. Progress toward this target is shown in step summaries and daily reports."
               },
-              "owner": {
+              "analysis_type": {
                 "type": "string",
-                "description": "Owner or team responsible for this experiment (e.g. '@team-agents'). Shown in step summaries and daily reports."
+                "enum": ["t_test", "mann_whitney", "proportion_test", "bayesian_ab"],
+                "description": "Statistical test to use for automated analysis by the reporting workflow. Valid values: t_test (Welch's two-sample t-test), mann_whitney (non-parametric rank test), proportion_test (two-proportion z-test), bayesian_ab (Bayesian A/B test)."
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Free-form labels for filtering experiments in dashboards and reports (e.g. ['cost', 'prompting', 'claude'])."
+              },
+              "notify": {
+                "type": "object",
+                "description": "Where to post significance alerts when the experiment reaches statistical significance.",
+                "properties": {
+                  "discussion": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "GitHub discussion number to post a significance comment to."
+                  },
+                  "issue": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "GitHub issue number to post a significance comment to."
+                  }
+                },
+                "additionalProperties": false
               }
             },
             "additionalProperties": false,
@@ -2849,19 +2900,37 @@
             "metric": "effective_tokens",
             "secondary_metrics": ["duration_ms", "discussion_word_count"],
             "guardrail_metrics": [
-              { "name": "success_rate", "threshold": ">=0.95" },
-              { "name": "empty_output_rate", "threshold": "==0" }
+              {
+                "name": "success_rate",
+                "threshold": ">=0.95"
+              },
+              {
+                "name": "empty_output_rate",
+                "threshold": "==0"
+              }
             ],
             "min_samples": 25,
-            "owner": "@team-agents",
             "weight": [50, 50],
             "issue": 1234,
             "start_date": "2026-05-01",
-            "end_date": "2026-06-15"
+            "end_date": "2026-06-15",
+            "analysis_type": "t_test",
+            "tags": ["cost", "prompting"],
+            "notify": {
+              "issue": 1234
+            }
           },
           "model_temp": ["low", "high"]
         }
-      ]
+      ],
+      "properties": {
+        "storage": {
+          "type": "string",
+          "enum": ["cache", "repo"],
+          "default": "repo",
+          "description": "Storage backend for experiment state. 'repo' (default) persists state to a git branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with hyphens removed, e.g. 'my-workflow' -> 'experiments/myworkflow') for durability across cache evictions. 'cache' uses GitHub Actions cache (legacy behaviour). Repo storage is recommended because experiment data is valuable and more durable than cache."
+        }
+      }
     },
     "infer": {
       "type": "boolean",
@@ -4045,20 +4114,20 @@
               "properties": {
                 "version": {
                   "type": ["string", "number"],
-                  "description": "Optional Playwright container version (e.g., 'v1.41.0', 1.41, 20). Numeric values are automatically converted to strings at runtime.",
-                  "examples": ["v1.41.0", 1.41, 20]
+                  "description": "Optional version pin. In CLI mode (recommended): the @playwright/cli npm package version (e.g., '0.1.11'). In MCP mode (deprecated): the Playwright browser Docker image version (e.g., 'v1.56.1'). Omit to use the default version.",
+                  "examples": ["0.1.11", "v1.56.1"]
                 },
                 "args": {
                   "type": "array",
-                  "description": "Optional additional arguments to append to the generated MCP server command",
+                  "description": "Optional additional arguments to append to the generated MCP server command (MCP mode only)",
                   "items": {
                     "type": "string"
                   }
                 },
                 "mode": {
                   "type": "string",
-                  "description": "Integration mode: 'mcp' (default) runs a Docker-based MCP server; 'cli' installs @playwright/cli via npm for token-efficient CLI invocations.",
-                  "enum": ["mcp", "cli"]
+                  "description": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations \u2014 use playwright-cli commands in bash and localhost to reach local servers; 'mcp' (deprecated) runs a Docker-based MCP server.",
+                  "enum": ["cli", "mcp"]
                 }
               },
               "additionalProperties": false
@@ -8678,7 +8747,7 @@
             "body-header": {
               "type": "string",
               "description": "Custom header text prepended to every message body generated by safe outputs (issues, comments, pull requests, discussions). Applied after any threat-detection caution alert and before the agent-generated content. Available placeholders: {workflow_name}, {run_url}.",
-              "examples": ["> ⚠️ This content was generated by [{workflow_name}]({run_url}).", "> 🤖 AI-generated output — please review before acting."]
+              "examples": ["> \u26a0\ufe0f This content was generated by [{workflow_name}]({run_url}).", "> \ud83e\udd16 AI-generated output \u2014 please review before acting."]
             },
             "append-only-comments": {
               "type": "boolean",
@@ -9006,10 +9075,74 @@
           "description": "OTLP (OpenTelemetry Protocol) trace export configuration.",
           "properties": {
             "endpoint": {
-              "type": "string",
-              "description": "OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static URL is provided, its hostname is automatically added to the network firewall allowlist."
+              "description": "OTLP endpoint configuration. Accepts a plain URL string (backward-compat), a single {url, headers} object, or an array of {url, headers} objects for multi-endpoint concurrent fan-out. Encoded as GH_AW_OTLP_ENDPOINTS (JSON array).",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static URL is provided, its hostname is automatically added to the network firewall allowlist."
+                },
+                {
+                  "type": "object",
+                  "description": "A single OTLP endpoint with a URL and optional per-endpoint headers.",
+                  "required": ["url"],
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static URL is provided, its hostname is automatically added to the network firewall allowlist."
+                    },
+                    "headers": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "description": "Map of HTTP header names to values. Values support GitHub Actions expressions such as ${{ secrets.TOKEN }}.",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "string",
+                          "description": "Deprecated: use the map form instead. Comma-separated list of key=value HTTP headers (e.g. 'Authorization=Bearer <token>'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_HEADERS }}."
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "array",
+                  "description": "Multiple OTLP collector endpoints to export traces to concurrently. Each entry has its own URL and optional per-endpoint headers.",
+                  "items": {
+                    "type": "object",
+                    "description": "A single OTLP endpoint with a URL and optional per-endpoint headers.",
+                    "required": ["url"],
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "description": "OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static URL is provided, its hostname is automatically added to the network firewall allowlist."
+                      },
+                      "headers": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "description": "Map of HTTP header names to values. Values support GitHub Actions expressions such as ${{ secrets.TOKEN }}.",
+                            "additionalProperties": {
+                              "type": "string"
+                            }
+                          },
+                          {
+                            "type": "string",
+                            "description": "Deprecated: use the map form instead. Comma-separated list of key=value HTTP headers (e.g. 'Authorization=Bearer <token>'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_HEADERS }}."
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              ]
             },
             "headers": {
+              "description": "HTTP headers for the backward-compat string endpoint form. Only used when endpoint is a plain string; object/array endpoint entries carry their own per-endpoint headers.",
               "oneOf": [
                 {
                   "type": "object",

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -64,7 +65,7 @@ func generateInstallCLISteps(actionMode ActionMode, version string, actionTag st
 // the tag-based reference (repo@tag).
 func resolveActionRef(actionRepo, tag string, resolver ActionSHAResolver) string {
 	if resolver != nil && tag != "" && tag != "dev" {
-		sha, err := resolver.ResolveSHA(actionRepo, tag)
+		sha, err := resolver.ResolveSHA(context.Background(), actionRepo, tag)
 		if err != nil {
 			maintenanceLog.Printf("Failed to resolve SHA for %s@%s: %v, falling back to tag reference", actionRepo, tag, err)
 		} else if sha != "" {

@@ -15,6 +15,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/spf13/cobra"
 )
 
 func TestListToolsForMCP(t *testing.T) {
@@ -321,11 +322,58 @@ func TestDisplayToolsList(t *testing.T) {
 func TestNewMCPListToolsSubcommand(t *testing.T) {
 	cmd := NewMCPListToolsSubcommand()
 
-	if cmd.Use != "list-tools <server> [workflow]" {
-		t.Errorf("Expected Use to be 'list-tools <server> [workflow]', got: %s", cmd.Use)
+	if cmd.Use != "list-tools [workflow]" {
+		t.Errorf("Expected Use to be 'list-tools [workflow]', got: %s", cmd.Use)
 	}
 
 	if cmd.Short != "List available tools for a specific MCP server" {
 		t.Errorf("Expected Short description, got: %s", cmd.Short)
 	}
+
+	serverFlag := cmd.Flags().Lookup("server")
+	if serverFlag == nil {
+		t.Error("Expected 'server' flag to be defined")
+	} else if serverFlag.Annotations == nil || len(serverFlag.Annotations["cobra_annotation_bash_completion_one_required_flag"]) == 0 {
+		t.Error("Expected 'server' flag to be marked as required")
+	}
+}
+
+func TestMCPListToolsValidArgsFunction(t *testing.T) {
+	cmd := NewMCPListToolsSubcommand()
+
+	t.Run("no_completions_when_first_arg_already_provided", func(t *testing.T) {
+		completions, directive := cmd.ValidArgsFunction(cmd, []string{"my-workflow"}, "")
+		if len(completions) != 0 {
+			t.Errorf("Expected no completions when first arg is already provided, got: %v", completions)
+		}
+		if directive != cobra.ShellCompDirectiveNoFileComp {
+			t.Errorf("Expected ShellCompDirectiveNoFileComp, got: %v", directive)
+		}
+	})
+
+	t.Run("completions_offered_for_first_arg", func(t *testing.T) {
+		// Set up a temporary workflow directory so CompleteWorkflowNames finds files.
+		tmpDir := testutil.TempDir(t, "test-*")
+		workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
+		if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+			t.Fatalf("Failed to create workflows dir: %v", err)
+		}
+		content := "---\nengine: copilot\n---\n# Workflow\n"
+		if err := os.WriteFile(filepath.Join(workflowsDir, "my-workflow.md"), []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+		origDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get current directory: %v", err)
+		}
+		defer os.Chdir(origDir)
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("Failed to change to temp directory: %v", err)
+		}
+
+		completions, _ := cmd.ValidArgsFunction(cmd, []string{}, "")
+		if len(completions) == 0 {
+			t.Error("Expected at least one completion for first positional arg when workflows exist")
+		}
+	})
 }

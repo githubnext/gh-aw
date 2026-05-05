@@ -287,6 +287,12 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		c.IncrementWarningCount()
 	}
 
+	// Emit experimental warning for experiments feature
+	if len(workflowData.Experiments) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: experiments"))
+		c.IncrementWarningCount()
+	}
+
 	// Warn when slash_command and bots are both configured: if a bot listed in bots: posts
 	// a comment that starts with the slash command text (e.g. /command-name), the
 	// check_command_position check will pass and the bot will trigger the workflow —

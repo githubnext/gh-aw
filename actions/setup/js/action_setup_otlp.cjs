@@ -40,7 +40,7 @@ const { getActionInput } = require("./action_input_utils.cjs");
  * @returns {Promise<void>}
  */
 async function run() {
-  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
 
   const { sendJobSetupSpan, isValidTraceId, isValidSpanId } = require(path.join(__dirname, "send_otlp_span.cjs"));
 
@@ -65,17 +65,17 @@ async function run() {
     process.env.INPUT_JOB_NAME = inputJobName;
   }
 
-  if (!endpoint) {
-    console.log("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping setup span");
+  if (!endpoints) {
+    console.log("[otlp] GH_AW_OTLP_ENDPOINTS not set, skipping setup span");
   } else {
-    console.log(`[otlp] sending setup span to ${endpoint}`);
+    console.log(`[otlp] sending setup span to configured endpoints`);
   }
 
   const { traceId, spanId } = await sendJobSetupSpan({ startMs, traceId: inputTraceId || undefined });
 
   console.log(`[otlp] resolved trace-id=${traceId}`);
 
-  if (endpoint) {
+  if (endpoints) {
     console.log(`[otlp] setup span sent (traceId=${traceId}, spanId=${spanId})`);
   }
 

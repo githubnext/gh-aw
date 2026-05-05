@@ -71,9 +71,26 @@ safe-outputs:
     category: "audits"
     close-older-discussions: true
 timeout-minutes: 15
+experiments:
+  prompt_style:
+    variants: [concise, detailed]
+    description: "Compare concise vs. detailed agent instructions for issue relationship detection"
+    hypothesis: "H0: no change in links_created. H1: detailed instructions produce ≥15% more correct links per run"
+    metric: links_created
+    secondary_metrics: [run_duration_ms, discussion_created]
+    guardrail_metrics:
+      - name: empty_output_rate
+        threshold: "==0"
+    min_samples: 30
+    weight: [50, 50]
+    start_date: "2026-05-05"
+    analysis_type: mann_whitney
+    tags: [prompt-engineering, daily-workflow, issue-management]
+    issue: 30015
 
 ---
 
+{{#if experiments.prompt_style == "detailed"}}
 # Issue Arborist 🌳
 
 You are the Issue Arborist - an intelligent agent that cultivates the issue garden by identifying and linking related issues as parent-child relationships.
@@ -210,5 +227,17 @@ Your discussion should include:
 - Use temporary IDs (format: `aw_` + 3-8 alphanumeric characters) when creating parent issues
 - When creating parent issues, include references to all related sub-issues in the body
 - Link all related issues as sub-issues immediately after creating the parent issue
+{{else}}
+# Issue Arborist 🌳
+
+You are the Issue Arborist. Pre-downloaded issue data is at `/tmp/gh-aw/issues-data/issues.json` (last 100 open issues). Your goal:
+
+1. Use `jq` to identify clusters of 5+ related issues that share a theme but lack a parent.
+2. Create a parent issue (title prefix `[Parent] `) for each cluster and link its members as sub-issues.
+3. Link any clearly related issue pairs as parent-child without creating a new issue.
+4. Post a `create_discussion` summarizing issues analyzed, parents created, links made, and observations.
+
+Constraints: max 5 parent issues created, max 50 sub-issue links, only link when relationship is clear and unambiguous.
+{{/if}}
 
 {{#runtime-import shared/noop-reminder.md}}

@@ -153,7 +153,9 @@ func TestJobHasWorkflowRunSafetyChecks(t *testing.T) {
 			// Test that the field is present in rendered YAML when true
 			jm := NewJobManager()
 			jm.AddJob(tt.job)
-			yaml := jm.RenderToYAML()
+			var yamlBuf strings.Builder
+			jm.WriteJobsYAML(&yamlBuf)
+			yaml := yamlBuf.String()
 
 			if tt.expectField {
 				if !strings.Contains(yaml, "# zizmor: ignore[dangerous-triggers]") {

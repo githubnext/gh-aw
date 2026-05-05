@@ -386,20 +386,60 @@ func cleanupAllIncludes(verbose bool) error {
 	return err
 }
 
+// hasDirectiveMarker reports whether content contains any @include, @import, or {{#import
+// directive marker using a single forward scan of the content.
+func hasDirectiveMarker(content string) bool {
+	for i := 0; i < len(content); {
+		// A single IndexAny call locates the next '@' or '{' in one pass, so
+		// the content is traversed at most once regardless of which byte appears first.
+		idx := strings.IndexAny(content[i:], "@{")
+		if idx < 0 {
+			return false
+		}
+		pos := i + idx
+		rest := content[pos:]
+		switch rest[0] {
+		case '@':
+			if strings.HasPrefix(rest, "@include") || strings.HasPrefix(rest, "@import") {
+				return true
+			}
+		case '{':
+			if strings.HasPrefix(rest, "{{#import") {
+				return true
+			}
+		}
+		i = pos + 1
+	}
+	return false
+}
+
 // findIncludesInContent finds all import references in content
 func findIncludesInContent(content, baseDir string, verbose bool) ([]string, error) {
 	_ = baseDir // unused parameter for now, keeping for potential future use
 	_ = verbose // unused parameter for now, keeping for potential future use
-	var includes []string
 
-	for line := range strings.Lines(content) {
-		path := parseIncludePath(line)
-		if path != "" {
+	// Fast path: skip the line scan entirely when no directive markers are present.
+	if !hasDirectiveMarker(content) {
+		return []string{}, nil
+	}
+
+	var includes []string
+	// Manual index-based scan avoids the iter.Seq yield overhead of strings.Lines.
+	for remaining := content; remaining != ""; {
+		var line string
+		if idx := strings.IndexByte(remaining, '\n'); idx >= 0 {
+			line = remaining[:idx]
+			remaining = remaining[idx+1:]
+		} else {
+			line = remaining
+			remaining = ""
+		}
+		if path := parseIncludePath(line); path != "" {
 			includes = append(includes, path)
 		}
 	}
 
-	return includes, nil // strings.Lines iterates over an in-memory string; no I/O errors can occur.
+	return includes, nil
 }
 
 // parseIncludePath extracts the file path from @include/@import/{{#import}} directive lines
@@ -409,6 +449,12 @@ func findIncludesInContent(content, baseDir string, verbose bool) ([]string, err
 func parseIncludePath(line string) string {
 	trimmed := strings.TrimSpace(line)
 	if len(trimmed) == 0 {
+		return ""
+	}
+
+	// Fast path: the vast majority of lines are not directives.
+	// Checking the first byte avoids three full HasPrefix comparisons.
+	if trimmed[0] != '@' && trimmed[0] != '{' {
 		return ""
 	}
 

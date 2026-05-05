@@ -3,6 +3,7 @@
 
 const { randomBytes } = require("crypto");
 const fs = require("fs");
+const { buildWorkflowCallId } = require("./aw_context.cjs");
 const path = require("path");
 const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
@@ -93,6 +94,96 @@ function buildAttr(key, value) {
   return { key, value: { stringValue: String(value) } };
 }
 
+/**
+ * Build the workflow-call identifier for the current run when enough GitHub
+ * context is available.
+ *
+ * @param {string} runId
+ * @param {string} runAttempt
+ * @param {string} [workflowRef]
+ * @returns {string}
+ */
+function buildCurrentWorkflowCallId(runId, runAttempt, workflowRef = process.env.GH_AW_CURRENT_WORKFLOW_REF || process.env.GITHUB_WORKFLOW_REF || "") {
+  return buildWorkflowCallId(runId, runAttempt, workflowRef);
+}
+
+/**
+ * Parse setup-time aw_context passed via environment before aw_info.json exists.
+ *
+ * @param {string | undefined} raw
+ * @returns {Record<string, unknown>}
+ */
+function parseSetupAwContext(raw) {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function readContextString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * Resolve live episode correlation attributes directly from runtime context.
+ *
+ * Prefer the canonical lineage fields propagated in aw_context: episode_id for
+ * the full automation session, hop_id for the current workflow invocation, and
+ * parent_hop_id for the immediate caller. Legacy workflow_call_id is accepted
+ * only as a compatibility fallback when the canonical fields are absent. For
+ * standalone runs we fall back to the current run's run_id-run_attempt pair so
+ * every live span is still queryable as a bounded execution unit.
+ *
+ * @param {object} awInfo
+ * @param {string} runId
+ * @param {string} runAttempt
+ * @returns {Array<{key: string, value: object}>}
+ */
+function buildEpisodeAttributesFromContext(awInfo, runId, runAttempt) {
+  const currentHopId = buildCurrentWorkflowCallId(runId, runAttempt);
+  const inheritedHopId = readContextString(awInfo.context?.hop_id) || readContextString(awInfo.context?.workflow_call_id);
+  const episodeId = readContextString(awInfo.context?.episode_id) || inheritedHopId || currentHopId;
+  const parentHopId = readContextString(awInfo.context?.parent_hop_id) || (inheritedHopId && inheritedHopId !== currentHopId ? inheritedHopId : "");
+  const originEvent = readContextString(awInfo.context?.origin_event) || readContextString(awInfo.context?.event_type);
+  const rootRepo = readContextString(awInfo.context?.root_repo) || readContextString(awInfo.context?.repo);
+  const rootWorkflowId = readContextString(awInfo.context?.root_workflow_id) || readContextString(awInfo.context?.workflow_id);
+
+  if (!episodeId) {
+    return [];
+  }
+
+  const attributes = [buildAttr("gh-aw.episode.id", episodeId), buildAttr("gh-aw.episode.kind", parentHopId ? "workflow_call" : "run")];
+
+  if (currentHopId) {
+    attributes.push(buildAttr("gh-aw.hop.id", currentHopId));
+    attributes.push(buildAttr("gh-aw.workflow_call.id", currentHopId));
+  }
+  if (parentHopId) {
+    attributes.push(buildAttr("gh-aw.hop.parent_id", parentHopId));
+    attributes.push(buildAttr("gh-aw.workflow_call.parent_id", parentHopId));
+  }
+  if (originEvent) {
+    attributes.push(buildAttr("gh-aw.origin.event", originEvent));
+  }
+  if (rootRepo) {
+    attributes.push(buildAttr("gh-aw.root.repo", rootRepo));
+  }
+  if (rootWorkflowId) {
+    attributes.push(buildAttr("gh-aw.root.workflow_id", rootWorkflowId));
+  }
+
+  return attributes;
+}
+
 // ---------------------------------------------------------------------------
 // OTLP SpanKind constants
 // ---------------------------------------------------------------------------
@@ -131,51 +222,180 @@ const SPAN_KIND_CONSUMER = 5;
  */
 
 /**
- * Build an OTLP/HTTP JSON traces payload wrapping a single span.
- *
- * @param {OTLPSpanOptions} opts
- * @returns {object} - Ready to be serialised as JSON and POSTed to `/v1/traces`
+ * @typedef {Object} OTLPSpanRecordOptions
+ * @property {string} traceId
+ * @property {string} spanId
+ * @property {string} [parentSpanId]
+ * @property {string} spanName
+ * @property {number} startMs
+ * @property {number} endMs
+ * @property {Array<{key: string, value: object}>} attributes
+ * @property {number} [statusCode]
+ * @property {string} [statusMessage]
+ * @property {number} [kind]
+ * @property {Array<{timeUnixNano: string, name: string, attributes: Array<{key: string, value: object}>}>} [events]
  */
-function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes, resourceAttributes, statusCode, statusMessage, kind = SPAN_KIND_INTERNAL, events }) {
+
+/**
+ * Build the OTLP span object nested under `scopeSpans[].spans[]`.
+ *
+ * @param {OTLPSpanRecordOptions} opts
+ * @returns {object}
+ */
+function buildOTLPSpan({ traceId, spanId, parentSpanId, spanName, startMs, endMs, attributes, statusCode, statusMessage, kind = SPAN_KIND_INTERNAL, events }) {
   const code = typeof statusCode === "number" ? statusCode : 1; // STATUS_CODE_OK
   /** @type {{ code: number, message?: string }} */
   const status = { code };
   if (statusMessage) {
     status.message = statusMessage;
   }
+  return {
+    traceId,
+    spanId,
+    ...(parentSpanId ? { parentSpanId } : {}),
+    name: spanName,
+    kind,
+    startTimeUnixNano: toNanoString(startMs),
+    endTimeUnixNano: toNanoString(endMs),
+    status,
+    attributes,
+    ...(events && events.length > 0 ? { events } : {}),
+  };
+}
+
+/**
+ * Build resource attributes for an OTLP traces payload.
+ *
+ * @param {string} serviceName
+ * @param {string | undefined} scopeVersion
+ * @param {Array<{key: string, value: object}> | undefined} resourceAttributes
+ * @returns {Array<{key: string, value: object}>}
+ */
+function buildOTLPResourceAttributes(serviceName, scopeVersion, resourceAttributes) {
   const baseResourceAttrs = [buildAttr("service.name", serviceName)];
   if (scopeVersion && scopeVersion !== "unknown") {
     baseResourceAttrs.push(buildAttr("service.version", scopeVersion));
   }
-  const allResourceAttrs = resourceAttributes ? [...baseResourceAttrs, ...resourceAttributes] : baseResourceAttrs;
+  return resourceAttributes ? [...baseResourceAttrs, ...resourceAttributes] : baseResourceAttrs;
+}
+
+/**
+ * Build the standard GitHub Actions resource attributes shared by all OTLP spans
+ * (setup, conclusion, and tool spans).  Centralises the attribute list so that
+ * future additions propagate to every span type automatically.
+ *
+ * @param {{
+ *   repository: string,
+ *   runId: string,
+ *   eventName?: string,
+ *   ref?: string,
+ *   refName?: string,
+ *   headRef?: string,
+ *   sha?: string,
+ *   workflowRef?: string,
+ *   staged: boolean,
+ * }} ctx
+ * @returns {Array<{key: string, value: object}>}
+ */
+function buildGitHubActionsResourceAttributes({ repository, runId, eventName = "", ref = "", refName = "", headRef = "", sha = "", workflowRef = "", staged }) {
+  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
+  if (repository && runId && repository.includes("/")) {
+    const [owner, repo] = repository.split("/");
+    resourceAttributes.push(buildAttr("github.actions.run_url", buildWorkflowRunUrl({ runId }, { owner, repo })));
+  }
+  if (eventName) {
+    resourceAttributes.push(buildAttr("github.event_name", eventName));
+  }
+  if (ref) {
+    resourceAttributes.push(buildAttr("github.ref", ref));
+  }
+  if (refName) {
+    resourceAttributes.push(buildAttr("github.ref_name", refName));
+  }
+  if (headRef) {
+    resourceAttributes.push(buildAttr("github.head_ref", headRef));
+  }
+  if (sha) {
+    resourceAttributes.push(buildAttr("github.sha", sha));
+  }
+  if (workflowRef) {
+    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
+  }
+  resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
+  return resourceAttributes;
+}
+
+/**
+ * Wrap one or more OTLP span objects in a single traces payload.
+ *
+ * @param {{
+ *   serviceName: string,
+ *   scopeVersion?: string,
+ *   resourceAttributes?: Array<{key: string, value: object}>,
+ *   spans: object[]
+ * }} opts
+ * @returns {object}
+ */
+function buildOTLPBatchPayload({ serviceName, scopeVersion, resourceAttributes, spans }) {
   return {
     resourceSpans: [
       {
         resource: {
-          attributes: allResourceAttrs,
+          attributes: buildOTLPResourceAttributes(serviceName, scopeVersion, resourceAttributes),
         },
         scopeSpans: [
           {
             scope: { name: "gh-aw", version: scopeVersion || "unknown" },
-            spans: [
-              {
-                traceId,
-                spanId,
-                ...(parentSpanId ? { parentSpanId } : {}),
-                name: spanName,
-                kind,
-                startTimeUnixNano: toNanoString(startMs),
-                endTimeUnixNano: toNanoString(endMs),
-                status,
-                attributes,
-                ...(events && events.length > 0 ? { events } : {}),
-              },
-            ],
+            spans,
           },
         ],
       },
     ],
   };
+}
+
+/**
+ * Split a large span set into chunked OTLP payloads so high-volume exporters
+ * can amortize HTTP request overhead without creating oversized requests.
+ *
+ * @param {{
+ *   serviceName: string,
+ *   scopeVersion?: string,
+ *   resourceAttributes?: Array<{key: string, value: object}>,
+ *   spans: object[],
+ *   maxSpansPerPayload?: number
+ * }} opts
+ * @returns {object[]}
+ */
+function buildOTLPBatchPayloads({ serviceName, scopeVersion, resourceAttributes, spans, maxSpansPerPayload = 100 }) {
+  const normalizedMax = Number.isInteger(maxSpansPerPayload) && maxSpansPerPayload > 0 ? maxSpansPerPayload : 100;
+  const payloads = [];
+  for (let index = 0; index < spans.length; index += normalizedMax) {
+    payloads.push(
+      buildOTLPBatchPayload({
+        serviceName,
+        scopeVersion,
+        resourceAttributes,
+        spans: spans.slice(index, index + normalizedMax),
+      })
+    );
+  }
+  return payloads;
+}
+
+/**
+ * Build an OTLP/HTTP JSON traces payload wrapping a single span.
+ *
+ * @param {OTLPSpanOptions} opts
+ * @returns {object} - Ready to be serialised as JSON and POSTed to `/v1/traces`
+ */
+function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes, resourceAttributes, statusCode, statusMessage, kind = SPAN_KIND_INTERNAL, events }) {
+  return buildOTLPBatchPayload({
+    serviceName,
+    scopeVersion,
+    resourceAttributes,
+    spans: [buildOTLPSpan({ traceId, spanId, parentSpanId, spanName, startMs, endMs, attributes, statusCode, statusMessage, kind, events })],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -372,6 +592,73 @@ function sanitizeOTLPPayload(payload) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Multi-endpoint support
+// ---------------------------------------------------------------------------
+
+/**
+ * @typedef {Object} OTLPEndpointEntry
+ * @property {string} url      - OTLP base URL (e.g. https://traces.example.com:4317)
+ * @property {string} [headers] - Per-endpoint headers in "key=value,key=value" format
+ */
+
+/**
+ * Resolve the list of configured OTLP endpoints for the current run.
+ *
+ * Reads `GH_AW_OTLP_ENDPOINTS` (JSON-encoded array produced by the gh-aw
+ * compiler for all endpoint configurations, including single-endpoint setups).
+ * Returns an empty array when no endpoint is configured, so callers can skip
+ * the export step without additional checks.
+ *
+ * @returns {OTLPEndpointEntry[]}
+ */
+function parseOTLPEndpoints() {
+  const raw = process.env.GH_AW_OTLP_ENDPOINTS || "";
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      /** @type {OTLPEndpointEntry[]} */
+      const valid = parsed
+        .filter(e => e && typeof e.url === "string" && e.url.trim() !== "")
+        .map(e => ({
+          url: e.url,
+          ...(typeof e.headers === "string" && e.headers ? { headers: e.headers } : {}),
+        }));
+      return valid;
+    }
+  } catch {
+    // Invalid JSON — no endpoints available.
+  }
+  return [];
+}
+
+/**
+ * Send an OTLP payload to all configured endpoints concurrently.
+ *
+ * Uses `Promise.allSettled` so a failure on one endpoint never prevents
+ * delivery to the others.  The local JSONL mirror is written once by the
+ * caller before invoking this function (pass `skipJSONL: true`).
+ *
+ * @param {OTLPEndpointEntry[]} endpoints  - Resolved endpoint list from {@link parseOTLPEndpoints}
+ * @param {object} payload                 - Serialisable OTLP JSON object
+ * @param {{ maxRetries?: number, baseDelayMs?: number, skipJSONL?: boolean }} [opts]
+ * @returns {Promise<void>}
+ */
+async function sendOTLPToAllEndpoints(endpoints, payload, opts = {}) {
+  if (endpoints.length === 0) return;
+  await Promise.allSettled(
+    endpoints.map(ep =>
+      sendOTLPSpan(ep.url, payload, {
+        ...opts,
+        // Pass per-endpoint headers so each collector receives only its own
+        // credentials (not the merged set from a different endpoint).
+        headersOverride: ep.headers !== undefined ? ep.headers : "",
+      })
+    )
+  );
+}
+
 /**
  * POST an OTLP traces payload to `{endpoint}/v1/traces` with automatic retries.
  *
@@ -381,14 +668,15 @@ function sanitizeOTLPPayload(payload) {
  * well under a second in the typical success case.
  *
  * Reads `OTEL_EXPORTER_OTLP_HEADERS` from the environment and merges any
- * configured headers into every request.
+ * configured headers into every request, unless `headersOverride` is provided
+ * (used for per-endpoint headers in the multi-endpoint case).
  *
  * @param {string} endpoint  - OTLP base URL (e.g. https://traces.example.com:4317)
  * @param {object} payload   - Serialisable OTLP JSON object
- * @param {{ maxRetries?: number, baseDelayMs?: number, skipJSONL?: boolean }} [opts]
+ * @param {{ maxRetries?: number, baseDelayMs?: number, skipJSONL?: boolean, headersOverride?: string }} [opts]
  * @returns {Promise<void>}
  */
-async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 100, skipJSONL = false } = {}) {
+async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 100, skipJSONL = false, headersOverride = undefined } = {}) {
   // Mirror payload locally so it survives even when the collector is unreachable.
   // Callers that already wrote the JSONL mirror pass skipJSONL: true to avoid a
   // duplicate line.
@@ -397,7 +685,12 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
   }
 
   const url = endpoint.replace(/\/$/, "") + "/v1/traces";
-  const extraHeaders = parseOTLPHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS || "");
+  // Use headersOverride when explicitly provided (including empty string, which means
+  // "this endpoint has no configured headers" in the multi-endpoint fan-out path).
+  // Fall back to OTEL_EXPORTER_OTLP_HEADERS only when headersOverride is absent
+  // (undefined), which is the legacy single-endpoint case.
+  const rawHeaders = headersOverride !== undefined ? headersOverride : process.env.OTEL_EXPORTER_OTLP_HEADERS || "";
+  const extraHeaders = parseOTLPHeaders(rawHeaders);
   const headers = { "Content-Type": "application/json", ...extraHeaders };
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
@@ -530,6 +823,10 @@ async function sendJobSetupSpan(options = {}) {
   // propagated via aw_context.otel_trace_id → aw_info.context.otel_trace_id so that
   // composite-action spans share a single trace with their caller.
   const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
+  const setupAwContext = parseSetupAwContext(process.env.GH_AW_SETUP_AW_CONTEXT);
+  if ((!awInfo.context || typeof awInfo.context !== "object") && Object.keys(setupAwContext).length > 0) {
+    awInfo.context = setupAwContext;
+  }
   const rawContextTraceId = typeof awInfo.context?.otel_trace_id === "string" ? awInfo.context.otel_trace_id.trim().toLowerCase() : "";
   const contextTraceId = isValidTraceId(rawContextTraceId) ? rawContextTraceId : "";
   // When this job was dispatched by a parent workflow, the parent's setup span ID is
@@ -557,7 +854,7 @@ async function sendJobSetupSpan(options = {}) {
 
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
   const jobName = process.env.INPUT_JOB_NAME || "";
-  const workflowName = process.env.GH_AW_INFO_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "";
+  const workflowName = process.env.GH_AW_INFO_WORKFLOW_NAME || process.env.GH_AW_SETUP_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "";
   const engineId = process.env.GH_AW_INFO_ENGINE_ID || "";
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = process.env.GITHUB_RUN_ATTEMPT || "1";
@@ -568,7 +865,7 @@ async function sendJobSetupSpan(options = {}) {
   const refName = process.env.GITHUB_REF_NAME || "";
   const headRef = process.env.GITHUB_HEAD_REF || "";
   const sha = process.env.GITHUB_SHA || "";
-  const workflowRef = process.env.GITHUB_WORKFLOW_REF || "";
+  const workflowRef = process.env.GH_AW_CURRENT_WORKFLOW_REF || process.env.GITHUB_WORKFLOW_REF || "";
 
   const attributes = [
     buildAttr("gh-aw.job.name", jobName),
@@ -607,31 +904,9 @@ async function sendJobSetupSpan(options = {}) {
   // A/B variant selected for this run (written by pick_experiment.cjs).
   const experimentAssignments = readExperimentAssignments();
   attributes.push(...buildExperimentAttributes(experimentAssignments));
+  attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
 
-  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
-  if (repository && runId) {
-    const [owner, repo] = repository.split("/");
-    resourceAttributes.push(buildAttr("github.actions.run_url", buildWorkflowRunUrl({ runId }, { owner, repo })));
-  }
-  if (eventName) {
-    resourceAttributes.push(buildAttr("github.event_name", eventName));
-  }
-  if (ref) {
-    resourceAttributes.push(buildAttr("github.ref", ref));
-  }
-  if (refName) {
-    resourceAttributes.push(buildAttr("github.ref_name", refName));
-  }
-  if (headRef) {
-    resourceAttributes.push(buildAttr("github.head_ref", headRef));
-  }
-  if (sha) {
-    resourceAttributes.push(buildAttr("github.sha", sha));
-  }
-  if (workflowRef) {
-    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
-  }
-  resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
+  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, workflowRef, staged });
 
   const payload = buildOTLPPayload({
     traceId,
@@ -649,13 +924,13 @@ async function sendJobSetupSpan(options = {}) {
   // Always mirror to JSONL — the artifact is useful even without a live collector.
   appendToOTLPJSONL(payload);
 
-  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
-  if (!endpoint) {
+  const endpoints = parseOTLPEndpoints();
+  if (endpoints.length === 0) {
     return { traceId, spanId };
   }
 
-  // Pass skipJSONL: true so sendOTLPSpan doesn't double-write the mirror.
-  await sendOTLPSpan(endpoint, payload, { skipJSONL: true });
+  // Pass skipJSONL: true so sendOTLPToAllEndpoints/sendOTLPSpan don't double-write the mirror.
+  await sendOTLPToAllEndpoints(endpoints, payload, { skipJSONL: true });
   return { traceId, spanId };
 }
 
@@ -778,13 +1053,16 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const version = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
 
   // Prefer GITHUB_AW_OTEL_TRACE_ID (written to GITHUB_ENV by this job's setup step) so
-  // all spans in the same job share one trace.  Fall back to the workflow_call_id
-  // from aw_info for cross-job correlation, then generate a fresh ID.
+  // all spans in the same job share one trace.  Fall back to aw_context.otel_trace_id
+  // for cross-job correlation, then try the legacy workflow_call_id fallback.
   const envTraceId = (process.env.GITHUB_AW_OTEL_TRACE_ID || "").trim().toLowerCase();
+  const inheritedTraceId = readContextString(awInfo.context?.otel_trace_id).toLowerCase();
   const awTraceId = typeof awInfo.context?.workflow_call_id === "string" ? awInfo.context.workflow_call_id.replace(/-/g, "") : "";
   let traceId = generateTraceId();
   if (isValidTraceId(envTraceId)) {
     traceId = envTraceId;
+  } else if (isValidTraceId(inheritedTraceId)) {
+    traceId = inheritedTraceId;
   } else if (awTraceId && isValidTraceId(awTraceId)) {
     traceId = awTraceId;
   }
@@ -864,6 +1142,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
   if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
   if (commentId) attributes.push(buildAttr("gh-aw.trigger.comment_id", commentId));
+  attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
   }
@@ -910,30 +1189,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const conclusionExperimentAssignments = readExperimentAssignments();
   attributes.push(...buildExperimentAttributes(conclusionExperimentAssignments));
 
-  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
-  if (repository && runId) {
-    const [owner, repo] = repository.split("/");
-    resourceAttributes.push(buildAttr("github.actions.run_url", buildWorkflowRunUrl({ runId }, { owner, repo })));
-  }
-  if (eventName) {
-    resourceAttributes.push(buildAttr("github.event_name", eventName));
-  }
-  if (ref) {
-    resourceAttributes.push(buildAttr("github.ref", ref));
-  }
-  if (refName) {
-    resourceAttributes.push(buildAttr("github.ref_name", refName));
-  }
-  if (headRef) {
-    resourceAttributes.push(buildAttr("github.head_ref", headRef));
-  }
-  if (sha) {
-    resourceAttributes.push(buildAttr("github.sha", sha));
-  }
-  if (workflowRef) {
-    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
-  }
-  resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
+  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, workflowRef, staged });
 
   // Build OTel exception span events — one per error — following the
   // OpenTelemetry semantic convention for exceptions.  Each event has
@@ -979,7 +1235,24 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
-  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
+  // Read agent token-usage counters and add the per-category breakdown to the
+  // conclusion span so a single query is sufficient for observability (no join
+  // to the child agent span required).
+  const agentUsage = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || {};
+  if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
+    attributes.push(buildAttr("gen_ai.usage.input_tokens", agentUsage.input_tokens));
+  }
+  if (typeof agentUsage.output_tokens === "number" && agentUsage.output_tokens > 0) {
+    attributes.push(buildAttr("gen_ai.usage.output_tokens", agentUsage.output_tokens));
+  }
+  if (typeof agentUsage.cache_read_tokens === "number" && agentUsage.cache_read_tokens > 0) {
+    attributes.push(buildAttr("gen_ai.usage.cache_read.input_tokens", agentUsage.cache_read_tokens));
+  }
+  if (typeof agentUsage.cache_write_tokens === "number" && agentUsage.cache_write_tokens > 0) {
+    attributes.push(buildAttr("gen_ai.usage.cache_creation.input_tokens", agentUsage.cache_write_tokens));
+  }
+
+  const endpoints = parseOTLPEndpoints();
   const conclusionSpanId = generateSpanId();
   if (jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs) {
     const agentSpanEvents = buildSpanEvents(agentEndMs);
@@ -987,7 +1260,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     // Build OTel GenAI semantic convention attributes for the dedicated agent span.
     // These follow the OpenTelemetry GenAI specification and enable out-of-the-box
     // LLM dashboards in Grafana, Datadog, and Honeycomb without custom mappings.
-    const agentUsage = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || {};
+    // Token-usage attributes are inherited from the conclusion span attributes above.
     const agentAttributes = [...attributes];
     // gen_ai.operation.name is Required by the OTel GenAI spec for inference spans.
     // All gh-aw agent executions are chat-style LLM completions.
@@ -1004,18 +1277,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     // gen_ai.workflow.name identifies the agentic workflow, matching the OTel spec example
     // use-cases (e.g. "multi_agent_rag", "customer_support_pipeline").
     if (workflowName) agentAttributes.push(buildAttr("gen_ai.workflow.name", workflowName));
-    if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
-      agentAttributes.push(buildAttr("gen_ai.usage.input_tokens", agentUsage.input_tokens));
-    }
-    if (typeof agentUsage.output_tokens === "number" && agentUsage.output_tokens > 0) {
-      agentAttributes.push(buildAttr("gen_ai.usage.output_tokens", agentUsage.output_tokens));
-    }
-    if (typeof agentUsage.cache_read_tokens === "number" && agentUsage.cache_read_tokens > 0) {
-      agentAttributes.push(buildAttr("gen_ai.usage.cache_read.input_tokens", agentUsage.cache_read_tokens));
-    }
-    if (typeof agentUsage.cache_write_tokens === "number" && agentUsage.cache_write_tokens > 0) {
-      agentAttributes.push(buildAttr("gen_ai.usage.cache_creation.input_tokens", agentUsage.cache_write_tokens));
-    }
 
     const agentPayload = buildOTLPPayload({
       traceId,
@@ -1034,8 +1295,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       kind: SPAN_KIND_CLIENT,
     });
     appendToOTLPJSONL(agentPayload);
-    if (endpoint) {
-      await sendOTLPSpan(endpoint, agentPayload, { skipJSONL: true });
+    if (endpoints.length > 0) {
+      await sendOTLPToAllEndpoints(endpoints, agentPayload, { skipJSONL: true });
     }
   }
 
@@ -1058,12 +1319,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Always mirror to JSONL — the artifact is useful even without a live collector.
   appendToOTLPJSONL(payload);
 
-  if (!endpoint) {
+  if (endpoints.length === 0) {
     return;
   }
 
-  // Pass skipJSONL: true so sendOTLPSpan doesn't double-write the mirror.
-  await sendOTLPSpan(endpoint, payload, { skipJSONL: true });
+  // Pass skipJSONL: true so sendOTLPToAllEndpoints/sendOTLPSpan don't double-write the mirror.
+  await sendOTLPToAllEndpoints(endpoints, payload, { skipJSONL: true });
 }
 
 module.exports = {
@@ -1078,12 +1339,20 @@ module.exports = {
   generateSpanId,
   toNanoString,
   buildAttr,
+  buildGitHubActionsResourceAttributes,
+  buildOTLPSpan,
+  buildOTLPBatchPayload,
+  buildOTLPBatchPayloads,
   buildOTLPPayload,
   sanitizeOTLPPayload,
   parseOTLPHeaders,
+  parseOTLPEndpoints,
   sendOTLPSpan,
+  sendOTLPToAllEndpoints,
   readJSONIfExists,
   readLastRateLimitEntry,
+  buildCurrentWorkflowCallId,
+  buildEpisodeAttributesFromContext,
   GITHUB_RATE_LIMITS_JSONL_PATH,
   sendJobSetupSpan,
   sendJobConclusionSpan,

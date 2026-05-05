@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const { main } = require("./dispatch_repository.cjs");
+const globals = /** @type {any} */ global;
 
 describe("dispatch_repository", () => {
   /** @type {any} */
@@ -19,9 +20,9 @@ describe("dispatch_repository", () => {
 
   beforeEach(() => {
     savedGlobals = {
-      core: global.core,
-      github: global.github,
-      context: global.context,
+      core: globals.core,
+      github: globals.github,
+      context: globals.context,
     };
 
     dispatchEventCalls = [];
@@ -52,15 +53,15 @@ describe("dispatch_repository", () => {
       payload: {},
     };
 
-    global.core = mockCore;
-    global.github = mockGithub;
-    global.context = mockContext;
+    globals.core = mockCore;
+    globals.github = mockGithub;
+    globals.context = mockContext;
   });
 
   afterEach(() => {
-    global.core = savedGlobals.core;
-    global.github = savedGlobals.github;
-    global.context = savedGlobals.context;
+    globals.core = savedGlobals.core;
+    globals.github = savedGlobals.github;
+    globals.context = savedGlobals.context;
     vi.restoreAllMocks();
   });
 
@@ -178,6 +179,11 @@ describe("dispatch_repository", () => {
     });
 
     it("should inject aw_context into client_payload", async () => {
+      process.env.GITHUB_RUN_ID = "9999";
+      process.env.GITHUB_RUN_ATTEMPT = "2";
+      process.env.GITHUB_WORKFLOW_REF = "test-owner/test-repo/.github/workflows/test.lock.yml@refs/heads/main";
+      mockContext.eventName = "issues";
+
       const handler = await main({
         tools: {
           deploy: { event_type: "deploy", repository: "test-owner/test-repo", max: 5 },
@@ -188,6 +194,19 @@ describe("dispatch_repository", () => {
 
       expect(dispatchEventCalls.length).toBe(1);
       expect(dispatchEventCalls[0].client_payload).toHaveProperty("aw_context");
+      expect(dispatchEventCalls[0].client_payload.aw_context).toMatchObject({
+        episode_id: "9999-2:test-owner/test-repo/.github/workflows/test.lock.yml@refs/heads/main",
+        hop_id: "9999-2:test-owner/test-repo/.github/workflows/test.lock.yml@refs/heads/main",
+        parent_hop_id: "",
+        origin_event: "issues",
+        root_repo: "test-owner/test-repo",
+        root_workflow_id: "test-owner/test-repo/.github/workflows/test.lock.yml@refs/heads/main",
+        root_run_id: "9999",
+      });
+
+      delete process.env.GITHUB_RUN_ID;
+      delete process.env.GITHUB_RUN_ATTEMPT;
+      delete process.env.GITHUB_WORKFLOW_REF;
     });
 
     it("should use message.repository over toolConfig.repository when both set", async () => {

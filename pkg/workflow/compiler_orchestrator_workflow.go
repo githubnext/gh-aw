@@ -66,6 +66,27 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Store a stable workflow identifier derived from the file name.
 	workflowData.WorkflowID = GetWorkflowIDFromPath(cleanPath)
 
+	// Validate model alias map: identifier syntax, parameter values, glob-in-engine.model,
+	// alias key format, and circular references (V-MAF-001..006, V-MAF-010, V-MAF-011).
+	{
+		var frontmatterModels map[string][]string
+		if toolsResult.parsedFrontmatter != nil {
+			frontmatterModels = toolsResult.parsedFrontmatter.Models
+		}
+		var engineModel string
+		if workflowData.EngineConfig != nil {
+			engineModel = workflowData.EngineConfig.Model
+		}
+		if err := c.validateModelAliasMap(
+			workflowData.ModelMappings,
+			frontmatterModels,
+			engineModel,
+			cleanPath,
+		); err != nil {
+			return nil, err
+		}
+	}
+
 	// Validate run-install-scripts setting (warning in non-strict mode, error in strict mode)
 	if err := c.validateRunInstallScripts(workflowData); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
@@ -73,6 +94,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Validate engine version: warn when engine.version is explicitly set to "latest"
 	if err := c.validateEngineVersion(workflowData); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
+	// Validate playwright tool mode: warn when MCP mode is used (deprecated in favour of CLI mode)
+	if err := c.validatePlaywrightMode(workflowData); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
@@ -142,14 +168,46 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
 	}
 
-	// Merge observability config from imports into RawFrontmatter so that injectOTLPConfig
-	// can see an OTLP endpoint defined in an imported workflow (first-wins from imports).
+	// Merge observability endpoints from imports with those from the main workflow.
+	// All OTLP endpoints from both sources are combined into an array, deduplicating
+	// by URL (main workflow endpoints take precedence). This allows multiple shared
+	// workflows each defining their own OTLP endpoint to fan out to all collectors.
 	if obs := engineSetup.importsResult.MergedObservability; obs != "" {
-		if _, hasObs := workflowData.RawFrontmatter["observability"]; !hasObs {
-			var obsMap map[string]any
-			if err := json.Unmarshal([]byte(obs), &obsMap); err == nil {
-				workflowData.RawFrontmatter["observability"] = obsMap
-				orchestratorWorkflowLog.Printf("Merged observability config from imports into RawFrontmatter")
+		var importedObs map[string]any
+		if err := json.Unmarshal([]byte(obs), &importedObs); err == nil {
+			seen := make(map[string]bool)
+			var mergedEndpoints []any
+
+			// Main workflow endpoints take precedence (first in, first wins dedup).
+			var mainObs map[string]any
+			if v, ok := workflowData.RawFrontmatter["observability"]; ok {
+				mainObs, _ = v.(map[string]any)
+			}
+			for _, ep := range extractRawOTLPEndpointMaps(mainObs) {
+				if url, _ := ep["url"].(string); url != "" && !seen[url] {
+					seen[url] = true
+					mergedEndpoints = append(mergedEndpoints, ep)
+				}
+			}
+
+			// Append import endpoints that aren't already present.
+			importAdded := 0
+			for _, ep := range extractRawOTLPEndpointMaps(importedObs) {
+				if url, _ := ep["url"].(string); url != "" && !seen[url] {
+					seen[url] = true
+					mergedEndpoints = append(mergedEndpoints, ep)
+					importAdded++
+				}
+			}
+
+			if len(mergedEndpoints) > 0 {
+				mainCount := len(mergedEndpoints) - importAdded
+				workflowData.RawFrontmatter["observability"] = map[string]any{
+					"otlp": map[string]any{
+						"endpoint": mergedEndpoints,
+					},
+				}
+				orchestratorWorkflowLog.Printf("Merged OTLP endpoints into RawFrontmatter: %d from main workflow, %d from imports (%d total)", mainCount, importAdded, len(mergedEndpoints))
 			}
 		}
 	}
@@ -391,6 +449,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	// Extract experiments configuration once; derive the simple variants map from the configs.
 	workflowData.ExperimentConfigs = extractExperimentConfigsFromFrontmatter(frontmatter)
 	workflowData.Experiments = experimentVariantsFromConfigs(workflowData.ExperimentConfigs)
+	workflowData.ExperimentsStorage = extractExperimentsStorageFromFrontmatter(frontmatter)
 
 	return nil
 }

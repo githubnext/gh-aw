@@ -12,15 +12,15 @@ Consult this file when you want to measure the impact of a prompt change, a new 
 
 Each workflow run goes through this lifecycle:
 
-1. **Restore** — the activation job loads the experiment state JSON from GitHub Actions cache (`/tmp/gh-aw/experiments/state.json`).
+1. **Restore** — the activation job loads the experiment state JSON from the configured storage (git branch by default, or GitHub Actions cache when `storage: cache`).
 2. **Pick** — `pick_experiment.cjs` selects a variant for each declared experiment using a balanced round-robin counter. The variant with the lowest invocation count so far is chosen; ties are broken by variant array order, producing deterministic balanced assignment across runs.
-3. **Save** — the updated counter state is written back to cache for the next run.
+3. **Save** — the updated counter state is written back to the configured storage.
 4. **Upload** — the state file is uploaded as a workflow artifact named `experiment` (retained 30 days) so you can audit per-run assignments.
 5. **Inject** — the selected variant is available in the workflow prompt as `${{ experiments.<name> }}` and in `{{#if experiments.<name> }}` handlebars blocks.
 
 **Key properties**:
 - Every run receives exactly one variant assignment per declared experiment.
-- Assignment is cache-backed and persists across runs automatically; no setup is required beyond the `experiments:` field.
+- Assignment persists across runs automatically; no setup is required beyond the `experiments:` field.
 - Multiple experiments can run simultaneously — each is independently balanced.
 - No sampling or percentage-based routing: every run participates.
 
@@ -88,6 +88,30 @@ experiments:
 
 ---
 
+## Storage Configuration
+
+The `storage` key inside the `experiments:` map controls how experiment state is persisted across runs:
+
+```yaml
+experiments:
+  storage: repo   # or: cache
+  prompt_style: [concise, detailed]
+```
+
+| Value | Behaviour | When to use |
+|---|---|---|
+| `repo` (**default**) | Commits `state.json` to a git branch named `experiments/{sanitizedWorkflowID}` (workflow ID lowercased with hyphens removed, e.g. `my-workflow` → `experiments/myworkflow`) after each run. State survives cache evictions. | Recommended for all experiments — experiment data is valuable. |
+| `cache` | Uses GitHub Actions cache (legacy behaviour). State may be evicted after 7 days of inactivity. | Only when `contents: write` cannot be granted to the workflow. |
+
+**Key differences:**
+
+- **`repo` storage** adds a `push_experiments_state` job that runs after the activation job. This job commits the updated state to a branch like `experiments/myworkflow` using `contents: write` permission. The state is durable and survives long periods without workflow runs.
+- **`cache` storage** is the original behaviour. No extra job or permission is required, but state can be evicted after 7 days of GitHub Actions cache inactivity.
+
+> The branch is created automatically on first run (as an orphan branch containing only `state.json` and `assignments.json`).
+
+---
+
 ## Referencing the Active Variant
 
 The selected variant is injected into the prompt in two ways:
@@ -152,7 +176,9 @@ experiments:
   tone: [formal, casual]
 ```
 
-Use `{{#if experiments.prompt_style }}` to swap the corresponding instructions in the prompt body.
+Use `{{#if experiments.prompt_style == "concise" }}` / `{{#else}}` / `{{/if}}` to swap the corresponding instructions in the prompt body. Always compare against a specific variant value — never reference the bare variable name as a boolean flag when variants carry meaning.
+
+> ⚠️ **Do not use internal env-var expansion syntax** (`__GH_AW_EXPERIMENTS__PROMPT_STYLE___detailed`). The compiler automatically expands `experiments.<name>` references — write `experiments.prompt_style == "concise"` and let the compiler handle the rest.
 
 **Typical metrics**: output quality score (human-rated), effective token count, action success rate, output length.
 
@@ -309,7 +335,7 @@ All three variants are independently balanced. The prompt receives all three act
 ## Lifecycle of an Experiment
 
 1. **Design** — write hypothesis, pick dimension, define primary + guardrail metrics.
-2. **Instrument** — add `experiments:` to frontmatter and `{{#if experiments.<name> }}` blocks to the prompt.
+2. **Instrument** — add `experiments:` to frontmatter and `{{#if experiments.<name> == "<variant>" }}` blocks to the prompt. Always compare against a specific variant string — never use the internal env-var form `__GH_AW_EXPERIMENTS__*`.
 3. **Compile** — `gh aw compile <workflow-name>` to regenerate the lock file.
 4. **Run** — let the workflow accumulate runs. Check the step summary in each run's activation job to confirm the variant assignment.
 5. **Analyse** — once the minimum sample size per variant is reached, compare metric distributions across variants.
@@ -325,3 +351,4 @@ All three variants are independently balanced. The prompt receives all three act
 - ❌ **Do not use experiments for feature flags** — use the `features:` frontmatter field for deterministic on/off switches that are not under statistical test.
 - ❌ **Do not run engine experiments from a single workflow file** — engine switches require a different `engine:` frontmatter value, which means a separate compiled file. Use two parallel workflow files and compare their GitHub Actions run metrics instead.
 - ❌ **Do not nest `{{#if experiments.<name> }}` inside `{{#runtime-import? }}` blocks** — expression evaluation order is not guaranteed across import boundaries; keep experiment conditionals in the top-level workflow body.
+- ❌ **Do not write the internal env-var expansion form** — the compiler internally expands `experiments.prompt_style == "concise"` into `__GH_AW_EXPERIMENTS__PROMPT_STYLE___concise`. Never write this `__GH_AW_EXPERIMENTS__*` form directly; it is an implementation detail and the format may change.

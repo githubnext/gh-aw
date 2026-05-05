@@ -146,7 +146,7 @@ describe("writeInlineSubAgents", () => {
     const content = "# Workflow\n\nNo agents here.";
     const result = writeInlineSubAgents(content, tmpDir);
     expect(result).toBe(content);
-    const agentsDir = path.join(tmpDir, ".agents", "agents");
+    const agentsDir = path.join(tmpDir, ".github", "agents");
     expect(fs.existsSync(agentsDir)).toBe(false);
   });
 
@@ -157,7 +157,7 @@ describe("writeInlineSubAgents", () => {
 
     expect(result).toBe("# Workflow\n\nMain prompt.");
 
-    const agentPath = path.join(tmpDir, ".agents", "agents", "helper.agent.md");
+    const agentPath = path.join(tmpDir, ".github", "agents", "helper.agent.md");
     expect(fs.existsSync(agentPath)).toBe(true);
     const written = fs.readFileSync(agentPath, "utf8");
     expect(written).toContain("You are a helper.");
@@ -169,20 +169,20 @@ describe("writeInlineSubAgents", () => {
 
     writeInlineSubAgents(content, tmpDir);
 
-    expect(fs.existsSync(path.join(tmpDir, ".agents", "agents", "planner.agent.md"))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, ".agents", "agents", "executor.agent.md"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, ".github", "agents", "planner.agent.md"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, ".github", "agents", "executor.agent.md"))).toBe(true);
   });
 
   it("agent file content ends with a newline", () => {
     const content = "Main.\n\n" + agentMarker("a") + "\nContent without trailing newline";
     writeInlineSubAgents(content, tmpDir);
-    const written = fs.readFileSync(path.join(tmpDir, ".agents", "agents", "a.agent.md"), "utf8");
+    const written = fs.readFileSync(path.join(tmpDir, ".github", "agents", "a.agent.md"), "utf8");
     expect(written.endsWith("\n")).toBe(true);
   });
 
-  it("creates .agents/agents directory if it does not exist", () => {
+  it("creates .github/agents directory if it does not exist", () => {
     const content = "Main.\n\n" + agentMarker("new") + "\nContent.";
-    const agentsDir = path.join(tmpDir, ".agents", "agents");
+    const agentsDir = path.join(tmpDir, ".github", "agents");
     expect(fs.existsSync(agentsDir)).toBe(false);
     writeInlineSubAgents(content, tmpDir);
     expect(fs.existsSync(agentsDir)).toBe(true);
@@ -194,7 +194,7 @@ describe("writeInlineSubAgents", () => {
     const result = writeInlineSubAgents(content, tmpDir);
 
     expect(result).toBe("Main.");
-    const written = fs.readFileSync(path.join(tmpDir, ".agents", "agents", "a.agent.md"), "utf8");
+    const written = fs.readFileSync(path.join(tmpDir, ".github", "agents", "a.agent.md"), "utf8");
     expect(written).toContain("Agent body.");
     expect(written).not.toContain("Footer content");
   });
@@ -204,7 +204,7 @@ describe("writeInlineSubAgents", () => {
 
     writeInlineSubAgents(content, tmpDir);
 
-    const written = fs.readFileSync(path.join(tmpDir, ".agents", "agents", "a.agent.md"), "utf8");
+    const written = fs.readFileSync(path.join(tmpDir, ".github", "agents", "a.agent.md"), "utf8");
     expect(written).toContain("model: claude-haiku-4.5");
     expect(written).not.toContain("engine:");
     expect(written).not.toContain("tools:");
@@ -216,7 +216,7 @@ describe("writeInlineSubAgents", () => {
 
     writeInlineSubAgents(content, tmpDir);
 
-    const written = fs.readFileSync(path.join(tmpDir, ".agents", "agents", "a.agent.md"), "utf8");
+    const written = fs.readFileSync(path.join(tmpDir, ".github", "agents", "a.agent.md"), "utf8");
     expect(written).toContain("description: A helpful agent");
     expect(written).toContain("model: gpt-4");
     expect(written).not.toContain("engine:");

@@ -427,19 +427,19 @@ func TestCodexEngineArgsInjection(t *testing.T) {
 
 		stepStr := strings.Join(executionStep, "\n")
 
-		// Check that args appear in the command before INSTRUCTION
+		// Check that args appear in the command before --prompt-file
 		if !strings.Contains(stepStr, "--custom-flag value") {
 			t.Errorf("Expected to find '--custom-flag value' in step, got:\n%s", stepStr)
 		}
 
-		// Check that args come before "$INSTRUCTION"
+		// Check that args come before --prompt-file (the last positional arg supplied by the harness)
 		customFlagIdx := strings.Index(stepStr, "--custom-flag value")
-		instructionIdx := strings.Index(stepStr, "\"$INSTRUCTION\"")
-		if customFlagIdx == -1 || instructionIdx == -1 {
-			t.Fatal("Could not find both --custom-flag and $INSTRUCTION in step")
+		promptFileIdx := strings.Index(stepStr, "--prompt-file")
+		if customFlagIdx == -1 || promptFileIdx == -1 {
+			t.Fatal("Could not find both --custom-flag and --prompt-file in step")
 		}
-		if customFlagIdx > instructionIdx {
-			t.Error("Expected --custom-flag to come before $INSTRUCTION")
+		if customFlagIdx > promptFileIdx {
+			t.Error("Expected --custom-flag to come before --prompt-file")
 		}
 	})
 

@@ -14,7 +14,22 @@ A simple, debug-style logging framework for Go that follows the pattern matching
 - **Zero overhead**: Logger enabled state is computed once at construction time
 - **Thread-safe**: Safe for concurrent use
 
-## Usage
+## Public API
+
+### `Logger`
+
+The `Logger` type provides namespace-based debug logging with pattern matching, printf interface, and time-diff display.
+
+| Method / Function | Signature | Description |
+|------------------|-----------|-------------|
+| `New` | `func(namespace string) *Logger` | Creates a new logger for the given namespace |
+| `(*Logger).Printf` | `func(format string, args ...any)` | Formatted output (always adds newline) |
+| `(*Logger).Print` | `func(args ...any)` | Simple concatenation (always adds newline) |
+| `(*Logger).Enabled` | `func() bool` | Returns `true` if the logger matches the active `DEBUG` pattern |
+| `NewSlogHandler` | `func(logger *Logger) *SlogHandler` | Creates a `slog.Handler` wrapping the given `Logger` |
+| `NewSlogLoggerWithHandler` | `func(logger *Logger) *slog.Logger` | Creates a `slog.Logger` backed by the given `Logger` |
+
+## Usage Examples
 
 ### Basic Usage
 
@@ -203,6 +218,12 @@ slogLogger.Warn("something unusual happened", "count", 42)
 - **Attribute formatting**: All record attributes are appended as `key=value` pairs after the message.
 - **Groups and persistent attributes**: `WithAttrs` and `WithGroup` return the handler unchanged — attributes are not persisted across calls. This keeps the adapter lightweight.
 - **Output destination**: All output goes to `stderr` via the underlying `Logger`.
+
+## Dependencies
+
+**Internal**:
+- `pkg/timeutil` — time-diff formatting for log output
+- `pkg/tty` — terminal detection for color support
 
 ## Implementation Notes
 

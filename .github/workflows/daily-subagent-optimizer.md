@@ -99,7 +99,34 @@ Extract and note:
 - **Prompt body**: all natural-language content after the closing `---`
 - **Token stats**: total tokens last 7 days, avg tokens/run, avg turns/run (from Phase 1 data)
 
-## Phase 4 — LLM Expert Analysis
+## Phase 4 — Common Tool Prefix Analysis
+
+This is the **highest-value optimization**. Before considering sub-agents, check whether multiple phases in the workflow repeat the same tool invocations at their start. Extracting these into a single shared setup step eliminates redundant context-gathering and reduces per-run token cost more reliably than sub-agent extraction.
+
+Use the `prefix-analyzer` sub-agent to perform this analysis. Pass it the full prompt body text and ask it to:
+- Split the body into its major sections (headings starting with `##` or `###`)
+- For each section, extract every explicit tool invocation in the first 10 lines: bash commands (code blocks or inline `backtick` calls), MCP tool calls (`Use the ... tool`), file reads (`cat`, `gh api`, `gh repo view`), and any repeated setup phrases
+- Find tool calls that appear verbatim (or near-verbatim) as opening instructions in **two or more** sections
+- Report the common prefix set and how many sections share it
+
+### Scoring Common Prefixes
+
+| Finding | Score |
+|---|---|
+| ≥ 3 sections share ≥ 2 common opening tool calls | High (best optimization) |
+| 2 sections share ≥ 3 common opening tool calls | High |
+| 2 sections share 2 common opening tool calls | Moderate |
+| ≤ 1 common call, or only 1 section affected | Low — skip |
+
+**If a High or Moderate prefix is found**, record:
+- The shared tool calls (exact text)
+- Which sections share them
+- The proposed "Setup" step text that would run them once
+- Estimated token savings (be conservative: 5–15% per duplicated call removed)
+
+**If no qualifying prefix is found**, note this and proceed to Phase 5.
+
+## Phase 5 — LLM Expert Analysis
 
 As an LLM efficiency expert, identify where the workflow's prompt does work that a smaller haiku/mini model can handle independently.
 
@@ -139,9 +166,9 @@ Tasks that **must stay with the main model**:
 
 Collect all sections scoring ≥ 4. Pick the **top 2–4** by score to propose as sub-agents. Discard candidates whose combined scope covers less than 10% of the prompt body — the savings would be negligible.
 
-## Phase 5 — Design the Refactoring
+## Phase 6 — Design the Refactoring
 
-For each selected candidate, design a concrete inline sub-agent:
+For each selected sub-agent candidate, design a concrete inline sub-agent:
 
 1. **Name**: lowercase, hyphenated, descriptive (e.g., `file-summarizer`, `category-detector`)
 2. **Model**: `claude-haiku-4.5`
@@ -153,11 +180,11 @@ Also determine:
 - Whether the target workflow needs `features: inline-agents: true` added to its frontmatter
 - Estimated token reduction per run (be conservative: 10–25% per sub-agent extracted)
 
-## Phase 6 — Create the Proposal Issue
+## Phase 7 — Create the Proposal Issue
 
 Create one GitHub issue with this structure:
 
-Title: `[subagent-optimizer] Add inline sub-agents to <workflow-name> — YYYY-MM-DD`
+Title: `[subagent-optimizer] Optimize <workflow-name> — YYYY-MM-DD`
 
 Body:
 
@@ -171,7 +198,43 @@ Body:
 ### Why This Workflow
 
 [2–3 sentences: what makes it a good candidate — high token usage, number of distinct phases,
-specific tasks identified as haiku-appropriate]
+specific tasks identified as haiku-appropriate or having repeated tool prefixes]
+
+---
+
+## Optimization 1 — Common Tool Prefix (Highest Priority)
+
+[Include this section only if Phase 4 found a High or Moderate prefix]
+
+### Repeated Tool Calls Found
+
+The following tool invocations appear at the start of **N** sections:
+
+```
+[exact text of each shared tool call, one per line]
+```
+
+**Sections affected**: [list section names/headings]
+
+### Proposed Setup Step
+
+Add a `## Setup` section at the top of the prompt body that runs these calls once:
+
+```markdown
+## Setup
+
+[proposed setup step text]
+```
+
+Then remove the duplicate calls from each of the affected sections.
+
+**Estimated savings**: ~N tokens/run (~X% reduction)
+
+---
+
+## Optimization 2 — Inline Sub-Agents
+
+[Include this section only if Phase 5 found sub-agent candidates scoring ≥ 4]
 
 ### LLM Expert Reasoning
 
@@ -224,6 +287,8 @@ features:
   inline-agents: true
 ```
 
+---
+
 ### Estimated Impact
 
 | Metric | Before | After (estimated) |
@@ -234,18 +299,19 @@ features:
 
 ### Implementation Steps
 
-1. Add `features: inline-agents: true` to frontmatter (if not already present)
-2. Add each sub-agent block at the bottom of `.github/workflows/<name>.md`, after all workflow content
-3. Update the prompt sections listed above to invoke sub-agents by name
-4. Compile: `gh aw compile <name>`
-5. Test: `gh workflow run <name>.yml`
+1. **Common prefix** (if applicable): Add `## Setup` section at the top of the prompt body and remove duplicated tool calls from affected sections
+2. **Sub-agents** (if applicable): Add `features: inline-agents: true` to frontmatter (if not already present)
+3. Add each sub-agent block at the bottom of `.github/workflows/<name>.md`, after all workflow content
+4. Update the prompt sections listed above to invoke sub-agents by name
+5. Compile: `gh aw compile <name>`
+6. Test: `gh workflow run <name>.yml`
 
 ### References
 
 - Optimizer run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 ```
 
-## Phase 7 — Update Optimization Log
+## Phase 8 — Update Optimization Log
 
 Create the directory if needed and append one entry to `/tmp/gh-aw/cache-memory/subagent-optimizer/optimization-log.json`:
 
@@ -254,7 +320,7 @@ mkdir -p /tmp/gh-aw/cache-memory/subagent-optimizer
 ```
 
 ```json
-{"date":"YYYY-MM-DD","workflow_name":"...","total_tokens_7d":N,"avg_tokens_per_run":N,"sub_agents_proposed":N,"estimated_savings_pct":N}
+{"date":"YYYY-MM-DD","workflow_name":"...","total_tokens_7d":N,"avg_tokens_per_run":N,"prefix_optimization":true,"sub_agents_proposed":N,"estimated_savings_pct":N}
 ```
 
 Load the existing array from that path if the file is present, append the new entry, keep only the last 30 entries, and save.
@@ -263,11 +329,53 @@ Load the existing array from that path if the file is present, append the new en
 
 - If no suitable target exists, call `noop` explaining what was checked and why nothing qualified
 - Never propose sub-agents for a workflow that already has existing `## agent:` blocks — it already uses inline sub-agents
+- Always check for common tool prefixes (Phase 4) before scoring sub-agent candidates — the prefix optimization is cheaper to implement and yields faster returns
 - Keep every proposed agent prompt ≤ 15 lines — if it needs more, it belongs in the main model
 - Base savings estimates on the Phase 1 token data; if unavailable, omit numerical estimates
 - Maximum 4 sub-agents per proposal — larger diffs are harder to review
+- Omit the Sub-Agents section from the issue entirely if Phase 5 finds no candidates scoring ≥ 4 — do not pad the issue with weak candidates
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `prefix-analyzer`
+---
+description: Detects repeated tool-call prefixes across workflow prompt sections and scores extraction value
+model: claude-haiku-4.5
+---
+You are a prompt-structure analyst. Given the full body text of an agentic workflow prompt (everything after the closing frontmatter `---`), identify repeated tool invocations that appear as opening instructions in multiple sections.
+
+**Steps:**
+
+1. Split the prompt into major sections using `##` and `###` headings. List each section name.
+2. For each section, extract the first 10 lines and identify every explicit tool invocation:
+   - Bash code blocks or inline `` `backtick` `` shell commands
+   - Phrases like "Use the `<name>` tool", "Run `<command>`", "Call `<tool>`"
+   - File-read operations: `cat`, `gh api`, `gh repo view`, `head`, `tail`
+   - MCP tool calls starting with "Use the ... MCP server"
+3. Find tool calls that appear (verbatim or near-verbatim) as opening instructions in **two or more** sections.
+4. For each group of matching calls, report:
+   - The exact shared text
+   - Which sections contain it (by heading name)
+   - Whether it appears at the very start of the section (first 5 lines) or later
+
+Score the finding:
+- `high`: ≥ 3 sections share ≥ 2 common opening tool calls, OR 2 sections share ≥ 3 common calls
+- `moderate`: exactly 2 sections share exactly 2 common opening calls
+- `low`: fewer than 2 sections share any common calls — no actionable prefix found
+
+Return in this exact format:
+```
+score: high/moderate/low
+shared_calls:
+  - "<exact tool call text>"
+  - "<exact tool call text>"
+affected_sections:
+  - "<section heading 1>"
+  - "<section heading 2>"
+setup_step_proposal: |
+  [proposed ## Setup section text that would replace the repeated calls, or "none" if score is low]
+reasoning: <1–2 sentences explaining the finding>
+```
 
 ## agent: `workflow-screener`
 ---

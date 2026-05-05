@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -431,6 +432,7 @@ func TestCodexDefaultDomains(t *testing.T) {
 	expectedDomains := []string{
 		"172.30.0.1", // AWF gateway IP - Codex resolves host.docker.internal to this IP
 		"api.openai.com",
+		"chatgpt.com", // Codex CLI connects to chatgpt.com (and subdomains e.g. ab.chatgpt.com) for auth/telemetry
 		"host.docker.internal",
 		"openai.com",
 	}
@@ -933,7 +935,7 @@ func TestGetCopilotAllowedDomainsWithToolsAndRuntimes(t *testing.T) {
 			"go": map[string]any{"version": "1.22"},
 		}
 
-		result := GetCopilotAllowedDomainsWithToolsAndRuntimes(network, nil, runtimes)
+		result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, nil, runtimes)
 
 		// Should contain Copilot defaults
 		if !strings.Contains(result, "api.githubcopilot.com") {
@@ -959,7 +961,7 @@ func TestGetCopilotAllowedDomainsWithToolsAndRuntimes(t *testing.T) {
 			"node": map[string]any{"version": "20"},
 		}
 
-		result := GetCopilotAllowedDomainsWithToolsAndRuntimes(network, tools, runtimes)
+		result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, tools, runtimes)
 
 		// Should contain Copilot defaults
 		if !strings.Contains(result, "api.githubcopilot.com") {
@@ -980,7 +982,7 @@ func TestGetCopilotAllowedDomainsWithToolsAndRuntimes(t *testing.T) {
 	})
 
 	t.Run("nil runtimes works correctly", func(t *testing.T) {
-		result := GetCopilotAllowedDomainsWithToolsAndRuntimes(nil, nil, nil)
+		result := GetAllowedDomainsForEngine(constants.CopilotEngine, nil, nil, nil)
 
 		// Should still contain Copilot defaults
 		if !strings.Contains(result, "api.githubcopilot.com") {
@@ -996,7 +998,7 @@ func TestGetClaudeAllowedDomainsWithToolsAndRuntimes(t *testing.T) {
 			"python": map[string]any{"version": "3.11"},
 		}
 
-		result := GetClaudeAllowedDomainsWithToolsAndRuntimes(nil, nil, runtimes)
+		result := GetAllowedDomainsForEngine(constants.ClaudeEngine, nil, nil, runtimes)
 
 		// Should contain Claude defaults
 		if !strings.Contains(result, "api.anthropic.com") {
@@ -1016,7 +1018,7 @@ func TestGetCodexAllowedDomainsWithToolsAndRuntimes(t *testing.T) {
 			"java": map[string]any{"version": "21"},
 		}
 
-		result := GetCodexAllowedDomainsWithToolsAndRuntimes(nil, nil, runtimes)
+		result := GetAllowedDomainsForEngine(constants.CodexEngine, nil, nil, runtimes)
 
 		// Should contain Codex defaults
 		if !strings.Contains(result, "api.openai.com") {

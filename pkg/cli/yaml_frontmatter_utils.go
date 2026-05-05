@@ -123,8 +123,51 @@ func applyFrontmatterLineTransform(content string, transform func([]string) ([]s
 	return reconstructContent(result, markdown), true, nil
 }
 
-// removeFieldFromBlock removes a field and its nested content from a YAML block
-// Returns the modified lines and whether any changes were made
+// removeParentBlockIfTrulyEmpty removes a bare "parentBlock:" header line only
+// when there are no nested lines at all underneath it — not even comments.
+// This is intentionally more conservative than removeBlockIfEmpty: if a
+// user-authored comment is the only thing left under the block, the header is
+// kept so the comment is not silently deleted.
+func removeParentBlockIfTrulyEmpty(lines []string, parentBlock string) []string {
+	blockKeyLine := parentBlock + ":"
+	var result []string
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Only match a bare block header with no inline value (e.g. "features:")
+		if trimmed != blockKeyLine {
+			result = append(result, line)
+			continue
+		}
+
+		blockIndent := getIndentation(line)
+		hasAnyNested := false
+		for j := i + 1; j < len(lines); j++ {
+			nextTrimmed := strings.TrimSpace(lines[j])
+			if nextTrimmed == "" {
+				continue // skip blank lines
+			}
+			if len(getIndentation(lines[j])) > len(blockIndent) {
+				hasAnyNested = true
+			}
+			break
+		}
+
+		if !hasAnyNested {
+			yamlUtilsLog.Printf("Removed empty parent block '%s'", parentBlock)
+			continue // drop the header
+		}
+		result = append(result, line)
+	}
+
+	return result
+}
+
+// removeFieldFromBlock removes a field and its nested content from a YAML block.
+// If removing the field leaves the parent block truly empty (no children, not
+// even comments), the parent block line is also removed to avoid a dangling
+// "parentBlock:" key (which YAML parses as null).
+// Returns the modified lines and whether any changes were made.
 func removeFieldFromBlock(lines []string, fieldName string, parentBlock string) ([]string, bool) {
 	var result []string
 	var modified bool
@@ -192,6 +235,10 @@ func removeFieldFromBlock(lines []string, fieldName string, parentBlock string) 
 		}
 
 		result = append(result, line)
+	}
+
+	if modified {
+		result = removeParentBlockIfTrulyEmpty(result, parentBlock)
 	}
 
 	return result, modified

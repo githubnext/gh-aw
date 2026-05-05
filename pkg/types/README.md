@@ -6,7 +6,7 @@ The `types` package provides shared type definitions used across multiple `gh-aw
 
 This package defines common data structures that are shared between the `parser` and `workflow` packages. Centralizing these types here allows both packages to reference the same definitions without creating import cycles.
 
-## Types
+## Public API
 
 ### `BaseMCPServerConfig`
 
@@ -101,6 +101,35 @@ Per-token-class weights for effective token computation. Each field corresponds 
 | `Output` | Generated output tokens |
 | `Reasoning` | Internal reasoning tokens |
 | `CacheWrite` | Cache-write tokens |
+
+## Usage Examples
+
+```go
+import "github.com/github/gh-aw/pkg/types"
+
+// Stdio MCP server
+cfg := types.BaseMCPServerConfig{
+    Type:    "stdio",
+    Command: "npx",
+    Args:    []string{"-y", "@modelcontextprotocol/server-filesystem"},
+    Env:     map[string]string{"ALLOWED_PATHS": "/workspace"},
+}
+
+// HTTP MCP server with OIDC auth
+cfg := types.BaseMCPServerConfig{
+    Type: "http",
+    URL:  "https://my-mcp-server.example.com",
+    Auth: &types.MCPAuthConfig{
+        Type:     "github-oidc",
+        Audience: "https://my-mcp-server.example.com",
+    },
+}
+
+// Token weights for model cost tracking
+weights := types.TokenWeights{
+    Multipliers: map[string]float64{"gpt-4o": 2.5},
+}
+```
 
 ## Design Notes
 

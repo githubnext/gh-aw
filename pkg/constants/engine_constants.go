@@ -111,8 +111,8 @@ var EngineOptions = []EngineOption{
 		Value:       string(PiEngine),
 		Label:       "Pi",
 		Description: "Pi AI coding agent (experimental)",
-		SecretName:  "PI_API_KEY",
-		KeyURL:      "https://pi.dev/docs/latest/usage",
+		SecretName:  "COPILOT_GITHUB_TOKEN",
+		KeyURL:      "https://github.com/settings/personal-access-tokens/new",
 		WhenNeeded:  "Pi engine workflows",
 	},
 }

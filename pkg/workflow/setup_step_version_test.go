@@ -1,0 +1,142 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/github/gh-aw/pkg/constants"
+)
+
+func TestGetVersionForSetup(t *testing.T) {
+	tests := []struct {
+		name            string
+		data            *WorkflowData
+		expectedVersion string
+	}{
+		{
+			name:            "nil data returns empty string",
+			data:            nil,
+			expectedVersion: "",
+		},
+		{
+			name:            "no engine config returns empty string",
+			data:            &WorkflowData{},
+			expectedVersion: "",
+		},
+		{
+			name: "explicit version in EngineConfig takes priority",
+			data: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", Version: "1.2.3"},
+			},
+			expectedVersion: "1.2.3",
+		},
+		{
+			name: "copilot engine uses default version",
+			data: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			expectedVersion: string(constants.DefaultCopilotVersion),
+		},
+		{
+			name: "claude engine uses default version",
+			data: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "claude"},
+			},
+			expectedVersion: string(constants.DefaultClaudeCodeVersion),
+		},
+		{
+			name: "codex engine uses default version",
+			data: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "codex"},
+			},
+			expectedVersion: string(constants.DefaultCodexVersion),
+		},
+		{
+			name: "AI field used when EngineConfig.ID is empty",
+			data: &WorkflowData{
+				AI: "copilot",
+			},
+			expectedVersion: string(constants.DefaultCopilotVersion),
+		},
+		{
+			name: "EngineConfig.ID takes priority over AI field",
+			data: &WorkflowData{
+				AI:           "copilot",
+				EngineConfig: &EngineConfig{ID: "claude"},
+			},
+			expectedVersion: string(constants.DefaultClaudeCodeVersion),
+		},
+		{
+			name: "custom engine returns empty string",
+			data: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "custom"},
+			},
+			expectedVersion: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getVersionForSetup(tt.data)
+			if result != tt.expectedVersion {
+				t.Errorf("getVersionForSetup() = %q, want %q", result, tt.expectedVersion)
+			}
+		})
+	}
+}
+
+func TestGenerateSetupStepIncludesVersion(t *testing.T) {
+	tests := []struct {
+		name          string
+		data          *WorkflowData
+		expectVersion string
+		noVersionLine bool
+	}{
+		{
+			name: "copilot engine injects default version",
+			data: &WorkflowData{
+				Name:         "my-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			expectVersion: string(constants.DefaultCopilotVersion),
+		},
+		{
+			name: "explicit version is injected",
+			data: &WorkflowData{
+				Name:         "my-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot", Version: "1.2.3"},
+			},
+			expectVersion: "1.2.3",
+		},
+		{
+			name: "custom engine without version does not inject GH_AW_INFO_VERSION",
+			data: &WorkflowData{
+				Name:         "my-workflow",
+				EngineConfig: &EngineConfig{ID: "custom"},
+			},
+			noVersionLine: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewCompiler()
+			lines := c.generateSetupStep(tt.data, "github/gh-aw/actions/setup@abc123", "${{ runner.temp }}/gh-aw", false, "")
+			combined := strings.Join(lines, "")
+
+			if tt.noVersionLine {
+				if strings.Contains(combined, "GH_AW_INFO_VERSION") {
+					t.Errorf("expected no GH_AW_INFO_VERSION in setup step, but found it:\n%s", combined)
+				}
+				return
+			}
+
+			expectedLine := `GH_AW_INFO_VERSION: "` + tt.expectVersion + `"`
+			if !strings.Contains(combined, expectedLine) {
+				t.Errorf("expected setup step to contain %q, got:\n%s", expectedLine, combined)
+			}
+		})
+	}
+}

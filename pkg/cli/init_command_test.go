@@ -66,14 +66,14 @@ func TestNewInitCommand(t *testing.T) {
 		return
 	}
 
-	// String flags with NoOptDefVal have "" as default value
+	// String flags without NoOptDefVal require an explicit value
 	if codespaceFlag.DefValue != "" {
 		t.Errorf("Expected codespaces flag default to be '', got %q", codespaceFlag.DefValue)
 	}
 
-	// Verify NoOptDefVal is set to a space (allows --codespaces without value)
-	if codespaceFlag.NoOptDefVal != " " {
-		t.Errorf("Expected codespaces flag NoOptDefVal to be ' ' (space), got %q", codespaceFlag.NoOptDefVal)
+	// Verify NoOptDefVal is empty (flag always requires an explicit value, avoids string[=" "] in help)
+	if codespaceFlag.NoOptDefVal != "" {
+		t.Errorf("Expected codespaces flag NoOptDefVal to be '' (empty), got %q", codespaceFlag.NoOptDefVal)
 	}
 
 	// Check create-pull-request flags

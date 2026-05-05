@@ -3287,7 +3287,9 @@ func TestBuildCustomJobsAllNewFieldsViaWorkflowData(t *testing.T) {
 	if err := jm.AddJob(job); err != nil {
 		t.Fatalf("AddJob() error: %v", err)
 	}
-	rendered := jm.RenderToYAML()
+	var renderedBuf strings.Builder
+	jm.WriteJobsYAML(&renderedBuf)
+	rendered := renderedBuf.String()
 
 	renderedChecks := []string{
 		"name: My Display Name",
@@ -3412,4 +3414,285 @@ func TestUpdateCacheMemoryJobConditionalDetection(t *testing.T) {
 	if !slices.Contains(job.Needs, string(constants.DetectionJobName)) {
 		t.Errorf("update_cache_memory Needs %v should contain detection job", job.Needs)
 	}
+}
+
+// TestBuildPushExperimentsStateJob_RepoStorage verifies that buildPushExperimentsStateJob
+// creates the push_experiments_state job when experiments are configured with repo storage.
+func TestBuildPushExperimentsStateJob_RepoStorage(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:               "Test Workflow",
+		WorkflowID:         "my-workflow",
+		AI:                 "copilot",
+		RunsOn:             "runs-on: ubuntu-latest",
+		ExperimentsStorage: ExperimentsStorageRepo,
+		Experiments: map[string][]string{
+			"prompt_style": {"concise", "detailed"},
+		},
+	}
+
+	job, err := compiler.buildPushExperimentsStateJob(data)
+	require.NoError(t, err, "buildPushExperimentsStateJob should not return an error")
+	require.NotNil(t, job, "buildPushExperimentsStateJob should return a job for repo storage")
+
+	assert.Equal(t, "push_experiments_state", job.Name, "job name should be push_experiments_state")
+	assert.Contains(t, job.If, "always()", "job condition should use always()")
+	assert.Contains(t, job.Permissions, "contents: write", "job should have contents: write permission")
+	assert.Contains(t, job.Needs, string(constants.ActivationJobName), "job should depend on activation job")
+
+	// Branch name should use sanitized workflow ID
+	stepsYAML := strings.Join(job.Steps, "\n")
+	assert.Contains(t, stepsYAML, "experiments/myworkflow", "steps should reference sanitized branch name")
+	assert.Contains(t, stepsYAML, "push_experiment_state.cjs", "steps should use push_experiment_state.cjs helper")
+}
+
+// TestBuildPushExperimentsStateJob_CacheStorage verifies that buildPushExperimentsStateJob
+// returns nil when experiments use cache storage (no extra job needed).
+func TestBuildPushExperimentsStateJob_CacheStorage(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:               "Test Workflow",
+		WorkflowID:         "my-workflow",
+		AI:                 "copilot",
+		RunsOn:             "runs-on: ubuntu-latest",
+		ExperimentsStorage: ExperimentsStorageCache,
+		Experiments: map[string][]string{
+			"prompt_style": {"concise", "detailed"},
+		},
+	}
+
+	job, err := compiler.buildPushExperimentsStateJob(data)
+	require.NoError(t, err, "buildPushExperimentsStateJob should not return an error")
+	assert.Nil(t, job, "buildPushExperimentsStateJob should return nil for cache storage")
+}
+
+// TestBuildPushExperimentsStateJob_NoExperiments verifies that buildPushExperimentsStateJob
+// returns nil when no experiments are configured.
+func TestBuildPushExperimentsStateJob_NoExperiments(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:               "Test Workflow",
+		WorkflowID:         "my-workflow",
+		AI:                 "copilot",
+		RunsOn:             "runs-on: ubuntu-latest",
+		ExperimentsStorage: ExperimentsStorageRepo,
+		Experiments:        map[string][]string{},
+	}
+
+	job, err := compiler.buildPushExperimentsStateJob(data)
+	require.NoError(t, err, "buildPushExperimentsStateJob should not return an error")
+	assert.Nil(t, job, "buildPushExperimentsStateJob should return nil when no experiments are defined")
+}
+
+// TestBuildMemoryManagementJobs_PushExperimentsIncludedInConclusion verifies that when
+// experiments use repo storage, push_experiments_state is wired into conclusion job needs.
+func TestBuildMemoryManagementJobs_PushExperimentsIncludedInConclusion(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "push-experiments-conclusion-test")
+
+	frontmatter := `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+strict: false
+experiments:
+  storage: repo
+  prompt_style: [concise, detailed]
+---
+
+# Test Workflow
+
+Test content`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(frontmatter), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "test.lock.yml"))
+	require.NoError(t, err, "lock file should be created")
+
+	yamlStr := string(content)
+
+	// push_experiments_state job should exist
+	assert.True(t, containsInNonCommentLines(yamlStr, "push_experiments_state:"), "push_experiments_state job should be present")
+
+	// conclusion job should depend on push_experiments_state
+	conclusionSection := extractJobSection(yamlStr, "conclusion")
+	require.NotEmpty(t, conclusionSection, "conclusion job should be present")
+	assert.Contains(t, conclusionSection, "push_experiments_state", "conclusion job should depend on push_experiments_state")
+}
+
+// TestBuildMainJobEngineEnvNeedsExpression verifies that when engine.env values contain
+// needs.<customJob>.outputs.* expressions, the referenced custom job is added as a direct
+// dependency of the agent job (issue: agent 'needs' does not incorporate jobs in engine.env).
+func TestBuildMainJobEngineEnvNeedsExpression(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		AI:          "copilot",
+		RunsOn:      "runs-on: ubuntu-latest",
+		Permissions: "permissions:\n  contents: read",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				"RECEIVED_VALUE": "${{ needs.provide_value_to_agent.outputs.provided_value }}",
+			},
+		},
+		Jobs: map[string]any{
+			"provide_value_to_agent": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"needs":   "pre_activation",
+				"steps": []any{
+					map[string]any{
+						"run": `echo "provided_value=hello" >> "$GITHUB_OUTPUT"`,
+					},
+				},
+			},
+		},
+	}
+
+	job, err := compiler.buildMainJob(workflowData, true)
+	require.NoError(t, err, "buildMainJob should succeed")
+
+	// The agent job must directly depend on provide_value_to_agent because engine.env
+	// references its outputs; without this, needs.provide_value_to_agent would be undefined.
+	assert.Contains(t, job.Needs, "provide_value_to_agent",
+		"agent job must directly depend on provide_value_to_agent referenced in engine.env")
+	assert.Contains(t, job.Needs, string(constants.ActivationJobName),
+		"agent job must also depend on activation")
+}
+
+// TestBuildMainJobEngineEnvNeedsNotDuplicated verifies that a job referenced in both
+// engine.env and regular job dependencies is not duplicated in the agent's needs list.
+func TestBuildMainJobEngineEnvNeedsNotDuplicated(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		AI:          "copilot",
+		RunsOn:      "runs-on: ubuntu-latest",
+		Permissions: "permissions:\n  contents: read",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				"MY_VALUE": "${{ needs.custom_job.outputs.result }}",
+			},
+		},
+		Jobs: map[string]any{
+			// custom_job has no explicit needs so it becomes a direct agent dependency
+			"custom_job": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"steps": []any{
+					map[string]any{"run": "echo result=hello >> $GITHUB_OUTPUT"},
+				},
+			},
+		},
+	}
+
+	job, err := compiler.buildMainJob(workflowData, true)
+	require.NoError(t, err, "buildMainJob should succeed")
+
+	count := 0
+	for _, need := range job.Needs {
+		if need == "custom_job" {
+			count++
+		}
+	}
+	assert.Equal(t, 1, count, "custom_job should appear exactly once in agent needs")
+}
+
+// TestBuildMainJobEngineEnvNeedsIntegration is an end-to-end integration test that compiles
+// a workflow where engine.env references a custom job output, and verifies that the
+// compiled lock file includes the custom job as a direct dependency of the agent job.
+func TestBuildMainJobEngineEnvNeedsIntegration(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine_env_needs_test")
+
+	// This workflow matches the bug report: engine.env references provide_value_to_agent
+	// which in turn depends on pre_activation. Without the fix, the agent job would only
+	// have `needs: activation` and runtime evaluation of needs.provide_value_to_agent
+	// would silently return an empty string.
+	frontmatter := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine:
+  id: copilot
+  env:
+    RECEIVED_VALUE: ${{ needs.provide_value_to_agent.outputs.provided_value }}
+strict: false
+jobs:
+  provide_value_to_agent:
+    runs-on: ubuntu-latest
+    needs: pre_activation
+    outputs:
+      provided_value: ${{ steps.provide.outputs.provided_value }}
+    steps:
+      - id: provide
+        run: echo "provided_value=hello" >> "$GITHUB_OUTPUT"
+---
+
+# Test Workflow
+
+This workflow tests that engine.env needs expressions create agent job dependencies.
+`
+
+	testFile := filepath.Join(tmpDir, "engine-env-needs.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(frontmatter), 0644), "write test file")
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile), "compile workflow")
+
+	lockFile := filepath.Join(tmpDir, "engine-env-needs.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "read lock file")
+
+	yamlStr := string(content)
+
+	// The agent job must directly depend on provide_value_to_agent
+	agentSection := extractJobSection(yamlStr, "agent")
+	require.NotEmpty(t, agentSection, "agent job section should be present in lock file")
+
+	assert.Contains(t, agentSection, "provide_value_to_agent",
+		"agent job must list provide_value_to_agent in its needs (referenced via engine.env)")
+}
+
+// TestBuildMainJobEngineEnvActivationNoFalseWarning verifies that referencing the activation
+// built-in job in engine.env does NOT emit a warning, since activation is always a direct
+// dependency of the agent job and the expression is valid.
+func TestBuildMainJobEngineEnvActivationNoFalseWarning(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		AI:          "copilot",
+		RunsOn:      "runs-on: ubuntu-latest",
+		Permissions: "permissions:\n  contents: read",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				// activation is a valid direct dependency — no warning should be emitted
+				"MODEL": "${{ needs.activation.outputs.model }}",
+			},
+		},
+	}
+
+	initialWarnings := compiler.GetWarningCount()
+	_, err := compiler.buildMainJob(workflowData, true)
+	require.NoError(t, err, "buildMainJob should succeed")
+
+	assert.Equal(t, initialWarnings, compiler.GetWarningCount(),
+		"no warning should be emitted for activation which is already a direct agent dependency")
 }

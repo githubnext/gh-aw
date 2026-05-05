@@ -15,7 +15,7 @@ permissions:
   issues: read
 engine:
   id: claude
-  max-turns: 12
+  max-turns: 20
 safe-outputs:
   add-comment:
     max: 2
@@ -115,7 +115,7 @@ You are the Design Decision Gate, an AI agent that enforces a culture of "decide
 - **Pull Request**: #${{ github.event.pull_request.number || github.event.inputs.pr_number }}
 - **Event**: ${{ github.event_name }}
 - **Actor**: ${{ github.actor }}
-- **Hard Turn Budget**: 12 turns maximum — stop as soon as you can issue a safe output
+- **Hard Turn Budget**: 20 turns maximum — stop as soon as you can issue a safe output
 
 ### Turn Budget Allocation
 
@@ -127,7 +127,7 @@ You are the Design Decision Gate, an AI agent that enforces a culture of "decide
 | Fetch linked issue ADR (only if referenced) | 1 | one GitHub MCP call at most |
 | Generate draft ADR or verify alignment | 2 | write ADR content or compare diff |
 | Commit draft + post comment (or post comment only) | 1 | push-to-pull-request-branch + add-comment |
-| **Total** | **≤ 7** | *(turns 8–12 in reserve: for fallback, unexpected data gaps, or complex ADR generation)* |
+| **Total** | **≤ 7** | *(turns 8–20 in reserve: for fallback, unexpected data gaps, or complex ADR generation)* |
 
 Stop at the first step where you have sufficient information to emit a safe output. Do not advance to the next step unless required data is missing.
 
@@ -140,7 +140,7 @@ Stop and emit a safe output **immediately** when any of the following is true:
 - **ADR found, divergence**: Divergences identified → call `add-comment` (divergence list) and **stop**.
 - **No ADR, decision inferable**: Draft ADR generated → call `push-to-pull-request-branch` + `add-comment` and **stop**.
 - **No ADR, decision not inferable**: Decision cannot be inferred from PR evidence → call `add-comment` explaining what context is missing and **stop**.
-- **Turn 11 reached**: If you are on turn 11 and have not yet called a safe output, emit the best available output immediately on turn 12 — do not start a new investigation step. Turn 12 is the hard limit enforced by the engine.
+- **Turn 19 reached**: If you are on turn 19 and have not yet called a safe output, emit the best available output immediately on turn 20 — do not start a new investigation step. Turn 20 is the hard limit enforced by the engine.
 
 ### Mandatory Efficiency Rules
 

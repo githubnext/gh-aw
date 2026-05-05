@@ -61,7 +61,7 @@ describe("action_setup_otlp.cjs", () => {
       "INPUT_JOB-NAME": process.env["INPUT_JOB-NAME"],
     };
 
-    delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    delete process.env.GH_AW_OTLP_ENDPOINTS;
     delete process.env.SETUP_START_MS;
     delete process.env.INPUT_TRACE_ID;
     delete process.env["INPUT_TRACE-ID"];
@@ -89,11 +89,11 @@ describe("action_setup_otlp.cjs", () => {
     expect(typeof run).toBe("function");
   });
 
-  describe("when OTEL_EXPORTER_OTLP_ENDPOINT is not set", () => {
+  describe("when GH_AW_OTLP_ENDPOINTS is not set", () => {
     it("should log that OTLP export is being skipped", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping setup span");
+      expect(console.log).toHaveBeenCalledWith("[otlp] GH_AW_OTLP_ENDPOINTS not set, skipping setup span");
     });
 
     it("should still call sendJobSetupSpan for JSONL mirror", async () => {
@@ -110,15 +110,15 @@ describe("action_setup_otlp.cjs", () => {
     });
   });
 
-  describe("when OTEL_EXPORTER_OTLP_ENDPOINT is set", () => {
+  describe("when GH_AW_OTLP_ENDPOINTS is set", () => {
     beforeEach(() => {
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:4318" }]);
     });
 
     it("should log sending the setup span to the configured endpoint", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith("[otlp] sending setup span to http://localhost:4318");
+      expect(console.log).toHaveBeenCalledWith("[otlp] sending setup span to configured endpoints");
     });
 
     it("should call sendJobSetupSpan exactly once", async () => {

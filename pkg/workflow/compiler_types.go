@@ -494,6 +494,7 @@ type WorkflowData struct {
 	RawFrontmatter                map[string]any                  // raw parsed frontmatter map (for passing to hash functions without re-parsing)
 	OTLPEndpoint                  string                          // resolved OTLP endpoint (from observability.otlp.endpoint, including imports; set by injectOTLPConfig)
 	OTLPHeaders                   string                          // normalized OTLP headers in key=value,key=value format (from observability.otlp.headers, including imports; set by injectOTLPConfig)
+	OTLPEndpoints                 string                          // JSON-encoded array of all OTLP endpoints (from observability.otlp.endpoints; set by injectOTLPConfig as GH_AW_OTLP_ENDPOINTS)
 	ResolvedMCPServers            map[string]any                  // fully merged mcp-servers from main workflow and all imports (for mcp inspect)
 	ActionPinWarnings             map[string]bool                 // cache of already-warned action pin failures (key: "repo@version")
 	ActionMode                    ActionMode                      // action mode for workflow compilation (dev, release, script)
@@ -514,11 +515,13 @@ type WorkflowData struct {
 	CachedConcurrencyGroupExprErr error                           // cached result of validateConcurrencyGroupExpression(ConcurrencyGroupExpr); nil = valid; populated by applyDefaults
 	Experiments                   map[string][]string             // A/B testing experiments: maps experiment name to variant list (from frontmatter)
 	ExperimentConfigs             map[string]*ExperimentConfig    // Full A/B experiment metadata (populated alongside Experiments)
+	ExperimentsStorage            string                          // "cache" or "repo" (default "repo"); controls how experiment state is persisted across runs
 	CachedConcurrencyGroupExprSet bool                            // true once CachedConcurrencyGroupExprErr has been populated; distinguishes "valid (nil)" from "not yet computed"
 	CachedParsedToolsets          []string                        // cached result of ParseGitHubToolsets for the GitHub tool (for performance optimization); populated by applyDefaults
 	CachedAllowedDomainsStr       string                          // cached allowed-domains string for sanitization (for performance optimization); computed once and reused across multiple compilation steps
 	CachedAllowedDomainsComputed  bool                            // true once CachedAllowedDomainsStr has been set; distinguishes "computed empty" from "not yet computed"
 	KnownActionCredentialEnvVars  map[string]bool                 // env vars for clean_known_action_credentials.sh; keyed by GH_AW_CLEAN_* names; nil when no known credential-leaking actions are detected
+	ModelMappings                 map[string][]string             // merged model alias map (builtins + imported workflow aliases + main frontmatter overrides, in priority order); NOT yet emitted to AWF config JSON — pending AWF firewall support (config.models)
 }
 
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.

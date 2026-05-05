@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -40,7 +41,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	// Pre-activation job doesn't need project support (no safe outputs processed here)
 	// Pre-activation generates the root trace ID; activation will reuse it via setup-trace-id output
-	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, "")...)
+	steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, "")...)
 
 	// Determine permissions for pre-activation job
 	var perms *Permissions
@@ -476,7 +477,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
-		Needs:       dedupeStringSlice(data.OnNeeds),
+		Needs:       sliceutil.Deduplicate(data.OnNeeds),
 	}
 
 	return job, nil
@@ -836,24 +837,7 @@ func parseOnNeedsValues(onMap map[string]any) ([]string, error) {
 		result = append(result, needStr)
 	}
 
-	return dedupeStringSlice(result), nil
-}
-
-func dedupeStringSlice(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-
-	seen := make(map[string]bool, len(values))
-	result := make([]string, 0, len(values))
-	for _, v := range values {
-		if seen[v] {
-			continue
-		}
-		seen[v] = true
-		result = append(result, v)
-	}
-	return result
+	return sliceutil.Deduplicate(result), nil
 }
 
 // referencesPreActivationOutputs returns true if the condition references the pre_activation job's

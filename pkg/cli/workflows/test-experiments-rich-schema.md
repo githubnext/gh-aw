@@ -20,11 +20,14 @@ experiments:
       - name: empty_output_rate
         threshold: "==0"
     min_samples: 25
-    owner: "@team-agents"
     weight: [60, 40]
     issue: 1234
     start_date: "2026-01-01"
     end_date: "2026-12-31"
+    analysis_type: t_test
+    tags: [cost, prompting]
+    notify:
+      issue: 5678
 ---
 
 Rich schema experiment test.
