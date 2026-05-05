@@ -26,8 +26,6 @@ safe-outputs:
     max: 1
   threat-detection: false
 timeout-minutes: 30
-imports:
-  - shared/reporting.md
 steps:
   - name: Download recent Copilot workflow logs
     env:
@@ -106,7 +104,7 @@ steps:
       else
         echo "ℹ️ No previous optimization history found."
       fi
-source: githubnext/agentic-ops/workflows/copilot-token-optimizer.md@c4ff4182e74291a1951178576900b76219a26907
+source: githubnext/agentic-ops/workflows/copilot-token-optimizer.md@0cac7c21e1b2928c1121284b29c40a93e79f2124
 ---
 
 # Copilot Token Usage Optimizer

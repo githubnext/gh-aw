@@ -54,7 +54,7 @@ func ValidateAbsolutePath(path string) (string, error) {
 	return cleanPath, nil
 }
 
-// MustBeWithin checks that candidate is located within the base directory tree.
+// ValidatePathWithinBase checks that candidate is located within the base directory tree.
 // Both paths are resolved via filepath.EvalSymlinks (with filepath.Abs as
 // fallback when a path does not yet exist) before comparison, so neither ".."
 // components nor symlinks pointing outside base can be used to escape.
@@ -62,8 +62,8 @@ func ValidateAbsolutePath(path string) (string, error) {
 // Returns an error when:
 //   - Either path cannot be resolved to an absolute form.
 //   - The resolved candidate path starts outside the resolved base directory.
-func MustBeWithin(base, candidate string) error {
-	log.Printf("MustBeWithin: checking candidate=%q within base=%q", candidate, base)
+func ValidatePathWithinBase(base, candidate string) error {
+	log.Printf("ValidatePathWithinBase: checking candidate=%q within base=%q", candidate, base)
 	// EvalSymlinks resolves both symlinks and ".." components.
 	// Fall back to Abs when a path does not exist on disk yet.
 	absBase, err := filepath.EvalSymlinks(base)
@@ -82,10 +82,10 @@ func MustBeWithin(base, candidate string) error {
 	}
 	rel, err := filepath.Rel(absBase, absCand)
 	if err != nil || !filepath.IsLocal(rel) {
-		log.Printf("MustBeWithin: path escape detected: candidate=%q base=%q", candidate, base)
+		log.Printf("ValidatePathWithinBase: path escape detected: candidate=%q base=%q", candidate, base)
 		return fmt.Errorf("path %q escapes base directory %q", candidate, base)
 	}
-	log.Printf("MustBeWithin: path is safe: candidate=%q (rel=%s) within base=%q", candidate, rel, base)
+	log.Printf("ValidatePathWithinBase: path is safe: candidate=%q (rel=%s) within base=%q", candidate, rel, base)
 	return nil
 }
 
