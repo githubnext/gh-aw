@@ -864,6 +864,129 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.error).toContain("Invalid patch_format");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
+
+    /**
+     * Reproduces the long-running-branch scenario from the issue:
+     * the agent merged the default branch into the PR branch (creating a merge
+     * commit), then committed additional work on top. The incremental range
+     * origin/<branch>..<branch> therefore contains a merge commit, which
+     * `git am --3way` cannot apply. The handler should auto-switch to bundle
+     * transport when patch_format is not explicitly set.
+     */
+    function createSideRepoWithMergeCommitInIncrementalRange() {
+      const targetRepoDir = path.join(testWorkspaceDir, "target-repo-merge");
+      fs.mkdirSync(targetRepoDir, { recursive: true });
+
+      execSync("git init -b main", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@example.com'", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test User'", { cwd: targetRepoDir, stdio: "pipe" });
+
+      // Initial commit on main
+      fs.writeFileSync(path.join(targetRepoDir, "README.md"), "base\n");
+      execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'base commit'", { cwd: targetRepoDir, stdio: "pipe" });
+
+      // Create the feature branch with one commit
+      execSync("git checkout -b feature/test-change", { cwd: targetRepoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(targetRepoDir, "feature.md"), "feature work\n");
+      execSync("git add feature.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'feature commit'", { cwd: targetRepoDir, stdio: "pipe" });
+      const featureCommit = execSync("git rev-parse HEAD", { cwd: targetRepoDir, stdio: "pipe" }).toString().trim();
+
+      // Snapshot the remote tracking ref at this point — this is what the agent's
+      // workflow checkout would see. Anything ahead of this is "to be pushed".
+      execSync("git remote add origin https://github.com/test-owner/test-repo.git", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync(`git update-ref refs/remotes/origin/feature/test-change ${featureCommit}`, { cwd: targetRepoDir, stdio: "pipe" });
+
+      // Advance main with new commits (simulating "branch falls behind")
+      execSync("git checkout main", { cwd: targetRepoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(targetRepoDir, "main-update.md"), "main moved on\n");
+      execSync("git add main-update.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'main update'", { cwd: targetRepoDir, stdio: "pipe" });
+
+      // Agent merges main into feature branch (creates a merge commit)
+      execSync("git checkout feature/test-change", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git merge --no-ff main -m 'Merge main into feature'", { cwd: targetRepoDir, stdio: "pipe" });
+
+      // Agent makes one more commit on top of the merge
+      fs.writeFileSync(path.join(targetRepoDir, "feature.md"), "feature work updated\n");
+      execSync("git add feature.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'follow-up after merge'", { cwd: targetRepoDir, stdio: "pipe" });
+    }
+
+    it("auto-switches to bundle transport when incremental range contains a merge commit (default patch_format)", async () => {
+      createSideRepoWithMergeCommitInIncrementalRange();
+
+      process.env.GITHUB_BASE_REF = "main";
+      try {
+        const result = await handlers.pushToPullRequestBranchHandler({
+          branch: "feature/test-change",
+          repo: "test-owner/test-repo",
+        });
+
+        expect(result.isError).toBeFalsy();
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("success");
+        // Must have generated a bundle, not a patch
+        expect(responseData.bundle).toBeDefined();
+        expect(responseData.patch).toBeUndefined();
+        expect(responseData.bundle.path).toMatch(/\.bundle$/);
+
+        // The auto-switch debug message must be emitted so operators can trace why
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("auto-switching to bundle transport"));
+
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "push_to_pull_request_branch",
+            bundle_path: expect.stringMatching(/\.bundle$/),
+          })
+        );
+        // Should NOT have written a patch_path
+        const appended = mockAppendSafeOutput.mock.calls[0][0];
+        expect(appended.patch_path).toBeUndefined();
+        // diff_size must be recorded so the downstream push step can validate
+        // max_patch_size against the net incremental diff (not the bundle size,
+        // which on long-running branches accumulates packed git objects and can
+        // exceed the limit even when the actual change is small).
+        expect(typeof appended.diff_size).toBe("number");
+        expect(appended.diff_size).toBeGreaterThanOrEqual(0);
+      } finally {
+        delete process.env.GITHUB_BASE_REF;
+      }
+    });
+
+    it("respects explicit patch_format: am even when incremental range contains a merge commit", async () => {
+      createSideRepoWithMergeCommitInIncrementalRange();
+
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        push_to_pull_request_branch: {
+          patch_format: "am",
+        },
+      });
+
+      process.env.GITHUB_BASE_REF = "main";
+      try {
+        const result = await handlers.pushToPullRequestBranchHandler({
+          branch: "feature/test-change",
+          repo: "test-owner/test-repo",
+        });
+
+        // The user explicitly requested "am", so we must respect it and produce a patch
+        // even though the range contains a merge commit. (The patch may later fail to
+        // apply, but that is the user's explicit choice.)
+        expect(result.isError).toBeFalsy();
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("success");
+        expect(responseData.patch).toBeDefined();
+        expect(responseData.bundle).toBeUndefined();
+
+        // Auto-switch debug must NOT have fired
+        const autoSwitchCalls = mockServer.debug.mock.calls.filter(c => typeof c[0] === "string" && c[0].includes("auto-switching to bundle transport"));
+        expect(autoSwitchCalls).toHaveLength(0);
+      } finally {
+        delete process.env.GITHUB_BASE_REF;
+      }
+    });
   });
 
   describe("handler structure", () => {
