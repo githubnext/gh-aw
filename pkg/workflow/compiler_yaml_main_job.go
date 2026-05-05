@@ -655,7 +655,7 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 		paths = append(paths, constants.AWFAuditDir+"/")
 		// Include the AWF /reflect payload persisted by the agent harness.
 		// Co-located under /tmp/gh-aw/sandbox/firewall/ so the existing
-		// chmod -R a+r step covers its permissions before upload.
+		// chmod -R a+rX step covers its permissions before upload.
 		paths = append(paths, constants.AWFReflectFilePath)
 	}
 

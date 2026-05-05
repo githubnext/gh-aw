@@ -442,7 +442,7 @@ jobs:
         run: |
           # Fix permissions on firewall logs so they can be uploaded as artifacts
           # AWF runs with sudo, creating files owned by root
-          sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
+          sudo chmod -R a+rX /tmp/gh-aw/sandbox/firewall 2>/dev/null || true
           awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Upload agent artifacts
         if: always()
@@ -516,4 +516,3 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
             await main();
-

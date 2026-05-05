@@ -46,6 +46,26 @@ describe("interpolate_prompt", () => {
       it("should handle content with literal dollar signs", () => {
         const result = interpolateVariables("Price: $100, Repo: ${GH_AW_EXPR_REPO}", { GH_AW_EXPR_REPO: "github/test-repo" });
         expect(result).toBe("Price: $100, Repo: github/test-repo");
+      }),
+      it("should not corrupt output when value contains $$ (special replacement pattern)", () => {
+        const result = interpolateVariables("Value: ${GH_AW_EXPR_BODY}", { GH_AW_EXPR_BODY: "cost is $$100" });
+        expect(result).toBe("Value: cost is $$100");
+      }),
+      it("should not corrupt output when value contains $& (matched substring pattern)", () => {
+        const result = interpolateVariables("Value: ${GH_AW_EXPR_BODY}", { GH_AW_EXPR_BODY: "see $& for details" });
+        expect(result).toBe("Value: see $& for details");
+      }),
+      it("should not corrupt output when value contains $` (before-match pattern)", () => {
+        const result = interpolateVariables("Value: ${GH_AW_EXPR_BODY}", { GH_AW_EXPR_BODY: "use $`cmd` to run" });
+        expect(result).toBe("Value: use $`cmd` to run");
+      }),
+      it("should not corrupt output when value contains $' (after-match pattern)", () => {
+        const result = interpolateVariables("Value: ${GH_AW_EXPR_BODY}", { GH_AW_EXPR_BODY: "it's $'quoted'" });
+        expect(result).toBe("Value: it's $'quoted'");
+      }),
+      it("should not corrupt output when value contains $1 (capture group pattern)", () => {
+        const result = interpolateVariables("Value: ${GH_AW_EXPR_BODY}", { GH_AW_EXPR_BODY: "group $1 matched" });
+        expect(result).toBe("Value: group $1 matched");
       }));
   }),
     describe("renderMarkdownTemplate", () => {
@@ -175,6 +195,28 @@ describe("interpolate_prompt", () => {
     }),
     describe("main function integration", () => {
       let tmpDir, promptPath, originalEnv;
+      /**
+       * Apply the STEP 2.5 experiment condition substitution logic from main().
+       * Reads GH_AW_EXPERIMENTS_* from process.env and substitutes experiments.name
+       * references inside {{#if}} conditions, using a replacer function to prevent
+       * special $ replacement patterns from corrupting the output.
+       * @param {string} content
+       * @returns {string}
+       */
+      function applyExperimentSubstitution(content) {
+        for (const [key, value] of Object.entries(process.env)) {
+          if (key.startsWith("GH_AW_EXPERIMENTS_")) {
+            const experimentName = key.substring("GH_AW_EXPERIMENTS_".length).toLowerCase();
+            const exprForm = `experiments.${experimentName}`;
+            const conditionPattern = new RegExp(`(\\{\\{#if[^}]*?)${exprForm.replace(".", "\\.")}`, "gi");
+            if (conditionPattern.test(content)) {
+              conditionPattern.lastIndex = 0;
+              content = content.replace(conditionPattern, (_, prefix) => prefix + (value || ""));
+            }
+          }
+        }
+        return content;
+      }
       (beforeEach(() => {
         ((originalEnv = { ...process.env }),
           (tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "interpolate-test-"))),
@@ -196,6 +238,24 @@ describe("interpolate_prompt", () => {
           if (!mainMatch) throw new Error("Could not extract main function");
           const main = eval(`(${mainMatch[0]})`);
           (main(), expect(core.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: GH_AW_PROMPT environment variable is not set`));
+        }),
+        it("should not corrupt condition when experiment value contains $1 (STEP 2.5)", () => {
+          // Regression: GH_AW_EXPERIMENTS_* value containing $1 must not be interpreted as a
+          // capture-group reference when substituting experiments.name inside {{#if}} conditions.
+          process.env.GH_AW_EXPERIMENTS_STYLE = "$1bold";
+          const content = applyExperimentSubstitution("{{#if experiments.style}}\nSelected\n{{#else}}\nNot selected\n{{#endif}}");
+          const result = renderMarkdownTemplate(content);
+          expect(result).toContain("Selected");
+          expect(result).not.toContain("Not selected");
+        }),
+        it("should not corrupt condition when experiment value contains $& (STEP 2.5)", () => {
+          // Regression: GH_AW_EXPERIMENTS_* value containing $& must not be interpreted as the
+          // matched-substring pattern when substituting inside {{#if}} conditions.
+          process.env.GH_AW_EXPERIMENTS_STYLE = "$&matched";
+          const content = applyExperimentSubstitution("{{#if experiments.style}}\nSelected\n{{#else}}\nNot selected\n{{#endif}}");
+          const result = renderMarkdownTemplate(content);
+          expect(result).toContain("Selected");
+          expect(result).not.toContain("Not selected");
         }));
     }),
     describe("prompt-template.txt and prompt-import-tree.json artifacts", () => {

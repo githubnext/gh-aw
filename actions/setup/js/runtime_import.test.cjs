@@ -702,6 +702,42 @@ describe("runtime_import", () => {
           const result = await processRuntimeImports("{{#runtime-import import.md}}", tempDir);
           expect(result).toBe("Content with $pecial ch@racters!");
         }),
+        it("should not corrupt output when imported content contains $$ (fresh-import path)", async () => {
+          fs.writeFileSync(path.join(workflowsDir, "dollars.md"), "cost is $$100 per unit");
+          const result = await processRuntimeImports("Before\n{{#runtime-import dollars.md}}\nAfter", tempDir);
+          expect(result).toBe("Before\ncost is $$100 per unit\nAfter");
+        }),
+        it("should not corrupt output when imported content contains $& (fresh-import path)", async () => {
+          fs.writeFileSync(path.join(workflowsDir, "ampersand.md"), "matched: $& here");
+          const result = await processRuntimeImports("{{#runtime-import ampersand.md}}", tempDir);
+          expect(result).toBe("matched: $& here");
+        }),
+        it("should not corrupt output when imported content contains $` (fresh-import path)", async () => {
+          fs.writeFileSync(path.join(workflowsDir, "backtick.md"), "run $`cmd` to execute");
+          const result = await processRuntimeImports("{{#runtime-import backtick.md}}", tempDir);
+          expect(result).toBe("run $`cmd` to execute");
+        }),
+        it("should not corrupt output when imported content contains $' (fresh-import path)", async () => {
+          fs.writeFileSync(path.join(workflowsDir, "quote.md"), "value is $'quoted'");
+          const result = await processRuntimeImports("{{#runtime-import quote.md}}", tempDir);
+          expect(result).toBe("value is $'quoted'");
+        }),
+        it("should not corrupt output when imported content contains $1 (fresh-import path)", async () => {
+          fs.writeFileSync(path.join(workflowsDir, "capgroup.md"), "group $1 matched");
+          const result = await processRuntimeImports("{{#runtime-import capgroup.md}}", tempDir);
+          expect(result).toBe("group $1 matched");
+        }),
+        it("should not corrupt output when cached imported content contains $$ (cache-hit path)", async () => {
+          fs.writeFileSync(path.join(workflowsDir, "cached-dollars.md"), "price: $$50");
+          // Import twice so the second use exercises the cache-hit code path
+          const result = await processRuntimeImports("{{#runtime-import cached-dollars.md}}\n{{#runtime-import cached-dollars.md}}", tempDir);
+          expect(result).toBe("price: $$50\nprice: $$50");
+        }),
+        it("should not corrupt output when cached imported content contains $` (cache-hit path)", async () => {
+          fs.writeFileSync(path.join(workflowsDir, "cached-backtick.md"), "run $`cmd`");
+          const result = await processRuntimeImports("{{#runtime-import cached-backtick.md}}\n{{#runtime-import cached-backtick.md}}", tempDir);
+          expect(result).toBe("run $`cmd`\nrun $`cmd`");
+        }),
         it("should remove XML comments from imported content", async () => {
           fs.writeFileSync(path.join(workflowsDir, "with-comment.md"), "Text \x3c!-- comment --\x3e more text");
           const result = await processRuntimeImports("{{#runtime-import with-comment.md}}", tempDir);

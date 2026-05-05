@@ -594,6 +594,54 @@ describe("push_signed_commits integration tests", () => {
   });
 
   // ──────────────────────────────────────────────────────
+  // Orphan branch – empty baseRef (push_experiment_state first push)
+  // ──────────────────────────────────────────────────────
+
+  describe("orphan branch first push (empty baseRef)", () => {
+    it("should bypass GraphQL and use git push directly when baseRef is empty (orphan branch root commit)", async () => {
+      // Simulate checkoutOrCreateBranch() returning "" for a brand-new orphan branch,
+      // which is exactly the scenario in push_experiment_state.cjs.
+      // Orphan-branch first commits are root commits (no parent), so the GraphQL
+      // createCommitOnBranch path cannot resolve a parent OID. The fix detects
+      // !baseRef upfront and uses git push directly instead of attempting GraphQL.
+      execGit(["checkout", "--orphan", "experiments/state"], { cwd: workDir });
+      execGit(["read-tree", "--empty"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "state.json"), JSON.stringify({ runs: 1 }));
+      execGit(["add", "state.json"], { cwd: workDir });
+      execGit(["commit", "-m", "Initial experiment state"], { cwd: workDir });
+
+      const expectedSha = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      const result = await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "experiments/state",
+        baseRef: "",
+        cwd: workDir,
+      });
+
+      // GraphQL must NOT be called (orphan root commit has no parent to resolve).
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+
+      // An info-level log (not a warning) should indicate the direct-push path.
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("empty baseRef detected"));
+      expect(mockCore.warning).not.toHaveBeenCalled();
+
+      // The commit must now be on the remote – state was NOT silently discarded.
+      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/experiments/state"], { cwd: workDir });
+      const remoteOid = lsRemote.stdout.trim().split(/\s+/)[0];
+      expect(remoteOid).toBe(expectedSha);
+
+      // Return value should be the HEAD SHA.
+      expect(result).toBe(expectedSha);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // Fallback path – GraphQL fails → git push
   // ──────────────────────────────────────────────────────
 
@@ -1114,6 +1162,238 @@ describe("push_signed_commits integration tests", () => {
       // Must proceed via GraphQL – not incorrectly fallen back to git push
       expect(githubClient.graphql).toHaveBeenCalledTimes(1);
       expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("merge commit"));
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // baseRef as a full commit SHA (push_experiment_state path)
+  // ──────────────────────────────────────────────────────
+
+  describe("baseRef as a full commit SHA", () => {
+    it("should correctly compute rev-list range when baseRef is a 40-char SHA (push_experiment_state real-world path)", async () => {
+      // push_experiment_state.cjs records: baseRef = execGitSync(["rev-parse", "HEAD"]).trim()
+      // on a pre-existing branch, yielding a full SHA not a symbolic ref.
+      execGit(["checkout", "-b", "sha-baseref-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "state.json"), JSON.stringify({ run: 1 }));
+      execGit(["add", "state.json"], { cwd: workDir });
+      execGit(["commit", "-m", "First state"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "sha-baseref-branch"], { cwd: workDir });
+
+      // Record the SHA of the current HEAD (simulates what push_experiment_state does)
+      const baseRefSha = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+
+      // Add a new commit that should be picked up by rev-list <sha>..HEAD
+      fs.writeFileSync(path.join(workDir, "state.json"), JSON.stringify({ run: 2 }));
+      execGit(["add", "state.json"], { cwd: workDir });
+      execGit(["commit", "-m", "Second state"], { cwd: workDir });
+      execGit(["push", "origin", "sha-baseref-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "sha-baseref-branch",
+        baseRef: baseRefSha, // full 40-char SHA, not a branch ref
+        cwd: workDir,
+      });
+
+      // Only the new commit must be found and sent to GraphQL
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const callArg = githubClient.graphql.mock.calls[0][1].input;
+      expect(callArg.message.headline).toBe("Second state");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Binary file content (readBlobAsBase64 binary-safety)
+  // ──────────────────────────────────────────────────────
+
+  describe("binary file content", () => {
+    it("should base64-encode binary files without corruption (readBlobAsBase64 binary-safe path)", async () => {
+      // readBlobAsBase64 uses exec.exec with a listeners.stdout Buffer callback to avoid
+      // the UTF-8 decoding that exec.getExecOutput applies. This test verifies that binary
+      // bytes (including NUL, 0xFF, 0xFE, and bytes invalid in UTF-8) are preserved.
+      execGit(["checkout", "-b", "binary-branch"], { cwd: workDir });
+
+      // Arbitrary binary bytes that are NOT valid UTF-8.  0x89 0x50 0x4E 0x47 is the PNG
+      // magic header; 0x00 0xFF 0xFE are bytes that would be corrupted by UTF-8 decoding.
+      const binaryContent = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff, 0xfe]);
+      fs.writeFileSync(path.join(workDir, "image.bin"), binaryContent);
+      execGit(["add", "image.bin"], { cwd: workDir });
+      execGit(["commit", "-m", "Add binary file"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "binary-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "binary-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const callArg = githubClient.graphql.mock.calls[0][1].input;
+      expect(callArg.fileChanges.additions).toHaveLength(1);
+      expect(callArg.fileChanges.additions[0].path).toBe("image.bin");
+
+      // Decode the base64 payload and verify every byte is intact
+      const decoded = Buffer.from(callArg.fileChanges.additions[0].contents, "base64");
+      expect(decoded.equals(binaryContent)).toBe(true);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Orphan branch with multiple commits (baseRef="")
+  // ──────────────────────────────────────────────────────
+
+  describe("orphan branch with multiple commits (empty baseRef)", () => {
+    it("should push all commits when orphan branch has more than one commit", async () => {
+      // The single-commit orphan test verifies the happy path. This test ensures that
+      // git push (not just the first commit) lands all local commits on the remote.
+      execGit(["checkout", "--orphan", "experiments/multi"], { cwd: workDir });
+      execGit(["read-tree", "--empty"], { cwd: workDir });
+
+      fs.writeFileSync(path.join(workDir, "state.json"), JSON.stringify({ run: 1 }));
+      execGit(["add", "state.json"], { cwd: workDir });
+      execGit(["commit", "-m", "First experiment commit"], { cwd: workDir });
+
+      const firstSha = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+
+      fs.writeFileSync(path.join(workDir, "meta.json"), JSON.stringify({ ts: 42 }));
+      execGit(["add", "meta.json"], { cwd: workDir });
+      execGit(["commit", "-m", "Second experiment commit"], { cwd: workDir });
+
+      const expectedSha = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+      expect(expectedSha).not.toBe(firstSha);
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      const result = await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "experiments/multi",
+        baseRef: "",
+        cwd: workDir,
+      });
+
+      // Both commits must be present on the remote
+      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/experiments/multi"], { cwd: workDir });
+      const remoteOid = lsRemote.stdout.trim().split(/\s+/)[0];
+      expect(remoteOid).toBe(expectedSha);
+
+      // Return value is the HEAD SHA
+      expect(result).toBe(expectedSha);
+
+      // GraphQL must never be called for orphan first push
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Rename with executable bit (R-status + dstMode=100755)
+  // ──────────────────────────────────────────────────────
+
+  describe("rename with executable bit", () => {
+    it("should warn about executable bit loss on renamed destination but continue with GraphQL", async () => {
+      // git diff-tree detects renames (diff.renames=true by default).
+      // When the renamed destination has mode 100755, production code (line 247) warns
+      // but does NOT fall back to git push. This path has no coverage without this test.
+      execGit(["checkout", "-b", "rename-exec-branch"], { cwd: workDir });
+
+      fs.writeFileSync(path.join(workDir, "script.sh"), "#!/bin/bash\necho hello\n");
+      execGit(["add", "script.sh"], { cwd: workDir });
+      execGit(["commit", "-m", "Add script.sh"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "rename-exec-branch"], { cwd: workDir });
+
+      // Rename and set executable bit on the destination
+      fs.renameSync(path.join(workDir, "script.sh"), path.join(workDir, "run.sh"));
+      fs.chmodSync(path.join(workDir, "run.sh"), 0o755);
+      execGit(["add", "-A"], { cwd: workDir });
+      execGit(["commit", "-m", "Rename script.sh to run.sh with exec bit"], { cwd: workDir });
+      execGit(["push", "origin", "rename-exec-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "rename-exec-branch",
+        baseRef: "rename-exec-branch^",
+        cwd: workDir,
+      });
+
+      // GraphQL must still be called – executable bit loss is a warning, not a fallback
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      // Warning about executable bit loss on the renamed destination
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("executable bit on run.sh will be lost in signed commit"));
+
+      // Payload: original path deleted, new path added with correct content
+      const callArg = githubClient.graphql.mock.calls[0][1].input;
+      expect(callArg.fileChanges.deletions).toContainEqual({ path: "script.sh" });
+      expect(callArg.fileChanges.additions.find(a => a.path === "run.sh")).toBeTruthy();
+      const decoded = Buffer.from(callArg.fileChanges.additions.find(a => a.path === "run.sh").contents, "base64").toString();
+      expect(decoded).toContain("echo hello");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Deleted submodule (D status + srcMode=160000) fallback
+  // ──────────────────────────────────────────────────────
+
+  describe("deleted submodule fallback", () => {
+    it("should fall back to git push and warn when a submodule entry is deleted", async () => {
+      // The existing submodule test only covers ADDING a submodule.
+      // This test covers the D-status + srcMode=160000 code path at line 226,
+      // where a previously-committed gitlink entry is removed in a new commit.
+      execGit(["checkout", "-b", "submodule-delete-branch"], { cwd: workDir });
+
+      // Add a fake gitlink (submodule) via update-index, commit, and push
+      const headSha = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+      execGit(["update-index", "--add", "--cacheinfo", `160000,${headSha},mysubmodule`], { cwd: workDir });
+      execGit(["commit", "-m", "Add submodule"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "submodule-delete-branch"], { cwd: workDir });
+
+      // Now remove the submodule entry and commit
+      execGit(["update-index", "--remove", "mysubmodule"], { cwd: workDir });
+      execGit(["commit", "-m", "Remove submodule"], { cwd: workDir });
+      execGit(["push", "origin", "submodule-delete-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "submodule-delete-branch",
+        // Only replay the delete commit
+        baseRef: "submodule-delete-branch^",
+        cwd: workDir,
+      });
+
+      // GraphQL must NOT be called – deleted submodule triggers git push fallback
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+      // Warning about submodule detection
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("submodule change detected in mysubmodule"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("falling back to git push"));
+
+      // All commits must be present on the remote via git push fallback
+      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/submodule-delete-branch"], { cwd: workDir });
+      const remoteOid = lsRemote.stdout.trim().split(/\s+/)[0];
+      const localOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+      expect(remoteOid).toBe(localOid);
     });
   });
 });

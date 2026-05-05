@@ -131,6 +131,22 @@ async function readBlobAsBase64(blobHash, cwd) {
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
 async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv }) {
+  // Orphan branch first push: baseRef is "" when push_experiment_state creates a brand-new
+  // branch for the first time (checkoutOrCreateBranch returns "" for new branches).
+  // The GraphQL createCommitOnBranch path cannot handle root commits (no parent to resolve),
+  // so skip it entirely and fall directly through to git push.
+  if (!baseRef) {
+    core.info(`pushSignedCommits: empty baseRef detected (orphan branch first push), using git push directly for branch ${branch}`);
+    await exec.exec("git", ["push", "origin", branch], {
+      cwd,
+      env: { ...process.env, ...(gitAuthEnv || {}) },
+    });
+    const { stdout: headOut } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { cwd });
+    const headSha = headOut.trim();
+    core.info(`pushSignedCommits: git push completed for orphan branch, HEAD=${headSha}`);
+    return headSha;
+  }
+
   // Collect the commits introduced (oldest-first) using topological order to ensure
   // correct sequencing even when commit dates are out of sync (e.g. after rebase --committer-date-is-author-date).
   // Using --parents emits each line as "<sha> <parent1> [<parent2> ...]", which lets us detect merge commits

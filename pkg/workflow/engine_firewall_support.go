@@ -132,7 +132,7 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 		"        run: |",
 		"          # Fix permissions on firewall logs/audit dirs so they can be uploaded as artifacts",
 		"          # AWF runs with sudo, creating files owned by root",
-		fmt.Sprintf("          sudo chmod -R a+r %s 2>/dev/null || true", firewallDir),
+		fmt.Sprintf("          sudo chmod -R a+rX %s 2>/dev/null || true", firewallDir),
 		"          # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)",
 		"          if command -v awf &> /dev/null; then",
 		"            awf logs summary | tee -a \"$GITHUB_STEP_SUMMARY\"",

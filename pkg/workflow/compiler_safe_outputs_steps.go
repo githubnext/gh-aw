@@ -8,6 +8,45 @@ import (
 
 var consolidatedSafeOutputsStepsLog = logger.New("workflow:compiler_safe_outputs_steps")
 
+// buildExtractBaseBranchStep builds a step that extracts the base branch from the
+// downloaded agent output JSON. The agent stores the resolved base branch in the
+// safe output entry at generation time (in safe_outputs_handlers.cjs), so the
+// apply-time checkout can use it directly instead of inferring from event context.
+//
+// This is the key decoupling that resolves the known limitation for issue_comment
+// events on PRs targeting non-default branches: the checkout step can now use the
+// correct base branch regardless of event type.
+//
+// The step writes the extracted branch to GITHUB_OUTPUT as "base-branch" so the
+// checkout step can reference it via ${{ steps.extract-base-branch.outputs.base-branch }}.
+func buildExtractBaseBranchStep() []string {
+	return []string{
+		"      - name: Extract base branch from agent output\n",
+		"        id: extract-base-branch\n",
+		"        if: steps.download-agent-output.outcome == 'success'\n",
+		"        shell: bash\n",
+		"        run: |\n",
+		"          if [ -f \"/tmp/gh-aw/agent_output.json\" ]; then\n",
+		"            GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)\n",
+		"            BASE_BRANCH=$(\"$GH_AW_NODE\" -e \"\n",
+		"              try {\n",
+		"                const data = JSON.parse(require('fs').readFileSync('/tmp/gh-aw/agent_output.json', 'utf8'));\n",
+		"                const item = (data.items || []).find(i =>\n",
+		"                  (i.type === 'create_pull_request' || i.type === 'push_to_pull_request_branch') &&\n",
+		"                  i.base_branch\n",
+		"                );\n",
+		"                if (item) process.stdout.write(item.base_branch);\n",
+		"              } catch(e) {}\n",
+		"            \" 2>/dev/null || true)\n",
+		"            # Validate: only allow safe git branch name characters\n",
+		"            if [[ \"$BASE_BRANCH\" =~ ^[a-zA-Z0-9/_.-]+$ ]] && [ ${#BASE_BRANCH} -le 255 ]; then\n",
+		"              printf 'base-branch=%s\\n' \"$BASE_BRANCH\" >> \"$GITHUB_OUTPUT\"\n",
+		"              echo \"Extracted base branch from safe output: $BASE_BRANCH\"\n",
+		"            fi\n",
+		"          fi\n",
+	}
+}
+
 // buildSharedPRCheckoutSteps builds checkout and git configuration steps that are shared
 // between create-pull-request and push-to-pull-request-branch operations.
 // These steps are added once with a combined condition to avoid duplication.
@@ -48,33 +87,27 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	}
 
 	// Determine the ref (branch) to checkout
-	// Priority: create-pull-request base-branch > fallback expression
+	// Priority: create-pull-request base-branch > extracted base-branch from agent output > fallback expression
 	// This is critical: we must checkout the base branch, not github.sha (the triggering commit),
 	// because github.sha might be an older commit with different workflow files. A shallow clone
 	// of an old commit followed by git fetch/checkout may not properly update all files,
 	// leading to spurious "workflow file changed" errors on push.
 	//
-	// Fallback expression: github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch
+	// The extract-base-branch step reads the base_branch field from the agent output, which was
+	// stored by safe_outputs_handlers.cjs at agent-execution time using getBaseBranch(). This makes
+	// the checkout independent of event context: the correct base branch is embedded in the safe
+	// output payload itself rather than inferred from event-specific GitHub Actions expressions.
+	//
+	// The event-context fallbacks remain as a safety net for cases where the agent output is
+	// unavailable or does not contain a base_branch (e.g., older agent output format):
 	// - github.base_ref: set for pull_request/pull_request_target events
 	// - github.event.pull_request.base.ref: set for pull_request_review, pull_request_review_comment events
-	// - github.event.repository.default_branch: fallback for issue_comment events and other edge cases
+	// - github.event.repository.default_branch: fallback for edge cases
 	//
-	// LIMITATION: For issue_comment events on PRs targeting non-default branches, this will checkout
-	// the default branch instead of the actual PR base branch. This is a known limitation because
-	// issue_comment payloads don't include PR base ref info and we can't make API calls in YAML expressions.
-	// For most PRs targeting main/master, this works correctly.
-	//
-	// TODO: @dsyme says: We must remove this. Indeed the important longer term thing is that we need the processing
-	// of the application of safe outputs to be independent of
-	// * event trigger context
-	// * ideally repository context too
-	// So safe outputs are "self-describing" and already know which base branch, repository etc. they're
-	// targeting.  Then a lot of this gnarly event code will be only on the "front end" (prepping the
-	// coding agent) not the "backend" (applying the safe outputs)
-	const baseBranchFallbackExpr = "${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}"
+	const baseBranchFallbackExpr = "${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}"
 	// Cross-repo fallback omits github.ref_name because it refers to the branch in the triggering repository,
 	// which may not exist in the target repository (e.g., when triggered via workflow_dispatch from a feature branch).
-	const crossRepoFallbackExpr = "${{ github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}"
+	const crossRepoFallbackExpr = "${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}"
 	var checkoutRef string
 	if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.BaseBranch != "" {
 		checkoutRef = data.SafeOutputs.CreatePullRequests.BaseBranch

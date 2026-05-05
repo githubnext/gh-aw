@@ -248,6 +248,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // to dynamic resolution from trigger context/default branch.
     const baseBranch = prConfig.base_branch || (await getBaseBranch(repoParts));
 
+    // Store the resolved base branch in the entry so the apply-time checkout step
+    // can use it directly instead of inferring from event context.
+    // This makes the safe output "self-describing" and fixes checkout for events
+    // like issue_comment on PRs targeting non-default branches.
+    entry.base_branch = baseBranch;
+
     // Determine the working directory for git operations
     // If repo is specified, find where it's checked out
     let repoCwd = null;
@@ -506,6 +512,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Get base branch for the resolved target repository
     const baseBranch = await getBaseBranch(repoParts);
+
+    // Store the resolved base branch in the entry so the apply-time checkout step
+    // can use it directly instead of inferring from event context.
+    // This makes the safe output "self-describing" and fixes checkout for events
+    // like issue_comment on PRs targeting non-default branches.
+    entry.base_branch = baseBranch;
 
     // Determine the working directory for git operations.
     // Look up the checkout path when the target repo is explicitly provided by the agent
