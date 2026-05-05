@@ -18,15 +18,15 @@ APM is configured by importing the `shared/apm.md` workflow, which creates a ded
 
 `shared/apm.md` is a **local workflow file** that gh-aw resolves at `.github/workflows/shared/apm.md` in your repository — it is not a remote import (the `uses:` syntax inside `imports:` is gh-aw's local-import shape, not GitHub Actions' `uses: owner/repo@ref`).
 
-You must vendor the file into your own repository. The canonical, current source is maintained in [microsoft/apm](https://github.com/microsoft/apm/blob/main/.github/workflows/shared/apm.md):
+The canonical source is maintained in [microsoft/apm](https://github.com/microsoft/apm/blob/main/.github/workflows/shared/apm.md). Add it to your repository with:
 
 ```bash
-mkdir -p .github/workflows/shared
-curl -sSL https://raw.githubusercontent.com/microsoft/apm/main/.github/workflows/shared/apm.md \
-  > .github/workflows/shared/apm.md
+gh aw add microsoft/apm/.github/workflows/shared/apm.md --dir shared
 ```
 
-The canonical version pins `microsoft/apm-action@v1.5.0` and supports multi-org GitHub App authentication (`apps:[]`) and multi-bundle restore. To check whether your vendored copy is current, compare the `Source of truth:` and `apm-action pin:` lines near the top of the file with the canonical copy linked above.
+Running `gh aw update` will keep your vendored copy in sync with the canonical source. The `shared/apm.md` file declares a `redirect` to the `microsoft/apm` library, so any copy sourced from gh-aw will automatically follow the redirect and rewrite its `source` field to track the canonical location on the next `gh aw update` run.
+
+The canonical version pins `microsoft/apm-action@v1.5.0` and supports multi-org GitHub App authentication (`apps:[]`) and multi-bundle restore.
 
 ## Usage
 
