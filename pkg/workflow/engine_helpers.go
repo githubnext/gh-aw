@@ -273,11 +273,14 @@ func FormatStepWithCommandAndEnv(stepLines []string, command string, env map[str
 // appendEnvVarLine appends a YAML env var entry to lines.
 // If the value contains embedded newlines (e.g. from a multi-line YAML block scalar
 // like >- with extra-indented continuation lines), it is emitted as a YAML literal
-// block scalar (|) with proper indentation. A trailing newline produced by block
-// scalars is trimmed before processing.
+// block scalar (|) with proper indentation. At most one trailing newline (produced
+// by block scalars) is trimmed before processing; multiple intentional trailing
+// newlines are preserved.
 func appendEnvVarLine(lines []string, key, value string) []string {
-	// Trim trailing newline added by YAML | or > block scalars
-	value = strings.TrimRight(value, "\n")
+	// Trim at most one trailing newline added by YAML | or > block scalars.
+	// Using TrimSuffix (not TrimRight) to avoid stripping multiple trailing
+	// newlines that may be intentional in the value.
+	value = strings.TrimSuffix(value, "\n")
 
 	if !strings.Contains(value, "\n") {
 		// Single-line: emit inline with YAML-safe quoting

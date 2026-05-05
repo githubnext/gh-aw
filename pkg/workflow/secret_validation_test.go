@@ -252,6 +252,8 @@ func TestGenerateMultiSecretValidationStepWithEnvOverrides(t *testing.T) {
 	})
 
 	t.Run("multi-line override emitted as literal block scalar", func(t *testing.T) {
+		// Continuation lines have 4-space leading whitespace (as produced by goccy/go-yaml
+		// when parsing a >- block scalar with extra-indented continuation lines).
 		multiLineExpr := "${{ secrets.GH_AW_PAT_1 != '' && secrets.GH_AW_PAT_1 ||\n    secrets.GH_AW_PAT_2 != '' && secrets.GH_AW_PAT_2 ||\n    secrets.GH_AW_PAT_3 }}"
 		overrides := map[string]string{
 			"COPILOT_GITHUB_TOKEN": multiLineExpr,
@@ -271,8 +273,9 @@ func TestGenerateMultiSecretValidationStepWithEnvOverrides(t *testing.T) {
 		if !strings.Contains(stepContent, "            ${{ secrets.GH_AW_PAT_1 != '' && secrets.GH_AW_PAT_1 ||") {
 			t.Errorf("Expected first line of multi-line expression, got:\n%s", stepContent)
 		}
-		if !strings.Contains(stepContent, "            secrets.GH_AW_PAT_3 }}") {
-			t.Errorf("Expected last line of multi-line expression, got:\n%s", stepContent)
+		// Continuation lines have 4-space prefix preserved: 12 base + 4 continuation = 16 spaces total.
+		if !strings.Contains(stepContent, "                secrets.GH_AW_PAT_3 }}") {
+			t.Errorf("Expected last line of multi-line expression with preserved continuation indentation (16 spaces), got:\n%s", stepContent)
 		}
 		// Should not emit the raw multi-line value inline
 		if strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.GH_AW_PAT_1") {

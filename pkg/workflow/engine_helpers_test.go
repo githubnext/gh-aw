@@ -342,6 +342,8 @@ func TestFormatStepWithCommandAndEnvYAMLSafe(t *testing.T) {
 
 	t.Run("multi-line env var emitted as literal block scalar", func(t *testing.T) {
 		stepLines := []string{"      - name: Test step"}
+		// Continuation lines have 4-space leading whitespace (as produced by goccy/go-yaml
+		// when parsing a >- block scalar with extra-indented continuation lines).
 		multiLineValue := "${{ secrets.PAT_1 != '' && secrets.PAT_1 ||\n    secrets.PAT_2 != '' && secrets.PAT_2 ||\n    secrets.PAT_3 }}"
 		env := map[string]string{
 			"COPILOT_GITHUB_TOKEN": multiLineValue,
@@ -356,8 +358,9 @@ func TestFormatStepWithCommandAndEnvYAMLSafe(t *testing.T) {
 		if !strings.Contains(output, "            ${{ secrets.PAT_1 != '' && secrets.PAT_1 ||") {
 			t.Errorf("Expected first line of multi-line value, got:\n%s", output)
 		}
-		if !strings.Contains(output, "            secrets.PAT_3 }}") {
-			t.Errorf("Expected last line of multi-line value, got:\n%s", output)
+		// Continuation lines have 4-space prefix preserved, so total indentation is 12+4=16 spaces.
+		if !strings.Contains(output, "                secrets.PAT_3 }}") {
+			t.Errorf("Expected last line of multi-line value with preserved continuation indentation (16 spaces), got:\n%s", output)
 		}
 	})
 
@@ -413,13 +416,16 @@ func TestAppendEnvVarLine(t *testing.T) {
 			},
 		},
 		{
-			name:  "multi-line value emitted as literal block scalar",
-			key:   "COPILOT_GITHUB_TOKEN",
+			name: "multi-line value emitted as literal block scalar",
+			key:  "COPILOT_GITHUB_TOKEN",
+			// Continuation lines have 4-space leading whitespace (as produced by goccy/go-yaml
+			// when parsing a >- block scalar with extra-indented continuation lines).
 			value: "${{ secrets.PAT_1 != '' && secrets.PAT_1 ||\n    secrets.PAT_2 }}",
 			expectedContent: []string{
 				"          COPILOT_GITHUB_TOKEN: |",
 				"            ${{ secrets.PAT_1 != '' && secrets.PAT_1 ||",
-				"            secrets.PAT_2 }}",
+				// Continuation line has 4-space prefix preserved: 12 base + 4 continuation = 16 spaces total.
+				"                secrets.PAT_2 }}",
 			},
 			notExpected: []string{
 				"COPILOT_GITHUB_TOKEN: ${{ secrets.PAT_1",
@@ -434,6 +440,18 @@ func TestAppendEnvVarLine(t *testing.T) {
 			},
 			notExpected: []string{
 				"TRIMMED: |",
+			},
+		},
+		{
+			name:  "only one trailing newline is trimmed (not multiple)",
+			key:   "MULTI_NEWLINE",
+			value: "line one\nline two\n\n",
+			expectedContent: []string{
+				"          MULTI_NEWLINE: |",
+				"            line one",
+				"            line two",
+				// The second trailing newline becomes an empty line in the block scalar.
+				"            ",
 			},
 		},
 		{
