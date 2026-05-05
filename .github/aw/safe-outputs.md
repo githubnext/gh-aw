@@ -29,8 +29,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   ```
 
   **Auto-Expiration**: The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Generates `agentics-maintenance.yml` workflow that runs at minimum required frequency based on shortest expiration time: 1 day or less → every 2 hours, 2 days → every 6 hours, 3-4 days → every 12 hours, 5+ days → daily.
-  When using `safe-outputs.create-issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
-
   **Deduplication for Scheduled Workflows**: When a `schedule:` trigger is combined with `create-issue`, use `skip-if-match:` in the `on:` block to prevent opening a duplicate issue on every run. Pair with `expires:` so stale issues are cleaned up automatically:
 
   ```yaml
@@ -90,7 +88,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
 
   Set `close-older-discussions: true` to automatically close older discussions matching the same title prefix or labels. Up to 10 older discussions are closed as "OUTDATED" with a comment linking to the new discussion. Requires `title-prefix` or `labels` to identify matching discussions.
 
-  When using `safe-outputs.create-discussion`, the main job does **not** need `discussions: write` permission since discussion creation is handled by a separate job with appropriate permissions.
 - `close-discussion:` - Close discussions with comment and resolution
 
   ```yaml
@@ -130,7 +127,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   {"type": "add_comment", "body": "Thread reply text", "reply_to_id": 12345}
   ```
 
-  When using `safe-outputs.add-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
 - `create-pull-request:` - Safe pull request creation with git patches
 
   ```yaml
@@ -178,7 +174,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
 
   **CI Triggering**: By default, PRs created with `GITHUB_TOKEN` do not trigger CI workflow runs. To trigger CI, set `github-token-for-extra-empty-commit` to a PAT with `Contents: Read & Write` permission, or to `"app"` to use the configured GitHub App. Alternatively, set the magic secret `GH_AW_CI_TRIGGER_TOKEN` to a suitable PAT — this is automatically used without requiring explicit configuration in the workflow.
 
-  When using `output.create-pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions.
 - `create-pull-request-review-comment:` - Safe PR review comment creation on code lines
 
   ```yaml
@@ -196,7 +191,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
 
   **Footer Control**: The `footer` field on `submit-pull-request-review` controls when AI-generated footers appear in the PR review body. Values: `"always"` (default, always include footer), `"none"` (never include footer), `"if-body"` (only include footer when review body is non-empty). Boolean values are also supported: `true` maps to `"always"`, `false` maps to `"none"`. This is useful for clean approval reviews — with `"if-body"`, approvals without explanatory text appear without a footer.
 
-  When using `safe-outputs.create-pull-request-review-comment`, the main job does **not** need `pull-requests: write` permission since review comment creation is handled by a separate job with appropriate permissions.
 - `reply-to-pull-request-review-comment:` - Reply to existing review comments on PRs
 
   ```yaml
@@ -209,7 +203,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
 
   **Footer Control**: The `footer` field controls when AI-generated footers appear. Values: `"always"` (default), `"none"`, `"if-body"` (only when body is non-empty). Boolean values supported: `true` → `"always"`, `false` → `"none"`.
 
-  When using `safe-outputs.reply-to-pull-request-review-comment`, the main job does **not** need `pull-requests: write` permission.
 - `resolve-pull-request-review-thread:` - Resolve PR review threads after addressing feedback
 
   ```yaml
@@ -221,7 +214,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
 
   This safe-output type allows agents to programmatically resolve review comment threads after addressing feedback, improving PR review workflows.
 
-  When using `safe-outputs.resolve-pull-request-review-thread`, the main job does **not** need `pull-requests: write` permission.
 - `update-issue:` - Update issue title, body, labels, assignees, or milestone (NOT for closing - use close-issue instead)
 
   ```yaml
@@ -236,7 +228,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   ```
 
   **Note:** While `update-issue` technically supports changing status between 'open' and 'closed', use `close-issue` instead when you want to close an issue with a closing comment. Use `update-issue` primarily for changing the title, body, labels, assignees, or milestone without closing.
-  When using `safe-outputs.update-issue`, the main job does **not** need `issues: write` permission since issue updates are handled by a separate job with appropriate permissions.
 - `update-pull-request:` - Update PR title or body
 
   ```yaml
@@ -265,7 +256,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
 
   **⚠️ Experimental**: Compilation emits a warning when this feature is used. The merge is blocked unless all configured gates pass.
 
-  When using `safe-outputs.merge-pull-request`, the main job does **not** need `pull-requests: write` permission since merging is handled by a separate job with appropriate permissions.
 - `close-pull-request:` - Safe pull request closing with filtering
 
   ```yaml
@@ -279,7 +269,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       github-token: ${{ secrets.CUSTOM_TOKEN }}  # Optional: custom token
   ```
 
-  When using `safe-outputs.close-pull-request`, the main job does **not** need `pull-requests: write` permission since PR closing is handled by a separate job with appropriate permissions.
 - `mark-pull-request-as-ready-for-review:` - Mark draft PRs as ready for review
 
   ```yaml
@@ -292,7 +281,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       target-repo: "owner/repo"           # Optional: cross-repository
   ```
 
-  When using `safe-outputs.mark-pull-request-as-ready-for-review`, the main job does **not** need `pull-requests: write` permission since marking as ready is handled by a separate job with appropriate permissions.
 - `add-labels:` - Safe label addition to issues or PRs
 
   ```yaml
@@ -305,7 +293,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       target-repo: "owner/repo"                   # Optional: cross-repository
   ```
 
-  When using `safe-outputs.add-labels`, the main job does **not** need `issues: write` or `pull-requests: write` permission since label addition is handled by a separate job with appropriate permissions.
 - `remove-labels:` - Safe label removal from issues or PRs
 
   ```yaml
@@ -318,7 +305,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       target-repo: "owner/repo"    # Optional: cross-repository
   ```
 
-  When `allowed` is omitted, any labels can be removed. Use `allowed` to restrict removal to specific labels. When using `safe-outputs.remove-labels`, the main job does **not** need `issues: write` or `pull-requests: write` permission since label removal is handled by a separate job with appropriate permissions.
+  When `allowed` is omitted, any labels can be removed.
 - `add-reviewer:` - Add reviewers to pull requests
 
   ```yaml
@@ -368,14 +355,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       title-prefix: "[ai] "           # Optional: prefix for project titles
   ```
 
-  Use this to create new projects for organizing and tracking work across issues and pull requests. Can optionally specify custom fields, project views, and an initial item to add.
-
-  **⚠️ IMPORTANT**: GitHub Projects requires a **Personal Access Token (PAT)** or GitHub App token with Projects permissions. The default `GITHUB_TOKEN` cannot be used. Ensure `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}` exists and contains a token with:
-  - Classic PAT: `project` and `repo` scopes
-  - Fine-grained PAT: Organization permission `Projects: Read & Write` and repository access
-
-  Project tools automatically fall back to `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}` when per-output and top-level `github-token` values are omitted, so specifying `github-token` is optional unless you need to override the default token.
-  Not supported for cross-repository operations.
+  Can optionally specify custom fields, project views, and an initial item to add. Requires PAT/App token with Projects permissions (`GH_AW_PROJECT_GITHUB_TOKEN`); `GITHUB_TOKEN` cannot access Projects v2 API. Not supported for cross-repository operations.
 - `update-project:` - Add items to GitHub Projects, update custom fields, manage project structure
 
   ```yaml
@@ -386,16 +366,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       # github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # Optional here if GH_AW_PROJECT_GITHUB_TOKEN is set; PAT with projects:write (NOT GITHUB_TOKEN) is still required
   ```
 
-  Use this to organize work by adding issues and pull requests to projects, updating field values (status, priority, effort, dates), creating custom fields, and setting up project views.
-
-  **⚠️ IMPORTANT REQUIREMENTS:**
-  - Agent must include full project URL in **every** call: `project: "https://github.com/orgs/myorg/projects/42"` or `https://github.com/users/username/projects/5`
-  - Project URLs must be full URLs; project numbers alone are NOT accepted
-  - Requires a **PAT or GitHub App token** with Projects permissions (for example via `github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}` or the `GH_AW_PROJECT_GITHUB_TOKEN` fallback)
-  - Default `GITHUB_TOKEN` **cannot** access Projects v2 API
-  - Token scopes:
-    - Classic PAT: `project` and `repo` scopes
-    - Fine-grained PAT: Organization `Projects: Read & Write` permission
+  **⚠️**: Agent must include full project URL (not just number) in every call. Requires PAT/App token with Projects access (same as `create-project:`). Not supported for cross-repository operations.
 
   **Three calling modes:**
 
@@ -465,15 +436,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # REQUIRED: PAT with projects:write (NOT GITHUB_TOKEN)
   ```
 
-  Use this to provide stakeholders with regular updates on project status (on-track, at-risk, off-track, complete, inactive), timeline information, and progress summaries. Status updates create a historical record of project progress and enable tracking over time.
-
-  **⚠️ IMPORTANT REQUIREMENTS:**
-  - Agent must include full project URL in **every** call: `project: "https://github.com/orgs/myorg/projects/42"`
-  - Requires a **PAT or GitHub App token** with Projects permissions configured as `github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}`
-  - Default `GITHUB_TOKEN` **cannot** access Projects v2 API
-  - Token scopes:
-    - Classic PAT: `project` and `repo` scopes
-    - Fine-grained PAT: Organization `Projects: Read & Write` permission
+  Requires same PAT/App token as `update-project`. Agent must include full project URL in every call.
 
   **Agent output fields:**
   - `project`: Full project URL (required) - MUST be explicitly included in output
@@ -537,7 +500,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       target-repo: "owner/repo"       # Optional: cross-repository
   ```
 
-  When using `safe-outputs.update-discussion`, the main job does **not** need `discussions: write` permission since updates are handled by a separate job with appropriate permissions.
 - `update-release:` - Update GitHub release descriptions
 
   ```yaml
@@ -693,7 +655,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       unassign-first: true            # Optional: unassign all current assignees first (default: false)
   ```
 
-  When using `safe-outputs.assign-to-user`, the main job does **not** need `issues: write` or `pull-requests: write` permission since user assignment is handled by a separate job with appropriate permissions.
 - `unassign-from-user:` - Remove user assignments from issues or PRs
 
   ```yaml
@@ -706,7 +667,6 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       target-repo: "owner/repo"       # Optional: cross-repository
   ```
 
-  When using `safe-outputs.unassign-from-user`, the main job does **not** need `issues: write` or `pull-requests: write` permission.
 - `hide-comment:` - Hide comments on issues, PRs, or discussions
 
   ```yaml
@@ -720,7 +680,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       target-repo: "owner/repo"       # Optional: cross-repository
   ```
 
-  Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`. When using `safe-outputs.hide-comment`, the main job does **not** need write permissions since comment hiding is handled by a separate job.
+  Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`.
 - `set-issue-type:` - Set the type of an issue (requires organization-defined issue types)
 
   ```yaml
@@ -732,7 +692,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       target-repo: "owner/repo"             # Optional: cross-repository
   ```
 
-  Set `allowed` to an empty string `""` to allow clearing the issue type. When `allowed` is omitted, any type name is accepted. When using `safe-outputs.set-issue-type`, the main job does **not** need `issues: write` permission since type updates are handled by a separate job with appropriate permissions.
+  Set `allowed` to an empty string `""` to allow clearing the issue type. When `allowed` is omitted, any type name is accepted.
 - `noop:` - Log completion message for transparency (auto-enabled)
 
   ```yaml
@@ -1021,38 +981,14 @@ Fields that influence permission computation (`add-comment.discussions`, `create
     ```
 
 
-## Output Processing and Issue Creation
+## Output Variables
 
-### Automatic GitHub Issue Creation
+The safe-outputs job emits named step outputs for the first successful result of each type:
 
-Use the `safe-outputs.create-issue` configuration to automatically create GitHub issues from coding agent output:
-
-```aw
----
-on: push
-permissions:
-  contents: read      # Main job only needs minimal permissions
-  actions: read
-safe-outputs:
-  create-issue:
-    title-prefix: "[analysis] "
-    labels: [automation, ai-generated]
----
-
-# Code Analysis Agent
-
-Analyze the latest code changes and provide insights.
-Create an issue with your final analysis.
-```
-
-**Key Benefits:**
-
-- **Permission Separation**: The main job doesn't need `issues: write` permission
-- **Automatic Processing**: AI output is automatically parsed and converted to GitHub issues
-- **Job Dependencies**: Issue creation only happens after the coding agent completes successfully
-- **Output Variables**: The safe-outputs job emits named step outputs for the first successful result of each type:
-  - `create-issue` → `created_issue_number`, `created_issue_url`
-  - `create-pull-request` → `created_pr_number`, `created_pr_url`
-  - `add-comment` → `comment_id`, `comment_url`
-  - `push-to-pull-request-branch` → `push_commit_sha`, `push_commit_url`
+| Safe Output | Step Output Variables |
+|---|---|
+| `create-issue` | `created_issue_number`, `created_issue_url` |
+| `create-pull-request` | `created_pr_number`, `created_pr_url` |
+| `add-comment` | `comment_id`, `comment_url` |
+| `push-to-pull-request-branch` | `push_commit_sha`, `push_commit_url` |
 
