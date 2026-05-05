@@ -234,4 +234,22 @@ fi
 sudo env -u GITHUB_API_URL -u GITHUB_GRAPHQL_URL -u GH_HOST \
     "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" --version
 
+# Ensure node is accessible at a standard system path for AWF chroot compatibility.
+#
+# On some runners (e.g. aw-gpu-runner-T4), the GitHub Actions setup-node action
+# installs Node.js under /home/runner/work/_tool rather than the standard
+# /opt/hostedtoolcache or /home/runner/.nvm locations. The AWF entrypoint performs
+# a pre-flight check for node when launching in chroot mode, and it only recognizes
+# these specific standard paths. If node is not found, AWF fails with:
+#   [entrypoint][ERROR] Copilot CLI requires Node.js, but 'node' is not available
+#                       inside AWF chroot.
+# Creating a symlink at /usr/local/bin/node (which is always in the system PATH
+# and is recognised by the AWF entrypoint) ensures node is discoverable regardless
+# of where setup-node placed the binary.
+NODE_BIN=$(command -v node 2>/dev/null || true)
+if [ -n "$NODE_BIN" ] && [ ! -e "${AWF_INSTALL_DIR}/node" ]; then
+  sudo ln -sf "$NODE_BIN" "${AWF_INSTALL_DIR}/node"
+  echo "✓ Created ${AWF_INSTALL_DIR}/node -> $NODE_BIN for AWF chroot compatibility"
+fi
+
 echo "✓ AWF installation complete"
