@@ -1,23 +1,19 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
-
-var compilerRepoConfigLog = logger.New("workflow:compiler_repo_config")
-
 // loadRepoConfig loads and caches repository-level configuration from aw.json.
 func (c *Compiler) loadRepoConfig() (*RepoConfig, error) {
 	if c.repoConfigLoaded {
-		compilerRepoConfigLog.Print("loadRepoConfig: returning cached repo config")
+		repoConfigLog.Print("loadRepoConfig: returning cached repo config")
 		return c.repoConfig, c.repoConfigErr
 	}
 
-	compilerRepoConfigLog.Printf("loadRepoConfig: loading repo config from git root: %s", c.gitRoot)
+	repoConfigLog.Printf("loadRepoConfig: loading repo config from git root: %s", c.gitRoot)
 	c.repoConfig, c.repoConfigErr = LoadRepoConfig(c.gitRoot)
 	c.repoConfigLoaded = true
 	if c.repoConfigErr != nil {
-		compilerRepoConfigLog.Printf("loadRepoConfig: failed to load repo config: %v", c.repoConfigErr)
+		repoConfigLog.Printf("loadRepoConfig: failed to load repo config: %v", c.repoConfigErr)
 	} else {
-		compilerRepoConfigLog.Print("loadRepoConfig: repo config loaded successfully")
+		repoConfigLog.Print("loadRepoConfig: repo config loaded successfully")
 	}
 	return c.repoConfig, c.repoConfigErr
 }
