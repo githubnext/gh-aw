@@ -8,13 +8,37 @@ permissions:
   pull-requests: read
 engine: copilot
 imports:
-  - uses: shared/apm.md
-    with:
-      packages:
-        - mattpocock/skills
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
+pre-agent-steps:
+  - name: Upgrade gh CLI
+    run: |
+      bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
+      GH_VERSION=$(gh --version | head -1 | grep -oP '\d+\.\d+\.\d+')
+      echo "gh version: ${GH_VERSION}"
+      REQUIRED="2.90.0"
+      if ! printf '%s\n%s\n' "$REQUIRED" "$GH_VERSION" | sort -V -C; then
+        echo "::error::gh ${GH_VERSION} is older than required ${REQUIRED} (gh skill support requires v2.90+)"
+        exit 1
+      fi
+  - name: Install Matt Pocock skills
+    env:
+      GH_TOKEN: ${{ github.token }}
+    run: |
+      set -euo pipefail
+      gh skill install mattpocock/skills --scope user
+      SKILLS_SRC="${HOME}/.local/share/gh/skills"
+      SKILLS_DST="${RUNNER_TEMP}/gh-aw/mattpocock-skills"
+      mkdir -p "${SKILLS_DST}"
+      cp -r "${SKILLS_SRC}/." "${SKILLS_DST}/"
+      SKILL_COUNT=$(find "${SKILLS_DST}" -name "SKILL.md" | wc -l)
+      echo "Installed ${SKILL_COUNT} skill(s):"
+      find "${SKILLS_DST}" -name "SKILL.md" | head -20
+      if [ "${SKILL_COUNT}" -eq 0 ]; then
+        echo "::error::No SKILL.md files found after installing mattpocock/skills"
+        exit 1
+      fi
 tools:
   cli-proxy: true
 safe-outputs:
@@ -47,7 +71,7 @@ You are a skilled engineering reviewer who applies [Matt Pocock's engineering sk
 
 ## Available Matt Pocock Skills
 
-The following skills have been installed via APM and are available in `/tmp/gh-aw/agent/`:
+The following skills have been installed via `gh skill` and are available under `${RUNNER_TEMP}/gh-aw/mattpocock-skills/`. Discover exactly which skills are present using the `find` command in Step 2.
 
 - **`/diagnose`** — Disciplined debugging loop: reproduce → minimise → hypothesise → instrument → fix → regression-test. Use for PRs that fix bugs or address performance regressions.
 - **`/tdd`** — Test-driven development: red-green-refactor loop. Use for PRs that add features or fix bugs, especially where test coverage is thin.
@@ -72,10 +96,10 @@ gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository 
 
 ### Step 2: Read Available Skills
 
-Read the installed Matt Pocock skills from the APM location. They will be at a path like `/tmp/gh-aw/agent/<skill-name>/SKILL.md` or similar under `/tmp/gh-aw/`. List what is available:
+Read the installed Matt Pocock skills from the install root `${RUNNER_TEMP}/gh-aw/mattpocock-skills/`. List what is available:
 
 ```bash
-find /tmp/gh-aw -name "SKILL.md" 2>/dev/null | head -30
+find "${RUNNER_TEMP}/gh-aw/mattpocock-skills" -name "SKILL.md" 2>/dev/null | head -30
 ```
 
 Read the content of each relevant skill file before applying it so you understand its exact guidance.

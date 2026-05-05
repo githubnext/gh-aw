@@ -19,6 +19,24 @@ timeout-minutes: 45
 engine: claude
 strict: true
 
+experiments:
+  output_format:
+    variants: [full_briefing, executive_brief, annotated_brief]
+    description: "Tests whether report verbosity and structure affect token cost and discussion engagement"
+    hypothesis: "H0: no change in discussion engagement or token cost. H1: executive_brief reduces token usage by ≥20% without reducing engagement; annotated_brief improves actionability."
+    metric: token_count
+    secondary_metrics: [discussion_reactions, discussion_replies, output_char_length, run_duration_ms]
+    guardrail_metrics:
+      - name: empty_output_rate
+        threshold: "==0"
+      - name: issue_creation_success_rate
+        threshold: ">=0.8"
+    min_samples: 15
+    weight: [34, 33, 33]
+    start_date: "2026-05-06"
+    analysis_type: mann_whitney
+    tags: [output-format, token-cost, engagement, daily]
+
 network:
   allowed:
     - defaults
@@ -254,6 +272,17 @@ Save your findings to `/tmp/gh-aw/repo-memory/default/memory/deep-report/` as ma
 
 ## Report Structure
 
+{{#if experiments.output_format == "executive_brief"}}
+Generate a **condensed intelligence brief** with these sections only:
+1. **🔍 Executive Summary** — 3 sentences: overall health, top finding, urgent action.
+2. **🚨 Top 5 Findings** — Flat bullet list, one line each, most impactful first.
+3. **✅ Actionable Agentic Tasks** — Exactly 7 items as before.
+{{#elseif experiments.output_format == "annotated_brief"}}
+Generate a **condensed intelligence brief with inline citations** with these sections only:
+1. **🔍 Executive Summary** — 3 sentences with at least one cited source link per sentence.
+2. **🚨 Top 5 Findings** — Flat bullet list, one line each, each ending with `([source](url))`.
+3. **✅ Actionable Agentic Tasks** — Exactly 7 items as before, each linking its evidence.
+{{else}}
 Generate an intelligence briefing with the following sections:
 
 ### 🔍 Executive Summary
@@ -340,6 +369,7 @@ List all reports and data sources analyzed:
 - Workflow run references with links
 - Time range of data analyzed
 - Repo-memory data used from previous analyses (stored in memory/deep-report branch)
+{{/if}}
 
 ## Output Guidelines
 
