@@ -45,43 +45,12 @@ func TestExpandCompileArg_LocalDirectory_Empty(t *testing.T) {
 	assert.Contains(t, err.Error(), "no workflow markdown files found", "error should mention no workflow files")
 }
 
-func TestExpandCompileArg_TreeURL(t *testing.T) {
-	// Create a local .github/workflows directory so that the extracted path exists
-	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
-	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "create workflows dir")
-	writeWorkflowFile(t, workflowsDir, "workflow-a.md")
-	writeWorkflowFile(t, workflowsDir, "workflow-b.md")
-
-	// Temporarily change working directory so relative paths work
-	originalWd, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(tmpDir))
-	defer func() { _ = os.Chdir(originalWd) }()
-
+func TestExpandCompileArg_URLPassthrough(t *testing.T) {
+	// URLs should be returned as-is (not processed)
 	url := "https://github.com/org/repo/tree/main/.github/workflows"
 	result, err := expandCompileArg(url, false)
-	require.NoError(t, err, "tree URL should expand to local directory files")
-	assert.Len(t, result, 2, "should return all .md files in the extracted directory")
-	for _, f := range result {
-		assert.True(t, strings.HasSuffix(f, ".md"), "each result should be a .md file")
-	}
-}
-
-func TestExpandCompileArg_BlobURL(t *testing.T) {
-	url := "https://github.com/org/repo/blob/main/.github/workflows/my-workflow.md"
-	result, err := expandCompileArg(url, false)
-	require.NoError(t, err, "blob URL should not error")
-	assert.Equal(t, []string{".github/workflows/my-workflow.md"}, result,
-		"blob URL should return the extracted local file path")
-}
-
-func TestExpandCompileArg_InvalidURL(t *testing.T) {
-	// An unparseable URL should be returned as-is (let the resolver handle it)
-	url := "https://not-github.com/some/path"
-	result, err := expandCompileArg(url, false)
-	require.NoError(t, err, "unrecognized URL should not error")
-	assert.Equal(t, []string{url}, result, "unrecognized URL should be returned unchanged")
+	require.NoError(t, err, "URL should not error")
+	assert.Equal(t, []string{url}, result, "URL should be returned unchanged")
 }
 
 func TestResolveCompileArgs_Empty(t *testing.T) {
