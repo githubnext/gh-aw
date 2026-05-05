@@ -171,7 +171,7 @@ Collect all sections scoring ≥ 4. Pick the **top 2–4** by score to propose a
 For each selected sub-agent candidate, design a concrete inline sub-agent:
 
 1. **Name**: lowercase, hyphenated, descriptive (e.g., `file-summarizer`, `category-detector`)
-2. **Model**: `claude-haiku-4.5`
+2. **Model**: `small`
 3. **Description**: one sentence (≤ 15 words)
 4. **Agent prompt**: focused, ≤ 15 lines, imperative mood
 5. **Invocation change**: the 1–3 line replacement in the main prompt that calls the sub-agent by name
@@ -242,10 +242,10 @@ Then remove the duplicate calls from each of the affected sections.
 
 ### Proposed Sub-Agents
 
-#### 1. `<agent-name>` (`claude-haiku-4.5`)
+#### 1. `<agent-name>` (`small`)
 
 **Extracted task**: [1 sentence]
-**Why haiku**: [1 sentence — which heuristic applies]
+**Why small**: [1 sentence — which heuristic applies]
 **Score**: <X>/10 (independence: N, haiku-adequacy: N, parallelism: N, size: N)
 **Estimated savings**: ~N tokens/run
 
@@ -256,7 +256,7 @@ Then remove the duplicate calls from each of the affected sections.
 ## agent: `<agent-name>`
 ---
 description: <description>
-model: claude-haiku-4.5
+model: small
 ---
 <agent prompt>
 ```
@@ -340,7 +340,7 @@ Load the existing array from that path if the file is present, append the new en
 ## agent: `prefix-analyzer`
 ---
 description: Detects repeated tool-call prefixes across workflow prompt sections and scores extraction value
-model: claude-haiku-4.5
+model: small
 ---
 You are a prompt-structure analyst. Given the full body text of an agentic workflow prompt (everything after the closing frontmatter `---`), identify repeated tool invocations that appear as opening instructions in multiple sections.
 
@@ -380,7 +380,7 @@ reasoning: <1–2 sentences explaining the finding>
 ## agent: `workflow-screener`
 ---
 description: Reads a workflow .md file and reports whether inline-agents are enabled, the engine, and prompt complexity
-model: claude-haiku-4.5
+model: small
 ---
 You are a workflow file scanner. When given a file path, read the file using bash and report the following facts:
 
@@ -404,7 +404,7 @@ notes: <one sentence>
 ## agent: `opportunity-classifier`
 ---
 description: Scores a workflow prompt section on its suitability for extraction into a haiku/mini sub-agent
-model: claude-haiku-4.5
+model: small
 ---
 You are an LLM task-decomposition expert. Given a section of an agentic workflow prompt, score it on its suitability to be extracted into a sub-agent using a smaller haiku/mini model.
 

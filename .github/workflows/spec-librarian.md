@@ -264,7 +264,7 @@ The following specifications are outdated:
 
 ## agent: `coverage-checker`
 ---
-model: claude-haiku-4.5
+model: small
 description: Lists all pkg/ packages and reports README.md coverage metrics as JSON
 ---
 You are a coverage auditor for a Go repository. Your task is to enumerate all packages
@@ -292,7 +292,7 @@ Return ONLY a JSON object with these six fields and no additional text.
 
 ## agent: `staleness-detector`
 ---
-model: claude-haiku-4.5
+model: small
 description: Compares git timestamps for each package's source vs spec and detects API drift
 ---
 You are a staleness detector for Go package specifications. You receive a list of packages
@@ -330,7 +330,7 @@ Return ONLY the JSON object and no additional text.
 
 ## agent: `consistency-checker`
 ---
-model: claude-haiku-4.5
+model: small
 description: Validates import paths, naming conventions, and dependency declarations across all specs
 ---
 You are a cross-package consistency checker for Go package specifications. Your task is to
