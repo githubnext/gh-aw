@@ -618,24 +618,27 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifacts
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh run download ${{ github.run_id }} -n agent -D artifacts/agent
-          gh run download ${{ github.run_id }} -n detection -D artifacts/detection || true
+      - uses: actions/download-artifact@v4
+        with:
+          name: agent
+          path: artifacts/agent
+      - uses: actions/download-artifact@v4
+        with:
+          name: detection
+          path: artifacts/detection
+        continue-on-error: true
       - name: Upload to third-party server
         env:
           INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
         run: |
           tar -czf artifacts.tar.gz artifacts/
           curl --fail --retry 3 -X POST https://ingest.example.com/artifacts \
-            -H "Authorization: Bearer $INGEST_TOKEN" \
+            -H "Authorization: ******" \
             -F "file=@artifacts.tar.gz" \
             -F "run_id=${{ github.run_id }}"
 ```
 
-`if: always()` ensures the job runs even when the agent or safe-output jobs fail. The `detection` artifact is only present when [threat detection](/gh-aw/reference/threat-detection/) is enabled; the `|| true` makes that download a no-op when the artifact doesn't exist.
+`if: always()` ensures the job runs even when the agent or safe-output jobs fail. The `detection` artifact is only present when [threat detection](/gh-aw/reference/threat-detection/) is enabled; `continue-on-error: true` on that step makes the job continue when the artifact doesn't exist.
 
 See [Artifacts](/gh-aw/reference/artifacts/) for a full list of artifact names and their contents.
 
