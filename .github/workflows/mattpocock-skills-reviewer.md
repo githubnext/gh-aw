@@ -14,13 +14,7 @@ imports:
 pre-agent-steps:
   - name: Upgrade gh CLI
     run: |
-      set -euo pipefail
-      curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-        | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null
-      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-        | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-      sudo apt-get update -qq
-      sudo apt-get install -y gh
+      bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
       GH_VERSION=$(gh --version | head -1 | grep -oP '\d+\.\d+\.\d+')
       echo "gh version: ${GH_VERSION}"
       REQUIRED="2.90.0"
@@ -32,9 +26,19 @@ pre-agent-steps:
     env:
       GH_TOKEN: ${{ github.token }}
     run: |
+      set -euo pipefail
       gh skill install mattpocock/skills --scope user
-      echo "Installed skills:"
-      find ~/.local/share/gh/skills -name "SKILL.md" 2>/dev/null | head -20 || echo "No skills found"
+      SKILLS_SRC="${HOME}/.local/share/gh/skills"
+      SKILLS_DST="${RUNNER_TEMP}/gh-aw/mattpocock-skills"
+      mkdir -p "${SKILLS_DST}"
+      cp -r "${SKILLS_SRC}/." "${SKILLS_DST}/"
+      SKILL_COUNT=$(find "${SKILLS_DST}" -name "SKILL.md" | wc -l)
+      echo "Installed ${SKILL_COUNT} skill(s):"
+      find "${SKILLS_DST}" -name "SKILL.md" | head -20
+      if [ "${SKILL_COUNT}" -eq 0 ]; then
+        echo "::error::No SKILL.md files found after installing mattpocock/skills"
+        exit 1
+      fi
 tools:
   cli-proxy: true
 safe-outputs:
@@ -67,7 +71,7 @@ You are a skilled engineering reviewer who applies [Matt Pocock's engineering sk
 
 ## Available Matt Pocock Skills
 
-The following skills have been installed via `gh skill` and are available in `~/.local/share/gh/skills/`:
+The following skills have been installed via `gh skill` and are available under `${RUNNER_TEMP}/gh-aw/mattpocock-skills/`. Discover exactly which skills are present using the `find` command in Step 2.
 
 - **`/diagnose`** — Disciplined debugging loop: reproduce → minimise → hypothesise → instrument → fix → regression-test. Use for PRs that fix bugs or address performance regressions.
 - **`/tdd`** — Test-driven development: red-green-refactor loop. Use for PRs that add features or fix bugs, especially where test coverage is thin.
@@ -92,10 +96,10 @@ gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository 
 
 ### Step 2: Read Available Skills
 
-Read the installed Matt Pocock skills from the `gh skill` install location. They will be at `~/.local/share/gh/skills/<skill-name>/SKILL.md`. List what is available:
+Read the installed Matt Pocock skills from the install root `${RUNNER_TEMP}/gh-aw/mattpocock-skills/`. List what is available:
 
 ```bash
-find ~/.local/share/gh/skills -name "SKILL.md" 2>/dev/null | head -30
+find "${RUNNER_TEMP}/gh-aw/mattpocock-skills" -name "SKILL.md" 2>/dev/null | head -30
 ```
 
 Read the content of each relevant skill file before applying it so you understand its exact guidance.

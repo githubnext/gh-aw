@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set +o histexpand
 
-# Install GitHub CLI (gh) if not already present
+# Install or upgrade GitHub CLI (gh)
 #
-# This script installs the GitHub CLI using the official apt repository on
-# Debian/Ubuntu systems. It is idempotent: if gh is already installed the
-# script exits immediately without making any changes.
+# This script installs or upgrades the GitHub CLI using the official apt
+# repository on Debian/Ubuntu systems. It is idempotent: running it on a
+# system where gh is already present upgrades it to the latest available
+# version from the official repository.
 #
 # Supported platforms:
 #   - Linux (Debian/Ubuntu) x64 and arm64
@@ -13,11 +14,8 @@ set +o histexpand
 set -euo pipefail
 
 if command -v gh &>/dev/null; then
-  echo "gh CLI is already installed: $(gh --version | head -1)"
-  exit 0
+  echo "gh CLI is already installed: $(gh --version | head -1), checking for upgrade..."
 fi
-
-echo "gh CLI not found, installing via apt..."
 
 OS="$(uname -s)"
 
