@@ -281,7 +281,7 @@ func TestGenerateFirewallLogParsingStepFixesFirewallPermissions(t *testing.T) {
 		t.Error("Expected firewall log parsing step to keep AWF_LOGS_DIR set to logs directory")
 	}
 
-	if !strings.Contains(stepContent, "sudo chmod -R a+r "+expectedFirewallDir+" 2>/dev/null || true") {
+	if !strings.Contains(stepContent, "sudo chmod -R a+rX "+expectedFirewallDir+" 2>/dev/null || true") {
 		t.Error("Expected firewall log parsing step to chmod the parent firewall directory for logs and audit upload")
 	}
 }
