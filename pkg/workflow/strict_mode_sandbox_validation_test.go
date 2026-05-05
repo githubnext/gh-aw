@@ -134,7 +134,7 @@ func TestValidateStrictSandboxCustomization(t *testing.T) {
 			expectError: false,
 		},
 		{
-			// A bare sandbox.agent object with no id/type defaults to awf.
+			// A bare sandbox.agent object with no id/type defaults to AWF.
 			// It should be accepted in strict mode.
 			name: "sandbox.agent without id is allowed in strict mode (defaults to awf)",
 			sandbox: &SandboxConfig{
@@ -145,7 +145,7 @@ func TestValidateStrictSandboxCustomization(t *testing.T) {
 			expectError: false,
 		},
 		{
-			// An empty AgentSandboxConfig (no id, no type, no version) also defaults to awf.
+			// An empty AgentSandboxConfig (no id, no type, no version) also defaults to AWF.
 			// It should be accepted in strict mode.
 			name: "empty sandbox.agent is allowed in strict mode (defaults to awf)",
 			sandbox: &SandboxConfig{
