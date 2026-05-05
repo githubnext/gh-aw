@@ -1,9 +1,5 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
-
-var repoConfigLog = logger.New("workflow:compiler_repo_config")
-
 // loadRepoConfig loads and caches repository-level configuration from aw.json.
 func (c *Compiler) loadRepoConfig() (*RepoConfig, error) {
 	if c.repoConfigLoaded {
