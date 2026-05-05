@@ -183,7 +183,7 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 			cfg.Hypothesis = h
 		}
 		if smRaw, ok := v["secondary_metrics"]; ok {
-			cfg.SecondaryMetrics = extractStringSlice(smRaw)
+			cfg.SecondaryMetrics = parseStringSliceAny(smRaw, nil)
 		}
 		if gmRaw, ok := v["guardrail_metrics"]; ok {
 			cfg.GuardrailMetrics = extractGuardrailMetrics(gmRaw)
@@ -195,7 +195,7 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 			cfg.AnalysisType = at
 		}
 		if tagsRaw, ok := v["tags"]; ok {
-			cfg.Tags = extractStringSlice(tagsRaw)
+			cfg.Tags = parseStringSliceAny(tagsRaw, nil)
 		}
 		if notifyRaw, ok := v["notify"]; ok {
 			if notifyMap, ok := notifyRaw.(map[string]any); ok {
@@ -248,23 +248,6 @@ func extractIntField(val any) (int, bool) {
 		return int(n), true
 	}
 	return 0, false
-}
-
-// extractStringSlice converts a raw value to a []string, accepting []any of string values.
-func extractStringSlice(raw any) []string {
-	switch v := raw.(type) {
-	case []string:
-		return v
-	case []any:
-		var result []string
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				result = append(result, s)
-			}
-		}
-		return result
-	}
-	return nil
 }
 
 // extractGuardrailMetrics converts a raw guardrail_metrics value into a []GuardrailMetric.

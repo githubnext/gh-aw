@@ -6028,13 +6028,48 @@ observability:
   # OTLP (OpenTelemetry Protocol) trace export configuration.
   # (optional)
   otlp:
-    # OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports
-    # GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static
-    # URL is provided, its hostname is automatically added to the network firewall
-    # allowlist.
+    # OTLP endpoint configuration. Accepts a plain URL string (backward-compat), a
+    # single {url, headers} object, or an array of {url, headers} objects for
+    # multi-endpoint concurrent fan-out. Encoded as GH_AW_OTLP_ENDPOINTS (JSON array).
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317').
+    # Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a
+    # static URL is provided, its hostname is automatically added to the network
+    # firewall allowlist.
     endpoint: "example-value"
 
+    # Option 2: A single OTLP endpoint with a URL and optional per-endpoint headers.
+    endpoint:
+      # OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports
+      # GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static
+      # URL is provided, its hostname is automatically added to the network firewall
+      # allowlist.
+      url: "example-value"
+
+      # (optional)
+      # This field supports multiple formats (oneOf):
+
+      # Option 1: Map of HTTP header names to values. Values support GitHub Actions
+      # expressions such as ${{ secrets.TOKEN }}.
+      headers:
+        {}
+
+      # Option 2: Deprecated: use the map form instead. Comma-separated list of
+      # key=value HTTP headers (e.g. 'Authorization=Bearer <token>'). Supports GitHub
+      # Actions expressions such as ${{ secrets.OTLP_HEADERS }}.
+      headers: "example-value"
+
+    # Option 3: Multiple OTLP collector endpoints to export traces to concurrently.
+    # Each entry has its own URL and optional per-endpoint headers.
+    endpoint: []
+      # Array items: A single OTLP endpoint with a URL and optional per-endpoint
+      # headers.
+
+    # HTTP headers for the backward-compat string endpoint form. Only used when
+    # endpoint is a plain string; object/array endpoint entries carry their own
+    # per-endpoint headers.
     # (optional)
     # This field supports multiple formats (oneOf):
 

@@ -58,6 +58,77 @@ func ParseVersionValue(version any) string {
 	}
 }
 
+// FormatList formats a slice of strings as a natural-language comma-separated list
+// with an Oxford comma and "and" before the final item.
+//
+// Examples:
+//
+//	FormatList([]string{})              // returns ""
+//	FormatList([]string{"a"})           // returns "a"
+//	FormatList([]string{"a", "b"})      // returns "a and b"
+//	FormatList([]string{"a", "b", "c"}) // returns "a, b, and c"
+func FormatList(items []string) string {
+	switch len(items) {
+	case 0:
+		return ""
+	case 1:
+		return items[0]
+	case 2:
+		return items[0] + " and " + items[1]
+	default:
+		return strings.Join(items[:len(items)-1], ", ") + ", and " + items[len(items)-1]
+	}
+}
+
+// NormalizeLeadingWhitespace removes consistent leading whitespace from all lines
+// of a multi-line string. It finds the minimum indentation across all non-empty
+// lines and strips that many leading spaces from every line.
+//
+// This is useful for cleaning up content generated with extra indentation,
+// such as heredoc bodies.
+func NormalizeLeadingWhitespace(content string) string {
+	lines := strings.Split(content, "\n")
+	if len(lines) == 0 {
+		return content
+	}
+
+	// Find minimum leading whitespace (excluding empty lines)
+	minLeadingSpaces := -1
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue // Skip empty lines
+		}
+		leadingSpaces := len(line) - len(strings.TrimLeft(line, " "))
+		if minLeadingSpaces == -1 || leadingSpaces < minLeadingSpaces {
+			minLeadingSpaces = leadingSpaces
+		}
+	}
+
+	// If no content or no leading spaces, return as-is
+	if minLeadingSpaces <= 0 {
+		return content
+	}
+
+	// Remove the minimum leading whitespace from all lines
+	var result strings.Builder
+	for i, line := range lines {
+		if i > 0 {
+			result.WriteString("\n")
+		}
+		if strings.TrimSpace(line) == "" {
+			// Keep empty lines as empty
+			result.WriteString("")
+		} else if len(line) >= minLeadingSpaces {
+			// Remove leading whitespace
+			result.WriteString(line[minLeadingSpaces:])
+		} else {
+			result.WriteString(line)
+		}
+	}
+
+	return result.String()
+}
+
 // IsPositiveInteger checks if a string is a positive integer.
 // Returns true for strings like "1", "123", "999" but false for:
 //   - Zero ("0")
