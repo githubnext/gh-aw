@@ -488,6 +488,16 @@ func TestNormalizeLeadingWhitespace(t *testing.T) {
 			input:    "",
 			expected: "",
 		},
+		{
+			name:     "removes consistent leading tabs",
+			input:    "\t\tLine 1\n\t\tLine 2\n\t\tLine 3",
+			expected: "Line 1\nLine 2\nLine 3",
+		},
+		{
+			name:     "removes consistent mixed tab and space indentation",
+			input:    "\t  Line 1\n\t  Line 2\n\t  Line 3",
+			expected: "Line 1\nLine 2\nLine 3",
+		},
 	}
 
 	for _, tt := range tests {

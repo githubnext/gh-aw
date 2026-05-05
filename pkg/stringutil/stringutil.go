@@ -82,7 +82,8 @@ func FormatList(items []string) string {
 
 // NormalizeLeadingWhitespace removes consistent leading whitespace from all lines
 // of a multi-line string. It finds the minimum indentation across all non-empty
-// lines and strips that many leading spaces from every line.
+// lines and strips that many leading whitespace characters (spaces or tabs) from
+// every line.
 //
 // This is useful for cleaning up content generated with extra indentation,
 // such as heredoc bodies.
@@ -93,19 +94,19 @@ func NormalizeLeadingWhitespace(content string) string {
 	}
 
 	// Find minimum leading whitespace (excluding empty lines)
-	minLeadingSpaces := -1
+	minLeading := -1
 	for _, line := range lines {
 		if strings.TrimSpace(line) == "" {
 			continue // Skip empty lines
 		}
-		leadingSpaces := len(line) - len(strings.TrimLeft(line, " "))
-		if minLeadingSpaces == -1 || leadingSpaces < minLeadingSpaces {
-			minLeadingSpaces = leadingSpaces
+		leading := len(line) - len(strings.TrimLeft(line, " \t"))
+		if minLeading == -1 || leading < minLeading {
+			minLeading = leading
 		}
 	}
 
-	// If no content or no leading spaces, return as-is
-	if minLeadingSpaces <= 0 {
+	// If no content or no leading whitespace, return as-is
+	if minLeading <= 0 {
 		return content
 	}
 
@@ -118,9 +119,9 @@ func NormalizeLeadingWhitespace(content string) string {
 		if strings.TrimSpace(line) == "" {
 			// Keep empty lines as empty
 			result.WriteString("")
-		} else if len(line) >= minLeadingSpaces {
+		} else if len(line) >= minLeading {
 			// Remove leading whitespace
-			result.WriteString(line[minLeadingSpaces:])
+			result.WriteString(line[minLeading:])
 		} else {
 			result.WriteString(line)
 		}
