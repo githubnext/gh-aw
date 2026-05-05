@@ -37,7 +37,7 @@ describe("expired_entity_cleanup_helpers", () => {
     it("resolves after the specified time", async () => {
       const start = Date.now();
       await delay(10);
-      expect(Date.now() - start).toBeGreaterThanOrEqual(5);
+      expect(Date.now() - start).toBeGreaterThanOrEqual(10);
     });
 
     it("resolves immediately for 0 ms", async () => {
@@ -260,6 +260,24 @@ describe("expired_entity_cleanup_helpers", () => {
       };
       const result = buildExpirationSummary(params);
       expect(result).not.toContain("Skipped (Already Had Comment)");
+    });
+
+    it("caps notExpired list at 10 and shows 'showing first 10' text", () => {
+      const fixedNow = new Date("2024-06-01T00:00:00Z");
+      const futureDate = new Date("2024-07-01T00:00:00Z");
+      const notExpired = Array.from({ length: 12 }, (_, i) => ({
+        number: i + 10,
+        title: `Not Expired ${i + 10}`,
+        url: `https://github.com/owner/repo/issues/${i + 10}`,
+        expirationDate: futureDate,
+      }));
+      const params = { ...baseParams, notExpired, expired: [], closed: [], now: fixedNow };
+      const result = buildExpirationSummary(params);
+      expect(result).toContain("showing first 10");
+      // Entries 10–19 should appear; entry 21 (index 11) must not
+      expect(result).toContain("Not Expired 10");
+      expect(result).toContain("Not Expired 19");
+      expect(result).not.toContain("Not Expired 21");
     });
   });
 
