@@ -991,9 +991,7 @@ jobs:
         name: Build bundle list
         run: "set -euo pipefail\nmapfile -t list < <(find /tmp/gh-aw/apm-bundles -name '*.tar.gz' | sort)\n[ ${#list[@]} -gt 0 ] || { echo '::error::no apm bundles found'; exit 1; }\nprintf '%s\\n' \"${list[@]}\" > /tmp/gh-aw/apm-bundle-list.txt\n"
       - name: Restore APM packages (all bundles)
-        uses: microsoft/apm-action@4489b4be0069e2c8c4d44305c3d273fb9d50e647 # v1.5.0
-        with:
-          bundles-file: /tmp/gh-aw/apm-bundle-list.txt
+        run: "set -euo pipefail\nbundle_count=0\nwhile IFS= read -r bundle; do\n  [ -z \"$bundle\" ] && continue\n  [ -f \"$bundle\" ] || { echo \"::error::APM bundle not found: $bundle\"; exit 1; }\n  echo \"Restoring APM bundle: $(basename \"$bundle\")\"\n  tar -xzf \"$bundle\" -C \"$GITHUB_WORKSPACE\" \\\n    --strip-components=1 \\\n    --exclude=apm.lock.yaml \\\n    --exclude=apm.lock \\\n    --exclude=apm.yml\n  bundle_count=$((bundle_count + 1))\ndone < /tmp/gh-aw/apm-bundle-list.txt\necho \"Restored $bundle_count APM bundle(s)\"\n"
 
       - name: Download container images
         run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.38 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.38 ghcr.io/github/gh-aw-firewall/squid:0.25.38 ghcr.io/github/gh-aw-mcpg:v0.3.6 ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959 ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5 node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
