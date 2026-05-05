@@ -129,17 +129,13 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 			// The model was validated by validateUniversalLLMConsumerModel before reaching here,
 			// so a malformed model (e.g. leading slash) must never occur. Panic is the correct
 			// response to an internal invariant violation.
-			var err error
-			allowedDomains, err = GetAllowedDomainsForEngineWithModel(
+			allowedDomains = mustGetAllowedDomainsForEngineWithModel(
 				constants.OpenCodeEngine,
 				model,
 				workflowData.NetworkPermissions,
 				workflowData.Tools,
 				workflowData.Runtimes,
 			)
-			if err != nil {
-				panic(fmt.Sprintf("BUG: invalid model %q reached domain computation (should have been caught by validation): %v", model, err))
-			}
 		}
 
 		npmPathSetup := GetNpmBinPathSetup()

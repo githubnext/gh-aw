@@ -775,6 +775,17 @@ func GetAllowedDomainsForEngineWithModel(engine constants.EngineName, model stri
 	return mergeDomainsWithNetworkToolsAndRuntimes(defaults, network, tools, runtimes), nil
 }
 
+// mustGetAllowedDomainsForEngineWithModel is like GetAllowedDomainsForEngineWithModel but
+// panics if the model is malformed. It is intended for call sites where the model has
+// already been validated and an error represents an internal invariant violation (BUG).
+func mustGetAllowedDomainsForEngineWithModel(engine constants.EngineName, model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	result, err := GetAllowedDomainsForEngineWithModel(engine, model, network, tools, runtimes)
+	if err != nil {
+		panic(fmt.Sprintf("BUG: invalid model %q reached domain computation (should have been caught by validation): %v", model, err))
+	}
+	return result
+}
+
 // GetAllowedDomainsForEngine merges the engine's default domains with NetworkPermissions,
 // HTTP MCP server domains, and runtime ecosystem domains.
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
