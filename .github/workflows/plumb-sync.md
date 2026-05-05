@@ -96,11 +96,11 @@ Plumb analyzes **staged changes** (git index). The repository is currently check
 # Record current HEAD for reference
 echo "Currently at HEAD: $(git rev-parse HEAD)"
 
-# Fetch the base branch to ensure the base commit is available
-git fetch origin ${{ github.event.pull_request.base.sha }} --depth=1 2>&1 || git fetch origin HEAD --depth=100 2>&1
+# Fetch enough history to have the base commit available
+git fetch origin ${{ github.event.pull_request.base.sha }} 2>&1 || git fetch --unshallow 2>&1 || true
 
 # Move working tree to base commit (detached HEAD)
-git checkout ${{ github.event.pull_request.base.sha }} -- 2>&1
+git checkout --detach ${{ github.event.pull_request.base.sha }} 2>&1
 
 # Apply the PR diff as staged (indexed) changes — simulates the PR being staged
 git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | git apply --index --allow-empty 2>&1
@@ -114,10 +114,15 @@ If the `git apply` fails, try the fallback:
 
 ```bash
 # Fallback: manually stage changed files from PR HEAD
-git checkout ${{ github.event.pull_request.head.sha }} -- $(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
-git add -A
-echo "Fallback staging complete"
-git diff --stat --cached
+CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+if [ -n "$CHANGED_FILES" ]; then
+  git checkout ${{ github.event.pull_request.head.sha }} -- $CHANGED_FILES
+  git add -A
+  echo "Fallback staging complete"
+  git diff --stat --cached
+else
+  echo "No changed files found between base and head"
+fi
 ```
 
 ## Step 4: Extract Pending Decisions
@@ -227,12 +232,15 @@ Plumb analyzed the PR changes, extracted design decisions, auto-approved them al
 
 If `changed-files.txt` is non-empty (i.e., plumb sync modified spec or test files):
 
-1. Read each changed file using bash (`cat <file>`)
-2. Use the `edit` tool to write the updated content for each changed file — this registers the changes with the safe-output processor
+1. Use the `edit` tool to write the updated content for each file listed in `changed-files.txt` — this registers the changes with the safe-output processor. Read each file's current content from the filesystem (the plumb sync has already modified them in-place) and pass it to `edit`.
+2. Discover the PR's head branch name at runtime:
+   ```bash
+   gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json headRefName --jq .headRefName
+   ```
 3. Call `create-pull-request` with:
    - **Title**: `Sync spec and tests for PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}`
    - **Body**: A concise description listing the files updated, the decisions synced, and a reference to PR #${{ github.event.pull_request.number }}
-   - **Base**: determined dynamically (the PR's head branch, discovered via `git rev-parse --abbrev-ref HEAD` or `gh pr view ${{ github.event.pull_request.number }} --json headRefName`)
+   - **Base**: the head branch name discovered in step 2 (so synced changes land directly in the same PR)
 
 If `changed-files.txt` is empty, no companion PR is needed. Call noop:
 
