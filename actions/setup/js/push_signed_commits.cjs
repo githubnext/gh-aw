@@ -136,7 +136,8 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   // Using --parents emits each line as "<sha> <parent1> [<parent2> ...]", which lets us detect merge commits
   // (more than one parent) in a single subprocess call without iterating each SHA individually.
   // When baseRef is empty (orphan branch first push), list all commits reachable from HEAD instead
-  // of using the empty-string range "..HEAD" which git interprets as HEAD..HEAD (zero commits).
+  // of using the empty-string range "..HEAD" which yields zero commits (the empty left operand
+  // resolves to an ambiguous ref rather than a real commit, so git returns an empty range).
   const revRange = baseRef ? `${baseRef}..HEAD` : "HEAD";
   const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", revRange], { cwd });
   const revListLines = revListOut.trim().split("\n").filter(Boolean);
