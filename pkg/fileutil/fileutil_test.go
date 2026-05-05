@@ -344,7 +344,7 @@ func TestCopyFile(t *testing.T) {
 	})
 }
 
-func TestMustBeWithin(t *testing.T) {
+func TestValidatePathWithinBase(t *testing.T) {
 	base := t.TempDir()
 
 	tests := []struct {
@@ -386,19 +386,19 @@ func TestMustBeWithin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := MustBeWithin(base, tt.candidate)
+			err := ValidatePathWithinBase(base, tt.candidate)
 			if tt.shouldErr {
-				require.Error(t, err, "MustBeWithin should reject path %q relative to %q", tt.candidate, base)
+				require.Error(t, err, "ValidatePathWithinBase should reject path %q relative to %q", tt.candidate, base)
 				assert.Contains(t, err.Error(), "escapes base directory", "Error should describe the escape")
 			} else {
-				require.NoError(t, err, "MustBeWithin should accept path %q within %q", tt.candidate, base)
+				require.NoError(t, err, "ValidatePathWithinBase should accept path %q within %q", tt.candidate, base)
 			}
 		})
 	}
 
 	t.Run("symlink escape", func(t *testing.T) {
 		// Create a real file outside the base directory.
-		outsideFile, err := os.CreateTemp("", "mustbewithin-outside-*")
+		outsideFile, err := os.CreateTemp("", "validatepathwithinbase-outside-*")
 		require.NoError(t, err, "failed to create outside file")
 		t.Cleanup(func() { _ = os.Remove(outsideFile.Name()) })
 		outsidePath := outsideFile.Name()
@@ -411,8 +411,8 @@ func TestMustBeWithin(t *testing.T) {
 		}
 		t.Cleanup(func() { _ = os.Remove(linkPath) })
 
-		err = MustBeWithin(base, linkPath)
-		require.Error(t, err, "MustBeWithin should reject symlink that points outside base")
+		err = ValidatePathWithinBase(base, linkPath)
+		require.Error(t, err, "ValidatePathWithinBase should reject symlink that points outside base")
 		assert.Contains(t, err.Error(), "escapes base directory", "Error should describe the symlink escape")
 	})
 }
