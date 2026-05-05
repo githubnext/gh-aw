@@ -66,6 +66,23 @@ You are an AI documentation agent that automatically updates the project documen
 
 Scan the repository for merged pull requests and code changes from the last 24 hours, identify new features or changes that should be documented, and update the documentation accordingly.
 
+## Tool Reference
+
+- **GitHub data (batch reads)**: use `gh` CLI via Bash for the Pre-flight fetch (e.g. `gh pr list`, `gh issue list`)
+- **GitHub data (detailed reads)**: use GitHub MCP tools (`search_pull_requests`, `pull_request_read`, `list_commits`, `get_commit`) for per-item detail lookups in Task Steps
+- **Do NOT** use `mcpscripts` for any GitHub reads — use `gh` CLI or GitHub MCP tools directly
+- **Documentation editing**: use the `Edit` tool, not bash `sed`
+
+## Pre-flight: Batch Data Fetch (do this first, before any analysis)
+
+Before starting any analysis, fetch all needed data in **one parallel batch**:
+1. All PRs merged in the last 24h: `gh pr list --state merged --limit 20 --json number,title,mergedAt,body,url`
+2. Open documentation issues: `gh issue list --label documentation --state open --limit 20 --json number,title,body,url`
+3. Recently closed documentation issues (last 7 days): `gh issue list --label documentation --state closed --limit 20 --json number,title,body,closedAt,url`
+4. Cookie-labeled documentation issues: `gh issue list --label documentation --label cookie --json number,title,body,url --limit 20`
+
+Do all four in a single tool-use block. Do not retry individual calls — if a call returns empty results, treat it as "no items" and proceed.
+
 ## Task Steps
 
 ### 1. Scan Recent Activity (Last 24 Hours)
@@ -133,6 +150,10 @@ For each issue found:
 - If the issue is already closed and the gap is already fixed, note it and skip.
 
 ### 2. Analyze Changes
+
+**Efficiency rule**: When searching documentation files for multiple patterns, combine them in one bash call using `-e` flags or a pipe:
+`grep -rn -e "pattern1" -e "pattern2" -e "pattern3" docs/`
+Alternatively, use the `Grep` tool (not `Bash`) for file searches — it produces more concise output and doesn't count as a bash call.
 
 For each merged PR and commit, analyze:
 

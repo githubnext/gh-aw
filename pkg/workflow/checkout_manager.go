@@ -149,8 +149,10 @@ type CheckoutManager struct {
 	// performing .github/.agents sparse checkout steps for cross-repo workflow_call
 	// invocations pinned to a non-default branch.
 	//
-	// In the activation job this is set to "${{ steps.resolve-host-repo.outputs.target_ref }}".
-	// In the agent and safe_outputs jobs it is set to "${{ needs.activation.outputs.target_ref }}".
+	// Currently only set in the activation job to
+	// "${{ steps.resolve-host-repo.outputs.target_checkout_ref }}" (the immutable SHA).
+	// Downstream jobs (agent, safe_outputs) do not currently set this field — they rely
+	// on the default-branch checkout behaviour.
 	// An empty string means the checkout uses the repository's default branch.
 	crossRepoTargetRef string
 }
@@ -190,8 +192,8 @@ func (cm *CheckoutManager) GetCrossRepoTargetRepo() string {
 // .github/.agents sparse checkout steps. Call this when the workflow has a workflow_call
 // trigger and the checkout should target a specific branch rather than the default branch.
 //
-// In the activation job pass "${{ steps.resolve-host-repo.outputs.target_ref }}".
-// In downstream jobs (agent, safe_outputs) pass "${{ needs.activation.outputs.target_ref }}".
+// In the activation job pass "${{ steps.resolve-host-repo.outputs.target_checkout_ref }}"
+// (the immutable SHA for exact-revision pinning).
 func (cm *CheckoutManager) SetCrossRepoTargetRef(ref string) {
 	checkoutManagerLog.Printf("Setting cross-repo target ref: %q", ref)
 	cm.crossRepoTargetRef = ref
