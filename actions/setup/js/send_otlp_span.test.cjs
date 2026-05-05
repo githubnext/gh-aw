@@ -2362,6 +2362,36 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["gen_ai.workflow.name"]).toBe("otel-advisor");
   });
 
+  it("does not duplicate gen_ai.request.model on the agent span", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "agent";
+
+    const startMs = 1_700_000_000_000;
+    const endMs = 1_700_000_005_000;
+    const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        return JSON.stringify({ model: "gpt-4o", engine_id: "codex" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    readFileSpy.mockRestore();
+
+    const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+    const modelKeys = agentSpan.attributes.filter(a => a.key === "gen_ai.request.model");
+    // gen_ai.request.model must appear exactly once — no duplicate from a second push
+    expect(modelKeys).toHaveLength(1);
+    expect(modelKeys[0].value.stringValue).toBe("gpt-4o");
+  });
+
   it("omits gen_ai.request.model, gen_ai.system, gh-aw.engine and gen_ai.workflow.name from the agent span when model, engine_id and workflow_name are absent", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -3705,7 +3735,7 @@ describe("sendJobConclusionSpan", () => {
       statSpy.mockRestore();
     });
 
-    it("includes all four gen_ai token breakdown attributes on the conclusion span when agent_usage.json is present", async () => {
+    it("omits gen_ai token breakdown attributes from conclusion span when agent sub-span is emitted (token attrs go to agent span only)", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -3724,11 +3754,14 @@ describe("sendJobConclusionSpan", () => {
       // mockFetch.mock.calls[0] is the agent span, [1] is the conclusion span
       const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
       const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
-      const attrs = Object.fromEntries(conclusionSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
-      expect(attrs["gen_ai.usage.input_tokens"]).toBe(48200);
-      expect(attrs["gen_ai.usage.output_tokens"]).toBe(1350);
-      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(41000);
-      expect(attrs["gen_ai.usage.cache_creation.input_tokens"]).toBe(3100);
+      const conclusionKeys = conclusionSpan.attributes.map(a => a.key);
+      // Token-usage attributes must not appear on the conclusion span when an agent
+      // sub-span is emitted; they live exclusively on the agent span to prevent
+      // double-counting in backends that sum gen_ai.usage.* across all spans.
+      expect(conclusionKeys).not.toContain("gen_ai.usage.input_tokens");
+      expect(conclusionKeys).not.toContain("gen_ai.usage.output_tokens");
+      expect(conclusionKeys).not.toContain("gen_ai.usage.cache_read.input_tokens");
+      expect(conclusionKeys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
 
     it("includes gen_ai token breakdown on conclusion span even when no agent sub-span is emitted", async () => {
@@ -3779,7 +3812,7 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
 
-    it("omits a gen_ai token attribute from the conclusion span when its value is zero", async () => {
+    it("omits all gen_ai token breakdown attributes from conclusion span regardless of zero-values when agent sub-span is emitted", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -3798,11 +3831,11 @@ describe("sendJobConclusionSpan", () => {
       // mockFetch.mock.calls[0] is the agent span, [1] is the conclusion span
       const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
       const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
-      const attrs = Object.fromEntries(conclusionSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
-      expect(attrs["gen_ai.usage.input_tokens"]).toBe(1000);
-      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(500);
       const keys = conclusionSpan.attributes.map(a => a.key);
+      // No token-usage attributes on conclusion span when an agent sub-span is emitted.
+      expect(keys).not.toContain("gen_ai.usage.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.output_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
   });
