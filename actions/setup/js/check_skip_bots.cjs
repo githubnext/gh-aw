@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { isConfusedDeputyAttack } = require("./check_permissions_utils.cjs");
+const { isConfusedDeputyAttack, readAllowBotAuthoredTriggerComment } = require("./check_permissions_utils.cjs");
 const { writeDenialSummary } = require("./pre_activation_summary.cjs");
 
 /**
@@ -36,7 +36,11 @@ async function main() {
   // actor, causing a legitimate bot's skip-bots rule to suppress the workflow for
   // the attacker's PR/issue.
   // Reference: https://labs.boostsecurity.io/articles/weaponizing-dependabot-pwn-request-at-its-finest/
-  if (isConfusedDeputyAttack(actor, eventName, context.payload)) {
+  //
+  // The allowBotAuthoredTriggerComment flag is propagated via the inbound aw_context
+  // when a caller opts in to the bot-posted-menu / user-checks-box pattern.
+  const allowBotAuthoredTriggerComment = readAllowBotAuthoredTriggerComment(context.payload);
+  if (isConfusedDeputyAttack(actor, eventName, context.payload, allowBotAuthoredTriggerComment)) {
     core.info(`Potential confused deputy attack detected: actor '${actor}' does not match the event author. Skipping skip-bots check.`);
     core.setOutput("skip_bots_ok", "true");
     core.setOutput("result", "not_skipped");

@@ -47,6 +47,29 @@ function isAllowedBot(actor, allowedBots) {
 }
 
 /**
+ * Read the `allow_bot_authored_trigger_comment` flag from an inbound aw_context
+ * that was passed as a workflow input (`inputs.aw_context`) or as a
+ * `repository_dispatch` client payload (`client_payload.aw_context`).
+ *
+ * Returns `true` only when the flag is explicitly set to the boolean `true` in a
+ * valid JSON aw_context object.  Any parse error or missing field returns `false`.
+ *
+ * @param {object|undefined} payload - The GitHub event payload (context.payload)
+ * @returns {boolean}
+ */
+function readAllowBotAuthoredTriggerComment(payload) {
+  try {
+    const raw = payload?.inputs?.aw_context ?? payload?.client_payload?.aw_context;
+    if (raw == null) return false;
+    const parsed = typeof raw === "string" ? JSON.parse(raw.trim()) : raw;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return false;
+    return parsed.allow_bot_authored_trigger_comment === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Detect a potential Dependabot Confused Deputy attack.
  *
  * Attack vectors defended against:
@@ -61,9 +84,14 @@ function isAllowedBot(actor, allowedBots) {
  * @param {string} actor - The current github.actor
  * @param {string} eventName - The GitHub event name (e.g. "pull_request", "issue_comment")
  * @param {object|undefined} payload - The GitHub event payload (context.payload)
+ * @param {boolean} [allowBotAuthoredTriggerComment=false] - When true, skip the
+ *   confused-deputy check for `issue_comment` events whose action is `edited`.
+ *   This opt-in is propagated via the `allow_bot_authored_trigger_comment` field in
+ *   the inbound `aw_context` and covers the legitimate pattern where a workflow posts
+ *   a checkbox-menu comment and a human maintainer edits it to tick a box.
  * @returns {boolean} true if the event looks like a confused deputy attack
  */
-function isConfusedDeputyAttack(actor, eventName, payload) {
+function isConfusedDeputyAttack(actor, eventName, payload, allowBotAuthoredTriggerComment = false) {
   if (!payload) return false;
 
   // For pull_request events, only check on the `synchronize` action.
@@ -101,9 +129,18 @@ function isConfusedDeputyAttack(actor, eventName, payload) {
 
   // For issue_comment events, @dependabot show can trigger a comment from dependabot
   // with actor=dependabot[bot]. Verify the comment itself was authored by the actor.
+  //
+  // Exception: when allowBotAuthoredTriggerComment is true and the action is "edited",
+  // the mismatch is intentional — a workflow posted a checkbox-menu comment (authored
+  // by github-actions[bot]) and a human maintainer edited it to tick a box.  This
+  // pattern is safe because no permission is being bypassed: the human actor is who
+  // they appear to be and the bot's role is purely a UI affordance.
   if (eventName === "issue_comment") {
     const commentAuthor = payload.comment?.user?.login;
     if (commentAuthor !== undefined && commentAuthor !== actor) {
+      if (allowBotAuthoredTriggerComment && payload.action === "edited") {
+        return false;
+      }
       return true;
     }
   }
@@ -220,6 +257,7 @@ module.exports = {
   parseAllowedBots,
   canonicalizeBotIdentifier,
   isAllowedBot,
+  readAllowBotAuthoredTriggerComment,
   isConfusedDeputyAttack,
   checkRepositoryPermission,
   checkBotStatus,

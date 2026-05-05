@@ -199,7 +199,8 @@ function readInboundAwContext(payload) {
  *   otel_trace_id: string,
  *   otel_parent_span_id: string,
  *   trigger_label: string,
- *   experiments: string
+ *   experiments: string,
+ *   allow_bot_authored_trigger_comment: boolean
  * }}
  * Properties:
  *   - item_type: Kind of entity that triggered the workflow (issue, pull_request,
@@ -237,6 +238,12 @@ function readInboundAwContext(payload) {
  *     Empty string when no experiments are declared or the assignments file cannot be read.
  *     Propagated to dispatched child workflows so they can identify which variants the
  *     parent workflow was running.
+ *   - allow_bot_authored_trigger_comment: Set to `true` when the triggering event is
+ *     an `issue_comment` with action `edited` and the comment was authored by a
+ *     different account than `github.actor` (the bot-posted-menu / user-checks-box
+ *     pattern).  Propagated to child workflows so their confused-deputy check can
+ *     skip the actor-vs-comment-author mismatch guard for this known-safe scenario.
+ *     `false` in all other cases.
  */
 function buildAwContext() {
   const { item_type, item_number, comment_id, comment_node_id } = resolveItemContext(context.payload);
@@ -332,6 +339,13 @@ function buildAwContext() {
     // Empty string when no experiments are declared or the assignments file cannot be read.
     // Propagated to dispatched child workflows for experiment context continuity.
     experiments: experimentAssignments,
+    // allow_bot_authored_trigger_comment is set to true when the triggering event is
+    // issue_comment:edited and the comment author differs from the actor — the
+    // bot-posted-menu / user-checks-box pattern described in gh-aw issue #29480.
+    // Propagated to child workflows so their confused-deputy check can recognise
+    // this known-safe scenario and skip the actor-vs-comment-author mismatch guard.
+    allow_bot_authored_trigger_comment:
+      context.eventName === "issue_comment" && context.payload?.action === "edited" && typeof context.payload?.comment?.user?.login === "string" && context.payload.comment.user.login !== (context.actor ?? ""),
   };
 }
 

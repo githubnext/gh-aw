@@ -32,6 +32,7 @@ describe("check_permissions_utils", () => {
   let canonicalizeBotIdentifier;
   let isAllowedBot;
   let isConfusedDeputyAttack;
+  let readAllowBotAuthoredTriggerComment;
   let checkRepositoryPermission;
   let checkBotStatus;
   let originalEnv;
@@ -55,6 +56,7 @@ describe("check_permissions_utils", () => {
     checkRepositoryPermission = module.checkRepositoryPermission;
     checkBotStatus = module.checkBotStatus;
     isConfusedDeputyAttack = module.isConfusedDeputyAttack;
+    readAllowBotAuthoredTriggerComment = module.readAllowBotAuthoredTriggerComment;
   });
 
   afterEach(() => {
@@ -653,6 +655,36 @@ describe("check_permissions_utils", () => {
         const payload = {};
         expect(isConfusedDeputyAttack("dependabot[bot]", "issue_comment", payload)).toBe(false);
       });
+
+      describe("allowBotAuthoredTriggerComment opt-in", () => {
+        it("should return false for issue_comment:edited with mismatched author when flag is true (bot-menu pattern)", () => {
+          // The legitimate pattern: workflow posts checkbox-menu comment (github-actions[bot]),
+          // human maintainer edits it to tick a box → actor != comment.user.login, action=edited.
+          const payload = { action: "edited", comment: { user: { login: "github-actions[bot]" } } };
+          expect(isConfusedDeputyAttack("theletterf", "issue_comment", payload, true)).toBe(false);
+        });
+
+        it("should still return true for issue_comment:created with mismatched author even when flag is true", () => {
+          // The dependabot attack goes via issue_comment:created — the flag must NOT bypass that.
+          const payload = { action: "created", comment: { user: { login: "dependabot[bot]" } } };
+          expect(isConfusedDeputyAttack("attacker", "issue_comment", payload, true)).toBe(true);
+        });
+
+        it("should return true for issue_comment:edited with mismatched author when flag is false (default)", () => {
+          const payload = { action: "edited", comment: { user: { login: "github-actions[bot]" } } };
+          expect(isConfusedDeputyAttack("theletterf", "issue_comment", payload, false)).toBe(true);
+        });
+
+        it("should return true for issue_comment:edited with mismatched author when flag is omitted", () => {
+          const payload = { action: "edited", comment: { user: { login: "github-actions[bot]" } } };
+          expect(isConfusedDeputyAttack("theletterf", "issue_comment", payload)).toBe(true);
+        });
+
+        it("should return false for issue_comment:edited when actor matches comment author (flag irrelevant)", () => {
+          const payload = { action: "edited", comment: { user: { login: "theletterf" } } };
+          expect(isConfusedDeputyAttack("theletterf", "issue_comment", payload, true)).toBe(false);
+        });
+      });
     });
 
     describe("other event types", () => {
@@ -693,6 +725,57 @@ describe("check_permissions_utils", () => {
       it("should return false when payload is undefined", () => {
         expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request", undefined)).toBe(false);
       });
+    });
+  });
+
+  describe("readAllowBotAuthoredTriggerComment", () => {
+    it("should return false when payload is undefined", () => {
+      expect(readAllowBotAuthoredTriggerComment(undefined)).toBe(false);
+    });
+
+    it("should return false when payload has no aw_context inputs", () => {
+      expect(readAllowBotAuthoredTriggerComment({ inputs: {} })).toBe(false);
+    });
+
+    it("should return false when aw_context is empty string", () => {
+      expect(readAllowBotAuthoredTriggerComment({ inputs: { aw_context: "" } })).toBe(false);
+    });
+
+    it("should return false when aw_context does not contain the flag", () => {
+      const payload = { inputs: { aw_context: '{"event_type":"issue_comment","actor":"theletterf"}' } };
+      expect(readAllowBotAuthoredTriggerComment(payload)).toBe(false);
+    });
+
+    it("should return true when inputs.aw_context has allow_bot_authored_trigger_comment: true", () => {
+      const awContext = JSON.stringify({ allow_bot_authored_trigger_comment: true, event_type: "issue_comment" });
+      expect(readAllowBotAuthoredTriggerComment({ inputs: { aw_context: awContext } })).toBe(true);
+    });
+
+    it("should return false when allow_bot_authored_trigger_comment is a string 'true' (not boolean)", () => {
+      const awContext = JSON.stringify({ allow_bot_authored_trigger_comment: "true" });
+      expect(readAllowBotAuthoredTriggerComment({ inputs: { aw_context: awContext } })).toBe(false);
+    });
+
+    it("should return false when allow_bot_authored_trigger_comment is false", () => {
+      const awContext = JSON.stringify({ allow_bot_authored_trigger_comment: false });
+      expect(readAllowBotAuthoredTriggerComment({ inputs: { aw_context: awContext } })).toBe(false);
+    });
+
+    it("should return true when client_payload.aw_context has the flag (repository_dispatch)", () => {
+      const awContext = JSON.stringify({ allow_bot_authored_trigger_comment: true });
+      expect(readAllowBotAuthoredTriggerComment({ client_payload: { aw_context: awContext } })).toBe(true);
+    });
+
+    it("should return false when aw_context is invalid JSON", () => {
+      expect(readAllowBotAuthoredTriggerComment({ inputs: { aw_context: "not-json{" } })).toBe(false);
+    });
+
+    it("should return false when aw_context is a JSON array (not an object)", () => {
+      expect(readAllowBotAuthoredTriggerComment({ inputs: { aw_context: "[1,2,3]" } })).toBe(false);
+    });
+
+    it("should return true when aw_context is passed as a plain object (repository_dispatch object form)", () => {
+      expect(readAllowBotAuthoredTriggerComment({ client_payload: { aw_context: { allow_bot_authored_trigger_comment: true } } })).toBe(true);
     });
   });
 });

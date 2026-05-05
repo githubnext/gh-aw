@@ -372,6 +372,73 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
     });
+
+    it("should allow issue_comment:edited with bot-authored comment when allow_bot_authored_trigger_comment is true in aw_context", async () => {
+      // The bot-posted-menu / user-checks-box pattern:
+      // A workflow posts a checkbox-menu comment (authored by github-actions[bot]).
+      // A human maintainer edits it to tick a box → actor != comment.user.login.
+      // The caller propagates allow_bot_authored_trigger_comment:true in aw_context,
+      // so the confused-deputy check must be skipped for this edited event.
+      mockContext.actor = "theletterf";
+      mockContext.eventName = "issue_comment";
+      mockContext.payload = {
+        action: "edited",
+        comment: { user: { login: "github-actions[bot]" } },
+        inputs: {
+          aw_context: JSON.stringify({ allow_bot_authored_trigger_comment: true, event_type: "issue_comment" }),
+        },
+      };
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write" },
+      });
+
+      await runScript();
+
+      // Must NOT be denied as confused deputy — the opt-in flag allows this pattern
+      expect(mockCore.setOutput).not.toHaveBeenCalledWith("result", "confused_deputy");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
+    });
+
+    it("should still deny issue_comment:edited with bot-authored comment when allow_bot_authored_trigger_comment is absent from aw_context", async () => {
+      // Without the opt-in flag, the check must still fire to protect against attack vectors.
+      mockContext.actor = "theletterf";
+      mockContext.eventName = "issue_comment";
+      mockContext.payload = {
+        action: "edited",
+        comment: { user: { login: "github-actions[bot]" } },
+      };
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+
+      await runScript();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Potential confused deputy attack detected"));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "confused_deputy");
+    });
+
+    it("should still deny issue_comment:created with bot-authored comment even when allow_bot_authored_trigger_comment is true (only edited is allowed)", async () => {
+      // The dependabot @dependabot-show attack goes via issue_comment:created.
+      // The opt-in must NOT bypass that.
+      mockContext.actor = "attacker";
+      mockContext.eventName = "issue_comment";
+      mockContext.payload = {
+        action: "created",
+        comment: { user: { login: "dependabot[bot]" } },
+        inputs: {
+          aw_context: JSON.stringify({ allow_bot_authored_trigger_comment: true }),
+        },
+      };
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+
+      await runScript();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Potential confused deputy attack detected"));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "confused_deputy");
+    });
   });
 
   describe("API error handling", () => {
