@@ -491,6 +491,8 @@ Returns JSON describing the differences between the base run and each comparison
 			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
 		}
 
+		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
+
 		notifyProgress(ctx, req, 0, 100, "Downloading artifacts for diff...")
 
 		cmd := execCmd(ctx, cmdArgs...)
@@ -538,11 +540,15 @@ Returns JSON describing the differences between the base run and each comparison
 }
 
 // notifyProgress sends a progress notification to the MCP client if the request
-// includes a progress token. Errors are silently ignored because progress
+// includes a progress token. The req, req.Params, and req.Session fields are
+// checked for nil before use. Errors are silently ignored because progress
 // notifications are best-effort; the tool result is not affected. If the client
 // has disconnected or the notification fails for any reason, the tool continues
 // executing normally.
 func notifyProgress(ctx context.Context, req *mcp.CallToolRequest, progress, total float64, message string) {
+	if req == nil || req.Session == nil {
+		return
+	}
 	if token := req.Params.GetProgressToken(); token != nil {
 		_ = req.Session.NotifyProgress(ctx, &mcp.ProgressNotificationParams{
 			ProgressToken: token,

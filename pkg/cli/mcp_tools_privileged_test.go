@@ -682,3 +682,56 @@ func TestAuditDiffToolEmitsProgressNotifications(t *testing.T) {
 	assert.InDelta(t, float64(100), last.Total, 0.001, "last notification should have total=100")
 	assert.NotEmpty(t, last.Message, "last notification should have a message")
 }
+
+// TestAuditToolNoProgressWithoutToken verifies that the audit MCP tool
+// does not send progress notifications when no progress token is provided.
+func TestAuditToolNoProgressWithoutToken(t *testing.T) {
+	const fakeOutput = `{"overview":{"run_id":"1234567890"}}`
+
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", fakeOutput)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditTool should succeed")
+
+	session, getNotifications := connectInMemoryWithProgress(t, server)
+
+	// Call without setting a progress token
+	_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "audit",
+		Arguments: map[string]any{"run_id_or_url": "1234567890"},
+	})
+	require.NoError(t, err, "audit tool should succeed")
+
+	assert.Empty(t, getNotifications(), "audit tool should not emit progress notifications without a token")
+}
+
+// TestAuditDiffToolNoProgressWithoutToken verifies that the audit-diff MCP tool
+// does not send progress notifications when no progress token is provided.
+func TestAuditDiffToolNoProgressWithoutToken(t *testing.T) {
+	const fakeOutput = `[{"base_run_id":100,"compare_run_id":200}]`
+
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", fakeOutput)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditDiffTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditDiffTool should succeed")
+
+	session, getNotifications := connectInMemoryWithProgress(t, server)
+
+	// Call without setting a progress token
+	_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "audit-diff",
+		Arguments: map[string]any{
+			"base_run_id":     "100",
+			"compare_run_ids": []string{"200"},
+		},
+	})
+	require.NoError(t, err, "audit-diff tool should succeed")
+
+	assert.Empty(t, getNotifications(), "audit-diff tool should not emit progress notifications without a token")
+}
