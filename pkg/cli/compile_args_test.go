@@ -41,7 +41,7 @@ func TestExpandCompileArg_LocalDirectory_Empty(t *testing.T) {
 	// Directory with no .md files should error
 	tmpDir := t.TempDir()
 	_, err := expandCompileArg(tmpDir, false)
-	assert.Error(t, err, "empty directory should return an error")
+	require.Error(t, err, "empty directory should return an error")
 	assert.Contains(t, err.Error(), "no workflow markdown files found", "error should mention no workflow files")
 }
 
