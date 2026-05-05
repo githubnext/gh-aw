@@ -195,6 +195,28 @@ describe("interpolate_prompt", () => {
     }),
     describe("main function integration", () => {
       let tmpDir, promptPath, originalEnv;
+      /**
+       * Apply the STEP 2.5 experiment condition substitution logic from main().
+       * Reads GH_AW_EXPERIMENTS_* from process.env and substitutes experiments.name
+       * references inside {{#if}} conditions, using a replacer function to prevent
+       * special $ replacement patterns from corrupting the output.
+       * @param {string} content
+       * @returns {string}
+       */
+      function applyExperimentSubstitution(content) {
+        for (const [key, value] of Object.entries(process.env)) {
+          if (key.startsWith("GH_AW_EXPERIMENTS_")) {
+            const experimentName = key.substring("GH_AW_EXPERIMENTS_".length).toLowerCase();
+            const exprForm = `experiments.${experimentName}`;
+            const conditionPattern = new RegExp(`(\\{\\{#if[^}]*?)${exprForm.replace(".", "\\.")}`, "gi");
+            if (conditionPattern.test(content)) {
+              conditionPattern.lastIndex = 0;
+              content = content.replace(conditionPattern, (_, prefix) => prefix + (value || ""));
+            }
+          }
+        }
+        return content;
+      }
       (beforeEach(() => {
         ((originalEnv = { ...process.env }),
           (tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "interpolate-test-"))),
@@ -221,19 +243,7 @@ describe("interpolate_prompt", () => {
           // Regression: GH_AW_EXPERIMENTS_* value containing $1 must not be interpreted as a
           // capture-group reference when substituting experiments.name inside {{#if}} conditions.
           process.env.GH_AW_EXPERIMENTS_STYLE = "$1bold";
-          let content = "{{#if experiments.style}}\nSelected\n{{#else}}\nNot selected\n{{#endif}}";
-          // Apply STEP 2.5 substitution logic (matches what main() does)
-          for (const [key, value] of Object.entries(process.env)) {
-            if (key.startsWith("GH_AW_EXPERIMENTS_")) {
-              const experimentName = key.substring("GH_AW_EXPERIMENTS_".length).toLowerCase();
-              const exprForm = `experiments.${experimentName}`;
-              const conditionPattern = new RegExp(`(\\{\\{#if[^}]*?)${exprForm.replace(".", "\\.")}`, "gi");
-              if (conditionPattern.test(content)) {
-                conditionPattern.lastIndex = 0;
-                content = content.replace(conditionPattern, (_, prefix) => prefix + (value || ""));
-              }
-            }
-          }
+          const content = applyExperimentSubstitution("{{#if experiments.style}}\nSelected\n{{#else}}\nNot selected\n{{#endif}}");
           const result = renderMarkdownTemplate(content);
           expect(result).toContain("Selected");
           expect(result).not.toContain("Not selected");
@@ -242,18 +252,7 @@ describe("interpolate_prompt", () => {
           // Regression: GH_AW_EXPERIMENTS_* value containing $& must not be interpreted as the
           // matched-substring pattern when substituting inside {{#if}} conditions.
           process.env.GH_AW_EXPERIMENTS_STYLE = "$&matched";
-          let content = "{{#if experiments.style}}\nSelected\n{{#else}}\nNot selected\n{{#endif}}";
-          for (const [key, value] of Object.entries(process.env)) {
-            if (key.startsWith("GH_AW_EXPERIMENTS_")) {
-              const experimentName = key.substring("GH_AW_EXPERIMENTS_".length).toLowerCase();
-              const exprForm = `experiments.${experimentName}`;
-              const conditionPattern = new RegExp(`(\\{\\{#if[^}]*?)${exprForm.replace(".", "\\.")}`, "gi");
-              if (conditionPattern.test(content)) {
-                conditionPattern.lastIndex = 0;
-                content = content.replace(conditionPattern, (_, prefix) => prefix + (value || ""));
-              }
-            }
-          }
+          const content = applyExperimentSubstitution("{{#if experiments.style}}\nSelected\n{{#else}}\nNot selected\n{{#endif}}");
           const result = renderMarkdownTemplate(content);
           expect(result).toContain("Selected");
           expect(result).not.toContain("Not selected");
