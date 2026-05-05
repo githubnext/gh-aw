@@ -1,7 +1,7 @@
 ---
-description: Generates a daily high-level ASCII architecture diagram of the repository, using cache-memory to focus only on what changed since the last run.
+description: Generates a weekly high-level ASCII architecture diagram of the repository, using cache-memory to focus only on what changed since the last run.
 on:
-  schedule: daily around 08:00
+  schedule: weekly on Monday around 08:00
   workflow_dispatch:
 
 permissions:

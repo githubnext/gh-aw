@@ -57,6 +57,15 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 		compileOrchestratorLog.Printf("Using custom workflow directory: %s", workflowDir)
 	}
 
+	// Preprocess args: expand directory paths and GitHub URLs to constituent workflow files
+	if len(config.MarkdownFiles) > 0 {
+		expandedFiles, err := resolveCompileArgs(config.MarkdownFiles, config.Verbose)
+		if err != nil {
+			return nil, err
+		}
+		config.MarkdownFiles = expandedFiles
+	}
+
 	// Create and configure compiler
 	compiler := createAndConfigureCompiler(config)
 

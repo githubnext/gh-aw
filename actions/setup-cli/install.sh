@@ -5,7 +5,7 @@ set +o histexpand
 # Script to download and install gh-aw binary for the current OS and architecture
 # Supports: Linux, macOS (Darwin), FreeBSD, Windows (Git Bash/MSYS/Cygwin)
 # If no version is specified, it will use "latest"
-# Note: Checksum validation is currently skipped by default (will be enabled in future releases)
+# SHA256 checksum validation is performed by default to ensure binary integrity.
 # 
 # Usage: ./install.sh [version] [options]
 #
@@ -21,7 +21,7 @@ set +o histexpand
 set -e  # Exit on any error
 
 # Parse arguments
-SKIP_CHECKSUM=true  # Default to true until checksums are available in releases
+SKIP_CHECKSUM=false  # Checksum verification is enabled by default
 TRY_GH_INSTALL=false  # Whether to try gh extension install first
 VERSION=""
 
@@ -29,7 +29,6 @@ VERSION=""
 if [ -n "$INPUT_VERSION" ]; then
     VERSION="$INPUT_VERSION"
     TRY_GH_INSTALL=true  # In GitHub Actions, try gh install first
-    SKIP_CHECKSUM=false  # Enable checksum validation in GitHub Actions
 fi
 
 for arg in "$@"; do
@@ -287,7 +286,7 @@ MAX_RETRIES=3
 RETRY_DELAY=2
 
 for attempt in $(seq 1 $MAX_RETRIES); do
-    if curl -L -f -o "$BINARY_PATH" "$DOWNLOAD_URL"; then
+    if curl -L -f --connect-timeout 15 --max-time 120 -o "$BINARY_PATH" "$DOWNLOAD_URL"; then
         print_success "Binary downloaded successfully"
         break
     else
@@ -309,7 +308,7 @@ if [ "$SKIP_CHECKSUM" = false ]; then
     CHECKSUMS_DOWNLOADED=false
     
     for attempt in $(seq 1 $MAX_RETRIES); do
-        if curl -L -f -o "$CHECKSUMS_PATH" "$CHECKSUMS_URL" 2>/dev/null; then
+        if curl -L -f --connect-timeout 15 --max-time 60 -o "$CHECKSUMS_PATH" "$CHECKSUMS_URL" 2>/dev/null; then
             CHECKSUMS_DOWNLOADED=true
             print_success "Checksums file downloaded successfully"
             break
@@ -336,8 +335,8 @@ if [ "$SKIP_CHECKSUM" = false ]; then
             EXPECTED_FILENAME="${PLATFORM}.exe"
         fi
         
-        # Extract the expected checksum from the checksums file
-        EXPECTED_CHECKSUM=$(grep "$EXPECTED_FILENAME" "$CHECKSUMS_PATH" | awk '{print $1}')
+        # Extract the expected checksum from the checksums file (exact filename match on field 2)
+        EXPECTED_CHECKSUM=$(awk -v f="$EXPECTED_FILENAME" '$2 == f {print $1}' "$CHECKSUMS_PATH")
         
         if [ -z "$EXPECTED_CHECKSUM" ]; then
             print_warning "Checksum for $EXPECTED_FILENAME not found in checksums file"
@@ -372,13 +371,27 @@ fi
 print_info "Making binary executable..."
 chmod +x "$BINARY_PATH"
 
+# On Windows, executing a freshly downloaded binary may stall while Windows Defender
+# scans it.  Wrap verification calls with a timeout so the script doesn't hang.
+BINARY_EXEC_TIMEOUT=""
+if [ "$OS_NAME" = "windows" ] && command -v timeout &>/dev/null; then
+    BINARY_EXEC_TIMEOUT="timeout 30"
+    print_info "Windows detected: wrapping binary verification with a 30s timeout"
+fi
+
 # Verify the binary
 print_info "Verifying binary..."
-if "$BINARY_PATH" --help > /dev/null 2>&1; then
+# shellcheck disable=SC2086
+if $BINARY_EXEC_TIMEOUT "$BINARY_PATH" --help > /dev/null 2>&1; then
     print_success "Binary is working correctly!"
 else
-    print_error "Binary verification failed. The downloaded file may be corrupted or incompatible."
-    exit 1
+    if [ "$OS_NAME" = "windows" ]; then
+        print_warning "Binary verification timed out — Windows Defender may still be scanning the binary."
+        print_warning "Installation is complete. Verify manually with: '$BINARY_PATH' --help"
+    else
+        print_error "Binary verification failed. The downloaded file may be corrupted or incompatible."
+        exit 1
+    fi
 fi
 
 # Show file info
@@ -397,7 +410,8 @@ print_info "  gh aw version"
 # Show version
 print_info ""
 print_info "Running gh-aw version check..."
-"$BINARY_PATH" version
+# shellcheck disable=SC2086
+$BINARY_EXEC_TIMEOUT "$BINARY_PATH" version || print_warning "Version check timed out (Windows Defender may still be scanning the binary)."
 
 # Set output for GitHub Actions
 if [ -n "${GITHUB_OUTPUT}" ]; then

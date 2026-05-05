@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"golang.org/x/mod/semver"
 
@@ -18,6 +19,14 @@ import (
 )
 
 var updateExtensionCheckLog = logger.New("cli:update_extension_check")
+
+// maxBackupCleanupAttempts is the number of times cleanupStaleWindowsBackups
+// retries removing a stale .bak file before giving up.
+const maxBackupCleanupAttempts = 3
+
+// backupCleanupRetryDelay is the pause between successive cleanup attempts.
+// The delay allows transient locks (e.g. Windows Defender scanning) to clear.
+const backupCleanupRetryDelay = 300 * time.Millisecond
 
 // upgradeExtensionIfOutdated checks if a newer version of the gh-aw extension is available
 // and, if so, upgrades it automatically.
@@ -91,6 +100,35 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 	updateExtensionCheckLog.Printf("Upgrading extension from %s to %s", currentVersion, latestVersion)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Upgrading gh-aw extension from %s to %s...", currentVersion, latestVersion)))
 
+	// When targeting a prerelease version on platforms that do not lock running
+	// binaries (i.e., not Linux or Windows), gh extension upgrade --force resolves
+	// the upgrade target via /releases/latest which excludes prereleases.  On
+	// those platforms the first attempt would silently install an older stable
+	// release instead of the desired prerelease.  Skip directly to the pin-based
+	// install to ensure the exact target version is installed.
+	// Note: on Linux/Windows the binary is locked, so gh extension upgrade --force
+	// fails with ETXTBSY/Access-denied and we fall through to the rename+retry path
+	// which already uses pin-based install; the check below is only needed for
+	// platforms (e.g. macOS) where the first attempt would "succeed" with the wrong
+	// version.
+	if includePrereleases && !needsRenameWorkaround() {
+		updateExtensionCheckLog.Printf("Prerelease upgrade on macOS: skipping gh extension upgrade (uses /releases/latest, ignores prereleases), using pin-based install for %s", latestVersion)
+		removeCmd := exec.Command("gh", "extension", "remove", extensionRepo)
+		removeCmd.Stdout = os.Stderr
+		removeCmd.Stderr = os.Stderr
+		if removeErr := removeCmd.Run(); removeErr != nil {
+			updateExtensionCheckLog.Printf("Could not remove extension before pin-based install (continuing anyway): %v", removeErr)
+		}
+		pinCmd := exec.Command("gh", "extension", "install", extensionRepo, "--pin", latestVersion)
+		pinCmd.Stdout = os.Stderr
+		pinCmd.Stderr = os.Stderr
+		if pinErr := pinCmd.Run(); pinErr != nil {
+			return false, "", fmt.Errorf("failed to install gh-aw extension at version %s: %w", latestVersion, pinErr)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+latestVersion))
+		return true, "", nil
+	}
+
 	// First attempt: run the upgrade without touching the filesystem.
 	// On most systems this will succeed.  On Linux with WSL the kernel may
 	// return ETXTBSY when gh tries to open the currently-executing binary for
@@ -143,6 +181,47 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		} else {
 			installPath = iPath
 			backupPath = bPath
+			// On Windows, gh extension remove cannot delete the extension directory
+			// while it still contains a running binary (even a renamed one).  Move
+			// the backup to a location outside the extension directory so that
+			// gh extension remove can succeed.
+			//
+			// We first try os.TempDir(); if that fails because TEMP is on a
+			// different drive (common on GitHub Actions runners where the extension
+			// lives on C: but TEMP is on D:), we fall back to the parent of the
+			// extension directory which is guaranteed to be on the same drive.
+			if runtime.GOOS == "windows" {
+				extDir := filepath.Dir(backupPath)
+				moved := false
+
+				// Attempt 1: OS temp directory
+				tmpBackup := filepath.Join(os.TempDir(), filepath.Base(backupPath))
+				if moveErr := os.Rename(backupPath, tmpBackup); moveErr == nil {
+					updateExtensionCheckLog.Printf("Moved Windows backup %s -> %s to free extension directory for removal", backupPath, tmpBackup)
+					backupPath = tmpBackup
+					moved = true
+				} else {
+					updateExtensionCheckLog.Printf("Could not move backup to %s (cross-drive?): %v; trying same-drive fallback", tmpBackup, moveErr)
+				}
+
+				// Attempt 2: parent of the extension directory (same drive as backup)
+				if !moved {
+					sameDriveDir := filepath.Dir(extDir)
+					sameDriveTmp := filepath.Join(sameDriveDir, filepath.Base(backupPath))
+					if moveErr2 := os.Rename(backupPath, sameDriveTmp); moveErr2 == nil {
+						updateExtensionCheckLog.Printf("Moved Windows backup %s -> %s (same-drive fallback) to free extension directory for removal", backupPath, sameDriveTmp)
+						backupPath = sameDriveTmp
+					} else {
+						updateExtensionCheckLog.Printf("Could not move backup out of extension directory (gh extension remove may fail): %v", moveErr2)
+					}
+				}
+
+				// After moving our own backup out of the extension directory, try to
+				// remove any stale .bak files left by previous upgrade attempts or the
+				// gh CLI's own rename mechanism.  These may be temporarily locked by
+				// Windows Defender; retry a few times with short delays.
+				cleanupStaleWindowsBackups(extDir, backupPath)
+			}
 		}
 	}
 
@@ -159,14 +238,17 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 	// manifest in place the install command takes the "already installed" code
 	// path and does nothing; removing the extension clears that guard.
 	//
-	// Note: the backup file lives inside the extension directory, so if the
-	// remove step succeeds the backup is also gone; we clear backupPath to
+	// Note: on Linux the backup file lives inside the extension directory and is
+	// gone once the remove step succeeds (unlink frees the directory entry even
+	// though the process still holds the file open).  On Windows the backup has
+	// been moved to the OS temp directory (above) so the remove step can always
+	// succeed.  In both cases we clear backupPath after a successful remove to
 	// avoid a misleading restore attempt on subsequent failures.
 	removeCmd := exec.Command("gh", "extension", "remove", extensionRepo)
 	removeCmd.Stdout = os.Stderr
 	removeCmd.Stderr = os.Stderr
 	if removeErr := removeCmd.Run(); removeErr == nil {
-		// Extension directory (and the backup inside it) has been deleted.
+		// Extension directory has been deleted.
 		backupPath = ""
 	} else {
 		updateExtensionCheckLog.Printf("Could not remove extension before reinstall (will attempt install anyway): %v", removeErr)
@@ -266,13 +348,59 @@ func cleanupExecutableBackup(backupPath string) {
 	}
 }
 
+// cleanupStaleWindowsBackups attempts to remove any .bak files left in extDir
+// by previous upgrade attempts — either by our own code or the gh CLI's own
+// rename mechanism.  The file at ownBackup (our currently-active backup for
+// this upgrade attempt) is excluded so we do not remove our own relocated file.
+//
+// Retries with short delays to handle transient locks from antivirus scanners
+// (e.g. Windows Defender) that may briefly hold the file open after a process
+// exits.  The function is best-effort: if a file cannot be removed it is
+// logged and skipped; gh extension remove may still fail but the caller's
+// existing error-handling path covers that case.
+func cleanupStaleWindowsBackups(extDir string, ownBackup string) {
+	entries, err := os.ReadDir(extDir)
+	if err != nil {
+		updateExtensionCheckLog.Printf("Could not read extension directory for stale .bak cleanup: %v", err)
+		return
+	}
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".bak") {
+			continue
+		}
+		bakFile := filepath.Join(extDir, entry.Name())
+		if bakFile == ownBackup {
+			continue // do not remove our own active backup
+		}
+		for attempt := range maxBackupCleanupAttempts {
+			if removeErr := os.Remove(bakFile); removeErr == nil {
+				updateExtensionCheckLog.Printf("Removed stale .bak file: %s", bakFile)
+				break
+			} else if attempt < maxBackupCleanupAttempts-1 {
+				updateExtensionCheckLog.Printf("Could not remove stale .bak file %s (attempt %d/%d, retrying in %v): %v",
+					bakFile, attempt+1, maxBackupCleanupAttempts, backupCleanupRetryDelay, removeErr)
+				time.Sleep(backupCleanupRetryDelay)
+			} else {
+				updateExtensionCheckLog.Printf("Could not remove stale .bak file %s after %d attempts (gh extension remove may fail): %v",
+					bakFile, maxBackupCleanupAttempts, removeErr)
+			}
+		}
+	}
+}
+
 // isWindowsLockError reports whether the output or error from an upgrade
 // attempt indicate a Windows file-locking issue (the running-binary-lock
 // symptom).  Only when a lock error is detected should the Windows-specific
 // self-upgrade guidance be shown; other failures should propagate the
 // underlying error message instead.
 func isWindowsLockError(output string, err error) bool {
-	lockMsgs := []string{"Access is denied", "The process cannot access the file"}
+	lockMsgs := []string{
+		"Access is denied",
+		"The process cannot access the file",
+		// The gh CLI prints this when it finds a stale .bak file it cannot
+		// remove, which is a symptom of the same locked-binary problem.
+		"failed to remove previous extension update state",
+	}
 	for _, msg := range lockMsgs {
 		if strings.Contains(output, msg) {
 			return true

@@ -12,6 +12,8 @@ const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
 const { generateGitBundle } = require("./generate_git_bundle.cjs");
+const { hasMergeCommitsInRange } = require("./git_helpers.cjs");
+const { computeIncrementalDiffSize } = require("./git_patch_utils.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
@@ -551,6 +553,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // "am" (default) uses git format-patch / git am (good for linear histories).
     // Use ?? (nullish coalescing) so an empty-string resolved value is preserved and
     // rejected below rather than silently falling back to "am".
+    // Track whether the user explicitly set patch_format so we can auto-fall-back
+    // to bundle transport when merge commits are detected (since `git am` cannot
+    // apply merge commits). When the user explicitly chose a format, respect it.
+    const patchFormatExplicit = pushConfig["patch_format"] !== undefined || config["patch_format"] !== undefined;
     const pushPatchFormat = pushConfig["patch_format"] ?? config["patch_format"] ?? "am";
     const validPushPatchFormats = ["am", "bundle"];
     if (!validPushPatchFormats.includes(pushPatchFormat)) {
@@ -569,7 +575,23 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         isError: true,
       };
     }
-    const useBundle = pushPatchFormat === "bundle";
+    let useBundle = pushPatchFormat === "bundle";
+
+    // Auto-fallback: when patch_format is not explicitly configured and the
+    // incremental range (origin/<branch>..<branch>) contains merge commits,
+    // automatically switch to bundle transport. `git am` (the default) cannot
+    // apply merge commits, so without this fallback long-running branches that
+    // periodically merge their base branch locally would fail with add/add
+    // conflicts on every push attempt. The detection is best-effort and uses
+    // only local refs (no extra fetch); a detection miss simply preserves the
+    // existing behavior.
+    if (!useBundle && !patchFormatExplicit && entry.branch) {
+      const hasMerges = hasMergeCommitsInRange(`refs/remotes/origin/${entry.branch}`, entry.branch, { cwd: repoCwd || undefined });
+      if (hasMerges) {
+        server.debug(`push_to_pull_request_branch: detected merge commit(s) in incremental range origin/${entry.branch}..${entry.branch}; auto-switching to bundle transport (set patch-format: am to override).`);
+        useBundle = true;
+      }
+    }
 
     // Build common options for both patch and bundle generation
     const pushTransportOptions = { mode: "incremental" };
@@ -613,6 +635,28 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
       if (bundleResult.baseCommit) {
         entry.base_commit = bundleResult.baseCommit;
+      }
+
+      // Compute the incremental net diff size so push_to_pull_request_branch can
+      // validate `max_patch_size` against how much the branch will actually change,
+      // rather than the full bundle artifact size (which includes packed git
+      // objects and per-commit metadata, and can be many MB on long-running
+      // branches even when each iteration changes only a few KB). Without this,
+      // the push step falls back to the on-disk bundle size and may reject pushes
+      // that are within the configured net-diff limit. See
+      // push_to_pull_request_branch.cjs "Size-check source of truth".
+      if (bundleResult.baseCommit && entry.branch) {
+        const tmpDiffPath = `${bundleResult.bundlePath}.diff.tmp`;
+        const diffSize = computeIncrementalDiffSize({
+          baseRef: bundleResult.baseCommit,
+          headRef: entry.branch,
+          cwd: pushTransportOptions.cwd || process.env.GITHUB_WORKSPACE || process.cwd(),
+          tmpPath: tmpDiffPath,
+        });
+        if (typeof diffSize === "number" && diffSize >= 0) {
+          entry.diff_size = diffSize;
+          server.debug(`Computed incremental diff_size for bundle: ${diffSize} bytes`);
+        }
       }
 
       appendSafeOutput(entry);
