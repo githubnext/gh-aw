@@ -9,6 +9,7 @@
 // This combines variable interpolation and template filtering into a single step.
 
 const fs = require("fs");
+const path = require("path");
 const { isTruthy } = require("./is_truthy.cjs");
 const { selectBranch } = require("./template_branch.cjs");
 const { processRuntimeImports } = require("./runtime_import.cjs");
@@ -193,11 +194,28 @@ async function main() {
     core.info(`[main] Original content length: ${originalLength} characters`);
     core.info(`[main] First 200 characters: ${content.substring(0, 200).replace(/\n/g, "\\n")}`);
 
+    // Write the raw template to prompt-template.txt BEFORE any processing.
+    // This allows downstream consumers (e.g. threat detection) to diff the
+    // template against the fully-rendered prompt to identify interpolation boundaries.
+    const promptDir = path.dirname(promptPath);
+    const templatePath = path.join(promptDir, "prompt-template.txt");
+    core.info(`[main] Writing raw template to: ${templatePath}`);
+    fs.writeFileSync(templatePath, content, "utf8");
+
     // Step 1: Process runtime imports (files and URLs)
     core.info("\n========================================");
     core.info("[main] STEP 1: Runtime Imports");
     core.info("========================================");
     const hasRuntimeImports = /{{#runtime-import\??[ \t]+[^\}]+}}/.test(content);
+
+    // Build an import provenance tree so downstream consumers (e.g. threat detection)
+    // can identify which parts of the rendered prompt originated from which source files.
+    const importTree = {
+      version: 1,
+      template: content,
+      children: /** @type {import('./runtime_import.cjs').ImportTreeNode[]} */ [],
+    };
+
     if (hasRuntimeImports) {
       const importMatches = content.match(/{{#runtime-import\??[ \t]+[^\}]+}}/g) || [];
       core.info(`Processing ${importMatches.length} runtime import macro(s) (files and URLs)`);
@@ -206,7 +224,7 @@ async function main() {
       });
 
       const beforeImports = content.length;
-      content = await processRuntimeImports(content, workspaceDir);
+      content = await processRuntimeImports(content, workspaceDir, new Set(), new Map(), [], importTree.children);
       const afterImports = content.length;
 
       core.info(`Runtime imports processed successfully`);
@@ -214,6 +232,12 @@ async function main() {
     } else {
       core.info("No runtime import macros found, skipping runtime import processing");
     }
+
+    // Write the import tree JSON to the artifact directory so threat detection can
+    // analyse provenance without re-parsing the rendered prompt.
+    const importTreePath = path.join(promptDir, "prompt-import-tree.json");
+    core.info(`[main] Writing import tree to: ${importTreePath}`);
+    fs.writeFileSync(importTreePath, JSON.stringify(importTree, null, 2), "utf8");
 
     // Step 1.5: Extract and write inline sub-agents
     // ## agent: name / ## end: name blocks are written to .github/agents/<name>.md.

@@ -1821,4 +1821,77 @@ describe("runtime_import", () => {
       expect(result).not.toContain("__GH_AW_");
     });
   });
+
+  describe("processRuntimeImports — import tree building", () => {
+    it("should not build a tree when parentTreeChildren is null (default)", async () => {
+      fs.writeFileSync(path.join(workflowsDir, "a.md"), "Content A");
+      const result = await processRuntimeImports("{{#runtime-import a.md}}", tempDir);
+      expect(result).toBe("Content A");
+    });
+
+    it("should populate tree children for a single import", async () => {
+      fs.writeFileSync(path.join(workflowsDir, "a.md"), "Content A");
+      /** @type {any[]} */
+      const children = [];
+      const result = await processRuntimeImports("Before\n{{#runtime-import a.md}}\nAfter", tempDir, new Set(), new Map(), [], children);
+      expect(result).toBe("Before\nContent A\nAfter");
+      expect(children).toHaveLength(1);
+      expect(children[0].macro).toBe("{{#runtime-import a.md}}");
+      expect(children[0].src).toContain("a.md");
+      expect(children[0].rawContent).toBe("Content A");
+      expect(children[0].optional).toBe(false);
+      expect(children[0].startLine).toBeNull();
+      expect(children[0].endLine).toBeNull();
+      expect(children[0].children).toEqual([]);
+    });
+
+    it("should mark optional imports correctly in the tree", async () => {
+      fs.writeFileSync(path.join(workflowsDir, "opt.md"), "Optional content");
+      /** @type {any[]} */
+      const children = [];
+      await processRuntimeImports("{{#runtime-import? opt.md}}", tempDir, new Set(), new Map(), [], children);
+      expect(children).toHaveLength(1);
+      expect(children[0].optional).toBe(true);
+    });
+
+    it("should capture nested imports as children in the tree", async () => {
+      fs.writeFileSync(path.join(workflowsDir, "leaf.md"), "Leaf content");
+      fs.writeFileSync(path.join(workflowsDir, "parent.md"), "Parent\n{{#runtime-import leaf.md}}");
+      /** @type {any[]} */
+      const children = [];
+      await processRuntimeImports("{{#runtime-import parent.md}}", tempDir, new Set(), new Map(), [], children);
+      expect(children).toHaveLength(1);
+      const parentNode = children[0];
+      // rawContent is the file content before nested expansion
+      expect(parentNode.rawContent).toBe("Parent\n{{#runtime-import leaf.md}}");
+      expect(parentNode.children).toHaveLength(1);
+      expect(parentNode.children[0].rawContent).toBe("Leaf content");
+      expect(parentNode.children[0].children).toEqual([]);
+    });
+
+    it("should record cached imports with cached:true and no children", async () => {
+      fs.writeFileSync(path.join(workflowsDir, "shared.md"), "Shared content");
+      /** @type {any[]} */
+      const children = [];
+      await processRuntimeImports("{{#runtime-import shared.md}}\n{{#runtime-import shared.md}}", tempDir, new Set(), new Map(), [], children);
+      expect(children).toHaveLength(2);
+      // First occurrence: not cached
+      expect(children[0].cached).toBeUndefined();
+      expect(children[0].rawContent).toBe("Shared content");
+      // Second occurrence: served from cache
+      expect(children[1].cached).toBe(true);
+      expect(children[1].rawContent).toBe("Shared content");
+    });
+
+    it("should populate multiple top-level imports in order", async () => {
+      fs.writeFileSync(path.join(workflowsDir, "first.md"), "First");
+      fs.writeFileSync(path.join(workflowsDir, "second.md"), "Second");
+      /** @type {any[]} */
+      const children = [];
+      await processRuntimeImports("{{#runtime-import first.md}}\n{{#runtime-import second.md}}", tempDir, new Set(), new Map(), [], children);
+      expect(children).toHaveLength(2);
+      expect(children[0].rawContent).toBe("First");
+      expect(children[1].rawContent).toBe("Second");
+    });
+  });
 });

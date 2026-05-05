@@ -197,5 +197,94 @@ describe("interpolate_prompt", () => {
           const main = eval(`(${mainMatch[0]})`);
           (main(), expect(core.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: GH_AW_PROMPT environment variable is not set`));
         }));
+    }),
+    describe("prompt-template.txt and prompt-import-tree.json artifacts", () => {
+      const { main } = require("./interpolate_prompt.cjs");
+      let tmpDir, promptPath, originalEnv;
+      (beforeEach(() => {
+        ((originalEnv = { ...process.env }),
+          (tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "interpolate-artifact-test-"))),
+          (promptPath = path.join(tmpDir, "prompt.txt")),
+          (process.env.GH_AW_PROMPT = promptPath),
+          (process.env.GITHUB_WORKSPACE = tmpDir),
+          core.info.mockClear(),
+          core.setFailed.mockClear());
+      }),
+        afterEach(() => {
+          (tmpDir && fs.existsSync(tmpDir) && fs.rmSync(tmpDir, { recursive: !0, force: !0 }),
+            Object.keys(process.env).forEach(k => {
+              if (!(k in originalEnv)) delete process.env[k];
+            }),
+            Object.assign(process.env, originalEnv));
+        }),
+        it("should write prompt-template.txt with the original content before interpolation", async () => {
+          const templateContent = "# My Workflow\n\nProcess: ${GH_AW_EXPR_ISSUE}\n\nDo the work.";
+          fs.writeFileSync(promptPath, templateContent, "utf8");
+          process.env.GH_AW_EXPR_ISSUE = "123";
+
+          await main();
+
+          const templatePath = path.join(tmpDir, "prompt-template.txt");
+          expect(fs.existsSync(templatePath)).toBe(true);
+          // Template file should contain the original (non-interpolated) content
+          expect(fs.readFileSync(templatePath, "utf8")).toBe(templateContent);
+          // The prompt.txt should have the interpolated value
+          expect(fs.readFileSync(promptPath, "utf8")).toContain("Process: 123");
+        }),
+        it("should write prompt-import-tree.json with version and empty children when no imports", async () => {
+          const templateContent = "Hello World";
+          fs.writeFileSync(promptPath, templateContent, "utf8");
+
+          await main();
+
+          const treePath = path.join(tmpDir, "prompt-import-tree.json");
+          expect(fs.existsSync(treePath)).toBe(true);
+          const tree = JSON.parse(fs.readFileSync(treePath, "utf8"));
+          expect(tree.version).toBe(1);
+          expect(tree.template).toBe(templateContent);
+          expect(tree.children).toEqual([]);
+        }),
+        it("should populate import tree children with file import provenance", async () => {
+          const githubWorkflowsDir = path.join(tmpDir, ".github", "workflows");
+          fs.mkdirSync(githubWorkflowsDir, { recursive: true });
+          fs.writeFileSync(path.join(githubWorkflowsDir, "helper.md"), "Helper content");
+
+          const templateContent = "Before\n{{#runtime-import .github/workflows/helper.md}}\nAfter";
+          fs.writeFileSync(promptPath, templateContent, "utf8");
+
+          await main();
+
+          const treePath = path.join(tmpDir, "prompt-import-tree.json");
+          const tree = JSON.parse(fs.readFileSync(treePath, "utf8"));
+
+          expect(tree.version).toBe(1);
+          expect(tree.template).toBe(templateContent);
+          expect(tree.children).toHaveLength(1);
+          expect(tree.children[0].macro).toBe("{{#runtime-import .github/workflows/helper.md}}");
+          expect(tree.children[0].src).toContain("helper.md");
+          expect(tree.children[0].rawContent).toBe("Helper content");
+          expect(tree.children[0].optional).toBe(false);
+          expect(tree.children[0].children).toEqual([]);
+        }),
+        it("should capture nested import provenance in the tree", async () => {
+          const githubWorkflowsDir = path.join(tmpDir, ".github", "workflows");
+          fs.mkdirSync(githubWorkflowsDir, { recursive: true });
+          fs.writeFileSync(path.join(githubWorkflowsDir, "leaf.md"), "Leaf content");
+          fs.writeFileSync(path.join(githubWorkflowsDir, "parent.md"), "Parent\n{{#runtime-import .github/workflows/leaf.md}}");
+
+          const templateContent = "{{#runtime-import .github/workflows/parent.md}}";
+          fs.writeFileSync(promptPath, templateContent, "utf8");
+
+          await main();
+
+          const treePath = path.join(tmpDir, "prompt-import-tree.json");
+          const tree = JSON.parse(fs.readFileSync(treePath, "utf8"));
+
+          expect(tree.children).toHaveLength(1);
+          const parentNode = tree.children[0];
+          expect(parentNode.rawContent).toBe("Parent\n{{#runtime-import .github/workflows/leaf.md}}");
+          expect(parentNode.children).toHaveLength(1);
+          expect(parentNode.children[0].rawContent).toBe("Leaf content");
+        }));
     }));
 });
