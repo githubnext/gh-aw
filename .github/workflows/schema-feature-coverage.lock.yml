@@ -1237,18 +1237,18 @@ jobs:
           DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e CODEX_HOME -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.6'
           
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_9a6ee0d7dbd4bc97_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_f5e934fb3f82ccde_EOF
           [history]
           persistence = "none"
           
           [shell_environment_policy]
           inherit = "core"
           include_only = ["CODEX_API_KEY", "HOME", "OPENAI_API_KEY", "PATH"]
-          GH_AW_MCP_CONFIG_9a6ee0d7dbd4bc97_EOF
+          GH_AW_MCP_CONFIG_f5e934fb3f82ccde_EOF
           
           # Generate JSON config for MCP gateway
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_59c78b1d8e1114b3_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_bb6b8d3a690a829c_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
             },
@@ -1259,11 +1259,11 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_59c78b1d8e1114b3_EOF
+          GH_AW_MCP_CONFIG_bb6b8d3a690a829c_EOF
           
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_95881ae12ba80feb_EOF
+          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_07f208d1e38ed6fa_EOF
           model_provider = "openai-proxy"
           [model_providers.openai-proxy]
           name = "OpenAI AWF proxy"
@@ -1273,7 +1273,7 @@ jobs:
           [shell_environment_policy]
           inherit = "core"
           include_only = ["CODEX_API_KEY", "HOME", "OPENAI_API_KEY", "PATH"]
-          GH_AW_CODEX_SHELL_POLICY_95881ae12ba80feb_EOF
+          GH_AW_CODEX_SHELL_POLICY_07f208d1e38ed6fa_EOF
           awk '
             BEGIN { skip_openai_proxy = 0 }
             /^[[:space:]]*model_provider[[:space:]]*=/ { next }
@@ -1420,11 +1420,34 @@ jobs:
         with:
           name: agent
           path: /tmp/gh-aw/
+      - name: Extract base branch from agent output
+        id: extract-base-branch
+        if: steps.download-agent-output.outcome == 'success'
+        shell: bash
+        run: |
+          if [ -f "/tmp/gh-aw/agent_output.json" ]; then
+            GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
+            BASE_BRANCH=$("$GH_AW_NODE" -e "
+              try {
+                const data = JSON.parse(require('fs').readFileSync('/tmp/gh-aw/agent_output.json', 'utf8'));
+                const item = (data.items || []).find(i =>
+                  (i.type === 'create_pull_request' || i.type === 'push_to_pull_request_branch') &&
+                  i.base_branch
+                );
+                if (item) process.stdout.write(item.base_branch);
+              } catch(e) {}
+            " 2>/dev/null || true)
+            # Validate: only allow safe git branch name characters
+            if [[ "$BASE_BRANCH" =~ ^[a-zA-Z0-9/_.-]+$ ]] && [ ${#BASE_BRANCH} -le 255 ]; then
+              printf 'base-branch=%s\n' "$BASE_BRANCH" >> "$GITHUB_OUTPUT"
+              echo "Extracted base branch from safe output: $BASE_BRANCH"
+            fi
+          fi
       - name: Checkout repository
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}
+          ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}
           token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           persist-credentials: false
           fetch-depth: 1
