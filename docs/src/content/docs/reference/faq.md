@@ -607,6 +607,38 @@ See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/)
 
 Yes, for the purpose of this technology. An **"agent"** is an agentic workflow in a repository - an AI-powered automation that can reason, make decisions, and take actions. We use **"agentic workflow"** as it's plainer and emphasizes the workflow nature of the automation, but the terms are synonymous in this context.
 
+### How do I forward agent and detection artifacts to a third-party server after the workflow finishes?
+
+Add a custom job with `needs: [conclusion]` in the frontmatter `jobs:` block. The `conclusion` job is the last auto-generated job to run, so depending on it guarantees both the `agent` and `detection` artifacts are fully uploaded before your job starts.
+
+```yaml wrap
+jobs:
+  forward-artifacts:
+    needs: [conclusion]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download ${{ github.run_id }} -n agent -D artifacts/agent
+          gh run download ${{ github.run_id }} -n detection -D artifacts/detection
+      - name: Upload to third-party server
+        env:
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+        run: |
+          tar -czf artifacts.tar.gz artifacts/
+          curl --fail -X POST https://ingest.example.com/artifacts \
+            -H "Authorization: Bearer $INGEST_TOKEN" \
+            -F "file=@artifacts.tar.gz" \
+            -F "run_id=${{ github.run_id }}"
+```
+
+`if: always()` ensures the job runs even when the agent or safe-output jobs fail. The `detection` artifact is only present when [threat detection](/gh-aw/reference/threat-detection/) is enabled; omit that download step if your workflow doesn't use it.
+
+See [Artifacts](/gh-aw/reference/artifacts/) for a full list of artifact names and their contents.
+
 ## Costs & Usage
 
 ### Who pays for the use of AI?
