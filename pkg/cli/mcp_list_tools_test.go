@@ -362,9 +362,14 @@ func TestMCPListToolsValidArgsFunction(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(workflowsDir, "my-workflow.md"), []byte(content), 0644); err != nil {
 			t.Fatalf("Failed to write workflow file: %v", err)
 		}
-		origDir, _ := os.Getwd()
+		origDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get current directory: %v", err)
+		}
 		defer os.Chdir(origDir)
-		os.Chdir(tmpDir)
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("Failed to change to temp directory: %v", err)
+		}
 
 		completions, _ := cmd.ValidArgsFunction(cmd, []string{}, "")
 		if len(completions) == 0 {
