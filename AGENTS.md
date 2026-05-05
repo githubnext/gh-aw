@@ -1294,7 +1294,7 @@ Skills provide specialized, detailed knowledge on specific topics. **Use them on
 ### Documentation & Communication
 - **[documentation](skills/documentation/SKILL.md)** - Documentation guidelines using Diátaxis framework and GitHub-flavored markdown
 - **[reporting](skills/reporting/SKILL.md)** - Report format guidelines using HTML details/summary tags
-- **[dictation](skills/dictation/SKILL.md)** - Fixing text-to-speech errors in dictated text
+- **[dictation](DICTATION.md)** - Fixing text-to-speech errors in dictated text
 - **[agentic-chat](.github/aw/agentic-chat.md)** - AI assistant for creating task descriptions
 
 ### MCP & Tools
