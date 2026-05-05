@@ -57,31 +57,6 @@ func TestImportCache(t *testing.T) {
 	})
 }
 
-func TestGetCacheDir(t *testing.T) {
-	tests := []struct {
-		name    string
-		baseDir func(t *testing.T) string
-	}{
-		{
-			name:    "temp dir base",
-			baseDir: func(t *testing.T) string { return t.TempDir() },
-		},
-		{
-			name:    "nested base dir",
-			baseDir: func(t *testing.T) string { return filepath.Join(t.TempDir(), "nested", "dir") },
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			baseDir := tt.baseDir(t)
-			cache := NewImportCache(baseDir)
-			expected := filepath.Join(baseDir, ImportCacheDir)
-			assert.Equal(t, expected, cache.GetCacheDir(), "GetCacheDir should return base dir joined with ImportCacheDir")
-		})
-	}
-}
-
 func TestImportCacheDirectory(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -90,6 +65,14 @@ func TestImportCacheDirectory(t *testing.T) {
 	// Test cache directory path
 	expectedDir := filepath.Join(tempDir, ImportCacheDir)
 	assert.Equal(t, expectedDir, cache.GetCacheDir(), "GetCacheDir should return expected path")
+
+	// GetCacheDir works for nested base directories that don't exist yet
+	t.Run("nested base dir returns correct path", func(t *testing.T) {
+		nestedBase := filepath.Join(t.TempDir(), "nested", "dir")
+		nestedCache := NewImportCache(nestedBase)
+		assert.Equal(t, filepath.Join(nestedBase, ImportCacheDir), nestedCache.GetCacheDir(),
+			"GetCacheDir should return base dir joined with ImportCacheDir for nested paths")
+	})
 
 	// Create a cache entry to trigger directory creation
 	testContent := []byte("test")
