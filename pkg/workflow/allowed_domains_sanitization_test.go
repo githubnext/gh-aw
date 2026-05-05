@@ -219,7 +219,7 @@ Test workflow with ecosystem identifiers.
 
 			lockStr := string(lockContent)
 
-			// Check if GH_AW_ALLOWED_DOMAINS is set in the Ingest agent output step
+			// Check if GH_AW_ALLOWED_DOMAINS is set in the Process agent output step
 			if !strings.Contains(lockStr, "GH_AW_ALLOWED_DOMAINS:") {
 				t.Error("Expected GH_AW_ALLOWED_DOMAINS environment variable in lock file")
 			}

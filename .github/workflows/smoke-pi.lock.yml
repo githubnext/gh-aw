@@ -741,7 +741,7 @@ jobs:
           
           bash "${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh"
           
-      - name: Write MCP Scripts Config
+      - name: Generate MCP Scripts Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs"
           cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_11e6a82f2d0b90d6_EOF'
@@ -792,7 +792,7 @@ jobs:
           GH_AW_MCP_SCRIPTS_SERVER_d883a4e1ef2b6b37_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs"
           
-      - name: Write MCP Scripts Tool Files
+      - name: Generate MCP Scripts Tool Files
         run: |
           cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh" << 'GH_AW_MCP_SCRIPTS_SH_GH_2e8255430cd1de16_EOF'
           #!/bin/bash
@@ -982,7 +982,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw
           cp "$GH_AW_SAFE_OUTPUTS" /tmp/gh-aw/safeoutputs.jsonl 2>/dev/null || true
-      - name: Ingest agent output
+      - name: Process agent output
         id: collect_output
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0

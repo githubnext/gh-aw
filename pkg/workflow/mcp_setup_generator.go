@@ -360,7 +360,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	if !IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		return nil
 	}
-	yaml.WriteString("      - name: Write MCP Scripts Config\n")
+	yaml.WriteString("      - name: Generate MCP Scripts Config\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-scripts/logs\"\n")
 
@@ -388,7 +388,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	yaml.WriteString("          chmod +x \"${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs\"\n")
 	yaml.WriteString("          \n")
 
-	yaml.WriteString("      - name: Write MCP Scripts Tool Files\n")
+	yaml.WriteString("      - name: Generate MCP Scripts Tool Files\n")
 	yaml.WriteString("        run: |\n")
 	mcpScriptToolNames := sliceutil.MapToSlice(workflowData.MCPScripts.Tools)
 	sort.Strings(mcpScriptToolNames)

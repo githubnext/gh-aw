@@ -67,8 +67,8 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected GH_AW_SAFE_OUTPUTS to be set via 'Set runtime paths' step using $GITHUB_OUTPUT")
 	}
 
-	if !strings.Contains(lockContent, "- name: Ingest agent output") {
-		t.Error("Expected 'Ingest agent output' step to be in generated workflow")
+	if !strings.Contains(lockContent, "- name: Process agent output") {
+		t.Error("Expected 'Process agent output' step to be in generated workflow")
 	}
 
 	// Upload Safe Outputs and Upload sanitized agent output are now merged into the
@@ -177,8 +177,8 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 		t.Error("Codex workflow should set GH_AW_SAFE_OUTPUTS via 'Set runtime paths' step (GH_AW_SAFE_OUTPUTS functionality)")
 	}
 
-	if !strings.Contains(lockContent, "- name: Ingest agent output") {
-		t.Error("Codex workflow should have 'Ingest agent output' step (GH_AW_SAFE_OUTPUTS functionality)")
+	if !strings.Contains(lockContent, "- name: Process agent output") {
+		t.Error("Codex workflow should have 'Process agent output' step (GH_AW_SAFE_OUTPUTS functionality)")
 	}
 
 	// Upload Safe Outputs and Upload sanitized agent output are now merged into the

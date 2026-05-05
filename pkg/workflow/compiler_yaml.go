@@ -874,7 +874,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	fmt.Fprintf(yaml, "          mkdir -p /tmp/gh-aw\n")
 	fmt.Fprintf(yaml, "          cp \"$GH_AW_SAFE_OUTPUTS\" /tmp/gh-aw/%s 2>/dev/null || true\n", constants.SafeOutputsFilename)
 
-	yaml.WriteString("      - name: Ingest agent output\n")
+	yaml.WriteString("      - name: Process agent output\n")
 	yaml.WriteString("        id: collect_output\n")
 	yaml.WriteString("        if: always()\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
