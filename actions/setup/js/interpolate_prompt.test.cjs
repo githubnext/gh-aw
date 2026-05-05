@@ -8,16 +8,14 @@ const __filename = fileURLToPath(import.meta.url),
   __dirname = path.dirname(__filename),
   core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn() };
 global.core = core;
-const interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8"),
-  { isTruthy } = require("./is_truthy.cjs"),
-  selectBranchMatch = interpolatePromptScript.match(/function selectBranch\(ifCondition, body\)\s*{[\s\S]*?return null;\s*\n?}/),
+const { isTruthy } = require("./is_truthy.cjs"),
+  { selectBranch } = require("./template_branch.cjs"),
+  interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8"),
   interpolateVariablesMatch = interpolatePromptScript.match(/function interpolateVariables\(content, variables\)\s*{[\s\S]*?return result;[\s\S]*?}/),
   renderMarkdownTemplateMatch = interpolatePromptScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
-if (!selectBranchMatch) throw new Error("Could not extract selectBranch function from interpolate_prompt.cjs");
 if (!interpolateVariablesMatch) throw new Error("Could not extract interpolateVariables function from interpolate_prompt.cjs");
 if (!renderMarkdownTemplateMatch) throw new Error("Could not extract renderMarkdownTemplate function from interpolate_prompt.cjs");
-const selectBranch = eval(`(${selectBranchMatch[0]})`),
-  interpolateVariables = eval(`(${interpolateVariablesMatch[0]})`),
+const interpolateVariables = eval(`(${interpolateVariablesMatch[0]})`),
   renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
 describe("interpolate_prompt", () => {
   (describe("interpolateVariables", () => {

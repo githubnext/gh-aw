@@ -18,8 +18,10 @@ func wrapExpressionsInTemplateConditionals(markdown string) string {
 	templateLog.Print("Wrapping expressions in template conditionals")
 
 	// wrapTagExpr applies the wrapping logic to a single extracted expression and
-	// returns the full reconstructed tag. prefix is the opening tag text without the
-	// expression (e.g. "{{#if " or "{{#elseif ").
+	// returns the full reconstructed tag. re must be the same regex that produced
+	// match (so FindStringSubmatch reliably extracts capture group 1 = the expression).
+	// prefix is the canonical opening tag text without the expression
+	// (e.g. "{{#if " or "{{#elseif "), used to rebuild the output tag.
 	wrapTagExpr := func(re *regexp.Regexp, match, prefix string) string {
 		submatches := re.FindStringSubmatch(match)
 		if len(submatches) < 2 {

@@ -11,44 +11,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 const { isTruthy } = require("./is_truthy.cjs");
-
-/**
- * Selects the appropriate branch from a conditional block that may contain
- * {{#elseif}}, {{#else-if}}, {{#else_if}}, {{elseif}}, {{else-if}}, {{else_if}}
- * branches in addition to the optional {{#else}} fallback.
- *
- * @param {string} ifCondition - The condition from the opening {{#if ...}} tag
- * @param {string} body        - Everything between the opening tag and {{/if}}
- * @returns {string|null}      - Content of the first truthy branch, or null
- */
-function selectBranch(ifCondition, body) {
-  // Split on all elseif variants.  The capturing group ensures that the condition
-  // text appears between the content pieces in the resulting array.
-  // Supported: {{#elseif}}, {{#else-if}}, {{#else_if}}, {{elseif}}, {{else-if}}, {{else_if}}
-  const parts = body.split(/[ \t]*\{\{#?else[-_]?if\s+([^}]*)\}\}[ \t]*\n?/);
-
-  // parts alternates: [content0, cond1, content1, cond2, content2, ...]
-  const branches = [{ condition: ifCondition, content: parts[0] }];
-  for (let i = 1; i < parts.length; i += 2) {
-    branches.push({ condition: parts[i].trim(), content: parts[i + 1] || "" });
-  }
-
-  // Check whether the last branch's content contains a {{#else}} tail
-  const lastBranch = branches[branches.length - 1];
-  const elseParts = lastBranch.content.split(/[ \t]*\{\{#else\}\}[ \t]*\n?/);
-  if (elseParts.length > 1) {
-    lastBranch.content = elseParts[0];
-    branches.push({ condition: null, content: elseParts.slice(1).join("{{#else}}") });
-  }
-
-  // Return content of the first truthy branch
-  for (const branch of branches) {
-    if (branch.condition === null || isTruthy(branch.condition)) {
-      return branch.content;
-    }
-  }
-  return null;
-}
+const { selectBranch } = require("./template_branch.cjs");
 
 /**
  * Renders a Markdown template by processing {{#if}} conditional blocks.
@@ -189,4 +152,4 @@ function main() {
   }
 }
 
-module.exports = { renderMarkdownTemplate, main, selectBranch };
+module.exports = { renderMarkdownTemplate, main };

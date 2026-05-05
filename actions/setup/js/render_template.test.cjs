@@ -7,13 +7,11 @@ const __filename = fileURLToPath(import.meta.url),
   core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn(), summary: { addHeading: vi.fn().mockReturnThis(), addRaw: vi.fn().mockReturnThis(), write: vi.fn() } };
 global.core = core;
 const { isTruthy } = require("./is_truthy.cjs"),
+  { selectBranch } = require("./template_branch.cjs"),
   renderTemplateScript = fs.readFileSync(path.join(__dirname, "render_template.cjs"), "utf8"),
-  selectBranchMatch = renderTemplateScript.match(/function selectBranch\(ifCondition, body\)\s*{[\s\S]*?return null;\s*\n?}/),
   renderMarkdownTemplateMatch = renderTemplateScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
-if (!selectBranchMatch) throw new Error("Could not extract selectBranch function from render_template.cjs");
 if (!renderMarkdownTemplateMatch) throw new Error("Could not extract renderMarkdownTemplate function from render_template.cjs");
-const selectBranch = eval(`(${selectBranchMatch[0]})`),
-  renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
+const renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
 describe("renderMarkdownTemplate", () => {
   (it("should keep content in truthy blocks", () => {
     const output = renderMarkdownTemplate("{{#if true}}\nHello\n{{/if}}");
