@@ -196,7 +196,7 @@ func cleanupOrphanedIncludes(verbose bool) error {
 		}
 
 		// Find includes used by this workflow
-		includes, err := findIncludesInContent(string(content), filepath.Dir(mdFile), verbose)
+		includes, err := findIncludesInContent(string(content))
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not analyze includes in %s: %v", mdFile, err)))
@@ -297,7 +297,7 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, er
 		}
 
 		// Find includes used by this workflow
-		includes, err := findIncludesInContent(string(content), filepath.Dir(mdFile), verbose)
+		includes, err := findIncludesInContent(string(content))
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not analyze includes in %s: %v", mdFile, err)))
@@ -414,9 +414,7 @@ func hasDirectiveMarker(content string) bool {
 }
 
 // findIncludesInContent finds all import references in content
-func findIncludesInContent(content, baseDir string, verbose bool) ([]string, error) {
-	_ = baseDir // unused parameter for now, keeping for potential future use
-	_ = verbose // unused parameter for now, keeping for potential future use
+func findIncludesInContent(content string) ([]string, error) {
 
 	// Fast path: skip the line scan entirely when no directive markers are present.
 	if !hasDirectiveMarker(content) {

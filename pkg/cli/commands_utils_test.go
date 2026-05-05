@@ -267,7 +267,7 @@ More content.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := findIncludesInContent(tt.content, "", false)
+			result, err := findIncludesInContent(tt.content)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 				return
@@ -320,7 +320,7 @@ More content here.
 Final content.`
 
 	for b.Loop() {
-		_, _ = findIncludesInContent(content, "", false)
+		_, _ = findIncludesInContent(content)
 	}
 }
 

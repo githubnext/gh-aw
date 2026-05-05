@@ -458,8 +458,7 @@ func collectMCPFailureServers(failures []MCPFailureReport) []string {
 	return servers
 }
 
-func findPreviousSuccessfulWorkflowRuns(ctx context.Context, current WorkflowRun, owner, repo, hostname string, verbose bool) ([]WorkflowRun, error) {
-	_ = verbose
+func findPreviousSuccessfulWorkflowRuns(ctx context.Context, current WorkflowRun, owner, repo, hostname string) ([]WorkflowRun, error) {
 	workflowID := filepath.Base(current.WorkflowPath)
 	if workflowID == "." || workflowID == "" {
 		return nil, fmt.Errorf("workflow path unavailable for run %d", current.DatabaseID)
@@ -508,7 +507,7 @@ func findPreviousSuccessfulWorkflowRuns(ctx context.Context, current WorkflowRun
 }
 
 func buildAuditComparisonForRun(ctx context.Context, currentRun ProcessedRun, currentSnapshot auditComparisonSnapshot, outputDir string, owner, repo, hostname string, verbose bool) *AuditComparisonData {
-	baselineRuns, err := findPreviousSuccessfulWorkflowRuns(ctx, currentRun.Run, owner, repo, hostname, verbose)
+	baselineRuns, err := findPreviousSuccessfulWorkflowRuns(ctx, currentRun.Run, owner, repo, hostname)
 	if err != nil {
 		auditLog.Printf("Skipping audit comparison: failed to find baseline: %v", err)
 		return &AuditComparisonData{BaselineFound: false}
