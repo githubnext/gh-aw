@@ -7,6 +7,7 @@ const __filename = fileURLToPath(import.meta.url),
   core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn() };
 global.core = core;
 const { isTruthy } = require("./is_truthy.cjs"),
+  { selectBranch } = require("./template_branch.cjs"),
   interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8"),
   renderMarkdownTemplateMatch = interpolatePromptScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
 if (!renderMarkdownTemplateMatch) throw new Error("Could not extract renderMarkdownTemplate function from interpolate_prompt.cjs");

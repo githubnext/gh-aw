@@ -31,6 +31,7 @@ function selectBranch(ifCondition, body) {
   const parts = body.split(/[ \t]*\{\{#?else[-_]?if\s+([^}]*)\}\}[ \t]*\n?/);
 
   // parts alternates: [content0, cond1, content1, cond2, content2, ...]
+  /** @type {Array<{condition: string|null, content: string}>} */
   const branches = [{ condition: ifCondition, content: parts[0] }];
   for (let i = 1; i < parts.length; i += 2) {
     branches.push({ condition: parts[i].trim(), content: parts[i + 1] || "" });

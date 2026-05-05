@@ -1,15 +1,5 @@
 # Workflow Health Monitoring Runbook
 
-This runbook documents how to investigate and resolve workflow health issues in GitHub Agentic Workflows, based on learnings from operational incident response.
-
-## When to Use This Runbook
-
-Use this runbook when:
-- Workflows are failing in scheduled runs
-- Missing-tool errors appear in workflow logs
-- Authentication or permission errors occur
-- Safe-input or safe-output configurations fail
-
 ## Common Workflow Failure Patterns
 
 ### Missing Tool Configurations
@@ -295,40 +285,11 @@ gh aw logs --run-id <run-id>
 
 ## Case Study: DeepReport Incident Response
 
-### Background
+Three failing workflows were fixed:
 
-The DeepReport Intelligence Briefing (Discussion #7277) identified several workflow health issues:
+**Weekly Issue Summary** — missing `actions: read` permission. Added and recompiled.
 
-1. **Weekly Issue Summary workflow** - Failed in recent runs
-2. **Dev workflow** - Missing GitHub MCP read_issue capability (Run #20435819459)
-3. **Daily Copilot PR Merged workflow** - Missing mcpscripts-gh tool
-
-### Investigation
-
-**Weekly Issue Summary**:
-- Analyzed workflow logs using `gh aw logs`
-- Identified authentication errors in GitHub API calls
-- Found missing permissions in workflow configuration
-
-**Dev Workflow**:
-- Error: "Tool 'github:read_issue' not found"
-- Root cause: GitHub MCP server not configured
-- The workflow attempted to read issue information without GitHub MCP toolset
-
-**Daily Copilot PR Merged**:
-- Error: "missing tool configuration for mcpscripts-gh"
-- Root cause: MCP Scripts action not set up in workflow
-- PR merge data not being passed securely to agent
-
-### Resolution
-
-**Weekly Issue Summary**:
-- Added missing `actions: read` permission
-- Recompiled workflow with `gh aw compile`
-- Verified success in next scheduled run
-
-**Dev Workflow**:
-Added GitHub MCP server configuration:
+**Dev Workflow** — "Tool 'github:read_issue' not found" (GitHub MCP server not configured):
 
 ```aw
 tools:
@@ -336,8 +297,7 @@ tools:
     toolsets: [default]
 ```
 
-**Daily Copilot PR Merged**:
-Added mcp-scripts configuration:
+**Daily Copilot PR Merged** — "missing tool configuration for mcpscripts-gh":
 
 ```aw
 mcp-scripts:
@@ -345,14 +305,6 @@ mcp-scripts:
     number: ${{ github.event.pull_request.number }}
     title: ${{ github.event.pull_request.title }}
 ```
-
-### Lessons Learned
-
-1. **MCP-first approach**: Always configure GitHub MCP server when workflows need GitHub API access
-2. **Permission planning**: Define required permissions upfront based on workflow operations
-3. **MCP Scripts for context**: Use mcp-scripts to securely pass GitHub event context to agents
-4. **Test after compilation**: Always test workflows manually after making configuration changes
-5. **Monitor systematically**: Use `gh aw logs` for regular workflow health monitoring
 
 ## Quick Reference
 
@@ -429,9 +381,3 @@ tools:
 ---
 ```
 
-## Additional Resources
-
-- [Getting Started with MCP](/docs/src/content/docs/guides/getting-started-mcp.md)
-- [Security Guide](/docs/src/content/docs/introduction/architecture.md)
-- [Error Reference](/docs/src/content/docs/troubleshooting/errors.md)
-- [Common Issues](/docs/src/content/docs/troubleshooting/common-issues.md)
