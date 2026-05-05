@@ -459,6 +459,8 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	ctx.steps = append(ctx.steps, "          path: |\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw_info.json\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt-template.txt\n")
+	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt-import-tree.json\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/"+constants.GithubRateLimitsFilename+"\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/base\n")
 	// Include the engine-specific sub-agents staging directory when inline-agents is enabled

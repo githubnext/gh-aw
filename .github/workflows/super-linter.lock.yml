@@ -316,6 +316,8 @@ jobs:
           path: |
             /tmp/gh-aw/aw_info.json
             /tmp/gh-aw/aw-prompts/prompt.txt
+            /tmp/gh-aw/aw-prompts/prompt-template.txt
+            /tmp/gh-aw/aw-prompts/prompt-import-tree.json
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/base
           if-no-files-found: ignore
