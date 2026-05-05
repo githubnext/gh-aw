@@ -135,7 +135,10 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   // correct sequencing even when commit dates are out of sync (e.g. after rebase --committer-date-is-author-date).
   // Using --parents emits each line as "<sha> <parent1> [<parent2> ...]", which lets us detect merge commits
   // (more than one parent) in a single subprocess call without iterating each SHA individually.
-  const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${baseRef}..HEAD`], { cwd });
+  // When baseRef is empty (orphan branch first push), list all commits reachable from HEAD instead
+  // of using the empty-string range "..HEAD" which git interprets as HEAD..HEAD (zero commits).
+  const revRange = baseRef ? `${baseRef}..HEAD` : "HEAD";
+  const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", revRange], { cwd });
   const revListLines = revListOut.trim().split("\n").filter(Boolean);
   const shas = revListLines.map(line => line.split(" ")[0]);
 

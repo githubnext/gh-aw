@@ -594,6 +594,47 @@ describe("push_signed_commits integration tests", () => {
   });
 
   // ──────────────────────────────────────────────────────
+  // Orphan branch – empty baseRef (push_experiment_state first push)
+  // ──────────────────────────────────────────────────────
+
+  describe("orphan branch first push (empty baseRef)", () => {
+    it("should not return early when baseRef is empty string (regression: git rev-list empty-range was a no-op)", async () => {
+      // Simulate checkoutOrCreateBranch() returning "" for a brand-new orphan branch,
+      // which is exactly the scenario in push_experiment_state.cjs.
+      execGit(["checkout", "--orphan", "experiments/state"], { cwd: workDir });
+      execGit(["read-tree", "--empty"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "state.json"), JSON.stringify({ runs: 1 }));
+      execGit(["add", "state.json"], { cwd: workDir });
+      execGit(["commit", "-m", "Initial experiment state"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      // baseRef is "" - orphan branch first push.
+      // Before the fix this returned undefined immediately ("no new commits") because
+      // git rev-list ""..HEAD resolves to HEAD..HEAD (empty range).
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "experiments/state",
+        baseRef: "",
+        cwd: workDir,
+      });
+
+      // The fix: the commit must have been found and an attempt made to push it.
+      // GraphQL was invoked for the orphan commit (the mock always succeeds).
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const callArg = githubClient.graphql.mock.calls[0][1].input;
+      expect(callArg.message.headline).toBe("Initial experiment state");
+      expect(callArg.branch.branchName).toBe("experiments/state");
+
+      // Regression guard: must NOT have short-circuited with "no new commits".
+      expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("no new commits"));
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // Fallback path – GraphQL fails → git push
   // ──────────────────────────────────────────────────────
 

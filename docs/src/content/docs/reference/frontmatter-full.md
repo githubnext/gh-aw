@@ -831,6 +831,15 @@ on:
   labels: []
     # Array items: undefined
 
+  # Allow the bot-posted-menu / user-checks-box pattern: when a workflow posts a
+  # checkbox-menu comment as a GitHub App bot and a human maintainer edits it to
+  # tick a box (issue_comment:edited where actor ≠ comment.user.login), treat this
+  # as safe and skip the confused-deputy check. When false (default), the check
+  # applies to all issue_comment events. The Dependabot confused-deputy attack
+  # vector (issue_comment:created) is unaffected.
+  # (optional)
+  allow-bot-authored-trigger-comment: true
+
   # Environment name that requires manual approval before the workflow can run. Must
   # match a valid environment configured in the repository settings.
   # (optional)
@@ -1199,7 +1208,7 @@ experiments:
   # Storage backend for experiment state. 'repo' (default) persists state to a git
   # branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with
   # hyphens removed, e.g. 'my-workflow' -> 'experiments/myworkflow') for durability
-  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behavior).
+  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behaviour).
   # Repo storage is recommended because experiment data is valuable and more durable
   # than cache.
   # (optional)
@@ -3736,7 +3745,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: blocked (default), allowed, or
     # fallback-to-issue — or a GitHub Actions expression for reusable workflows.
-    # Object form: { policy, exclude } to customize the protected-file set.
+    # Object form: { policy, exclude } to customise the protected-file set.
     # (optional)
     # This field supports multiple formats (oneOf):
 
@@ -3749,7 +3758,7 @@ safe-outputs:
 
     # Option 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
     # 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to
-    # parameterize the policy per caller.
+    # parameterise the policy per caller.
     protected-files: "example-value"
 
     # Option 3: Object form for granular control over the protected-file set. Use the
@@ -3828,7 +3837,7 @@ safe-outputs:
     patch-format: "am"
 
     # Option 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterize the transport
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -4966,7 +4975,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: blocked (default), allowed, or
     # fallback-to-issue — or a GitHub Actions expression for reusable workflows.
-    # Object form: { policy, exclude } to customize the protected-file set.
+    # Object form: { policy, exclude } to customise the protected-file set.
     # (optional)
     # This field supports multiple formats (oneOf):
 
@@ -4979,7 +4988,7 @@ safe-outputs:
 
     # Option 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
     # 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to
-    # parameterize the policy per caller.
+    # parameterise the policy per caller.
     protected-files: "example-value"
 
     # Option 3: Object form for granular control over the protected-file set. Use the
@@ -5041,7 +5050,7 @@ safe-outputs:
     patch-format: "am"
 
     # Option 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterize the transport
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -5523,7 +5532,7 @@ safe-outputs:
     # Default values injected when the model omits a field
     # (optional)
     defaults:
-      # Behavior when no files match: 'error' (default) or 'ignore'
+      # Behaviour when no files match: 'error' (default) or 'ignore'
       # (optional)
       if-no-files: "error"
 
