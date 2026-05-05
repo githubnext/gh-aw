@@ -72,7 +72,7 @@ type builtinModelAliasesFile struct {
 func BuiltinModelAliases() map[string][]string {
 	var data builtinModelAliasesFile
 	if err := json.Unmarshal(builtinModelAliasesJSON, &data); err != nil {
-		panic(fmt.Sprintf("workflow: failed to parse embedded model_aliases.json: %v", err))
+		panic(fmt.Sprintf("workflow: failed to parse embedded model_aliases.json: %v (try 'make build' to rebuild with the latest data)", err))
 	}
 	// Return a fresh copy so callers may freely modify it.
 	result := make(map[string][]string, len(data.Aliases))
