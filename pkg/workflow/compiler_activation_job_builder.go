@@ -112,7 +112,13 @@ func (c *Compiler) newActivationJobBuildContext(
 	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		ctx.outputs["target_repo"] = "${{ steps.resolve-host-repo.outputs.target_repo }}"
 		ctx.outputs["target_repo_name"] = "${{ steps.resolve-host-repo.outputs.target_repo_name }}"
+		// target_ref: dispatch-compatible branch/tag ref (e.g. refs/heads/main) parsed from
+		// job.workflow_ref. Used by dispatch_workflow safe outputs as the `ref` argument to
+		// createWorkflowDispatch. The GitHub workflow dispatch API does not accept commit SHAs.
 		ctx.outputs["target_ref"] = "${{ steps.resolve-host-repo.outputs.target_ref }}"
+		// target_checkout_ref: immutable commit SHA from job.workflow_sha. Used by actions/checkout
+		// in the activation job to pin to the exact executing revision.
+		ctx.outputs["target_checkout_ref"] = "${{ steps.resolve-host-repo.outputs.target_checkout_ref }}"
 	}
 
 	return ctx, nil

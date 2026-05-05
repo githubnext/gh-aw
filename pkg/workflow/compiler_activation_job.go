@@ -341,8 +341,12 @@ func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *Workflow
 // correctly identifying the platform repo in all relay patterns (cross-repo workflow_call,
 // event-driven relays like on: issue_comment, on: push, and cross-org scenarios).
 //
-// job.workflow_sha provides the immutable commit SHA of the workflow being executed, ensuring
-// the activation checkout pins to the exact revision rather than a moving branch/tag ref.
+// The step emits two distinct ref outputs:
+//   - target_checkout_ref: the immutable commit SHA from job.workflow_sha, used by
+//     actions/checkout to pin the activation checkout to the exact executing revision.
+//   - target_ref: the branch/tag ref parsed from job.workflow_ref (e.g. refs/heads/main),
+//     used by dispatch_workflow safe outputs as the dispatch ref. The GitHub workflow
+//     dispatch API only accepts branch/tag refs, not commit SHAs.
 func (c *Compiler) generateResolveHostRepoStep(data *WorkflowData) string {
 	var step strings.Builder
 	step.WriteString("      - name: Resolve host repo for activation checkout\n")
@@ -383,9 +387,10 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// The agent job uses only the user-specified permissions (no automatic contents:read augmentation).
 
 	// For workflow_call triggers, checkout the callee (platform) repository using the target_repo
-	// and target_ref outputs from the resolve-host-repo step. That step uses job.workflow_repository
-	// and job.workflow_sha to identify the platform repo and pin to the exact commit,
-	// correctly handling all relay patterns including cross-repo and cross-org scenarios.
+	// and target_checkout_ref outputs from the resolve-host-repo step. That step uses
+	// job.workflow_repository and job.workflow_sha to identify the platform repo and pin to the
+	// exact commit, correctly handling all relay patterns including cross-repo and cross-org scenarios.
+	// (target_checkout_ref carries the SHA; target_ref carries the dispatch-compatible branch/tag ref.)
 	//
 	// Skip when inlined-imports is enabled: content is embedded at compile time and no
 	// runtime-import macros are used, so the callee's .md files are not needed at runtime.
@@ -416,7 +421,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
 		cm.SetCrossRepoTargetRepo("${{ steps.resolve-host-repo.outputs.target_repo }}")
-		cm.SetCrossRepoTargetRef("${{ steps.resolve-host-repo.outputs.target_ref }}")
+		cm.SetCrossRepoTargetRef("${{ steps.resolve-host-repo.outputs.target_checkout_ref }}")
 		checkoutSteps := cm.GenerateGitHubFolderCheckoutStep(
 			cm.GetCrossRepoTargetRepo(),
 			cm.GetCrossRepoTargetRef(),
