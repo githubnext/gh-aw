@@ -131,6 +131,7 @@ jobs:
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
       stale_lock_file_failed: ${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}
+      target_checkout_ref: ${{ steps.resolve-host-repo.outputs.target_checkout_ref }}
       target_ref: ${{ steps.resolve-host-repo.outputs.target_ref }}
       target_repo: ${{ steps.resolve-host-repo.outputs.target_repo }}
       target_repo_name: ${{ steps.resolve-host-repo.outputs.target_repo_name }}
@@ -218,7 +219,7 @@ jobs:
         with:
           persist-credentials: false
           repository: ${{ steps.resolve-host-repo.outputs.target_repo }}
-          ref: ${{ steps.resolve-host-repo.outputs.target_ref }}
+          ref: ${{ steps.resolve-host-repo.outputs.target_checkout_ref }}
           sparse-checkout: |
             .github
             .agents

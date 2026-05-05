@@ -617,6 +617,7 @@ func TestActivationJobTargetRefIsDispatchCompatible(t *testing.T) {
 		"activation checkout must NOT use target_ref (branch/tag) to avoid ambiguity with dispatch ref")
 }
 
+// TestActivationJobTargetRepoNameOutput verifies that the activation job exposes target_repo_name
 // as an output when a workflow_call trigger is present (without inlined imports). This repo-name-only
 // output is required for actions/create-github-app-token which expects repo names without the
 // owner prefix when `owner` is also set.
