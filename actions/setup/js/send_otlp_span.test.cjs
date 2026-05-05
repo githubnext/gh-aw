@@ -2070,6 +2070,8 @@ describe("sendJobConclusionSpan", () => {
     "GITHUB_WORKFLOW_REF",
     "INPUT_JOB_NAME",
     "GH_AW_AGENT_CONCLUSION",
+    "GH_AW_DETECTION_CONCLUSION",
+    "GH_AW_DETECTION_REASON",
     "GH_AW_INFO_WORKFLOW_NAME",
     "GITHUB_WORKFLOW",
   ];
@@ -2465,6 +2467,54 @@ describe("sendJobConclusionSpan", () => {
     expect(span.name).toBe("gh-aw.job.conclusion");
     const keys = span.attributes.map(a => a.key);
     expect(keys).not.toContain("gen_ai.request.model");
+  });
+
+  it("emits gh-aw.detection.conclusion and gh-aw.detection.reason when both are set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+    process.env.GH_AW_DETECTION_REASON = "threat_detected";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue]));
+    expect(attrs["gh-aw.detection.conclusion"]).toBe("warning");
+    expect(attrs["gh-aw.detection.reason"]).toBe("threat_detected");
+  });
+
+  it("emits gh-aw.detection.conclusion without gh-aw.detection.reason when reason is absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GH_AW_DETECTION_CONCLUSION = "failure";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const keys = span.attributes.map(a => a.key);
+    expect(keys).toContain("gh-aw.detection.conclusion");
+    expect(keys).not.toContain("gh-aw.detection.reason");
+  });
+
+  it("omits gh-aw.detection.conclusion and gh-aw.detection.reason when neither env var is set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const keys = span.attributes.map(a => a.key);
+    expect(keys).not.toContain("gh-aw.detection.conclusion");
+    expect(keys).not.toContain("gh-aw.detection.reason");
   });
 
   it("includes gh-aw.run.attempt attribute from GITHUB_RUN_ATTEMPT env var", async () => {
