@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -12,15 +13,16 @@ var templateLog = logger.New("workflow:template")
 // wrapExpressionsInTemplateConditionals transforms template conditionals by wrapping
 // expressions in ${{ }}. For example:
 // {{#if github.event.issue.number}} becomes {{#if ${{ github.event.issue.number }} }}
+// {{#elseif github.actor}} becomes {{#elseif ${{ github.actor }} }}
 func wrapExpressionsInTemplateConditionals(markdown string) string {
-	// Reuse the centralized TemplateIfPattern from expression_patterns.go
-	// Pattern matches {{#if expression}} where expression may contain ${{ }} blocks
-	re := TemplateIfPattern
-
 	templateLog.Print("Wrapping expressions in template conditionals")
 
-	result := re.ReplaceAllStringFunc(markdown, func(match string) string {
-		// Extract the expression part (everything between "{{#if " and "}}")
+	// wrapTagExpr applies the wrapping logic to a single extracted expression and
+	// returns the full reconstructed tag. re must be the same regex that produced
+	// match (so FindStringSubmatch reliably extracts capture group 1 = the expression).
+	// prefix is the canonical opening tag text without the expression
+	// (e.g. "{{#if " or "{{#elseif "), used to rebuild the output tag.
+	wrapTagExpr := func(re *regexp.Regexp, match, prefix string) string {
 		submatches := re.FindStringSubmatch(match)
 		if len(submatches) < 2 {
 			return match
@@ -28,37 +30,49 @@ func wrapExpressionsInTemplateConditionals(markdown string) string {
 
 		expr := strings.TrimSpace(submatches[1])
 
-		// Check if expression is empty (after trimming)
 		// Empty expressions are treated as false and wrapped as such
 		if expr == "" {
 			templateLog.Print("Empty expression detected, wrapping as false")
-			return "{{#if ${{ false }} }}"
+			return prefix + "${{ false }} }}"
 		}
 
-		// Check if expression is already wrapped in ${{ ... }}
-		// Look for the pattern starting with "${{"
+		// Already wrapped in ${{ ... }} — return as-is
 		if strings.HasPrefix(expr, "${{") {
 			templateLog.Print("Expression already wrapped, skipping")
-			return match // Already wrapped, return as-is
+			return match
 		}
 
-		// Check if expression is an environment variable reference (starts with ${)
-		// These don't need ${{ }} wrapping as they're already evaluated
+		// Environment variable reference (starts with ${) — already evaluated
 		if strings.HasPrefix(expr, "${") {
 			templateLog.Print("Environment variable reference detected, skipping wrap")
-			return match // Environment variable reference, return as-is
+			return match
 		}
 
-		// Check if expression is a placeholder reference (starts with __)
-		// These are substituted with sed and don't need ${{ }} wrapping
+		// Placeholder reference (starts with __) — substituted at runtime
 		if strings.HasPrefix(expr, "__") {
 			templateLog.Print("Placeholder reference detected, skipping wrap")
-			return match // Placeholder reference, return as-is
+			return match
 		}
 
-		// Always wrap expressions that don't start with ${{ or ${ or __
 		templateLog.Printf("Wrapping expression: %s", expr)
-		return "{{#if ${{ " + expr + " }} }}"
+		return prefix + "${{ " + expr + " }} }}"
+	}
+
+	// Process {{#if ...}} tags
+	result := TemplateIfPattern.ReplaceAllStringFunc(markdown, func(match string) string {
+		return wrapTagExpr(TemplateIfPattern, match, "{{#if ")
+	})
+
+	// Process all elseif variant tags — normalise to canonical {{#elseif ...}} form after wrapping
+	result = TemplateElseIfPattern.ReplaceAllStringFunc(result, func(match string) string {
+		submatches := TemplateElseIfPattern.FindStringSubmatch(match)
+		if len(submatches) < 2 {
+			return match
+		}
+		wrapped := wrapTagExpr(TemplateElseIfPattern, match, "{{#elseif ")
+		// If the original tag used a non-canonical form (else-if / else_if / without #),
+		// the prefix replacement above already normalises it to {{#elseif ...}}.
+		return wrapped
 	})
 
 	return result

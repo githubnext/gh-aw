@@ -103,6 +103,30 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 	f.Add("Before {{#if github.actor}}middle{{/if}} after")
 	f.Add("{{#if github.actor}}{{#if github.repository}}nested{{/if}}{{/if}}")
 
+	// elseif variants — all 6 syntax forms
+	f.Add("{{#if github.actor}}A{{#elseif github.repository}}B{{/if}}")
+	f.Add("{{#if github.actor}}A{{#else-if github.repository}}B{{/if}}")
+	f.Add("{{#if github.actor}}A{{#else_if github.repository}}B{{/if}}")
+	f.Add("{{#if github.actor}}A{{elseif github.repository}}B{{/if}}")
+	f.Add("{{#if github.actor}}A{{else-if github.repository}}B{{/if}}")
+	f.Add("{{#if github.actor}}A{{else_if github.repository}}B{{/if}}")
+
+	// elseif with already-wrapped expressions (should be preserved)
+	f.Add("{{#if github.actor}}A{{#elseif ${{ github.repository }} }}B{{/if}}")
+
+	// elseif with env var reference (should be preserved, not re-wrapped)
+	f.Add("{{#if github.actor}}A{{#elseif ${GH_AW_EXPR_REPO}}}B{{/if}}")
+
+	// elseif with placeholder reference (should be preserved)
+	f.Add("{{#if github.actor}}A{{#elseif __PLACEHOLDER__}}B{{/if}}")
+
+	// multiple elseif branches
+	f.Add("{{#if a}}A{{#elseif b}}B{{#elseif c}}C{{/if}}")
+
+	// elseif + else
+	f.Add("{{#if a}}A{{#elseif b}}B{{#else}}C{{/if}}")
+	f.Add("{{#if github.actor}}\nA\n{{#elseif github.repository}}\nB\n{{#else}}\nC\n{{/if}}")
+
 	f.Fuzz(func(t *testing.T, input string) {
 		// The fuzzer will generate variations of the seed corpus
 		// and random strings to test the wrapper
@@ -147,6 +171,17 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 			// The result should still contain the __ prefix pattern
 			if !strings.Contains(result, "{{#if __") && !strings.Contains(result, "{{#if ${{ __") {
 				t.Errorf("Placeholder references should be preserved, input: %q, result: %q", input, result)
+			}
+		}
+
+		// All elseif syntax variants must be normalised to canonical {{#elseif in the output
+		nonCanonicalElseif := []string{
+			"{{#else-if ", "{{#else_if ",
+			"{{elseif ", "{{else-if ", "{{else_if ",
+		}
+		for _, variant := range nonCanonicalElseif {
+			if strings.Contains(result, variant) {
+				t.Errorf("Non-canonical elseif variant %q still present in output, input: %q", variant, input)
 			}
 		}
 	})

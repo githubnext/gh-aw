@@ -46,7 +46,7 @@ Extract technical vocabulary from documentation files and create a concise dicta
 
 ## Your Mission
 
-Create a concise dictation instruction file at `skills/dictation/SKILL.md` that:
+Create a concise dictation instruction file at `DICTATION.md` that:
 1. Contains a glossary of exactly 256 project-specific terms extracted from documentation
 2. Provides instructions for fixing speech-to-text errors (ambiguous terms, spacing, hyphenation)
 3. Provides instructions for "agentifying" text: removing filler words (humm, you know, um, uh, like, etc.), improving clarity, and making text more professional
@@ -108,7 +108,7 @@ Read each returned file path for its content, then also scan any remaining docum
 
 ### 3. Create the Dictation Instructions File
 
-Create `skills/dictation/SKILL.md` with:
+Create `DICTATION.md` with:
 - Frontmatter with name and description fields
 - Title: Dictation Instructions
 - Technical Context: Brief description of gh-aw
@@ -131,7 +131,7 @@ You do not have enough background information to plan or provide code examples.
 
 Use the create-pull-request tool to submit your changes with:
 - Title: "[docs] Update dictation skill instructions"
-- Description explaining the changes made to skills/dictation/SKILL.md
+- Description explaining the changes made to DICTATION.md
 
 ## Guidelines
 
@@ -145,8 +145,8 @@ Use the create-pull-request tool to submit your changes with:
 
 ## Success Criteria
 
-- ✅ File `skills/dictation/SKILL.md` exists
-- ✅ Contains proper SKILL.md frontmatter (name, description)
+- ✅ File `DICTATION.md` exists
+- ✅ Contains proper frontmatter (name, description)
 - ✅ Contains 256 project-specific terms (240-270 acceptable)
 - ✅ Terms extracted from documentation only
 - ✅ Focuses on fixing speech-to-text errors

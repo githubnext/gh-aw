@@ -47,6 +47,32 @@ function isAllowedBot(actor, allowedBots) {
 }
 
 /**
+ * Read the `allow_bot_authored_trigger_comment` flag from an inbound aw_context
+ * that was passed as a workflow input (`inputs.aw_context`) or as a
+ * `repository_dispatch` client payload (`client_payload.aw_context`).
+ *
+ * Returns `true` only when the flag is explicitly set to the boolean `true` in a
+ * valid JSON aw_context object.  Any parse error or missing field returns `false`.
+ *
+ * @param {object|undefined} payload - The GitHub event payload (context.payload)
+ * @returns {boolean}
+ */
+function readAllowBotAuthoredTriggerComment(payload) {
+  try {
+    const raw = payload?.inputs?.aw_context ?? payload?.client_payload?.aw_context;
+    if (raw == null) return false;
+    const parsed = typeof raw === "string" ? JSON.parse(raw.trim()) : raw;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return false;
+    return parsed.allow_bot_authored_trigger_comment === true;
+  } catch (err) {
+    // Malformed aw_context is treated as absent — default to safe behaviour (flag is false).
+    // Log at debug level so workflow authors can diagnose issues with aw_context format.
+    core.debug?.(`readAllowBotAuthoredTriggerComment: failed to parse aw_context: ${err?.message ?? String(err)}`);
+    return false;
+  }
+}
+
+/**
  * Detect a potential Dependabot Confused Deputy attack.
  *
  * Attack vectors defended against:
@@ -101,9 +127,26 @@ function isConfusedDeputyAttack(actor, eventName, payload) {
 
   // For issue_comment events, @dependabot show can trigger a comment from dependabot
   // with actor=dependabot[bot]. Verify the comment itself was authored by the actor.
+  //
+  // Exception: when the comment was authored by a GitHub App bot (login ends with "[bot]")
+  // and the action is "edited", this is the legitimate "bot-posted-menu / user-checks-box"
+  // pattern — a workflow posts a checkbox-menu comment and a human maintainer edits it to
+  // tick a box. No permission elevation occurs: the human actor is who they appear to be and
+  // their permissions are still checked normally against the required roles. The Dependabot
+  // confused-deputy attack always goes through "created" (not "edited"), so this exception
+  // does not weaken protection against that vector.
+  //
+  // An explicit frontmatter opt-in (on: allow-bot-authored-trigger-comment: true) compiles to
+  // GH_AW_ALLOW_BOT_AUTHORED_TRIGGER_COMMENT=true and broadens the exception to cover bot
+  // accounts that don't follow the standard "[bot]" naming convention.
   if (eventName === "issue_comment") {
     const commentAuthor = payload.comment?.user?.login;
     if (commentAuthor !== undefined && commentAuthor !== actor) {
+      const allowFromFrontmatter = process.env.GH_AW_ALLOW_BOT_AUTHORED_TRIGGER_COMMENT === "true";
+      const isBotAuthoredEdit = payload.action === "edited" && (allowFromFrontmatter || commentAuthor.endsWith("[bot]"));
+      if (isBotAuthoredEdit) {
+        return false;
+      }
       return true;
     }
   }
@@ -220,6 +263,7 @@ module.exports = {
   parseAllowedBots,
   canonicalizeBotIdentifier,
   isAllowedBot,
+  readAllowBotAuthoredTriggerComment,
   isConfusedDeputyAttack,
   checkRepositoryPermission,
   checkBotStatus,

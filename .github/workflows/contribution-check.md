@@ -63,8 +63,8 @@ steps:
       TOTAL=$(echo "$ALL_PRS" | jq 'length')
       echo "Found $TOTAL open PRs created in the last 24 hours"
 
-      # Cap the number of PRs to evaluate at 5
-      MAX_EVALUATE=5
+      # Cap the number of PRs to evaluate at 3
+      MAX_EVALUATE=3
       EVALUATED=$(echo "$ALL_PRS" | jq --argjson max "$MAX_EVALUATE" '[.[0:$max][] | .number]')
       EVALUATED_COUNT=$(echo "$EVALUATED" | jq 'length')
       SKIPPED_COUNT=$((TOTAL - EVALUATED_COUNT))
@@ -128,16 +128,30 @@ For each PR number in the comma-separated list, delegate evaluation to the **con
 
 ### How to dispatch
 
-Read the contents of `contributing-guidelines.md` from the workspace root. This file was pre-fetched in the `pre-agent` step and contains the target repository's contributing guidelines. Include it verbatim in every subagent dispatch prompt to avoid redundant fetches.
+Read the contents of `contributing-guidelines.md` from the workspace root. This file was pre-fetched in the `pre-agent` step and contains the target repository's contributing guidelines.
+
+Before injecting into any subagent prompt, **truncate the guidelines to at most 2,000 characters**: keep the first 1,500 characters and the last 500 characters. If the full content is 2,000 characters or shorter, use it as-is. This prevents token bloat when the target repository has a lengthy CONTRIBUTING.md.
+
+To build the truncated guidelines string, apply the following logic (pseudocode):
+
+```
+full = read("contributing-guidelines.md")
+if len(full) <= 2000:
+    guidelines = full
+else:
+    guidelines = full[:1500] + "\n...\n" + full[-500:]
+```
 
 Call the contribution-checker subagent for each PR with this prompt:
 
 ```
-The CONTRIBUTING.md content for this repository is attached below.
+The CONTRIBUTING.md content for this repository is attached below (truncated to 2000 chars).
 Skip Step 1 — do not fetch CONTRIBUTING.md again.
 
 <contributing-guidelines>
-{contents of contributing-guidelines.md}
+{first 1500 chars of contributing-guidelines.md}
+...
+{last 500 chars of contributing-guidelines.md}
 </contributing-guidelines>
 
 Evaluate PR ${{ env.TARGET_REPOSITORY }}#<number> against the contribution guidelines.
@@ -147,10 +161,11 @@ The subagent accepts any `owner/repo#number` reference — the target repo is no
 
 The subagent will return a single JSON object with the verdict and a comment for the contributor.
 
-### Parallelism
+### Parallelism (required)
 
-- Dispatch **multiple PRs concurrently** when possible — the subagent evaluations are independent of each other.
-- Each subagent call is stateless and self-contained. It fetches its own PR data.
+Dispatch **ALL subagent calls simultaneously in a single tool-use block** before waiting for any results. Do not wait for one subagent to return before dispatching the next. Collect all results only after every dispatch has been initiated.
+
+Each subagent call is stateless and self-contained. It fetches its own PR data.
 
 ### Collecting results
 
@@ -170,6 +185,12 @@ Example:
 ```
 
 Do NOT post comments to PRs with `lgtm` quality — those are ready for maintainer review and don't need additional feedback.
+
+## Completion Gate
+
+Once all subagent results are collected (or errors recorded), compile the report and call safe-output tools. Do **NOT** retry failed subagent calls more than once. If a subagent returns an error on the second attempt, record the verdict as `❓` and continue.
+
+Keep a running count of actions taken (each tool call or subagent dispatch counts as one turn). Do not exceed **50 total turns** across the entire orchestrator run. If you are approaching the limit, skip any remaining retries, finalize the report with what you have, and emit safe-output calls immediately.
 
 ## Step 2: Compile Report
 

@@ -11,6 +11,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 const { isTruthy } = require("./is_truthy.cjs");
+const { selectBranch } = require("./template_branch.cjs");
 
 /**
  * Renders a Markdown template by processing {{#if}} conditional blocks.
@@ -50,16 +51,15 @@ function renderMarkdownTemplate(markdown) {
   // Uses .*? (non-greedy) with \s* to handle expressions with or without trailing spaces
   let result = _stripped.replace(/(\n?)([ \t]*{{#if\s+(.*?)\s*}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body) => {
     blockCount++;
-    const truthyResult = isTruthy(cond);
 
-    core.info(`[renderMarkdownTemplate] Block ${blockCount}: condition="${cond.trim()}" -> ${truthyResult ? "KEEP" : "REMOVE"}`);
+    core.info(`[renderMarkdownTemplate] Block ${blockCount}: condition="${cond.trim()}" -> evaluating branches`);
 
-    if (truthyResult) {
-      // Keep body with leading newline if there was one before the opening tag
+    const selectedContent = selectBranch(cond, body);
+
+    if (selectedContent !== null) {
       keptBlocks++;
-      return leadNL + body;
+      return leadNL + selectedContent;
     } else {
-      // Remove entire block completely - the line containing the template is removed
       removedBlocks++;
       return "";
     }
@@ -75,13 +75,13 @@ function renderMarkdownTemplate(markdown) {
   // Uses .*? (non-greedy) with \s* to handle expressions with or without trailing spaces
   result = result.replace(/{{#if\s+(.*?)\s*}}([\s\S]*?){{\/if}}/g, (_, cond, body) => {
     inlineCount++;
-    const truthyResult = isTruthy(cond);
+    const selectedContent = selectBranch(cond, body);
 
-    core.info(`[renderMarkdownTemplate] Inline ${inlineCount}: condition="${cond.trim()}" -> ${truthyResult ? "KEEP" : "REMOVE"}`);
+    core.info(`[renderMarkdownTemplate] Inline ${inlineCount}: condition="${cond.trim()}" -> ${selectedContent !== null ? "KEEP" : "REMOVE"}`);
 
-    if (truthyResult) {
+    if (selectedContent !== null) {
       keptInline++;
-      return body;
+      return selectedContent;
     } else {
       removedInline++;
       return "";

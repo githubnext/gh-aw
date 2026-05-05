@@ -75,7 +75,7 @@ func BuildReactionConditionForTargets(includeIssues bool, includePullRequests bo
 
 // BuildStatusCommentCondition creates a condition tree for activation status comments.
 // When includeIssues is false, issues and issue_comment events are excluded.
-// When includePullRequests is false, pull_request and pull_request_review_comment events are excluded.
+// When includePullRequests is false, pull_request, pull_request_review, and pull_request_review_comment events are excluded.
 // When includeDiscussions is false, discussion and discussion_comment events are excluded.
 func BuildStatusCommentCondition(includeIssues bool, includePullRequests bool, includeDiscussions bool) ConditionNode {
 	expressionBuilderLog.Printf(
@@ -103,14 +103,22 @@ func buildReactionLikeCondition(includeIssues bool, includePullRequests bool, in
 		terms = append(terms, BuildEventTypeEquals("discussion_comment"))
 	}
 
-	// For pull_request events, we need to ensure it's not from a forked repository
-	// since forked repositories have read-only permissions and cannot add reactions
+	// For pull_request and pull_request_review events, we need to ensure it's not from a forked
+	// repository since forked repositories have read-only permissions and cannot add reactions.
+	// pull_request_review events also populate github.event.pull_request.head.repo.id, so the
+	// same fork-guard expression works for both event types.
 	if includePullRequests {
 		pullRequestCondition := &AndNode{
 			Left:  BuildEventTypeEquals("pull_request"),
 			Right: BuildNotFromFork(),
 		}
 		terms = append(terms, pullRequestCondition)
+
+		pullRequestReviewCondition := &AndNode{
+			Left:  BuildEventTypeEquals("pull_request_review"),
+			Right: BuildNotFromFork(),
+		}
+		terms = append(terms, pullRequestReviewCondition)
 	}
 
 	expressionBuilderLog.Printf("Created disjunction with %d event type terms", len(terms))

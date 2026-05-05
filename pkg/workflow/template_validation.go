@@ -103,12 +103,14 @@ func validateNoIncludesInTemplateRegions(markdown string) error {
 func validateNoPreExpandedExperimentPlaceholders(markdown string) error {
 	templateValidationLog.Print("Validating that pre-expanded experiment placeholders are not used in template conditions")
 
-	// Use TemplateIfPattern which correctly handles embedded ${{ ... }} blocks inside conditions
-	conditions := TemplateIfPattern.FindAllStringSubmatch(markdown, -1)
-	templateValidationLog.Printf("Found %d template condition(s) to validate", len(conditions))
+	// Collect conditions from both {{#if ...}} and all elseif variants
+	ifConditions := TemplateIfPattern.FindAllStringSubmatch(markdown, -1)
+	elseifConditions := TemplateElseIfPattern.FindAllStringSubmatch(markdown, -1)
+	allConditions := append(ifConditions, elseifConditions...)
+	templateValidationLog.Printf("Found %d template condition(s) to validate", len(allConditions))
 
 	var errs []error
-	for _, m := range conditions {
+	for _, m := range allConditions {
 		if len(m) < 2 {
 			continue
 		}

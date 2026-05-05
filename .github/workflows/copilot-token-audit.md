@@ -12,10 +12,10 @@ permissions:
 tracker-id: copilot-token-audit
 engine: copilot
 tools:
-  cli-proxy: true
   agentic-workflows:
   bash:
     - "*"
+  repo-memory: true
 steps:
   - name: Download Copilot workflow logs
     env:
@@ -46,23 +46,17 @@ steps:
         echo "❌ No log data downloaded (exit code $LOGS_EXIT)"
         echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/copilot-logs.json
       fi
+safe-outputs:
+  create-issue:
+    close-older-issues: true
+    expires: 1w
+    labels: [agentic-workflows, agentic-ops]
+    title-prefix: "[aw-ops] "
 timeout-minutes: 25
 imports:
-  - uses: shared/daily-audit-base.md
-    with:
-      title-prefix: "[copilot-token-audit] "
-  - uses: shared/repo-memory-standard.md
-    with:
-      branch-name: "memory/token-audit"
-      description: "Historical daily Copilot token usage snapshots"
-      max-patch-size: 51200
-  - copilot-setup-steps.yml
-  - uses: shared/mcp/gh-aw.md
   - shared/python-dataviz.md
-features:
-  copilot-requests: true
+source: githubnext/agentic-ops/workflows/copilot-token-audit.md@c4ff4182e74291a1951178576900b76219a26907
 ---
-{{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Copilot Token Usage Audit
 

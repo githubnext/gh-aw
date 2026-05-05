@@ -448,14 +448,17 @@ Based on your analysis, focus on these common issues:
 
 ## Output Format
 
+> Use h3 (`###`) or lower for all headers in your report. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability.
+
 Your pull request description should include:
 
 ```markdown
-# Q Workflow Optimization Report
+### Q Workflow Optimization Report
 
-## Issues Found (from live data)
+<details>
+<summary><b>Issues Found (from live data)</b></summary>
 
-### [Workflow Name]
+#### [Workflow Name]
 - **Log Analysis**: [Summary from actual logs]
 - **Run IDs Analyzed**: [Specific run IDs from gh-aw audit]
 - **Issues Identified**:
@@ -465,23 +468,28 @@ Your pull request description should include:
 
 [Repeat for each workflow analyzed]
 
-## Changes Made
+</details>
 
-### [Workflow Name] (.github/workflows/[name].md)
+<details>
+<summary><b>Changes Made</b></summary>
+
+#### [Workflow Name] (.github/workflows/[name].md)
 - Added missing tool: `[tool-name]` (found in run #[run-id])
 - Fixed permission: Added `[permission]` (error in run #[run-id])
 - Optimized: [specific optimization based on log analysis]
 
 [Repeat for each modified workflow]
 
-## Expected Improvements
+</details>
+
+#### Expected Improvements
 
 - Reduced missing tool errors by adding [X] tools
 - Fixed [Y] permission issues
 - Optimized [Z] workflows for better performance
 - Created [N] shared configurations for reuse
 
-## Validation
+#### Validation
 
 All modified workflows compiled successfully using the `compile` tool from gh-aw MCP server:
 - ✅ [workflow-1]
@@ -490,7 +498,7 @@ All modified workflows compiled successfully using the `compile` tool from gh-aw
 
 Note: .lock.yml files will be generated automatically after merge.
 
-## References
+#### References
 
 - Log analysis: `/tmp/gh-aw/aw-mcp/logs/`
 - Audit reports: [specific audit files]

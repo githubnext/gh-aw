@@ -12,12 +12,12 @@ permissions:
 tracker-id: copilot-token-optimizer
 engine: copilot
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [issues]
   bash:
     - "*"
+  repo-memory: true
 safe-outputs:
   create-issue:
     expires: 7d
@@ -27,12 +27,6 @@ safe-outputs:
   threat-detection: false
 timeout-minutes: 30
 imports:
-  - uses: shared/repo-memory-standard.md
-    with:
-      branch-name: "memory/token-audit"
-      description: "Historical daily Copilot token usage snapshots (shared with copilot-token-audit)"
-      max-patch-size: 51200
-  - copilot-setup-steps.yml
   - shared/reporting.md
 steps:
   - name: Download recent Copilot workflow logs
@@ -112,9 +106,8 @@ steps:
       else
         echo "ℹ️ No previous optimization history found."
       fi
+source: githubnext/agentic-ops/workflows/copilot-token-optimizer.md@c4ff4182e74291a1951178576900b76219a26907
 ---
-
-{{#runtime-import? .github/shared-instructions.md}}
 
 # Copilot Token Usage Optimizer
 
