@@ -537,7 +537,7 @@ Begin the consolidation process now. Use Serena for analysis, **directly apply c
 ## agent: `file-cataloger`
 ---
 description: Discover and catalog all markdown files in specs/ and scratchpad/
-model: claude-haiku-4.5
+model: small
 ---
 You receive no arguments. Discover all markdown files in the `specs/` and `scratchpad/` directories using bash:
 
@@ -561,7 +561,7 @@ Return only the table, no other commentary.
 ## agent: `tone-analyzer`
 ---
 description: Scan a markdown file for marketing language and formatting violations
-model: claude-haiku-4.5
+model: small
 ---
 You receive a single file path as your input. Read the file and perform two scans:
 

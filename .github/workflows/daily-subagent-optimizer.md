@@ -53,7 +53,7 @@ imports:
 
 # Daily Sub-Agent Optimizer
 
-You are an LLM efficiency expert specializing in agentic workflow optimization. Your mission today: identify one workflow that would benefit from inline sub-agent refactoring, reason carefully about which tasks a smaller model (haiku/mini) can handle, and produce a copy-paste-ready proposal issue.
+You are an LLM efficiency expert specializing in agentic workflow optimization. Your mission today: identify one workflow that would benefit from inline sub-agent refactoring, reason carefully about which tasks a smaller model (small alias) can handle, and produce a copy-paste-ready proposal issue.
 
 ## Context
 
@@ -128,7 +128,7 @@ Use the `prefix-analyzer` sub-agent to perform this analysis. Pass it the full p
 
 ## Phase 5 — LLM Expert Analysis
 
-As an LLM efficiency expert, identify where the workflow's prompt does work that a smaller haiku/mini model can handle independently.
+As an LLM efficiency expert, identify where the workflow's prompt does work that a smaller model can handle independently.
 
 ### Sub-Agent Candidate Scoring
 
@@ -145,7 +145,7 @@ Threshold: **≥ 6 → strong candidate, 4–5 → moderate, < 4 → keep in mai
 
 ### Heuristics Cheatsheet
 
-Tasks a **haiku/mini model handles well**:
+Tasks a **`small` model handles well**:
 - Summarizing a single file or code section
 - Extracting specific fields from structured/semi-structured text
 - Classifying items into a predefined set of categories
@@ -171,7 +171,7 @@ Collect all sections scoring ≥ 4. Pick the **top 2–4** by score to propose a
 For each selected sub-agent candidate, design a concrete inline sub-agent:
 
 1. **Name**: lowercase, hyphenated, descriptive (e.g., `file-summarizer`, `category-detector`)
-2. **Model**: `claude-haiku-4.5`
+2. **Model**: `small`
 3. **Description**: one sentence (≤ 15 words)
 4. **Agent prompt**: focused, ≤ 15 lines, imperative mood
 5. **Invocation change**: the 1–3 line replacement in the main prompt that calls the sub-agent by name
@@ -198,7 +198,7 @@ Body:
 ### Why This Workflow
 
 [2–3 sentences: what makes it a good candidate — high token usage, number of distinct phases,
-specific tasks identified as haiku-appropriate or having repeated tool prefixes]
+specific tasks identified as small-appropriate or having repeated tool prefixes]
 
 ---
 
@@ -242,11 +242,11 @@ Then remove the duplicate calls from each of the affected sections.
 
 ### Proposed Sub-Agents
 
-#### 1. `<agent-name>` (`claude-haiku-4.5`)
+#### 1. `<agent-name>` (`small`)
 
 **Extracted task**: [1 sentence]
-**Why haiku**: [1 sentence — which heuristic applies]
-**Score**: <X>/10 (independence: N, haiku-adequacy: N, parallelism: N, size: N)
+**Why small**: [1 sentence — which heuristic applies]
+**Score**: <X>/10 (independence: N, model-adequacy: N, parallelism: N, size: N)
 **Estimated savings**: ~N tokens/run
 
 <details>
@@ -256,7 +256,7 @@ Then remove the duplicate calls from each of the affected sections.
 ## agent: `<agent-name>`
 ---
 description: <description>
-model: claude-haiku-4.5
+model: small
 ---
 <agent prompt>
 ```
@@ -340,7 +340,7 @@ Load the existing array from that path if the file is present, append the new en
 ## agent: `prefix-analyzer`
 ---
 description: Detects repeated tool-call prefixes across workflow prompt sections and scores extraction value
-model: claude-haiku-4.5
+model: small
 ---
 You are a prompt-structure analyst. Given the full body text of an agentic workflow prompt (everything after the closing frontmatter `---`), identify repeated tool invocations that appear as opening instructions in multiple sections.
 
@@ -380,7 +380,7 @@ reasoning: <1–2 sentences explaining the finding>
 ## agent: `workflow-screener`
 ---
 description: Reads a workflow .md file and reports whether inline-agents are enabled, the engine, and prompt complexity
-model: claude-haiku-4.5
+model: small
 ---
 You are a workflow file scanner. When given a file path, read the file using bash and report the following facts:
 
@@ -403,19 +403,19 @@ notes: <one sentence>
 
 ## agent: `opportunity-classifier`
 ---
-description: Scores a workflow prompt section on its suitability for extraction into a haiku/mini sub-agent
-model: claude-haiku-4.5
+description: Scores a workflow prompt section on its suitability for extraction into a small sub-agent
+model: small
 ---
-You are an LLM task-decomposition expert. Given a section of an agentic workflow prompt, score it on its suitability to be extracted into a sub-agent using a smaller haiku/mini model.
+You are an LLM task-decomposition expert. Given a section of an agentic workflow prompt, score it on its suitability to be extracted into a sub-agent using a smaller model.
 
 Score each dimension:
 
 - **independence** (0–3): Can this section run without the outputs of other sections? 3 = fully independent, 0 = deeply coupled to earlier results
-- **haiku_adequacy** (0–3): Is the reasoning simple enough for a smaller model? 3 = pure extraction/classification/formatting, 0 = requires deep synthesis or cross-referencing many sources
+- **model_adequacy** (0–3): Is the reasoning simple enough for a smaller model? 3 = pure extraction/classification/formatting, 0 = requires deep synthesis or cross-referencing many sources
 - **parallelism** (0–2): Could this run concurrently with other sections? 2 = yes, 0 = must be sequential
 - **size** (0–2): Is the task substantial enough to warrant a separate agent call? 2 = many tool calls or long output, 0 = trivial (< 2 tool calls)
 
-Compute: `total = independence + haiku_adequacy + parallelism + size` (max 10)
+Compute: `total = independence + model_adequacy + parallelism + size` (max 10)
 
 Verdict: `strong` (≥ 6), `moderate` (4–5), `weak` (< 4)
 
@@ -423,7 +423,7 @@ Return in this exact format:
 ```
 total: <score>/10
 independence: <0-3>
-haiku_adequacy: <0-3>
+model_adequacy: <0-3>
 parallelism: <0-2>
 size: <0-2>
 verdict: strong/moderate/weak
