@@ -8,13 +8,33 @@ permissions:
   pull-requests: read
 engine: copilot
 imports:
-  - uses: shared/apm.md
-    with:
-      packages:
-        - mattpocock/skills
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
+pre-agent-steps:
+  - name: Upgrade gh CLI
+    run: |
+      set -euo pipefail
+      curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+        | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+      sudo apt-get update -qq
+      sudo apt-get install -y gh
+      GH_VERSION=$(gh --version | head -1 | grep -oP '\d+\.\d+\.\d+')
+      echo "gh version: ${GH_VERSION}"
+      REQUIRED="2.90.0"
+      if ! printf '%s\n%s\n' "$REQUIRED" "$GH_VERSION" | sort -V -C; then
+        echo "::error::gh ${GH_VERSION} is older than required ${REQUIRED} (gh skill support requires v2.90+)"
+        exit 1
+      fi
+  - name: Install Matt Pocock skills
+    env:
+      GH_TOKEN: ${{ github.token }}
+    run: |
+      gh skill install mattpocock/skills --scope user
+      echo "Installed skills:"
+      find ~/.local/share/gh/skills -name "SKILL.md" 2>/dev/null | head -20 || echo "No skills found"
 tools:
   cli-proxy: true
 safe-outputs:
@@ -47,7 +67,7 @@ You are a skilled engineering reviewer who applies [Matt Pocock's engineering sk
 
 ## Available Matt Pocock Skills
 
-The following skills have been installed via APM and are available in `/tmp/gh-aw/agent/`:
+The following skills have been installed via `gh skill` and are available in `~/.local/share/gh/skills/`:
 
 - **`/diagnose`** — Disciplined debugging loop: reproduce → minimise → hypothesise → instrument → fix → regression-test. Use for PRs that fix bugs or address performance regressions.
 - **`/tdd`** — Test-driven development: red-green-refactor loop. Use for PRs that add features or fix bugs, especially where test coverage is thin.
@@ -72,10 +92,10 @@ gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository 
 
 ### Step 2: Read Available Skills
 
-Read the installed Matt Pocock skills from the APM location. They will be at a path like `/tmp/gh-aw/agent/<skill-name>/SKILL.md` or similar under `/tmp/gh-aw/`. List what is available:
+Read the installed Matt Pocock skills from the `gh skill` install location. They will be at `~/.local/share/gh/skills/<skill-name>/SKILL.md`. List what is available:
 
 ```bash
-find /tmp/gh-aw -name "SKILL.md" 2>/dev/null | head -30
+find ~/.local/share/gh/skills -name "SKILL.md" 2>/dev/null | head -30
 ```
 
 Read the content of each relevant skill file before applying it so you understand its exact guidance.
