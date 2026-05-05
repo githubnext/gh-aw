@@ -82,9 +82,11 @@ func TestMCPServerUnit_StatusTool(t *testing.T) {
 	textContent, ok := result.Content[0].(*mcp.TextContent)
 	require.True(t, ok, "status tool should return text content")
 
-	// With no workflow files in the directory, the response should be a valid empty JSON array.
+	// With no workflow files in the directory, the response should be a valid empty JSON array
+	// (not null — the contract is always an array).
 	var statuses []any
 	require.NoError(t, json.Unmarshal([]byte(textContent.Text), &statuses), "status tool should return valid JSON")
+	require.NotNil(t, statuses, "status tool should return a JSON array, not null")
 	assert.Empty(t, statuses, "status should be empty when no workflow files exist")
 }
 
