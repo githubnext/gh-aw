@@ -1,11 +1,13 @@
 ---
 # OpenTelemetry (OTel) shared import
 # Provides OTLP observability telemetry for agentic workflows.
-# Configures the OTLP endpoint and authentication headers via repository secrets.
+# Configures OTLP endpoints and authentication headers via repository secrets.
 #
 # Required secrets:
-#   GH_AW_OTEL_ENDPOINT — OTLP collector endpoint URL
-#   GH_AW_OTEL_HEADERS  — OTLP authentication headers (e.g. "Authorization=Bearer <token>")
+#   GH_AW_OTEL_SENTRY_ENDPOINT  — Sentry OTLP endpoint URL
+#   GH_AW_OTEL_SENTRY_HEADERS   — Sentry OTLP authentication headers
+#   GH_AW_OTEL_GRAFANA_ENDPOINT — Grafana OTLP endpoint URL
+#   GH_AW_OTEL_GRAFANA_HEADERS  — Grafana OTLP authentication headers
 #
 # Usage:
 #   imports:

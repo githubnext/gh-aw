@@ -1,8 +1,11 @@
 ---
 observability:
   otlp:
-    endpoint: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
-    headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
+    endpoint:
+      - url: ${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}
+        headers: ${{ secrets.GH_AW_OTEL_SENTRY_HEADERS }}
+      - url: ${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}
+        headers: ${{ secrets.GH_AW_OTEL_GRAFANA_HEADERS }}
 ---
 
 ## Experiment OTEL Span Attributes
@@ -31,4 +34,3 @@ if (fs.existsSync(assignmentsFile)) {
 This enables filtering workflow runs by experiment variant in Datadog, Honeycomb, or any
 OTLP-compatible backend. Attribute keys follow the pattern `gh_aw.experiment.<name>` with the
 assigned variant as the value, plus `gh_aw.experiment.names` as a comma-separated index.
-
