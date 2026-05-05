@@ -64,7 +64,10 @@ function readAllowBotAuthoredTriggerComment(payload) {
     const parsed = typeof raw === "string" ? JSON.parse(raw.trim()) : raw;
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return false;
     return parsed.allow_bot_authored_trigger_comment === true;
-  } catch {
+  } catch (err) {
+    // Malformed aw_context is treated as absent — default to safe behaviour (flag is false).
+    // Log at debug level so workflow authors can diagnose issues with aw_context format.
+    core.debug?.(`readAllowBotAuthoredTriggerComment: failed to parse aw_context: ${err?.message ?? String(err)}`);
     return false;
   }
 }

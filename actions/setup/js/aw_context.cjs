@@ -344,8 +344,12 @@ function buildAwContext() {
     // bot-posted-menu / user-checks-box pattern described in gh-aw issue #29480.
     // Propagated to child workflows so their confused-deputy check can recognise
     // this known-safe scenario and skip the actor-vs-comment-author mismatch guard.
-    allow_bot_authored_trigger_comment:
-      context.eventName === "issue_comment" && context.payload?.action === "edited" && typeof context.payload?.comment?.user?.login === "string" && context.payload.comment.user.login !== (context.actor ?? ""),
+    allow_bot_authored_trigger_comment: (() => {
+      const isIssueCommentEdited = context.eventName === "issue_comment" && context.payload?.action === "edited";
+      const commentAuthor = context.payload?.comment?.user?.login;
+      const commentAuthoredByOther = typeof commentAuthor === "string" && commentAuthor !== (context.actor ?? "");
+      return isIssueCommentEdited && commentAuthoredByOther;
+    })(),
   };
 }
 
