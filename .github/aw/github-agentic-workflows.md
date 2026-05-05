@@ -373,27 +373,15 @@ The YAML frontmatter supports these fields:
 
 - **`observability:`** - Workflow observability and telemetry configuration (object)
   - **`otlp:`** - Export OpenTelemetry spans to any OTLP-compatible backend (Honeycomb, Grafana Tempo, Sentry, etc.) (object)
-    - `endpoint:` - OTLP collector endpoint(s). Accepts either a single string URL or an array of `{url, headers}` objects for multi-backend export. When a static URL is provided, its hostname is added to the AWF firewall allowlist automatically. Supports GitHub Actions expressions.
-    - `headers:` - Comma-separated `key=value` HTTP headers included in every OTLP export request (e.g. `Authorization=Bearer <token>`). Injected as `OTEL_EXPORTER_OTLP_HEADERS`. Supports GitHub Actions expressions. Used only when `endpoint` is a single string.
-  - Example (single endpoint):
+    - `endpoint:` - OTLP collector endpoint URL. When a static URL is provided, its hostname is added to the AWF firewall allowlist automatically. Supports GitHub Actions expressions.
+    - `headers:` - Comma-separated `key=value` HTTP headers included in every OTLP export request (e.g. `Authorization=Bearer <token>`). Injected as `OTEL_EXPORTER_OTLP_HEADERS`. Supports GitHub Actions expressions.
+  - Example:
 
     ```yaml
     observability:
       otlp:
         endpoint: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
         headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
-    ```
-
-  - Example (multiple endpoints, e.g. Sentry + Grafana):
-
-    ```yaml
-    observability:
-      otlp:
-        endpoint:
-          - url: ${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}
-            headers: ${{ secrets.GH_AW_OTEL_SENTRY_HEADERS }}
-          - url: ${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}
-            headers: ${{ secrets.GH_AW_OTEL_GRAFANA_HEADERS }}
     ```
 
     Every job emits setup and conclusion spans with rich attributes (`gh-aw.job.name`, `gh-aw.workflow.name`, `gh-aw.engine.id`, token usage). All jobs in a run share one trace ID. Dispatched child workflows inherit the parent's trace context via `aw_context`.
