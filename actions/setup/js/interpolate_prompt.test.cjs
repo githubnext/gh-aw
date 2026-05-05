@@ -216,6 +216,47 @@ describe("interpolate_prompt", () => {
           if (!mainMatch) throw new Error("Could not extract main function");
           const main = eval(`(${mainMatch[0]})`);
           (main(), expect(core.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: GH_AW_PROMPT environment variable is not set`));
+        }),
+        it("should not corrupt condition when experiment value contains $1 (STEP 2.5)", () => {
+          // Regression: GH_AW_EXPERIMENTS_* value containing $1 must not be interpreted as a
+          // capture-group reference when substituting experiments.name inside {{#if}} conditions.
+          process.env.GH_AW_EXPERIMENTS_STYLE = "$1bold";
+          let content = "{{#if experiments.style}}\nSelected\n{{#else}}\nNot selected\n{{#endif}}";
+          // Apply STEP 2.5 substitution logic (matches what main() does)
+          for (const [key, value] of Object.entries(process.env)) {
+            if (key.startsWith("GH_AW_EXPERIMENTS_")) {
+              const experimentName = key.substring("GH_AW_EXPERIMENTS_".length).toLowerCase();
+              const exprForm = `experiments.${experimentName}`;
+              const conditionPattern = new RegExp(`(\\{\\{#if[^}]*?)${exprForm.replace(".", "\\.")}`, "gi");
+              if (conditionPattern.test(content)) {
+                conditionPattern.lastIndex = 0;
+                content = content.replace(conditionPattern, (_, prefix) => prefix + (value || ""));
+              }
+            }
+          }
+          const result = renderMarkdownTemplate(content);
+          expect(result).toContain("Selected");
+          expect(result).not.toContain("Not selected");
+        }),
+        it("should not corrupt condition when experiment value contains $& (STEP 2.5)", () => {
+          // Regression: GH_AW_EXPERIMENTS_* value containing $& must not be interpreted as the
+          // matched-substring pattern when substituting inside {{#if}} conditions.
+          process.env.GH_AW_EXPERIMENTS_STYLE = "$&matched";
+          let content = "{{#if experiments.style}}\nSelected\n{{#else}}\nNot selected\n{{#endif}}";
+          for (const [key, value] of Object.entries(process.env)) {
+            if (key.startsWith("GH_AW_EXPERIMENTS_")) {
+              const experimentName = key.substring("GH_AW_EXPERIMENTS_".length).toLowerCase();
+              const exprForm = `experiments.${experimentName}`;
+              const conditionPattern = new RegExp(`(\\{\\{#if[^}]*?)${exprForm.replace(".", "\\.")}`, "gi");
+              if (conditionPattern.test(content)) {
+                conditionPattern.lastIndex = 0;
+                content = content.replace(conditionPattern, (_, prefix) => prefix + (value || ""));
+              }
+            }
+          }
+          const result = renderMarkdownTemplate(content);
+          expect(result).toContain("Selected");
+          expect(result).not.toContain("Not selected");
         }));
     }));
 });
