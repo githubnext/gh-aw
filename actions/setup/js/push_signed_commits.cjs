@@ -131,15 +131,27 @@ async function readBlobAsBase64(blobHash, cwd) {
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
 async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv }) {
+  // Orphan branch first push: baseRef is "" when push_experiment_state creates a brand-new
+  // branch for the first time (checkoutOrCreateBranch returns "" for new branches).
+  // The GraphQL createCommitOnBranch path cannot handle root commits (no parent to resolve),
+  // so skip it entirely and fall directly through to git push.
+  if (!baseRef) {
+    core.info(`pushSignedCommits: empty baseRef detected (orphan branch first push), using git push directly for branch ${branch}`);
+    await exec.exec("git", ["push", "origin", branch], {
+      cwd,
+      env: { ...process.env, ...(gitAuthEnv || {}) },
+    });
+    const { stdout: headOut } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { cwd });
+    const headSha = headOut.trim();
+    core.info(`pushSignedCommits: git push completed for orphan branch, HEAD=${headSha}`);
+    return headSha;
+  }
+
   // Collect the commits introduced (oldest-first) using topological order to ensure
   // correct sequencing even when commit dates are out of sync (e.g. after rebase --committer-date-is-author-date).
   // Using --parents emits each line as "<sha> <parent1> [<parent2> ...]", which lets us detect merge commits
   // (more than one parent) in a single subprocess call without iterating each SHA individually.
-  // When baseRef is empty (orphan branch first push), list all commits reachable from HEAD instead
-  // of using the empty-string range "..HEAD" which yields zero commits (the empty left operand
-  // resolves to an ambiguous ref rather than a real commit, so git returns an empty range).
-  const revRange = baseRef ? `${baseRef}..HEAD` : "HEAD";
-  const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", revRange], { cwd });
+  const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${baseRef}..HEAD`], { cwd });
   const revListLines = revListOut.trim().split("\n").filter(Boolean);
   const shas = revListLines.map(line => line.split(" ")[0]);
 

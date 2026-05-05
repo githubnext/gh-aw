@@ -598,22 +598,24 @@ describe("push_signed_commits integration tests", () => {
   // ──────────────────────────────────────────────────────
 
   describe("orphan branch first push (empty baseRef)", () => {
-    it("should not return early when baseRef is empty string (regression: git rev-list empty-range was a no-op)", async () => {
+    it("should bypass GraphQL and use git push directly when baseRef is empty (orphan branch root commit)", async () => {
       // Simulate checkoutOrCreateBranch() returning "" for a brand-new orphan branch,
       // which is exactly the scenario in push_experiment_state.cjs.
+      // Orphan-branch first commits are root commits (no parent), so the GraphQL
+      // createCommitOnBranch path cannot resolve a parent OID. The fix detects
+      // !baseRef upfront and uses git push directly instead of attempting GraphQL.
       execGit(["checkout", "--orphan", "experiments/state"], { cwd: workDir });
       execGit(["read-tree", "--empty"], { cwd: workDir });
       fs.writeFileSync(path.join(workDir, "state.json"), JSON.stringify({ runs: 1 }));
       execGit(["add", "state.json"], { cwd: workDir });
       execGit(["commit", "-m", "Initial experiment state"], { cwd: workDir });
 
+      const expectedSha = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+
       global.exec = makeRealExec(workDir);
       const githubClient = makeMockGithubClient();
 
-      // baseRef is "" - orphan branch first push.
-      // Before the fix this returned undefined immediately ("no new commits") because
-      // git rev-list ""..HEAD resolves to HEAD..HEAD (empty range).
-      await pushSignedCommits({
+      const result = await pushSignedCommits({
         githubClient,
         owner: "test-owner",
         repo: "test-repo",
@@ -622,15 +624,20 @@ describe("push_signed_commits integration tests", () => {
         cwd: workDir,
       });
 
-      // The fix: the commit must have been found and an attempt made to push it.
-      // GraphQL was invoked for the orphan commit (the mock always succeeds).
-      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
-      const callArg = githubClient.graphql.mock.calls[0][1].input;
-      expect(callArg.message.headline).toBe("Initial experiment state");
-      expect(callArg.branch.branchName).toBe("experiments/state");
+      // GraphQL must NOT be called (orphan root commit has no parent to resolve).
+      expect(githubClient.graphql).not.toHaveBeenCalled();
 
-      // Regression guard: must NOT have short-circuited with "no new commits".
-      expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("no new commits"));
+      // An info-level log (not a warning) should indicate the direct-push path.
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("empty baseRef detected"));
+      expect(mockCore.warning).not.toHaveBeenCalled();
+
+      // The commit must now be on the remote – state was NOT silently discarded.
+      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/experiments/state"], { cwd: workDir });
+      const remoteOid = lsRemote.stdout.trim().split(/\s+/)[0];
+      expect(remoteOid).toBe(expectedSha);
+
+      // Return value should be the HEAD SHA.
+      expect(result).toBe(expectedSha);
     });
   });
 
