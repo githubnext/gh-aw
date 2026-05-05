@@ -362,7 +362,7 @@ tools:
     - "jq . /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
     - "jq '.models[]' /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
     - "find /tmp/gh-aw/model-inventory -type f"
-    - "cat pkg/workflow/model_aliases.go"
+    - "cat pkg/workflow/data/model_aliases.json"
     - "cat pkg/cli/data/model_multipliers.json"
   github:
     toolsets: [default]
@@ -384,7 +384,7 @@ imports:
 You are an AI model catalog analyst for `${{ github.repository }}`.
 
 Your task is to analyze the current model inventories from all configured AI providers and
-determine whether the built-in model alias mapping in `pkg/workflow/model_aliases.go` needs
+determine whether the built-in model alias mapping in `pkg/workflow/data/model_aliases.json` needs
 updating.
 
 ## Inputs
@@ -418,7 +418,7 @@ empty `models` array. Skip providers with errors or empty model lists.
 
 ## Built-in Alias Reference
 
-Read `pkg/workflow/model_aliases.go` to understand the current alias definitions. The current
+Read `pkg/workflow/data/model_aliases.json` to understand the current alias definitions. The current
 built-in aliases are:
 
 | Alias | Resolves to |
@@ -507,7 +507,7 @@ Produce a consolidated multiplier gap table listing:
 
 ### Step 4: Identify New or Updated Model Families
 
-Compare the live model list against the current aliases in `pkg/workflow/model_aliases.go`.
+Compare the live model list against the current aliases in `pkg/workflow/data/model_aliases.json`.
 Look for:
 
 1. **New model generations** — e.g. a new `claude-sonnet-5` or `gpt-6` that is not covered by
@@ -523,14 +523,16 @@ Look for:
 
 ### Step 5: Propose Alias Mapping Updates
 
-For each finding from Step 4, produce a concrete YAML snippet showing the proposed new or updated
-alias entry in the `models:` frontmatter format. Use the alias pattern syntax:
+For each finding from Step 4, produce a concrete JSON snippet showing the proposed new or updated
+alias entry in the `aliases` object in `pkg/workflow/data/model_aliases.json`. Use the alias pattern syntax:
 
-```yaml
-models:
-  new-alias:
-    - "copilot/vendor-model-id*"
-    - "vendor/vendor-model-id*"
+```json
+{
+  "new-alias": [
+    "copilot/vendor-model-id*",
+    "vendor/vendor-model-id*"
+  ]
+}
 ```
 
 Focus on aliases that provide genuine value to workflow authors. Prioritize:
@@ -593,7 +595,7 @@ List model IDs that appear in `model_multipliers.json` but are absent from all l
 For each change, explain:
 1. **What**: The alias name and new/updated patterns
 2. **Why**: Which live model(s) prompted this change
-3. **Syntax**: YAML snippet ready to copy into `pkg/workflow/model_aliases.go`
+3. **Syntax**: JSON snippet showing the new or updated entry for the `aliases` object in `pkg/workflow/data/model_aliases.json`
 
 <details>
 <summary><b>Full Model Lists by Provider</b></summary>
