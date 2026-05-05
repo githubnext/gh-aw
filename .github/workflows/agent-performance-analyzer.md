@@ -354,12 +354,14 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
 
 ### Agent Performance Report Discussion
 
+> Use h3 (`###`) or lower for all headers in your report. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability.
+
 Create a weekly discussion with this structure:
 
 ```markdown
-# Agent Performance Report - Week of [DATE]
+### Agent Performance Report - Week of [DATE]
 
-## Executive Summary
+#### Executive Summary
 
 - **Agents analyzed:** XXX
 - **Total outputs reviewed:** XXX (issues: XX, PRs: XX, comments: XX)
@@ -368,9 +370,10 @@ Create a weekly discussion with this structure:
 - **Top performers:** Agent A, Agent B, Agent C
 - **Needs improvement:** Agent X, Agent Y, Agent Z
 
-## Performance Rankings
+<details>
+<summary><b>Performance Rankings</b></summary>
 
-### Top Performing Agents 🏆
+##### Top Performing Agents 🏆
 
 1. **Agent Name 1** (Quality: 95/100, Effectiveness: 92/100)
    - Consistently produces high-quality, actionable outputs
@@ -383,7 +386,7 @@ Create a weekly discussion with this structure:
    - Good collaboration with other agents
    - Example outputs: #234, #567
 
-### Agents Needing Improvement 📉
+##### Agents Needing Improvement 📉
 
 1. **Agent Name X** (Quality: 45/100, Effectiveness: 40/100)
    - Issues:
@@ -407,21 +410,24 @@ Create a weekly discussion with this structure:
      - Improve root cause analysis in prompt
    - Action: Issue #XXX created
 
-### Inactive Agents
+##### Inactive Agents
 
 - Agent Z: No outputs in past 30 days
 - Agent W: Last run failed 45 days ago
 - Recommendation: Review and potentially deprecate
 
-## Quality Analysis
+</details>
 
-### Output Quality Distribution
+<details>
+<summary><b>Quality Analysis</b></summary>
+
+##### Output Quality Distribution
 - Excellent (80-100): XX agents
 - Good (60-79): XX agents
 - Fair (40-59): XX agents
 - Poor (<40): XX agents
 
-### Common Quality Issues
+##### Common Quality Issues
 1. **Incomplete outputs:** XX instances across YY agents
    - Missing context or background
    - Unclear next steps
@@ -435,55 +441,60 @@ Create a weekly discussion with this structure:
    - Outdated information
    - Misunderstanding requirements
 
-## Effectiveness Analysis
+</details>
 
-### Task Completion Rates
+<details>
+<summary><b>Effectiveness Analysis</b></summary>
+
+##### Task Completion Rates
 - High completion (>80%): XX agents
 - Medium completion (50-80%): XX agents
 - Low completion (<50%): XX agents
 
-### PR Merge Statistics
+##### PR Merge Statistics
 - High merge rate (>75%): XX agents
 - Medium merge rate (50-75%): XX agents
 - Low merge rate (<50%): XX agents
 
-### Time to Completion
+##### Time to Completion
 - Fast (<24h): XX agents
 - Medium (24-72h): XX agents
 - Slow (>72h): XX agents
 
-## Behavioral Patterns
+</details>
 
-### Productive Patterns ✅
+#### Behavioral Patterns
+
+##### Productive Patterns ✅
 - **Agent A + Agent B collaboration:** Creating complementary outputs
 - **Campaign Manager → Worker coordination:** Effective task delegation
 - **Health monitoring → Fix workflows:** Proactive maintenance
 
-### Problematic Patterns ⚠️
+##### Problematic Patterns ⚠️
 - **Agent X over-creation:** Creating 20+ issues per run (expected: 5-10)
 - **Agent Y + Agent Z conflict:** Undoing each other's work
 - **Agent W stale outputs:** 40% of created issues become obsolete
 
-## Coverage Analysis
+#### Coverage Analysis
 
-### Well-Covered Areas
+##### Well-Covered Areas
 - Campaign orchestration
 - Code health monitoring
 - Documentation updates
 
-### Coverage Gaps
+##### Coverage Gaps
 - Security vulnerability tracking
 - Performance optimization
 - User experience improvements
 
-### Redundancy
+##### Redundancy
 - 3 agents monitoring similar metrics
 - 2 agents creating similar documentation
 - Recommendation: Consolidate or coordinate
 
-## Recommendations
+#### Recommendations
 
-### High Priority
+##### High Priority
 
 1. **Improve Agent X quality** (Quality score: 45)
    - Issue #XXX: Refine prompt and add quality checks
@@ -500,19 +511,19 @@ Create a weekly discussion with this structure:
    - Estimated effort: 4-6 hours
    - Expected improvement: Reduce to <10 min
 
-### Medium Priority
+##### Medium Priority
 
 1. **Consolidate redundant agents:** Merge Agent W and Agent V
 2. **Update deprecated prompts:** 5 agents using old patterns
 3. **Add quality gates:** Implement automated quality checks
 
-### Low Priority
+##### Low Priority
 
 1. **Improve agent documentation:** Update README for 10 agents
 2. **Standardize output format:** Create template for issue creation
 3. **Add performance metrics:** Track and display agent metrics
 
-## Trends
+#### Trends
 
 - Overall agent quality: XX/100 (↑ +5 from last week)
 - Average effectiveness: XX/100 (→ stable)
@@ -520,14 +531,14 @@ Create a weekly discussion with this structure:
 - PR merge rate: XX% (↑ +3% from last week)
 - Resource efficiency: XX min average (↓ -2 min from last week)
 
-## Actions Taken This Run
+#### Actions Taken This Run
 
 - Created X improvement issues for underperforming agents
 - Generated this performance report discussion
 - Identified X new optimization opportunities
 - Recommended X agent consolidations
 
-## Next Steps
+#### Next Steps
 
 1. Address high-priority improvement items
 2. Monitor Agent X after prompt refinement
