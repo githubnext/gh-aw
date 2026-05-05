@@ -344,6 +344,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.RateLimit = c.extractRateLimitConfig(frontmatter)
 	workflowData.SkipRoles = c.mergeSkipRoles(c.extractSkipRoles(frontmatter), importsResult.MergedSkipRoles)
 	workflowData.SkipBots = c.mergeSkipBots(c.extractSkipBots(frontmatter), importsResult.MergedSkipBots)
+	workflowData.AllowBotAuthoredTriggerComment = c.extractAllowBotAuthoredTriggerComment(frontmatter)
 	workflowData.ActivationGitHubToken = c.resolveActivationGitHubToken(frontmatter, importsResult)
 	workflowData.ActivationGitHubApp = c.resolveActivationGitHubApp(frontmatter, importsResult)
 	workflowData.TopLevelGitHubApp = resolveTopLevelGitHubApp(frontmatter, importsResult)

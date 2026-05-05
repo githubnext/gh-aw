@@ -283,6 +283,15 @@ function buildAwContext() {
   const assignments = readExperimentAssignments();
   const experimentAssignments = assignments ? JSON.stringify(assignments) : "";
 
+  // Compute allow_bot_authored_trigger_comment ahead of the object.
+  // True when the triggering event is issue_comment:edited, the comment was authored
+  // by a GitHub App bot (login ends with "[bot]"), and the editor (actor) differs from
+  // the comment author — the bot-posted-menu / user-checks-box pattern.
+  const isIssueCommentEdited = context.eventName === "issue_comment" && context.payload?.action === "edited";
+  const triggerCommentAuthor = context.payload?.comment?.user?.login;
+  const triggerCommentByBot = typeof triggerCommentAuthor === "string" && triggerCommentAuthor.endsWith("[bot]");
+  const allowBotAuthoredTriggerComment = isIssueCommentEdited && triggerCommentByBot && triggerCommentAuthor !== (context.actor ?? "");
+
   return {
     repo: currentRepo,
     run_id: String(context.runId ?? ""),
@@ -344,13 +353,7 @@ function buildAwContext() {
     // with "[bot]"), and the editor (actor) differs from the comment author — the
     // bot-posted-menu / user-checks-box pattern described in gh-aw issue #29480.
     // Propagated as metadata to child workflows so they can identify the trigger context.
-    allow_bot_authored_trigger_comment: (() => {
-      const isIssueCommentEdited = context.eventName === "issue_comment" && context.payload?.action === "edited";
-      const commentAuthor = context.payload?.comment?.user?.login;
-      const commentAuthoredByBot = typeof commentAuthor === "string" && commentAuthor.endsWith("[bot]");
-      const commentAuthoredByOther = commentAuthoredByBot && commentAuthor !== (context.actor ?? "");
-      return isIssueCommentEdited && commentAuthoredByOther;
-    })(),
+    allow_bot_authored_trigger_comment: allowBotAuthoredTriggerComment,
   };
 }
 

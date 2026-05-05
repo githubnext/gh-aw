@@ -135,10 +135,15 @@ function isConfusedDeputyAttack(actor, eventName, payload) {
   // their permissions are still checked normally against the required roles. The Dependabot
   // confused-deputy attack always goes through "created" (not "edited"), so this exception
   // does not weaken protection against that vector.
+  //
+  // An explicit frontmatter opt-in (on: allow-bot-authored-trigger-comment: true) compiles to
+  // GH_AW_ALLOW_BOT_AUTHORED_TRIGGER_COMMENT=true and broadens the exception to cover bot
+  // accounts that don't follow the standard "[bot]" naming convention.
   if (eventName === "issue_comment") {
     const commentAuthor = payload.comment?.user?.login;
     if (commentAuthor !== undefined && commentAuthor !== actor) {
-      const isBotAuthoredEdit = payload.action === "edited" && commentAuthor.endsWith("[bot]");
+      const allowFromFrontmatter = process.env.GH_AW_ALLOW_BOT_AUTHORED_TRIGGER_COMMENT === "true";
+      const isBotAuthoredEdit = payload.action === "edited" && (allowFromFrontmatter || commentAuthor.endsWith("[bot]"));
       if (isBotAuthoredEdit) {
         return false;
       }

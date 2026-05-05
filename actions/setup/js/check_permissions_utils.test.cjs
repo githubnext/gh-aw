@@ -663,7 +663,7 @@ describe("check_permissions_utils", () => {
       });
 
       describe("bot-posted-menu / user-checks-box pattern (issue_comment:edited by bot author)", () => {
-        it("should return false for issue_comment:edited with [bot]-authored comment (the real fix)", () => {
+        it("should return false for issue_comment:edited with [bot]-authored comment (auto-detection from payload)", () => {
           // The legitimate pattern: workflow posts checkbox-menu comment (github-actions[bot]),
           // human maintainer edits it to tick a box → actor != comment.user.login, action=edited.
           // Derived directly from the native webhook payload — no aw_context flag needed.
@@ -692,6 +692,33 @@ describe("check_permissions_utils", () => {
           // No mismatch — not a confused deputy
           const payload = { action: "edited", comment: { user: { login: "github-actions[bot]" } } };
           expect(isConfusedDeputyAttack("github-actions[bot]", "issue_comment", payload)).toBe(false);
+        });
+
+        describe("GH_AW_ALLOW_BOT_AUTHORED_TRIGGER_COMMENT env var (on.allow-bot-authored-trigger-comment frontmatter opt-in)", () => {
+          beforeEach(() => {
+            process.env.GH_AW_ALLOW_BOT_AUTHORED_TRIGGER_COMMENT = "true";
+          });
+          afterEach(() => {
+            delete process.env.GH_AW_ALLOW_BOT_AUTHORED_TRIGGER_COMMENT;
+          });
+
+          it("should return false for issue_comment:edited with non-[bot]-author when env var is set (custom bot naming)", () => {
+            // Frontmatter opt-in covers bots that don't follow [bot] naming convention
+            const payload = { action: "edited", comment: { user: { login: "my-custom-automation" } } };
+            expect(isConfusedDeputyAttack("theletterf", "issue_comment", payload)).toBe(false);
+          });
+
+          it("should still return true for issue_comment:created even when env var is set", () => {
+            // The Dependabot attack vector (created) must remain guarded regardless of frontmatter
+            const payload = { action: "created", comment: { user: { login: "dependabot[bot]" } } };
+            expect(isConfusedDeputyAttack("attacker", "issue_comment", payload)).toBe(true);
+          });
+
+          it("should still return true for issue_comment:edited when env var is set but action is absent (no action = no bypass)", () => {
+            // No action field → payload.action is undefined, not "edited"
+            const payload = { comment: { user: { login: "some-bot" } } };
+            expect(isConfusedDeputyAttack("attacker", "issue_comment", payload)).toBe(true);
+          });
         });
       });
     });

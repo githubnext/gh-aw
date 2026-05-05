@@ -1846,6 +1846,10 @@
                 }
               ]
             },
+            "allow-bot-authored-trigger-comment": {
+              "type": "boolean",
+              "description": "Allow the bot-posted-menu / user-checks-box pattern: when a workflow posts a checkbox-menu comment as a GitHub App bot and a human maintainer edits it to tick a box (issue_comment:edited where actor \u2260 comment.user.login), treat this as safe and skip the confused-deputy check. When false (default), the check applies to all issue_comment events. The Dependabot confused-deputy attack vector (issue_comment:created) is unaffected."
+            },
             "manual-approval": {
               "type": "string",
               "description": "Environment name that requires manual approval before the workflow can run. Must match a valid environment configured in the repository settings."
