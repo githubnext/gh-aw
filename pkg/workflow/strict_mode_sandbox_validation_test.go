@@ -134,26 +134,24 @@ func TestValidateStrictSandboxCustomization(t *testing.T) {
 			expectError: false,
 		},
 		{
-			// A bare sandbox.agent object with no id/type is ambiguous and must be
-			// rejected in strict mode.  Users must write  id: awf  explicitly.
-			name: "sandbox.agent without id is rejected in strict mode",
+			// A bare sandbox.agent object with no id/type defaults to awf.
+			// It should be accepted in strict mode.
+			name: "sandbox.agent without id is allowed in strict mode (defaults to awf)",
 			sandbox: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Version: "v0.25.29",
 				},
 			},
-			expectError: true,
-			errorMsg:    "strict mode: 'sandbox.agent' must specify an explicit 'id'",
+			expectError: false,
 		},
 		{
-			// An empty AgentSandboxConfig (no id, no type, no version) is equally
-			// ambiguous and must be rejected in strict mode.
-			name: "empty sandbox.agent is rejected in strict mode",
+			// An empty AgentSandboxConfig (no id, no type, no version) also defaults to awf.
+			// It should be accepted in strict mode.
+			name: "empty sandbox.agent is allowed in strict mode (defaults to awf)",
 			sandbox: &SandboxConfig{
 				Agent: &AgentSandboxConfig{},
 			},
-			expectError: true,
-			errorMsg:    "strict mode: 'sandbox.agent' must specify an explicit 'id'",
+			expectError: false,
 		},
 		{
 			// sandbox.agent: false (Disabled) is handled by validateStrictFirewall, not here.
