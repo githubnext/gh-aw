@@ -37,7 +37,7 @@ function interpolateVariables(content, variables) {
     if (matches > 0) {
       core.info(`[interpolateVariables] Replacing ${varName} (${matches} occurrence(s))`);
       core.info(`[interpolateVariables]   Value: ${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
-      result = result.replace(pattern, value);
+      result = result.replace(pattern, () => value);
       totalReplacements += matches;
     } else {
       core.info(`[interpolateVariables] Variable ${varName} not found in content (unused)`);
@@ -298,7 +298,7 @@ async function main() {
         const conditionPattern = new RegExp(`(\\{\\{#if[^}]*?)${exprForm.replace(".", "\\.")}`, "gi");
         if (conditionPattern.test(content)) {
           conditionPattern.lastIndex = 0;
-          content = content.replace(conditionPattern, `$1${value || ""}`);
+          content = content.replace(conditionPattern, (_, prefix) => prefix + (value || ""));
           core.info(`  Substituted ${exprForm} in conditions → "${value || ""}"`);
         }
       }

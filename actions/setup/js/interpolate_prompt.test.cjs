@@ -46,6 +46,26 @@ describe("interpolate_prompt", () => {
       it("should handle content with literal dollar signs", () => {
         const result = interpolateVariables("Price: $100, Repo: ${GH_AW_EXPR_REPO}", { GH_AW_EXPR_REPO: "github/test-repo" });
         expect(result).toBe("Price: $100, Repo: github/test-repo");
+      }),
+      it("should not corrupt output when value contains $$ (special replacement pattern)", () => {
+        const result = interpolateVariables("Value: ${GH_AW_EXPR_BODY}", { GH_AW_EXPR_BODY: "cost is $$100" });
+        expect(result).toBe("Value: cost is $$100");
+      }),
+      it("should not corrupt output when value contains $& (matched substring pattern)", () => {
+        const result = interpolateVariables("Value: ${GH_AW_EXPR_BODY}", { GH_AW_EXPR_BODY: "see $& for details" });
+        expect(result).toBe("Value: see $& for details");
+      }),
+      it("should not corrupt output when value contains $` (before-match pattern)", () => {
+        const result = interpolateVariables("Value: ${GH_AW_EXPR_BODY}", { GH_AW_EXPR_BODY: "use $`cmd` to run" });
+        expect(result).toBe("Value: use $`cmd` to run");
+      }),
+      it("should not corrupt output when value contains $' (after-match pattern)", () => {
+        const result = interpolateVariables("Value: ${GH_AW_EXPR_BODY}", { GH_AW_EXPR_BODY: "it's $'quoted'" });
+        expect(result).toBe("Value: it's $'quoted'");
+      }),
+      it("should not corrupt output when value contains $1 (capture group pattern)", () => {
+        const result = interpolateVariables("Value: ${GH_AW_EXPR_BODY}", { GH_AW_EXPR_BODY: "group $1 matched" });
+        expect(result).toBe("Value: group $1 matched");
       }));
   }),
     describe("renderMarkdownTemplate", () => {

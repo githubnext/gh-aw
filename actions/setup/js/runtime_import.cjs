@@ -1127,7 +1127,7 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
       // Reuse cached content
       const cachedContent = importCache.get(filepathWithRange);
       if (cachedContent !== undefined) {
-        processedContent = processedContent.replace(fullMatch, cachedContent);
+        processedContent = processedContent.replace(fullMatch, () => cachedContent);
         core.info(`Reusing cached content for ${filepathWithRange}`);
         continue;
       }
@@ -1159,7 +1159,7 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
       importedFiles.add(filepathWithRange);
 
       // Replace the macro with the imported content
-      processedContent = processedContent.replace(fullMatch, importedContent);
+      processedContent = processedContent.replace(fullMatch, () => importedContent);
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       throw new Error(`${ERR_API}: Failed to process runtime import for ${filepathWithRange}: ${errorMessage}`);
