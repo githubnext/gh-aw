@@ -3667,3 +3667,32 @@ This workflow tests that engine.env needs expressions create agent job dependenc
 	assert.Contains(t, agentSection, "provide_value_to_agent",
 		"agent job must list provide_value_to_agent in its needs (referenced via engine.env)")
 }
+
+// TestBuildMainJobEngineEnvActivationNoFalseWarning verifies that referencing the activation
+// built-in job in engine.env does NOT emit a warning, since activation is always a direct
+// dependency of the agent job and the expression is valid.
+func TestBuildMainJobEngineEnvActivationNoFalseWarning(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		AI:          "copilot",
+		RunsOn:      "runs-on: ubuntu-latest",
+		Permissions: "permissions:\n  contents: read",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				// activation is a valid direct dependency — no warning should be emitted
+				"MODEL": "${{ needs.activation.outputs.model }}",
+			},
+		},
+	}
+
+	initialWarnings := compiler.GetWarningCount()
+	_, err := compiler.buildMainJob(workflowData, true)
+	require.NoError(t, err, "buildMainJob should succeed")
+
+	assert.Equal(t, initialWarnings, compiler.GetWarningCount(),
+		"no warning should be emitted for activation which is already a direct agent dependency")
+}

@@ -165,6 +165,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// X must be a direct dependency of the agent job. Built-in jobs (e.g., detection,
 	// safe_outputs) are managed by the compiler and cannot be added as direct dependencies,
 	// so referencing them here will silently produce empty strings at runtime.
+	// Exception: skip any built-in that is already in `depends` (e.g., `activation`),
+	// as those expressions are valid and will evaluate correctly.
 	if engineEnvContent != "" {
 		builtinNames := make([]string, 0, len(constants.KnownBuiltInJobNames))
 		for name := range constants.KnownBuiltInJobNames {
@@ -173,6 +175,11 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		sort.Strings(builtinNames)
 		builtinsWarned := make(map[string]bool)
 		for _, builtinJobName := range builtinNames {
+			// Skip built-ins that are already direct dependencies (e.g., activation) —
+			// their outputs are accessible and the expression is valid.
+			if slices.Contains(depends, builtinJobName) {
+				continue
+			}
 			if !builtinsWarned[builtinJobName] && strings.Contains(engineEnvContent, fmt.Sprintf("needs.%s.", builtinJobName)) {
 				builtinsWarned[builtinJobName] = true
 				warningMsg := fmt.Sprintf(
