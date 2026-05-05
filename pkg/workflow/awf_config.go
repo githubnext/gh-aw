@@ -81,7 +81,7 @@ func getCompiledAWFConfigSchema() (*jsonschema.Schema, error) {
 			return
 		}
 		loader := jsonschema.NewCompiler()
-		schemaURL := "https://github.com/github/gh-aw-firewall/releases/download/" + string(constants.DefaultFirewallVersion) + "/awf-config.schema.json"
+		schemaURL := fmt.Sprintf("https://github.com/github/gh-aw-firewall/releases/download/%s/awf-config.schema.json", constants.DefaultFirewallVersion)
 		if err := loader.AddResource(schemaURL, schemaDoc); err != nil {
 			awfConfigSchemaCompileError = fmt.Errorf("failed to add AWF config schema resource: %w", err)
 			return
@@ -298,7 +298,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	awfConfigLog.Printf("AWF config JSON generated: %d bytes", len(jsonBytes))
 
 	if err := validateAWFConfigJSON(jsonStr); err != nil {
-		awfConfigLog.Printf("AWF config schema validation warning: %v", err)
+		return "", fmt.Errorf("generated AWF config failed schema validation: %w", err)
 	}
 
 	return jsonStr, nil

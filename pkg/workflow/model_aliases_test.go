@@ -53,6 +53,14 @@ func TestBuiltinModelAliases(t *testing.T) {
 	assert.NotEqual(t, aliases["sonnet"], aliases2["sonnet"], "BuiltinModelAliases should return a fresh copy each time")
 }
 
+// awfConfigModelsResult is a helper type for parsing the apiProxy.models section
+// from generated AWF config JSON in tests.
+type awfConfigModelsResult struct {
+	APIProxy struct {
+		Models map[string][]string `json:"models"`
+	} `json:"apiProxy"`
+}
+
 // TestBuildAWFConfigJSON_ModelsSection verifies model alias behaviour in BuildAWFConfigJSON.
 //
 // Models are serialised under apiProxy.models per the AWF config schema (apiProxy.models
@@ -74,11 +82,7 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
-		var parsed struct {
-			APIProxy struct {
-				Models map[string][]string `json:"models"`
-			} `json:"apiProxy"`
-		}
+		var parsed awfConfigModelsResult
 		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "result must be valid JSON")
 
 		// models must appear nested under apiProxy
@@ -112,11 +116,7 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
-		var parsed struct {
-			APIProxy struct {
-				Models map[string][]string `json:"models"`
-			} `json:"apiProxy"`
-		}
+		var parsed awfConfigModelsResult
 		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "result must be valid JSON")
 
 		// models must appear nested under apiProxy
