@@ -219,9 +219,9 @@ type OTLPConfig struct {
 	// Headers holds HTTP headers for the backward-compat string endpoint form.
 	// Only used when Endpoint is a plain string; object/array endpoint entries
 	// carry their own per-endpoint headers.
-	// Preferred form: a map of header name to value (e.g. {"Authorization": "Bearer ${{ secrets.TOKEN }}"}).
-	// Deprecated string form: a comma-separated list of key=value pairs
-	// (e.g. "Authorization=Bearer <token>"). Use the map form instead.
+	// Supported forms:
+	//   - a map of header name to value (e.g. {"Authorization": "Bearer ${{ secrets.TOKEN }}"})
+	//   - a comma-separated list of key=value pairs (e.g. "Authorization=Bearer <token>")
 	// Both forms are injected as the standard OTEL_EXPORTER_OTLP_HEADERS environment variable.
 	Headers any `json:"headers,omitempty"`
 }
