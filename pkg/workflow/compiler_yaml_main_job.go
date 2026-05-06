@@ -419,7 +419,7 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	// Restore inline sub-agents written during the activation job.
 	// This step runs AFTER the base-branch restore so the engine-specific agent directory
 	// is not clobbered. Inline sub-agents are enabled by default.
-	if isFeatureEnabled(constants.InlineAgentsFeatureFlag, data) {
+	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), data) {
 		generateRestoreInlineSubAgentsStep(yaml, data)
 	}
 

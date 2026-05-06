@@ -72,13 +72,4 @@ const (
 	//	features:
 	//	  integrity-reactions: true
 	IntegrityReactionsFeatureFlag FeatureFlag = "integrity-reactions"
-	// InlineAgentsFeatureFlag is a deprecated legacy feature flag for inline sub-agents.
-	// Deprecated: Inline sub-agent extraction/restoration is now enabled by default and
-	// this flag has no effect. The codemod "features-inline-agents-removal" removes it.
-	//
-	// Workflow frontmatter usage:
-	//
-	//	features:
-	//	  inline-agents: true
-	InlineAgentsFeatureFlag FeatureFlag = "inline-agents"
 )

@@ -322,9 +322,9 @@ func TestInlineAgentsFeatureAlwaysEnabled(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{Features: tt.features}
-			result := isFeatureEnabled(constants.InlineAgentsFeatureFlag, workflowData)
+			result := isFeatureEnabled(constants.FeatureFlag("inline-agents"), workflowData)
 			if !result {
-				t.Errorf("isFeatureEnabled(%q, %+v) = %v, want true", constants.InlineAgentsFeatureFlag, tt.features, result)
+				t.Errorf("isFeatureEnabled(%q, %+v) = %v, want true", constants.FeatureFlag("inline-agents"), tt.features, result)
 			}
 		})
 	}

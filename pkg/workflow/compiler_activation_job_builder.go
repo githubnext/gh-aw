@@ -464,7 +464,7 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/"+constants.GithubRateLimitsFilename+"\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/base\n")
 	// Include the engine-specific sub-agents staging directory (inline sub-agents are enabled by default).
-	if isFeatureEnabled(constants.InlineAgentsFeatureFlag, ctx.data) {
+	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), ctx.data) {
 		engineID := ""
 		if ctx.data.EngineConfig != nil {
 			engineID = ctx.data.EngineConfig.ID
