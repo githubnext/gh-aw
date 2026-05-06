@@ -1,0 +1,44 @@
+{
+  "faq": [
+    {
+      "question": "What is GitHub Agentic Workflows (gh-aw)?",
+      "answer": "gh-aw is a GitHub CLI extension that lets you write agentic AI workflows in natural language markdown files and run them as GitHub Actions. It compiles .md workflow files into GitHub Actions YAML."
+    },
+    {
+      "question": "How do I install gh-aw?",
+      "answer": "Install using the GitHub CLI: `gh extension install github/gh-aw`. Requires the GitHub CLI (gh) to be installed first."
+    },
+    {
+      "question": "Which AI engines does gh-aw support?",
+      "answer": "gh-aw supports multiple AI engines including GitHub Copilot (copilot), Claude (claude), OpenAI Codex (codex), and custom engines. The engine is specified in the workflow frontmatter with the `engine` field."
+    },
+    {
+      "question": "How do I create a workflow?",
+      "answer": "Create a markdown file with YAML frontmatter specifying the engine, triggers, tools, and permissions. Then run `gh aw compile` to compile it to a GitHub Actions workflow, and `gh aw run` to execute it."
+    },
+    {
+      "question": "How do I trigger a workflow?",
+      "answer": "Workflows can be triggered by GitHub events such as issues, pull requests, comments, labels, schedules, or manual dispatch. The trigger is configured in the `on` field of the workflow frontmatter."
+    },
+    {
+      "question": "What are safe outputs?",
+      "answer": "Safe outputs are structured outputs that AI agents produce (e.g., creating issues, adding comments, opening pull requests). They are validated and executed in separate permission-controlled jobs to ensure security."
+    },
+    {
+      "question": "How do I restrict which tools an AI agent can use?",
+      "answer": "Use the `tools` section in the workflow frontmatter to specify allowed tools and MCP servers. You can also configure network access restrictions using the `network.allowed` field."
+    },
+    {
+      "question": "What is the MCP (Model Context Protocol) support in gh-aw?",
+      "answer": "gh-aw supports MCP servers for providing tools to AI agents. Configure MCP servers in the workflow frontmatter under the `tools` section with server names and optional toolset restrictions."
+    },
+    {
+      "question": "How do I debug a failed workflow run?",
+      "answer": "Use `gh aw audit <run-id>` to analyze a workflow run, download logs, and get a detailed diagnosis. The audit command supports AI-powered analysis of failures."
+    },
+    {
+      "question": "What is cache-memory in gh-aw?",
+      "answer": "Cache memory allows AI agents to persist data across workflow runs using GitHub Actions artifacts. Agents can read and write JSON files to `/tmp/gh-aw/cache-memory/` which are uploaded as artifacts for use in future runs."
+    }
+  ]
+}
