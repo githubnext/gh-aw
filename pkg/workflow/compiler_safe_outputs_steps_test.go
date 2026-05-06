@@ -227,6 +227,61 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"ref: release/v2.0",
 			},
 		},
+		{
+			name: "push-to-pull-request-branch with target-repo and no create-pull-request",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					TargetRepoSlug: "microsoft/vscode",
+				},
+			},
+			checkContains: []string{
+				"repository: microsoft/vscode",
+				`REPO_NAME: "microsoft/vscode"`,
+				// Cross-repo checkout must not use github.ref_name
+				"ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
+			},
+			checkNotContains: []string{
+				"github.ref_name",
+			},
+		},
+		{
+			name: "update-pull-request with target-repo and no create-pull-request",
+			safeOutputs: &SafeOutputsConfig{
+				UpdatePullRequests: &UpdatePullRequestsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "microsoft/vscode"},
+					},
+				},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+			},
+			checkContains: []string{
+				"repository: microsoft/vscode",
+				`REPO_NAME: "microsoft/vscode"`,
+				// Cross-repo checkout must not use github.ref_name
+				"ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
+			},
+			checkNotContains: []string{
+				"github.ref_name",
+			},
+		},
+		{
+			name: "create-pull-request target-repo takes precedence over push-to-pull-request-branch target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					TargetRepoSlug: "org/create-pr-target",
+				},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					TargetRepoSlug: "org/push-branch-target",
+				},
+			},
+			checkContains: []string{
+				"repository: org/create-pr-target",
+				`REPO_NAME: "org/create-pr-target"`,
+			},
+			checkNotContains: []string{
+				"org/push-branch-target",
+			},
+		},
 	}
 
 	for _, tt := range tests {
