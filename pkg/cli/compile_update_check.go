@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path"
@@ -22,9 +21,10 @@ var compileUpdateCheckLog = logger.New("cli:update_check")
 
 const (
 	compileUpdateCheckDisableEnv = "GH_AW_DISABLE_UPDATE_CHECK"
+	compileUpdateCheckFileName   = "gh-aw-last-compile-update-check"
+	compileUpdateCheckInterval   = 24 * time.Hour
 	compileUpdateCheckTimeout    = 3 * time.Second
-	compileUpdateCheckWait       = 500 * time.Millisecond
-	maxProbeFileSize             = 64 * 1024
+	compileUpdateCheckWait       = 0 * time.Millisecond
 )
 
 var (
@@ -35,6 +35,7 @@ var (
 	compileUpdateCheckHTTPClientFactory = func() *http.Client {
 		return &http.Client{Timeout: compileUpdateCheckTimeout}
 	}
+	getCompileUpdateCheckFilePathFunc = getCompileUpdateCheckFilePathImpl
 )
 
 type compileUpdateNotificationKind string
@@ -57,6 +58,7 @@ func StartCompileUpdateCheck(ctx context.Context, noCheckUpdate bool, verbose bo
 	if !shouldRunCompileUpdateCheck(noCheckUpdate) {
 		return func() {}
 	}
+	updateCompileUpdateCheckTime()
 
 	results := make(chan *compileUpdateNotification, 1) // buffered channel closed by sender goroutine via defer
 
@@ -116,12 +118,49 @@ func shouldRunCompileUpdateCheck(noCheckUpdate bool) bool {
 		compileUpdateCheckLog.Print("Update check disabled in MCP server mode")
 		return false
 	}
+
+	lastCheckFile := getCompileUpdateCheckFilePath()
+	if lastCheckFile == "" {
+		compileUpdateCheckLog.Print("Could not determine compile update check file path")
+		return false
+	}
+
+	data, err := os.ReadFile(lastCheckFile)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			compileUpdateCheckLog.Printf("Error reading compile update check file: %v", err)
+		}
+		return true
+	}
+
+	lastCheck, err := time.Parse(time.RFC3339, strings.TrimSpace(string(data)))
+	if err != nil {
+		compileUpdateCheckLog.Printf("Error parsing compile update check time: %v", err)
+		return true
+	}
+
+	if time.Since(lastCheck) < compileUpdateCheckInterval {
+		compileUpdateCheckLog.Printf("Last compile update check was %v ago, skipping", time.Since(lastCheck))
+		return false
+	}
 	return true
 }
 
 func waitForCompileUpdateNotification(ctx context.Context, results <-chan *compileUpdateNotification, timeout time.Duration) *compileUpdateNotification {
 	if results == nil {
 		return nil
+	}
+
+	if timeout <= 0 {
+		select {
+		case result, ok := <-results:
+			if !ok {
+				return nil
+			}
+			return result
+		default:
+			return nil
+		}
 	}
 
 	timer := time.NewTimer(timeout)
@@ -188,7 +227,7 @@ func runCompileUpdateCheck(ctx context.Context, client *http.Client) (*compileUp
 }
 
 func fetchLatestReleaseTag(ctx context.Context, client *http.Client) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, compileUpdateCheckLatestReleaseURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, compileUpdateCheckLatestReleaseURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create latest release request: %w", err)
 	}
@@ -204,10 +243,6 @@ func fetchLatestReleaseTag(ctx context.Context, client *http.Client) (string, er
 		return "", fmt.Errorf("latest release request returned status %d", resp.StatusCode)
 	}
 
-	// Drain a small amount so the response body is consumed before close and the
-	// underlying connection remains reusable.
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
-
 	finalPath := resp.Request.URL.Path
 	if !strings.Contains(finalPath, "/releases/tag/") {
 		return "", fmt.Errorf("unexpected latest release path %q", finalPath)
@@ -222,7 +257,7 @@ func fetchLatestReleaseTag(ctx context.Context, client *http.Client) (string, er
 }
 
 func downloadReleaseProbeFile(ctx context.Context, client *http.Client, tag string) (bool, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, compileUpdateCheckProbeURLFunc(tag), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, compileUpdateCheckProbeURLFunc(tag), nil)
 	if err != nil {
 		return false, fmt.Errorf("failed to create probe request for %s: %w", tag, err)
 	}
@@ -236,12 +271,31 @@ func downloadReleaseProbeFile(ctx context.Context, client *http.Client, tag stri
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxProbeFileSize))
 		return true, nil
 	case http.StatusNotFound:
 		return false, nil
 	default:
 		return false, fmt.Errorf("probe download for %s returned status %d", tag, resp.StatusCode)
+	}
+}
+
+func getCompileUpdateCheckFilePath() string {
+	return getCompileUpdateCheckFilePathFunc()
+}
+
+func getCompileUpdateCheckFilePathImpl() string {
+	return getLastCheckFilePathFor(compileUpdateCheckFileName)
+}
+
+func updateCompileUpdateCheckTime() {
+	lastCheckFile := getCompileUpdateCheckFilePath()
+	if lastCheckFile == "" {
+		return
+	}
+
+	timestamp := time.Now().Format(time.RFC3339)
+	if err := os.WriteFile(lastCheckFile, []byte(timestamp), 0644); err != nil {
+		compileUpdateCheckLog.Printf("Error writing compile update check time: %v", err)
 	}
 }
 

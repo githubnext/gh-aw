@@ -112,6 +112,10 @@ func getLastCheckFilePath() string {
 
 // getLastCheckFilePathImpl is the actual implementation
 func getLastCheckFilePathImpl() string {
+	return getLastCheckFilePathFor(lastCheckFileName)
+}
+
+func getLastCheckFilePathFor(fileName string) string {
 	// Use OS temp directory for cross-platform compatibility
 	tmpDir := os.TempDir()
 	if tmpDir == "" {
@@ -126,7 +130,7 @@ func getLastCheckFilePathImpl() string {
 		return ""
 	}
 
-	return filepath.Join(ghAwTmpDir, lastCheckFileName)
+	return filepath.Join(ghAwTmpDir, fileName)
 }
 
 // updateLastCheckTime updates the timestamp of the last update check

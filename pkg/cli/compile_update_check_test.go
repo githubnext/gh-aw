@@ -9,7 +9,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,12 +22,26 @@ import (
 )
 
 func TestShouldRunCompileUpdateCheck(t *testing.T) {
+	origGetCompileUpdateCheckFilePath := getCompileUpdateCheckFilePathFunc
+	t.Cleanup(func() {
+		getCompileUpdateCheckFilePathFunc = origGetCompileUpdateCheckFilePath
+	})
+
+	tmpDir := t.TempDir()
+	lastCheckFile := filepath.Join(tmpDir, compileUpdateCheckFileName)
+	getCompileUpdateCheckFilePathFunc = func() string {
+		return lastCheckFile
+	}
+
 	t.Setenv("CI", "")
 	t.Setenv("CONTINUOUS_INTEGRATION", "")
 	t.Setenv("GITHUB_ACTIONS", "")
 	t.Setenv("GH_AW_MCP_SERVER", "")
 	t.Setenv(compileUpdateCheckDisableEnv, "")
 	assert.True(t, shouldRunCompileUpdateCheck(false), "check should run when not disabled")
+
+	require.NoError(t, os.WriteFile(lastCheckFile, []byte(time.Now().Format(time.RFC3339)), 0644), "recent compile update marker should be written")
+	assert.False(t, shouldRunCompileUpdateCheck(false), "recent marker should suppress the background check")
 
 	t.Setenv(compileUpdateCheckDisableEnv, "1")
 	assert.False(t, shouldRunCompileUpdateCheck(false), "check should be disabled by environment variable")
@@ -146,6 +164,7 @@ func TestPrintCompileUpdateNotification(t *testing.T) {
 			oldStderr := os.Stderr
 			r, w, err := os.Pipe()
 			require.NoError(t, err, "pipe creation should succeed")
+			defer r.Close()
 			os.Stderr = w
 
 			printCompileUpdateNotification(tt.notification)
@@ -163,6 +182,40 @@ func TestPrintCompileUpdateNotification(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRunCompileUpdateCheckUsesHEADRequests(t *testing.T) {
+	originalVersion := GetVersion()
+	originalRelease := workflow.IsRelease()
+	originalLatestURL := compileUpdateCheckLatestReleaseURL
+	originalProbeURLFunc := compileUpdateCheckProbeURLFunc
+	defer func() {
+		SetVersionInfo(originalVersion)
+		workflow.SetIsRelease(originalRelease)
+		compileUpdateCheckLatestReleaseURL = originalLatestURL
+		compileUpdateCheckProbeURLFunc = originalProbeURLFunc
+	}()
+
+	SetVersionInfo("v1.2.3")
+	workflow.SetIsRelease(true)
+
+	server, methods := newCompileUpdateCheckMethodServer(t, "v1.3.0", map[string]bool{
+		"v1.2.3": true,
+		"v1.3.0": true,
+	})
+	defer server.Close()
+
+	compileUpdateCheckLatestReleaseURL = server.URL + "/releases/latest"
+	compileUpdateCheckProbeURLFunc = func(tag string) string {
+		return fmt.Sprintf("%s/raw/%s/go.mod", server.URL, tag)
+	}
+
+	notification, err := runCompileUpdateCheck(context.Background(), server.Client())
+	require.NoError(t, err, "runCompileUpdateCheck should not fail")
+	require.NotNil(t, notification, "runCompileUpdateCheck should return a notification")
+
+	assert.Equal(t, []string{http.MethodHead}, methodsForPath(methods, "/releases/latest"), "latest release lookup should use HEAD")
+	assert.ElementsMatch(t, []string{http.MethodHead, http.MethodHead}, methodsForPrefix(methods, "/raw/"), "probe lookups should use HEAD")
 }
 
 func newCompileUpdateCheckTestServer(t *testing.T, latestVersion string, existingTags map[string]bool) *httptest.Server {
@@ -188,4 +241,54 @@ func newCompileUpdateCheckTestServer(t *testing.T, latestVersion string, existin
 	})
 
 	return httptest.NewServer(mux)
+}
+
+func newCompileUpdateCheckMethodServer(t *testing.T, latestVersion string, existingTags map[string]bool) (*httptest.Server, map[string][]string) {
+	t.Helper()
+
+	var mu sync.Mutex
+	methods := map[string][]string{}
+	record := func(path string, method string) {
+		mu.Lock()
+		defer mu.Unlock()
+		methods[path] = append(methods[path], method)
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/releases/latest", func(w http.ResponseWriter, r *http.Request) {
+		record(r.URL.Path, r.Method)
+		http.Redirect(w, r, "/github/gh-aw/releases/tag/"+latestVersion, http.StatusFound)
+	})
+	mux.HandleFunc("/github/gh-aw/releases/tag/"+latestVersion, func(w http.ResponseWriter, r *http.Request) {
+		record(r.URL.Path, r.Method)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("release page"))
+	})
+	mux.HandleFunc("/raw/", func(w http.ResponseWriter, r *http.Request) {
+		record(r.URL.Path, r.Method)
+		tag := r.URL.Path[len("/raw/"):]
+		tag = tag[:len(tag)-len("/go.mod")]
+		if existingTags[tag] {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("module github.com/github/gh-aw\n"))
+			return
+		}
+		http.NotFound(w, r)
+	})
+
+	return httptest.NewServer(mux), methods
+}
+
+func methodsForPath(methods map[string][]string, path string) []string {
+	return append([]string(nil), methods[path]...)
+}
+
+func methodsForPrefix(methods map[string][]string, prefix string) []string {
+	var collected []string
+	for path, values := range methods {
+		if strings.HasPrefix(path, prefix) {
+			collected = append(collected, values...)
+		}
+	}
+	return collected
 }
