@@ -455,7 +455,10 @@ err := cli.RunHealth(cli.HealthConfig{
 - `pkg/timeutil` — human-readable duration formatting
 - `pkg/tty` — terminal detection
 - `pkg/types` — shared MCP server configuration types
-- `pkg/stringutil`, `pkg/fileutil`, `pkg/gitutil`, `pkg/repoutil` — utilities
+- `pkg/fileutil` — file system helpers
+- `pkg/gitutil` — Git and GitHub CLI helpers
+- `pkg/repoutil` — repository name parsing and normalization
+- `pkg/stringutil` — string manipulation and sanitization utilities
 
 **External**:
 - `github.com/spf13/cobra` — CLI framework

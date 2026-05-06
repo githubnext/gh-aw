@@ -30,7 +30,7 @@ The `stats` package provides `StatVar`, a compact accumulator for numeric metric
 | `SampleStdDev` | `func() float64` | Returns sample standard deviation |
 | `Median` | `func() float64` | Returns the exact median (middle value or midpoint of two middle values) |
 
-## Usage Example
+## Usage Examples
 
 ```go
 var s stats.StatVar
