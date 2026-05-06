@@ -154,7 +154,8 @@ func TestPrintCompileUpdateNotification(t *testing.T) {
 			os.Stderr = oldStderr
 
 			var buf bytes.Buffer
-			_, _ = buf.ReadFrom(r)
+			_, err = buf.ReadFrom(r)
+			require.NoError(t, err, "pipe reader should capture stderr output")
 			output := buf.String()
 
 			for _, expected := range tt.expected {
