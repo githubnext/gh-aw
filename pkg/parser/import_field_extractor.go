@@ -233,54 +233,51 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	// as engine specifications — they only carry MCP gateway settings. This prevents
 	// "multiple engine fields" errors when a shared workflow declares engine.mcp.*
 	// without specifying an engine ID.
-	engineContent, err := extractFieldJSONFromMap(fm, "engine", "")
-	if err == nil && engineContent != "" {
+	if engineVal, hasEngine := fm["engine"]; hasEngine {
 		log.Printf("Found engine config in import: %s", item.fullPath)
 
-		// Parse the engine content to determine whether it specifies an engine ID
-		// and to extract any engine.mcp.* settings.
-		var engineData any
-		if jsonErr := json.Unmarshal([]byte(engineContent), &engineData); jsonErr == nil {
-			switch v := engineData.(type) {
-			case string:
-				// String engine (e.g. "copilot") — always counts as an engine spec.
-				acc.engines = append(acc.engines, engineContent)
-			case map[string]any:
-				// Object engine — extract engine.mcp.* settings first, then decide
-				// whether to add to engines based on whether an engine ID is present.
-				if mcpVal, hasMCP := v["mcp"]; hasMCP {
-					if mcpMap, ok := mcpVal.(map[string]any); ok {
-						// Extract tool-timeout (first-wins across all imports)
-						if acc.mergedEngineMCPToolTimeout == "" {
-							if ttStr, ok := mcpMap["tool-timeout"].(string); ok && ttStr != "" {
-								acc.mergedEngineMCPToolTimeout = ttStr
-								log.Printf("Extracted engine.mcp.tool-timeout from import %s: %s", item.fullPath, ttStr)
-							}
+		switch v := engineVal.(type) {
+		case string:
+			// String engine (e.g. "copilot") — always counts as an engine spec.
+			if engineJSON, merr := json.Marshal(v); merr == nil {
+				acc.engines = append(acc.engines, string(engineJSON))
+			}
+		case map[string]any:
+			// Object engine — extract engine.mcp.* settings first, then decide
+			// whether to add to engines based on whether an engine ID is present.
+			if mcpVal, hasMCP := v["mcp"]; hasMCP {
+				if mcpMap, ok := mcpVal.(map[string]any); ok {
+					// Extract tool-timeout (first-wins across all imports)
+					if acc.mergedEngineMCPToolTimeout == "" {
+						if ttStr, ok := mcpMap["tool-timeout"].(string); ok && ttStr != "" {
+							acc.mergedEngineMCPToolTimeout = ttStr
+							log.Printf("Extracted engine.mcp.tool-timeout from import %s: %s", item.fullPath, ttStr)
 						}
-						// Extract session-timeout (first-wins across all imports)
-						if acc.mergedEngineMCPSessionTimeout == "" {
-							if stStr, ok := mcpMap["session-timeout"].(string); ok && stStr != "" {
-								acc.mergedEngineMCPSessionTimeout = stStr
-								log.Printf("Extracted engine.mcp.session-timeout from import %s: %s", item.fullPath, stStr)
-							}
+					}
+					// Extract session-timeout (first-wins across all imports)
+					if acc.mergedEngineMCPSessionTimeout == "" {
+						if stStr, ok := mcpMap["session-timeout"].(string); ok && stStr != "" {
+							acc.mergedEngineMCPSessionTimeout = stStr
+							log.Printf("Extracted engine.mcp.session-timeout from import %s: %s", item.fullPath, stStr)
 						}
 					}
 				}
-				// Only add to engines list if this config specifies an actual engine.
-				// Configs with only `mcp` settings are purely MCP gateway configuration
-				// and must not trigger the "multiple engine fields" validation error.
-				_, hasMCPOnly := v["mcp"]
-				isMCPOnly := hasMCPOnly && len(v) == 1
-				if !isMCPOnly {
-					acc.engines = append(acc.engines, engineContent)
-				}
-			default:
-				// Unexpected type — add as-is to preserve existing behavior
-				acc.engines = append(acc.engines, engineContent)
 			}
-		} else {
-			// Cannot parse — add as-is to preserve existing behavior
-			acc.engines = append(acc.engines, engineContent)
+			// Only add to engines list if this config specifies an actual engine.
+			// Configs with only `mcp` settings are purely MCP gateway configuration
+			// and must not trigger the "multiple engine fields" validation error.
+			_, hasMCP := v["mcp"]
+			isMCPOnly := hasMCP && len(v) == 1
+			if !isMCPOnly {
+				if engineJSON, merr := json.Marshal(v); merr == nil {
+					acc.engines = append(acc.engines, string(engineJSON))
+				}
+			}
+		default:
+			// Unexpected type — marshal and add to preserve existing behavior.
+			if engineJSON, merr := json.Marshal(engineVal); merr == nil {
+				acc.engines = append(acc.engines, string(engineJSON))
+			}
 		}
 	}
 
