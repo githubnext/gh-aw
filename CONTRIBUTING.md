@@ -543,21 +543,23 @@ This project follows the GitHub Community Guidelines. Please be respectful and i
 
 > **For core team maintainers only.** Community members do not participate in releasing.
 
-Releases are triggered manually by a core team member using the GitHub Actions release workflow.
+Releases are triggered manually by a core team member using `.github/workflows/release.md`.
 
-> **Note:** The release workflow publishes the new version as a **prerelease** on GitHub. Once the release is verified, a maintainer must **manually promote it to a full release and move the `latest` tag** so that users installing with `version: latest` receive the new version.
+The team follows semantic versioning on a best-effort basis.
+
+> **Note:** The release workflow publishes the new version as a **prerelease** on GitHub with `latest=false`. Prereleases are floated for a few days. On Monday, maintainers promote the last known good prerelease to stable so `latest` resolves to that release.
 
 ### Steps
 
 1. **Launch the release action**
 
-   Go to [Actions → Release](https://github.com/github/gh-aw/actions/workflows/release.lock.yml) and click **Run workflow**. Select the release type (`patch`, `minor`, or `major`) and start the run.
+   Go to [Actions → Release](https://github.com/github/gh-aw/actions/workflows/release.md) and click **Run workflow**. Select the release type (`patch`, `minor`, or `major`) and start the run.
 
    The workflow will build the release binaries, push a new git tag, and then pause — waiting for a required manual step before publishing.
 
 2. **Complete the sync in `github/gh-aw-actions`**
 
-   While the workflow is paused at the `gh-aw-actions-release` environment gate, complete the following steps in the [`github/gh-aw-actions`](https://github.com/github/gh-aw-actions) repository:
+   While the workflow is paused at the `gh-aw-actions-release` environment gate, complete the required handoff in [`github/gh-aw-actions`](https://github.com/github/gh-aw-actions/actions/runs/25454542215/agentic_workflow):
 
    a. **Run the sync-actions workflow** — go to [Actions → sync-actions](https://github.com/github/gh-aw-actions/actions/workflows/sync-actions.yml) and trigger it with the new release tag (e.g. `v1.2.3`).
 
@@ -567,13 +569,13 @@ Releases are triggered manually by a core team member using the GitHub Actions r
 
    Return to the paused release run in [`github/gh-aw`](https://github.com/github/gh-aw/actions). Approve the **`gh-aw-actions-release`** environment gate. The workflow will verify that the new tag exists in `github/gh-aw-actions` and then publish the GitHub release as a **prerelease**.
 
-4. **Promote to latest** _(manual step)_
+4. **Promote to latest on Monday** _(manual step)_
 
-   After verifying the prerelease is working correctly:
+   After floating prereleases for a few days and confirming stability, on Monday:
 
    a. **Edit the GitHub release** — go to the [Releases page](https://github.com/github/gh-aw/releases), open the new prerelease, uncheck **This is a pre-release**, and save. This promotes the release to a stable full release.
 
-   b. **Move the `latest` tag** — GitHub's release API resolves `latest` to the most recent non-prerelease release. Promoting the release in step (a) is sufficient for the `latest` resolution to update automatically.
+   b. **Move `latest` to the promoted release** — GitHub resolves `latest` to the most recent non-prerelease release. Promoting the selected prerelease in step (a) updates `latest` automatically.
 
    Users who install with `version: latest` (the default) will now receive the new release.
 
