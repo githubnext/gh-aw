@@ -195,6 +195,25 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, "\n", "JSON output should not contain newlines (must be compact)")
 		assert.NotContains(t, jsonStr, "    ", "JSON output should not contain indentation")
 	})
+
+	t.Run("github actions expressions preserve && operators in allowDomains", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }}",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
+
+		assert.Contains(t, jsonStr, "&&", "JSON output should preserve && in GitHub Actions expressions")
+		assert.NotContains(t, jsonStr, "\\u0026", "JSON output should not HTML-escape '&' characters")
+	})
 }
 
 // TestBuildAWFConfigSchemaURL verifies that buildAWFConfigSchemaURL returns a release-pinned

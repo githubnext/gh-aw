@@ -48,6 +48,7 @@
 package workflow
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -283,10 +284,14 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
 	}
 
-	jsonBytes, err := json.Marshal(awfConfig)
-	if err != nil {
+	var jsonBuffer bytes.Buffer
+	encoder := json.NewEncoder(&jsonBuffer)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(awfConfig); err != nil {
 		return "", fmt.Errorf("failed to marshal AWF config to JSON: %w", err)
 	}
+
+	jsonBytes := bytes.TrimSuffix(jsonBuffer.Bytes(), []byte("\n"))
 	jsonStr := string(jsonBytes)
 	awfConfigLog.Printf("AWF config JSON generated: %d bytes", len(jsonBytes))
 
