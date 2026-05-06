@@ -135,6 +135,7 @@ tools:
     mode: remote
     toolsets: [default, actions, discussions]
   playwright:
+    mode: cli
     version: "v1.41.0"
   cache-memory:
     key: pr-${{ github.run_id }}
