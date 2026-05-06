@@ -20,15 +20,7 @@
     { "id": "codex", "name": "OpenAI Codex" },
     { "id": "custom", "name": "Custom engine" }
   ],
-  "integrations": [
-    "GitHub Actions",
-    "GitHub CLI",
-    "MCP (Model Context Protocol)",
-    "Playwright",
-    "GitHub Issues",
-    "GitHub Pull Requests",
-    "GitHub Discussions"
-  ],
+  "integrations": ["GitHub Actions", "GitHub CLI", "MCP (Model Context Protocol)", "Playwright", "GitHub Issues", "GitHub Pull Requests", "GitHub Discussions"],
   "install": "gh extension install github/gh-aw",
   "docs": "https://github.github.com/gh-aw/",
   "source": "https://github.com/github/gh-aw",

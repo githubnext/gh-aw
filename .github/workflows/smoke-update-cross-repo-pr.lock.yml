@@ -1235,6 +1235,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Smoke Update Cross-Repo PR"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUTS_RESULT: ${{ needs.safe_outputs.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
           GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📜 *Cross-repo PR update smoke test by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to github/gh-aw-side-repo PR #1...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully updated the cross-repo PR with a new Odyssey line!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to update the cross-repo PR: {status}\"}"

@@ -415,6 +415,13 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 
+	// Pass safe_outputs job result so the conclusion script can detect when safe outputs failed
+	// to deliver even if the agent succeeded (e.g. a 422 error during PR review submission).
+	if slices.Contains(safeOutputJobNames, string(constants.SafeOutputsJobName)) {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUTS_RESULT: ${{ needs.%s.result }}\n", constants.SafeOutputsJobName))
+		notifyCommentLog.Print("Added safe_outputs job result environment variable to conclusion job")
+	}
+
 	// Pass detection conclusion and reason if threat detection is enabled (in separate detection job)
 	if IsDetectionJobEnabled(data.SafeOutputs) {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", constants.DetectionJobName))

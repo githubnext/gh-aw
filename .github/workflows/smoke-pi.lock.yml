@@ -1278,6 +1278,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Smoke Pi"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUTS_RESULT: ${{ needs.safe_outputs.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
           GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🥧 *[{workflow_name}]({run_url}) — Powered by Pi*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"🥧 Pi initializing... [{workflow_name}]({run_url}) begins on this {event_type}...\",\"runSuccess\":\"🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Pi delivered. 🥧\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status}. Pi encountered unexpected challenges...\"}"

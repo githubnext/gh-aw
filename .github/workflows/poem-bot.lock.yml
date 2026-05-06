@@ -1488,6 +1488,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUTS_RESULT: ${{ needs.safe_outputs.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
           GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"runSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"runFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"

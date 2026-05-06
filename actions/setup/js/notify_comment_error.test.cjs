@@ -55,6 +55,7 @@ const mockCore = {
           GH_AW_ASSIGNMENT_ERROR_COUNT: process.env.GH_AW_ASSIGNMENT_ERROR_COUNT,
           GH_AW_SAFE_OUTPUT_MESSAGES: process.env.GH_AW_SAFE_OUTPUT_MESSAGES,
           GH_AW_SAFE_OUTPUT_JOBS: process.env.GH_AW_SAFE_OUTPUT_JOBS,
+          GH_AW_SAFE_OUTPUTS_RESULT: process.env.GH_AW_SAFE_OUTPUTS_RESULT,
           GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: process.env.GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL,
           GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: process.env.GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL,
           GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL: process.env.GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL,
@@ -340,6 +341,37 @@ const mockCore = {
               await eval(`(async () => { ${notifyCommentScript}; await main(); })()`));
             const callArgs = mockGithub.request.mock.calls[0][1];
             expect(callArgs.body).toMatch(/completed successfully!$/);
+          }));
+      }),
+      describe("when safe_outputs job fails", () => {
+        (it("should show failure message when agent succeeds but safe_outputs fails", async () => {
+          ((process.env.GH_AW_COMMENT_ID = "123456"),
+            (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),
+            (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
+            (process.env.GH_AW_AGENT_CONCLUSION = "success"),
+            (process.env.GH_AW_SAFE_OUTPUTS_RESULT = "failure"),
+            await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
+            expect(mockGithub.request).toHaveBeenCalledWith("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", expect.objectContaining({ body: expect.stringContaining("failed to deliver outputs. Please review the logs") })),
+            expect(mockGithub.request).not.toHaveBeenCalledWith("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", expect.objectContaining({ body: expect.stringContaining("completed successfully!") })));
+        }),
+          it("should show failure message when agent succeeds, safe_outputs fails, and detection warns", async () => {
+            ((process.env.GH_AW_COMMENT_ID = "123456"),
+              (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),
+              (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
+              (process.env.GH_AW_AGENT_CONCLUSION = "success"),
+              (process.env.GH_AW_SAFE_OUTPUTS_RESULT = "failure"),
+              (process.env.GH_AW_DETECTION_CONCLUSION = "warning"),
+              await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
+              expect(mockGithub.request).toHaveBeenCalledWith("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", expect.objectContaining({ body: expect.stringContaining("failed to deliver outputs. Please review the logs") })));
+          }),
+          it("should show success message when agent succeeds and safe_outputs succeeds", async () => {
+            ((process.env.GH_AW_COMMENT_ID = "123456"),
+              (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),
+              (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
+              (process.env.GH_AW_AGENT_CONCLUSION = "success"),
+              (process.env.GH_AW_SAFE_OUTPUTS_RESULT = "success"),
+              await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
+              expect(mockGithub.request).toHaveBeenCalledWith("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", expect.objectContaining({ body: expect.stringContaining("completed successfully!") })));
           }));
       }));
   }));

@@ -320,6 +320,64 @@ func TestConclusionJobIntegration(t *testing.T) {
 	}
 }
 
+func TestConclusionJobSafeOutputsResult(t *testing.T) {
+	// Test that GH_AW_SAFE_OUTPUTS_RESULT env var is emitted when safe_outputs is in safeOutputJobNames
+	compiler := NewCompiler()
+	statusCommentTrue := true
+	workflowData := &WorkflowData{
+		Name:          "Test Workflow",
+		AIReaction:    "eyes",
+		StatusComment: &statusCommentTrue,
+		SafeOutputs: &SafeOutputsConfig{
+			AddComments: &AddCommentsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("1"),
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name               string
+		safeOutputJobNames []string
+		expectEnvVar       bool
+	}{
+		{
+			name:               "GH_AW_SAFE_OUTPUTS_RESULT present when safe_outputs is in job list",
+			safeOutputJobNames: []string{"safe_outputs", "add_comment"},
+			expectEnvVar:       true,
+		},
+		{
+			name:               "GH_AW_SAFE_OUTPUTS_RESULT absent when safe_outputs is not in job list",
+			safeOutputJobNames: []string{"add_comment"},
+			expectEnvVar:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), tt.safeOutputJobNames)
+			if err != nil {
+				t.Fatalf("Failed to build conclusion job: %v", err)
+			}
+			if job == nil {
+				t.Fatal("Expected conclusion job to be created")
+			}
+
+			jobYAML := strings.Join(job.Steps, "")
+			envVarDeclaration := "GH_AW_SAFE_OUTPUTS_RESULT: ${{ needs.safe_outputs.result }}"
+			hasEnvVar := strings.Contains(jobYAML, envVarDeclaration)
+
+			if tt.expectEnvVar && !hasEnvVar {
+				t.Errorf("Expected GH_AW_SAFE_OUTPUTS_RESULT env var when safe_outputs is in job list, but it was missing")
+			}
+			if !tt.expectEnvVar && hasEnvVar {
+				t.Errorf("Did not expect GH_AW_SAFE_OUTPUTS_RESULT env var when safe_outputs is not in job list, but it was present")
+			}
+		})
+	}
+}
+
 func TestConclusionJobWithMessages(t *testing.T) {
 	// Test that the conclusion job includes custom messages when configured
 	compiler := NewCompiler()

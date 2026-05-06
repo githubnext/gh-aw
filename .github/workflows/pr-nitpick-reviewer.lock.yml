@@ -1212,6 +1212,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "PR Nitpick Reviewer 🔍"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUTS_RESULT: ${{ needs.safe_outputs.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
           GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"runSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"runFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
