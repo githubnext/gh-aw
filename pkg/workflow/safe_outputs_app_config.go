@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -217,9 +218,7 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 			// Map the scope back to a permission-* field name by running it through
 			// a single-entry Permissions object so the same mapping logic applies.
 			tempPerms := NewPermissionsFromMap(map[PermissionScope]PermissionLevel{scope: PermissionLevel(level)})
-			for fieldKey, fieldVal := range convertPermissionsToAppTokenFields(tempPerms) {
-				permissionFields[fieldKey] = fieldVal
-			}
+			maps.Copy(permissionFields, convertPermissionsToAppTokenFields(tempPerms))
 		}
 
 		// Extract and sort keys for deterministic ordering
