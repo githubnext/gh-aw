@@ -364,7 +364,7 @@ function summarizeRpcResponseEntry(entry) {
   const payload = entry.payload && typeof entry.payload === "object" ? entry.payload : {};
   const error = payload.error && typeof payload.error === "object" ? payload.error : null;
   if (error) {
-    const code = error.code != null ? ` ${error.code}` : "";
+    const code = error.code !== null && error.code !== undefined ? ` ${error.code}` : "";
     const message = truncateSummaryValue(String(error.message || "Unknown error"), MAX_RPC_SUMMARY_DETAILS_LENGTH);
     return {
       status: "error",
@@ -430,7 +430,7 @@ function summarizeGenericRpcEntry(entry) {
     if (payload.params && typeof payload.params === "object" && payload.params.name) {
       pushPart("tool", payload.params.name);
     }
-    if (payload.id != null) {
+    if (payload.id !== null && payload.id !== undefined) {
       pushPart("id", payload.id);
     }
     if (payload.error && typeof payload.error === "object" && payload.error.message) {
@@ -470,12 +470,9 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
   /** @type {Map<string, Array<Object>>} */
   const otherByType = new Map();
   for (const entry of other) {
-    const existingEntries = otherByType.get(entry.type);
-    if (existingEntries) {
-      existingEntries.push(entry);
-    } else {
-      otherByType.set(entry.type, [entry]);
-    }
+    const entriesForType = otherByType.get(entry.type) || [];
+    entriesForType.push(entry);
+    otherByType.set(entry.type, entriesForType);
   }
   const renderedOtherTypes = Array.from(otherByType.keys());
 
