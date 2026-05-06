@@ -1,15 +1,15 @@
 ---
-title: Agentic Observability Kit
+title: agentic-ops
 description: Monitor agentic workflows across a repository, publish observability reports, and escalate recurring failures or waste.
 sidebar:
   badge: { text: 'Observability', variant: 'tip' }
 ---
 
-Use this pattern when you want a scheduled workflow to inspect other agentic workflows, summarize what happened, and escalate unusual cost or failure patterns.
+Use this pattern when you want a scheduled workflow to inspect other agentic workflows, summarize what happened, and escalate unusual cost or failure patterns. The [agentic-ops repository](https://github.com/githubnext/agentic-ops) provides the reference implementation for this approach.
 
 ## What this pattern does
 
-The Agentic Observability Kit reviews workflow logs across a repository, classifies notable behavior, and publishes a structured report. When it detects repeated failures, abnormal token consumption, or other unhealthy patterns, it can escalate those findings into issues for follow-up.
+agentic-ops reviews workflow logs across a repository, classifies notable behavior, and publishes a structured report. When it detects repeated failures, abnormal token consumption, or other unhealthy patterns, it can escalate those findings into issues for follow-up.
 
 This pattern is useful for repository-wide monitoring because it creates a durable operational record instead of relying on ad hoc inspection of individual workflow runs.
 
