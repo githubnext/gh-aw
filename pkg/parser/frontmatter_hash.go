@@ -1,10 +1,8 @@
 package parser
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/jsonutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/typeutil"
 )
@@ -38,15 +37,7 @@ var DefaultFileReader FileReader = os.ReadFile
 // marshalJSONWithoutHTMLEscape marshals a value to JSON without HTML escaping
 // This matches JavaScript's JSON.stringify behavior
 func marshalJSONWithoutHTMLEscape(v any) (string, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
-		return "", err
-	}
-	// Remove the trailing newline that Encoder adds
-	result := buf.String()
-	return strings.TrimSuffix(result, "\n"), nil
+	return jsonutil.MarshalCompactNoHTMLEscape(v)
 }
 
 // marshalSorted recursively marshals data with sorted keys

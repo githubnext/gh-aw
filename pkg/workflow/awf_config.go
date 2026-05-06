@@ -48,7 +48,6 @@
 package workflow
 
 import (
-	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -56,6 +55,7 @@ import (
 	"sync"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/jsonutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
@@ -284,16 +284,12 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
 	}
 
-	var jsonBuffer bytes.Buffer
-	encoder := json.NewEncoder(&jsonBuffer)
-	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(awfConfig); err != nil {
+	jsonStr, err := jsonutil.MarshalCompactNoHTMLEscape(awfConfig)
+	if err != nil {
 		return "", fmt.Errorf("failed to marshal AWF config to JSON: %w", err)
 	}
 
-	jsonBytes := bytes.TrimSuffix(jsonBuffer.Bytes(), []byte("\n"))
-	jsonStr := string(jsonBytes)
-	awfConfigLog.Printf("AWF config JSON generated: %d bytes", len(jsonBytes))
+	awfConfigLog.Printf("AWF config JSON generated: %d bytes", len(jsonStr))
 
 	if err := validateAWFConfigJSON(jsonStr); err != nil {
 		return "", fmt.Errorf("generated AWF config failed schema validation: %w", err)
