@@ -60,6 +60,7 @@ safe-outputs:
 network:
   allowed:
     - node
+    - chrome
 
 imports:
   - shared/docs-server-lifecycle.md
@@ -81,6 +82,9 @@ You are a documentation testing specialist. Your task is to comprehensively test
 - Triggered by: @${{ github.actor }}
 - Devices to test: ${{ inputs.devices }}
 - Working directory: ${{ github.workspace }}
+
+**🚨 MANDATORY: You MUST call either `noop` or `create-issue` before exiting, regardless of outcome.**
+This workflow has `strict: true` — it will fail if no safe output is produced. Call `noop` if all tests pass (or if testing could not be completed for any reason), and `create-issue` if problems are found. Do this as your LAST action before finishing.
 
 **IMPORTANT SETUP NOTES:**
 1. You're already in the repository root
