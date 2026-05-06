@@ -75,8 +75,10 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		condition = BuildSafeOutputType("push_to_pull_request_branch")
 	}
 
-	// Determine target repository for checkout and git config
-	// Priority: create-pull-request target-repo > push-to-pull-request-branch target-repo > update-pull-request target-repo > trialLogicalRepoSlug > default (source repo)
+	// Determine target repository for checkout and git config.
+	// Only git-writing operations (create-pull-request, push-to-pull-request-branch) influence
+	// the shared git checkout; update-pull-request is API-only and must NOT affect the git remote.
+	// Priority: create-pull-request target-repo > push-to-pull-request-branch target-repo > trialLogicalRepoSlug > default (source repo)
 	var targetRepoSlug string
 	if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.TargetRepoSlug != "" {
 		targetRepoSlug = data.SafeOutputs.CreatePullRequests.TargetRepoSlug
@@ -84,9 +86,6 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	} else if data.SafeOutputs.PushToPullRequestBranch != nil && data.SafeOutputs.PushToPullRequestBranch.TargetRepoSlug != "" {
 		targetRepoSlug = data.SafeOutputs.PushToPullRequestBranch.TargetRepoSlug
 		consolidatedSafeOutputsStepsLog.Printf("Using target-repo from push-to-pull-request-branch: %s", targetRepoSlug)
-	} else if data.SafeOutputs.UpdatePullRequests != nil && data.SafeOutputs.UpdatePullRequests.TargetRepoSlug != "" {
-		targetRepoSlug = data.SafeOutputs.UpdatePullRequests.TargetRepoSlug
-		consolidatedSafeOutputsStepsLog.Printf("Using target-repo from update-pull-request: %s", targetRepoSlug)
 	} else if c.trialMode && c.trialLogicalRepoSlug != "" {
 		targetRepoSlug = c.trialLogicalRepoSlug
 		consolidatedSafeOutputsStepsLog.Printf("Using trialLogicalRepoSlug: %s", targetRepoSlug)

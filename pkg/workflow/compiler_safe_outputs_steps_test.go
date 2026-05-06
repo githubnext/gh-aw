@@ -245,7 +245,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
-			name: "update-pull-request with target-repo and no create-pull-request",
+			name: "update-pull-request target-repo does not affect shared git checkout (API-only operation)",
 			safeOutputs: &SafeOutputsConfig{
 				UpdatePullRequests: &UpdatePullRequestsConfig{
 					UpdateEntityConfig: UpdateEntityConfig{
@@ -254,14 +254,30 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				},
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
 			},
-			checkContains: []string{
+			// update-pull-request is API-only; its target-repo must NOT set repository:/REPO_NAME
+			checkNotContains: []string{
 				"repository: microsoft/vscode",
 				`REPO_NAME: "microsoft/vscode"`,
-				// Cross-repo checkout must not use github.ref_name
-				"ref: ${{ steps.extract-base-branch.outputs.base-branch || github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
+			},
+		},
+		{
+			name: "push-to-pull-request-branch target-repo takes precedence over update-pull-request target-repo",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					TargetRepoSlug: "org/push-branch-target",
+				},
+				UpdatePullRequests: &UpdatePullRequestsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "org/update-pr-target"},
+					},
+				},
+			},
+			checkContains: []string{
+				"repository: org/push-branch-target",
+				`REPO_NAME: "org/push-branch-target"`,
 			},
 			checkNotContains: []string{
-				"github.ref_name",
+				"org/update-pr-target",
 			},
 		},
 		{
