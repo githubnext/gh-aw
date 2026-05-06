@@ -921,12 +921,13 @@ Some content here.`;
     test("generates details/summary with request count", () => {
       const summary = generateRpcMessagesSummary({ requests: sampleRequests, responses: sampleResponses, other: [] }, []);
       expect(summary).toContain("<details>");
-      expect(summary).toContain("MCP Gateway Activity (2 requests)");
+      expect(summary).toContain("MCP Gateway Activity (2 requests, 1 response)");
       expect(summary).toContain("</details>");
     });
 
     test("renders request table with time, server, and tool columns", () => {
       const summary = generateRpcMessagesSummary({ requests: sampleRequests, responses: [], other: [] }, []);
+      expect(summary).toContain("#### REQUEST");
       expect(summary).toContain("| Time | Server | Tool / Method |");
       expect(summary).toContain("`list_issues`");
       expect(summary).toContain("`add_comment`");
@@ -945,6 +946,20 @@ Some content here.`;
       expect(summary).toContain("1 blocked");
     });
 
+    test("renders response rows with status and details", () => {
+      const responses = [
+        { timestamp: "2026-01-18T11:10:50Z", direction: "IN", type: "RESPONSE", server_id: "github", payload: { jsonrpc: "2.0", id: 1, result: { tools: [{ name: "list_issues" }] } } },
+        { timestamp: "2026-01-18T11:10:52Z", direction: "IN", type: "RESPONSE", server_id: "safeoutputs", payload: { jsonrpc: "2.0", id: 2, error: { code: -32603, message: "Tool failed" } } },
+      ];
+
+      const summary = generateRpcMessagesSummary({ requests: sampleRequests, responses, other: [] }, []);
+      expect(summary).toContain("#### RESPONSE");
+      expect(summary).toContain("| Time | Server | Direction | Status | Details |");
+      expect(summary).toContain("1 tool");
+      expect(summary).toContain("error");
+      expect(summary).toContain("Tool failed");
+    });
+
     test("includes DIFC_FILTERED table when events are present", () => {
       const difcEvents = [{ type: "DIFC_FILTERED", tool_name: "get_issue", server_id: "github", reason: "Integrity check failed", author_login: "user1", author_association: "MEMBER" }];
       const summary = generateRpcMessagesSummary({ requests: sampleRequests, responses: [], other: [] }, difcEvents);
@@ -954,15 +969,16 @@ Some content here.`;
 
     test("renders other message types section", () => {
       const other = [
-        { type: "SESSION_START", server_id: "github" },
-        { type: "SESSION_START", server_id: "github" },
-        { type: "SESSION_END", server_id: "github" },
+        { timestamp: "2026-01-18T11:10:40Z", direction: "OUT", type: "SESSION_START", server_id: "github", session_id: "abc123" },
+        { timestamp: "2026-01-18T11:10:41Z", direction: "OUT", type: "SESSION_START", server_id: "github", session_id: "def456" },
+        { timestamp: "2026-01-18T11:10:55Z", direction: "IN", type: "SESSION_END", server_id: "github", reason: "completed" },
       ];
       const summary = generateRpcMessagesSummary({ requests: [], responses: [], other }, []);
-      expect(summary).toContain("Other Gateway Messages");
-      expect(summary).toContain("SESSION_START");
-      expect(summary).toContain("SESSION_END");
-      expect(summary).toContain("2 messages");
+      expect(summary).toContain("MCP Gateway Activity (2 SESSION_START, 1 SESSION_END)");
+      expect(summary).toContain("#### SESSION_START");
+      expect(summary).toContain("#### SESSION_END");
+      expect(summary).toContain("session_id=abc123");
+      expect(summary).toContain("reason=completed");
     });
 
     test("shows minimal header when only DIFC events exist (no requests)", () => {
