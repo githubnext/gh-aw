@@ -17,8 +17,8 @@ function isOTLPPayload(payload) {
   }
 
   /** @type {{ resourceSpans?: unknown }} */
-  const candidate = payload;
-  return Array.isArray(candidate.resourceSpans);
+  const payloadWithResourceSpans = payload;
+  return Array.isArray(payloadWithResourceSpans.resourceSpans);
 }
 
 /**
