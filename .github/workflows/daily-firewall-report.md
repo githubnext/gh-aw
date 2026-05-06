@@ -301,12 +301,12 @@ Task:
 1. Collect firewall request and blocked-domain trend data for the past 30 days (or all available days).
 2. Create chart inputs under `/tmp/gh-aw/python/data/`.
 3. Generate exactly 2 charts under `/tmp/gh-aw/python/charts/`:
-   - `firewall_trends.png` (allowed, blocked, total request trends over time)
-   - `blocked_domains.png` (top blocked domains by frequency)
+   - `firewall_requests_trends.png` (allowed, blocked, total request trends over time)
+   - `blocked_domains_frequency.png` (top blocked domains by frequency)
 4. Upload both charts with the `upload_asset` safe-output tool using absolute paths.
 5. Map outputs explicitly:
-   - `CHART1_URL` = uploaded URL for `firewall_trends.png`
-   - `CHART2_URL` = uploaded URL for `blocked_domains.png`
+   - `CHART1_URL` = uploaded URL for `firewall_requests_trends.png`
+   - `CHART2_URL` = uploaded URL for `blocked_domains_frequency.png`
 
 Requirements:
 - Use pandas + matplotlib + seaborn.
@@ -329,7 +329,7 @@ description: Audits firewall-enabled run IDs and returns aggregated firewall, po
 You are a firewall data aggregation sub-agent.
 
 Input:
-- A JSON array of workflow run IDs from Step 1 of the parent workflow (for example: `[123,456,789]`).
+- A JSON array of workflow run IDs as integers from Step 1 of the parent workflow (for example: `[123,456,789]`).
 
 Task:
 1. For each run ID, call the `audit` tool.
