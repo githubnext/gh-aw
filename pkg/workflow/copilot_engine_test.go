@@ -1777,25 +1777,55 @@ func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
 	})
 }
 
-func TestCopilotEngineSetsDummyAPIKeyByDefault(t *testing.T) {
+func TestCopilotEngineSetsDummyAPIKey(t *testing.T) {
 	engine := NewCopilotEngine()
-	workflowData := &WorkflowData{
-		Name: "test-workflow",
-		EngineConfig: &EngineConfig{
-			ID: "copilot",
-		},
-	}
 
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
-	}
+	t.Run("COPILOT_API_KEY is set when AWF sandbox is enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{Type: SandboxTypeAWF},
+			},
+		}
 
-	stepContent := strings.Join([]string(steps[0]), "\n")
-	expected := "COPILOT_API_KEY: " + constants.CopilotBYOKDummyAPIKey
-	if !strings.Contains(stepContent, expected) {
-		t.Errorf("Expected copilot to inject dummy COPILOT_API_KEY by default, got:\n%s", stepContent)
-	}
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		expected := "COPILOT_API_KEY: " + constants.CopilotBYOKDummyAPIKey
+		if !strings.Contains(stepContent, expected) {
+			t.Errorf("Expected COPILOT_API_KEY to be set when AWF sandbox is enabled, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "AWF_REFLECT_ENABLED: 1") {
+			t.Errorf("Expected AWF_REFLECT_ENABLED to be set when AWF sandbox is enabled, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("COPILOT_API_KEY is NOT set when sandbox.agent: false", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{Disabled: true},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if strings.Contains(stepContent, "COPILOT_API_KEY") {
+			t.Errorf("Expected COPILOT_API_KEY to be absent when sandbox.agent: false, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "AWF_REFLECT_ENABLED") {
+			t.Errorf("Expected AWF_REFLECT_ENABLED to be absent when sandbox.agent: false, got:\n%s", stepContent)
+		}
+	})
 }
 
 func TestCopilotEngineHarnessScript(t *testing.T) {
