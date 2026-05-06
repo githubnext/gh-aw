@@ -4,8 +4,6 @@ description: Guide for setting up A/B testing experiments in agentic workflows �
 
 # A/B Testing Experiments in Agentic Workflows
 
-Consult this file when you want to measure the impact of a prompt change, a new skill, a model switch, or any other workflow variation. The `experiments:` frontmatter field wires the entire test-and-measure loop into gh-aw with no external tooling required.
-
 ---
 
 ## How Experiments Work
@@ -138,29 +136,13 @@ Both forms are resolved before the agent receives the prompt. The agent always s
 
 ## Designing a Good Experiment
 
-A well-designed experiment has:
-
 1. **One dimension** changed at a time — isolate the variable to attribute differences to the right cause.
 2. **A falsifiable hypothesis** — state what you expect and what would disprove it.
 3. **A primary metric** that is measurable from workflow run data (artifacts, outputs, duration, token counts).
 4. **Guardrail metrics** — things that must not degrade (e.g., crash rate, empty-output rate, run success rate).
 5. **A sample size estimate** — calculate how many runs per variant are needed before drawing conclusions.
 
-### Hypothesis template
-
-```
-Changing <dimension> from <baseline> to <variant> will improve <primary metric>
-by at least <minimum detectable effect> without degrading <guardrail metric>.
-```
-
-### Sample size rule of thumb
-
-For a two-proportion test with 80% power and α = 0.05:
-- Detecting a **5 pp** effect needs ~600 runs per variant.
-- Detecting a **10 pp** effect needs ~160 runs per variant.
-- Detecting a **20 pp** effect needs ~40 runs per variant.
-
-For daily workflows (~1 run/day per variant), a 10 pp effect takes roughly 160 days per variant. Prefer experiments on **high-frequency workflows** (hourly, multiple times per day) so you reach statistical significance faster.
+Prefer experiments on **high-frequency workflows** (hourly, multiple times per day) to reach statistical significance faster.
 
 ---
 
@@ -279,39 +261,6 @@ gh aw compile pr-summary
 ```
 
 The first run picks `concise` (lowest count = 0 for both), the second picks `detailed`, and so on, alternating until one variant is statistically better.
-
----
-
-## Reading Experiment Results
-
-The state file is available as a workflow artifact named `experiment` on every run. Download it to inspect cumulative counts:
-
-```bash
-# List recent runs for a workflow
-gh run list --workflow="my-workflow.lock.yml" --limit 20 --json databaseId,conclusion,createdAt
-
-# Download the experiment artifact from a specific run
-gh run download <run-id> --name "experiment" --dir /tmp/exp-results
-
-cat /tmp/exp-results/state.json
-```
-
-The `state.json` format:
-
-```json
-{
-  "counts": {
-    "output_style": {
-      "concise": 12,
-      "detailed": 12
-    }
-  }
-}
-```
-
-To compare variant outcomes, collect the artifact from every run and join the variant assignment to whatever metric you are tracking (e.g., output length, discussion reaction count, manual quality rating).
-
-The `ab-testing-advisor` workflow (`.github/workflows/ab-testing-advisor.md`) automates the experiment design step — it picks a random workflow without experiments and creates a GitHub issue with a ready-to-implement experiment campaign.
 
 ---
 

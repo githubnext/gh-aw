@@ -4,8 +4,6 @@ description: Complete reference for gh aw CLI commands and their MCP tool equiva
 
 # gh aw CLI Commands Reference
 
-This document describes all `gh aw` commands, when to use the CLI versus the **agentic-workflows** MCP tool, and common debugging scenarios.
-
 ## CLI vs MCP Tool — When to Use Each
 
 | Environment | Use |
@@ -226,69 +224,6 @@ gh aw mcp list                                   # List workflows with MCP serve
 ```
 
 **MCP equivalent**: `mcp-inspect` tool
-
----
-
-## Debugging Scenarios
-
-For detailed debugging guidance, see **[debug-agentic-workflow.md](./debug-agentic-workflow.md)** (local) or the [canonical upstream](https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md).
-
-### Scenario: Trigger a workflow and immediately audit it
-
-```bash
-# CLI
-gh aw run my-workflow --ref main
-# (gh aw run prints the run URL / ID)
-gh aw audit <run-id> --json
-```
-
-```
-# MCP tool (restricted environment)
-Use the github tool "create_workflow_dispatch" to trigger my-workflow.lock.yml, then
-use the audit tool with the returned run_id.
-```
-
-### Scenario: Investigate why a workflow failed
-
-```bash
-gh aw audit <run-id> --json
-```
-
-Focus on:
-- `missing_tools` — tools the agent tried but couldn't call
-- `safe_outputs.jsonl` — safe-output calls attempted
-- Agent logs — the agent's own reasoning
-
-### Scenario: Compare two runs for regressions
-
-```bash
-gh aw audit <baseline-run-id> <new-run-id> --json
-```
-
-### Scenario: Compile after editing the workflow
-
-```bash
-gh aw compile my-workflow        # Recompile
-gh aw run my-workflow --ref main # Test the updated workflow
-```
-
-### Scenario: I'm in Copilot Cloud — how do I run a workflow?
-
-The agentic-workflows MCP tool does not expose a `run` command. Use the GitHub MCP tool instead:
-
-```
-Use the github tool "create_workflow_dispatch" with:
-  - owner: <org>
-  - repo: <repo>
-  - workflow_id: my-workflow.lock.yml
-  - ref: main
-```
-
-Then immediately audit the run:
-
-```
-Use the audit tool with the run_id returned by the dispatch.
-```
 
 ---
 

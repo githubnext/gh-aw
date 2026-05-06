@@ -304,7 +304,7 @@ export default defineConfig({
 						{ label: 'MemoryOps', link: '/guides/memoryops/' },
 						{ label: 'MultiRepoOps', link: '/patterns/multi-repo-ops/' },
 						{ label: 'Monitoring', link: '/patterns/monitoring/' },
-						{ label: 'Agentic Observability Kit', link: '/patterns/agentic-observability-kit/' },
+						{ label: 'Agentic Ops', link: '/patterns/agentic-ops/' },
 						{ label: 'Orchestration', link: '/patterns/orchestration/' },
 						{ label: 'ProjectOps', link: '/patterns/project-ops/' },
 						{ label: 'ResearchPlanAssignOps', link: '/patterns/research-plan-assign-ops/' },

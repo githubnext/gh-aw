@@ -80,6 +80,8 @@ Below, ROOT is the location where you found this file. For example,
 - "Investigate missing tool calls in run #12345"
 - "Debug this workflow run: https://github.com/owner/repo/actions/runs/12345"
 
+**If gh-aw version is in [0.68.4, 0.71.3], stop debugging and tell the user to upgrade because those versions were retired.**
+
 ## Step 3: Apply Fixes
 
 After identifying the root cause:

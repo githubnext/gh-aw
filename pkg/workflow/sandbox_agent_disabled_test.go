@@ -110,6 +110,14 @@ Test workflow with agent sandbox disabled.
 		// Should contain direct copilot command instead
 		assert.Contains(t, result, "copilot", "Workflow should contain direct copilot command")
 
+		// COPILOT_API_KEY (BYOK dummy key) must NOT be injected when sandbox is disabled
+		// — no api-proxy is running, so the key would break authentication
+		assert.NotContains(t, result, "COPILOT_API_KEY", "COPILOT_API_KEY must not be present when sandbox.agent: false")
+
+		// AWF_REFLECT_ENABLED must NOT be injected when sandbox is disabled
+		// — the /reflect endpoint is only available when the api-proxy sidecar is running
+		assert.NotContains(t, result, "AWF_REFLECT_ENABLED", "AWF_REFLECT_ENABLED must not be present when sandbox.agent: false")
+
 		// MCP gateway should still be present (always enabled)
 		assert.Contains(t, result, "Start MCP Gateway", "MCP gateway should be present even when agent sandbox is disabled")
 		assert.Contains(t, result, "MCP_GATEWAY_PORT", "Gateway port should be set")
