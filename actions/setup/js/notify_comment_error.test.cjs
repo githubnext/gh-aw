@@ -227,6 +227,43 @@ const mockCore = {
               (process.env.GH_AW_DETECTION_CONCLUSION = "success"),
               await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
               expect(mockGithub.request).toHaveBeenCalledWith("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", expect.objectContaining({ body: expect.stringContaining("completed successfully!") })));
+          }),
+          it("should show failure message with detection warning when agent fails", async () => {
+            ((process.env.GH_AW_COMMENT_ID = "123456"),
+              (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),
+              (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
+              (process.env.GH_AW_AGENT_CONCLUSION = "failure"),
+              (process.env.GH_AW_DETECTION_CONCLUSION = "warning"),
+              await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
+              expect(mockGithub.request).toHaveBeenCalledWith("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", expect.objectContaining({ body: expect.stringContaining("failed. Please review the logs") })));
+          }),
+          it("should show cancelled message with detection warning when agent is cancelled", async () => {
+            ((process.env.GH_AW_COMMENT_ID = "123456"),
+              (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),
+              (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
+              (process.env.GH_AW_AGENT_CONCLUSION = "cancelled"),
+              (process.env.GH_AW_DETECTION_CONCLUSION = "warning"),
+              await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
+              expect(mockGithub.request).toHaveBeenCalledWith("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", expect.objectContaining({ body: expect.stringContaining("was cancelled. Please review the logs") })));
+          }),
+          it("should show timed out message with detection warning when agent times out", async () => {
+            ((process.env.GH_AW_COMMENT_ID = "123456"),
+              (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),
+              (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
+              (process.env.GH_AW_AGENT_CONCLUSION = "timed_out"),
+              (process.env.GH_AW_DETECTION_CONCLUSION = "warning"),
+              await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
+              expect(mockGithub.request).toHaveBeenCalledWith("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", expect.objectContaining({ body: expect.stringContaining("timed out. Please review the logs") })));
+          }),
+          it("should show assignment failure message with detection warning when agent succeeds but assign-to-agent fails", async () => {
+            ((process.env.GH_AW_COMMENT_ID = "123456"),
+              (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),
+              (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
+              (process.env.GH_AW_AGENT_CONCLUSION = "success"),
+              (process.env.GH_AW_ASSIGNMENT_ERROR_COUNT = "2"),
+              (process.env.GH_AW_DETECTION_CONCLUSION = "warning"),
+              await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
+              expect(mockGithub.request).toHaveBeenCalledWith("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", expect.objectContaining({ body: expect.stringContaining("failed to assign the coding agent") })));
           }));
       }),
       describe("when updating a discussion comment", () => {
