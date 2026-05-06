@@ -439,13 +439,13 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	// This ensures consistency for most imports while maintaining import inputs functionality
 	//
 	// NOTE: When an engine does not support native agent-file handling
-	// (SupportsNativeAgentFile() == false), the agent file content is already present in the
+	// (GetCapabilities().NativeAgentFile == false), the agent file content is already present in the
 	// prompt via the standard mechanisms below — no special Step 0 is needed:
 	//   - Agent files WITHOUT inputs: path is in data.ImportPaths → included by Step 1b.
 	//   - Agent files WITH inputs: content is in data.ImportedMarkdown → included by Step 1a.
 	//   - inlined-imports mode: data.AgentFile is cleared; content is in data.ImportPaths.
-	// All current engines (Claude, Codex, Gemini, Copilot) use this mechanism: SupportsNativeAgentFile()
-	// returns false and they read the fully-assembled prompt.txt in GetExecutionSteps.
+	// All current engines (Claude, Codex, Gemini, Copilot) use this mechanism: NativeAgentFile is false,
+	// and they read the fully-assembled prompt.txt in GetExecutionSteps.
 
 	var userPromptChunks []string
 	var expressionMappings []*ExpressionMapping
@@ -819,7 +819,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	}
 	fmt.Fprintf(yaml, "          GH_AW_INFO_WORKFLOW_NAME: \"%s\"\n", data.Name)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_EXPERIMENTAL: \"%t\"\n", engine.IsExperimental())
-	fmt.Fprintf(yaml, "          GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: \"%t\"\n", engine.SupportsToolsAllowlist())
+	fmt.Fprintf(yaml, "          GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: \"%t\"\n", engine.GetCapabilities().ToolsAllowlist)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_STAGED: \"%s\"\n", stagedValue)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_ALLOWED_DOMAINS: '%s'\n", domainsJSON)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_ENABLED: \"%t\"\n", firewallEnabled)

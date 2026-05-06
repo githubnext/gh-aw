@@ -15,12 +15,13 @@ func TestOpenCodeEngine(t *testing.T) {
 	engine := NewOpenCodeEngine()
 
 	t.Run("engine identity and capabilities", func(t *testing.T) {
+		capabilities := engine.GetCapabilities()
 		assert.Equal(t, "opencode", engine.GetID(), "Engine ID should be 'opencode'")
 		assert.Equal(t, "OpenCode", engine.GetDisplayName(), "Display name should be 'OpenCode'")
 		assert.True(t, engine.IsExperimental(), "OpenCode engine should be experimental")
-		assert.False(t, engine.SupportsToolsAllowlist(), "Should not support tools allowlist")
-		assert.False(t, engine.SupportsMaxTurns(), "Should not support max turns")
-		assert.False(t, engine.SupportsWebSearch(), "Should not support built-in web search")
+		assert.False(t, capabilities.ToolsAllowlist, "Should not support tools allowlist")
+		assert.False(t, capabilities.MaxTurns, "Should not support max turns")
+		assert.False(t, capabilities.WebSearch, "Should not support built-in web search")
 	})
 
 	t.Run("model env var name", func(t *testing.T) {

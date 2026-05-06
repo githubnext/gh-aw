@@ -153,8 +153,8 @@ func TestClaudeEngineWithAgentFromImports(t *testing.T) {
 	}
 
 	// The engine reports that it does not support native agent file handling.
-	if engine.SupportsNativeAgentFile() {
-		t.Errorf("Claude engine should return false for SupportsNativeAgentFile()")
+	if engine.GetCapabilities().NativeAgentFile {
+		t.Errorf("Claude engine should report NativeAgentFile=false")
 	}
 }
 
@@ -223,8 +223,8 @@ func TestCodexEngineWithAgentFromImports(t *testing.T) {
 	}
 
 	// The engine reports that it does not support native agent file handling.
-	if engine.SupportsNativeAgentFile() {
-		t.Errorf("Codex engine should return false for SupportsNativeAgentFile()")
+	if engine.GetCapabilities().NativeAgentFile {
+		t.Errorf("Codex engine should report NativeAgentFile=false")
 	}
 }
 
@@ -262,8 +262,8 @@ func TestCodexEngineWithoutAgentFile(t *testing.T) {
 // content to prompt.txt during the activation job instead.
 func TestCodexEngineDoesNotSupportNativeAgentFile(t *testing.T) {
 	engine := NewCodexEngine()
-	if engine.SupportsNativeAgentFile() {
-		t.Errorf("Codex engine should return false for SupportsNativeAgentFile(); the compiler handles agent file injection")
+	if engine.GetCapabilities().NativeAgentFile {
+		t.Errorf("Codex engine should report NativeAgentFile=false; the compiler handles agent file injection")
 	}
 }
 
@@ -312,8 +312,8 @@ func TestCodexEngineAWFWithAgentFileReadsPromptTxt(t *testing.T) {
 // content to prompt.txt during the activation job instead.
 func TestGeminiEngineDoesNotSupportNativeAgentFile(t *testing.T) {
 	engine := NewGeminiEngine()
-	if engine.SupportsNativeAgentFile() {
-		t.Errorf("Gemini engine should return false for SupportsNativeAgentFile(); the compiler handles agent file injection")
+	if engine.GetCapabilities().NativeAgentFile {
+		t.Errorf("Gemini engine should report NativeAgentFile=false; the compiler handles agent file injection")
 	}
 }
 

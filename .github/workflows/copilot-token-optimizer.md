@@ -109,6 +109,7 @@ steps:
       else
         echo "ℹ️ No previous optimization history found."
       fi
+source: githubnext/agentic-ops/workflows/copilot-token-optimizer.md@c780d8324935fe1fb30fce545832c10a8f904039
 ---
 
 # Copilot Token Usage Optimizer

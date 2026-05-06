@@ -45,14 +45,17 @@ type Engine interface {
 Feature detection interface - indicates what capabilities an engine supports.
 
 ```go
+type EngineCapabilities struct {
+    ToolsAllowlist   bool
+    MaxTurns         bool
+    WebSearch        bool
+    MaxContinuations bool
+    NativeAgentFile  bool
+    BareMode         bool
+}
+
 type CapabilityProvider interface {
-    SupportsToolsAllowlist() bool  // MCP tool allow-listing
-    SupportsMaxTurns() bool        // max-turns configuration
-    SupportsWebFetch() bool        // Built-in web-fetch tool
-    SupportsWebSearch() bool       // Built-in web-search tool
-    SupportsFirewall() bool        // Network firewalling/sandboxing
-    SupportsPlugins() bool         // Plugin installation
-    SupportsLLMGateway() int       // LLM gateway port (-1 if not supported)
+    GetCapabilities() EngineCapabilities
 }
 ```
 
@@ -129,7 +132,7 @@ type MyEngine struct {
 - [ ] Define engine struct embedding `BaseEngine`
 - [ ] Implement constructor function `NewMyEngine()`
 - [ ] Set engine ID, display name, description, and experimental status
-- [ ] Configure capability flags (tools allowlist, max turns, web fetch/search, firewall, plugins, LLM gateway)
+- [ ] Configure `BaseEngine.capabilities` (`ToolsAllowlist`, `MaxTurns`, `WebSearch`, `MaxContinuations`, `NativeAgentFile`, `BareMode`) as needed
 - [ ] Add engine constant to `pkg/constants/constants.go` (optional but recommended)
 - [ ] Register default firewall domains in `pkg/workflow/domains.go` (see [Firewall Domain Registration](#firewall-domain-registration))
 
@@ -179,7 +182,7 @@ type MyEngine struct {
 - [ ] Test secret validation
 - [ ] Test capability detection
 - [ ] Add integration tests if needed
-- [ ] Verify interface compliance (existing `agentic_engine_interfaces_test.go` will validate)
+- [ ] Add a compile-time interface assertion (for example, `var _ CodingAgentEngine = NewMyEngine()`)
 
 ### Phase 8: Documentation
 
@@ -213,17 +216,18 @@ type MyEngine struct {
 func NewMyEngine() *MyEngine {
     return &MyEngine{
         BaseEngine: BaseEngine{
-            id:                     "my-engine",
-            displayName:            "My AI Engine",
-            description:            "Uses My AI with MCP server support",
-            experimental:           false, // Set to true for experimental engines
-            supportsToolsAllowlist: true,  // Set based on engine capabilities
-            supportsMaxTurns:       true,
-            supportsWebFetch:       true,
-            supportsWebSearch:      true,
-            supportsFirewall:       true,
-            supportsPlugins:        false,
-            supportsLLMGateway:     false, // Set to true if engine has LLM gateway
+            id:           "my-engine",
+            displayName:  "My AI Engine",
+            description:  "Uses My AI with MCP server support",
+            experimental: false, // Set to true for experimental engines
+            capabilities: EngineCapabilities{
+                ToolsAllowlist:   true,
+                MaxTurns:         true,
+                WebSearch:        true,
+                MaxContinuations: false,
+                NativeAgentFile:  false,
+                BareMode:         false,
+            },
         },
     }
 }
@@ -512,14 +516,15 @@ func TestMyEngineBasicProperties(t *testing.T) {
 
 func TestMyEngineCapabilities(t *testing.T) {
     engine := NewMyEngine()
+    capabilities := engine.GetCapabilities()
 
     // Test capability flags match constructor
-    assert.True(t, engine.SupportsToolsAllowlist())
-    assert.True(t, engine.SupportsMaxTurns())
-    assert.True(t, engine.SupportsWebFetch())
-    assert.True(t, engine.SupportsWebSearch())
-    assert.True(t, engine.SupportsFirewall())
-    assert.False(t, engine.SupportsPlugins())
+    assert.True(t, capabilities.ToolsAllowlist)
+    assert.True(t, capabilities.MaxTurns)
+    assert.True(t, capabilities.WebSearch)
+    assert.False(t, capabilities.MaxContinuations)
+    assert.False(t, capabilities.NativeAgentFile)
+    assert.False(t, capabilities.BareMode)
 }
 
 func TestMyEngineInstallationSteps(t *testing.T) {
@@ -620,7 +625,13 @@ Integration tests should validate:
 
 ### Interface Compliance Tests
 
-The existing `agentic_engine_interfaces_test.go` automatically validates that all registered engines implement required interfaces. No additional tests needed for basic interface compliance.
+Add a small compile-time assertion in your engine test file to ensure the constructor still returns a `CodingAgentEngine`:
+
+```go
+func TestMyEngine_ImplementsCodingAgentEngine(t *testing.T) {
+    var _ CodingAgentEngine = NewMyEngine()
+}
+```
 
 ## Documentation Requirements
 
@@ -654,7 +665,7 @@ If the engine has specific guidelines or patterns, add to `AGENTS.md`:
 
 **Default version**: 1.0.0
 **Required secrets**: MY_ENGINE_API_KEY
-**Supports**: Tools allowlist, max turns, web fetch/search, firewall
+**Capabilities**: Tools allowlist, max turns, web search
 
 **Example usage**:
 ```yaml
@@ -677,16 +688,15 @@ type SimpleEngine struct {
 func NewSimpleEngine() *SimpleEngine {
     return &SimpleEngine{
         BaseEngine: BaseEngine{
-            id:                     "simple",
-            displayName:            "Simple Engine",
-            description:            "Basic execution without MCP",
-            experimental:           false,
-            supportsToolsAllowlist: false,
-            supportsMaxTurns:       false,
-            supportsWebFetch:       false,
-            supportsWebSearch:      false,
-            supportsFirewall:       false,
-            supportsPlugins:        false,
+            id:           "simple",
+            displayName:  "Simple Engine",
+            description:  "Basic execution without MCP",
+            experimental: false,
+            capabilities: EngineCapabilities{
+                ToolsAllowlist: false,
+                MaxTurns:       false,
+                WebSearch:      false,
+            },
         },
     }
 }
@@ -719,12 +729,12 @@ func (e *SimpleEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 }
 ```
 
-### Full-Featured Engine (With MCP, Firewall, etc.)
+### Full-Featured Engine (With MCP and richer capabilities)
 
 See existing implementations:
-- **Copilot**: Full MCP support, firewall, plugins - `copilot_engine.go`
-- **Claude**: Full MCP support, firewall, max turns - `claude_engine.go`
-- **Codex**: Full MCP support, firewall, TOML config - `codex_engine.go`
+- **Copilot**: MCP allowlist, max continuations, bare mode - `copilot_engine.go`
+- **Claude**: MCP allowlist, max turns, web search, bare mode - `claude_engine.go`
+- **Codex**: MCP allowlist, web search, TOML config - `codex_engine.go`
 
 ## Common Patterns
 
@@ -761,7 +771,7 @@ step := GenerateMultiSecretValidationStep(
 
 ### Firewall Domain Registration
 
-Engines that support the firewall (`SupportsFirewall() bool`) must declare their default allowed domains in `pkg/workflow/domains.go`. The `engineDefaultDomains` map provides the centralized registry:
+Engines that rely on AWF/network sandboxing should declare their default allowed domains in `pkg/workflow/domains.go`. The `engineDefaultDomains` map provides the centralized registry:
 
 ```go
 // In pkg/workflow/domains.go

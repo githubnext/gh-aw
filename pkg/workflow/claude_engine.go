@@ -21,17 +21,19 @@ type ClaudeEngine struct {
 func NewClaudeEngine() *ClaudeEngine {
 	return &ClaudeEngine{
 		BaseEngine: BaseEngine{
-			id:                       "claude",
-			displayName:              "Claude Code",
-			description:              "Uses Claude Code with full MCP tool support and allow-listing",
-			experimental:             false,
-			supportsToolsAllowlist:   true,
-			supportsMaxTurns:         true,  // Claude supports max-turns feature
-			supportsMaxContinuations: false, // Claude Code does not support --max-autopilot-continues-style continuation
-			supportsWebSearch:        true,  // Claude has built-in WebSearch support
-			supportsNativeAgentFile:  false, // Claude does not support agent file natively; the compiler prepends the agent file content to prompt.txt
-			supportsBareMode:         true,  // Claude CLI supports --bare
-			dedicatedLLMGatewayPort:  constants.ClaudeLLMGatewayPort,
+			id:           "claude",
+			displayName:  "Claude Code",
+			description:  "Uses Claude Code with full MCP tool support and allow-listing",
+			experimental: false,
+			capabilities: EngineCapabilities{
+				ToolsAllowlist:   true,
+				MaxTurns:         true,  // Claude supports max-turns feature
+				MaxContinuations: false, // Claude Code does not support --max-autopilot-continues-style continuation
+				WebSearch:        true,  // Claude has built-in WebSearch support
+				NativeAgentFile:  false, // Claude does not support agent file natively; the compiler prepends the agent file content to prompt.txt
+				BareMode:         true,  // Claude CLI supports --bare
+			},
+			dedicatedLLMGatewayPort: constants.ClaudeLLMGatewayPort,
 		},
 	}
 }

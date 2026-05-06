@@ -123,7 +123,7 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 	agentValidationLog.Printf("Validating max-turns support: engine=%s, maxTurns=%s", engine.GetID(), engineConfig.MaxTurns)
 
 	// max-turns is specified, check if the engine supports it
-	if !engine.SupportsMaxTurns() {
+	if !engine.GetCapabilities().MaxTurns {
 		agentValidationLog.Printf("Engine %s does not support max-turns feature", engine.GetID())
 		return fmt.Errorf("max-turns not supported: engine '%s' does not support the max-turns feature", engine.GetID())
 	}
@@ -147,7 +147,7 @@ func (c *Compiler) validateMaxContinuationsSupport(frontmatter map[string]any, e
 	agentValidationLog.Printf("Validating max-continuations support: engine=%s, maxContinuations=%d", engine.GetID(), engineConfig.MaxContinuations)
 
 	// max-continuations is specified, check if the engine supports it
-	if !engine.SupportsMaxContinuations() {
+	if !engine.GetCapabilities().MaxContinuations {
 		agentValidationLog.Printf("Engine %s does not support max-continuations feature", engine.GetID())
 		return fmt.Errorf("max-continuations not supported: engine '%s' does not support the max-continuations feature", engine.GetID())
 	}
@@ -187,7 +187,7 @@ func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingA
 	agentValidationLog.Printf("Validating web-search support for engine: %s", engine.GetID())
 
 	// web-search is specified, check if the engine supports it
-	if !engine.SupportsWebSearch() {
+	if !engine.GetCapabilities().WebSearch {
 		agentValidationLog.Printf("Engine %s does not natively support web-search tool, emitting warning", engine.GetID())
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support the web-search tool. See https://github.github.com/gh-aw/guides/web-search/ for alternatives.", engine.GetID())))
 		c.IncrementWarningCount()
@@ -206,7 +206,7 @@ func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine Co
 
 	agentValidationLog.Printf("Validating bare mode support for engine: %s", engine.GetID())
 
-	if !engine.SupportsBareMode() {
+	if !engine.GetCapabilities().BareMode {
 		agentValidationLog.Printf("Engine %s does not support bare mode, emitting warning", engine.GetID())
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support bare mode (engine.bare: true). Bare mode is only supported for the 'copilot' and 'claude' engines. The setting will be ignored.", engine.GetID())))
 		c.IncrementWarningCount()

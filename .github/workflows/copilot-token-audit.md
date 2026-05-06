@@ -16,12 +16,11 @@ observability:
 tracker-id: copilot-token-audit
 engine: copilot
 safe-outputs:
-  create-discussion:
+  create-issue:
     expires: 3d
-    category: "audits"
     title-prefix: "[copilot-token-audit] "
     max: 1
-    close-older-discussions: true
+    close-older-issues: true
   upload-asset:
     max: 5
     allowed-exts: [.png, .jpg, .jpeg, .svg]
@@ -80,6 +79,7 @@ steps:
 timeout-minutes: 25
 features:
   copilot-requests: true
+source: githubnext/agentic-ops/workflows/copilot-token-audit.md@c780d8324935fe1fb30fce545832c10a8f904039
 ---
 
 # Daily Copilot Token Usage Audit
@@ -90,7 +90,7 @@ You are the Copilot Token Auditor — a workflow that tracks daily token consump
 
 1. Parse the pre-downloaded Copilot workflow logs and compute per-workflow token usage metrics.
 2. Persist today's snapshot to repo-memory so the optimizer (and future runs of this audit) can read historical data.
-3. Publish a concise audit discussion summarizing today's usage, trends, and cost highlights.
+3. Publish a concise audit issue summarizing today's usage, trends, and cost highlights.
 
 ## Data Sources
 
@@ -189,7 +189,7 @@ Do not append a synthetic zero-valued entry to `rolling-summary.json` when eithe
 - the raw `.runs` array is empty
 - the raw `.runs` array is non-empty but there are zero completed runs in the current window
 
-Report those two cases differently in the discussion as described below so the empty-window diagnosis stays precise while the historical trend remains unchanged.
+Report those two cases differently in the issue as described below so the empty-window diagnosis stays precise while the historical trend remains unchanged.
 
 ## Phase 3 — Generate Charts
 
@@ -204,19 +204,19 @@ Chart requirements:
 - Use 300 DPI and a white background.
 - Add clear axis labels and titles.
 - Save only PNG files.
-- If there are fewer than 2 rolling-summary points, skip the trend chart and explain why in the discussion.
+- If there are fewer than 2 rolling-summary points, skip the trend chart and explain why in the issue.
 - After generating each chart, call `upload_asset` with its file path.
-- In the discussion template below, replace `UPLOAD_URL_WORKFLOW_PLACEHOLDER` with the URL returned for `token_by_workflow.png`.
-- In the discussion template below, replace `UPLOAD_URL_TREND_PLACEHOLDER` with the URL returned for `token_trend.png`.
+- In the issue template below, replace `UPLOAD_URL_WORKFLOW_PLACEHOLDER` with the URL returned for `token_by_workflow.png`.
+- In the issue template below, replace `UPLOAD_URL_TREND_PLACEHOLDER` with the URL returned for `token_trend.png`.
 - If a chart is skipped, omit that image markdown line entirely instead of leaving a placeholder behind.
 
-## Phase 4 — Publish Audit Discussion
+## Phase 4 — Publish Audit Issue
 
-Create a discussion with these sections:
+Create an issue with these sections:
 
 ### Formatting Requirements
 
-- Use `###` for main sections and `####` for subsections inside the discussion body.
+- Use `###` for main sections and `####` for subsections inside the issue body.
 - Keep the executive summary and final observations visible without collapsible sections.
 - Put verbose tables or supporting detail inside `<details><summary>...</summary>` blocks.
 - If you cite specific workflow runs, format them as links like `[§12345](https://github.com/${{ github.repository }}/actions/runs/12345)` and include up to 3 under `**References:**`.
@@ -268,14 +268,14 @@ Summarize token and cost changes from `rolling-summary.json` when historical dat
 ## Important Notes
 
 - Use `// 0` (null coalescing) in jq and `.get(field, 0)` in Python for nullable numeric fields.
-- Distinguish between these two cases in the discussion:
+- Distinguish between these two cases in the issue:
   - the raw `.runs` array is empty
   - the raw `.runs` array is non-empty but none of the runs are `status == "completed"`
 - Report those cases differently:
   - if `len(runs) == 0` (or `jq '.runs | length' == 0`), say the collection window returned no runs
   - if `len(runs) > 0` and there are zero completed runs, say the collection window had runs but none completed yet
 - Do not claim the raw log file was empty unless you verified `len(runs) == 0` (or `jq '.runs | length' == 0`).
-- Keep the discussion concise — the optimizer workflow will do the deep analysis.
+- Keep the issue concise — the optimizer workflow will do the deep analysis.
 
 ## Experiment OTEL Span Attributes
 

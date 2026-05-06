@@ -97,13 +97,6 @@ func getCompiledAWFConfigSchema() (*jsonschema.Schema, error) {
 	return compiledAWFConfigSchema, awfConfigSchemaCompileError
 }
 
-// ValidateAWFConfigJSON validates the provided AWF config JSON string against the
-// embedded AWF config schema. Returns nil if validation passes.
-// This exported variant is used by tests in external packages.
-func ValidateAWFConfigJSON(configJSON string) error {
-	return validateAWFConfigJSON(configJSON)
-}
-
 // validateAWFConfigJSON validates the provided AWF config JSON string against the
 // embedded AWF config schema. Returns nil if validation passes.
 func validateAWFConfigJSON(configJSON string) error {

@@ -17,8 +17,9 @@ func TestNewPiEngine(t *testing.T) {
 	assert.Equal(t, "pi", engine.GetID(), "Engine ID should be 'pi'")
 	assert.Equal(t, "Pi", engine.GetDisplayName(), "Display name should be 'Pi'")
 	assert.True(t, engine.IsExperimental(), "Pi engine should be experimental")
-	assert.True(t, engine.SupportsToolsAllowlist(), "Pi should support tools allowlist (needed for gh-proxy/cli-proxy settings)")
-	assert.False(t, engine.SupportsMaxTurns(), "Pi should not support max turns")
+	capabilities := engine.GetCapabilities()
+	assert.True(t, capabilities.ToolsAllowlist, "Pi should support tools allowlist (needed for gh-proxy/cli-proxy settings)")
+	assert.False(t, capabilities.MaxTurns, "Pi should not support max turns")
 }
 
 func TestPiEngine_GetModelEnvVarName(t *testing.T) {

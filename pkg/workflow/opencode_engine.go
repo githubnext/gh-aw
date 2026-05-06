@@ -21,13 +21,15 @@ func NewOpenCodeEngine() *OpenCodeEngine {
 	return &OpenCodeEngine{
 		UniversalLLMConsumerEngine: UniversalLLMConsumerEngine{
 			BaseEngine: BaseEngine{
-				id:                     "opencode",
-				displayName:            "OpenCode",
-				description:            "OpenCode CLI with headless mode and multi-provider LLM support",
-				experimental:           true,
-				supportsToolsAllowlist: false,
-				supportsMaxTurns:       false,
-				supportsWebSearch:      false,
+				id:           "opencode",
+				displayName:  "OpenCode",
+				description:  "OpenCode CLI with headless mode and multi-provider LLM support",
+				experimental: true,
+				capabilities: EngineCapabilities{
+					ToolsAllowlist: false,
+					MaxTurns:       false,
+					WebSearch:      false,
+				},
 			},
 		},
 	}

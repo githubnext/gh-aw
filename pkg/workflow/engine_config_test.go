@@ -819,8 +819,8 @@ func TestSupportsBareMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, tt.engine.SupportsBareMode(),
-				"SupportsBareMode() should return %v for %s", tt.expected, tt.engine.GetID())
+			assert.Equal(t, tt.expected, tt.engine.GetCapabilities().BareMode,
+				"BareMode capability should be %v for %s", tt.expected, tt.engine.GetID())
 		})
 	}
 }

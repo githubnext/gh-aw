@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 9.0
-**Last Updated**: 2026-05-04
+**Version**: 9.1
+**Last Updated**: 2026-05-06
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2932,6 +2932,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v9.1 (2026-05-06): Maintenance tone scan — 0 tone issues found across all 63 spec files. No new spec files since v9.0. Coverage: 63 spec files (no new files).
 - v9.0 (2026-05-04): Maintenance tone scan — fixed 1 tone issue: `serena-tools-quick-reference.md` (1 fix: "12.32 KB (2.89% of all data) - highly efficient"→"12.32 KB (2.89% of all data)"). Documented PR #30072 engine domain registry pattern: updated Engine Interface Architecture section ("Adding a new engine" note about `engineDefaultDomains` map in `domains.go`), updated `adding-new-engines.md` with new "Firewall Domain Registration" pattern (Phase 1 checklist item + full code example for `engineDefaultDomains` map and model-specific domain functions). Coverage: 64 spec files (no new files).
 - v8.5 (2026-05-03): Maintenance tone scan — fixed 3 tone issues in `oh-my-code.md`: "Power User Paradise" heading→"Configuration and Usage", "Team Automation Made Safe" heading→"Configuration and Usage", "Relentless execution until completion"→"Continues execution until all tasks complete". Coverage: 64 spec files (no new files).
 - v8.4 (2026-05-02): Maintenance tone scan — fixed 6 tone issues across 3 spec files: `gastown.md` (1 fix: "mature, battle-tested architecture"→"mature architecture with established patterns"), `oh-my-code.md` (4 fixes: "Zero config: Works out of box with sensible defaults"→"Zero configuration: Works with sensible defaults", "Battery included: All tools, agents, hooks pre-configured"→"Pre-configured: All tools, agents, and hooks included", "Magic word: Just type `ultrawork` for full power"→"Simple invocation: Type `ultrawork` to run all agents", "zero learning"→"no configuration required"), `mdflow-comparison.md` (1 fix: "Batteries included - Built-in defaults"→"Pre-configured defaults - Built-in defaults"). Coverage: 64 spec files (no new files).

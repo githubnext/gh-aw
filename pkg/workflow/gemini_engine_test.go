@@ -21,9 +21,10 @@ func TestGeminiEngine(t *testing.T) {
 	})
 
 	t.Run("capabilities", func(t *testing.T) {
-		assert.True(t, engine.SupportsToolsAllowlist(), "Should support tools allowlist")
-		assert.False(t, engine.SupportsMaxTurns(), "Should not support max turns")
-		assert.False(t, engine.SupportsWebSearch(), "Should not support built-in web search")
+		capabilities := engine.GetCapabilities()
+		assert.True(t, capabilities.ToolsAllowlist, "Should support tools allowlist")
+		assert.False(t, capabilities.MaxTurns, "Should not support max turns")
+		assert.False(t, capabilities.WebSearch, "Should not support built-in web search")
 	})
 
 	t.Run("required secrets", func(t *testing.T) {

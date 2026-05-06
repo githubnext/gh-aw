@@ -45,6 +45,7 @@ describe("push_experiment_state", () => {
     delete process.env.GH_TOKEN;
     delete process.env.GITHUB_WORKSPACE;
     delete process.env.GITHUB_REPOSITORY;
+    delete process.env.GH_AW_ALLOWED_TARGET_REPOS;
   });
 
   it("calls setFailed when GH_AW_EXPERIMENT_BRANCH is not set", async () => {
@@ -71,6 +72,29 @@ describe("push_experiment_state", () => {
     process.env.GH_AW_EXPERIMENT_BRANCH = "experiments/myworkflow";
     process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
     // tmpDir exists but is empty — no state.json or assignments.json
+
+    await main();
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No experiment state files found"));
+  });
+
+  it("calls setFailed when target repository is not in allowedRepos allowlist", async () => {
+    process.env.GH_TOKEN = "ghp_test";
+    process.env.GH_AW_EXPERIMENT_BRANCH = "experiments/myworkflow";
+    process.env.GH_AW_ALLOWED_TARGET_REPOS = "someowner/somerepo";
+
+    await main();
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_ALLOWED_TARGET_REPOS"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("testowner/testrepo"));
+  });
+
+  it("does not fail when target repository is included in GH_AW_ALLOWED_TARGET_REPOS", async () => {
+    process.env.GH_TOKEN = "ghp_test";
+    process.env.GH_AW_EXPERIMENT_BRANCH = "experiments/myworkflow";
+    process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+    process.env.GH_AW_ALLOWED_TARGET_REPOS = "other/repo, testowner/testrepo";
 
     await main();
 

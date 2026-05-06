@@ -163,9 +163,9 @@ func TestEngineSupportsMaxTurns(t *testing.T) {
 				t.Fatalf("Failed to get engine '%s': %v", tt.engineID, err)
 			}
 
-			actualSupport := engine.SupportsMaxTurns()
+			actualSupport := engine.GetCapabilities().MaxTurns
 			if actualSupport != tt.expectedSupport {
-				t.Errorf("Expected engine '%s' to have SupportsMaxTurns() = %v, but got %v",
+				t.Errorf("Expected engine '%s' to have MaxTurns capability = %v, but got %v",
 					tt.engineID, tt.expectedSupport, actualSupport)
 			}
 		})

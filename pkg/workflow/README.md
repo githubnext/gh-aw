@@ -52,7 +52,7 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | Type | Kind | Description |
 |------|------|-------------|
 | `Engine` | interface | Core identity: `GetID()`, `GetDisplayName()`, `GetDescription()`, `IsExperimental()` |
-| `CapabilityProvider` | interface | Optional feature detection (`SupportsToolsAllowlist`, `SupportsMaxTurns`, etc.) |
+| `CapabilityProvider` | interface | Optional feature detection via `GetCapabilities()` |
 | `WorkflowExecutor` | interface | Compilation: `GetDeclaredOutputFiles`, `GetInstallationSteps`, `GetExecutionSteps` |
 | `MCPConfigProvider` | interface | MCP configuration generation |
 | `LogParser` | interface | Log parsing for audit/metrics |
