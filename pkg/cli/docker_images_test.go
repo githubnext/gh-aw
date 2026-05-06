@@ -256,13 +256,13 @@ func TestMockImageAvailability(t *testing.T) {
 
 	// Mock the image as available
 	SetMockImageAvailable(testImage, true)
-	if !IsDockerImageAvailable(testImage) {
+	if !IsDockerImageAvailable(context.Background(), testImage) {
 		t.Error("Mocked image should be reported as available")
 	}
 
 	// Mock the same image as not available
 	SetMockImageAvailable(testImage, false)
-	if IsDockerImageAvailable(testImage) {
+	if IsDockerImageAvailable(context.Background(), testImage) {
 		t.Error("Mocked image should be reported as not available")
 	}
 
@@ -553,7 +553,7 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable_NoTools(t *testing.T) {
 func TestIsDockerAvailable_MockTrue(t *testing.T) {
 	ResetDockerPullState()
 	SetMockDockerAvailable(true)
-	if !IsDockerAvailable() {
+	if !IsDockerAvailable(context.Background()) {
 		t.Error("Expected IsDockerAvailable to return true when mocked as available")
 	}
 	ResetDockerPullState()
@@ -562,7 +562,7 @@ func TestIsDockerAvailable_MockTrue(t *testing.T) {
 func TestIsDockerAvailable_MockFalse(t *testing.T) {
 	ResetDockerPullState()
 	SetMockDockerAvailable(false)
-	if IsDockerAvailable() {
+	if IsDockerAvailable(context.Background()) {
 		t.Error("Expected IsDockerAvailable to return false when mocked as unavailable")
 	}
 	ResetDockerPullState()

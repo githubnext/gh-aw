@@ -52,7 +52,7 @@ var pullState = &dockerPullState{
 
 // isDockerImageAvailableUnlocked checks if a Docker image is available locally
 // This function must be called with pullState.mu held (either RLock or Lock)
-func isDockerImageAvailableUnlocked(image string) bool {
+func isDockerImageAvailableUnlocked(ctx context.Context, image string) bool {
 	// Check if we're in mock mode (for testing)
 	if pullState.mockAvailableInUse {
 		available := pullState.mockAvailable[image]
@@ -62,7 +62,7 @@ func isDockerImageAvailableUnlocked(image string) bool {
 
 	// For non-mock mode, we need to execute docker command
 	// This is safe to do under lock since it's just a subprocess call
-	cmd := exec.Command("docker", "image", "inspect", image)
+	cmd := exec.CommandContext(ctx, "docker", "image", "inspect", image)
 	// Suppress output - we only care about exit code
 	cmd.Stdout = nil
 	cmd.Stderr = nil
@@ -73,10 +73,10 @@ func isDockerImageAvailableUnlocked(image string) bool {
 }
 
 // IsDockerImageAvailable checks if a Docker image is available locally
-func IsDockerImageAvailable(image string) bool {
+func IsDockerImageAvailable(ctx context.Context, image string) bool {
 	pullState.mu.RLock()
 	defer pullState.mu.RUnlock()
-	return isDockerImageAvailableUnlocked(image)
+	return isDockerImageAvailableUnlocked(ctx, image)
 }
 
 // IsDockerImageDownloading checks if a Docker image is currently being downloaded
@@ -87,7 +87,7 @@ func IsDockerImageDownloading(image string) bool {
 }
 
 // IsDockerAvailable checks if the Docker daemon is running and accessible
-func IsDockerAvailable() bool {
+func IsDockerAvailable(ctx context.Context) bool {
 	pullState.mu.RLock()
 	if pullState.mockAvailableInUse {
 		available := pullState.mockDockerAvailable
@@ -97,7 +97,7 @@ func IsDockerAvailable() bool {
 	}
 	pullState.mu.RUnlock()
 
-	cmd := exec.Command("docker", "info")
+	cmd := exec.CommandContext(ctx, "docker", "info")
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	err := cmd.Run()
@@ -115,7 +115,7 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 	defer pullState.mu.Unlock()
 
 	// Check if already available (inside lock for atomicity)
-	if isDockerImageAvailableUnlocked(image) {
+	if isDockerImageAvailableUnlocked(ctx, image) {
 		dockerImagesLog.Printf("Image %s is already available", image)
 		return false
 	}
@@ -212,7 +212,7 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 	}
 
 	// Check if Docker daemon is available before attempting any image operations
-	if !IsDockerAvailable() {
+	if !IsDockerAvailable(ctx) {
 		var requestedTools []string
 		var paramsList []string
 		if useZizmor {
@@ -264,7 +264,7 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 			continue
 		}
 
-		if IsDockerImageAvailable(img.image) {
+		if IsDockerImageAvailable(ctx, img.image) {
 			continue
 		}
 
