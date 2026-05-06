@@ -24,7 +24,7 @@ Tab completion provides:
 - Directory path completion for --dir flag
 - Helpful descriptions for workflows when available
 
-Supported shells: bash, zsh, fish, powershell
+Supported shells: bash, zsh, fish, PowerShell
 
 Examples:
   # Install completions automatically (detects your shell)

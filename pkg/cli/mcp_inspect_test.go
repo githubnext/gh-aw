@@ -13,6 +13,17 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+func TestMCPInspectSubcommand_NoArgBehaviorDocumented(t *testing.T) {
+	cmd := NewMCPInspectSubcommand()
+	if cmd == nil {
+		t.Fatal("Expected mcp inspect subcommand to be created")
+	}
+
+	if !strings.Contains(cmd.Long, "When no workflow is provided, this command lists workflows that have MCP server configurations.") {
+		t.Errorf("Expected mcp inspect long help to document no-argument behavior, got: %s", cmd.Long)
+	}
+}
+
 func TestValidateServerSecrets(t *testing.T) {
 	tests := []struct {
 		name        string

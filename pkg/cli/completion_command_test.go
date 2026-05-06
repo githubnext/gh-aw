@@ -122,7 +122,7 @@ func TestCompletionCommand_LongHelp(t *testing.T) {
 	assert.Contains(t, cmd.Long, "Command name completion")
 	assert.Contains(t, cmd.Long, "Workflow name completion")
 	assert.Contains(t, cmd.Long, "Engine name completion")
-	assert.Contains(t, cmd.Long, "bash, zsh, fish, powershell")
+	assert.Contains(t, cmd.Long, "bash, zsh, fish, PowerShell")
 }
 
 func TestCompletionCommand_Examples(t *testing.T) {

@@ -188,6 +188,8 @@ The workflow-id-or-file can be:
 - A workflow ID (basename without .md extension, e.g., "weekly-research")
 - A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
 
+When no workflow is provided, this command lists workflows that have MCP server configurations.
+
 Examples:
   gh aw mcp inspect                    # List workflows with MCP servers
   gh aw mcp inspect weekly-research    # Inspect MCP servers in weekly-research.md

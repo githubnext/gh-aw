@@ -16,6 +16,7 @@ func TestNewLogsCommand(t *testing.T) {
 	assert.Equal(t, "logs [workflow]", cmd.Use, "Command use should be 'logs [workflow]'")
 	assert.Equal(t, "Download and analyze agentic workflow logs with aggregated metrics", cmd.Short, "Command short description should match")
 	assert.Contains(t, cmd.Long, "Download and analyze agentic workflow logs", "Command long description should contain expected text")
+	assert.Contains(t, cmd.Long, "Evict local cache older than 1 week before downloading runs", "Cache maintenance examples should describe eviction plus download behavior")
 
 	// Verify flags are registered
 	flags := cmd.Flags()

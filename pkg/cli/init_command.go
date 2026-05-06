@@ -114,7 +114,7 @@ Examples:
 	cmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, crush)")
 	_ = cmd.Flags().MarkHidden("engine") // Hide the engine flag from help output (internal use only)
 	cmd.Flags().Bool("no-mcp", false, "Skip configuring gh-aw MCP server integration for GitHub Copilot Agent")
-	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use with empty value for current repo only")
+	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use with an empty value for the current repo only")
 	cmd.Flags().Bool("completions", false, "Install shell completion for the detected shell (bash, zsh, fish, or PowerShell)")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the initialization changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")

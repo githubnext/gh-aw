@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/parser"
@@ -148,6 +149,9 @@ func TestNewPRCommand(t *testing.T) {
 
 	if cmd.Short != "Pull request utilities" {
 		t.Errorf("Expected command short description to be 'Pull request utilities', got %s", cmd.Short)
+	}
+	if !strings.Contains(cmd.Long, "provides a tool for transferring pull requests") {
+		t.Errorf("Expected command long description to document a single transfer tool, got %s", cmd.Long)
 	}
 
 	// Check that transfer subcommand is added
