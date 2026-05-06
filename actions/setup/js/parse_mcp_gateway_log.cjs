@@ -351,6 +351,7 @@ function escapeMarkdownTableCell(value) {
  */
 function truncateSummaryValue(value, maxLength) {
   if (value.length <= maxLength) return value;
+  if (maxLength < 3) return value.slice(0, Math.max(maxLength, 0));
   return `${value.slice(0, maxLength - 3)}...`;
 }
 
@@ -412,30 +413,33 @@ function summarizeRpcResponseEntry(entry) {
 function summarizeGenericRpcEntry(entry) {
   const parts = [];
   const topLevelIgnoredKeys = new Set(["timestamp", "direction", "type", "server_id", "payload"]);
+  const pushPart = (key, value) => {
+    parts.push(`${key}=${truncateSummaryValue(String(value), MAX_RPC_SUMMARY_DETAILS_LENGTH)}`);
+  };
 
   for (const [key, value] of Object.entries(entry)) {
     if (topLevelIgnoredKeys.has(key) || value == null || typeof value === "object") continue;
-    parts.push(`${key}=${value}`);
+    pushPart(key, value);
   }
 
   const payload = entry.payload && typeof entry.payload === "object" ? entry.payload : null;
   if (payload) {
     if (payload.method) {
-      parts.push(`method=${payload.method}`);
+      pushPart("method", payload.method);
     }
     if (payload.params && typeof payload.params === "object" && payload.params.name) {
-      parts.push(`tool=${payload.params.name}`);
+      pushPart("tool", payload.params.name);
     }
     if (payload.id != null) {
-      parts.push(`id=${payload.id}`);
+      pushPart("id", payload.id);
     }
     if (payload.error && typeof payload.error === "object" && payload.error.message) {
-      parts.push(`error=${payload.error.message}`);
+      pushPart("error", payload.error.message);
     }
     if (parts.length === 0) {
       const payloadKeys = Object.keys(payload);
       if (payloadKeys.length > 0) {
-        parts.push(`payload keys=${payloadKeys.join(", ")}`);
+        pushPart("payload keys", payloadKeys.join(", "));
       }
     }
   }
@@ -463,13 +467,17 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
   if (totalMessages === 0) return "";
 
   const parts = [];
-  /** @type {Record<string, Array<Object>>} */
-  const otherByType = {};
+  /** @type {Map<string, Array<Object>>} */
+  const otherByType = new Map();
   for (const entry of other) {
-    otherByType[entry.type] ??= [];
-    otherByType[entry.type].push(entry);
+    const existingEntries = otherByType.get(entry.type);
+    if (existingEntries) {
+      existingEntries.push(entry);
+    } else {
+      otherByType.set(entry.type, [entry]);
+    }
   }
-  const renderedOtherTypes = Object.keys(otherByType);
+  const renderedOtherTypes = Array.from(otherByType.keys());
 
   if (requests.length === 0 && responses.length === 0 && other.length === 0 && blockedCount > 0) {
     // No requests, but there are DIFC_FILTERED events — add a minimal header
@@ -483,7 +491,7 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
       summaryParts.push(`${responses.length} response${responses.length !== 1 ? "s" : ""}`);
     }
     for (const type of renderedOtherTypes) {
-      const count = otherByType[type].length;
+      const count = otherByType.get(type)?.length || 0;
       summaryParts.push(`${count} ${type}`);
     }
     if (blockedCount > 0) {
@@ -533,7 +541,7 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
       callLines.push("| Time | Server | Direction | Details |");
       callLines.push("|------|--------|-----------|---------|");
 
-      for (const entry of otherByType[type]) {
+      for (const entry of otherByType.get(type) || []) {
         callLines.push(`| ${formatRpcMessageTime(entry.timestamp)} | ${escapeMarkdownTableCell(entry.server_id || "-")} | ${escapeMarkdownTableCell(entry.direction || "-")} | ${escapeMarkdownTableCell(summarizeGenericRpcEntry(entry))} |`);
       }
 
