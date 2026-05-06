@@ -139,8 +139,9 @@ func shouldRunCompileUpdateCheck(noCheckUpdate bool) bool {
 		return true
 	}
 
-	if time.Since(lastCheck) < compileUpdateCheckInterval {
-		compileUpdateCheckLog.Printf("Last compile update check was %v ago, skipping", time.Since(lastCheck))
+	elapsed := time.Since(lastCheck)
+	if elapsed < compileUpdateCheckInterval {
+		compileUpdateCheckLog.Printf("Last compile update check was %v ago, skipping", elapsed)
 		return false
 	}
 	return true
