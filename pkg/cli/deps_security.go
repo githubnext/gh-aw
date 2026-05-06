@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -47,7 +48,7 @@ type GitHubAdvisoryResponse struct {
 }
 
 // CheckSecurityAdvisories checks for security vulnerabilities in dependencies
-func CheckSecurityAdvisories(verbose bool) ([]SecurityAdvisory, error) {
+func CheckSecurityAdvisories(ctx context.Context, verbose bool) ([]SecurityAdvisory, error) {
 	depsSecurityLog.Print("Starting security advisory check")
 
 	// Find go.mod file
@@ -75,7 +76,7 @@ func CheckSecurityAdvisories(verbose bool) ([]SecurityAdvisory, error) {
 	}
 
 	// Query GitHub Security Advisory API
-	advisories, err := querySecurityAdvisories(depVersions, verbose)
+	advisories, err := querySecurityAdvisories(ctx, depVersions, verbose)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query security advisories: %w", err)
 	}
@@ -130,13 +131,13 @@ func DisplaySecurityAdvisories(advisories []SecurityAdvisory) {
 }
 
 // querySecurityAdvisories queries the GitHub Security Advisory API
-func querySecurityAdvisories(depVersions map[string]string, verbose bool) ([]SecurityAdvisory, error) {
+func querySecurityAdvisories(ctx context.Context, depVersions map[string]string, verbose bool) ([]SecurityAdvisory, error) {
 	// GitHub Security Advisory API endpoint
 	url := "https://api.github.com/advisories?ecosystem=go&per_page=100"
 
 	depsSecurityLog.Printf("Querying GitHub Security Advisory API: url=%s, dep_count=%d", url, len(depVersions))
 	client := &http.Client{Timeout: 30 * time.Second}
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -227,7 +227,6 @@ experiments:
         direction: min
         threshold: <value>
     min_samples: <n_per_variant>
-    owner: "@team-agents"
     weight: [50, 50]
     start_date: "<YYYY-MM-DD>"
     issue: <this_issue_number>
