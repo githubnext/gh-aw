@@ -1,5 +1,5 @@
 ---
-description: Guide for defining inline sub-agents in workflow markdown files — syntax, feature flag, engine placement, frontmatter fields, and best practices.
+description: Guide for defining inline sub-agents in workflow markdown files — syntax, engine placement, frontmatter fields, and best practices.
 ---
 
 # Inline Sub-Agents
@@ -12,17 +12,15 @@ Inline sub-agents let you define specialised agents directly inside a workflow m
 
 ## Enabling the Feature
 
-Inline sub-agent extraction and restoration steps are **only compiled in when the `inline-agents` feature flag is set**:
+Inline sub-agent extraction and restoration steps are enabled by default:
 
 ```yaml
 ---
 engine: copilot
-features:
-  inline-agents: true
 ---
 ```
 
-Without this flag the `## agent:` sections are stripped from the prompt at compile time but no upload or restore steps are generated, so the sub-agent files will not be available during the agent job.
+> `features.inline-agents` is deprecated and no longer needed. Existing workflows may still include it, but it has no effect.
 
 ---
 
@@ -99,8 +97,6 @@ For sub-agents to perform useful work they typically need access to the file sys
 ```yaml
 ---
 engine: copilot
-features:
-  inline-agents: true
 tools:
   github:
     mode: gh-proxy
@@ -172,8 +168,6 @@ Extract a repetitive sub-task (file summarisation, commit-message generation, co
 ```markdown
 ---
 engine: copilot
-features:
-  inline-agents: true
 tools:
   github:
     mode: gh-proxy
@@ -205,5 +199,5 @@ changes. Return a bulleted list, one bullet per file.
 
 - Sub-agents do not support `engine:`, `tools:`, `network:`, or `mcp-servers:` fields — those are stripped at runtime.
 - Sub-agents cannot define their own safe-output jobs.
-- The feature requires `features.inline-agents: true` — without it the upload/restore steps are not generated.
+- `features.inline-agents` is deprecated and has no effect; inline sub-agent upload/restore is always generated.
 - Sub-agent blocks must appear in the main workflow file body; they are not resolved inside imported shared files.

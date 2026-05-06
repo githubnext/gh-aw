@@ -17,9 +17,8 @@ var subAgentStepLog = logger.New("workflow:sub_agent_step")
 // during the activation job and uploaded as part of the activation artifact.
 // This step restores them so the engine CLI can discover them.
 //
-// The step is only generated when features.inline-agents is set in the workflow
-// frontmatter. The shell logic lives in restore_inline_sub_agents.sh for
-// maintainability and testability.
+// Inline sub-agents are enabled by default. The shell logic lives in
+// restore_inline_sub_agents.sh for maintainability and testability.
 func generateRestoreInlineSubAgentsStep(yaml *strings.Builder, data *WorkflowData) {
 	engineID := ""
 	if data.EngineConfig != nil {

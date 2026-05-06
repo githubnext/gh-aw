@@ -293,3 +293,39 @@ func TestMergedFeaturesTopLevelPrecedence(t *testing.T) {
 		t.Errorf("isFeatureEnabled(\"import-only\") = %v, want true (from import)", importOnlyResult)
 	}
 }
+
+func TestInlineAgentsFeatureAlwaysEnabled(t *testing.T) {
+	t.Setenv("GH_AW_FEATURES", "")
+
+	tests := []struct {
+		name     string
+		features map[string]any
+	}{
+		{
+			name:     "enabled when feature absent",
+			features: map[string]any{},
+		},
+		{
+			name: "enabled when explicitly true",
+			features: map[string]any{
+				"inline-agents": true,
+			},
+		},
+		{
+			name: "enabled when explicitly false",
+			features: map[string]any{
+				"inline-agents": false,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{Features: tt.features}
+			result := isFeatureEnabled(constants.InlineAgentsFeatureFlag, workflowData)
+			if !result {
+				t.Errorf("isFeatureEnabled(%q, %+v) = %v, want true", constants.InlineAgentsFeatureFlag, tt.features, result)
+			}
+		})
+	}
+}

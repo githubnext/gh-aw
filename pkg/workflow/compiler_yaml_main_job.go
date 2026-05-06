@@ -418,11 +418,9 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 
 	// Restore inline sub-agents written during the activation job.
 	// This step runs AFTER the base-branch restore so the engine-specific agent directory
-	// is not clobbered. It is guarded by the features.inline-agents flag.
-	if v, ok := data.Features[string(constants.InlineAgentsFeatureFlag)]; ok {
-		if enabled, isBool := v.(bool); isBool && enabled {
-			generateRestoreInlineSubAgentsStep(yaml, data)
-		}
+	// is not clobbered. Inline sub-agents are enabled by default.
+	if isFeatureEnabled(constants.InlineAgentsFeatureFlag, data) {
+		generateRestoreInlineSubAgentsStep(yaml, data)
 	}
 
 	// Add pre-agent-steps (if any) after base-branch restore but before MCP setup.

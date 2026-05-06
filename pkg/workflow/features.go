@@ -22,6 +22,15 @@ func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bo
 		featuresLog.Printf("Checking if feature is enabled: %s", flagLower)
 	}
 
+	// Inline sub-agents are now enabled by default and the corresponding
+	// frontmatter flag is deprecated/no-op.
+	if flagLower == string(constants.InlineAgentsFeatureFlag) {
+		if logEnabled {
+			featuresLog.Printf("Feature %s is deprecated and always enabled", flagLower)
+		}
+		return true
+	}
+
 	// First, check if the feature is explicitly set in frontmatter.
 	// Frontmatter values always take precedence.
 	if enabled, found := getFeatureValueFromFrontmatter(flagLower, workflowData, logEnabled); found {
