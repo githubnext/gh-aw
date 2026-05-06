@@ -543,7 +543,7 @@ This project follows the GitHub Community Guidelines. Please be respectful and i
 
 > **For core team maintainers only.** Community members do not participate in releasing.
 
-Releases are triggered manually by a core team member using `.github/workflows/release.md`.
+Releases are defined in `.github/workflows/release.md` and triggered from the compiled GitHub Actions workflow.
 
 The team follows semantic versioning on a best-effort basis.
 
@@ -553,13 +553,13 @@ The team follows semantic versioning on a best-effort basis.
 
 1. **Launch the release action**
 
-   Go to [Actions → Release](https://github.com/github/gh-aw/actions/workflows/release.md) and click **Run workflow**. Select the release type (`patch`, `minor`, or `major`) and start the run.
+   Go to [Actions → Release](https://github.com/github/gh-aw/actions/workflows/release.lock.yml) and click **Run workflow**. Select the release type (`patch`, `minor`, or `major`) and start the run.
 
    The workflow will build the release binaries, push a new git tag, and then pause — waiting for a required manual step before publishing.
 
 2. **Complete the sync in `github/gh-aw-actions`**
 
-   While the workflow is paused at the `gh-aw-actions-release` environment gate, complete the required handoff in [`github/gh-aw-actions`](https://github.com/github/gh-aw-actions/actions/runs/25454542215/agentic_workflow):
+   While the workflow is paused at the `gh-aw-actions-release` environment gate, complete the required handoff in [`github/gh-aw-actions`](https://github.com/github/gh-aw-actions/actions/workflows/sync-actions.yml):
 
    a. **Run the sync-actions workflow** — go to [Actions → sync-actions](https://github.com/github/gh-aw-actions/actions/workflows/sync-actions.yml) and trigger it with the new release tag (e.g. `v1.2.3`).
 
