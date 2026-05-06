@@ -50,6 +50,7 @@ Collect and analyze firewall logs from all agentic workflows that use the firewa
 Use the `firewall-chart-generator` agent to collect 30-day firewall data, generate the two trend charts, and return their upload URLs. Record the returned `CHART1_URL` and `CHART2_URL` values for embedding in Step 5 of the report using markdown image links:
 - `![Firewall Request Trends](CHART1_URL)`
 - `![Blocked Domains Frequency](CHART2_URL)`
+If the agent returns an `error` field, omit both image embeds and include a brief note in Step 5 that chart generation failed with the reported reason.
 
 ---
 
@@ -127,7 +128,7 @@ This prevents creating empty or meaningless reports when there's no data to anal
 
 ### Step 2–4: Audit and Aggregate Firewall Data
 
-Pass the list of run IDs from Step 1 to the `firewall-data-aggregator` agent as a JSON array string of integers (for example: `[123,456,789]`). Use the returned JSON object (keys: `totals`, `blocked_domains`, `policy_rules`, `denied_requests`) as the data source for Step 5 (Generate Report).
+Pass the list of run IDs from Step 1 to the `firewall-data-aggregator` agent as a JSON array of integers (for example: `[123,456,789]`). Use the returned JSON object (keys: `totals`, `blocked_domains`, `policy_rules`, `denied_requests`) as the data source for Step 5 (Generate Report).
 
 ### Step 5: Generate Report
 
@@ -340,8 +341,8 @@ description: Audits firewall-enabled run IDs and returns aggregated firewall, po
 You are a firewall data aggregation sub-agent.
 
 Input:
-- The input will be provided as a JSON array string of workflow run IDs as integers from Step 1 of the parent workflow (for example: `[123,456,789]`).
-- Parse that JSON string into an array of integers before iterating each run ID.
+- The input will be provided as a JSON array of workflow run IDs as integers from Step 1 of the parent workflow (for example: `[123,456,789]`).
+- Iterate through the array and call `audit` for each run ID.
 
 Task:
 1. For each run ID, call the `audit` tool.
