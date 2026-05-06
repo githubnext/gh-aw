@@ -14,7 +14,7 @@ Here are some pointers to get you started in using this tool.
 Write agentic workflows in natural language markdown, and run them in GitHub Actions.
 
 > [!NOTE]
-> **Releases 0.68.4 through 0.71.3 are being retired** due to a bug that impacts billing. If you are running one of these versions, please upgrade to the latest release as soon as possible. See the [FAQ](#faq) for upgrade instructions.
+> **Releases 0.68.4 through 0.71.3 are being retired** due to a bug that impacts billing. If you are running one of these versions, please upgrade to the latest release as soon as possible.
 
 ## Contents
 
@@ -46,22 +46,6 @@ Using agentic workflows in your repository requires careful attention to securit
 ## Documentation
 
 For complete documentation, examples, and guides, see the [Documentation](https://github.github.com/gh-aw/). If you are an agent, download the [llms.txt](https://github.github.com/gh-aw/llms.txt).
-
-## FAQ
-
-### How do I upgrade to the latest version?
-
-Run the following command to upgrade the `gh-aw` extension:
-
-```bash
-gh extension upgrade github/gh-aw
-```
-
-You can verify your installed version with:
-
-```bash
-gh aw --version
-```
 
 If you are running a version between 0.68.4 and 0.71.3, upgrading is strongly recommended due to a bug that impacts billing.
 
