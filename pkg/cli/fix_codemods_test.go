@@ -43,7 +43,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 	codemods := GetAllCodemods()
 
 	// Verify we have the expected number of codemods
-	expectedCount := 41
+	expectedCount := 42
 	assert.Len(t, codemods, expectedCount, "Should return all %d codemods", expectedCount)
 
 	// Verify all codemods have required fields
@@ -85,6 +85,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"engine-env-secrets-to-engine-config",
 		"serena-tools-to-shared-import",
 		"workflow-run-branches-default",
+		"pull-request-target-checkout-false",
 		"dependabot-toolset-permissions",
 		"features-byok-copilot-removal",
 		"mount-as-clis-to-cli-proxy",
@@ -144,6 +145,7 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"plugins-to-dependencies",
 		"serena-tools-to-shared-import",
 		"workflow-run-branches-default",
+		"pull-request-target-checkout-false",
 		"dependabot-toolset-permissions",
 		"github-repos-to-allowed-repos",
 		"features-byok-copilot-removal",
