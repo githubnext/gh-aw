@@ -72,7 +72,7 @@ steps:
     run: |
       mkdir -p /tmp/gh-aw/agent/community-data
 
-      # Fetch merged PRs from the last 30 days (sufficient for daily attribution updates)
+      # Fetch merged PRs from the last 30 days (daily runs continuously attribute recent closures).
       SINCE=$(date -d '30 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
               || date -v-30d '+%Y-%m-%dT%H:%M:%SZ')
 
@@ -455,7 +455,6 @@ and the Community Contributors wiki page.
 ## Token Budget
 
 - Read each data file once only
-- Use local `community_issues.json` data; do not call `issue_list`
 - Process only `tier3_candidates_capped.json` (≤5 issues)
 - One `issue_read` per Tier 3 candidate
 - Stop after safe-output call
