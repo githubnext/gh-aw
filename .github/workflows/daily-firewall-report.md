@@ -47,7 +47,9 @@ Collect and analyze firewall logs from all agentic workflows that use the firewa
 
 ## 📊 Trend Charts
 
-Use the `firewall-chart-generator` agent to collect 30-day firewall data, generate the two trend charts, and return their upload URLs. Record the returned `CHART1_URL` and `CHART2_URL` values for embedding in Step 5 of the report.
+Use the `firewall-chart-generator` agent to collect 30-day firewall data, generate the two trend charts, and return their upload URLs. Record the returned `CHART1_URL` and `CHART2_URL` values for embedding in Step 5 of the report using markdown image links:
+- `![Firewall Request Trends](CHART1_URL)`
+- `![Blocked Domains Frequency](CHART2_URL)`
 
 ---
 
@@ -321,6 +323,15 @@ Return ONLY a JSON object:
 }
 ```
 
+If chart generation or upload ultimately fails after reasonable retries, return:
+```json
+{
+  "CHART1_URL": "",
+  "CHART2_URL": "",
+  "error": "<brief reason>"
+}
+```
+
 ## agent: `firewall-data-aggregator`
 ---
 model: small
@@ -329,8 +340,8 @@ description: Audits firewall-enabled run IDs and returns aggregated firewall, po
 You are a firewall data aggregation sub-agent.
 
 Input:
-- A JSON array string of workflow run IDs as integers from Step 1 of the parent workflow (for example: `[123,456,789]`).
-- Parse the input as JSON before iterating each run ID.
+- The input will be provided as a JSON array string of workflow run IDs as integers from Step 1 of the parent workflow (for example: `[123,456,789]`).
+- Parse that JSON string into an array of integers before iterating each run ID.
 
 Task:
 1. For each run ID, call the `audit` tool.
