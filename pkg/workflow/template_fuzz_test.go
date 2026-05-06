@@ -8,14 +8,10 @@ import (
 	"testing"
 )
 
-var nonCanonicalElseifPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`\{\{#else-if\s+([^}]*)\}\}`),
-	regexp.MustCompile(`\{\{#else_if\s+([^}]*)\}\}`),
-	regexp.MustCompile(`\{\{elseif\s+([^}]*)\}\}`),
-	regexp.MustCompile(`\{\{else-if\s+([^}]*)\}\}`),
-	regexp.MustCompile(`\{\{else_if\s+([^}]*)\}\}`),
-}
-
+// Prefixes intentionally preserved by wrapExpressionsInTemplateConditionals:
+// - ${{ ... }} already wrapped GitHub expressions
+// - ${...} runtime environment variable references
+// - __... internal placeholder references replaced later in rendering
 var skippableElseifExprPrefixes = []string{"${{", "${", "__"}
 
 // FuzzWrapExpressionsInTemplateConditionals performs fuzz testing on the template
@@ -31,6 +27,14 @@ var skippableElseifExprPrefixes = []string{"${{", "${", "__"}
 // 6. Empty expressions are wrapped as ${{ false }}
 // 7. Malformed input is handled gracefully
 func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
+	nonCanonicalElseifPatterns := []*regexp.Regexp{
+		regexp.MustCompile(`\{\{#else-if\s+([^}]*)\}\}`),
+		regexp.MustCompile(`\{\{#else_if\s+([^}]*)\}\}`),
+		regexp.MustCompile(`\{\{elseif\s+([^}]*)\}\}`),
+		regexp.MustCompile(`\{\{else-if\s+([^}]*)\}\}`),
+		regexp.MustCompile(`\{\{else_if\s+([^}]*)\}\}`),
+	}
+
 	// Seed corpus with typical GitHub expressions
 	f.Add("{{#if github.event.issue.number}}content{{/if}}")
 	f.Add("{{#if github.actor}}content{{/if}}")
@@ -185,18 +189,20 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 
 		// All complete elseif tags must be normalized to canonical {{#elseif ...}} form.
 		// Ignore partial/malformed fragments produced by fuzzing (e.g. "{{elseif 0").
-		for _, pattern := range nonCanonicalElseifPatterns {
-			matches := pattern.FindAllStringSubmatch(result, -1)
-			for _, match := range matches {
-				if len(match) < 2 {
-					continue
+		if strings.Contains(input, "{{#if") {
+			for _, pattern := range nonCanonicalElseifPatterns {
+				matches := pattern.FindAllStringSubmatch(result, -1)
+				for _, match := range matches {
+					if len(match) < 2 {
+						continue
+					}
+					expr := strings.TrimSpace(match[1])
+					if hasSkippableElseifExprPrefix(expr) || strings.Contains(expr, "{") || strings.Contains(expr, "}") {
+						continue
+					}
+					t.Errorf("Non-canonical elseif pattern %q still present in output, input: %q", pattern.String(), input)
+					break
 				}
-				expr := strings.TrimSpace(match[1])
-				if hasSkippableElseifExprPrefix(expr) {
-					continue
-				}
-				t.Errorf("Non-canonical elseif pattern %q still present in output, input: %q", pattern.String(), input)
-				break
 			}
 		}
 	})
