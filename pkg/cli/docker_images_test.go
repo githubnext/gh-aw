@@ -271,6 +271,7 @@ func TestMockImageAvailability(t *testing.T) {
 }
 
 func TestNormalizeDockerContext_NilReturnsBackground(t *testing.T) {
+	//nolint:staticcheck // Intentionally validating nil context normalization behavior.
 	ctx := normalizeDockerContext(nil)
 
 	if ctx == nil {
@@ -283,7 +284,7 @@ func TestNormalizeDockerContext_NilReturnsBackground(t *testing.T) {
 }
 
 func TestNormalizeDockerContext_PreservesNonNilContext(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	if normalizeDockerContext(ctx) != ctx {
@@ -295,6 +296,7 @@ func TestIsDockerAvailable_NilContext(t *testing.T) {
 	ResetDockerPullState()
 	SetMockDockerAvailable(true)
 
+	//nolint:staticcheck // Intentionally validating nil context handling behavior.
 	if !IsDockerAvailable(nil) {
 		t.Error("Expected IsDockerAvailable to handle nil context")
 	}
@@ -308,6 +310,7 @@ func TestIsDockerImageAvailable_NilContext(t *testing.T) {
 	testImage := "test/nil-context-image:v1.0.0"
 	SetMockImageAvailable(testImage, true)
 
+	//nolint:staticcheck // Intentionally validating nil context handling behavior.
 	if !IsDockerImageAvailable(nil, testImage) {
 		t.Error("Expected IsDockerImageAvailable to handle nil context")
 	}
@@ -507,6 +510,7 @@ func TestStartDockerImageDownload_NilContext(t *testing.T) {
 	testImage := "test/nil-context-download:v1.0.0"
 	SetMockImageAvailable(testImage, true)
 
+	//nolint:staticcheck // Intentionally validating nil context handling behavior.
 	if StartDockerImageDownload(nil, testImage) {
 		t.Error("Expected download not to start for available image with nil context")
 	}
