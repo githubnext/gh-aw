@@ -141,6 +141,34 @@ function getExampleValue(prop, propName = "") {
 }
 
 /**
+ * Returns true if a schema variant is a constraint-only annotation (e.g. a
+ * mutual-exclusion rule expressed with required/not) rather than a real input
+ * shape. We check the unresolved variant so that $ref entries—which always
+ * represent real input shapes—are never classified as constraint-only even when
+ * their type/description lives inside the referenced definition.
+ * @param {object} variant - Unresolved schema variant object
+ */
+function isConstraintOnlyVariant(variant) {
+  return !variant.type && !variant.description && !variant.$ref;
+}
+
+/**
+ * Returns a human-readable label for a resolved schema variant, used as the
+ * "Format N: <label>" suffix.
+ * Priority: variant description → variant type → "Configuration object" for
+ * complex nested schemas (e.g. $ref definitions that contain their own oneOf
+ * union) → null if nothing is available.
+ * @param {object} resolvedVariant - Variant object after $ref resolution
+ * @returns {string|null}
+ */
+function getVariantLabel(resolvedVariant) {
+  if (resolvedVariant.description) return resolvedVariant.description;
+  if (resolvedVariant.type) return resolvedVariant.type;
+  if (resolvedVariant.oneOf || resolvedVariant.anyOf) return "Configuration object";
+  return null;
+}
+
+/**
  * Generate YAML for a property with variants (oneOf/anyOf)
  */
 function generateVariants(prop, propName, indent = 0, required = []) {
@@ -165,13 +193,12 @@ function generateVariants(prop, propName, indent = 0, required = []) {
 
   // Constraint-only variants (e.g. mutual-exclusion rules using required/not/anyOf
   // without a type, description, or $ref) are schema validation annotations, not
-  // alternate input shapes. $ref variants always represent real input shapes even
-  // when their type/description lives inside the referenced definition, so we check
-  // the unresolved variants to correctly exclude $ref entries from this test.
+  // alternate input shapes. Check the unresolved variants so that $ref entries
+  // are not mistakenly classified as constraints (their type/description lives
+  // inside the referenced definition).
   // When every variant is constraint-only, render the property normally using its
   // top-level type/properties instead.
-  const isConstraintOnly = v => !v.type && !v.description && !v.$ref;
-  const allConstraints = variants && variants.length > 0 && variants.every(isConstraintOnly);
+  const allConstraints = variants && variants.length > 0 && variants.every(isConstraintOnlyVariant);
 
   // Resolve $refs so that labels (Format N: <desc>) show the referenced description.
   const resolvedVariants = variants ? variants.map(resolvePropertyRef) : variants;
@@ -180,10 +207,8 @@ function generateVariants(prop, propName, indent = 0, required = []) {
     lines.push(formatComment(`Accepted formats:`, indent));
 
     resolvedVariants.forEach((variant, index) => {
-      // Build a human-readable label: prefer the variant's own description, then
-      // its type, then fall back to "Configuration object" for complex nested
-      // schemas (e.g. $ref definitions that themselves contain a oneOf union).
-      const variantLabel = variant.description || variant.type || (variant.oneOf || variant.anyOf ? "Configuration object" : null);
+      // Build a human-readable label for this format entry.
+      const variantLabel = getVariantLabel(variant);
 
       // Skip variants that have no label and no renderable content.
       if (!variantLabel) return;
@@ -223,8 +248,9 @@ function generateVariants(prop, propName, indent = 0, required = []) {
   } else {
     // No variants, or all variants are constraint-only (validation annotations):
     // render the property directly using its top-level type/properties.
-    // Strip description/required-flag from the prop since generateVariants already
-    // emitted those header comments above.
+    // Strip description from the prop since generateVariants already emitted
+    // the description comment above. Pass isRequired=true to also suppress the
+    // redundant "(optional)" comment that was already emitted.
     lines.push(...generateProperty(propName, { ...prop, description: undefined }, indent, true));
   }
 
