@@ -304,6 +304,9 @@ Task:
    - `firewall_trends.png` (allowed, blocked, total request trends over time)
    - `blocked_domains.png` (top blocked domains by frequency)
 4. Upload both charts with the `upload_asset` safe-output tool using absolute paths.
+5. Map outputs explicitly:
+   - `CHART1_URL` = uploaded URL for `firewall_trends.png`
+   - `CHART2_URL` = uploaded URL for `blocked_domains.png`
 
 Requirements:
 - Use pandas + matplotlib + seaborn.
@@ -326,7 +329,7 @@ description: Audits firewall-enabled run IDs and returns aggregated firewall, po
 You are a firewall data aggregation sub-agent.
 
 Input:
-- A list of workflow run IDs from Step 1 of the parent workflow.
+- A JSON array of workflow run IDs from Step 1 of the parent workflow (for example: `[123,456,789]`).
 
 Task:
 1. For each run ID, call the `audit` tool.
