@@ -48,9 +48,9 @@ Collect and analyze firewall logs from all agentic workflows that use the firewa
 ## 📊 Trend Charts
 
 Use the `firewall-chart-generator` agent to collect 30-day firewall data, generate the two trend charts, and return their upload URLs. Record the returned `CHART1_URL` and `CHART2_URL` values for embedding in Step 5 of the report using markdown image links:
-- `![Firewall Request Trends](CHART1_URL)`
-- `![Blocked Domains Frequency](CHART2_URL)`
-If the agent returns an `error` field, omit both image embeds and include a brief note in Step 5 that chart generation failed with the reported reason.
+- `![Firewall Request Trends](<CHART1_URL returned by the sub-agent>)`
+- `![Blocked Domains Frequency](<CHART2_URL returned by the sub-agent>)`
+If the agent returns an `error` field, omit both image embeds and include a brief note in the final report that chart generation failed with the reported reason.
 
 ---
 
@@ -128,7 +128,14 @@ This prevents creating empty or meaningless reports when there's no data to anal
 
 ### Step 2–4: Audit and Aggregate Firewall Data
 
-Pass the list of run IDs from Step 1 to the `firewall-data-aggregator` agent as a JSON array of integers (for example: `[123,456,789]`). Use the returned JSON object (keys: `totals`, `blocked_domains`, `policy_rules`, `denied_requests`) as the data source for Step 5 (Generate Report).
+Pass the list of run IDs from Step 1 to the `firewall-data-aggregator` agent as a JSON array of integers (for example: `[123,456,789]`).
+Example invocation payload:
+```json
+{
+  "run_ids": [123,456,789]
+}
+```
+Use the returned JSON object (keys: `totals`, `blocked_domains`, `policy_rules`, `denied_requests`) as the data source for Step 5 (Generate Report).
 
 ### Step 5: Generate Report
 
@@ -307,7 +314,7 @@ Task:
    - `firewall_requests_trends.png` (allowed, blocked, total request trends over time)
    - `blocked_domains_frequency.png` (top blocked domains by frequency)
 4. Upload both charts with the `upload_asset` safe-output tool using absolute paths.
-5. Map outputs explicitly:
+5. Return a JSON object with these exact field mappings:
    - `CHART1_URL` = uploaded URL for `firewall_requests_trends.png`
    - `CHART2_URL` = uploaded URL for `blocked_domains_frequency.png`
 
@@ -341,7 +348,7 @@ description: Audits firewall-enabled run IDs and returns aggregated firewall, po
 You are a firewall data aggregation sub-agent.
 
 Input:
-- The input will be provided as a JSON array of workflow run IDs as integers from Step 1 of the parent workflow (for example: `[123,456,789]`).
+- A JSON array of workflow run IDs as integers (for example: `[123,456,789]`).
 - Iterate through the array and call `audit` for each run ID.
 
 Task:
