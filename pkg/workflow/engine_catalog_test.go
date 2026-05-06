@@ -97,7 +97,7 @@ func TestEngineCatalog_BuiltInsPresent(t *testing.T) {
 func TestEngineCatalogMatchesSchema(t *testing.T) {
 	variants := engineSchemaOneOfVariants(t)
 
-	require.Len(t, variants, 4, "engine_config oneOf should have exactly 4 variants: string, object-with-id, object-with-runtime, engine-definition")
+	require.Len(t, variants, 5, "engine_config oneOf should have exactly 5 variants: string, object-with-id, object-with-runtime, engine-definition, mcp-only")
 
 	// Variant 0: plain string (no enum — allows built-ins and custom named catalog entries)
 	assert.Equal(t, "string", variants[0]["type"],
@@ -135,4 +135,14 @@ func TestEngineCatalogMatchesSchema(t *testing.T) {
 	assert.Contains(t, props3, "id", "engine definition variant should have an 'id' property")
 	assert.Contains(t, props3, "display-name", "engine definition variant should have a 'display-name' property")
 	assert.Contains(t, props3, "auth", "engine definition variant should have an 'auth' property")
+
+	// Variant 4: mcp-only form for shared workflow imports (no engine id required)
+	assert.Equal(t, "object", variants[4]["type"],
+		"fifth variant should be type object (mcp-only for shared workflows)")
+	props4, ok := variants[4]["properties"].(map[string]any)
+	require.True(t, ok, "fifth variant should have properties")
+	assert.Contains(t, props4, "mcp",
+		"mcp-only variant should have an 'mcp' property")
+	assert.NotContains(t, props4, "id",
+		"mcp-only variant must NOT have an 'id' property")
 }
