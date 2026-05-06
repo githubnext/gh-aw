@@ -657,7 +657,7 @@ async function main(config = {}) {
           await exec.exec(`git am --3way ${patchFilePath}`, [], baseGitOpts);
           core.info("Patch applied successfully");
         } catch (error) {
-          core.error(`Failed to apply patch: ${getErrorMessage(error)}`);
+          core.warning(`Initial patch apply failed, attempting add/add recovery: ${getErrorMessage(error)}`);
           let recoveredFromAddAddConflict = false;
 
           // Automatic recovery for add/add conflicts:
@@ -699,6 +699,7 @@ async function main(config = {}) {
           if (recoveredFromAddAddConflict) {
             // Continue with normal push flow
           } else {
+            core.error(`Failed to apply patch: ${getErrorMessage(error)}`);
             // Investigate patch failure
             try {
               core.info("Investigating patch failure...");
