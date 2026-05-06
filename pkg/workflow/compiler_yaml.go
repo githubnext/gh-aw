@@ -444,8 +444,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	//   - Agent files WITHOUT inputs: path is in data.ImportPaths → included by Step 1b.
 	//   - Agent files WITH inputs: content is in data.ImportedMarkdown → included by Step 1a.
 	//   - inlined-imports mode: data.AgentFile is cleared; content is in data.ImportPaths.
-	// All current engines (Claude, Codex, Gemini, Copilot) use this mechanism: GetCapabilities().NativeAgentFile == false
-	// returns false and they read the fully-assembled prompt.txt in GetExecutionSteps.
+	// All current engines (Claude, Codex, Gemini, Copilot) use this mechanism: NativeAgentFile is false,
+	// and they read the fully-assembled prompt.txt in GetExecutionSteps.
 
 	var userPromptChunks []string
 	var expressionMappings []*ExpressionMapping

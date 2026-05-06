@@ -132,7 +132,7 @@ type MyEngine struct {
 - [ ] Define engine struct embedding `BaseEngine`
 - [ ] Implement constructor function `NewMyEngine()`
 - [ ] Set engine ID, display name, description, and experimental status
-- [ ] Configure capability flags (tools allowlist, max turns, web fetch/search, firewall, plugins, LLM gateway)
+- [ ] Configure `BaseEngine.capabilities` (`ToolsAllowlist`, `MaxTurns`, `WebSearch`, `MaxContinuations`, `NativeAgentFile`, `BareMode`) as needed
 - [ ] Add engine constant to `pkg/constants/constants.go` (optional but recommended)
 - [ ] Register default firewall domains in `pkg/workflow/domains.go` (see [Firewall Domain Registration](#firewall-domain-registration))
 
@@ -182,7 +182,7 @@ type MyEngine struct {
 - [ ] Test secret validation
 - [ ] Test capability detection
 - [ ] Add integration tests if needed
-- [ ] Verify interface compliance (existing `agentic_engine_interfaces_test.go` will validate)
+- [ ] Add a compile-time interface assertion (for example, `var _ CodingAgentEngine = NewMyEngine()`)
 
 ### Phase 8: Documentation
 
@@ -625,7 +625,13 @@ Integration tests should validate:
 
 ### Interface Compliance Tests
 
-The existing `agentic_engine_interfaces_test.go` automatically validates that all registered engines implement required interfaces. No additional tests needed for basic interface compliance.
+Add a small compile-time assertion in your engine test file to ensure the constructor still returns a `CodingAgentEngine`:
+
+```go
+func TestMyEngine_ImplementsCodingAgentEngine(t *testing.T) {
+    var _ CodingAgentEngine = NewMyEngine()
+}
+```
 
 ## Documentation Requirements
 
@@ -659,7 +665,7 @@ If the engine has specific guidelines or patterns, add to `AGENTS.md`:
 
 **Default version**: 1.0.0
 **Required secrets**: MY_ENGINE_API_KEY
-**Supports**: Tools allowlist, max turns, web fetch/search, firewall
+**Capabilities**: Tools allowlist, max turns, web search
 
 **Example usage**:
 ```yaml
@@ -723,12 +729,12 @@ func (e *SimpleEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 }
 ```
 
-### Full-Featured Engine (With MCP, Firewall, etc.)
+### Full-Featured Engine (With MCP and richer capabilities)
 
 See existing implementations:
-- **Copilot**: Full MCP support, firewall, plugins - `copilot_engine.go`
-- **Claude**: Full MCP support, firewall, max turns - `claude_engine.go`
-- **Codex**: Full MCP support, firewall, TOML config - `codex_engine.go`
+- **Copilot**: MCP allowlist, max continuations, bare mode - `copilot_engine.go`
+- **Claude**: MCP allowlist, max turns, web search, bare mode - `claude_engine.go`
+- **Codex**: MCP allowlist, web search, TOML config - `codex_engine.go`
 
 ## Common Patterns
 
@@ -765,7 +771,7 @@ step := GenerateMultiSecretValidationStep(
 
 ### Firewall Domain Registration
 
-Engines that support the firewall (`SupportsFirewall() bool`) must declare their default allowed domains in `pkg/workflow/domains.go`. The `engineDefaultDomains` map provides the centralized registry:
+Engines that rely on AWF/network sandboxing should declare their default allowed domains in `pkg/workflow/domains.go`. The `engineDefaultDomains` map provides the centralized registry:
 
 ```go
 // In pkg/workflow/domains.go
