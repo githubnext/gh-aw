@@ -18,6 +18,8 @@ const { computeEffectiveTokens, getTokenClassWeights, formatET } = require("./ef
  */
 
 const TOKEN_USAGE_PATH = "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
+const MAX_RPC_SUMMARY_DETAILS_LENGTH = 120;
+const MAX_RPC_SUMMARY_GENERIC_LENGTH = 160;
 
 /**
  * Formats milliseconds as a human-readable duration string.
@@ -349,7 +351,7 @@ function escapeMarkdownTableCell(value) {
  */
 function truncateSummaryValue(value, maxLength) {
   if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength - 1)}…`;
+  return `${value.slice(0, maxLength - 3)}...`;
 }
 
 /**
@@ -362,7 +364,7 @@ function summarizeRpcResponseEntry(entry) {
   const error = payload.error && typeof payload.error === "object" ? payload.error : null;
   if (error) {
     const code = error.code != null ? ` ${error.code}` : "";
-    const message = truncateSummaryValue(String(error.message || "Unknown error"), 120);
+    const message = truncateSummaryValue(String(error.message || "Unknown error"), MAX_RPC_SUMMARY_DETAILS_LENGTH);
     return {
       status: "error",
       details: `error${code}: ${message}`,
@@ -392,7 +394,7 @@ function summarizeRpcResponseEntry(entry) {
   if (result !== undefined) {
     return {
       status: "ok",
-      details: truncateSummaryValue(JSON.stringify(result), 120),
+      details: truncateSummaryValue(JSON.stringify(result), MAX_RPC_SUMMARY_DETAILS_LENGTH),
     };
   }
 
@@ -439,10 +441,10 @@ function summarizeGenericRpcEntry(entry) {
   }
 
   if (parts.length === 0) {
-    return "—";
+    return "-";
   }
 
-  return truncateSummaryValue(parts.join(" · "), 160);
+  return truncateSummaryValue(parts.join(" · "), MAX_RPC_SUMMARY_GENERIC_LENGTH);
 }
 
 /**
