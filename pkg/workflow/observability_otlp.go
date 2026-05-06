@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -382,6 +383,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	//    OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_SERVICE_NAME are set to the first
 	//    endpoint for backward compatibility (MCP gateway, legacy scripts).
 	otlpEnvLines := fmt.Sprintf("  OTEL_EXPORTER_OTLP_ENDPOINT: %s\n  OTEL_SERVICE_NAME: gh-aw", firstEndpoint)
+	otlpEnvLines += fmt.Sprintf("\n  COPILOT_OTEL_FILE_EXPORTER_PATH: /tmp/gh-aw/%s", constants.CopilotOtelJsonlFilename)
 
 	// 3. Inject per-endpoint headers env vars.
 	//    OTEL_EXPORTER_OTLP_HEADERS = first endpoint headers (backward compat).
