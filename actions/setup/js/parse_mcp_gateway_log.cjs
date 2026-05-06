@@ -351,6 +351,7 @@ function escapeMarkdownTableCell(value) {
  */
 function truncateSummaryValue(value, maxLength) {
   const text = String(value);
+  if (maxLength <= 0) return "";
   if (text.length <= maxLength) return text;
   if (maxLength < 3) return text.slice(0, Math.max(maxLength, 0));
   return `${text.slice(0, maxLength - 3)}...`;
@@ -415,11 +416,11 @@ function summarizeGenericRpcEntry(entry) {
   const parts = [];
   const topLevelIgnoredKeys = new Set(["timestamp", "direction", "type", "server_id", "payload"]);
   const pushPart = (key, value) => {
-    parts.push(`${key}=${truncateSummaryValue(String(value), MAX_RPC_SUMMARY_DETAILS_LENGTH)}`);
+    parts.push(`${key}=${truncateSummaryValue(String(value), MAX_RPC_SUMMARY_GENERIC_LENGTH)}`);
   };
 
   for (const [key, value] of Object.entries(entry)) {
-    if (topLevelIgnoredKeys.has(key) || value == null || typeof value === "object") continue;
+    if (topLevelIgnoredKeys.has(key) || value === null || value === undefined || typeof value === "object") continue;
     pushPart(key, value);
   }
 
