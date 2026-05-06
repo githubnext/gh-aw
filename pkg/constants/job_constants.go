@@ -122,6 +122,11 @@ const GithubRateLimitsFilename = "github_rate_limits.jsonl"
 // Included in the agent artifact so spans are available without a live collector.
 const OtelJsonlFilename = "otel.jsonl"
 
+// CopilotOtelJsonlFilename is the filename of the Copilot CLI OpenTelemetry
+// file-exporter output written to /tmp/gh-aw/.
+// Each line is a JSON payload emitted by Copilot CLI.
+const CopilotOtelJsonlFilename = "copilot-otel.jsonl"
+
 // ArtifactPrefixOutputName is the job output name that exposes the artifact name prefix.
 // In workflow_call context, the prefix is a stable hash derived from the workflow inputs,
 // ensuring artifact names are unique when the same workflow is called multiple times in

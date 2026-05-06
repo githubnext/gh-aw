@@ -85,7 +85,7 @@ Examples:
 
 			// Handle audit mode
 			if auditFlag {
-				return runDependencyAudit(verbose, jsonOutput)
+				return runDependencyAudit(cmd.Context(), verbose, jsonOutput)
 			}
 
 			if createPR {
@@ -130,11 +130,11 @@ Examples:
 }
 
 // runDependencyAudit performs a dependency health audit
-func runDependencyAudit(verbose bool, jsonOutput bool) error {
+func runDependencyAudit(ctx context.Context, verbose bool, jsonOutput bool) error {
 	upgradeLog.Print("Running dependency health audit")
 
 	// Generate comprehensive report
-	report, err := GenerateDependencyReport(verbose)
+	report, err := GenerateDependencyReport(ctx, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to generate dependency report: %w", err)
 	}

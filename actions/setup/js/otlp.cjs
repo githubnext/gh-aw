@@ -59,8 +59,7 @@ require(path.join(__dirname, "shim.cjs"));
  *
  * @param {string} toolName
  *   Logical name for the tool being instrumented (e.g. `"my-scanner"`).
- *   Used as both the OTLP `service.name` resource attribute and as the span
- *   name prefix: `<toolName>.run`.
+ *   Used as the span name prefix: `<toolName>.run`.
  *
  * @param {Record<string, string | number | boolean>} [attributes]
  *   Domain-specific span attributes emitted under the tool's own namespace.
@@ -107,6 +106,7 @@ async function logSpan(toolName, attributes = {}, options = {}) {
     const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
     const staged = awInfo.staged === true || process.env.GH_AW_INFO_STAGED === "true";
     const scopeVersion = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
+    const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
 
     const resourceAttributes = buildGitHubActionsResourceAttributes({
       repository: process.env.GITHUB_REPOSITORY || "",
@@ -127,7 +127,7 @@ async function logSpan(toolName, attributes = {}, options = {}) {
       spanName: `${toolName}.run`,
       startMs,
       endMs,
-      serviceName: toolName,
+      serviceName,
       scopeVersion,
       kind: SPAN_KIND_CLIENT,
       attributes: spanAttrs,

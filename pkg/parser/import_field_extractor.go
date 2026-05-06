@@ -550,7 +550,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 
 // observabilityImportEndpoint is an endpoint entry used during import merging.
 // Headers are kept as any (original format: string or map) so that the workflow
-// package can later detect the deprecated string form and normalise correctly.
+// package can later normalise both supported forms correctly.
 type observabilityImportEndpoint struct {
 	URL     string `json:"url"`
 	Headers any    `json:"headers,omitempty"`

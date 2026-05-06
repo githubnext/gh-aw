@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"maps"
 	"net/url"
-	"os"
 	"sort"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -18,24 +17,21 @@ var otlpLog = logger.New("workflow:observability_otlp")
 // normalizeOTLPHeaders converts the headers field value (which may be a string or a map)
 // into the comma-separated key=value format required by OTEL_EXPORTER_OTLP_HEADERS.
 //
-// The second return value is true when the deprecated string form was used, so callers
-// can emit a deprecation warning.
-//
-// String form (deprecated): "Authorization=Bearer tok,X-Tenant=acme"
-// Map form (preferred):     map[string]any{"Authorization": "Bearer tok", "X-Tenant": "acme"}
-func normalizeOTLPHeaders(raw any) (string, bool) {
+// String form: "Authorization=Bearer tok,X-Tenant=acme"
+// Map form:    map[string]any{"Authorization": "Bearer tok", "X-Tenant": "acme"}
+func normalizeOTLPHeaders(raw any) string {
 	if raw == nil {
-		return "", false
+		return ""
 	}
 	switch v := raw.(type) {
 	case string:
 		if v == "" {
-			return "", false
+			return ""
 		}
-		return v, true // string form is deprecated
+		return v
 	case map[string]any:
 		if len(v) == 0 {
-			return "", false
+			return ""
 		}
 		// Sort keys for deterministic output
 		keys := make([]string, 0, len(v))
@@ -52,10 +48,10 @@ func normalizeOTLPHeaders(raw any) (string, bool) {
 			}
 			parts = append(parts, k+"="+val)
 		}
-		return strings.Join(parts, ","), false
+		return strings.Join(parts, ",")
 	default:
 		otlpLog.Printf("Unexpected type for OTLP headers: %T", raw)
-		return "", false
+		return ""
 	}
 }
 
@@ -154,27 +150,25 @@ type otlpEndpointEntry struct {
 //   - an object: {url: "...", headers: {...}} — single endpoint with per-endpoint headers
 //   - an array:  [{url: ..., headers: ...}, ...] — multiple endpoints for concurrent fan-out
 //
-// Returns a non-nil slice when at least one valid endpoint is found, and a boolean
-// indicating whether the deprecated string form was used for any headers value.
-func collectAllOTLPEndpoints(frontmatter map[string]any) ([]otlpEndpointEntry, bool) {
+// Returns a non-nil slice when at least one valid endpoint is found.
+func collectAllOTLPEndpoints(frontmatter map[string]any) []otlpEndpointEntry {
 	var entries []otlpEndpointEntry
-	anyDeprecated := false
 
 	obs, ok := frontmatter["observability"]
 	if !ok {
-		return entries, anyDeprecated
+		return entries
 	}
 	obsMap, ok := obs.(map[string]any)
 	if !ok {
-		return entries, anyDeprecated
+		return entries
 	}
 	otlpRaw, ok := obsMap["otlp"]
 	if !ok {
-		return entries, anyDeprecated
+		return entries
 	}
 	otlpMap, ok := otlpRaw.(map[string]any)
 	if !ok {
-		return entries, anyDeprecated
+		return entries
 	}
 
 	endpointRaw := otlpMap["endpoint"]
@@ -184,10 +178,7 @@ func collectAllOTLPEndpoints(frontmatter map[string]any) ([]otlpEndpointEntry, b
 	case string:
 		// Backward-compat string form: endpoint: "https://..."
 		if ep != "" {
-			headers, dep := normalizeOTLPHeaders(topHeadersRaw)
-			if dep {
-				anyDeprecated = true
-			}
+			headers := normalizeOTLPHeaders(topHeadersRaw)
 			entries = append(entries, otlpEndpointEntry{URL: ep, Headers: headers})
 		}
 	case map[string]any:
@@ -195,11 +186,7 @@ func collectAllOTLPEndpoints(frontmatter map[string]any) ([]otlpEndpointEntry, b
 		if url, _ := ep["url"].(string); url != "" {
 			headers := ""
 			if h, hasH := ep["headers"]; hasH {
-				var dep bool
-				headers, dep = normalizeOTLPHeaders(h)
-				if dep {
-					anyDeprecated = true
-				}
+				headers = normalizeOTLPHeaders(h)
 			}
 			entries = append(entries, otlpEndpointEntry{URL: url, Headers: headers})
 		}
@@ -216,17 +203,13 @@ func collectAllOTLPEndpoints(frontmatter map[string]any) ([]otlpEndpointEntry, b
 			}
 			headers := ""
 			if h, hasH := itemMap["headers"]; hasH {
-				var dep bool
-				headers, dep = normalizeOTLPHeaders(h)
-				if dep {
-					anyDeprecated = true
-				}
+				headers = normalizeOTLPHeaders(h)
 			}
 			entries = append(entries, otlpEndpointEntry{URL: url, Headers: headers})
 		}
 	}
 
-	return entries, anyDeprecated
+	return entries
 }
 
 // encodeOTLPEndpoints serialises a slice of otlpEndpointEntry values to a compact
@@ -333,7 +316,7 @@ func allOTLPHeaders(entries []otlpEndpointEntry) string {
 // When no OTLP endpoint is configured the function is a no-op.
 func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	// Collect all endpoint entries from the endpoint field (string, object, or array).
-	entries, deprecated := collectAllOTLPEndpoints(workflowData.RawFrontmatter)
+	entries := collectAllOTLPEndpoints(workflowData.RawFrontmatter)
 
 	// Fall back to ParsedFrontmatter when raw map extraction found nothing.
 	if len(entries) == 0 {
@@ -341,11 +324,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 			var h string
 			if workflowData.ParsedFrontmatter.Observability != nil &&
 				workflowData.ParsedFrontmatter.Observability.OTLP != nil {
-				var dep bool
-				h, dep = normalizeOTLPHeaders(workflowData.ParsedFrontmatter.Observability.OTLP.Headers)
-				if dep {
-					deprecated = true
-				}
+				h = normalizeOTLPHeaders(workflowData.ParsedFrontmatter.Observability.OTLP.Headers)
 			}
 			entries = []otlpEndpointEntry{{URL: ep, Headers: h}}
 		}
@@ -353,13 +332,6 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 
 	if len(entries) == 0 {
 		return
-	}
-
-	// Emit the deprecation warning once after resolving headers from all sources.
-	if deprecated {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-			"observability.otlp.headers: string form is deprecated. Use the map form instead (e.g. headers: {Authorization: \"Bearer ${{ secrets.TOKEN }}\"})",
-		))
 	}
 
 	otlpLog.Printf("Injecting OTLP configuration: %d endpoint(s)", len(entries))
@@ -382,6 +354,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	//    OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_SERVICE_NAME are set to the first
 	//    endpoint for backward compatibility (MCP gateway, legacy scripts).
 	otlpEnvLines := fmt.Sprintf("  OTEL_EXPORTER_OTLP_ENDPOINT: %s\n  OTEL_SERVICE_NAME: gh-aw", firstEndpoint)
+	otlpEnvLines += fmt.Sprintf("\n  COPILOT_OTEL_FILE_EXPORTER_PATH: /tmp/gh-aw/%s", constants.CopilotOtelJsonlFilename)
 
 	// 3. Inject per-endpoint headers env vars.
 	//    OTEL_EXPORTER_OTLP_HEADERS = first endpoint headers (backward compat).

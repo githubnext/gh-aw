@@ -462,3 +462,74 @@ func TestSpec_PublicAPI_UpdateScheduleInOnBlock(t *testing.T) {
 		assert.Error(t, err, "UpdateScheduleInOnBlock should return error when no frontmatter lines present")
 	})
 }
+
+// TestSpec_PublicAPI_CalculateWorkflowHealth validates the pure health computation documented in the spec.
+// Spec: "Pure health computation for a single workflow"
+func TestSpec_PublicAPI_CalculateWorkflowHealth(t *testing.T) {
+	t.Run("returns N/A display values for empty runs", func(t *testing.T) {
+		health := cli.CalculateWorkflowHealth("my-workflow", nil, 80.0)
+		assert.Equal(t, "my-workflow", health.WorkflowName, "WorkflowName should be the provided name")
+		assert.Equal(t, "N/A", health.DisplayRate, "DisplayRate should be N/A for empty runs")
+		assert.Equal(t, "→", health.Trend, "Trend should be stable for empty runs")
+		assert.Equal(t, 0, health.TotalRuns, "TotalRuns should be 0 for empty runs")
+	})
+
+	t.Run("counts successful and failed runs correctly", func(t *testing.T) {
+		runs := []cli.WorkflowRun{
+			{WorkflowName: "my-workflow", Conclusion: "success"},
+			{WorkflowName: "my-workflow", Conclusion: "success"},
+			{WorkflowName: "my-workflow", Conclusion: "failure"},
+		}
+		health := cli.CalculateWorkflowHealth("my-workflow", runs, 80.0)
+		assert.Equal(t, 3, health.TotalRuns, "TotalRuns should count all runs")
+		assert.Equal(t, 2, health.SuccessCount, "SuccessCount should count runs with success conclusion")
+		assert.Equal(t, 1, health.FailureCount, "FailureCount should count failure-conclusion runs")
+		assert.InDelta(t, 66.67, health.SuccessRate, 0.1, "SuccessRate should be the percentage of successes")
+	})
+
+	t.Run("sets BelowThresh true when success rate is below threshold", func(t *testing.T) {
+		runs := []cli.WorkflowRun{
+			{WorkflowName: "my-workflow", Conclusion: "failure"},
+			{WorkflowName: "my-workflow", Conclusion: "failure"},
+		}
+		health := cli.CalculateWorkflowHealth("my-workflow", runs, 80.0)
+		assert.True(t, health.BelowThresh, "BelowThresh should be true when success rate is below threshold")
+	})
+
+	t.Run("sets BelowThresh false when success rate meets threshold", func(t *testing.T) {
+		runs := []cli.WorkflowRun{
+			{WorkflowName: "my-workflow", Conclusion: "success"},
+			{WorkflowName: "my-workflow", Conclusion: "success"},
+			{WorkflowName: "my-workflow", Conclusion: "success"},
+			{WorkflowName: "my-workflow", Conclusion: "success"},
+		}
+		health := cli.CalculateWorkflowHealth("my-workflow", runs, 80.0)
+		assert.False(t, health.BelowThresh, "BelowThresh should be false when all runs succeed")
+		assert.Equal(t, 4, health.SuccessCount, "SuccessCount should count all successful runs")
+	})
+}
+
+// TestSpec_PublicAPI_CalculateHealthSummary validates the aggregate health computation documented in the spec.
+// Spec: "Aggregate health computation"
+func TestSpec_PublicAPI_CalculateHealthSummary(t *testing.T) {
+	t.Run("returns correct totals for empty workflow list", func(t *testing.T) {
+		summary := cli.CalculateHealthSummary(nil, "30d", 80.0)
+		assert.Equal(t, "30d", summary.Period, "Period should match the input period")
+		assert.Equal(t, 0, summary.TotalWorkflows, "TotalWorkflows should be 0 for empty input")
+		assert.Equal(t, 0, summary.HealthyWorkflows, "HealthyWorkflows should be 0 for empty input")
+	})
+
+	t.Run("counts healthy workflows and preserves period", func(t *testing.T) {
+		whs := []cli.WorkflowHealth{
+			{WorkflowName: "wf-a", SuccessRate: 90.0, BelowThresh: false},
+			{WorkflowName: "wf-b", SuccessRate: 50.0, BelowThresh: true},
+			{WorkflowName: "wf-c", SuccessRate: 100.0, BelowThresh: false},
+		}
+		summary := cli.CalculateHealthSummary(whs, "7d", 80.0)
+		assert.Equal(t, "7d", summary.Period, "Period should be preserved in the summary")
+		assert.Equal(t, 3, summary.TotalWorkflows, "TotalWorkflows should equal input workflow count")
+		assert.Equal(t, 2, summary.HealthyWorkflows, "HealthyWorkflows should count workflows with SuccessRate >= threshold")
+		assert.Equal(t, 1, summary.BelowThreshold, "BelowThreshold should count workflows with BelowThresh set")
+		assert.Len(t, summary.Workflows, 3, "Workflows should include all input workflows")
+	})
+}

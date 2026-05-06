@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -25,7 +26,7 @@ type DependencyReport struct {
 }
 
 // GenerateDependencyReport creates a comprehensive dependency health report
-func GenerateDependencyReport(verbose bool) (*DependencyReport, error) {
+func GenerateDependencyReport(ctx context.Context, verbose bool) (*DependencyReport, error) {
 	depsReportLog.Print("Generating dependency report")
 
 	// Find go.mod file
@@ -76,7 +77,7 @@ func GenerateDependencyReport(verbose bool) (*DependencyReport, error) {
 	}
 
 	// Check for security advisories
-	advisories, err := CheckSecurityAdvisories(verbose)
+	advisories, err := CheckSecurityAdvisories(ctx, verbose)
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: could not check security advisories: %v", err)))
