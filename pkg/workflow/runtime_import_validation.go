@@ -153,7 +153,7 @@ func validateRuntimeImportFiles(markdownContent string, workspaceDir string) ([]
 		// runtime-imported file. Unknown fields are collected and returned to the
 		// caller so it can emit them through the normal warning counter.
 		for _, w := range parser.ValidateInlineSubAgentsFrontmatter(string(content)) {
-			subAgentWarnings = append(subAgentWarnings, fmt.Sprintf("runtime-import '%s': %s", filePath, w))
+			subAgentWarnings = append(subAgentWarnings, fmt.Sprintf("runtime-import %q: %s", filePath, w))
 		}
 	}
 
