@@ -273,7 +273,8 @@ cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md 2>/dev/null || echo
 ### 1. Attribute Issues
 
 Read `pre_attributed.json` (Tier 0–2, pre-computed — do not re-derive). Use
-`community_issues.json` from disk for issue metadata; do not call `issue_list`.
+`/tmp/gh-aw/agent/community-data/community_issues.json` for issue metadata; do
+not call `issue_list`.
 For each entry in `tier3_candidates_capped.json` (≤5), apply Tier 3 (one
 `issue_read` call per issue). Anything unresolved → Tier 4. Issues beyond the
 first 5 in `tier3_candidates.json` are deferred to the next run — do not process
