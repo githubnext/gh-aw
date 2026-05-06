@@ -166,7 +166,6 @@ test-inline-*.md
 test-inline-*.lock.yml
 *.txt
 *.zip
-!docs/public/robots.txt
 # Temporary downloaded logs
 *.txt
 !docs/public/robots.txt
