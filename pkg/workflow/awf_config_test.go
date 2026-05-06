@@ -435,6 +435,27 @@ func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 	assert.Contains(t, command, `"enabled":true`, "config JSON should have apiProxy enabled")
 }
 
+func TestBuildAWFCommand_PreservesGitHubExpressionOperatorsInConfigJSON(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:     "copilot",
+		EngineCommand:  "copilot --prompt-file /tmp/prompt.txt",
+		LogFile:        "/tmp/gh-aw/agent-stdio.log",
+		AllowedDomains: "${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }}",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+
+	assert.Contains(t, command, "env.MCP_ENV == 'staging'", "expected full GitHub Actions expression to be preserved")
+	assert.Contains(t, command, "&&", "expected AWF config JSON in command to preserve &&")
+	assert.NotContains(t, command, "\\u0026", "expected AWF config JSON in command to not HTML-escape '&'")
+}
+
 // TestBuildAWFCommand_ConfigFileWithPathSetup verifies that the config file write command
 // is correctly integrated with the path setup section.
 func TestBuildAWFCommand_ConfigFileWithPathSetup(t *testing.T) {
