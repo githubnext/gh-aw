@@ -399,7 +399,8 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	// The value is single-quoted to prevent YAML parsers from interpreting the
 	// leading '[' as a YAML sequence node rather than a plain string.
 	if encoded := encodeOTLPEndpoints(entries); encoded != "" {
-		otlpEnvLines += "\n  GH_AW_OTLP_ENDPOINTS: '" + encoded + "'"
+		escapedEncoded := strings.ReplaceAll(encoded, "'", "''")
+		otlpEnvLines += "\n  GH_AW_OTLP_ENDPOINTS: '" + escapedEncoded + "'"
 		otlpLog.Printf("Injected GH_AW_OTLP_ENDPOINTS env var")
 	}
 

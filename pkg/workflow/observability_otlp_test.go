@@ -1060,6 +1060,33 @@ func TestInjectOTLPConfig_MultipleEndpoints(t *testing.T) {
 		assert.Contains(t, wd.Env, "secondary.example.com", "secondary endpoint should appear in GH_AW_OTLP_ENDPOINTS")
 	})
 
+	t.Run("escapes single quotes in GH_AW_OTLP_ENDPOINTS", func(t *testing.T) {
+		wd := &WorkflowData{
+			RawFrontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": []any{
+							map[string]any{
+								"url":     "https://primary.example.com:4317",
+								"headers": map[string]any{"Authorization": "Bearer O'Reilly"},
+							},
+							map[string]any{"url": "https://secondary.example.com:4317"},
+						},
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		assert.Contains(t, wd.Env, "GH_AW_OTLP_ENDPOINTS:", "multi-endpoint env var should be injected")
+		assert.Contains(
+			t,
+			wd.Env,
+			"GH_AW_OTLP_ENDPOINTS: '[{\"url\":\"https://primary.example.com:4317\",\"headers\":\"Authorization=Bearer O''Reilly\"}",
+			"single quotes must be escaped inside GH_AW_OTLP_ENDPOINTS YAML single-quoted scalar",
+		)
+	})
+
 	t.Run("adds all static endpoint domains to firewall allowlist", func(t *testing.T) {
 		wd := &WorkflowData{
 			RawFrontmatter: map[string]any{
