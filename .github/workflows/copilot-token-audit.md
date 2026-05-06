@@ -9,8 +9,19 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+observability:
+  otlp:
+    endpoint: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
+    headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
 tracker-id: copilot-token-audit
 engine: copilot
+safe-outputs:
+  create-discussion:
+    expires: 3d
+    category: "audits"
+    title-prefix: "[copilot-token-audit] "
+    max: 1
+    close-older-discussions: true
 tools:
   agentic-workflows:
   bash:
@@ -56,11 +67,6 @@ steps:
         echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/copilot-logs.json
       fi
 timeout-minutes: 25
-imports:
-  - uses: shared/daily-audit-discussion.md
-    with:
-      title-prefix: "[copilot-token-audit] "
-  - shared/observability-otlp.md
 features:
   copilot-requests: true
 ---
@@ -220,3 +226,30 @@ Summarize token and cost changes from `rolling-summary.json` when historical dat
 
 - Use `// 0` (null coalescing) in jq and `.get(field, 0)` in Python for nullable numeric fields.
 - Keep the discussion concise — the optimizer workflow will do the deep analysis.
+
+## Experiment OTEL Span Attributes
+
+If the file `/tmp/gh-aw/experiments/assignments.json` exists, read it and emit one OTEL span
+attribute per experiment using the `otlp.cjs` `logSpan` helper:
+
+```javascript
+const fs = require('fs');
+const path = require('path');
+const assignmentsFile = '/tmp/gh-aw/experiments/assignments.json';
+if (fs.existsSync(assignmentsFile)) {
+  const assignments = JSON.parse(fs.readFileSync(assignmentsFile, 'utf8'));
+  const names = Object.keys(assignments).sort();
+  if (names.length > 0) {
+    const attrs = { 'gh_aw.experiment.names': names.join(',') };
+    for (const name of names) {
+      attrs[`gh_aw.experiment.${name}`] = assignments[name];
+    }
+    const otlp = require('/tmp/gh-aw/actions/otlp.cjs');
+    await otlp.logSpan('experiment', attrs);
+  }
+}
+```
+
+This enables filtering workflow runs by experiment variant in Datadog, Honeycomb, or any
+OTLP-compatible backend. Attribute keys follow the pattern `gh_aw.experiment.<name>` with the
+assigned variant as the value, plus `gh_aw.experiment.names` as a comma-separated index.
