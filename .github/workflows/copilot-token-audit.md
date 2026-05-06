@@ -193,7 +193,7 @@ Report those two cases differently in the discussion as described below so the e
 
 Create up to two chart images in `/tmp/gh-aw/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling:
 
-1. **Token usage by workflow** (`token_by_workflow.png`): a horizontal bar chart of the top 15 workflows by total tokens.
+1. **Token usage by workflow** (`token_by_workflow.png`): a horizontal bar chart of the top 15 workflows by total tokens from `audit_snapshot.json`.
 2. **Historical token trend** (`token_trend.png`): a line chart from `rolling-summary.json`.
 
 Chart requirements:
@@ -203,8 +203,8 @@ Chart requirements:
 - Save only PNG files.
 - If there are fewer than 2 rolling-summary points, skip the trend chart and explain why in the discussion.
 - After generating each chart, call `upload_asset` with its file path.
-- In the discussion template below, replace `{{UPLOAD_URL_WORKFLOW}}` with the URL returned for `token_by_workflow.png`.
-- In the discussion template below, replace `{{UPLOAD_URL_TREND}}` with the URL returned for `token_trend.png`.
+- In the discussion template below, replace `UPLOAD_URL_WORKFLOW_PLACEHOLDER` with the URL returned for `token_by_workflow.png`.
+- In the discussion template below, replace `UPLOAD_URL_TREND_PLACEHOLDER` with the URL returned for `token_trend.png`.
 - If a chart is skipped, omit that image markdown line entirely instead of leaving a placeholder behind.
 
 ## Phase 4 — Publish Audit Discussion
@@ -240,9 +240,9 @@ Create a discussion with these sections:
 
 Embed chart images using uploaded asset URLs when available:
 
-![Token Usage by Workflow]({{UPLOAD_URL_WORKFLOW}})
+![Token Usage by Workflow](UPLOAD_URL_WORKFLOW_PLACEHOLDER)
 
-![Historical Token Trend]({{UPLOAD_URL_TREND}})
+![Historical Token Trend](UPLOAD_URL_TREND_PLACEHOLDER)
 
 Summarize token and cost changes from `rolling-summary.json` when historical data is available.
 
@@ -269,9 +269,9 @@ Summarize token and cost changes from `rolling-summary.json` when historical dat
   - the raw `.runs` array is empty
   - the raw `.runs` array is non-empty but none of the runs are `status == "completed"`
 - Report those cases differently:
-  - if `len(runs) == 0`, say the collection window returned no runs
+  - if `len(runs) == 0` (or `jq '.runs | length' == 0`), say the collection window returned no runs
   - if `len(runs) > 0` and there are zero completed runs, say the collection window had runs but none completed yet
-- Do not claim the raw log file was empty unless you verified `len(runs) == 0`.
+- Do not claim the raw log file was empty unless you verified `len(runs) == 0` (or `jq '.runs | length' == 0`).
 - Keep the discussion concise — the optimizer workflow will do the deep analysis.
 
 ## Experiment OTEL Span Attributes
