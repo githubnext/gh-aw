@@ -1,11 +1,13 @@
 ---
-title: agentic-ops
+title: Agentic Ops
 description: Monitor agentic workflows across a repository, publish observability reports, and escalate recurring failures or waste.
 sidebar:
   badge: { text: 'Observability', variant: 'tip' }
 ---
 
-Use this pattern when you want a scheduled workflow to inspect other agentic workflows, summarize what happened, and escalate unusual cost or failure patterns. The [agentic-ops repository](https://github.com/githubnext/agentic-ops) provides the reference implementation for this approach.
+Use this pattern when you want a scheduled workflow to inspect other agentic workflows, summarize what happened, and escalate unusual cost or failure patterns.
+
+The [agentic-ops repository](https://github.com/githubnext/agentic-ops) provides the reference implementation for this approach.
 
 ## What this pattern does
 
