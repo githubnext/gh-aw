@@ -33,7 +33,7 @@ pre-agent-steps:
       # gh skill install requires a skill name in non-interactive (CI) mode.
       # Use --dir to install directly to the target directory.
       while IFS= read -r skill; do
-        gh skill install mattpocock/skills "$skill" --dir "${SKILLS_DST}"
+        gh skill install mattpocock/skills "$skill" --dir "${SKILLS_DST}" --force
       done < <(gh api repos/mattpocock/skills/contents/skills/engineering \
         --jq '[.[] | select(.type == "dir") | .name] | .[]')
       SKILL_COUNT=$(find "${SKILLS_DST}" -name "SKILL.md" | wc -l)
