@@ -56,7 +56,6 @@ imports:
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[copilot-token-audit] "
-  - shared/python-dataviz.md
 ---
 
 # Daily Copilot Token Usage Audit
@@ -112,7 +111,7 @@ Previous snapshots live at `/tmp/gh-aw/repo-memory/default/`. Each daily snapsho
 
 ## Phase 1 — Process Logs
 
-Write a Python script to `/tmp/gh-aw/python/process_audit.py` and run it. The script must:
+Write a Python script to `/tmp/gh-aw/token-audit/process_audit.py` and run it. The script must:
 
 1. Load `/tmp/gh-aw/token-audit/copilot-logs.json` and extract `.runs`.
 2. Filter to `status == "completed"` runs only.
@@ -120,7 +119,7 @@ Write a Python script to `/tmp/gh-aw/python/process_audit.py` and run it. The sc
    - `run_count`, `total_tokens`, `avg_tokens`, `total_cost`, `avg_cost`, `total_turns`, `avg_turns`, `total_action_minutes`, `error_count`, `warning_count`
 4. Compute an overall summary: total runs, total tokens, total cost, total action minutes.
 5. Sort workflows descending by `total_tokens`.
-6. Save the result to `/tmp/gh-aw/python/data/audit_snapshot.json` with this shape:
+6. Save the result to `/tmp/gh-aw/token-audit/audit_snapshot.json` with this shape:
 
 ```json
 {
@@ -155,22 +154,13 @@ Handle null/missing `token_usage` and `estimated_cost` by treating them as 0.
 
 ## Phase 2 — Persist Snapshot to Repo-Memory
 
-1. Read the snapshot from `/tmp/gh-aw/python/data/audit_snapshot.json`.
+1. Read the snapshot from `/tmp/gh-aw/token-audit/audit_snapshot.json`.
 2. Copy it to `/tmp/gh-aw/repo-memory/default/YYYY-MM-DD.json` (today's UTC date).
 3. This file is what the optimizer workflow reads to identify high-usage workflows.
 
 Also maintain a rolling summary file at `/tmp/gh-aw/repo-memory/default/rolling-summary.json` that contains an array of daily overall totals (date, total_tokens, total_cost, total_runs, total_action_minutes) for the last 90 entries. Load the existing file, append today's entry, trim to 90, and save.
 
-## Phase 3 — Generate Charts
-
-Create a Python script to generate two charts:
-
-1. **Token usage by workflow** (horizontal bar chart): Top 15 workflows by total token usage.
-2. **Historical trend** (line chart): Daily total tokens and cost from `rolling-summary.json` — if available. If only 1 data point, skip this chart.
-
-Save charts to `/tmp/gh-aw/python/charts/`. Upload them as assets.
-
-## Phase 4 — Publish Audit Discussion
+## Phase 3 — Publish Audit Discussion
 
 Create a discussion with these sections:
 
@@ -194,9 +184,7 @@ Create a discussion with these sections:
 
 ### 📈 Trends
 
-[Embed chart images here using uploaded asset URLs]
-
-If historical data is available, note week-over-week token and cost changes.
+Summarize token and cost changes from `rolling-summary.json` when historical data is available.
 
 <details>
 <summary><b>Full Per-Workflow Breakdown</b></summary>
@@ -217,5 +205,4 @@ If historical data is available, note week-over-week token and cost changes.
 ## Important Notes
 
 - Use `// 0` (null coalescing) in jq and `.get(field, 0)` in Python for nullable numeric fields.
-- Charts follow the python-dataviz shared component conventions (300 DPI, seaborn whitegrid, external data files only).
 - Keep the discussion concise — the optimizer workflow will do the deep analysis.
