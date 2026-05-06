@@ -439,10 +439,16 @@ touch %s
 	// so user-supplied env does not override this value.
 	env[constants.CopilotCLIIntegrationIDEnvVar] = constants.CopilotCLIIntegrationIDValue
 
-	// Inject the dummy COPILOT_API_KEY AFTER all env merges so legacy/manual
-	// wiring in engine.env or agent.env cannot accidentally overwrite the sentinel
-	// value that triggers AWF's runtime BYOK detection path.
-	env["COPILOT_API_KEY"] = constants.CopilotBYOKDummyAPIKey
+	// Inject the dummy COPILOT_API_KEY and AWF_REFLECT_ENABLED only when the AWF sandbox
+	// is active. The COPILOT_API_KEY triggers AWF's runtime BYOK detection path, which
+	// requires the api-proxy sidecar to be running. When sandbox.agent: false, no
+	// api-proxy is started, so injecting the key would break Copilot CLI authentication.
+	// Similarly, AWF_REFLECT_ENABLED tells the harness to skip the /reflect preflight
+	// when the api-proxy is not available.
+	if sandboxEnabled {
+		env["COPILOT_API_KEY"] = constants.CopilotBYOKDummyAPIKey
+		env["AWF_REFLECT_ENABLED"] = "1"
+	}
 
 	// Add HTTP MCP header secrets to env for passthrough
 	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.Tools)

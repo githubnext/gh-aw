@@ -13,12 +13,16 @@ Here are some pointers to get you started in using this tool.
 
 Write agentic workflows in natural language markdown, and run them in GitHub Actions.
 
+> [!NOTE]
+> **Releases 0.68.4 through 0.71.3 are being retired** due to a bug that impacts billing. If you are running one of these versions, please upgrade to the latest release as soon as possible.
+
 ## Contents
 
 - [Quick Start](#quick-start)
 - [Overview](#overview)
 - [Guardrails](#guardrails)
 - [Documentation](#documentation)
+- [FAQ](#faq)
 - [Contributing](#contributing)
 - [Community Contributions](#-community-contributions)
 - [Share Feedback](#share-feedback)
@@ -42,6 +46,8 @@ Using agentic workflows in your repository requires careful attention to securit
 ## Documentation
 
 For complete documentation, examples, and guides, see the [Documentation](https://github.github.com/gh-aw/). If you are an agent, download the [llms.txt](https://github.github.com/gh-aw/llms.txt).
+
+If you are running a version between 0.68.4 and 0.71.3, upgrading is strongly recommended due to a bug that impacts billing.
 
 ## Contributing
 
