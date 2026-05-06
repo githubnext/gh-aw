@@ -136,9 +136,11 @@ async function main(config = {}) {
 
     // Check if bundle or patch file exists
     const hasBundleFile = !!(bundleFilePath && fs.existsSync(bundleFilePath));
+    const hasPatchFile = !!(patchFilePath && fs.existsSync(patchFilePath));
 
-    // Check if patch file exists and has valid content
-    if (!hasBundleFile && (!patchFilePath || !fs.existsSync(patchFilePath))) {
+    // Always require a patch file for policy enforcement. Bundle is used for apply-time
+    // transport, but allowed-files/protected-files checks must run on patch content.
+    if (!hasPatchFile) {
       const msg = "No patch file found - cannot push without changes";
 
       switch (ifNoChanges) {
@@ -153,31 +155,20 @@ async function main(config = {}) {
       }
     }
 
-    // For bundle transport, there is no patch content to read/validate.
-    // The bundle file itself is the transport artifact.
-    let patchContent = "";
-    let isEmpty;
+    let patchContent = fs.readFileSync(patchFilePath, "utf8");
 
-    if (hasBundleFile) {
-      // Bundle transport: treat as non-empty (the bundle contains commits)
-      isEmpty = false;
-    } else {
-      patchContent = fs.readFileSync(patchFilePath, "utf8");
-
-      // Check for actual error conditions
-      if (patchContent.includes("Failed to generate patch")) {
-        const msg = "Patch file contains error message - cannot push without changes";
-        core.error("Patch file generation failed");
-        core.error(`Patch file location: ${patchFilePath}`);
-        core.error(`Patch file size: ${Buffer.byteLength(patchContent, "utf8")} bytes`);
-        const previewLength = Math.min(500, patchContent.length);
-        core.error(`Patch file preview (first ${previewLength} characters):`);
-        core.error(patchContent.substring(0, previewLength));
-        return { success: false, error: msg };
-      }
-
-      isEmpty = !patchContent || !patchContent.trim();
+    // Check for actual error conditions
+    if (patchContent.includes("Failed to generate patch")) {
+      const msg = "Patch file contains error message - cannot push without changes";
+      core.error("Patch file generation failed");
+      core.error(`Patch file location: ${patchFilePath}`);
+      core.error(`Patch file size: ${Buffer.byteLength(patchContent, "utf8")} bytes`);
+      const previewLength = Math.min(500, patchContent.length);
+      core.error(`Patch file preview (first ${previewLength} characters):`);
+      core.error(patchContent.substring(0, previewLength));
+      return { success: false, error: msg };
     }
+    const isEmpty = !patchContent || !patchContent.trim();
     // Validate patch/bundle size against `max_patch_size`.
     //
     // Size-check source of truth, in order of preference:
@@ -191,7 +182,7 @@ async function main(config = {}) {
     // the transport file accumulates per-commit metadata + per-commit diffs and
     // can be many MB even when each iteration only changes a few KB.
     if (!isEmpty) {
-      const patchSizeBytes = hasBundleFile ? 0 : Buffer.byteLength(patchContent, "utf8");
+      const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
       const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
       let bundleSizeBytes = 0;

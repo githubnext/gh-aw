@@ -838,10 +838,12 @@ async function main(config = {}) {
     }
     core.info(`Base branch for ${itemRepo}: ${baseBranch}`);
 
-    // Check if patch file exists and has valid content
-    // Skip this check when a bundle file is present (bundle transport does not use a patch file)
+    // Check if patch file exists and has valid content.
+    // Always require patch content for policy enforcement, even when bundle transport
+    // is used for apply-time commit transport.
     const hasBundleFile = !!(bundleFilePath && fs.existsSync(bundleFilePath));
-    if (!hasBundleFile && (!patchFilePath || !fs.existsSync(patchFilePath))) {
+    const hasPatchFile = !!(patchFilePath && fs.existsSync(patchFilePath));
+    if (!hasPatchFile) {
       // If allow-empty is enabled, we can proceed without a patch file
       if (allowEmpty) {
         core.info("No patch file found, but allow-empty is enabled - will create empty PR");
@@ -878,9 +880,8 @@ async function main(config = {}) {
     }
 
     let patchContent = "";
-    let isEmpty = hasBundleFile ? false : true;
-
-    if (!hasBundleFile && patchFilePath && fs.existsSync(patchFilePath)) {
+    let isEmpty = true;
+    if (hasPatchFile) {
       patchContent = fs.readFileSync(patchFilePath, "utf8");
       isEmpty = !patchContent || !patchContent.trim();
     }

@@ -445,9 +445,9 @@ describe("safe_outputs_handlers", () => {
       expect(handlers.createPullRequestHandler).toBeDefined();
     });
 
-    it("should return error response when default transport generation fails (not throw)", async () => {
+    it("should return error response when patch generation fails (not throw)", async () => {
       // This test verifies the error is returned as content, not thrown
-      // The default transport generation will fail because we're not in a git repo
+      // Patch generation will fail because we're not in a git repo
       const args = {
         branch: "feature-branch",
         title: "Test PR",
@@ -468,7 +468,7 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
       expect(responseData.error).toBeDefined();
-      expect(responseData.error).toContain("Failed to generate bundle");
+      expect(responseData.error).toContain("Failed to generate patch");
       expect(responseData.details).toBeDefined();
       expect(responseData.details).toContain("Make sure you have committed your changes");
       expect(responseData.details).toContain("git add and git commit");
@@ -524,13 +524,13 @@ describe("safe_outputs_handlers", () => {
 
       const result = await handlers.createPullRequestHandler(args);
 
-      // Should proceed to default transport generation (which will fail because not in git repo)
+      // Should proceed to patch generation (which will fail because not in git repo)
       // but NOT fail with repo not found error
       expect(result.isError).toBe(true);
       const responseData = JSON.parse(result.content[0].text);
-      // Should be a transport generation error, not a repo not found error
+      // Should be a patch generation error, not a repo not found error
       expect(responseData.error).not.toContain("not found in workspace");
-      expect(responseData.error).toContain("Failed to generate bundle");
+      expect(responseData.error).toContain("Failed to generate patch");
     });
 
     it("should treat whitespace-only repo as workspace root", async () => {
@@ -871,11 +871,13 @@ describe("safe_outputs_handlers", () => {
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
         expect(path.basename(responseData.bundle.path)).toBe("aw-test-owner-test-repo-feature-test-change.bundle");
+        expect(path.basename(responseData.patch.path)).toBe("aw-test-owner-test-repo-feature-test-change.patch");
 
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(
           expect.objectContaining({
             type: "push_to_pull_request_branch",
             repo_cwd: targetRepoDir,
+            patch_path: expect.stringContaining("aw-test-owner-test-repo-feature-test-change.patch"),
             bundle_path: expect.stringContaining("aw-test-owner-test-repo-feature-test-change.bundle"),
           })
         );
@@ -1029,10 +1031,11 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeFalsy();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
-        // Must have generated a bundle, not a patch
+        // Must generate a bundle for transport and a patch for policy enforcement
         expect(responseData.bundle).toBeDefined();
-        expect(responseData.patch).toBeUndefined();
+        expect(responseData.patch).toBeDefined();
         expect(responseData.bundle.path).toMatch(/\.bundle$/);
+        expect(responseData.patch.path).toMatch(/\.patch$/);
 
         // Default mode is already bundle, so no auto-switch message is required
         const autoSwitchCalls = mockServer.debug.mock.calls.filter(c => typeof c[0] === "string" && c[0].includes("auto-switching to bundle transport"));
@@ -1041,12 +1044,13 @@ describe("safe_outputs_handlers", () => {
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(
           expect.objectContaining({
             type: "push_to_pull_request_branch",
+            patch_path: expect.stringMatching(/\.patch$/),
             bundle_path: expect.stringMatching(/\.bundle$/),
           })
         );
-        // Should NOT have written a patch_path
+        // Bundle mode should still include patch_path for policy enforcement checks
         const appended = mockAppendSafeOutput.mock.calls[0][0];
-        expect(appended.patch_path).toBeUndefined();
+        expect(appended.patch_path).toMatch(/\.patch$/);
         // diff_size must be recorded so the downstream push step can validate
         // max_patch_size against the net incremental diff (not the bundle size,
         // which on long-running branches accumulates packed git objects and can

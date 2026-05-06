@@ -13,7 +13,6 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
 const { generateGitBundle } = require("./generate_git_bundle.cjs");
 const { hasMergeCommitsInRange } = require("./git_helpers.cjs");
-const { computeIncrementalDiffSize } = require("./git_patch_utils.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
@@ -363,56 +362,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       transportOptions.token = prConfig["github-token"];
     }
 
-    if (useBundle) {
-      // Bundle transport: preserves merge commits and per-commit metadata
-      server.debug(`Generating bundle for create_pull_request with branch: ${entry.branch}${repoCwd ? ` in ${repoCwd} baseBranch: ${baseBranch}` : ""}`);
-      const bundleResult = await generateGitBundle(entry.branch, baseBranch, transportOptions);
-
-      if (!bundleResult.success) {
-        const errorMsg = bundleResult.error || "Failed to generate bundle";
-        server.debug(`Bundle generation failed: ${errorMsg}`);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                result: "error",
-                error: errorMsg,
-                details: "No commits were found to create a pull request. Make sure you have committed your changes using git add and git commit before calling create_pull_request.",
-              }),
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      server.debug(`Bundle generated successfully: ${bundleResult.bundlePath} (${bundleResult.bundleSize} bytes)`);
-
-      // Store the bundle path in the entry so consumers know which file to use
-      entry.bundle_path = bundleResult.bundlePath;
-
-      if (bundleResult.baseCommit) {
-        entry.base_commit = bundleResult.baseCommit;
-      }
-
-      appendSafeOutput(entry);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              result: "success",
-              bundle: {
-                path: bundleResult.bundlePath,
-                size: bundleResult.bundleSize,
-              },
-            }),
-          },
-        ],
-      };
-    }
-
-    // Patch transport: uses git format-patch / git am
+    // Always generate a patch for policy enforcement (allowed-files/protected-files/excluded-files),
+    // even when bundle transport is selected for apply-time commit transport.
     server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}${repoCwd ? ` in ${repoCwd} baseBranch: ${baseBranch}` : ""}`);
     /** @type {Record<string, any>} */
     const patchOptions = { ...transportOptions };
@@ -455,6 +406,60 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // contains the agent's commit SHA which won't exist in the target checkout)
     if (patchResult.baseCommit) {
       entry.base_commit = patchResult.baseCommit;
+    }
+
+    if (useBundle) {
+      // Bundle transport: preserves merge commits and per-commit metadata
+      server.debug(`Generating bundle for create_pull_request with branch: ${entry.branch}${repoCwd ? ` in ${repoCwd} baseBranch: ${baseBranch}` : ""}`);
+      const bundleResult = await generateGitBundle(entry.branch, baseBranch, transportOptions);
+
+      if (!bundleResult.success) {
+        const errorMsg = bundleResult.error || "Failed to generate bundle";
+        server.debug(`Bundle generation failed: ${errorMsg}`);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error: errorMsg,
+                details: "No commits were found to create a pull request. Make sure you have committed your changes using git add and git commit before calling create_pull_request.",
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      server.debug(`Bundle generated successfully: ${bundleResult.bundlePath} (${bundleResult.bundleSize} bytes)`);
+
+      // Store the bundle path in the entry so consumers know which file to use
+      entry.bundle_path = bundleResult.bundlePath;
+
+      if (!entry.base_commit && bundleResult.baseCommit) {
+        entry.base_commit = bundleResult.baseCommit;
+      }
+
+      appendSafeOutput(entry);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "success",
+              patch: {
+                path: patchResult.patchPath,
+                size: patchResult.patchSize,
+                lines: patchResult.patchLines,
+              },
+              bundle: {
+                path: bundleResult.bundlePath,
+                size: bundleResult.bundleSize,
+              },
+            }),
+          },
+        ],
+      };
     }
 
     appendSafeOutput(entry);
@@ -617,80 +622,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       pushTransportOptions.token = pushConfig["github-token"];
     }
 
-    if (useBundle) {
-      // Bundle transport: preserves merge commits and per-commit metadata
-      server.debug(`Generating incremental bundle for push_to_pull_request_branch with branch: ${entry.branch}, baseBranch: ${baseBranch}`);
-      const bundleResult = await generateGitBundle(entry.branch, baseBranch, pushTransportOptions);
-
-      if (!bundleResult.success) {
-        const errorMsg = bundleResult.error || "Failed to generate bundle";
-        server.debug(`Bundle generation failed: ${errorMsg}`);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                result: "error",
-                error: errorMsg,
-                details: "No commits were found to push to the pull request branch. Make sure you have committed your changes using git add and git commit before calling push_to_pull_request_branch.",
-              }),
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      server.debug(`Bundle generated successfully: ${bundleResult.bundlePath} (${bundleResult.bundleSize} bytes)`);
-
-      // Store the bundle path in the entry so consumers know which file to use
-      entry.bundle_path = bundleResult.bundlePath;
-
-      if (bundleResult.baseCommit) {
-        entry.base_commit = bundleResult.baseCommit;
-      }
-
-      // Compute the incremental net diff size so push_to_pull_request_branch can
-      // validate `max_patch_size` against how much the branch will actually change,
-      // rather than the full bundle artifact size (which includes packed git
-      // objects and per-commit metadata, and can be many MB on long-running
-      // branches even when each iteration changes only a few KB). Without this,
-      // the push step falls back to the on-disk bundle size and may reject pushes
-      // that are within the configured net-diff limit. See
-      // push_to_pull_request_branch.cjs "Size-check source of truth".
-      if (bundleResult.baseCommit && entry.branch) {
-        const tmpDiffPath = `${bundleResult.bundlePath}.diff.tmp`;
-        const diffSize = computeIncrementalDiffSize({
-          baseRef: bundleResult.baseCommit,
-          headRef: entry.branch,
-          cwd: pushTransportOptions.cwd || process.env.GITHUB_WORKSPACE || process.cwd(),
-          tmpPath: tmpDiffPath,
-        });
-        if (typeof diffSize === "number" && diffSize >= 0) {
-          entry.diff_size = diffSize;
-          server.debug(`Computed incremental diff_size for bundle: ${diffSize} bytes`);
-        }
-      }
-
-      appendSafeOutput(entry);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              result: "success",
-              bundle: {
-                path: bundleResult.bundlePath,
-                size: bundleResult.bundleSize,
-              },
-            }),
-          },
-        ],
-      };
-    }
-
-    // Patch transport: uses git format-patch / git am
-    // Incremental mode only includes commits since origin/branchName,
-    // preventing patches that include already-existing commits
+    // Always generate an incremental patch for policy enforcement (allowed-files/protected-files/excluded-files),
+    // even when bundle transport is selected for apply-time commit transport.
     server.debug(`Generating incremental patch for push_to_pull_request_branch with branch: ${entry.branch}, baseBranch: ${baseBranch}`);
     /** @type {Record<string, any>} */
     const pushPatchOptions = { ...pushTransportOptions };
@@ -741,6 +674,60 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // commits but each iteration only changes a few KB.
     if (typeof patchResult.diffSize === "number" && patchResult.diffSize >= 0) {
       entry.diff_size = patchResult.diffSize;
+    }
+
+    if (useBundle) {
+      // Bundle transport: preserves merge commits and per-commit metadata
+      server.debug(`Generating incremental bundle for push_to_pull_request_branch with branch: ${entry.branch}, baseBranch: ${baseBranch}`);
+      const bundleResult = await generateGitBundle(entry.branch, baseBranch, pushTransportOptions);
+
+      if (!bundleResult.success) {
+        const errorMsg = bundleResult.error || "Failed to generate bundle";
+        server.debug(`Bundle generation failed: ${errorMsg}`);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error: errorMsg,
+                details: "No commits were found to push to the pull request branch. Make sure you have committed your changes using git add and git commit before calling push_to_pull_request_branch.",
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      server.debug(`Bundle generated successfully: ${bundleResult.bundlePath} (${bundleResult.bundleSize} bytes)`);
+
+      // Store the bundle path in the entry so consumers know which file to use
+      entry.bundle_path = bundleResult.bundlePath;
+
+      if (!entry.base_commit && bundleResult.baseCommit) {
+        entry.base_commit = bundleResult.baseCommit;
+      }
+
+      appendSafeOutput(entry);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "success",
+              patch: {
+                path: patchResult.patchPath,
+                size: patchResult.patchSize,
+                lines: patchResult.patchLines,
+              },
+              bundle: {
+                path: bundleResult.bundlePath,
+                size: bundleResult.bundleSize,
+              },
+            }),
+          },
+        ],
+      };
     }
 
     appendSafeOutput(entry);

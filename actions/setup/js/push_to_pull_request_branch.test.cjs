@@ -1105,17 +1105,17 @@ index 0000000..abc1234
       expect(result.error).toContain("exceeds maximum");
     });
 
-    it("should enforce max_patch_size against the bundle file size when bundle transport is used", async () => {
-      // Bundle transport does not have a format-patch file. The max_patch_size
-      // limit must still apply — using the on-disk bundle file size — so large
-      // bundles cannot silently bypass the limit.
+    it("should enforce max_patch_size against bundle size when bundle transport is used", async () => {
+      // Bundle transport still includes a patch for policy checks, but the size
+      // guard falls back to bundle size when diff_size is not provided.
       const bundlePath = path.join(tempDir, "test.bundle");
+      const patchPath = createPatchFile("small patch content");
       // 2 MB dummy bundle file (contents don't matter; only size is checked)
       fs.writeFileSync(bundlePath, Buffer.alloc(2 * 1024 * 1024));
 
       const module = await loadModule();
       const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
-      const result = await handler({ bundle_path: bundlePath }, {});
+      const result = await handler({ patch_path: patchPath, bundle_path: bundlePath }, {});
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("exceeds maximum");
@@ -1127,13 +1127,14 @@ index 0000000..abc1234
       // the check must accept the push (limit reflects the real change, not the
       // compressed transport size).
       const bundlePath = path.join(tempDir, "test.bundle");
+      const patchPath = createPatchFile("small patch content");
       fs.writeFileSync(bundlePath, Buffer.alloc(2 * 1024 * 1024));
 
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
-      const result = await handler({ bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+      const result = await handler({ patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
