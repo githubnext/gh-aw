@@ -22,6 +22,9 @@ safe-outputs:
     title-prefix: "[copilot-token-audit] "
     max: 1
     close-older-discussions: true
+  upload-asset:
+    max: 5
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
 tools:
   agentic-workflows:
   bash:
@@ -37,6 +40,12 @@ steps:
     uses: actions/setup-python@v6.2.0
     with:
       python-version: "3.12"
+  - name: Setup local chart workspace
+    run: |
+      mkdir -p /tmp/gh-aw/token-audit/charts
+  - name: Install Python chart dependencies
+    run: |
+      python3 -m pip install --quiet pandas matplotlib seaborn
   - name: Download Copilot workflow logs
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -173,7 +182,24 @@ Handle null/missing `token_usage` and `estimated_cost` by treating them as 0.
 
 Also maintain a rolling summary file at `/tmp/gh-aw/repo-memory/default/rolling-summary.json` that contains an array of daily overall totals (date, total_tokens, total_cost, total_runs, total_action_minutes) for the last 90 entries. Load the existing file, append today's entry, trim to 90, and save.
 
-## Phase 3 — Publish Audit Discussion
+If today's raw `.runs` array is empty or there are zero completed runs in the current window, preserve the existing rolling summary instead of appending a synthetic zero-valued entry. Report the empty-window condition explicitly in the discussion rather than poisoning the historical trend with an artificial zero day.
+
+## Phase 3 — Generate Charts
+
+Create up to two chart images in `/tmp/gh-aw/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling:
+
+1. **Token usage by workflow** (`token_by_workflow.png`): a horizontal bar chart of the top 15 workflows by total tokens.
+2. **Historical token trend** (`token_trend.png`): a line chart from `rolling-summary.json`.
+
+Chart requirements:
+
+- Use 300 DPI and a white background.
+- Add clear axis labels and titles.
+- Save only PNG files.
+- If there are fewer than 2 rolling-summary points, skip the trend chart and explain why in the discussion.
+- After generating each chart, call `upload_asset` with its file path and use the returned URL in the discussion body.
+
+## Phase 4 — Publish Audit Discussion
 
 Create a discussion with these sections:
 
@@ -204,6 +230,12 @@ Create a discussion with these sections:
 
 ### 📈 Trends
 
+Embed chart images using uploaded asset URLs when available:
+
+![Token Usage by Workflow](UPLOAD_URL)
+
+![Historical Token Trend](UPLOAD_URL)
+
 Summarize token and cost changes from `rolling-summary.json` when historical data is available.
 
 <details>
@@ -225,6 +257,10 @@ Summarize token and cost changes from `rolling-summary.json` when historical dat
 ## Important Notes
 
 - Use `// 0` (null coalescing) in jq and `.get(field, 0)` in Python for nullable numeric fields.
+- Distinguish between these two cases in the discussion:
+  - the raw `.runs` array is empty
+  - the raw `.runs` array is non-empty but none of the runs are `status == "completed"`
+- Do not claim the raw log file was empty unless you verified `len(runs) == 0`.
 - Keep the discussion concise — the optimizer workflow will do the deep analysis.
 
 ## Experiment OTEL Span Attributes
