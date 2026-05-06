@@ -172,6 +172,18 @@ This specification maps primarily to:
 
 Implementations MUST maintain a clear mapping from each active `CTR-*` rule to concrete source locations and test coverage.
 
+### 6.1 Baseline Rule Mapping
+
+| Rule ID | Primary Implementation Areas | Test Coverage Targets |
+|---------|-------------------------------|-----------------------|
+| CTR-001 Privilege Escalation | `pkg/workflow/*permissions*validation*.go`, `pkg/workflow/strict_mode_permissions_validation.go` | `pkg/workflow/*permissions*_test.go`, `pkg/workflow/*dangerous_permissions*_test.go` |
+| CTR-002 Unpinned Action Integrity | `pkg/workflow/*action*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*action*_test.go`, `pkg/workflow/*strict_mode*_test.go` |
+| CTR-003 Unsafe Tool Scope Expansion | `pkg/workflow/tools_validation*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*tools*_test.go` |
+| CTR-004 Sandbox Bypass Configuration | `pkg/workflow/sandbox_validation*.go`, `pkg/workflow/strict_mode_sandbox_validation*.go` | `pkg/workflow/*sandbox*_test.go` |
+| CTR-005 Unsafe Output Route | `pkg/workflow/compiler_safe_outputs*.go`, `pkg/workflow/safe_outputs*.go` | `pkg/workflow/*safe_outputs*_test.go` |
+
+When mappings change, this table MUST be updated in the same change set as the implementation update.
+
 ---
 
 ## 7. Compliance Testing

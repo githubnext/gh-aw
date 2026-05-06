@@ -40,7 +40,7 @@ tools:
     - "cat specs/compiler-threat-detection-spec.md"
     - "git log --since='1 day ago' --oneline -- pkg/workflow pkg/parser actions/setup/js"
     - "git diff -- pkg/workflow pkg/parser actions/setup/js"
-    - "go test -v -run 'Test.*(Security|Threat|Strict|Permission|Sandbox)' ./pkg/workflow/..."
+    - "go test -v ./pkg/workflow/..."
 
 timeout-minutes: 30
 ---
