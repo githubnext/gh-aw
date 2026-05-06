@@ -34,6 +34,7 @@ async function main(core) {
   const endpoints = parseOTLPEndpoints();
   if (endpoints.length === 0) {
     core.info("GH_AW_OTLP_ENDPOINTS is not configured; skipping Copilot OTEL endpoint export");
+    return;
   }
 
   let forwarded = 0;
@@ -62,10 +63,8 @@ async function main(core) {
     const sanitized = sanitizeOTLPPayload(payload);
     appendToOTLPJSONL(sanitized);
 
-    if (endpoints.length > 0) {
-      await sendOTLPToAllEndpoints(endpoints, payload, { skipJSONL: true });
-      forwarded++;
-    }
+    await sendOTLPToAllEndpoints(endpoints, payload, { skipJSONL: true });
+    forwarded++;
   }
 
   core.info(`Copilot OTEL trace export complete: forwarded=${forwarded}, malformed=${malformed}, ignored=${ignored}, source=${sourcePath}`);
