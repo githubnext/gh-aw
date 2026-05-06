@@ -139,7 +139,8 @@ async function main(config = {}) {
     const hasPatchFile = !!(patchFilePath && fs.existsSync(patchFilePath));
 
     // Always require a patch file for policy enforcement. Bundle is used for apply-time
-    // transport, but allowed-files/protected-files checks must run on patch content.
+    // transport, but allowed-files/protected-files checks must run on patch content
+    // (see validation block below that calls checkFileProtection on patchContent).
     if (!hasPatchFile) {
       const msg = "No patch file found - cannot push without changes";
 

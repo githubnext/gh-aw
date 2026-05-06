@@ -436,6 +436,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       // Store the bundle path in the entry so consumers know which file to use
       entry.bundle_path = bundleResult.bundlePath;
 
+      // Prefer the base_commit captured from format-patch generation (used by
+      // patch-based fallback/apply paths). Only fall back to bundle base commit
+      // when patch generation did not record one.
       if (!entry.base_commit && bundleResult.baseCommit) {
         entry.base_commit = bundleResult.baseCommit;
       }
@@ -704,6 +707,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       // Store the bundle path in the entry so consumers know which file to use
       entry.bundle_path = bundleResult.bundlePath;
 
+      // Prefer the base_commit captured from format-patch generation (used by
+      // patch-based fallback/apply paths). Only fall back to bundle base commit
+      // when patch generation did not record one.
       if (!entry.base_commit && bundleResult.baseCommit) {
         entry.base_commit = bundleResult.baseCommit;
       }
