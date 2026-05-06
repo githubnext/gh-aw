@@ -918,7 +918,7 @@ Some content here.`;
       expect(generateRpcMessagesSummary({ requests: [], responses: [], other: [] }, [])).toBe("");
     });
 
-    test("generates details/summary with request count", () => {
+    test("generates details/summary with request and response counts", () => {
       const summary = generateRpcMessagesSummary({ requests: sampleRequests, responses: sampleResponses, other: [] }, []);
       expect(summary).toContain("<details>");
       expect(summary).toContain("MCP Gateway Activity (2 requests, 1 response)");
@@ -929,10 +929,16 @@ Some content here.`;
       const summary = generateRpcMessagesSummary({ requests: sampleRequests, responses: [], other: [] }, []);
       expect(summary).toContain("#### REQUEST");
       expect(summary).toContain("| Time | Server | Tool / Method |");
-      expect(summary).toContain("`list_issues`");
-      expect(summary).toContain("`add_comment`");
+      expect(summary).toContain("<code>list_issues</code>");
+      expect(summary).toContain("<code>add_comment</code>");
       expect(summary).toContain("github");
       expect(summary).toContain("safeoutputs");
+    });
+
+    test("escapes request labels rendered as code", () => {
+      const requests = [{ timestamp: "2026-01-18T11:10:49Z", direction: "OUT", type: "REQUEST", server_id: "github", payload: { method: "tools/call", params: { name: "list`issues<bad>" } } }];
+      const summary = generateRpcMessagesSummary({ requests, responses: [], other: [] }, []);
+      expect(summary).toContain("<code>list`issues&lt;bad&gt;</code>");
     });
 
     test("formats ISO timestamp as readable date-time", () => {
@@ -979,6 +985,14 @@ Some content here.`;
       expect(summary).toContain("#### SESSION_END");
       expect(summary).toContain("session_id=abc123");
       expect(summary).toContain("reason=completed");
+    });
+
+    test("sanitizes other message type labels in headings and summary", () => {
+      const other = [{ timestamp: "2026-01-18T11:10:40Z", direction: "OUT", type: "SESSION_<bad>\nSTART", server_id: "github", session_id: "abc123" }];
+      const summary = generateRpcMessagesSummary({ requests: [], responses: [], other }, []);
+      expect(summary).toContain("MCP Gateway Activity (1 SESSION_&lt;bad&gt; START)");
+      expect(summary).toContain("#### SESSION_&lt;bad&gt; START");
+      expect(summary).not.toContain("#### SESSION_<bad>\nSTART");
     });
 
     test("shows minimal header when only DIFC events exist (no requests)", () => {

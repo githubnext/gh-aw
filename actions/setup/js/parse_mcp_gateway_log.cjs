@@ -20,6 +20,8 @@ const { computeEffectiveTokens, getTokenClassWeights, formatET } = require("./ef
 const TOKEN_USAGE_PATH = "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
 const MAX_RPC_SUMMARY_DETAILS_LENGTH = 120;
 const MAX_RPC_SUMMARY_GENERIC_LENGTH = 160;
+const MAX_RPC_MESSAGE_LABEL_LENGTH = 80;
+const TOP_LEVEL_RPC_IGNORED_KEYS = new Set(["timestamp", "direction", "type", "server_id", "payload"]);
 
 /**
  * Formats milliseconds as a human-readable duration string.
@@ -344,6 +346,20 @@ function escapeMarkdownTableCell(value) {
 }
 
 /**
+ * Escapes text for safe use in HTML fragments embedded in markdown.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
  * Truncates a string to a maximum length, appending an ellipsis when needed.
  * @param {unknown} value
  * @param {number} maxLength
@@ -353,8 +369,32 @@ function truncateSummaryValue(value, maxLength) {
   const text = String(value);
   if (maxLength <= 0) return "";
   if (text.length <= maxLength) return text;
-  if (maxLength < 3) return text.slice(0, Math.max(maxLength, 0));
+  if (maxLength < 4) return text.slice(0, maxLength);
   return `${text.slice(0, maxLength - 3)}...`;
+}
+
+/**
+ * Normalizes an RPC summary label sourced from logs.
+ * @param {unknown} value
+ * @param {number} maxLength
+ * @returns {string}
+ */
+function normalizeRpcSummaryLabel(value, maxLength = MAX_RPC_MESSAGE_LABEL_LENGTH) {
+  return truncateSummaryValue(
+    String(value ?? "-")
+      .replace(/\s+/g, " ")
+      .trim() || "-",
+    maxLength
+  );
+}
+
+/**
+ * Formats an RPC label as HTML code for safe use inside markdown tables.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function formatRpcInlineCodeLabel(value) {
+  return `<code>${escapeHtml(normalizeRpcSummaryLabel(value))}</code>`;
 }
 
 /**
@@ -414,13 +454,12 @@ function summarizeRpcResponseEntry(entry) {
  */
 function summarizeGenericRpcEntry(entry) {
   const parts = [];
-  const topLevelIgnoredKeys = new Set(["timestamp", "direction", "type", "server_id", "payload"]);
   const pushPart = (key, value) => {
     parts.push(`${key}=${truncateSummaryValue(String(value), MAX_RPC_SUMMARY_GENERIC_LENGTH)}`);
   };
 
   for (const [key, value] of Object.entries(entry)) {
-    if (topLevelIgnoredKeys.has(key) || value === null || value === undefined || typeof value === "object") continue;
+    if (TOP_LEVEL_RPC_IGNORED_KEYS.has(key) || value === null || value === undefined || typeof value === "object") continue;
     pushPart(key, value);
   }
 
@@ -500,7 +539,7 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
     }
     for (const type of renderedOtherTypes) {
       const count = otherByType.get(type)?.length || 0;
-      summaryParts.push(`${count} ${type}`);
+      summaryParts.push(`${count} ${escapeHtml(normalizeRpcSummaryLabel(type))}`);
     }
     if (blockedCount > 0) {
       summaryParts.push(`${blockedCount} blocked`);
@@ -520,8 +559,8 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
       for (const req of requests) {
         const time = formatRpcMessageTime(req.timestamp);
         const server = escapeMarkdownTableCell(req.server_id || "-");
-        const label = escapeMarkdownTableCell(getRpcRequestLabel(req));
-        callLines.push(`| ${time} | ${server} | \`${label}\` |`);
+        const label = formatRpcInlineCodeLabel(getRpcRequestLabel(req));
+        callLines.push(`| ${time} | ${server} | ${label} |`);
       }
 
       callLines.push("");
@@ -542,7 +581,7 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
     }
 
     for (const type of renderedOtherTypes) {
-      callLines.push(`#### ${type}`);
+      callLines.push(`#### ${escapeHtml(normalizeRpcSummaryLabel(type))}`);
       callLines.push("");
       callLines.push("| Time | Server | Direction | Details |");
       callLines.push("|------|--------|-----------|---------|");
