@@ -72,7 +72,7 @@ steps:
     run: |
       mkdir -p /tmp/gh-aw/agent/community-data
 
-      # Fetch merged PRs from the last 30 days (daily runs continuously attribute recent closures).
+      # Fetch merged PRs from the last 30 days (daily runs attribute recent closures, with extra buffer for lag).
       SINCE=$(date -d '30 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
               || date -v-30d '+%Y-%m-%dT%H:%M:%SZ')
 
@@ -274,7 +274,7 @@ cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md 2>/dev/null || echo
 
 Read `pre_attributed.json` (Tier 0–2, pre-computed — do not re-derive). Use
 `/tmp/gh-aw/agent/community-data/community_issues.json` for issue metadata; do
-not call `issue_list`.
+not call `issue_list` (all needed issue data is already pre-fetched locally).
 For each entry in `tier3_candidates_capped.json` (≤5), apply Tier 3 (one
 `issue_read` call per issue). Anything unresolved → Tier 4. Issues beyond the
 first 5 in `tier3_candidates.json` are deferred to the next run — do not process
