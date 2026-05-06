@@ -40,7 +40,7 @@ func TestShouldRunCompileUpdateCheck(t *testing.T) {
 	t.Setenv(compileUpdateCheckDisableEnv, "")
 	assert.True(t, shouldRunCompileUpdateCheck(false), "check should run when not disabled")
 
-	require.NoError(t, os.WriteFile(lastCheckFile, []byte(time.Now().Format(time.RFC3339)), 0644), "recent compile update marker should be written")
+	require.NoError(t, os.WriteFile(lastCheckFile, []byte(time.Now().Format(time.RFC3339)), 0600), "recent compile update marker should be written")
 	assert.False(t, shouldRunCompileUpdateCheck(false), "recent marker should suppress the background check")
 
 	t.Setenv(compileUpdateCheckDisableEnv, "1")

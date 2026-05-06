@@ -20,11 +20,11 @@ import (
 var compileUpdateCheckLog = logger.New("cli:update_check")
 
 const (
-	compileUpdateCheckDisableEnv = "GH_AW_DISABLE_UPDATE_CHECK"
-	compileUpdateCheckFileName   = "gh-aw-last-compile-update-check"
-	compileUpdateCheckInterval   = 24 * time.Hour
-	compileUpdateCheckTimeout    = 3 * time.Second
-	compileUpdateCheckWait       = 0
+	compileUpdateCheckDisableEnv   = "GH_AW_DISABLE_UPDATE_CHECK"
+	compileUpdateCheckFileName     = "gh-aw-last-compile-update-check"
+	compileUpdateCheckInterval     = 24 * time.Hour
+	compileUpdateCheckTimeout      = 3 * time.Second
+	compileUpdateCheckShutdownWait = 0
 )
 
 var (
@@ -94,7 +94,7 @@ func StartCompileUpdateCheck(ctx context.Context, noCheckUpdate bool, verbose bo
 	}()
 
 	return func() {
-		result := waitForCompileUpdateNotification(ctx, results, compileUpdateCheckWait)
+		result := waitForCompileUpdateNotification(ctx, results, compileUpdateCheckShutdownWait)
 		if result != nil {
 			printCompileUpdateNotification(result)
 		}
