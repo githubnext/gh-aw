@@ -42,10 +42,12 @@ steps:
       python-version: "3.12"
   - name: Setup local chart workspace
     run: |
-      mkdir -p /tmp/gh-aw/token-audit/charts
+      mkdir -p /tmp/gh-aw/token-audit/charts /tmp/gh-aw/token-audit/site-packages
   - name: Install Python chart dependencies
     run: |
-      python3 -m pip install --quiet pandas matplotlib seaborn
+      python3 -m pip install --quiet \
+        --target /tmp/gh-aw/token-audit/site-packages \
+        pandas matplotlib seaborn
   - name: Download Copilot workflow logs
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -198,6 +200,7 @@ Create up to two chart images in `/tmp/gh-aw/token-audit/charts/` using Python, 
 
 Chart requirements:
 
+- The preinstalled Python packages live in `/tmp/gh-aw/token-audit/site-packages`. Set `PYTHONPATH=/tmp/gh-aw/token-audit/site-packages${PYTHONPATH:+:$PYTHONPATH}` for every Python command that imports `pandas`, `matplotlib`, or `seaborn`.
 - Use 300 DPI and a white background.
 - Add clear axis labels and titles.
 - Save only PNG files.
