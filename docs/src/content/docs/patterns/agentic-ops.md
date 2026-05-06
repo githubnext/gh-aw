@@ -11,7 +11,7 @@ The [agentic-ops repository](https://github.com/githubnext/agentic-ops) provides
 
 ## What this pattern does
 
-Agentic Ops reviews workflow logs across a repository, classifies notable behavior, and publishes a structured report. When it detects repeated failures, abnormal token consumption, or other unhealthy patterns, it can escalate those findings into issues for follow-up.
+This pattern reviews workflow logs across a repository, classifies notable behavior, and publishes a structured report. When it detects repeated failures, abnormal token consumption, or other unhealthy patterns, it can escalate those findings into issues for follow-up.
 
 This pattern is useful for repository-wide monitoring because it creates a durable operational record instead of relying on ad hoc inspection of individual workflow runs.
 
