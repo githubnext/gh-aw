@@ -270,6 +270,51 @@ func TestMockImageAvailability(t *testing.T) {
 	ResetDockerPullState()
 }
 
+func TestNormalizeDockerContext_NilReturnsBackground(t *testing.T) {
+	ctx := normalizeDockerContext(nil)
+
+	if ctx == nil {
+		t.Fatal("Expected nil context to be replaced")
+	}
+
+	if err := ctx.Err(); err != nil {
+		t.Fatalf("Expected replacement context to be active, got err: %v", err)
+	}
+}
+
+func TestNormalizeDockerContext_PreservesNonNilContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if normalizeDockerContext(ctx) != ctx {
+		t.Fatal("Expected non-nil context to be preserved")
+	}
+}
+
+func TestIsDockerAvailable_NilContext(t *testing.T) {
+	ResetDockerPullState()
+	SetMockDockerAvailable(true)
+
+	if !IsDockerAvailable(nil) {
+		t.Error("Expected IsDockerAvailable to handle nil context")
+	}
+
+	ResetDockerPullState()
+}
+
+func TestIsDockerImageAvailable_NilContext(t *testing.T) {
+	ResetDockerPullState()
+
+	testImage := "test/nil-context-image:v1.0.0"
+	SetMockImageAvailable(testImage, true)
+
+	if !IsDockerImageAvailable(nil, testImage) {
+		t.Error("Expected IsDockerImageAvailable to handle nil context")
+	}
+
+	ResetDockerPullState()
+}
+
 func TestStartDockerImageDownload_ConcurrentCalls(t *testing.T) {
 	// Reset state before test
 	ResetDockerPullState()
@@ -453,6 +498,19 @@ func TestStartDockerImageDownload_ContextCancellation(t *testing.T) {
 	}
 
 	// Clean up
+	ResetDockerPullState()
+}
+
+func TestStartDockerImageDownload_NilContext(t *testing.T) {
+	ResetDockerPullState()
+
+	testImage := "test/nil-context-download:v1.0.0"
+	SetMockImageAvailable(testImage, true)
+
+	if StartDockerImageDownload(nil, testImage) {
+		t.Error("Expected download not to start for available image with nil context")
+	}
+
 	ResetDockerPullState()
 }
 

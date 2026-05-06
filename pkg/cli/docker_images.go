@@ -50,9 +50,19 @@ var pullState = &dockerPullState{
 	mockDockerAvailable: true,
 }
 
+func normalizeDockerContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+
+	return ctx
+}
+
 // isDockerImageAvailableUnlocked checks if a Docker image is available locally
 // This function must be called with pullState.mu held (either RLock or Lock)
 func isDockerImageAvailableUnlocked(ctx context.Context, image string) bool {
+	ctx = normalizeDockerContext(ctx)
+
 	// Check if we're in mock mode (for testing)
 	if pullState.mockAvailableInUse {
 		available := pullState.mockAvailable[image]
@@ -74,6 +84,8 @@ func isDockerImageAvailableUnlocked(ctx context.Context, image string) bool {
 
 // IsDockerImageAvailable checks if a Docker image is available locally
 func IsDockerImageAvailable(ctx context.Context, image string) bool {
+	ctx = normalizeDockerContext(ctx)
+
 	pullState.mu.RLock()
 	defer pullState.mu.RUnlock()
 	return isDockerImageAvailableUnlocked(ctx, image)
@@ -88,6 +100,8 @@ func IsDockerImageDownloading(image string) bool {
 
 // IsDockerAvailable checks if the Docker daemon is running and accessible
 func IsDockerAvailable(ctx context.Context) bool {
+	ctx = normalizeDockerContext(ctx)
+
 	pullState.mu.RLock()
 	if pullState.mockAvailableInUse {
 		available := pullState.mockDockerAvailable
@@ -110,6 +124,8 @@ func IsDockerAvailable(ctx context.Context) bool {
 // Returns true if download was started, false if already downloading or available
 // The download can be cancelled by cancelling the provided context
 func StartDockerImageDownload(ctx context.Context, image string) bool {
+	ctx = normalizeDockerContext(ctx)
+
 	// Check availability and downloading status atomically under lock
 	pullState.mu.Lock()
 	defer pullState.mu.Unlock()
