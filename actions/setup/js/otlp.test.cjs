@@ -95,6 +95,7 @@ describe("otlp.cjs", () => {
       GITHUB_AW_OTEL_PARENT_SPAN_ID: process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID,
       GITHUB_REPOSITORY: process.env.GITHUB_REPOSITORY,
       GITHUB_RUN_ID: process.env.GITHUB_RUN_ID,
+      GITHUB_RUN_ATTEMPT: process.env.GITHUB_RUN_ATTEMPT,
       GITHUB_EVENT_NAME: process.env.GITHUB_EVENT_NAME,
       GITHUB_REF: process.env.GITHUB_REF,
       GITHUB_REF_NAME: process.env.GITHUB_REF_NAME,
