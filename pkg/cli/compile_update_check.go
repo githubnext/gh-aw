@@ -57,7 +57,7 @@ func StartCompileUpdateCheck(ctx context.Context, noCheckUpdate bool, verbose bo
 		return func() {}
 	}
 
-	results := make(chan *compileUpdateNotification, 1) // closed by goroutine on exit
+	results := make(chan *compileUpdateNotification, 1) // closed by sender goroutine on exit
 
 	go func() {
 		defer close(results)
