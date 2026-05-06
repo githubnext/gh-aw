@@ -53,7 +53,7 @@ imports:
   - uses: shared/repo-memory-standard.md
     with:
       branch-name: "memory/token-audit"
-      description: "Historical daily Copilot token usage snapshots"
+      description: "Historical daily Copilot token usage snapshots (shared with copilot-token-optimizer)"
       max-file-size: 102400
       max-patch-size: 51200
   - shared/python-dataviz.md
