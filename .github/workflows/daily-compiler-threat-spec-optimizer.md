@@ -35,8 +35,8 @@ tools:
     toolsets: [default, issues, pull_requests, code_security]
   edit:
   bash:
-    - "find pkg/workflow -name '*.go' -type f"
-    - "find pkg/parser -name '*.go' -type f"
+    - "git ls-files pkg/workflow/*.go"
+    - "git ls-files pkg/parser/*.go"
     - "cat specs/compiler-threat-detection-spec.md"
     - "git log --since='1 day ago' --oneline -- pkg/workflow pkg/parser actions/setup/js"
     - "git diff -- pkg/workflow pkg/parser actions/setup/js"
