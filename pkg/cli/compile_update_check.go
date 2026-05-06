@@ -24,6 +24,7 @@ const (
 	compileUpdateCheckDisableEnv = "GH_AW_DISABLE_UPDATE_CHECK"
 	compileUpdateCheckTimeout    = 3 * time.Second
 	compileUpdateCheckWait       = 500 * time.Millisecond
+	maxProbeFileSize             = 64 * 1024
 )
 
 var (
@@ -57,7 +58,7 @@ func StartCompileUpdateCheck(ctx context.Context, noCheckUpdate bool, verbose bo
 		return func() {}
 	}
 
-	results := make(chan *compileUpdateNotification, 1) // closed by sender goroutine on exit
+	results := make(chan *compileUpdateNotification, 1) // buffered channel closed by sender goroutine via defer
 
 	go func() {
 		defer close(results)
@@ -203,6 +204,8 @@ func fetchLatestReleaseTag(ctx context.Context, client *http.Client) (string, er
 		return "", fmt.Errorf("latest release request returned status %d", resp.StatusCode)
 	}
 
+	// Drain a small amount so the response body is consumed before close and the
+	// underlying connection remains reusable.
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
 
 	finalPath := resp.Request.URL.Path
@@ -233,7 +236,7 @@ func downloadReleaseProbeFile(ctx context.Context, client *http.Client, tag stri
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64*1024))
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxProbeFileSize))
 		return true, nil
 	case http.StatusNotFound:
 		return false, nil
