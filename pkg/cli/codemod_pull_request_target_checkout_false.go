@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var pullRequestTargetCheckoutFalseCodemodLog = logger.New("cli:codemod_pull_request_target_checkout_false")
+var gitCheckoutPattern = regexp.MustCompile(`\bgit\s+checkout(?:\s|$)`)
 
 // getPullRequestTargetCheckoutFalseCodemod adds checkout: false for pull_request_target workflows
 // when checkout is not disabled and no explicit checkout command is detected in workflow content.
@@ -97,7 +99,7 @@ func hasExplicitCheckoutCommands(content string) bool {
 		}
 	}
 
-	return false
+	return gitCheckoutPattern.MatchString(lowerContent)
 }
 
 func ensureCheckoutFalseForPullRequestTarget(lines []string) ([]string, bool) {
@@ -152,7 +154,15 @@ func normalizeCheckoutFalseLine(line string) (string, bool) {
 	valueAndComment := strings.TrimPrefix(line, "checkout:")
 	comment := ""
 	if idx := strings.Index(valueAndComment, "#"); idx >= 0 {
-		comment = valueAndComment[idx:]
+		commentStart := idx
+		for commentStart > 0 {
+			prev := valueAndComment[commentStart-1]
+			if prev != ' ' && prev != '\t' {
+				break
+			}
+			commentStart--
+		}
+		comment = valueAndComment[commentStart:]
 	}
 
 	if comment == "" {
