@@ -198,7 +198,6 @@ The same minimum-two-variants constraint from R-SCHEMA-005 applies.
 | `secondary_metrics` | string[] | Additional metrics to collect. |
 | `guardrail_metrics` | object[] | Thresholds that must not degrade (see §4.4). |
 | `min_samples` | integer ≥ 1 | Minimum runs per variant before analysis is reliable. Defaults to 20. |
-| `owner` | string | Team or person responsible (e.g., `@team-agents`). |
 | `weight` | integer[] | Per-variant probability weights (see §5.2). |
 | `issue` | integer ≥ 1 | GitHub issue number tracking this experiment. |
 | `start_date` | string (YYYY-MM-DD) | Experiment is inactive before this date (see §6). |
@@ -209,7 +208,7 @@ The same minimum-two-variants constraint from R-SCHEMA-005 applies.
 
 **R-SCHEMA-009**: The `weight`, `issue`, `min_samples`, `start_date`, `end_date`, `analysis_type`,
 `tags`, and `notify` fields carry no effect on variant assignment outside their documented
-subsections. `description`, `hypothesis`, `metric`, `secondary_metrics`, `owner`, and `tags` are
+subsections. `description`, `hypothesis`, `metric`, `secondary_metrics`, and `tags` are
 purely informative at runtime.
 
 **R-SCHEMA-010**: Implementations **MUST NOT** introduce additional properties in the object
@@ -873,7 +872,6 @@ experiments:
     start_date: "2026-05-01"
     end_date: "2026-08-01"
     issue: 1234
-    owner: "@team-agents"
     analysis_type: t_test
     tags: [cost, prompting, verbosity]
     notify:

@@ -1184,7 +1184,7 @@ models:
 # array of two or more variant strings (bare-array form) or an object with a
 # 'variants' field plus optional metadata fields (description, metric, weight,
 # issue, start_date, end_date, hypothesis, secondary_metrics, guardrail_metrics,
-# min_samples, owner). The reserved 'storage' key controls how experiment state is
+# min_samples). The reserved 'storage' key controls how experiment state is
 # persisted: 'repo' (default) commits state to a git branch named
 # 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with hyphens
 # removed) for durability; 'cache' uses GitHub Actions cache. At runtime the
