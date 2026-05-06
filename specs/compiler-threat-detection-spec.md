@@ -25,7 +25,7 @@ This specification is the source of truth for detection rule coverage, implement
 This is a Candidate Recommendation specification. It may be revised based on operational evidence, threat-model updates, and conformance results.
 
 **Publication Date**: May 6, 2026  
-**Governance**: This specification is maintained by GitHub Next and governed by gh-aw security review processes.
+**Governance**: This specification is maintained by the gh-aw maintainers and governed by gh-aw security review processes.
 
 ## Table of Contents
 
@@ -181,6 +181,8 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-003 Unsafe Tool Scope Expansion | `pkg/workflow/tools_validation*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*tools*_test.go` |
 | CTR-004 Sandbox Bypass Configuration | `pkg/workflow/sandbox_validation*.go`, `pkg/workflow/strict_mode_sandbox_validation*.go` | `pkg/workflow/*sandbox*_test.go` |
 | CTR-005 Unsafe Output Route | `pkg/workflow/compiler_safe_outputs*.go`, `pkg/workflow/safe_outputs*.go` | `pkg/workflow/*safe_outputs*_test.go` |
+
+The mappings above are pattern-based references and MUST be validated against concrete file paths whenever this specification is updated.
 
 When mappings change, this table MUST be updated in the same change set as the implementation update.
 

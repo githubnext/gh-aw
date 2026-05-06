@@ -25,7 +25,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[compiler-threat-spec] "
     labels: [security, compiler, specification, automation]
-    expires: 3d
+    expires: 7d
     draft: false
 
 tools:
@@ -38,7 +38,7 @@ tools:
     - "git ls-files pkg/workflow/*.go"
     - "git ls-files pkg/parser/*.go"
     - "cat specs/compiler-threat-detection-spec.md"
-    - "git log --since='1 day ago' --oneline -- pkg/workflow pkg/parser actions/setup/js"
+    - "git log --since='2 days ago' --oneline -- pkg/workflow pkg/parser actions/setup/js"
     - "git diff -- pkg/workflow pkg/parser actions/setup/js"
     - "go test -v ./pkg/workflow/..."
 
@@ -113,6 +113,8 @@ If creating a PR, include:
 - Which threats required implementation
 - Rule IDs added/changed (`CTR-*`)
 - Files changed and tests run
+
+Use the 2-day review window above to tolerate delayed or skipped daily runs while still keeping coverage fresh.
 
 ## Success Criteria
 
