@@ -190,6 +190,7 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 		// All complete elseif tags must be normalized to canonical {{#elseif ...}} form.
 		// Ignore partial/malformed fragments produced by fuzzing (e.g. "{{elseif 0").
 		if strings.Contains(input, "{{#if") {
+		patternLoop:
 			for _, pattern := range nonCanonicalElseifPatterns {
 				matches := pattern.FindAllStringSubmatch(result, -1)
 				for _, match := range matches {
@@ -197,11 +198,11 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 						continue
 					}
 					expr := strings.TrimSpace(match[1])
-					if hasSkippableElseifExprPrefix(expr) || strings.Contains(expr, "{") || strings.Contains(expr, "}") {
+					if hasSkippableElseifExprPrefix(expr) || strings.Contains(expr, "{{") || strings.Contains(expr, "}}") {
 						continue
 					}
 					t.Errorf("Non-canonical elseif pattern %q still present in output, input: %q", pattern.String(), input)
-					break
+					break patternLoop
 				}
 			}
 		}
