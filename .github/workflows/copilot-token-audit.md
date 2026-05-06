@@ -182,7 +182,12 @@ Handle null/missing `token_usage` and `estimated_cost` by treating them as 0.
 
 Also maintain a rolling summary file at `/tmp/gh-aw/repo-memory/default/rolling-summary.json` that contains an array of daily overall totals (date, total_tokens, total_cost, total_runs, total_action_minutes) for the last 90 entries. Load the existing file, append today's entry, trim to 90, and save.
 
-If today's raw `.runs` array is empty or there are zero completed runs in the current window, preserve the existing rolling summary instead of appending a synthetic zero-valued entry. Report the empty-window condition explicitly in the discussion rather than introducing an artificial zero day into the historical trend.
+Do not append a synthetic zero-valued entry to `rolling-summary.json` when either of these conditions is true:
+
+- the raw `.runs` array is empty
+- the raw `.runs` array is non-empty but there are zero completed runs in the current window
+
+Report those two cases differently in the discussion as described below so the empty-window diagnosis stays precise while the historical trend remains unchanged.
 
 ## Phase 3 — Generate Charts
 
@@ -197,7 +202,10 @@ Chart requirements:
 - Add clear axis labels and titles.
 - Save only PNG files.
 - If there are fewer than 2 rolling-summary points, skip the trend chart and explain why in the discussion.
-- After generating each chart, call `upload_asset` with its file path and replace each `UPLOAD_URL` placeholder in the discussion body with the actual URL returned by that `upload_asset` call.
+- After generating each chart, call `upload_asset` with its file path.
+- Replace `UPLOAD_URL_WORKFLOW` with the URL returned for `token_by_workflow.png`.
+- Replace `UPLOAD_URL_TREND` with the URL returned for `token_trend.png`.
+- If a chart is skipped, omit that image markdown line entirely instead of leaving a placeholder behind.
 
 ## Phase 4 — Publish Audit Discussion
 
@@ -232,9 +240,9 @@ Create a discussion with these sections:
 
 Embed chart images using uploaded asset URLs when available:
 
-![Token Usage by Workflow](UPLOAD_URL)
+![Token Usage by Workflow](UPLOAD_URL_WORKFLOW)
 
-![Historical Token Trend](UPLOAD_URL)
+![Historical Token Trend](UPLOAD_URL_TREND)
 
 Summarize token and cost changes from `rolling-summary.json` when historical data is available.
 
