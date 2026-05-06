@@ -60,6 +60,13 @@ const DefaultOpenCodeVersion Version = "1.2.14"
 const DefaultGitHubMCPServerVersion Version = "v1.0.3"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
+//
+// ⚠️  IMPORTANT: When updating this version, you must run a full rebuild and recompile twice:
+//
+//	make build && make recompile && make recompile
+//
+// The first recompile regenerates all lock files using the new version; the second recompile
+// refreshes the container SHA pins that were resolved during the first pass.
 const DefaultFirewallVersion Version = "v0.25.40"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
@@ -82,6 +89,13 @@ const AWFAllowHostPortsMinVersion Version = "v0.25.24"
 const CopilotNoAskUserMinVersion Version = "1.0.19"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
+//
+// ⚠️  IMPORTANT: When updating this version, you must run a full rebuild and recompile twice:
+//
+//	make build && make recompile && make recompile
+//
+// The first recompile regenerates all lock files using the new version; the second recompile
+// refreshes the container SHA pins that were resolved during the first pass.
 const DefaultMCPGatewayVersion Version = "v0.3.6"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
