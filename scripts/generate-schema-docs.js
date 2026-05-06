@@ -163,12 +163,33 @@ function generateVariants(prop, propName, indent = 0, required = []) {
   // Handle oneOf/anyOf
   const variants = prop.oneOf || prop.anyOf;
 
-  if (variants && variants.length > 1) {
+  // Constraint-only variants (e.g. mutual-exclusion rules using required/not/anyOf
+  // without a type, description, or $ref) are schema validation annotations, not
+  // alternate input shapes. $ref variants always represent real input shapes even
+  // when their type/description lives inside the referenced definition, so we check
+  // the unresolved variants to correctly exclude $ref entries from this test.
+  // When every variant is constraint-only, render the property normally using its
+  // top-level type/properties instead.
+  const isConstraintOnly = v => !v.type && !v.description && !v.$ref;
+  const allConstraints = variants && variants.length > 0 && variants.every(isConstraintOnly);
+
+  // Resolve $refs so that labels (Format N: <desc>) show the referenced description.
+  const resolvedVariants = variants ? variants.map(resolvePropertyRef) : variants;
+
+  if (resolvedVariants && resolvedVariants.length > 1 && !allConstraints) {
     lines.push(formatComment(`Accepted formats:`, indent));
 
-    variants.forEach((variant, index) => {
+    resolvedVariants.forEach((variant, index) => {
+      // Build a human-readable label: prefer the variant's own description, then
+      // its type, then fall back to "Configuration object" for complex nested
+      // schemas (e.g. $ref definitions that themselves contain a oneOf union).
+      const variantLabel = variant.description || variant.type || (variant.oneOf || variant.anyOf ? "Configuration object" : null);
+
+      // Skip variants that have no label and no renderable content.
+      if (!variantLabel) return;
+
       lines.push("");
-      lines.push(formatComment(`Format ${index + 1}: ${variant.description || variant.type}`, indent));
+      lines.push(formatComment(`Format ${index + 1}: ${variantLabel}`, indent));
 
       if (variant.type === "string") {
         const example = getExampleValue(variant, propName);
@@ -196,12 +217,15 @@ function generateVariants(prop, propName, indent = 0, required = []) {
         lines.push(`${indentStr}${propName}: ${example}`);
       }
     });
-  } else if (variants && variants.length === 1) {
+  } else if (resolvedVariants && resolvedVariants.length === 1 && !allConstraints) {
     // Single variant, just render it normally
-    lines.push(...generateProperty(propName, variants[0], indent, isRequired));
+    lines.push(...generateProperty(propName, resolvedVariants[0], indent, isRequired));
   } else {
-    // No variants, render the property directly
-    lines.push(...generateProperty(propName, prop, indent, isRequired));
+    // No variants, or all variants are constraint-only (validation annotations):
+    // render the property directly using its top-level type/properties.
+    // Strip description/required-flag from the prop since generateVariants already
+    // emitted those header comments above.
+    lines.push(...generateProperty(propName, { ...prop, description: undefined }, indent, true));
   }
 
   return lines.join("\n");
