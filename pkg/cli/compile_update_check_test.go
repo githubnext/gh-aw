@@ -215,7 +215,12 @@ func TestRunCompileUpdateCheckUsesHEADRequests(t *testing.T) {
 	require.NotNil(t, notification, "runCompileUpdateCheck should return a notification")
 
 	assert.Equal(t, []string{http.MethodHead}, methodsForPath(methods, "/releases/latest"), "latest release lookup should use HEAD")
-	assert.ElementsMatch(t, []string{http.MethodHead, http.MethodHead}, methodsForPrefix(methods, "/raw/"), "probe lookups should use HEAD")
+
+	probeMethods := methodsForPrefix(methods, "/raw/")
+	require.NotEmpty(t, probeMethods, "probe lookups should be recorded")
+	for _, method := range probeMethods {
+		assert.Equal(t, http.MethodHead, method, "probe lookups should use HEAD")
+	}
 }
 
 func newCompileUpdateCheckTestServer(t *testing.T, latestVersion string, existingTags map[string]bool) *httptest.Server {

@@ -24,7 +24,7 @@ const (
 	compileUpdateCheckFileName   = "gh-aw-last-compile-update-check"
 	compileUpdateCheckInterval   = 24 * time.Hour
 	compileUpdateCheckTimeout    = 3 * time.Second
-	compileUpdateCheckWait       = 0 * time.Millisecond
+	compileUpdateCheckWait       = 0
 )
 
 var (
@@ -294,7 +294,7 @@ func updateCompileUpdateCheckTime() {
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	if err := os.WriteFile(lastCheckFile, []byte(timestamp), 0644); err != nil {
+	if err := os.WriteFile(lastCheckFile, []byte(timestamp), 0600); err != nil {
 		compileUpdateCheckLog.Printf("Error writing compile update check time: %v", err)
 	}
 }
