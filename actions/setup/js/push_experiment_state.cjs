@@ -90,7 +90,7 @@ async function main() {
       .filter(Boolean)
   );
   if (!allowedRepos.has(targetRepo)) {
-    core.setFailed(`Target repository "${targetRepo}" is not in the allowedRepos allowlist`);
+    core.setFailed(`Target repository "${targetRepo}" is not in GH_AW_ALLOWED_TARGET_REPOS. ` + `Current allowlist: ${Array.from(allowedRepos).join(", ")}`);
     return;
   }
   const [owner, repo] = targetRepo.split("/");

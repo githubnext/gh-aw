@@ -86,7 +86,8 @@ describe("push_experiment_state", () => {
 
     await main();
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("allowedRepos allowlist"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_ALLOWED_TARGET_REPOS"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("testowner/testrepo"));
   });
 
   it("does not fail when target repository is included in GH_AW_ALLOWED_TARGET_REPOS", async () => {
