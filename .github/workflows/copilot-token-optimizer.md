@@ -17,7 +17,6 @@ tools:
     toolsets: [issues]
   bash:
     - "*"
-  repo-memory: true
 safe-outputs:
   create-issue:
     expires: 7d
@@ -26,6 +25,13 @@ safe-outputs:
     max: 1
   threat-detection: false
 timeout-minutes: 30
+imports:
+  - uses: shared/repo-memory-standard.md
+    with:
+      branch-name: "memory/token-audit"
+      description: "Historical daily Copilot token usage snapshots (shared with copilot-token-audit)"
+      max-file-size: 102400
+      max-patch-size: 51200
 steps:
   - name: Download recent Copilot workflow logs
     env:
@@ -104,7 +110,6 @@ steps:
       else
         echo "ℹ️ No previous optimization history found."
       fi
-source: githubnext/agentic-ops/workflows/copilot-token-optimizer.md@0cac7c21e1b2928c1121284b29c40a93e79f2124
 ---
 
 # Copilot Token Usage Optimizer
