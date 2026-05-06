@@ -57,14 +57,13 @@ steps:
       fi
 timeout-minutes: 25
 imports:
-  - uses: shared/daily-audit-base.md
+  - uses: shared/daily-audit-discussion.md
     with:
       title-prefix: "[copilot-token-audit] "
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
 ---
-
-{{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Copilot Token Usage Audit
 
@@ -171,6 +170,13 @@ Also maintain a rolling summary file at `/tmp/gh-aw/repo-memory/default/rolling-
 ## Phase 3 — Publish Audit Discussion
 
 Create a discussion with these sections:
+
+### Formatting Requirements
+
+- Use `###` for main sections and `####` for subsections inside the discussion body.
+- Keep the executive summary and final observations visible without collapsible sections.
+- Put verbose tables or supporting detail inside `<details><summary>...</summary>` blocks.
+- If you cite specific workflow runs, format them as links like `[§12345](https://github.com/${{ github.repository }}/actions/runs/12345)` and include up to 3 under `**References:**`.
 
 ### Report Template
 

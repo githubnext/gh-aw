@@ -31,8 +31,6 @@ safe-outputs:
     max: 1
   threat-detection: false
 timeout-minutes: 30
-imports:
-  - shared/reporting.md
 steps:
   - name: Download recent Copilot workflow logs
     env:
@@ -112,8 +110,6 @@ steps:
         echo "ℹ️ No previous optimization history found."
       fi
 ---
-
-{{#runtime-import? .github/shared-instructions.md}}
 
 # Copilot Token Usage Optimizer
 
@@ -248,6 +244,13 @@ Create one issue with:
 - **Caveats** (sampling limits, edge cases)
 
 Use `<details>` blocks for long supporting tables.
+
+### Report Formatting Requirements
+
+- Use `###` for main sections and `####` for subsections inside the issue body.
+- Keep the selected workflow, token profile summary, and ranked recommendations visible without collapsible sections.
+- Use `<details><summary>...</summary>` blocks for long supporting tables, raw run evidence, and lower-priority context.
+- If you cite specific workflow runs, format them as links like `[§12345](https://github.com/${{ github.repository }}/actions/runs/12345)` and include up to 3 under `**References:**`.
 
 ## Phase 5 — Update Optimization Log
 
