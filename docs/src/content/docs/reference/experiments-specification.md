@@ -691,6 +691,58 @@ implemented within a single workflow file. Engine-switching experiments **MUST**
 compiled workflow files (one per variant), which can then be compared via their respective
 GitHub Actions run metrics.
 
+### 12.1 Conflict Resolution Norms
+
+A **conflict** occurs when two or more simultaneously active experiments would assign
+incompatible configurations to the same workflow run. This subsection defines normative
+behavior for each storage mode.
+
+**R-CONFLICT-001 (general)**: When two experiments assign variants that together produce a
+logically invalid workflow configuration (e.g., two `engine:` variants via separate
+experiment keys), the compiler **MUST** reject the workflow at compile time with a
+descriptive error. Runtime conflict detection is **NOT** a substitute for compile-time
+validation.
+
+#### 12.1.1 Conflict Resolution for `repo` Storage Mode
+
+**R-CONFLICT-REPO-001**: Under `repo` storage, each experiment's variant selection reads and
+writes an independent key in `state.json`. There is no shared mutable state between
+experiments at the selection layer. Variant assignments for experiment A **MUST NOT** block
+or override variant assignments for experiment B, even when both experiments are active on
+the same run.
+
+**R-CONFLICT-REPO-002**: When a concurrent write conflict is detected at push time (e.g., a
+non-fast-forward rejection from the GitHub API), the push step **MUST** retry with the
+merged state from both runs. The retry **MUST NOT** discard either run's assignment record.
+
+**R-CONFLICT-REPO-003**: If two concurrent runs select the same least-used variant for the
+same experiment (a read-time race), both selections are considered valid. The run records
+**MUST** reflect each run's independently selected variant. No conflict error is raised for
+this condition.
+
+#### 12.1.2 Conflict Resolution for `cache` Storage Mode
+
+**R-CONFLICT-CACHE-001**: Under `cache` storage, GitHub Actions cache is eventually
+consistent across concurrent runs. When two runs attempt to save conflicting cache entries
+under the same key, GitHub Actions will store one entry and silently drop the other.
+Implementations **MUST** treat this as an acceptable data loss (see §7.4 informative note on
+cache eviction) and **MUST NOT** treat a missing cache restore as an error condition.
+
+**R-CONFLICT-CACHE-002**: Because `cache` storage does not provide atomic read-modify-write
+semantics, implementations using `cache` mode **MUST** document to users that high-concurrency
+workflows may experience elevated variant imbalance compared to `repo` mode.
+
+#### 12.1.3 Conflict Resolution for Mixed Storage Mode
+
+**R-CONFLICT-MIX-001**: All experiments within a single workflow **MUST** share the same
+`storage` mode. Mixed-mode configurations (some experiments in `repo`, others in `cache`)
+are **NOT SUPPORTED** and **MUST** produce a compile-time error.
+
+**R-CONFLICT-MIX-002**: This restriction exists because the `storage` key is a single
+top-level field in the `experiments` map that applies uniformly to all experiments in that
+map. Workflow authors who require different storage modes for different experiments **MUST**
+split them into separate workflow files.
+
 ---
 
 ## 13. Security Considerations
@@ -888,6 +940,110 @@ Write a structured report with sections for new features, bug fixes, refactors, 
 Write a numbered step-by-step walkthrough of each change with rationale.
 {{#endif}}
 ```
+
+### Appendix A2: Weighted Variant Selection — Worked Example
+
+This appendix walks through the probability math for a three-variant `weighted` experiment to
+illustrate how the `weight` array maps to selection probability, how counters are updated, and
+how balance is maintained over many runs.
+
+#### A2.1 Scenario Setup
+
+An experiment named `response_tone` has three variants with non-uniform weights:
+
+```yaml
+experiments:
+  storage: repo
+  response_tone:
+    variants: [formal, casual, neutral]
+    weight: [20, 50, 30]
+```
+
+The weight values are **relative proportions**, not absolute percentages. The implementation
+normalises them to compute probabilities:
+
+```
+total_weight = 20 + 50 + 30 = 100
+
+P(formal)  = 20 / 100 = 0.20  (20%)
+P(casual)  = 50 / 100 = 0.50  (50%)
+P(neutral) = 30 / 100 = 0.30  (30%)
+```
+
+For a 10-run experiment sequence, the **expected** variant distribution is:
+
+| Variant | Weight | Expected runs (of 10) |
+|---------|--------|-----------------------|
+| formal  | 20     | 2                     |
+| casual  | 50     | 5                     |
+| neutral | 30     | 3                     |
+
+#### A2.2 Selection Algorithm (Weighted Random)
+
+The `weighted` algorithm draws a uniform random number `r ∈ [0, 1)` and maps it to a variant
+via cumulative weight:
+
+```
+Cumulative ranges:
+  [0.00, 0.20)  →  formal
+  [0.20, 0.70)  →  casual
+  [0.70, 1.00)  →  neutral
+```
+
+Example draws:
+
+| r      | Selected variant |
+|--------|-----------------|
+| 0.11   | formal           |
+| 0.45   | casual           |
+| 0.72   | neutral          |
+| 0.19   | formal           |
+| 0.68   | casual           |
+
+#### A2.3 Counter Updates
+
+After each run, the counter for the selected variant is incremented in `state.json`.
+After 10 runs with the distribution above, a typical `counts` object is:
+
+```json
+{
+  "counts": {
+    "response_tone": {
+      "formal":  2,
+      "casual":  5,
+      "neutral": 3
+    }
+  }
+}
+```
+
+Per R-SELECT-006, the `weighted` algorithm **MUST** increment invocation counters after every
+selection. This allows the audit CLI and reporting workflows to verify that observed variant
+frequencies approximate the declared weights over time.
+
+#### A2.4 Long-Run Balance Verification
+
+Over N runs, the observed frequency for variant v should converge to `weight[v] / total_weight`
+by the Law of Large Numbers. Reporting workflows SHOULD flag experiments where any variant's
+observed frequency deviates from its target weight by more than ±10 percentage points over at
+least 30 runs, as this may indicate a misconfigured `weight` array or a bug in the selection
+implementation.
+
+For the example above, after 100 runs:
+
+| Variant | Expected runs | Acceptable range (±10 pp) |
+|---------|--------------|--------------------------|
+| formal  | 20           | 10 – 30                  |
+| casual  | 50           | 40 – 60                  |
+| neutral | 30           | 20 – 40                  |
+
+#### A2.5 Contrast with Balanced Round-Robin
+
+The `balanced` (least-used) algorithm ignores weights and selects the least-run variant
+deterministically. Use `weighted` when you intentionally want unequal traffic allocation
+(e.g., to expose fewer users to an experimental variant while still gathering comparative
+data). Use `balanced` when you want equal allocation and maximum statistical efficiency per
+total run count.
 
 ### Appendix B: `state.json` Schema
 

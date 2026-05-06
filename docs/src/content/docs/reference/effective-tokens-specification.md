@@ -39,8 +39,9 @@ This document is governed by the GitHub Agentic Workflows project specifications
 9. [Extensibility](#9-extensibility)
 10. [Compliance Testing](#10-compliance-testing)
 11. [Appendices](#appendices)
-12. [References](#references)
-13. [Change Log](#change-log)
+12. [Model Multiplier Registry](#model-multiplier-registry)
+13. [References](#references)
+14. [Change Log](#change-log)
 
 ---
 
@@ -424,6 +425,60 @@ ET values are derived from token usage metadata. Implementations SHOULD treat pe
 
 ---
 
+## Model Multiplier Registry
+
+### Registry Purpose
+
+The **Copilot Multiplier** (`m`) used in the ET formula is a per-model scalar that represents each model's computational cost relative to the reference model. To ensure reproducibility and transparency, multiplier values MUST be sourced from a disclosed, versioned registry.
+
+### Normative Registry Source
+
+The authoritative registry for `copilot_multiplier` values in this implementation is the file:
+
+```
+pkg/cli/data/model_multipliers.json
+```
+
+This file is embedded at compile time into the `gh-aw` binary using a Go `//go:embed` directive in `pkg/cli/effective_tokens.go`. The registry format is:
+
+```json
+{
+  "version": "string",
+  "description": "string",
+  "reference_model": "string",
+  "token_class_weights": {
+    "input": number,
+    "cached_input": number,
+    "output": number,
+    "reasoning": number,
+    "cache_write": number
+  },
+  "multipliers": {
+    "<model-name>": number
+  }
+}
+```
+
+### Registry Requirements
+
+**R-REG-001**: The registry MUST declare a `version` field that changes whenever any multiplier value is added, removed, or modified.
+
+**R-REG-002**: The registry MUST declare a `reference_model` field identifying the baseline model whose multiplier equals 1.0. All other multipliers are relative to this baseline.
+
+**R-REG-003**: The registry MUST include `token_class_weights` for all four standard token classes: `input`, `cached_input`, `output`, and `reasoning`. A conforming implementation MUST use these weights as the default values for Section 4.2.
+
+**R-REG-004**: Implementations MUST embed or bundle the registry at build time. Runtime fetching of multiplier values from an external source requires disclosure in reported output.
+
+**R-REG-005**: When a model name is not present in the registry, implementations MUST treat the multiplier as `1.0` and SHOULD emit a warning noting that the model is unrecognised.
+
+**R-REG-006**: Custom multipliers supplied by the caller (e.g., via API or configuration) MUST be merged with registry multipliers. Custom values take precedence and MUST be disclosed in any report that uses them.
+
+### Registry Versioning
+
+The `version` field in `model_multipliers.json` corresponds to the registry schema version, not the gh-aw binary version. Implementations SHOULD include the registry version in all ET summary reports to enable historical reconstruction.
+
+---
+
 ## References
 
 ### Normative References
@@ -438,6 +493,16 @@ ET values are derived from token usage metadata. Implementations SHOULD treat pe
 ---
 
 ## Change Log
+
+### Version 0.3.0 (Draft)
+
+- **Added**: Model Multiplier Registry section with normative requirements R-REG-001 through R-REG-006
+- **Added**: Compliance test skeleton file `pkg/cli/effective_tokens_compliance_test.go` with Go test stubs for T-ET-001..T-ET-031
+- **Audit (Appendix C — Security)**: Verified Appendix C requirements against `pkg/cli/effective_tokens.go` and `pkg/cli/data/model_multipliers.json`. Findings:
+  - _Sensitive usage patterns_ (Appendix C §1): Per-invocation token data is not exposed directly by the CLI; only aggregate `TotalEffectiveTokens` is surfaced in the audit output. Access control is delegated to GitHub repository permissions. **No gaps found.**
+  - _Aggregate vs. detailed data separation_ (Appendix C §2): The `TokenUsageSummary.ByModel` map contains per-model breakdowns but is only logged at DEBUG level, not included in default CLI output. **No gaps found.**
+  - _Registry exposure_: The embedded `model_multipliers.json` contains only multiplier coefficients, not secrets or PII. **No gaps found.**
+  - _Follow-up_: The spec does not address token data leakage via OTEL attributes. This is tracked as a separate concern (see §7.3 of the Experiments Specification for precedent).
 
 ### Version 0.2.0 (Draft)
 

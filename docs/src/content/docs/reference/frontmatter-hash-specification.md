@@ -25,6 +25,26 @@ Collect all frontmatter from the main workflow and all imported workflows in **b
    - Includes transitively imported files (imports of imports)
    - Agent files (`.github/agents/*.md`) only contribute markdown content, not frontmatter
 
+#### BFS Traversal and Tie-Breaking Rules
+
+The BFS traversal processes imports level by level, starting from the root workflow. When a workflow imports multiple files, they are enqueued left-to-right in the order they appear in the `imports:` list. This ordering is preserved at every level.
+
+**Diamond-import handling**: If a workflow file appears more than once in the import graph (a "diamond" dependency), the **first occurrence** in BFS order determines where that file's frontmatter is merged; all subsequent occurrences of the same file **MUST be silently skipped**. Implementations MUST detect duplicate import paths using canonical path comparison (case-sensitive, no trailing-slash normalization) and discard duplicates without error.
+
+**Example (diamond graph)**:
+
+```
+root.md  →  imports: [a.md, b.md]
+a.md     →  imports: [shared.md]
+b.md     →  imports: [shared.md]
+```
+
+BFS queue order: `[root.md, a.md, b.md, shared.md]`  
+`shared.md` appears twice but is processed only once (after `a.md` in queue order).  
+Canonical hash input order: root → a → b → shared.
+
+This rule ensures that the hash is deterministic regardless of which traversal path first discovers a shared dependency.
+
 ### 2. Field Selection
 
 Include the following frontmatter fields in the hash computation:
@@ -172,17 +192,24 @@ Both Go and JavaScript implementations MUST:
 
 ### Go Implementation
 
-- Use `encoding/json` with `json.Marshal()`
-- Sort keys using a custom marshaler or post-processing
-- Use `crypto/sha256` for hashing
+The current Go implementation (`pkg/parser/frontmatter_hash.go`) uses a **text-based approach** that diverges from the field-selection model described in Section 2 ("Field Selection") of this specification:
+
+- **Actual behavior**: The entire normalized frontmatter text is hashed as a single opaque string (`frontmatter-text` key in the canonical JSON), alongside a sorted list of imported file paths and their normalized texts. This means _all_ frontmatter fields — including excluded ones such as comments — affect the hash value.
+- **Specified behavior**: The specification calls for selecting individual named fields and merging them by type (replace, deep-merge, append, union).
+
+**Implication**: The text-based approach is more conservative (any frontmatter change invalidates the hash, including whitespace-only changes after normalization) and simpler to implement cross-language. The trade-off is that it cannot support selective field exclusion without modifying the text normalization step.
+
+**Sync status** (verified 2026-05-06): The Go implementation is consistent with the JavaScript implementation in `actions/setup/js/` for the text-based approach. Both produce identical hashes for the same input. The field-selection model in Section 2 documents the _logical_ intent; the text-based implementation is the authoritative runtime behavior until a future revision aligns them.
+
+- Use `crypto/sha256` for hashing (`crypto/sha256.Sum256`)
 - Use `hex.EncodeToString()` for hexadecimal encoding
 
 ### JavaScript Implementation
 
-- Use native `JSON.stringify()` with sorted keys
-- Use Node.js `crypto.createHash('sha256')` for hashing
-- Use `.digest('hex')` for hexadecimal encoding
-- Ensure identical key sorting as Go implementation
+- Uses the same text-based approach as the Go implementation
+- Uses Node.js `crypto.createHash('sha256')` for hashing
+- Uses `.digest('hex')` for hexadecimal encoding
+- The JavaScript cross-language test suite in `pkg/parser/frontmatter_hash_cross_language_test.go` verifies identical output between the two implementations
 
 ### Hash Storage and Verification
 
@@ -192,6 +219,50 @@ Both Go and JavaScript implementations MUST:
    - Recomputes the hash from the workflow file
    - Compares the two hashes
    - Creates a GitHub issue if they differ (indicating frontmatter modification)
+
+## Safeguards
+
+This section describes known risks associated with the frontmatter hash mechanism and the recommended mitigations.
+
+### S-1: Hash Collision Risk
+
+SHA-256 produces a 256-bit output, giving a collision probability of approximately 2⁻¹²⁸ for any two distinct inputs under the birthday paradox. For the expected number of compiled workflows in a repository (typically <10,000), the probability of an accidental collision is negligible and does not require mitigation at the application layer.
+
+However, implementations MUST NOT rely on the hash as a cryptographic commitment or security boundary. The hash is an integrity check for stale-lock detection only.
+
+**Mitigation**: If future use cases require stronger collision resistance (e.g., content-addressed storage), implementations SHOULD upgrade to SHA-512 or SHA3-256 and bump the specification version.
+
+### S-2: Tamper Detection Limits
+
+The frontmatter hash detects accidental drift between the `.md` source and the compiled `.lock.yml` file. It does **not** prevent intentional tampering. Any user with write access to the repository can modify both files simultaneously:
+
+1. Edit the `.md` source.
+2. Recompile to regenerate the `.lock.yml` with the new hash.
+3. Commit both files in a single push.
+
+This bypass is by design — the hash mechanism is intended to catch _accidental_ stale locks, not to enforce a security boundary.
+
+**Mitigation**: Enforce required code reviews via branch protection rules. Require signed commits for critical workflows. Use separate compilation and merge workflows with protected branches to prevent direct pushes to the default branch.
+
+### S-3: Inclusion of Sensitive Configuration in Hash Input
+
+The canonical JSON used for hash computation includes all frontmatter fields, some of which may encode sensitive topology information (e.g., MCP server addresses in `mcp-servers:`, secret names in `mcp-scripts:`, or branch names in `tools.repo-memory`). This information is embedded in the `.lock.yml` file at compile time and is visible to anyone who can read the repository.
+
+**Mitigation**: Treat repository visibility as the primary access control boundary. Avoid storing secret _values_ in frontmatter (use GitHub Actions secrets instead). Periodically audit lock files for inadvertently committed sensitive configuration.
+
+### S-4: Version-Bump-Forced Recompilation
+
+The hash includes `versions.gh-aw`, `versions.awf`, and `versions.agents`. Upgrading any of these components will invalidate all existing hashes, triggering stale-lock warnings on all workflows until they are recompiled. In a repository with many workflows, this can create a noisy wave of false-positive stale-lock issues.
+
+**Mitigation**: Coordinate component upgrades with a bulk `make recompile` step. Automate recompilation in the upgrade PR so that lock files are always fresh after a version bump.
+
+### S-5: Cross-Language Hash Divergence
+
+The Go and JavaScript implementations must produce byte-for-byte identical canonical JSON. Any divergence in key sorting, number representation, or null/undefined handling between the two implementations will cause the JavaScript runtime to report a false stale-lock mismatch for every workflow run.
+
+**Mitigation**: Maintain a shared test-vector file (at minimum: empty frontmatter, single-field workflow, multi-level imports, all field types). Run cross-language hash tests in CI. Any change to the serialization algorithm in either language MUST be accompanied by updated test vectors verified against both implementations.
+
+---
 
 ## Security Considerations
 

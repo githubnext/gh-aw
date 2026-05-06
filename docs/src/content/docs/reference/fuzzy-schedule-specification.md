@@ -341,6 +341,32 @@ every 2 days
 # Generates: 0 0 */2 * *
 ```
 
+### 3.7 Error Norms for Invalid Schedule Expressions
+
+The following table specifies normative behavior (MUST/SHALL requirements) for malformed or
+unrecognisable fuzzy schedule expressions encountered during compilation. These norms apply
+at parse time (when the compiler processes the workflow frontmatter) and at test time (when
+the compliance test suite exercises the parser with invalid inputs).
+
+| # | Error Condition | Input Example | MUST/SHALL Behavior | Error Code |
+|---|----------------|---------------|---------------------|------------|
+| E-01 | Unknown schedule keyword (not one of `daily`, `weekly`, `hourly`, `bi-weekly`, `tri-weekly`, `every`) | `monthly` | Implementation MUST reject with a descriptive error naming the unrecognised keyword and listing valid keywords | `UNKNOWN_KEYWORD` |
+| E-02 | Out-of-range hour in 24-hour format | `daily around 25:00` | Implementation MUST reject; the error message MUST state the valid hour range (0–23) and the offending value | `HOUR_OUT_OF_RANGE` |
+| E-03 | Out-of-range minute | `daily around 14:65` | Implementation MUST reject; the error message MUST state the valid minute range (0–59) and the offending value | `MINUTE_OUT_OF_RANGE` |
+| E-04 | `around` keyword with no time specification | `daily around` | Implementation MUST reject; the error message MUST include an example of correct `around` usage | `MISSING_TIME_SPEC` |
+| E-05 | `between` keyword with only one time argument | `daily between 9:00` | Implementation MUST reject; the error message MUST state that `between` requires both a start and an end time connected by `and` | `INCOMPLETE_RANGE` |
+| E-06 | `between` range where start equals end | `daily between 14:00 and 14:00` | Implementation MUST reject; a zero-duration window cannot scatter execution times | `ZERO_DURATION_RANGE` |
+| E-07 | Unknown weekday in `weekly on <day>` | `weekly on mondey` | Implementation MUST reject with a did-you-mean suggestion when the input differs from a valid weekday by one character | `UNKNOWN_WEEKDAY` |
+| E-08 | Invalid interval unit | `every 5 fortnights` | Implementation MUST reject; the error message MUST list valid units (`minutes`, `hours`, `days`, `weeks` and their abbreviations) | `UNKNOWN_UNIT` |
+| E-09 | Interval value below minimum allowed by GitHub Actions | `every 2 minutes` | Implementation MUST reject; the error message MUST state the minimum permitted interval (5 minutes for the `minutes` unit) and the GitHub Actions constraint source | `INTERVAL_TOO_SMALL` |
+| E-10 | Non-integer interval value | `every 1.5 hours` | Implementation MUST reject; fractional interval values are not supported | `NON_INTEGER_INTERVAL` |
+
+**Normative notes**:
+
+- All error messages MUST be directed to the user's console (stderr) and MUST be human-readable.
+- Implementations MUST NOT silently fall back to a default schedule when the input is invalid; all errors in rows E-01 through E-10 MUST cause compilation to fail with a non-zero exit code.
+- Implementations SHOULD NOT attempt automatic correction of the schedule expression. Actionable correction guidance in the error message is preferred over silent fixup.
+
 ---
 
 ## 4. Time Specifications
