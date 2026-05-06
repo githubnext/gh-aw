@@ -185,25 +185,25 @@ func TestValidateSafeOutputsMaxFieldCoverage(t *testing.T) {
 			cfg := &SafeOutputsConfig{}
 			val := reflect.ValueOf(cfg).Elem()
 			field := val.FieldByName(fieldName)
-			require.True(t, field.IsValid(),
+			require.Truef(t, field.IsValid(),
 				"safeOutputFieldMapping references unknown struct field %q", fieldName)
-			require.Equal(t, reflect.Ptr, field.Kind(),
+			require.Equalf(t, reflect.Ptr, field.Kind(),
 				"safeOutputFieldMapping field %q is expected to be a pointer type", fieldName)
 
 			// Create a zero-value instance of the field's element type and set Max to an invalid value.
 			elem := reflect.New(field.Type().Elem())
 			baseCfgField := elem.Elem().FieldByName("BaseSafeOutputConfig")
-			require.True(t, baseCfgField.IsValid(),
+			require.Truef(t, baseCfgField.IsValid(),
 				"field %q does not embed BaseSafeOutputConfig — add a direct check in validateSafeOutputsMax", fieldName)
 			maxField := baseCfgField.FieldByName("Max")
-			require.True(t, maxField.IsValid(), "BaseSafeOutputConfig.Max field not found")
+			require.Truef(t, maxField.IsValid(), "BaseSafeOutputConfig.Max field not found for field %q", fieldName)
 			maxField.Set(reflect.ValueOf(invalidMax))
 			field.Set(elem)
 
 			err := validateSafeOutputsMax(cfg)
-			require.Error(t, err,
+			require.Errorf(t, err,
 				"validateSafeOutputsMax should detect invalid max for field %q (tool: %q); add a direct-access check", fieldName, toolName)
-			assert.Contains(t, err.Error(), "max must be a positive integer or -1",
+			assert.Containsf(t, err.Error(), "max must be a positive integer or -1",
 				"error for field %q should explain valid values", fieldName)
 		})
 	}
