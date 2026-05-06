@@ -24,7 +24,7 @@ The package uses typed aliases to prevent mixing unrelated string or integer val
 
 | Type | Description | Example constant |
 |------|-------------|-----------------|
-| `EngineName` | AI engine identifier | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `GeminiEngine`, `OpenCodeEngine`, `CrushEngine` |
+| `EngineName` | AI engine identifier | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `GeminiEngine`, `OpenCodeEngine`, `CrushEngine`, `PiEngine` |
 | `FeatureFlag` | Feature flag identifier | `MCPGatewayFeatureFlag`, `MCPScriptsFeatureFlag` |
 | `JobName` | GitHub Actions job name | `AgentJobName`, `ActivationJobName` |
 | `StepID` | GitHub Actions step identifier | `CheckMembershipStepID`, `CheckRateLimitStepID` |
@@ -51,10 +51,11 @@ constants.CodexEngine     // "codex"
 constants.GeminiEngine    // "gemini"
 constants.OpenCodeEngine  // "opencode"
 constants.CrushEngine     // "crush"
+constants.PiEngine        // "pi" (experimental)
 constants.DefaultEngine   // "copilot"
 
 // All supported engine names
-constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "opencode", "crush"}
+constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "opencode", "crush", "pi"}
 
 // Get engine metadata
 opt := constants.GetEngineOption("copilot")
@@ -99,6 +100,7 @@ constants.EnvVarModelAgentCustom     // "GH_AW_MODEL_AGENT_CUSTOM"
 constants.EnvVarModelAgentGemini     // "GH_AW_MODEL_AGENT_GEMINI"
 constants.EnvVarModelAgentOpenCode   // "GH_AW_MODEL_AGENT_OPENCODE"
 constants.EnvVarModelAgentCrush      // "GH_AW_MODEL_AGENT_CRUSH"
+constants.EnvVarModelAgentPi         // "GH_AW_MODEL_AGENT_PI"
 constants.EnvVarModelDetectionCopilot// "GH_AW_MODEL_DETECTION_COPILOT"
 constants.EnvVarModelDetectionClaude // "GH_AW_MODEL_DETECTION_CLAUDE"
 constants.EnvVarModelDetectionCodex  // "GH_AW_MODEL_DETECTION_CODEX"
@@ -113,6 +115,7 @@ constants.ClaudeCLIModelEnvVar          // "ANTHROPIC_MODEL"
 constants.GeminiCLIModelEnvVar          // "GEMINI_MODEL"
 constants.CrushCLIModelEnvVar           // "CRUSH_MODEL"
 constants.OpenCodeCLIModelEnvVar        // "OPENCODE_MODEL"
+constants.PiCLIModelEnvVar              // "PI_MODEL"
 
 // gh-aw runtime env vars
 constants.EnvVarPrompt          // "GH_AW_PROMPT"
@@ -255,6 +258,7 @@ constants.DefaultCodexVersion           // OpenAI Codex CLI version
 constants.DefaultGeminiVersion          // Google Gemini CLI version
 constants.DefaultCrushVersion           // Crush CLI version
 constants.DefaultOpenCodeVersion        // OpenCode CLI version
+constants.DefaultPiVersion              // Pi CLI version (experimental)
 
 // Infrastructure
 constants.DefaultGitHubMCPServerVersion // GitHub MCP server Docker image version
