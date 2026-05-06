@@ -626,7 +626,7 @@ async function main(config = {}) {
           return { success: false, error: "Failed to apply bundle" };
         }
       } else {
-        // Patch transport: git am --3way
+        // Patch transport (non-default): git am --3way
         core.info("Applying patch...");
         try {
           if (commitTitleSuffix) {
