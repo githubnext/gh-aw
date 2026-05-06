@@ -275,11 +275,11 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 					acc.engines = append(acc.engines, engineContent)
 				}
 			default:
-				// Unexpected type — add as-is to preserve existing behaviour
+				// Unexpected type — add as-is to preserve existing behavior
 				acc.engines = append(acc.engines, engineContent)
 			}
 		} else {
-			// Cannot parse — add as-is to preserve existing behaviour
+			// Cannot parse — add as-is to preserve existing behavior
 			acc.engines = append(acc.engines, engineContent)
 		}
 	}
