@@ -162,14 +162,13 @@ function generateVariants(prop, propName, indent = 0, required = []) {
 
   // Handle oneOf/anyOf
   const variants = prop.oneOf || prop.anyOf;
-  const variantType = prop.oneOf ? "oneOf" : "anyOf";
 
   if (variants && variants.length > 1) {
-    lines.push(formatComment(`This field supports multiple formats (${variantType}):`, indent));
+    lines.push(formatComment(`Accepted formats:`, indent));
 
     variants.forEach((variant, index) => {
       lines.push("");
-      lines.push(formatComment(`Option ${index + 1}: ${variant.description || variant.type}`, indent));
+      lines.push(formatComment(`Format ${index + 1}: ${variant.description || variant.type}`, indent));
 
       if (variant.type === "string") {
         const example = getExampleValue(variant, propName);
