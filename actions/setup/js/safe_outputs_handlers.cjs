@@ -325,11 +325,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
-    // Determine transport format: "bundle" uses git bundle (preserves merge topology),
-    // "am" (default) uses git format-patch / git am (good for linear histories).
+    // Determine transport format: "bundle" (default) uses git bundle (preserves merge topology),
+    // "am" uses git format-patch / git am (good for linear histories).
     // Use ?? (nullish coalescing) so an empty-string resolved value is preserved and
-    // rejected below rather than silently falling back to "am".
-    const patchFormat = prConfig["patch_format"] ?? config["patch_format"] ?? "am";
+    // rejected below rather than silently falling back to "bundle".
+    const patchFormat = prConfig["patch_format"] ?? config["patch_format"] ?? "bundle";
     const validPatchFormats = ["am", "bundle"];
     if (!validPatchFormats.includes(patchFormat)) {
       const errorMsg = `Invalid patch_format in configuration. Must be one of: ${validPatchFormats.join(", ")}`;
@@ -412,7 +412,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
-    // Patch transport (default): uses git format-patch / git am
+    // Patch transport: uses git format-patch / git am
     server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}${repoCwd ? ` in ${repoCwd} baseBranch: ${baseBranch}` : ""}`);
     /** @type {Record<string, any>} */
     const patchOptions = { ...transportOptions };
@@ -561,15 +561,15 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       entry.branch = detectedBranch;
     }
 
-    // Determine transport format: "bundle" uses git bundle (preserves merge topology),
-    // "am" (default) uses git format-patch / git am (good for linear histories).
+    // Determine transport format: "bundle" (default) uses git bundle (preserves merge topology),
+    // "am" uses git format-patch / git am (good for linear histories).
     // Use ?? (nullish coalescing) so an empty-string resolved value is preserved and
-    // rejected below rather than silently falling back to "am".
+    // rejected below rather than silently falling back to "bundle".
     // Track whether the user explicitly set patch_format so we can auto-fall-back
     // to bundle transport when merge commits are detected (since `git am` cannot
     // apply merge commits). When the user explicitly chose a format, respect it.
     const patchFormatExplicit = pushConfig["patch_format"] !== undefined || config["patch_format"] !== undefined;
-    const pushPatchFormat = pushConfig["patch_format"] ?? config["patch_format"] ?? "am";
+    const pushPatchFormat = pushConfig["patch_format"] ?? config["patch_format"] ?? "bundle";
     const validPushPatchFormats = ["am", "bundle"];
     if (!validPushPatchFormats.includes(pushPatchFormat)) {
       const errorMsg = `Invalid patch_format in configuration. Must be one of: ${validPushPatchFormats.join(", ")}`;
@@ -591,7 +591,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Auto-fallback: when patch_format is not explicitly configured and the
     // incremental range (origin/<branch>..<branch>) contains merge commits,
-    // automatically switch to bundle transport. `git am` (the default) cannot
+    // automatically switch to bundle transport. `git am` cannot
     // apply merge commits, so without this fallback long-running branches that
     // periodically merge their base branch locally would fail with add/add
     // conflicts on every push attempt. The detection is best-effort and uses
@@ -688,7 +688,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
-    // Patch transport (default): uses git format-patch / git am
+    // Patch transport: uses git format-patch / git am
     // Incremental mode only includes commits since origin/branchName,
     // preventing patches that include already-existing commits
     server.debug(`Generating incremental patch for push_to_pull_request_branch with branch: ${entry.branch}, baseBranch: ${baseBranch}`);

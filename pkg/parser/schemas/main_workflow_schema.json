@@ -6266,8 +6266,8 @@
                     {
                       "type": "string",
                       "enum": ["am", "bundle"],
-                      "default": "am",
-                      "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
+                      "default": "bundle",
+                      "description": "Transport format for packaging changes. \"bundle\" (default) uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content. \"am\" uses git format-patch/git am."
                     },
                     {
                       "type": "string",
@@ -6275,7 +6275,7 @@
                       "description": "GitHub Actions expression that resolves to 'am' or 'bundle' at runtime. Use in reusable workflow_call workflows to parameterise the transport format per caller."
                     }
                   ],
-                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle. Accepts a GitHub Actions expression for reusable workflows."
+                  "description": "Transport format for packaging changes. \"bundle\" (default) uses git bundle. \"am\" uses git format-patch/git am. Accepts a GitHub Actions expression for reusable workflows."
                 },
                 "staged": {
                   "type": "boolean",
@@ -7597,8 +7597,8 @@
                     {
                       "type": "string",
                       "enum": ["am", "bundle"],
-                      "default": "am",
-                      "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
+                      "default": "bundle",
+                      "description": "Transport format for packaging changes. \"bundle\" (default) uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content. \"am\" uses git format-patch/git am."
                     },
                     {
                       "type": "string",
@@ -7606,7 +7606,7 @@
                       "description": "GitHub Actions expression that resolves to 'am' or 'bundle' at runtime. Use in reusable workflow_call workflows to parameterise the transport format per caller."
                     }
                   ],
-                  "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle. Accepts a GitHub Actions expression for reusable workflows."
+                  "description": "Transport format for packaging changes. \"bundle\" (default) uses git bundle. \"am\" uses git format-patch/git am. Accepts a GitHub Actions expression for reusable workflows."
                 },
                 "allow-workflows": {
                   "type": "boolean",

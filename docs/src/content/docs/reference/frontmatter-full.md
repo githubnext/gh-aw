@@ -4410,16 +4410,16 @@ safe-outputs:
     excluded-files: []
       # Array of strings
 
-    # Transport format for packaging changes. "am" (default) uses git format-patch/git
-    # am. "bundle" uses git bundle. Accepts a GitHub Actions expression for reusable
+    # Transport format for packaging changes. "bundle" (default) uses git bundle.
+    # "am" uses git format-patch/git am. Accepts a GitHub Actions expression for reusable
     # workflows.
     # (optional)
     # Accepted formats:
 
-    # Format 1: Transport format for packaging changes. "am" (default) uses git
-    # format-patch/git am. "bundle" uses git bundle, which preserves merge commit
+    # Format 1: Transport format for packaging changes. "bundle" (default) uses git
+    # bundle. "am" uses git format-patch/git am, while "bundle" preserves merge commit
     # topology, per-commit authorship, and merge-resolution-only content.
-    patch-format: "am"
+    patch-format: "bundle"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
     # runtime. Use in reusable workflow_call workflows to parameterise the transport
@@ -5623,16 +5623,16 @@ safe-outputs:
     excluded-files: []
       # Array of strings
 
-    # Transport format for packaging changes. "am" (default) uses git format-patch/git
-    # am. "bundle" uses git bundle. Accepts a GitHub Actions expression for reusable
+    # Transport format for packaging changes. "bundle" (default) uses git bundle.
+    # "am" uses git format-patch/git am. Accepts a GitHub Actions expression for reusable
     # workflows.
     # (optional)
     # Accepted formats:
 
-    # Format 1: Transport format for packaging changes. "am" (default) uses git
-    # format-patch/git am. "bundle" uses git bundle, which preserves merge commit
+    # Format 1: Transport format for packaging changes. "bundle" (default) uses git
+    # bundle. "am" uses git format-patch/git am, while "bundle" preserves merge commit
     # topology, per-commit authorship, and merge-resolution-only content.
-    patch-format: "am"
+    patch-format: "bundle"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
     # runtime. Use in reusable workflow_call workflows to parameterise the transport

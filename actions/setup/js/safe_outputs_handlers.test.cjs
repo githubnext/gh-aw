@@ -445,9 +445,9 @@ describe("safe_outputs_handlers", () => {
       expect(handlers.createPullRequestHandler).toBeDefined();
     });
 
-    it("should return error response when patch generation fails (not throw)", async () => {
+    it("should return error response when default transport generation fails (not throw)", async () => {
       // This test verifies the error is returned as content, not thrown
-      // The actual patch generation will fail because we're not in a git repo
+      // The default transport generation will fail because we're not in a git repo
       const args = {
         branch: "feature-branch",
         title: "Test PR",
@@ -468,7 +468,7 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
       expect(responseData.error).toBeDefined();
-      expect(responseData.error).toContain("Failed to generate patch");
+      expect(responseData.error).toContain("Failed to generate bundle");
       expect(responseData.details).toBeDefined();
       expect(responseData.details).toContain("Make sure you have committed your changes");
       expect(responseData.details).toContain("git add and git commit");
@@ -524,13 +524,13 @@ describe("safe_outputs_handlers", () => {
 
       const result = await handlers.createPullRequestHandler(args);
 
-      // Should proceed to patch generation (which will fail because not in git repo)
+      // Should proceed to default transport generation (which will fail because not in git repo)
       // but NOT fail with repo not found error
       expect(result.isError).toBe(true);
       const responseData = JSON.parse(result.content[0].text);
-      // Should be a patch error, not a repo not found error
+      // Should be a transport generation error, not a repo not found error
       expect(responseData.error).not.toContain("not found in workspace");
-      expect(responseData.error).toContain("Failed to generate patch");
+      expect(responseData.error).toContain("Failed to generate bundle");
     });
 
     it("should treat whitespace-only repo as workspace root", async () => {
@@ -857,7 +857,7 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
-    it("should include repo slug in incremental patch filename for side-repo checkout", async () => {
+    it("should include repo slug in incremental bundle filename for side-repo checkout (default mode)", async () => {
       const { targetRepoDir } = createSideRepoWithTrackedAndLocalCommits();
 
       process.env.GITHUB_BASE_REF = "main";
@@ -870,13 +870,13 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeFalsy();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
-        expect(path.basename(responseData.patch.path)).toBe("aw-test-owner-test-repo-feature-test-change.patch");
+        expect(path.basename(responseData.bundle.path)).toBe("aw-test-owner-test-repo-feature-test-change.bundle");
 
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(
           expect.objectContaining({
             type: "push_to_pull_request_branch",
             repo_cwd: targetRepoDir,
-            patch_path: expect.stringContaining("aw-test-owner-test-repo-feature-test-change.patch"),
+            bundle_path: expect.stringContaining("aw-test-owner-test-repo-feature-test-change.bundle"),
           })
         );
       } finally {
@@ -972,9 +972,8 @@ describe("safe_outputs_handlers", () => {
      * Reproduces the long-running-branch scenario from the issue:
      * the agent merged the default branch into the PR branch (creating a merge
      * commit), then committed additional work on top. The incremental range
-     * origin/<branch>..<branch> therefore contains a merge commit, which
-     * `git am --3way` cannot apply. The handler should auto-switch to bundle
-     * transport when patch_format is not explicitly set.
+     * origin/<branch>..<branch> therefore contains a merge commit. With bundle
+     * now the default transport, this succeeds without requiring an auto-switch.
      */
     function createSideRepoWithMergeCommitInIncrementalRange() {
       const targetRepoDir = path.join(testWorkspaceDir, "target-repo-merge");
@@ -1017,7 +1016,7 @@ describe("safe_outputs_handlers", () => {
       execSync("git commit -m 'follow-up after merge'", { cwd: targetRepoDir, stdio: "pipe" });
     }
 
-    it("auto-switches to bundle transport when incremental range contains a merge commit (default patch_format)", async () => {
+    it("uses bundle transport by default when patch_format is not set", async () => {
       createSideRepoWithMergeCommitInIncrementalRange();
 
       process.env.GITHUB_BASE_REF = "main";
@@ -1035,8 +1034,9 @@ describe("safe_outputs_handlers", () => {
         expect(responseData.patch).toBeUndefined();
         expect(responseData.bundle.path).toMatch(/\.bundle$/);
 
-        // The auto-switch debug message must be emitted so operators can trace why
-        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("auto-switching to bundle transport"));
+        // Default mode is already bundle, so no auto-switch message is required
+        const autoSwitchCalls = mockServer.debug.mock.calls.filter(c => typeof c[0] === "string" && c[0].includes("auto-switching to bundle transport"));
+        expect(autoSwitchCalls).toHaveLength(0);
 
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(
           expect.objectContaining({

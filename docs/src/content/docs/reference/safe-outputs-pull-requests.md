@@ -432,8 +432,8 @@ on:
           Protected-file policy: 'blocked', 'fallback-to-issue', or 'allowed'.
       patch-format:
         type: string
-        default: am
-        description: Transport format: 'am' (default) or 'bundle'.
+        default: bundle
+        description: Transport format: 'bundle' (default) or 'am'.
 ---
 safe-outputs:
   push-to-pull-request-branch:
