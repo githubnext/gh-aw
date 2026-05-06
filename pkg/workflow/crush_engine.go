@@ -22,13 +22,15 @@ func NewCrushEngine() *CrushEngine {
 	return &CrushEngine{
 		UniversalLLMConsumerEngine: UniversalLLMConsumerEngine{
 			BaseEngine: BaseEngine{
-				id:                     "crush",
-				displayName:            "Crush",
-				description:            "Crush CLI with headless mode and multi-provider LLM support",
-				experimental:           true,  // Start as experimental until smoke tests pass consistently
-				supportsToolsAllowlist: false, // Crush manages its own tool permissions via .crush.json
-				supportsMaxTurns:       false, // No --max-turns flag in crush run
-				supportsWebSearch:      false, // Has built-in websearch but not exposed via gh-aw neutral tools yet
+				id:           "crush",
+				displayName:  "Crush",
+				description:  "Crush CLI with headless mode and multi-provider LLM support",
+				experimental: true, // Start as experimental until smoke tests pass consistently
+				capabilities: EngineCapabilities{
+					ToolsAllowlist: false, // Crush manages its own tool permissions via .crush.json
+					MaxTurns:       false, // No --max-turns flag in crush run
+					WebSearch:      false, // Has built-in websearch but not exposed via gh-aw neutral tools yet
+				},
 			},
 		},
 	}

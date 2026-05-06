@@ -45,14 +45,17 @@ type Engine interface {
 Feature detection interface - indicates what capabilities an engine supports.
 
 ```go
+type EngineCapabilities struct {
+    ToolsAllowlist   bool
+    MaxTurns         bool
+    WebSearch        bool
+    MaxContinuations bool
+    NativeAgentFile  bool
+    BareMode         bool
+}
+
 type CapabilityProvider interface {
-    SupportsToolsAllowlist() bool  // MCP tool allow-listing
-    SupportsMaxTurns() bool        // max-turns configuration
-    SupportsWebFetch() bool        // Built-in web-fetch tool
-    SupportsWebSearch() bool       // Built-in web-search tool
-    SupportsFirewall() bool        // Network firewalling/sandboxing
-    SupportsPlugins() bool         // Plugin installation
-    SupportsLLMGateway() int       // LLM gateway port (-1 if not supported)
+    GetCapabilities() EngineCapabilities
 }
 ```
 
@@ -213,17 +216,18 @@ type MyEngine struct {
 func NewMyEngine() *MyEngine {
     return &MyEngine{
         BaseEngine: BaseEngine{
-            id:                     "my-engine",
-            displayName:            "My AI Engine",
-            description:            "Uses My AI with MCP server support",
-            experimental:           false, // Set to true for experimental engines
-            supportsToolsAllowlist: true,  // Set based on engine capabilities
-            supportsMaxTurns:       true,
-            supportsWebFetch:       true,
-            supportsWebSearch:      true,
-            supportsFirewall:       true,
-            supportsPlugins:        false,
-            supportsLLMGateway:     false, // Set to true if engine has LLM gateway
+            id:           "my-engine",
+            displayName:  "My AI Engine",
+            description:  "Uses My AI with MCP server support",
+            experimental: false, // Set to true for experimental engines
+            capabilities: EngineCapabilities{
+                ToolsAllowlist:   true,
+                MaxTurns:         true,
+                WebSearch:        true,
+                MaxContinuations: false,
+                NativeAgentFile:  false,
+                BareMode:         false,
+            },
         },
     }
 }
@@ -512,14 +516,15 @@ func TestMyEngineBasicProperties(t *testing.T) {
 
 func TestMyEngineCapabilities(t *testing.T) {
     engine := NewMyEngine()
+    capabilities := engine.GetCapabilities()
 
     // Test capability flags match constructor
-    assert.True(t, engine.SupportsToolsAllowlist())
-    assert.True(t, engine.SupportsMaxTurns())
-    assert.True(t, engine.SupportsWebFetch())
-    assert.True(t, engine.SupportsWebSearch())
-    assert.True(t, engine.SupportsFirewall())
-    assert.False(t, engine.SupportsPlugins())
+    assert.True(t, capabilities.ToolsAllowlist)
+    assert.True(t, capabilities.MaxTurns)
+    assert.True(t, capabilities.WebSearch)
+    assert.False(t, capabilities.MaxContinuations)
+    assert.False(t, capabilities.NativeAgentFile)
+    assert.False(t, capabilities.BareMode)
 }
 
 func TestMyEngineInstallationSteps(t *testing.T) {
@@ -677,16 +682,15 @@ type SimpleEngine struct {
 func NewSimpleEngine() *SimpleEngine {
     return &SimpleEngine{
         BaseEngine: BaseEngine{
-            id:                     "simple",
-            displayName:            "Simple Engine",
-            description:            "Basic execution without MCP",
-            experimental:           false,
-            supportsToolsAllowlist: false,
-            supportsMaxTurns:       false,
-            supportsWebFetch:       false,
-            supportsWebSearch:      false,
-            supportsFirewall:       false,
-            supportsPlugins:        false,
+            id:           "simple",
+            displayName:  "Simple Engine",
+            description:  "Basic execution without MCP",
+            experimental: false,
+            capabilities: EngineCapabilities{
+                ToolsAllowlist: false,
+                MaxTurns:       false,
+                WebSearch:      false,
+            },
         },
     }
 }

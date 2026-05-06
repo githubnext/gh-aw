@@ -32,7 +32,7 @@ func TestClaudeEngine(t *testing.T) {
 		t.Error("Claude engine should not be experimental")
 	}
 
-	if !engine.SupportsToolsAllowlist() {
+	if !engine.GetCapabilities().ToolsAllowlist {
 		t.Error("Claude engine should support MCP tools")
 	}
 
@@ -555,8 +555,8 @@ func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 // content to prompt.txt during the activation job instead.
 func TestClaudeEngineDoesNotSupportNativeAgentFile(t *testing.T) {
 	engine := NewClaudeEngine()
-	if engine.SupportsNativeAgentFile() {
-		t.Errorf("Claude engine should return false for SupportsNativeAgentFile(); the compiler handles agent file injection")
+	if engine.GetCapabilities().NativeAgentFile {
+		t.Errorf("Claude engine should report NativeAgentFile=false; the compiler handles agent file injection")
 	}
 }
 

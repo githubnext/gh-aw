@@ -33,15 +33,17 @@ type PiEngine struct {
 func NewPiEngine() *PiEngine {
 	return &PiEngine{
 		BaseEngine: BaseEngine{
-			id:                       "pi",
-			displayName:              "Pi",
-			description:              "Pi AI coding agent (experimental)",
-			experimental:             true,
-			supportsToolsAllowlist:   true,
-			supportsMaxTurns:         false,
-			supportsMaxContinuations: false,
-			supportsWebSearch:        false,
-			supportsNativeAgentFile:  false,
+			id:           "pi",
+			displayName:  "Pi",
+			description:  "Pi AI coding agent (experimental)",
+			experimental: true,
+			capabilities: EngineCapabilities{
+				ToolsAllowlist:   true,
+				MaxTurns:         false,
+				MaxContinuations: false,
+				WebSearch:        false,
+				NativeAgentFile:  false,
+			},
 		},
 	}
 }

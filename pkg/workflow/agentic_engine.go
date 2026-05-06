@@ -36,12 +36,7 @@ type GitHubActionStep []string
 //   └── IsExperimental()
 //
 //   CapabilityProvider (feature detection - optional)
-//   ├── SupportsToolsAllowlist()
-//   ├── SupportsMaxTurns()
-//   ├── SupportsWebSearch()
-//   ├── SupportsMaxContinuations()
-//   ├── SupportsNativeAgentFile()
-//   └── SupportsBareMode()
+//   └── GetCapabilities()
 //
 //   WorkflowExecutor (compilation - required)
 //   ├── GetDeclaredOutputFiles()
@@ -104,33 +99,39 @@ type Engine interface {
 	IsExperimental() bool
 }
 
-// CapabilityProvider detects what capabilities an engine supports
-// Engines can optionally implement this to indicate feature support
-type CapabilityProvider interface {
-	// SupportsToolsAllowlist returns true if this engine supports MCP tool allow-listing
-	SupportsToolsAllowlist() bool
+// EngineCapabilities captures optional engine features.
+// New capabilities should be added here so existing engines inherit the zero-value default.
+type EngineCapabilities struct {
+	// ToolsAllowlist reports whether the engine supports MCP tool allow-listing.
+	ToolsAllowlist bool
 
-	// SupportsMaxTurns returns true if this engine supports the max-turns feature
-	SupportsMaxTurns() bool
+	// MaxTurns reports whether the engine supports the max-turns feature.
+	MaxTurns bool
 
-	// SupportsWebSearch returns true if this engine has built-in support for the web-search tool
-	SupportsWebSearch() bool
+	// WebSearch reports whether the engine has built-in support for the web-search tool.
+	WebSearch bool
 
-	// SupportsMaxContinuations returns true if this engine supports the max-continuations feature
-	// When true, max-continuations > 1 enables autopilot/multi-run mode for the engine
-	SupportsMaxContinuations() bool
+	// MaxContinuations reports whether the engine supports the max-continuations feature.
+	// When true, max-continuations > 1 enables autopilot/multi-run mode for the engine.
+	MaxContinuations bool
 
-	// SupportsNativeAgentFile returns true if this engine handles agent-file imports natively
+	// NativeAgentFile reports whether the engine handles agent-file imports natively
 	// in its own execution steps (reading the file, stripping frontmatter, and prepending the
-	// content to the prompt at runtime).  When false, the compiler is responsible for including
+	// content to the prompt at runtime). When false, the compiler is responsible for including
 	// the agent file content in prompt.txt during the activation job so that the engine just
 	// reads the standard /tmp/gh-aw/aw-prompts/prompt.txt as usual.
-	SupportsNativeAgentFile() bool
+	NativeAgentFile bool
 
-	// SupportsBareMode returns true if this engine supports the bare mode feature
-	// (engine.bare: true), which suppresses automatic loading of context and custom
-	// instructions. When false, specifying bare: true emits a warning and has no effect.
-	SupportsBareMode() bool
+	// BareMode reports whether the engine supports the bare mode feature (engine.bare: true),
+	// which suppresses automatic loading of context and custom instructions. When false,
+	// specifying bare: true emits a warning and has no effect.
+	BareMode bool
+}
+
+// CapabilityProvider detects what capabilities an engine supports.
+// Engines can optionally implement this to indicate feature support.
+type CapabilityProvider interface {
+	GetCapabilities() EngineCapabilities
 }
 
 // WorkflowExecutor handles workflow compilation and execution
@@ -283,17 +284,12 @@ type CodingAgentEngine interface {
 
 // BaseEngine provides common functionality for agentic engines
 type BaseEngine struct {
-	id                       string
-	displayName              string
-	description              string
-	experimental             bool
-	supportsToolsAllowlist   bool
-	supportsMaxTurns         bool
-	supportsMaxContinuations bool
-	supportsWebSearch        bool
-	supportsNativeAgentFile  bool
-	supportsBareMode         bool
-	dedicatedLLMGatewayPort  int
+	id                      string
+	displayName             string
+	description             string
+	experimental            bool
+	capabilities            EngineCapabilities
+	dedicatedLLMGatewayPort int
 }
 
 func (e *BaseEngine) GetID() string {
@@ -312,28 +308,8 @@ func (e *BaseEngine) IsExperimental() bool {
 	return e.experimental
 }
 
-func (e *BaseEngine) SupportsToolsAllowlist() bool {
-	return e.supportsToolsAllowlist
-}
-
-func (e *BaseEngine) SupportsMaxTurns() bool {
-	return e.supportsMaxTurns
-}
-
-func (e *BaseEngine) SupportsWebSearch() bool {
-	return e.supportsWebSearch
-}
-
-func (e *BaseEngine) SupportsMaxContinuations() bool {
-	return e.supportsMaxContinuations
-}
-
-func (e *BaseEngine) SupportsNativeAgentFile() bool {
-	return e.supportsNativeAgentFile
-}
-
-func (e *BaseEngine) SupportsBareMode() bool {
-	return e.supportsBareMode
+func (e *BaseEngine) GetCapabilities() EngineCapabilities {
+	return e.capabilities
 }
 
 func (e *BaseEngine) getDedicatedLLMGatewayPort() int {

@@ -21,9 +21,10 @@ func TestCrushEngine(t *testing.T) {
 	})
 
 	t.Run("capabilities", func(t *testing.T) {
-		assert.False(t, engine.SupportsToolsAllowlist(), "Should not support tools allowlist")
-		assert.False(t, engine.SupportsMaxTurns(), "Should not support max turns")
-		assert.False(t, engine.SupportsWebSearch(), "Should not support built-in web search")
+		capabilities := engine.GetCapabilities()
+		assert.False(t, capabilities.ToolsAllowlist, "Should not support tools allowlist")
+		assert.False(t, capabilities.MaxTurns, "Should not support max turns")
+		assert.False(t, capabilities.WebSearch, "Should not support built-in web search")
 	})
 
 	t.Run("model env var name", func(t *testing.T) {
