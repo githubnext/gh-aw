@@ -203,8 +203,8 @@ Chart requirements:
 - Save only PNG files.
 - If there are fewer than 2 rolling-summary points, skip the trend chart and explain why in the discussion.
 - After generating each chart, call `upload_asset` with its file path.
-- Replace `UPLOAD_URL_WORKFLOW` with the URL returned for `token_by_workflow.png`.
-- Replace `UPLOAD_URL_TREND` with the URL returned for `token_trend.png`.
+- In the discussion template below, replace `{{UPLOAD_URL_WORKFLOW}}` with the URL returned for `token_by_workflow.png`.
+- In the discussion template below, replace `{{UPLOAD_URL_TREND}}` with the URL returned for `token_trend.png`.
 - If a chart is skipped, omit that image markdown line entirely instead of leaving a placeholder behind.
 
 ## Phase 4 — Publish Audit Discussion
@@ -240,9 +240,9 @@ Create a discussion with these sections:
 
 Embed chart images using uploaded asset URLs when available:
 
-![Token Usage by Workflow](UPLOAD_URL_WORKFLOW)
+![Token Usage by Workflow]({{UPLOAD_URL_WORKFLOW}})
 
-![Historical Token Trend](UPLOAD_URL_TREND)
+![Historical Token Trend]({{UPLOAD_URL_TREND}})
 
 Summarize token and cost changes from `rolling-summary.json` when historical data is available.
 
