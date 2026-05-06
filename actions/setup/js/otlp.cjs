@@ -111,6 +111,7 @@ async function logSpan(toolName, attributes = {}, options = {}) {
     const resourceAttributes = buildGitHubActionsResourceAttributes({
       repository: process.env.GITHUB_REPOSITORY || "",
       runId: process.env.GITHUB_RUN_ID || "",
+      runAttempt: process.env.GITHUB_RUN_ATTEMPT || "1",
       eventName: process.env.GITHUB_EVENT_NAME || "",
       ref: process.env.GITHUB_REF || "",
       refName: process.env.GITHUB_REF_NAME || "",

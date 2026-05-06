@@ -1329,6 +1329,34 @@ describe("sendJobSetupSpan", () => {
     expect(resourceAttrs).toContainEqual({ key: "github.run_id", value: { stringValue: "987654321" } });
   });
 
+  it("includes github.run_attempt as resource attribute from GITHUB_RUN_ATTEMPT", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GITHUB_RUN_ATTEMPT = "3";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.run_attempt", value: { stringValue: "3" } });
+  });
+
+  it("defaults github.run_attempt resource attribute to '1' when GITHUB_RUN_ATTEMPT is not set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    delete process.env.GITHUB_RUN_ATTEMPT;
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.run_attempt", value: { stringValue: "1" } });
+  });
+
   it("includes github.event_name as resource attribute when GITHUB_EVENT_NAME is set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -2766,6 +2794,34 @@ describe("sendJobConclusionSpan", () => {
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     expect(resourceAttrs).toContainEqual({ key: "github.repository", value: { stringValue: "owner/repo" } });
     expect(resourceAttrs).toContainEqual({ key: "github.run_id", value: { stringValue: "987654321" } });
+  });
+
+  it("includes github.run_attempt as resource attribute from GITHUB_RUN_ATTEMPT", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GITHUB_RUN_ATTEMPT = "2";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.run_attempt", value: { stringValue: "2" } });
+  });
+
+  it("defaults github.run_attempt resource attribute to '1' when GITHUB_RUN_ATTEMPT is not set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    delete process.env.GITHUB_RUN_ATTEMPT;
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.run_attempt", value: { stringValue: "1" } });
   });
 
   it("includes github.event_name as resource attribute when GITHUB_EVENT_NAME is set", async () => {
