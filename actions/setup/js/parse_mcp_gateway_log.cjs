@@ -345,14 +345,15 @@ function escapeMarkdownTableCell(value) {
 
 /**
  * Truncates a string to a maximum length, appending an ellipsis when needed.
- * @param {string} value
+ * @param {unknown} value
  * @param {number} maxLength
  * @returns {string}
  */
 function truncateSummaryValue(value, maxLength) {
-  if (value.length <= maxLength) return value;
-  if (maxLength < 3) return value.slice(0, Math.max(maxLength, 0));
-  return `${value.slice(0, maxLength - 3)}...`;
+  const text = String(value);
+  if (text.length <= maxLength) return text;
+  if (maxLength < 3) return text.slice(0, Math.max(maxLength, 0));
+  return `${text.slice(0, maxLength - 3)}...`;
 }
 
 /**
@@ -452,6 +453,15 @@ function summarizeGenericRpcEntry(entry) {
 }
 
 /**
+ * Builds a markdown table row for the RPC message summary.
+ * @param {Array<unknown>} cells
+ * @returns {string}
+ */
+function buildRpcSummaryRow(cells) {
+  return `| ${cells.map(cell => escapeMarkdownTableCell(cell)).join(" | ")} |`;
+}
+
+/**
  * Generates a markdown step summary for rpc-messages.jsonl entries (mcpg v0.2.0+ format).
  * Shows a table of REQUEST entries (tool calls), a count of RESPONSE entries, any other
  * message types, and the DIFC_FILTERED section if there are blocked events.
@@ -524,9 +534,7 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
 
       for (const response of responses) {
         const { status, details } = summarizeRpcResponseEntry(response);
-        callLines.push(
-          `| ${formatRpcMessageTime(response.timestamp)} | ${escapeMarkdownTableCell(response.server_id || "-")} | ${escapeMarkdownTableCell(response.direction || "-")} | ${escapeMarkdownTableCell(status)} | ${escapeMarkdownTableCell(details)} |`
-        );
+        callLines.push(buildRpcSummaryRow([formatRpcMessageTime(response.timestamp), response.server_id || "-", response.direction || "-", status, details]));
       }
 
       callLines.push("");
@@ -539,7 +547,7 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
       callLines.push("|------|--------|-----------|---------|");
 
       for (const entry of otherByType.get(type) || []) {
-        callLines.push(`| ${formatRpcMessageTime(entry.timestamp)} | ${escapeMarkdownTableCell(entry.server_id || "-")} | ${escapeMarkdownTableCell(entry.direction || "-")} | ${escapeMarkdownTableCell(summarizeGenericRpcEntry(entry))} |`);
+        callLines.push(buildRpcSummaryRow([formatRpcMessageTime(entry.timestamp), entry.server_id || "-", entry.direction || "-", summarizeGenericRpcEntry(entry)]));
       }
 
       callLines.push("");
