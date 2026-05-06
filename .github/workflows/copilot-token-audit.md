@@ -60,7 +60,11 @@ imports:
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[copilot-token-audit] "
+features:
+  copilot-requests: true
 ---
+
+{{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Copilot Token Usage Audit
 

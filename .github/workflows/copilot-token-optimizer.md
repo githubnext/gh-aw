@@ -31,6 +31,8 @@ safe-outputs:
     max: 1
   threat-detection: false
 timeout-minutes: 30
+imports:
+  - shared/reporting.md
 steps:
   - name: Download recent Copilot workflow logs
     env:
@@ -110,6 +112,8 @@ steps:
         echo "ℹ️ No previous optimization history found."
       fi
 ---
+
+{{#runtime-import? .github/shared-instructions.md}}
 
 # Copilot Token Usage Optimizer
 
