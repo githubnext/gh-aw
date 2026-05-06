@@ -1,0 +1,36 @@
+{
+  "service": "GitHub Agentic Workflows (gh-aw)",
+  "type": "cli-extension",
+  "category": "developer-tools",
+  "capabilities": [
+    "Compile natural language markdown workflows to GitHub Actions YAML",
+    "Run agentic AI workflows as GitHub Actions",
+    "Support multiple AI engines (Copilot, Claude, Codex, custom)",
+    "MCP (Model Context Protocol) server integration",
+    "Safe structured outputs (issues, comments, pull requests, etc.)",
+    "Workflow auditing and log analysis",
+    "Sandbox environments with network access controls",
+    "Playwright browser automation support",
+    "Cache memory for persistent data across workflow runs",
+    "Interactive workflow execution with real-time logs"
+  ],
+  "engines": [
+    { "id": "copilot", "name": "GitHub Copilot" },
+    { "id": "claude", "name": "Claude" },
+    { "id": "codex", "name": "OpenAI Codex" },
+    { "id": "custom", "name": "Custom engine" }
+  ],
+  "integrations": [
+    "GitHub Actions",
+    "GitHub CLI",
+    "MCP (Model Context Protocol)",
+    "Playwright",
+    "GitHub Issues",
+    "GitHub Pull Requests",
+    "GitHub Discussions"
+  ],
+  "install": "gh extension install github/gh-aw",
+  "docs": "https://github.github.com/gh-aw/",
+  "source": "https://github.com/github/gh-aw",
+  "license": "MIT"
+}

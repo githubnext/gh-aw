@@ -11,6 +11,7 @@
  *
  * Used by the Go fuzz driver in template_conditional_js_fuzz_test.go.
  */
+// @safe-outputs-exempt SEC-004 -- test infrastructure fuzz harness; parsed.body is never written to a GitHub API
 
 const { selectBranch } = require("./template_branch.cjs");
 const { isTruthy } = require("./is_truthy.cjs");

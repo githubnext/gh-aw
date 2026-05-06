@@ -30,11 +30,13 @@ func TestCopilotEngine(t *testing.T) {
 		t.Error("Expected copilot engine to not be experimental")
 	}
 
-	if !engine.SupportsToolsAllowlist() {
+	capabilities := engine.GetCapabilities()
+
+	if !capabilities.ToolsAllowlist {
 		t.Error("Expected copilot engine to support tools allowlist")
 	}
 
-	if engine.SupportsMaxTurns() {
+	if capabilities.MaxTurns {
 		t.Error("Expected copilot engine to not support max-turns yet")
 	}
 

@@ -417,7 +417,7 @@ func TestObservabilityConfigParsing(t *testing.T) {
 			require.NotNil(t, config.Observability.OTLP, "OTLP should not be nil")
 			assert.Equal(t, tt.expectedEndpoint, config.Observability.OTLP.Endpoint, "Endpoint should match")
 			// Normalize Headers (any) to string for comparison
-			normalizedHeaders, _ := normalizeOTLPHeaders(config.Observability.OTLP.Headers)
+			normalizedHeaders := normalizeOTLPHeaders(config.Observability.OTLP.Headers)
 			assert.Equal(t, tt.expectedHeaders, normalizedHeaders, "Headers should match")
 		})
 	}
@@ -655,40 +655,34 @@ func TestInjectOTLPConfig_OTLPHeadersField(t *testing.T) {
 // TestNormalizeOTLPHeaders verifies the normalizeOTLPHeaders helper function.
 func TestNormalizeOTLPHeaders(t *testing.T) {
 	tests := []struct {
-		name               string
-		input              any
-		expectedHeaders    string
-		expectedDeprecated bool
+		name            string
+		input           any
+		expectedHeaders string
 	}{
 		{
-			name:               "nil returns empty non-deprecated",
-			input:              nil,
-			expectedHeaders:    "",
-			expectedDeprecated: false,
+			name:            "nil returns empty",
+			input:           nil,
+			expectedHeaders: "",
 		},
 		{
-			name:               "empty string returns empty non-deprecated",
-			input:              "",
-			expectedHeaders:    "",
-			expectedDeprecated: false,
+			name:            "empty string returns empty",
+			input:           "",
+			expectedHeaders: "",
 		},
 		{
-			name:               "non-empty string returns string as deprecated",
-			input:              "Authorization=Bearer tok",
-			expectedHeaders:    "Authorization=Bearer tok",
-			expectedDeprecated: true,
+			name:            "non-empty string returns string",
+			input:           "Authorization=Bearer tok",
+			expectedHeaders: "Authorization=Bearer tok",
 		},
 		{
-			name:               "secret expression string is deprecated",
-			input:              "${{ secrets.OTLP_HEADERS }}",
-			expectedHeaders:    "${{ secrets.OTLP_HEADERS }}",
-			expectedDeprecated: true,
+			name:            "secret expression string",
+			input:           "${{ secrets.OTLP_HEADERS }}",
+			expectedHeaders: "${{ secrets.OTLP_HEADERS }}",
 		},
 		{
-			name:               "empty map returns empty non-deprecated",
-			input:              map[string]any{},
-			expectedHeaders:    "",
-			expectedDeprecated: false,
+			name:            "empty map returns empty",
+			input:           map[string]any{},
+			expectedHeaders: "",
 		},
 		{
 			name:            "single-entry map",
@@ -712,10 +706,9 @@ func TestNormalizeOTLPHeaders(t *testing.T) {
 			expectedHeaders: "Authorization=${{ secrets.TOKEN }},X-Tenant=acme",
 		},
 		{
-			name:               "unsupported type returns empty non-deprecated",
-			input:              42,
-			expectedHeaders:    "",
-			expectedDeprecated: false,
+			name:            "unsupported type returns empty",
+			input:           42,
+			expectedHeaders: "",
 		},
 		{
 			name: "non-string map values are skipped",
@@ -723,16 +716,14 @@ func TestNormalizeOTLPHeaders(t *testing.T) {
 				"Authorization": "Bearer tok",
 				"bad-value":     123, // non-string: skipped
 			},
-			expectedHeaders:    "Authorization=Bearer tok",
-			expectedDeprecated: false,
+			expectedHeaders: "Authorization=Bearer tok",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotHeaders, gotDeprecated := normalizeOTLPHeaders(tt.input)
+			gotHeaders := normalizeOTLPHeaders(tt.input)
 			assert.Equal(t, tt.expectedHeaders, gotHeaders, "headers should match")
-			assert.Equal(t, tt.expectedDeprecated, gotDeprecated, "deprecated flag should match")
 		})
 	}
 }
@@ -850,7 +841,6 @@ func TestCollectAllOTLPEndpoints(t *testing.T) {
 		name        string
 		frontmatter map[string]any
 		wantEntries []otlpEndpointEntry
-		wantDep     bool
 	}{
 		{
 			name:        "empty frontmatter returns empty slice",
@@ -871,7 +861,7 @@ func TestCollectAllOTLPEndpoints(t *testing.T) {
 			},
 		},
 		{
-			name: "string form: single URL with top-level headers (deprecated string form)",
+			name: "string form: single URL with top-level headers",
 			frontmatter: map[string]any{
 				"observability": map[string]any{
 					"otlp": map[string]any{
@@ -883,7 +873,6 @@ func TestCollectAllOTLPEndpoints(t *testing.T) {
 			wantEntries: []otlpEndpointEntry{
 				{URL: "https://traces.example.com:4317", Headers: "Authorization=Bearer tok"},
 			},
-			wantDep: true,
 		},
 		{
 			name: "string form: single URL with top-level headers (map form)",
@@ -967,9 +956,8 @@ func TestCollectAllOTLPEndpoints(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, gotDep := collectAllOTLPEndpoints(tt.frontmatter)
+			got := collectAllOTLPEndpoints(tt.frontmatter)
 			assert.Equal(t, tt.wantEntries, got, "endpoint entries")
-			assert.Equal(t, tt.wantDep, gotDep, "deprecated flag")
 		})
 	}
 }

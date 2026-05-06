@@ -32,16 +32,18 @@ type CodexEngine struct {
 func NewCodexEngine() *CodexEngine {
 	return &CodexEngine{
 		BaseEngine: BaseEngine{
-			id:                       "codex",
-			displayName:              "Codex",
-			description:              "Uses OpenAI Codex CLI with MCP server support",
-			experimental:             false,
-			supportsToolsAllowlist:   true,
-			supportsMaxTurns:         false, // Codex does not support max-turns feature
-			supportsMaxContinuations: false, // Codex does not support --max-autopilot-continues-style continuation mode
-			supportsWebSearch:        true,  // Codex has built-in web-search support
-			supportsNativeAgentFile:  false, // Codex does not support agent file natively; the compiler prepends the agent file content to prompt.txt
-			dedicatedLLMGatewayPort:  constants.CodexLLMGatewayPort,
+			id:           "codex",
+			displayName:  "Codex",
+			description:  "Uses OpenAI Codex CLI with MCP server support",
+			experimental: false,
+			capabilities: EngineCapabilities{
+				ToolsAllowlist:   true,
+				MaxTurns:         false, // Codex does not support max-turns feature
+				MaxContinuations: false, // Codex does not support --max-autopilot-continues-style continuation mode
+				WebSearch:        true,  // Codex has built-in web-search support
+				NativeAgentFile:  false, // Codex does not support agent file natively; the compiler prepends the agent file content to prompt.txt
+			},
+			dedicatedLLMGatewayPort: constants.CodexLLMGatewayPort,
 		},
 	}
 }

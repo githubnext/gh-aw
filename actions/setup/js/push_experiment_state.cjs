@@ -83,6 +83,16 @@ async function main() {
   }
 
   const targetRepo = `${context.repo.owner}/${context.repo.repo}`;
+  const allowedRepos = new Set(
+    (process.env.GH_AW_ALLOWED_TARGET_REPOS || targetRepo)
+      .split(",")
+      .map(repo => repo.trim())
+      .filter(Boolean)
+  );
+  if (!allowedRepos.has(targetRepo)) {
+    core.setFailed(`Target repository "${targetRepo}" is not in GH_AW_ALLOWED_TARGET_REPOS. ` + `Current allowlist: ${Array.from(allowedRepos).join(", ")}`);
+    return;
+  }
   const [owner, repo] = targetRepo.split("/");
 
   core.info(`Pushing experiment state to branch "${branchName}" in ${targetRepo}`);

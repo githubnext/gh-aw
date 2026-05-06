@@ -1,5 +1,7 @@
 # stringutil Package
 
+## Overview
+
 The `stringutil` package provides utility functions for working with strings. It is organized into focused sub-files covering ANSI stripping, identifier normalization, sanitization, URL utilities, and PAT (Personal Access Token) validation.
 
 ## Public API

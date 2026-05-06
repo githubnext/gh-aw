@@ -30,6 +30,7 @@ safe-outputs:
     draft: false
     auto-merge: true
     protected-files: fallback-to-issue
+  noop:
 
 tools:
   cli-proxy: true
@@ -291,9 +292,17 @@ This PR updates the documentation based on features merged in the last 24 hours.
 
 ### 7. Handle Edge Cases
 
-- **No recent changes**: If there are no merged PRs in the last 24 hours, exit gracefully without creating a PR
-- **Already documented**: If all features are already documented, exit gracefully
+- **No recent changes**: If there are no merged PRs in the last 24 hours and no open documentation issues need addressing, call `noop` with a brief summary explaining what was scanned and why no action was taken
+- **Already documented**: If all features are already documented and all open issues are resolved, call `noop` with a brief explanation
 - **Unclear features**: If a feature is complex and needs human review, note it in the PR description but don't skip documentation entirely
+
+The `noop` tool signals to the workflow system that you deliberately chose not to take action (no documentation updates needed). Always call either `create_pull_request` or `noop` before finishing — never finish without calling one of these safe-output tools.
+
+When calling `noop`, use this format:
+
+```json
+{"noop": {"message": "No documentation updates needed: [brief explanation of what was scanned and why no action was taken]"}}
+```
 
 ## Guidelines
 

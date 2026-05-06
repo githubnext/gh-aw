@@ -294,11 +294,12 @@ function buildOTLPResourceAttributes(serviceName, scopeVersion, resourceAttribut
  *   sha?: string,
  *   workflowRef?: string,
  *   staged: boolean,
+ *   runAttempt?: string,
  * }} ctx
  * @returns {Array<{key: string, value: object}>}
  */
-function buildGitHubActionsResourceAttributes({ repository, runId, eventName = "", ref = "", refName = "", headRef = "", sha = "", workflowRef = "", staged }) {
-  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
+function buildGitHubActionsResourceAttributes({ repository, runId, eventName = "", ref = "", refName = "", headRef = "", sha = "", workflowRef = "", staged, runAttempt = "1" }) {
+  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId), buildAttr("github.run_attempt", runAttempt)];
   if (repository && runId && repository.includes("/")) {
     const [owner, repo] = repository.split("/");
     resourceAttributes.push(buildAttr("github.actions.run_url", buildWorkflowRunUrl({ runId }, { owner, repo })));
@@ -906,7 +907,7 @@ async function sendJobSetupSpan(options = {}) {
   attributes.push(...buildExperimentAttributes(experimentAssignments));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
 
-  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, workflowRef, staged });
+  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, workflowRef, staged, runAttempt });
 
   const payload = buildOTLPPayload({
     traceId,
@@ -1206,9 +1207,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const conclusionExperimentAssignments = readExperimentAssignments();
   attributes.push(...buildExperimentAttributes(conclusionExperimentAssignments));
 
-  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, workflowRef, staged });
-
-  // Build OTel exception span events — one per error — following the
+  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, workflowRef, staged, runAttempt });
   // OpenTelemetry semantic convention for exceptions.  Each event has
   // name="exception" with "exception.type" and "exception.message" attributes,
   // making individual errors queryable and classifiable in backends like

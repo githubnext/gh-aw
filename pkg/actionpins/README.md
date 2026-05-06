@@ -38,7 +38,7 @@ Resolution supports two modes:
 | `ResolveActionPin` | `func(actionRepo, version string, ctx *PinContext) (string, error)` | Resolves a pinned reference with optional dynamic SHA lookup and fallback behavior |
 | `ResolveLatestActionPin` | `func(repo string, ctx *PinContext) string` | Resolves a pinned reference for the latest known version, preferring cache/dynamic resolution when available |
 
-## Usage Example
+## Usage Examples
 
 ```go
 ctx := &actionpins.PinContext{StrictMode: true}

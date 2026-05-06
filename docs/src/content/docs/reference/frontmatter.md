@@ -856,7 +856,7 @@ observability:
 
 The `headers` field accepts two forms:
 
-**Map form (preferred)** — define each header as a key/value pair:
+**Map form** — define each header as a key/value pair:
 
 ```yaml wrap
 observability:
@@ -867,7 +867,7 @@ observability:
       X-Tenant: acme
 ```
 
-**String form (deprecated)** — comma-separated `key=value` pairs. Use the map form instead:
+**String form** — comma-separated `key=value` pairs:
 
 ```yaml wrap
 observability:
@@ -875,9 +875,6 @@ observability:
     endpoint: ${{ secrets.OTLP_ENDPOINT }}
     headers: "Authorization=${{ secrets.OTLP_TOKEN }},X-Tenant=acme"
 ```
-
-> [!NOTE]
-> Using the string form emits a deprecation warning. Migrate to the map form to suppress it.
 
 ### Agent span attributes
 

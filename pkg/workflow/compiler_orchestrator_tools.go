@@ -204,7 +204,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		return nil, err
 	}
 
-	if !agenticEngine.SupportsToolsAllowlist() {
+	if !agenticEngine.GetCapabilities().ToolsAllowlist {
 		// For engines that don't support tool allowlists (like custom engine), ignore tools section and provide warnings
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), agenticEngine.GetID())))
 		c.IncrementWarningCount()

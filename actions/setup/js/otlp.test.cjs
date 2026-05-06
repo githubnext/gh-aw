@@ -95,6 +95,7 @@ describe("otlp.cjs", () => {
       GITHUB_AW_OTEL_PARENT_SPAN_ID: process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID,
       GITHUB_REPOSITORY: process.env.GITHUB_REPOSITORY,
       GITHUB_RUN_ID: process.env.GITHUB_RUN_ID,
+      GITHUB_RUN_ATTEMPT: process.env.GITHUB_RUN_ATTEMPT,
       GITHUB_EVENT_NAME: process.env.GITHUB_EVENT_NAME,
       GITHUB_REF: process.env.GITHUB_REF,
       GITHUB_REF_NAME: process.env.GITHUB_REF_NAME,
@@ -104,6 +105,7 @@ describe("otlp.cjs", () => {
       GH_AW_CURRENT_WORKFLOW_REF: process.env.GH_AW_CURRENT_WORKFLOW_REF,
       GH_AW_INFO_STAGED: process.env.GH_AW_INFO_STAGED,
       GH_AW_INFO_VERSION: process.env.GH_AW_INFO_VERSION,
+      OTEL_SERVICE_NAME: process.env.OTEL_SERVICE_NAME,
       GITHUB_SERVER_URL: process.env.GITHUB_SERVER_URL,
     };
 
@@ -114,6 +116,7 @@ describe("otlp.cjs", () => {
     process.env.GITHUB_RUN_ID = "99887766";
     process.env.GITHUB_EVENT_NAME = "push";
     process.env.GH_AW_INFO_VERSION = "v1.2.3";
+    delete process.env.OTEL_SERVICE_NAME;
     delete process.env.GH_AW_INFO_STAGED;
   });
 
@@ -151,14 +154,23 @@ describe("otlp.cjs", () => {
   // ---------------------------------------------------------------------------
 
   describe("logSpan", () => {
-    it("calls sendOTLPSpan with a payload that includes the tool name as service name", async () => {
+    it("calls sendOTLPSpan with a payload that includes the canonical gh-aw service name", async () => {
       await otlp.logSpan("my-scanner", { "my-scanner.issues_found": 3 });
 
       expect(mockSendOTLPSpan).toHaveBeenCalledOnce();
       expect(mockBuildOTLPPayload).toHaveBeenCalledOnce();
       const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
-      expect(payloadOpts.serviceName).toBe("my-scanner");
+      expect(payloadOpts.serviceName).toBe("gh-aw");
       expect(payloadOpts.spanName).toBe("my-scanner.run");
+    });
+
+    it("uses OTEL_SERVICE_NAME when set", async () => {
+      process.env.OTEL_SERVICE_NAME = "custom-gh-aw";
+
+      await otlp.logSpan("my-scanner", {});
+
+      const payloadOpts = mockBuildOTLPPayload.mock.calls[0][0];
+      expect(payloadOpts.serviceName).toBe("custom-gh-aw");
     });
 
     it("uses the trace ID from GITHUB_AW_OTEL_TRACE_ID", async () => {
@@ -345,6 +357,22 @@ describe("otlp.cjs", () => {
       await otlp.logSpan("my-scanner", {});
 
       expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ runId: "12345678" }));
+    });
+
+    it("passes GITHUB_RUN_ATTEMPT to buildGitHubActionsResourceAttributes", async () => {
+      process.env.GITHUB_RUN_ATTEMPT = "3";
+
+      await otlp.logSpan("my-scanner", {});
+
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ runAttempt: "3" }));
+    });
+
+    it("passes '1' for runAttempt to buildGitHubActionsResourceAttributes when GITHUB_RUN_ATTEMPT is not set", async () => {
+      delete process.env.GITHUB_RUN_ATTEMPT;
+
+      await otlp.logSpan("my-scanner", {});
+
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ runAttempt: "1" }));
     });
 
     it("passes GITHUB_EVENT_NAME to buildGitHubActionsResourceAttributes when set", async () => {

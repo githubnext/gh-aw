@@ -162,6 +162,7 @@ network:
 tools:
   github: false
   playwright:
+    mode: cli
 ---
 
 # Test Workflow`,
