@@ -43,7 +43,7 @@ func TestResolveEffectiveWeightsCustomMultipliers(t *testing.T) {
 	assert.InDelta(t, 2.5, multipliers["my-custom-model"], 1e-9, "custom model multiplier")
 	assert.InDelta(t, 1.5, multipliers["claude-sonnet-4.5"], 1e-9, "overridden model multiplier")
 	// Built-in models not mentioned in custom should remain
-	assert.InDelta(t, 0.1, multipliers["claude-haiku-4.5"], 1e-9, "unmodified built-in multiplier")
+	assert.InDelta(t, 0.33, multipliers["claude-haiku-4.5"], 1e-9, "unmodified built-in multiplier")
 	// Class weights unchanged when not specified
 	assert.InDelta(t, 4.0, classWeights.Output, 1e-9, "output weight unchanged")
 }
@@ -64,6 +64,19 @@ func TestResolveEffectiveWeightsCustomClassWeights(t *testing.T) {
 	// Unset fields keep their defaults
 	assert.InDelta(t, 1.0, classWeights.Input, 1e-9, "input weight unchanged")
 	assert.InDelta(t, 4.0, classWeights.Reasoning, 1e-9, "reasoning weight unchanged")
+}
+
+func TestModelMultipliersInventoryUpdate20260506(t *testing.T) {
+	loadedMultipliers = nil
+	initMultipliers()
+
+	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
+	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4"], 1e-9, "gpt-5.4 should use updated multiplier")
+	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-mini"], 1e-9, "gpt-5.4-mini should use updated multiplier")
+	assert.InDelta(t, 0.05, loadedMultipliers["gpt-5.4-nano"], 1e-9, "gpt-5.4-nano should be present")
+	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4.6"], 1e-9, "claude-opus-4.6 should use updated multiplier")
+	assert.InDelta(t, 0.33, loadedMultipliers["grok-code-fast-1"], 1e-9, "grok-code-fast-1 should be present")
+	assert.InDelta(t, 1.0, loadedMultipliers["deep-research-max-preview-04-2026"], 1e-9, "deep-research-max-preview-04-2026 should be present")
 }
 
 func TestPopulateEffectiveTokensWithCustomWeights(t *testing.T) {
@@ -95,12 +108,12 @@ func TestPopulateEffectiveTokensWithCustomWeights(t *testing.T) {
 	require.NotNil(t, customModel, "custom model should be present")
 	assert.Equal(t, 5400, customModel.EffectiveTokens, "custom model effective tokens at 3.0x")
 
-	// claude-sonnet-4.5: base = 1.0*500 + 4.0*100 = 900; ET = 1.0 * 900 = 900
+	// claude-sonnet-4.5: base = 1.0*500 + 4.0*100 = 900; ET = 6.0 * 900 = 5400
 	sonnet := summary.ByModel["claude-sonnet-4.5"]
 	require.NotNil(t, sonnet, "sonnet should be present")
-	assert.Equal(t, 900, sonnet.EffectiveTokens, "sonnet effective tokens at 1x")
+	assert.Equal(t, 5400, sonnet.EffectiveTokens, "sonnet effective tokens at 6x")
 
-	assert.Equal(t, 6300, summary.TotalEffectiveTokens, "total = custom + sonnet")
+	assert.Equal(t, 10800, summary.TotalEffectiveTokens, "total = custom + sonnet")
 }
 
 func TestPopulateEffectiveTokensWithCustomWeightsNilSummary(t *testing.T) {
