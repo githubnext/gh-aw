@@ -112,4 +112,24 @@ Run gh pr checkout ${{ github.event.pull_request.number }} before tests.
 		assert.False(t, applied, "codemod should not apply when explicit checkout command exists")
 		assert.Equal(t, content, result, "content should remain unchanged")
 	})
+
+	t.Run("does not modify when strict is explicitly false", func(t *testing.T) {
+		content := `---
+on:
+  pull_request_target:
+strict: false
+---
+`
+		frontmatter := map[string]any{
+			"on": map[string]any{
+				"pull_request_target": map[string]any{},
+			},
+			"strict": false,
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should not return an error")
+		assert.False(t, applied, "codemod should not apply when strict is false")
+		assert.Equal(t, content, result, "content should remain unchanged")
+	})
 }

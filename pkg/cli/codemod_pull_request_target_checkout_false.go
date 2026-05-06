@@ -17,6 +17,10 @@ func getPullRequestTargetCheckoutFalseCodemod() Codemod {
 		Description:  "Adds checkout: false to workflows using on.pull_request_target when checkout is not disabled and no explicit checkout command is detected",
 		IntroducedIn: "1.0.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			if isFrontmatterStrictFalse(frontmatter) {
+				return content, false, nil
+			}
+
 			if !hasPullRequestTargetTrigger(frontmatter) || isPullRequestTargetCheckoutDisabled(frontmatter) {
 				return content, false, nil
 			}
