@@ -8,6 +8,16 @@ import (
 	"testing"
 )
 
+var nonCanonicalElseifPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`\{\{#else-if\s+([^}]*)\}\}`),
+	regexp.MustCompile(`\{\{#else_if\s+([^}]*)\}\}`),
+	regexp.MustCompile(`\{\{elseif\s+([^}]*)\}\}`),
+	regexp.MustCompile(`\{\{else-if\s+([^}]*)\}\}`),
+	regexp.MustCompile(`\{\{else_if\s+([^}]*)\}\}`),
+}
+
+var skippableElseifExprPrefixes = []string{"${{", "${", "__"}
+
 // FuzzWrapExpressionsInTemplateConditionals performs fuzz testing on the template
 // conditional expression wrapper to ensure it handles all inputs without panicking
 // and correctly wraps/preserves expressions.
@@ -175,13 +185,6 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 
 		// All complete elseif tags must be normalized to canonical {{#elseif ...}} form.
 		// Ignore partial/malformed fragments produced by fuzzing (e.g. "{{elseif 0").
-		nonCanonicalElseifPatterns := []*regexp.Regexp{
-			regexp.MustCompile(`\{\{#else-if\s+([^}]*)\}\}`),
-			regexp.MustCompile(`\{\{#else_if\s+([^}]*)\}\}`),
-			regexp.MustCompile(`\{\{elseif\s+([^}]*)\}\}`),
-			regexp.MustCompile(`\{\{else-if\s+([^}]*)\}\}`),
-			regexp.MustCompile(`\{\{else_if\s+([^}]*)\}\}`),
-		}
 		for _, pattern := range nonCanonicalElseifPatterns {
 			matches := pattern.FindAllStringSubmatch(result, -1)
 			for _, match := range matches {
@@ -189,7 +192,7 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 					continue
 				}
 				expr := strings.TrimSpace(match[1])
-				if strings.HasPrefix(expr, "${{") || strings.HasPrefix(expr, "${") || strings.HasPrefix(expr, "__") {
+				if hasSkippableElseifExprPrefix(expr) {
 					continue
 				}
 				t.Errorf("Non-canonical elseif pattern %q still present in output, input: %q", pattern.String(), input)
@@ -197,4 +200,13 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 			}
 		}
 	})
+}
+
+func hasSkippableElseifExprPrefix(expr string) bool {
+	for _, prefix := range skippableElseifExprPrefixes {
+		if strings.HasPrefix(expr, prefix) {
+			return true
+		}
+	}
+	return false
 }
