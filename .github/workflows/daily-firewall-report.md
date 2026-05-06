@@ -16,6 +16,8 @@ permissions:
 
 tracker-id: daily-firewall-report
 timeout-minutes: 45
+features:
+  inline-agents: true
 
 safe-outputs:
   upload-asset:
@@ -43,106 +45,12 @@ imports:
 
 Collect and analyze firewall logs from all agentic workflows that use the firewall feature.
 
-## 📊 Trend Charts Requirement
+## 📊 Trend Charts
 
-**IMPORTANT**: Generate exactly 2 trend charts that showcase firewall activity patterns over time.
-
-### Chart Generation Process
-
-**Phase 1: Data Collection**
-
-Collect data for the past 30 days (or available data) from firewall audit logs:
-
-1. **Firewall Request Data**:
-   - Count of allowed requests per day
-   - Count of blocked requests per day
-   - Total requests per day
-
-2. **Top Blocked Domains Data**:
-   - Frequency of top 10 blocked domains over the period
-   - Trends in blocking patterns by domain category
-
-**Phase 2: Data Preparation**
-
-1. Create CSV files in `/tmp/gh-aw/python/data/` with the collected data:
-   - `firewall_requests.csv` - Daily allowed/blocked request counts
-   - `blocked_domains.csv` - Top blocked domains with frequencies
-
-2. Each CSV should have a date column and metric columns with appropriate headers
-
-**Phase 3: Chart Generation**
-
-Generate exactly **2 high-quality trend charts**:
-
-**Chart 1: Firewall Request Trends**
-- Stacked area chart or multi-line chart showing:
-  - Allowed requests (area/line, green)
-  - Blocked requests (area/line, red)
-  - Total requests trend line
-- X-axis: Date (last 30 days)
-- Y-axis: Request count
-- Save as: `/tmp/gh-aw/python/charts/firewall_requests_trends.png`
-
-**Chart 2: Top Blocked Domains Frequency**
-- Horizontal bar chart showing:
-  - Top 10-15 most frequently blocked domains
-  - Total block count for each domain
-  - Color-coded by domain category if applicable
-- X-axis: Block count
-- Y-axis: Domain names
-- Save as: `/tmp/gh-aw/python/charts/blocked_domains_frequency.png`
-
-**Chart Quality Requirements**:
-- DPI: 300 minimum
-- Figure size: 12x7 inches for better readability
-- Use seaborn styling with a professional color palette
-- Include grid lines for easier reading
-- Clear, large labels and legend
-- Title with context (e.g., "Firewall Activity - Last 30 Days")
-- Annotations for significant spikes or patterns
-
-**Phase 4: Upload Charts**
-
-1. Call the `upload_asset` safe-output tool for each chart using absolute paths:
-   - `/tmp/gh-aw/python/charts/firewall_trends.png`
-   - `/tmp/gh-aw/python/charts/blocked_domains.png`
-2. Record the returned asset URLs
-
-**Phase 5: Embed Charts in Discussion**
-
-Include the charts in your firewall report with this structure:
-
-```markdown
-### 📈 Firewall Activity Trends
-
-### Request Patterns
-
-![Firewall Request Trends](URL_FROM_UPLOAD_ASSET_1)
-
-[Brief 2-3 sentence analysis of firewall activity trends, noting increases in blocked traffic or changes in patterns]
-
-### Top Blocked Domains
-
-![Blocked Domains Frequency](URL_FROM_UPLOAD_ASSET_2)
-
-[Brief 2-3 sentence analysis of frequently blocked domains, identifying potential security concerns or overly restrictive rules]
-```
-
-### Python Implementation Notes
-
-- Use pandas for data manipulation and date handling
-- Use matplotlib.pyplot and seaborn for visualization
-- Set appropriate date formatters for x-axis labels
-- Use `plt.xticks(rotation=45)` for readable date labels
-- Apply `plt.tight_layout()` before saving
-- Handle cases where data might be sparse or missing
-
-### Error Handling
-
-If insufficient data is available (less than 7 days):
-- Generate the charts with available data
-- Add a note in the analysis mentioning the limited data range
-- Consider using a bar chart instead of line chart for very sparse data
+Use the `firewall-chart-generator` agent to collect 30-day firewall data, generate the two trend charts, and return their upload URLs. Record the returned `CHART1_URL` and `CHART2_URL` values for embedding in Step 5 of the report using markdown image links:
+- `![Firewall Request Trends](<CHART1_URL returned by the sub-agent>)`
+- `![Blocked Domains Frequency](<CHART2_URL returned by the sub-agent>)`
+If the agent returns an `error` field, omit both image embeds and include a brief note in the final report that chart generation failed with the reported reason.
 
 ---
 
@@ -218,134 +126,16 @@ The tool will:
 
 This prevents creating empty or meaningless reports when there's no data to analyze.
 
-### Step 2: Analyze Firewall Logs from Collected Runs
+### Step 2–4: Audit and Aggregate Firewall Data
 
-For each run collected in Step 1:
-1. Use the `audit` tool from the agentic-workflows MCP server to get detailed firewall information
-2. Store the run ID, workflow name, and timestamp for tracking
-
-**Using the audit tool:**
-Call the `audit` tool with the run_id parameter for each run from Step 1.
-
-**Tool call example:**
+Pass the list of run IDs from Step 1 to the `firewall-data-aggregator` agent as a JSON array of integers (for example: `[123,456,789]`).
+Example invocation payload:
 ```json
 {
-  "run_id": 12345678
+  "run_ids": [123,456,789]
 }
 ```
-
-The audit tool returns structured firewall analysis data including:
-- Total requests, allowed requests, blocked requests
-- Lists of allowed and blocked domains
-- Request statistics per domain
-- **Policy rule attribution** (when `policy-manifest.json` and `audit.jsonl` artifacts are present)
-
-**Example of extracting firewall data from audit result:**
-```javascript
-// From the audit tool result, access:
-result.firewall_analysis.blocked_domains  // Array of blocked domain names
-result.firewall_analysis.allowed_domains  // Array of allowed domain names
-result.firewall_analysis.total_requests   // Total number of network requests
-result.firewall_analysis.blocked_requests  // Number of blocked requests
-
-// Policy rule attribution (enriched data — may be null if artifacts are absent):
-result.policy_analysis.policy_summary     // e.g., "12 rules, SSL Bump disabled, DLP disabled"
-result.policy_analysis.rule_hits          // Array of {rule: {id, action, description, ...}, hits: N}
-result.policy_analysis.denied_requests    // Array of {ts, host, status, rule_id, action, reason}
-result.policy_analysis.total_requests     // Total enriched request count
-result.policy_analysis.allowed_count      // Allowed requests (rule-attributed)
-result.policy_analysis.denied_count       // Denied requests (rule-attributed)
-result.policy_analysis.unique_domains     // Unique domain count
-```
-
-**Important:** Do NOT manually download and parse firewall log files. Always use the `audit` tool which provides structured firewall analysis data.
-
-### Step 3: Parse and Analyze Firewall Logs
-
-Use the JSON output from the `audit` tool to extract firewall information.
-
-**Basic firewall analysis** — The `firewall_analysis` field in the audit JSON contains:
-- `total_requests` - Total number of network requests
-- `allowed_requests` - Count of allowed requests
-- `blocked_requests` - Count of blocked requests
-- `allowed_domains` - Array of unique allowed domains
-- `blocked_domains` - Array of unique blocked domains
-- `requests_by_domain` - Object mapping domains to request statistics (allowed/blocked counts)
-
-**Policy rule attribution** — The `policy_analysis` field (when present) contains enriched data that attributes each request to a specific firewall policy rule:
-- `policy_summary` - Human-readable summary (e.g., "12 rules, SSL Bump disabled, DLP disabled")
-- `rule_hits` - Array of objects: `{rule: {id, order, action, aclName, protocol, domains, description}, hits: N}` — how many requests each rule handled
-- `denied_requests` - Array of objects: `{ts, host, status, rule_id, action, reason}` — every denied request with its matching rule and reason
-- `total_requests` - Total enriched request count
-- `allowed_count` - Allowed requests count (rule-attributed)
-- `denied_count` - Denied requests count (rule-attributed)
-- `unique_domains` - Unique domain count
-
-**Note:** `policy_analysis` is only present when the workflow run produced `policy-manifest.json` and `audit.jsonl` artifacts. If absent, fall back to `firewall_analysis` for basic domain-count data.
-
-**Example jq filter for aggregating blocked domains:**
-```bash
-# Get only blocked domains across multiple runs
-gh aw audit <run-id> --json | jq -r '.firewall_analysis.blocked_domains[]? // empty'
-
-# Get blocked domain statistics with counts
-gh aw audit <run-id> --json | jq -r '
-  .firewall_analysis.requests_by_domain // {} | 
-  to_entries[] | 
-  select(.value.blocked > 0) | 
-  "\(.key): \(.value.blocked) blocked, \(.value.allowed) allowed"
-'
-
-# Get policy rule hit counts (when policy_analysis is available)
-gh aw audit <run-id> --json | jq -r '
-  .policy_analysis.rule_hits // [] |
-  .[] | select(.hits > 0) |
-  "\(.rule.id) (\(.rule.action)): \(.hits) hits"
-'
-
-# Get denied requests with rule attribution
-gh aw audit <run-id> --json | jq -r '
-  .policy_analysis.denied_requests // [] |
-  .[] | "\(.host) → \(.rule_id): \(.reason)"
-'
-```
-
-For each workflow run with firewall data (see standardized metric names in scratchpad/metrics-glossary.md):
-1. Extract the firewall analysis from the audit JSON output
-2. Track the following metrics per workflow:
-   - Total requests (`firewall_requests_total`)
-   - Allowed requests count (`firewall_requests_allowed`)
-   - Blocked requests count (`firewall_requests_blocked`)
-   - List of unique blocked domains (`firewall_domains_blocked`)
-   - Domain-level statistics (from `requests_by_domain`)
-3. If `policy_analysis` is present, also track:
-   - Policy rule hit counts (which rules are handling traffic)
-   - Denied requests with rule attribution (which rule denied each request and why)
-   - Policy summary (rules count, SSL Bump/DLP status)
-
-### Step 4: Aggregate Results
-
-Combine data from all workflows (using standardized metric names):
-1. Create a master list of all blocked domains across all workflows
-2. Track how many times each domain was blocked
-3. Track which workflows blocked which domains
-4. Calculate overall statistics:
-   - Total workflows analyzed (`workflow_runs_analyzed` - Scope: Last 7 days)
-   - Total runs analyzed
-   - Total blocked domains (`firewall_domains_blocked`) - unique count
-   - Total blocked requests (`firewall_requests_blocked`)
-
-**Policy rule attribution aggregation** (when `policy_analysis` data is available):
-5. Aggregate policy rule hit counts across all runs:
-   - Build a cross-run rule hit table: rule ID → total hits across all runs
-   - Identify the most active allow rules and deny rules
-6. Aggregate denied requests with rule attribution:
-   - Collect all denied requests across runs with their matching rule and reason
-   - Group by rule ID to show which deny rules are doing the most work
-   - Group by domain to show which domains trigger which deny rules
-7. Track policy configuration across runs:
-   - Note any runs with SSL Bump or DLP enabled
-   - Note any differences in policy rule counts between runs
+Use the returned JSON object (keys: `totals`, `blocked_domains`, `policy_rules`, `denied_requests`) as the data source for Step 5 (Generate Report).
 
 ### Step 5: Generate Report
 
@@ -509,3 +299,99 @@ Ensure the discussion body:
 A GitHub discussion in the "audits" category containing a comprehensive daily firewall analysis report.
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `firewall-chart-generator`
+---
+model: small
+description: Collects 30-day firewall data, generates two trend charts, uploads them, and returns chart URLs
+---
+You are a chart-generation sub-agent for daily firewall reporting.
+
+Task:
+1. Collect firewall request and blocked-domain trend data for the past 30 days (or all available days).
+2. Create chart inputs under `/tmp/gh-aw/python/data/`.
+3. Generate exactly 2 charts under `/tmp/gh-aw/python/charts/`:
+   - `firewall_requests_trends.png` (allowed, blocked, total request trends over time)
+   - `blocked_domains_frequency.png` (top blocked domains by frequency)
+4. Upload both charts with the `upload_asset` safe-output tool using absolute paths.
+5. Return a JSON object with these exact field mappings:
+   - `CHART1_URL` = uploaded URL for `firewall_requests_trends.png`
+   - `CHART2_URL` = uploaded URL for `blocked_domains_frequency.png`
+
+Requirements:
+- Use pandas + matplotlib + seaborn.
+- Use readable labels, legends, and professional styling.
+- Handle sparse data gracefully and still produce both charts.
+
+Return ONLY a JSON object:
+```json
+{
+  "CHART1_URL": "<url>",
+  "CHART2_URL": "<url>"
+}
+```
+
+If chart generation or upload ultimately fails after reasonable retries, return:
+```json
+{
+  "CHART1_URL": "",
+  "CHART2_URL": "",
+  "error": "<brief reason>"
+}
+```
+
+## agent: `firewall-data-aggregator`
+---
+model: small
+description: Audits firewall-enabled run IDs and returns aggregated firewall, policy-rule, and denied-request statistics
+---
+You are a firewall data aggregation sub-agent.
+
+Input:
+- A JSON array of workflow run IDs as integers (for example: `[123,456,789]`).
+- Iterate through the array and call `audit` for each run ID.
+
+Task:
+1. For each run ID, call the `audit` tool.
+2. Extract `firewall_analysis` data and aggregate:
+   - total requests, allowed requests, blocked requests
+   - blocked domain frequencies
+3. If `policy_analysis` is present, aggregate:
+   - rule hit totals by rule ID/action/description
+   - denied request frequencies grouped by domain + rule + reason
+
+Return ONLY a JSON object with this shape:
+```json
+{
+  "totals": {
+    "workflow_runs_analyzed": 0,
+    "firewall_requests_total": 0,
+    "firewall_requests_allowed": 0,
+    "firewall_requests_blocked": 0,
+    "firewall_domains_blocked": 0
+  },
+  "blocked_domains": [
+    {
+      "domain": "example.com",
+      "blocked_count": 0,
+      "workflows": []
+    }
+  ],
+  "policy_rules": [
+    {
+      "rule_id": "allow-github",
+      "action": "allow",
+      "description": "Allow GitHub domains",
+      "hits": 0
+    }
+  ],
+  "denied_requests": [
+    {
+      "domain": "evil.com:443",
+      "rule_id": "deny-default",
+      "reason": "Default deny",
+      "occurrences": 0
+    }
+  ]
+}
+```

@@ -21,6 +21,7 @@ Consult this file when designing a workflow that needs to **persist state across
 | Long-lived knowledge base visible in PRs and code reviews | `repo-memory` |
 | Baselines that must survive cache expiry (e.g. security findings, dedup lists) | `repo-memory` |
 | Human-readable wiki pages for knowledge accumulation | `repo-memory` with `wiki: true` |
+| Persist notes/state inline on the triggering issue or PR | `comment-memory` |
 
 **Default to `cache-memory` unless you have a specific reason to use `repo-memory`.**
 
@@ -274,6 +275,56 @@ Files follow GitHub Wiki Markdown conventions: use `[[Page Name]]` syntax for in
 
 ---
 
+## `comment-memory` — Managed Comment Persistence
+
+Uses a dedicated `<gh-aw-comment-memory>` XML block in an issue or PR comment as persistent memory. The agent edits plain markdown files under `/tmp/gh-aw/comment-memory/`; the safe-output processor syncs the changes back to the managed comment.
+
+### When to use
+
+- Persist workflow notes or statuses visible inline on the triggering issue or PR
+- State tied to the lifecycle of a specific issue or PR
+- Structured running track records (status tables, checklists, summaries) the team can read without leaving the issue
+
+Do NOT use `comment-memory` for high-volume ephemeral state (use `cache-memory`), long-lived knowledge bases (use `repo-memory`), or data that must survive across issues/PRs.
+
+### Configuration
+
+```yaml
+tools:
+  comment-memory: true   # enable with defaults
+```
+
+Advanced:
+
+```yaml
+tools:
+  comment-memory:
+    memory-id: status          # Optional: identifier in XML marker (default: "default")
+    target: triggering         # Optional: "triggering" (default), "*", or explicit number
+    target-repo: owner/other   # Optional: cross-repository
+    max: 1                     # Optional: max updates per run (default: 1)
+    footer: false              # Optional: omit AI-generated footer (default: true)
+```
+
+### How it works
+
+1. **Pre-agent setup**: Reads `<gh-aw-comment-memory id="<memory-id>">` from the target comment and writes content to `/tmp/gh-aw/comment-memory/<memory_id>.md`.
+2. **Agent**: Edits the markdown file directly — no explicit safe-output tool call needed.
+3. **Post-agent**: The safe-output processor reads the edited file and upserts the managed comment, replacing only the XML-fenced block.
+
+Multiple memory IDs are supported in a single comment; each maps to a separate `*.md` file.
+
+### Tradeoffs
+
+| ✅ Pros | ❌ Cons |
+|---|---|
+| Visible in GitHub UI inline on the issue/PR | Requires `issues:write` or `pull-requests:write` |
+| No separate branch or cache | One comment block per `memory-id` per target |
+| Agent edits plain markdown — no tool call needed | Not suited for large structured data |
+| Tied to issue/PR lifecycle | Not available without a triggering issue or PR |
+
+---
+
 ## Stateful Scanning Pattern (repo-memory)
 
 Use `repo-memory` to persist a baseline JSON file between scheduled runs so that the workflow only alerts on *new* findings — vulnerability scans, dependency audits, licence checks, or any "track changes over time" scenario.
@@ -329,17 +380,17 @@ Write the current advisory IDs to `/tmp/gh-aw/repo-memory/default/vuln-baseline.
 
 ## Summary Comparison
 
-| Feature | `cache-memory` | `repo-memory` | `repo-memory` + wiki |
-|---|---|---|---|
-| **First choice** | ✅ Yes | No | No |
-| **Storage backend** | GitHub Actions cache | Git branch | GitHub Wiki |
-| **Persistence** | Up to 90 days | Indefinite | Indefinite |
-| **Compiler adds `contents: write`** | No | Yes (push job) | Yes (push job) |
-| **Repository noise** | None | Git commits | Wiki commits |
-| **Human-readable in GitHub** | No | Via branch UI | Via Wiki UI |
-| **Structured data (JSON)** | ✅ Ideal | Possible | Not recommended |
-| **Filename restrictions** | No colons in names | None | Hyphens for spaces |
-| **Engine compatibility** | Copilot, Claude, custom | Claude, custom | Claude, custom |
+| Feature | `cache-memory` | `repo-memory` | `repo-memory` + wiki | `comment-memory` |
+|---|---|---|---|---|
+| **First choice** | ✅ Yes | No | No | No |
+| **Storage backend** | GitHub Actions cache | Git branch | GitHub Wiki | Issue/PR comment |
+| **Persistence** | Up to 90 days | Indefinite | Indefinite | Issue/PR lifetime |
+| **Compiler adds `contents: write`** | No | Yes (push job) | Yes (push job) | No |
+| **Repository noise** | None | Git commits | Wiki commits | Comment updates |
+| **Human-readable in GitHub** | No | Via branch UI | Via Wiki UI | ✅ Inline on issue/PR |
+| **Structured data (JSON)** | ✅ Ideal | Possible | Not recommended | Not recommended |
+| **Filename restrictions** | No colons in names | None | Hyphens for spaces | None |
+| **Engine compatibility** | Copilot, Claude, custom | Claude, custom | Claude, custom | Claude, custom |
 
 ---
 

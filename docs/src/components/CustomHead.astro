@@ -22,6 +22,85 @@ const ogTitle = isHomePage ? siteTitle : `${rawPageTitle} | ${siteTitle}`;
 // Enhanced default description (110-160 chars optimal for OG)
 const defaultDescription = 'Write agentic workflows in natural language using markdown files and run them as GitHub Actions. Automate your repository with AI agents, strong guardrails, and simple configuration.';
 const pageDescription = entry?.data?.description || defaultDescription;
+const pathname = Astro.url.pathname;
+const isDocsHomePage = pathname === '/gh-aw/' || pathname === '/gh-aw/index.html';
+const homeJsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': 'https://github.github.com/gh-aw/#website',
+      name: siteTitle,
+      url: 'https://github.github.com/gh-aw/',
+      description: defaultDescription,
+      publisher: {
+        '@id': 'https://github.github.com/gh-aw/#organization',
+      },
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: 'https://github.github.com/gh-aw/search/?q={search_term_string}',
+        'query-input': 'required name=search_term_string',
+      },
+    },
+    {
+      '@type': 'Organization',
+      '@id': 'https://github.github.com/gh-aw/#organization',
+      name: 'GitHub',
+      url: 'https://github.com/github',
+      sameAs: ['https://github.com/github/gh-aw'],
+    },
+    {
+      '@type': 'SoftwareApplication',
+      '@id': 'https://github.github.com/gh-aw/#software',
+      name: siteTitle,
+      url: 'https://github.github.com/gh-aw/',
+      description: defaultDescription,
+      applicationCategory: 'DeveloperApplication',
+      operatingSystem: 'Any',
+      creator: {
+        '@id': 'https://github.github.com/gh-aw/#organization',
+      },
+    },
+    {
+      '@type': 'FAQPage',
+      '@id': 'https://github.github.com/gh-aw/#faq',
+      mainEntity: [
+        {
+          '@type': 'Question',
+          name: "What's the difference between agentic workflows and regular GitHub Actions workflows?",
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Agentic workflows use AI to interpret natural language instructions in markdown instead of complex YAML. The AI engine can call pre-approved tools to perform tasks while running with read-only default permissions, safe outputs, and sandboxed execution.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Can agentic workflows write code and create pull requests?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes. Agentic workflows can create pull requests using the create-pull-request safe output so proposed changes are reviewed and merged by humans.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Can workflows trigger other workflows?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes. Workflows can dispatch other workflows using the dispatch-workflow safe output with configurable limits.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Can I use MCP servers with agentic workflows?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes. Model Context Protocol servers can be configured in frontmatter to extend workflows with custom tools and integrations.',
+          },
+        },
+      ],
+    },
+  ],
+};
 
 // Properties we override with enhanced values
 const overriddenProps = new Set([
@@ -40,6 +119,9 @@ const filteredHead = head.filter(({ tag, attrs }) => {
 
 <!-- Starlight's head tags (with OG/Twitter duplicates removed) -->
 {filteredHead.map(({ tag: Tag, attrs, content }) => <Tag {...attrs} set:html={content} />)}
+{isDocsHomePage && (
+  <script type="application/ld+json" set:html={JSON.stringify(homeJsonLd)} />
+)}
 
 <!-- Enhanced OG tags with site name in title and social image -->
 <meta property="og:title" content={ogTitle} />

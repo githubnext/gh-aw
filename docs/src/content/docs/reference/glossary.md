@@ -554,6 +554,10 @@ A compilation target allowing the gh-aw compiler to run in browser environments 
 
 ## Advanced Features
 
+### Autoloop
+
+A GitHub Next project that builds on GitHub Agentic Workflows to enable continuous, metric-driven optimization. Define a goal, a set of files the agent may modify, and an evaluation command that outputs a numeric metric — Autoloop runs on a schedule, proposes changes, and retains only those that improve the metric. Useful for continuously improving test coverage, bundle size, build times, or custom research objectives. See [Autoloop on GitHub](https://github.com/githubnext/autoloop).
+
 ### AWF (Agent Workflow Firewall)
 
 The default coding agent sandbox that isolates AI agent execution in a container with network egress control through domain-based access lists. AWF makes the host filesystem and environment variables available inside the container while restricting outbound network access to configured domains. Enabled with `sandbox.agent: awf` (the default when `sandbox` is not specified). Use `sandbox.agent.version` to pin a specific AWF release for reproducible builds. See [Sandbox Configuration](/gh-aw/reference/sandbox/).

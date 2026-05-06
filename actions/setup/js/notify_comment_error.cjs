@@ -84,6 +84,26 @@ async function tryAddNeedsReviewLabel(commentRepo) {
   }
 }
 
+/**
+ * Map agent conclusion and assignment error count to a run-failure status string.
+ * @param {string} agentConclusion - The agent job conclusion value
+ * @param {number} assignToAgentErrorCount - Number of assign-to-agent errors
+ * @returns {string} Human-readable status text for use in failure messages
+ */
+function getRunFailureStatusText(agentConclusion, assignToAgentErrorCount) {
+  if (agentConclusion === "success" && assignToAgentErrorCount > 0) {
+    return "failed to assign the coding agent";
+  } else if (agentConclusion === "cancelled") {
+    return "was cancelled";
+  } else if (agentConclusion === "skipped") {
+    return "was skipped";
+  } else if (agentConclusion === "timed_out") {
+    return "timed out";
+  } else {
+    return "failed";
+  }
+}
+
 async function main() {
   const commentId = process.env.GH_AW_COMMENT_ID;
   const commentRepo = process.env.GH_AW_COMMENT_REPO;
@@ -182,22 +202,10 @@ async function main() {
         runUrl,
       });
     } else {
-      let statusText;
-      if (agentConclusion === "success" && assignToAgentErrorCount > 0) {
-        statusText = "failed to assign the coding agent";
-      } else if (agentConclusion === "cancelled") {
-        statusText = "was cancelled";
-      } else if (agentConclusion === "skipped") {
-        statusText = "was skipped";
-      } else if (agentConclusion === "timed_out") {
-        statusText = "timed out";
-      } else {
-        statusText = "failed";
-      }
       message = getRunFailureMessage({
         workflowName,
         runUrl,
-        status: statusText,
+        status: getRunFailureStatusText(agentConclusion, assignToAgentErrorCount),
       });
     }
     // Build the caution section for detection warning
@@ -212,25 +220,10 @@ async function main() {
       runUrl,
     });
   } else {
-    // Determine status text based on conclusion type
-    let statusText;
-    if (agentConclusion === "success" && assignToAgentErrorCount > 0) {
-      // Agent itself succeeded but one or more agent assignments failed
-      statusText = "failed to assign the coding agent";
-    } else if (agentConclusion === "cancelled") {
-      statusText = "was cancelled";
-    } else if (agentConclusion === "skipped") {
-      statusText = "was skipped";
-    } else if (agentConclusion === "timed_out") {
-      statusText = "timed out";
-    } else {
-      statusText = "failed";
-    }
-
     message = getRunFailureMessage({
       workflowName,
       runUrl,
-      status: statusText,
+      status: getRunFailureStatusText(agentConclusion, assignToAgentErrorCount),
     });
   }
 
