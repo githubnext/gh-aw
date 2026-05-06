@@ -234,7 +234,6 @@ attribute per experiment using the `otlp.cjs` `logSpan` helper:
 
 ```javascript
 const fs = require('fs');
-const path = require('path');
 const assignmentsFile = '/tmp/gh-aw/experiments/assignments.json';
 if (fs.existsSync(assignmentsFile)) {
   const assignments = JSON.parse(fs.readFileSync(assignmentsFile, 'utf8'));
