@@ -21,6 +21,22 @@ timeout-minutes: 30
 runtimes:
   node:
     version: "24"
+experiments:
+  output_format:
+    variants: [collapsible, inline]
+    description: "Test whether hiding report details behind a <details> block vs. presenting them inline affects discussion engagement"
+    hypothesis: "H0: no change in discussion engagement score. H1: inline format produces ≥20% higher reactions+replies by making charts and recommendations immediately visible"
+    metric: discussion_engagement_score
+    secondary_metrics: [output_length_chars, run_duration_ms]
+    guardrail_metrics:
+      - name: empty_output_rate
+        threshold: "==0"
+    min_samples: 30
+    weight: [50, 50]
+    start_date: "2026-05-07"
+    issue: 30573
+    analysis_type: mann_whitney
+    tags: [output, readability, engagement]
 imports:
   - shared/github-guard-policy.md
   - uses: shared/daily-audit-base.md
@@ -253,8 +269,8 @@ Create a new discussion with the comprehensive report.
 ```markdown
 Brief 2-3 paragraph summary of key findings: total issues analyzed, main clusters identified, notable trends, and any concerns that need attention.
 
-<details>
-<summary>📊 Full Report Details</summary>
+{{#if experiments.output_format == "collapsible"}}<details>
+<summary>📊 Full Report Details</summary>{{/if}}
 
 ### 📈 Issue Activity Trends
 
@@ -323,7 +339,7 @@ Brief 2-3 paragraph summary of key findings: total issues analyzed, main cluster
 2. [Another recommendation]
 3. [...]
 
-</details>
+{{#if experiments.output_format == "collapsible"}}</details>{{/if}}
 
 ---
 *Report generated automatically by the Daily Issues Report workflow*
