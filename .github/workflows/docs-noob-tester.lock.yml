@@ -320,6 +320,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt-import-tree.json
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/base
+            /tmp/gh-aw/.github/agents
           if-no-files-found: ignore
           retention-days: 1
 
@@ -454,6 +455,11 @@ jobs:
           GH_AW_AGENT_FOLDERS: ".agents .claude .codex .crush .gemini .github .opencode .pi"
           GH_AW_AGENT_FILES: ".crush.json AGENTS.md CLAUDE.md GEMINI.md PI.md opencode.jsonc"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh"
+      - name: Restore inline sub-agents from activation artifact
+        env:
+          GH_AW_SUB_AGENT_DIR: ".github/agents"
+          GH_AW_SUB_AGENT_EXT: ".agent.md"
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh"
       - name: Install docs dependencies
         run: |
           cd "${{ github.workspace }}/docs"
