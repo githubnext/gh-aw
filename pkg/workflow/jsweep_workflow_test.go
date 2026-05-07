@@ -161,6 +161,34 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 			t.Error("jsweep workflow one-file-per-run constraint should include explicit stop instruction after PR creation")
 		}
 	})
+
+	// Test 13: Verify the workflow uses lean GitHub tooling and no Serena import
+	t.Run("UsesReposToolsetWithoutSerenaImport", func(t *testing.T) {
+		if !strings.Contains(mdContent, "toolsets: [repos]") {
+			t.Error("jsweep workflow should scope github tools to [repos]")
+		}
+		if strings.Contains(mdContent, "shared/mcp/serena.md") {
+			t.Error("jsweep workflow should not import shared/mcp/serena.md")
+		}
+	})
+
+	// Test 14: Verify workflow permissions follow least privilege
+	t.Run("LeastPrivilegePermissions", func(t *testing.T) {
+		if !strings.Contains(mdContent, "contents: read") || !strings.Contains(mdContent, "actions: read") {
+			t.Error("jsweep workflow should keep contents: read and actions: read permissions")
+		}
+		if strings.Contains(mdContent, "issues: read") || strings.Contains(mdContent, "pull-requests: read") {
+			t.Error("jsweep workflow should not request issues: read or pull-requests: read permissions")
+		}
+	})
+
+	// Test 15: Verify validation instructions are batched into one command
+	t.Run("BatchedValidationCommand", func(t *testing.T) {
+		expected := "npm run format:cjs && npm run lint:cjs && npm run typecheck && npm run test:js -- --no-file-parallelism"
+		if !strings.Contains(mdContent, expected) {
+			t.Error("jsweep workflow should batch validation commands into a single chained command")
+		}
+	})
 }
 
 // TestJSweepWorkflowLockFile validates that the compiled jsweep.lock.yml file
