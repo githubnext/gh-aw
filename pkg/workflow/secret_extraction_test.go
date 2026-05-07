@@ -487,3 +487,23 @@ func TestExtractWorkflowInputExpressionsFromValue(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatInputNameAsEnvVar(t *testing.T) {
+	tests := []struct {
+		name      string
+		inputName string
+		expected  string
+	}{
+		{name: "underscore", inputName: "target_repo", expected: "GH_AW_INPUT_TARGET_REPO"},
+		{name: "dash", inputName: "base-branch", expected: "GH_AW_INPUT_BASE_BRANCH"},
+		{name: "consecutive separators", inputName: "my--input__name", expected: "GH_AW_INPUT_MY__INPUT__NAME"},
+		{name: "mixed case and numeric", inputName: "Repo2Name", expected: "GH_AW_INPUT_REPO2NAME"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := formatInputNameAsEnvVar(tt.inputName)
+			assert.Equal(t, tt.expected, actual, "Input name should be converted to the expected env var")
+		})
+	}
+}
