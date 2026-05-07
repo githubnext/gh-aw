@@ -139,8 +139,7 @@ Playwright includes three browser engines: **Chromium** (Chrome/Edge, most commo
 ```aw wrap
 ---
 on:
-  schedule:
-    - cron: "0 9 * * *"  # Daily at 9 AM
+  schedule: daily
 
 tools:
   playwright:

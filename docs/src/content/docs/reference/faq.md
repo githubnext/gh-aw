@@ -146,7 +146,13 @@ This enables reusable tool configurations, network settings, and permissions acr
 
 ### Can I run workflows on a schedule?
 
-Yes, use cron expressions in the `on:` trigger:
+Yes, use fuzzy schedule expressions in the `on:` trigger (recommended):
+
+```yaml wrap
+on: weekly on monday  # Automatically scattered to avoid load spikes
+```
+
+Or use standard cron syntax for fixed times:
 
 ```yaml wrap
 on:
@@ -154,7 +160,7 @@ on:
     - cron: "0 9 * * MON"  # Every Monday at 9am UTC
 ```
 
-See [Schedule Syntax](/gh-aw/reference/schedule-syntax/) for cron expression reference.
+See [Schedule Syntax](/gh-aw/reference/schedule-syntax/) for all supported formats.
 
 ### Can I run workflows conditionally?
 

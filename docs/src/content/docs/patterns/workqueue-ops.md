@@ -52,8 +52,7 @@ Create one sub-issue per work item. The agent queries open sub-issues of a paren
 ```aw wrap
 ---
 on:
-  schedule:
-    - cron: "0 * * * *"   # Every hour
+  schedule: hourly
   workflow_dispatch:
 
 tools:
@@ -90,8 +89,7 @@ Store queue state as a JSON file in [cache-memory](/gh-aw/reference/cache-memory
 ```aw wrap
 ---
 on:
-  schedule:
-    - cron: "0 6 * * 1-5"  # Weekdays at 6 AM
+  schedule: daily on weekdays
   workflow_dispatch:
 
 tools:
@@ -138,8 +136,7 @@ Use a GitHub Discussion to track pending work items. Unresolved replies represen
 ```aw wrap
 ---
 on:
-  schedule:
-    - cron: "0 8 * * *"   # Daily at 8 AM
+  schedule: daily
   workflow_dispatch:
 
 tools:
