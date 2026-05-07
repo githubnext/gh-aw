@@ -451,3 +451,39 @@ func TestExtractGitHubContextExpressionsFromValue(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractWorkflowInputExpressionsFromValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected map[string]string
+	}{
+		{
+			name:  "single input expression",
+			value: `"repo":"${{ inputs.target_repo }}"`,
+			expected: map[string]string{
+				"GH_AW_INPUT_TARGET_REPO": "${{ inputs.target_repo }}",
+			},
+		},
+		{
+			name:  "multiple input expressions with dash and underscore",
+			value: `"repo":"${{ inputs.target-repo }}","base":"${{ inputs.base_branch }}"`,
+			expected: map[string]string{
+				"GH_AW_INPUT_TARGET_REPO": "${{ inputs.target-repo }}",
+				"GH_AW_INPUT_BASE_BRANCH": "${{ inputs.base_branch }}",
+			},
+		},
+		{
+			name:     "no input expressions",
+			value:    `"repo":"${{ github.repository }}"`,
+			expected: map[string]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractWorkflowInputExpressionsFromValue(tt.value)
+			assert.Equal(t, tt.expected, result, "Should extract expected workflow input expressions")
+		})
+	}
+}

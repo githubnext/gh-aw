@@ -200,6 +200,10 @@ func ExtractEnvExpressionsFromValue(value string) map[string]string {
 // accepted later if they are present in gitHubContextEnvVarMap.
 var gitHubContextExprPattern = regexp.MustCompile(`\$\{\{\s*github\.([a-z][a-z0-9_.]*)\s*\}\}`)
 
+// workflowInputExprPattern matches simple ${{ inputs.NAME }} expressions.
+// NAME may contain letters, numbers, underscores, and dashes.
+var workflowInputExprPattern = regexp.MustCompile(`\$\{\{\s*inputs\.([a-zA-Z_][a-zA-Z0-9_-]*)\s*\}\}`)
+
 // gitHubContextEnvVarMap maps common github.* context properties to their corresponding
 // GitHub Actions runner environment variables (always available on all runners).
 // See: https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
@@ -256,6 +260,48 @@ func ExtractGitHubContextExpressionsFromValue(value string) map[string]string {
 	}
 
 	return result
+}
+
+// ExtractWorkflowInputExpressionsFromValue extracts all simple ${{ inputs.X }} expressions from a
+// string value and maps them to deterministic environment variable names.
+// Returns a map of env var name -> full expression.
+//
+// Examples:
+//   - "${{ inputs.target_repo }}" -> {"GH_AW_INPUT_TARGET_REPO": "${{ inputs.target_repo }}"}
+//   - "${{ inputs.base-branch }}" -> {"GH_AW_INPUT_BASE_BRANCH": "${{ inputs.base-branch }}"}
+func ExtractWorkflowInputExpressionsFromValue(value string) map[string]string {
+	result := make(map[string]string)
+
+	matches := workflowInputExprPattern.FindAllStringSubmatch(value, -1)
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+
+		inputName := match[1]
+		fullExpr := match[0]
+		envVar := normalizeInputNameToEnvVar(inputName)
+		result[envVar] = fullExpr
+		secretLog.Printf("Extracted workflow input expression: %s -> %s", fullExpr, envVar)
+	}
+
+	return result
+}
+
+func normalizeInputNameToEnvVar(inputName string) string {
+	var b strings.Builder
+	b.Grow(len(inputName))
+	for _, r := range inputName {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r - ('a' - 'A'))
+		case (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9'):
+			b.WriteRune(r)
+		default:
+			b.WriteRune('_')
+		}
+	}
+	return "GH_AW_INPUT_" + b.String()
 }
 
 // ReplaceTemplateExpressionsWithEnvVars replaces all template expressions with environment variable references
