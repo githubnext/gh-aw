@@ -74,7 +74,7 @@ else
 fi
 ```
 
-**State file format** (`/tmp/gh-aw/cache-memory/jsweep-state.json`): use an object with `cleaned_files` (`[{file, cleaned_at}]`), `last_run`, `last_file`, and `cache_hit_history` (`[{run_id, date, status}]`).
+**State file format** (`/tmp/gh-aw/cache-memory/jsweep-state.json`): use an object with `cleaned_files` (`[{file, cleaned_at}]`), `last_run`, `last_file`, and `cache_hit_history` (`[{run_id, date, status}]`). The compressed JSON below shows the exact structure.
 
 ```json
 {"cleaned_files":[{"file":"name.cjs","cleaned_at":"YYYY-MM-DD"}],"last_run":"YYYY-MM-DD","last_file":"name.cjs","cache_hit_history":[{"run_id":"123","date":"YYYY-MM-DD","status":"hit"}]}
@@ -191,6 +191,7 @@ CACHE_STATUS="<hit or miss>"
 export STATE_FILE TODAY RUN_ID CLEANED_FILE CACHE_STATUS
 python3 - << 'PYEOF'
 import json, os
+# Intentionally compact for token efficiency; behavior must remain unchanged.
 s={"cleaned_files":[],"last_run":"","last_file":"","cache_hit_history":[]}
 try: s=json.load(open(os.environ["STATE_FILE"]))
 except Exception: pass
