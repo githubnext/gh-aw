@@ -545,10 +545,13 @@ func dependabotToAnySlice(value any) ([]any, bool) {
 		return direct, true
 	}
 
+	// goccy/go-yaml can decode typed slices depending on source shape.
+	// Use reflection fallback to safely normalize those typed slices to []any.
 	rv := reflect.ValueOf(value)
 	if rv.Kind() != reflect.Slice {
 		return nil, false
 	}
+	dependabotLog.Printf("Normalizing typed slice %T to []any via reflection", value)
 
 	out := make([]any, rv.Len())
 	for i := 0; i < rv.Len(); i++ {
@@ -565,10 +568,13 @@ func dependabotToStringAnyMap(value any) (map[string]any, bool) {
 		return direct, true
 	}
 
+	// goccy/go-yaml can decode typed maps in dynamic sections.
+	// Use reflection fallback to safely normalize those maps to map[string]any.
 	rv := reflect.ValueOf(value)
 	if rv.Kind() != reflect.Map {
 		return nil, false
 	}
+	dependabotLog.Printf("Normalizing typed map %T to map[string]any via reflection", value)
 
 	out := make(map[string]any, rv.Len())
 	iter := rv.MapRange()
@@ -623,13 +629,17 @@ func normalizeDependabotIgnoreEntries(content []byte, managedPatterns []string) 
 		}
 
 		prefix := parts[0] + "dependency-name: "
-		dependencyName := strings.TrimSpace(parts[1])
-		dependencyName = strings.Trim(dependencyName, `"'`)
+		rawDependencyName := strings.TrimSpace(parts[1])
+		quote := `"`
+		if strings.HasPrefix(rawDependencyName, "'") && strings.HasSuffix(rawDependencyName, "'") {
+			quote = `'`
+		}
+		dependencyName := strings.Trim(rawDependencyName, `"'`)
 		if dependencyName == "" {
 			continue
 		}
 
-		line = prefix + `"` + dependencyName + `"`
+		line = prefix + quote + dependencyName + quote
 
 		managed := false
 		for _, pattern := range managedPatterns {
