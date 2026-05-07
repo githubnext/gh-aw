@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
@@ -669,8 +670,10 @@ func TestAuditDiffToolEmitsProgressNotifications(t *testing.T) {
 	_, err = session.CallTool(context.Background(), params)
 	require.NoError(t, err, "audit-diff tool should succeed")
 
+	require.Eventually(t, func() bool {
+		return len(getNotifications()) >= 2
+	}, time.Second, 10*time.Millisecond, "audit-diff tool should emit at least 2 progress notifications")
 	notifications := getNotifications()
-	require.GreaterOrEqual(t, len(notifications), 2, "audit-diff tool should emit at least 2 progress notifications")
 
 	first := notifications[0]
 	assert.InDelta(t, float64(0), first.Progress, 0.001, "first notification should have progress=0")
