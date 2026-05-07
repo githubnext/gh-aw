@@ -670,10 +670,17 @@ func TestAuditDiffToolEmitsProgressNotifications(t *testing.T) {
 	_, err = session.CallTool(context.Background(), params)
 	require.NoError(t, err, "audit-diff tool should succeed")
 
+	var notifications []*mcp.ProgressNotificationParams
 	require.Eventually(t, func() bool {
-		return len(getNotifications()) >= 2
-	}, time.Second, 10*time.Millisecond, "audit-diff tool should emit at least 2 progress notifications")
-	notifications := getNotifications()
+		notifications = getNotifications()
+		if len(notifications) < 2 {
+			return false
+		}
+		first := notifications[0]
+		last := notifications[len(notifications)-1]
+		return first.Progress >= -0.001 && first.Progress <= 0.001 &&
+			last.Progress >= 99.999 && last.Progress <= 100.001
+	}, time.Second, 10*time.Millisecond, "audit-diff tool should emit start and completion progress notifications")
 
 	first := notifications[0]
 	assert.InDelta(t, float64(0), first.Progress, 0.001, "first notification should have progress=0")
