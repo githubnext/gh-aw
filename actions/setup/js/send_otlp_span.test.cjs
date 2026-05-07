@@ -770,6 +770,8 @@ describe("sendOTLPSpan", () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(warnSpy.mock.calls[1][0]).toContain("error after 2 attempts");
+    expect(writeSpy).toHaveBeenCalled();
+    expect(writeSpy.mock.calls[0][0]).toBe("/tmp/gh-aw/otlp-export-errors.count");
 
     writeSpy.mockRestore();
     warnSpy.mockRestore();
