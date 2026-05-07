@@ -314,9 +314,9 @@ Test workflow
 		"Job-level permissions must be handler-computed (issues:write)")
 }
 
-// TestSafeOutputsAppTokenUpdateProjectDoesNotDowngradeIssuesWrite is a regression test for
-// add-comment + add-labels + update-project where update-project must not downgrade issues
-// permission from write to read in the minted GitHub App token.
+// TestSafeOutputsAppTokenUpdateProjectDoesNotDowngradeIssuesWrite is a regression test for the
+// add-comment + add-labels + update-project co-presence case reported after github/gh-aw#30437.
+// update-project must not downgrade issues permission from write to read in the minted GitHub App token.
 func TestSafeOutputsAppTokenUpdateProjectDoesNotDowngradeIssuesWrite(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
