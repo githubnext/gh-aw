@@ -10,18 +10,20 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
-	yamlv3 "go.yaml.in/yaml/v3"
 )
 
 var dependabotLog = logger.New("workflow:dependabot")
 
 const managedDependabotIgnoreComment = "Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump."
+
+const dependabotConfigRelativePath = ".github/dependabot.yml"
 
 // PackageJSON represents the structure of a package.json file
 type PackageJSON struct {
@@ -429,66 +431,62 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 		return fmt.Errorf("failed to read dependabot.yml: %w", err)
 	}
 
-	var root yamlv3.Node
-	if err := yamlv3.Unmarshal(original, &root); err != nil {
+	var root map[string]any
+	if err := yaml.Unmarshal(original, &root); err != nil {
 		return fmt.Errorf("failed to parse dependabot.yml: %w", err)
 	}
 
-	if root.Kind != yamlv3.DocumentNode || len(root.Content) == 0 {
+	updatesAny, ok := root["updates"]
+	if !ok {
 		return nil
 	}
-	document := root.Content[0]
-	if document.Kind != yamlv3.MappingNode {
+	updates, ok := dependabotToAnySlice(updatesAny)
+	if !ok {
 		return nil
 	}
 
 	managedPatterns := []string{fmt.Sprintf("%s/**", c.effectiveActionsRepo())}
-	updatesNode := getYAMLMapValue(document, "updates")
-	if updatesNode == nil || updatesNode.Kind != yamlv3.SequenceNode {
-		return nil
-	}
-
 	changed := false
-	for _, updateNode := range updatesNode.Content {
-		if updateNode.Kind != yamlv3.MappingNode {
-			continue
-		}
-		ecosystemNode := getYAMLMapValue(updateNode, "package-ecosystem")
-		if ecosystemNode == nil || ecosystemNode.Kind != yamlv3.ScalarNode || ecosystemNode.Value != "github-actions" {
+	originalStr := string(original)
+
+	for i, updateAny := range updates {
+		updateMap, ok := dependabotToStringAnyMap(updateAny)
+		if !ok {
 			continue
 		}
 
-		ignoreNode := getYAMLMapValue(updateNode, "ignore")
-		if ignoreNode == nil {
-			ignoreNode = &yamlv3.Node{Kind: yamlv3.SequenceNode}
-			updateNode.Content = append(updateNode.Content, &yamlv3.Node{Kind: yamlv3.ScalarNode, Value: "ignore"}, ignoreNode)
+		ecosystem, _ := updateMap["package-ecosystem"].(string)
+		if ecosystem != "github-actions" {
+			continue
+		}
+
+		ignoreAny, hasIgnore := updateMap["ignore"]
+		if !hasIgnore || isYAMLNullOrEmptyScalar(ignoreAny) {
+			updateMap["ignore"] = []any{}
+			ignoreAny = updateMap["ignore"]
 			changed = true
 		}
-		if isYAMLNullOrEmptyScalar(ignoreNode) {
-			ignoreNode.Kind = yamlv3.SequenceNode
-			ignoreNode.Tag = "!!seq"
-			ignoreNode.Value = ""
-			ignoreNode.Content = nil
-			changed = true
-		}
-		if ignoreNode.Kind != yamlv3.SequenceNode {
+
+		ignoreEntries, ok := dependabotToAnySlice(ignoreAny)
+		if !ok {
 			continue
 		}
 
 		managedPresent := make(map[string]bool, len(managedPatterns))
-		for _, ignoreEntryNode := range ignoreNode.Content {
-			if ignoreEntryNode.Kind != yamlv3.MappingNode {
+		for _, ignoreEntryAny := range ignoreEntries {
+			ignoreEntryMap, ok := dependabotToStringAnyMap(ignoreEntryAny)
+			if !ok {
 				continue
 			}
-			dependencyNameNode := getYAMLMapValue(ignoreEntryNode, "dependency-name")
-			if dependencyNameNode == nil || dependencyNameNode.Kind != yamlv3.ScalarNode {
+			dependencyName, _ := ignoreEntryMap["dependency-name"].(string)
+			if dependencyName == "" {
 				continue
 			}
+
 			for _, pattern := range managedPatterns {
-				if dependencyNameNode.Value == pattern {
+				if dependencyName == pattern {
 					managedPresent[pattern] = true
-					if dependencyNameNode.LineComment != managedDependabotIgnoreComment {
-						dependencyNameNode.LineComment = managedDependabotIgnoreComment
+					if !hasManagedIgnoreComment(originalStr, pattern) {
 						changed = true
 					}
 				}
@@ -499,30 +497,24 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 			if managedPresent[pattern] {
 				continue
 			}
-			ignoreNode.Content = append(ignoreNode.Content, &yamlv3.Node{
-				Kind: yamlv3.MappingNode,
-				Content: []*yamlv3.Node{
-					{Kind: yamlv3.ScalarNode, Value: "dependency-name"},
-					{
-						Kind:        yamlv3.ScalarNode,
-						Value:       pattern,
-						Style:       yamlv3.DoubleQuotedStyle,
-						LineComment: managedDependabotIgnoreComment,
-					},
-				},
-			})
+			ignoreEntries = append(ignoreEntries, map[string]any{"dependency-name": pattern})
 			changed = true
 		}
+
+		updateMap["ignore"] = ignoreEntries
+		updates[i] = updateMap
 	}
 
 	if !changed {
 		return nil
 	}
 
-	updated, err := yamlv3.Marshal(&root)
+	root["updates"] = updates
+	updated, err := yaml.Marshal(root)
 	if err != nil {
 		return fmt.Errorf("failed to encode dependabot.yml: %w", err)
 	}
+	updated = normalizeDependabotIgnoreEntries(updated, managedPatterns)
 
 	if bytes.Equal(original, updated) {
 		return nil
@@ -533,29 +525,125 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 	return nil
 }
 
-func getYAMLMapValue(mappingNode *yamlv3.Node, key string) *yamlv3.Node {
-	if mappingNode == nil || mappingNode.Kind != yamlv3.MappingNode {
-		return nil
-	}
-	for i := 0; i+1 < len(mappingNode.Content); i += 2 {
-		if mappingNode.Content[i].Value == key {
-			return mappingNode.Content[i+1]
-		}
-	}
-	return nil
+// DependabotConfigPath resolves the repository-local Dependabot config path.
+func DependabotConfigPath(gitRoot string) string {
+	return filepath.Join(gitRoot, dependabotConfigRelativePath)
 }
 
-func isYAMLNullOrEmptyScalar(node *yamlv3.Node) bool {
-	if node == nil || node.Kind != yamlv3.ScalarNode {
-		return false
+// ReconcileManagedDependabotIgnoresInRepo reconciles managed ignores in the
+// Dependabot config located under a repository root.
+func (c *Compiler) ReconcileManagedDependabotIgnoresInRepo(gitRoot string) error {
+	return c.ReconcileManagedDependabotIgnores(DependabotConfigPath(gitRoot))
+}
+
+func dependabotToAnySlice(value any) ([]any, bool) {
+	if value == nil {
+		return nil, false
 	}
-	// YAML null may be represented as an explicit !!null tag, an empty scalar
-	// (`ignore:`), the canonical `null` token (case-insensitive), or `~`.
-	if node.Tag == "!!null" {
+	if direct, ok := value.([]any); ok {
+		return direct, true
+	}
+
+	rv := reflect.ValueOf(value)
+	if rv.Kind() != reflect.Slice {
+		return nil, false
+	}
+
+	out := make([]any, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		out[i] = rv.Index(i).Interface()
+	}
+	return out, true
+}
+
+func dependabotToStringAnyMap(value any) (map[string]any, bool) {
+	if value == nil {
+		return nil, false
+	}
+	if direct, ok := value.(map[string]any); ok {
+		return direct, true
+	}
+
+	rv := reflect.ValueOf(value)
+	if rv.Kind() != reflect.Map {
+		return nil, false
+	}
+
+	out := make(map[string]any, rv.Len())
+	iter := rv.MapRange()
+	for iter.Next() {
+		key, ok := iter.Key().Interface().(string)
+		if !ok {
+			return nil, false
+		}
+		out[key] = iter.Value().Interface()
+	}
+	return out, true
+}
+
+func isYAMLNullOrEmptyScalar(value any) bool {
+	if value == nil {
 		return true
 	}
-	value := strings.TrimSpace(node.Value)
-	return value == "" || strings.EqualFold(value, "null") || value == "~"
+	rawValue, ok := value.(string)
+	if !ok {
+		return false
+	}
+	trimmed := strings.TrimSpace(rawValue)
+	return trimmed == "" || strings.EqualFold(trimmed, "null") || trimmed == "~"
+}
+
+func hasManagedIgnoreComment(content string, pattern string) bool {
+	for _, line := range strings.Split(content, "\n") {
+		if strings.Contains(line, "dependency-name:") &&
+			strings.Contains(line, pattern) &&
+			strings.Contains(line, managedDependabotIgnoreComment) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeDependabotIgnoreEntries(content []byte, managedPatterns []string) []byte {
+	lines := strings.Split(string(content), "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !strings.Contains(trimmed, "dependency-name:") {
+			continue
+		}
+
+		beforeComment, comment, hasComment := strings.Cut(line, "#")
+		parts := strings.SplitN(beforeComment, "dependency-name:", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		prefix := parts[0] + "dependency-name: "
+		dependencyName := strings.TrimSpace(parts[1])
+		dependencyName = strings.Trim(dependencyName, `"'`)
+		if dependencyName == "" {
+			continue
+		}
+
+		line = prefix + `"` + dependencyName + `"`
+
+		managed := false
+		for _, pattern := range managedPatterns {
+			if dependencyName == pattern {
+				managed = true
+				break
+			}
+		}
+
+		if managed {
+			line += " # " + managedDependabotIgnoreComment
+		} else if hasComment {
+			line += " #" + strings.TrimSpace(comment)
+		}
+
+		lines[i] = line
+	}
+	return []byte(strings.Join(lines, "\n"))
 }
 
 // collectPipDependencies collects all pip dependencies from workflow data

@@ -359,6 +359,52 @@ func TestReconcileManagedDependabotIgnores_NoDependabotFile(t *testing.T) {
 	}
 }
 
+func TestDependabotConfigPath(t *testing.T) {
+	root := "/tmp/example-repo"
+	expected := filepath.Join(root, ".github", "dependabot.yml")
+	if actual := DependabotConfigPath(root); actual != expected {
+		t.Fatalf("expected dependabot path %q, got %q", expected, actual)
+	}
+}
+
+func TestReconcileManagedDependabotIgnoresInRepo(t *testing.T) {
+	compiler := NewCompiler()
+	tempDir := testutil.TempDir(t, "test-*")
+	githubDir := filepath.Join(tempDir, ".github")
+	if err := os.MkdirAll(githubDir, 0755); err != nil {
+		t.Fatalf("failed to create .github directory: %v", err)
+	}
+
+	dependabotPath := filepath.Join(githubDir, "dependabot.yml")
+	original := `version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/.github/workflows"
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "actions/checkout"
+`
+	if err := os.WriteFile(dependabotPath, []byte(original), 0644); err != nil {
+		t.Fatalf("failed to write test dependabot.yml: %v", err)
+	}
+
+	err := compiler.ReconcileManagedDependabotIgnoresInRepo(tempDir)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	updated, err := os.ReadFile(dependabotPath)
+	if err != nil {
+		t.Fatalf("failed to read updated dependabot.yml: %v", err)
+	}
+
+	updatedStr := string(updated)
+	if !strings.Contains(updatedStr, `dependency-name: "github/gh-aw-actions/**"`) {
+		t.Fatal("managed github/gh-aw-actions ignore entry should be added")
+	}
+}
+
 func TestReconcileManagedDependabotIgnores_NoGitHubActionsUpdate(t *testing.T) {
 	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
